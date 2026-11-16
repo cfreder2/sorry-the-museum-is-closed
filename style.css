@@ -85,7 +85,10 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 .touch #drive { display: block; }
 #drive button { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); font: 700 15px var(--mono); letter-spacing: .12em; color: #fff; background: rgba(12,14,20,.5); touch-action: none; }
 #drive button:active { background: rgba(255,255,255,.28); }
-#bGas { width: 112px; height: 112px; right: max(22px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); background: rgba(226,205,148,.3) !important; border-color: var(--gilt) !important; font-size: 19px !important; }
+#bGas { overflow: hidden; width: 112px; height: 112px; right: max(22px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); background: rgba(226,205,148,.3) !important; border-color: var(--gilt) !important; font-size: 19px !important; }
+#bGas i { position: absolute; left: 0; right: 0; bottom: 0; height: var(--lvl, 0%); background: rgba(226,205,148,.75); pointer-events: none; }
+#bGas span { position: relative; pointer-events: none; text-shadow: 0 1px 4px #000; }
+#pads #bLights[aria-pressed="false"] { opacity: .55; }
 #bJump { width: 78px; height: 78px; right: calc(max(22px, env(safe-area-inset-right)) + 124px); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 6px); }
 #bUp, #bDown { width: 88px; height: 88px; right: max(22px, env(safe-area-inset-right)); }
 #bUp { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 98px); } #bDown { bottom: max(18px, env(safe-area-inset-bottom)); }

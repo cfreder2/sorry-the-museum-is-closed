@@ -27,6 +27,9 @@ export class Input {
     this.btn = { gas: false, jump: false, up: false, down: false };     // on-screen buttons being held
     this._ids = { gas: new Set(), jump: new Set(), up: new Set(), down: new Set() };
     this.thumb = { x: 0, y: 0, ox: 0, oy: 0, on: false };                // where the thumbstick is, for drawing it
+    this.gasLevel = 1;               // how hard GAS is being pressed, 0.3 (a touch) to 1 (flat out)
+    this.gasBy = 'pedal';            // how that is being measured on this phone: 'pressure', 'area' or 'pedal'
+    this._area = { lo: Infinity, hi: 0 };
     this._jump = false;
     this.onGesture = null;           // called on any lift or key, to unlock sound
     this._pad = {};
@@ -102,7 +105,24 @@ export class Input {
   // Make an element a button that is held down: gas, jump, up, down.
   bind(el, name) {
     const opt = { passive: false };
-    el.addEventListener('touchstart', e => { e.preventDefault(); this.usedTouch = true; for (const t of e.changedTouches) this._ids[name].add(t.identifier); this.btn[name] = true; }, opt);
+    // GAS is not just on or off. A phone that can feel pressure gives it directly. One that
+    // cannot may still report how much thumb is on the glass, which grows as you press. Failing
+    // both, the button is a pedal: low on it is gentle, high on it is flat out.
+    const level = t => {
+      const f = t.force || 0, r = Math.max(t.radiusX || 0, t.radiusY || 0);
+      if (f > 0.001 && f < 0.999) this.gasBy = 'pressure';
+      if (r > 0) { this._area.lo = Math.min(this._area.lo, r); this._area.hi = Math.max(this._area.hi, r); if (this.gasBy === 'pedal' && this._area.hi - this._area.lo > 6) this.gasBy = 'area'; }
+      let k;
+      if (this.gasBy === 'pressure') k = (f - 0.12) / 0.55;
+      else if (this.gasBy === 'area') k = (r - this._area.lo) / Math.max(8, (this._area.hi - this._area.lo) * 0.8);
+      else { const b = el.getBoundingClientRect(); k = (b.bottom - t.clientY) / b.height * 1.25 - 0.12; }
+      this.gasLevel = 0.3 + 0.7 * Math.max(0, Math.min(1, k));
+    };
+    if (name === 'gas') {
+      el.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) if (this._ids.gas.has(t.identifier)) level(t); }, opt);
+      el.addEventListener('mousedown', () => { this.gasLevel = 1; });
+    }
+    el.addEventListener('touchstart', e => { e.preventDefault(); this.usedTouch = true; for (const t of e.changedTouches) { this._ids[name].add(t.identifier); if (name === 'gas') level(t); } this.btn[name] = true; }, opt);
     el.addEventListener('touchend', e => { e.preventDefault(); for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0; if (this.onGesture) this.onGesture(); }, opt);
     el.addEventListener('touchcancel', e => { for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0; }, opt);
     el.addEventListener('mousedown', () => { this.btn[name] = true; });
@@ -161,7 +181,7 @@ export class Input {
         if (b.up || b.down) ly = (b.up ? 1 : 0) - (b.down ? 1 : 0);
       } else {
         if (tl) rx = curve(tl.x);
-        if (tl && tl.y < -0.55) ly = -1; else if (b.gas) ly = 1;
+        if (tl && tl.y < -0.55) ly = -1; else if (b.gas) ly = this.gasLevel;
       }
     }
     let held = this.down.has('Space') || this.btn.jump;

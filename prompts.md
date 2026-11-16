@@ -166,3 +166,7 @@ the previous one was still being worked on; those are marked.
 ## 39 (sent during the build)
 
 > remove walls of text
+
+## 40
+
+> on mobile no way to turn off or on the lights, also, make the hard press go fast and a light press go slow on the gas.

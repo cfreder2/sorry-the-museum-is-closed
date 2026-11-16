@@ -121,7 +121,8 @@ export class Car {
     this.steer += (inp.steer - this.steer) * Math.min(1, dt * 11);
     let rate = 0;
     if (!this.air) {
-      if (th > 0) vf += th * 13 * (1 - Math.max(0, vf) / TOP) * dt * (vf < 0 ? 2.2 : 1);
+      // Part throttle is a lower top speed, not just a slower run up to the same one.
+      if (th > 0) vf += th * 13 * (1 - Math.max(0, vf) / (TOP * (0.22 + 0.78 * th))) * dt * (vf < 0 ? 2.2 : 1);
       else if (th < 0) vf += th * (vf > 0.4 ? 20 : 9 * (1 - Math.max(0, -vf) / REV)) * dt;
       vf -= vf * 0.24 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 0.4 * dt);     // tops out near 9.5 m/s
       // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.

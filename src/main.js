@@ -173,7 +173,7 @@ function start(mode, fresh = false) {
     resumed = !!sv;
     sound.musicOn = true;
     say(resumed ? `Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.` : 'Michigan Avenue, long after closing. The door is open. Go on in.', 1.2, 6);
-    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb steers. Hold GAS. Pull the stick back to reverse.', 7.5, 7);
+    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb steers. GAS on the right: gently for slow, harder (or higher up it) for fast.', 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -399,7 +399,7 @@ function openNotebook() {
 function controlsList() {
   const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
   const rows = touch
-    ? [['Car', 'Left thumb steers. Hold GAS. Pull back to reverse.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when a work is named.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    ? [['Car', 'Left thumb steers. Pull back to reverse.'], ['Gas', input.gasBy === 'pedal' ? 'Hold GAS. Low on the button is gentle, slide up for flat out.' : 'Hold GAS. Press lightly to go slowly, hard to go fast.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when a work is named.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
     : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
@@ -685,6 +685,7 @@ let frame = 0;
 function hud() {
   const v = G.vehicle, st = input.sticks, k = input.usedTouch ? 38 : 30;
   const th = input.thumb, sl = $('stickL');
+  if (input.usedTouch) $('bGas').style.setProperty('--lvl', (input.btn.gas ? Math.round(input.gasLevel * 100) : 0) + '%');
   if (input.usedTouch) {
     // The thumbstick is drawn where the thumb came down.
     knobL.style.transform = `translate(${th.x * k}px,${-th.y * k}px)`;
@@ -775,7 +776,7 @@ function play(dt, real) {
   prev.copy(here);
 
   if (input.took('camera')) G.view = G.view === 'chase' ? 'fpv' : 'chase';
-  if (input.took('lights')) { G.lampOn = !G.lampOn; G.lamp.intensity = G.lampOn ? 70 : 0; }
+  if (input.took('lights')) { G.lampOn = !G.lampOn; G.lamp.intensity = G.lampOn ? 70 : 0; $('bLights').setAttribute('aria-pressed', G.lampOn); sound.tick(0.08, 2200, 0.03); }
   if (input.took('mute')) act('sound');
   if (input.took('notebook')) { pause(); openNotebook(); }
   if (input.took('pause')) pause();
