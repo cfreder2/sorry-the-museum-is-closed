@@ -150,3 +150,7 @@ the previous one was still being worked on; those are marked.
 ## 35 (sent during the build, with a screenshot of a bronze group whose cut-out still had grey backdrop between the figures)
 
 > cutouts should be a mask of transparency?
+
+## 36
+
+> when I go up a halfpipe, I want to be able to sort of jump in a pralbola right, lik a an upside down U you jump from one, land on another.  and you can hit space to like trick out and then you land it perfectly, it says perfect landing!

@@ -225,6 +225,9 @@ export class Sound {
   // One soft note for each work seen.
   seen() { this.bell(midi(81 + PENTA[Math.floor(Math.random() * 5)]), 0, 0.03 * this.vol.music, 1.1, 0.7); }
 
+  // A perfect landing: the chord, all at once and bright.
+  perfect() { const t = this.ctx ? this.ctx.currentTime : 0; [74, 81, 86, 90, 93].forEach((n, i) => this.bell(midi(n), t + i * 0.035, 0.06, 2.2)); }
+
   // Each hoop a step higher up the scale than the last.
   hoop(n) {
     const t = this.ctx ? this.ctx.currentTime : 0, deg = n % 10, note = 74 + PENTA[deg % 5] + Math.floor(deg / 5) * 12;

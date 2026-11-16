@@ -70,6 +70,10 @@ What is not true:
   tabletops, funboxes, packing crates, table runs, and half-pipes against the
   walls of the larger galleries. A work never hangs behind a ramp: anything
   above one is hung higher, so the top of your air is in front of a picture.
+  Off the lip of a skate ramp the car goes up and comes back down in an arc,
+  turned round to roll down the ramp it left; off a spine (two ramps back to
+  back) it goes over the top and down the other side. Throw a flip or a spin
+  and bring it round square for a perfect landing, which keeps your speed.
   Griffin Court has a skyway of toy track slung from its glass roof, curved
   like the real thing, with gaps to clear. The Grand Staircase room has a ramp,
   a landing and the steps to launch down. Outside there is a loop-the-loop

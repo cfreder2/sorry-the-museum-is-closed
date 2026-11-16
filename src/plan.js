@@ -287,6 +287,15 @@ function addStunts(plan) {
     quarter(F, u, -1, R, r2, deck, w); quarter(F, u, 1, R, r2, deck, w);
     return true;
   };
+  // A spine: two skate ramps back to back. Up one side, over the top, down the other.
+  const spine = (F, u, v, R = 2.2, run = 1.9, w = 2.6) => {
+    const lipH = R - Math.sqrt(R * R - run * run);
+    if (!free(F, u - run, u + run, v - w / 2, v + w / 2)) return false;
+    ramp(F, u - run, u, v - w / 2, v + w / 2, 0, lipH, { curve: R, spine: true });
+    ramp(F, u, u + run, v - w / 2, v + w / 2, lipH, 0, { curve: R, spine: true });
+    hoop(F, u, v, lipH + 1.5, 'u', 0.95);
+    return true;
+  };
   const hopHoops = (F, v) => { for (const u of [-F.L / 4, 0, F.L / 4]) hoop(F, u, v, 0.8, 'u', 0.55); return true; };
 
   // ---- jumps on the racing line, wherever it runs straight across a room ----
@@ -321,6 +330,9 @@ function addStunts(plan) {
     push('track', [lane[1] + 0.25, hall.x1 - 0.3, N - 21.5, N - 17], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'skyway ledge' });
     push('track', [lane[0] - 2.4, lane[0] - 0.25, N - 42.5, N - 37.5], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'crow’s nest' });
   }
+
+  // Two spines down the middle of Griffin Court.
+  spine(HF, -12, -2.2); spine(HF, 14, -2.2);
 
   // ---- the Grand Staircase (Gallery 200) ----
   // A ramp up, a landing with a kicker on it, and the steps down the far side.
@@ -364,6 +376,7 @@ function addStunts(plan) {
       () => F.L >= 9 && F.W >= 9 && (funbox(F, -F.L / 5, F.W / 6) || funbox(F, F.L / 5, -F.W / 6) || funbox(F, 0, 0)),
       () => F.L >= 11 && (crates(F, 0, -F.W / 5, k % 2 ? 1 : -1) || crates(F, 0, F.W / 5, k % 2 ? 1 : -1)),
       () => tall && F.W >= 11 && !pipes.has(r.id) && (quarter(F, F.L / 4, 1) || quarter(F, -F.L / 4, -1)) > 0,
+      () => tall && F.L >= 13 && F.W >= 8 && (spine(F, 0, 0) || spine(F, F.L / 5, F.W / 6) || spine(F, -F.L / 5, -F.W / 6)),
     ];
     // The sculpture floors keep more of their floor for glass cases.
     const cases = r.floor === '1' || r.floor === 'LL';
@@ -403,7 +416,9 @@ function addStunts(plan) {
     decal(F, -14, -6, 1.25, 2.75, 1);
     hoop(F, 0.2, 2, 4.3, 'u', 1.15);
     tabletop(F, -12, 6.5, 0.45, 2); tabletop(F, 2, 6.5, 0.45, 2); tabletop(F, 14, 6.5, 0.45, 2);
-    for (const u of [-18, -9, 9, 18]) { cone(F, u, -1.5); cone(F, u, 9.2); }
+    F.r = null;
+    spine(F, -17, -0.5); spine(F, 17, 1.5);
+    for (const u of [-9, 9]) { cone(F, u, -1.5); cone(F, u, 9.2); }
     P.push({ type: 'sign', x: F.cx - 19, z: F.cz - 5, yaw: 1.2 });
   }
   // The lions either side of the Michigan Avenue door, and a lamp by every way in.

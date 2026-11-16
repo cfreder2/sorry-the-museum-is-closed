@@ -174,7 +174,7 @@ function start(mode, fresh = false) {
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
-    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 6); if (!input.usedTouch) say('Space to jump. Hold it in the air and steer for tricks.', 24, 7); }
+    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 6); if (!input.usedTouch) say('Space to jump. Hold it in the air and steer for tricks. Land it square for a perfect landing.', 24, 8); }
   }
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
@@ -506,7 +506,9 @@ function flight(v, real, racing) {
     if (v.landed) {
       sound.bump(1.5 + v.landed.impact * 0.8);
       const trick = trickName(v.landed);
-      if (v.landed.crash) callout('WRONG WAY UP'); else if (trick) { callout(trick); sound.lap(); }
+      if (v.landed.crash) callout('WRONG WAY UP');
+      else if (v.landed.perfect) { callout('PERFECT LANDING!\n' + trick); sound.perfect(); }
+      else if (trick) { callout(trick); sound.lap(); }
       else if (v.landed.air > 1.1) callout(`${v.landed.air.toFixed(1)} SECONDS OF AIR`);
       if (v.landed.air > 0.35) {
         const best = v.landed.air > bestAir + 0.005;
