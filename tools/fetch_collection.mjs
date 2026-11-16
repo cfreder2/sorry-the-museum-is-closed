@@ -21,14 +21,11 @@ writeFileSync(out, JSON.stringify(raw));
 
 const c = curate(raw);
 const placed = hang(buildPlan(), c);
-console.log(`${raw.works.length} works saved, ${placed.length} hung`);
-for (const [id, r] of Object.entries(c.rooms)) {
-  const n = placed.filter(p => p.room === id).length;
-  console.log(`  ${id}  ${r.gallery.padEnd(12)} ${String(n).padStart(2)} of ${String(r.works.length).padStart(2)} hung  ${r.names.join(', ')}`);
-}
-console.log(`  hall ${placed.filter(p => p.room === 'hall').length} of ${c.hall.length}`);
-console.log(`  miniature rooms ${placed.filter(p => p.room === 'C').length} of ${c.corridor.length}`);
-for (const p of placed.filter(p => p.room === 'hall')) console.log(`     hall: ${p.work.t.slice(0, 50)} — ${p.work.a} ${p.w.toFixed(1)}×${p.h.toFixed(1)} m`);
+const count = k => placed.filter(p => p.kind === k).length;
+console.log(`${raw.works.length} works saved; ${count('painting')} hung, ${count('object')} in cases, ${count('miniature')} miniature rooms`);
+const rows = Object.entries(c.rooms).map(([id, r]) => `${id.replace(/^G/, '')}:${placed.filter(p => p.room === id && p.kind !== 'object').length}/${r.wall.length}+${placed.filter(p => p.room === id && p.kind === 'object').length}`);
+console.log('  room: hung/offered + cases   ' + rows.join('  '));
+console.log(`  raised to clear a ramp: ${placed.filter(p => p.high).length}`);
 
 if (process.argv.includes('--images')) {
   const dir = fileURLToPath(new URL('../data/img/', import.meta.url));

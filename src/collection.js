@@ -5,7 +5,7 @@
 // browser (live) and in node (tools/fetch_collection.mjs, which saves the copy
 // the game falls back to when the API cannot be reached).
 
-import { NORTH, SOUTH } from './plan.js';
+import LAYOUT from './layout.js';
 
 const API = 'https://api.artic.edu/api/v1/artworks/search';
 export const IIIF = 'https://www.artic.edu/iiif/2';
@@ -70,53 +70,55 @@ function slim(d) {
   };
 }
 
+// What hangs on a wall, and what stands in a glass case.
+const WALL = ['Painting', 'Print', 'Textile', 'Drawing and Watercolor'];
+const CASE = ['Sculpture', 'Armor', 'Vessel', 'Mask', 'Funerary Object'];
+
 export async function fetchLive(signal) {
   const base = [{ term: { is_public_domain: true } }, { term: { is_on_view: true } }, { exists: { field: 'image_id' } }];
-  const [paintings, minis] = await Promise.all([
-    all([...base, { term: { 'artwork_type_title.keyword': 'Painting' } }], signal),
-    all([...base, { term: { 'artwork_type_title.keyword': 'Miniature room' } }], signal, 1),
-  ]);
-  const works = [...paintings, ...minis].filter(d => d.image_id && d.thumbnail && d.thumbnail.width).map(slim);
+  const of = types => all([...base, { terms: { 'artwork_type_title.keyword': types } }], signal);
+  const groups = await Promise.all([of(['Painting']), of(['Sculpture', 'Armor']), of(['Vessel', 'Mask', 'Funerary Object', 'Print', 'Textile', 'Drawing and Watercolor', 'Miniature room'])]);
+  const works = groups.flat().filter(d => d.image_id && d.thumbnail && d.thumbnail.width).map(slim);
   return { fetched: new Date().toISOString(), works };
 }
 
 const area = w => (w.w && w.h ? w.w * w.h : 4000);
 const rank = (a, b) => (b.b - a.b) || (a.q - b.q) || (area(b) - area(a));
 
-// Sort the raw list into rooms.
+// Sort the raw list into the rooms of the real floor plan, by gallery.
 export function curate(raw) {
-  const paintings = raw.works.filter(w => w.k === 'Painting');
   const byGallery = new Map();
-  for (const w of paintings) {
+  for (const w of raw.works) {
     if (!w.g) continue;
     if (!byGallery.has(w.g)) byGallery.set(w.g, []);
     byGallery.get(w.g).push(w);
   }
-  const wanted = [...NORTH.map((g, i) => ['N' + i, g]), ...SOUTH.map((g, i) => ['S' + i, g])];
-  const taken = new Set(wanted.map(([, g]) => g).filter(g => (byGallery.get(g) || []).length >= 4));
-  const spare = [...byGallery.entries()].filter(([g]) => !taken.has(g)).sort((a, b) => b[1].length - a[1].length);
-  const rooms = {};
-  const used = new Set();
-  for (const [id, g] of wanted) {
-    let gallery = g, list = byGallery.get(g) || [];
-    if (list.length < 4 && spare.length) { [gallery, list] = spare.shift(); taken.add(gallery); }
-    list = [...list].sort(rank).slice(0, 22);
-    list.forEach(w => used.add(w.id));
+  const rooms = {}, used = new Set();
+  for (const r of LAYOUT.rooms) {
+    if (r.kind === 'hall') continue;
+    const list = byGallery.get(r.gallery) || [];
+    if (r.kind === 'corridor') {
+      rooms[r.id] = { gallery: r.gallery, names: ['The Thorne Miniature Rooms'], wall: list.filter(w => w.k === 'Miniature room').sort((a, b) => a.t.localeCompare(b.t, undefined, { numeric: true })), objects: [] };
+      continue;
+    }
+    // Paintings first, then anything else flat; and whatever stands up goes in cases.
+    const wall = [...list.filter(w => w.k === 'Painting').sort(rank), ...list.filter(w => w.k !== 'Painting' && WALL.includes(w.k)).sort(rank)].slice(0, 24);
+    const objects = list.filter(w => CASE.includes(w.k) && w.iw && w.ih).sort(rank).slice(0, 12);
+    for (const w of [...wall, ...objects]) used.add(w.id);
     // Name the room after the people in it.
     const names = [];
-    for (const w of list) {
+    for (const w of [...wall, ...objects]) {
       const last = lastName(w.a);
       if (last && !names.includes(last)) names.push(last);
       if (names.length === 3) break;
     }
-    rooms[id] = { gallery, names, works: list };
+    rooms[r.id] = { gallery: r.gallery, names, wall, objects };
   }
-  // The hall takes the biggest canvases left in the building.
-  const hall = paintings.filter(w => !used.has(w.id) && w.w && w.h && w.h >= 150 && w.h <= 600 && w.w <= 900)
+  // Griffin Court takes the biggest canvases that did not find a wall.
+  const spare = raw.works.filter(w => w.k === 'Painting' && !used.has(w.id) && w.w && w.h && w.h >= 120 && w.h <= 600 && w.w <= 900)
     .sort((a, b) => (b.b - a.b) * 2e4 + (area(b) - area(a))).slice(0, 26);
-  const corridor = raw.works.filter(w => w.k === 'Miniature room')
-    .sort((a, b) => a.t.localeCompare(b.t, undefined, { numeric: true }));
-  return { fetched: raw.fetched, live: !!raw.live, rooms, hall, corridor };
+  rooms.hall = { gallery: 'Griffin Court', names: [], wall: spare, objects: [] };
+  return { fetched: raw.fetched, live: !!raw.live, rooms };
 }
 
 function lastName(artist) {
@@ -137,13 +139,11 @@ function lastName(artist) {
 export function trim(raw) {
   const c = curate(raw);
   const keep = new Map();
-  for (const r of Object.values(c.rooms)) r.works.forEach(w => keep.set(w.id, w));
-  c.hall.forEach(w => keep.set(w.id, w));
-  c.corridor.forEach(w => keep.set(w.id, w));
+  for (const r of Object.values(c.rooms)) for (const w of [...r.wall, ...r.objects]) keep.set(w.id, w);
   return { fetched: raw.fetched, works: [...keep.values()] };
 }
 
-const CACHE = 'after-hours.hang.v2';
+const CACHE = 'after-hours.hang.v3';
 
 // Live if the API answers quickly, the cached answer if it did so today, and
 // the saved copy otherwise.
@@ -157,7 +157,7 @@ export async function loadCollection({ timeout = 7000 } = {}) {
     const timer = setTimeout(() => ctl.abort(), timeout);
     const raw = trim(await fetchLive(ctl.signal));
     clearTimeout(timer);
-    if (raw.works.length < 40) throw new Error('too few works came back');
+    if (raw.works.length < 100) throw new Error('too few works came back');
     try { localStorage.setItem(CACHE, JSON.stringify(raw)); } catch { /* full or blocked */ }
     return curate({ ...raw, live: true });
   } catch (err) {

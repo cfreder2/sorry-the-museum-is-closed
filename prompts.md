@@ -88,3 +88,27 @@ the previous one was still being worked on; those are marked.
 ## 19
 
 > probably my nd.edu one.
+
+## 20
+
+> add the photo cutouts in glass cases.  Later I may make the 3d models.  Try and replicate teh museums actual layout, do the best you can.  It's okay to go outside and come back in another building.
+
+## 21 (sent during the build)
+
+> you can't cover up art with ramps.  The half pips need you to do something more like tony hawk, and you jump up and see the art hanging above it.
+
+## 22 (sent during the build)
+
+> It's more important to show how much art you've seen than hoops.  NOt that hoops are not cool.  Make art the objective.
+
+## 23 (sent during the build)
+
+> add some spots where you can land to observe art from on hight.
+
+## 24 (sent during the build)
+
+> the skyway ranmps have hard angles, it sould be soft round corners, like hotwheels
+
+## 25 (sent during the build, with a screenshot of the look-closer view blocked by the car and the hanging track)
+
+> example problem.

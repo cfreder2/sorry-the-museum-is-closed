@@ -1,12 +1,9 @@
 # After Hours
 
 The Art Institute of Chicago after closing, driven through by a toy RC car or
-flown through by a toy RC drone. Every work on the walls is real: public
-domain, on view today, pulled from the museum's open API and hung at its true
-size in a room carrying its real gallery number.
-
-The floor plan is invented. The gallery numbers, the works and their
-measurements are the museum's.
+flown through by a toy RC drone. Every work is real: public domain, on view
+today, pulled from the museum's open API, shown at its true size in the gallery
+the museum lists it in. The aim is to see as much of it as you can.
 
 Play it: <https://cfreder2.github.io/after-hours/>
 
@@ -18,32 +15,67 @@ It is plain ES modules with no build step, so it only needs a web server:
 
 then open <http://localhost:8791>.
 
+## How true the building is
+
+The API gives every gallery a latitude, a longitude and a floor.
+`tools/build_layout.mjs` puts each gallery on its true spot and grows it until
+it meets its neighbours, so the plan has the museum's real arrangement: the
+ring of European painting galleries round the Grand Staircase, the
+Impressionists running east along the bridge over the railway, medieval art and
+arms and armour down the south arm, the Greek and Roman rooms round McKinlock
+Court, the Modern Wing to the north-east. You start outside on Michigan Avenue,
+between the lions.
+
+What is not true:
+
+- **It is one level.** The second floor, where nearly all the paintings are,
+  stays exactly where it is. First-floor and lower-level galleries that sit
+  directly underneath it are moved out into two pavilions of their own, reached
+  across the snow. Ground-floor rooms with nothing above them stay put.
+- **Room shapes and doorways are guessed.** The API has a point for each
+  gallery, not an outline. Rooms that end up wall to wall get a door.
+- **Where things hang within a room is mine.** Paintings are arranged along
+  the walls by importance and size; sculpture, armour and vessels stand in
+  glass cases on the floor.
+- **Two rooms are placed by hand:** Griffin Court (the API lists no art in it)
+  and the passage the Thorne Miniature Rooms line.
+
 ## What is in it
 
 - **Explore.** The building starts dark. Lamps come on as you reach them, each
-  with its own note. Pull up to a work and press `E` to leave the toy and stand
-  in front of it like a person. Works you look at are kept in a notebook.
-- **Race.** The Night Circuit: two laps through the south galleries, across the
-  hall, down the miniature-rooms passage and back, against three other toys.
-  Cones on the floor for the car, hoops in the air for the drone.
+  with its own note. A work counts as seen once you are close enough, in front
+  of it, with its lamp on; its label turns gold. The display shows works seen
+  out of the total, for the room you are in and for the whole museum, and what
+  you have seen is remembered between visits. Press `E` at any work to leave
+  the toy and stand in front of it like a person.
+- **Race.** Two laps of the real ring of galleries round the Grand Staircase,
+  against three other toys. Cones on the floor for the car, hoops in the air
+  for the drone.
+- **Sculpture in cases.** The museum photographs objects against a plain
+  backdrop; `cutOut` in `src/museum.js` removes the backdrop so the piece
+  stands in its case as a cut-out that turns to face you. That function is the
+  one to replace when real 3D models exist.
 - **A stunt kit.** The car has real gravity (9.8 m/s²) and `Space` makes it
-  hop; hold `Space` in the air and steer to flip and spin. Around the building:
-  plywood ramps and funboxes with light strips, a curved launcher and a
-  half-pipe in front of the window, a grand staircase to launch off, tables to
-  drive along and land on, packing crates, a loop-the-loop that runs both ways,
-  a skyway of orange track hung from the hall's glass roof with gaps to clear,
-  and a catwalk hung at picture height round Gallery 220. There are 27 gold
-  hoops to jump or fly through. Cones and wet-floor signs are loose and can be
-  knocked about (by rivals too), and the mopped patch of floor is slippery.
-  Leave a ramp with a work alongside and time slows, the camera comes round,
-  and that work is lit and named until you land.
+  hop; hold `Space` in the air and steer to flip and spin. Pieces are placed to
+  suit each room and never in front of a doorway or on the racing line:
+  tabletops, funboxes, packing crates, table runs, and half-pipes against the
+  walls of the larger galleries. A work never hangs behind a ramp: anything
+  above one is hung higher, so the top of your air is in front of a picture.
+  Griffin Court has a skyway of toy track slung from its glass roof, curved
+  like the real thing, with gaps to clear. The Grand Staircase room has a ramp,
+  a landing and the steps to launch down. Outside there is a loop-the-loop
+  (either way round) and a big curved launcher. Cones and wet-floor signs are
+  loose, the mopped floor is slippery, and so is the snow.
+- **High places.** Ledges at the top of every skate ramp, two beside the
+  skyway, table tops and the staircase landing are somewhere to land and look
+  from. Hoops are counted too, but art is the objective.
+- **Slow motion.** Leave a ramp with a work alongside and time slows, the
+  camera comes round, and that work is lit and named until you land.
 - **Frames.** Each picture gets a moulding to suit its date and school:
   tabernacle and gilt-and-bole for the earliest, carved Baroque gilt, ebonised
   Dutch, Neoclassical, swept Salon gilt, walnut, oak, thin modern strips, and
   the plain white Seurat wanted.
-- **Ten galleries, a hall and a passage.** 201, 240, 241, 243, 248 on the north
-  side; 211, 213, 220, 161, 273 on the south. The hall takes the largest
-  canvases left over. The passage is Gallery 11, the Thorne Miniature Rooms.
+- **The drone** can go outside and over the roofs.
 
 The title screen has two choices, Vehicle and Game mode, set to RC Car and
 Explore; press Start (or Enter).
@@ -73,11 +105,11 @@ Not done: remapping keys, and any way to play without sight.
 
 ## The museum's API
 
-`src/collection.js` asks `api.artic.edu` for public-domain works on view (seven
-requests, answer cached for twelve hours) and sorts them into rooms by
-`gallery_title`. If a gallery has been rehung and comes back with fewer than
-four paintings, the room is filled from the best-stocked gallery not already
-used. Images load from the museum's IIIF server at the sizes it recommends.
+`src/collection.js` asks `api.artic.edu` for public-domain works on view: all
+the paintings, the sculpture and armour, and the vessels, prints, textiles and
+miniature rooms (about seventeen requests, answer cached for twelve hours, well
+inside the 60-a-minute limit). Each work goes to the room whose gallery it is
+listed in. Images load from the museum's IIIF server at the sizes it recommends.
 
 Three things the docs do not make obvious:
 
@@ -90,9 +122,11 @@ Three things the docs do not make obvious:
 - Cloudflare turns away headless Chrome whatever it sends, so automated tests
   cannot load images from the museum. Use the offline copy below.
 
-`node tools/fetch_collection.mjs` refreshes `data/collection.json`, the saved
-copy the game falls back to when the API cannot be reached. Add `--images` to
-also save every hung image to `data/img/` (about 48 MB, not in git); when the
+`node tools/build_layout.mjs` regenerates `src/layout.js`, the floor plan, from
+the gallery records. `node tools/fetch_collection.mjs` refreshes
+`data/collection.json`, the saved copy the game falls back to when the API
+cannot be reached. Add `--images` to also save every image to `data/img/`
+(about 190 MB, not in git); when the
 game is run from localhost and that folder has images, it uses them instead of
 the museum's server.
 
@@ -103,9 +137,10 @@ lets a test driver run the race. The game object is `window.__ah`.
 ## Layout
 
     index.html, style.css     page and on-screen display
-    src/plan.js               floor plan, stunt kit, collision, hanging, race route (no three.js)
+    src/layout.js             the rooms and doorways (generated by tools/build_layout.mjs)
+    src/plan.js               collision, stunt kit, hanging, cases, race route (no three.js)
     src/collection.js         API calls and sorting works into rooms
-    src/museum.js             the building, the artworks, the lamps
+    src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/textures.js           every surface, painted on a canvas at start-up
     src/reflect.js            polished-floor reflections
     src/vehicles.js           the car and the drone

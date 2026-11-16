@@ -185,7 +185,7 @@ export function moonPatch() {
 }
 
 // The city beyond the east window. Nobody's skyline in particular.
-export function skyline() {
+export function skyline(moon = true) {
   const [c, g] = canvas(2048, 1024);
   const r = rng(1893);
   const sky = g.createLinearGradient(0, 0, 0, 1024);
@@ -198,12 +198,14 @@ export function skyline() {
   }
   // Moon, with the halo it gets on a cold night.
   const mx = 1240, my = 250;
+  if (moon) {
   const halo = g.createRadialGradient(mx, my, 20, mx, my, 330);
   halo.addColorStop(0, 'rgba(210,225,255,0.55)'); halo.addColorStop(0.25, 'rgba(150,175,235,0.16)'); halo.addColorStop(1, 'rgba(120,150,220,0)');
   g.fillStyle = halo; g.fillRect(mx - 340, my - 340, 680, 680);
   g.fillStyle = '#f4f6ff'; g.beginPath(); g.arc(mx, my, 44, 0, Math.PI * 2); g.fill();
   g.fillStyle = 'rgba(170,180,210,0.5)';
   for (const [dx, dy, s] of [[-12, -8, 11], [14, 6, 8], [-3, 18, 6], [16, -18, 5]]) { g.beginPath(); g.arc(mx + dx, my + dy, s, 0, Math.PI * 2); g.fill(); }
+  }
   // Two ranks of buildings.
   for (const [base, dark, lit] of [[0.52, '#101728', 0.22], [0.36, '#070b14', 0.34]]) {
     let x = -20;
@@ -232,7 +234,8 @@ export function skyline() {
 
 // Lettering cut over a doorway.
 export function sign(title, sub) {
-  const [c, g] = canvas(1024, 192);
+  const [c, g] = canvas(512, 96);
+  g.scale(0.5, 0.5);
   g.clearRect(0, 0, 1024, 192);
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = '#e9d7a8';
@@ -325,5 +328,37 @@ export function crate() {
   g.font = '900 54px "Courier New", Courier, monospace'; g.fillText('FRAGILE', 256, 210);
   g.font = '700 30px "Courier New", Courier, monospace'; g.fillText('WORKS OF ART', 256, 256);
   g.beginPath(); g.moveTo(256, 300); g.lineTo(300, 356); g.lineTo(274, 356); g.lineTo(274, 420); g.lineTo(238, 420); g.lineTo(238, 356); g.lineTo(212, 356); g.closePath(); g.fill();
+  return tex(c, { repeat: true });
+}
+
+// ------------------------------------------------------------- outdoors ---
+
+// Limestone in courses, for the outside of the building.
+export function ashlar() {
+  const [c, g] = canvas(512, 512);
+  const r = rng(19);
+  g.fillStyle = '#b9b2a2'; g.fillRect(0, 0, 512, 512);
+  for (let j = 0; j < 8; j++) {
+    const off = j % 2 ? 64 : 0;
+    for (let i = -1; i < 4; i++) {
+      const l = 64 + r() * 9;
+      g.fillStyle = `hsl(${40 + r() * 8}, ${9 + r() * 5}%, ${l}%)`;
+      g.fillRect(i * 128 + off + 2, j * 64 + 2, 124, 60);
+    }
+    g.fillStyle = 'rgba(40,36,30,.55)'; g.fillRect(0, j * 64, 512, 2);
+  }
+  for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(${r() > 0.5 ? '255,250,240' : '30,26,20'},${r() * 0.07})`; g.fillRect(r() * 512, r() * 512, 1 + r() * 4, 1 + r() * 3); }
+  return tex(c, { repeat: true });
+}
+
+// Trodden snow under street lamps.
+export function snow() {
+  const [c, g] = canvas(512, 512);
+  const r = rng(101);
+  g.fillStyle = '#dfe6f1'; g.fillRect(0, 0, 512, 512);
+  for (let k = 0; k < 2600; k++) {
+    g.fillStyle = r() > 0.5 ? `rgba(255,255,255,${r() * 0.5})` : `rgba(120,140,180,${r() * 0.16})`;
+    const s = 1 + r() * 5; g.beginPath(); g.ellipse(r() * 512, r() * 512, s * 2, s, r() * 3, 0, 7); g.fill();
+  }
   return tex(c, { repeat: true });
 }

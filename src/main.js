@@ -5,7 +5,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { buildPlan, roomAt, confine, LEN, SPRING, VAULT_R } from './plan.js';
+import { buildPlan, roomAt, confine } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
@@ -28,7 +28,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x03040a);
 scene.fog = new THREE.FogExp2(0x060912, 0.0055);
 scene.add(new THREE.HemisphereLight(0x8ea6dc, 0x2a2018, 0.42));
-const camera = new THREE.PerspectiveCamera(72, 1, 0.03, 420);
+const camera = new THREE.PerspectiveCamera(72, 1, 0.03, 1400);
 camera.position.set(8, 0.5, -2);
 
 const mirror = new FloorMirror(0.5);
@@ -67,13 +67,13 @@ const G = {
   state: 'loading', mode: 'explore', toy: 'car', view: 'chase',
   t: 0, plan: null, museum: null, race: null, car: null, drone: null, vehicle: null,
   roomId: null, facing: null, study: null, camYaw: 0, lampOn: true,
-  seen: [], told: new Set(), allLit: false,
+  seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
 window.__ah = G;
 try { G.seen = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); } catch { /* no storage */ }
 
-const camLook = new THREE.Vector3(LEN, 5, 0);
+const camLook = new THREE.Vector3(60, 5, 120);
 const want = new THREE.Vector3();
 const tmp = new THREE.Vector3();
 const angDiff = (a, b) => { const d = a - b; return Math.atan2(Math.sin(d), Math.cos(d)); };
@@ -88,6 +88,17 @@ async function boot() {
   scene.add(G.museum.group);
   G.museum.onWake = art => sound.lamp(art);
   G.museum.onRoomLit = () => sound.roomChord();
+  // Art is the point. Each work seen counts, each room finished is announced.
+  G.museum.onSeen = (art, st, complete) => {
+    if (G.state !== 'play' && G.state !== 'study') return;
+    sound.seen();
+    if (complete && G.mode === 'explore') {
+      const r = st.room, name = r.kind === 'hall' ? 'GRIFFIN COURT' : r.kind === 'corridor' ? 'GALLERY 11' : r.gallery.replace(/^Galleries /, 'Gallery ').toUpperCase();
+      callout(`${name} \u00b7 ALL ${st.arts.length} SEEN`); sound.finish();
+    }
+    if (G.museum.seenCount === G.museum.arts.length) say('You have seen every work on view tonight.', 2, 10);
+  };
+  G.perchTotal = new Set(plan.surfaces.filter(q => q.perch).map(q => q.perch + '@' + Math.round(q.x0) + ',' + Math.round(q.z0))).size;
 
   G.car = new Car(plan);
   G.drone = new Drone(plan);
@@ -101,7 +112,7 @@ async function boot() {
   G.props.onHit = (p, sp) => sound.knock(sp, p.def.type === 'sign');
 
   setVehicle('car');
-  G.car.place(33, -1.5, Math.PI / 2);
+  G.car.place(plan.spawn.x + 3, plan.spawn.z, plan.spawn.yaw);
   G.drone.group.visible = false; G.drone.shadow.visible = false;
 
   const when = new Date(collection.fetched);
@@ -109,7 +120,7 @@ async function boot() {
   $('source').innerHTML = (collection.live
     ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
     : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${params.has('saved') ? '' : ', because the live API could not be reached'}.`)
-    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. The floor plan is invented, the gallery numbers are real.`;
+    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed.`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
   G.state = 'title';
@@ -150,9 +161,10 @@ function start(mode) {
     sound.musicOn = false;
   } else {
     G.race.end();
-    if (G.toy === 'drone') G.drone.place(9, 0, Math.PI / 2, 0.9); else G.car.place(9, 0, Math.PI / 2);
+    const sp = G.plan.spawn;
+    if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, 0.9); else G.car.place(sp.x, sp.z, sp.yaw);
     sound.musicOn = true;
-    say('Go on. Nobody is here.', 1.2, 5);
+    say('Michigan Avenue, long after closing. The door is open. Go on in.', 1.2, 6);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -160,6 +172,8 @@ function start(mode) {
   }
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
+  G.startedAt = G.t;
+  G.perched.clear();
   G.state = 'play';
   chase(0, true);
   show(null);
@@ -179,7 +193,7 @@ function quit() {
   sound.musicOn = false;
   G.museum.sleep();
   setVehicle('car');
-  G.car.place(33, -1.5, Math.PI / 2);
+  G.car.place(G.plan.spawn.x + 3, G.plan.spawn.z, G.plan.spawn.yaw);
   endFlyby();
   $('hud').hidden = true;
   show('title');
@@ -247,11 +261,12 @@ function runToasts() {
 
 let roomUntil = 0;
 function announce(room) {
-  const el = $('room'), set = G.collection.rooms[room.id];
+  const el = $('room'), set = room && G.collection.rooms[room.id];
   let num = '', names = '';
-  if (room.kind === 'gallery' && set) { num = set.gallery; names = set.names.join('  ·  '); }
+  if (!room) { num = 'Outside'; names = 'It is snowing.'; }
   else if (room.kind === 'corridor') { num = 'Gallery 11'; names = 'The Thorne Miniature Rooms'; }
-  else { num = 'The Great Hall'; names = ''; }
+  else if (room.kind === 'hall') { num = 'Griffin Court'; names = 'the Modern Wing'; }
+  else { num = room.gallery.replace(/^Galleries /, 'Gallery '); names = set && set.names.length ? set.names.join('  ·  ') : room.gallery === 'Gallery 200' ? 'the Grand Staircase' : ''; }
   el.firstElementChild.textContent = num;
   el.lastElementChild.textContent = names;
   el.classList.add('on');
@@ -300,6 +315,7 @@ function act(a) {
     case 'closeNotebook': show(G.state === 'title' ? 'title' : 'pause'); break;
     case 'settings': settingsFrom = G.state === 'title' ? 'title' : 'pause'; applySettings(); show('settings'); break;
     case 'closeSettings': show(settingsFrom); break;
+    case 'forget': G.museum.forget(); G.seen = []; try { localStorage.removeItem('after-hours.seen'); } catch { /* fine */ } openNotebook(); break;
     case 'sound': sound.setMuted(!sound.muted); say(sound.muted ? 'Sound off.' : 'Sound on.', 0, 2); break;
     default: input.press(a);
   }
@@ -310,7 +326,7 @@ function pause() { G.state = 'paused'; show('pause'); }
 function openNotebook() {
   const grid = $('nbGrid');
   grid.textContent = '';
-  $('nbCount').textContent = G.seen.length ? `${G.seen.length} looked at properly` : 'Nothing yet';
+  $('nbCount').textContent = `${G.museum.seenCount} of ${G.museum.arts.length} works seen`;
   if (!G.seen.length) {
     const d = document.createElement('div'); d.className = 'empty';
     d.textContent = 'Pull up to a work and look closer. It will be kept here.';
@@ -451,7 +467,7 @@ function flight(v, real, racing) {
         G.airMsg = { text: `AIR ${v.landed.air.toFixed(2)} S  ${v.landed.dist.toFixed(1)} M${best ? ' *' : ''}`, until: G.t + 3.5 };
       }
       if (!racing && v.pos.y > 0.3) once('ontop', 'You are on the furniture. Nobody saw.');
-      if (!racing && v.landed.air > 0.5 && v._from.x < 5 && G.roomId === 'hall') once('stairs', 'Down the grand staircase without touching a step.');
+      if (!racing && v.landed.air > 0.55 && G.roomId === 'G200' && v.landed.dist > 3.5) once('stairs', 'Down the Grand Staircase without touching a step.');
     }
     if (slow.live && !v.air) { slow.live = false; slow.until = G.t + 1.1; }
     if (v.rail) slow.target = v.rail.top && v.rail.th < Math.PI * 1.5 && !calmAir() ? 0.4 : 1;
@@ -482,6 +498,10 @@ function beginStudy(art) {
   toastUntil = 0; toasts.length = 0;
   G.state = 'study';
   art.focus = true;
+  G.museum.see(art);
+  // Nothing between you and the work: the toy and the stunt kit are put away while you look.
+  G.vehicle.group.visible = false; G.car.shadow.visible = G.drone.shadow.visible = false; G.museum.kit.visible = false; G.props.group.visible = false;
+  if (art.obj) { const dx = G.vehicle.pos.x - art.x, dz = G.vehicle.pos.z - art.z, d = Math.hypot(dx, dz) || 1; art.nx = dx / d; art.nz = dz / d; art.rot = Math.atan2(art.nx, art.nz); }
   if (art.wakeAt < 0) { art.wakeAt = G.museum.time; G.museum._waking.add(art); }
   const w = art.work;
   if (!G.seen.some(s => s.id === w.id)) {
@@ -493,7 +513,7 @@ function beginStudy(art) {
   el.querySelector('.a').textContent = [w.a, w.d].filter(Boolean).join(', ');
   el.querySelector('.m').textContent = w.m;
   el.querySelector('.alt').textContent = w.alt || '';
-  el.querySelector('.g').textContent = [w.g, art.mini ? 'one inch to the foot' : `${Math.round(art.w * 100)} × ${Math.round(art.h * 100)} cm on the wall`].filter(Boolean).join(' · ');
+  el.querySelector('.g').textContent = [w.g, art.mini ? 'one inch to the foot' : art.obj ? `${Math.round(art.h * 100)} cm tall` : `${Math.round(art.w * 100)} × ${Math.round(art.h * 100)} cm on the wall`].filter(Boolean).join(' · ');
   el.querySelector('a').href = pageUrl(w);
   el.hidden = false;
   $('placard').hidden = true;
@@ -505,6 +525,7 @@ function endStudy() {
   if (!G.study) return;
   G.study.art.focus = false;
   G.study = null;
+  G.vehicle.group.visible = true; G.car.shadow.visible = G.vehicle.kind === 'car'; G.drone.shadow.visible = G.vehicle.kind === 'drone'; G.museum.kit.visible = true; G.props.group.visible = true;
   G.lamp.intensity = G.lampOn ? 70 : 0;
   G.state = 'play';
   $('label').hidden = true;
@@ -516,13 +537,14 @@ function studyCam(dt) {
   s.t += dt;
   const fov = 46, tan = Math.tan(fov * Math.PI / 360);
   const wide = innerWidth > 720 ? 0.72 : 1;         // leave room for the label on a wide screen
-  let dist = Math.max(a.h * 1.3 / (2 * tan), a.w * 1.3 / (2 * tan * camera.aspect * wide), a.mini ? 0.75 : 1.1);
+  let dist = Math.max(a.h * 1.3 / (2 * tan), a.w * 1.3 / (2 * tan * camera.aspect * wide), a.mini ? 0.75 : a.obj ? a.half + 0.5 : 1.1);
   dist *= 1 - 0.07 * Math.min(1, s.t / 30);          // and drift in, very slowly
   // On a wide screen, stand a little to one side so the label does not cover the work,
   // but stay square to the wall.
   const side = wide < 1 ? a.w * 0.2 + 0.1 : 0, tx = Math.cos(a.rot), tz = -Math.sin(a.rot);
   want.set(a.x + a.nx * dist - tx * side, a.y, a.z + a.nz * dist - tz * side);
   confine(G.plan, want, 0.25, true, null, true);
+  if (a.obj) want.y = a.y;
   const k = Math.min(1, s.t / 1.7), e = k * k * (3 - 2 * k);
   camera.position.lerpVectors(s.from, want, e);
   tmp.set(want.x - a.nx * dist, a.y, want.z - a.nz * dist);
@@ -534,12 +556,13 @@ function studyCam(dt) {
 }
 
 function attract(dt) {
-  const x = 22 + 8.5 * Math.sin(G.t * 0.045 - 1.2);
-  camera.position.set(x, 0.42 + 0.1 * Math.sin(G.t * 0.11), -2.3);
-  camLook.set(LEN, 5.2, 0.6);
+  // Out on the avenue in the snow, drifting towards the front door and the lions.
+  const sp = G.plan.spawn, k = 0.5 + 0.5 * Math.sin(G.t * 0.05 - 1.3);
+  camera.position.set(sp.x - 9 + k * 5, 0.5 + 0.12 * Math.sin(G.t * 0.11), sp.z + 3.4 - k * 1.2);
+  camLook.set(sp.x + 14, 3.6, sp.z - 0.6);
   camera.up.set(0, 1, 0);
   camera.lookAt(camLook);
-  if (camera.fov !== 62) { camera.fov = 62; camera.updateProjectionMatrix(); }
+  if (camera.fov !== 60) { camera.fov = 60; camera.updateProjectionMatrix(); }
   G.car.sync(dt);
 }
 
@@ -547,36 +570,38 @@ function attract(dt) {
 
 const mapEl = $('map'), mctx = mapEl.getContext('2d');
 function drawMap() {
-  const c = mctx, s = 440 / (LEN + 6), ox = 3, oz = 27.5;
-  c.clearRect(0, 0, 440, 250);
-  c.lineWidth = 1.5;
+  const c = mctx, v = G.vehicle, s = 4, W = 440, Hh = 250;
+  const X = x => (x - v.pos.x) * s + W / 2, Z = z => (z - v.pos.z) * s + Hh / 2;
+  c.clearRect(0, 0, W, Hh);
+  c.fillStyle = 'rgba(10,12,18,.5)'; c.fillRect(0, 0, W, Hh);
+  c.lineWidth = 1.5; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '600 21px ui-monospace, Menlo, monospace';
   for (const st of Object.values(G.museum.rooms)) {
-    const r = st.room, k = r.kind;
-    const lit = k === 'gallery' ? st.wake : st.arts.length ? st.arts.reduce((n, a) => n + a.lit, 0) / st.arts.length : 0;
-    c.fillStyle = `rgba(${Math.round(24 + 210 * lit)},${Math.round(26 + 160 * lit)},${Math.round(36 + 70 * lit)},${0.62 + 0.2 * lit})`;
-    c.strokeStyle = 'rgba(226,205,148,.55)';
-    c.fillRect((r.x0 + ox) * s, (r.z0 + oz) * s, (r.x1 - r.x0) * s, (r.z1 - r.z0) * s);
-    c.strokeRect((r.x0 + ox) * s, (r.z0 + oz) * s, (r.x1 - r.x0) * s, (r.z1 - r.z0) * s);
+    const r = st.room;
+    if (X(r.x1) < 0 || X(r.x0) > W || Z(r.z1) < 0 || Z(r.z0) > Hh) continue;
+    const f = st.arts.length ? st.seen / st.arts.length : 0;
+    c.fillStyle = `rgba(${Math.round(30 + 205 * f)},${Math.round(32 + 160 * f)},${Math.round(44 + 60 * f)},.85)`;
+    c.strokeStyle = st.done ? 'rgba(255,225,150,1)' : 'rgba(226,205,148,.5)';
+    c.fillRect(X(r.x0), Z(r.z0), (r.x1 - r.x0) * s, (r.z1 - r.z0) * s);
+    c.strokeRect(X(r.x0), Z(r.z0), (r.x1 - r.x0) * s, (r.z1 - r.z0) * s);
+    const name = r.kind === 'hall' ? 'Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '').slice(0, 7);
+    if ((r.x1 - r.x0) * s > 34) { c.fillStyle = f > 0.55 ? 'rgba(20,16,8,.9)' : 'rgba(226,205,148,.85)'; c.fillText(name, X((r.x0 + r.x1) / 2), Z((r.z0 + r.z1) / 2)); }
   }
-  c.fillStyle = 'rgba(226,205,148,.8)';
-  for (const d of G.plan.doors) c.fillRect((d.x0 + ox) * s, (d.z0 + oz) * s, (d.x1 - d.x0) * s, (d.z1 - d.z0) * s);
-  c.fillStyle = 'rgba(110,230,245,.5)';
-  for (const q of G.plan.surfaces) if (q.skin !== 'bench') c.fillRect((q.x0 + ox) * s, (q.z0 + oz) * s, Math.max(2, (q.x1 - q.x0) * s), Math.max(2, (q.z1 - q.z0) * s));
+  c.fillStyle = 'rgba(226,205,148,.9)';
+  for (const d of G.plan.doors) c.fillRect(X(d.x0), Z(d.z0), Math.max(2, (d.x1 - d.x0) * s), Math.max(2, (d.z1 - d.z0) * s));
   c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5;
-  for (const L of G.plan.loops) { c.beginPath(); c.arc((L.x + ox) * s, (L.z + oz) * s, 5.5, 0, 7); c.stroke(); }
+  for (const L of G.plan.loops) { c.beginPath(); c.arc(X(L.x), Z(L.z), 5.5, 0, 7); c.stroke(); }
   c.lineWidth = 1.5;
   if (G.mode === 'race' && G.race.active) {
     const R = G.race;
-    c.strokeStyle = 'rgba(127,233,245,.5)'; c.lineWidth = 2; c.beginPath();
-    R.route.pts.forEach((p, i) => (i % 4 === 0) && (i ? c.lineTo((p.x + ox) * s, (p.z + oz) * s) : c.moveTo((p.x + ox) * s, (p.z + oz) * s)));
+    c.strokeStyle = 'rgba(127,233,245,.6)'; c.lineWidth = 2; c.beginPath();
+    R.route.pts.forEach((p, i) => (i % 4 === 0) && (i ? c.lineTo(X(p.x), Z(p.z)) : c.moveTo(X(p.x), Z(p.z))));
     c.closePath(); c.stroke();
     const g = R.gates[R.next];
-    c.fillStyle = '#7fe9f5'; c.beginPath(); c.arc((g.x + ox) * s, (g.z + oz) * s, 6, 0, 7); c.fill();
-    for (const b of R.bots) { c.fillStyle = '#' + b.colour.toString(16).padStart(6, '0'); c.beginPath(); c.arc((b.x + ox) * s, (b.z + oz) * s, 5, 0, 7); c.fill(); }
+    c.fillStyle = '#7fe9f5'; c.beginPath(); c.arc(Math.max(8, Math.min(W - 8, X(g.x))), Math.max(8, Math.min(Hh - 8, Z(g.z))), 6, 0, 7); c.fill();
+    for (const b of R.bots) { c.fillStyle = '#' + b.colour.toString(16).padStart(6, '0'); c.beginPath(); c.arc(X(b.x), Z(b.z), 5, 0, 7); c.fill(); }
   }
-  const v = G.vehicle;
   c.save();
-  c.translate((v.pos.x + ox) * s, (v.pos.z + oz) * s);
+  c.translate(W / 2, Hh / 2);
   c.rotate(Math.atan2(Math.cos(v.yaw), Math.sin(v.yaw)) - Math.PI / 2);
   c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 2;
   c.beginPath(); c.moveTo(0, 11); c.lineTo(7, -8); c.lineTo(0, -3); c.lineTo(-7, -8); c.closePath(); c.stroke(); c.fill();
@@ -597,7 +622,10 @@ function hud() {
       : G.airMsg && G.t < G.airMsg.until ? G.airMsg.text : (G.lampOn ? 'LIGHTS ON' : 'LIGHTS OFF');
     if (G.mode === 'explore') {
       const m = G.museum;
-      $('tally').innerHTML = `LAMPS <b>${m.litCount}</b> / ${m.arts.length}<br>GALLERIES <b>${m.roomsLit}</b> / 10<br>HOOPS <b>${m.hoopsDone}</b> / ${m.hoops.length}`;
+      const here = G.roomId && m.rooms[G.roomId], rooms = m.galleries;
+      $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><br>`
+        + (here && here.arts.length ? `THIS ROOM <b>${here.seen}</b> / ${here.arts.length}` : 'OUTSIDE') + ` \u00b7 ROOMS <b>${rooms.filter(r => r.done).length}</b> / ${rooms.length}<br>`
+        + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal}</span>`;
     } else {
       const R = G.race;
       $('rLap').textContent = `LAP ${Math.min(R.lap, LAPS)}/${LAPS}`;
@@ -699,11 +727,11 @@ function play(dt, real) {
   }
 
   const room = roomAt(G.plan, v.pos.x, v.pos.z);
-  if (room && room.id !== G.roomId) {
-    G.roomId = room.id;
-    if (!racing) {
+  if ((room ? room.id : null) !== G.roomId) {
+    G.roomId = room ? room.id : null;
+    if (!racing && G.t - G.startedAt > 2) {
       announce(room);
-      if (room.kind === 'corridor') once('thorne', 'The Thorne Miniature Rooms. Built at one inch to the foot: about your size.', 7);
+      if (room && room.kind === 'corridor') once('thorne', 'The Thorne Miniature Rooms. Built at one inch to the foot: about your size.', 7);
     }
   }
   G.museum.update(dt, v.pos, G.roomId, camera.position);
@@ -722,12 +750,13 @@ function play(dt, real) {
     }
     if (input.took('look') && G.facing) beginStudy(G.facing);
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
-    if (v.kind === 'drone' && v.pos.y > SPRING + VAULT_R - 3 && Math.abs(v.pos.x - 47) < 4) once('balloon', 'A balloon, lost on somebody’s field trip and never fetched down.', 7);
-    if (v.pos.x > LEN - 7 && room && room.kind === 'hall') once('snow', 'It is snowing on Michigan Avenue.', 6);
-    if (!G.allLit && G.museum.litCount === G.museum.arts.length) {
-      G.allLit = true;
-      say('Every lamp in the building is on. Stay as long as you like.', 1.5, 9);
-      sound.finish();
+    if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
+    if (v.kind === 'drone' && !room && v.pos.y > 14) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
+    // Somewhere high to stop and look from.
+    const on = v.kind === 'car' && !v.air ? v.on : null;
+    if (on && on.perch && Math.abs(v.speed) < 2.5) {
+      const key = on.perch + '@' + Math.round(on.x0) + ',' + Math.round(on.z0);
+      if (!G.perched.has(key)) { G.perched.add(key); callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: E works from here too.`, 0.5, 6); }
     }
   }
   chase(real, false);
@@ -779,7 +808,7 @@ function tick(now) {
   input.capture = G.state === 'play' || G.state === 'study';
   if (G.state === 'title') {
     attract(dt);
-    G.museum.update(dt, camera.position, 'hall', camera.position);
+    G.museum.update(dt, camera.position, null, camera.position);
     sound.update(null, false);
   } else if (G.state === 'play') {
     play(dt * slow.k, dt);
@@ -806,7 +835,7 @@ function tick(now) {
 if (params.has('probe')) setTimeout(() => {
   const t = [0, 0, 0, 0]; let remote = 0;
   for (const a of G.museum.arts) { t[a.tier]++; if (a.url && a.url.includes('artic.edu')) remote++; }
-  fetch('/report', { method: 'POST', referrerPolicy: 'origin', body: JSON.stringify({ live: G.collection.live, works: G.museum.arts.length, tiers: t, fromMuseum: remote, fps: Math.round(G.fps), quality: quality.step, state: G.state, room: G.roomId, lit: G.museum.litCount }) }).catch(() => {});
+  fetch('/report', { method: 'POST', referrerPolicy: 'origin', body: JSON.stringify({ live: G.collection.live, works: G.museum.arts.length, tiers: t, fromMuseum: remote, fps: Math.round(G.fps), quality: quality.step, state: G.state, room: G.roomId, lit: G.museum.litCount, seen: G.museum.seenCount, rooms: G.plan.rooms.length }) }).catch(() => {});
 }, 14000);
 
 boot().then(() => requestAnimationFrame(tick)).catch(err => {

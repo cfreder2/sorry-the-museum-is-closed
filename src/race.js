@@ -15,7 +15,7 @@ export class Race {
   constructor(scene, plan) {
     this.scene = scene;
     this.plan = plan;
-    this.src = buildRoute();
+    this.src = buildRoute(plan);
     this.route = sampleRoute(this.src, 0.5);
     this.group = new THREE.Group();
     this.group.visible = false;

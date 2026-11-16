@@ -2,7 +2,7 @@
 // driven the way the real ones are: two sticks.
 
 import * as THREE from 'three';
-import { confine, roomAt, groundAt, wallAt, heightOf, GRAVITY, STEP } from './plan.js';
+import { confine, roomAt, groundAt, wallAt, heightOf, ceilingAt, GRAVITY, STEP } from './plan.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
@@ -124,7 +124,9 @@ export class Car {
       vf -= vf * 0.24 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 0.4 * dt);     // tops out near 9.5 m/s
       // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.
       const room = roomAt(this.plan, this.pos.x, this.pos.z);
-      let grip = room && room.kind === 'gallery' ? 9 : 5.2;
+      let grip = !room ? 3.4 : room.kind === 'gallery' && room.floor !== '1' ? 9 : 5.2;
+      // Snow outdoors, unless there is track laid on it.
+      if (!room) for (const d of this.plan.decals) if (this.pos.x > d.x0 && this.pos.x < d.x1 && this.pos.z > d.z0 - 0.3 && this.pos.z < d.z1 + 0.3) grip = 9;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
       this.wet = false;
       if (this.pos.y < 0.03) for (const p of this.plan.puddles) if ((this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
@@ -216,6 +218,9 @@ export class Car {
         this.fromHop = this.hopped; this.hopped = false; this.flip = this.spin = 0;
       }
       this.pos.y = yb; this.vy -= GRAVITY * dt; this.airT += dt;
+      // Ceilings are real.
+      const roof = ceilingAt(this.plan, this.pos.x, this.pos.z) - 0.3;
+      if (this.pos.y > roof) { this.pos.y = roof; if (this.vy > 0) { this.bump = Math.max(this.bump, this.vy); this.vy *= -0.2; } }
     } else {
       if (this.air) {
         this.air = false;

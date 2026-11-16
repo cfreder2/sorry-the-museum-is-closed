@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { T, RW, RD, LEN, HW, SPRING, VAULT_R, CORR, wallPoint, hang, heightOf, roomAt } from './plan.js';
+import { T, HW, SPRING, VAULT_R, wallPoint, hang, heightOf, roomAt } from './plan.js';
 import { imageUrl } from './collection.js';
 
 // ---------------------------------------------------------------- geometry --
@@ -142,6 +142,43 @@ function buildFrame(g, p, style) {
   g.col = null;
 }
 
+// ------------------------------------------------------------- cut-outs ---
+//
+// The museum photographs its sculpture against a plain backdrop. To stand a
+// figure in a case, the backdrop is taken away: starting from the edges of the
+// photograph, everything that carries on looking like the edge is made clear.
+// When a real model of the piece exists, this is the function it replaces.
+function cutOut(img) {
+  const k = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(2, Math.round(img.naturalWidth * k)), h = Math.max(2, Math.round(img.naturalHeight * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, w, h);
+  let data;
+  try { data = g.getImageData(0, 0, w, h); } catch { return c; }
+  const px = data.data, n = w * h, seen = new Uint8Array(n), stack = new Int32Array(n);
+  let top = 0, cleared = 0;
+  const lum = i => px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2];
+  const sat = i => Math.max(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]) - Math.min(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
+  const seed = i => { if (!seen[i] && sat(i) < 46) { seen[i] = 1; stack[top++] = i; } };
+  for (let x = 0; x < w; x++) { seed(x); seed((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
+  while (top) {
+    const i = stack[--top], x = i % w, l = lum(i);
+    cleared++;
+    // Carry on into a neighbour if it is nearly the same shade and nearly as grey.
+    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
+      if (j < 0 || j >= n || seen[j]) continue;
+      if (Math.abs(lum(j) - l) < 14 && sat(j) < 46) { seen[j] = 1; stack[top++] = j; }
+    }
+  }
+  // If almost nothing or almost everything went, the backdrop was not plain: keep the photograph whole.
+  if (cleared < n * 0.08 || cleared > n * 0.93) return c;
+  for (let i = 0; i < n; i++) if (seen[i]) px[i * 4 + 3] = 0;
+  g.putImageData(data, 0, 0);
+  return c;
+}
+
 // The lamp does not simply come on. It catches, twice, like a tube warming up.
 function flicker(e) {
   if (e < 0) return 0;
@@ -166,7 +203,13 @@ export class Museum {
     this.loading = 0;
     this.textures = { wallGlow: TX.wallGlow() };
     this.mirror = mirror;
+    this.onSeen = null;         // (art, roomState) the first time a work is properly looked at
+    this.seenIds = new Set();
+    try { this.seenIds = new Set(JSON.parse(localStorage.getItem('after-hours.seen-ids') || '[]')); } catch { /* no storage */ }
+    this.kit = new THREE.Group();     // the stunt kit, so it can be put away while you look at a picture
+    this.group.add(this.kit);
     this._buildShell(mirror);
+    this._buildOutside();
     this._buildHall();
     this._buildArt();
     this._buildFurniture();
@@ -178,23 +221,30 @@ export class Museum {
 
   _buildShell(mirror) {
     const { plan } = this;
-    const portals = new Geo();
-    const stone = new Geo(), slate = new Geo();
-    const ceilings = new Geo(), lay = new Geo();
+    const portals = new Geo(), stone = new Geo(), slate = new Geo(), lay = new Geo(), facade = new Geo(), roofs = new Geo();
     const woodTex = TX.wood();
     this.floors = [];
+    const fq = (g, x0, x1, z0, z1, s) => g.quad(P3(x0, 0, z0), P3(x1, 0, z0), P3(x1, 0, z1), P3(x0, 0, z1), [0, 1, 0],
+      [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
+    // What is left of a stretch once the bits in `cuts` are taken out.
+    const minus = (lo, hi, cuts) => {
+      let segs = [[lo, hi]];
+      for (const [a, b] of cuts) segs = segs.flatMap(([p, q]) => (b <= p || a >= q ? [[p, q]] : [[p, Math.min(q, a)], [Math.max(p, b), q]].filter(([m, n]) => n - m > 0.02)));
+      return segs;
+    };
 
-    for (const r of plan.rooms) {
+    plan.rooms.forEach((r, ri) => {
       const walls = new Geo(), trim = new Geo();
+      const lower = r.floor === 'LL' || r.kind === 'corridor';
       for (const w of plan.walls.filter(w => w.room === r)) {
-        if (r.kind === 'hall' && w.side === 'e') continue;        // the east end is glass
+        if (w.side === r.glass) continue;                  // one end of Griffin Court is all window
         const q = (u0, u1, y0, y1) => walls.quad(
           Object.values(wallPoint(w, u0, y0)), Object.values(wallPoint(w, u1, y0)),
           Object.values(wallPoint(w, u1, y1)), Object.values(wallPoint(w, u0, y1)),
           [w.nx, 0, w.nz], [[u0 / 3, y0 / r.h], [u1 / 3, y0 / r.h], [u1 / 3, y1 / r.h], [u0 / 3, y1 / r.h]]);
         for (const s of w.segs) {
           q(s.lo, s.hi, 0, r.h);
-          if (r.kind !== 'corridor') {
+          if (!lower) {
             const at = wallPoint(w, (s.lo + s.hi) / 2, 0), half = (s.hi - s.lo) / 2;
             trim.wallBox(at, w.nx, w.nz, -half, half, 0, 0.24, 0, 0.035);
             trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.34, r.h, 0, 0.14);
@@ -203,6 +253,8 @@ export class Museum {
         }
         for (const o of w.openings) q(o.lo, o.hi, o.h, r.h);
       }
+      // The ceiling takes the room's own paint and glows with it, faintly.
+      if (r.kind !== 'hall') walls.quad(P3(r.x0, r.h, r.z0), P3(r.x1, r.h, r.z0), P3(r.x1, r.h, r.z1), P3(r.x0, r.h, r.z1), [0, -1, 0], [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]]);
       const tint = new THREE.Color(r.tint);
       const wallMat = new THREE.MeshStandardMaterial({
         color: tint, roughness: 0.94, metalness: 0,
@@ -211,27 +263,51 @@ export class Museum {
       const trimMat = new THREE.MeshStandardMaterial({ color: 0xb9ae9b, roughness: 0.8, emissive: new THREE.Color(0.75, 0.62, 0.45), emissiveIntensity: 0 });
       this.group.add(walls.mesh(wallMat));
       if (!trim.empty) this.group.add(trim.mesh(trimMat));
-      this.rooms[r.id] = { room: r, wallMat, trimMat, wake: 0, lit: false, arts: [], frameMats: [] };
+      const state = this.rooms[r.id] = { room: r, wallMat, trimMat, wake: 0, lit: false, arts: [], frameMats: [], seen: 0, done: false };
 
-      // Floors and ceilings.
-      const fq = (g, x0, x1, z0, z1, s) => g.quad(P3(x0, 0, z0), P3(x1, 0, z0), P3(x1, 0, z1), P3(x0, 0, z1), [0, 1, 0],
-        [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
-      if (r.kind === 'gallery') {
+      // Floors: wood upstairs, stone on the ground floor and in the great rooms, slate below.
+      const w = r.x1 - r.x0, d = r.z1 - r.z0;
+      if (lower) fq(slate, r.x0, r.x1, r.z0, r.z1, 1.6);
+      else if (r.kind === 'hall' || r.floor === '1' || r.id === 'G200') fq(stone, r.x0, r.x1, r.z0, r.z1, 1.3);
+      else {
         const fl = new Geo();
         fq(fl, r.x0, r.x1, r.z0, r.z1, 1.7);
         const fm = mirror.patch(new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55, emissiveMap: woodTex, emissive: new THREE.Color(1, 0.86, 0.7), emissiveIntensity: 0.02 }), [0.02, 0.5]);
         this.floors.push(fl.mesh(fm));
-        this.rooms[r.id].floorMat = fm;
-        ceilings.quad(P3(r.x0, r.h, r.z0), P3(r.x1, r.h, r.z0), P3(r.x1, r.h, r.z1), P3(r.x0, r.h, r.z1), [0, -1, 0]);
-        const m = 3.2;
-        lay.quad(P3(r.x0 + m, r.h - 0.03, r.z0 + m), P3(r.x1 - m, r.h - 0.03, r.z0 + m), P3(r.x1 - m, r.h - 0.03, r.z1 - m), P3(r.x0 + m, r.h - 0.03, r.z1 - m), [0, -1, 0]);
-      } else if (r.kind === 'hall') {
-        fq(stone, r.x0, r.x1, r.z0, r.z1, 1.3);
-      } else {
-        fq(slate, r.x0, r.x1, r.z0, r.z1, 1.6);
-        ceilings.quad(P3(r.x0, r.h, r.z0), P3(r.x1, r.h, r.z0), P3(r.x1, r.h, r.z1), P3(r.x0, r.h, r.z1), [0, -1, 0]);
+        state.floorMat = fm;
       }
-    }
+      // A skylight in any room big enough to have had one.
+      if (r.kind === 'gallery' && !lower && Math.min(w, d) >= 8.5) {
+        const mx = w * 0.27, mz = d * 0.27;
+        lay.quad(P3(r.x0 + mx, r.h - 0.03, r.z0 + mz), P3(r.x1 - mx, r.h - 0.03, r.z0 + mz), P3(r.x1 - mx, r.h - 0.03, r.z1 - mz), P3(r.x0 + mx, r.h - 0.03, r.z1 - mz), [0, -1, 0]);
+      }
+
+      // The outside of it: stone wherever no other room stands against this one, and a roof under snow.
+      const m = plan.masses[ri], top = r.kind === 'hall' ? SPRING + 0.4 : m.top;
+      const outs = plan.doors.filter(dd => dd.out && dd.a === r.id);
+      const sides = [
+        { name: 'w', at: m.x0, lo: m.z0, hi: m.z1, n: [-1, 0, 0], beyond: o => o.x0 < m.x0 - 0.01 && o.x1 > m.x0 - 0.01, span: o => [o.z0, o.z1], P: (u, y) => [m.x0, y, u], door: dd => dd.along === 'x' && dd.x1 <= r.x0 + 0.01 && [dd.z0, dd.z1] },
+        { name: 'e', at: m.x1, lo: m.z0, hi: m.z1, n: [1, 0, 0], beyond: o => o.x0 < m.x1 + 0.01 && o.x1 > m.x1 + 0.01, span: o => [o.z0, o.z1], P: (u, y) => [m.x1, y, u], door: dd => dd.along === 'x' && dd.x0 >= r.x1 - 0.01 && [dd.z0, dd.z1] },
+        { name: 'n', at: m.z0, lo: m.x0, hi: m.x1, n: [0, 0, -1], beyond: o => o.z0 < m.z0 - 0.01 && o.z1 > m.z0 - 0.01, span: o => [o.x0, o.x1], P: (u, y) => [u, y, m.z0], door: dd => dd.along === 'z' && dd.z1 <= r.z0 + 0.01 && [dd.x0, dd.x1] },
+        { name: 's', at: m.z1, lo: m.x0, hi: m.x1, n: [0, 0, 1], beyond: o => o.z0 < m.z1 + 0.01 && o.z1 > m.z1 + 0.01, span: o => [o.x0, o.x1], P: (u, y) => [u, y, m.z1], door: dd => dd.along === 'z' && dd.z0 >= r.z1 - 0.01 && [dd.x0, dd.x1] },
+      ];
+      for (const sd of sides) {
+        if (sd.name === r.glass) continue;
+        const next = plan.masses.filter(o => o !== m && sd.beyond(o)), cuts = next.map(sd.span);
+        const face = (u0, u1, y0, y1) => facade.quad(sd.P(u0, y0), sd.P(u1, y0), sd.P(u1, y1), sd.P(u0, y1), sd.n, [[u0 / 2.6, y0 / 2.6], [u1 / 2.6, y0 / 2.6], [u1 / 2.6, y1 / 2.6], [u0 / 2.6, y1 / 2.6]]);
+        const openings = outs.map(dd => ({ span: sd.door(dd), h: dd.h })).filter(o => o.span);
+        for (const [a, bb] of minus(sd.lo, sd.hi, cuts)) {
+          for (const [p, qq] of minus(a, bb, openings.map(o => o.span))) face(p, qq, 0, top);
+          for (const o of openings) if (o.span[0] >= a && o.span[1] <= bb) face(o.span[0], o.span[1], o.h, top);
+        }
+        // Where this room stands taller than the one against it, its wall shows above that one's roof.
+        for (const o of next) {
+          const [a, bb] = sd.span(o), lo = Math.max(a, sd.lo), hi = Math.min(bb, sd.hi);
+          if (top > o.top + 0.05 && hi - lo > 0.02) face(lo, hi, o.top, top);
+        }
+      }
+      if (r.kind !== 'hall') roofs.quad(P3(m.x0, m.top, m.z0), P3(m.x1, m.top, m.z0), P3(m.x1, m.top, m.z1), P3(m.x0, m.top, m.z1), [0, 1, 0], [[m.x0 / 5, m.z0 / 5], [m.x1 / 5, m.z0 / 5], [m.x1 / 5, m.z1 / 5], [m.x0 / 5, m.z1 / 5]]);
+    });
 
     // Doorways: stone surround right through the wall, and a threshold.
     for (const d of plan.doors) {
@@ -245,53 +321,133 @@ export class Museum {
         portals.box(d.x0 - p, d.x1 + p, 0, d.h, d.z1, d.z1 + j);
         portals.box(d.x0 - p - 0.03, d.x1 + p + 0.03, d.h, d.h + 0.36, d.z0 - j - 0.08, d.z1 + j + 0.08);
       }
-      const g = d.id.startsWith('C-') ? slate : stone, s = g === slate ? 1.6 : 1.3;
-      g.quad(P3(d.x0, 0, d.z0), P3(d.x1, 0, d.z0), P3(d.x1, 0, d.z1), P3(d.x0, 0, d.z1), [0, 1, 0],
-        [[d.x0 / s, d.z0 / s], [d.x1 / s, d.z0 / s], [d.x1 / s, d.z1 / s], [d.x0 / s, d.z1 / s]]);
+      const low = [d.a, d.b].some(id => plan.byId[id] && (plan.byId[id].floor === 'LL' || plan.byId[id].kind === 'corridor'));
+      fq(low ? slate : stone, d.x0, d.x1, d.z0, d.z1, low ? 1.6 : 1.3);
     }
     // Faintly self-lit, so a doorway always reads as a doorway in the dark.
     this.group.add(portals.mesh(new THREE.MeshStandardMaterial({ color: 0xa69c8a, roughness: 0.75, emissive: 0x8a7f6c, emissiveIntensity: 0.07 })));
 
     const floorMat = (map, rough, k, glow) => mirror.patch(new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, emissiveMap: map, emissive: new THREE.Color(0.55, 0.66, 1), emissiveIntensity: glow }), k);
-    this.floors.push(
-      stone.mesh(floorMat(TX.marble(), 0.35, [0.04, 0.62], 0.05)),
-      slate.mesh(floorMat(TX.slate(), 0.4, [0.05, 0.6], 0.03)),
-    );
+    this.floors.push(stone.mesh(floorMat(TX.marble(), 0.35, [0.04, 0.62], 0.05)), slate.mesh(floorMat(TX.slate(), 0.4, [0.05, 0.6], 0.03)));
     this.group.add(...this.floors);
-
-    // Gallery ceilings glow a little with their rooms; the passage's stays black.
-    this.ceilMat = new THREE.MeshStandardMaterial({ color: 0x3a3632, roughness: 1, emissive: 0x6b5a45, emissiveIntensity: 0.03 });
-    this.group.add(ceilings.mesh(this.ceilMat));
     this.group.add(lay.mesh(new THREE.MeshBasicMaterial({ map: TX.laylight(), color: new THREE.Color(0.34, 0.4, 0.56) })));
+    const ash = TX.ashlar(), snowTex = TX.snow();
+    this.group.add(facade.mesh(new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.32, 0.36, 0.5), emissiveIntensity: 0.42 })));
+    this.group.add(roofs.mesh(new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 })));
+    this.snowTex = snowTex;
 
-    // The number over each door, as the museum numbers them.
+    // Over every doorway, the name of the room it leads to.
+    const cache = new Map();
+    const label = (title, sub) => { const k = title + '|' + sub; if (!cache.has(k)) cache.set(k, new THREE.MeshBasicMaterial({ map: TX.sign(title, sub), transparent: true, depthWrite: false, color: new THREE.Color(0.95, 0.95, 0.95) })); return cache.get(k); };
+    const nameOf = id => {
+      const r = plan.byId[id], set = this.collection.rooms[id];
+      if (!r) return ['Way out', ''];
+      if (r.kind === 'corridor') return ['Miniature Rooms', 'Gallery 11'];
+      return [r.gallery.replace(/^Galleries /, 'Gallery ').slice(0, 24), set && set.names.length ? set.names.join('  ·  ') : ''];
+    };
     const signs = new THREE.Group();
-    for (const d of plan.doors) {
-      if (d.a !== 'hall' && d.a !== 'C') continue;
-      const set = this.collection.rooms[d.b];
-      const isHall = d.a === 'hall';
-      const title = isHall ? (set ? set.gallery : 'Gallery') : 'Miniature Rooms';
-      const sub = isHall ? (set && set.names.length ? set.names.join('  ·  ') : '') : 'Gallery 11';
-      const mat = new THREE.MeshBasicMaterial({ map: TX.sign(title, sub), transparent: true, depthWrite: false, color: new THREE.Color(0.95, 0.95, 0.95) });
-      const w = isHall ? 6.2 : 2.8, h = w * 192 / 1024;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-      const cx = (d.x0 + d.x1) / 2;
-      if (isHall) {
-        const north = d.z1 <= 0;
-        m.position.set(cx, d.h + 0.36 + 0.75, north ? -HW + 0.03 : HW - 0.03);
-        m.rotation.y = north ? 0 : Math.PI;
-      } else {
-        m.position.set(cx, d.h + 0.36 + 0.36, d.z1 + 0.03);   // inside the gallery, over the low door
-      }
+    const hang1 = (d, into, from) => {
+      // Stand in room `from`; the sign over the door names `into`.
+      const r = plan.byId[from], lo = from ? r.h : 99;
+      const dw = d.along === 'z' ? d.x1 - d.x0 : d.z1 - d.z0, w = Math.min(5.2, dw + 1.8), h = w * 96 / 512, y = d.h + 0.36 + h / 2 + 0.12;
+      if (y + h / 2 > lo - 0.1) return;
+      const [title, sub] = nameOf(into);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), label(title, sub));
+      const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
+      // Which face of the wall: the one on `from`'s side of the door.
+      let first;
+      if (from) first = d.along === 'z' ? r.z1 <= d.z0 + 0.01 : r.x1 <= d.x0 + 0.01;
+      else { const a = plan.byId[d.a]; first = !(d.along === 'z' ? a.z1 <= d.z0 + 0.01 : a.x1 <= d.x0 + 0.01); }
+      if (d.along === 'z') { m.position.set(cx, y, first ? d.z0 - 0.03 : d.z1 + 0.03); m.rotation.y = first ? Math.PI : 0; }
+      else { m.position.set(first ? d.x0 - 0.03 : d.x1 + 0.03, y, cz); m.rotation.y = first ? -Math.PI / 2 : Math.PI / 2; }
+      m.matrixAutoUpdate = false; m.updateMatrix();
       signs.add(m);
+    };
+    for (const d of plan.doors) {
+      if (d.out) { if (d !== plan.front) hang1(d, d.a, null); hang1(d, null, d.a); }
+      else { hang1(d, d.b, d.a); hang1(d, d.a, d.b); }
     }
     this.group.add(signs);
   }
 
+  // ---------------------------------------------------------------- outside --
+
+  _buildOutside() {
+    const { plan } = this, B = plan.bounds, cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2;
+    // Snow on the ground, as far as you are allowed to go.
+    const gt = this.snowTex.clone(); gt.needsUpdate = true; gt.repeat.set((B.x1 - B.x0) / 6, (B.z1 - B.z0) / 6);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0 + 400, B.z1 - B.z0 + 400), new THREE.MeshStandardMaterial({ map: gt, roughness: 1, emissiveMap: gt, emissive: new THREE.Color(0.2, 0.25, 0.4), emissiveIntensity: 0.55 }));
+    ground.rotation.x = -Math.PI / 2; ground.position.set(cx, -0.03, cz); ground.updateMatrix(); ground.matrixAutoUpdate = false;
+    this.group.add(ground);
+    // The city all round, and one moon.
+    const city = TX.skyline(false); city.wrapS = THREE.RepeatWrapping; city.repeat.set(3, 1);
+    const R = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2 + 150;
+    const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 190, 64, 1, true), new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, color: new THREE.Color(1.35, 1.35, 1.35), fog: false }));
+    sky.position.set(cx, 86, cz);
+    const moonAt = new THREE.Vector3(cx + R * 0.66, 118, cz - R * 0.7);
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(13, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 2.8), fog: false }));
+    moon.position.copy(moonAt);
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(190, 190), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.4), color: new THREE.Color(0.3, 0.38, 0.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    halo.position.copy(moonAt); halo.lookAt(cx, 20, cz);
+    this.group.add(sky, moon, halo);
+
+    // A lamp either side of every way in.
+    const posts = new Geo(), n = Math.max(1, plan.lamps.length);
+    const globes = new THREE.InstancedMesh(new THREE.SphereGeometry(0.17, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 2.3, 1.3), fog: false }), n);
+    const pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.5, 0.36, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), n);
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), I = new THREE.Quaternion();
+    plan.lamps.forEach((l, i) => {
+      posts.box(l.x - 0.04, l.x + 0.04, 0, 3.1, l.z - 0.04, l.z + 0.04);
+      plan.obstacles.push({ x0: l.x - 0.05, x1: l.x + 0.05, z0: l.z - 0.05, z1: l.z + 0.05, y0: 0, y1: 3.2 });
+      globes.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, 3.25, l.z), I, new THREE.Vector3(1, 1, 1)));
+      pools.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, 0.01, l.z), Q, new THREE.Vector3(11, 11, 1)));
+    });
+    globes.frustumCulled = pools.frustumCulled = false; pools.renderOrder = 4;
+    if (!posts.empty) this.group.add(posts.mesh(new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.5 })), globes, pools);
+
+    // The lions. Bronze gone green, each on its block of stone, as on Michigan Avenue.
+    const bronze = new THREE.MeshStandardMaterial({ color: 0x5f8a73, roughness: 0.55, metalness: 0.2, emissive: 0x2f4a3f, emissiveIntensity: 0.9 });
+    const block = new THREE.MeshStandardMaterial({ color: 0xa9a294, roughness: 0.85, emissive: 0x3a3f4d, emissiveIntensity: 0.4 });
+    const part = (g, geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); g.add(m); return m; };
+    const box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 14, 10);
+    for (const l of plan.lions) {
+      const g = new THREE.Group();
+      part(g, box, block, 0, 0.55, 0, 1.5, 1.1, 3);
+      part(g, box, bronze, 0, 1.75, -0.15, 0.62, 0.72, 1.7);                                   // body
+      part(g, ball, bronze, 0, 2.05, 0.72, 0.95, 1.05, 0.95);                                  // mane
+      part(g, ball, bronze, 0, 2.2, 1.12, 0.52, 0.52, 0.6);                                    // head
+      part(g, box, bronze, 0, 2.08, 1.42, 0.26, 0.2, 0.22);                                    // muzzle
+      for (const sx of [-1, 1]) { part(g, box, bronze, sx * 0.22, 1.42, 0.62, 0.17, 0.66, 0.2); part(g, box, bronze, sx * 0.23, 1.42, -0.82, 0.19, 0.66, 0.24); part(g, ball, bronze, sx * 0.2, 2.6, 1.0, 0.16, 0.2, 0.12); }
+      const tail = part(g, box, bronze, 0, 1.75, -1.2, 0.07, 0.07, 0.75); tail.rotation.x = 0.7;
+      g.position.set(l.x, 0, l.z); g.rotation.y = -Math.PI / 2;        // facing the avenue
+      this.group.add(g);
+    }
+    // The name over the door.
+    const f = plan.front, title = new THREE.Mesh(new THREE.PlaneGeometry(11, 11 * 96 / 512), new THREE.MeshBasicMaterial({ map: TX.sign('The Art Institute', 'of Chicago'), transparent: true, depthWrite: false, color: new THREE.Color(1.4, 1.3, 1.0), fog: false }));
+    title.position.set(f.x0 - 0.05, f.h + 1.9, (f.z0 + f.z1) / 2); title.rotation.y = -Math.PI / 2;
+    this.group.add(title);
+
+    // Snow, falling wherever you are. It is carried along with the camera and wrapped round.
+    const count = 1800, pos = new Float32Array(count * 3), seed = new Float32Array(count * 3);
+    const r = TX.rng(42);
+    for (let i = 0; i < count * 3; i++) seed[i] = r();
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.flakes = new THREE.Points(sg, motes(new THREE.Color(0.85, 0.9, 1), 0.06, 0.85, 26, 34, false));
+    this.flakes.userData.seed = seed;
+    this.flakes.frustumCulled = false;
+    this.group.add(this.flakes);
+  }
+
   // ------------------------------------------------------------------- hall --
 
+  // Griffin Court is built lying along x, as if its window were at the east
+  // end, and then the whole thing is turned to run north as the real one does.
   _buildHall() {
-    const R = VAULT_R;
+    const R = VAULT_R, hall = this.plan.hall, LEN = hall.z1 - hall.z0;
+    const hg = this.hallGroup = new THREE.Group();
+    hg.position.set((hall.x0 + hall.x1) / 2, 0, hall.z1); hg.rotation.y = Math.PI / 2;
+    this.group.add(hg);
     // Glass barrel vault.
     const vault = new Geo();
     const na = 18;
@@ -301,7 +457,7 @@ export class Museum {
       const v0 = R * a0 / 2.45, v1 = R * a1 / 2.45;
       vault.quad(pt(0, a0), pt(LEN, a0), pt(LEN, a1), pt(0, a1), [0, -Math.sin(am), Math.cos(am)], [[0, v0], [LEN / 2.1, v0], [LEN / 2.1, v1], [0, v1]]);
     }
-    this.group.add(vault.mesh(new THREE.MeshBasicMaterial({ map: TX.vaultGlass(), color: new THREE.Color(0.75, 0.8, 0.95) })));
+    hg.add(vault.mesh(new THREE.MeshBasicMaterial({ map: TX.vaultGlass(), color: new THREE.Color(0.75, 0.8, 0.95), side: THREE.DoubleSide })));
 
     // West lunette closes the vault with wall; the east end is all window.
     const lun = new Geo();
@@ -311,7 +467,7 @@ export class Museum {
       const c = [0, SPRING, 0];
       lun.quad(c, pt(a0), pt(a1), c, [1, 0, 0], [[0, 1], [0, 1], [0, 1], [0, 1]]);
     }
-    this.group.add(lun.mesh(this.rooms.hall.wallMat));
+    hg.add(lun.mesh(this.rooms.hall.wallMat));
 
     const steel = new Geo();
     for (let z = -HW; z <= HW + 0.01; z += 2) {
@@ -328,19 +484,10 @@ export class Museum {
       const a = Math.PI * (i + 0.5) / na, y = SPRING + (R - 0.1) * Math.sin(a), z = -(R - 0.1) * Math.cos(a);
       steel.box(x - 0.07, x + 0.07, y - 0.66, y + 0.66, z - 0.1, z + 0.1);
     }
-    this.group.add(steel.mesh(new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.6 })));
+    hg.add(steel.mesh(new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.6 })));
 
-    // Outside: a terrace under snow, and the city.
-    const out = new THREE.Group();
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 260), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.05, 0.065, 0.11) }));
-    ground.rotation.x = -Math.PI / 2; ground.position.set(LEN + 60, -0.08, 0);
-    const city = new THREE.Mesh(new THREE.PlaneGeometry(260, 130), new THREE.MeshBasicMaterial({ map: TX.skyline(), color: new THREE.Color(1.5, 1.5, 1.5), fog: false }));
-    city.rotation.y = -Math.PI / 2; city.position.set(LEN + 95, 63, 0);
-    out.add(ground, city);
-    this.group.add(out);
-
-    // Snow.
-    const n = 700;
+    // Snow beyond the window.
+    const n = 500;
     const pos = new Float32Array(n * 3), seed = new Float32Array(n);
     const r = TX.rng(42);
     for (let i = 0; i < n; i++) {
@@ -351,20 +498,20 @@ export class Museum {
     this.snow = new THREE.Points(sg, motes(new THREE.Color(0.8, 0.86, 1), 0.07, 0.8, 70, 150, false));
     this.snow.userData.seed = seed;
     this.snow.frustumCulled = false;
-    this.group.add(this.snow);
+    hg.add(this.snow);
 
     // Moonlight: shafts falling from the vault, and what they land on.
     const add = (geo, map, color, opacity) => {
       const m = geo.mesh(new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
       m.renderOrder = 5;
-      this.group.add(m);
+      hg.add(m);
       return m;
     };
     const shafts = new Geo(), patches = new Geo();
     this.shaftSpots = [];
     const uvS = [[0, 1], [1, 1], [1, 0], [0, 0]];
     for (let i = 0; i < 5; i++) {
-      const x = 12 + i * 15.5, z = (i % 2 ? 1 : -1) * 1.4;
+      const x = 8 + i * (LEN - 24) / 4, z = (i % 2 ? 1 : -1) * 1.4;
       const top = [x + 7.5, 15.4], bot = [x, 0];
       shafts.quad(P3(top[0], top[1], z - 1.7), P3(top[0], top[1], z + 1.7), P3(bot[0], bot[1], z + 1.7), P3(bot[0], bot[1], z - 1.7), [1, 0, 0], uvS);
       shafts.quad(P3(top[0] - 1.7, top[1], z), P3(top[0] + 1.7, top[1], z), P3(bot[0] + 1.7, bot[1], z), P3(bot[0] - 1.7, bot[1], z), [0, 0, 1], uvS);
@@ -390,7 +537,7 @@ export class Museum {
     this.dust = new THREE.Points(dg, motes(new THREE.Color(0.75, 0.85, 1.2), 0.016, 0.7, 5, 26, true));
     this.dust.userData.base = ds;
     this.dust.frustumCulled = false;
-    this.group.add(this.dust);
+    hg.add(this.dust);
 
     // Someone's balloon, lost on a field trip, still up against the glass.
     const balloon = new THREE.Group();
@@ -399,9 +546,11 @@ export class Museum {
     const knot = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.04, 8), skin.material); knot.position.y = -0.19;
     const string = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 1.1, 4), new THREE.MeshBasicMaterial({ color: 0x9a9a9a })); string.position.y = -0.75;
     balloon.add(skin, knot, string);
-    balloon.position.set(47, SPRING + R - 0.42, 0.6);
+    balloon.position.set(LEN * 0.55, SPRING + R - 0.42, 0.6);
     this.balloon = balloon;
-    this.group.add(balloon);
+    hg.add(balloon);
+    hg.updateMatrixWorld(true);
+    this.balloonAt = balloon.getWorldPosition(new THREE.Vector3());
   }
 
   // -------------------------------------------------------------------- art --
@@ -411,8 +560,9 @@ export class Museum {
     const unit = new THREE.PlaneGeometry(1, 1);
     const lqLoader = new THREE.TextureLoader();
     const blank = TX.flat(40, 36, 32);
-    const frames = {};     // room -> [gilt Geo, dark Geo]
-    const arms = new Geo();
+    const frames = {};     // room -> Geo
+    const arms = new Geo(), plinths = new Geo(), glass = new Geo(), brass = new Geo();
+    this.objects = [];
     const paintings = placements.filter(p => p.kind === 'painting').length;
     const n = placements.length;
 
@@ -437,30 +587,41 @@ export class Museum {
     const flatQ = new THREE.Quaternion();
     let lampIdx = 0;
     this.arts = placements.map((p, i) => {
-      const mini = p.kind === 'miniature';
+      const mini = p.kind === 'miniature', obj = p.kind === 'object';
       // Mostly self-lit: a headlamp should warm a picture, not bleach it.
       const mat = new THREE.MeshStandardMaterial({ color: 0x4c4c4c, map: blank, emissiveMap: blank, emissive: 0xffffff, emissiveIntensity: 0.03, roughness: 0.6, metalness: 0 });
+      if (obj) { mat.alphaTest = 0.5; mat.side = THREE.DoubleSide; mat.color.set(0x8a8a8a); }
       const mesh = new THREE.Mesh(unit, mat);
+      if (obj) mesh.visible = false;              // until its photograph has been cut out
       mesh.position.set(p.x, p.y, p.z);
       mesh.rotation.y = p.rot;
       mesh.scale.set(p.w, p.h, 1);
       mesh.matrixAutoUpdate = false; mesh.updateMatrix();
       this.group.add(mesh);
-      const art = { ...p, i, mini, mesh, mat, lit: 0, wakeAt: -1, tier: 0, want: 0, busy: false, studied: false, lamp: -1, tex: null };
+      const art = { ...p, i, mini, obj, mesh, mat, lit: 0, wakeAt: -1, tier: 0, want: 0, busy: false, studied: false, lamp: -1, tex: null, seen: this.seenIds.has(p.work.id) };
+      if (obj) this.objects.push(art);
       this.rooms[p.room].arts.push(art);
 
-      if (p.work.lq) lqLoader.load(p.work.lq, t => {
+      if (p.work.lq && !obj) lqLoader.load(p.work.lq, t => {
         t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = t.magFilter = THREE.LinearFilter;
         if (art.tier === 0) { mat.map = mat.emissiveMap = t; art.tex = t; mat.needsUpdate = true; } else t.dispose();
       });
 
       // The frame: see buildFrame.
       const f = p.frame, hw = p.w / 2, hh = p.h / 2;
-      buildFrame(frames[p.room] || (frames[p.room] = new Geo()), p, frameStyle(p.work, mini));
+      if (!obj) buildFrame(frames[p.room] || (frames[p.room] = new Geo()), p, frameStyle(p.work, mini));
+      else {
+        // A plinth, and a glass case over whatever stands on it.
+        const a = p.half, top = p.plinth + p.h + 0.18;
+        plinths.box(p.x - a, p.x + a, 0, p.plinth, p.z - a, p.z + a);
+        glass.box(p.x - a + 0.02, p.x + a - 0.02, p.plinth, top, p.z - a + 0.02, p.z + a - 0.02);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) brass.box(p.x + sx * (a - 0.02) - 0.008, p.x + sx * (a - 0.02) + 0.008, p.plinth, top, p.z + sz * (a - 0.02) - 0.008, p.z + sz * (a - 0.02) + 0.008);
+        brass.box(p.x - a, p.x + a, top, top + 0.02, p.z - a, p.z + a);
+      }
 
       E.set(0, p.rot, 0); Q.setFromEuler(E);
       const tx = Math.cos(p.rot), tz = -Math.sin(p.rot);     // along the wall, to the viewer's right
-      if (!mini) {
+      if (!mini && !obj) {
         // Picture lamp: a bright bar held off the wall on a short arm.
         const len = Math.min(1.3, Math.max(0.22, p.w * 0.42));
         const ly = p.y + hh + f + 0.17;
@@ -477,14 +638,15 @@ export class Museum {
       }
       // What the lamp spills on the floor.
       E.set(-Math.PI / 2, 0, 0); flatQ.setFromEuler(E);
-      const reach = mini ? 1.5 : 2.2 + p.h * 0.4;
-      V.set(p.x + p.nx * reach * 0.42, 0.014, p.z + p.nz * reach * 0.42);
-      const along = p.w + (mini ? 1.2 : 2.6);
+      const reach = obj ? p.half * 2 + 1.8 : mini ? 1.5 : 2.2 + p.h * 0.4;
+      if (obj) V.set(p.x, 0.014, p.z); else V.set(p.x + p.nx * reach * 0.42, 0.014, p.z + p.nz * reach * 0.42);
+      const along = obj ? reach : p.w + (mini ? 1.2 : 2.6);
       S.set(p.nz !== 0 ? along : reach, p.nz !== 0 ? reach : along, 1);
       this.pools.setMatrixAt(i, M.compose(V, flatQ, S));
       // The label.
       const cw = mini ? 0.16 : 0.13, ch = mini ? 0.045 : 0.09;
-      if (mini) V.set(p.x + p.nx * 0.03, p.y - hh - f - 0.1, p.z + p.nz * 0.03);
+      if (obj) V.set(p.x, p.plinth * 0.6, p.z + p.half + 0.012);
+      else if (mini) V.set(p.x + p.nx * 0.03, p.y - hh - f - 0.1, p.z + p.nz * 0.03);
       else V.set(p.x + tx * (hw + f + 0.24) - p.nx * 0.03, 1.22, p.z + tz * (hw + f + 0.24) - p.nz * 0.03);
       S.set(cw, ch, 1);
       this.cards.setMatrixAt(i, M.compose(V, Q, S));
@@ -499,16 +661,23 @@ export class Museum {
       if (!geo.empty) this.group.add(geo.mesh(mat));
       this.rooms[room].frameMats = [mat];
     }
+    if (!plinths.empty) {
+      this.group.add(plinths.mesh(new THREE.MeshStandardMaterial({ color: 0x2b2927, roughness: 0.7, emissive: 0x1c1a18, emissiveIntensity: 0.5 })));
+      const gm = glass.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 0.62, 0.72), transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      gm.renderOrder = 7;
+      this.group.add(gm, brass.mesh(new THREE.MeshStandardMaterial({ color: 0x8a7340, roughness: 0.4, metalness: 0.6, emissive: 0x3a2f14, emissiveIntensity: 0.6 })));
+    }
     if (!arms.empty) this.group.add(arms.mesh(new THREE.MeshStandardMaterial({ color: 0x4a3a1c, roughness: 0.5, metalness: 0.4 })));
     this._dirty = true;
     this._waking = new Set();
     this._col = new THREE.Color();
     for (const a of this.arts) this._paint(a);
+    for (const st of Object.values(this.rooms)) { st.seen = st.arts.filter(a => a.seen).length; st.done = st.arts.length > 0 && st.seen === st.arts.length; }
   }
 
   _paint(a) {
     const c = this._col, b = a.boost || 0, l = a.lit * (1 + 1.6 * b);
-    a.mat.emissiveIntensity = (a.mini ? 0.05 + 1.1 * a.lit : 0.035 + 0.88 * a.lit) * (1 + 0.5 * b);
+    a.mat.emissiveIntensity = (a.mini ? 0.05 + 1.1 * a.lit : a.obj ? 0.08 + 0.8 * a.lit : 0.035 + 0.88 * a.lit) * (1 + 0.5 * b);
     if (a.lamp >= 0) {
       this.lamps.setColorAt(a.lamp, c.setRGB(0.05 + 3.6 * l, 0.04 + 2.9 * l, 0.03 + 1.9 * l));
       this.washes.setColorAt(a.lamp, c.setRGB(0.34 * l, 0.26 * l, 0.17 * l));
@@ -516,7 +685,8 @@ export class Museum {
     const k = a.mini ? 0.2 : 0.17;
     this.pools.setColorAt(a.i, c.setRGB(k * l, k * 0.8 * l, k * 0.55 * l));
     const d = 0.02 + 0.4 * l;
-    this.cards.setColorAt(a.i, c.setRGB(d, d * 0.96, d * 0.86));
+    if (a.seen) this.cards.setColorAt(a.i, c.setRGB(0.25 + d * 2.2, 0.18 + d * 1.5, 0.03 + d * 0.3));      // seen: its label has gone gold
+    else this.cards.setColorAt(a.i, c.setRGB(d, d * 0.96, d * 0.86));
     this._dirty = true;
   }
 
@@ -530,21 +700,20 @@ export class Museum {
       const hx = alongX ? L : W, hz = alongX ? W : L;
       leather.box(cx - hx, cx + hx, 0.4, 0.5, cz - hz, cz + hz);
       plan.obstacles.push({ x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz, y0: 0.37, y1: 0.488, bench: true });
-      plan.surfaces.push({ skin: 'bench', x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz, axis: null, h0: 0.5, h1: 0.5, thick: 0.1 });
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
         const lx = cx + sx * (hx - 0.07), lz = cz + sz * (hz - 0.07);
         metal.box(lx - 0.03, lx + 0.03, 0, 0.4, lz - 0.03, lz + 0.03);
         plan.obstacles.push({ x0: lx - 0.03, x1: lx + 0.03, z0: lz - 0.03, z1: lz + 0.03, y0: 0, y1: 0.4 });
       }
     };
-    for (const r of plan.rooms) if (r.kind === 'gallery' && !plan.noBench.has(r.id)) bench((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, false);
-    for (const x of [52, 62]) bench(x, 0, true);
+    for (const b of plan.benches) bench(b.x, b.z, b.alongX);
     this.group.add(leather.mesh(new THREE.MeshStandardMaterial({ color: 0x45201b, roughness: 0.45, emissive: 0x45201b, emissiveIntensity: 0.4 })));
     this.group.add(metal.mesh(new THREE.MeshStandardMaterial({ color: 0x6d6a66, roughness: 0.35, metalness: 0.7 })));
 
     // The guard's desk, lamp left on.
     const desk = new Geo();
-    const dx = 18.2, dz = -6.2;
+    const lobby = plan.byId.G214 || plan.rooms[0];
+    const dx = lobby.x0 + 2.4, dz = lobby.z0 + 1.1;
     desk.box(dx - 1.1, dx + 1.1, 0, 1.02, dz - 0.5, dz + 0.5);
     desk.box(dx - 1.16, dx + 1.16, 1.02, 1.07, dz - 0.56, dz + 0.56);
     plan.obstacles.push({ x0: dx - 1.16, x1: dx + 1.16, z0: dz - 0.56, z1: dz + 0.56, y0: 0, y1: 1.5 });
@@ -564,7 +733,7 @@ export class Museum {
   _buildStunts() {
     const { plan } = this;
     const ply = new Geo(), stone = new Geo(), carpet = new Geo(), crate = new Geo(), wood = new Geo(), steel = new Geo();
-    const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo();
+    const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo(), gold = new Geo();
     const n3 = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
     const ceilingAt = (x, z) => { const r = roomAt(plan, x, z); return !r ? 6 : r.kind === 'hall' ? SPRING + Math.sqrt(Math.max(0, VAULT_R * VAULT_R - z * z)) - 0.15 : r.h; };
 
@@ -591,7 +760,7 @@ export class Museum {
       if (s.skin === 'ply' || s.skin === 'track') {
         const isTrack = s.skin === 'track', run = s.axis || s.run || 'x';
         // Curves are cut into slices; straight pieces are one slab.
-        const n = s.curve ? 14 : 1, geo = isTrack ? track : ply;
+        const n = s.curve || s.ease ? 14 : 1, geo = isTrack ? track : ply;
         for (let i = 0; i < n; i++) {
           const a = i / n, b = (i + 1) / n;
           const rx0 = run === 'x' ? x0 + (x1 - x0) * a : x0, rx1 = run === 'x' ? x0 + (x1 - x0) * b : x1;
@@ -602,7 +771,7 @@ export class Museum {
           for (const [i0, i1, off] of edges) {
             const p0 = top(i0), p1 = top(i1);
             if (run === 'x') { p0[2] += off; p1[2] += off; } else { p0[0] += off; p1[0] += off; }
-            (isTrack && !s.lip ? rail : led).quad(p0, p1, [p1[0], p1[1] + lipH, p1[2]], [p0[0], p0[1] + lipH, p0[2]], run === 'x' ? [0, 0, 1] : [1, 0, 0]);
+            (s.perch ? gold : isTrack && !s.lip ? rail : led).quad(p0, p1, [p1[0], p1[1] + lipH, p1[2]], [p0[0], p0[1] + lipH, p0[2]], run === 'x' ? [0, 0, 1] : [1, 0, 0]);
           }
           // Arrows running uphill on anything that slopes.
           if (s.axis && !isTrack) {
@@ -624,7 +793,12 @@ export class Museum {
         }
       } else if (s.skin === 'stone') {
         stone.box(x0, x1, 0, h0, z0, z1, 1.3);
-        if (s.carpet) carpet.box(x0, x1 + 0.012, Math.max(0, h0 - 0.19), h0 + 0.012, s.carpet[0], s.carpet[1]);
+        if (s.carpet) {
+          // A red runner down the middle, laid across the narrower way.
+          const y0 = Math.max(0, h0 - 0.19), y1 = h0 + 0.012;
+          if (z1 - z0 > x1 - x0) carpet.box(x0 - 0.012, x1 + 0.012, y0, y1, (z0 + z1) / 2 + s.carpet[0], (z0 + z1) / 2 + s.carpet[1]);
+          else carpet.box((x0 + x1) / 2 + s.carpet[0], (x0 + x1) / 2 + s.carpet[1], y0, y1, z0 - 0.012, z1 + 0.012);
+        }
       } else if (s.skin === 'crate') {
         crate.box(x0, x1, 0, h0, z0, z1, 0.9);
       } else if (s.skin === 'table') {
@@ -640,11 +814,14 @@ export class Museum {
 
     // Track laid flat on the floor: where to line up, and which way.
     for (const d of plan.decals) {
-      const y = 0.007, len = (d.x1 - d.x0), w = d.z1 - d.z0;
-      track.quad([d.x0, y, d.z0], [d.x1, y, d.z0], [d.x1, y, d.z1], [d.x0, y, d.z1], [0, 1, 0], [[0, 0], [0, len / 1.2], [1, len / 1.2], [1, 0]]);
-      const k = len / 0.6, m = w * 0.22;
-      trackArrows.quad([d.x0, y + 0.004, d.z0 + m], [d.x1, y + 0.004, d.z0 + m], [d.x1, y + 0.004, d.z1 - m], [d.x0, y + 0.004, d.z1 - m], [0, 1, 0],
-        d.dir > 0 ? [[0, 0], [0, k], [1, k], [1, 0]] : [[0, k], [0, 0], [1, 0], [1, k]]);
+      const y = 0.007, alongX = d.axis !== 'z', len = alongX ? d.x1 - d.x0 : d.z1 - d.z0, w = alongX ? d.z1 - d.z0 : d.x1 - d.x0;
+      const k = len / 0.6, m = w * 0.22, e = 0.004, v = len / 1.2;
+      const c = [[d.x0, y, d.z0], [d.x1, y, d.z0], [d.x1, y, d.z1], [d.x0, y, d.z1]];
+      // Texture runs along the track: v follows x for one kind, z for the other.
+      const uv = (n, flip) => alongX ? (flip ? [[0, n], [0, 0], [1, 0], [1, n]] : [[0, 0], [0, n], [1, n], [1, 0]]) : (flip ? [[0, n], [1, n], [1, 0], [0, 0]] : [[0, 0], [1, 0], [1, n], [0, n]]);
+      track.quad(c[0], c[1], c[2], c[3], [0, 1, 0], uv(v, false));
+      const a = alongX ? [[d.x0, y + e, d.z0 + m], [d.x1, y + e, d.z0 + m], [d.x1, y + e, d.z1 - m], [d.x0, y + e, d.z1 - m]] : [[d.x0 + m, y + e, d.z0], [d.x1 - m, y + e, d.z0], [d.x1 - m, y + e, d.z1], [d.x0 + m, y + e, d.z1]];
+      trackArrows.quad(a[0], a[1], a[2], a[3], [0, 1, 0], uv(k, d.dir < 0));
     }
 
     // The loop: one ribbon of track taken right round, leaning sideways as it
@@ -671,7 +848,7 @@ export class Museum {
     const D = THREE.DoubleSide;
     const std = (o) => new THREE.MeshStandardMaterial({ side: D, ...o });
     const plyTex = TX.plywood(), trackTex = TX.track(), crateTex = TX.crate();
-    const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); this.group.add(m); return m; } };
+    const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); this.kit.add(m); return m; } };
     put(ply, std({ map: plyTex, roughness: 0.75, emissiveMap: plyTex, emissive: 0x8a7a66, emissiveIntensity: 0.16 }));
     put(stone, std({ color: 0xb7b0a3, roughness: 0.5, emissive: 0x39424f, emissiveIntensity: 0.22 }));
     put(carpet, std({ color: 0x7a1218, roughness: 0.95, emissive: 0x3a0508, emissiveIntensity: 0.3 }));
@@ -682,6 +859,7 @@ export class Museum {
     put(track, std({ map: trackTex, roughness: 0.45, emissiveMap: trackTex, emissive: 0xffffff, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     put(rail, std({ color: 0xc8501a, roughness: 0.5, emissive: 0xc8501a, emissiveIntensity: 0.35 }));
     put(led, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45), side: D }));
+    put(gold, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.22), side: D }));        // somewhere to land and look from
     this.arrowTex = TX.chevrons();
     const arrowMat = new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     const a1 = put(arrows, arrowMat), a2 = put(trackArrows, arrowMat);
@@ -691,7 +869,7 @@ export class Museum {
     for (const p of plan.puddles) {
       const m = new THREE.Mesh(new THREE.CircleGeometry(p.r, 44), this.mirror.patch(new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 0.05, transparent: true, opacity: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [0.6, 0.4]));
       m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.004, p.z); m.updateMatrix(); m.matrixAutoUpdate = false;
-      this.group.add(m); this.floors.push(m);
+      this.kit.add(m); this.floors.push(m);
     }
 
     // Hoops: gold until you have been through them.
@@ -700,7 +878,7 @@ export class Museum {
       const mesh = new THREE.Mesh(new THREE.TorusGeometry(h.r, 0.032, 10, 56), mat);
       mesh.position.set(h.x, h.y, h.z);
       if (h.axis === 'x') mesh.rotation.y = Math.PI / 2; else if (h.axis === 'y') mesh.rotation.x = Math.PI / 2;
-      this.group.add(mesh);
+      this.kit.add(mesh);
       return { ...h, mesh, mat, done: false, pop: 0 };
     });
   }
@@ -735,6 +913,31 @@ export class Museum {
     for (const a of this.arts) if (a.wakeAt < 0) { a.wakeAt = this.time + Math.random() * 1.5; this._waking.add(a); }
   }
 
+  // ---- what you have seen ----
+  get seenCount() { return this.arts.reduce((n, a) => n + (a.seen ? 1 : 0), 0); }
+  get galleries() { return Object.values(this.rooms).filter(s => s.arts.length); }
+
+  see(a) {
+    if (a.seen) return;
+    a.seen = true;
+    this.seenIds.add(a.work.id);
+    const st = this.rooms[a.room];
+    st.seen++;
+    const complete = !st.done && st.seen === st.arts.length;
+    if (complete) st.done = true;
+    this._paint(a);
+    clearTimeout(this._save);
+    this._save = setTimeout(() => { try { localStorage.setItem('after-hours.seen-ids', JSON.stringify([...this.seenIds])); } catch { /* fine */ } }, 1500);
+    if (this.onSeen) this.onSeen(a, st, complete);
+  }
+
+  forget() {
+    this.seenIds.clear();
+    try { localStorage.removeItem('after-hours.seen-ids'); } catch { /* fine */ }
+    for (const a of this.arts) { a.seen = false; this._paint(a); }
+    for (const st of Object.values(this.rooms)) { st.seen = 0; st.done = false; }
+  }
+
   get litCount() { return this.arts.reduce((n, a) => n + (a.wakeAt >= 0 ? 1 : 0), 0); }
   get roomsLit() { return Object.values(this.rooms).filter(s => s.room.kind === 'gallery' && s.lit).length; }
 
@@ -762,6 +965,21 @@ export class Museum {
         }
       }
     }
+    // Seen: close enough to take it in, in front of it, with its lamp on.
+    if (state) for (const a of state.arts) {
+      if (a.seen || a.lit < 0.6) continue;
+      const dx = pos.x - a.x, dz = pos.z - a.z, d = Math.hypot(dx, dz);
+      if (d > (a.obj ? 3.4 : a.mini ? 2.8 : Math.min(11, 3.2 + Math.max(a.w, a.h) * 2.1))) continue;
+      if (!a.obj && dx * a.nx + dz * a.nz < 0.4) continue;
+      this.see(a);
+    }
+    // Things in cases turn to face you, like the cut-outs they are.
+    for (const o of this.objects) {
+      const dx = cam.x - o.x, dz = cam.z - o.z;
+      if (!o.mesh.visible || dx * dx + dz * dz > 1600) continue;
+      o.mesh.rotation.y = Math.atan2(dx, dz); o.mesh.updateMatrix();
+    }
+    this.flakes.visible = !roomAt(this.plan, cam.x, cam.z);
     for (const a of this._waking) {
       const e = t - a.wakeAt;
       if (e < 0) continue;
@@ -781,7 +999,6 @@ export class Museum {
       if (s.floorMat) s.floorMat.emissiveIntensity = 0.02 + 0.26 * s.wake;
       for (const m of s.frameMats) m.emissiveIntensity = 0.05 + 0.85 * s.wake;
     }
-    this.ceilMat.emissiveIntensity = 0.03 + 0.2 * (this.roomsLit / 10);
     // Lamps in the hall and passage light their own frames; approximate with how many are on.
     for (const id of ['hall', 'C']) {
       const s = this.rooms[id];
@@ -794,11 +1011,23 @@ export class Museum {
       this.pools.instanceColor.needsUpdate = true; this.cards.instanceColor.needsUpdate = true;
       this._dirty = false;
     }
-    this._weather(dt, t);
+    this._weather(dt, t, cam);
     this._stream(pos, cam, roomId);
   }
 
-  _weather(dt, t) {
+  _weather(dt, t, cam) {
+    if (this.flakes.visible) {
+      const f = this.flakes.geometry.attributes.position, sd = this.flakes.userData.seed, W = 58, Hh = 30;
+      for (let i = 0; i < f.count; i++) {
+        const sx = sd[i * 3], sy = sd[i * 3 + 1], sz = sd[i * 3 + 2];
+        // Each flake keeps its own place in a block of air that is tiled round the camera.
+        const wx = sx * W + Math.sin(t * 0.5 + sy * 40) * 0.6, wz = sz * W + Math.cos(t * 0.4 + sx * 40) * 0.6, wy = sy * Hh - t * (0.8 + sx * 0.7);
+        f.array[i * 3] = cam.x + ((((wx - cam.x) % W) + W) % W) - W / 2;
+        f.array[i * 3 + 1] = (((wy % Hh) + Hh) % Hh) - 2;
+        f.array[i * 3 + 2] = cam.z + ((((wz - cam.z) % W) + W) % W) - W / 2;
+      }
+      f.needsUpdate = true;
+    }
     const p = this.snow.geometry.attributes.position, seed = this.snow.userData.seed;
     for (let i = 0; i < p.count; i++) {
       let y = p.array[i * 3 + 1] - dt * (0.7 + (seed[i] % 1) * 0.6);
@@ -837,8 +1066,8 @@ export class Museum {
     for (const a of this.arts) {
       const d = Math.hypot(a.x - cam.x, a.z - cam.z);
       let want = d < 60 ? 1 : (a.tier >= 1 && d < 85 ? 1 : 0);
-      const near = a.mini ? 5 : 13;
-      if (d < near || (a.room === roomId && !a.mini && a.room !== 'hall')) want = 2;
+      const near = a.mini || a.obj ? 5 : 13;
+      if (d < near || (a.room === roomId && !a.mini && !a.obj && a.room !== 'hall')) want = 2;
       else if (a.tier === 2 && d < near + 9) want = 2;
       if (a.focus) want = 3;
       a.want = want;
@@ -865,7 +1094,8 @@ export class Museum {
     img.referrerPolicy = 'no-referrer';
     const done = () => { a.busy = false; this.loading--; };
     img.onload = () => {
-      const t = new THREE.Texture(img);
+      const t = a.obj ? new THREE.CanvasTexture(cutOut(img)) : new THREE.Texture(img);
+      if (a.obj) a.mesh.visible = true;
       t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = this.maxAniso;
       t.needsUpdate = true;
@@ -908,7 +1138,7 @@ export class Museum {
     let best = null, score = Infinity;
     for (const a of s.arts) {
       const dx = a.x - pos.x, dz = a.z - pos.z, d = Math.hypot(dx, dz);
-      const reach = a.mini ? 3.2 : 5.5 + a.w * 0.6;
+      const reach = a.mini || a.obj ? 3.2 : 5.5 + a.w * 0.6;
       if (d > reach) continue;
       const ahead = (dx * fx + dz * fz) / (d || 1);
       const sc = d - ahead * 2.2;

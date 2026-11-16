@@ -4,69 +4,62 @@
 // Axes: x runs east, z runs south, y is up. Units are metres. The vehicles are
 // true to scale (a 46 cm car), which is the whole point: the rooms are not big,
 // you are small.
+//
+// The rooms and the doorways between them come from src/layout.js, which
+// tools/build_layout.mjs generates from where the museum's galleries really
+// are. Everything here is built on top of that: collision, the stunt kit, where
+// the pictures hang, where the glass cases stand, and the race.
+
+import LAYOUT from './layout.js';
 
 export const T = 1;            // wall thickness
-export const RW = 16;          // gallery width (x)
-export const RD = 13;          // gallery depth (z)
-export const RH = 7.5;         // gallery ceiling
-export const PITCH = RW + T;
-export const LEN = 5 * RW + 4 * T;   // 84 m of hall
-export const HW = 7;           // hall half-width
-export const SPRING = 9;       // where the hall's vault starts
+export const HW = 7;           // Griffin Court's half-width
+export const SPRING = 9;       // where its vault starts
 export const VAULT_R = 7;
-export const CORR = { z0: -26.5, z1: -22, h: 3.4 };
-
-// Real gallery numbers, west to east. If a gallery has been rehung and comes
-// back empty, the curator fills the room from the next best-stocked gallery.
-export const NORTH = ['Gallery 201', 'Gallery 240', 'Gallery 241', 'Gallery 243', 'Gallery 248'];
-export const SOUTH = ['Gallery 211', 'Gallery 213', 'Gallery 220', 'Gallery 161', 'Gallery 273'];
+export const GRAVITY = 9.8;
+export const STEP = 0.09;      // the tallest lip a toy wheel will climb
+export const SKY = 46;         // how high a drone may go outdoors
 
 // Wall colours, the deep paint museums use so gilt frames sing.
-const TINT_N = [0x4a5a66, 0x56604f, 0x5c4a58, 0x445a5c, 0x6a5a48];
-const TINT_S = [0x5e2f2c, 0x2f4638, 0x3a4059, 0x6b5536, 0x4f3c4d];
+const TINTS = {
+  '2': [0x5e2f2c, 0x2f4638, 0x3a4059, 0x4a5a66, 0x56604f, 0x5c4a58, 0x445a5c, 0x6a5a48, 0x4f3c4d, 0x6b5536],
+  '1': [0x6a6456, 0x5a6158, 0x66605c, 0x545a60], '3': [0x8a8880, 0x7c7e84], LL: [0x2a2c33, 0x30292a],
+};
+const hash = s => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 
 export function buildPlan() {
-  const rooms = [];
-  const doors = [];
-  const hall = { id: 'hall', kind: 'hall', x0: 0, x1: LEN, z0: -HW, z1: HW, h: SPRING, ceil: 12.4, tint: 0x8c8a84 };
-  rooms.push(hall);
-  for (let i = 0; i < 5; i++) {
-    const x0 = i * PITCH, x1 = x0 + RW;
-    rooms.push({ id: 'N' + i, kind: 'gallery', side: 'n', i, x0, x1, z0: -HW - T - RD, z1: -HW - T, h: RH, ceil: RH - 0.15, tint: TINT_N[i], want: NORTH[i] });
-    rooms.push({ id: 'S' + i, kind: 'gallery', side: 's', i, x0, x1, z0: HW + T, z1: HW + T + RD, h: RH, ceil: RH - 0.15, tint: TINT_S[i], want: SOUTH[i] });
-  }
-  rooms.push({ id: 'C', kind: 'corridor', x0: 0, x1: LEN, z0: CORR.z0, z1: CORR.z1, h: CORR.h, ceil: CORR.h - 0.1, tint: 0x16171c, want: 'Gallery 11' });
-
-  for (let i = 0; i < 5; i++) {
-    const cx = i * PITCH + RW / 2;
-    doors.push({ id: 'H-N' + i, a: 'hall', b: 'N' + i, along: 'z', x0: cx - 1.7, x1: cx + 1.7, z0: -HW - T, z1: -HW, h: 4.4 });
-    doors.push({ id: 'H-S' + i, a: 'hall', b: 'S' + i, along: 'z', x0: cx - 1.7, x1: cx + 1.7, z0: HW, z1: HW + T, h: 4.4 });
-    if (i < 4) {
-      const wx = i * PITCH + RW;
-      const zn = -HW - T - RD / 2, zs = HW + T + RD / 2;
-      doors.push({ id: 'N' + i + '-N' + (i + 1), a: 'N' + i, b: 'N' + (i + 1), along: 'x', x0: wx, x1: wx + T, z0: zn - 1.4, z1: zn + 1.4, h: 3.8 });
-      doors.push({ id: 'S' + i + '-S' + (i + 1), a: 'S' + i, b: 'S' + (i + 1), along: 'x', x0: wx, x1: wx + T, z0: zs - 1.4, z1: zs + 1.4, h: 3.8 });
-    }
-  }
-  // The miniature-rooms passage hides behind the north wing, reached from its two ends.
-  doors.push({ id: 'C-N0', a: 'C', b: 'N0', along: 'z', x0: 2.1, x1: 4.3, z0: CORR.z1, z1: CORR.z1 + T, h: 2.7 });
-  doors.push({ id: 'C-N4', a: 'C', b: 'N4', along: 'z', x0: LEN - 4.3, x1: LEN - 2.1, z0: CORR.z1, z1: CORR.z1 + T, h: 2.7 });
-
+  const rooms = LAYOUT.rooms.map(r => {
+    const pal = TINTS[r.floor] || TINTS['2'];
+    return { ...r, want: r.gallery, ceil: r.kind === 'hall' ? 12.4 : r.h - 0.15,
+      tint: r.kind === 'hall' ? 0x8c8a84 : r.kind === 'corridor' ? 0x16171c : pal[hash(r.id) % pal.length] };
+  });
+  const doors = LAYOUT.doors.map((d, i) => ({ id: 'D' + i, ...d, out: d.b === 'out' }));
   const byId = Object.fromEntries(rooms.map(r => [r.id, r]));
+  const hall = rooms.find(r => r.kind === 'hall');
 
-  // Walkable volumes: every room, every doorway stretched a little into the
-  // rooms either side, and the tall middle of the hall under the vault.
+  // Walkable volumes indoors: every room, every doorway stretched a little
+  // past the wall either side, and the tall middle of the hall under its vault.
   const boxes = rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y1: r.ceil }));
-  boxes.push({ x0: 0, x1: LEN, z0: -4, z1: 4, y1: 14.5 });
+  const hx = (hall.x0 + hall.x1) / 2;
+  boxes.push({ x0: hx - 4, x1: hx + 4, z0: hall.z0, z1: hall.z1, y1: 14.5 });
   for (const d of doors) {
     const e = 1.6;
     boxes.push(d.along === 'z'
       ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y1: d.h }
       : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y1: d.h });
   }
+  // Outdoors is everywhere that is not a building. Each room, with its walls, is a solid block from outside.
+  const masses = rooms.map(r => ({ x0: r.x0 - T, x1: r.x1 + T, z0: r.z0 - T, z1: r.z1 + T, top: (r.kind === 'hall' ? SPRING + VAULT_R : r.h) + 0.5 + (hash(r.id) % 7) * 0.012, room: r }));
+  const xs = rooms.flatMap(r => [r.x0, r.x1]), zs = rooms.flatMap(r => [r.z0, r.z1]), pad = 34;
+  const bounds = { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, z0: Math.min(...zs) - pad, z1: Math.max(...zs) + pad };
 
-  const plan = { rooms, doors, byId, boxes, obstacles: [], hall };
+  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made };
   plan.walls = rooms.flatMap(r => wallsOf(plan, r));
+  plan.doorsOf = id => doors.filter(d => d.a === id || d.b === id);
+  // Where you begin: out on Michigan Avenue in the snow, facing the front door.
+  const front = doors.find(d => d.a === 'G214' && d.out) || doors.find(d => d.out);
+  plan.front = front;
+  plan.spawn = { x: front.x0 - 9, z: (front.z0 + front.z1) / 2, yaw: Math.PI / 2 };
   addStunts(plan);
   return plan;
 }
@@ -113,8 +106,18 @@ export function roomAt(plan, x, z) {
   return null;
 }
 
-// Keep a sphere of radius r inside the walkable volumes. Returns true when it
-// had to move the point, and writes the push direction to `out`.
+// How high the ceiling is over a point: a room's, a doorway's, or the sky.
+export function ceilingAt(plan, x, z) {
+  const r = roomAt(plan, x, z);
+  if (r) return r.kind === 'hall' ? SPRING + Math.sqrt(Math.max(0, VAULT_R * VAULT_R - (x - (r.x0 + r.x1) / 2) ** 2)) - 0.2 : r.h;
+  for (const d of plan.doors) if (x >= d.x0 && x <= d.x1 && z >= d.z0 && z <= d.z1) return d.h;
+  return SKY + 20;
+}
+
+// Keep a sphere of radius r where it is allowed to be: inside a room or a
+// doorway, or outdoors clear of every building. Returns true when it had to
+// move the point, and writes the push direction to `out`.
+const _o = { x: 0, y: 0, z: 0 };
 export function confine(plan, p, r, flying, out, noFurniture) {
   let best = Infinity, bx = p.x, by = p.y, bz = p.z;
   for (const b of plan.boxes) {
@@ -126,6 +129,28 @@ export function confine(plan, p, r, flying, out, noFurniture) {
     if (flying) { const y1 = b.y1 - r; cy = p.y > y1 ? y1 : p.y; }
     const d = (cx - p.x) ** 2 + (cz - p.z) ** 2 + (cy - p.y) ** 2;
     if (d < best) { best = d; bx = cx; by = cy; bz = cz; if (d === 0) break; }
+  }
+  if (best > 1e-10) {
+    // Not indoors. Outdoors, then: push clear of any building it is touching
+    // (or, coming down from above, set it on the roof).
+    const B = plan.bounds;
+    _o.x = Math.max(B.x0 + r, Math.min(B.x1 - r, p.x)); _o.z = Math.max(B.z0 + r, Math.min(B.z1 - r, p.z)); _o.y = Math.min(p.y, SKY);
+    let ok = true;
+    for (let pass = 0; pass < 3; pass++) {
+      let moved = false;
+      for (const m of plan.masses) {
+        if (_o.x + r <= m.x0 || _o.x - r >= m.x1 || _o.z + r <= m.z0 || _o.z - r >= m.z1) continue;
+        if (flying && _o.y - r >= m.top) continue;
+        if (flying && _o.y > m.top - 0.7) { _o.y = m.top + r; moved = true; continue; }
+        const l = _o.x + r - m.x0, rr = m.x1 - (_o.x - r), n = _o.z + r - m.z0, s = m.z1 - (_o.z - r), k = Math.min(l, rr, n, s);
+        if (k === l) _o.x -= l; else if (k === rr) _o.x += rr; else if (k === n) _o.z -= n; else _o.z += s;
+        moved = true;
+      }
+      if (!moved) break;
+      if (pass === 2) ok = false;
+    }
+    const d = (_o.x - p.x) ** 2 + (_o.y - p.y) ** 2 + (_o.z - p.z) ** 2;
+    if (ok && d < best) { best = d; bx = _o.x; by = _o.y; bz = _o.z; }
   }
   let hit = best > 1e-10;
   if (hit && out) { out.x = bx - p.x; out.y = by - p.y; out.z = bz - p.z; }
@@ -141,7 +166,6 @@ export function confine(plan, p, r, flying, out, noFurniture) {
     const d2 = dx * dx + dz * dz;
     if (d2 >= r * r) continue;
     if (d2 < 1e-9) {
-      // Centre is inside the box: leave by the nearest face.
       const l = p.x - o.x0, rr = o.x1 - p.x, n = p.z - o.z0, s = o.z1 - p.z;
       const m = Math.min(l, rr, n, s);
       if (m === l) { dx = -(l + r); dz = 0; } else if (m === rr) { dx = rr + r; dz = 0; }
@@ -160,179 +184,234 @@ export function confine(plan, p, r, flying, out, noFurniture) {
 // ------------------------------------------------------------ the stunt kit --
 //
 // Somebody has been in here before you with plywood and a staple gun. Every
-// piece is a rectangle with a height: flat, or sloping along one axis. Solid
-// pieces go down to the floor and stop you like a wall from the side; thin
-// ones (table tops) can be driven under and landed on.
+// piece is a rectangle with a height: flat, sloping, eased like toy track, or
+// curved like a skate ramp. Solid pieces go down to the floor and stop you like
+// a wall from the side; thin ones (table tops, hung track) can be driven under
+// and landed on.
+//
+// Pieces are placed in a room's own frame: `u` runs along the room's longer
+// side from its middle, `v` across it. That way one description of a half-pipe
+// fits whichever way a real gallery happens to lie.
 
-export const GRAVITY = 9.8;
-export const STEP = 0.09;       // the tallest lip a toy wheel will climb
+function frame(r) {
+  const lx = r.x1 - r.x0, lz = r.z1 - r.z0;
+  return { r, ax: lx >= lz ? 'x' : 'z', cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, L: Math.max(lx, lz), W: Math.min(lx, lz) };
+}
 
 function addStunts(plan) {
-  const S = plan.surfaces = [], L = plan.loops = [], D = plan.decals = [];
-  plan.noBench = new Set(['S3']);
-  const add = (skin, x0, x1, z0, z1, axis, h0, h1, o = {}) => { const s = { skin, x0, x1, z0, z1, axis, h0, h1, thick: 0, ...o }; S.push(s); return s; };
-  const flat = (skin, x0, x1, z0, z1, h, o) => add(skin, x0, x1, z0, z1, null, h, h, o);
-  const track = (x0, x1, z0, z1, axis, dir) => D.push({ x0, x1, z0, z1, axis, dir });
-  // A table: a thin top on four legs.
-  const table = (x0, x1, z0, z1, h) => {
-    flat('table', x0, x1, z0, z1, h, { thick: 0.06 });
-    plan.obstacles.push({ x0, x1, z0, z1, y0: h - 0.17, y1: h - 0.08 });      // the apron: low enough that a car cresting the ramp clears it
-    for (const lx of [x0 + 0.08, x1 - 0.08]) for (const lz of [z0 + 0.08, z1 - 0.08])
-      plan.obstacles.push({ x0: lx - 0.035, x1: lx + 0.035, z0: lz - 0.035, z1: lz + 0.035, y0: 0, y1: h - 0.06, leg: true });
-  };
-  // Ramp up, flat top, ramp down, along x: jumpable from either end.
-  const tabletop = (cx, z0, z1, h, run = 1.6, top = 0.6) => {
-    add('ply', cx - top - run, cx - top, z0, z1, 'x', 0, h);
-    flat('ply', cx - top, cx + top, z0, z1, h);
-    add('ply', cx + top, cx + top + run, z0, z1, 'x', h, 0);
-    track(cx - top - run - 3, cx - top - run, z0 + 0.25, z1 - 0.25, 'x', 1);
-    track(cx + top + run, cx + top + run + 3, z0 + 0.25, z1 - 0.25, 'x', -1);
-  };
-  const zs = HW + T + RD / 2, zn = -zs, zc = (CORR.z0 + CORR.z1) / 2;
+  const S = plan.surfaces = [], L = plan.loops = [], D = plan.decals = [], H = plan.hoops = [], P = plan.props = [];
+  plan.puddles = []; plan.benches = []; plan.lions = []; plan.lamps = [];
+  const world = (F, u0, u1, v0, v1) => F.ax === 'x' ? [F.cx + u0, F.cx + u1, F.cz + v0, F.cz + v1] : [F.cx + v0, F.cx + v1, F.cz + u0, F.cz + u1];
+  const at = (F, u, v) => F.ax === 'x' ? [F.cx + u, F.cz + v] : [F.cx + v, F.cz + u];
+  const other = a => (a === 'x' ? 'z' : 'x');
+  const push = (skin, rect, axis, h0, h1, o = {}) => { const s = { skin, x0: rect[0], x1: rect[1], z0: rect[2], z1: rect[3], axis, h0, h1, thick: 0, ...o }; S.push(s); return s; };
+  const ramp = (F, u0, u1, v0, v1, hA, hB, o, skin = 'ply') => push(skin, world(F, u0, u1, v0, v1), F.ax, hA, hB, o);         // slopes along u
+  const rampV = (F, u0, u1, v0, v1, hA, hB, o, skin = 'ply') => push(skin, world(F, u0, u1, v0, v1), other(F.ax), hA, hB, o);  // slopes along v
+  const flat = (F, u0, u1, v0, v1, h, o, skin = 'ply') => push(skin, world(F, u0, u1, v0, v1), null, h, h, o);
+  const hoop = (F, u, v, y, dir = 'u', r = 0.8) => { const [x, z] = at(F, u, v); H.push({ x, y, z, axis: dir === 'y' ? 'y' : dir === 'u' ? F.ax : other(F.ax), r }); };
+  const decal = (F, u0, u1, v0, v1, dir) => { const [x0, x1, z0, z1] = world(F, u0, u1, v0, v1); D.push({ x0, x1, z0, z1, axis: F.ax, dir }); };
+  const cone = (F, u, v) => { const [x, z] = at(F, u, v); P.push({ type: 'cone', x, z }); };
 
-  // 1. The grand stair at the west end of the hall: a ramp up the north side,
-  //    a landing under the biggest picture in the building, and a kicker
-  //    pointing straight down the steps.
-  const LH = 1.5, LX = 4.6;
-  flat('stone', 0, LX, -5.8, 4, LH, { carpet: [-1.3, 1.3] });
-  add('ply', LX, 13.6, -5.8, -4.2, 'x', LH, 0);
-  track(13.6, 17, -5.6, -4.4, 'x', -1);
-  for (let k = 0; k < 7; k++) flat('stone', LX + 0.36 * k, LX + 0.36 * (k + 1), -4, 4, LH - 0.1875 * (k + 1), { carpet: [-1.3, 1.3], stepFrom: LX });
-  add('ply', 2.5, LX, -0.9, 0.9, 'x', LH, LH + 0.36, { thick: 0.4, onTop: LH });
-
-  // 2. A tabletop jump on the hall straight, just after the start line.
-  tabletop(23.8, -0.8, 1.2, 0.45, 1.8);
-
-  // 3. The loop, run at towards the window.
-  L.push({ x: 57, z: -3.4, dir: 1, r: 1.15, shift: 0.62, w: 0.56 });
-  track(46, 57, -3.68, -3.12, 'x', 1);
-  track(57, 67, -3.06, -2.5, 'x', -1);       // the other lane: run at it from the window end
-  for (const dx of [-1.45, 1.45]) for (const dz of [-0.55, 1.15])
-    plan.obstacles.push({ x0: 57 + dx - 0.04, x1: 57 + dx + 0.04, z0: -3.4 + dz - 0.04, z1: -3.4 + dz + 0.04, y0: 0, y1: 2.5, post: true });
-
-  // 4. Gallery 211: up a ramp, along a table under the El Greco, off the end.
-  add('ply', 0.5, 3.2, 17.6, 18.8, 'x', 0, 0.72);
-  table(3.2, 9, 17.6, 18.8, 0.72);
-  add('ply', 7.9, 9, 17.75, 18.65, 'x', 0.72, 0.92, { thick: 0.2, onTop: 0.72 });
-
-  // 5. Gallery 213: a kicker either side of the bench. Clear it or land on it.
-  add('ply', 21.6, 23.4, 13.7, 15.3, 'x', 0, 0.5);
-  add('ply', 26.6, 28.4, 13.7, 15.3, 'x', 0.5, 0);
-  track(18.6, 21.6, 13.95, 15.05, 'x', 1);
-
-  // 6. Gallery 161: packing crates stacked into a ramp, a deck and three steps down.
-  add('ply', 55.4, 58.2, 13.6, 15.4, 'x', 0, 0.75);
-  flat('crate', 58.2, 59.5, 13.6, 15.4, 0.75);
-  flat('crate', 59.5, 59.92, 13.6, 15.4, 0.5);
-  flat('crate', 59.92, 60.34, 13.6, 15.4, 0.25);
-  track(52.4, 55.4, 13.95, 15.05, 'x', 1);
-
-  // 7. The miniature-rooms passage: two jumps between the little lit windows.
-  tabletop(58, zc - 0.8, zc + 0.8, 0.4);
-  tabletop(26, zc - 0.8, zc + 0.8, 0.4);
-
-  // 8. Gallery 240: a table run along the wall, right under La Grande Jatte.
-  add('ply', 18.2, 21, -19.5, -18.3, 'x', 0, 0.72);
-  table(21, 26.6, -19.5, -18.3, 0.72);
-  add('ply', 25.5, 26.6, -19.35, -18.45, 'x', 0.72, 0.92, { thick: 0.2, onTop: 0.72 });
-
-  // ---- and then they came back with a van-load more ----
-  const H = plan.hoops = [];
-  const hoop = (x, y, z, axis = 'x', r = 0.8) => H.push({ x, y, z, axis, r });
-  // Track slung from the ceiling on wires: thin, so the floor underneath stays open.
-  const sky = (x0, x1, z0, z1, axis, h0, h1, o = {}) => add('track', x0, x1, z0, z1, axis, h0, h1, { thick: 0.07, hang: true, run: 'x', ...o });
-  const tabletopZ = (cz, x0, x1, h, run = 1.6, top = 0.6) => {
-    add('ply', x0, x1, cz - top - run, cz - top, 'z', 0, h);
-    flat('ply', x0, x1, cz - top, cz + top, h);
-    add('ply', x0, x1, cz + top, cz + top + run, 'z', h, 0);
-  };
-  // Ramps on all four sides of a flat top.
-  const funbox = (cx, cz, h = 0.5, run = 1.6, top = 0.6) => {
-    flat('ply', cx - top, cx + top, cz - top, cz + top, h);
-    add('ply', cx - top - run, cx - top, cz - top, cz + top, 'x', 0, h);
-    add('ply', cx + top, cx + top + run, cz - top, cz + top, 'x', h, 0);
-    add('ply', cx - top, cx + top, cz - top - run, cz - top, 'z', 0, h);
-    add('ply', cx - top, cx + top, cz + top, cz + top + run, 'z', h, 0);
+  // Would this patch of floor sit in a doorway's path?
+  const lanes = r => plan.doorsOf(r.id).map(d => {
+    const into = 3.2, w = 0.5;
+    if (d.along === 'z') { const south = d.z0 >= r.z1 - 0.01; return { x0: d.x0 - w, x1: d.x1 + w, z0: south ? r.z1 - into : r.z0, z1: south ? r.z1 : r.z0 + into }; }
+    const east = d.x0 >= r.x1 - 0.01; return { x0: east ? r.x1 - into : r.x0, x1: east ? r.x1 : r.x0 + into, z0: d.z0 - w, z1: d.z1 + w };
+  });
+  const hits = (a, b, m = 0) => a[0] < b.x1 + m && a[1] > b.x0 - m && a[2] < b.z1 + m && a[3] > b.z0 - m;
+  // The racing line is kept clear of everything except the jumps put on it on purpose.
+  const line = plan.line = sampleRoute(buildRoute(plan), 1).pts;
+  const onLine = (rect, m) => line.some(p => p.x > rect[0] - m && p.x < rect[1] + m && p.z > rect[2] - m && p.z < rect[3] + m);
+  const free = (F, u0, u1, v0, v1, m = 0.3) => {
+    if (u0 < -F.L / 2 + 0.2 || u1 > F.L / 2 - 0.2 || v0 < -F.W / 2 - 0.01 || v1 > F.W / 2 + 0.01) return false;
+    const rect = world(F, u0, u1, v0, v1);
+    if (!F.onLine && onLine(rect, 1.3)) return false;
+    return !F.lanes.some(l => hits(rect, l)) && !S.some(s => hits(rect, s, m));
   };
 
-  // 10. The skyway: forty-odd metres of track hung from the hall's glass roof,
-  //     level with the big pictures, with two gaps and a launch at the window.
-  const k0 = 3.6, k1 = 4.9, kz = (k0 + k1) / 2, lip = { lip: true };
-  sky(14, 24, k0, k1, 'x', 0, 2.6, lip);
-  sky(24, 31, k0, k1, null, 2.6, 2.6, lip);
-  sky(33.6, 40, k0, k1, null, 1.9, 1.9, lip);
-  sky(40, 42.5, k0, k1, 'x', 1.9, 2.6, lip);
-  sky(45.3, 52, k0, k1, null, 2.6, 2.6, lip);
-  sky(52, 58, k0, k1, 'x', 2.6, 1.4, lip);
-  sky(58, 60, k0, k1, 'x', 1.4, 2.0, lip);
-  track(10.6, 14, k0 + 0.2, k1 - 0.2, 'x', 1);
-  hoop(32.3, 2.55, kz); hoop(44, 2.95, kz); hoop(62.6, 2.45, kz, 'x', 0.9); hoop(65.8, 1.65, kz, 'x', 0.95);
-
-  // 11. Gallery 220: a catwalk hung at picture height, right round the room.
-  //     There is a gap in it. Space.
-  const CW = 1.6, cat = (x0, x1, z0, z1, o) => add('track', x0, x1, z0, z1, null, CW, CW, { thick: 0.07, hang: true, ...o });
-  cat(35.2, 48.8, 18.4, 19.8, { run: 'x' });
-  cat(35.2, 41.2, 9.2, 10.6, { run: 'x' }); cat(42.8, 48.8, 9.2, 10.6, { run: 'x' });
-  cat(35.2, 36.6, 10.6, 18.4, { run: 'z' }); cat(47.4, 48.8, 10.6, 18.4, { run: 'z' });
-  add('track', 37.5, 44, 17, 18.4, 'x', 0, CW, { thick: 0.07, hang: true, run: 'x' });
-  cat(44, 45.6, 17, 18.4, { run: 'x' });
-  track(34.6, 37.5, 17.2, 18.2, 'x', 1);
-  hoop(42, 2.15, 9.9, 'x', 0.75); hoop(48.1, 2.4, 14.5, 'z', 0.6);
-
-  // 12. A rhythm section down the hall's north side, feeding the loop.
-  tabletop(24.5, -4.4, -2.8, 0.4); tabletop(32, -4.4, -2.8, 0.4);
-  hoop(24.5, 0.95, -3.6); hoop(32, 0.95, -3.6);
-
-  // 13. Kickers aimed over the two hall benches.
-  add('ply', 64.2, 66, -0.8, 0.8, 'x', 0.55, 0);
-  hoop(62, 1.15, 0);
-
-  // 16. Skate ramps, for real height. `quarter` is an arc of radius R cut off
-  //     at the lip; the steeper the lip, the more of your speed goes straight up.
-  const quarter = (x0, x1, z0, z1, axis, rising, R) => {
-    const run = axis === 'x' ? x1 - x0 : z1 - z0, lipH = R - Math.sqrt(R * R - run * run);
-    add('ply', x0, x1, z0, z1, axis, rising > 0 ? 0 : lipH, rising > 0 ? lipH : 0, { curve: R });
+  // ---- the pieces ----
+  const tabletop = (F, u, v, h = 0.42, w = 1.8, run = 1.6, top = 0.6) => {
+    if (!free(F, u - top - run - 1.2, u + top + run + 1.2, v - w / 2, v + w / 2)) return false;
+    ramp(F, u - top - run, u - top, v - w / 2, v + w / 2, 0, h); flat(F, u - top, u + top, v - w / 2, v + w / 2, h); ramp(F, u + top, u + top + run, v - w / 2, v + w / 2, h, 0);
+    if (hash(F.r ? F.r.id : 'park') % 3 === 0 || !F.r) hoop(F, u, v, h + 0.62, 'u', 0.75);
+    if (!F.r || hash(F.r.id) % 2) { cone(F, u - top - run - 0.5, v - w / 2 - 0.35); cone(F, u + top + run + 0.5, v + w / 2 + 0.35); }
+    return true;
+  };
+  const funbox = (F, u, v, h = 0.5, run = 1.6, top = 0.6) => {
+    if (!free(F, u - top - run, u + top + run, v - top - run, v + top + run)) return false;
+    flat(F, u - top, u + top, v - top, v + top, h);
+    ramp(F, u - top - run, u - top, v - top, v + top, 0, h); ramp(F, u + top, u + top + run, v - top, v + top, h, 0);
+    rampV(F, u - top, u + top, v - top - run, v - top, 0, h); rampV(F, u - top, u + top, v + top, v + top + run, h, 0);
+    if (hash(F.r.id) % 2) hoop(F, u, v, h + 0.6, 'u', 0.75);
+    return true;
+  };
+  const crates = (F, u, v, dir = 1) => {
+    const a = (x) => u + dir * x, lo = (p, q) => Math.min(a(p), a(q)), hi = (p, q) => Math.max(a(p), a(q));
+    if (!free(F, lo(-3.6, 2.6), hi(-3.6, 2.6), v - 0.9, v + 0.9)) return false;
+    ramp(F, lo(-3.4, -0.6), hi(-3.4, -0.6), v - 0.9, v + 0.9, dir > 0 ? 0 : 0.75, dir > 0 ? 0.75 : 0);
+    flat(F, lo(-0.6, 0.7), hi(-0.6, 0.7), v - 0.9, v + 0.9, 0.75, {}, 'crate');
+    flat(F, lo(0.7, 1.12), hi(0.7, 1.12), v - 0.9, v + 0.9, 0.5, {}, 'crate'); flat(F, lo(1.12, 1.54), hi(1.12, 1.54), v - 0.9, v + 0.9, 0.25, {}, 'crate');
+    hoop(F, a(2.4), v, 0.95, 'u', 0.75);
+    return true;
+  };
+  // Up a ramp, along a table, off a kicker at the far end.
+  const tableRun = (F, v, dir = 1) => {
+    const a = (x) => dir * x, lo = (p, q) => Math.min(a(p), a(q)), hi = (p, q) => Math.max(a(p), a(q));
+    if (!free(F, lo(-5.6, 5.4), hi(-5.6, 5.4), v - 0.6, v + 0.6)) return false;
+    ramp(F, lo(-5.2, -2.4), hi(-5.2, -2.4), v - 0.6, v + 0.6, dir > 0 ? 0 : 0.72, dir > 0 ? 0.72 : 0);
+    const t = flat(F, lo(-2.4, 3.2), hi(-2.4, 3.2), v - 0.6, v + 0.6, 0.72, { thick: 0.06, perch: 'table' }, 'table');
+    plan.obstacles.push({ x0: t.x0, x1: t.x1, z0: t.z0, z1: t.z1, y0: 0.72 - 0.17, y1: 0.72 - 0.08 });      // the apron: low enough that a car cresting the ramp clears it
+    for (const lx of [t.x0 + 0.08, t.x1 - 0.08]) for (const lz of [t.z0 + 0.08, t.z1 - 0.08]) plan.obstacles.push({ x0: lx - 0.035, x1: lx + 0.035, z0: lz - 0.035, z1: lz + 0.035, y0: 0, y1: 0.66, leg: true });
+    ramp(F, lo(2.1, 3.2), hi(2.1, 3.2), v - 0.45, v + 0.45, dir > 0 ? 0.72 : 0.92, dir > 0 ? 0.92 : 0.72, { thick: 0.2, onTop: 0.72 });
+    hoop(F, a(4.5), v, 1.3, 'u', 0.8);
+    return true;
+  };
+  // Skate ramps. An arc of radius R cut off at the lip; a ledge behind the lip
+  // to land on. Whatever hangs on the wall above is hung higher to clear it,
+  // so the top of your air is right in front of a picture.
+  const quarter = (F, u, side, R = 2.6, run = 2.4, deck = 1.0, w = 3.8) => {
+    const lipH = R - Math.sqrt(R * R - run * run), wall = side * F.W / 2, a = wall - side * deck, b = a - side * run;
+    if (!free(F, u - w / 2, u + w / 2, Math.min(wall, b), Math.max(wall, b), 0.1)) return 0;
+    rampV(F, u - w / 2, u + w / 2, Math.min(a, b), Math.max(a, b), side > 0 ? 0 : lipH, side > 0 ? lipH : 0, { curve: R });
+    flat(F, u - w / 2, u + w / 2, Math.min(wall, a), Math.max(wall, a), lipH, { perch: 'ledge' });
+    hoop(F, u, a - side * 0.25, lipH + 1.5, 'y', 1.05);
     return lipH;
   };
-  // The big launcher in the middle of the hall.
-  quarter(38, 41, 0.6, 2.8, 'x', 1, 3.4);
-  track(33, 38, 0.95, 2.45, 'x', 1);
-  hoop(44.2, 4.3, 1.7, 'x', 1.15);
-  // A half-pipe across the hall in front of the window.
-  const hp0 = 78.6, hp1 = 82.4;
-  const lipH = quarter(hp0, hp1, -6.8, -3.4, 'z', -1, 3.6);
-  quarter(hp0, hp1, 3.4, 6.8, 'z', 1, 3.6);
-  flat('ply', hp0, hp1, -HW, -6.8, lipH); flat('ply', hp0, hp1, 6.8, HW, lipH);
-  hoop(80.5, 3.6, -6.2, 'y', 1.1); hoop(80.5, 3.6, 6.2, 'y', 1.1);
+  const halfpipe = (F, u, R, run) => {
+    const w = 3.8, deck = 1.0, r2 = run || 2.4;
+    if (!free(F, u - w / 2, u + w / 2, -F.W / 2, -F.W / 2 + deck + r2, 0.1) || !free(F, u - w / 2, u + w / 2, F.W / 2 - deck - r2, F.W / 2, 0.1)) return false;
+    quarter(F, u, -1, R, r2, deck, w); quarter(F, u, 1, R, r2, deck, w);
+    return true;
+  };
+  const hopHoops = (F, v) => { for (const u of [-F.L / 4, 0, F.L / 4]) hoop(F, u, v, 0.8, 'u', 0.55); return true; };
 
-  // 17. Somebody mopped. The floor here really is slippery, and none of the
-  //     cones or signs are fixed to anything.
-  const P = plan.props = [], puddle = { x: 46.6, z: 1.3, r: 2.3 };
-  plan.puddles = [puddle];
-  const cone = (x, z) => P.push({ type: 'cone', x, z });
-  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2 + 0.4; cone(puddle.x + Math.cos(a) * 2.75, puddle.z + Math.sin(a) * 2.75); }
-  P.push({ type: 'sign', x: puddle.x - 2.2, z: puddle.z - 2.1, yaw: 0.6 }, { type: 'sign', x: puddle.x + 2.4, z: puddle.z + 1.9, yaw: -2.4 }, { type: 'sign', x: 70.5, z: -5.2, yaw: 0.5 });
-  for (const [x, z] of [[36.6, 0.75], [36.6, 2.65], [34.2, 0.75], [34.2, 2.65], [20.6, -2.4], [20.6, -4.8], [28.3, -2.4], [28.3, -4.8], [77.9, -3], [77.9, 3], [83, -3], [83, 3],
-    [45, -3], [45.6, -3.9], [8.4, zc + 1.4], [18, zc - 1.4], [50.6, zc + 1.4], [64, zc - 1.4], [20.6, 13.2], [20.6, 15.8], [52.6, zn - 1.4], [52.6, zn + 1.4], [13.2, 3.2], [13.2, 5.3]]) cone(x, z);
+  // ---- jumps on the racing line, wherever it runs straight across a room ----
+  {
+    const pts = buildRoute(plan);
+    let k = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+      if (d < 9.5 || (Math.abs(dx) > 0.7 && Math.abs(dz) > 0.7) || a.start || b.start) continue;
+      if (k++ % 2) continue;                       // every other straight, so there is somewhere to breathe
+      const F = { ax: Math.abs(dx) > Math.abs(dz) ? 'x' : 'z', cx: (a.x + b.x) / 2, cz: (a.z + b.z) / 2, L: d - 2, W: 6, lanes: [], onLine: true, r: null };
+      tabletop(F, 0, 0, 0.42, 2.2);
+    }
+  }
 
-  // 14. Funboxes, a spine, and a row of bumps.
-  funbox(11.5, -11.4); hoop(11.5, 1.05, -11.4);
-  funbox(80.2, 17.6); hoop(80.2, 1.05, 17.6, 'z');
-  tabletopZ(-14.5, 70, 71.6, 0.45); hoop(70.8, 1.0, -14.5, 'z');
-  for (const x of [10, 13, 16]) { add('ply', x - 0.8, x, zc - 0.8, zc + 0.8, 'x', 0, 0.2); add('ply', x, x + 0.8, zc - 0.8, zc + 0.8, 'x', 0.2, 0); }
+  // ---- Griffin Court: the skyway ----
+  // Sixty metres of toy track hung from the glass roof on wires, level with the
+  // big pictures: an easy climb, a gap, a kicker, another gap, and a launch
+  // towards the window. Every change of slope is a curve, as on the real thing.
+  const hall = plan.hall, HF = frame(hall); HF.lanes = lanes(hall);
+  {
+    const N = hall.z1, lane = [hall.x1 - 3.4, hall.x1 - 2.1];
+    // A piece from s0 to s1 metres north of the hall's south wall, at height hA rising (or falling) to hB.
+    const sky = (s0, s1, hA, hB, o = {}) => push('track', [lane[0], lane[1], N - s1, N - s0], hA === hB ? null : 'z', hB, hA, { thick: 0.07, hang: true, run: 'z', lip: true, ...o });
+    sky(5, 16, 0, 2.6, { ease: true }); sky(16, 22, 2.6, 2.6);
+    sky(24.6, 31, 1.9, 1.9); sky(31, 33.6, 1.9, 2.6, { curve: 5.2 });
+    sky(36.4, 43, 2.6, 2.6); sky(43, 49, 2.6, 1.4, { ease: true }); sky(49, 51.4, 1.4, 2.05, { curve: 4.8 });
+    D.push({ x0: lane[0] + 0.2, x1: lane[1] - 0.2, z0: N - 5, z1: N - 1.5, axis: 'z', dir: -1 });
+    const lx = (lane[0] + lane[1]) / 2;
+    for (const [s, y, r] of [[23.3, 2.55, 0.8], [35, 2.95, 0.8], [53.8, 2.5, 0.9], [57, 1.7, 0.95]]) H.push({ x: lx, y, z: N - s, axis: 'z', r });
+    // Two ledges beside the track to hop across to, and one hung out in the middle of the hall, to look from.
+    push('track', [lane[1] + 0.25, hall.x1 - 0.3, N - 21.5, N - 17], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'skyway ledge' });
+    push('track', [lane[0] - 2.4, lane[0] - 0.25, N - 42.5, N - 37.5], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'crow’s nest' });
+  }
 
-  // 15. Three low hoops under the Van Goghs. Driving through does not count.
-  for (const x of [37.5, 42.5, 47.5]) hoop(x, 0.8, -18.5, 'x', 0.55);
+  // ---- the Grand Staircase (Gallery 200) ----
+  // A ramp up, a landing with a kicker on it, and the steps down the far side.
+  const g200 = plan.byId.G200;
+  if (g200) {
+    const F = frame(g200); F.lanes = lanes(g200);
+    const LH = 1.5, u0 = -F.L / 2 + 5;
+    ramp(F, u0, u0 + 9, -3, 3, 0, LH, { ease: true });
+    flat(F, u0 + 9, u0 + 14, -3, 3, LH, { carpet: [-1.3, 1.3], perch: 'staircase landing' }, 'stone');
+    for (let k = 0; k < 7; k++) flat(F, u0 + 14 + 0.36 * k, u0 + 14 + 0.36 * (k + 1), -3, 3, LH - 0.1875 * (k + 1), { carpet: [-1.3, 1.3] }, 'stone');
+    ramp(F, u0 + 11.9, u0 + 14, -0.9, 0.9, LH, LH + 0.36, { thick: 0.4, onTop: LH });
+    hoop(F, u0 + 16.6, 0, 2.15, 'u', 0.9);
+    decal(F, u0 - 3.5, u0, -1.2, 1.2, 1);
+    // Somebody mopped. The floor here really is slippery, and nothing is fixed down.
+    const [px, pz] = at(F, F.L / 2 - 7, 3.5), puddle = { x: px, z: pz, r: 2.2 };
+    plan.puddles.push(puddle);
+    for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2 + 0.4; P.push({ type: 'cone', x: px + Math.cos(a) * 2.65, z: pz + Math.sin(a) * 2.65 }); }
+    P.push({ type: 'sign', x: px - 2.1, z: pz - 2.1, yaw: 0.6 }, { type: 'sign', x: px + 2.3, z: pz + 1.9, yaw: -2.4 });
+  }
 
-  // Hoops for what was already here.
-  hoop(7.2, 2.15, 0, 'x', 0.9); hoop(23.8, 1.05, 0.2); hoop(58, 0.95, zc, 'x', 0.7); hoop(26, 0.95, zc, 'x', 0.7);
-  hoop(25, 1.05, 14.5); hoop(60.9, 0.95, 14.5); hoop(58.6, 1.4, zn); hoop(10.3, 1.3, 18.2); hoop(27.9, 1.3, -18.9);
+  // ---- the Thorne passage: jumps between the little lit windows ----
+  const C = plan.byId.C;
+  if (C) {
+    const F = frame(C); F.lanes = lanes(C);
+    tabletop(F, -14, 0, 0.4, 1.6); tabletop(F, 10, 0, 0.4, 1.6);
+    for (const u of [-25, -22, 22, 25]) { ramp(F, u - 0.8, u, -0.8, 0.8, 0, 0.2); ramp(F, u, u + 0.8, -0.8, 0.8, 0.2, 0); }
+  }
 
-  // 9. Gallery 243: the big gap, over the bench, between the Monets.
-  add('ply', 53.6, 56.2, zn - 0.9, zn + 0.9, 'x', 0, 0.8);
-  add('ply', 61, 63.6, zn - 0.9, zn + 0.9, 'x', 0.8, 0);
-  track(51.4, 53.6, zn - 0.6, zn + 0.6, 'x', 1);
-  track(63.6, 66, zn - 0.6, zn + 0.6, 'x', -1);
+  // ---- every other gallery gets something, chosen by its size and its doors ----
+  const pipes = new Set(['G211', 'G240', 'G222', 'G218', 'G231_233', 'G239', 'G152', 'G216', 'G273']);
+  for (const r of plan.rooms) {
+    if (r.kind !== 'gallery' || r === g200) continue;
+    const F = frame(r); F.lanes = lanes(r);
+    const k = hash(r.id), tall = r.h >= 7;
+    let placed = 0;
+    if (tall && F.W >= 12.5 && pipes.has(r.id)) for (const u of [0, F.L / 4, -F.L / 4, F.L / 3, -F.L / 3]) if (halfpipe(F, u, F.W >= 15 ? 3.2 : 2.6, F.W >= 15 ? 3.0 : 2.4)) { placed++; break; }
+    const tries = [
+      () => F.L >= 12.5 && F.W >= 9 && (tableRun(F, F.W / 2 - 3.4, k % 2 ? 1 : -1) || tableRun(F, -F.W / 2 + 3.4, k % 2 ? -1 : 1)),
+      () => F.L >= 9.5 && (tabletop(F, F.L / 5, 0) || tabletop(F, -F.L / 5, 0) || tabletop(F, 0, F.W / 4) || tabletop(F, 0, -F.W / 4)),
+      () => F.L >= 9 && F.W >= 9 && (funbox(F, -F.L / 5, F.W / 6) || funbox(F, F.L / 5, -F.W / 6) || funbox(F, 0, 0)),
+      () => F.L >= 11 && (crates(F, 0, -F.W / 5, k % 2 ? 1 : -1) || crates(F, 0, F.W / 5, k % 2 ? 1 : -1)),
+      () => tall && F.W >= 11 && !pipes.has(r.id) && (quarter(F, F.L / 4, 1) || quarter(F, -F.L / 4, -1)) > 0,
+    ];
+    // The sculpture floors keep more of their floor for glass cases.
+    const cases = r.floor === '1' || r.floor === 'LL';
+    const want = (F.L * F.W >= 300 ? 3 : F.L * F.W >= 150 ? 2 : F.L * F.W >= 70 ? 1 : 0) - (cases ? 1 : 0);
+    for (let i = 0; i < tries.length && placed < want; i++) if (tries[(i + k) % tries.length]()) placed++;
+    if (k % 7 === 0 && F.L >= 9 && F.W >= 6) hopHoops(F, (k % 2 ? 1 : -1) * Math.min(1.6, F.W / 4));
+    // A bench in the middle, if the middle is still free.
+    if (F.W >= 7.5 && free(F, -0.5, 0.5, -1.5, 1.5, 0.5)) {
+      const [bx, bz] = at(F, 0, 0), alongX = F.ax === 'z';
+      plan.benches.push({ x: bx, z: bz, alongX });
+      const hxx = alongX ? 1.4 : 0.38, hzz = alongX ? 0.38 : 1.4;
+      S.push({ skin: 'bench', x0: bx - hxx, x1: bx + hxx, z0: bz - hzz, z1: bz + hzz, axis: null, h0: 0.5, h1: 0.5, thick: 0.1 });
+    }
+  }
+
+  // ---- outside ----
+  // On the open ground south of the bridge: the loop, a big curved launcher, a
+  // line of jumps. Snow is slippery; the track laid on it is not.
+  const clearOutside = (x0, x1, z0, z1) => plan.masses.every(m => x1 < m.x0 - 1 || x0 > m.x1 + 1 || z1 < m.z0 - 1 || z0 > m.z1 + 1);
+  let park = null;
+  // The nearest clear rectangle to the middle of the grounds.
+  const B = plan.bounds, mx = (B.x0 + B.x1) / 2, mz = (B.z0 + B.z1) / 2;
+  let bestD = Infinity;
+  for (let z = B.z0 + 30; z <= B.z1 - 50; z += 2) for (let x = B.x0 + 30; x <= B.x1 - 74; x += 2) {
+    const d = Math.hypot(x + 22 - mx, z + 10 - mz);
+    if (d < bestD && clearOutside(x - 2, x + 46, z - 2, z + 22)) { bestD = d; park = { x, z }; }
+  }
+  plan.park = park;
+  if (park) {
+    const F = { ax: 'x', cx: park.x + 22, cz: park.z + 10, L: 44, W: 20, lanes: [] };
+    L.push({ x: F.cx, z: F.cz - 5, dir: 1, r: 1.15, shift: 0.62, w: 0.56 });
+    decal(F, -13, 0, -5.28, -4.72, 1); decal(F, 0, 11, -4.66, -4.1, -1);
+    for (const dx of [-1.45, 1.45]) for (const dz of [-0.55, 1.15]) plan.obstacles.push({ x0: F.cx + dx - 0.04, x1: F.cx + dx + 0.04, z0: F.cz - 5 + dz - 0.04, z1: F.cz - 5 + dz + 0.04, y0: 0, y1: 2.5, post: true });
+    // The big one.
+    ramp(F, -6, -3, 0.9, 3.1, 0, 3.4 - Math.sqrt(3.4 * 3.4 - 9), { curve: 3.4 });
+    decal(F, -14, -6, 1.25, 2.75, 1);
+    hoop(F, 0.2, 2, 4.3, 'u', 1.15);
+    tabletop(F, -12, 6.5, 0.45, 2); tabletop(F, 2, 6.5, 0.45, 2); tabletop(F, 14, 6.5, 0.45, 2);
+    for (const u of [-18, -9, 9, 18]) { cone(F, u, -1.5); cone(F, u, 9.2); }
+    P.push({ type: 'sign', x: F.cx - 19, z: F.cz - 5, yaw: 1.2 });
+  }
+  // The lions either side of the Michigan Avenue door, and a lamp by every way in.
+  const f = plan.front, fz = (f.z0 + f.z1) / 2;
+  for (const s of [-1, 1]) {
+    const lion = { x: f.x0 - 3.2, z: fz + s * 4.4, yaw: Math.PI / 2 };
+    plan.lions.push(lion);
+    plan.obstacles.push({ x0: lion.x - 1.5, x1: lion.x + 1.5, z0: lion.z - 0.75, z1: lion.z + 0.75, y0: 0, y1: 3 });
+  }
+  for (const d of plan.doors) if (d.out) {
+    const r = plan.byId[d.a], cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
+    const ox = d.along === 'x' ? (d.x0 < r.x0 ? -1 : 1) : 0, oz = d.along === 'z' ? (d.z0 < r.z0 ? -1 : 1) : 0;
+    for (const s of [-1, 1]) plan.lamps.push({ x: cx + ox * 2.2 + (oz ? s * 2.6 : 0), z: cz + oz * 2.2 + (ox ? s * 2.6 : 0) });
+  }
 }
 
 export function heightOf(s, x, z) {
@@ -342,8 +421,10 @@ export function heightOf(s, x, z) {
     // A skate ramp: an arc of a circle, flat where you roll in, steep at the lip.
     const run = s.axis === 'x' ? s.x1 - s.x0 : s.z1 - s.z0;
     const d = Math.max(0, Math.min(run, (s.h1 > s.h0 ? t : 1 - t) * run));
-    return s.curve - Math.sqrt(s.curve * s.curve - d * d);
+    return Math.min(s.h0, s.h1) + s.curve - Math.sqrt(s.curve * s.curve - d * d);
   }
+  // Toy track: flat at both ends of the slope, so it meets the next piece without a corner.
+  if (s.ease) { const c = Math.max(0, Math.min(1, t)); return s.h0 + (s.h1 - s.h0) * c * c * (3 - 2 * c); }
   return s.h0 + (s.h1 - s.h0) * t;
 }
 
@@ -393,9 +474,26 @@ export function realSize(work, maxH, maxW) {
   return { w: w * k, h: h * k };
 }
 
+// A picture never hangs behind a ramp. If part of the stunt kit stands against
+// the wall here, this is how high the bottom of a frame must be to clear it.
+function clearance(plan, wall, u0, u1) {
+  const depth = 2.5, r = wall.room;
+  const zone = wall.horiz
+    ? { x0: u0 - 0.3, x1: u1 + 0.3, z0: wall.nz > 0 ? r.z0 : r.z1 - depth, z1: wall.nz > 0 ? r.z0 + depth : r.z1 }
+    : { x0: wall.nx > 0 ? r.x0 : r.x1 - depth, x1: wall.nx > 0 ? r.x0 + depth : r.x1, z0: u0 - 0.3, z1: u1 + 0.3 };
+  let need = 0;
+  for (const s of plan.surfaces) {
+    if (s.skin === 'bench' || s.x1 <= zone.x0 || s.x0 >= zone.x1 || s.z1 <= zone.z0 || s.z0 >= zone.z1) continue;
+    const top = Math.max(s.h0, s.h1);
+    if (s.thick && top - s.thick > 1.9) continue;        // track hung well overhead hides nothing
+    need = Math.max(need, top + 0.5);
+  }
+  return need;
+}
+
 // Fill one stretch of wall with as many works from the queue as it will hold,
 // the most important in the middle.
-function fillSegment(wall, seg, queue, opts) {
+function fillSegment(plan, wall, seg, queue, opts) {
   const len = seg.hi - seg.lo;
   const margin = opts.margin, gap = opts.gap;
   const picked = [];
@@ -423,10 +521,13 @@ function fillSegment(wall, seg, queue, opts) {
   for (const p of order) {
     u += pad + p.full / 2;
     const { w, h } = p.wk._size;
-    const cy = opts.centre(h);
-    const pos = wallPoint(wall, u, cy, 0.04);
-    placed.push({ work: p.wk, room: wall.room.id, x: pos.x, y: pos.y, z: pos.z, rot: wall.rot, nx: wall.nx, nz: wall.nz, w, h, frame: p.frame, kind: opts.kind });
-    u += p.full / 2 + (gap - pad > 0 ? 0 : 0);
+    const lift = clearance(plan, wall, u - p.full / 2, u + p.full / 2);
+    const cy = Math.max(opts.centre(h), lift + p.frame + h / 2);
+    if (cy + h / 2 + p.frame <= wall.room.h - 0.3) {
+      const pos = wallPoint(wall, u, cy, 0.04);
+      placed.push({ work: p.wk, room: wall.room.id, x: pos.x, y: pos.y, z: pos.z, rot: wall.rot, nx: wall.nx, nz: wall.nz, w, h, frame: p.frame, kind: opts.kind, high: lift > 0 });
+    } else if (!p.wk._bumped) { p.wk._bumped = true; queue.push(p.wk); }       // no room above the ramp: try another wall
+    u += p.full / 2;
   }
   return placed;
 }
@@ -434,119 +535,121 @@ function fillSegment(wall, seg, queue, opts) {
 export function hang(plan, collection) {
   const placements = [];
   const frameFor = wk => Math.min(0.2, Math.max(0.055, 0.05 + 0.04 * Math.sqrt(wk._size.w * wk._size.h)));
-  const labels = {};
-
-  for (const r of plan.rooms) {
-    const walls = plan.walls.filter(w => w.room === r);
-    if (r.kind === 'gallery') {
-      const set = collection.rooms[r.id] || { works: [] };
-      labels[r.id] = set;
-      const queue = set.works.map(w => ({ ...w, _size: realSize(w, r.h - 2.4, RW - 4) }));
-      const feature = r.side === 'n' ? 'n' : 's';
-      // Feature wall first, then the side walls, then either side of the hall door.
-      const order = [feature, 'w', 'e', feature === 'n' ? 's' : 'n'];
-      for (const side of order) {
-        const wall = walls.find(w => w.side === side);
-        const segs = [...wall.segs].sort((a, b) => (b.hi - b.lo) - (a.hi - a.lo));
-        for (const seg of segs) {
-          if (seg.hi - seg.lo < 2.2) continue;
-          placements.push(...fillSegment(wall, seg, queue, {
-            margin: 0.9, gap: 1.0, maxPer: 4, frame: frameFor, kind: 'painting',
-            centre: h => Math.max(1.62, 0.8 + h / 2),
-          }));
-        }
-      }
-    } else if (r.kind === 'hall') {
-      const queue = (collection.hall || []).map(w => ({ ...w, _size: realSize(w, 5.6, 9) }));
-      // The west wall takes the single grandest thing; the long walls the rest.
-      const west = walls.find(w => w.side === 'w');
-      placements.push(...fillSegment(west, west.segs[0], queue, {
-        margin: 1.5, gap: 2, maxPer: 1, frame: frameFor, kind: 'painting', centre: h => 2.35 + h / 2,   // clear of the stair landing
-      }));
-      for (const side of ['n', 's']) {
-        const wall = walls.find(w => w.side === side);
-        for (const seg of wall.segs) {
-          if (seg.hi - seg.lo < 5) continue;
-          placements.push(...fillSegment(wall, seg, queue, {
-            margin: 1.4, gap: 1.6, maxPer: 3, frame: frameFor, kind: 'painting', centre: h => 1.5 + h / 2,
-          }));
-        }
-      }
-    } else if (r.kind === 'corridor') {
+  // Griffin Court is hung last, with the biggest canvases that found no wall in their own rooms.
+  const spill = [];
+  for (const r of [...plan.rooms].sort((a, b) => (a.kind === 'hall') - (b.kind === 'hall'))) {
+    const walls = plan.walls.filter(w => w.room === r && w.side !== r.glass);
+    const set = r.kind === 'hall' ? { wall: spill.filter(w => w.k === 'Painting').sort((a, b) => b._size.w * b._size.h - a._size.w * a._size.h) } : collection.rooms[r.id] || { wall: [] };
+    if (r.kind === 'corridor') {
       // The Thorne Miniature Rooms: little lit windows down both sides of a dark passage.
-      const queue = (collection.corridor || []).map(w => {
+      const queue = set.wall.map(w => {
         const aspect = w.iw && w.ih ? w.iw / w.ih : 1.5;
         const h = 0.62, wd = Math.min(1.25, Math.max(0.6, h * aspect));
         return { ...w, _size: { w: wd, h: wd / aspect } };
       });
-      for (const side of ['n', 's']) {
-        const wall = walls.find(w => w.side === side);
-        for (const seg of wall.segs) {
-          if (seg.hi - seg.lo < 3) continue;
-          const n = Math.floor((seg.hi - seg.lo - 1.2) / 2.45);
-          for (let k = 0; k < n && queue.length; k++) {
-            const wk = queue.shift();
-            const u = seg.lo + (seg.hi - seg.lo) * (k + 0.5) / n;
-            const pos = wallPoint(wall, u, 0.95, 0.04);    // low enough for a toy car to look in
-            placements.push({ work: wk, room: r.id, x: pos.x, y: pos.y, z: pos.z, rot: wall.rot, nx: wall.nx, nz: wall.nz, w: wk._size.w, h: wk._size.h, frame: 0.05, kind: 'miniature' });
-          }
+      for (const wall of walls) for (const seg of wall.segs) {
+        if (seg.hi - seg.lo < 3) continue;
+        const n = Math.floor((seg.hi - seg.lo - 1.2) / 1.95);
+        for (let k = 0; k < n && queue.length; k++) {
+          const wk = queue.shift();
+          const u = seg.lo + (seg.hi - seg.lo) * (k + 0.5) / n;
+          const pos = wallPoint(wall, u, 0.95, 0.04);    // low enough for a toy car to look in
+          placements.push({ work: wk, room: r.id, x: pos.x, y: pos.y, z: pos.z, rot: wall.rot, nx: wall.nx, nz: wall.nz, w: wk._size.w, h: wk._size.h, frame: 0.05, kind: 'miniature' });
         }
       }
+      continue;
+    }
+    const isHall = r.kind === 'hall';
+    const segs = walls.flatMap(wall => wall.segs.map(seg => ({ wall, seg, len: seg.hi - seg.lo }))).filter(s => s.len >= 2.2).sort((a, b) => b.len - a.len);
+    if (!segs.length) continue;
+    const queue = set.wall.map(w => ({ ...w, _size: realSize(w, isHall ? 5.6 : r.h - 2.4, Math.min(isHall ? 9 : 12, segs[0].len - 2)) }));
+    for (const { wall, seg } of segs) {
+      placements.push(...fillSegment(plan, wall, seg, queue, isHall
+        ? { margin: 1.4, gap: 1.6, maxPer: 3, frame: frameFor, kind: 'painting', centre: h => 1.5 + h / 2 }
+        : { margin: 0.9, gap: 1.0, maxPer: 4, frame: frameFor, kind: 'painting', centre: h => Math.max(1.62, 0.8 + h / 2) }));
+    }
+    if (!isHall) spill.push(...queue);
+  }
+  placements.push(...stand(plan, collection));
+  return placements;
+}
+
+// Sculpture, armour and vessels stand on plinths in glass cases, out on the
+// floor, clear of the doorways, the stunt kit and each other.
+function stand(plan, collection) {
+  const out = [];
+  let total = 0;
+  for (const r of plan.rooms) {
+    const set = collection.rooms[r.id];
+    if (!set || !set.objects || !set.objects.length || r.kind !== 'gallery') continue;
+    const lanes = plan.doorsOf(r.id).map(d => d.along === 'z' ? { x0: d.x0 - 0.3, x1: d.x1 + 0.3, z0: r.z0, z1: r.z1 } : { x0: r.x0, x1: r.x1, z0: d.z0 - 0.3, z1: d.z1 + 0.3 });
+    const area = (r.x1 - r.x0) * (r.z1 - r.z0), max = Math.min(set.objects.length, area > 450 ? 12 : area > 200 ? 7 : area > 90 ? 4 : 2);
+    const spots = [];
+    const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+    for (let x = r.x0 + 2; x <= r.x1 - 2; x += 2.5) for (let z = r.z0 + 2; z <= r.z1 - 2; z += 2.5) {
+      const box = [x - 0.8, x + 0.8, z - 0.8, z + 0.8];
+      const hit = b => box[0] < b.x1 && box[1] > b.x0 && box[2] < b.z1 && box[3] > b.z0;
+      if (plan.line.some(p => Math.abs(p.x - x) < 1.7 && Math.abs(p.z - z) < 1.7) || lanes.some(hit) || plan.surfaces.some(s => hit({ x0: s.x0 - 0.9, x1: s.x1 + 0.9, z0: s.z0 - 0.9, z1: s.z1 + 0.9 })) || plan.puddles.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 1.5)) continue;
+      spots.push({ x, z, d: Math.hypot(x - cx, z - cz) + ((x * 7 + z * 13) % 3) });
+    }
+    spots.sort((a, b) => a.d - b.d);
+    for (let i = 0; i < Math.min(max, spots.length) && total < 170; i++, total++) {
+      const wk = set.objects[i], s = spots[i];
+      const aspect = wk.iw && wk.ih ? wk.iw / wk.ih : 0.7;
+      let h = wk.h > 0 ? wk.h / 100 : 0.6;
+      h = Math.max(0.28, Math.min(2.3, h));
+      let w = h * aspect;
+      if (w > 1.5) { w = 1.5; h = w / aspect; }
+      const plinth = h > 1.4 ? 0.22 : h > 0.7 ? 0.42 : 0.62, half = Math.max(0.32, Math.min(0.85, w / 2 + 0.14));
+      plan.obstacles.push({ x0: s.x - half, x1: s.x + half, z0: s.z - half, z1: s.z + half, y0: 0, y1: plinth + h + 0.2, case: true });
+      out.push({ work: wk, room: r.id, x: s.x, y: plinth + h / 2 + 0.02, z: s.z, rot: 0, nx: 0, nz: 1, w, h, frame: 0, kind: 'object', plinth, half });
     }
   }
-  return placements;
+  return out;
 }
 
 // ------------------------------------------------------------- the circuit --
 
-// One long lap that uses every kind of room: the south enfilade, the hall
-// crossing, the miniature-rooms passage, the north enfilade, and the hall
-// straight. `y` is the height the drone takes each point at.
-export function buildRoute() {
-  const zs = HW + T + RD / 2, zn = -zs, zc = (CORR.z0 + CORR.z1) / 2;
-  const d = i => i * PITCH + RW + T / 2;      // enfilade door centres
-  const pts = [
-    { x: 30, z: 0, y: 7.5, gate: 3.2, start: true },
-    { x: 17, z: 0.4, y: 5.5 },
-    { x: 10.5, z: 2.6, y: 3.6 },
-    { x: 8, z: 7.5, y: 2.2, gate: 1.7 },
-    { x: 8.6, z: 12.2, y: 1.9 },
-    { x: 12, z: zs, y: 1.9 },
-    { x: d(0), z: zs, y: 1.9, gate: 1.4 },
-    { x: d(0) + 8.5, z: zs, y: 1.9 },
-    { x: d(1), z: zs, y: 1.9, gate: 1.4 },
-    { x: d(1) + 8.5, z: zs, y: 1.9 },
-    { x: d(2), z: zs, y: 1.9, gate: 1.4 },
-    { x: d(2) + 8.5, z: zs, y: 1.9 },
-    { x: d(3), z: zs, y: 1.9, gate: 1.4 },
-    { x: 72.5, z: zs, y: 1.9 },
-    { x: 75.6, z: 12, y: 2 },
-    { x: 76, z: 7.5, y: 2.2, gate: 1.7 },
-    { x: 76, z: 0, y: 6.5, gate: 3 },
-    { x: 76, z: -7.5, y: 2.2, gate: 1.7 },
-    { x: 77.2, z: -12.5, y: 1.8 },
-    { x: 80.4, z: -18, y: 1.5 },
-    { x: 80.8, z: -21.5, y: 1.35, gate: 1.1 },
-    { x: 79.6, z: zc - 0.2, y: 1.5 },
-    { x: 75, z: zc, y: 1.6 },
-    { x: 60, z: zc, y: 1.7 },
-    { x: 42, z: zc, y: 1.7, gate: 2.2 },
-    { x: 24, z: zc, y: 1.7 },
-    { x: 8, z: zc, y: 1.6 },
-    { x: 4.2, z: zc + 0.3, y: 1.5 },
-    { x: 3.2, z: -21.5, y: 1.35, gate: 1.1 },
-    { x: 3.8, z: -18, y: 1.6 },
-    { x: 8, z: zn - 0.3, y: 1.9 },
-    { x: d(0), z: zn, y: 1.9, gate: 1.4 },
-    { x: d(0) + 8.5, z: zn, y: 1.9 },
-    { x: d(1), z: zn, y: 1.9, gate: 1.4 },
-    { x: 38, z: zn, y: 1.9 },
-    { x: 41.4, z: -12, y: 2 },
-    { x: 42, z: -7.5, y: 2.2, gate: 1.7 },
-    { x: 40.5, z: -2.6, y: 4.5 },
-    { x: 36, z: -0.2, y: 6.5 },
-  ];
-  return pts;
+// The race is run round the real ring of European painting galleries that
+// circles the Grand Staircase on the second floor. The route goes through the
+// middle of each doorway on the way round.
+const RING = ['G201', 'G226', 'G225', 'G223', 'G222', 'G221', 'G220', 'G219', 'G218', 'G217', 'G216', 'G215', 'G213', 'G212', 'G211', 'G209', 'G208', 'G207', 'G206', 'G205', 'G204', 'G202'];
+
+export function buildRoute(plan) {
+  const nb = id => plan.doorsOf(id).filter(d => !d.out).map(d => [d.a === id ? d.b : d.a, d]);
+  // Shortest way through doors from one room to the next on the list.
+  const path = (from, to, avoid) => {
+    const prev = new Map([[from, null]]), q = [from];
+    while (q.length) {
+      const id = q.shift();
+      if (id === to) break;
+      for (const [n, d] of nb(id)) if (!prev.has(n) && (n === to || !avoid.has(n))) { prev.set(n, [id, d]); q.push(n); }
+    }
+    const out = [];
+    for (let id = to; prev.get(id); id = prev.get(id)[0]) out.unshift({ room: id, door: prev.get(id)[1] });
+    return prev.has(to) ? out : null;
+  };
+  const ring = RING.filter(id => plan.byId[id]), steps = [], used = new Set(ring);
+  for (let i = 0; i < ring.length; i++) {
+    const leg = path(ring[i], ring[(i + 1) % ring.length], used) || path(ring[i], ring[(i + 1) % ring.length], new Set());
+    if (leg) steps.push(...leg);
+  }
+  const pts = [];
+  steps.forEach((s, i) => {
+    const d = s.door, r = plan.byId[s.room];
+    pts.push({ x: (d.x0 + d.x1) / 2, z: (d.z0 + d.z1) / 2, y: Math.min(2.2, d.h - 1.3), gate: (d.along === 'z' ? d.x1 - d.x0 : d.z1 - d.z0) / 2, room: s.room });
+    // A point in the middle of a big room keeps the line off the walls on a long diagonal.
+    const next = steps[(i + 1) % steps.length].door, nx = (next.x0 + next.x1) / 2, nz = (next.z0 + next.z1) / 2;
+    if (Math.hypot(nx - (d.x0 + d.x1) / 2, nz - (d.z0 + d.z1) / 2) > 9) {
+      const mx = ((d.x0 + d.x1) / 2 + nx) / 2, mz = ((d.z0 + d.z1) / 2 + nz) / 2, cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+      pts.push({ x: mx * 0.7 + cx * 0.3, z: mz * 0.7 + cz * 0.3, y: 2.2, mid: true, room: s.room });
+    }
+  });
+  // Start and finish on the longest clear stretch.
+  let best = pts.findIndex(p => p.mid);
+  if (best < 0) best = 0;
+  pts[best].gate = 2.4; pts[best].start = true; pts[best].y = 3;
+  return [...pts.slice(best), ...pts.slice(0, best)];
 }
 
 // Closed Catmull-Rom through the route, resampled to even spacing so bots and

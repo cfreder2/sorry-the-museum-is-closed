@@ -222,6 +222,8 @@ export class Sound {
   }
 
   gate() { this.bell(midi(86), 0, 0.05, 0.7, 0.6); }
+  // One soft note for each work seen.
+  seen() { this.bell(midi(81 + PENTA[Math.floor(Math.random() * 5)]), 0, 0.03 * this.vol.music, 1.1, 0.7); }
 
   // Each hoop a step higher up the scale than the last.
   hoop(n) {
