@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>After Hours</title>
+<!-- The museum's servers refuse requests that name an unknown referring page, and it is none of their business anyway. -->
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2306080e'/%3E%3Crect x='8' y='7' width='16' height='18' fill='none' stroke='%23e2cd94' stroke-width='3'/%3E%3C/svg%3E">
+<meta name="description" content="Drive a toy car or fly a toy drone through the Art Institute of Chicago after closing. Every work is real.">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="view" tabindex="-1" role="img" aria-label="The museum in three dimensions, seen from behind a toy car or drone. Room names, artwork titles and messages are announced as text."></canvas>
+
+<div id="hud" hidden>
+  <div id="room" role="status" aria-live="polite"><div class="num"></div><div class="names"></div></div>
+
+  <div id="topleft">
+    <button class="chip" data-act="pause" aria-label="Pause">II</button>
+    <div id="tally"></div>
+  </div>
+
+  <canvas id="map" width="440" height="250" aria-hidden="true"></canvas>
+
+  <div id="race" hidden>
+    <div class="row"><span id="rLap"></span><span id="rTime"></span><span id="rPlace"></span></div>
+    <div id="arrow"><svg viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0-15 L11 9 L0 3 L-11 9Z"/></svg><span id="rDist"></span></div>
+  </div>
+  <div id="count" role="status" aria-live="assertive"></div>
+
+  <div id="fpv" hidden aria-hidden="true">
+    <i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+    <div class="rec"><b></b>REC</div>
+    <div class="stamp"></div>
+    <div class="lines"></div>
+  </div>
+
+  <div id="placard" hidden role="status" aria-live="polite">
+    <div class="t"></div>
+    <div class="a"></div>
+    <div class="hint"><kbd>E</kbd> <span>look closer</span></div>
+  </div>
+
+  <div id="label" hidden role="region" aria-live="polite" aria-label="Artwork label">
+    <div class="t"></div>
+    <div class="a"></div>
+    <div class="m"></div>
+    <div class="alt"></div>
+    <div class="g"></div>
+    <div class="foot"><a target="_blank" rel="noopener">See it at artic.edu ↗</a><span><kbd>E</kbd> step back</span></div>
+  </div>
+
+  <div id="flyby"><i class="bar top"></i><i class="bar bot"></i><div class="cap" role="status" aria-live="polite"><div class="t"></div><div class="a"></div></div></div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <div id="tx" aria-hidden="true">
+    <div class="stick" id="stickL"><i></i><span></span></div>
+    <div class="lcd"><div id="lcdA"></div><div id="lcdB"></div></div>
+    <div class="stick" id="stickR"><i></i><span></span></div>
+  </div>
+  <div id="pads">
+    <button data-act="look" id="bLook" hidden>LOOK</button>
+    <button data-act="camera">CAM</button>
+    <button data-act="swap" id="bSwap">SWAP</button>
+  </div>
+</div>
+
+<main id="title" class="screen">
+  <div class="panel">
+    <div class="over">The Art Institute of Chicago &nbsp;·&nbsp; after closing</div>
+    <h1>After Hours</h1>
+    <p class="lede">The museum shut at five. The lamps are off and the guard has gone for coffee. Everything on the walls is real. You are the size of a shoe.</p>
+    <div class="pick" role="radiogroup" aria-label="Vehicle">
+      <button class="toy on" data-toy="car" role="radio" aria-checked="true">
+        <svg viewBox="0 0 64 34" aria-hidden="true"><rect x="8" y="14" width="46" height="9" rx="3"/><path d="M20 14l5-8h14l6 8z"/><rect x="42" y="4" width="14" height="3"/><circle cx="18" cy="25" r="7"/><circle cx="46" cy="24" r="8"/><path d="M12 14V1" fill="none" stroke-width="1.2"/></svg>
+        <b>RC Car</b><span>Fits under the benches. Leaves the floor if you find a ramp.</span>
+      </button>
+      <button class="toy" data-toy="drone" role="radio" aria-checked="false">
+        <svg viewBox="0 0 64 34" aria-hidden="true"><rect x="24" y="14" width="16" height="8" rx="3"/><path d="M26 16L10 10M38 16l16-6" fill="none" stroke-width="2.4"/><ellipse cx="10" cy="8" rx="9" ry="1.6"/><ellipse cx="54" cy="8" rx="9" ry="1.6"/><path d="M28 22l-3 6M36 22l3 6" fill="none" stroke-width="1.6"/></svg>
+        <b>RC Drone</b><span>Goes up to the glass. Meets a painting eye to eye.</span>
+      </button>
+    </div>
+    <div class="go">
+      <button class="big" data-mode="explore"><b>Explore</b><span>Wander. Every lamp you reach comes on.</span></button>
+      <button class="big" data-mode="race"><b>Race</b><span>Two laps of the building against three other toys.</span></button>
+    </div>
+    <div class="keys" id="keysHelp"></div>
+    <div class="row2"><button class="quiet" data-act="settings">Settings: sound, comfort and access</button></div>
+    <div class="fine" id="source" role="status">Opening the building…</div>
+  </div>
+</main>
+
+<section id="pause" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="pauseH">
+  <div class="panel small">
+    <h2 id="pauseH">Paused</h2>
+    <div class="col">
+      <button data-act="resume">Carry on</button>
+      <button data-act="restart" id="pRestart">Restart the race</button>
+      <button data-act="notebook">Field-trip notebook</button>
+      <button data-act="settings">Settings: sound, comfort and access</button>
+      <button data-act="quit">Back to the front door</button>
+    </div>
+    <div class="keys" id="keysHelp2"></div>
+  </div>
+</section>
+
+<section id="results" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="resPlace">
+  <div class="panel small">
+    <div class="over" id="resOver"></div>
+    <h2 id="resPlace"></h2>
+    <div class="times" id="resTimes"></div>
+    <div class="col">
+      <button data-act="again">Race again</button>
+      <button data-act="wander">Stay and explore</button>
+      <button data-act="quit">Back to the front door</button>
+    </div>
+  </div>
+</section>
+
+<section id="notebook" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="nbCount">
+  <div class="panel wide">
+    <div class="over">Field-trip notebook</div>
+    <h2 id="nbCount"></h2>
+    <div id="nbGrid"></div>
+    <div class="col"><button data-act="closeNotebook">Close</button></div>
+  </div>
+</section>
+
+<section id="settings" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="setH">
+  <div class="panel small">
+    <h2 id="setH">Settings</h2>
+    <fieldset>
+      <legend>Sound</legend>
+      <label class="rng"><span>Everything</span><input type="range" min="0" max="100" step="5" data-set="master"></label>
+      <label class="rng"><span>Toy motor</span><input type="range" min="0" max="100" step="5" data-set="motor"></label>
+      <label class="rng"><span>Music and lamp chimes</span><input type="range" min="0" max="100" step="5" data-set="music"></label>
+    </fieldset>
+    <fieldset>
+      <legend>Comfort and access</legend>
+      <label class="chk"><input type="checkbox" data-set="reduce"><span><b>Reduce motion and flashing</b>No slow motion or swinging camera. Lamps fade up instead of flickering.</span></label>
+      <label class="chk"><input type="checkbox" data-set="slowmo"><span><b>Slow motion on jumps</b>Time slows as you fly past a work.</span></label>
+      <label class="chk"><input type="checkbox" data-set="big"><span><b>Larger text, stronger contrast</b>Bigger labels on solid backgrounds.</span></label>
+      <label class="chk"><input type="checkbox" data-set="hold"><span><b>Hold my speed</b>Push forward once to keep going, pull back once to stop. Leaves one hand to steer.</span></label>
+      <label class="chk"><input type="checkbox" data-set="mirror"><span><b>Floor reflections</b>Turn off on a slow machine.</span></label>
+    </fieldset>
+    <div class="col"><button data-act="closeSettings">Done</button></div>
+  </div>
+</section>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

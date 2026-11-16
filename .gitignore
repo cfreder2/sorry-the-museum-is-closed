@@ -1,0 +1,3 @@
+# the offline image copy (node tools/fetch_collection.mjs --images)
+data/img/
+.DS_Store
