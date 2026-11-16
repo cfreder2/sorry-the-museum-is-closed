@@ -1,4 +1,5 @@
-// Two sticks, however you hold them: keys, a gamepad, or thumbs on glass.
+// Two sticks, however you hold them: keys or a gamepad. On glass it is simpler:
+// one thumbstick under the left thumb and buttons under the right.
 //
 // Everything is reduced to a left stick and a right stick, laid out like a toy
 // transmitter. Car: left stick up/down is the throttle, right stick left/right
@@ -16,11 +17,16 @@ export class Input {
     this.queue = new Set();          // actions pressed since the last frame
     this.touch = { l: null, r: null };
     this.sticks = { lx: 0, ly: 0, rx: 0, ry: 0 };
-    this.usedTouch = false;
+    // A phone or tablet is known for what it is from the start, and any touch anywhere confirms it.
+    this.usedTouch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    document.addEventListener('touchstart', () => { this.usedTouch = true; document.body.classList.add('touch'); }, { passive: true, capture: true });
+    if (this.usedTouch) document.body.classList.add('touch');
     this.capture = false;            // true while driving: arrows and space belong to the game, not the page
     this.hold = false;               // 'hold my speed' setting
     this.latched = false;
-    this.touchJump = false;          // the on-screen JUMP button
+    this.btn = { gas: false, jump: false, up: false, down: false };     // on-screen buttons being held
+    this._ids = { gas: new Set(), jump: new Set(), up: new Set(), down: new Set() };
+    this.thumb = { x: 0, y: 0, ox: 0, oy: 0, on: false };                // where the thumbstick is, for drawing it
     this._jump = false;
     this.onGesture = null;           // called on any lift or key, to unlock sound
     this._pad = {};
@@ -51,9 +57,9 @@ export class Input {
     const start = e => {
       e.preventDefault();
       this.usedTouch = true;
+      // One thumbstick, wherever the left thumb comes down. The right side of the glass is for the buttons.
       for (const t of e.changedTouches) {
-        const side = t.clientX < innerWidth / 2 ? 'l' : 'r';
-        if (!this.touch[side]) this.touch[side] = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: 0, y: 0 };
+        if (t.clientX < innerWidth * 0.6 && !this.touch.l) this.touch.l = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: 0, y: 0 };
       }
       this._reconcile(e);
     };
@@ -80,12 +86,27 @@ export class Input {
     surface.addEventListener('touchmove', move, opt);
     surface.addEventListener('touchend', end, opt);
     surface.addEventListener('touchcancel', end, opt);
+    // A button let go of anywhere on the page is let go of.
+    const lift = e => { const live = new Set(Array.from(e.touches, t => t.identifier)); for (const k in this._ids) { for (const id of this._ids[k]) if (!live.has(id)) this._ids[k].delete(id); this.btn[k] = this._ids[k].size > 0; } };
+    document.addEventListener('touchend', lift, opt);
+    document.addEventListener('touchcancel', lift, opt);
+    addEventListener('blur', () => { for (const k in this._ids) { this._ids[k].clear(); this.btn[k] = false; } });
   }
 
   // A finger the system took without telling us is let go at the next event.
   _reconcile(e) {
     const live = new Set(Array.from(e.touches, t => t.identifier));
     for (const side of ['l', 'r']) if (this.touch[side] && !live.has(this.touch[side].id)) this.touch[side] = null;
+  }
+
+  // Make an element a button that is held down: gas, jump, up, down.
+  bind(el, name) {
+    const opt = { passive: false };
+    el.addEventListener('touchstart', e => { e.preventDefault(); this.usedTouch = true; for (const t of e.changedTouches) this._ids[name].add(t.identifier); this.btn[name] = true; }, opt);
+    el.addEventListener('touchend', e => { e.preventDefault(); for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0; if (this.onGesture) this.onGesture(); }, opt);
+    el.addEventListener('touchcancel', e => { for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0; }, opt);
+    el.addEventListener('mousedown', () => { this.btn[name] = true; });
+    for (const ev of ['mouseup', 'mouseleave']) el.addEventListener(ev, () => { if (!this._ids[name].size) this.btn[name] = false; });
   }
 
   press(action) { this.queue.add(action); }
@@ -128,16 +149,28 @@ export class Input {
       }
       break;
     }
-    const tl = this.touch.l, tr = this.touch.r;
-    if (tl) { lx = tl.x; ly = tl.y; }
-    if (tr) { rx = tr.x; ry = tr.y; }
-    let held = this.down.has('Space') || this.touchJump;
+    // Glass: the thumbstick steers (and pulled back, brakes or reverses); GAS is a button.
+    // For the drone the stick flies and turns, and UP and DOWN are buttons.
+    const tl = this.touch.l, b = this.btn;
+    this.thumb.on = !!tl;
+    if (tl) { this.thumb.x = tl.x; this.thumb.y = tl.y; this.thumb.ox = tl.ox; this.thumb.oy = tl.oy; } else this.thumb.x = this.thumb.y = 0;
+    if (this.usedTouch) {
+      const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.35);
+      if (drone) {
+        if (tl) { ry = tl.y; lx = curve(tl.x); }
+        if (b.up || b.down) ly = (b.up ? 1 : 0) - (b.down ? 1 : 0);
+      } else {
+        if (tl) rx = curve(tl.x);
+        if (tl && tl.y < -0.55) ly = -1; else if (b.gas) ly = 1;
+      }
+    }
+    let held = this.down.has('Space') || this.btn.jump;
     for (const p of pads) if (p && p.connected) { held = held || !!(p.buttons[5] && p.buttons[5].pressed) || !!(p.buttons[4] && p.buttons[4].pressed); break; }
     const jump = held && !this._jump;
     this._jump = held;
     if (!drone) {
       if (Math.abs(trig) > Math.abs(ly)) ly = trig;
-      if (Math.abs(lx) > Math.abs(rx) && !tl) rx = lx;       // pad players who steer on the left stick
+      if (Math.abs(lx) > Math.abs(rx) && !this.usedTouch) rx = lx;       // pad players who steer on the left stick
       lx = 0; ry = 0;
     }
     // Hold my speed: push forward once and it stays pushed, pull back once to let go.

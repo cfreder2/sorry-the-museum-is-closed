@@ -66,8 +66,13 @@
     <div class="lcd"><div id="lcdA"></div><div id="lcdB"></div></div>
     <div class="stick" id="stickR"><i></i><span></span></div>
   </div>
+  <div id="drive">
+    <button id="bGas" class="car" aria-label="Accelerate">GAS</button>
+    <button id="bJump" class="car" aria-label="Jump">JUMP</button>
+    <button id="bUp" class="drone" aria-label="Climb">UP</button>
+    <button id="bDown" class="drone" aria-label="Descend">DOWN</button>
+  </div>
   <div id="pads">
-    <button id="bJump">JUMP</button>
     <button data-act="look" id="bLook" hidden>LOOK</button>
     <button data-act="camera">CAM</button>
     <button data-act="swap" id="bSwap">SWAP</button>
@@ -78,7 +83,7 @@
   <div class="panel">
     <div class="over">The Art Institute of Chicago &nbsp;·&nbsp; after closing</div>
     <h1>After Hours</h1>
-    <p class="lede">The museum shut at five. The lamps are off and the guard has gone for coffee. Every work is real, and hangs in its real gallery. You are the size of a shoe. See how much of it you can see.</p>
+    <p class="lede">Every work is real. You are the size of a shoe.</p>
     <div class="choose">
       <div class="sel" role="group" aria-labelledby="toyLab" data-sel="toy">
         <span class="lab" id="toyLab">Vehicle:</span>
@@ -103,9 +108,12 @@
       <p id="confirmText"></p>
       <div><button data-act="newgameYes">Yes, start a new game</button><button data-act="newgameNo">No, keep my game</button></div>
     </div>
-    <div class="keys" id="keysHelp"></div>
-    <div class="row2"><button class="quiet" data-act="settings">Settings: sound, comfort and access</button></div>
-    <div class="fine" id="source" role="status">Opening the building…</div>
+    <div class="row2">
+      <button class="quiet" data-act="settings">Settings</button>
+      <button class="quiet" data-act="controls">Controls</button>
+      <button class="quiet" data-act="about">About</button>
+    </div>
+    <div class="fine" id="status" role="status">Opening the building…</div>
   </div>
 </main>
 
@@ -116,10 +124,10 @@
       <button data-act="resume">Carry on</button>
       <button data-act="restart" id="pRestart">Restart the race</button>
       <button data-act="notebook">Field-trip notebook</button>
-      <button data-act="settings">Settings: sound, comfort and access</button>
+      <button data-act="settings">Settings</button>
+      <button data-act="controls">Controls</button>
       <button data-act="quit">Back to the front door</button>
     </div>
-    <div class="keys" id="keysHelp2"></div>
   </div>
 </section>
 
@@ -145,6 +153,22 @@
   </div>
 </section>
 
+<section id="controls" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="ctlH">
+  <div class="panel small">
+    <h2 id="ctlH">Controls</h2>
+    <dl class="ctl" id="ctlList"></dl>
+    <div class="col"><button data-act="closeInfo">Done</button></div>
+  </div>
+</section>
+
+<section id="about" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="abtH">
+  <div class="panel small">
+    <h2 id="abtH">About</h2>
+    <p class="about" id="source"></p>
+    <div class="col"><button data-act="closeInfo">Done</button></div>
+  </div>
+</section>
+
 <section id="settings" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="setH">
   <div class="panel small">
     <h2 id="setH">Settings</h2>
@@ -165,6 +189,11 @@
     <div class="col"><button data-act="closeSettings">Done</button></div>
   </div>
 </section>
+
+<div id="rotate" role="alert">
+  <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="27" y="10" width="26" height="46" rx="5" fill="none" stroke-width="3"/><path d="M14 58a30 30 0 0 0 52 0" fill="none" stroke-width="3"/><path d="M66 58l-9 1 5-9z"/></svg>
+  <p>Turn your phone sideways</p>
+</div>
 
 <script type="module" src="src/main.js"></script>
 </body>

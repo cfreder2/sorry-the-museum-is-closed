@@ -93,8 +93,11 @@ What is not true:
 The title screen has two choices, Vehicle and Game mode, set to RC Car and
 Explore; press Start (or Enter).
 
-Controls are two sticks, like a toy transmitter. Keys, a gamepad and touch all
-drive the same two sticks; the title screen lists the keys.
+With keys or a gamepad the controls are two sticks, like a toy transmitter. On
+a phone it is one thumbstick under the left thumb to steer (pull it back to
+brake or reverse) and GAS and JUMP buttons under the right; the drone gets the
+stick to fly and turn, and UP and DOWN buttons. Phones are played sideways.
+The Controls link on the title screen lists everything.
 
 ## Settings and access
 

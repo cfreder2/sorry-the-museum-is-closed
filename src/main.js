@@ -117,6 +117,7 @@ async function boot() {
 
   const when = new Date(collection.fetched);
   const n = G.museum.arts.length;
+  $('status').textContent = '';
   $('source').innerHTML = (collection.live
     ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
     : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${params.has('saved') ? '' : ', because the live API could not be reached'}.`)
@@ -143,7 +144,8 @@ function setVehicle(kind) {
   G.car.shadow.visible = kind === 'car';
   G.drone.group.visible = kind === 'drone';
   G.drone.shadow.visible = kind === 'drone';
-  $('stickL').lastElementChild.textContent = kind === 'drone' ? 'climb · turn' : 'throttle';
+  document.body.classList.toggle('flying', kind === 'drone');
+  $('stickL').lastElementChild.textContent = input.usedTouch ? (kind === 'drone' ? 'fly' : 'steer') : kind === 'drone' ? 'climb · turn' : 'throttle';
   $('stickR').lastElementChild.textContent = kind === 'drone' ? 'fly' : 'steer';
 }
 
@@ -171,6 +173,7 @@ function start(mode, fresh = false) {
     resumed = !!sv;
     sound.musicOn = true;
     say(resumed ? `Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.` : 'Michigan Avenue, long after closing. The door is open. Go on in.', 1.2, 6);
+    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb steers. Hold GAS. Pull the stick back to reverse.', 7.5, 7);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -187,7 +190,6 @@ function start(mode, fresh = false) {
   $('race').hidden = mode !== 'race';
   $('tally').hidden = mode === 'race';
   $('bSwap').hidden = mode === 'race';
-  $('bJump').hidden = G.toy !== 'car';
   $('pRestart').hidden = mode !== 'race';
   canvas.focus();
 }
@@ -244,7 +246,7 @@ function quit() {
 
 let shown = 'title';
 function show(name) {
-  for (const id of ['title', 'pause', 'results', 'notebook', 'settings']) $(id).hidden = id !== name;
+  for (const id of ['title', 'pause', 'results', 'notebook', 'settings', 'controls', 'about']) $(id).hidden = id !== name;
   shown = name;
   // Keyboard and switch users land on the first control of whatever just opened.
   if (name) { const first = $(name).querySelector('[data-first]:not([disabled])') || $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }
@@ -279,11 +281,14 @@ let settingsFrom = 'title';
 addEventListener('keydown', e => {
   if (e.code !== 'Escape') return;
   if (shown === 'settings') act('closeSettings');
+  else if (shown === 'controls' || shown === 'about') act('closeInfo');
   else if (shown === 'notebook') act('closeNotebook');
 });
-// The on-screen JUMP button is held, not tapped, so it gets its own listeners.
-for (const [ev, on] of [['touchstart', true], ['touchend', false], ['touchcancel', false], ['mousedown', true], ['mouseup', false], ['mouseleave', false]])
-  $('bJump').addEventListener(ev, e => { input.touchJump = on; if (ev.startsWith('touch')) e.preventDefault(); }, { passive: false });
+// The buttons under the right thumb are held, not tapped.
+input.bind($('bGas'), 'gas'); input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
+// A phone held upright is asked to turn; the game waits while it does.
+const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
+upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study')) pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
 
 const toasts = [];
@@ -363,6 +368,8 @@ function act(a) {
     case 'closeNotebook': show(G.state === 'title' ? 'title' : 'pause'); break;
     case 'settings': settingsFrom = G.state === 'title' ? 'title' : 'pause'; applySettings(); show('settings'); break;
     case 'closeSettings': show(settingsFrom); break;
+    case 'controls': case 'about': settingsFrom = G.state === 'title' ? 'title' : 'pause'; controlsList(); show(a); break;
+    case 'closeInfo': show(settingsFrom); break;
     case 'sound': sound.setMuted(!sound.muted); say(sound.muted ? 'Sound off.' : 'Sound on.', 0, 2); break;
     default: input.press(a);
   }
@@ -388,9 +395,14 @@ function openNotebook() {
   show('notebook');
 }
 
-const help = 'Car: W S or ↑ ↓ throttle, A D or ← → steer, Space to jump (hold it in the air and steer for flips and spins).<br>Drone: W S fly, A D turn, ← → slide, ↑ ↓ or Space and Shift to climb.<br>'
-  + 'E look closer · C camera · V swap toy · L lights · N notebook · R reset · M mute · Esc pause. A gamepad works, and so do two thumbs.';
-$('keysHelp').innerHTML = help; $('keysHelp2').innerHTML = help;
+// The controls, as a short list for whatever is in your hands.
+function controlsList() {
+  const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
+  const rows = touch
+    ? [['Car', 'Left thumb steers. Hold GAS. Pull back to reverse.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when a work is named.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
+  $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
+}
 for (const b of document.querySelectorAll('button.big')) b.disabled = true;
 applySettings();
 
@@ -672,7 +684,13 @@ const knobL = $('stickL').firstElementChild, knobR = $('stickR').firstElementChi
 let frame = 0;
 function hud() {
   const v = G.vehicle, st = input.sticks, k = input.usedTouch ? 38 : 30;
-  knobL.style.transform = `translate(${st.lx * k}px,${-st.ly * k}px)`;
+  const th = input.thumb, sl = $('stickL');
+  if (input.usedTouch) {
+    // The thumbstick is drawn where the thumb came down.
+    knobL.style.transform = `translate(${th.x * k}px,${-th.y * k}px)`;
+    sl.classList.toggle('live', th.on);
+    if (th.on) { sl.style.left = th.ox - 64 + 'px'; sl.style.top = th.oy - 64 + 'px'; sl.style.bottom = 'auto'; } else { sl.style.left = sl.style.top = sl.style.bottom = ''; }
+  } else knobL.style.transform = `translate(${st.lx * k}px,${-st.ly * k}px)`;
   knobR.style.transform = `translate(${st.rx * k}px,${-st.ry * k}px)`;
   if (frame % 6 === 0) {
     document.body.classList.toggle('touch', input.usedTouch);
@@ -765,7 +783,6 @@ function play(dt, real) {
   if (input.took('swap') && !racing) {
     const to = v.kind === 'car' ? 'drone' : 'car', from = v;
     setVehicle(to);
-    $('bJump').hidden = to !== 'car';
     endFlyby();
     if (to === 'drone') G.drone.place(from.pos.x, from.pos.z, from.yaw, from.pos.y + 0.5); else G.car.place(from.pos.x, from.pos.z, from.yaw, from.pos.y);
     sound.tick(0.1, 1200, 0.08);
@@ -901,5 +918,5 @@ if (params.has('probe')) setTimeout(() => {
 
 boot().then(() => requestAnimationFrame(tick)).catch(err => {
   console.error(err);
-  $('source').textContent = 'The building would not open: ' + err.message;
+  $('status').textContent = 'The building would not open: ' + err.message;
 });

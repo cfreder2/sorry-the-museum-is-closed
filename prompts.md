@@ -154,3 +154,15 @@ the previous one was still being worked on; those are marked.
 ## 36
 
 > when I go up a halfpipe, I want to be able to sort of jump in a pralbola right, lik a an upside down U you jump from one, land on another.  and you can hit space to like trick out and then you land it perfectly, it says perfect landing!
+
+## 37
+
+> controls on mobils for the RC car ar not good.  Just use roblox like control and a single button for gas
+
+## 38 (sent during the build)
+
+> Also, menu is too buys on mobile, make it so use tilts phone sideways.  Declutter the menu
+
+## 39 (sent during the build)
+
+> remove walls of text
