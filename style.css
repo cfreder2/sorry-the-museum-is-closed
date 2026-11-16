@@ -62,7 +62,15 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #label .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; padding-top: 10px; border-top: 1px solid #cfc8b6; font: 11px var(--mono); color: #6a655a; }
 #label a { color: #7b2d1c; }
 
-.studying #tx, .studying #map, .studying #topleft, .studying #toast, .studying #room, .studying #pads { display: none; }
+.studying #tx, .studying #map, .studying #topleft, .studying #toast, .studying #room, .studying #pads { display: none !important; }
+/* looking closer: the label says its piece and gets out of the way; INFO brings it back */
+#label { transition: opacity .7s ease; }
+#label.away { opacity: 0; pointer-events: none; }
+#studyBar { display: none; position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); gap: 10px; }
+.studying #studyBar { display: flex; }
+#studyBar button { min-width: 74px; height: 46px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.66); font: 700 12px var(--mono); letter-spacing: .12em; color: var(--gilt); }
+#studyBar #bInfo[aria-pressed="true"] { background: rgba(226,205,148,.9); color: #14120c; }
+.touch #placard { display: none !important; }      /* on a phone nothing is said about a work until you look */
 #toast { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font-style: italic; font-size: clamp(15px, 2vw, 21px); color: var(--cream); text-shadow: 0 2px 16px #000, 0 0 3px #000; opacity: 0; transition: opacity 1.2s ease; padding: 0 20px; }
 #toast.on { opacity: 1; }
 
@@ -87,11 +95,8 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 .touch #drive { display: block; }
 #drive button { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); font: 700 15px var(--mono); letter-spacing: .12em; color: #fff; background: rgba(12,14,20,.5); touch-action: none; }
 #drive button:active { background: rgba(255,255,255,.28); }
-#bGas { overflow: hidden; width: 112px; height: 112px; right: max(22px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); background: rgba(226,205,148,.3) !important; border-color: var(--gilt) !important; font-size: 19px !important; }
-#bGas i { position: absolute; left: 0; right: 0; bottom: 0; height: var(--lvl, 0%); background: rgba(226,205,148,.75); pointer-events: none; }
-#bGas span { position: relative; pointer-events: none; text-shadow: 0 1px 4px #000; }
+#bJump { width: 104px; height: 104px; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); background: rgba(127,233,245,.3) !important; border-color: #7fe9f5 !important; font-size: 17px !important; }
 #pads #bLights[aria-pressed="false"] { opacity: .55; }
-#bJump { width: 78px; height: 78px; right: calc(max(22px, env(safe-area-inset-right)) + 124px); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 6px); }
 #bUp, #bDown { width: 88px; height: 88px; right: max(22px, env(safe-area-inset-right)); }
 #bUp { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 98px); } #bDown { bottom: max(18px, env(safe-area-inset-bottom)); }
 #drive .drone { display: none; } .flying #drive .drone { display: block; } .flying #drive .car { display: none; }
@@ -257,6 +262,6 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .lcd { display: none; }
   #tx { justify-content: space-between; }
   #placard { bottom: 14px; width: calc(100vw - 340px); min-width: 240px; }
-  #label { top: auto; bottom: 14px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); padding: 10px 14px; }
-  #label .t { font-size: 18px; } #label .m { display: none; }
+  #label { top: 12px; bottom: auto; left: max(12px, env(safe-area-inset-left)); transform: none; width: min(300px, 38vw); max-height: calc(100vh - 24px); overflow: auto; padding: 10px 14px; touch-action: pan-y; }
+  #label .t { font-size: 18px; } #label .m, #label .alt { font-size: 12px; }
 }

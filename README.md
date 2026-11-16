@@ -103,11 +103,11 @@ The title screen has two choices, Vehicle and Game mode, set to RC Car and
 Explore; press Start (or Enter).
 
 With keys or a gamepad the controls are two sticks, like a toy transmitter. On
-a phone it is one thumbstick under the left thumb to steer (pull it back to
-brake or reverse) and GAS and JUMP buttons under the right; the drone gets the
-stick to fly and turn, and UP and DOWN buttons. GAS is not just on or off:
-where the phone reports pressure, a light press is slow and a hard one fast;
-where it does not (recent iPhones), low on the button is slow and high is fast. Phones are played sideways.
+a phone one thumbstick under the left thumb drives the car (forward to go, the
+further the faster; back to brake and reverse; lean to steer) and JUMP is under
+the right; the drone gets the stick to fly and turn, and UP and DOWN buttons.
+On a phone a work's label appears only when you tap LOOK, to one side, and
+fades after a few seconds; INFO brings it back. Phones are played sideways.
 The Controls link on the title screen lists everything.
 
 ## Settings and access

@@ -186,3 +186,15 @@ the previous one was still being worked on; those are marked.
 ## 44 (sent during the build)
 
 > We will need a new github.io url too
+
+## 45
+
+> On mobile, when you look at art the information about the art is in the way and you can't see the art.  You need a way to have it be out of the way, to the side of the art.  When you approach it it can give you the information on the screen (like text over the top, then fade away to see the art) with a button to in-game way to tap to re-read it?
+
+## 46 (sent during the build)
+
+> when you look onlyu
+
+## 47 (sent during the build)
+
+> you can go in reverse but not forwards?  I think that is odd.  Maybe we don't need gass then, just a jump button and the joystick

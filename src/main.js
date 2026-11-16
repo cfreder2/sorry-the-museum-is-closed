@@ -146,7 +146,7 @@ function setVehicle(kind) {
   G.drone.group.visible = kind === 'drone';
   G.drone.shadow.visible = kind === 'drone';
   document.body.classList.toggle('flying', kind === 'drone');
-  $('stickL').lastElementChild.textContent = input.usedTouch ? (kind === 'drone' ? 'fly' : 'steer') : kind === 'drone' ? 'climb · turn' : 'throttle';
+  $('stickL').lastElementChild.textContent = input.usedTouch ? (kind === 'drone' ? 'fly' : 'drive') : kind === 'drone' ? 'climb · turn' : 'throttle';
   $('stickR').lastElementChild.textContent = kind === 'drone' ? 'fly' : 'steer';
 }
 
@@ -182,7 +182,7 @@ function start(mode, fresh = false) {
     sound.musicOn = true;
     say(resumed ? `Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.` : 'Sorry, the museum is closed. The doors are locked.', 1.2, 6);
     if (!resumed) say('There is always another way into a building.', 8, 6);
-    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb steers. GAS on the right: gently for slow, harder (or higher up it) for fast.', 7.5, 8);
+    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.', 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -314,7 +314,7 @@ addEventListener('keydown', e => {
   else if (shown === 'notebook') act('closeNotebook');
 });
 // The buttons under the right thumb are held, not tapped.
-input.bind($('bGas'), 'gas'); input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
+input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
 upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study')) pause(); });
@@ -428,8 +428,8 @@ function openNotebook() {
 function controlsList() {
   const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
   const rows = touch
-    ? [['Car', 'Left thumb steers. Pull back to reverse.'], ['Gas', input.gasBy === 'pedal' ? 'Hold GAS. Low on the button is gentle, slide up for flat out.' : 'Hold GAS. Press lightly to go slowly, hard to go fast.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when a work is named.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
-    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
+    ? [['Car', 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
 for (const b of document.querySelectorAll('button.big')) b.disabled = true;
@@ -583,7 +583,10 @@ function flight(v, real, racing) {
 // Leave the toy where it is and stand in front of the work like a person.
 function beginStudy(art) {
   endFlyby();
-  G.study = { art, t: 0, from: camera.position.clone(), look: camLook.clone(), fov: camera.fov };
+  // On a phone the label would sit on the work, so it says its piece and fades; INFO brings it back.
+  const brief = input.usedTouch || innerHeight <= 520;
+  G.study = { art, t: 0, from: camera.position.clone(), look: camLook.clone(), fov: camera.fov, label: true, wide: innerWidth > 720 ? 0.72 : 1, brief, hideAt: brief ? 6 : Infinity };
+  setLabel(true);
   G.lamp.intensity = G.lampOn ? 14 : 0;                  // dip the headlamp while you look
   toastUntil = 0; toasts.length = 0;
   G.state = 'study';
@@ -611,6 +614,15 @@ function beginStudy(art) {
   sound.bell(293.66, 0, 0.05, 3.5);
 }
 
+function setLabel(on) {
+  const s = G.study;
+  if (!s) return;
+  s.label = on;
+  if (on && s.brief) s.hideAt = s.t + 7;
+  $('label').classList.toggle('away', !on);
+  $('bInfo').setAttribute('aria-pressed', on);
+}
+
 function endStudy() {
   if (!G.study) return;
   G.study.art.focus = false;
@@ -626,12 +638,14 @@ function studyCam(dt) {
   const s = G.study, a = s.art;
   s.t += dt;
   const fov = 46, tan = Math.tan(fov * Math.PI / 360);
-  const wide = innerWidth > 720 ? 0.72 : 1;         // leave room for the label on a wide screen
+  // Leave room for the label beside the work while it is up; once it has gone, the work takes the middle.
+  s.wide += ((s.label && innerWidth > 720 ? 0.72 : 1) - s.wide) * Math.min(1, dt * 2.5);
+  const wide = s.wide;
   let dist = Math.max(a.h * 1.3 / (2 * tan), a.w * 1.3 / (2 * tan * camera.aspect * wide), a.mini ? 0.75 : a.obj ? a.half + 0.5 : 1.1);
   dist *= 1 - 0.07 * Math.min(1, s.t / 30);          // and drift in, very slowly
   // On a wide screen, stand a little to one side so the label does not cover the work,
   // but stay square to the wall.
-  const side = wide < 1 ? a.w * 0.2 + 0.1 : 0, tx = Math.cos(a.rot), tz = -Math.sin(a.rot);
+  const side = (a.w * 0.2 + 0.1) * (1 - wide) / 0.28, tx = Math.cos(a.rot), tz = -Math.sin(a.rot);
   want.set(a.x + a.nx * dist - tx * side, a.y, a.z + a.nz * dist - tz * side);
   confine(G.plan, want, 0.25, true, null, true);
   if (a.obj) want.y = a.y;
@@ -714,7 +728,6 @@ let frame = 0;
 function hud() {
   const v = G.vehicle, st = input.sticks, k = input.usedTouch ? 38 : 30;
   const th = input.thumb, sl = $('stickL');
-  if (input.usedTouch) $('bGas').style.setProperty('--lvl', (input.btn.gas ? Math.round(input.gasLevel * 100) : 0) + '%');
   if (input.usedTouch) {
     // The thumbstick is drawn where the thumb came down.
     knobL.style.transform = `translate(${th.x * k}px,${-th.y * k}px)`;
@@ -929,6 +942,8 @@ function tick(now) {
   } else if (G.state === 'study') {
     input.read(G.vehicle.kind === 'drone');
     const st = input.sticks;
+    if (input.took('info')) setLabel(!G.study.label);
+    else if (G.study.label && G.study.t > G.study.hideAt) setLabel(false);
     if (input.took('look') || input.took('pause') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8) endStudy();
     else { studyCam(dt); G.museum.update(dt, G.vehicle.pos, G.roomId, camera.position); }
     sound.update(G.vehicle, false);
