@@ -66,8 +66,14 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 .flyby #flyby .cap { opacity: 1; transform: none; }
 #flyby .t { font-style: italic; font-size: clamp(20px, 3vw, 34px); line-height: 1.15; color: #fff; }
 #flyby .a { font-size: clamp(13px, 1.5vw, 17px); color: var(--gilt); margin-top: 5px; letter-spacing: .03em; }
-.cine #tx, .cine #map, .cine #topleft, .cine #placard, .cine #toast, .cine #room, .cine #pads { opacity: 0 !important; }
+.cine #tx, .cine #map, .cine #topleft, .cine #placard, .cine #toast, .cine #room { opacity: 0 !important; }
 #tx, #map, #topleft { transition: opacity .35s ease; }
+
+#trick { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font: 700 clamp(26px, 5vw, 58px) var(--serif); letter-spacing: .16em; color: var(--gilt); text-shadow: 0 0 34px rgba(226,205,148,.6), 0 2px 12px #000; opacity: 0; pointer-events: none; }
+#trick.on { animation: trick 2.2s ease-out both; }
+.reduce #trick.on { animation: none !important; opacity: 1; }
+@keyframes trick { 0% { opacity: 0; transform: scale(.7); } 12% { opacity: 1; transform: scale(1.06); } 22% { transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: scale(1) translateY(-14px); } }
+#pads #bJump { background: rgba(127,233,245,.85); color: #06141a; height: 56px; }
 
 /* the transmitter */
 #tx { position: absolute; left: 0; right: 0; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; justify-content: space-between; align-items: flex-end; padding: 0 max(22px, env(safe-area-inset-left)); }

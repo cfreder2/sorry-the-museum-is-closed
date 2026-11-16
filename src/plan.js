@@ -206,7 +206,7 @@ function addStunts(plan) {
   // 3. The loop, run at towards the window.
   L.push({ x: 57, z: -3.4, dir: 1, r: 1.15, shift: 0.62, w: 0.56 });
   track(46, 57, -3.68, -3.12, 'x', 1);
-  track(57, 62.5, -3.06, -2.5, 'x', 1);
+  track(57, 67, -3.06, -2.5, 'x', -1);       // the other lane: run at it from the window end
   for (const dx of [-1.45, 1.45]) for (const dz of [-0.55, 1.15])
     plan.obstacles.push({ x0: 57 + dx - 0.04, x1: 57 + dx + 0.04, z0: -3.4 + dz - 0.04, z1: -3.4 + dz + 0.04, y0: 0, y1: 2.5, post: true });
 
@@ -236,6 +236,98 @@ function addStunts(plan) {
   table(21, 26.6, -19.5, -18.3, 0.72);
   add('ply', 25.5, 26.6, -19.35, -18.45, 'x', 0.72, 0.92, { thick: 0.2, onTop: 0.72 });
 
+  // ---- and then they came back with a van-load more ----
+  const H = plan.hoops = [];
+  const hoop = (x, y, z, axis = 'x', r = 0.8) => H.push({ x, y, z, axis, r });
+  // Track slung from the ceiling on wires: thin, so the floor underneath stays open.
+  const sky = (x0, x1, z0, z1, axis, h0, h1, o = {}) => add('track', x0, x1, z0, z1, axis, h0, h1, { thick: 0.07, hang: true, run: 'x', ...o });
+  const tabletopZ = (cz, x0, x1, h, run = 1.6, top = 0.6) => {
+    add('ply', x0, x1, cz - top - run, cz - top, 'z', 0, h);
+    flat('ply', x0, x1, cz - top, cz + top, h);
+    add('ply', x0, x1, cz + top, cz + top + run, 'z', h, 0);
+  };
+  // Ramps on all four sides of a flat top.
+  const funbox = (cx, cz, h = 0.5, run = 1.6, top = 0.6) => {
+    flat('ply', cx - top, cx + top, cz - top, cz + top, h);
+    add('ply', cx - top - run, cx - top, cz - top, cz + top, 'x', 0, h);
+    add('ply', cx + top, cx + top + run, cz - top, cz + top, 'x', h, 0);
+    add('ply', cx - top, cx + top, cz - top - run, cz - top, 'z', 0, h);
+    add('ply', cx - top, cx + top, cz + top, cz + top + run, 'z', h, 0);
+  };
+
+  // 10. The skyway: forty-odd metres of track hung from the hall's glass roof,
+  //     level with the big pictures, with two gaps and a launch at the window.
+  const k0 = 3.6, k1 = 4.9, kz = (k0 + k1) / 2, lip = { lip: true };
+  sky(14, 24, k0, k1, 'x', 0, 2.6, lip);
+  sky(24, 31, k0, k1, null, 2.6, 2.6, lip);
+  sky(33.6, 40, k0, k1, null, 1.9, 1.9, lip);
+  sky(40, 42.5, k0, k1, 'x', 1.9, 2.6, lip);
+  sky(45.3, 52, k0, k1, null, 2.6, 2.6, lip);
+  sky(52, 58, k0, k1, 'x', 2.6, 1.4, lip);
+  sky(58, 60, k0, k1, 'x', 1.4, 2.0, lip);
+  track(10.6, 14, k0 + 0.2, k1 - 0.2, 'x', 1);
+  hoop(32.3, 2.55, kz); hoop(44, 2.95, kz); hoop(62.6, 2.45, kz, 'x', 0.9); hoop(65.8, 1.65, kz, 'x', 0.95);
+
+  // 11. Gallery 220: a catwalk hung at picture height, right round the room.
+  //     There is a gap in it. Space.
+  const CW = 1.6, cat = (x0, x1, z0, z1, o) => add('track', x0, x1, z0, z1, null, CW, CW, { thick: 0.07, hang: true, ...o });
+  cat(35.2, 48.8, 18.4, 19.8, { run: 'x' });
+  cat(35.2, 41.2, 9.2, 10.6, { run: 'x' }); cat(42.8, 48.8, 9.2, 10.6, { run: 'x' });
+  cat(35.2, 36.6, 10.6, 18.4, { run: 'z' }); cat(47.4, 48.8, 10.6, 18.4, { run: 'z' });
+  add('track', 37.5, 44, 17, 18.4, 'x', 0, CW, { thick: 0.07, hang: true, run: 'x' });
+  cat(44, 45.6, 17, 18.4, { run: 'x' });
+  track(34.6, 37.5, 17.2, 18.2, 'x', 1);
+  hoop(42, 2.15, 9.9, 'x', 0.75); hoop(48.1, 2.4, 14.5, 'z', 0.6);
+
+  // 12. A rhythm section down the hall's north side, feeding the loop.
+  tabletop(24.5, -4.4, -2.8, 0.4); tabletop(32, -4.4, -2.8, 0.4);
+  hoop(24.5, 0.95, -3.6); hoop(32, 0.95, -3.6);
+
+  // 13. Kickers aimed over the two hall benches.
+  add('ply', 64.2, 66, -0.8, 0.8, 'x', 0.55, 0);
+  hoop(62, 1.15, 0);
+
+  // 16. Skate ramps, for real height. `quarter` is an arc of radius R cut off
+  //     at the lip; the steeper the lip, the more of your speed goes straight up.
+  const quarter = (x0, x1, z0, z1, axis, rising, R) => {
+    const run = axis === 'x' ? x1 - x0 : z1 - z0, lipH = R - Math.sqrt(R * R - run * run);
+    add('ply', x0, x1, z0, z1, axis, rising > 0 ? 0 : lipH, rising > 0 ? lipH : 0, { curve: R });
+    return lipH;
+  };
+  // The big launcher in the middle of the hall.
+  quarter(38, 41, 0.6, 2.8, 'x', 1, 3.4);
+  track(33, 38, 0.95, 2.45, 'x', 1);
+  hoop(44.2, 4.3, 1.7, 'x', 1.15);
+  // A half-pipe across the hall in front of the window.
+  const hp0 = 78.6, hp1 = 82.4;
+  const lipH = quarter(hp0, hp1, -6.8, -3.4, 'z', -1, 3.6);
+  quarter(hp0, hp1, 3.4, 6.8, 'z', 1, 3.6);
+  flat('ply', hp0, hp1, -HW, -6.8, lipH); flat('ply', hp0, hp1, 6.8, HW, lipH);
+  hoop(80.5, 3.6, -6.2, 'y', 1.1); hoop(80.5, 3.6, 6.2, 'y', 1.1);
+
+  // 17. Somebody mopped. The floor here really is slippery, and none of the
+  //     cones or signs are fixed to anything.
+  const P = plan.props = [], puddle = { x: 46.6, z: 1.3, r: 2.3 };
+  plan.puddles = [puddle];
+  const cone = (x, z) => P.push({ type: 'cone', x, z });
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2 + 0.4; cone(puddle.x + Math.cos(a) * 2.75, puddle.z + Math.sin(a) * 2.75); }
+  P.push({ type: 'sign', x: puddle.x - 2.2, z: puddle.z - 2.1, yaw: 0.6 }, { type: 'sign', x: puddle.x + 2.4, z: puddle.z + 1.9, yaw: -2.4 }, { type: 'sign', x: 70.5, z: -5.2, yaw: 0.5 });
+  for (const [x, z] of [[36.6, 0.75], [36.6, 2.65], [34.2, 0.75], [34.2, 2.65], [20.6, -2.4], [20.6, -4.8], [28.3, -2.4], [28.3, -4.8], [77.9, -3], [77.9, 3], [83, -3], [83, 3],
+    [45, -3], [45.6, -3.9], [8.4, zc + 1.4], [18, zc - 1.4], [50.6, zc + 1.4], [64, zc - 1.4], [20.6, 13.2], [20.6, 15.8], [52.6, zn - 1.4], [52.6, zn + 1.4], [13.2, 3.2], [13.2, 5.3]]) cone(x, z);
+
+  // 14. Funboxes, a spine, and a row of bumps.
+  funbox(11.5, -11.4); hoop(11.5, 1.05, -11.4);
+  funbox(80.2, 17.6); hoop(80.2, 1.05, 17.6, 'z');
+  tabletopZ(-14.5, 70, 71.6, 0.45); hoop(70.8, 1.0, -14.5, 'z');
+  for (const x of [10, 13, 16]) { add('ply', x - 0.8, x, zc - 0.8, zc + 0.8, 'x', 0, 0.2); add('ply', x, x + 0.8, zc - 0.8, zc + 0.8, 'x', 0.2, 0); }
+
+  // 15. Three low hoops under the Van Goghs. Driving through does not count.
+  for (const x of [37.5, 42.5, 47.5]) hoop(x, 0.8, -18.5, 'x', 0.55);
+
+  // Hoops for what was already here.
+  hoop(7.2, 2.15, 0, 'x', 0.9); hoop(23.8, 1.05, 0.2); hoop(58, 0.95, zc, 'x', 0.7); hoop(26, 0.95, zc, 'x', 0.7);
+  hoop(25, 1.05, 14.5); hoop(60.9, 0.95, 14.5); hoop(58.6, 1.4, zn); hoop(10.3, 1.3, 18.2); hoop(27.9, 1.3, -18.9);
+
   // 9. Gallery 243: the big gap, over the bench, between the Monets.
   add('ply', 53.6, 56.2, zn - 0.9, zn + 0.9, 'x', 0, 0.8);
   add('ply', 61, 63.6, zn - 0.9, zn + 0.9, 'x', 0.8, 0);
@@ -246,23 +338,32 @@ function addStunts(plan) {
 export function heightOf(s, x, z) {
   if (!s.axis) return s.h0;
   const t = s.axis === 'x' ? (x - s.x0) / (s.x1 - s.x0) : (z - s.z0) / (s.z1 - s.z0);
+  if (s.curve) {
+    // A skate ramp: an arc of a circle, flat where you roll in, steep at the lip.
+    const run = s.axis === 'x' ? s.x1 - s.x0 : s.z1 - s.z0;
+    const d = Math.max(0, Math.min(run, (s.h1 > s.h0 ? t : 1 - t) * run));
+    return s.curve - Math.sqrt(s.curve * s.curve - d * d);
+  }
   return s.h0 + (s.h1 - s.h0) * t;
 }
 
 // The highest thing under (x, z) that something at height y could be standing on.
-export function groundAt(plan, x, z, y, step = STEP) {
-  let g = 0;
+// `sticky` is the piece already under the wheels: it stays underfoot however steeply it climbs.
+export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
+  let g = 0, under = null;
   for (const s of plan.surfaces) {
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
-    if (h <= y + step && h > g) g = h;
+    if ((h <= y + step || (s === sticky && h <= y + 1.6)) && h > g) { g = h; under = s; }
   }
+  plan.under = under;          // which piece that was, for whoever just asked
   return g;
 }
 
 // Is there a solid piece here standing taller than something at height y can climb?
-export function wallAt(plan, x, z, y, step = STEP) {
+export function wallAt(plan, x, z, y, step = STEP, ignore = null) {
   for (const s of plan.surfaces) {
+    if (s === ignore) continue;
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if (h <= y + step) continue;

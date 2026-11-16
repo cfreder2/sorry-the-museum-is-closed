@@ -26,12 +26,21 @@ then open <http://localhost:8791>.
 - **Race.** The Night Circuit: two laps through the south galleries, across the
   hall, down the miniature-rooms passage and back, against three other toys.
   Cones on the floor for the car, hoops in the air for the drone.
-- **A stunt kit.** Plywood ramps with light strips, a grand staircase to
-  launch off, tables to drive along and land on, packing crates, a
-  loop-the-loop, and jumps down the miniature-rooms passage. The car has real
-  gravity (9.8 m/s²) and the rivals jump too. Leave a ramp with a work
-  alongside and time slows, the camera comes round, and that work is lit and
-  named until you land.
+- **A stunt kit.** The car has real gravity (9.8 m/s²) and `Space` makes it
+  hop; hold `Space` in the air and steer to flip and spin. Around the building:
+  plywood ramps and funboxes with light strips, a curved launcher and a
+  half-pipe in front of the window, a grand staircase to launch off, tables to
+  drive along and land on, packing crates, a loop-the-loop that runs both ways,
+  a skyway of orange track hung from the hall's glass roof with gaps to clear,
+  and a catwalk hung at picture height round Gallery 220. There are 27 gold
+  hoops to jump or fly through. Cones and wet-floor signs are loose and can be
+  knocked about (by rivals too), and the mopped patch of floor is slippery.
+  Leave a ramp with a work alongside and time slows, the camera comes round,
+  and that work is lit and named until you land.
+- **Frames.** Each picture gets a moulding to suit its date and school:
+  tabernacle and gilt-and-bole for the earliest, carved Baroque gilt, ebonised
+  Dutch, Neoclassical, swept Salon gilt, walnut, oak, thin modern strips, and
+  the plain white Seurat wanted.
 - **Ten galleries, a hall and a passage.** 201, 240, 241, 243, 248 on the north
   side; 211, 213, 220, 161, 273 on the south. The hall takes the largest
   canvases left over. The passage is Gallery 11, the Thorne Miniature Rooms.
@@ -101,9 +110,14 @@ lets a test driver run the race. The game object is `window.__ah`.
     src/reflect.js            polished-floor reflections
     src/vehicles.js           the car and the drone
     src/race.js               gates, laps, rivals
+    src/props.js              loose cones and signs
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
     vendor/                   three.js r170 (MIT)
+
+## How it was made
+
+[prompts.md](prompts.md) lists the prompts that built it, verbatim.
 
 ## Credit
 

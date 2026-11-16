@@ -222,6 +222,36 @@ export class Sound {
   }
 
   gate() { this.bell(midi(86), 0, 0.05, 0.7, 0.6); }
+
+  // Each hoop a step higher up the scale than the last.
+  hoop(n) {
+    const t = this.ctx ? this.ctx.currentTime : 0, deg = n % 10, note = 74 + PENTA[deg % 5] + Math.floor(deg / 5) * 12;
+    this.bell(midi(note), t, 0.07, 1.4); this.bell(midi(note + 7), t + 0.07, 0.05, 1.6);
+  }
+
+  // The spring of a hop.
+  boing() {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const t = c.currentTime, o = c.createOscillator(), e = c.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(520, t + 0.13);
+    e.gain.setValueAtTime(0.07, t); e.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    o.connect(e); e.connect(this.dry); e.connect(this.send); o.start(t); o.stop(t + 0.22);
+  }
+
+  // Hollow plastic: a cone or a folding sign taking a hit.
+  knock(speed, big) {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const t = c.currentTime;
+    if (this._knock && t - this._knock < 0.04) return;
+    this._knock = t;
+    const g = Math.min(0.22, 0.04 + speed * 0.022), o = c.createOscillator(), e = c.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(big ? 210 : 330 + Math.random() * 90, t); o.frequency.exponentialRampToValueAtTime(big ? 120 : 190, t + 0.07);
+    e.gain.setValueAtTime(g * 0.5, t); e.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    o.connect(e); e.connect(this.dry); e.connect(this.send); o.start(t); o.stop(t + 0.1);
+    this.tick(g, big ? 600 : 1400, 0.05);
+  }
   lap() { const t = this.ctx ? this.ctx.currentTime : 0; [74, 78, 81].forEach((n, i) => this.bell(midi(n), t + i * 0.09, 0.06, 1.2)); }
   finish() { const t = this.ctx ? this.ctx.currentTime : 0; [74, 78, 81, 86, 90].forEach((n, i) => this.bell(midi(n), t + i * 0.13, 0.07, 3)); }
   roomChord() { const t = this.ctx ? this.ctx.currentTime : 0; [50, 57].forEach((n, i) => this.bell(midi(n), t + i * 0.05, 0.05, 4)); }

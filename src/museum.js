@@ -3,13 +3,13 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { T, RW, RD, LEN, HW, SPRING, VAULT_R, CORR, wallPoint, hang, heightOf } from './plan.js';
+import { T, RW, RD, LEN, HW, SPRING, VAULT_R, CORR, wallPoint, hang, heightOf, roomAt } from './plan.js';
 import { imageUrl } from './collection.js';
 
 // ---------------------------------------------------------------- geometry --
 
 class Geo {
-  constructor() { this.p = []; this.n = []; this.uv = []; this.idx = []; }
+  constructor() { this.p = []; this.n = []; this.uv = []; this.idx = []; this.c = []; this.col = null; }
   // Corners in order round the quad; `n` is the side it should face.
   quad(a, b, c, d, n, uv = [[0, 0], [1, 0], [1, 1], [0, 1]]) {
     const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
@@ -17,7 +17,7 @@ class Geo {
     let v = [a, b, c, d], t = uv;
     if (cx * n[0] + cy * n[1] + cz * n[2] < 0) { v = [a, d, c, b]; t = [uv[0], uv[3], uv[2], uv[1]]; }
     const i = this.p.length / 3;
-    for (let k = 0; k < 4; k++) { this.p.push(...v[k]); this.n.push(...n); this.uv.push(...t[k]); }
+    for (let k = 0; k < 4; k++) { this.p.push(...v[k]); this.n.push(...n); this.uv.push(...t[k]); if (this.col) this.c.push(...this.col); }
     this.idx.push(i, i + 1, i + 2, i, i + 2, i + 3);
   }
   box(x0, x1, y0, y1, z0, z1, s = 1) {
@@ -43,6 +43,7 @@ class Geo {
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
+    if (this.c.length) g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
     g.setIndex(this.idx);
     return g;
   }
@@ -68,6 +69,79 @@ function motes(color, size, alpha, near, far, additive) {
 }
 const P3 = (x, y, z) => [x, y, z];
 
+// ------------------------------------------------------------------ frames --
+//
+// A frame is built as rings of moulding, each a different width, depth and
+// tone, so it has a profile that catches the lamp. Which one a picture gets
+// depends on when and where it was painted, as it would in a museum.
+
+const TONE = {
+  gold: [0.8, 0.6, 0.24], pale: [0.9, 0.76, 0.42], deep: [0.56, 0.4, 0.14], cove: [0.34, 0.24, 0.085],
+  ebony: [0.045, 0.04, 0.038], ebony2: [0.1, 0.09, 0.08], walnut: [0.24, 0.13, 0.07], oak: [0.42, 0.28, 0.15],
+  white: [0.86, 0.84, 0.78], linen: [0.72, 0.68, 0.58], red: [0.36, 0.09, 0.06], brass: [0.6, 0.47, 0.2],
+};
+
+function frameStyle(work, mini) {
+  if (mini) return 'box';
+  const year = +(/(\d{4})/.exec(work.d || '') || [])[1] || 1800, h = work.id % 7;
+  if (/pointill/i.test(work.s || '') || /Seurat|Signac/.test(work.a || '')) return 'white';      // as Seurat wanted them
+  if (year < 1520) return h % 2 ? 'tabernacle' : 'gothic';
+  if (year < 1700) return year >= 1600 && h < 3 ? 'ebony' : h === 6 ? 'walnut' : 'baroque';
+  if (year < 1840) return h < 4 ? 'neoclassical' : 'baroque';
+  if (year < 1905) return h === 0 ? 'walnut' : h < 4 ? 'salon' : h === 6 ? 'oak' : 'neoclassical';
+  return h < 3 ? 'modern' : 'oak';
+}
+
+function buildFrame(g, p, style) {
+  const hw = p.w / 2, hh = p.h / 2, f = p.frame;
+  const at = { x: p.x - p.nx * 0.04, y: p.y, z: p.z - p.nz * 0.04 };
+  const box = (u0, u1, y0, y1, d, tone) => { g.col = TONE[tone]; g.wallBox(at, p.nx, p.nz, u0, u1, y0, y1, 0, d); };
+  // A ring of moulding from `a` to `b` out from the picture's edge, standing `d` off the wall.
+  const ring = (a, b, d, tone) => {
+    box(-hw - b, hw + b, hh + a, hh + b, d, tone); box(-hw - b, hw + b, -hh - b, -hh - a, d, tone);
+    box(-hw - b, -hw - a, -hh - a, hh + a, d, tone); box(hw + a, hw + b, -hh - a, hh + a, d, tone);
+  };
+  // Carved lumps at the corners and the middle of each rail.
+  const ornaments = (r, size, d, tone, centres) => {
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) box(sx * (hw + r) - size, sx * (hw + r) + size, sy * (hh + r) - size, sy * (hh + r) + size, d, tone);
+    if (!centres) return;
+    for (const sy of [-1, 1]) box(-size * 1.5, size * 1.5, sy * (hh + r) - size * 0.8, sy * (hh + r) + size * 0.8, d, tone);
+    for (const sx of [-1, 1]) box(sx * (hw + r) - size * 0.8, sx * (hw + r) + size * 0.8, -size * 1.5, size * 1.5, d, tone);
+  };
+  let W = f;
+  switch (style) {
+    case 'baroque':
+      ring(0, 0.12 * W, 0.034, 'pale'); ring(0.12 * W, 0.42 * W, 0.02, 'cove'); ring(0.42 * W, 0.86 * W, 0.066, 'gold'); ring(0.86 * W, W, 0.046, 'deep');
+      ornaments(0.64 * W, 0.3 * W, 0.082, 'pale', true); break;
+    case 'salon':
+      ring(0, 0.1 * W, 0.03, 'pale'); ring(0.1 * W, 0.36 * W, 0.018, 'cove'); ring(0.36 * W, 0.9 * W, 0.058, 'gold'); ring(0.9 * W, W, 0.04, 'deep');
+      ornaments(0.66 * W, 0.24 * W, 0.07, 'pale', p.w > 0.9); break;
+    case 'neoclassical':
+      W *= 0.8; ring(0, 0.15 * W, 0.03, 'pale'); ring(0.15 * W, 0.68 * W, 0.042, 'gold'); ring(0.68 * W, 0.74 * W, 0.064, 'pale'); ring(0.74 * W, W, 0.056, 'deep'); break;
+    case 'ebony':
+      W *= 0.78; ring(0, 0.1 * W, 0.03, 'pale'); ring(0.1 * W, 0.4 * W, 0.044, 'ebony'); ring(0.4 * W, 0.47 * W, 0.054, 'ebony2'); ring(0.47 * W, 0.82 * W, 0.046, 'ebony'); ring(0.82 * W, W, 0.062, 'ebony2'); break;
+    case 'walnut':
+      W *= 0.8; ring(0, 0.14 * W, 0.03, 'pale'); ring(0.14 * W, 0.56 * W, 0.048, 'walnut'); ring(0.56 * W, 0.63 * W, 0.058, 'oak'); ring(0.63 * W, W, 0.05, 'walnut'); break;
+    case 'white':
+      W *= 0.92; ring(0, 0.08 * W, 0.056, 'linen'); ring(0.08 * W, W, 0.05, 'white'); break;
+    case 'modern':
+      W = Math.max(0.022, W * 0.34); ring(0, W, 0.05, p.work.id % 2 ? 'ebony' : 'pale'); break;
+    case 'oak':
+      W *= 0.62; ring(0, 0.2 * W, 0.03, 'linen'); ring(0.2 * W, W, 0.046, 'oak'); break;
+    case 'gothic':
+      W *= 0.9; ring(0, 0.16 * W, 0.026, 'red'); ring(0.16 * W, 0.9 * W, 0.052, 'gold'); ring(0.9 * W, W, 0.064, 'deep'); break;
+    case 'tabernacle': {
+      // An altarpiece's little building: pilasters, a ledge underneath, a cornice on top.
+      W *= 0.82; ring(0, 0.16 * W, 0.026, 'red'); ring(0.16 * W, W, 0.05, 'gold');
+      box(-hw - 1.3 * W, hw + 1.3 * W, -hh - 1.5 * W, -hh - W, 0.085, 'deep'); box(-hw - 1.15 * W, hw + 1.15 * W, -hh - 1.75 * W, -hh - 1.5 * W, 0.06, 'gold');
+      box(-hw - 1.2 * W, hw + 1.2 * W, hh + W, hh + 1.35 * W, 0.075, 'gold'); box(-hw - 1.4 * W, hw + 1.4 * W, hh + 1.35 * W, hh + 1.55 * W, 0.1, 'pale'); break;
+    }
+    default:        // the miniature rooms: a dark box with a brass edge
+      ring(0, 0.25 * f, 0.075, 'brass'); ring(0.25 * f, f, 0.07, 'ebony');
+  }
+  g.col = null;
+}
+
 // The lamp does not simply come on. It catches, twice, like a tube warming up.
 function flicker(e) {
   if (e < 0) return 0;
@@ -91,6 +165,7 @@ export class Museum {
     this.maxAniso = maxAniso;
     this.loading = 0;
     this.textures = { wallGlow: TX.wallGlow() };
+    this.mirror = mirror;
     this._buildShell(mirror);
     this._buildHall();
     this._buildArt();
@@ -379,15 +454,9 @@ export class Museum {
         if (art.tier === 0) { mat.map = mat.emissiveMap = t; art.tex = t; mat.needsUpdate = true; } else t.dispose();
       });
 
-      // Frame: four rails round the canvas, gilt for most, dark for some.
-      const fr = frames[p.room] || (frames[p.room] = [new Geo(), new Geo()]);
-      const dark = mini || (p.work.id % 5 === 0);
-      const g = fr[dark ? 1 : 0], f = p.frame, hw = p.w / 2, hh = p.h / 2, depth = mini ? 0.07 : 0.05 + f * 0.5;
-      const at = { x: p.x - p.nx * 0.04, y: p.y, z: p.z - p.nz * 0.04 };
-      g.wallBox(at, p.nx, p.nz, -hw - f, hw + f, hh, hh + f, 0, depth);
-      g.wallBox(at, p.nx, p.nz, -hw - f, hw + f, -hh - f, -hh, 0, depth);
-      g.wallBox(at, p.nx, p.nz, -hw - f, -hw, -hh, hh, 0, depth);
-      g.wallBox(at, p.nx, p.nz, hw, hw + f, -hh, hh, 0, depth);
+      // The frame: see buildFrame.
+      const f = p.frame, hw = p.w / 2, hh = p.h / 2;
+      buildFrame(frames[p.room] || (frames[p.room] = new Geo()), p, frameStyle(p.work, mini));
 
       E.set(0, p.rot, 0); Q.setFromEuler(E);
       const tx = Math.cos(p.rot), tz = -Math.sin(p.rot);     // along the wall, to the viewer's right
@@ -423,14 +492,12 @@ export class Museum {
     });
     this.lamps.count = Math.max(1, lampIdx); this.washes.count = Math.max(1, lampIdx);
 
-    for (const [room, [gilt, dark]] of Object.entries(frames)) {
-      const mats = [
-        new THREE.MeshStandardMaterial({ color: 0x9a7a34, roughness: 0.45, metalness: 0.25, emissive: 0x6b4d17, emissiveIntensity: 0.02 }),
-        new THREE.MeshStandardMaterial({ color: 0x241710, roughness: 0.6, emissive: 0x2a1a0e, emissiveIntensity: 0.02 }),
-      ];
-      if (!gilt.empty) this.group.add(gilt.mesh(mats[0]));
-      if (!dark.empty) this.group.add(dark.mesh(mats[1]));
-      this.rooms[room].frameMats = mats;
+    for (const [room, geo] of Object.entries(frames)) {
+      // One material per room; each ring of moulding carries its own colour, and glows in it.
+      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.3, emissive: new THREE.Color(0.62, 0.56, 0.46), emissiveIntensity: 0.03 });
+      mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n#ifdef USE_COLOR\n  totalEmissiveRadiance *= vColor.rgb;\n#endif'); };
+      if (!geo.empty) this.group.add(geo.mesh(mat));
+      this.rooms[room].frameMats = [mat];
     }
     if (!arms.empty) this.group.add(arms.mesh(new THREE.MeshStandardMaterial({ color: 0x4a3a1c, roughness: 0.5, metalness: 0.4 })));
     this._dirty = true;
@@ -472,7 +539,7 @@ export class Museum {
     };
     for (const r of plan.rooms) if (r.kind === 'gallery' && !plan.noBench.has(r.id)) bench((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, false);
     for (const x of [52, 62]) bench(x, 0, true);
-    this.group.add(leather.mesh(new THREE.MeshStandardMaterial({ color: 0x45201b, roughness: 0.45, emissive: 0x30120e, emissiveIntensity: 0.08 })));
+    this.group.add(leather.mesh(new THREE.MeshStandardMaterial({ color: 0x45201b, roughness: 0.45, emissive: 0x45201b, emissiveIntensity: 0.4 })));
     this.group.add(metal.mesh(new THREE.MeshStandardMaterial({ color: 0x6d6a66, roughness: 0.35, metalness: 0.7 })));
 
     // The guard's desk, lamp left on.
@@ -490,17 +557,6 @@ export class Museum {
     glow.rotation.x = -Math.PI / 2; glow.position.set(dx + 0.05, 1.075, dz);
     this.group.add(shade, stem, glow);
 
-    // WET FLOOR, twice your height.
-    const sign = new THREE.Group();
-    const sm = new THREE.MeshStandardMaterial({ map: TX.caution(), roughness: 0.6, emissive: 0x3a2e05, emissiveIntensity: 0.5, side: THREE.DoubleSide });
-    for (const s of [-1, 1]) {
-      const p = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.62), sm);
-      p.position.set(0, 0.3, s * 0.1); p.rotation.x = -s * 0.32; if (s < 0) p.rotation.y = Math.PI, p.rotation.x = -0.32;
-      sign.add(p);
-    }
-    sign.position.set(66.5, 0, 3.4); sign.rotation.y = 0.5;
-    plan.obstacles.push({ x0: 66.3, x1: 66.7, z0: 3.2, z1: 3.6, y0: 0, y1: 0.62 });
-    this.group.add(sign);
   }
 
   // ------------------------------------------------------------------ stunts --
@@ -508,28 +564,67 @@ export class Museum {
   _buildStunts() {
     const { plan } = this;
     const ply = new Geo(), stone = new Geo(), carpet = new Geo(), crate = new Geo(), wood = new Geo(), steel = new Geo();
-    const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo();
+    const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo();
     const n3 = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+    const ceilingAt = (x, z) => { const r = roomAt(plan, x, z); return !r ? 6 : r.kind === 'hall' ? SPRING + Math.sqrt(Math.max(0, VAULT_R * VAULT_R - z * z)) - 0.15 : r.h; };
+
+    // One slab of a piece: the top following its slope, sides down to its base.
+    const slab = (geo, s, x0, x1, z0, z1, along) => {
+      const P = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], h = P.map(([x, z]) => heightOf(s, x, z));
+      const base = i => (s.onTop != null ? s.onTop : s.thick ? h[i] - s.thick : 0);
+      const top = i => [P[i][0], h[i], P[i][1]], bot = i => [P[i][0], base(i), P[i][1]];
+      const dx = x1 - x0, dz = z1 - z0, nrm = n3(-(h[1] - h[0]) / dx, 1, -(h[3] - h[0]) / dz);
+      geo.quad(top(0), top(1), top(2), top(3), nrm, along === 'z' ? [[0, z0], [1, z0], [1, z1], [0, z1]] : along === 'x' ? [[0, x0 / 1.2], [0, x1 / 1.2], [1, x1 / 1.2], [1, x0 / 1.2]] : [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
+      if (s.thick && s.onTop == null) geo.quad(bot(0), bot(1), bot(2), bot(3), [0, -1, 0]);
+      const N = [[0, 0, -1], [1, 0, 0], [0, 0, 1], [-1, 0, 0]];
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4, hi = h[i] - base(i), hj = h[j] - base(j);
+        if (hi < 0.011 && hj < 0.011) continue;
+        const len = Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]);
+        geo.quad(bot(i), bot(j), top(j), top(i), N[i], [[0, 0], [len, 0], [len, hj], [0, hi]]);
+      }
+      return { h, top };
+    };
 
     for (const s of plan.surfaces) {
-      const { x0, x1, z0, z1, h0, h1 } = s, base = s.onTop || 0;
-      if (s.skin === 'ply') {
-        const run = x1 - x0, slope = (h1 - h0) / run;
-        // Top, two sides, two ends: a wedge.
-        ply.quad([x0, h0, z0], [x1, h1, z0], [x1, h1, z1], [x0, h0, z1], n3(-slope, 1, 0), [[0, 0], [run, 0], [run, z1 - z0], [0, z1 - z0]]);
-        for (const z of [z0, z1]) ply.quad([x0, base, z], [x1, base, z], [x1, h1, z], [x0, h0, z], [0, 0, z === z0 ? -1 : 1], [[0, 0], [run, 0], [run, h1 - base], [0, h0 - base]]);
-        if (h0 > base + 0.01) ply.quad([x0, base, z0], [x0, base, z1], [x0, h0, z1], [x0, h0, z0], [-1, 0, 0], [[0, 0], [z1 - z0, 0], [z1 - z0, h0 - base], [0, h0 - base]]);
-        if (h1 > base + 0.01) ply.quad([x1, base, z0], [x1, base, z1], [x1, h1, z1], [x1, h1, z0], [1, 0, 0], [[0, 0], [z1 - z0, 0], [z1 - z0, h1 - base], [0, h1 - base]]);
-        // A strip of light down each edge, and arrows running uphill.
-        for (const z of [z0 + 0.012, z1 - 0.012]) led.quad([x0, h0, z], [x1, h1, z], [x1, h1 + 0.03, z], [x0, h0 + 0.03, z], [0, 0, 1]);
-        if (s.axis) {
-          const up = h1 > h0, e = 0.014, m = (z1 - z0) * 0.18, len = Math.hypot(run, h1 - h0) / 0.55;
-          arrows.quad([x0, h0 + e, z0 + m], [x1, h1 + e, z0 + m], [x1, h1 + e, z1 - m], [x0, h0 + e, z1 - m], n3(-slope, 1, 0),
-            up ? [[0, 0], [0, len], [1, len], [1, 0]] : [[0, len], [0, 0], [1, 0], [1, len]]);
+      const { x0, x1, z0, z1, h0, h1 } = s;
+      if (s.skin === 'ply' || s.skin === 'track') {
+        const isTrack = s.skin === 'track', run = s.axis || s.run || 'x';
+        // Curves are cut into slices; straight pieces are one slab.
+        const n = s.curve ? 14 : 1, geo = isTrack ? track : ply;
+        for (let i = 0; i < n; i++) {
+          const a = i / n, b = (i + 1) / n;
+          const rx0 = run === 'x' ? x0 + (x1 - x0) * a : x0, rx1 = run === 'x' ? x0 + (x1 - x0) * b : x1;
+          const rz0 = run === 'z' ? z0 + (z1 - z0) * a : z0, rz1 = run === 'z' ? z0 + (z1 - z0) * b : z1;
+          const { top } = slab(geo, s, rx0, rx1, rz0, rz1, isTrack ? run : null);
+          // Light down both edges: a strip on plywood, a proper lip on track.
+          const lipH = isTrack ? 0.06 : 0.03, edges = run === 'x' ? [[0, 1, 0.012], [3, 2, -0.012]] : [[0, 3, 0.012], [1, 2, -0.012]];
+          for (const [i0, i1, off] of edges) {
+            const p0 = top(i0), p1 = top(i1);
+            if (run === 'x') { p0[2] += off; p1[2] += off; } else { p0[0] += off; p1[0] += off; }
+            (isTrack && !s.lip ? rail : led).quad(p0, p1, [p1[0], p1[1] + lipH, p1[2]], [p0[0], p0[1] + lipH, p0[2]], run === 'x' ? [0, 0, 1] : [1, 0, 0]);
+          }
+          // Arrows running uphill on anything that slopes.
+          if (s.axis && !isTrack) {
+            const up = h1 > h0, e = 0.014, t = [0, 1, 2, 3].map(k => { const q = top(k); q[1] += e; return q; });
+            const m = (run === 'x' ? z1 - z0 : x1 - x0) * 0.18, L0 = (run === 'x' ? rx0 : rz0) / 0.55, L1 = (run === 'x' ? rx1 : rz1) / 0.55;
+            if (run === 'x') { t[0][2] += m; t[1][2] += m; t[2][2] -= m; t[3][2] -= m; arrows.quad(t[0], t[1], t[2], t[3], [0, 1, 0], up ? [[0, L0], [0, L1], [1, L1], [1, L0]] : [[0, -L0], [0, -L1], [1, -L1], [1, -L0]]); }
+            else { t[0][0] += m; t[3][0] += m; t[1][0] -= m; t[2][0] -= m; arrows.quad(t[0], t[1], t[2], t[3], [0, 1, 0], up ? [[0, L0], [1, L0], [1, L1], [0, L1]] : [[0, -L0], [1, -L0], [1, -L1], [0, -L1]]); }
+          }
+        }
+        // Hung from the ceiling on wires.
+        if (s.hang) {
+          const along = run === 'x' ? x1 - x0 : z1 - z0, count = Math.max(2, Math.round(along / 3.2) + 1);
+          for (let i = 0; i < count; i++) for (const side of [0, 1]) {
+            const t = i / (count - 1);
+            const wx = run === 'x' ? x0 + (x1 - x0) * t : (side ? x1 - 0.03 : x0 + 0.03), wz = run === 'z' ? z0 + (z1 - z0) * t : (side ? z1 - 0.03 : z0 + 0.03);
+            const y = heightOf(s, Math.min(x1, Math.max(x0, wx)), Math.min(z1, Math.max(z0, wz)));
+            wire.box(wx - 0.006, wx + 0.006, y, ceilingAt(wx, wz), wz - 0.006, wz + 0.006);
+          }
         }
       } else if (s.skin === 'stone') {
         stone.box(x0, x1, 0, h0, z0, z1, 1.3);
-        if (s.carpet) carpet.box(x0, x1 + (s.stepFrom ? 0.012 : 0.012), Math.max(0, h0 - 0.19), h0 + 0.012, s.carpet[0], s.carpet[1]);
+        if (s.carpet) carpet.box(x0, x1 + 0.012, Math.max(0, h0 - 0.19), h0 + 0.012, s.carpet[0], s.carpet[1]);
       } else if (s.skin === 'crate') {
         crate.box(x0, x1, 0, h0, z0, z1, 0.9);
       } else if (s.skin === 'table') {
@@ -562,13 +657,11 @@ export class Museum {
         const inward = [-L.dir * Math.sin(tm), Math.cos(tm), 0];
         track.quad([a[0], a[1], a[2] - hw], [b[0], b[1], b[2] - hw], [b[0], b[1], b[2] + hw], [a[0], a[1], a[2] + hw], inward,
           [[0, i * 0.24], [0, (i + 1) * 0.24], [1, (i + 1) * 0.24], [1, i * 0.24]]);
-        // Lit lips either side.
         for (const sgn of [-1, 1]) {
           const z0 = a[2] + sgn * hw, z1 = b[2] + sgn * hw, f = 0.05;
           led.quad([a[0], a[1], z0], [b[0], b[1], z1], [b[0] + inward[0] * f, b[1] + inward[1] * f, z1], [a[0] + inward[0] * f, a[1] + inward[1] * f, z0], [0, 0, sgn]);
         }
       }
-      // A frame to hold it up.
       const x0 = L.x - 1.45, x1 = L.x + 1.45, za = L.z - 0.55, zb = L.z + 1.15, top = 2 * r + 0.16;
       for (const z of [za, zb]) steel.box(x0 - 0.04, x1 + 0.04, top, top + 0.07, z - 0.035, z + 0.035);
       for (const x of [x0, x1]) steel.box(x - 0.035, x + 0.035, top, top + 0.07, za, zb);
@@ -583,18 +676,53 @@ export class Museum {
     put(stone, std({ color: 0xb7b0a3, roughness: 0.5, emissive: 0x39424f, emissiveIntensity: 0.22 }));
     put(carpet, std({ color: 0x7a1218, roughness: 0.95, emissive: 0x3a0508, emissiveIntensity: 0.3 }));
     put(crate, std({ map: crateTex, roughness: 0.85, emissiveMap: crateTex, emissive: 0x80705a, emissiveIntensity: 0.16 }));
-    put(wood, std({ color: 0x5a3a20, roughness: 0.5, emissive: 0x2a1a0c, emissiveIntensity: 0.25 }));
+    put(wood, std({ color: 0x6a4526, roughness: 0.5, emissive: 0x5a3a20, emissiveIntensity: 0.5 }));
     put(steel, std({ color: 0x1a1c20, roughness: 0.45, metalness: 0.6 }));
+    put(wire, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.16, 0.18, 0.22) }));
     put(track, std({ map: trackTex, roughness: 0.45, emissiveMap: trackTex, emissive: 0xffffff, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    put(rail, std({ color: 0xc8501a, roughness: 0.5, emissive: 0xc8501a, emissiveIntensity: 0.35 }));
     put(led, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45), side: D }));
-    // Arrows that travel: the texture slides, nothing else moves.
     this.arrowTex = TX.chevrons();
     const arrowMat = new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     const a1 = put(arrows, arrowMat), a2 = put(trackArrows, arrowMat);
     for (const m of [a1, a2]) if (m) m.renderOrder = 6;
+
+    // Mopped floor: a patch that mirrors like nothing else in the building.
+    for (const p of plan.puddles) {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(p.r, 44), this.mirror.patch(new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 0.05, transparent: true, opacity: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [0.6, 0.4]));
+      m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.004, p.z); m.updateMatrix(); m.matrixAutoUpdate = false;
+      this.group.add(m); this.floors.push(m);
+    }
+
+    // Hoops: gold until you have been through them.
+    this.hoops = plan.hoops.map(h => {
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.05, 0.7, 0.14) });
+      const mesh = new THREE.Mesh(new THREE.TorusGeometry(h.r, 0.032, 10, 56), mat);
+      mesh.position.set(h.x, h.y, h.z);
+      if (h.axis === 'x') mesh.rotation.y = Math.PI / 2; else if (h.axis === 'y') mesh.rotation.x = Math.PI / 2;
+      this.group.add(mesh);
+      return { ...h, mesh, mat, done: false, pop: 0 };
+    });
   }
 
-  // ------------------------------------------------------------------- life --
+  showHoops(on) { for (const h of this.hoops) { h.done = false; h.pop = 0; h.mesh.visible = on; h.mesh.scale.setScalar(1); } }
+  get hoopsDone() { return this.hoops.reduce((n, h) => n + (h.done ? 1 : 0), 0); }
+
+  // Did something moving from `a` to `b` pass through a hoop it had not been through?
+  hoopHit(a, b) {
+    for (const h of this.hoops) {
+      if (h.done || !h.mesh.visible) continue;
+      const k = h.axis, pa = a[k] - h[k], pb = b[k] - h[k];
+      if (pa === pb || (pa < 0) === (pb < 0)) continue;
+      const t = pa / (pa - pb), x = a.x + (b.x - a.x) * t - h.x, y = a.y + (b.y - a.y) * t - h.y, z = a.z + (b.z - a.z) * t - h.z;
+      if (x * x + y * y + z * z > h.r * h.r) continue;
+      h.done = true; h.pop = 1;
+      return h;
+    }
+    return null;
+  }
+
+    // ------------------------------------------------------------------- life --
 
   sleep() {
     for (const s of Object.values(this.rooms)) { s.lit = false; s.wake = 0; }
@@ -651,7 +779,7 @@ export class Museum {
       s.wallMat.emissiveIntensity = base + 0.34 * s.wake;
       s.trimMat.emissiveIntensity = 0.02 + 0.2 * s.wake;
       if (s.floorMat) s.floorMat.emissiveIntensity = 0.02 + 0.26 * s.wake;
-      for (const m of s.frameMats) m.emissiveIntensity = 0.05 + 0.9 * s.wake;
+      for (const m of s.frameMats) m.emissiveIntensity = 0.05 + 0.85 * s.wake;
     }
     this.ceilMat.emissiveIntensity = 0.03 + 0.2 * (this.roomsLit / 10);
     // Lamps in the hall and passage light their own frames; approximate with how many are on.
@@ -659,7 +787,7 @@ export class Museum {
       const s = this.rooms[id];
       if (!s.arts.length) continue;
       const on = s.arts.reduce((n, a) => n + a.lit, 0) / s.arts.length;
-      for (const m of s.frameMats) m.emissiveIntensity = 0.06 + 0.9 * on;
+      for (const m of s.frameMats) m.emissiveIntensity = 0.06 + 0.85 * on;
     }
     if (this._dirty) {
       this.lamps.instanceColor.needsUpdate = true; this.washes.instanceColor.needsUpdate = true;
@@ -691,6 +819,11 @@ export class Museum {
     this.balloon.rotation.z = Math.sin(t * 0.5) * 0.05;
     this.shaftMesh.material.opacity = 0.19 + Math.sin(t * 0.23) * 0.02;
     if (!this.calm) this.arrowTex.offset.y = -(t * 0.9) % 1;
+    for (const h of this.hoops) {
+      if (h.pop > 0) { h.pop = Math.max(0, h.pop - dt * 1.6); h.mesh.scale.setScalar(1 + (this.calm ? 0 : h.pop * 0.5)); }
+      const g = h.done ? 0.12 + h.pop * 2.5 : this.calm ? 1 : 0.85 + 0.15 * Math.sin(t * 3 + h.x);
+      if (h.done) h.mat.color.setRGB(0.2 * g + h.pop, 1.2 * g + h.pop, 0.5 * g + h.pop); else h.mat.color.setRGB(1.05 * g, 0.7 * g, 0.14 * g);
+    }
   }
 
   // ----------------------------------------------------------- image tiers --

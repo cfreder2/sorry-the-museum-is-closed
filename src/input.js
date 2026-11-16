@@ -20,6 +20,8 @@ export class Input {
     this.capture = false;            // true while driving: arrows and space belong to the game, not the page
     this.hold = false;               // 'hold my speed' setting
     this.latched = false;
+    this.touchJump = false;          // the on-screen JUMP button
+    this._jump = false;
     this.onGesture = null;           // called on any lift or key, to unlock sound
     this._pad = {};
 
@@ -129,6 +131,10 @@ export class Input {
     const tl = this.touch.l, tr = this.touch.r;
     if (tl) { lx = tl.x; ly = tl.y; }
     if (tr) { rx = tr.x; ry = tr.y; }
+    let held = this.down.has('Space') || this.touchJump;
+    for (const p of pads) if (p && p.connected) { held = held || !!(p.buttons[5] && p.buttons[5].pressed) || !!(p.buttons[4] && p.buttons[4].pressed); break; }
+    const jump = held && !this._jump;
+    this._jump = held;
     if (!drone) {
       if (Math.abs(trig) > Math.abs(ly)) ly = trig;
       if (Math.abs(lx) > Math.abs(rx) && !tl) rx = lx;       // pad players who steer on the left stick
@@ -144,6 +150,6 @@ export class Input {
     s.lx = lx; s.ly = ly; s.rx = rx; s.ry = ry;
     return drone
       ? { pitch: ry, roll: rx, yaw: lx, climb: ly }
-      : { throttle: ly, steer: rx };
+      : { throttle: ly, steer: rx, jump, trick: held };
   }
 }

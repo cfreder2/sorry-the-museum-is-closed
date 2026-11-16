@@ -13,6 +13,7 @@ import { Car, Drone } from './vehicles.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
 import { Race, LAPS, clockText } from './race.js';
+import { Props } from './props.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -95,6 +96,9 @@ async function boot() {
   G.lamp = G.car.lamp;
   G.drone.group.remove(G.drone.lamp, G.drone.lamp.target);
   G.race = new Race(scene, plan);
+  G.props = new Props(plan);
+  scene.add(G.props.group);
+  G.props.onHit = (p, sp) => sound.knock(sp, p.def.type === 'sign');
 
   setVehicle('car');
   G.car.place(33, -1.5, Math.PI / 2);
@@ -135,6 +139,9 @@ function start(mode) {
   G.allLit = false;
   G.resultsAt = 0;
   endFlyby();
+  G.props.reset();
+  G.museum.showHoops(mode !== 'race');
+  prev.set(0, -99, 0);
   G.study = null; G.facing = null;
   $('label').hidden = true; $('placard').hidden = true; $('hud').classList.remove('studying');
   setVehicle(G.toy);
@@ -149,7 +156,7 @@ function start(mode) {
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
-    if (G.toy === 'car') say('Somebody has left ramps out. And a loop.', 16, 6);
+    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 6); if (!input.usedTouch) say('Space to jump. Hold it in the air and steer for tricks.', 24, 7); }
   }
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
@@ -160,6 +167,7 @@ function start(mode) {
   $('race').hidden = mode !== 'race';
   $('tally').hidden = mode === 'race';
   $('bSwap').hidden = mode === 'race';
+  $('bJump').hidden = G.toy !== 'car';
   $('pRestart').hidden = mode !== 'race';
   canvas.focus();
 }
@@ -218,6 +226,9 @@ addEventListener('keydown', e => {
   if (shown === 'settings') act('closeSettings');
   else if (shown === 'notebook') act('closeNotebook');
 });
+// The on-screen JUMP button is held, not tapped, so it gets its own listeners.
+for (const [ev, on] of [['touchstart', true], ['touchend', false], ['touchcancel', false], ['mousedown', true], ['mouseup', false], ['mouseleave', false]])
+  $('bJump').addEventListener(ev, e => { input.touchJump = on; if (ev.startsWith('touch')) e.preventDefault(); }, { passive: false });
 document.addEventListener('visibilitychange', () => { if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
 
 const toasts = [];
@@ -314,7 +325,7 @@ function openNotebook() {
   show('notebook');
 }
 
-const help = 'Car: W S or ↑ ↓ throttle, A D or ← → steer. Drone: W S fly, A D turn, ← → slide, ↑ ↓ climb.<br>'
+const help = 'Car: W S or ↑ ↓ throttle, A D or ← → steer, Space to jump (hold it in the air and steer for flips and spins).<br>Drone: W S fly, A D turn, ← → slide, ↑ ↓ or Space and Shift to climb.<br>'
   + 'E look closer · C camera · V swap toy · L lights · N notebook · R reset · M mute · Esc pause. A gamepad works, and so do two thumbs.';
 $('keysHelp').innerHTML = help; $('keysHelp2').innerHTML = help;
 for (const b of document.querySelectorAll('button.big')) b.disabled = true;
@@ -341,7 +352,7 @@ function chase(dt, snap) {
     if (v.rail) {
       // On the loop: stand back and to one side, and watch it go round.
       const L = v.rail.L;
-      want.set(L.x - L.dir * (L.r + 2.5), L.r * 1.05, L.z - 2.4);
+      want.set(L.x - v.rail.way * (L.r + 2.5), L.r * 1.05, L.z - 2.4);
       tmp.set((v.pos.x + L.x) / 2, (v.pos.y + L.r) / 2, v.pos.z);
       rate = 5;
     } else if (slow.cine > 0.02 && slow.art) {
@@ -377,6 +388,23 @@ function chase(dt, snap) {
 
 // ------------------------------------------------------------------- air ---
 
+const movers = [], prev = new THREE.Vector3(0, -99, 0), here = new THREE.Vector3();
+
+// A word or two in the middle of the screen when you pull something off.
+let calloutUntil = 0;
+function callout(text) {
+  const el = $('trick');
+  el.textContent = text; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  calloutUntil = G.t + 2.2;
+}
+
+function trickName(l) {
+  const parts = [];
+  if (l.flips) parts.push((Math.abs(l.flips) > 1 ? ['', '', 'DOUBLE ', 'TRIPLE ', 'QUAD '][Math.min(4, Math.abs(l.flips))] : '') + (l.flips < 0 ? 'BACKFLIP' : 'FRONT FLIP'));
+  if (l.spins) parts.push(`${l.spins * 180}`);
+  return parts.join(' + ');
+}
+
 // Slow motion. Leave a ramp with a picture alongside and the world drops to a
 // fifth of its speed, the camera comes round, and that one work is lit up and
 // named until the wheels are down again.
@@ -399,7 +427,9 @@ function endFlyby() {
 
 function flight(v, real, racing) {
   if (v.kind === 'car') {
-    if (v.launched > 0.42) {
+    if (v.jumped) { v.jumped = false; sound.boing(); }
+    // A hop off the flat is just a hop; it takes a ramp, or real height, to stop time.
+    if (v.launched > 0.42 && (!v.fromHop || v.launched > 1.0)) {
       const art = G.museum.beside(v.pos, v.vel, v.launched, G.roomId);
       if (art) {
         if (slow.art && slow.art !== art) G.museum.spotlight(slow.art, 0);
@@ -412,6 +442,9 @@ function flight(v, real, racing) {
     }
     if (v.landed) {
       sound.bump(1.5 + v.landed.impact * 0.8);
+      const trick = trickName(v.landed);
+      if (v.landed.crash) callout('WRONG WAY UP'); else if (trick) { callout(trick); sound.lap(); }
+      else if (v.landed.air > 1.1) callout(`${v.landed.air.toFixed(1)} SECONDS OF AIR`);
       if (v.landed.air > 0.35) {
         const best = v.landed.air > bestAir + 0.005;
         if (best) { bestAir = v.landed.air; try { localStorage.setItem('after-hours.air', bestAir.toFixed(2)); } catch { /* fine */ } }
@@ -527,7 +560,7 @@ function drawMap() {
   }
   c.fillStyle = 'rgba(226,205,148,.8)';
   for (const d of G.plan.doors) c.fillRect((d.x0 + ox) * s, (d.z0 + oz) * s, (d.x1 - d.x0) * s, (d.z1 - d.z0) * s);
-  c.fillStyle = 'rgba(110,230,245,.75)';
+  c.fillStyle = 'rgba(110,230,245,.5)';
   for (const q of G.plan.surfaces) if (q.skin !== 'bench') c.fillRect((q.x0 + ox) * s, (q.z0 + oz) * s, Math.max(2, (q.x1 - q.x0) * s), Math.max(2, (q.z1 - q.z0) * s));
   c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5;
   for (const L of G.plan.loops) { c.beginPath(); c.arc((L.x + ox) * s, (L.z + oz) * s, 5.5, 0, 7); c.stroke(); }
@@ -564,7 +597,7 @@ function hud() {
       : G.airMsg && G.t < G.airMsg.until ? G.airMsg.text : (G.lampOn ? 'LIGHTS ON' : 'LIGHTS OFF');
     if (G.mode === 'explore') {
       const m = G.museum;
-      $('tally').innerHTML = `LAMPS <b>${m.litCount}</b> / ${m.arts.length}<br>GALLERIES <b>${m.roomsLit}</b> / 10`;
+      $('tally').innerHTML = `LAMPS <b>${m.litCount}</b> / ${m.arts.length}<br>GALLERIES <b>${m.roomsLit}</b> / 10<br>HOOPS <b>${m.hoopsDone}</b> / ${m.hoops.length}`;
     } else {
       const R = G.race;
       $('rLap').textContent = `LAP ${Math.min(R.lap, LAPS)}/${LAPS}`;
@@ -589,6 +622,7 @@ function hud() {
     else c.style.opacity = 0;
   } else $('count').style.opacity = 0;
   if (G.t > roomUntil) $('room').classList.remove('on');
+  if (G.t > calloutUntil) $('trick').classList.remove('on');
   runToasts();
 }
 
@@ -614,6 +648,26 @@ function play(dt, real) {
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
 
+  // Loose things, and whatever is ploughing into them.
+  movers.length = 0;
+  movers.push({ x: v.pos.x, y: v.pos.y - (v.kind === 'drone' ? 0.1 : 0), z: v.pos.z, vx: v.vel.x, vz: v.vel.z, r: v.radius });
+  if (racing) for (const b of R.bots) movers.push({ x: b.x, y: b.y || 0, z: b.z, vx: (b.x - (b.px ?? b.x)) / Math.max(dt, 1e-3), vz: (b.z - (b.pz ?? b.z)) / Math.max(dt, 1e-3), r: 0.19 });
+  if (racing) for (const b of R.bots) { b.px = b.x; b.pz = b.z; }
+  G.props.update(dt, movers);
+
+  // Hoops.
+  here.set(v.pos.x, v.pos.y + (v.kind === 'car' ? 0.12 : 0), v.pos.z);
+  if (!racing && prev.y > -50 && prev.distanceToSquared(here) < 4) {
+    const h = G.museum.hoopHit(prev, here);
+    if (h) {
+      const n = G.museum.hoopsDone, all = G.museum.hoops.length;
+      sound.hoop(n);
+      callout(n === all ? 'EVERY HOOP' : `HOOP ${n} / ${all}`);
+      if (n === all) say('Every hoop in the building. Show-off.', 1, 8);
+    }
+  }
+  prev.copy(here);
+
   if (input.took('camera')) G.view = G.view === 'chase' ? 'fpv' : 'chase';
   if (input.took('lights')) { G.lampOn = !G.lampOn; G.lamp.intensity = G.lampOn ? 70 : 0; }
   if (input.took('mute')) act('sound');
@@ -623,6 +677,7 @@ function play(dt, real) {
   if (input.took('swap') && !racing) {
     const to = v.kind === 'car' ? 'drone' : 'car', from = v;
     setVehicle(to);
+    $('bJump').hidden = to !== 'car';
     endFlyby();
     if (to === 'drone') G.drone.place(from.pos.x, from.pos.z, from.yaw, from.pos.y + 0.5); else G.car.place(from.pos.x, from.pos.z, from.yaw, from.pos.y);
     sound.tick(0.1, 1200, 0.08);

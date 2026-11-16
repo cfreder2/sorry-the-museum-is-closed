@@ -2,7 +2,7 @@
 // driven the way the real ones are: two sticks.
 
 import * as THREE from 'three';
-import { confine, roomAt, groundAt, wallAt, GRAVITY } from './plan.js';
+import { confine, roomAt, groundAt, wallAt, heightOf, GRAVITY, STEP } from './plan.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
@@ -89,6 +89,9 @@ export class Car {
     this.speed = 0; this.slip = 0; this.bump = 0; this.roll = 0; this.pitch = 0;
     this.vy = 0; this.air = false; this.airT = 0; this.tilt = 0; this.squash = 0;
     this.rail = null;            // set while the car is on the loop
+    this.flip = 0; this.spin = 0; this.cool = 0; this.hopped = false;
+    this.on = null;              // the stunt piece under the wheels, if any
+    this.wet = false;
     this.launched = 0;           // for one frame: the seconds of air this take-off should give
     this.landed = null;          // for one frame: { air, dist, impact }
     this._from = { x: 0, z: 0 };
@@ -97,7 +100,7 @@ export class Car {
 
   place(x, z, yaw, y = 0) {
     this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw;
-    this.vy = 0; this.air = false; this.rail = null; this.tilt = 0; this.speed = 0;
+    this.vy = 0; this.air = false; this.rail = null; this.tilt = 0; this.speed = 0; this.flip = this.spin = 0;
     this.pos.y = groundAt(this.plan, x, z, y + 0.3);
     this.sync(0);
   }
@@ -110,6 +113,7 @@ export class Car {
     const rx = -fz, rz = fx;
     let vf = this.vel.x * fx + this.vel.z * fz;
     let vl = this.vel.x * rx + this.vel.z * rz;
+    this._vf0 = vf;              // speed before the motor has its say (wheels spin on a wet floor)
     const th = inp.throttle;
     this.throttle = th;
     this.steer += (inp.steer - this.steer) * Math.min(1, dt * 11);
@@ -118,10 +122,13 @@ export class Car {
       if (th > 0) vf += th * 13 * (1 - Math.max(0, vf) / TOP) * dt * (vf < 0 ? 2.2 : 1);
       else if (th < 0) vf += th * (vf > 0.4 ? 20 : 9 * (1 - Math.max(0, -vf) / REV)) * dt;
       vf -= vf * 0.24 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 0.4 * dt);     // tops out near 9.5 m/s
-      // Marble is slippery; a gallery's wood floor is not.
+      // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.
       const room = roomAt(this.plan, this.pos.x, this.pos.z);
-      const grip = room && room.kind === 'gallery' ? 9 : 5.2;
-      const bite = Math.max(-1, Math.min(1, vf / 1.4));
+      let grip = room && room.kind === 'gallery' ? 9 : 5.2;
+      let bite = Math.max(-1, Math.min(1, vf / 1.4));
+      this.wet = false;
+      if (this.pos.y < 0.03) for (const p of this.plan.puddles) if ((this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
+      if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       rate = this.steer * bite * 3.6 / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);
@@ -129,21 +136,49 @@ export class Car {
       const nfx = Math.sin(this.yaw), nfz = Math.cos(this.yaw);
       this.vel.x = nfx * vf + (-nfz) * vl;
       this.vel.z = nfz * vf + nfx * vl;
+    } else if (inp.trick) {
+      // Hold the jump button in the air and the sticks throw the car about:
+      // left and right spin it, forward and back flip it.
+      const s = inp.steer * 7 * dt, f = th * 8 * dt;
+      this.yaw -= s; this.spin += s;
+      this.tilt += f; this.flip += f;
     } else {
       // In the air the wheels do nothing, but a toy will still twist a little.
       this.yaw -= this.steer * 0.9 * dt;
     }
+    // Space: a hop. No toy car ever did this. This one does.
+    this.cool -= dt;
+    if (inp.jump && !this.air && this.cool <= 0) {
+      this.hopped = this.vy < 0.8;             // a hop off the flat, as opposed to extra off a ramp
+      this.vy = Math.max(0, this.vy) + 3.7; this.cool = 0.2; this.jumped = true;
+    }
 
     const ox = this.pos.x, oz = this.pos.z;
-    this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt;
+    // On a slope, speed is shared between along and up: a steep lip sends you
+    // skyward, not forward.
+    const sp = Math.hypot(this.vel.x, this.vel.z);
+    let cs = 1, rise = 0;
+    const on = this.on;
+    if (!this.air && on && on.axis && sp > 0.05) {
+      // The slope of the piece under the wheels, measured along the way we are going.
+      // Measured backwards when the next step would be off its end, so an edge is not mistaken for a cliff.
+      const e = 0.05, ux = this.vel.x / sp, uz = this.vel.z / sp, px = this.pos.x, pz = this.pos.z;
+      const inside = (x, z) => x >= on.x0 && x <= on.x1 && z >= on.z0 && z <= on.z1;
+      let tan = 0;
+      if (inside(px + ux * e, pz + uz * e)) tan = (heightOf(on, px + ux * e, pz + uz * e) - heightOf(on, px, pz)) / e;
+      else if (inside(px - ux * e, pz - uz * e)) tan = (heightOf(on, px, pz) - heightOf(on, px - ux * e, pz - uz * e)) / e;
+      tan = Math.max(-5, Math.min(5, tan));
+      cs = 1 / Math.sqrt(1 + tan * tan);
+      rise = sp * cs * tan;          // how fast the slope is lifting us
+    }
+    this.pos.x += this.vel.x * cs * dt; this.pos.z += this.vel.z * cs * dt;
 
     // The stunt kit, side on: plywood does not move.
-    const sp = Math.hypot(this.vel.x, this.vel.z);
     if (sp > 0.01) {
       const ax = this.vel.x / sp * 0.17, az = this.vel.z / sp * 0.17, y = this.pos.y, P = this.plan;
-      if (wallAt(P, this.pos.x + ax, this.pos.z + az, y)) {
-        if (!wallAt(P, ox + ax, this.pos.z + az, y)) { this.pos.x = ox; this.bump = Math.abs(this.vel.x); this.vel.x *= -0.25; }
-        else if (!wallAt(P, this.pos.x + ax, oz + az, y)) { this.pos.z = oz; this.bump = Math.abs(this.vel.z); this.vel.z *= -0.25; }
+      if (wallAt(P, this.pos.x + ax, this.pos.z + az, y, STEP, on)) {
+        if (!wallAt(P, ox + ax, this.pos.z + az, y, STEP, on)) { this.pos.x = ox; this.bump = Math.abs(this.vel.x); this.vel.x *= -0.25; }
+        else if (!wallAt(P, this.pos.x + ax, oz + az, y, STEP, on)) { this.pos.z = oz; this.bump = Math.abs(this.vel.z); this.vel.z *= -0.25; }
         else { this.pos.x = ox; this.pos.z = oz; this.bump = sp; this.vel.x *= -0.25; this.vel.z *= -0.25; }
       }
     }
@@ -164,11 +199,13 @@ export class Car {
 
     // Up and down. Follow the ground while it is there; when it falls away
     // faster than gravity would take you, you are flying.
-    const g = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y);
+    const g = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y, STEP, this.on);
+    const beneath = this.plan.under;
     const yb = this.pos.y + this.vy * dt - 0.5 * GRAVITY * dt * dt;
     if (yb > g + 0.004) {
       if (!this.air) {
         this.air = true; this.airT = 0; this._from.x = this.pos.x; this._from.z = this.pos.z;
+        this.vel.x *= cs; this.vel.z *= cs; this.on = null;        // what went into height is no longer going forwards
         // Fly the arc ahead of time to see how long it really lasts (a table may be in the way).
         let t = 0, px = this.pos.x, pz = this.pos.z, py = yb, pv = this.vy;
         while (t < 2.5) {
@@ -176,33 +213,52 @@ export class Car {
           if (py <= groundAt(this.plan, px, pz, py + 0.1)) break;
         }
         if (t > 0.3 && sp > 2.5) this.launched = t;
+        this.fromHop = this.hopped; this.hopped = false; this.flip = this.spin = 0;
       }
       this.pos.y = yb; this.vy -= GRAVITY * dt; this.airT += dt;
     } else {
       if (this.air) {
         this.air = false;
         const impact = Math.max(0, -this.vy);
-        if (this.airT > 0.22) { this.landed = { air: this.airT, dist: Math.hypot(this.pos.x - this._from.x, this.pos.z - this._from.z), impact }; this.squash = Math.min(1, impact / 5); }
+        // Wheels down, or not? Anything within a radian of upright is a landing.
+        const off = Math.atan2(Math.sin(this.tilt), Math.cos(this.tilt)), crash = Math.abs(off) > 1.05;
+        if (this.airT > 0.22) {
+          this.landed = { air: this.airT, dist: Math.hypot(this.pos.x - this._from.x, this.pos.z - this._from.z), impact, crash,
+            flips: crash ? 0 : Math.round(this.flip / (Math.PI * 2)), spins: crash ? 0 : Math.round(Math.abs(this.spin) / Math.PI), hop: this.fromHop };
+          this.squash = Math.min(1, impact / 5);
+        }
+        this.tilt = off;
+        if (crash) { this.vel.multiplyScalar(0.4); this.squash = 1; }
         this.vy = 0;
       } else if (dt > 0) {
-        this.vy = Math.max(-6, Math.min(sp * 0.5 + 0.2, (g - this.pos.y) / dt));   // the slope under the wheels
+        this.vy = rise;            // the slope under the wheels; a kerb or a lip is not a slope
       }
       this.pos.y = g;
+      // Hanging track has a lip down each side, so you leave it on purpose or not at all.
+      const u = this.on = beneath;
+      if (u && u.lip && !this.air) {
+        if (u.run === 'z') { const c = Math.max(u.x0 + 0.17, Math.min(u.x1 - 0.17, this.pos.x)); if (c !== this.pos.x) { this.pos.x = c; this.vel.x = 0; } }
+        else { const c = Math.max(u.z0 + 0.17, Math.min(u.z1 - 0.17, this.pos.z)); if (c !== this.pos.z) { this.pos.z = c; this.vel.z = 0; } }
+      }
     }
     this.speed = vf;
 
     // Onto the loop? Squarely, and with enough behind you to be worth trying.
+    // It can be taken from either end: in by one lane and out by the other.
     if (!this.air && this.pos.y < 0.05) for (const L of this.plan.loops) {
-      if ((ox - L.x) * L.dir < 0 && (this.pos.x - L.x) * L.dir >= 0 && Math.abs(this.pos.z - L.z) < 0.36 && fx * L.dir > 0.88 && vf > 4) {
-        this.rail = { L, th: 0, v: vf, top: false };
-        this.yaw = L.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      for (const way of [1, -1]) {
+        const lane = way === L.dir ? L.z : L.z + L.shift;
+        if ((ox - L.x) * way < 0 && (this.pos.x - L.x) * way >= 0 && Math.abs(this.pos.z - lane) < 0.36 && fx * way > 0.88 && vf > 4) {
+          this.rail = { L, th: 0, v: vf, top: false, way, rev: way !== L.dir };
+          this.yaw = way > 0 ? Math.PI / 2 : -Math.PI / 2;
+        }
       }
     }
 
     // Attitude: nose along the slope, or along the arc in the air.
     const want = this.air ? -Math.atan2(this.vy, Math.max(3, sp)) * 0.75 : -Math.atan2(this.vy, Math.max(0.6, Math.abs(vf))) * Math.sign(vf || 1);
     let d = want - this.tilt; d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.tilt += d * Math.min(1, dt * (this.air ? 5 : 16));
+    if (!(this.air && inp.trick && Math.abs(th) > 0.2)) this.tilt += d * Math.min(1, dt * (this.air ? 5 : 16));
     const latAcc = rate * vf;
     this.roll += (Math.max(-0.16, Math.min(0.16, latAcc * 0.012)) - this.roll) * Math.min(1, dt * 8);
     this.pitch += (Math.max(-0.07, Math.min(0.07, -th * 0.05)) - this.pitch) * Math.min(1, dt * 6);
@@ -226,17 +282,19 @@ export class Car {
     const c = Math.cos(s.th);
     if (s.th > Math.PI * 0.5 && s.th < Math.PI * 1.5) s.top = true;
     const fell = s.v < 0.4 || (c < 0 && s.v * s.v < -GRAVITY * r * c * 0.7);
-    this.pos.set(L.x + L.dir * r * Math.sin(s.th), r - r * c, L.z + L.shift * Math.min(1, s.th / (Math.PI * 2)));
+    const turn = Math.min(1, s.th / (Math.PI * 2));
+    this.pos.set(L.x + s.way * r * Math.sin(s.th), r - r * c, L.z + L.shift * (s.rev ? 1 - turn : turn));
     this.speed = s.v;
     this.airT = 0;
     if (fell) {
       // Not enough speed: let go of the track and fall like a dropped toy.
-      this.vel.set(L.dir * s.v * c, 0, 0); this.vy = s.v * Math.sin(s.th);
+      this.vel.set(s.way * s.v * c, 0, 0); this.vy = s.v * Math.sin(s.th);
       this.tilt = -s.th; this.rail = null; this.air = true; this._from.x = this.pos.x; this._from.z = this.pos.z;
+      this.flip = this.spin = 0; this.fromHop = false; this.on = null;
       this.fellOff = true;
     } else if (s.th >= Math.PI * 2) {
-      this.pos.set(L.x + L.dir * 0.02, 0, L.z + L.shift);
-      this.vel.set(L.dir * s.v, 0, 0); this.vy = 0; this.tilt = 0; this.rail = null;
+      this.pos.set(L.x + s.way * 0.02, 0, L.z + (s.rev ? 0 : L.shift));
+      this.vel.set(s.way * s.v, 0, 0); this.vy = 0; this.tilt = 0; this.rail = null;
       this.looped = true;
     } else this.tilt = -s.th;
     this.roll = 0; this.pitch = 0;
