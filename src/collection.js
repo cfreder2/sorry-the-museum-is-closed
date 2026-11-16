@@ -33,8 +33,8 @@ export const pageUrl = work => `https://www.artic.edu/artworks/${work.id}`;
 
 const NODE = typeof window === 'undefined';
 // The museum asks every app to name itself, with a contact address, in an
-// AIC-User-Agent header. Put yours in CONTACT before publishing the game.
-const CONTACT = '';
+// AIC-User-Agent header, so they can get in touch rather than just block it.
+const CONTACT = 'cfreder2@nd.edu';
 export const AGENT = 'after-hours (hobby browser game' + (CONTACT ? '; ' + CONTACT : '') + ')';
 
 // A GET with the query in `params`. No referrer: artic.edu refuses requests

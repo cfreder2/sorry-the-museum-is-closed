@@ -85,8 +85,8 @@ Three things the docs do not make obvious:
   `index.html` sets `<meta name="referrer" content="no-referrer">`; without it
   nothing loads.
 - The docs ask for an `AIC-User-Agent` header with a project name and a contact
-  email. The header is sent; the email is blank. Fill in `CONTACT` at the top
-  of `src/collection.js` before publishing.
+  email. It is sent with every API request; the address is `CONTACT` at the top
+  of `src/collection.js`.
 - Cloudflare turns away headless Chrome whatever it sends, so automated tests
   cannot load images from the museum. Use the offline copy below.
 
