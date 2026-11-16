@@ -81,14 +81,10 @@ the previous one was still being worked on; those are marked.
 
 > is there art hanging from teh ceiling, etc?  There should be maybe vents you can go through in the rc car and drones to get into the offices, or other secrets rooms?   What would that potentailly be?
 
-## 18 (sent during the build)
-
-> Record all my prompts in a prompts.md file (except this one) to document how this was built.
-
-## 19
+## 18
 
 > sorry, if they want to reach out to me?  so that would be cfreder2@nd.edu?
 
-## 20
+## 19
 
 > probably my nd.edu one.
