@@ -109,6 +109,7 @@ async function boot() {
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
   G.state = 'title';
+  if (shown === 'title' && !params.get('mode')) show('title');       // puts focus on Start, so Enter begins
   if (params.get('mode')) { G.toy = params.get('toy') || 'car'; start(params.get('mode')); }
 }
 
@@ -183,7 +184,7 @@ function show(name) {
   for (const id of ['title', 'pause', 'results', 'notebook', 'settings']) $(id).hidden = id !== name;
   shown = name;
   // Keyboard and switch users land on the first control of whatever just opened.
-  if (name) { const first = $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }
+  if (name) { const first = $(name).querySelector('[data-first]:not([disabled])') || $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }
   else canvas.focus({ preventScroll: true });
 }
 
@@ -250,15 +251,35 @@ document.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
   sound.unlock();
-  if (b.dataset.toy) {
-    G.toy = b.dataset.toy;
-    for (const t of document.querySelectorAll('.toy')) { const on = t === b; t.classList.toggle('on', on); t.setAttribute('aria-checked', on); }
-  } else if (b.dataset.mode) start(b.dataset.mode);
+  if (b.dataset.step) choose(b.closest('.sel').dataset.sel, +b.dataset.step);
   else if (b.dataset.act) act(b.dataset.act);
+});
+
+// The title screen's two choices. Car and Explore unless you say otherwise.
+const CHOICES = {
+  toy: [['car', 'RC Car', 'Fits under the benches. Leaves the floor if you find a ramp.'],
+    ['drone', 'RC Drone', 'Goes up to the glass. Meets a painting eye to eye.']],
+  mode: [['explore', 'Explore', 'Wander. Every lamp you reach comes on.'],
+    ['race', 'Race', 'Two laps of the building against three other toys.']],
+};
+const pick = G.pick = { toy: 'car', mode: 'explore' };
+function choose(key, step) {
+  const list = CHOICES[key], i = (list.findIndex(c => c[0] === pick[key]) + step + list.length) % list.length;
+  pick[key] = list[i][0];
+  $(key + 'Val').textContent = list[i][1];
+  $(key + 'Hint').textContent = list[i][2];
+}
+choose('toy', 0); choose('mode', 0);
+addEventListener('keydown', e => {
+  if (shown !== 'title' || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return;
+  const row = document.activeElement && document.activeElement.closest('.sel');
+  choose(row ? row.dataset.sel : 'toy', e.code === 'ArrowLeft' ? -1 : 1);
+  e.preventDefault();
 });
 
 function act(a) {
   switch (a) {
+    case 'start': if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
     case 'pause': if (G.state === 'play' || G.state === 'study') pause(); break;
     case 'resume': G.state = G.study ? 'study' : 'play'; show(null); break;
     case 'restart': case 'again': start('race'); break;

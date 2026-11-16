@@ -36,6 +36,9 @@ then open <http://localhost:8791>.
   side; 211, 213, 220, 161, 273 on the south. The hall takes the largest
   canvases left over. The passage is Gallery 11, the Thorne Miniature Rooms.
 
+The title screen has two choices, Vehicle and Game mode, set to RC Car and
+Explore; press Start (or Enter).
+
 Controls are two sticks, like a toy transmitter. Keys, a gamepad and touch all
 drive the same two sticks; the title screen lists the keys.
 

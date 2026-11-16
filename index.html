@@ -75,20 +75,23 @@
     <div class="over">The Art Institute of Chicago &nbsp;·&nbsp; after closing</div>
     <h1>After Hours</h1>
     <p class="lede">The museum shut at five. The lamps are off and the guard has gone for coffee. Everything on the walls is real. You are the size of a shoe.</p>
-    <div class="pick" role="radiogroup" aria-label="Vehicle">
-      <button class="toy on" data-toy="car" role="radio" aria-checked="true">
-        <svg viewBox="0 0 64 34" aria-hidden="true"><rect x="8" y="14" width="46" height="9" rx="3"/><path d="M20 14l5-8h14l6 8z"/><rect x="42" y="4" width="14" height="3"/><circle cx="18" cy="25" r="7"/><circle cx="46" cy="24" r="8"/><path d="M12 14V1" fill="none" stroke-width="1.2"/></svg>
-        <b>RC Car</b><span>Fits under the benches. Leaves the floor if you find a ramp.</span>
-      </button>
-      <button class="toy" data-toy="drone" role="radio" aria-checked="false">
-        <svg viewBox="0 0 64 34" aria-hidden="true"><rect x="24" y="14" width="16" height="8" rx="3"/><path d="M26 16L10 10M38 16l16-6" fill="none" stroke-width="2.4"/><ellipse cx="10" cy="8" rx="9" ry="1.6"/><ellipse cx="54" cy="8" rx="9" ry="1.6"/><path d="M28 22l-3 6M36 22l3 6" fill="none" stroke-width="1.6"/></svg>
-        <b>RC Drone</b><span>Goes up to the glass. Meets a painting eye to eye.</span>
-      </button>
+    <div class="choose">
+      <div class="sel" role="group" aria-labelledby="toyLab" data-sel="toy">
+        <span class="lab" id="toyLab">Vehicle:</span>
+        <button class="arr" data-step="-1" aria-label="Previous vehicle">←</button>
+        <button class="val" data-step="1" id="toyVal" aria-live="polite" aria-describedby="toyHint">RC Car</button>
+        <button class="arr" data-step="1" aria-label="Next vehicle">→</button>
+        <span class="hint" id="toyHint"></span>
+      </div>
+      <div class="sel" role="group" aria-labelledby="modeLab" data-sel="mode">
+        <span class="lab" id="modeLab">Game mode:</span>
+        <button class="arr" data-step="-1" aria-label="Previous game mode">←</button>
+        <button class="val" data-step="1" id="modeVal" aria-live="polite" aria-describedby="modeHint">Explore</button>
+        <button class="arr" data-step="1" aria-label="Next game mode">→</button>
+        <span class="hint" id="modeHint"></span>
+      </div>
     </div>
-    <div class="go">
-      <button class="big" data-mode="explore"><b>Explore</b><span>Wander. Every lamp you reach comes on.</span></button>
-      <button class="big" data-mode="race"><b>Race</b><span>Two laps of the building against three other toys.</span></button>
-    </div>
+    <button class="big" data-act="start" data-first><b>Start</b></button>
     <div class="keys" id="keysHelp"></div>
     <div class="row2"><button class="quiet" data-act="settings">Settings: sound, comfort and access</button></div>
     <div class="fine" id="source" role="status">Opening the building…</div>
