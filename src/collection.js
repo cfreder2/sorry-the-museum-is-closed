@@ -113,7 +113,7 @@ export function curate(raw) {
     const names = [];
     for (const w of [...wall, ...objects]) {
       // A named maker gives a surname; otherwise the place or people it came from, as the museum words it.
-      const last = w.ar === 0 ? (w.a || '').split(',')[0].trim().slice(0, 22) : lastName(w.a);
+      const last = w.ar === 0 ? (w.a || '').split(/[,;(]/)[0].trim().slice(0, 22) : lastName(w.a);
       if (last && !names.includes(last)) names.push(last);
       if (names.length === 3) break;
     }
