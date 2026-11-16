@@ -46,11 +46,17 @@ What is not true:
   with its own note. A work counts as seen once you are close enough, in front
   of it, with its lamp on; its label turns gold. The display shows works seen
   out of the total, for the room you are in and for the whole museum, and what
-  you have seen is remembered between visits. Press `E` at any work to leave
+  you have seen is remembered between visits. Place cards are dark until the
+  work has been seen. The map shows each room as not visited, visited with more
+  to see (and how many), or finished. Press `E` at any work to leave
   the toy and stand in front of it like a person.
 - **Race.** Two laps of the real ring of galleries round the Grand Staircase,
   against three other toys. Cones on the floor for the car, hoops in the air
   for the drone.
+- **Rooms stay open.** Stunt pieces and cases together cover a few per cent of
+  a room's floor. Each piece either stands hard against a wall or leaves 1.7 m
+  of clear floor, a clear lane is kept between every pair of doors, and doors
+  are 4 m wide.
 - **Sculpture in cases.** The museum photographs objects against a plain
   backdrop; `cutOut` in `src/museum.js` removes the backdrop so the piece
   stands in its case as a cut-out that turns to face you. That function is the
@@ -106,8 +112,8 @@ Not done: remapping keys, and any way to play without sight.
 ## The museum's API
 
 `src/collection.js` asks `api.artic.edu` for public-domain works on view: all
-the paintings, the sculpture and armour, and the vessels, prints, textiles and
-miniature rooms (about seventeen requests, answer cached for twelve hours, well
+the paintings, sculpture and armour, vessels, ceramics, metalwork, glass,
+furniture, prints, textiles and miniature rooms (about twenty-five requests, answer cached for twelve hours, well
 inside the 60-a-minute limit). Each work goes to the room whose gallery it is
 listed in. Images load from the museum's IIIF server at the sizes it recommends.
 

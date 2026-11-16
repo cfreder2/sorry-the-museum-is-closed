@@ -575,16 +575,27 @@ function drawMap() {
   c.clearRect(0, 0, W, Hh);
   c.fillStyle = 'rgba(10,12,18,.5)'; c.fillRect(0, 0, W, Hh);
   c.lineWidth = 1.5; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '600 21px ui-monospace, Menlo, monospace';
+  // Three kinds of room: not yet visited (dark, dashed), visited with works still to see
+  // (lighter, with a gold bar for how far through you are), and finished (gold).
   for (const st of Object.values(G.museum.rooms)) {
     const r = st.room;
     if (X(r.x1) < 0 || X(r.x0) > W || Z(r.z1) < 0 || Z(r.z0) > Hh) continue;
-    const f = st.arts.length ? st.seen / st.arts.length : 0;
-    c.fillStyle = `rgba(${Math.round(30 + 205 * f)},${Math.round(32 + 160 * f)},${Math.round(44 + 60 * f)},.85)`;
-    c.strokeStyle = st.done ? 'rgba(255,225,150,1)' : 'rgba(226,205,148,.5)';
-    c.fillRect(X(r.x0), Z(r.z0), (r.x1 - r.x0) * s, (r.z1 - r.z0) * s);
-    c.strokeRect(X(r.x0), Z(r.z0), (r.x1 - r.x0) * s, (r.z1 - r.z0) * s);
-    const name = r.kind === 'hall' ? 'Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '').slice(0, 7);
-    if ((r.x1 - r.x0) * s > 34) { c.fillStyle = f > 0.55 ? 'rgba(20,16,8,.9)' : 'rgba(226,205,148,.85)'; c.fillText(name, X((r.x0 + r.x1) / 2), Z((r.z0 + r.z1) / 2)); }
+    const been = G.museum.visited.has(r.id), n = st.arts.length, f = n ? st.seen / n : 0, done = n ? st.done : been;
+    const x = X(r.x0), z = Z(r.z0), w = (r.x1 - r.x0) * s, h = (r.z1 - r.z0) * s;
+    c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : 'rgba(14,16,24,.92)';
+    c.fillRect(x, z, w, h);
+    if (!done && f > 0) { c.fillStyle = 'rgba(240,200,110,.95)'; c.fillRect(x, z + h - 7, w * f, 7); }
+    c.setLineDash(been ? [] : [5, 5]);
+    c.strokeStyle = done ? 'rgba(255,235,170,1)' : been ? 'rgba(226,205,148,.75)' : 'rgba(150,150,165,.5)';
+    c.strokeRect(x, z, w, h);
+    c.setLineDash([]);
+    if (w > 34) {
+      const name = r.kind === 'hall' ? 'Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '').slice(0, 7);
+      c.fillStyle = done ? 'rgba(30,22,6,.95)' : been ? 'rgba(240,225,185,.95)' : 'rgba(150,150,165,.7)';
+      c.font = '600 21px ui-monospace, Menlo, monospace';
+      c.fillText(name, x + w / 2, z + h / 2 - (n && h > 46 ? 9 : 0));
+      if (n && h > 46) { c.font = '500 16px ui-monospace, Menlo, monospace'; c.fillText(done ? 'all ' + n : `${st.seen}/${n}`, x + w / 2, z + h / 2 + 13); }
+    }
   }
   c.fillStyle = 'rgba(226,205,148,.9)';
   for (const d of G.plan.doors) c.fillRect(X(d.x0), Z(d.z0), Math.max(2, (d.x1 - d.x0) * s), Math.max(2, (d.z1 - d.z0) * s));

@@ -204,8 +204,8 @@ export class Museum {
     this.textures = { wallGlow: TX.wallGlow() };
     this.mirror = mirror;
     this.onSeen = null;         // (art, roomState) the first time a work is properly looked at
-    this.seenIds = new Set();
-    try { this.seenIds = new Set(JSON.parse(localStorage.getItem('after-hours.seen-ids') || '[]')); } catch { /* no storage */ }
+    this.seenIds = new Set(); this.visited = new Set();
+    try { this.seenIds = new Set(JSON.parse(localStorage.getItem('after-hours.seen-ids') || '[]')); this.visited = new Set(JSON.parse(localStorage.getItem('after-hours.rooms') || '[]')); } catch { /* no storage */ }
     this.kit = new THREE.Group();     // the stunt kit, so it can be put away while you look at a picture
     this.group.add(this.kit);
     this._buildShell(mirror);
@@ -284,7 +284,7 @@ export class Museum {
 
       // The outside of it: stone wherever no other room stands against this one, and a roof under snow.
       const m = plan.masses[ri], top = r.kind === 'hall' ? SPRING + 0.4 : m.top;
-      const outs = plan.doors.filter(dd => dd.out && dd.a === r.id);
+      const outs = plan.doors.filter(dd => dd.a === r.id || dd.b === r.id);      // every doorway pierces the outside wall it passes through
       const sides = [
         { name: 'w', at: m.x0, lo: m.z0, hi: m.z1, n: [-1, 0, 0], beyond: o => o.x0 < m.x0 - 0.01 && o.x1 > m.x0 - 0.01, span: o => [o.z0, o.z1], P: (u, y) => [m.x0, y, u], door: dd => dd.along === 'x' && dd.x1 <= r.x0 + 0.01 && [dd.z0, dd.z1] },
         { name: 'e', at: m.x1, lo: m.z0, hi: m.z1, n: [1, 0, 0], beyond: o => o.x0 < m.x1 + 0.01 && o.x1 > m.x1 + 0.01, span: o => [o.z0, o.z1], P: (u, y) => [m.x1, y, u], door: dd => dd.along === 'x' && dd.x0 >= r.x1 - 0.01 && [dd.z0, dd.z1] },
@@ -405,20 +405,44 @@ export class Museum {
     globes.frustumCulled = pools.frustumCulled = false; pools.renderOrder = 4;
     if (!posts.empty) this.group.add(posts.mesh(new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.5 })), globes, pools);
 
-    // The lions. Bronze gone green, each on its block of stone, as on Michigan Avenue.
+    // The lions. Bronze gone green, each standing on its block of stone, as on Michigan Avenue:
+    // a deep chest, a long muzzle, a great mane, and the tail held out behind with a tuft on the end.
     const bronze = new THREE.MeshStandardMaterial({ color: 0x5f8a73, roughness: 0.55, metalness: 0.2, emissive: 0x2f4a3f, emissiveIntensity: 0.9 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x47695a, roughness: 0.6, metalness: 0.2, emissive: 0x223a31, emissiveIntensity: 0.9 });
     const block = new THREE.MeshStandardMaterial({ color: 0xa9a294, roughness: 0.85, emissive: 0x3a3f4d, emissiveIntensity: 0.4 });
-    const part = (g, geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); g.add(m); return m; };
-    const box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 14, 10);
+    const box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 16, 12), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
+    const part = (g, geo, mat, x, y, z, sx, sy, sz, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.x = rx; g.add(m); return m; };
     for (const l of plan.lions) {
-      const g = new THREE.Group();
-      part(g, box, block, 0, 0.55, 0, 1.5, 1.1, 3);
-      part(g, box, bronze, 0, 1.75, -0.15, 0.62, 0.72, 1.7);                                   // body
-      part(g, ball, bronze, 0, 2.05, 0.72, 0.95, 1.05, 0.95);                                  // mane
-      part(g, ball, bronze, 0, 2.2, 1.12, 0.52, 0.52, 0.6);                                    // head
-      part(g, box, bronze, 0, 2.08, 1.42, 0.26, 0.2, 0.22);                                    // muzzle
-      for (const sx of [-1, 1]) { part(g, box, bronze, sx * 0.22, 1.42, 0.62, 0.17, 0.66, 0.2); part(g, box, bronze, sx * 0.23, 1.42, -0.82, 0.19, 0.66, 0.24); part(g, ball, bronze, sx * 0.2, 2.6, 1.0, 0.16, 0.2, 0.12); }
-      const tail = part(g, box, bronze, 0, 1.75, -1.2, 0.07, 0.07, 0.75); tail.rotation.x = 0.7;
+      const g = new THREE.Group(), B = 1.1;                     // B: top of the stone block. The lion looks along +z.
+      part(g, box, block, 0, B / 2, 0, 1.5, B, 3.9);
+      part(g, box, block, 0, B + 0.05, 0, 1.3, 0.1, 3.6);
+      // Legs: straight in front, bent behind, each on a broad paw.
+      for (const sx of [-1, 1]) {
+        part(g, cyl, bronze, sx * 0.24, B + 0.62, 0.78, 0.22, 1.05, 0.24);
+        part(g, box, bronze, sx * 0.24, B + 0.16, 0.9, 0.26, 0.13, 0.42);
+        part(g, cyl, bronze, sx * 0.26, B + 0.9, -0.82, 0.3, 0.75, 0.46, 0.25);       // haunch
+        part(g, cyl, bronze, sx * 0.26, B + 0.42, -0.98, 0.18, 0.72, 0.2, -0.22);     // hock
+        part(g, box, bronze, sx * 0.26, B + 0.16, -0.86, 0.24, 0.13, 0.4);
+      }
+      // Body: deep in the chest, drawn up behind the ribs.
+      part(g, cyl, bronze, 0, B + 1.42, 0.42, 0.72, 1.15, 0.86, Math.PI / 2);
+      part(g, cyl, bronze, 0, B + 1.4, -0.52, 0.58, 1.1, 0.68, Math.PI / 2);
+      // Neck and mane: the mane is most of what makes a lion a lion.
+      part(g, cyl, bronze, 0, B + 1.78, 1.02, 0.5, 0.75, 0.56, -0.75);
+      part(g, ball, dark, 0, B + 1.92, 1.1, 1.06, 1.22, 0.98);
+      part(g, ball, dark, 0, B + 1.38, 1.0, 0.86, 0.9, 0.78);                         // the ruff under the chin
+      part(g, ball, dark, 0, B + 1.75, 0.62, 0.84, 0.88, 0.8);                        // and down over the shoulders
+      // Head: broad across the brow, with a long square muzzle. Small ears, set back in the mane.
+      part(g, box, bronze, 0, B + 2.05, 1.5, 0.44, 0.42, 0.44);
+      part(g, box, bronze, 0, B + 1.92, 1.82, 0.3, 0.26, 0.36);                       // muzzle
+      part(g, box, bronze, 0, B + 1.76, 1.76, 0.24, 0.09, 0.3);                       // jaw
+      part(g, box, dark, 0, B + 2.02, 2.0, 0.16, 0.08, 0.05);                         // nose
+      part(g, box, bronze, 0, B + 2.2, 1.56, 0.46, 0.09, 0.3);                        // brow
+      for (const sx of [-1, 1]) part(g, ball, bronze, sx * 0.21, B + 2.33, 1.3, 0.14, 0.14, 0.09);
+      // Tail: out and down, with its tuft.
+      part(g, cyl, bronze, 0, B + 1.42, -1.42, 0.085, 0.95, 0.085, 1.05);
+      part(g, cyl, bronze, 0, B + 1.08, -1.98, 0.07, 0.6, 0.07, 0.35);
+      part(g, ball, dark, 0, B + 0.78, -2.1, 0.2, 0.3, 0.2);
       g.position.set(l.x, 0, l.z); g.rotation.y = -Math.PI / 2;        // facing the avenue
       this.group.add(g);
     }
@@ -559,7 +583,7 @@ export class Museum {
     const placements = hang(this.plan, this.collection);
     const unit = new THREE.PlaneGeometry(1, 1);
     const lqLoader = new THREE.TextureLoader();
-    const blank = TX.flat(40, 36, 32);
+    const blank = this.blank = TX.flat(40, 36, 32);
     const frames = {};     // room -> Geo
     const arms = new Geo(), plinths = new Geo(), glass = new Geo(), brass = new Geo();
     this.objects = [];
@@ -614,9 +638,9 @@ export class Museum {
         // A plinth, and a glass case over whatever stands on it.
         const a = p.half, top = p.plinth + p.h + 0.18;
         plinths.box(p.x - a, p.x + a, 0, p.plinth, p.z - a, p.z + a);
-        glass.box(p.x - a + 0.02, p.x + a - 0.02, p.plinth, top, p.z - a + 0.02, p.z + a - 0.02);
+        glass.box(p.x - a + 0.02, p.x + a - 0.02, p.plinth + 0.012, top - 0.012, p.z - a + 0.02, p.z + a - 0.02);
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) brass.box(p.x + sx * (a - 0.02) - 0.008, p.x + sx * (a - 0.02) + 0.008, p.plinth, top, p.z + sz * (a - 0.02) - 0.008, p.z + sz * (a - 0.02) + 0.008);
-        brass.box(p.x - a, p.x + a, top, top + 0.02, p.z - a, p.z + a);
+        for (const sgn of [-1, 1]) { brass.box(p.x - a, p.x + a, top, top + 0.02, p.z + sgn * a - (sgn > 0 ? 0.03 : 0), p.z + sgn * a + (sgn > 0 ? 0 : 0.03)); brass.box(p.x + sgn * a - (sgn > 0 ? 0.03 : 0), p.x + sgn * a + (sgn > 0 ? 0 : 0.03), top, top + 0.02, p.z - a, p.z + a); }
       }
 
       E.set(0, p.rot, 0); Q.setFromEuler(E);
@@ -644,7 +668,7 @@ export class Museum {
       S.set(p.nz !== 0 ? along : reach, p.nz !== 0 ? reach : along, 1);
       this.pools.setMatrixAt(i, M.compose(V, flatQ, S));
       // The label.
-      const cw = mini ? 0.16 : 0.13, ch = mini ? 0.045 : 0.09;
+      const cw = mini ? 0.18 : 0.16, ch = mini ? 0.055 : 0.11;
       if (obj) V.set(p.x, p.plinth * 0.6, p.z + p.half + 0.012);
       else if (mini) V.set(p.x + p.nx * 0.03, p.y - hh - f - 0.1, p.z + p.nz * 0.03);
       else V.set(p.x + tx * (hw + f + 0.24) - p.nx * 0.03, 1.22, p.z + tz * (hw + f + 0.24) - p.nz * 0.03);
@@ -684,9 +708,9 @@ export class Museum {
     }
     const k = a.mini ? 0.2 : 0.17;
     this.pools.setColorAt(a.i, c.setRGB(k * l, k * 0.8 * l, k * 0.55 * l));
-    const d = 0.02 + 0.4 * l;
-    if (a.seen) this.cards.setColorAt(a.i, c.setRGB(0.25 + d * 2.2, 0.18 + d * 1.5, 0.03 + d * 0.3));      // seen: its label has gone gold
-    else this.cards.setColorAt(a.i, c.setRGB(d, d * 0.96, d * 0.86));
+    // The label stays dark until you have seen the work; then it is lit, and stays lit.
+    if (a.seen) this.cards.setColorAt(a.i, c.setRGB(1.55, 1.2, 0.5));
+    else this.cards.setColorAt(a.i, c.setRGB(0.03, 0.029, 0.027));
     this._dirty = true;
   }
 
@@ -932,8 +956,8 @@ export class Museum {
   }
 
   forget() {
-    this.seenIds.clear();
-    try { localStorage.removeItem('after-hours.seen-ids'); } catch { /* fine */ }
+    this.seenIds.clear(); this.visited.clear();
+    try { localStorage.removeItem('after-hours.seen-ids'); localStorage.removeItem('after-hours.rooms'); } catch { /* fine */ }
     for (const a of this.arts) { a.seen = false; this._paint(a); }
     for (const st of Object.values(this.rooms)) { st.seen = 0; st.done = false; }
   }
@@ -946,6 +970,7 @@ export class Museum {
     this.time += dt;
     const t = this.time;
     const state = roomId && this.rooms[roomId];
+    if (state && !this.visited.has(roomId)) { this.visited.add(roomId); try { localStorage.setItem('after-hours.rooms', JSON.stringify([...this.visited])); } catch { /* fine */ } }
     if (state) {
       const kind = state.room.kind;
       if (kind === 'gallery' && !state.lit) {
@@ -1065,7 +1090,7 @@ export class Museum {
     const queue = [];
     for (const a of this.arts) {
       const d = Math.hypot(a.x - cam.x, a.z - cam.z);
-      let want = d < 60 ? 1 : (a.tier >= 1 && d < 85 ? 1 : 0);
+      let want = d < 55 ? 1 : (a.tier >= 1 && d < 80 ? 1 : 0);
       const near = a.mini || a.obj ? 5 : 13;
       if (d < near || (a.room === roomId && !a.mini && !a.obj && a.room !== 'hall')) want = 2;
       else if (a.tier === 2 && d < near + 9) want = 2;
@@ -1080,7 +1105,14 @@ export class Museum {
 
   _drop(a, tier) {
     // Stepping down re-requests the smaller image; the browser has it cached.
-    if (tier === 0) return;       // keep what we have rather than go back to a blur
+    if (tier === 0) {
+      // A long way off: give the picture's memory back. It is fetched again when you return.
+      if (a.tex) a.tex.dispose();
+      a.tex = null; a.tier = 0; a.url = null;
+      a.mat.map = a.mat.emissiveMap = this.blank; a.mat.needsUpdate = true;
+      if (a.obj) a.mesh.visible = false;
+      return;
+    }
     if (a.tier - tier >= 1 && tier >= 1) this._load(a, tier);
   }
 

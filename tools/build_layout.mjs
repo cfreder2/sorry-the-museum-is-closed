@@ -82,7 +82,7 @@ const fixed = [
   // Griffin Court: the Modern Wing's long skylit hall, running north to a wall of glass.
   { id: 'hall', gallery: 'Griffin Court', kind: 'hall', building: 'modern', floor: '1', x0: 168, x1: 182, z0: 2, z1: 70, glass: 'n', h: 9 },
   // Gallery 11: the Thorne Miniature Rooms, in a long dark passage as they really are.
-  { id: 'C', gallery: 'Gallery 11', kind: 'corridor', building: 'lower', floor: 'LL', x0: 8, x1: 70, z0: 222, z1: 226.5, h: 3.4 },
+  { id: 'C', gallery: 'Gallery 11', kind: 'corridor', building: 'lower', floor: 'LL', x0: 8, x1: 70, z0: 221.5, z1: 227.5, h: 3.4 },
 ];
 for (const r of rooms) {
   const big = r.gallery === 'Gallery 200' ? [15, 34] : null;       // the Grand Staircase
@@ -126,7 +126,8 @@ for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++
     if (gap < T - 0.01 || gap > 3.01) continue;
     const [lo, hi] = along === 'x' ? overlap(p.z0, p.z1, q.z0, q.z1) : overlap(p.x0, p.x1, q.x0, q.x1);
     if (hi - lo < 3.2) continue;
-    const low = Math.min(p.h, q.h), w = Math.min(low < 4 ? 2.2 : 3, hi - lo - 1), c = snap((lo + hi) / 2), h = Math.min(4.2, low - 0.7);
+    // Wide doorways: a toy car arrives at them fast.
+    const low = Math.min(p.h, q.h), w = Math.min(low < 4 ? 2.6 : 4, hi - lo - 1), c = snap((lo + hi) / 2), h = Math.min(4.2, low - 0.7);
     doors.push(along === 'x'
       ? { a: p.id, b: q.id, along: 'x', x0: p.x1, x1: q.x0, z0: c - w / 2, z1: c + w / 2, h }
       : { a: p.id, b: q.id, along: 'z', x0: c - w / 2, x1: c + w / 2, z0: p.z1, z1: q.z0, h });
@@ -141,7 +142,7 @@ const sideFree = (r, side, depth = 4) => {
     : side === 'n' ? [r.x0, r.x1, r.z0 - T - depth, r.z0 - T] : [r.x0, r.x1, r.z1 + T, r.z1 + T + depth];
   return rooms.every(o => o === r || x1 <= o.x0 - T || x0 >= o.x1 + T || z1 <= o.z0 - T || z0 >= o.z1 + T);
 };
-function outside(id, side, w = 3) {
+function outside(id, side, w = 4) {
   const r = byId[id];
   if (!r || doors.some(d => d.a === id && d.b === 'out' && d.side === side)) return false;
   if (!sideFree(r, side)) return false;

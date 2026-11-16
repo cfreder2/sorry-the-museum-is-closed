@@ -222,8 +222,12 @@ function addStunts(plan) {
   // The racing line is kept clear of everything except the jumps put on it on purpose.
   const line = plan.line = sampleRoute(buildRoute(plan), 1).pts;
   const onLine = (rect, m) => line.some(p => p.x > rect[0] - m && p.x < rect[1] + m && p.z > rect[2] - m && p.z < rect[3] + m);
-  const free = (F, u0, u1, v0, v1, m = 0.3) => {
+  // Room to breathe: a piece either stands hard against a wall or another piece, or it leaves
+  // at least GAP of clear floor. Nothing is left that a car could wedge itself into.
+  const GAP = 1.7;
+  const free = (F, u0, u1, v0, v1, m = GAP, flush = false) => {
     if (u0 < -F.L / 2 + 0.2 || u1 > F.L / 2 - 0.2 || v0 < -F.W / 2 - 0.01 || v1 > F.W / 2 + 0.01) return false;
+    if (!flush && F.r && (u0 < -F.L / 2 + GAP || u1 > F.L / 2 - GAP || v0 < -F.W / 2 + GAP || v1 > F.W / 2 - GAP)) return false;
     const rect = world(F, u0, u1, v0, v1);
     if (!F.onLine && onLine(rect, 1.3)) return false;
     return !F.lanes.some(l => hits(rect, l)) && !S.some(s => hits(rect, s, m));
@@ -271,7 +275,7 @@ function addStunts(plan) {
   // so the top of your air is right in front of a picture.
   const quarter = (F, u, side, R = 2.6, run = 2.4, deck = 1.0, w = 3.8) => {
     const lipH = R - Math.sqrt(R * R - run * run), wall = side * F.W / 2, a = wall - side * deck, b = a - side * run;
-    if (!free(F, u - w / 2, u + w / 2, Math.min(wall, b), Math.max(wall, b), 0.1)) return 0;
+    if (!free(F, u - w / 2, u + w / 2, Math.min(wall, b), Math.max(wall, b), GAP, true)) return 0;
     rampV(F, u - w / 2, u + w / 2, Math.min(a, b), Math.max(a, b), side > 0 ? 0 : lipH, side > 0 ? lipH : 0, { curve: R });
     flat(F, u - w / 2, u + w / 2, Math.min(wall, a), Math.max(wall, a), lipH, { perch: 'ledge' });
     hoop(F, u, a - side * 0.25, lipH + 1.5, 'y', 1.05);
@@ -279,7 +283,7 @@ function addStunts(plan) {
   };
   const halfpipe = (F, u, R, run) => {
     const w = 3.8, deck = 1.0, r2 = run || 2.4;
-    if (!free(F, u - w / 2, u + w / 2, -F.W / 2, -F.W / 2 + deck + r2, 0.1) || !free(F, u - w / 2, u + w / 2, F.W / 2 - deck - r2, F.W / 2, 0.1)) return false;
+    if (!free(F, u - w / 2, u + w / 2, -F.W / 2, -F.W / 2 + deck + r2, GAP, true) || !free(F, u - w / 2, u + w / 2, F.W / 2 - deck - r2, F.W / 2, GAP, true)) return false;
     quarter(F, u, -1, R, r2, deck, w); quarter(F, u, 1, R, r2, deck, w);
     return true;
   };
@@ -342,7 +346,7 @@ function addStunts(plan) {
   if (C) {
     const F = frame(C); F.lanes = lanes(C);
     tabletop(F, -14, 0, 0.4, 1.6); tabletop(F, 10, 0, 0.4, 1.6);
-    for (const u of [-25, -22, 22, 25]) { ramp(F, u - 0.8, u, -0.8, 0.8, 0, 0.2); ramp(F, u, u + 0.8, -0.8, 0.8, 0.2, 0); }
+    for (const u of [-24, 24]) { ramp(F, u - 0.8, u, -0.8, 0.8, 0, 0.2); ramp(F, u, u + 0.8, -0.8, 0.8, 0.2, 0); }
   }
 
   // ---- every other gallery gets something, chosen by its size and its doors ----
@@ -352,7 +356,8 @@ function addStunts(plan) {
     const F = frame(r); F.lanes = lanes(r);
     const k = hash(r.id), tall = r.h >= 7;
     let placed = 0;
-    if (tall && F.W >= 12.5 && pipes.has(r.id)) for (const u of [0, F.L / 4, -F.L / 4, F.L / 3, -F.L / 3]) if (halfpipe(F, u, F.W >= 15 ? 3.2 : 2.6, F.W >= 15 ? 3.0 : 2.4)) { placed++; break; }
+    // A half-pipe is enough for one room: it counts as two pieces.
+    if (tall && F.W >= 12.5 && pipes.has(r.id)) for (const u of [0, F.L / 4, -F.L / 4, F.L / 3, -F.L / 3]) if (halfpipe(F, u, F.W >= 15 ? 3.2 : 2.6, F.W >= 15 ? 3.0 : 2.4)) { placed += 2; break; }
     const tries = [
       () => F.L >= 12.5 && F.W >= 9 && (tableRun(F, F.W / 2 - 3.4, k % 2 ? 1 : -1) || tableRun(F, -F.W / 2 + 3.4, k % 2 ? -1 : 1)),
       () => F.L >= 9.5 && (tabletop(F, F.L / 5, 0) || tabletop(F, -F.L / 5, 0) || tabletop(F, 0, F.W / 4) || tabletop(F, 0, -F.W / 4)),
@@ -362,11 +367,12 @@ function addStunts(plan) {
     ];
     // The sculpture floors keep more of their floor for glass cases.
     const cases = r.floor === '1' || r.floor === 'LL';
-    const want = (F.L * F.W >= 300 ? 3 : F.L * F.W >= 150 ? 2 : F.L * F.W >= 70 ? 1 : 0) - (cases ? 1 : 0);
+    // One thing in an ordinary room, two in a big one, three only in the very largest; small rooms are left to the art.
+    const want = (F.L * F.W >= 520 ? 3 : F.L * F.W >= 300 ? 2 : F.L * F.W >= 115 ? 1 : 0) - (cases ? 1 : 0);
     for (let i = 0; i < tries.length && placed < want; i++) if (tries[(i + k) % tries.length]()) placed++;
     if (k % 7 === 0 && F.L >= 9 && F.W >= 6) hopHoops(F, (k % 2 ? 1 : -1) * Math.min(1.6, F.W / 4));
     // A bench in the middle, if the middle is still free.
-    if (F.W >= 7.5 && free(F, -0.5, 0.5, -1.5, 1.5, 0.5)) {
+    if (F.W >= 7.5 && free(F, -0.5, 0.5, -1.5, 1.5, 1.2)) {
       const [bx, bz] = at(F, 0, 0), alongX = F.ax === 'z';
       plan.benches.push({ x: bx, z: bz, alongX });
       const hxx = alongX ? 1.4 : 0.38, hzz = alongX ? 0.38 : 1.4;
@@ -403,9 +409,9 @@ function addStunts(plan) {
   // The lions either side of the Michigan Avenue door, and a lamp by every way in.
   const f = plan.front, fz = (f.z0 + f.z1) / 2;
   for (const s of [-1, 1]) {
-    const lion = { x: f.x0 - 3.2, z: fz + s * 4.4, yaw: Math.PI / 2 };
+    const lion = { x: f.x0 - 3.6, z: fz + s * 5, yaw: Math.PI / 2 };
     plan.lions.push(lion);
-    plan.obstacles.push({ x0: lion.x - 1.5, x1: lion.x + 1.5, z0: lion.z - 0.75, z1: lion.z + 0.75, y0: 0, y1: 3 });
+    plan.obstacles.push({ x0: lion.x - 1.95, x1: lion.x + 1.95, z0: lion.z - 0.75, z1: lion.z + 0.75, y0: 0, y1: 3.6 });
   }
   for (const d of plan.doors) if (d.out) {
     const r = plan.byId[d.a], cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
@@ -570,39 +576,94 @@ export function hang(plan, collection) {
     }
     if (!isHall) spill.push(...queue);
   }
-  placements.push(...stand(plan, collection));
+  placements.push(...stand(plan, collection, placements));
   return placements;
 }
 
-// Sculpture, armour and vessels stand on plinths in glass cases, out on the
-// floor, clear of the doorways, the stunt kit and each other.
-function stand(plan, collection) {
+// Is there still `w` metres of clear floor from every doorway of room r to every other,
+// with `extra` boxes standing in it as well as the stunt kit?
+function lanesOpen(plan, r, w, extra) {
+  const doors = plan.doorsOf(r.id);
+  if (doors.length < 2) return true;
+  const g = 0.3, nx = Math.ceil((r.x1 - r.x0) / g), nz = Math.ceil((r.z1 - r.z0) / g), m = w / 2;
+  const blocks = plan.surfaces.filter(s => s.skin !== 'bench' && !(s.thick && Math.max(s.h0, s.h1) - s.thick > 0.5) && s.x1 > r.x0 && s.x0 < r.x1 && s.z1 > r.z0 && s.z0 < r.z1).concat(extra);
+  const open = (i, j) => {
+    const x = r.x0 + (i + 0.5) * g, z = r.z0 + (j + 0.5) * g;
+    if (x < r.x0 + m || x > r.x1 - m || z < r.z0 + m || z > r.z1 - m) return false;
+    for (const b of blocks) if (x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m) return false;
+    return true;
+  };
+  const cells = doors.map(d => {
+    const x = Math.max(r.x0 + m + 0.16, Math.min(r.x1 - m - 0.16, (d.x0 + d.x1) / 2)), z = Math.max(r.z0 + m + 0.16, Math.min(r.z1 - m - 0.16, (d.z0 + d.z1) / 2));
+    return [Math.floor((x - r.x0) / g), Math.floor((z - r.z0) / g)];
+  });
+  if (!open(...cells[0])) return false;
+  const seen = new Uint8Array(nx * nz), q = [cells[0]];
+  seen[cells[0][1] * nx + cells[0][0]] = 1;
+  while (q.length) {
+    const [i, j] = q.pop();
+    for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+      if (a < 0 || b < 0 || a >= nx || b >= nz || seen[b * nx + a] || !open(a, b)) continue;
+      seen[b * nx + a] = 1; q.push([a, b]);
+    }
+  }
+  return cells.every(([i, j]) => seen[j * nx + i]);
+}
+
+// Sculpture, armour, pots and the rest stand on plinths in glass cases: out on
+// the floor where there is room, and along any wall that has no pictures on
+// it. A case never goes in front of a doorway, the stunt kit or a painting, and
+// never where it would close the way between two doors.
+function stand(plan, collection, hung) {
   const out = [];
   let total = 0;
   for (const r of plan.rooms) {
     const set = collection.rooms[r.id];
     if (!set || !set.objects || !set.objects.length || r.kind !== 'gallery') continue;
-    const lanes = plan.doorsOf(r.id).map(d => d.along === 'z' ? { x0: d.x0 - 0.3, x1: d.x1 + 0.3, z0: r.z0, z1: r.z1 } : { x0: r.x0, x1: r.x1, z0: d.z0 - 0.3, z1: d.z1 + 0.3 });
-    const area = (r.x1 - r.x0) * (r.z1 - r.z0), max = Math.min(set.objects.length, area > 450 ? 12 : area > 200 ? 7 : area > 90 ? 4 : 2);
-    const spots = [];
-    const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
-    for (let x = r.x0 + 2; x <= r.x1 - 2; x += 2.5) for (let z = r.z0 + 2; z <= r.z1 - 2; z += 2.5) {
-      const box = [x - 0.8, x + 0.8, z - 0.8, z + 0.8];
-      const hit = b => box[0] < b.x1 && box[1] > b.x0 && box[2] < b.z1 && box[3] > b.z0;
-      if (plan.line.some(p => Math.abs(p.x - x) < 1.7 && Math.abs(p.z - z) < 1.7) || lanes.some(hit) || plan.surfaces.some(s => hit({ x0: s.x0 - 0.9, x1: s.x1 + 0.9, z0: s.z0 - 0.9, z1: s.z1 + 0.9 })) || plan.puddles.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 1.5)) continue;
-      spots.push({ x, z, d: Math.hypot(x - cx, z - cz) + ((x * 7 + z * 13) % 3) });
+    const area = (r.x1 - r.x0) * (r.z1 - r.z0), max = Math.min(set.objects.length, 12, Math.max(2, Math.floor(area / 38)));
+    const zones = plan.doorsOf(r.id).map(d => {
+      const into = 3.4, w = 0.5;
+      if (d.along === 'z') { const south = d.z0 >= r.z1 - 0.01; return { x0: d.x0 - w, x1: d.x1 + w, z0: south ? r.z1 - into : r.z0, z1: south ? r.z1 : r.z0 + into }; }
+      const east = d.x0 >= r.x1 - 0.01; return { x0: east ? r.x1 - into : r.x0, x1: east ? r.x1 : r.x0 + into, z0: d.z0 - w, z1: d.z1 + w };
+    });
+    const mine = hung.filter(p => p.room === r.id);
+    const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, spots = [];
+    // Along the walls, wherever nothing hangs.
+    for (const wall of plan.walls.filter(w => w.room === r)) for (const seg of wall.segs) {
+      for (let u = seg.lo + 2.25; u <= seg.hi - 2.25; u += 3.1) {
+        const p = wallPoint(wall, u, 0, 0);
+        if (mine.some(a => a.nx === wall.nx && a.nz === wall.nz && Math.abs((wall.horiz ? a.x : a.z) - u) < a.w / 2 + 1.4)) continue;
+        spots.push({ x: p.x, z: p.z, wall: true, d: 0, nx: wall.nx, nz: wall.nz });
+      }
     }
-    spots.sort((a, b) => a.d - b.d);
-    for (let i = 0; i < Math.min(max, spots.length) && total < 170; i++, total++) {
-      const wk = set.objects[i], s = spots[i];
+    // And out on the floor.
+    for (let x = r.x0 + 2.8; x <= r.x1 - 2.8; x += 3.5) for (let z = r.z0 + 2.8; z <= r.z1 - 2.8; z += 3.5) spots.push({ x, z, wall: false, d: 4 + Math.hypot(x - cx, z - cz) / 4 + ((x * 7 + z * 13) % 3) });
+    // Where pictures cover the walls, the floor comes first; in a room of objects, the walls do.
+    const floorFirst = mine.length >= 6;
+    spots.sort((a, b) => (floorFirst ? (a.wall - b.wall) : (b.wall - a.wall)) || a.d - b.d);
+    const here = [];
+    let n = 0;
+    for (const s of spots) {
+      if (n >= max || total >= 320) break;
+      const wk = set.objects[n];
       const aspect = wk.iw && wk.ih ? wk.iw / wk.ih : 0.7;
-      let h = wk.h > 0 ? wk.h / 100 : 0.6;
-      h = Math.max(0.28, Math.min(2.3, h));
-      let w = h * aspect;
-      if (w > 1.5) { w = 1.5; h = w / aspect; }
-      const plinth = h > 1.4 ? 0.22 : h > 0.7 ? 0.42 : 0.62, half = Math.max(0.32, Math.min(0.85, w / 2 + 0.14));
-      plan.obstacles.push({ x0: s.x - half, x1: s.x + half, z0: s.z - half, z1: s.z + half, y0: 0, y1: plinth + h + 0.2, case: true });
+      const byWall = s.wall || s.flush;
+      let h = Math.max(0.28, Math.min(byWall ? 1.9 : 2.3, wk.h > 0 ? wk.h / 100 : 0.6)), w = h * aspect;
+      const wmax = byWall ? 1.1 : 1.5;
+      if (w > wmax) { w = wmax; h = w / aspect; }
+      const plinth = h > 1.4 ? 0.22 : h > 0.7 ? 0.42 : 0.62, half = Math.max(0.32, Math.min(byWall ? 0.62 : 0.85, w / 2 + 0.14));
+      // Against a wall a case stands hard up to it, leaving no gap to get stuck in.
+      if (s.wall) { s.x += s.nx * (half + 0.1); s.z += s.nz * (half + 0.1); s.wall = false; s.flush = true; }
+      const box = { x0: s.x - half, x1: s.x + half, z0: s.z - half, z1: s.z + half };
+      const near = (b, m) => box.x0 < b.x1 + m && box.x1 > b.x0 - m && box.z0 < b.z1 + m && box.z1 > b.z0 - m;
+      if (zones.some(z => near(z, 0)) || here.some(c => near(c, 1.5)) || plan.puddles.some(p => Math.hypot(p.x - s.x, p.z - s.z) < p.r + 1.6)) continue;
+      if (plan.line.some(p => Math.abs(p.x - s.x) < 1.8 && Math.abs(p.z - s.z) < 1.8)) continue;
+      if (plan.surfaces.some(q => near(q, q.skin === 'bench' ? 1.1 : 1.7))) continue;
+      if (!lanesOpen(plan, r, 2.2, [...here, box])) continue;
+      here.push(box);
+      plan.obstacles.push({ ...box, y0: 0, y1: plinth + h + 0.2, case: true });
       out.push({ work: wk, room: r.id, x: s.x, y: plinth + h / 2 + 0.02, z: s.z, rot: 0, nx: 0, nz: 1, w, h, frame: 0, kind: 'object', plinth, half });
+      n++; total++;
     }
   }
   return out;

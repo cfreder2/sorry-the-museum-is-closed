@@ -112,3 +112,29 @@ the previous one was still being worked on; those are marked.
 ## 25 (sent during the build, with a screenshot of the look-closer view blocked by the car and the hanging track)
 
 > example problem.
+
+## 26
+
+> Do a pass on if it's cramped, and open it up if its' too much.
+
+## 27 (sent during the build, with a screenshot of the entrance)
+
+> What are these pigs?
+
+## 28 (sent during the build)
+
+> only light up the place cards for the ones i've seen.  so I can tell what I visited
+
+## 29 (sent during the build, with a screenshot of a glass case)
+
+> tops of teh class cabniets have artifiacts
+
+## 30 (sent during the build)
+
+> the minimap should show what has and hasn't been visited
+
+## 31 (sent during the build: a screenshot only, of a doorway in Gallery 239 walled off by the outside of the next building)
+
+## 32 (sent during the build)
+
+> some rooms like china had no data, is that licensing?

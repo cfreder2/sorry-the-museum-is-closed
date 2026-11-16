@@ -35,6 +35,10 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 
 #map { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); width: 220px; height: 125px; opacity: .9; }
 
+#mapkey { position: absolute; top: calc(max(14px, env(safe-area-inset-top)) + 129px); right: max(14px, env(safe-area-inset-right)); width: 220px; text-align: right; font: 9.5px var(--mono); letter-spacing: .04em; color: #b9b2a0; text-shadow: 0 1px 4px #000; }
+#mapkey i { display: inline-block; width: 9px; height: 9px; margin: 0 4px 0 9px; vertical-align: -1px; border: 1px solid rgba(226,205,148,.6); }
+#mapkey .k0 { background: #0e1018; border-style: dashed; } #mapkey .k1 { background: #3e4662; } #mapkey .k2 { background: #e2be6e; }
+.studying #mapkey, .cine #mapkey { display: none; }
 #race { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; text-align: center; }
 #race .row { display: inline-flex; gap: 22px; font: 600 15px var(--mono); color: var(--lcd); background: rgba(6,10,8,.6); border: 1px solid rgba(159,230,160,.25); border-radius: 6px; padding: 7px 16px; letter-spacing: .08em; }
 #arrow { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; font: 11px var(--mono); color: #8fe; }
@@ -180,7 +184,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .screen { background: rgba(4,5,9,.8); align-items: flex-start; }
   .sel { grid-template-columns: 44px 1fr 44px; row-gap: 4px; } .sel .lab { grid-column: 1 / -1; } .sel .hint { grid-column: 1 / -1; text-align: center; }
   .big { width: 100%; }
-  #map { width: 150px; height: 85px; }
+  #map { width: 150px; height: 85px; } #mapkey { display: none; }
   #label { top: auto; bottom: 170px; left: 50%; transform: translateX(-50%); width: calc(100vw - 32px); }
   #placard { bottom: 160px; width: calc(100vw - 32px); }
   .lcd { min-width: 0; font-size: 10px; padding: 5px 8px; }
@@ -193,7 +197,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .col { gap: 6px; } .col button { padding: 8px; font-size: 14px; }
   #room { top: 9%; } #room .num { font-size: min(4.2vw, 9vh); } #room .names { font-size: 14px; }
   #toast { top: 30%; font-size: 14px; }
-  #map { display: none; }
+  #map, #mapkey { display: none; }
   .touch #pads { top: max(12px, env(safe-area-inset-top)); bottom: auto; flex-direction: row; }
   #pads button { height: 38px; }
   .lcd { display: none; }

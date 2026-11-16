@@ -67,17 +67,20 @@ function slim(d) {
     k: d.artwork_type_title || '', b: d.is_boosted ? 1 : 0, q: d.has_not_been_viewed_much ? 1 : 0,
     // The museum's written description, where it says more than what the thing is made of.
     alt: th.alt_text && !/^A work made of/i.test(th.alt_text) ? th.alt_text : '',
+    // 1 when the museum names a maker; 0 when all it gives is where the thing came from.
+    ar: d.artist_title ? 1 : 0,
   };
 }
 
 // What hangs on a wall, and what stands in a glass case.
 const WALL = ['Painting', 'Print', 'Textile', 'Drawing and Watercolor'];
-const CASE = ['Sculpture', 'Armor', 'Vessel', 'Mask', 'Funerary Object'];
+const CASE = ['Sculpture', 'Armor', 'Vessel', 'Mask', 'Funerary Object', 'Ceramics', 'Metalwork', 'Glass', 'Arms', 'Architectural fragment', 'Decorative Arts', 'Religious/Ritual Object', 'Furniture'];
 
 export async function fetchLive(signal) {
   const base = [{ term: { is_public_domain: true } }, { term: { is_on_view: true } }, { exists: { field: 'image_id' } }];
   const of = types => all([...base, { terms: { 'artwork_type_title.keyword': types } }], signal);
-  const groups = await Promise.all([of(['Painting']), of(['Sculpture', 'Armor']), of(['Vessel', 'Mask', 'Funerary Object', 'Print', 'Textile', 'Drawing and Watercolor', 'Miniature room'])]);
+  const groups = await Promise.all([of(['Painting']), of(['Sculpture', 'Armor']), of(['Vessel', 'Mask', 'Funerary Object', 'Print', 'Textile', 'Drawing and Watercolor', 'Miniature room']),
+    of(['Ceramics', 'Metalwork', 'Glass']), of(['Arms', 'Architectural fragment', 'Decorative Arts', 'Religious/Ritual Object', 'Furniture'])]);
   const works = groups.flat().filter(d => d.image_id && d.thumbnail && d.thumbnail.width).map(slim);
   return { fetched: new Date().toISOString(), works };
 }
@@ -103,12 +106,14 @@ export function curate(raw) {
     }
     // Paintings first, then anything else flat; and whatever stands up goes in cases.
     const wall = [...list.filter(w => w.k === 'Painting').sort(rank), ...list.filter(w => w.k !== 'Painting' && WALL.includes(w.k)).sort(rank)].slice(0, 24);
-    const objects = list.filter(w => CASE.includes(w.k) && w.iw && w.ih).sort(rank).slice(0, 12);
+    // Sculpture first, then the rest, so a room of pots still leads with its figures.
+    const objects = list.filter(w => CASE.includes(w.k) && w.iw && w.ih).sort((a, b) => ((b.k === 'Sculpture') - (a.k === 'Sculpture')) || rank(a, b)).slice(0, 14);
     for (const w of [...wall, ...objects]) used.add(w.id);
     // Name the room after the people in it.
     const names = [];
     for (const w of [...wall, ...objects]) {
-      const last = lastName(w.a);
+      // A named maker gives a surname; otherwise the place or people it came from, as the museum words it.
+      const last = w.ar === 0 ? (w.a || '').split(',')[0].trim().slice(0, 22) : lastName(w.a);
       if (last && !names.includes(last)) names.push(last);
       if (names.length === 3) break;
     }
@@ -126,7 +131,7 @@ function lastName(artist) {
   const called = artist.match(/called\s+(.+)$/);     // "Domenico Theotokópoulos, called El Greco"
   if (called) return called[1].trim();
   if (/^Rembrandt/.test(artist)) return 'Rembrandt';
-  const clean = artist.replace(/\(.*?\)/g, '').replace(/,.*$/, '').trim();
+  const clean = artist.replace(/\(.*?\)/g, '').replace(/,.*$/, '').replace(/\s+(the\s+)?(Younger|Elder|I+)$/i, '').trim();
   if (/^(workshop|circle|follower|attributed|after|master|unknown)/i.test(clean)) return '';
   const parts = clean.split(/\s+/);
   const particles = new Set(['van', 'de', 'di', 'da', 'del', 'della', 'der', 'den', 'le', 'la', 'von', 'el']);
@@ -143,7 +148,7 @@ export function trim(raw) {
   return { fetched: raw.fetched, works: [...keep.values()] };
 }
 
-const CACHE = 'after-hours.hang.v3';
+const CACHE = 'after-hours.hang.v4';
 
 // Live if the API answers quickly, the cached answer if it did so today, and
 // the saved copy otherwise.
