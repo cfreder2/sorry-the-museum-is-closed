@@ -1,11 +1,13 @@
-# After Hours
+# Sorry, the Museum is Closed
 
 The Art Institute of Chicago after closing, driven through by a toy RC car or
 flown through by a toy RC drone. Every work is real: public domain, on view
 today, pulled from the museum's open API, shown at its true size in the gallery
 the museum lists it in. The aim is to see as much of it as you can.
 
-Play it: <https://cfreder2.github.io/after-hours/>
+Play it: <https://cfreder2.github.io/sorry-the-museum-is-closed/>
+
+(First called After Hours. Saved games still use that name internally.)
 
 ## Run it locally
 
@@ -24,7 +26,11 @@ ring of European painting galleries round the Grand Staircase, the
 Impressionists running east along the bridge over the railway, medieval art and
 arms and armour down the south arm, the Greek and Roman rooms round McKinlock
 Court, the Modern Wing to the north-east. You start outside on Michigan Avenue,
-between the lions.
+between the lions, and the doors are locked: a sign on the front door says
+so. There is a way in for the car (a ventilation grille has come off low on
+the wall to the left of the entrance) and one for the drone (a pane of the
+skylight over the Grand Staircase is propped open). Once you are in, every
+outside door unlocks for good. Hints appear if you stay outside a while.
 
 What is not true:
 
@@ -54,8 +60,11 @@ What is not true:
   to see (and how many), or finished. Press `E` at any work to leave
   the toy and stand in front of it like a person.
 - **Race.** Two laps of the real ring of galleries round the Grand Staircase,
-  against three other toys. Cones on the floor for the car, hoops in the air
-  for the drone.
+  against three other toys. The track is painted on the floor with arrows
+  running the way to go, and the rest of the stunt kit is cleared away, leaving
+  only the five jumps on the track. Leave the track and the arrow turns gold
+  and points the way back; stay off it for 4.5 seconds and you are put back
+  where you left it.
 - **Rooms stay open.** Stunt pieces and cases together cover a few per cent of
   a room's floor. Each piece either stands hard against a wall or leaves 1.7 m
   of clear floor, a clear lane is kept between every pair of doors, and doors

@@ -1,6 +1,6 @@
 # Prompts
 
-After Hours was built in one conversation with Claude Code. These are the
+Sorry, the Museum is Closed (first called After Hours) was built in one conversation with Claude Code. These are the
 prompts that built it, in order and exactly as typed. Several were sent while
 the previous one was still being worked on; those are marked.
 
@@ -170,3 +170,19 @@ the previous one was still being worked on; those are marked.
 ## 40
 
 > on mobile no way to turn off or on the lights, also, make the hard press go fast and a light press go slow on the gas.
+
+## 41 (sent during the build)
+
+> the name "after hours" is innapproriate in some contexts.  Can we just go with "Sorry, the Musem is Closed"?
+
+## 42 (sent during the build)
+
+> start us on the outside, and the doors should be locked, and it should say with a haging sign, "sorry, the musuem is closed".. But there should be a secret way in for both the RC Car and the drone.
+
+## 43 (sent during the build)
+
+> Race has no track, basically, all other stuff needs to go away but the jumps and tricks that are on the race track, and it needs to be drawn onto the floor so you know where the track is.  An arrow should guide you back if you get lost.   If you are off track it warps you back on after too much time
+
+## 44 (sent during the build)
+
+> We will need a new github.io url too

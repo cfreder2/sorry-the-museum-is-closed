@@ -256,6 +256,12 @@ export class Museum {
     const fq = (g, x0, x1, z0, z1, s) => g.quad(P3(x0, 0, z0), P3(x1, 0, z0), P3(x1, 0, z1), P3(x0, 0, z1), [0, 1, 0],
       [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
     // What is left of a stretch once the bits in `cuts` are taken out.
+    // A flat sheet with a rectangular hole in it (or without, if `hole` is null).
+    const sheet = (geo, x0, x1, z0, z1, y, n, uv, hole) => {
+      const q = (a, b, c, d) => { if (b - a > 0.01 && d - c > 0.01) geo.quad(P3(a, y, c), P3(b, y, c), P3(b, y, d), P3(a, y, d), n, uv(a, b, c, d)); };
+      if (!hole) return q(x0, x1, z0, z1);
+      q(x0, x1, z0, hole.z0); q(x0, x1, hole.z1, z1); q(x0, hole.x0, hole.z0, hole.z1); q(hole.x1, x1, hole.z0, hole.z1);
+    };
     const minus = (lo, hi, cuts) => {
       let segs = [[lo, hi]];
       for (const [a, b] of cuts) segs = segs.flatMap(([p, q]) => (b <= p || a >= q ? [[p, q]] : [[p, Math.min(q, a)], [Math.max(p, b), q]].filter(([m, n]) => n - m > 0.02)));
@@ -283,7 +289,8 @@ export class Museum {
         for (const o of w.openings) q(o.lo, o.hi, o.h, r.h);
       }
       // The ceiling takes the room's own paint and glows with it, faintly.
-      if (r.kind !== 'hall') walls.quad(P3(r.x0, r.h, r.z0), P3(r.x1, r.h, r.z0), P3(r.x1, r.h, r.z1), P3(r.x0, r.h, r.z1), [0, -1, 0], [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]]);
+      const hole = plan.skylight && plan.skylight.room === r.id ? plan.skylight : null;
+      if (r.kind !== 'hall') sheet(walls, r.x0, r.x1, r.z0, r.z1, r.h, [0, -1, 0], () => [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]], hole);
       const tint = new THREE.Color(r.tint);
       const wallMat = new THREE.MeshStandardMaterial({
         color: tint, roughness: 0.94, metalness: 0,
@@ -308,7 +315,8 @@ export class Museum {
       // A skylight in any room big enough to have had one.
       if (r.kind === 'gallery' && !lower && Math.min(w, d) >= 8.5) {
         const mx = w * 0.27, mz = d * 0.27;
-        lay.quad(P3(r.x0 + mx, r.h - 0.03, r.z0 + mz), P3(r.x1 - mx, r.h - 0.03, r.z0 + mz), P3(r.x1 - mx, r.h - 0.03, r.z1 - mz), P3(r.x0 + mx, r.h - 0.03, r.z1 - mz), [0, -1, 0]);
+        const X0 = r.x0 + mx, X1 = r.x1 - mx, Z0 = r.z0 + mz, Z1 = r.z1 - mz;
+        sheet(lay, X0, X1, Z0, Z1, r.h - 0.03, [0, -1, 0], (a, b, c, d) => [[(a - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)], [(a - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)]], hole);
       }
 
       // The outside of it: stone wherever no other room stands against this one, and a roof under snow.
@@ -335,12 +343,13 @@ export class Museum {
           if (top > o.top + 0.05 && hi - lo > 0.02) face(lo, hi, o.top, top);
         }
       }
-      if (r.kind !== 'hall') roofs.quad(P3(m.x0, m.top, m.z0), P3(m.x1, m.top, m.z0), P3(m.x1, m.top, m.z1), P3(m.x0, m.top, m.z1), [0, 1, 0], [[m.x0 / 5, m.z0 / 5], [m.x1 / 5, m.z0 / 5], [m.x1 / 5, m.z1 / 5], [m.x0 / 5, m.z1 / 5]]);
+      if (r.kind !== 'hall') sheet(roofs, m.x0, m.x1, m.z0, m.z1, m.top, [0, 1, 0], (a, b, c, d) => [[a / 5, c / 5], [b / 5, c / 5], [b / 5, d / 5], [a / 5, d / 5]], hole);
     });
 
     // Doorways: stone surround right through the wall, and a threshold.
     for (const d of plan.doors) {
       const j = 0.3, p = 0.07;
+      if (d.vent) continue;                           // the vent has its own frame, below
       if (d.along === 'z') {
         portals.box(d.x0 - j, d.x0, 0, d.h, d.z0 - p, d.z1 + p);
         portals.box(d.x1, d.x1 + j, 0, d.h, d.z0 - p, d.z1 + p);
@@ -393,6 +402,7 @@ export class Museum {
       signs.add(m);
     };
     for (const d of plan.doors) {
+      if (d.vent) continue;
       if (d.out) { if (d !== plan.front) hang1(d, d.a, null); hang1(d, null, d.a); }
       else { hang1(d, d.b, d.a); hang1(d, d.a, d.b); }
     }
@@ -479,6 +489,81 @@ export class Museum {
     const f = plan.front, title = new THREE.Mesh(new THREE.PlaneGeometry(11, 11 * 96 / 512), new THREE.MeshBasicMaterial({ map: TX.sign('The Art Institute', 'of Chicago'), transparent: true, depthWrite: false, color: new THREE.Color(1.4, 1.3, 1.0), fog: false }));
     title.position.set(f.x0 - 0.05, f.h + 1.9, (f.z0 + f.z1) / 2); title.rotation.y = -Math.PI / 2;
     this.group.add(title);
+
+    // ---- closed ----
+    // Every outside door is shut: two bronze leaves in each doorway, which swing open once you are in.
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.5, metalness: 0.5, emissive: 0x15120e, emissiveIntensity: 0.6 });
+    const paneMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 0.17, 0.11), transparent: true, opacity: 0.85 });
+    this.leaves = [];
+    for (const d of plan.doors) {
+      if (!d.out || d.vent) continue;
+      const r = plan.byId[d.a], alongX = d.along === 'x';
+      const w = (alongX ? d.z1 - d.z0 : d.x1 - d.x0) / 2, outer = alongX ? (d.x0 < r.x0 ? d.x0 + 0.12 : d.x1 - 0.12) : (d.z0 < r.z0 ? d.z0 + 0.12 : d.z1 - 0.12);
+      const sgn = alongX ? (d.x0 < r.x0 ? -1 : 1) : (d.z0 < r.z0 ? -1 : 1);            // which way is out
+      for (const side of [-1, 1]) {
+        const pivot = new THREE.Group(), leaf = new THREE.Group();
+        const hingeAt = (alongX ? (d.z0 + d.z1) / 2 : (d.x0 + d.x1) / 2) + side * w;
+        if (alongX) pivot.position.set(outer, 0, hingeAt); else pivot.position.set(hingeAt, 0, outer);
+        // The leaf is built along local x from its hinge, then turned to lie across the doorway.
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w - 0.02, d.h - 0.04, 0.07), leafMat); body.position.set(-(w - 0.02) / 2, d.h / 2, 0);
+        const pane = new THREE.Mesh(new THREE.BoxGeometry(w - 0.5, d.h * 0.52, 0.075), paneMat); pane.position.set(-(w - 0.02) / 2, d.h * 0.6, 0);
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.16), new THREE.MeshStandardMaterial({ color: 0x9a7c3a, metalness: 0.7, roughness: 0.35, emissive: 0x3a2c10, emissiveIntensity: 0.6 })); bar.position.set(-(w - 0.25), 1.3, 0);
+        leaf.add(body, pane, bar);
+        // Shut, a leaf reaches from its hinge to the middle of the doorway; open, it stands out from the wall.
+        const shut = alongX ? (side > 0 ? -Math.PI / 2 : Math.PI / 2) : (side > 0 ? 0 : Math.PI);
+        pivot.add(leaf); pivot.rotation.y = shut;
+        this.group.add(pivot);
+        this.leaves.push({ pivot, shut, open: shut + 1.75 * side * (alongX ? -sgn : sgn) });
+      }
+    }
+    this.doorOpen = 0; this.doorTarget = 0;
+    // The sign on the front door, hung from the lintel on two chains, low enough to read from the ground.
+    {
+      const f2 = plan.front, cz2 = (f2.z0 + f2.z1) / 2, hang = new THREE.Group();
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.25), new THREE.MeshStandardMaterial({ map: TX.closedSign(), roughness: 0.6, emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0, side: THREE.DoubleSide }));
+      board.material.emissiveMap = board.material.map; board.material.emissiveIntensity = 0.55;
+      board.position.y = -(f2.h - 2.0); board.rotation.y = -Math.PI / 2;
+      hang.add(board);
+      const chain = new THREE.MeshStandardMaterial({ color: 0x8a8478, metalness: 0.6, roughness: 0.4 });
+      for (const sz of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.02, f2.h - 2.62, 0.02), chain); c.position.set(0, -(f2.h - 2.62) / 2, sz * 1.08); hang.add(c); }
+      hang.position.set(f2.x0 - 0.22, f2.h, cz2);
+      this.closedSign = hang;
+      this.group.add(hang);
+    }
+    // The way in for a car: a grille off its screws, lying in the snow, and light getting out.
+    if (plan.vent) {
+      const v = plan.vent, zc = (v.z0 + v.z1) / 2, steel = new THREE.MeshStandardMaterial({ color: 0x5c6066, metalness: 0.7, roughness: 0.4, emissive: 0x1a1c20, emissiveIntensity: 0.5 });
+      const fr = new Geo(), x = v.x0 - 0.03;
+      fr.box(x, v.x0 + 0.05, v.h, v.h + 0.07, v.z0 - 0.07, v.z1 + 0.07); fr.box(x, v.x0 + 0.05, 0, v.h, v.z0 - 0.07, v.z0); fr.box(x, v.x0 + 0.05, 0, v.h, v.z1, v.z1 + 0.07);
+      fr.box(v.x0, v.x1, v.h, v.h + 0.02, v.z0, v.z1);                                   // the roof of the duct
+      for (const z of [v.z0, v.z1 - 0.02]) fr.box(v.x0, v.x1, 0, v.h, z, z + 0.02);
+      this.group.add(fr.mesh(steel));
+      const grille = new THREE.Group();
+      for (let i = 0; i < 6; i++) { const slat = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 0.02), steel); slat.position.y = 0.05 + i * 0.085; grille.add(slat); }
+      for (const sx of [-0.5, 0.5]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.56, 0.03), steel); post.position.set(sx, 0.28, 0); grille.add(post); }
+      grille.position.set(v.x0 - 0.9, 0.03, zc + 1.25); grille.rotation.set(-1.25, 0.5, 0.1);
+      const spill = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 3.4), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(1.1, 0.8, 0.42), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+      spill.rotation.x = -Math.PI / 2; spill.position.set(v.x0 - 2.2, 0.012, zc);
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.5), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 0.8), side: THREE.DoubleSide }));
+      glow.rotation.y = Math.PI / 2; glow.position.set(v.x1 + 0.4, 0.26, zc); glow.visible = false;
+      this.group.add(grille, spill);
+    }
+    // The way in for a drone: one pane of the big skylight left propped open, and the light coming up out of it.
+    if (plan.skylight) {
+      const k = plan.skylight, top = plan.masses.find(m => m.room.id === k.room).top, cx2 = (k.x0 + k.x1) / 2, cz3 = (k.z0 + k.z1) / 2;
+      const rim = new Geo();
+      for (const [a, b, c, e] of [[k.x0 - 0.1, k.x1 + 0.1, k.z0 - 0.1, k.z0], [k.x0 - 0.1, k.x1 + 0.1, k.z1, k.z1 + 0.1], [k.x0 - 0.1, k.x0, k.z0, k.z1], [k.x1, k.x1 + 0.1, k.z0, k.z1]]) rim.box(a, b, k.y - 0.05, top + 0.25, c, e);
+      this.group.add(rim.mesh(new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5, metalness: 0.5, emissive: 0x3a2c18, emissiveIntensity: 0.8 })));
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(k.x1 - k.x0 + 0.2, 0.05, k.z1 - k.z0 + 0.2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.45, 0.6), transparent: true, opacity: 0.5 }));
+      pane.position.set(cx2, top + 0.95, k.z1 + 0.75); pane.rotation.x = 0.95;                                    // tipped back on its stay
+      const beam = new Geo();
+      const H2 = 16, uvB = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      beam.quad([k.x0, top, cz3], [k.x1, top, cz3], [k.x1 + 0.5, top + H2, cz3], [k.x0 - 0.5, top + H2, cz3], [0, 0, 1], [[0, 1], [1, 1], [1, 0], [0, 0]]);
+      beam.quad([cx2, top, k.z0], [cx2, top, k.z1], [cx2, top + H2, k.z1 + 0.5], [cx2, top + H2, k.z0 - 0.5], [1, 0, 0], [[0, 1], [1, 1], [1, 0], [0, 0]]);
+      const bm = beam.mesh(new THREE.MeshBasicMaterial({ map: TX.shaft(), color: new THREE.Color(1.0, 0.72, 0.38), transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      bm.renderOrder = 5;
+      this.group.add(pane, bm);
+    }
 
     // Snow, falling wherever you are. It is carried along with the camera and wrapped round.
     const count = 1800, pos = new Float32Array(count * 3), seed = new Float32Array(count * 3);
@@ -783,7 +868,17 @@ export class Museum {
 
   // ------------------------------------------------------------------ stunts --
 
+  // The stunt kit is drawn in two lots: the jumps on the racing line, which are always there,
+  // and everything else, which is cleared away while a race is on.
   _buildStunts() {
+    this.kitLine = new THREE.Group(); this.group.add(this.kitLine);
+    this.arrowTex = TX.chevrons();
+    this._kit(this.plan.surfaces.filter(s => !s.line), this.kit, true);
+    this._kit(this.plan.surfaces.filter(s => s.line), this.kitLine, false);
+  }
+  setRace(on) { this.kit.visible = !on; }
+
+  _kit(surfaces, group, extras) {
     const { plan } = this;
     const ply = new Geo(), stone = new Geo(), carpet = new Geo(), crate = new Geo(), wood = new Geo(), steel = new Geo();
     const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo(), gold = new Geo();
@@ -808,7 +903,7 @@ export class Museum {
       return { h, top };
     };
 
-    for (const s of plan.surfaces) {
+    for (const s of surfaces) {
       const { x0, x1, z0, z1, h0, h1 } = s;
       if (s.skin === 'ply' || s.skin === 'track') {
         const isTrack = s.skin === 'track', run = s.axis || s.run || 'x';
@@ -860,13 +955,13 @@ export class Museum {
         wood.box(x0 + 0.05, x1 - 0.05, h0 - 0.16, h0 - 0.06, z1 - 0.09, z1 - 0.06);
       }
     }
-    for (const o of plan.obstacles) {
+    if (extras) for (const o of plan.obstacles) {
       if (o.leg) wood.box(o.x0, o.x1, 0, o.y1, o.z0, o.z1);
       if (o.post) steel.box(o.x0, o.x1, 0, o.y1, o.z0, o.z1);
     }
 
     // Track laid flat on the floor: where to line up, and which way.
-    for (const d of plan.decals) {
+    if (extras) for (const d of plan.decals) {
       const y = 0.007, alongX = d.axis !== 'z', len = alongX ? d.x1 - d.x0 : d.z1 - d.z0, w = alongX ? d.z1 - d.z0 : d.x1 - d.x0;
       const k = len / 0.6, m = w * 0.22, e = 0.004, v = len / 1.2;
       const c = [[d.x0, y, d.z0], [d.x1, y, d.z0], [d.x1, y, d.z1], [d.x0, y, d.z1]];
@@ -879,7 +974,7 @@ export class Museum {
 
     // The loop: one ribbon of track taken right round, leaning sideways as it
     // goes so the way out sits beside the way in.
-    for (const L of plan.loops) {
+    if (extras) for (const L of plan.loops) {
       const N = 56, r = L.r, hw = L.w / 2;
       const at = th => [L.x + L.dir * r * Math.sin(th), r - r * Math.cos(th), L.z + L.shift * th / (Math.PI * 2)];
       for (let i = 0; i < N; i++) {
@@ -901,7 +996,7 @@ export class Museum {
     const D = THREE.DoubleSide;
     const std = (o) => new THREE.MeshStandardMaterial({ side: D, ...o });
     const plyTex = TX.plywood(), trackTex = TX.track(), crateTex = TX.crate();
-    const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); this.kit.add(m); return m; } };
+    const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); group.add(m); return m; } };
     put(ply, std({ map: plyTex, roughness: 0.75, emissiveMap: plyTex, emissive: 0x8a7a66, emissiveIntensity: 0.16 }));
     put(stone, std({ color: 0xb7b0a3, roughness: 0.5, emissive: 0x39424f, emissiveIntensity: 0.22 }));
     put(carpet, std({ color: 0x7a1218, roughness: 0.95, emissive: 0x3a0508, emissiveIntensity: 0.3 }));
@@ -913,20 +1008,19 @@ export class Museum {
     put(rail, std({ color: 0xc8501a, roughness: 0.5, emissive: 0xc8501a, emissiveIntensity: 0.35 }));
     put(led, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45), side: D }));
     put(gold, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.22), side: D }));        // somewhere to land and look from
-    this.arrowTex = TX.chevrons();
     const arrowMat = new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     const a1 = put(arrows, arrowMat), a2 = put(trackArrows, arrowMat);
     for (const m of [a1, a2]) if (m) m.renderOrder = 6;
 
     // Mopped floor: a patch that mirrors like nothing else in the building.
-    for (const p of plan.puddles) {
+    if (extras) for (const p of plan.puddles) {
       const m = new THREE.Mesh(new THREE.CircleGeometry(p.r, 44), this.mirror.patch(new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 0.05, transparent: true, opacity: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [0.6, 0.4]));
       m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.004, p.z); m.updateMatrix(); m.matrixAutoUpdate = false;
       this.kit.add(m); this.floors.push(m);
     }
 
     // Hoops: gold until you have been through them.
-    this.hoops = plan.hoops.map(h => {
+    if (extras) this.hoops = plan.hoops.map(h => {
       const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.05, 0.7, 0.14) });
       const mesh = new THREE.Mesh(new THREE.TorusGeometry(h.r, 0.032, 10, 56), mat);
       mesh.position.set(h.x, h.y, h.z);
@@ -1071,7 +1165,21 @@ export class Museum {
     this._stream(pos, cam, roomId);
   }
 
+  // Lock or unlock the building. Unlocking swings every outside door open.
+  setLocked(locked, now) {
+    this.plan.locked = locked;
+    this.doorTarget = locked ? 0 : 1;
+    if (now) this.doorOpen = this.doorTarget;
+    this._doors();
+  }
+  _doors() {
+    const k = this.doorOpen, e = k * k * (3 - 2 * k);
+    for (const l of this.leaves) { l.pivot.rotation.y = l.shut + (l.open - l.shut) * e; }
+  }
+
   _weather(dt, t, cam) {
+    if (this.doorOpen !== this.doorTarget) { this.doorOpen += Math.sign(this.doorTarget - this.doorOpen) * Math.min(Math.abs(this.doorTarget - this.doorOpen), dt * 0.8); this._doors(); }
+    this.closedSign.rotation.z = Math.sin(t * 1.1) * 0.035;
     if (this.flakes.visible) {
       const f = this.flakes.geometry.attributes.position, sd = this.flakes.userData.seed, W = 58, Hh = 30;
       for (let i = 0; i < f.count; i++) {

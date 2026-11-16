@@ -18,7 +18,7 @@
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const AGENT = 'after-hours (hobby browser game; cfreder2@nd.edu)';
+const AGENT = 'Sorry, the Museum is Closed (hobby browser game; cfreder2@nd.edu)';
 const get = async u => { const r = await fetch(u, { headers: { 'User-Agent': AGENT, 'AIC-User-Agent': AGENT } }); if (!r.ok) throw new Error(r.status + ' ' + u); return r.json(); };
 const T = 1, GRID = 0.5;
 const snap = v => Math.round(v / GRID) * GRID;

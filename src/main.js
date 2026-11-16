@@ -1,4 +1,5 @@
-// After Hours. The Art Institute of Chicago, after closing, by remote control.
+// Sorry, the Museum is Closed. The Art Institute of Chicago, by remote control.
+// (First called After Hours; saved games and the folder still carry that name.)
 
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -162,6 +163,10 @@ function start(mode, fresh = false) {
   G.study = null; G.facing = null;
   $('label').hidden = true; $('placard').hidden = true; $('hud').classList.remove('studying');
   setVehicle(G.toy);
+  // A race is run on a cleared floor: only the jumps on the track stay.
+  G.plan.racing = mode === 'race';
+  G.museum.setRace(G.plan.racing);
+  G.props.group.visible = !G.plan.racing;
   if (mode === 'race') {
     G.race.begin(G.vehicle, sound);
     sound.musicOn = false;
@@ -171,8 +176,12 @@ function start(mode, fresh = false) {
     const sv = fresh ? null : saved(), sp = sv || G.plan.spawn;
     if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, sv ? Math.max(0.9, sv.y || 0) : 0.9); else G.car.place(sp.x, sp.z, sp.yaw, sv ? sv.y || 0 : 0);
     resumed = !!sv;
+    // The doors stay locked until you have found your way in once.
+    G.museum.setLocked(!(sv && unlocked()), true);
+    G.outsideSince = G.t; G.hinted = 0;
     sound.musicOn = true;
-    say(resumed ? `Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.` : 'Michigan Avenue, long after closing. The door is open. Go on in.', 1.2, 6);
+    say(resumed ? `Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.` : 'Sorry, the museum is closed. The doors are locked.', 1.2, 6);
+    if (!resumed) say('There is always another way into a building.', 8, 6);
     if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb steers. GAS on the right: gently for slow, harder (or higher up it) for fast.', 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
@@ -192,6 +201,24 @@ function start(mode, fresh = false) {
   $('bSwap').hidden = mode === 'race';
   $('pRestart').hidden = mode !== 'race';
   canvas.focus();
+}
+
+// ---- closed ----
+const IN = 'after-hours.in';
+function unlocked() { try { return localStorage.getItem(IN) === '1'; } catch { return false; } }
+// The first time you are inside, the building gives up: every outside door unlocks and swings open.
+function letIn() {
+  G.museum.setLocked(false, false);
+  try { localStorage.setItem(IN, '1'); } catch { /* fine */ }
+  callout('YOU\u2019RE IN'); sound.finish();
+  say('Every outside door has just unlocked behind you. Come and go as you like.', 1.5, 8);
+}
+// Nudges, for anyone still out in the snow after a while.
+function hints(v, room) {
+  if (!G.plan.locked || room || G.mode !== 'explore') return;
+  const out = G.t - G.outsideSince;
+  if (G.hinted === 0 && out > 40) { G.hinted = 1; say(v.kind === 'drone' ? 'Up on the roof, light is coming out of somewhere.' : 'Along the wall to the left of the doors, low down, light is getting out onto the snow.', 0, 9); }
+  else if (G.hinted === 1 && out > 85) { G.hinted = 2; say(v.kind === 'drone' ? 'A pane of the big skylight has been left propped open. Fly down through it.' : 'A grille has come off a vent at the foot of the wall. A toy car would fit.', 0, 10); }
 }
 
 // ---- one game at a time, kept between visits ----
@@ -217,7 +244,7 @@ function keep() {
 function newGame() {
   G.museum.forget();
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear();
-  try { for (const k of [SAVE, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
+  try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
 function titleButtons() {
@@ -230,12 +257,14 @@ function titleButtons() {
 
 function quit() {
   G.race.end();
+  G.plan.racing = false; G.museum.setRace(false); G.props.group.visible = true;
   G.state = 'title';
   G.study = null;
   sound.musicOn = false;
   G.museum.sleep();
   setVehicle('car');
   G.car.place(G.plan.spawn.x + 3, G.plan.spawn.z, G.plan.spawn.yaw);
+  G.museum.setLocked(true, true);                    // the title is the closed front door
   endFlyby();
   titleButtons();
   $('hud').hidden = true;
@@ -722,7 +751,9 @@ function hud() {
   if (G.mode === 'race') {
     const R = G.race, b = R.bearing();
     $('arrow').firstElementChild.style.transform = `rotate(${b.angle}rad)`;
-    $('rDist').textContent = R.finished ? '' : `${Math.round(b.dist)} m` + (R.flying && Math.abs(b.dy) > 0.8 ? (b.dy > 0 ? ' ▲' : ' ▼') : '');
+    $('arrow').classList.toggle('lost', b.off && !R.finished);
+    $('rDist').textContent = R.finished ? '' : b.off ? `OFF THE TRACK \u00b7 back on in ${Math.ceil(b.left)}` : `${Math.round(b.dist)} m` + (R.flying && Math.abs(b.dy) > 0.8 ? (b.dy > 0 ? ' ▲' : ' ▼') : '');
+    if (R.warped) { R.warped = false; callout('BACK ON THE TRACK'); sound.gate(); }
     const c = $('count');
     if (R.state === 'countdown') { const n = Math.ceil(-R.clock); c.textContent = n <= 3 ? n : ''; c.style.opacity = n <= 3 ? 1 : 0; }
     else if (R.clock < 1) { c.textContent = 'Go'; c.style.opacity = 1 - R.clock; }
@@ -760,7 +791,7 @@ function play(dt, real) {
   movers.push({ x: v.pos.x, y: v.pos.y - (v.kind === 'drone' ? 0.1 : 0), z: v.pos.z, vx: v.vel.x, vz: v.vel.z, r: v.radius });
   if (racing) for (const b of R.bots) movers.push({ x: b.x, y: b.y || 0, z: b.z, vx: (b.x - (b.px ?? b.x)) / Math.max(dt, 1e-3), vz: (b.z - (b.pz ?? b.z)) / Math.max(dt, 1e-3), r: 0.19 });
   if (racing) for (const b of R.bots) { b.px = b.x; b.pz = b.z; }
-  G.props.update(dt, movers);
+  if (!racing) G.props.update(dt, movers);
 
   // Hoops.
   here.set(v.pos.x, v.pos.y + (v.kind === 'car' ? 0.12 : 0), v.pos.z);
@@ -813,6 +844,8 @@ function play(dt, real) {
     }
   }
   G.museum.update(dt, v.pos, G.roomId, camera.position);
+  if (room && G.plan.locked) { if (racing) G.museum.setLocked(false, true); else letIn(); }
+  hints(v, room);
 
   if (!racing) {
     const calm = Math.hypot(v.vel.x, v.vel.z) < 5 && !v.air && !v.rail;

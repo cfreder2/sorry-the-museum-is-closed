@@ -362,3 +362,31 @@ export function snow() {
   }
   return tex(c, { repeat: true });
 }
+
+// The sign on the front door.
+export function closedSign() {
+  const [c, g] = canvas(768, 384);
+  g.fillStyle = '#efe6cf'; g.fillRect(0, 0, 768, 384);
+  g.strokeStyle = '#1f3a2e'; g.lineWidth = 14; g.strokeRect(16, 16, 736, 352);
+  g.lineWidth = 3; g.strokeRect(34, 34, 700, 316);
+  g.fillStyle = '#1f3a2e'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'italic 62px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
+  g.fillText('Sorry,', 384, 104);
+  g.font = '600 76px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
+  g.fillText('THE MUSEUM', 384, 192);
+  g.fillText('IS CLOSED', 384, 280);
+  for (const x of [70, 698]) { g.beginPath(); g.arc(x, 64, 9, 0, 7); g.fill(); }
+  return tex(c);
+}
+
+// The race track, painted on the floor: a line down each edge and arrows up the middle.
+// White on black, laid on additively, so it shows on wood and marble alike.
+export function raceLine() {
+  const [c, g] = canvas(128, 256);
+  g.fillStyle = '#000'; g.fillRect(0, 0, 128, 256);
+  g.fillStyle = 'rgba(255,255,255,.16)'; g.fillRect(8, 0, 112, 256);            // a faint wash between the lines
+  g.fillStyle = '#fff'; g.fillRect(4, 0, 9, 256); g.fillRect(115, 0, 9, 256);
+  g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineJoin = 'miter';
+  g.beginPath(); g.moveTo(40, 150); g.lineTo(64, 106); g.lineTo(88, 150); g.stroke();
+  return tex(c, { repeat: true, srgb: false });
+}

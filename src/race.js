@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { buildRoute, sampleRoute, groundAt, GRAVITY } from './plan.js';
+import * as TX from './textures.js';
 import { buildCar, buildDrone } from './vehicles.js';
 
 export const LAPS = 2;
@@ -27,6 +28,27 @@ export class Race {
     this.best = {};
     try { this.best = JSON.parse(localStorage.getItem('after-hours.best') || '{}'); } catch { /* no storage */ }
     this._buildGates();
+    this._paintTrack();
+    this.off = false; this.offT = 0; this.sOn = 0; this.warped = false;
+  }
+
+  // The track itself, drawn on the floor all the way round.
+  _paintTrack() {
+    const pts = this.route.pts, n = pts.length, half = 1.35, pos = [], uv = [], idx = [];
+    for (let i = 0; i <= n; i++) {
+      const p = pts[i % n], nx = p.tz, nz = -p.tx, v = i * this.route.step / 2.2;
+      pos.push(p.x + nx * half, 0.013, p.z + nz * half, p.x - nx * half, 0.013, p.z - nz * half);
+      uv.push(0, v, 1, v);
+      if (i < n) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    this.trackTex = TX.raceLine();
+    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: this.trackTex, color: new THREE.Color(0.15, 0.58, 0.68), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+    mesh.renderOrder = 6; mesh.frustumCulled = false;
+    this.group.add(mesh);
   }
 
   at(s) {
@@ -99,7 +121,8 @@ export class Race {
     const yaw = Math.atan2(grid.tx, grid.tz);
     if (this.flying) player.place(grid.x + grid.tz * 0.3, grid.z - grid.tx * 0.3, yaw, 1.2);
     else player.place(grid.x + grid.tz * 0.3, grid.z - grid.tx * 0.3, yaw);
-    this.sP = s0 - 1.3 - RIVALS.length * 1.15;
+    this.sP = this.sOn = s0 - 1.3 - RIVALS.length * 1.15;
+    this.off = false; this.offT = 0;
     this.prev = player.pos.clone();
     this.lastGate = this.startGate;
     this._placeBots(0);
@@ -121,8 +144,9 @@ export class Race {
     }
     if (this.state !== 'countdown') {
       this._bots(dt);
-      if (!this.finished) this._player();
+      if (!this.finished) { this._player(); this._stray(dt); }
     }
+    if (!this.calm) this.trackTex.offset.y = -(t * 0.5) % 1;        // the arrows run the way you should be going
     this._placeBots(dt);
     this._paintGates(t);
     // Standing: how far everyone has come.
@@ -130,6 +154,19 @@ export class Race {
     this.place = 1 + this.bots.filter(b => b.s - this.gates[this.startGate].s > mine).length;
     if (this.finished) this.place = this.finalPlace;
     this.prev.copy(p.pos);
+  }
+
+  // Off the track? After a few seconds of it, you are put back where you left it.
+  _stray(dt) {
+    const p = this.player.pos, q = this.at(this.sP), d = Math.hypot(q.x - p.x, q.z - p.z);
+    this.off = d > (this.flying ? 4.5 : 3.2);
+    if (!this.off) { this.offT = 0; this.sOn = this.sP; return; }
+    this.offT += dt;
+    if (this.offT > 4.5) {
+      const b = this.at(this.sOn), yaw = Math.atan2(b.tx, b.tz);
+      if (this.flying) this.player.place(b.x, b.z, yaw, b.y); else this.player.place(b.x, b.z, yaw);
+      this.prev.copy(this.player.pos); this.sP = this.sOn; this.off = false; this.offT = 0; this.warped = true;
+    }
   }
 
   // Distance round the lap, measured from the start line.
@@ -258,10 +295,11 @@ export class Race {
 
   // Which way the next gate lies, as an angle off the nose (for the HUD arrow).
   bearing() {
-    const g = this.gates[this.next], p = this.player;
+    // On the track the arrow points at the next gate; off it, at the way back.
+    const g = this.off ? this.at(this.sOn + 2) : this.gates[this.next], p = this.player;
     const dx = g.x - p.pos.x, dz = g.z - p.pos.z;
     const a = Math.atan2(dx, dz) - p.yaw;
-    return { angle: -Math.atan2(Math.sin(a), Math.cos(a)), dist: Math.hypot(dx, dz), dy: g.y - p.pos.y };
+    return { angle: -Math.atan2(Math.sin(a), Math.cos(a)), dist: Math.hypot(dx, dz), dy: g.y - p.pos.y, off: this.off, left: Math.max(0, 4.5 - this.offT) };
   }
 }
 

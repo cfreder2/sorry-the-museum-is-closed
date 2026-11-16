@@ -43,6 +43,8 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #race .row { display: inline-flex; gap: 22px; font: 600 15px var(--mono); color: var(--lcd); background: rgba(6,10,8,.6); border: 1px solid rgba(159,230,160,.25); border-radius: 6px; padding: 7px 16px; letter-spacing: .08em; }
 #arrow { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; font: 11px var(--mono); color: #8fe; }
 #arrow svg { width: 34px; height: 34px; fill: #7fe9f5; filter: drop-shadow(0 0 6px #19c5d8); }
+#arrow.lost { color: #ffd98a; font-size: 14px; font-weight: 700; }
+#arrow.lost svg { width: 74px; height: 74px; fill: #ffd24a; filter: drop-shadow(0 0 10px #ffae00); }
 #count { position: absolute; inset: 0; display: grid; place-items: center; font: 700 clamp(80px, 20vw, 220px) var(--serif); color: var(--gilt); text-shadow: 0 0 60px rgba(226,205,148,.5); opacity: 0; }
 
 #placard, #label { position: absolute; left: 50%; transform: translateX(-50%); bottom: 84px; width: min(440px, calc(100vw - 290px)); background: rgba(244,240,230,.95); color: #1b1a17; padding: 14px 18px 12px; border-radius: 2px; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
@@ -131,7 +133,8 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 .panel.small { max-width: 380px; width: 100%; text-align: center; }
 .panel.wide { max-width: 900px; width: 100%; text-align: center; max-height: 100%; }
 .over { font: 12px var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--gilt-dim); }
-h1 { font-weight: 400; white-space: nowrap; font-size: clamp(34px, 5.2vw, 64px); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt); margin: .12em 0 .16em; line-height: .98; text-shadow: 0 0 50px rgba(226,205,148,.25); }
+h1 span { white-space: nowrap; display: block; }
+h1 { font-weight: 400; font-size: clamp(24px, 3vw, 38px); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt); margin: .12em 0 .16em; line-height: .98; text-shadow: 0 0 50px rgba(226,205,148,.25); }
 h2 { font-weight: 400; font-size: 34px; letter-spacing: .16em; text-transform: uppercase; color: var(--gilt); margin: .3em 0 .7em; }
 .lede { font-size: clamp(16px, 1.6vw, 19px); font-style: italic; line-height: 1.5; max-width: 30em; margin: 0 0 22px; color: #e6dfcf; text-wrap: pretty; }
 .choose { display: grid; gap: 10px; margin-bottom: 16px; }
@@ -222,7 +225,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 @media (pointer: coarse), (max-height: 520px) {
   #title .lede, #title .sel .hint, #title .big span { display: none; }
   #title .over { font-size: 10px; }
-  #title h1 { font-size: clamp(30px, 6.4vw, 46px); margin: .08em 0 .3em; }
+  #title h1 { font-size: clamp(20px, 4vw, 30px); margin: .1em 0 .4em; }
   #title .choose { gap: 8px; margin-bottom: 12px; }
   #title .sel { grid-template-columns: 7.2em 42px 190px 42px; }
   #title .sel .arr { width: 42px; height: 42px; } #title .sel .val { font-size: 21px; }

@@ -35,6 +35,18 @@ export function buildPlan() {
   });
   const doors = LAYOUT.doors.map((d, i) => ({ id: 'D' + i, ...d, out: d.b === 'out' }));
   const byId = Object.fromEntries(rooms.map(r => [r.id, r]));
+  // The museum is closed, and every outside door is locked. But a ventilation grille has come
+  // loose low on the Michigan Avenue wall, just big enough for a toy car...
+  const vr = byId.G216 || byId.G217 || byId.G215;
+  let vent = null;
+  if (vr) {
+    const zc = Math.round(vr.z0 + (vr.z1 - vr.z0) * 0.34);
+    vent = { id: 'vent', a: vr.id, b: 'out', along: 'x', x0: vr.x0 - T, x1: vr.x0, z0: zc - 0.5, z1: zc + 0.5, h: 0.52, out: true, vent: true };
+    doors.push(vent);
+  }
+  // ...and somebody has left a pane of the big skylight over the Grand Staircase propped open.
+  const sr = byId.G200;
+  const skylight = sr ? { room: sr.id, x0: (sr.x0 + sr.x1) / 2 - 1.3, x1: (sr.x0 + sr.x1) / 2 + 1.3, z0: sr.z1 - 14.2, z1: sr.z1 - 11.6, y: sr.h } : null;
   const hall = rooms.find(r => r.kind === 'hall');
 
   // Walkable volumes indoors: every room, every doorway stretched a little
@@ -42,18 +54,19 @@ export function buildPlan() {
   const boxes = rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y1: r.ceil }));
   const hx = (hall.x0 + hall.x1) / 2;
   boxes.push({ x0: hx - 4, x1: hx + 4, z0: hall.z0, z1: hall.z1, y1: 14.5 });
+  if (skylight) boxes.push({ x0: skylight.x0, x1: skylight.x1, z0: skylight.z0, z1: skylight.z1, y1: SKY });     // straight up and out
   for (const d of doors) {
     const e = 1.6;
     boxes.push(d.along === 'z'
-      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y1: d.h }
-      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y1: d.h });
+      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y1: d.h, lock: d.out && !d.vent }
+      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y1: d.h, lock: d.out && !d.vent });
   }
   // Outdoors is everywhere that is not a building. Each room, with its walls, is a solid block from outside.
   const masses = rooms.map(r => ({ x0: r.x0 - T, x1: r.x1 + T, z0: r.z0 - T, z1: r.z1 + T, top: (r.kind === 'hall' ? SPRING + VAULT_R : r.h) + 0.5 + (hash(r.id) % 7) * 0.012, room: r }));
   const xs = rooms.flatMap(r => [r.x0, r.x1]), zs = rooms.flatMap(r => [r.z0, r.z1]), pad = 34;
   const bounds = { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, z0: Math.min(...zs) - pad, z1: Math.max(...zs) + pad };
 
-  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made };
+  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made, vent, skylight, locked: true };
   plan.walls = rooms.flatMap(r => wallsOf(plan, r));
   plan.doorsOf = id => doors.filter(d => d.a === id || d.b === id);
   // Where you begin: out on Michigan Avenue in the snow, facing the front door.
@@ -121,6 +134,7 @@ const _o = { x: 0, y: 0, z: 0 };
 export function confine(plan, p, r, flying, out, noFurniture) {
   let best = Infinity, bx = p.x, by = p.y, bz = p.z;
   for (const b of plan.boxes) {
+    if (b.lock && plan.locked) continue;              // a locked door is a wall
     const x0 = b.x0 + r, x1 = b.x1 - r, z0 = b.z0 + r, z1 = b.z1 - r;
     if (x0 > x1 || z0 > z1) continue;
     const cx = p.x < x0 ? x0 : p.x > x1 ? x1 : p.x;
@@ -158,6 +172,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   // Furniture.
   if (noFurniture) return hit;
   for (const o of plan.obstacles) {
+    if (o.kit && plan.racing) continue;
     const top = flying ? p.y + r * 0.5 : p.y + 0.24, bot = flying ? p.y - r * 0.5 : p.y;
     if (bot > o.y1 || top < o.y0) continue;
     const cx = p.x < o.x0 ? o.x0 : p.x > o.x1 ? o.x1 : p.x;
@@ -237,8 +252,8 @@ function addStunts(plan) {
   const tabletop = (F, u, v, h = 0.42, w = 1.8, run = 1.6, top = 0.6) => {
     if (!free(F, u - top - run - 1.2, u + top + run + 1.2, v - w / 2, v + w / 2)) return false;
     ramp(F, u - top - run, u - top, v - w / 2, v + w / 2, 0, h); flat(F, u - top, u + top, v - w / 2, v + w / 2, h); ramp(F, u + top, u + top + run, v - w / 2, v + w / 2, h, 0);
-    if (hash(F.r ? F.r.id : 'park') % 3 === 0 || !F.r) hoop(F, u, v, h + 0.62, 'u', 0.75);
-    if (!F.r || hash(F.r.id) % 2) { cone(F, u - top - run - 0.5, v - w / 2 - 0.35); cone(F, u + top + run + 0.5, v + w / 2 + 0.35); }
+    if (!F.onLine && (hash(F.r ? F.r.id : 'park') % 3 === 0 || !F.r)) hoop(F, u, v, h + 0.62, 'u', 0.75);
+    if (!F.onLine && (!F.r || hash(F.r.id) % 2)) { cone(F, u - top - run - 0.5, v - w / 2 - 0.35); cone(F, u + top + run + 0.5, v + w / 2 + 0.35); }
     return true;
   };
   const funbox = (F, u, v, h = 0.5, run = 1.6, top = 0.6) => {
@@ -264,8 +279,8 @@ function addStunts(plan) {
     if (!free(F, lo(-5.6, 5.4), hi(-5.6, 5.4), v - 0.6, v + 0.6)) return false;
     ramp(F, lo(-5.2, -2.4), hi(-5.2, -2.4), v - 0.6, v + 0.6, dir > 0 ? 0 : 0.72, dir > 0 ? 0.72 : 0);
     const t = flat(F, lo(-2.4, 3.2), hi(-2.4, 3.2), v - 0.6, v + 0.6, 0.72, { thick: 0.06, perch: 'table' }, 'table');
-    plan.obstacles.push({ x0: t.x0, x1: t.x1, z0: t.z0, z1: t.z1, y0: 0.72 - 0.17, y1: 0.72 - 0.08 });      // the apron: low enough that a car cresting the ramp clears it
-    for (const lx of [t.x0 + 0.08, t.x1 - 0.08]) for (const lz of [t.z0 + 0.08, t.z1 - 0.08]) plan.obstacles.push({ x0: lx - 0.035, x1: lx + 0.035, z0: lz - 0.035, z1: lz + 0.035, y0: 0, y1: 0.66, leg: true });
+    plan.obstacles.push({ x0: t.x0, x1: t.x1, z0: t.z0, z1: t.z1, y0: 0.72 - 0.17, y1: 0.72 - 0.08, kit: true });      // the apron: low enough that a car cresting the ramp clears it
+    for (const lx of [t.x0 + 0.08, t.x1 - 0.08]) for (const lz of [t.z0 + 0.08, t.z1 - 0.08]) plan.obstacles.push({ x0: lx - 0.035, x1: lx + 0.035, z0: lz - 0.035, z1: lz + 0.035, y0: 0, y1: 0.66, leg: true, kit: true });
     ramp(F, lo(2.1, 3.2), hi(2.1, 3.2), v - 0.45, v + 0.45, dir > 0 ? 0.72 : 0.92, dir > 0 ? 0.92 : 0.72, { thick: 0.2, onTop: 0.72 });
     hoop(F, a(4.5), v, 1.3, 'u', 0.8);
     return true;
@@ -300,14 +315,16 @@ function addStunts(plan) {
 
   // ---- jumps on the racing line, wherever it runs straight across a room ----
   {
-    const pts = buildRoute(plan);
-    let k = 0;
+    // Doorway to doorway, ignoring the steering points in between: a straight run across a room
+    // gets a tabletop jump in the middle of it.
+    const pts = buildRoute(plan).filter(p => p.gate && !p.mid);
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i + 1) % pts.length], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
-      if (d < 9.5 || (Math.abs(dx) > 0.7 && Math.abs(dz) > 0.7) || a.start || b.start) continue;
-      if (k++ % 2) continue;                       // every other straight, so there is somewhere to breathe
-      const F = { ax: Math.abs(dx) > Math.abs(dz) ? 'x' : 'z', cx: (a.x + b.x) / 2, cz: (a.z + b.z) / 2, L: d - 2, W: 6, lanes: [], onLine: true, r: null };
-      tabletop(F, 0, 0, 0.42, 2.2);
+      if (d < 10.5 || (Math.abs(dx) > 1.2 && Math.abs(dz) > 1.2) || a.start || b.start) continue;
+      const F = { ax: Math.abs(dx) > Math.abs(dz) ? 'x' : 'z', cx: (a.x + b.x) / 2, cz: (a.z + b.z) / 2, L: d - 1.5, W: 6, lanes: [], onLine: true, r: null };
+      const i0 = S.length;
+      tabletop(F, 0, 0, 0.42, 2.4, 1.6, 0.5);
+      for (let j = i0; j < S.length; j++) S[j].line = true;      // these stay when the race is on
     }
   }
 
@@ -410,7 +427,7 @@ function addStunts(plan) {
     const F = { ax: 'x', cx: park.x + 22, cz: park.z + 10, L: 44, W: 20, lanes: [] };
     L.push({ x: F.cx, z: F.cz - 5, dir: 1, r: 1.15, shift: 0.62, w: 0.56 });
     decal(F, -13, 0, -5.28, -4.72, 1); decal(F, 0, 11, -4.66, -4.1, -1);
-    for (const dx of [-1.45, 1.45]) for (const dz of [-0.55, 1.15]) plan.obstacles.push({ x0: F.cx + dx - 0.04, x1: F.cx + dx + 0.04, z0: F.cz - 5 + dz - 0.04, z1: F.cz - 5 + dz + 0.04, y0: 0, y1: 2.5, post: true });
+    for (const dx of [-1.45, 1.45]) for (const dz of [-0.55, 1.15]) plan.obstacles.push({ x0: F.cx + dx - 0.04, x1: F.cx + dx + 0.04, z0: F.cz - 5 + dz - 0.04, z1: F.cz - 5 + dz + 0.04, y0: 0, y1: 2.5, post: true, kit: true });
     // The big one.
     ramp(F, -6, -3, 0.9, 3.1, 0, 3.4 - Math.sqrt(3.4 * 3.4 - 9), { curve: 3.4 });
     decal(F, -14, -6, 1.25, 2.75, 1);
@@ -428,7 +445,7 @@ function addStunts(plan) {
     plan.lions.push(lion);
     plan.obstacles.push({ x0: lion.x - 1.95, x1: lion.x + 1.95, z0: lion.z - 0.75, z1: lion.z + 0.75, y0: 0, y1: 3.6 });
   }
-  for (const d of plan.doors) if (d.out) {
+  for (const d of plan.doors) if (d.out && !d.vent) {
     const r = plan.byId[d.a], cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
     const ox = d.along === 'x' ? (d.x0 < r.x0 ? -1 : 1) : 0, oz = d.along === 'z' ? (d.z0 < r.z0 ? -1 : 1) : 0;
     for (const s of [-1, 1]) plan.lamps.push({ x: cx + ox * 2.2 + (oz ? s * 2.6 : 0), z: cz + oz * 2.2 + (ox ? s * 2.6 : 0) });
@@ -454,6 +471,7 @@ export function heightOf(s, x, z) {
 export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
   let g = 0, under = null;
   for (const s of plan.surfaces) {
+    if (plan.racing && !s.line && s.skin !== 'bench') continue;        // in a race, only what is on the track is there
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if ((h <= y + step || (s === sticky && h <= y + 1.6)) && h > g) { g = h; under = s; }
@@ -465,7 +483,7 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
 // Is there a solid piece here standing taller than something at height y can climb?
 export function wallAt(plan, x, z, y, step = STEP, ignore = null) {
   for (const s of plan.surfaces) {
-    if (s === ignore) continue;
+    if (s === ignore || (plan.racing && !s.line && s.skin !== 'bench')) continue;
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if (h <= y + step) continue;

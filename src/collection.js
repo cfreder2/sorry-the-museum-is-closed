@@ -35,7 +35,7 @@ const NODE = typeof window === 'undefined';
 // The museum asks every app to name itself, with a contact address, in an
 // AIC-User-Agent header, so they can get in touch rather than just block it.
 const CONTACT = 'cfreder2@nd.edu';
-export const AGENT = 'after-hours (hobby browser game' + (CONTACT ? '; ' + CONTACT : '') + ')';
+export const AGENT = 'Sorry, the Museum is Closed (hobby browser game' + (CONTACT ? '; ' + CONTACT : '') + ')';
 
 // A GET with the query in `params`. No referrer: artic.edu refuses requests
 // that name a page it does not know. Seven requests open the building, and the

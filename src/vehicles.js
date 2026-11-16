@@ -132,7 +132,7 @@ export class Car {
       if (!room) for (const d of this.plan.decals) if (this.pos.x > d.x0 && this.pos.x < d.x1 && this.pos.z > d.z0 - 0.3 && this.pos.z < d.z1 + 0.3) grip = 9;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
       this.wet = false;
-      if (this.pos.y < 0.03) for (const p of this.plan.puddles) if ((this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
+      if (this.pos.y < 0.03 && !this.plan.racing) for (const p of this.plan.puddles) if ((this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       rate = this.steer * bite * 3.6 / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
@@ -303,7 +303,7 @@ export class Car {
 
     // Onto the loop? Squarely, and with enough behind you to be worth trying.
     // It can be taken from either end: in by one lane and out by the other.
-    if (!this.air && this.pos.y < 0.05) for (const L of this.plan.loops) {
+    if (!this.air && this.pos.y < 0.05 && !this.plan.racing) for (const L of this.plan.loops) {
       for (const way of [1, -1]) {
         const lane = way === L.dir ? L.z : L.z + L.shift;
         if ((ox - L.x) * way < 0 && (this.pos.x - L.x) * way >= 0 && Math.abs(this.pos.z - lane) < 0.36 && fx * way > 0.88 && vf > 4) {
