@@ -138,3 +138,15 @@ the previous one was still being worked on; those are marked.
 ## 32 (sent during the build)
 
 > some rooms like china had no data, is that licensing?
+
+## 33
+
+> On refresh give an optoin start new game or continue.  Only count art you are close to, not stuff far in distance.  If you start new game, old game is gone.
+
+## 34 (sent during the build)
+
+> why are teh lions green?
+
+## 35 (sent during the build, with a screenshot of a bronze group whose cut-out still had grey backdrop between the figures)
+
+> cutouts should be a mask of transparency?

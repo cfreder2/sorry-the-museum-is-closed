@@ -43,10 +43,13 @@ What is not true:
 ## What is in it
 
 - **Explore.** The building starts dark. Lamps come on as you reach them, each
-  with its own note. A work counts as seen once you are close enough, in front
-  of it, with its lamp on; its label turns gold. The display shows works seen
+  with its own note. A work counts as seen once you are close to it (a couple
+  of metres for a small picture, about five for the largest), in front of it,
+  with its lamp on. The display shows works seen
   out of the total, for the room you are in and for the whole museum, and what
-  you have seen is remembered between visits. Place cards are dark until the
+  you have seen is remembered between visits: on coming back the title screen
+  offers Continue, which puts you where you left off, or New game, which
+  throws the old one away. Place cards are dark until the
   work has been seen. The map shows each room as not visited, visited with more
   to see (and how many), or finished. Press `E` at any work to leave
   the toy and stand in front of it like a person.

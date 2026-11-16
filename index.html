@@ -95,7 +95,14 @@
         <span class="hint" id="modeHint"></span>
       </div>
     </div>
-    <button class="big" data-act="start" data-first><b>Start</b></button>
+    <div class="startrow">
+      <button class="big" data-act="start" data-first><b id="startLabel">Start</b><span id="startSub"></span></button>
+      <button class="big second" data-act="newgame" id="bNew" hidden><b>New game</b><span>Start again from nothing.</span></button>
+    </div>
+    <div id="confirmNew" class="confirm" hidden role="alertdialog" aria-labelledby="confirmText">
+      <p id="confirmText"></p>
+      <div><button data-act="newgameYes">Yes, start a new game</button><button data-act="newgameNo">No, keep my game</button></div>
+    </div>
     <div class="keys" id="keysHelp"></div>
     <div class="row2"><button class="quiet" data-act="settings">Settings: sound, comfort and access</button></div>
     <div class="fine" id="source" role="status">Opening the building…</div>
@@ -134,7 +141,7 @@
     <div class="over">Field-trip notebook</div>
     <h2 id="nbCount"></h2>
     <div id="nbGrid"></div>
-    <div class="col"><button data-act="closeNotebook">Close</button><button data-act="forget">Forget what I have seen and start again</button></div>
+    <div class="col"><button data-act="closeNotebook">Close</button></div>
   </div>
 </section>
 

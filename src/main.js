@@ -123,6 +123,10 @@ async function boot() {
     + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed.`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
+  // Come back with the toy you left with.
+  const sv = saved();
+  if (sv && sv.toy === 'drone' && pick.toy !== 'drone') choose('toy', 1);
+  titleButtons();
   G.state = 'title';
   if (shown === 'title' && !params.get('mode')) show('title');       // puts focus on Start, so Enter begins
   if (params.get('mode')) { G.toy = params.get('toy') || 'car'; start(params.get('mode')); }
@@ -143,7 +147,7 @@ function setVehicle(kind) {
   $('stickR').lastElementChild.textContent = kind === 'drone' ? 'fly' : 'steer';
 }
 
-function start(mode) {
+function start(mode, fresh = false) {
   sound.unlock();
   G.mode = mode;
   G.museum.sleep();
@@ -161,10 +165,12 @@ function start(mode) {
     sound.musicOn = false;
   } else {
     G.race.end();
-    const sp = G.plan.spawn;
-    if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, 0.9); else G.car.place(sp.x, sp.z, sp.yaw);
+    // Carry on from where you were, or begin again on the avenue.
+    const sv = fresh ? null : saved(), sp = sv || G.plan.spawn;
+    if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, sv ? Math.max(0.9, sv.y || 0) : 0.9); else G.car.place(sp.x, sp.z, sp.yaw, sv ? sv.y || 0 : 0);
+    resumed = !!sv;
     sound.musicOn = true;
-    say('Michigan Avenue, long after closing. The door is open. Go on in.', 1.2, 6);
+    say(resumed ? `Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.` : 'Michigan Avenue, long after closing. The door is open. Go on in.', 1.2, 6);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -186,6 +192,40 @@ function start(mode) {
   canvas.focus();
 }
 
+// ---- one game at a time, kept between visits ----
+// What is kept: the works seen, the rooms visited, the notebook, and where you were.
+// A new game throws all of it away.
+const SAVE = 'after-hours.save';
+let resumed = false;
+function saved() {
+  try {
+    const sv = JSON.parse(localStorage.getItem(SAVE) || 'null');
+    if (sv && isFinite(sv.x) && isFinite(sv.z) && isFinite(sv.yaw)) return sv;
+  } catch { /* no storage */ }
+  return null;
+}
+function hasGame() { return G.museum && (G.museum.seenIds.size > 0 || G.museum.visited.size > 0 || !!saved()); }
+let lastSave = 0;
+function keep() {
+  const v = G.vehicle;
+  if (G.mode !== 'explore' || G.state !== 'play' || G.t - lastSave < 3 || v.air || v.rail) return;
+  lastSave = G.t;
+  try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind })); } catch { /* fine */ }
+}
+function newGame() {
+  G.museum.forget();
+  G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear();
+  try { for (const k of [SAVE, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
+}
+// The title screen offers Continue only when there is a game to continue.
+function titleButtons() {
+  const game = hasGame() && pick.mode === 'explore', m = G.museum;
+  $('startLabel').textContent = game ? 'Continue' : 'Start';
+  $('startSub').textContent = game ? `${m.seenCount} of ${m.arts.length} works seen` : '';
+  $('bNew').hidden = !game;
+  $('confirmNew').hidden = true;
+}
+
 function quit() {
   G.race.end();
   G.state = 'title';
@@ -195,6 +235,7 @@ function quit() {
   setVehicle('car');
   G.car.place(G.plan.spawn.x + 3, G.plan.spawn.z, G.plan.spawn.yaw);
   endFlyby();
+  titleButtons();
   $('hud').hidden = true;
   show('title');
 }
@@ -294,6 +335,7 @@ function choose(key, step) {
   pick[key] = list[i][0];
   $(key + 'Val').textContent = list[i][1];
   $(key + 'Hint').textContent = list[i][2];
+  if (G.museum) titleButtons();
 }
 choose('toy', 0); choose('mode', 0);
 addEventListener('keydown', e => {
@@ -306,6 +348,12 @@ addEventListener('keydown', e => {
 function act(a) {
   switch (a) {
     case 'start': if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
+    case 'newgame':
+      $('confirmText').textContent = `A new game forgets the ${G.museum.seenCount} works you have seen and where you were. There is no getting it back.`;
+      $('confirmNew').hidden = false; $('confirmNew').querySelector('button').focus();
+      break;
+    case 'newgameNo': $('confirmNew').hidden = true; $('bNew').focus(); break;
+    case 'newgameYes': if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;
     case 'pause': if (G.state === 'play' || G.state === 'study') pause(); break;
     case 'resume': G.state = G.study ? 'study' : 'play'; show(null); break;
     case 'restart': case 'again': start('race'); break;
@@ -315,7 +363,6 @@ function act(a) {
     case 'closeNotebook': show(G.state === 'title' ? 'title' : 'pause'); break;
     case 'settings': settingsFrom = G.state === 'title' ? 'title' : 'pause'; applySettings(); show('settings'); break;
     case 'closeSettings': show(settingsFrom); break;
-    case 'forget': G.museum.forget(); G.seen = []; try { localStorage.removeItem('after-hours.seen'); } catch { /* fine */ } openNotebook(); break;
     case 'sound': sound.setMuted(!sound.muted); say(sound.muted ? 'Sound off.' : 'Sound on.', 0, 2); break;
     default: input.press(a);
   }
@@ -770,6 +817,7 @@ function play(dt, real) {
       if (!G.perched.has(key)) { G.perched.add(key); callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: E works from here too.`, 0.5, 6); }
     }
   }
+  keep();
   chase(real, false);
 }
 

@@ -174,6 +174,35 @@ function cutOut(img) {
   }
   // If almost nothing or almost everything went, the backdrop was not plain: keep the photograph whole.
   if (cleared < n * 0.08 || cleared > n * 0.93) return c;
+
+  // Pockets. Backdrop shut in by the piece itself (between an arm and a body, through a handle)
+  // cannot be reached from the edge. Learn what the backdrop looks like in each part of the
+  // photograph from what has gone already, and clear anything inside that matches it closely.
+  const GX = 8, GY = 8, acc = new Float64Array(GX * GY * 4), all = new Float64Array(4);
+  const cell = i => Math.min(GY - 1, Math.floor(Math.floor(i / w) / h * GY)) * GX + Math.min(GX - 1, Math.floor((i % w) / w * GX));
+  for (let i = 0; i < n; i++) if (seen[i]) {
+    const k = cell(i) * 4;
+    acc[k] += px[i * 4]; acc[k + 1] += px[i * 4 + 1]; acc[k + 2] += px[i * 4 + 2]; acc[k + 3]++;
+    all[0] += px[i * 4]; all[1] += px[i * 4 + 1]; all[2] += px[i * 4 + 2]; all[3]++;
+  }
+  const like = i => {
+    const k = cell(i) * 4, m = acc[k + 3] > 40 ? acc : all, o = m === acc ? k : 0, cnt = m[o + 3];
+    return Math.abs(px[i * 4] - m[o] / cnt) + Math.abs(px[i * 4 + 1] - m[o + 1] / cnt) + Math.abs(px[i * 4 + 2] - m[o + 2] / cnt) < 27 && sat(i) < 40;
+  };
+  for (let i = 0; i < n; i++) if (!seen[i] && like(i)) { seen[i] = 1; stack[top++] = i; }
+  while (top) {
+    const i = stack[--top], x = i % w, l = lum(i);
+    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
+      if (j < 0 || j >= n || seen[j]) continue;
+      if (Math.abs(lum(j) - l) < 10 && like(j)) { seen[j] = 1; stack[top++] = j; }
+    }
+  }
+  // Lone specks cleared inside the piece are put back: a pocket is a patch, not a pixel.
+  for (let i = w + 1; i < n - w - 1; i++) if (seen[i] && !seen[i - 1] && !seen[i + 1] && !seen[i - w] && !seen[i + w]) seen[i] = 0;
+  // And one pixel is taken off the outline all round, where backdrop and piece were blurred together.
+  const edge = [];
+  for (let i = w; i < n - w; i++) if (!seen[i] && (seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w])) edge.push(i);
+  for (const i of edge) seen[i] = 1;
   for (let i = 0; i < n; i++) if (seen[i]) px[i * 4 + 3] = 0;
   g.putImageData(data, 0, 0);
   return c;
@@ -407,8 +436,8 @@ export class Museum {
 
     // The lions. Bronze gone green, each standing on its block of stone, as on Michigan Avenue:
     // a deep chest, a long muzzle, a great mane, and the tail held out behind with a tuft on the end.
-    const bronze = new THREE.MeshStandardMaterial({ color: 0x5f8a73, roughness: 0.55, metalness: 0.2, emissive: 0x2f4a3f, emissiveIntensity: 0.9 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x47695a, roughness: 0.6, metalness: 0.2, emissive: 0x223a31, emissiveIntensity: 0.9 });
+    const bronze = new THREE.MeshStandardMaterial({ color: 0x4f6f66, roughness: 0.6, metalness: 0.3, emissive: 0x1f302c, emissiveIntensity: 0.8 });       // weathered bronze: a dull grey-green
+    const dark = new THREE.MeshStandardMaterial({ color: 0x3a534c, roughness: 0.65, metalness: 0.3, emissive: 0x182622, emissiveIntensity: 0.8 });
     const block = new THREE.MeshStandardMaterial({ color: 0xa9a294, roughness: 0.85, emissive: 0x3a3f4d, emissiveIntensity: 0.4 });
     const box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 16, 12), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
     const part = (g, geo, mat, x, y, z, sx, sy, sz, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.x = rx; g.add(m); return m; };
@@ -994,7 +1023,9 @@ export class Museum {
     if (state) for (const a of state.arts) {
       if (a.seen || a.lit < 0.6) continue;
       const dx = pos.x - a.x, dz = pos.z - a.z, d = Math.hypot(dx, dz);
-      if (d > (a.obj ? 3.4 : a.mini ? 2.8 : Math.min(11, 3.2 + Math.max(a.w, a.h) * 2.1))) continue;
+      // Near means near: a couple of metres for a small picture, about five for the very largest.
+      // Something glimpsed across the room does not count.
+      if (d > (a.obj ? 2.6 : a.mini ? 2.2 : Math.max(2.4, Math.min(5.2, 1.7 + Math.max(a.w, a.h) * 1.05)))) continue;
       if (!a.obj && dx * a.nx + dz * a.nz < 0.4) continue;
       this.see(a);
     }
