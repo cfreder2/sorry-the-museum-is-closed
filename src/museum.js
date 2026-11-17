@@ -8,6 +8,7 @@ import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
 import { buildWinter } from './winter.js';
+import { buildStatues } from './statues.js';
 
 // ---------------------------------------------------------------- geometry --
 
@@ -442,50 +443,10 @@ export class Museum {
     globes.frustumCulled = pools.frustumCulled = false; pools.renderOrder = 4;
     if (!posts.empty) this.group.add(posts.mesh(new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.5 })), globes, pools);
 
-    // The lions. Bronze gone green, each standing on its block of stone, as on Michigan Avenue:
-    // a deep chest, a long muzzle, a great mane, and the tail held out behind with a tuft on the end.
-    const bronze = new THREE.MeshStandardMaterial({ color: 0x4fa596, roughness: 0.6, metalness: 0.2, emissive: 0x1d4a42, emissiveIntensity: 0.8 });       // verdigris: the real pair are a bright blue-green
-    const dark = new THREE.MeshStandardMaterial({ color: 0x3c8577, roughness: 0.65, metalness: 0.2, emissive: 0x163a34, emissiveIntensity: 0.8 });
-    const block = new THREE.MeshStandardMaterial({ color: 0xa9a294, roughness: 0.85, emissive: 0x3a3f4d, emissiveIntensity: 0.4 });
-    const box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 16, 12), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
-    const part = (g, geo, mat, x, y, z, sx, sy, sz, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.x = rx; g.add(m); return m; };
-    for (const l of plan.lions) {
-      const g = new THREE.Group(), B = 1.1;                     // B: top of the stone block. The lion looks along +z.
-      part(g, box, block, 0, B / 2, 0, 1.5, B, 3.9);
-      part(g, box, block, 0, B + 0.05, 0, 1.3, 0.1, 3.6);
-      // Legs: straight in front, bent behind, each on a broad paw.
-      for (const sx of [-1, 1]) {
-        part(g, cyl, bronze, sx * 0.24, B + 0.62, 0.78, 0.22, 1.05, 0.24);
-        part(g, box, bronze, sx * 0.24, B + 0.16, 0.9, 0.26, 0.13, 0.42);
-        part(g, cyl, bronze, sx * 0.26, B + 0.9, -0.82, 0.3, 0.75, 0.46, 0.25);       // haunch
-        part(g, cyl, bronze, sx * 0.26, B + 0.42, -0.98, 0.18, 0.72, 0.2, -0.22);     // hock
-        part(g, box, bronze, sx * 0.26, B + 0.16, -0.86, 0.24, 0.13, 0.4);
-      }
-      // Body: deep in the chest, drawn up behind the ribs.
-      part(g, cyl, bronze, 0, B + 1.42, 0.42, 0.72, 1.15, 0.86, Math.PI / 2);
-      part(g, cyl, bronze, 0, B + 1.4, -0.52, 0.58, 1.1, 0.68, Math.PI / 2);
-      // Neck and mane: the mane is most of what makes a lion a lion.
-      part(g, cyl, bronze, 0, B + 1.78, 1.02, 0.5, 0.75, 0.56, -0.75);
-      part(g, ball, dark, 0, B + 1.92, 1.1, 1.06, 1.22, 0.98);
-      part(g, ball, dark, 0, B + 1.38, 1.0, 0.86, 0.9, 0.78);                         // the ruff under the chin
-      part(g, ball, dark, 0, B + 1.75, 0.62, 0.84, 0.88, 0.8);                        // and down over the shoulders
-      // Head: broad across the brow, with a long square muzzle. Small ears, set back in the mane.
-      part(g, box, bronze, 0, B + 2.05, 1.5, 0.44, 0.42, 0.44);
-      part(g, box, bronze, 0, B + 1.92, 1.82, 0.3, 0.26, 0.36);                       // muzzle
-      part(g, box, bronze, 0, B + 1.76, 1.76, 0.24, 0.09, 0.3);                       // jaw
-      part(g, box, dark, 0, B + 2.02, 2.0, 0.16, 0.08, 0.05);                         // nose
-      part(g, box, bronze, 0, B + 2.2, 1.56, 0.46, 0.09, 0.3);                        // brow
-      for (const sx of [-1, 1]) part(g, ball, bronze, sx * 0.21, B + 2.33, 1.3, 0.14, 0.14, 0.09);
-      // Tail: out and down, with its tuft.
-      part(g, cyl, bronze, 0, B + 1.42, -1.42, 0.085, 0.95, 0.085, 1.05);
-      part(g, cyl, bronze, 0, B + 1.08, -1.98, 0.07, 0.6, 0.07, 0.35);
-      part(g, ball, dark, 0, B + 0.78, -2.1, 0.2, 0.3, 0.2);
-      g.position.set(l.x, 0, l.z); g.rotation.y = -Math.PI / 2;        // facing the avenue
-      this.group.add(g);
-    }
     // The Michigan Avenue front, the streets, the railway and the gardens.
     buildGrounds(this, plan);
     this.winter = buildWinter(this, plan);
+    buildStatues(this, plan);
 
     // ---- closed ----
     // Every outside door is shut: two bronze leaves in each doorway, which swing open once you are in.

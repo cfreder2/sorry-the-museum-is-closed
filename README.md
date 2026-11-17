@@ -74,8 +74,12 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   stand Henry Moore's *Large Interior Form* and David Smith's *Cubi VII*; the
   entrance arch of Adler and Sullivan's Chicago Stock Exchange stands at the
   north-east corner, and can be driven or flown through; the lions wear their
-  December wreaths. Each is named the first time you come up to it. These are
-  simple shapes placed from memory of the real grounds, not surveyed.
+  December wreaths. Each is named the first time you come up to it. The
+  bronzes are modelled in `src/statues.js` the way a sculptor builds a figure,
+  from lumps of clay run together (`src/sculpt.js` blends them and skins the
+  result), so the lions have manes and muzzles, the five women of the Great
+  Lakes sit on their rock holding their shells, and the Moore is pierced
+  through. They are made from memory of the real things, not measured.
 - **Snowmen.** Eleven of them, about the grounds. Drive through one and it
   comes apart. They are counted.
 - **The skate park**, beside the loop: a swimming pool with the water let out,
@@ -232,7 +236,9 @@ lets a test driver run the race. The game object is `window.__ah`.
     src/collection.js         API calls and sorting works into rooms
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
-    src/winter.js             paths, the courtyard tree, fountains, outdoor sculpture, glitter, tyre tracks
+    src/winter.js             paths, the courtyard tree, glitter, tyre tracks
+    src/statues.js            the lions, the fountains and the sculpture outdoors
+    src/sculpt.js             clay: lumps blended on a grid and skinned into a mesh
     src/geo.js                the small mesh builder both use
     src/textures.js           every surface, painted on a canvas at start-up
     src/reflect.js            polished-floor reflections

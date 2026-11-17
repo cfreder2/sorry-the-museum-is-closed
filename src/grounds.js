@@ -249,29 +249,7 @@ export function buildGrounds(museum, plan) {
     const ice = new THREE.Mesh(new THREE.PlaneGeometry(p.x1 - p.x0, p.z1 - p.z0), museum.mirror.patch(new THREE.MeshStandardMaterial({ color: 0x1a2a3c, roughness: 0.08, emissive: 0x0a1626, emissiveIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [0.35, 0.5]));
     ice.rotation.x = -Math.PI / 2; ice.position.set((p.x0 + p.x1) / 2, 0.01, (p.z0 + p.z1) / 2); add(ice); museum.floors.push(ice);
 
-    // The Fountain of the Great Lakes: five bronze women on a stepped rock, each pouring into the
-    // shell of the one below, in a round stone basin against the wall of the Morton Wing.
-    const f = G.fountain, fg = new THREE.Group(), stoneWarm = new THREE.MeshStandardMaterial({ color: 0xb08a55, roughness: 0.8, emissive: 0x3a2c1a, emissiveIntensity: 0.6 });
-    const put = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); fg.add(m); return m; };
-    const cyl = new THREE.CylinderGeometry(1, 1, 1, 24), box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 12, 10);
-    const icicle = new THREE.ConeGeometry(1, 1, 6), iceMat = new THREE.MeshStandardMaterial({ color: 0xcfe6f5, roughness: 0.1, transparent: true, opacity: 0.8, emissive: 0x5a7f9c, emissiveIntensity: 0.7 });
-    put(cyl, stoneWarm, -0.2, 0.45, 0, 3.6, 0.9, 4.2);                                   // the basin
-    put(cyl, snow, -0.2, 0.92, 0, 3.3, 0.02, 3.9);                                          // drained for the winter: snow where the water was
-    put(box, verdigris, 1.2, 1.5, 0, 2.2, 1.3, 3.4); put(box, verdigris, 1.6, 2.6, 0, 1.5, 1.0, 2.2); put(box, verdigris, 1.9, 3.5, 0, 1.0, 0.9, 1.3);
-    for (const [x, y, z] of [[1.9, 4.0, 0], [1.3, 3.1, -0.9], [1.2, 3.1, 0.9], [0.5, 2.15, -1.3], [0.5, 2.15, 1.2]]) {   // the five lakes
-      put(cyl, verdigris, x, y + 0.75, z, 0.27, 1.5, 0.27); put(ball, verdigris, x, y + 1.65, z, 0.42, 0.42, 0.42); put(ball, verdigris, x - 0.35, y + 1.0, z, 0.5, 0.2, 0.5);
-      for (const dz of [-0.16, 0, 0.17]) { const ic = put(icicle, iceMat, x - 0.55, y + 0.78 - Math.abs(dz) * 0.4, z + dz, 0.025, 0.3 - Math.abs(dz) * 0.5, 0.025); ic.rotation.x = Math.PI; }     // nothing has run from the shells since November
-    }
-    for (const sgn of [-1, 1]) { put(box, stoneWarm, 0.2, 1.3, sgn * 3.6, 1.0, 0.9, 0.9); put(ball, verdigris, 0.2, 2.2, sgn * 3.6, 0.6, 0.9, 0.6); }      // the two boys with fish
-    fg.position.set(f.x, 0, f.z);
-    group.add(fg);
-
-    // In the North Garden, Calder's Flying Dragon: red steel plates on three points.
-    const red = new THREE.MeshStandardMaterial({ color: 0xc8261c, roughness: 0.6, emissive: 0x5a0f0a, emissiveIntensity: 0.7, side: THREE.DoubleSide });
-    const cg = new THREE.Group();
-    const plate = (w, h, x, y, z, rx, ry, rz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), red); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); cg.add(m); };
-    plate(4.6, 1.5, 0, 2.3, 0, 0.5, 0.2, 0.25); plate(1.2, 2.6, -1.4, 1.2, 0.4, 0, 0.9, 0.2); plate(1.0, 2.4, 1.3, 1.1, -0.3, 0, -0.7, -0.25); plate(2.6, 1.0, 1.9, 3.2, -0.5, -0.4, 0.5, 0.6);
-    cg.position.set(G.calder.x, 0, G.calder.z); group.add(cg);
+    // (The fountains and the sculpture are in statues.js.)
   }
 
   // ------------------------------------------------------- the Modern Wing from above

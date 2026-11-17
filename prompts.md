@@ -224,3 +224,11 @@ the previous one was still being worked on; those are marked.
 ## 53 (sent during the build)
 
 > aThere is some pixelation / acttive distortion in side the vents and on the inner door.  not sure why?There is also a whol in the side of teh building.  Some performance challenges with framerates as well, when driving around, hitches? maybe the downloads?  when outside, no visible paitings same problem.
+
+## 54
+
+> Improve all of the statues modesl outside.
+
+## 55 (sent during the build)
+
+> improve all of the fountains.
