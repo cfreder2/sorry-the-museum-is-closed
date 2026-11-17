@@ -123,6 +123,7 @@ export function buildPlan() {
   plan.spawn = { x: PX - 6.5, z: fz, yaw: Math.PI / 2 };
   addGrounds(plan);
   addStunts(plan);
+  addLand(plan);
   // The roof of Gallery 211, at the top of the scaffold, is kept clear: there is a card game up there.
   { const tm = masses.find(m => m.room && m.room.id === 'G211'); if (tm) plan.terrace = { room: 'G211', x: (tm.x0 + tm.x1) / 2 + 0.6, z: (tm.z0 + tm.z1) / 2, top: tm.top }; }
   addRoofs(plan);
@@ -655,6 +656,38 @@ function addStunts(plan) {
   for (const m of PG.snowmen) P.push({ type: 'snowman', x: m.x, z: m.z, s: m.s, yaw: (m.x * 7 + m.z * 3) % 6.28 });
 }
 
+// ------------------------------------------------------------------- the land --
+//
+// The ground outdoors is not flat any more. Wherever there is open snow clear of buildings, streets,
+// paths, the railway and the gardens, there are hills: low swells to roll over, and two big ones to
+// climb and come down fast. And north of the building, between the garden and the railway, a pond,
+// frozen, laid out for hockey.
+function addLand(plan) {
+  const G = plan.grounds, S = plan.surfaces;
+  plan.hills = [];
+  // The pond first, so that no hill is put on it.
+  const rink = { x: 88, z: -6, rx: 14, rz: 8.5, gx: 11, gw: 1.3 };
+  const clear = (x0, x1, z0, z1, m = 1.5) => !plan.masses.some(q => x1 > q.x0 - m && x0 < q.x1 + m && z1 > q.z0 - m && z0 < q.z1 + m)
+    && ![...plan.paved, ...plan.ice, G.north, G.south, { x0: G.rail.x0 - 1, x1: G.rail.x1 + 1, z0: -1e3, z1: 1e3 }].some(q => x1 > q.x0 && x0 < q.x1 && z1 > q.z0 && z0 < q.z1)
+    && !S.some(q => x1 > q.x0 - 1 && x0 < q.x1 + 1 && z1 > q.z0 - 1 && z0 < q.z1 + 1)
+    && !plan.obstacles.some(o => o.y0 < 0.5 && x1 > o.x0 && x0 < o.x1 && z1 > o.z0 && z0 < o.z1)
+    && !G.snowmen.some(m2 => m2.x > x0 - 1 && m2.x < x1 + 1 && m2.z > z0 - 1 && m2.z < z1 + 1)
+    && x0 > plan.bounds.x0 + 2 && x1 < plan.bounds.x1 - 2 && z0 > plan.bounds.z0 + 2 && z1 < plan.bounds.z1 - 2;
+  if (clear(rink.x - rink.rx - 1, rink.x + rink.rx + 1, rink.z - rink.rz - 3.5, rink.z + rink.rz + 1)) {
+    plan.rink = rink;
+    plan.ice.push({ x0: rink.x - rink.rx * 0.9, x1: rink.x + rink.rx * 0.9, z0: rink.z - rink.rz * 0.8, z1: rink.z + rink.rz * 0.8 });
+  }
+  const hill = (cx, cz, r, H, rz = r) => {
+    if (!clear(cx - r, cx + r, cz - rz, cz + rz)) return;
+    const s = { skin: 'hill', hill: true, axis: 'hill', cx, cz, rx: r, rz, H, x0: cx - r, x1: cx + r, z0: cz - rz, z1: cz + rz, h0: 0, h1: H, thick: 0 };
+    S.push(s); plan.hills.push(s);
+  };
+  // Two big ones...
+  hill(88, 38, 15, 6.5, 13); hill(240, 224, 20, 8.5, 17);
+  // ...and swells wherever there is room.
+  for (const [x, z, r, H] of [[150, -10, 10, 1.5], [128, 42, 6.5, 1.0], [150, 2, 5, 0.8], [215, 42, 8, 1.3], [264, 62, 8, 1.2], [265, 190, 8, 1.2], [268, 120, 5, 0.9], [100, 242, 9, 1.4], [84, -24, 0, 0], [70, 20, 4, 0.7], [104, 10, 5, 0.9], [262, -8, 7, 1.1], [205, 232, 7, 1.0], [130, 150, 5, 0.9], [150, 136, 5, 0.8]]) if (r) hill(x, z, r, H);
+}
+
 // ------------------------------------------------------------------ the roofs --
 //
 // Every roof is a floor, for anything that can get up there: a drone can land on one, and for a
@@ -710,6 +743,8 @@ export function onSnow(plan, x, z) {
 }
 
 export function heightOf(s, x, z) {
+  // A hill: a smooth mound, highest in the middle and running out flat at its foot.
+  if (s.hill) { const d = Math.hypot((x - s.cx) / s.rx, (z - s.cz) / s.rz); return d >= 1 ? 0 : s.H * (Math.cos(d * Math.PI) + 1) / 2; }
   if (!s.axis) return s.h0;
   const t = s.axis === 'x' ? (x - s.x0) / (s.x1 - s.x0) : (z - s.z0) / (s.z1 - s.z0);
   if (s.curve) {

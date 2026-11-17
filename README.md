@@ -124,6 +124,18 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   domain.
 - **Jingle Bells** plays on bells from the courtyard tree, louder as you come
   nearer; it follows the music volume.
+- **Hills.** The open ground is no longer flat: two big hills (one north of
+  the building by the railway, one in the south-east corner) and eight low
+  swells, wherever there is room clear of buildings, paths and streets. A hill
+  pulls a car down its slope, so one left on the side of it rolls.
+- **Pond hockey.** North of the building, between the garden and the railway,
+  is a frozen pond with a goal at each end and a puck. A blue toy car waits in
+  front of its goal; touch the puck and it wakes up. You shoot east, it shoots
+  west, first to five. The score is kept in pegs of light on a board on the
+  scorer's table on the north bank. The ice is as slippery as the other pool.
+- **The train** in the cutting is a diesel and two double-deck gallery cars
+  standing on wheels on rails, with frames, tanks and bogies underneath; it is
+  solid from the rail up.
 
 Where this departs from the real thing: there is no flight of steps up to the
 door (the galleries are on the ground here); the names on the frieze are a

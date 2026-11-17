@@ -54,6 +54,15 @@ export function buildWinter(museum, plan) {
     }
   }
 
+  // ------------------------------------------------------------------ hills
+  for (const h of plan.hills || []) {
+    const n = Math.max(20, Math.round(h.rx * 2.2)), geo = new THREE.PlaneGeometry(h.rx * 2, h.rz * 2, n, n); geo.rotateX(-Math.PI / 2);
+    const p = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), d = Math.hypot(x / h.rx, z / h.rz); p.setY(i, d >= 1 ? -0.02 : h.H * (Math.cos(d * Math.PI) + 1) / 2 + 0.004); uv.setXY(i, (h.cx + x) / 6, (h.cz + z) / 6); }
+    geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, snow); m.position.set(h.cx, 0, h.cz); add(m);
+  }
+
   // ------------------------------------------------------------------ the tree
   let bulbs = null;
   {

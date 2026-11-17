@@ -184,6 +184,12 @@ export class Car {
       // Rolling down a skate ramp, the ramp does some of the work: that is how you pump a half-pipe.
       if (on.curve && tan < 0) { const k = (sp + GRAVITY * 0.75 * -tan * cs * dt) / sp; this.vel.x *= k; this.vel.z *= k; }
     }
+    // On a hill the ground pulls you down the slope, moving or not, whichever way you are pointing:
+    // that is what makes it a hill. Let go of the stick on the side of one and you roll.
+    if (!this.air && on && on.hill) {
+      const q = 0.3, px = this.pos.x, pz = this.pos.z, gx = (heightOf(on, px + q, pz) - heightOf(on, px - q, pz)) / (2 * q), gz = (heightOf(on, px, pz + q) - heightOf(on, px, pz - q)) / (2 * q);
+      this.vel.x -= GRAVITY * 0.6 * gx * dt; this.vel.z -= GRAVITY * 0.6 * gz * dt;
+    }
     this.pos.x += this.vel.x * cs * dt; this.pos.z += this.vel.z * cs * dt;
 
     // The stunt kit, side on: plywood does not move.
@@ -273,7 +279,7 @@ export class Car {
       if (this.air) {
         this.air = false;
         const impact = Math.max(0, -this.vy);
-        const ffx = Math.sin(this.yaw), ffz = Math.cos(this.yaw), L = beneath && beneath.axis ? beneath : null;
+        const ffx = Math.sin(this.yaw), ffz = Math.cos(this.yaw), L = beneath && beneath.axis && !beneath.hill ? beneath : null;
         // The slope where the wheels came down, along the way the car is pointing and along the ramp.
         let fwdTan = 0, axTan = 0;
         if (L) {

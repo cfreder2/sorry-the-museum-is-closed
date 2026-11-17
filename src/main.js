@@ -16,6 +16,7 @@ import { Sound } from './audio.js';
 import { Race, LAPS, clockText } from './race.js';
 import { Props } from './props.js';
 import { Poker } from './poker.js';
+import { Hockey } from './hockey.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -113,6 +114,8 @@ async function boot() {
   G.props = new Props(plan);
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
+  G.hockey = new Hockey(G.museum, plan, sound);
+  G.hockey.onEvent = (text, kind) => { if (text) callout(text); else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); };
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);
@@ -253,7 +256,7 @@ function keep() {
 }
 function newGame() {
   G.museum.forget();
-  G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.roofed = false;
+  G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
@@ -811,6 +814,7 @@ function play(dt, real) {
   if (racing) for (const b of R.bots) movers.push({ x: b.x, y: b.y || 0, z: b.z, vx: (b.x - (b.px ?? b.x)) / Math.max(dt, 1e-3), vz: (b.z - (b.pz ?? b.z)) / Math.max(dt, 1e-3), r: 0.19 });
   if (racing) for (const b of R.bots) { b.px = b.x; b.pz = b.z; }
   if (!racing) G.props.update(dt, movers);
+  if (!racing) { G.hockey.update(dt, v); const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 18) once('pond', 'A pond, frozen hard, with a goal at each end and a puck in the middle. Somebody is waiting for a game.', 7); }
   // Outdoors: tyre tracks, and a word about whatever sculpture you have just come up to.
   G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && !v.on && v.pos.y < 0.03 ? v : null, set.reduce);
   if (!racing && !G.roomId) for (const a of G.plan.outdoorArt) if ((v.pos.x - a.x) ** 2 + (v.pos.z - a.z) ** 2 < a.r * a.r) once('out:' + a.text, a.text, 6);

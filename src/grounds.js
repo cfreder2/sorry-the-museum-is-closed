@@ -209,13 +209,52 @@ export function buildGrounds(museum, plan) {
     if (!mouth.empty) add(mouth.mesh(new THREE.MeshBasicMaterial({ color: 0x020203 })));
     void wallG;
     if (G.train) {
-      const t = G.train, ct = TX.carriage(), cars = new Geo(), ends = new Geo(), len = (t.z1 - t.z0 - 2) / 2;
-      for (let i = 0; i < 2; i++) {
-        const a = t.z0 + i * (len + 2), b = a + len, x0 = t.x - 1.45, x1 = t.x + 1.45;
-        for (const [x, nx] of [[x0, -1], [x1, 1]]) cars.quad([x, 0.5, a], [x, 0.5, b], [x, 4.5, b], [x, 4.5, a], [nx, 0, 0], [[0, 0], [len / 9, 0], [len / 9, 1], [0, 1]]);
-        ends.box(x0, x1, 0.5, 4.5, a, a + 0.02); ends.box(x0, x1, 0.5, 4.5, b - 0.02, b); ends.box(x0, x1, 4.5, 4.62, a, b); ends.box(x0 + 0.3, x1 - 0.3, 0.15, 0.5, a + 1.5, b - 1.5);
-      }
-      add(cars.mesh(new THREE.MeshStandardMaterial({ map: ct, roughness: 0.4, metalness: 0.5, emissiveMap: ct, emissive: 0xffffff, emissiveIntensity: 0.7 })), ends.mesh(new THREE.MeshStandardMaterial({ color: 0x70767e, roughness: 0.45, metalness: 0.6, emissive: 0x20242a, emissiveIntensity: 0.6 })));
+      // A commuter train stopped for the night: a diesel at the north end and two double-deck gallery
+      // cars behind it, standing on their wheels on the rails, with frames, tanks and bogies underneath.
+      const t = G.train, ct = TX.carriage(), sides = new Geo(), body = new Geo(), under = new Geo(), blue = new Geo(), orange = new Geo(), lit = new Geo(), red = new Geo(), rails = new Geo(), cap = new Geo(), glass = new Geo();
+      const X = t.x, hw = 1.45, wheelsAt = [];
+      for (const rx of [-0.72, 0.72]) rails.box(X + rx - 0.035, X + rx + 0.035, 0, 0.14, t.z0 - 4, t.z1 + 4);
+      const bogie = z => {
+        under.box(X - 1.08, X + 1.08, 0.4, 0.8, z - 1.55, z + 1.55);
+        for (const dz of [-0.95, 0.95]) { for (const rx of [-0.72, 0.72]) wheelsAt.push([X + rx, 0.6, z + dz]); under.box(X - 0.72, X + 0.72, 0.52, 0.68, z + dz - 0.07, z + dz + 0.07); }
+      };
+      const coach = (a, b, last) => {
+        const len = b - a;
+        for (const [x, nx] of [[X - hw, -1], [X + hw, 1]]) sides.quad([x, 1.05, a], [x, 1.05, b], [x, 4.6, b], [x, 4.6, a], [nx, 0, 0], [[0, 0], [len / 9.5, 0], [len / 9.5, 1], [0, 1]]);
+        body.box(X - hw, X + hw, 1.05, 4.6, a, a + 0.03); body.box(X - hw, X + hw, 1.05, 4.6, b - 0.03, b);
+        body.box(X - hw + 0.12, X + hw - 0.12, 4.6, 4.82, a + 0.1, b - 0.1); body.box(X - hw + 0.4, X + hw - 0.4, 4.82, 4.95, a + 0.3, b - 0.3);       // the roof, stepped in
+        cap.box(X - hw + 0.42, X + hw - 0.42, 4.95, 5.0, a + 0.32, b - 0.32);
+        under.box(X - hw + 0.08, X + hw - 0.08, 0.8, 1.05, a + 0.05, b - 0.05);                                              // the frame
+        under.box(X - 1.25, X + 1.25, 0.28, 0.8, a + len * 0.36, a + len * 0.64);                                            // tanks and boxes slung under the middle
+        bogie(a + 2.7); bogie(b - 2.7);
+        lit.box(X - 0.4, X + 0.4, 1.5, 3.3, a - 0.015, a); lit.box(X - 0.4, X + 0.4, 1.5, 3.3, b, b + 0.015);                // the door in each end, the light left on behind it
+        under.box(X - 0.12, X + 0.12, 0.85, 1.0, a - 0.5, a); under.box(X - 0.12, X + 0.12, 0.85, 1.0, b, b + 0.5);          // couplers
+        if (last) for (const sx of [-1, 1]) red.box(X + sx * 1.0 - 0.1, X + sx * 1.0 + 0.1, 1.5, 1.7, b + 0.016, b + 0.04);
+      };
+      // The locomotive: a cab with a sloped nose looking north, a long hood behind it, a stripe down the side.
+      const L = 17, gap = 1, cl = (t.z1 - t.z0 - L - 2 * gap) / 2, la = t.z0, lb = la + L;
+      blue.box(X - hw, X + hw, 1.1, 4.3, la + 2.6, lb); blue.box(X - hw, X + hw, 1.1, 3.0, la, la + 2.6);
+      blue.quad([X - hw, 3.0, la], [X + hw, 3.0, la], [X + hw, 4.3, la + 2.6], [X - hw, 4.3, la + 2.6], [0, 0.89, -0.45]);
+      for (const sx of [-1, 1]) blue.quad([X + sx * hw, 3.0, la], [X + sx * hw, 3.0, la + 2.6], [X + sx * hw, 4.3, la + 2.6], [X + sx * hw, 3.0, la], [sx, 0, 0]);
+      glass.quad([X - 1.1, 3.25, la + 0.44], [X + 1.1, 3.25, la + 0.44], [X + 1.1, 4.0, la + 1.94], [X - 1.1, 4.0, la + 1.94], [0, 0.89, -0.45]);              // the windscreen
+      for (const sx of [-1, 1]) glass.box(X + sx * hw - 0.012, X + sx * hw + 0.012, 3.3, 4.0, la + 2.8, la + 4.2);                                              // cab side windows
+      orange.box(X - hw - 0.012, X + hw + 0.012, 2.1, 2.55, la + 0.3, lb - 0.2); orange.box(X - hw - 0.012, X + hw + 0.012, 1.1, 1.3, la, lb);
+      body.box(X - hw + 0.1, X + hw - 0.1, 4.3, 4.48, la + 3, lb - 0.3); body.box(X - 0.55, X + 0.55, 4.48, 4.85, la + 8, la + 10.6); cap.box(X - hw + 0.12, X + hw - 0.12, 4.48, 4.53, la + 11, lb - 0.4);
+      for (const zz of [la + 5.2, la + 7.4, la + 11.6, la + 13.8]) for (const sx of [-1, 1]) under.box(Math.min(X + sx * hw, X + sx * (hw + 0.015)), Math.max(X + sx * hw, X + sx * (hw + 0.015)), 2.8, 3.9, zz, zz + 1.7);   // louvres
+      under.box(X - hw + 0.08, X + hw - 0.08, 0.8, 1.1, la + 0.05, lb - 0.05); under.box(X - 1.3, X + 1.3, 0.25, 0.8, la + 6.4, la + 10.8);                    // frame and fuel tank
+      under.box(X - 1.4, X + 1.4, 0.3, 0.9, la - 0.25, la + 0.05);                                                                                              // the pilot, down at the rails
+      bogie(la + 3.2); bogie(lb - 3.2);
+      for (const sx of [-1, 1]) lit.box(X + sx * 0.5 - 0.13, X + sx * 0.5 + 0.13, 2.65, 2.9, la - 0.02, la);                                                    // headlamps, dimmed
+      under.box(X - 0.12, X + 0.12, 0.85, 1.0, lb, lb + 0.5);
+      coach(lb + gap, lb + gap + cl, false); coach(lb + 2 * gap + cl, t.z1, true);
+      const wheel = new THREE.CylinderGeometry(0.46, 0.46, 0.12, 16); wheel.rotateZ(Math.PI / 2);
+      const steel = new THREE.MeshStandardMaterial({ color: 0x8a9199, roughness: 0.4, metalness: 0.6, emissive: 0x2a2e34, emissiveIntensity: 0.7 }), darkM = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.7, emissive: 0x0a0b0d, emissiveIntensity: 0.8 });
+      add(sides.mesh(new THREE.MeshStandardMaterial({ map: ct, roughness: 0.4, metalness: 0.5, emissiveMap: ct, emissive: 0xffffff, emissiveIntensity: 0.7 })), body.mesh(steel), under.mesh(darkM), rails.mesh(steel),
+        blue.mesh(new THREE.MeshStandardMaterial({ color: 0x1c3f8a, roughness: 0.5, metalness: 0.3, emissive: 0x0e2048, emissiveIntensity: 0.8, side: THREE.DoubleSide })),
+        orange.mesh(new THREE.MeshStandardMaterial({ color: 0xe8731c, roughness: 0.5, emissive: 0x7a3a0c, emissiveIntensity: 0.8 })),
+        glass.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.05, 0.07, 0.11), side: THREE.DoubleSide })),
+        lit.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.1, 0.55) })), red.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.15, 0.1) })), cap.mesh(snow),
+        new THREE.Mesh(mergeGeometries(wheelsAt.map(([x, y, z]) => wheel.clone().translate(x, y, z))), steel));
     }
   }
 
