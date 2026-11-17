@@ -181,7 +181,7 @@ function start(mode, fresh = false) {
     G.outsideSince = G.t; G.hinted = 0;
     sound.musicOn = true;
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
-    else say(G.toy === 'drone' ? 'Locked. But the window over the doors is open: fly in.' : 'Locked. But there is a hole in the wall just left of the doors: drive in.', 3.5, 9);
+    else say(G.toy === 'drone' ? 'Locked. But the window over the doors is open: fly in.' : 'Locked. But the air vent just left of the doors is open: drive in.', 3.5, 9);
     if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.', 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
@@ -217,7 +217,7 @@ function letIn() {
 function hints(v, room) {
   if (!G.plan.locked || room || G.mode !== 'explore') return;
   const out = G.t - G.outsideSince;
-  if (G.hinted === 0 && out > 30) { G.hinted = 1; say(v.kind === 'drone' ? 'The way in is the open window over the front doors, with the blue light round it.' : 'The way in is the lit hole at the foot of the wall, just left of the front doors. Follow the arrows.', 0, 10); }
+  if (G.hinted === 0 && out > 30) { G.hinted = 1; say(v.kind === 'drone' ? 'The way in is the open window over the front doors, with the blue light round it.' : 'The way in is the open air vent at the foot of the wall, just left of the front doors. Follow the arrows.', 0, 10); }
   else if (G.hinted === 1 && out > 70) { G.hinted = 2; say(v.kind === 'drone' ? 'Or go over the roof: a pane of the big skylight is propped open too.' : 'Press V for the drone if you would rather fly in through the window over the doors.', 0, 10); }
 }
 
@@ -252,7 +252,6 @@ function titleButtons() {
   $('startLabel').textContent = game ? 'Continue' : 'Start';
   $('startSub').textContent = game ? `${m.seenCount} of ${m.arts.length} works seen` : '';
   $('bNew').hidden = !game;
-  $('confirmNew').hidden = true;
 }
 
 function quit() {
@@ -306,7 +305,7 @@ document.addEventListener('input', e => {
   applySettings(true);
   if (k === 'motor' || k === 'master') sound.preview('motor'); else if (k === 'music') sound.preview('music');
 });
-let settingsFrom = 'title';
+let settingsFrom = 'title', infoFrom = 'title';
 addEventListener('keydown', e => {
   if (e.code !== 'Escape') return;
   if (shown === 'settings') act('closeSettings');
@@ -382,12 +381,7 @@ addEventListener('keydown', e => {
 function act(a) {
   switch (a) {
     case 'start': if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
-    case 'newgame':
-      $('confirmText').textContent = `A new game forgets the ${G.museum.seenCount} works you have seen and where you were. There is no getting it back.`;
-      $('confirmNew').hidden = false; $('confirmNew').querySelector('button').focus();
-      break;
-    case 'newgameNo': $('confirmNew').hidden = true; $('bNew').focus(); break;
-    case 'newgameYes': if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;
+    case 'newgame': if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;      // no questions: asked for, done
     case 'pause': if (G.state === 'play' || G.state === 'study') pause(); break;
     case 'resume': G.state = G.study ? 'study' : 'play'; show(null); break;
     case 'restart': case 'again': start('race'); break;
@@ -397,8 +391,8 @@ function act(a) {
     case 'closeNotebook': show(G.state === 'title' ? 'title' : 'pause'); break;
     case 'settings': settingsFrom = G.state === 'title' ? 'title' : 'pause'; applySettings(); show('settings'); break;
     case 'closeSettings': show(settingsFrom); break;
-    case 'controls': case 'about': settingsFrom = G.state === 'title' ? 'title' : 'pause'; controlsList(); show(a); break;
-    case 'closeInfo': show(settingsFrom); break;
+    case 'controls': case 'about': infoFrom = shown === 'settings' ? 'settings' : G.state === 'title' ? 'title' : 'pause'; controlsList(); show(a); break;
+    case 'closeInfo': show(infoFrom); break;
     case 'sound': sound.setMuted(!sound.muted); say(sound.muted ? 'Sound off.' : 'Sound on.', 0, 2); break;
     default: input.press(a);
   }

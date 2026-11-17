@@ -292,6 +292,32 @@ export function plywood() {
   return tex(c, { repeat: true });
 }
 
+// Sheet-metal ducting: one section of brushed aluminium, flanged and riveted at each end, with the
+// shallow X pressed into every panel to stop it drumming. Repeats along its length.
+export function duct() {
+  const [c, g] = canvas(256, 256);
+  const r = rng(41);
+  const base = g.createLinearGradient(0, 0, 0, 256);
+  base.addColorStop(0, '#aeb5bc'); base.addColorStop(0.5, '#d3d9de'); base.addColorStop(1, '#a3aab2');
+  g.fillStyle = base; g.fillRect(0, 0, 256, 256);
+  g.globalAlpha = 0.1;
+  for (let k = 0; k < 420; k++) { g.fillStyle = r() > 0.5 ? '#ffffff' : '#56606a'; g.fillRect(r() * 256, r() * 256, 30 + r() * 120, 1); }
+  g.globalAlpha = 0.5; g.lineWidth = 3;
+  g.strokeStyle = '#f4f7fa'; g.beginPath(); g.moveTo(14, 10); g.lineTo(242, 246); g.stroke();
+  g.strokeStyle = '#7d8791'; g.beginPath(); g.moveTo(14, 246); g.lineTo(242, 10); g.stroke();
+  g.globalAlpha = 1;
+  for (const x of [0, 244]) {                             // the flange where two sections meet
+    g.fillStyle = '#e9edf0'; g.fillRect(x, 0, 12, 256);
+    g.fillStyle = '#4c555e'; g.fillRect(x === 0 ? 11 : 244, 0, 2, 256);
+  }
+  g.fillStyle = '#2f363d'; g.fillRect(0, 0, 2, 256); g.fillRect(254, 0, 2, 256);
+  for (const x of [6, 250]) for (let y = 20; y < 256; y += 54) {
+    g.fillStyle = '#5a646e'; g.beginPath(); g.arc(x, y, 3.2, 0, 7); g.fill();
+    g.fillStyle = '#f7f9fb'; g.beginPath(); g.arc(x - 0.8, y - 0.8, 1.3, 0, 7); g.fill();
+  }
+  return tex(c, { repeat: true });
+}
+
 // Arrows of light that run up a ramp. Drawn white on black, used additively.
 export function chevrons() {
   const [c, g] = canvas(128, 128);

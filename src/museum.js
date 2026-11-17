@@ -493,28 +493,41 @@ export class Museum {
       this.closedSign = hang;
       this.group.add(hang);
     }
-    // The way in for a car: a hole through the foot of the wall beside the doors, lit from inside,
-    // edged with the same strip lights as the ramps, with arrows on the pavement running into it.
+    // The way in for a car: an air duct through the foot of the wall beside the doors. Sheet aluminium,
+    // standing a little proud of the stone, its grille swung open on its hinges, arrows running into it.
     if (plan.vent) {
-      const v = plan.vent, zc = (v.z0 + v.z1) / 2, steel = new THREE.MeshStandardMaterial({ color: 0x5c6066, metalness: 0.7, roughness: 0.4, emissive: 0x1a1c20, emissiveIntensity: 0.5 });
-      const duct = new Geo(), edge = new Geo(), x = v.x0 - 0.07;
-      duct.quad([v.x0, 0, v.z0], [v.x1, 0, v.z0], [v.x1, v.h, v.z0], [v.x0, v.h, v.z0], [0, 0, 1]);
-      duct.quad([v.x0, 0, v.z1], [v.x1, 0, v.z1], [v.x1, v.h, v.z1], [v.x0, v.h, v.z1], [0, 0, -1]);
-      duct.quad([v.x0, v.h, v.z0], [v.x1, v.h, v.z0], [v.x1, v.h, v.z1], [v.x0, v.h, v.z1], [0, -1, 0]);
-      duct.quad([v.x0, 0.003, v.z0], [v.x1, 0.003, v.z0], [v.x1, 0.003, v.z1], [v.x0, 0.003, v.z1], [0, 1, 0]);
-      edge.box(x, v.x0, v.h, v.h + 0.07, v.z0 - 0.07, v.z1 + 0.07); edge.box(x, v.x0, 0, v.h, v.z0 - 0.07, v.z0); edge.box(x, v.x0, 0, v.h, v.z1, v.z1 + 0.07);
-      this.group.add(duct.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.58, 0.27), side: THREE.DoubleSide })), edge.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45) })));
-      // The grille that used to cover it, and the stones that came out.
-      const grille = new THREE.Group();
-      for (let i = 0; i < 7; i++) { const slat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.03, 0.02), steel); slat.position.y = 0.06 + i * 0.1; grille.add(slat); }
-      for (const sx of [-0.6, 0.6]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.74, 0.03), steel); post.position.set(sx, 0.37, 0); grille.add(post); }
-      grille.position.set(v.x0 - 0.5, 0.02, v.z0 - 0.9); grille.rotation.set(-0.35, Math.PI / 2 - 0.25, 0);
-      const rubble = new Geo();
-      for (const [dx, dz, sz] of [[-0.5, 0.9, 0.22], [-0.9, 1.25, 0.16], [-0.35, 1.5, 0.12], [-1.2, 0.75, 0.1]]) rubble.box(v.x0 + dx - sz, v.x0 + dx + sz, 0, sz * 1.1, v.z1 + dz - sz, v.z1 + dz + sz);
-      this.group.add(grille, rubble.mesh(new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: 0.9, emissive: 0x3a3f4f, emissiveIntensity: 0.5 })));
-      const spill = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.2), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(1.3, 0.9, 0.45), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-      spill.rotation.x = -Math.PI / 2; spill.position.set(v.x0 - 2.6, 0.012, zc); spill.renderOrder = 4;
-      const arrows = new Geo(), ct = TX.chevrons(), ax0 = v.x0 - 4.6, ax1 = v.x0 - 0.5;
+      const v = plan.vent, zc = (v.z0 + v.z1) / 2, SEC = 0.6, lip = 0.28, xm = v.x0 - lip, t = 0.05;
+      const sheet = TX.duct();
+      const alu = new THREE.MeshStandardMaterial({ map: sheet, emissiveMap: sheet, emissive: 0x8d98a6, emissiveIntensity: 0.55, metalness: 0.45, roughness: 0.42, side: THREE.DoubleSide });
+      const bare = new THREE.MeshStandardMaterial({ color: 0xc3c9cf, emissive: 0x4a525c, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.4 });
+      const duct = new Geo(), u0 = 0, u1 = (v.x1 - xm) / SEC, w = v.z1 - v.z0;
+      // Inside: two walls, a roof and a floor, every section seamed and riveted.
+      duct.quad([xm, 0, v.z0], [v.x1, 0, v.z0], [v.x1, v.h, v.z0], [xm, v.h, v.z0], [0, 0, 1], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      duct.quad([xm, 0, v.z1], [v.x1, 0, v.z1], [v.x1, v.h, v.z1], [xm, v.h, v.z1], [0, 0, -1], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      duct.quad([xm, v.h, v.z0], [v.x1, v.h, v.z0], [v.x1, v.h, v.z1], [xm, v.h, v.z1], [0, -1, 0], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      duct.quad([xm, 0.004, v.z0], [v.x1, 0.004, v.z0], [v.x1, 0.004, v.z1], [xm, 0.004, v.z1], [0, 1, 0], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      // Outside: the last length of it sticking out of the wall.
+      const lu = lip / SEC;
+      duct.quad([xm, 0, v.z0 - t], [v.x0, 0, v.z0 - t], [v.x0, v.h + t, v.z0 - t], [xm, v.h + t, v.z0 - t], [0, 0, -1], [[0, 0], [lu, 0], [lu, 1], [0, 1]]);
+      duct.quad([xm, 0, v.z1 + t], [v.x0, 0, v.z1 + t], [v.x0, v.h + t, v.z1 + t], [xm, v.h + t, v.z1 + t], [0, 0, 1], [[0, 0], [lu, 0], [lu, 1], [0, 1]]);
+      duct.quad([xm, v.h + t, v.z0 - t], [v.x0, v.h + t, v.z0 - t], [v.x0, v.h + t, v.z1 + t], [xm, v.h + t, v.z1 + t], [0, 1, 0], [[0, 0], [lu, 0], [lu, 1], [0, 1]]);
+      // The flange round its mouth, and a strip light just inside so the opening can be seen from across the street.
+      const rim = new Geo(), f = 0.09, glow = new Geo();
+      rim.box(xm - 0.03, xm + 0.02, v.h, v.h + f, v.z0 - f, v.z1 + f); rim.box(xm - 0.03, xm + 0.02, 0, v.h, v.z0 - f, v.z0); rim.box(xm - 0.03, xm + 0.02, 0, v.h, v.z1, v.z1 + f);
+      glow.box(xm + 0.05, xm + 0.09, v.h - 0.03, v.h, v.z0, v.z1); glow.box(xm + 0.05, xm + 0.09, 0, v.h, v.z0, v.z0 + 0.03); glow.box(xm + 0.05, xm + 0.09, 0, v.h, v.z1 - 0.03, v.z1);
+      for (let x = xm + SEC * 2; x < v.x1 - 0.2; x += SEC * 2) glow.box(x - 0.02, x + 0.02, v.h - 0.02, v.h, v.z0 + 0.2, v.z1 - 0.2);     // a work light every other section
+      this.group.add(duct.mesh(alu), rim.mesh(bare), glow.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.1, 1.3) })));
+      // The grille, still on its hinges on the far side of the opening and swung wide.
+      const grille = new THREE.Group(), gh = v.h - 0.04;
+      const bar = (bw, bh, bd, x, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), bare); m.position.set(x, y, 0); grille.add(m); return m; };
+      bar(w, 0.05, 0.04, w / 2, 0.025); bar(w, 0.05, 0.04, w / 2, gh - 0.025); bar(0.05, gh, 0.04, 0.025, gh / 2); bar(0.05, gh, 0.04, w - 0.025, gh / 2);
+      for (let y = 0.1; y < gh - 0.06; y += 0.075) bar(w - 0.08, 0.012, 0.06, w / 2, y).rotation.x = 0.7;       // louvres
+      for (const hy of [0.14, gh - 0.14]) { const h = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.12, 8), bare); h.position.set(0, hy, 0); grille.add(h); }
+      grille.position.set(xm - 0.03, 0.02, v.z0 - f); grille.rotation.y = Math.PI - 0.42;
+      this.group.add(grille);
+      const spill = new THREE.Mesh(new THREE.PlaneGeometry(5, 3), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.55, 0.8, 0.95), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+      spill.rotation.x = -Math.PI / 2; spill.position.set(xm - 1.9, 0.012, zc); spill.renderOrder = 4;
+      const arrows = new Geo(), ct = TX.chevrons(), ax0 = xm - 4.4, ax1 = xm - 0.3;
       arrows.quad([ax0, 0.016, v.z0 + 0.15], [ax1, 0.016, v.z0 + 0.15], [ax1, 0.016, v.z1 - 0.15], [ax0, 0.016, v.z1 - 0.15], [0, 1, 0], [[0, 0], [0, 4], [1, 4], [1, 0]]);
       const am = arrows.mesh(new THREE.MeshBasicMaterial({ map: ct, color: new THREE.Color(0.25, 0.95, 1.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
       am.renderOrder = 6; this.ventArrows = ct;

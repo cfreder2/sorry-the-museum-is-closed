@@ -210,3 +210,9 @@ the previous one was still being worked on; those are marked.
 ## 50
 
 > in sorry the musuem is closed, it's way to hard to find yoru way into the musuem.  It should be a clear hole near the door.
+
+## 51
+
+> The menu is still to big, and too may buttons on the phone, why are you asking me like 10 times, just do stuff.  If I hit new game, then just do it.
+>
+> Also, the "entrance" is all yellow? like no texture that I am going in the vent, and it's not super obvious it was a vent, the grate is to far off to the side.  I think make it look like an aluminum tunnel

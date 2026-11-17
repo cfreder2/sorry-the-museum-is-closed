@@ -156,11 +156,6 @@ h2 { font-weight: 400; font-size: 34px; letter-spacing: .16em; text-transform: u
 .big span:empty { display: none; }
 .big.second { background: rgba(12,13,19,.66); border-color: rgba(226,205,148,.35); min-width: 190px; }
 .big.second b { font-size: 18px; }
-.confirm { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--gilt); border-radius: 4px; background: rgba(12,13,19,.85); max-width: 30em; }
-.confirm p { margin: 0 0 10px; font-size: 15px; line-height: 1.45; }
-.confirm div { display: flex; gap: 10px; flex-wrap: wrap; }
-.confirm button { background: rgba(12,13,19,.7); border: 1px solid rgba(226,205,148,.4); border-radius: 4px; padding: 9px 14px; font-size: 14px; }
-.confirm button:hover { border-color: var(--gilt); background: rgba(226,205,148,.18); }
 .big:hover, .col button:hover { border-color: var(--gilt); background: rgba(226,205,148,.3); }
 .big[disabled] { opacity: .4; cursor: wait; }
 .keys { font: 11.5px/1.9 var(--mono); color: #b9b2a0; margin-top: 16px; letter-spacing: .03em; }
@@ -185,6 +180,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 .chk input { width: 20px; height: 20px; accent-color: var(--gilt); margin: 2px 0 0; }
 .chk b { display: block; font-weight: 400; font-size: 15px; color: var(--cream); }
 .row2 { margin-top: 12px; }
+.row2.inset { margin: 2px 0 12px; text-align: left; }
 .quiet { background: none; border: 0; border-bottom: 1px solid var(--gilt-dim); padding: 2px 0; font-size: 14px; color: var(--gilt); letter-spacing: .03em; margin-right: 22px; }
 .ctl { display: grid; grid-template-columns: auto 1fr; gap: 9px 18px; text-align: left; margin: 0 0 18px; font-size: 15px; line-height: 1.4; }
 .ctl dt { font: 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--gilt-dim); padding-top: 3px; white-space: nowrap; }
@@ -226,17 +222,21 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 #rotate p { margin: 0; font-size: 22px; letter-spacing: .12em; text-transform: uppercase; }
 @media (orientation: portrait) and (pointer: coarse) and (max-width: 820px) { #rotate { display: flex; } }
 
-/* a small screen gets a small menu: the name, the two choices, and Start */
+/* a phone gets a small menu: the name, two things to tap to change, and Start */
 @media (pointer: coarse), (max-height: 520px) {
-  #title .lede, #title .sel .hint, #title .big span { display: none; }
-  #title .over { font-size: 10px; }
-  #title h1 { font-size: clamp(20px, 4vw, 30px); margin: .1em 0 .4em; }
-  #title .choose { gap: 8px; margin-bottom: 12px; }
-  #title .sel { grid-template-columns: 7.2em 42px 190px 42px; }
-  #title .sel .arr { width: 42px; height: 42px; } #title .sel .val { font-size: 21px; }
-  #title .big { padding: 10px 22px; min-width: 200px; } #title .big.second { min-width: 0; }
-  #title .row2 { margin-top: 8px; }
-  #title.screen { background: linear-gradient(90deg, rgba(4,5,9,.88) 0%, rgba(4,5,9,.6) 55%, rgba(4,5,9,.1) 100%); }
+  #title .lede, #title .sel .hint, #title .big span, #title .sel .arr, #title .sel .lab, #title .more, #title .over { display: none; }
+  #title.screen { padding: 14px max(18px, env(safe-area-inset-left)); background: linear-gradient(90deg, rgba(4,5,9,.8) 0%, rgba(4,5,9,.45) 34%, rgba(4,5,9,0) 60%); align-items: center; }
+  #title .panel { max-width: 300px; margin: auto 0; }
+  #title h1 { font-size: 19px; letter-spacing: .12em; margin: 0 0 12px; line-height: 1.1; }
+  #title .choose { display: flex; gap: 8px; margin-bottom: 10px; }
+  #title .sel { display: block; }
+  #title .sel .val { font-size: 13px; letter-spacing: .12em; padding: 9px 12px; border: 1px solid rgba(226,205,148,.45); border-radius: 20px; background: rgba(12,13,19,.6); }
+  #title .sel .val::after { content: "  ⇄"; opacity: .6; }
+  #title .startrow { gap: 8px; flex-wrap: nowrap; align-items: center; }
+  #title .big { width: auto; min-width: 0; padding: 9px 20px; } #title .big b { font-size: 16px; letter-spacing: .16em; }
+  #title .big.second { padding: 9px 12px; border: 0; background: none; } #title .big.second b { font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+  #title .row2 { margin-top: 10px; } #title .quiet { font-size: 12px; }
+  #title .fine { font-size: 10.5px; margin-top: 8px; }
 }
 
 @media (max-width: 720px) {

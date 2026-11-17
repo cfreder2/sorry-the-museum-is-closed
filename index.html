@@ -107,16 +107,12 @@
     </div>
     <div class="startrow">
       <button class="big" data-act="start" data-first><b id="startLabel">Start</b><span id="startSub"></span></button>
-      <button class="big second" data-act="newgame" id="bNew" hidden><b>New game</b><span>Start again from nothing.</span></button>
-    </div>
-    <div id="confirmNew" class="confirm" hidden role="alertdialog" aria-labelledby="confirmText">
-      <p id="confirmText"></p>
-      <div><button data-act="newgameYes">Yes, start a new game</button><button data-act="newgameNo">No, keep my game</button></div>
+      <button class="big second" data-act="newgame" id="bNew" hidden><b>New game</b></button>
     </div>
     <div class="row2">
       <button class="quiet" data-act="settings">Settings</button>
-      <button class="quiet" data-act="controls">Controls</button>
-      <button class="quiet" data-act="about">About</button>
+      <button class="quiet more" data-act="controls">Controls</button>
+      <button class="quiet more" data-act="about">About</button>
     </div>
     <div class="fine" id="status" role="status">Opening the building…</div>
   </div>
@@ -130,7 +126,6 @@
       <button data-act="restart" id="pRestart">Restart the race</button>
       <button data-act="notebook">Field-trip notebook</button>
       <button data-act="settings">Settings</button>
-      <button data-act="controls">Controls</button>
       <button data-act="quit">Back to the front door</button>
     </div>
   </div>
@@ -191,6 +186,7 @@
       <label class="chk"><input type="checkbox" data-set="hold"><span><b>Hold my speed</b>Push forward once to keep going, pull back once to stop. Leaves one hand to steer.</span></label>
       <label class="chk"><input type="checkbox" data-set="mirror"><span><b>Floor reflections</b>Turn off on a slow machine.</span></label>
     </fieldset>
+    <div class="row2 inset"><button class="quiet" data-act="controls">Controls</button><button class="quiet" data-act="about">About</button></div>
     <div class="col"><button data-act="closeSettings">Done</button></div>
   </div>
 </section>

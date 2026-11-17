@@ -27,9 +27,9 @@ Impressionists running east along the bridge over the railway, medieval art and
 arms and armour down the south arm, the Greek and Roman rooms round McKinlock
 Court, the Modern Wing to the north-east. You start outside on Michigan Avenue,
 between the lions, and the doors are locked: a sign on the front door says
-so. The way in is right at the door and hard to miss: for the car, a lit hole at
-the foot of the wall just left of the doors, with arrows on the pavement
-running into it; for the drone, the fanlight over the doors standing open (a
+so. The way in is right at the door and hard to miss: for the car, an aluminium
+air duct at the foot of the wall just left of the doors, its grille swung open
+and arrows on the pavement running into it; for the drone, the fanlight over the doors standing open (a
 pane of the skylight over the Grand Staircase is open too). Once you are in, every
 outside door unlocks for good. Hints appear if you stay outside a while.
 
@@ -87,7 +87,7 @@ What is not true:
   out of the total, for the room you are in and for the whole museum, and what
   you have seen is remembered between visits: on coming back the title screen
   offers Continue, which puts you where you left off, or New game, which
-  throws the old one away. Place cards are dark until the
+  throws the old one away at once, without asking. Place cards are dark until the
   work has been seen. The map shows each room as not visited, visited with more
   to see (and how many), or finished. Press `E` at any work to leave
   the toy and stand in front of it like a person.
@@ -132,7 +132,8 @@ What is not true:
 - **The drone** can go outside and over the roofs.
 
 The title screen has two choices, Vehicle and Game mode, set to RC Car and
-Explore; press Start (or Enter).
+Explore; press Start (or Enter). On a phone the whole menu is five things to
+tap: the two choices, Continue, New game and Settings.
 
 With keys or a gamepad the controls are two sticks, like a toy transmitter. On
 a phone one thumbstick under the left thumb drives the car (forward to go, the
