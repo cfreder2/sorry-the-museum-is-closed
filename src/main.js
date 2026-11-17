@@ -86,6 +86,7 @@ async function boot() {
   const plan = G.plan = buildPlan();
   G.collection = collection;
   G.museum = new Museum(plan, collection, mirror, renderer.capabilities.getMaxAnisotropy());
+  G.museum.renderer = renderer;
   scene.add(G.museum.group);
   G.museum.onWake = art => sound.lamp(art);
   G.museum.onRoomLit = () => sound.roomChord();
@@ -110,7 +111,13 @@ async function boot() {
   G.race = new Race(scene, plan);
   G.props = new Props(plan);
   scene.add(G.props.group);
-  G.props.onHit = (p, sp) => sound.knock(sp, p.def.type === 'sign');
+  G.props.onHit = (p, sp) => {
+    if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
+    sound.poof(sp);
+    G.museum.winter.burst(p.pos.x, 0.2, p.pos.z, 60, 2.2 + sp * 0.35);
+    const n = G.props.busted, all = G.props.snowmen;
+    callout(n === all ? 'EVERY SNOWMAN' : `SNOWMAN ${n} / ${all}`);
+  };
 
   setVehicle('car');
   G.car.place(plan.spawn.x + 3, plan.spawn.z, plan.spawn.yaw);
@@ -158,6 +165,7 @@ function start(mode, fresh = false) {
   G.resultsAt = 0;
   endFlyby();
   G.props.reset();
+  G.museum.winter.clear();
   G.museum.showHoops(mode !== 'race');
   prev.set(0, -99, 0);
   G.study = null; G.facing = null;
@@ -740,7 +748,7 @@ function hud() {
       const here = G.roomId && m.rooms[G.roomId], rooms = m.galleries;
       $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><br>`
         + (here && here.arts.length ? `THIS ROOM <b>${here.seen}</b> / ${here.arts.length}` : 'OUTSIDE') + ` \u00b7 ROOMS <b>${rooms.filter(r => r.done).length}</b> / ${rooms.length}<br>`
-        + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal}</span>`;
+        + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal} \u00b7 snowmen ${G.props.busted} / ${G.props.snowmen}</span>`;
     } else {
       const R = G.race;
       $('rLap').textContent = `LAP ${Math.min(R.lap, LAPS)}/${LAPS}`;
@@ -799,6 +807,9 @@ function play(dt, real) {
   if (racing) for (const b of R.bots) movers.push({ x: b.x, y: b.y || 0, z: b.z, vx: (b.x - (b.px ?? b.x)) / Math.max(dt, 1e-3), vz: (b.z - (b.pz ?? b.z)) / Math.max(dt, 1e-3), r: 0.19 });
   if (racing) for (const b of R.bots) { b.px = b.x; b.pz = b.z; }
   if (!racing) G.props.update(dt, movers);
+  // Outdoors: tyre tracks, and a word about whatever sculpture you have just come up to.
+  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && !v.on && v.pos.y < 0.03 ? v : null, set.reduce);
+  if (!racing && !G.roomId) for (const a of G.plan.outdoorArt) if ((v.pos.x - a.x) ** 2 + (v.pos.z - a.z) ** 2 < a.r * a.r) once('out:' + a.text, a.text, 6);
 
   // Hoops.
   here.set(v.pos.x, v.pos.y + (v.kind === 'car' ? 0.12 : 0), v.pos.z);
@@ -928,6 +939,7 @@ function tick(now) {
   if (G.state === 'title') {
     attract(dt);
     G.museum.update(dt, camera.position, null, camera.position);
+    G.museum.winter.update(dt, G.t, camera.position, null, set.reduce);
     sound.update(null, false);
   } else if (G.state === 'play') {
     play(dt * slow.k, dt);

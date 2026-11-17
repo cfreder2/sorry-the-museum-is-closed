@@ -216,3 +216,11 @@ the previous one was still being worked on; those are marked.
 > The menu is still to big, and too may buttons on the phone, why are you asking me like 10 times, just do stuff.  If I hit new game, then just do it.
 >
 > Also, the "entrance" is all yellow? like no texture that I am going in the vent, and it's not super obvious it was a vent, the grate is to far off to the side.  I think make it look like an aluminum tunnel
+
+## 52 (sent during the build)
+
+> Add christmas tree in teh court yard, and pathways, make the sow interact and leave tire tracks and glisten outside with the rc car.  Add a skate park and ramps outdoors, like a pool you can play in.  Add fountains that are off for the winter, and snowment you can bust.  If there are skulptures, outdoors, add them.
+
+## 53 (sent during the build)
+
+> aThere is some pixelation / acttive distortion in side the vents and on the inner door.  not sure why?There is also a whol in the side of teh building.  Some performance challenges with framerates as well, when driving around, hitches? maybe the downloads?  when outside, no visible paitings same problem.

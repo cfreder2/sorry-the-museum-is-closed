@@ -7,6 +7,7 @@ import { T, HW, SPRING, VAULT_R, wallPoint, hang, heightOf, roomAt } from './pla
 import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
+import { buildWinter } from './winter.js';
 
 // ---------------------------------------------------------------- geometry --
 
@@ -108,15 +109,9 @@ function buildFrame(g, p, style) {
 // figure in a case, the backdrop is taken away: starting from the edges of the
 // photograph, everything that carries on looking like the edge is made clear.
 // When a real model of the piece exists, this is the function it replaces.
-function cutOut(img) {
-  const k = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight));
-  const w = Math.max(2, Math.round(img.naturalWidth * k)), h = Math.max(2, Math.round(img.naturalHeight * k));
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d', { willReadFrequently: true });
-  g.drawImage(img, 0, 0, w, h);
-  let data;
-  try { data = g.getImageData(0, 0, w, h); } catch { return c; }
-  const px = data.data, n = w * h, seen = new Uint8Array(n), stack = new Int32Array(n);
+// Works on the pixels alone and touches nothing outside itself, because it is also run in a worker.
+function cutPixels(px, w, h) {
+  const n = w * h, seen = new Uint8Array(n), stack = new Int32Array(n);
   let top = 0, cleared = 0;
   const lum = i => px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2];
   const sat = i => Math.max(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]) - Math.min(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
@@ -133,7 +128,7 @@ function cutOut(img) {
     }
   }
   // If almost nothing or almost everything went, the backdrop was not plain: keep the photograph whole.
-  if (cleared < n * 0.08 || cleared > n * 0.93) return c;
+  if (cleared < n * 0.08 || cleared > n * 0.93) return false;
 
   // Pockets. Backdrop shut in by the piece itself (between an arm and a body, through a handle)
   // cannot be reached from the edge. Learn what the backdrop looks like in each part of the
@@ -164,9 +159,47 @@ function cutOut(img) {
   for (let i = w; i < n - w; i++) if (!seen[i] && (seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w])) edge.push(i);
   for (const i of edge) seen[i] = 1;
   for (let i = 0; i < n; i++) if (seen[i]) px[i * 4 + 3] = 0;
-  g.putImageData(data, 0, 0);
+  return true;
+}
+
+// The same, on the page itself: used only where a worker cannot do it.
+function cutOut(img) {
+  const k = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(2, Math.round(img.naturalWidth * k)), h = Math.max(2, Math.round(img.naturalHeight * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, w, h);
+  let data;
+  try { data = g.getImageData(0, 0, w, h); } catch { return c; }
+  if (cutPixels(data.data, w, h)) g.putImageData(data, 0, 0);
   return c;
 }
+
+// Pictures are fetched, decoded and (for sculpture) cut out away from the page, so that none of it
+// can hold up a frame. What comes back is ready to hand straight to the graphics card.
+const LOADER = `${cutPixels.toString()}
+onmessage = async e => {
+  const { id, url, obj } = e.data;
+  try {
+    const r = await fetch(url, { mode: 'cors', referrerPolicy: 'no-referrer' });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const blob = await r.blob();
+    let bmp;
+    if (obj) {
+      const src = await createImageBitmap(blob);
+      const k = Math.min(1, 512 / Math.max(src.width, src.height)), w = Math.max(2, Math.round(src.width * k)), h = Math.max(2, Math.round(src.height * k));
+      const c = new OffscreenCanvas(w, h), g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(src, 0, 0, w, h); src.close();
+      const d = g.getImageData(0, 0, w, h);
+      if (cutPixels(d.data, w, h)) g.putImageData(d, 0, 0);
+      bmp = await createImageBitmap(c, { imageOrientation: 'flipY', premultiplyAlpha: 'none' });
+    } else bmp = await createImageBitmap(blob, { imageOrientation: 'flipY' });
+    postMessage({ id, bmp }, [bmp]);
+  } catch (err) {
+    // A browser that cannot do this at all says so once, and the page does the work itself from then on.
+    postMessage({ id, fail: true, cannot: err instanceof TypeError && !/fetch|network|load/i.test(String(err.message)) || typeof OffscreenCanvas === 'undefined' });
+  }
+};`;
 
 // The lamp does not simply come on. It catches, twice, like a tube warming up.
 function flicker(e) {
@@ -452,6 +485,7 @@ export class Museum {
     }
     // The Michigan Avenue front, the streets, the railway and the gardens.
     buildGrounds(this, plan);
+    this.winter = buildWinter(this, plan);
 
     // ---- closed ----
     // Every outside door is shut: two bronze leaves in each doorway, which swing open once you are in.
@@ -469,7 +503,7 @@ export class Museum {
         if (alongX) pivot.position.set(outer, 0, hingeAt); else pivot.position.set(hingeAt, 0, outer);
         // The leaf is built along local x from its hinge, then turned to lie across the doorway.
         const body = new THREE.Mesh(new THREE.BoxGeometry(w - 0.02, d.h - 0.04, 0.07), leafMat); body.position.set(-(w - 0.02) / 2, d.h / 2, 0);
-        const pane = new THREE.Mesh(new THREE.BoxGeometry(w - 0.5, d.h * 0.52, 0.075), paneMat); pane.position.set(-(w - 0.02) / 2, d.h * 0.6, 0);
+        const pane = new THREE.Mesh(new THREE.BoxGeometry(w - 0.5, d.h * 0.52, 0.1), paneMat); pane.position.set(-(w - 0.02) / 2, d.h * 0.6, 0);
         const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.16), new THREE.MeshStandardMaterial({ color: 0x9a7c3a, metalness: 0.7, roughness: 0.35, emissive: 0x3a2c10, emissiveIntensity: 0.6 })); bar.position.set(-(w - 0.25), 1.3, 0);
         leaf.add(body, pane, bar);
         // Shut, a leaf reaches from its hinge to the middle of the doorway; open, it stands out from the wall.
@@ -501,11 +535,13 @@ export class Museum {
       const alu = new THREE.MeshStandardMaterial({ map: sheet, emissiveMap: sheet, emissive: 0x8d98a6, emissiveIntensity: 0.55, metalness: 0.45, roughness: 0.42, side: THREE.DoubleSide });
       const bare = new THREE.MeshStandardMaterial({ color: 0xc3c9cf, emissive: 0x4a525c, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.4 });
       const duct = new Geo(), u0 = 0, u1 = (v.x1 - xm) / SEC, w = v.z1 - v.z0;
-      // Inside: two walls, a roof and a floor, every section seamed and riveted.
-      duct.quad([xm, 0, v.z0], [v.x1, 0, v.z0], [v.x1, v.h, v.z0], [xm, v.h, v.z0], [0, 0, 1], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
-      duct.quad([xm, 0, v.z1], [v.x1, 0, v.z1], [v.x1, v.h, v.z1], [xm, v.h, v.z1], [0, 0, -1], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
-      duct.quad([xm, v.h, v.z0], [v.x1, v.h, v.z0], [v.x1, v.h, v.z1], [xm, v.h, v.z1], [0, -1, 0], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
-      duct.quad([xm, 0.004, v.z0], [v.x1, 0.004, v.z0], [v.x1, 0.004, v.z1], [xm, 0.004, v.z1], [0, 1, 0], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      // Inside: two walls, a roof and a floor, every section seamed and riveted. A finger's width inside
+      // the hole cut for it, so no face of the duct lies in the same place as a face of the wall.
+      const e = 0.012, za = v.z0 + e, zb = v.z1 - e, top = v.h - e;
+      duct.quad([xm, 0, za], [v.x1, 0, za], [v.x1, top, za], [xm, top, za], [0, 0, 1], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      duct.quad([xm, 0, zb], [v.x1, 0, zb], [v.x1, top, zb], [xm, top, zb], [0, 0, -1], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      duct.quad([xm, top, za], [v.x1, top, za], [v.x1, top, zb], [xm, top, zb], [0, -1, 0], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+      duct.quad([xm, e, za], [v.x1, e, za], [v.x1, e, zb], [xm, e, zb], [0, 1, 0], [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
       // Outside: the last length of it sticking out of the wall.
       const lu = lip / SEC;
       duct.quad([xm, 0, v.z0 - t], [v.x0, 0, v.z0 - t], [v.x0, v.h + t, v.z0 - t], [xm, v.h + t, v.z0 - t], [0, 0, -1], [[0, 0], [lu, 0], [lu, 1], [0, 1]]);
@@ -514,8 +550,8 @@ export class Museum {
       // The flange round its mouth, and a strip light just inside so the opening can be seen from across the street.
       const rim = new Geo(), f = 0.09, glow = new Geo();
       rim.box(xm - 0.03, xm + 0.02, v.h, v.h + f, v.z0 - f, v.z1 + f); rim.box(xm - 0.03, xm + 0.02, 0, v.h, v.z0 - f, v.z0); rim.box(xm - 0.03, xm + 0.02, 0, v.h, v.z1, v.z1 + f);
-      glow.box(xm + 0.05, xm + 0.09, v.h - 0.03, v.h, v.z0, v.z1); glow.box(xm + 0.05, xm + 0.09, 0, v.h, v.z0, v.z0 + 0.03); glow.box(xm + 0.05, xm + 0.09, 0, v.h, v.z1 - 0.03, v.z1);
-      for (let x = xm + SEC * 2; x < v.x1 - 0.2; x += SEC * 2) glow.box(x - 0.02, x + 0.02, v.h - 0.02, v.h, v.z0 + 0.2, v.z1 - 0.2);     // a work light every other section
+      glow.box(xm + 0.05, xm + 0.09, v.h - 0.045, v.h - 0.015, v.z0 + 0.015, v.z1 - 0.015); glow.box(xm + 0.05, xm + 0.09, 0.015, v.h - 0.045, v.z0 + 0.015, v.z0 + 0.045); glow.box(xm + 0.05, xm + 0.09, 0.015, v.h - 0.045, v.z1 - 0.045, v.z1 - 0.015);
+      for (let x = xm + SEC * 2; x < v.x1 - 0.2; x += SEC * 2) glow.box(x - 0.02, x + 0.02, v.h - 0.035, v.h - 0.015, v.z0 + 0.2, v.z1 - 0.2);     // a work light every other section
       this.group.add(duct.mesh(alu), rim.mesh(bare), glow.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.1, 1.3) })));
       // The grille, still on its hinges on the far side of the opening and swung wide.
       const grille = new THREE.Group(), gh = v.h - 0.04;
@@ -867,6 +903,7 @@ export class Museum {
     const { plan } = this;
     const ply = new Geo(), stone = new Geo(), carpet = new Geo(), crate = new Geo(), wood = new Geo(), steel = new Geo();
     const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo(), gold = new Geo();
+    const poolG = new Geo(), snowG = new Geo(), coping = new Geo(), lane = new Geo(), chrome = new Geo();
     const n3 = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
     const ceilingAt = (x, z) => { const r = roomAt(plan, x, z); return !r ? 6 : r.kind === 'hall' ? SPRING + Math.sqrt(Math.max(0, VAULT_R * VAULT_R - z * z)) - 0.15 : r.h; };
 
@@ -890,10 +927,12 @@ export class Museum {
 
     for (const s of surfaces) {
       const { x0, x1, z0, z1, h0, h1 } = s;
-      if (s.skin === 'ply' || s.skin === 'track') {
-        const isTrack = s.skin === 'track', run = s.axis || s.run || 'x';
+      if (s.skin === 'ply' || s.skin === 'track' || s.skin === 'pool' || s.skin === 'snow') {
+        const isTrack = s.skin === 'track', isPool = s.skin === 'pool', isSnow = s.skin === 'snow', run = s.axis || s.run || 'x';
         // Curves are cut into slices; straight pieces are one slab.
-        const n = s.curve || s.ease ? 14 : 1, geo = isTrack ? track : ply;
+        const n = s.curve || s.ease ? 14 : 1, geo = isTrack ? track : isPool ? poolG : isSnow ? snowG : ply;
+        // The floor of the pool: a black line down the middle of it, as in any pool.
+        if (s.floor) { const zc = (z0 + z1) / 2; lane.quad([x0 + 2, h0 + 0.004, zc - 0.14], [x1 - 3.5, h0 + 0.004, zc - 0.14], [x1 - 3.5, h0 + 0.004, zc + 0.14], [x0 + 2, h0 + 0.004, zc + 0.14], [0, 1, 0]); }
         for (let i = 0; i < n; i++) {
           const a = i / n, b = (i + 1) / n;
           const rx0 = run === 'x' ? x0 + (x1 - x0) * a : x0, rx1 = run === 'x' ? x0 + (x1 - x0) * b : x1;
@@ -901,13 +940,13 @@ export class Museum {
           const { top } = slab(geo, s, rx0, rx1, rz0, rz1, isTrack ? run : null);
           // Light down both edges: a strip on plywood, a proper lip on track.
           const lipH = isTrack ? 0.06 : 0.03, edges = run === 'x' ? [[0, 1, 0.012], [3, 2, -0.012]] : [[0, 3, 0.012], [1, 2, -0.012]];
-          for (const [i0, i1, off] of edges) {
+          if (!isSnow && !s.floor) for (const [i0, i1, off] of edges) {
             const p0 = top(i0), p1 = top(i1);
             if (run === 'x') { p0[2] += off; p1[2] += off; } else { p0[0] += off; p1[0] += off; }
-            (s.perch ? gold : isTrack && !s.lip ? rail : led).quad(p0, p1, [p1[0], p1[1] + lipH, p1[2]], [p0[0], p0[1] + lipH, p0[2]], run === 'x' ? [0, 0, 1] : [1, 0, 0]);
+            (s.perch ? gold : isPool ? coping : isTrack && !s.lip ? rail : led).quad(p0, p1, [p1[0], p1[1] + lipH, p1[2]], [p0[0], p0[1] + lipH, p0[2]], run === 'x' ? [0, 0, 1] : [1, 0, 0]);
           }
           // Arrows running uphill on anything that slopes.
-          if (s.axis && !isTrack) {
+          if (s.axis && !isTrack && !isPool && !isSnow) {
             const up = h1 > h0, e = 0.014, t = [0, 1, 2, 3].map(k => { const q = top(k); q[1] += e; return q; });
             const m = (run === 'x' ? z1 - z0 : x1 - x0) * 0.18, L0 = (run === 'x' ? rx0 : rz0) / 0.55, L1 = (run === 'x' ? rx1 : rz1) / 0.55;
             if (run === 'x') { t[0][2] += m; t[1][2] += m; t[2][2] -= m; t[3][2] -= m; arrows.quad(t[0], t[1], t[2], t[3], [0, 1, 0], up ? [[0, L0], [0, L1], [1, L1], [1, L0]] : [[0, -L0], [0, -L1], [1, -L1], [1, -L0]]); }
@@ -939,6 +978,12 @@ export class Museum {
         wood.box(x0 + 0.05, x1 - 0.05, h0 - 0.16, h0 - 0.06, z0 + 0.06, z0 + 0.09);
         wood.box(x0 + 0.05, x1 - 0.05, h0 - 0.16, h0 - 0.06, z1 - 0.09, z1 - 0.06);
       }
+    }
+    // The pool's ladder, where a ladder would be.
+    if (extras && plan.pool) {
+      const q = plan.pool, zl = q.bz0 + 4.5;
+      for (const dz of [-0.25, 0.25]) { chrome.box(q.bx0 - 0.5, q.bx0 - 0.46, q.lip, q.lip + 0.8, zl + dz - 0.02, zl + dz + 0.02); chrome.box(q.bx0 - 0.5, q.bx0 + 0.1, q.lip + 0.76, q.lip + 0.8, zl + dz - 0.02, zl + dz + 0.02); chrome.box(q.bx0 + 0.06, q.bx0 + 0.1, q.lip - 0.5, q.lip + 0.8, zl + dz - 0.02, zl + dz + 0.02); }
+      for (let i = 0; i < 2; i++) chrome.box(q.bx0 + 0.06, q.bx0 + 0.1, q.lip - 0.15 - i * 0.28, q.lip - 0.11 - i * 0.28, zl - 0.25, zl + 0.25);
     }
     if (extras) for (const o of plan.obstacles) {
       if (o.leg) wood.box(o.x0, o.x1, 0, o.y1, o.z0, o.z1);
@@ -990,6 +1035,12 @@ export class Museum {
     put(steel, std({ color: 0x1a1c20, roughness: 0.45, metalness: 0.6 }));
     put(wire, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.16, 0.18, 0.22) }));
     put(track, std({ map: trackTex, roughness: 0.45, emissiveMap: trackTex, emissive: 0xffffff, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    const tile = TX.poolTile();
+    put(poolG, std({ map: tile, roughness: 0.25, emissiveMap: tile, emissive: 0x8fb4c8, emissiveIntensity: 0.34 }));
+    put(snowG, std({ map: this.snowTex, roughness: 0.95, emissiveMap: this.snowTex, emissive: new THREE.Color(0.3, 0.36, 0.52), emissiveIntensity: 0.55 }));
+    put(coping, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.97, 1.0), side: D }));
+    put(lane, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.02, 0.05, 0.12), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    put(chrome, std({ color: 0xd8dde2, roughness: 0.2, metalness: 0.8, emissive: 0x596270, emissiveIntensity: 0.6 }));
     put(rail, std({ color: 0xc8501a, roughness: 0.5, emissive: 0xc8501a, emissiveIntensity: 0.35 }));
     put(led, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45), side: D }));
     put(gold, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.22), side: D }));        // somewhere to land and look from
@@ -1148,6 +1199,7 @@ export class Museum {
     }
     this._weather(dt, t, cam);
     this._stream(pos, cam, roomId);
+    this._hang();
   }
 
   // Lock or unlock the building. Unlocking swings every outside door open.
@@ -1215,10 +1267,12 @@ export class Museum {
     const queue = [];
     for (const a of this.arts) {
       const d = Math.hypot(a.x - cam.x, a.z - cam.z);
-      let want = d < 55 ? 1 : (a.tier >= 1 && d < 80 ? 1 : 0);
+      // From outdoors almost nothing indoors can be seen: only what is close to a door is worth fetching.
+      let want = d < (roomId ? 55 : 26) ? 1 : (a.tier >= 1 && d < (roomId ? 80 : 45) ? 1 : 0);
       const near = a.mini || a.obj ? 5 : 13;
       if (d < near || (a.room === roomId && !a.mini && !a.obj && a.room !== 'hall')) want = 2;
       else if (a.tier === 2 && d < near + 9) want = 2;
+      if (a.obj && want > 1) want = 1;                  // a cut-out is made at one size: a bigger photograph adds nothing
       if (a.focus) want = 3;
       a.want = want;
       if (want > a.tier && !a.busy) queue.push([d - want * 4, a]);
@@ -1228,13 +1282,32 @@ export class Museum {
     for (const [, a] of queue) { if (this.loading >= 6) break; this._load(a, a.want); }
   }
 
+  // One picture a frame is handed to the graphics card, and no more: twenty arriving together used to stop the game for a moment.
+  _hang() {
+    const job = this._ready && this._ready.shift();
+    if (!job) return;
+    const { a, tier, url, source, flip } = job;
+    const t = source instanceof HTMLCanvasElement ? new THREE.CanvasTexture(source) : new THREE.Texture(source);
+    t.flipY = flip;
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = this.maxAniso;
+    t.needsUpdate = true;
+    if (this.renderer) this.renderer.initTexture(t);       // now, while it is the only one, not whenever it first comes into view
+    if (a.obj) a.mesh.visible = true;
+    const old = a.tex;
+    a.tex = t; a.tier = tier; a.url = url;
+    a.mat.map = a.mat.emissiveMap = t;
+    if (old) { old.dispose(); if (old.image && old.image.close) old.image.close(); }
+    a.busy = false; this.loading--;
+  }
+
   _drop(a, tier) {
     // Stepping down re-requests the smaller image; the browser has it cached.
     if (tier === 0) {
       // A long way off: give the picture's memory back. It is fetched again when you return.
-      if (a.tex) a.tex.dispose();
+      if (a.tex) { a.tex.dispose(); if (a.tex.image && a.tex.image.close) a.tex.image.close(); }
       a.tex = null; a.tier = 0; a.url = null;
-      a.mat.map = a.mat.emissiveMap = this.blank; a.mat.needsUpdate = true;
+      a.mat.map = a.mat.emissiveMap = this.blank;
       if (a.obj) a.mesh.visible = false;
       return;
     }
@@ -1246,23 +1319,38 @@ export class Museum {
     const url = imageUrl(a.work, px);
     if (url === a.url) { a.tier = tier; return; }       // an offline copy serves several tiers
     a.busy = true; this.loading++;
+    this._ready = this._ready || [];
+    if (this._worker === undefined) {
+      this._jobs = new Map(); this._jobId = 0;
+      try {
+        if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap !== 'function') throw new Error('no worker loading');
+        const w = this._worker = new Worker(URL.createObjectURL(new Blob([LOADER], { type: 'text/javascript' })));
+        const giveUp = () => { this._worker = null; w.terminate(); for (const j of this._jobs.values()) this._loadHere(j.a, j.tier, j.url); this._jobs.clear(); };
+        w.onerror = giveUp;
+        w.onmessage = e => {
+          const j = this._jobs.get(e.data.id);
+          if (!j) return;
+          this._jobs.delete(e.data.id);
+          if (e.data.bmp) { this._ok = true; this._ready.push({ a: j.a, tier: j.tier, url: j.url, source: e.data.bmp, flip: false }); return; }
+          // Whatever went wrong, the page has one try at this picture itself; and a worker that has
+          // never once delivered is given up on after three failures.
+          this._loadHere(j.a, j.tier, j.url);
+          this._misses = (this._misses || 0) + 1;
+          if (e.data.cannot || (!this._ok && this._misses >= 3)) giveUp();
+        };
+      } catch { this._worker = null; }
+    }
+    if (this._worker) { const id = ++this._jobId; this._jobs.set(id, { a, tier, url }); this._worker.postMessage({ id, url: new URL(url, location.href).href, obj: !!a.obj }); }
+    else this._loadHere(a, tier, url);
+  }
+  _failed(a) { a.failed = (a.failed || 0) + 1; setTimeout(() => { a.busy = false; this.loading--; }, Math.min(60000, 4000 * a.failed)); }
+  // The old way, on the page: an image element, and the cut-out done here.
+  _loadHere(a, tier, url) {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.referrerPolicy = 'no-referrer';
-    const done = () => { a.busy = false; this.loading--; };
-    img.onload = () => {
-      const t = a.obj ? new THREE.CanvasTexture(cutOut(img)) : new THREE.Texture(img);
-      if (a.obj) a.mesh.visible = true;
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = this.maxAniso;
-      t.needsUpdate = true;
-      const old = a.tex;
-      a.tex = t; a.tier = tier; a.url = url;
-      a.mat.map = a.mat.emissiveMap = t; a.mat.needsUpdate = true;
-      if (old) old.dispose();
-      done();
-    };
-    img.onerror = () => { a.failed = (a.failed || 0) + 1; setTimeout(done, Math.min(60000, 4000 * a.failed)); };
+    img.onload = () => this._ready.push({ a, tier, url, source: a.obj ? cutOut(img) : img, flip: true });
+    img.onerror = () => this._failed(a);
     img.src = url;
   }
 

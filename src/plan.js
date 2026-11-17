@@ -232,22 +232,62 @@ function addGrounds(plan) {
   const G = plan.grounds = {
     michigan: { x0: -24, x1: 1 }, walk: { x0: 1, x1: F.FX }, monroe: { z0: -38, z1: -27 }, jackson: { z0: 247, z1: 258 }, columbus: { x0: 276, x1: 294 },
     rail: { x0: 113, x1: 123 }, north: { x0: 8, x1: 63, z0: -16, z1: 53 }, south: { x0: 11, x1: 62, z0: 168, z1: 240 },
-    trees: [], hedges: [], train: null,
+    trees: [], hedges: [], train: null, paths: [], plazas: [], fountains: [], sculpt: [], snowmen: [],
   };
   // The Morton Wing's west wall, which the fountain stands against.
   const mw = Math.min(...plan.masses.filter(q => q.room && q.x0 > 50 && q.x0 < 100 && q.z0 < 203 && q.z1 > 190).map(q => q.x0), 80);
   G.south.x1 = mw - 0.5;
   G.fountain = { x: mw - 3.4, z: 196.5 };
   G.pool = { x0: 34, x1: Math.min(56, mw - 11), z0: 191.5, z1: 201.5 };
-  G.calder = { x: 38, z: 22 };
+  G.calder = { x: 42.5, z: 26 };
   plan.ice = [G.pool];                                   // frozen over
   plan.paved = [{ x0: G.michigan.x0, x1: F.FX, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
   // Ground the stunt park must keep off.
   plan.reserved = [{ x0: B.x0, x1: F.FX + 2, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: B.z0, z1: G.monroe.z1 + 2 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0 - 2, z1: B.z1 }, { x0: G.columbus.x0 - 2, x1: B.x1, z0: B.z0, z1: B.z1 },
     { x0: G.rail.x0 - 2, x1: G.rail.x1 + 2, z0: B.z0, z1: B.z1 }, G.north, G.south];
 
+  // Paths shovelled through the snow: across both gardens, over the railway, into the courtyard that
+  // Griffin Court's south door opens on, and round to the skate park.
+  const nmx = (G.north.x0 + G.north.x1) / 2, nmz = (G.north.z0 + G.north.z1) / 2, smx = (G.south.x0 + G.south.x1) / 2, smz = (G.south.z0 + G.south.z1) / 2, PW = 1.3;
+  const path = (x0, x1, z0, z1) => G.paths.push(x0 === x1 ? { x0: x0 - PW, x1: x1 + PW, z0: Math.min(z0, z1) - PW, z1: Math.max(z0, z1) + PW } : { x0: Math.min(x0, x1) - PW, x1: Math.max(x0, x1) + PW, z0: z0 - PW, z1: z1 + PW });
+  const CZ = 75.25;
+  path(G.north.x0 + PW, 137, nmz, nmz); path(nmx, nmx, G.north.z0 + PW, G.north.z1 - PW);
+  path(137, 137, nmz, CZ); path(137, 250, CZ, CZ); path(250, 250, CZ, 138);
+  path(175, 175, 73, CZ); path(160, 160, CZ, 82);
+  path(G.south.x0 + PW, G.south.x1 - 7, smz, smz); path(smx, smx, G.south.z0 + PW, G.pool.z0 - 2.4); path(smx, smx, G.pool.z1 + 2.4, G.south.z1 - PW);
+  for (const q of G.paths) plan.paved.push(q);
+  // The courtyard: the big tree, lit, with parcels under it, and Milles's Tritons with the water off.
+  G.tree = { x: 160, z: 87.5, h: 11.5 };
+  G.plazas.push({ x: G.tree.x, z: G.tree.z, r: 5.6 });
+  plan.paved.push({ x0: G.tree.x - 4, x1: G.tree.x + 4, z0: G.tree.z - 4, z1: G.tree.z + 4 });
+  O.push({ x0: G.tree.x - 0.3, x1: G.tree.x + 0.3, z0: G.tree.z - 0.3, z1: G.tree.z + 0.3, y0: 0, y1: G.tree.h });
+  O.push({ x0: G.tree.x - 2.1, x1: G.tree.x + 2.1, z0: G.tree.z - 2.1, z1: G.tree.z + 2.1, y0: 2.4, y1: 8 });        // the boughs: a car goes under them, a drone does not go through
+  G.parcels = [[1.5, 0.4, 0.5, 0.36, 0xb3242b], [-1.2, 1.1, 0.42, 0.3, 0x1f6a3a], [0.3, -1.6, 0.6, 0.3, 0xc9a23a], [-1.7, -0.6, 0.36, 0.42, 0x1f4f8a], [1.0, 1.5, 0.34, 0.24, 0xe9e4d6]].map(([dx, dz, w, h, c]) => ({ x: G.tree.x + dx, z: G.tree.z + dz, w, h, c }));
+  for (const b of G.parcels) O.push({ x0: b.x - b.w / 2, x1: b.x + b.w / 2, z0: b.z - b.w / 2, z1: b.z + b.w / 2, y0: 0, y1: b.h });
+  // Fountains, drained for the winter.
+  G.fountains.push({ kind: 'triton', x: 141, z: 87, r: 2.7, h: 3.6 }, { kind: 'bowl', x: 29.5, z: 12, r: 2.2, h: 1.9 });
+  for (const f of G.fountains) O.push({ x0: f.x - f.r, x1: f.x + f.r, z0: f.z - f.r, z1: f.z + f.r, y0: 0, y1: f.h });
+  // Sculpture that stands outdoors. (The Calder and the Fountain of the Great Lakes are placed above.)
+  G.sculpt.push({ kind: 'moore', x: 29.5, z: 26 }, { kind: 'cubi', x: 42.5, z: 12 }, { kind: 'arch', x: 266, z: -14, half: 7, open: 3.2, h: 8.6 });
+  O.push({ x0: 28.6, x1: 30.4, z0: 25.2, z1: 26.8, y0: 0, y1: 5 }, { x0: 41.8, x1: 43.2, z0: 11.3, z1: 12.7, y0: 0, y1: 3.2 });
+  { const a = G.sculpt[2]; O.push({ x0: a.x - 0.7, x1: a.x + 0.7, z0: a.z - a.half, z1: a.z - a.open, y0: 0, y1: a.h }, { x0: a.x - 0.7, x1: a.x + 0.7, z0: a.z + a.open, z1: a.z + a.half, y0: 0, y1: a.h }, { x0: a.x - 0.7, x1: a.x + 0.7, z0: a.z - a.open, z1: a.z + a.open, y0: 5.5, y1: a.h }); }
+  // What is said the first time you come up to each.
+  plan.outdoorArt = [
+    { x: G.calder.x, z: G.calder.z, r: 6, text: 'Alexander Calder, Flying Dragon.' },
+    { x: 29.5, z: 26, r: 5, text: 'Henry Moore, Large Interior Form.' },
+    { x: 42.5, z: 12, r: 5, text: 'David Smith, Cubi VII.' },
+    { x: G.fountain.x, z: G.fountain.z, r: 9, text: 'Lorado Taft, Fountain of the Great Lakes. Off for the winter.' },
+    { x: 141, z: 87, r: 7, text: 'Carl Milles, Fountain of the Tritons. Off for the winter.' },
+    { x: 266, z: -14, r: 10, text: 'Adler and Sullivan: the entrance arch of the old Chicago Stock Exchange.' },
+    { x: G.tree.x, z: G.tree.z, r: 12, text: 'The courtyard tree. You fit under the lowest branches.' },
+  ];
+  // Somebody has been building snowmen.
+  G.snowmen = [[5.6, F.cz - 7.2, 1], [6.1, F.cz + 6.6, 0.82], [32.6, 21.6, 1.05], [39.2, 15.2, 0.8], [152.5, 82, 1.1], [166, 93.2, 0.78], [170.5, 79.4, 0.95], [243.5, 136.5, 1], [206.5, 161, 0.85], [41.2, 207.6, 1.1], [30.5, 187.5, 0.8]].map(([x, z, s]) => ({ x, z, s }));
+  const keepOff = (x, z) => G.paths.some(q => x > q.x0 - 0.9 && x < q.x1 + 0.9 && z > q.z0 - 0.9 && z < q.z1 + 0.9) || G.snowmen.some(m => Math.hypot(x - m.x, z - m.z) < 1.4)
+    || G.fountains.some(f => Math.hypot(x - f.x, z - f.z) < f.r + 1.5) || G.sculpt.some(c => Math.hypot(x - c.x, z - c.z) < 3);
+
   // Trees, bare for the winter. Honey locusts in rows in the North Garden, hawthorns in a grid in the South, and a line along the avenue.
-  const tree = (x, z, kind) => { if (inMass(x, z)) return; G.trees.push({ x, z, kind, s: 0.85 + ((x * 13 + z * 7) % 10) / 30, yaw: (x * 3 + z * 5) % 6.28 }); O.push({ x0: x - 0.16, x1: x + 0.16, z0: z - 0.16, z1: z + 0.16, y0: 0, y1: 5 }); };
+  const tree = (x, z, kind) => { if (inMass(x, z) || keepOff(x, z)) return; G.trees.push({ x, z, kind, s: 0.85 + ((x * 13 + z * 7) % 10) / 30, yaw: (x * 3 + z * 5) % 6.28 }); O.push({ x0: x - 0.16, x1: x + 0.16, z0: z - 0.16, z1: z + 0.16, y0: 0, y1: 5 }); };
   for (let x = 13; x <= 60; x += 7.8) for (let z = -11; z <= 49; z += 7.5) if (!(x > 28 && x < 48 && z > 10 && z < 36)) tree(x, z, 'locust');
   for (let x = 15; x <= G.south.x1 - 3; x += 6.4) for (let z = 172; z <= 237; z += 6.4) {
     if (x > G.pool.x0 - 3 && x < G.pool.x1 + 3 && z > G.pool.z0 - 3 && z < G.pool.z1 + 3) continue;
@@ -265,6 +305,7 @@ function addGrounds(plan) {
   }
   O.push({ x0: G.fountain.x - 3.2, x1: G.fountain.x + 3, z0: G.fountain.z - 4.4, z1: G.fountain.z + 4.4, y0: 0, y1: 5 });
   O.push({ x0: G.calder.x - 0.5, x1: G.calder.x + 0.5, z0: G.calder.z - 0.5, z1: G.calder.z + 0.5, y0: 0, y1: 4 });
+  { const l = plan.facade; plan.outdoorArt.push({ x: l.PX - 3.4, z: l.cz - 15.5, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.' }, { x: l.PX - 3.4, z: l.cz + 15.5, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.', same: true }); }
   // A commuter train, stopped for the night in the cutting north of the bridge.
   const bridge = plan.masses.filter(q => q.x0 < G.rail.x1 && q.x1 > G.rail.x0).sort((a, b) => a.z0 - b.z0);
   G.railGaps = [];
@@ -532,6 +573,57 @@ function addStunts(plan) {
     for (const u of [-9, 9]) { cone(F, u, -1.5); cone(F, u, 9.2); }
     P.push({ type: 'sign', x: F.cx - 19, z: F.cz - 5, yaw: 1.2 });
   }
+
+  // ---- the skate park ----
+  // Beside the loop: a swimming pool with the water let out, tiled blue, three walls of it curved
+  // to carve up and the shallow end open to roll in by; and a plywood half-pipe.
+  const PG = plan.grounds;
+  {
+    const R = 3.0, run = 2.7, lip = R - Math.sqrt(R * R - run * run), dk = 1.2;
+    const o = { x0: 208, x1: 236, z0: 163.5, z1: 178.5 };
+    if (clearOutside(o.x0 - 4.5, o.x1, o.z0, o.z1)) {
+      const bx0 = o.x0 + dk, bz0 = o.z0 + dk, bz1 = o.z1 - dk, cz = (o.z0 + o.z1) / 2;
+      plan.pool = { ...o, bx0, bz0, bz1, lip };
+      plan.paved.push({ x0: o.x0, x1: o.x1 + 3, z0: o.z0, z1: o.z1 });
+      push('pool', [bx0, o.x1 + 2.5, bz0, bz1], null, 0.012, 0.012, { floor: true });
+      push('pool', [o.x0, o.x1, o.z0, bz0], null, lip, lip, { perch: 'pool side' }); push('pool', [o.x0, o.x1, bz1, o.z1], null, lip, lip, { perch: 'pool side' });
+      push('pool', [o.x0, bx0, bz0, bz1], null, lip, lip, { perch: 'pool side' });
+      push('pool', [bx0, bx0 + run, bz0, bz0 + run], null, lip, lip); push('pool', [bx0, bx0 + run, bz1 - run, bz1], null, lip, lip);
+      push('pool', [bx0 + run, o.x1, bz0, bz0 + run], 'z', lip, 0, { curve: R }); push('pool', [bx0 + run, o.x1, bz1 - run, bz1], 'z', 0, lip, { curve: R });
+      push('pool', [bx0, bx0 + run, bz0 + run, bz1 - run], 'x', lip, 0, { curve: R });
+      push('ply', [o.x0 - 4.2, o.x0, cz - 1.2, cz + 1.2], 'x', 0, lip, { ease: true });           // a way up onto the side, to drop in from
+      for (const x of [bx0 + run + 5, bx0 + run + 14]) { H.push({ x, y: lip + 1.5, z: bz0 + 0.3, axis: 'y', r: 1.05 }); H.push({ x: x + 4, y: lip + 1.5, z: bz1 - 0.3, axis: 'y', r: 1.05 }); }
+      H.push({ x: bx0 + 0.3, y: lip + 1.5, z: cz, axis: 'y', r: 1.05 });
+      P.push({ type: 'cone', x: o.x1 + 1.6, z: o.z0 + 0.6 }, { type: 'cone', x: o.x1 + 1.6, z: o.z1 - 0.6 });
+    }
+    const h = { x0: 252, x1: 265, z0: 143.5, z1: 156.5 };
+    if (clearOutside(h.x0, h.x1, h.z0 - 3.5, h.z1)) {
+      plan.paved.push(h);
+      push('ply', [h.x0, h.x0 + 1, h.z0, h.z1], null, lip, lip, { perch: 'half-pipe deck' }); push('ply', [h.x1 - 1, h.x1, h.z0, h.z1], null, lip, lip, { perch: 'half-pipe deck' });
+      push('ply', [h.x0 + 1, h.x0 + 1 + run, h.z0, h.z1], 'x', lip, 0, { curve: R }); push('ply', [h.x1 - 1 - run, h.x1 - 1, h.z0, h.z1], 'x', 0, lip, { curve: R });
+      push('ply', [h.x0, h.x0 + 1, h.z0 - 3.2, h.z0], 'z', 0, lip, { ease: true }); push('ply', [h.x1 - 1, h.x1, h.z0 - 3.2, h.z0], 'z', 0, lip, { ease: true });
+      for (const x of [h.x0 + 1.25, h.x1 - 1.25]) H.push({ x, y: lip + 1.5, z: (h.z0 + h.z1) / 2, axis: 'y', r: 1.05 });
+    }
+  }
+  // Snow, banked up into humps on the shovelled paths.
+  const hump = (x, z, axis, hh = 0.36, run = 1.5, w = 1.1) => {
+    if (axis === 'x') { push('snow', [x - run, x, z - w, z + w], 'x', 0, hh, { ease: true }); push('snow', [x, x + run, z - w, z + w], 'x', hh, 0, { ease: true }); }
+    else { push('snow', [x - w, x + w, z - run, z], 'z', 0, hh, { ease: true }); push('snow', [x - w, x + w, z, z + run], 'z', hh, 0, { ease: true }); }
+  };
+  hump(88, 18.5, 'x'); hump(104, 18.5, 'x', 0.45); hump(137, 46, 'z'); hump(205, 75.25, 'x'); hump(232, 75.25, 'x', 0.45); hump(250, 98, 'z'); hump(250, 122, 'z', 0.45); hump(24, 204, 'x');
+  // Snowmen, to be driven through.
+  for (const m of PG.snowmen) P.push({ type: 'snowman', x: m.x, z: m.z, s: m.s, yaw: (m.x * 7 + m.z * 3) % 6.28 });
+}
+
+// Is this bare snow: outdoors, off the streets, the paths, the ice and the railway?
+export function onSnow(plan, x, z) {
+  const G = plan.grounds;
+  if (x > G.rail.x0 && x < G.rail.x1) return false;
+  for (const q of plan.paved) if (x > q.x0 && x < q.x1 && z > q.z0 && z < q.z1) return false;
+  for (const q of plan.ice) if (x > q.x0 && x < q.x1 && z > q.z0 && z < q.z1) return false;
+  for (const c of G.plazas) if ((x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return false;
+  for (const m of plan.masses) if (x > m.x0 && x < m.x1 && z > m.z0 && z < m.z1) return false;
+  return true;
 }
 
 export function heightOf(s, x, z) {

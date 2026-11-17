@@ -56,6 +56,33 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   Nichols Bridgeway leaves its roof for Millennium Park.
 - **From the air** every skylit gallery shows its skylight.
 
+## Winter in the grounds
+
+- **The snow.** It glitters as you move past it, and the car leaves its tyre
+  tracks in it and throws a little up behind. Paths are shovelled through it:
+  across both gardens, over the railway, into the courtyard and round to the
+  skate park. Streets and paths grip; snow slides; the frozen pool does not
+  hold at all.
+- **The courtyard** that Griffin Court's south door opens on has the tree:
+  eleven and a half metres of it, lit, with a star, and parcels underneath.
+  The car fits under the lowest branches.
+- **Fountains are off for the winter**, each with a board saying so: the
+  Fountain of the Great Lakes, Carl Milles's Fountain of the Tritons in the
+  courtyard, and a bowl fountain in the North Garden. Snow lies where the water
+  was and ice hangs from the shells.
+- **Sculpture outdoors.** With Calder's *Flying Dragon* in the North Garden
+  stand Henry Moore's *Large Interior Form* and David Smith's *Cubi VII*; the
+  entrance arch of Adler and Sullivan's Chicago Stock Exchange stands at the
+  north-east corner, and can be driven or flown through; the lions wear their
+  December wreaths. Each is named the first time you come up to it. These are
+  simple shapes placed from memory of the real grounds, not surveyed.
+- **Snowmen.** Eleven of them, about the grounds. Drive through one and it
+  comes apart. They are counted.
+- **The skate park**, beside the loop: a swimming pool with the water let out,
+  tiled blue, three of its walls curved to carve up and its shallow end open to
+  roll in by, with a ramp up onto the side to drop in from; a plywood
+  half-pipe; and humps of banked-up snow on the paths.
+
 Where this departs from the real thing: there is no flight of steps up to the
 door (the galleries are on the ground here); the names on the frieze are a
 representative roll of old masters, not a transcription; sculpture outdoors is
@@ -170,6 +197,9 @@ the paintings, sculpture and armour, vessels, ceramics, metalwork, glass,
 furniture, prints, textiles and miniature rooms (about twenty-five requests, answer cached for twelve hours, well
 inside the 60-a-minute limit). Each work goes to the room whose gallery it is
 listed in. Images load from the museum's IIIF server at the sizes it recommends.
+They are fetched, decoded and (for sculpture) cut out in a worker, and handed to
+the graphics card one a frame, so a roomful arriving together cannot stop the
+game; from outdoors only works near a door are fetched at all.
 
 Three things the docs do not make obvious:
 
@@ -202,12 +232,13 @@ lets a test driver run the race. The game object is `window.__ah`.
     src/collection.js         API calls and sorting works into rooms
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
+    src/winter.js             paths, the courtyard tree, fountains, outdoor sculpture, glitter, tyre tracks
     src/geo.js                the small mesh builder both use
     src/textures.js           every surface, painted on a canvas at start-up
     src/reflect.js            polished-floor reflections
     src/vehicles.js           the car and the drone
     src/race.js               gates, laps, rivals
-    src/props.js              loose cones and signs
+    src/props.js              loose cones and signs, and snowmen
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
     vendor/                   three.js r170 (MIT)

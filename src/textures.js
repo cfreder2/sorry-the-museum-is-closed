@@ -318,6 +318,57 @@ export function duct() {
   return tex(c, { repeat: true });
 }
 
+// A swimming pool's tiles: small, square, blue-green, white in the joints. One metre of them.
+export function poolTile() {
+  const [c, g] = canvas(256, 256);
+  const r = rng(63);
+  g.fillStyle = '#e8f1f2'; g.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+    const v = r();
+    g.fillStyle = `hsl(${186 + v * 10}, ${58 + v * 14}%, ${44 + r() * 10}%)`;
+    g.fillRect(x * 32 + 2, y * 32 + 2, 28, 28);
+  }
+  return tex(c, { repeat: true });
+}
+
+// Flagstones with the snow swept off them and left lying in the joints.
+export function paving() {
+  const [c, g] = canvas(512, 512);
+  const r = rng(29);
+  g.fillStyle = '#e4eaf3'; g.fillRect(0, 0, 512, 512);
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+    const ox = (y % 2) * 64, v = 132 + r() * 26;
+    g.fillStyle = `rgb(${v},${v + 2},${v + 8})`;
+    for (const dx of [0, -512]) g.fillRect(x * 128 + ox + 4 + dx, y * 128 + 4, 120, 120);
+  }
+  g.globalAlpha = 0.5;
+  for (let k = 0; k < 90; k++) { g.fillStyle = '#eef2f8'; const sz = 3 + r() * 16; g.beginPath(); g.ellipse(r() * 512, r() * 512, sz * 1.6, sz * 0.6, r() * 3, 0, 7); g.fill(); }
+  g.globalAlpha = 1;
+  return tex(c, { repeat: true });
+}
+
+// What a knobbly tyre leaves in snow: a pressed strip with the blocks of the tread across it. Tiles along its length.
+export function tread() {
+  const [c, g] = canvas(32, 64);
+  g.clearRect(0, 0, 32, 64);
+  g.fillStyle = 'rgba(40,56,92,0.42)'; g.fillRect(2, 0, 28, 64);
+  g.fillStyle = 'rgba(22,32,58,0.8)';
+  for (let y = 0; y < 64; y += 16) { g.beginPath(); g.moveTo(3, y + 10); g.lineTo(16, y + 2); g.lineTo(29, y + 10); g.lineTo(29, y + 15); g.lineTo(16, y + 7); g.lineTo(3, y + 15); g.fill(); }
+  g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(0, 0, 2, 64); g.fillRect(30, 0, 2, 64);       // the ridge pushed up either side
+  const t = tex(c, { repeat: true });
+  return t;
+}
+
+// A board on a stake.
+export function notice(lines, bg = '#efe6cf', fg = '#1d3a2c') {
+  const [c, g] = canvas(512, 256);
+  g.fillStyle = bg; g.fillRect(0, 0, 512, 256);
+  g.strokeStyle = fg; g.lineWidth = 8; g.strokeRect(12, 12, 488, 232);
+  g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  lines.forEach((l, i) => { g.font = `${i === 0 ? '600 ' : 'italic '}${i === 0 ? 62 : 44}px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`; g.fillText(l, 256, 128 + (i - (lines.length - 1) / 2) * 68); });
+  return tex(c);
+}
+
 // Arrows of light that run up a ramp. Drawn white on black, used additively.
 export function chevrons() {
   const [c, g] = canvas(128, 128);

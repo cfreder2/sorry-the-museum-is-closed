@@ -43,7 +43,7 @@ export function buildGrounds(museum, plan) {
     // The stone ring round an arch.
     const surround = (X, zc, w, y0, spring) => {
       const r = w / 2 + 0.28, n = 10;
-      tr.box(X - 0.12, X, y0, spring, zc - r, zc - w / 2); tr.box(X - 0.12, X, y0, spring, zc + w / 2, zc + r);
+      tr.box(X - 0.12, X, y0, spring, zc - r, zc - w / 2 - 0.012); tr.box(X - 0.12, X, y0, spring, zc + w / 2 + 0.012, zc + r);
       for (let i = 0; i < n; i++) { const a = Math.PI * (i + 0.5) / n, y = spring + (r - 0.14) * Math.sin(a), z = zc + (r - 0.14) * Math.cos(a); tr.box(X - 0.12, X, y - 0.2, y + 0.2, z - 0.2, z + 0.2); }
     };
     const { FX, PX, cz } = F, p0 = cz - F.half, p1 = cz + F.half, WH = F.wing, PH = F.pav;
@@ -62,7 +62,9 @@ export function buildGrounds(museum, plan) {
       for (let i = 0; i < n; i++) { const zc = a + step * (i + 0.5); arch(dark, FX, zc, 1.5, 1.5, 3.1); }       // small ground-floor windows
       // The end of the wing, round the corner.
       const end = a === F.z0 ? a : b, nz = a === F.z0 ? -1 : 1;
-      wall.quad([FX, 0, end], [FX + 4, 0, end], [FX + 4, WH, end], [FX, WH, end], [0, 0, nz], [[0, 0], [1.5, 0], [1.5, WH / 2.6], [0, WH / 2.6]]);
+      // It goes back as far as the rooms do: stop short and you can see in round the corner.
+      const fill = plan.masses.find(q => q.facade && !q.pavilion && Math.abs((a === F.z0 ? q.z0 : q.z1) - end) < 0.01), back = Math.max(FX + 4, fill ? fill.x1 : 0);
+      wall.quad([FX, 0, end], [back, 0, end], [back, WH, end], [FX, WH, end], [0, 0, nz], [[0, 0], [(back - FX) / 2.6, 0], [(back - FX) / 2.6, WH / 2.6], [0, WH / 2.6]]);
     }
     // Names along the frieze. (A representative roll of old masters, not a transcription of the building's.)
     const names = ['PHIDIAS  ·  PRAXITELES  ·  GIOTTO  ·  DONATELLO  ·  BOTTICELLI  ·  LEONARDO', 'MICHELANGELO  ·  RAPHAEL  ·  TITIAN  ·  DÜRER  ·  REMBRANDT  ·  VELÁZQUEZ'];
@@ -104,9 +106,9 @@ export function buildGrounds(museum, plan) {
         tun.quad([t.x0, t.y0, t.z0], [t.x1, t.y0, t.z0], [t.x1, t.y1, t.z0], [t.x0, t.y1, t.z0], [0, 0, 1]);
         tun.quad([t.x0, t.y0, t.z1], [t.x1, t.y0, t.z1], [t.x1, t.y1, t.z1], [t.x0, t.y1, t.z1], [0, 0, -1]);
         tun.quad([t.x0, t.y1, t.z0], [t.x1, t.y1, t.z0], [t.x1, t.y1, t.z1], [t.x0, t.y1, t.z1], [0, -1, 0]);
-        tun.quad([t.x0, t.y0 + 0.004, t.z0], [t.x1, t.y0 + 0.004, t.z0], [t.x1, t.y0 + 0.004, t.z1], [t.x0, t.y0 + 0.004, t.z1], [0, 1, 0]);
+        tun.quad([t.x0, t.y0 + 0.03, t.z0], [t.x1, t.y0 + 0.03, t.z0], [t.x1, t.y0 + 0.03, t.z1], [t.x0, t.y0 + 0.03, t.z1], [0, 1, 0]);
       }
-      tr.box(PX - 0.1, PX, d.h - 0.02, d.h + 0.16, zc - dw, zc + dw);
+      tr.box(PX - 0.13, PX, d.h - 0.02, d.h + 0.16, zc - dw, zc + dw);
       if (k) {                                           // the side doors: bronze, and staying shut
         dark.quad([x, 0, zc + dw], [x, 0, zc - dw], [x, d.h, zc - dw], [x, d.h, zc + dw], W);
         bs.box(PX - 0.09, PX - 0.03, 0, d.h, zc - 0.05, zc + 0.05);
@@ -175,7 +177,8 @@ export function buildGrounds(museum, plan) {
     // The crossing at Adams Street, opposite the door.
     for (let z = F.cz - 3.2; z < F.cz + 3.2; z += 0.9) flat(paint, M.x0 + 0.5, M.x1 - 0.5, z, z + 0.45, 0.008);
     // The pavement, and the stone forecourt before the entrance.
-    flat(walk, M.x1, F.FX, B.z0, F.z0 - 6, 0.006, 2.5); flat(walk, M.x1, F.FX, F.z1 + 6, B.z1, 0.006, 2.5); flat(walk, M.x1, F.FX, F.z0 - 6, F.z1 + 6, 0.006, 2.5);
+    // The pavement stops at the wall: carried on underneath, it shows through the floor of the doorway and the duct.
+    flat(walk, M.x1, F.FX, B.z0, F.cz - F.half, 0.006, 2.5); flat(walk, M.x1, F.FX, F.cz + F.half, B.z1, 0.006, 2.5); flat(walk, M.x1, F.PX, F.cz - F.half, F.cz + F.half, 0.006, 2.5);
     kerb.box(M.x1 - 0.12, M.x1 + 0.12, 0, 0.07, B.z0, B.z1);
     const at = TX.asphalt();
     add(road.mesh(new THREE.MeshStandardMaterial({ map: at, roughness: 0.55, emissiveMap: at, emissive: new THREE.Color(0.4, 0.45, 0.6), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })));
@@ -251,11 +254,13 @@ export function buildGrounds(museum, plan) {
     const f = G.fountain, fg = new THREE.Group(), stoneWarm = new THREE.MeshStandardMaterial({ color: 0xb08a55, roughness: 0.8, emissive: 0x3a2c1a, emissiveIntensity: 0.6 });
     const put = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); fg.add(m); return m; };
     const cyl = new THREE.CylinderGeometry(1, 1, 1, 24), box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 12, 10);
+    const icicle = new THREE.ConeGeometry(1, 1, 6), iceMat = new THREE.MeshStandardMaterial({ color: 0xcfe6f5, roughness: 0.1, transparent: true, opacity: 0.8, emissive: 0x5a7f9c, emissiveIntensity: 0.7 });
     put(cyl, stoneWarm, -0.2, 0.45, 0, 3.6, 0.9, 4.2);                                   // the basin
-    put(cyl, new THREE.MeshStandardMaterial({ color: 0x16283a, roughness: 0.1, emissive: 0x0a1626, emissiveIntensity: 0.7 }), -0.2, 0.92, 0, 3.3, 0.02, 3.9);
+    put(cyl, snow, -0.2, 0.92, 0, 3.3, 0.02, 3.9);                                          // drained for the winter: snow where the water was
     put(box, verdigris, 1.2, 1.5, 0, 2.2, 1.3, 3.4); put(box, verdigris, 1.6, 2.6, 0, 1.5, 1.0, 2.2); put(box, verdigris, 1.9, 3.5, 0, 1.0, 0.9, 1.3);
     for (const [x, y, z] of [[1.9, 4.0, 0], [1.3, 3.1, -0.9], [1.2, 3.1, 0.9], [0.5, 2.15, -1.3], [0.5, 2.15, 1.2]]) {   // the five lakes
       put(cyl, verdigris, x, y + 0.75, z, 0.27, 1.5, 0.27); put(ball, verdigris, x, y + 1.65, z, 0.42, 0.42, 0.42); put(ball, verdigris, x - 0.35, y + 1.0, z, 0.5, 0.2, 0.5);
+      for (const dz of [-0.16, 0, 0.17]) { const ic = put(icicle, iceMat, x - 0.55, y + 0.78 - Math.abs(dz) * 0.4, z + dz, 0.025, 0.3 - Math.abs(dz) * 0.5, 0.025); ic.rotation.x = Math.PI; }     // nothing has run from the shells since November
     }
     for (const sgn of [-1, 1]) { put(box, stoneWarm, 0.2, 1.3, sgn * 3.6, 1.0, 0.9, 0.9); put(ball, verdigris, 0.2, 2.2, sgn * 3.6, 0.6, 0.9, 0.6); }      // the two boys with fish
     fg.position.set(f.x, 0, f.z);

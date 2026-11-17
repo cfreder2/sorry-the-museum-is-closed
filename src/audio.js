@@ -257,6 +257,16 @@ export class Sound {
     o.connect(e); e.connect(this.dry); e.connect(this.send); o.start(t); o.stop(t + 0.1);
     this.tick(g, big ? 600 : 1400, 0.05);
   }
+  // Packed snow coming apart: a soft thump and a hiss.
+  poof(speed) {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const t = c.currentTime, g = Math.min(0.3, 0.1 + speed * 0.02), o = c.createOscillator(), e = c.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.16);
+    e.gain.setValueAtTime(g, t); e.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    o.connect(e); e.connect(this.dry); o.start(t); o.stop(t + 0.24);
+    this.tick(g * 0.9, 2600, 0.22); this.tick(g * 0.6, 700, 0.12);
+  }
   lap() { const t = this.ctx ? this.ctx.currentTime : 0; [74, 78, 81].forEach((n, i) => this.bell(midi(n), t + i * 0.09, 0.06, 1.2)); }
   finish() { const t = this.ctx ? this.ctx.currentTime : 0; [74, 78, 81, 86, 90].forEach((n, i) => this.bell(midi(n), t + i * 0.13, 0.07, 3)); }
   roomChord() { const t = this.ctx ? this.ctx.currentTime : 0; [50, 57].forEach((n, i) => this.bell(midi(n), t + i * 0.05, 0.05, 4)); }
