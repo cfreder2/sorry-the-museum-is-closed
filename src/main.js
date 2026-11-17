@@ -115,7 +115,7 @@ async function boot() {
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
   G.hockey = new Hockey(G.museum, plan, sound);
-  G.hockey.onEvent = (text, kind) => { if (text) callout(text); else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); };
+  G.hockey.onEvent = (text, kind) => { if (text) callout(text); else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);

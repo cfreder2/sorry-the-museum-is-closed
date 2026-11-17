@@ -266,3 +266,15 @@ the previous one was still being worked on; those are marked.
 ## 63 (with a screenshot of the car on the scaffold's top landing, facing the roof)
 
 > I can't get over this lip or jump over it
+
+## 64
+
+> The car does not go smooth down the hill or jump off the top.  I should be able to launch onto the building from the hill
+
+## 65 (sent during the build)
+
+> The puck is way to hard to see, there is no slideing on the ice, the computer is too good.
+
+## 66 (sent during the build)
+
+> when you leave the hockey's vicinty, the game should stop

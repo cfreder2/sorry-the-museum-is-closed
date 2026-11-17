@@ -42,9 +42,9 @@ export class Hockey {
       for (const sz of [-1, 1]) put(new THREE.PlaneGeometry(D, H), net, x + sx * D / 2, H / 2, sz * W);
     }
     // The puck.
-    this.puck = { x: 0, z: 0, vx: 0, vz: 0, r: 0.15, mesh: put(new THREE.CylinderGeometry(0.15, 0.15, 0.07, 20), std({ color: 0x0c0c0e, roughness: 0.6, emissive: 0x16181c, emissiveIntensity: 0.9 }), 0, 0.05, 0) };
+    this.puck = { x: 0, z: 0, vx: 0, vz: 0, r: 0.24, mesh: put(new THREE.CylinderGeometry(0.24, 0.24, 0.1, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 0.9, 0.12) }), 0, 0.06, 0) };       // bright orange, like a street-hockey ball: black on black ice could not be seen
     put(new THREE.TorusGeometry(0.15, 0.012, 6, 20), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 0.9, 0.2) }), 0, 0, 0).visible = false;
-    this.halo = new THREE.Mesh(new THREE.RingGeometry(0.19, 0.23, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.1, 0.3), transparent: true, opacity: 0.8, depthWrite: false })); this.halo.rotation.x = -Math.PI / 2; g.add(this.halo);
+    this.halo = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(1.0, 0.45, 0.08), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })); this.halo.rotation.x = -Math.PI / 2; this.halo.renderOrder = 4; g.add(this.halo);       // and a pool of its own light on the ice round it
     // The other side: a blue car, parked in front of its goal until something happens.
     const m = buildCar(0x1f4f8a); if (m.lamp) m.group.remove(m.lamp, m.lamp.target);
     g.add(m.group); this.rival = { m, x: R.gx - 2.2, z: 0, yaw: -Math.PI / 2, v: 0, r: 0.19 };
@@ -76,7 +76,7 @@ export class Hockey {
     for (let r = 1; r < 8; r++) { const i = r * COLS + 11; C[i * 3] = C[i * 3 + 1] = C[i * 3 + 2] = 1.8; }
     this.pegCol.needsUpdate = true;
   }
-  _faceoff(wake) { const p = this.puck, b = this.rival, R = this.R; p.x = p.z = p.vx = p.vz = 0; b.x = R.gx - 2.2; b.z = 0; b.yaw = -Math.PI / 2; b.v = 0; this.live = wake; this.pause = wake ? 1.6 : 0; }
+  _faceoff(wake) { const p = this.puck, b = this.rival, R = this.R; p.x = p.z = p.vx = p.vz = 0; b.x = R.gx - 1.4; b.z = -R.gw - 1.7; b.yaw = -Math.PI / 2; b.v = 0; b.rest = 0; this.live = wake; this.pause = wake ? 1.6 : 0; }
   reset() { if (!this.R) return; this.you = this.bot = 0; this._board(); this._faceoff(false); }
   _goal(mine) {
     if (mine) this.you++; else this.bot++;
@@ -93,6 +93,8 @@ export class Hockey {
     if (!R) return;
     const p = this.puck, b = this.rival, vx = v.pos.x - R.x, vz = v.pos.z - R.z, low = v.pos.y < 0.5;
     const inside = (x, z, m = 0) => (x / (R.rx - m)) ** 2 + (z / (R.rz - m)) ** 2 < 1;
+    // Wander off and the game is off: everything goes back to its place and the score to nothing.
+    if (Math.hypot(vx, vz) > R.rx + 14 && (this.live || this.you || this.bot)) { this.away = (this.away || 0) + dt; if (this.away > 1.5) { this.reset(); if (this.onEvent) this.onEvent(null, 'left'); } } else this.away = 0;
     if (this.over > 0) { this.over -= dt; if (this.over <= 0) { this.you = this.bot = 0; this._board(); } }
     // Anything that drives into the puck sends it on its way.
     const strike = (mx, mz, mvx, mvz, mr) => {
@@ -111,23 +113,25 @@ export class Hockey {
       const rx = b.x - p.x, rz = b.z - p.z, rl = Math.hypot(rx, rz) || 1;
       const lined = (-rx * ax - rz * az) / rl;                 // 1 when the car, the puck and your goal are in a line, in that order
       let tx, tz;
-      if (lined > 0.97) { tx = p.x + ax * 1.2; tz = p.z + az * 1.2; }                                     // lined up: straight through it
+      if (lined > 0.88) { tx = p.x + ax * 1.2; tz = p.z + az * 1.2; }                                     // lined up: straight through it
       else if (rx * ax + rz * az > -0.2) {                                                                // on the wrong side: swing out round it
         const side = rx * -az + rz * ax > 0 ? 1 : -1;
         tx = p.x - ax * 0.5 - az * side * 1.3; tz = p.z - az * 0.5 + ax * side * 1.3;
       } else { tx = p.x - ax * 1.3; tz = p.z - az * 1.3; }                                                // behind it but off the line: get on the line
       let want = Math.atan2(tx - b.x, tz - b.z) - b.yaw; while (want > Math.PI) want -= Math.PI * 2; while (want < -Math.PI) want += Math.PI * 2;
-      b.yaw += Math.max(-4.6 * dt, Math.min(4.6 * dt, want));
+      b.yaw += Math.max(-3.0 * dt, Math.min(3.0 * dt, want));
       // It slows to turn, so that it can turn inside the space it has, and puts its foot down when it is pointing the right way.
-      const top = (lined > 0.97 ? 6.4 : 5.2) * Math.max(0.22, 1 - Math.abs(want) / 1.5);
-      b.v += Math.max(-12 * dt, Math.min(8 * dt, top - b.v));
+      // It is a slower car than yours, it lines its shots up roughly, and after every touch it takes a moment to think.
+      const top = (b.rest > 0 ? 0.8 : lined > 0.88 ? 4.6 : 3.6) * Math.max(0.22, 1 - Math.abs(want) / 1.5);
+      b.rest = Math.max(0, (b.rest || 0) - dt);
+      b.v += Math.max(-6 * dt, Math.min(4.5 * dt, top - b.v));
     } else b.v *= Math.exp(-4 * dt);
     b.x += Math.sin(b.yaw) * b.v * dt; b.z += Math.cos(b.yaw) * b.v * dt;
     if (!inside(b.x, b.z, 0.4)) { const k = Math.sqrt((b.x / (R.rx - 0.4)) ** 2 + (b.z / (R.rz - 0.4)) ** 2); b.x /= k; b.z /= k; b.v *= 0.9; }
     if (low) { const dx = b.x - vx, dz = b.z - vz, d = Math.hypot(dx, dz); if (d < 0.42 && d > 1e-6) { b.x = vx + dx / d * 0.42; b.z = vz + dz / d * 0.42; b.v *= 0.8; } }
-    if (strike(b.x, b.z, Math.sin(b.yaw) * b.v, Math.cos(b.yaw) * b.v, b.r)) this.sound.knock(Math.hypot(p.vx, p.vz), false);
+    if (strike(b.x, b.z, Math.sin(b.yaw) * b.v, Math.cos(b.yaw) * b.v, b.r)) { this.sound.knock(Math.hypot(p.vx, p.vz), false); b.rest = 0.6; }
     // The puck slides a long way on ice and bounces off the bank and the posts.
-    const f = Math.exp(-0.32 * dt); p.vx *= f; p.vz *= f;
+    const f = Math.exp(-0.2 * dt); p.vx *= f; p.vz *= f;
     const sp = Math.hypot(p.vx, p.vz); if (sp > 16) { p.vx *= 16 / sp; p.vz *= 16 / sp; }
     const ox = p.x; p.x += p.vx * dt; p.z += p.vz * dt;
     for (const sx of [-1, 1]) {
@@ -143,7 +147,7 @@ export class Hockey {
       let nx = p.x / (R.rx * R.rx), nz = p.z / (R.rz * R.rz); const nl = Math.hypot(nx, nz); nx /= nl; nz /= nl;
       const into = p.vx * nx + p.vz * nz; if (into > 0) { p.vx -= nx * into * 1.75; p.vz -= nz * into * 1.75; if (into > 2) this.sound.knock(into, true); }
     }
-    p.mesh.position.set(p.x, 0.05, p.z); this.halo.position.set(p.x, 0.02, p.z); this.halo.visible = !this.live;
+    p.mesh.position.set(p.x, 0.06, p.z); this.halo.position.set(p.x, 0.02, p.z);
     b.m.group.position.set(b.x, 0.012, b.z); b.m.group.rotation.y = b.yaw;
     if (b.m.wheels) for (const w of b.m.wheels) w.spin.rotation.x += b.v / w.r * dt;
   }

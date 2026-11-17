@@ -136,11 +136,19 @@ export class Car {
       this.wet = false;
       if (this.pos.y < 0.03 && !this.plan.racing) for (const p of this.plan.puddles) if ((this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
+      // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
+      const icy = !this.wet && !room && this.pos.y < 0.05 && this.plan.ice.some(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1);
+      if (icy) { grip = 0.15; bite *= 0.8; vf -= (vf - this._vf0) * 0.8; }
       rate = this.steer * bite * 3.6 / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);
-      vl *= Math.exp(-grip * dt);
       const nfx = Math.sin(this.yaw), nfz = Math.cos(this.yaw);
+      if (icy || this.wet) {
+        // Nothing holds it. What it was doing over the ground carries on, and comes round only slowly to where the wheels point.
+        // (Everywhere else the car simply goes where it is pointed, which is why nothing used to slide at all.)
+        const wx = fx * vf + rx * vl, wz = fz * vf + rz * vl;
+        vf = wx * nfx + wz * nfz; vl = (wx * -nfz + wz * nfx) * Math.exp(-grip * dt);
+      } else vl *= Math.exp(-grip * dt);
       this.vel.x = nfx * vf + (-nfz) * vl;
       this.vel.z = nfz * vf + nfx * vl;
     } else if (inp.trick) {
@@ -243,7 +251,11 @@ export class Car {
     const g = groundAt(this.plan, this.pos.x, this.pos.z, reach, STEP, this.on);
     const beneath = this.plan.under;
     const yb = this.pos.y + this.vy * dt - 0.5 * GRAVITY * dt * dt;
-    if (yb > g + 0.004) {
+    // On a hill the test is how hard the ground is falling away, not how far: the car leaves it when the round of the hill
+    // drops faster than the car can fall (by a clear margin, 4 m/s2), and that is the same test at any frame rate.
+    // A fixed distance let it hop at thirty frames a second and never leave the ground at sixty.
+    const onHill = !this.air && on && on.hill && beneath && beneath.hill;
+    if (onHill ? yb - g > 2 * dt * dt + 0.0002 : yb > g + 0.004) {
       if (!this.air) {
         this.air = true; this.airT = 0; this._from.x = this.pos.x; this._from.z = this.pos.z;
         this.vert = null;
@@ -299,6 +311,18 @@ export class Car {
           const run = along * d * Math.cos(th) + impact * Math.sin(th);
           if (run > Math.abs(along)) { if (L.axis === 'x') this.vel.x = d * run; else this.vel.z = d * run; }
         }
+        // Coming down on a hill. On the ground the car's speed is counted along the slope, in the air over the flat; leaving
+        // the ground turns one into the other, so touching down must turn it back, or every little hop over the round of a
+        // hill costs speed and the car judders to a stop. What it has along the slope is its whole motion, fall and all,
+        // laid along the slope: so a long drop onto a downhill side comes out as speed down the hill.
+        if (beneath && beneath.hill && !crash) {
+          const q = 0.3, gx = (heightOf(beneath, this.pos.x + q, this.pos.z) - heightOf(beneath, this.pos.x - q, this.pos.z)) / (2 * q), gz = (heightOf(beneath, this.pos.x, this.pos.z + q) - heightOf(beneath, this.pos.x, this.pos.z - q)) / (2 * q);
+          const vh = Math.hypot(this.vel.x, this.vel.z);
+          if (vh > 0.05) {
+            const tanV = (gx * this.vel.x + gz * this.vel.z) / vh, along = Math.max(0, (vh + this.vy * tanV) / Math.sqrt(1 + tanV * tanV)), k = along / vh;
+            this.vel.x *= k; this.vel.z *= k;
+          }
+        }
         const vs = Math.hypot(this.vel.x, this.vel.z), facing = vs > 0.8 ? Math.abs(this.vel.x * ffx + this.vel.z * ffz) / vs : 1;
         const flips = crash ? 0 : Math.round(this.flip / (Math.PI * 2)), spins = crash ? 0 : Math.round(Math.abs(this.spin) / Math.PI);
         // Perfect: a trick thrown, and the car brought round to land square, wheels flat to the surface, pointing the way it is going.
@@ -313,6 +337,10 @@ export class Car {
         this.vert = null;
         // Carry straight on down the slope landed on, rather than skipping off it.
         this.vy = 0;
+        if (beneath && beneath.hill) {
+          const q = 0.3;
+          this.vy = (heightOf(beneath, this.pos.x + q, this.pos.z) - heightOf(beneath, this.pos.x - q, this.pos.z)) / (2 * q) * this.vel.x + (heightOf(beneath, this.pos.x, this.pos.z + q) - heightOf(beneath, this.pos.x, this.pos.z - q)) / (2 * q) * this.vel.z;
+        }
         if (L && !crash && vs > 0.5) {
           const tv = axTan * (L.axis === 'x' ? this.vel.x : this.vel.z) / vs;
           this.vy = vs * tv / Math.sqrt(1 + tv * tv);

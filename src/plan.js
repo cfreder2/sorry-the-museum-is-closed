@@ -680,8 +680,23 @@ function addLand(plan) {
   const hill = (cx, cz, r, H, rz = r) => {
     if (!clear(cx - r, cx + r, cz - rz, cz + rz)) return;
     const s = { skin: 'hill', hill: true, axis: 'hill', cx, cz, rx: r, rz, H, x0: cx - r, x1: cx + r, z0: cz - rz, z1: cz + rz, h0: 0, h1: H, thick: 0 };
+    if (H >= 5) { s.bump = 0.9; s.br = 2.6; }
     S.push(s); plan.hills.push(s);
   };
+  // The ski jump: a long bank of packed snow run up against the north wall of the galleries over the
+  // railway, standing higher than their roof at the top. Take it flat out and you come down on the roof.
+  {
+    const g = plan.masses.find(m => m.room && m.room.id === 'G240');
+    if (g) {
+      const xa = g.x0 + 10.2, xb = xa + 4.6, zb = g.z0 - 3.2, za = zb - 28, H = g.top + 1.7;       // east of the open skylight, so that you land on roof and not in the hole
+      if (clear(xa, xb, za, zb, 0.6)) {
+        S.push({ skin: 'snow', x0: xa, x1: xb, z0: za, z1: zb, axis: 'z', h0: 0, h1: H, thick: 0, jump: true });
+        plan.paved.push({ x0: xa, x1: xb, z0: za - 12, z1: zb });
+        plan.decals.push({ x0: (xa + xb) / 2 - 0.6, x1: (xa + xb) / 2 + 0.6, z0: za - 9, z1: za - 0.2, axis: 'z', dir: 1 });
+        plan.skiJump = { x: (xa + xb) / 2, z0: za, z1: zb, H, roof: g.top };
+      }
+    }
+  }
   // Two big ones...
   hill(88, 38, 15, 6.5, 13); hill(240, 224, 20, 8.5, 17);
   // ...and swells wherever there is room.
@@ -744,7 +759,14 @@ export function onSnow(plan, x, z) {
 
 export function heightOf(s, x, z) {
   // A hill: a smooth mound, highest in the middle and running out flat at its foot.
-  if (s.hill) { const d = Math.hypot((x - s.cx) / s.rx, (z - s.cz) / s.rz); return d >= 1 ? 0 : s.H * (Math.cos(d * Math.PI) + 1) / 2; }
+  // A big one has a kicker of packed snow on the very top, to leave the ground from.
+  if (s.hill) {
+    const d = Math.hypot((x - s.cx) / s.rx, (z - s.cz) / s.rz);
+    if (d >= 1) return 0;
+    let h = s.H * (Math.cos(d * Math.PI) + 1) / 2;
+    if (s.bump) { const b = Math.hypot(x - s.cx, z - s.cz) / s.br; if (b < 1) h += s.bump * (Math.cos(b * Math.PI) + 1) / 2; }
+    return h;
+  }
   if (!s.axis) return s.h0;
   const t = s.axis === 'x' ? (x - s.x0) / (s.x1 - s.x0) : (z - s.z0) / (s.z1 - s.z0);
   if (s.curve) {
@@ -766,7 +788,7 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
     if (plan.racing && !s.line && s.skin !== 'bench' && !s.roof) continue;        // in a race, only what is on the track is there
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
-    if ((h <= y + step || (s === sticky && h <= y + 1.6)) && h > g) { g = h; under = s; }
+    if ((h <= y + step || s.hill || (s === sticky && h <= y + 1.6)) && h > g) { g = h; under = s; }      // a hill is ground at any height: there is no under it
   }
   plan.under = under;          // which piece that was, for whoever just asked
   return g;
@@ -775,7 +797,7 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
 // Is there a solid piece here standing taller than something at height y can climb?
 export function wallAt(plan, x, z, y, step = STEP, ignore = null) {
   for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
-    if (s === ignore || (plan.racing && !s.line && s.skin !== 'bench' && !s.roof)) continue;
+    if (s === ignore || s.hill || (plan.racing && !s.line && s.skin !== 'bench' && !s.roof)) continue;      // and never a wall
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if (h <= y + step) continue;

@@ -127,12 +127,24 @@ map (OpenStreetMap), placed in the same frame as the galleries:
 - **Hills.** The open ground is no longer flat: two big hills (one north of
   the building by the railway, one in the south-east corner) and eight low
   swells, wherever there is room clear of buildings, paths and streets. A hill
-  pulls a car down its slope, so one left on the side of it rolls.
+  pulls a car down its slope, so one left on the side of it rolls. Each big
+  hill has a kicker of packed snow on its summit: go over the top with speed
+  and you fly, and come down rolling on the far side. Tyre tracks and the
+  glitter follow the slopes.
+- **The ski jump.** A long bank of snow runs up against the north wall of the
+  galleries over the railway and stands higher than their roof. Take it flat
+  out and you land on the roof.
+- **Ice is ice.** On the frozen pool and the pond the wheels spin, the brakes
+  do little, and the car carries on the way it was going while it turns: from
+  the same speed it takes five times as far to stop as on snow.
 - **Pond hockey.** North of the building, between the garden and the railway,
   is a frozen pond with a goal at each end and a puck. A blue toy car waits in
   front of its goal; touch the puck and it wakes up. You shoot east, it shoots
   west, first to five. The score is kept in pegs of light on a board on the
-  scorer's table on the north bank. The ice is as slippery as the other pool.
+  scorer's table on the north bank. The puck is bright orange and lights the
+  ice round it. The blue car is slower than yours, lines its shots up roughly
+  and stops to think after every touch. Leave the pond and the game is off:
+  everything goes back to its place and the score to nothing.
 - **The train** in the cutting is a diesel and two double-deck gallery cars
   standing on wheels on rails, with frames, tanks and bogies underneath; it is
   solid from the rail up.

@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
-import { onSnow } from './plan.js';
+import { onSnow, heightOf } from './plan.js';
 
 export function buildWinter(museum, plan) {
   const G = plan.grounds, B = plan.bounds, group = museum.group;
@@ -56,9 +56,9 @@ export function buildWinter(museum, plan) {
 
   // ------------------------------------------------------------------ hills
   for (const h of plan.hills || []) {
-    const n = Math.max(20, Math.round(h.rx * 2.2)), geo = new THREE.PlaneGeometry(h.rx * 2, h.rz * 2, n, n); geo.rotateX(-Math.PI / 2);
+    const n = Math.max(24, Math.round(h.rx * 3.2)), geo = new THREE.PlaneGeometry(h.rx * 2, h.rz * 2, n, n); geo.rotateX(-Math.PI / 2);
     const p = geo.attributes.position, uv = geo.attributes.uv;
-    for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), d = Math.hypot(x / h.rx, z / h.rz); p.setY(i, d >= 1 ? -0.02 : h.H * (Math.cos(d * Math.PI) + 1) / 2 + 0.004); uv.setXY(i, (h.cx + x) / 6, (h.cz + z) / 6); }
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), d = Math.hypot(x / h.rx, z / h.rz); p.setY(i, d >= 1 ? -0.02 : heightOf(h, h.cx + x, h.cz + z) + 0.004); uv.setXY(i, (h.cx + x) / 6, (h.cz + z) / 6); }
     geo.computeVertexNormals();
     const m = new THREE.Mesh(geo, snow); m.position.set(h.cx, 0, h.cz); add(m);
   }
@@ -116,7 +116,7 @@ export function buildWinter(museum, plan) {
   const TILE = 44, NG = 9000;
   // The hills, for the glints and the tyre tracks to follow. (One flat one if there are none, so the shader has something to read.)
   const HILLS = plan.hills && plan.hills.length ? plan.hills : [{ cx: 0, cz: 0, rx: 1, rz: 1, H: 0 }];
-  const hillY = (x, z) => { let y = 0; for (const h of HILLS) { const d = Math.hypot((x - h.cx) / h.rx, (z - h.cz) / h.rz); if (d < 1) y = Math.max(y, h.H * (Math.cos(d * Math.PI) + 1) / 2); } return y; };
+  const hillY = (x, z) => { let y = 0; for (const h of HILLS) if (h.H) y = Math.max(y, heightOf(h, x, z)); return y; };
   let glints;
   {
     // Where there is snow to glitter: not in buildings, not on the streets, the paths, the ice or the kit.
@@ -135,12 +135,12 @@ export function buildWinter(museum, plan) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
     glints = new THREE.Points(g, new THREE.ShaderMaterial({
-      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE }, uHill: { value: HILLS.map(h => new THREE.Vector4(h.cx, h.cz, h.rx, h.rz)) }, uHillH: { value: HILLS.map(h => h.H) } },
-      vertexShader: `attribute float aSeed; uniform vec4 uHill[${HILLS.length}]; uniform float uHillH[${HILLS.length}]; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask; uniform vec4 uB; varying float vA;
+      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE }, uHill: { value: HILLS.map(h => new THREE.Vector4(h.cx, h.cz, h.rx, h.rz)) }, uHillH: { value: HILLS.map(h => h.H) }, uHillB: { value: HILLS.map(h => new THREE.Vector2(h.bump || 0, h.br || 1)) } },
+      vertexShader: `attribute float aSeed; uniform vec4 uHill[${HILLS.length}]; uniform float uHillH[${HILLS.length}]; uniform vec2 uHillB[${HILLS.length}]; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask; uniform vec4 uB; varying float vA;
         void main() {
           vec2 w = uCam.xz + mod(position.xz - uCam.xz + uTile * 0.5, uTile) - uTile * 0.5;
           float gy = 0.0;
-          for (int i = 0; i < ${HILLS.length}; i++) { float hd = length((w - uHill[i].xy) / uHill[i].zw); if (hd < 1.0) gy = max(gy, uHillH[i] * (cos(hd * 3.14159265) + 1.0) * 0.5); }
+          for (int i = 0; i < ${HILLS.length}; i++) { float hd = length((w - uHill[i].xy) / uHill[i].zw); if (hd < 1.0) { float hh = uHillH[i] * (cos(hd * 3.14159265) + 1.0) * 0.5, bd = length(w - uHill[i].xy) / uHillB[i].y; if (bd < 1.0) hh += uHillB[i].x * (cos(bd * 3.14159265) + 1.0) * 0.5; gy = max(gy, hh); } }
           vec4 mv = viewMatrix * vec4(w.x, gy + 0.03, w.y, 1.0); float d = -mv.z;
           float m = texture2D(uMask, (w - uB.xy) * uB.zw).r;
           vec3 to = normalize(uCam - vec3(w.x, 0.0, w.y));
