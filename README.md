@@ -27,9 +27,10 @@ Impressionists running east along the bridge over the railway, medieval art and
 arms and armour down the south arm, the Greek and Roman rooms round McKinlock
 Court, the Modern Wing to the north-east. You start outside on Michigan Avenue,
 between the lions, and the doors are locked: a sign on the front door says
-so. There is a way in for the car (a ventilation grille has come off low on
-the wall to the left of the entrance) and one for the drone (a pane of the
-skylight over the Grand Staircase is propped open). Once you are in, every
+so. The way in is right at the door and hard to miss: for the car, a lit hole at
+the foot of the wall just left of the doors, with arrows on the pavement
+running into it; for the drone, the fanlight over the doors standing open (a
+pane of the skylight over the Grand Staircase is open too). Once you are in, every
 outside door unlocks for good. Hints appear if you stay outside a while.
 
 ## The outside

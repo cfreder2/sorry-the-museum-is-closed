@@ -246,7 +246,12 @@ export class Museum {
             trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.46, r.h - 0.34, 0, 0.06);
           }
         }
-        for (const o of w.openings) q(o.lo, o.hi, o.h, r.h);
+        for (const o of w.openings) {
+          const t = o.door === plan.front ? plan.transom : null;
+          if (!t) { q(o.lo, o.hi, o.h, r.h); continue; }
+          // Over the front door the wall has the open fanlight in it.
+          q(o.lo, t.z0, o.h, r.h); q(t.z1, o.hi, o.h, r.h); q(t.z0, t.z1, o.h, t.y0); q(t.z0, t.z1, t.y1, r.h);
+        }
       }
       // The ceiling takes the room's own paint and glows with it, faintly.
       const hole = plan.skylight && plan.skylight.room === r.id ? plan.skylight : null;
@@ -488,23 +493,32 @@ export class Museum {
       this.closedSign = hang;
       this.group.add(hang);
     }
-    // The way in for a car: a grille off its screws, lying in the snow, and light getting out.
+    // The way in for a car: a hole through the foot of the wall beside the doors, lit from inside,
+    // edged with the same strip lights as the ramps, with arrows on the pavement running into it.
     if (plan.vent) {
       const v = plan.vent, zc = (v.z0 + v.z1) / 2, steel = new THREE.MeshStandardMaterial({ color: 0x5c6066, metalness: 0.7, roughness: 0.4, emissive: 0x1a1c20, emissiveIntensity: 0.5 });
-      const fr = new Geo(), x = v.x0 - 0.03;
-      fr.box(x, v.x0 + 0.05, v.h, v.h + 0.07, v.z0 - 0.07, v.z1 + 0.07); fr.box(x, v.x0 + 0.05, 0, v.h, v.z0 - 0.07, v.z0); fr.box(x, v.x0 + 0.05, 0, v.h, v.z1, v.z1 + 0.07);
-      fr.box(v.x0, v.x1, v.h, v.h + 0.02, v.z0, v.z1);                                   // the roof of the duct
-      for (const z of [v.z0, v.z1 - 0.02]) fr.box(v.x0, v.x1, 0, v.h, z, z + 0.02);
-      this.group.add(fr.mesh(steel));
+      const duct = new Geo(), edge = new Geo(), x = v.x0 - 0.07;
+      duct.quad([v.x0, 0, v.z0], [v.x1, 0, v.z0], [v.x1, v.h, v.z0], [v.x0, v.h, v.z0], [0, 0, 1]);
+      duct.quad([v.x0, 0, v.z1], [v.x1, 0, v.z1], [v.x1, v.h, v.z1], [v.x0, v.h, v.z1], [0, 0, -1]);
+      duct.quad([v.x0, v.h, v.z0], [v.x1, v.h, v.z0], [v.x1, v.h, v.z1], [v.x0, v.h, v.z1], [0, -1, 0]);
+      duct.quad([v.x0, 0.003, v.z0], [v.x1, 0.003, v.z0], [v.x1, 0.003, v.z1], [v.x0, 0.003, v.z1], [0, 1, 0]);
+      edge.box(x, v.x0, v.h, v.h + 0.07, v.z0 - 0.07, v.z1 + 0.07); edge.box(x, v.x0, 0, v.h, v.z0 - 0.07, v.z0); edge.box(x, v.x0, 0, v.h, v.z1, v.z1 + 0.07);
+      this.group.add(duct.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.58, 0.27), side: THREE.DoubleSide })), edge.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45) })));
+      // The grille that used to cover it, and the stones that came out.
       const grille = new THREE.Group();
-      for (let i = 0; i < 6; i++) { const slat = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 0.02), steel); slat.position.y = 0.05 + i * 0.085; grille.add(slat); }
-      for (const sx of [-0.5, 0.5]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.56, 0.03), steel); post.position.set(sx, 0.28, 0); grille.add(post); }
-      grille.position.set(v.x0 - 0.9, 0.03, zc + 1.25); grille.rotation.set(-1.25, 0.5, 0.1);
-      const spill = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 3.4), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(1.1, 0.8, 0.42), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
-      spill.rotation.x = -Math.PI / 2; spill.position.set(v.x0 - 2.2, 0.012, zc);
-      const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.5), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 0.8), side: THREE.DoubleSide }));
-      glow.rotation.y = Math.PI / 2; glow.position.set(v.x1 + 0.4, 0.26, zc); glow.visible = false;
-      this.group.add(grille, spill);
+      for (let i = 0; i < 7; i++) { const slat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.03, 0.02), steel); slat.position.y = 0.06 + i * 0.1; grille.add(slat); }
+      for (const sx of [-0.6, 0.6]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.74, 0.03), steel); post.position.set(sx, 0.37, 0); grille.add(post); }
+      grille.position.set(v.x0 - 0.5, 0.02, v.z0 - 0.9); grille.rotation.set(-0.35, Math.PI / 2 - 0.25, 0);
+      const rubble = new Geo();
+      for (const [dx, dz, sz] of [[-0.5, 0.9, 0.22], [-0.9, 1.25, 0.16], [-0.35, 1.5, 0.12], [-1.2, 0.75, 0.1]]) rubble.box(v.x0 + dx - sz, v.x0 + dx + sz, 0, sz * 1.1, v.z1 + dz - sz, v.z1 + dz + sz);
+      this.group.add(grille, rubble.mesh(new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: 0.9, emissive: 0x3a3f4f, emissiveIntensity: 0.5 })));
+      const spill = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.2), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(1.3, 0.9, 0.45), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+      spill.rotation.x = -Math.PI / 2; spill.position.set(v.x0 - 2.6, 0.012, zc); spill.renderOrder = 4;
+      const arrows = new Geo(), ct = TX.chevrons(), ax0 = v.x0 - 4.6, ax1 = v.x0 - 0.5;
+      arrows.quad([ax0, 0.016, v.z0 + 0.15], [ax1, 0.016, v.z0 + 0.15], [ax1, 0.016, v.z1 - 0.15], [ax0, 0.016, v.z1 - 0.15], [0, 1, 0], [[0, 0], [0, 4], [1, 4], [1, 0]]);
+      const am = arrows.mesh(new THREE.MeshBasicMaterial({ map: ct, color: new THREE.Color(0.25, 0.95, 1.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+      am.renderOrder = 6; this.ventArrows = ct;
+      this.group.add(spill, am);
     }
     // The way in for a drone: one pane of the big skylight left propped open, and the light coming up out of it.
     if (plan.skylight) {
@@ -1170,6 +1184,7 @@ export class Museum {
     this.balloon.rotation.z = Math.sin(t * 0.5) * 0.05;
     this.shaftMesh.material.opacity = 0.19 + Math.sin(t * 0.23) * 0.02;
     if (!this.calm) this.arrowTex.offset.y = -(t * 0.9) % 1;
+    if (!this.calm && this.ventArrows) this.ventArrows.offset.y = -(t * 0.9) % 1;
     for (const h of this.hoops) {
       if (h.pop > 0) { h.pop = Math.max(0, h.pop - dt * 1.6); h.mesh.scale.setScalar(1 + (this.calm ? 0 : h.pop * 0.5)); }
       const g = h.done ? 0.12 + h.pop * 2.5 : this.calm ? 1 : 0.85 + 0.15 * Math.sin(t * 3 + h.x);

@@ -45,12 +45,14 @@ export function buildPlan() {
   const front = (lobby && doors.find(d => d.a === 'G215' && d.out && d.along === 'x' && d.x1 <= lobby.x0 + 0.01)) || doors.find(d => d.out);
   if (front.a === 'G215') front.x0 = PX;                 // the way in runs right through the pavilion
   const fz = (front.z0 + front.z1) / 2;
-  const vr = byId.G216 || byId.G217;
-  let vent = null;
-  if (vr) {
-    const zc = Math.min(fz - 15.5, Math.round(vr.z0 + (vr.z1 - vr.z0) * 0.34));
-    vent = { id: 'vent', a: vr.id, b: 'out', along: 'x', x0: FX, x1: vr.x0, z0: zc - 0.5, z1: zc + 0.5, h: 0.52, out: true, vent: true };
+  // The museum is closed and every outside door is locked, but nobody has to hunt for the way in.
+  // For a car: a hole knocked through the foot of the wall right beside the front doors, lit from
+  // inside. For a drone: the fanlight over the same doors, left open.
+  let vent = null, transom = null;
+  if (front.a === 'G215') {
+    vent = { id: 'vent', a: 'G215', b: 'out', along: 'x', x0: PX, x1: lobby.x0, z0: fz - 4.4, z1: fz - 3.2, h: 0.75, out: true, vent: true };
     doors.push(vent);
+    transom = { x0: PX, x1: lobby.x0, z0: fz - 1.3, z1: fz + 1.3, y0: front.h + 0.36, y1: front.h + 1.5 };
   }
   // ...and somebody has left a pane of the big skylight over the Grand Staircase propped open.
   const sr = byId.G200;
@@ -63,6 +65,7 @@ export function buildPlan() {
   const hx = (hall.x0 + hall.x1) / 2;
   boxes.push({ x0: hx - 4, x1: hx + 4, z0: hall.z0, z1: hall.z1, y1: 14.5 });
   if (skylight) boxes.push({ x0: skylight.x0, x1: skylight.x1, z0: skylight.z0, z1: skylight.z1, y1: SKY });     // straight up and out
+  if (transom) boxes.push({ x0: transom.x0 - 1.6, x1: transom.x1 + 1.6, z0: transom.z0, z1: transom.z1, y0: transom.y0, y1: transom.y1 });   // above the door: for things that fly
   for (const d of doors) {
     const e = 1.6;
     boxes.push(d.along === 'z'
@@ -86,7 +89,7 @@ export function buildPlan() {
   const xs = rooms.flatMap(r => [r.x0, r.x1]), zs = rooms.flatMap(r => [r.z0, r.z1]);
   const bounds = { x0: -28, x1: Math.max(298, Math.max(...xs) + 12), z0: Math.min(-42, Math.min(...zs) - 12), z1: Math.max(262, Math.max(...zs) + 8) };
 
-  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made, vent, skylight, locked: true, facade };
+  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made, vent, transom, skylight, locked: true, facade };
   plan.walls = rooms.flatMap(r => wallsOf(plan, r));
   plan.doorsOf = id => doors.filter(d => d.a === id || d.b === id);
   // Where you begin: out on Michigan Avenue in the snow, facing the front door.
@@ -155,12 +158,13 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   let best = Infinity, bx = p.x, by = p.y, bz = p.z;
   for (const b of plan.boxes) {
     if (b.lock && plan.locked) continue;              // a locked door is a wall
+    if (b.y0 && !flying) continue;                    // a way through up in the air is no use to a car
     const x0 = b.x0 + r, x1 = b.x1 - r, z0 = b.z0 + r, z1 = b.z1 - r;
     if (x0 > x1 || z0 > z1) continue;
     const cx = p.x < x0 ? x0 : p.x > x1 ? x1 : p.x;
     const cz = p.z < z0 ? z0 : p.z > z1 ? z1 : p.z;
     let cy = p.y;
-    if (flying) { const y1 = b.y1 - r; cy = p.y > y1 ? y1 : p.y; }
+    if (flying) { const y1 = b.y1 - r; cy = p.y > y1 ? y1 : p.y; if (b.y0 && cy < b.y0 + r) cy = b.y0 + r; }
     const d = (cx - p.x) ** 2 + (cz - p.z) ** 2 + (cy - p.y) ** 2;
     if (d < best) { best = d; bx = cx; by = cy; bz = cz; if (d === 0) break; }
   }
@@ -281,7 +285,7 @@ function addGrounds(plan) {
   for (let zz = B.z0 + 16; zz < B.z1 - 6; zz += 26) lamp(1.7, zz + (Math.abs(zz - F.cz) < 3 ? 6 : 0));
   for (const d of plan.doors) if (d.out && !d.vent) {
     const r = plan.byId[d.a], cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
-    if (d.along === 'x') { const w = d.x0 < r.x0, ex = w ? d.x0 - 2.2 : d.x1 + 2.2; for (const sg of [-1, 1]) lamp(ex, cz + sg * (d === plan.front ? 4.6 : 3)); }
+    if (d.along === 'x') { const w = d.x0 < r.x0, ex = w ? d.x0 - 2.2 : d.x1 + 2.2; for (const sg of [-1, 1]) lamp(ex, cz + sg * (d === plan.front ? 6.6 : 3)); }
     else { const n = d.z0 < r.z0, ez = n ? d.z0 - 2.2 : d.z1 + 2.2; for (const sg of [-1, 1]) lamp(cx + sg * 3, ez); }
   }
 }

@@ -206,3 +206,7 @@ the previous one was still being worked on; those are marked.
 ## 49
 
 > find images of the chicago art institute from the outside, top, and sides.  Make the building look the same, and the grounds around it as well.
+
+## 50
+
+> in sorry the musuem is closed, it's way to hard to find yoru way into the musuem.  It should be a clear hole near the door.

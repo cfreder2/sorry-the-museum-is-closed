@@ -72,21 +72,40 @@ export function buildGrounds(museum, plan) {
     });
 
     // The entrance pavilion: three great arches below, three tall windows between columns above.
-    bs.box(PX - 0.14, PX, 0, 0.9, p0, p1);
-    face(PX, p0, p1, 0.9, 6.8, wall, 1.3);
+    // The lower storey has three things cut out of it: the doorway, the fanlight over it, and the hole beside it.
+    const d = plan.front, dw = (d.z1 - d.z0) / 2, v = plan.vent, fanTop = d.h + dw;
+    let zz = p0;
+    for (const [a, b] of [...(v ? [[v.z0, v.z1]] : []), [d.z0, d.z1]]) { bs.box(PX - 0.14, PX, 0, 0.9, zz, a); zz = b; }
+    bs.box(PX - 0.14, PX, 0, 0.9, zz, p1);
+    if (v) bs.box(PX - 0.14, PX, v.h + 0.07, 0.9, v.z0, v.z1);
+    face(PX, p0, d.z0, 0.9, 6.8, wall, 1.3); face(PX, d.z1, p1, 0.9, 6.8, wall, 1.3); face(PX, d.z0, d.z1, fanTop, 6.8, wall, 1.3);
+    for (let i = 0; i < 12; i++) {                       // the stone between the square of the opening and the round head of the arch
+      const a0 = Math.PI * i / 12, a1 = Math.PI * (i + 1) / 12, zA = cz + dw * Math.cos(a0), zB = cz + dw * Math.cos(a1);
+      wall.quad([PX, d.h + dw * Math.sin(a0), zA], [PX, d.h + dw * Math.sin(a1), zB], [PX, fanTop, zB], [PX, fanTop, zA], W);
+    }
     tr.box(PX - 0.25, PX, 6.8, 7.15, p0, p1);
     face(PX, p0, p1, 7.15, 10.7);
     tr.box(PX - 0.14, PX, 10.7, 11.6, p0, p1);
     tr.box(PX - 0.55, PX, 11.6, 11.95, p0 - 0.3, p1 + 0.3);
     face(PX, p0, p1, 11.95, PH);
     for (const side of [p0, p1]) { const nz = side === p0 ? -1 : 1; wall.quad([PX, 0, side], [FX, 0, side], [FX, PH, side], [PX, PH, side], [0, 0, nz], [[0, 0], [0.8, 0], [0.8, PH / 2.6], [0, PH / 2.6]]); wall.quad([FX, WH, side], [FX + 6, WH, side], [FX + 6, PH, side], [FX, PH, side], [0, 0, nz]); }
-    const d = plan.front, dw = (d.z1 - d.z0) / 2;
+    const tun = new Geo(), t = plan.transom;
     for (const k of [-1, 0, 1]) {
       const zc = cz + k * 7.6;
       surround(PX, zc, dw * 2, 0, d.h);
       // Above each door, a fanlight with the lobby lights left on behind it.
       const x = PX - 0.03, n = 10;
-      for (let i = 0; i < n; i++) { const a0 = Math.PI * i / n, a1 = Math.PI * (i + 1) / n; glow.quad([x, d.h, zc], [x, d.h + dw * Math.sin(a0), zc + dw * Math.cos(a0)], [x, d.h + dw * Math.sin(a1), zc + dw * Math.cos(a1)], [x, d.h, zc], W); }
+      if (k || !t) for (let i = 0; i < n; i++) { const a0 = Math.PI * i / n, a1 = Math.PI * (i + 1) / n; glow.quad([x, d.h, zc], [x, d.h + dw * Math.sin(a0), zc + dw * Math.cos(a0)], [x, d.h + dw * Math.sin(a1), zc + dw * Math.cos(a1)], [x, d.h, zc], W); }
+      else {
+        // The middle fanlight stands open: a lit way through, over the locked doors, for anything that flies.
+        const bx = PX + 0.06;
+        dark.quad([bx, d.h, zc - dw], [bx, d.h, t.z0], [bx, fanTop, t.z0], [bx, fanTop, zc - dw], W); dark.quad([bx, d.h, t.z1], [bx, d.h, zc + dw], [bx, fanTop, zc + dw], [bx, fanTop, t.z1], W);
+        dark.quad([bx, t.y1, t.z0], [bx, t.y1, t.z1], [bx, fanTop, t.z1], [bx, fanTop, t.z0], W);
+        tun.quad([t.x0, t.y0, t.z0], [t.x1, t.y0, t.z0], [t.x1, t.y1, t.z0], [t.x0, t.y1, t.z0], [0, 0, 1]);
+        tun.quad([t.x0, t.y0, t.z1], [t.x1, t.y0, t.z1], [t.x1, t.y1, t.z1], [t.x0, t.y1, t.z1], [0, 0, -1]);
+        tun.quad([t.x0, t.y1, t.z0], [t.x1, t.y1, t.z0], [t.x1, t.y1, t.z1], [t.x0, t.y1, t.z1], [0, -1, 0]);
+        tun.quad([t.x0, t.y0 + 0.004, t.z0], [t.x1, t.y0 + 0.004, t.z0], [t.x1, t.y0 + 0.004, t.z1], [t.x0, t.y0 + 0.004, t.z1], [0, 1, 0]);
+      }
       tr.box(PX - 0.1, PX, d.h - 0.02, d.h + 0.16, zc - dw, zc + dw);
       if (k) {                                           // the side doors: bronze, and staying shut
         dark.quad([x, 0, zc + dw], [x, 0, zc - dw], [x, d.h, zc - dw], [x, d.h, zc + dw], W);
@@ -95,6 +114,18 @@ export function buildGrounds(museum, plan) {
       arch(dark, PX, zc, 2.5, 7.7, 9.1); surround(PX, zc, 2.5, 7.7, 9.1);
     }
     add(wall.mesh(stone), tr.mesh(trim), bs.mesh(base), dark.mesh(night), glow.mesh(warm));
+    if (t) {
+      add(tun.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.58, 0.27), side: THREE.DoubleSide })));
+      // The sash itself, swung out and down on its hinges, and the same strip light round the opening as round the hole below.
+      const sash = new Geo(), r = dw - 0.12;
+      for (let i = 0; i < 12; i++) { const a = Math.PI * (i + 0.5) / 12; sash.box(-0.03, 0.03, r * Math.sin(a) - 0.09, r * Math.sin(a) + 0.09, r * Math.cos(a) - 0.3, r * Math.cos(a) + 0.3); }
+      sash.box(-0.03, 0.03, -0.06, 0.06, -r, r); sash.box(-0.03, 0.03, 0, r, -0.04, 0.04);
+      const sm = sash.mesh(base); sm.position.set(PX - 0.1, d.h + 0.2, cz); sm.rotation.z = 1.25; add(sm);
+      const led = new Geo();
+      led.box(PX - 0.09, PX - 0.02, t.y0, t.y0 + 0.07, t.z0, t.z1); led.box(PX - 0.09, PX - 0.02, t.y1 - 0.07, t.y1, t.z0, t.z1);
+      led.box(PX - 0.09, PX - 0.02, t.y0, t.y1, t.z0 - 0.07, t.z0); led.box(PX - 0.09, PX - 0.02, t.y0, t.y1, t.z1, t.z1 + 0.07);
+      add(led.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45) })));
+    }
     // Columns between the upper windows.
     const col = new THREE.CylinderGeometry(0.34, 0.38, 3.5, 14), cap = new THREE.BoxGeometry(0.95, 0.24, 0.95);
     for (const k of [-11.4, -3.8, 3.8, 11.4]) {
@@ -120,7 +151,7 @@ export function buildGrounds(museum, plan) {
     // Stone urns either side of the way in, as in the photographs.
     const urn = new THREE.CylinderGeometry(0.55, 0.3, 0.7, 12), ped = new THREE.BoxGeometry(0.9, 1.0, 0.9), bush = new THREE.SphereGeometry(0.5, 10, 8);
     const green = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.9, emissive: 0x0e1c12, emissiveIntensity: 0.6 });
-    for (const k of [-3.8, 3.8, -11.6, 11.6]) {
+    for (const k of [-11.6, 11.6]) {
       const a = new THREE.Mesh(ped, trim), u = new THREE.Mesh(urn, trim), s2 = new THREE.Mesh(bush, green);
       a.position.set(PX - 1.0, 0.5, cz + k); u.position.set(PX - 1.0, 1.35, cz + k); s2.position.set(PX - 1.0, 1.85, cz + k); s2.scale.y = 0.7;
       add(a, u, s2);

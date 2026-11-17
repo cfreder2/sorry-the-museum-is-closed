@@ -180,8 +180,8 @@ function start(mode, fresh = false) {
     G.museum.setLocked(!(sv && unlocked()), true);
     G.outsideSince = G.t; G.hinted = 0;
     sound.musicOn = true;
-    say(resumed ? `Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.` : 'Sorry, the museum is closed. The doors are locked.', 1.2, 6);
-    if (!resumed) say('There is always another way into a building.', 8, 6);
+    if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
+    else say(G.toy === 'drone' ? 'Locked. But the window over the doors is open: fly in.' : 'Locked. But there is a hole in the wall just left of the doors: drive in.', 3.5, 9);
     if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.', 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
@@ -217,8 +217,8 @@ function letIn() {
 function hints(v, room) {
   if (!G.plan.locked || room || G.mode !== 'explore') return;
   const out = G.t - G.outsideSince;
-  if (G.hinted === 0 && out > 40) { G.hinted = 1; say(v.kind === 'drone' ? 'Up on the roof, light is coming out of somewhere.' : 'Along the wall to the left of the doors, low down, light is getting out onto the snow.', 0, 9); }
-  else if (G.hinted === 1 && out > 85) { G.hinted = 2; say(v.kind === 'drone' ? 'A pane of the big skylight has been left propped open. Fly down through it.' : 'A grille has come off a vent at the foot of the wall. A toy car would fit.', 0, 10); }
+  if (G.hinted === 0 && out > 30) { G.hinted = 1; say(v.kind === 'drone' ? 'The way in is the open window over the front doors, with the blue light round it.' : 'The way in is the lit hole at the foot of the wall, just left of the front doors. Follow the arrows.', 0, 10); }
+  else if (G.hinted === 1 && out > 70) { G.hinted = 2; say(v.kind === 'drone' ? 'Or go over the roof: a pane of the big skylight is propped open too.' : 'Press V for the drone if you would rather fly in through the window over the doors.', 0, 10); }
 }
 
 // ---- one game at a time, kept between visits ----
