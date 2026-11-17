@@ -17,6 +17,7 @@ import { Race, LAPS, clockText } from './race.js';
 import { Props } from './props.js';
 import { Poker } from './poker.js';
 import { Hockey } from './hockey.js';
+import { Telemetry } from './telemetry.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -62,7 +63,7 @@ input.onGesture = () => sound.unlock();
 
 // Settings, kept between visits. Reduced motion starts on if the system asks for it.
 const SETTINGS = 'after-hours.settings';
-const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true };
+const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true };
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
 
 const G = {
@@ -73,7 +74,10 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-window.__ah = G;
+const BUILD = '2026.11.17';          // bump when publishing something worth telling apart in the numbers
+const tm = G.tm = new Telemetry({ build: BUILD });
+// The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
+Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
 try { G.seen = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); } catch { /* no storage */ }
 
 const camLook = new THREE.Vector3(60, 5, 120);
@@ -115,7 +119,7 @@ async function boot() {
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
   G.hockey = new Hockey(G.museum, plan, sound);
-  G.hockey.onEvent = (text, kind) => { if (text) callout(text); else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
+  G.hockey.onEvent = (text, kind) => { if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);
@@ -163,6 +167,7 @@ function setVehicle(kind) {
 }
 
 function start(mode, fresh = false) {
+  queueMicrotask(() => tm.begin({ mode, toy: G.toy, resumed: mode === 'explore' && resumed && !fresh, seen: G.museum.seenCount }));
   sound.unlock();
   G.mode = mode;
   G.museum.sleep();
@@ -220,7 +225,16 @@ function start(mode, fresh = false) {
 const IN = 'after-hours.in';
 function unlocked() { try { return localStorage.getItem(IN) === '1'; } catch { return false; } }
 // The first time you are inside, the building gives up: every outside door unlocks and swings open.
+// Which way in was it? Told from where the toy is when it first finds itself indoors.
+function wayIn() {
+  const v = G.vehicle, P = G.plan, x = v.pos.x, z = v.pos.z;
+  if (v.kind === 'car' && (G.roofed || v.pos.y > 3)) return 'roof';
+  if (v.kind === 'drone') return P.skylights.some(k => x > k.x0 - 2.5 && x < k.x1 + 2.5 && z > k.z0 - 2.5 && z < k.z1 + 2.5) ? 'skylight' : 'fanlight';
+  const h = P.holes.find(d => Math.hypot((d.x0 + d.x1) / 2 - x, (d.z0 + d.z1) / 2 - z) < 6);
+  return h ? h.kind : 'vent';
+}
 function letIn() {
+  tm.inside(wayIn());
   G.museum.setLocked(false, false);
   try { localStorage.setItem(IN, '1'); } catch { /* fine */ }
   callout('YOU\u2019RE IN'); sound.finish();
@@ -302,6 +316,8 @@ function applySettings(save) {
   document.body.classList.toggle('bigtext', set.big);
   mirror.enabled = set.mirror;
   input.hold = set.hold;
+  tm.allowed = set.stats !== false;
+  tm.settings = { reduce: !!set.reduce, big: !!set.big, hold: !!set.hold, slowmo: !!set.slowmo, mirror: !!set.mirror };
   if (G.museum) G.museum.calm = set.reduce;
   if (G.race) G.race.calm = set.reduce;
   if (G.car) G.car.calm = set.reduce;
@@ -591,6 +607,7 @@ function flight(v, real, racing) {
 
 // Leave the toy where it is and stand in front of the work like a person.
 function beginStudy(art) {
+  tm.event('look', art.work.id, { t: String(art.work.t || '').slice(0, 80), room: art.room });
   endFlyby();
   // On a phone the label would sit on the work, so it says its piece and fades; INFO brings it back.
   const brief = input.usedTouch || innerHeight <= 520;
@@ -787,6 +804,7 @@ function hud() {
 }
 
 function results() {
+  queueMicrotask(() => tm.event('race', null, { result: $('resPlace').textContent.slice(0, 40), toy: G.vehicle.kind }));
   const R = G.race;
   $('resOver').textContent = `The Night Circuit · ${R.flying ? 'drone' : 'car'}`;
   $('resPlace').textContent = ['First', 'Second', 'Third', 'Fourth'][R.finalPlace - 1];
@@ -864,11 +882,11 @@ function play(dt, real) {
   // On a roof you are over a room, not in it.
   const aloft = onRoof(G.plan, v.pos.x, v.pos.z, v.pos.y);
   const room = aloft ? null : roomAt(G.plan, v.pos.x, v.pos.z);
-  if (aloft && v.kind === 'car' && !v.air && !G.roofed) { G.roofed = true; callout('ON THE ROOF'); sound.lap(); say('Every roof is a floor. Mind the edge, and the open skylights.', 0.6, 7); }
+  if (aloft && v.kind === 'car' && !v.air && !G.roofed) { G.roofed = true; tm.event('roof', G.plan.scaffold && Math.hypot(v.pos.x - G.plan.scaffold.x, v.pos.z - G.plan.scaffold.z) < 16 ? 'scaffold' : G.plan.skiJump && Math.hypot(v.pos.x - G.plan.skiJump.x, v.pos.z - G.plan.skiJump.z1) < 16 ? 'skijump' : 'other'); callout('ON THE ROOF'); sound.lap(); say('Every roof is a floor. Mind the edge, and the open skylights.', 0.6, 7); }
   if ((room ? room.id : null) !== G.roomId) {
     G.roomId = room ? room.id : null;
     if (!racing && G.t - G.startedAt > 2) {
-      announce(room);
+      announce(room); if (room) tm.room(room.id);
       if (room && room.kind === 'corridor') once('thorne', 'The Thorne Miniature Rooms. Built at one inch to the foot: about your size.', 7);
     }
   }
@@ -916,7 +934,7 @@ function beginPoker() {
   G.lampWas = G.lamp.visible; G.lamp.visible = false;                 // headlamps off at the table: they dazzle the cards
   G.poker.sit();
 }
-function endPoker() { if (G.poker.on) G.poker.leave(); G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); G.lamp.visible = G.lampWas !== false; G.camYaw = G.vehicle.yaw; }
+function endPoker() { if (G.poker.game) tm.event('poker', null, { hands: G.poker.game.hand, stack: G.poker.game.p[0].stack }); if (G.poker.on) G.poker.leave(); G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); G.lamp.visible = G.lampWas !== false; G.camYaw = G.vehicle.yaw; }
 addEventListener('keydown', e => { if (G.state === 'poker' && !e.repeat && G.poker.key(e.code)) e.preventDefault(); });
 
 // A plain follow-the-line driver, for testing that a lap can be finished (?auto).
@@ -963,6 +981,13 @@ function tick(now) {
   govern(dt);
 
   input.capture = G.state === 'play' || G.state === 'study';
+  // What the telemetry will say next time it reports: brought up to date once a second.
+  if (G.state === 'play' || G.state === 'study' || G.state === 'poker') tm.play += dt;
+  if (G.museum && G.vehicle && frame % 60 === 0) {
+    tm.seen = G.museum.seenCount; tm.toy = G.vehicle.kind; tm.input = input.usedTouch ? 'touch' : 'keys';
+    tm.stats = { hoops: G.museum.hoopsDone, high: G.perched.size, snowmen: G.props.busted, roof: !!G.roofed, poker: G.poker.game ? G.poker.game.hand : 0, hockey: [G.hockey.you, G.hockey.bot],
+      fps: Math.round(G.fps), q: quality.step, at: G.roomId || 'out', x: Math.round(G.vehicle.pos.x), z: Math.round(G.vehicle.pos.z) };
+  }
   if (G.state === 'title') {
     attract(dt);
     G.museum.update(dt, camera.position, null, camera.position);

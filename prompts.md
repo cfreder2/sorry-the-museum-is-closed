@@ -278,3 +278,7 @@ the previous one was still being worked on; those are marked.
 ## 66 (sent during the build)
 
 > when you leave the hockey's vicinty, the game should stop
+
+## 67
+
+> add telemtry

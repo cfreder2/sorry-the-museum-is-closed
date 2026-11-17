@@ -256,6 +256,38 @@ Settings are on the title screen and the pause menu, and are remembered.
 
 Not done: remapping keys, and any way to play without sight.
 
+## Telemetry
+
+The game sends anonymous play statistics, so that it can be seen whether people
+find the way in, how far round they get and what they stop to look at.
+
+- **What is sent:** one row per session (time played, car or drone, phone or
+  desktop, how and how soon the player got in, rooms entered, works seen, the
+  frame rate, counts of hoops, snowmen and the like, and the settings in use),
+  and a row for each of a few events: a game started, the way in, a room
+  entered for the first time, a work looked at closely, a race finished, a roof
+  reached, a hand of cards left, a hockey goal.
+- **What is not:** no name, no email, nothing typed (nothing is typed in this
+  game), nothing about where the player really is. The only position sent is
+  the toy's, inside the game, when the session ends. The player is an
+  anonymous identifier made on the device.
+- **Turning it off:** Settings has a switch, *Send anonymous play statistics*;
+  the About screen says it is there. Off, nothing at all is sent.
+- **Where it goes:** the `museum_*` tables of the Supabase project the author's
+  other games report to (`supabase/001-telemetry.sql`). Clients can only call
+  two functions that clamp every field; nothing can be read back without the
+  service key.
+- **Tests are kept out of the numbers.** A browser driven by automation, a
+  page where anything touched the test handle `window.__ah`, and a start from a
+  test switch are all flagged, and every summary leaves them out. On localhost
+  nothing is sent unless the address has `?telemetry`.
+- **Reading it:** `node tools/telemetry.mjs` (add `--days 7`, or `--synthetic`
+  for the test rows). It needs the service key, from `VECTRENCH_SUPABASE_KEY`
+  or the Mac keychain entry the other games' tools use.
+
+`BUILD` at the top of `src/main.js` is recorded with every row: change it when
+publishing something worth telling apart in the numbers.
+
 ## The museum's API
 
 `src/collection.js` asks `api.artic.edu` for public-domain works on view: all
@@ -309,6 +341,9 @@ lets a test driver run the race. The game object is `window.__ah`.
     src/props.js              loose cones and signs, and snowmen
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
+    src/telemetry.js          anonymous play statistics (see Telemetry)
+    supabase/                 the tables they go to
+    tools/telemetry.mjs       the report
     vendor/                   three.js r170 (MIT)
 
 ## How it was made
