@@ -816,7 +816,7 @@ function play(dt, real) {
   if (!racing) G.props.update(dt, movers);
   if (!racing) { G.hockey.update(dt, v); const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 18) once('pond', 'A pond, frozen hard, with a goal at each end and a puck in the middle. Somebody is waiting for a game.', 7); }
   // Outdoors: tyre tracks, and a word about whatever sculpture you have just come up to.
-  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && !v.on && v.pos.y < 0.03 ? v : null, set.reduce);
+  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && (v.on ? v.on.hill : v.pos.y < 0.03) ? v : null, set.reduce);
   if (!racing && !G.roomId) for (const a of G.plan.outdoorArt) if ((v.pos.x - a.x) ** 2 + (v.pos.z - a.z) ** 2 < a.r * a.r) once('out:' + a.text, a.text, 6);
 
   // Hoops.

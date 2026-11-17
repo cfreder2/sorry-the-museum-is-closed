@@ -114,6 +114,9 @@ export function buildWinter(museum, plan) {
   // A field of glints that stays put on the ground while it follows the camera about. Each one
   // flashes only from certain directions, so they come and go as you drive past.
   const TILE = 44, NG = 9000;
+  // The hills, for the glints and the tyre tracks to follow. (One flat one if there are none, so the shader has something to read.)
+  const HILLS = plan.hills && plan.hills.length ? plan.hills : [{ cx: 0, cz: 0, rx: 1, rz: 1, H: 0 }];
+  const hillY = (x, z) => { let y = 0; for (const h of HILLS) { const d = Math.hypot((x - h.cx) / h.rx, (z - h.cz) / h.rz); if (d < 1) y = Math.max(y, h.H * (Math.cos(d * Math.PI) + 1) / 2); } return y; };
   let glints;
   {
     // Where there is snow to glitter: not in buildings, not on the streets, the paths, the ice or the kit.
@@ -123,7 +126,7 @@ export function buildWinter(museum, plan) {
     for (const m of plan.masses) rect(m, 0.5);
     for (const q of plan.paved) rect(q); for (const q of plan.ice) rect(q, 0.4);
     rect({ x0: G.rail.x0, x1: G.rail.x1, z0: B.z0, z1: B.z1 });
-    for (const s of plan.surfaces) if (!plan.rooms.some(r => s.x0 >= r.x0 && s.x1 <= r.x1 && s.z0 >= r.z0 && s.z1 <= r.z1)) rect(s, 0.1);
+    for (const s of plan.surfaces) if (!s.hill && !plan.rooms.some(r => s.x0 >= r.x0 && s.x1 <= r.x1 && s.z0 >= r.z0 && s.z1 <= r.z1)) rect(s, 0.1);
     for (const d of plan.decals) rect(d, 0.1);
     for (const p of G.plazas) { c.beginPath(); c.arc((p.x - B.x0) * S, (p.z - B.z0) * S, p.r * S, 0, 7); c.fill(); }
     const mask = new THREE.CanvasTexture(cv); mask.flipY = false; mask.colorSpace = THREE.NoColorSpace; mask.minFilter = mask.magFilter = THREE.LinearFilter; mask.generateMipmaps = false;
@@ -132,11 +135,13 @@ export function buildWinter(museum, plan) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
     glints = new THREE.Points(g, new THREE.ShaderMaterial({
-      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE } },
-      vertexShader: `attribute float aSeed; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask; uniform vec4 uB; varying float vA;
+      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE }, uHill: { value: HILLS.map(h => new THREE.Vector4(h.cx, h.cz, h.rx, h.rz)) }, uHillH: { value: HILLS.map(h => h.H) } },
+      vertexShader: `attribute float aSeed; uniform vec4 uHill[${HILLS.length}]; uniform float uHillH[${HILLS.length}]; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask; uniform vec4 uB; varying float vA;
         void main() {
           vec2 w = uCam.xz + mod(position.xz - uCam.xz + uTile * 0.5, uTile) - uTile * 0.5;
-          vec4 mv = viewMatrix * vec4(w.x, 0.02, w.y, 1.0); float d = -mv.z;
+          float gy = 0.0;
+          for (int i = 0; i < ${HILLS.length}; i++) { float hd = length((w - uHill[i].xy) / uHill[i].zw); if (hd < 1.0) gy = max(gy, uHillH[i] * (cos(hd * 3.14159265) + 1.0) * 0.5); }
+          vec4 mv = viewMatrix * vec4(w.x, gy + 0.03, w.y, 1.0); float d = -mv.z;
           float m = texture2D(uMask, (w - uB.xy) * uB.zw).r;
           vec3 to = normalize(uCam - vec3(w.x, 0.0, w.y));
           float ph = aSeed * 6.2832 + dot(to, vec3(41.0, 23.0, 31.0)) * (2.0 + aSeed * 5.0) + uT * (0.2 + aSeed);
@@ -165,17 +170,17 @@ export function buildWinter(museum, plan) {
   let head = 0;
   const last = [null, null];
   const lay = (i, x, z) => {
-    const L = last[i];
-    if (!L) { last[i] = { x, z, d: 0, nx: 0, nz: 0, fresh: true }; return; }
+    const L = last[i], hy = hillY(x, z), y1 = hy > 0.001 ? hy + 0.02 : TY;
+    if (!L) { last[i] = { x, z, y: y1, d: 0, nx: 0, nz: 0, fresh: true }; return; }
     const dx = x - L.x, dz = z - L.z, d = Math.hypot(dx, dz);
     if (d < 0.07) return;
-    if (d > 1.2) { last[i] = { x, z, d: 0, nx: 0, nz: 0, fresh: true }; return; }
+    if (d > 1.2) { last[i] = { x, z, y: y1, d: 0, nx: 0, nz: 0, fresh: true }; return; }
     const nx = -dz / d * HW, nz = dx / d * HW, ax = L.fresh ? nx : L.nx, az = L.fresh ? nz : L.nz, o = head * 12, u = head * 8, v0 = L.d / 0.24, v1 = (L.d + d) / 0.24;
-    tp.set([L.x - ax, TY, L.z - az, L.x + ax, TY, L.z + az, x + nx, TY, z + nz, x - nx, TY, z - nz], o);
+    tp.set([L.x - ax, L.y, L.z - az, L.x + ax, L.y, L.z + az, x + nx, y1, z + nz, x - nx, y1, z - nz], o);
     tu.set([0, v0, 1, v0, 1, v1, 0, v1], u);
     tpa.addUpdateRange(o, 12); tua.addUpdateRange(u, 8); tpa.needsUpdate = tua.needsUpdate = true;
     head = (head + 1) % NQ;
-    L.x = x; L.z = z; L.d += d; L.nx = nx; L.nz = nz; L.fresh = false;
+    L.x = x; L.z = z; L.y = y1; L.d += d; L.nx = nx; L.nz = nz; L.fresh = false;
   };
 
   // ------------------------------------------------------------------ snow thrown up
@@ -210,7 +215,7 @@ export function buildWinter(museum, plan) {
         const v = Math.hypot(car.vel.x, car.vel.z), slip = Math.abs(car.vel.x * c - car.vel.z * s);
         if (v > 1.5 && !calm) for (let k = 0; k < (slip > 1.2 ? 3 : 1); k++) {
           const side = Math.random() < 0.5 ? -1 : 1;
-          fling(bx + side * c * 0.135, 0.03, bz - side * s * 0.135, -car.vel.x * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.5 + Math.random() * (0.6 + v * 0.12), -car.vel.z * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.3 + Math.random() * 0.3);
+          fling(bx + side * c * 0.135, car.pos.y + 0.03, bz - side * s * 0.135, -car.vel.x * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.5 + Math.random() * (0.6 + v * 0.12), -car.vel.z * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.3 + Math.random() * 0.3);
         }
       }
       if (!laid) last[0] = last[1] = null;
@@ -219,7 +224,7 @@ export function buildWinter(museum, plan) {
         for (let i = 0; i < NS; i++) {
           if (sl[i] <= 0) { sa[i] = 0; continue; }
           sl[i] -= dt; sv[i * 3 + 1] -= 6 * dt;
-          sp[i * 3] += sv[i * 3] * dt; sp[i * 3 + 1] = Math.max(0.01, sp[i * 3 + 1] + sv[i * 3 + 1] * dt); sp[i * 3 + 2] += sv[i * 3 + 2] * dt;
+          sp[i * 3] += sv[i * 3] * dt; sp[i * 3 + 1] = Math.max(hillY(sp[i * 3], sp[i * 3 + 2]) + 0.01, sp[i * 3 + 1] + sv[i * 3 + 1] * dt); sp[i * 3 + 2] += sv[i * 3 + 2] * dt;
           sa[i] = Math.min(1, sl[i] * 4);
         }
         spa.needsUpdate = saa.needsUpdate = true;
