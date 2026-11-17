@@ -84,6 +84,17 @@
   </div>
 </div>
 
+<div id="poker" hidden role="region" aria-label="Texas hold'em">
+  <div id="pkSeats" aria-live="off"></div>
+  <div id="pkMid"><div id="pkBoard"></div><div id="pkPot"></div><div id="pkLog" role="status" aria-live="polite"></div></div>
+  <div id="pkMe">
+    <div id="pkHand"><div id="pkMine"></div><div id="pkStack"></div></div>
+    <div id="pkActs"><button data-pk="fold" id="pkFold">Fold</button><button data-pk="call" id="pkCall">Check</button><button data-pk="less" id="pkLess" aria-label="Bet less">−</button><button data-pk="raise" id="pkRaise">Raise</button><button data-pk="more" id="pkMore" aria-label="Bet more">+</button><button data-pk="allin" id="pkAll">All in</button></div>
+    <button data-pk="next" id="pkNext" hidden>Deal the next hand</button>
+    <button data-pk="leave" id="pkLeave">Leave the table</button>
+  </div>
+</div>
+
 <main id="title" class="screen">
   <div class="panel">
     <div class="over">The Art Institute of Chicago &nbsp;·&nbsp; by remote control</div>

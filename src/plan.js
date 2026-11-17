@@ -123,6 +123,8 @@ export function buildPlan() {
   plan.spawn = { x: PX - 6.5, z: fz, yaw: Math.PI / 2 };
   addGrounds(plan);
   addStunts(plan);
+  // The roof of Gallery 211, at the top of the scaffold, is kept clear: there is a card game up there.
+  { const tm = masses.find(m => m.room && m.room.id === 'G211'); if (tm) plan.terrace = { room: 'G211', x: (tm.x0 + tm.x1) / 2 + 0.6, z: (tm.z0 + tm.z1) / 2, top: tm.top }; }
   addRoofs(plan);
   return plan;
 }

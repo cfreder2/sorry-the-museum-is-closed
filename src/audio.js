@@ -3,6 +3,12 @@
 
 const PENTA = [0, 2, 4, 7, 9];                    // D major pentatonic: nothing in it can clash
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+// Jingle Bells (James Pierpont, 1857): the chorus, as [note, beats]. 0 is a rest.
+const E = 76, F = 77, G = 79, C = 72, D = 74;
+const CAROL = [[E, 1], [E, 1], [E, 2], [E, 1], [E, 1], [E, 2], [E, 1], [G, 1], [C, 1.5], [D, 0.5], [E, 4],
+  [F, 1], [F, 1], [F, 1.5], [F, 0.5], [F, 1], [E, 1], [E, 1], [E, 0.5], [E, 0.5], [E, 1], [D, 1], [D, 1], [E, 1], [D, 2], [G, 2],
+  [E, 1], [E, 1], [E, 2], [E, 1], [E, 1], [E, 2], [E, 1], [G, 1], [C, 1.5], [D, 0.5], [E, 4],
+  [F, 1], [F, 1], [F, 1.5], [F, 0.5], [F, 1], [E, 1], [E, 1], [E, 0.5], [E, 0.5], [G, 1], [G, 1], [F, 1], [D, 1], [C, 4], [0, 4]];
 const CHORDS = [[50, 57, 64, 69], [47, 54, 62, 66], [43, 50, 59, 62], [45, 52, 61, 64]];
 
 export class Sound {
@@ -256,6 +262,28 @@ export class Sound {
     e.gain.setValueAtTime(g * 0.5, t); e.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
     o.connect(e); e.connect(this.dry); e.connect(this.send); o.start(t); o.stop(t + 0.1);
     this.tick(g, big ? 600 : 1400, 0.05);
+  }
+  // Jingle Bells, picked out on bells with a shake of sleigh bells on the beat, coming from the tree:
+  // nothing at forty-five metres, plain at ten. Notes are laid down a quarter of a second ahead.
+  carol(dist) {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const near = Math.max(0, 1 - dist / 45);
+    if (near <= 0 || this.muted) { this._carolAt = 0; return; }
+    const beat = 0.29, now = c.currentTime;
+    if (!this._carolAt || this._carolAt < now - 0.5) { this._carolAt = now + 0.1; this._carolI = 0; }
+    const vol = near * near * 0.075 * this.vol.music;
+    while (this._carolAt < now + 0.25) {
+      const [n, len] = CAROL[this._carolI], t = this._carolAt;
+      if (n) { this.bell(midi(n), t, vol, 0.9 + len * 0.35, 0.5); this.bell(midi(n - 12), t, vol * 0.3, 0.8, 0.3); }
+      for (let b = 0; b < len; b++) {                       // sleigh bells
+        const s = c.createBufferSource(), f = c.createBiquadFilter(), e = c.createGain(), tb = t + b * beat;
+        s.buffer = this.noise; f.type = 'highpass'; f.frequency.value = 6500;
+        e.gain.setValueAtTime(vol * 0.55, tb); e.gain.exponentialRampToValueAtTime(0.0001, tb + 0.1);
+        s.connect(f); f.connect(e); e.connect(this.dry); s.start(tb, Math.random()); s.stop(tb + 0.12);
+      }
+      this._carolAt += len * beat; this._carolI = (this._carolI + 1) % CAROL.length;
+    }
   }
   // Packed snow coming apart: a soft thump and a hiss.
   poof(speed) {

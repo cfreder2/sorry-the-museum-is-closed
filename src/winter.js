@@ -66,12 +66,14 @@ export function buildWinter(museum, plan) {
       const r = 3.5 - i * 0.52, y = 1.4 + i * 1.55, h = 2.9;
       put(tg, new THREE.ConeGeometry(r, h, 14), green, 0, y + h / 2, 0);
       put(tg, new THREE.ConeGeometry(r * 0.76, h * 0.7, 14), white, 0, y + h * 0.65 + 0.03, 0).rotation.y = 0.2;       // snow lying on the upper boughs
-      const n = 44 - i * 5;
-      for (let j = 0; j < n; j++) {
-        const a = j * 2.399 + i, s = 0.22 + 0.76 * ((j * 0.618) % 1), rr = r * s * 1.04, c = palette[(j + i) % palette.length];
-        P.push(Math.cos(a) * rr, y + h * (1 - s), Math.sin(a) * rr); C.push(...c); Ph.push(((j * 7 + i * 13) % 97) / 97);
-      }
     }
+    // The lights are wound round the outside of everything, boughs and the snow lying on them, so none is buried:
+    // a string spiralling from the bottom to the top, and a ring of them along the hem of every tier.
+    const env = yy => { let m = 0; for (let i = 0; i < tiers; i++) { const r = 3.5 - i * 0.52, y = 1.4 + i * 1.55, h = 2.9; if (yy >= y && yy <= y + h) m = Math.max(m, r * (1 - (yy - y) / h)); const y0 = y + h * 0.3 + 0.03; if (yy >= y0 && yy <= y0 + h * 0.7) m = Math.max(m, r * 0.76 * (1 - (yy - y0) / (h * 0.7))); } return m; };
+    const bulb = (a, yy, out, k) => { const rr = env(yy) + out; P.push(Math.cos(a) * rr, yy, Math.sin(a) * rr); C.push(...palette[k % palette.length]); Ph.push(((k * 37) % 97) / 97); };
+    const topY = 1.4 + (tiers - 1) * 1.55 + 2.9;
+    for (let j = 0; j < 380; j++) { const t = j / 380; bulb(t * Math.PI * 2 * 11, 1.5 + t * (topY - 1.9), 0.09, j); }
+    for (let i = 0; i < tiers; i++) { const r = 3.5 - i * 0.52, n = Math.round(r * 16); for (let j = 0; j < n; j++) bulb(j / n * Math.PI * 2 + i, 1.4 + i * 1.55 + 0.04, 0.06, j + i * 3); }
     const bg = new THREE.BufferGeometry();
     bg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); bg.setAttribute('aCol', new THREE.Float32BufferAttribute(C, 3)); bg.setAttribute('aPh', new THREE.Float32BufferAttribute(Ph, 1));
     bulbs = new THREE.Points(bg, new THREE.ShaderMaterial({
@@ -79,7 +81,7 @@ export function buildWinter(museum, plan) {
       vertexShader: `attribute vec3 aCol; attribute float aPh; uniform float uT; varying vec3 vC;
         void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); float d = -mv.z;
           vC = aCol * (0.62 + 0.38 * sin(uT * (1.2 + aPh * 2.4) + aPh * 40.0));
-          gl_PointSize = clamp(0.2 * projectionMatrix[1][1] * 400.0 / max(d, 0.05), 2.0, 26.0); gl_Position = projectionMatrix * mv; }`,
+          gl_PointSize = clamp(0.24 * projectionMatrix[1][1] * 400.0 / max(d, 0.05), 3.0, 26.0); gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `varying vec3 vC; void main() { float a = smoothstep(0.5, 0.05, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(vC * a, a); }`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     }));

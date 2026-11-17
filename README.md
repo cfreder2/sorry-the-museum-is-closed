@@ -87,6 +87,44 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   roll in by, with a ramp up onto the side to drop in from; a plywood
   half-pipe; and humps of banked-up snow on the paths.
 
+## Buildings, ways in, and the roof
+
+- **Each building has its own wall.** The 1893 building is limestone in
+  courses with tall arched windows; the galleries over the railway are riveted
+  steel with a row of small lit windows; the buildings east of the tracks are
+  smooth pale stone with dark strips of glass; the Modern Wing is tall narrow
+  panels between white fins; the old first floor is brick; the lower level is
+  board-marked concrete with a band of glass block. These are impressions, not
+  surveys of the real elevations.
+- **More ways in.** Besides the duct by the front doors there are five more
+  low openings for a car, each a different thing left open: a delivery shutter
+  not quite pulled down (on the path to the skate park), a second duct in the
+  courtyard, a service door onto the railway with its bottom panel kicked in,
+  and two cellar windows propped open. For anything that flies, three
+  skylights stand open instead of one.
+- **Every roof is a floor.** A drone can land on any of them. For the car a
+  builders' scaffold goes up the south wall of Gallery 211, by the South
+  Garden: two flights with guard rails, and a landing level with the roof.
+  Roofs of the same height run into one another; a taller neighbour is a wall
+  and a lower one a drop. Skylight glass stands proud and can be hopped onto.
+  Drive into an open skylight and you come down inside.
+- **The card game.** On the roof at the top of the scaffold stands C. M.
+  Coolidge's *A Friend in Need* (1903), the dogs at their poker, on an easel
+  under strings of Christmas lights. In front of it three toy cars and two
+  drones are playing no-limit Texas hold'em at a baize table, with one place
+  empty. Pull up and press `E` (PLAY on a phone) to sit in. Everybody starts
+  with $1,000; blinds are $10 and $20. `F` folds, `C` checks or calls, `R`
+  raises (arrow keys change the amount), `A` is all in, `Esc` leaves. Stacks
+  are kept between visits; if you are cleaned out the table stakes you again,
+  and if you clean everybody else out they buy back in. The rules and the
+  players are in `src/holdem.js`: each opponent deals out the rest of the hand
+  a hundred and twenty times to see how often it would win, and has its own
+  temper (one waits for a hand, one bets at everything). The painting is not
+  the museum's; the image is from Wikimedia Commons and is in the public
+  domain.
+- **Jingle Bells** plays on bells from the courtyard tree, louder as you come
+  nearer; it follows the music volume.
+
 Where this departs from the real thing: there is no flight of steps up to the
 door (the galleries are on the ground here); the names on the frieze are a
 representative roll of old masters, not a transcription; sculpture outdoors is

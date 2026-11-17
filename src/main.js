@@ -15,6 +15,7 @@ import { Input } from './input.js';
 import { Sound } from './audio.js';
 import { Race, LAPS, clockText } from './race.js';
 import { Props } from './props.js';
+import { Poker } from './poker.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -111,6 +112,7 @@ async function boot() {
   G.race = new Race(scene, plan);
   G.props = new Props(plan);
   scene.add(G.props.group);
+  G.poker = new Poker(G.museum, plan, sound);
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);
@@ -251,7 +253,7 @@ function keep() {
 }
 function newGame() {
   G.museum.forget();
-  G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear();
+  G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.roofed = false;
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
@@ -263,6 +265,8 @@ function titleButtons() {
 }
 
 function quit() {
+  if (G.poker.on) { G.poker.leave(); G.lamp.visible = G.lampWas !== false; }
+  $('hud').classList.remove('studying', 'atcards');
   G.race.end();
   G.plan.racing = false; G.museum.setRace(false); G.props.group.visible = true;
   G.state = 'title';
@@ -880,7 +884,11 @@ function play(dt, real) {
         el.querySelector('.a').textContent = [art.work.a, art.work.d].filter(Boolean).join(', ');
       }
     }
-    if (input.took('look') && G.facing) beginStudy(G.facing);
+    // On the roof, by the card table, the same button sits you down at it.
+    G.pokerNear = G.poker.near(v);
+    if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
+    $('bLook').hidden = !(G.facing || G.pokerNear); $('bLook').textContent = G.pokerNear ? 'PLAY' : 'LOOK';
+    if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.facing) beginStudy(G.facing); }
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 14) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -894,6 +902,18 @@ function play(dt, real) {
   keep();
   chase(real, false);
 }
+
+// Sitting in at the card game on the roof: the toy takes the empty place and the camera stands back to watch.
+function beginPoker() {
+  const v = G.vehicle, s = G.pokerSeat = G.poker.seat();
+  endFlyby();
+  v.place(s.x, s.z, s.yaw, v.kind === 'drone' ? s.y + 0.6 : s.y);
+  G.state = 'poker'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true;
+  G.lampWas = G.lamp.visible; G.lamp.visible = false;                 // headlamps off at the table: they dazzle the cards
+  G.poker.sit();
+}
+function endPoker() { if (G.poker.on) G.poker.leave(); G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); G.lamp.visible = G.lampWas !== false; G.camYaw = G.vehicle.yaw; }
+addEventListener('keydown', e => { if (G.state === 'poker' && !e.repeat && G.poker.key(e.code)) e.preventDefault(); });
 
 // A plain follow-the-line driver, for testing that a lap can be finished (?auto).
 function autopilot(v, R) {
@@ -957,11 +977,23 @@ function tick(now) {
     else { studyCam(dt); G.museum.update(dt, G.vehicle.pos, G.roomId, camera.position); }
     sound.update(G.vehicle, false);
     hud();
+  } else if (G.state === 'poker') {
+    if (!G.poker.on) endPoker();
+    else {
+      const s = G.pokerSeat, k = 1 - Math.exp(-dt * 3);
+      camera.position.lerp(s.cam, k); camLook.lerp(s.look, k); camera.lookAt(camLook);
+      G.museum.update(dt, G.vehicle.pos, null, camera.position);
+      G.museum.winter.update(dt, G.t, camera.position, null, set.reduce);
+    }
+    sound.update(G.vehicle, false);
   } else if (G.state === 'paused') {
     if (input.took('pause')) act('resume');
     sound.update(G.vehicle, false);
   }
   input.endFrame();
+  if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
+  // Jingle Bells from the courtyard tree, louder as you come nearer.
+  if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   mirror.render(renderer, scene, camera, G.museum.floors);
   composer.render();

@@ -244,3 +244,17 @@ the previous one was still being worked on; those are marked.
 ## 58 (sent during the build)
 
 > sometimes at top speed you hit and get stuck on a ramp
+
+## 59 (sent during the build)
+
+> Are all the building interconnected or do I have to go outside to get to some, is this like a campus? is it accurate?
+
+## 60 (sent during the build)
+
+> christmas tree lights need improvement, not all visible.  I want jingle bells playing over there.
+
+## 61 (sent during the build)
+
+> ist hat a train track?? and a train, that model needs to get better, I can drive under it.
+>
+> The ground is too flat, there should be gentle hills, giant hills, an icy pond I slide on, with two hockey goals and a puck.  Litebrites should be on a scorers table with a 0 | 0 and you can play vs. an AI bot waiting there.
