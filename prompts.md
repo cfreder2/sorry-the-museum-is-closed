@@ -258,3 +258,11 @@ the previous one was still being worked on; those are marked.
 > ist hat a train track?? and a train, that model needs to get better, I can drive under it.
 >
 > The ground is too flat, there should be gentle hills, giant hills, an icy pond I slide on, with two hockey goals and a puck.  Litebrites should be on a scorers table with a 0 | 0 and you can play vs. an AI bot waiting there.
+
+## 62
+
+> do you need to fix tire tracks and snow gillter on the hills?
+
+## 63 (with a screenshot of the car on the scaffold's top landing, facing the roof)
+
+> I can't get over this lip or jump over it

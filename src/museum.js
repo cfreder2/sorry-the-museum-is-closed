@@ -350,7 +350,7 @@ export class Museum {
         const openings = outs.map(dd => ({ span: sd.door(dd), h: dd.h })).filter(o => o.span);
         for (const [a, bb] of minus(sd.lo, sd.hi, cuts)) {
           for (const [p, qq] of minus(a, bb, openings.map(o => o.span))) { face(p, qq, 0, top); band(p, qq, 0, SK.base[1], SK.base[0]); }
-          band(a, bb, top - SK.cap[1], top + 0.1, SK.cap[0]);
+          band(a, bb, top - SK.cap[1], top, SK.cap[0]);            // flush with the roof: a cap standing proud of it looked like a kerb to be got over
           for (const o of openings) if (o.span[0] >= a && o.span[1] <= bb) face(o.span[0], o.span[1], o.h, top);
         }
         // Where this room stands taller than the one against it, its wall shows above that one's roof.

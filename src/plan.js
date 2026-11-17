@@ -219,7 +219,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
       for (const m of plan.masses) {
         if (_o.x + r <= m.x0 || _o.x - r >= m.x1 || _o.z + r <= m.z0 || _o.z - r >= m.z1) continue;
         if (flying && _o.y - r >= m.top) continue;
-        if (up && _o.y >= m.top - 0.4) continue;                   // a roof no higher than this one is floor, not wall
+        if (!flying && _o.y >= m.top - 0.4) continue;              // level with its roof or above it, a building is not in the way: from a scaffold, or in the air, you go on over the edge                   // a roof no higher than this one is floor, not wall
         if (flying && _o.y > m.top - 0.7) { _o.y = m.top + r; moved = true; continue; }
         const l = _o.x + r - m.x0, rr = m.x1 - (_o.x - r), n = _o.z + r - m.z0, s = m.z1 - (_o.z - r), k = Math.min(l, rr, n, s);
         if (k === l) _o.x -= l; else if (k === rr) _o.x += rr; else if (k === n) _o.z -= n; else _o.z += s;
