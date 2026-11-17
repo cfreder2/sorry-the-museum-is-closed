@@ -232,3 +232,15 @@ the previous one was still being worked on; those are marked.
 ## 55 (sent during the build)
 
 > improve all of the fountains.
+
+## 56 (sent during the build)
+
+> The buildings all look the same from the ouside, there should be more secret exits and entrances.    Can I get on teh roof!
+
+## 57 (sent during the build)
+
+> I want the dogs playing poker on the roof paiting outside, under a set of christmas lights, with a poker table you can drive up to that has other RC cars, and drones hovering at it and plyaing a real game of poker, everyone has $1000 and you start iwth $1000 dollars and play a real game of texas holdem on the roof byt that famous painting
+
+## 58 (sent during the build)
+
+> sometimes at top speed you hit and get stuck on a ramp

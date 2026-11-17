@@ -189,10 +189,24 @@ export class Car {
     // The stunt kit, side on: plywood does not move.
     if (sp > 0.01) {
       // Climbing, the car will be higher by the time it gets there: what stands at the top of a ramp is not a wall in front of it.
-      const ax = this.vel.x / sp * 0.17, az = this.vel.z / sp * 0.17, y = this.pos.y + (this.air ? 0 : Math.max(0, slope) * 0.2), P = this.plan;
-      if (wallAt(P, this.pos.x + ax, this.pos.z + az, y, STEP, on)) {
-        if (!wallAt(P, ox + ax, this.pos.z + az, y, STEP, on)) { this.pos.x = ox; this.bump = Math.abs(this.vel.x); this.vel.x *= -0.25; }
-        else if (!wallAt(P, this.pos.x + ax, oz + az, y, STEP, on)) { this.pos.z = oz; this.bump = Math.abs(this.vel.z); this.vel.z *= -0.25; }
+      const ax = this.vel.x / sp * 0.17, az = this.vel.z / sp * 0.17, y = this.pos.y + (this.air ? 0 : Math.max(0, slope) * 0.2), P = this.plan, air = this.air;
+      // The way ahead is walked in short steps, taking the height along. Looked at only where the car
+      // will end up, the far end of a long step up a ramp stands taller than a wheel can climb, and at
+      // speed on a slow frame the ramp was taken for a wall.
+      const blocked = (x0, z0, x1, z1) => {
+        const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.08));
+        let yy = y;
+        for (let i = 1; i <= n; i++) {
+          const px = x0 + (x1 - x0) * i / n, pz = z0 + (z1 - z0) * i / n;
+          if (wallAt(P, px, pz, yy, STEP, on)) return true;
+          if (!air) { const gh = groundAt(P, px, pz, yy, STEP, on); if (gh > yy) yy = gh; }
+        }
+        return false;
+      };
+      const nx = this.pos.x, nz = this.pos.z;
+      if (blocked(ox, oz, nx + ax, nz + az)) {
+        if (!blocked(ox, oz, ox + ax, nz + az)) { this.pos.x = ox; this.bump = Math.abs(this.vel.x); this.vel.x *= -0.25; }
+        else if (!blocked(ox, oz, nx + ax, oz + az)) { this.pos.z = oz; this.bump = Math.abs(this.vel.z); this.vel.z *= -0.25; }
         else { this.pos.x = ox; this.pos.z = oz; this.bump = sp; this.vel.x *= -0.25; this.vel.z *= -0.25; }
       }
     }
@@ -213,7 +227,14 @@ export class Car {
 
     // Up and down. Follow the ground while it is there; when it falls away
     // faster than gravity would take you, you are flying.
-    const g = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y, STEP, this.on);
+    // The ground under the wheels now. On the floor, the height is carried up along the way just driven,
+    // so that a long step onto a ramp ends on the ramp and not inside it.
+    let reach = this.pos.y;
+    if (!this.air) {
+      const n = Math.max(1, Math.ceil(Math.hypot(this.pos.x - ox, this.pos.z - oz) / 0.08));
+      for (let i = 1; i < n; i++) { const gh = groundAt(this.plan, ox + (this.pos.x - ox) * i / n, oz + (this.pos.z - oz) * i / n, reach, STEP, this.on); if (gh > reach) reach = gh; }
+    }
+    const g = groundAt(this.plan, this.pos.x, this.pos.z, reach, STEP, this.on);
     const beneath = this.plan.under;
     const yb = this.pos.y + this.vy * dt - 0.5 * GRAVITY * dt * dt;
     if (yb > g + 0.004) {
