@@ -122,7 +122,7 @@ async function boot() {
   $('source').innerHTML = (collection.live
     ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
     : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${params.has('saved') ? '' : ', because the live API could not be reached'}.`)
-    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed.`;
+    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed. The outside and grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
   // Come back with the toy you left with.

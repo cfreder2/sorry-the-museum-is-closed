@@ -37,11 +37,19 @@ export function buildPlan() {
   const byId = Object.fromEntries(rooms.map(r => [r.id, r]));
   // The museum is closed, and every outside door is locked. But a ventilation grille has come
   // loose low on the Michigan Avenue wall, just big enough for a toy car...
-  const vr = byId.G216 || byId.G217 || byId.G215;
+  // The Michigan Avenue front is one long wall of limestone standing a little way in front of the
+  // rooms behind it, with the entrance pavilion stepping forward in the middle.
+  const west = rooms.filter(r => r.building === 'main' && r.x0 < 30);
+  const FX = Math.min(...west.map(r => r.x0 - T)) - 0.5, PX = FX - 2;
+  const lobby = byId.G215;
+  const front = (lobby && doors.find(d => d.a === 'G215' && d.out && d.along === 'x' && d.x1 <= lobby.x0 + 0.01)) || doors.find(d => d.out);
+  if (front.a === 'G215') front.x0 = PX;                 // the way in runs right through the pavilion
+  const fz = (front.z0 + front.z1) / 2;
+  const vr = byId.G216 || byId.G217;
   let vent = null;
   if (vr) {
-    const zc = Math.round(vr.z0 + (vr.z1 - vr.z0) * 0.34);
-    vent = { id: 'vent', a: vr.id, b: 'out', along: 'x', x0: vr.x0 - T, x1: vr.x0, z0: zc - 0.5, z1: zc + 0.5, h: 0.52, out: true, vent: true };
+    const zc = Math.min(fz - 15.5, Math.round(vr.z0 + (vr.z1 - vr.z0) * 0.34));
+    vent = { id: 'vent', a: vr.id, b: 'out', along: 'x', x0: FX, x1: vr.x0, z0: zc - 0.5, z1: zc + 0.5, h: 0.52, out: true, vent: true };
     doors.push(vent);
   }
   // ...and somebody has left a pane of the big skylight over the Grand Staircase propped open.
@@ -63,16 +71,28 @@ export function buildPlan() {
   }
   // Outdoors is everywhere that is not a building. Each room, with its walls, is a solid block from outside.
   const masses = rooms.map(r => ({ x0: r.x0 - T, x1: r.x1 + T, z0: r.z0 - T, z1: r.z1 + T, top: (r.kind === 'hall' ? SPRING + VAULT_R : r.h) + 0.5 + (hash(r.id) % 7) * 0.012, room: r }));
-  const xs = rooms.flatMap(r => [r.x0, r.x1]), zs = rooms.flatMap(r => [r.z0, r.z1]), pad = 34;
-  const bounds = { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, z0: Math.min(...zs) - pad, z1: Math.max(...zs) + pad };
+  // The front wall itself, and the solid between it and the rooms.
+  const WING = 9.6, PAV = 12.6;
+  const cuts = [...new Set(west.flatMap(r => [r.z0 - T, r.z1 + T]))].sort((a, b) => a - b);
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const a = cuts[i], b = cuts[i + 1], mid = (a + b) / 2;
+    if (b - a < 0.01) continue;
+    const behind = Math.min(...rooms.filter(r => r.x0 < 60 && r.z0 - T <= mid && r.z1 + T >= mid).map(r => r.x0 - T));
+    masses.push({ x0: FX, x1: behind, z0: a, z1: b, top: WING, facade: true });
+  }
+  masses.push({ x0: PX, x1: FX, z0: fz - 13, z1: fz + 13, top: PAV, facade: true, pavilion: true });
+  const facade = { FX, PX, z0: cuts[0], z1: cuts[cuts.length - 1], cz: fz, half: 13, wing: WING, pav: PAV };
+  // The city block: Michigan Avenue to the west, Monroe to the north, Columbus to the east, Jackson to the south.
+  const xs = rooms.flatMap(r => [r.x0, r.x1]), zs = rooms.flatMap(r => [r.z0, r.z1]);
+  const bounds = { x0: -28, x1: Math.max(298, Math.max(...xs) + 12), z0: Math.min(-42, Math.min(...zs) - 12), z1: Math.max(262, Math.max(...zs) + 8) };
 
-  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made, vent, skylight, locked: true };
+  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made, vent, skylight, locked: true, facade };
   plan.walls = rooms.flatMap(r => wallsOf(plan, r));
   plan.doorsOf = id => doors.filter(d => d.a === id || d.b === id);
   // Where you begin: out on Michigan Avenue in the snow, facing the front door.
-  const front = doors.find(d => d.a === 'G214' && d.out) || doors.find(d => d.out);
   plan.front = front;
-  plan.spawn = { x: front.x0 - 9, z: (front.z0 + front.z1) / 2, yaw: Math.PI / 2 };
+  plan.spawn = { x: PX - 6.5, z: fz, yaw: Math.PI / 2 };
+  addGrounds(plan);
   addStunts(plan);
   return plan;
 }
@@ -196,6 +216,76 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   return hit;
 }
 
+// ------------------------------------------------------------- the grounds --
+//
+// What stands round the building, placed from the map: Michigan Avenue and the other three streets
+// of the block, the railway in its cutting, the North Garden and the South Garden with its pool and
+// the Fountain of the Great Lakes. Positions come from OpenStreetMap, in the same frame as the rooms.
+
+function addGrounds(plan) {
+  const F = plan.facade, B = plan.bounds, O = plan.obstacles;
+  const inMass = (x, z, m = 1.2) => plan.masses.some(q => x > q.x0 - m && x < q.x1 + m && z > q.z0 - m && z < q.z1 + m);
+  const G = plan.grounds = {
+    michigan: { x0: -24, x1: 1 }, walk: { x0: 1, x1: F.FX }, monroe: { z0: -38, z1: -27 }, jackson: { z0: 247, z1: 258 }, columbus: { x0: 276, x1: 294 },
+    rail: { x0: 113, x1: 123 }, north: { x0: 8, x1: 63, z0: -16, z1: 53 }, south: { x0: 11, x1: 62, z0: 168, z1: 240 },
+    trees: [], hedges: [], train: null,
+  };
+  // The Morton Wing's west wall, which the fountain stands against.
+  const mw = Math.min(...plan.masses.filter(q => q.room && q.x0 > 50 && q.x0 < 100 && q.z0 < 203 && q.z1 > 190).map(q => q.x0), 80);
+  G.south.x1 = mw - 0.5;
+  G.fountain = { x: mw - 3.4, z: 196.5 };
+  G.pool = { x0: 34, x1: Math.min(56, mw - 11), z0: 191.5, z1: 201.5 };
+  G.calder = { x: 38, z: 22 };
+  plan.ice = [G.pool];                                   // frozen over
+  plan.paved = [{ x0: G.michigan.x0, x1: F.FX, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
+  // Ground the stunt park must keep off.
+  plan.reserved = [{ x0: B.x0, x1: F.FX + 2, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: B.z0, z1: G.monroe.z1 + 2 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0 - 2, z1: B.z1 }, { x0: G.columbus.x0 - 2, x1: B.x1, z0: B.z0, z1: B.z1 },
+    { x0: G.rail.x0 - 2, x1: G.rail.x1 + 2, z0: B.z0, z1: B.z1 }, G.north, G.south];
+
+  // Trees, bare for the winter. Honey locusts in rows in the North Garden, hawthorns in a grid in the South, and a line along the avenue.
+  const tree = (x, z, kind) => { if (inMass(x, z)) return; G.trees.push({ x, z, kind, s: 0.85 + ((x * 13 + z * 7) % 10) / 30, yaw: (x * 3 + z * 5) % 6.28 }); O.push({ x0: x - 0.16, x1: x + 0.16, z0: z - 0.16, z1: z + 0.16, y0: 0, y1: 5 }); };
+  for (let x = 13; x <= 60; x += 7.8) for (let z = -11; z <= 49; z += 7.5) if (!(x > 28 && x < 48 && z > 10 && z < 36)) tree(x, z, 'locust');
+  for (let x = 15; x <= G.south.x1 - 3; x += 6.4) for (let z = 172; z <= 237; z += 6.4) {
+    if (x > G.pool.x0 - 3 && x < G.pool.x1 + 3 && z > G.pool.z0 - 3 && z < G.pool.z1 + 3) continue;
+    if (Math.hypot(x - G.fountain.x, z - G.fountain.z) < 9) continue;
+    tree(x, z, 'hawthorn');
+  }
+  for (let z = B.z0 + 10; z < B.z1 - 6; z += 13) if (Math.abs(z - F.cz) > 21) tree(3.4, z, 'locust');
+  // Low hedges round both gardens, with gaps to get in by.
+  const hedge = (x0, x1, z0, z1) => { G.hedges.push({ x0, x1, z0, z1 }); O.push({ x0, x1, z0, z1, y0: 0, y1: 0.9 }); };
+  for (const g of [G.north, G.south]) {
+    const mx = (g.x0 + g.x1) / 2, mz = (g.z0 + g.z1) / 2;
+    hedge(g.x0, mx - 3, g.z0, g.z0 + 0.7); hedge(mx + 3, g.x1, g.z0, g.z0 + 0.7);
+    hedge(g.x0, mx - 3, g.z1 - 0.7, g.z1); hedge(mx + 3, g.x1, g.z1 - 0.7, g.z1);
+    hedge(g.x0, g.x0 + 0.7, g.z0, mz - 3); hedge(g.x0, g.x0 + 0.7, mz + 3, g.z1);
+  }
+  O.push({ x0: G.fountain.x - 3.2, x1: G.fountain.x + 3, z0: G.fountain.z - 4.4, z1: G.fountain.z + 4.4, y0: 0, y1: 5 });
+  O.push({ x0: G.calder.x - 0.5, x1: G.calder.x + 0.5, z0: G.calder.z - 0.5, z1: G.calder.z + 0.5, y0: 0, y1: 4 });
+  // A commuter train, stopped for the night in the cutting north of the bridge.
+  const bridge = plan.masses.filter(q => q.x0 < G.rail.x1 && q.x1 > G.rail.x0).sort((a, b) => a.z0 - b.z0);
+  G.railGaps = [];
+  let z = B.z0;
+  for (const q of bridge) { if (q.z0 - z > 1) G.railGaps.push([z, q.z0]); z = Math.max(z, q.z1); }
+  if (B.z1 - z > 1) G.railGaps.push([z, B.z1]);
+  const gap = G.railGaps.find(([a, b]) => b - a > 60);
+  if (gap) { G.train = { x: G.rail.x1 - 2.6, z0: gap[1] - 64, z1: gap[1] - 6 }; O.push({ x0: G.train.x - 1.5, x1: G.train.x + 1.5, z0: G.train.z0, z1: G.train.z1, y0: 0, y1: 4.6 }); }
+
+  // The lions, either side of the way in, and lamps: along the avenue and by every door.
+  plan.lions = []; plan.lamps = [];
+  for (const sgn of [-1, 1]) {
+    const lion = { x: F.PX - 3.4, z: F.cz + sgn * 15.5 };
+    plan.lions.push(lion);
+    O.push({ x0: lion.x - 1.95, x1: lion.x + 1.95, z0: lion.z - 0.75, z1: lion.z + 0.75, y0: 0, y1: 3.6 });
+  }
+  const lamp = (x, z) => { if (!inMass(x, z, 0.3)) plan.lamps.push({ x, z }); };
+  for (let zz = B.z0 + 16; zz < B.z1 - 6; zz += 26) lamp(1.7, zz + (Math.abs(zz - F.cz) < 3 ? 6 : 0));
+  for (const d of plan.doors) if (d.out && !d.vent) {
+    const r = plan.byId[d.a], cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
+    if (d.along === 'x') { const w = d.x0 < r.x0, ex = w ? d.x0 - 2.2 : d.x1 + 2.2; for (const sg of [-1, 1]) lamp(ex, cz + sg * (d === plan.front ? 4.6 : 3)); }
+    else { const n = d.z0 < r.z0, ez = n ? d.z0 - 2.2 : d.z1 + 2.2; for (const sg of [-1, 1]) lamp(cx + sg * 3, ez); }
+  }
+}
+
 // ------------------------------------------------------------ the stunt kit --
 //
 // Somebody has been in here before you with plywood and a staple gun. Every
@@ -215,7 +305,7 @@ function frame(r) {
 
 function addStunts(plan) {
   const S = plan.surfaces = [], L = plan.loops = [], D = plan.decals = [], H = plan.hoops = [], P = plan.props = [];
-  plan.puddles = []; plan.benches = []; plan.lions = []; plan.lamps = [];
+  plan.puddles = []; plan.benches = [];
   const world = (F, u0, u1, v0, v1) => F.ax === 'x' ? [F.cx + u0, F.cx + u1, F.cz + v0, F.cz + v1] : [F.cx + v0, F.cx + v1, F.cz + u0, F.cz + u1];
   const at = (F, u, v) => F.ax === 'x' ? [F.cx + u, F.cz + v] : [F.cx + v, F.cz + u];
   const other = a => (a === 'x' ? 'z' : 'x');
@@ -413,12 +503,12 @@ function addStunts(plan) {
   // ---- outside ----
   // On the open ground south of the bridge: the loop, a big curved launcher, a
   // line of jumps. Snow is slippery; the track laid on it is not.
-  const clearOutside = (x0, x1, z0, z1) => plan.masses.every(m => x1 < m.x0 - 1 || x0 > m.x1 + 1 || z1 < m.z0 - 1 || z0 > m.z1 + 1);
+  const clearOutside = (x0, x1, z0, z1) => [...plan.masses, ...plan.reserved].every(m => x1 < m.x0 - 1 || x0 > m.x1 + 1 || z1 < m.z0 - 1 || z0 > m.z1 + 1);
   let park = null;
   // The nearest clear rectangle to the middle of the grounds.
   const B = plan.bounds, mx = (B.x0 + B.x1) / 2, mz = (B.z0 + B.z1) / 2;
   let bestD = Infinity;
-  for (let z = B.z0 + 30; z <= B.z1 - 50; z += 2) for (let x = B.x0 + 30; x <= B.x1 - 74; x += 2) {
+  for (let z = B.z0 + 4; z <= B.z1 - 24; z += 2) for (let x = B.x0 + 4; x <= B.x1 - 48; x += 2) {
     const d = Math.hypot(x + 22 - mx, z + 10 - mz);
     if (d < bestD && clearOutside(x - 2, x + 46, z - 2, z + 22)) { bestD = d; park = { x, z }; }
   }
@@ -437,18 +527,6 @@ function addStunts(plan) {
     spine(F, -17, -0.5); spine(F, 17, 1.5);
     for (const u of [-9, 9]) { cone(F, u, -1.5); cone(F, u, 9.2); }
     P.push({ type: 'sign', x: F.cx - 19, z: F.cz - 5, yaw: 1.2 });
-  }
-  // The lions either side of the Michigan Avenue door, and a lamp by every way in.
-  const f = plan.front, fz = (f.z0 + f.z1) / 2;
-  for (const s of [-1, 1]) {
-    const lion = { x: f.x0 - 3.6, z: fz + s * 5, yaw: Math.PI / 2 };
-    plan.lions.push(lion);
-    plan.obstacles.push({ x0: lion.x - 1.95, x1: lion.x + 1.95, z0: lion.z - 0.75, z1: lion.z + 0.75, y0: 0, y1: 3.6 });
-  }
-  for (const d of plan.doors) if (d.out && !d.vent) {
-    const r = plan.byId[d.a], cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
-    const ox = d.along === 'x' ? (d.x0 < r.x0 ? -1 : 1) : 0, oz = d.along === 'z' ? (d.z0 < r.z0 ? -1 : 1) : 0;
-    for (const s of [-1, 1]) plan.lamps.push({ x: cx + ox * 2.2 + (oz ? s * 2.6 : 0), z: cz + oz * 2.2 + (ox ? s * 2.6 : 0) });
   }
 }
 

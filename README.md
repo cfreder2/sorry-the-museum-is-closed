@@ -32,6 +32,37 @@ the wall to the left of the entrance) and one for the drone (a pane of the
 skylight over the Grand Staircase is propped open). Once you are in, every
 outside door unlocks for good. Hints appear if you stay outside a while.
 
+## The outside
+
+The outside follows photographs of the building (Wikimedia Commons) and the
+map (OpenStreetMap), placed in the same frame as the galleries:
+
+- **The Michigan Avenue front.** One long wall of grey limestone with a banded
+  lower storey and a row of arched niches above, the entrance pavilion stepping
+  forward in the middle with three arches, columns, the museum's name across
+  the top and banners between the doors. The two lions, green with verdigris,
+  stand either side. The entrance is on the axis of Adams Street, where the
+  real one is.
+- **The block.** Michigan Avenue to the west, Monroe to the north, Columbus to
+  the east and Jackson to the south, at their mapped positions.
+- **The railway** runs north to south in its cutting and under the galleries
+  that bridge it (240 to 249), with a commuter train stopped for the night.
+- **The gardens.** The North Garden with its rows of trees and Calder's red
+  *Flying Dragon*; the South Garden with its grid of hawthorns, the long pool
+  (frozen, and slippery) and the Fountain of the Great Lakes against the Morton
+  Wing.
+- **The Modern Wing** has its flat sunshade on thin white columns, and the
+  Nichols Bridgeway leaves its roof for Millennium Park.
+- **From the air** every skylit gallery shows its skylight.
+
+Where this departs from the real thing: there is no flight of steps up to the
+door (the galleries are on the ground here); the names on the frieze are a
+representative roll of old masters, not a transcription; sculpture outdoors is
+suggested with simple shapes; and the two unfolded floors stand where other
+museum buildings really are (the first floor to the south-east, the lower level
+at the Modern Wing's east end). No usable close aerial photograph was found, so
+the roofs are from the map outline.
+
 What is not true:
 
 - **It is one level.** The second floor, where nearly all the paintings are,
@@ -168,6 +199,8 @@ lets a test driver run the race. The game object is `window.__ah`.
     src/plan.js               collision, stunt kit, hanging, cases, race route (no three.js)
     src/collection.js         API calls and sorting works into rooms
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
+    src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
+    src/geo.js                the small mesh builder both use
     src/textures.js           every surface, painted on a canvas at start-up
     src/reflect.js            polished-floor reflections
     src/vehicles.js           the car and the drone
@@ -184,5 +217,6 @@ lets a test driver run the race. The game object is `window.__ah`.
 ## Credit
 
 Artwork images and data: the Art Institute of Chicago, <https://api.artic.edu>.
+Positions of streets, gardens and the railway: © OpenStreetMap contributors.
 Data is CC0; images used are those the museum marks public domain. This is a
 fan project and is not affiliated with or endorsed by the museum.

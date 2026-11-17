@@ -59,7 +59,11 @@ function building(g) {
   if (/^18\d$/.test(n)) return 'modern';
   return 'main';                    // first-floor rooms with nothing above them: McKinlock Court and the American wing
 }
-const SHIFT = { main: [0, 0], modern: [0, 0], first: [62, 84], lower: [-138, 66] };
+// Where the unfolded floors go. The map (OpenStreetMap) was used to keep them off ground that
+// matters outside: the first floor stands where the museum's own south-east buildings are, east of
+// the railway, and the lower level where the Modern Wing's east pavilion is. The South Garden and
+// North Garden, the railway cutting and the Michigan Avenue front are left clear.
+const SHIFT = { main: [0, 0], modern: [0, 0], first: [92, 80], lower: [62, -98] };
 const NUDGE = { '285': [30, 0], '237': [-6.5, 0], '238': [6.5, 0] };
 
 let rooms = src.map(g => {
@@ -82,7 +86,7 @@ const fixed = [
   // Griffin Court: the Modern Wing's long skylit hall, running north to a wall of glass.
   { id: 'hall', gallery: 'Griffin Court', kind: 'hall', building: 'modern', floor: '1', x0: 168, x1: 182, z0: 2, z1: 70, glass: 'n', h: 9 },
   // Gallery 11: the Thorne Miniature Rooms, in a long dark passage as they really are.
-  { id: 'C', gallery: 'Gallery 11', kind: 'corridor', building: 'lower', floor: 'LL', x0: 8, x1: 70, z0: 221.5, z1: 227.5, h: 3.4 },
+  { id: 'C', gallery: 'Gallery 11', kind: 'corridor', building: 'lower', floor: 'LL', x0: 198, x1: 260, z0: 58, z1: 64, h: 3.4 },
 ];
 for (const r of rooms) {
   const big = r.gallery === 'Gallery 200' ? [15, 34] : null;       // the Grand Staircase
@@ -155,7 +159,9 @@ function outside(id, side, w = 4) {
   return true;
 }
 // The Michigan Avenue front door, the court, the hall's south end, and the far ends of each arm.
-for (const [id, side] of [['G214', 'w'], ['hall', 's'], ['G239', 's'], ['G249', 'e'], ['G150', 'e'], ['G151', 's'], ['G152', 'w'], ['G153', 'n'], ['G154', 'n'],
+// The front door is on the axis of Adams Street, where the real one is, and opens into the lobby
+// (Gallery 215 here), which leads straight on to the Grand Staircase.
+for (const [id, side] of [['G215', 'w'], ['hall', 's'], ['G239', 's'], ['G249', 'e'], ['G150', 'e'], ['G151', 's'], ['G152', 'w'], ['G153', 'n'], ['G154', 'n'],
   ['C', 'n'], ['G222', 'n'], ['G273', 'n'], ['G161', 's'], ['G184', 'e'], ['G182', 'e'], ['G285', 'w'], ['G391', 'w'], ['G246', 's'], ['G243', 'n'], ['G236', 'w'], ['G209', 's']]) outside(id, side);
 const group = () => {
   const g = Object.fromEntries(rooms.map(r => [r.id, r.id]));

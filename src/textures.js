@@ -390,3 +390,62 @@ export function raceLine() {
   g.beginPath(); g.moveTo(40, 150); g.lineTo(64, 106); g.lineTo(88, 150); g.stroke();
   return tex(c, { repeat: true, srgb: false });
 }
+
+// --------------------------------------------------------- the city block ---
+
+export function asphalt() {
+  const [c, g] = canvas(256, 256);
+  const r = rng(61);
+  g.fillStyle = '#23262c'; g.fillRect(0, 0, 256, 256);
+  for (let k = 0; k < 1800; k++) { g.fillStyle = `rgba(${r() > 0.5 ? '200,210,230' : '0,0,0'},${r() * 0.1})`; g.fillRect(r() * 256, r() * 256, 1 + r() * 3, 1 + r() * 2); }
+  // Slush along the tyre lines.
+  for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(220,228,240,${r() * 0.07})`; g.fillRect(r() * 256, 0, 6 + r() * 20, 256); }
+  return tex(c, { repeat: true });
+}
+
+// One railway track seen from above: ballast, sleepers, two rails. Repeats along its length.
+export function railway() {
+  const [c, g] = canvas(256, 128);
+  const r = rng(88);
+  g.fillStyle = '#34322f'; g.fillRect(0, 0, 256, 128);
+  for (let k = 0; k < 1500; k++) { g.fillStyle = `rgba(${r() > 0.5 ? '170,165,155' : '0,0,0'},${r() * 0.25})`; g.fillRect(r() * 256, r() * 128, 2 + r() * 3, 2 + r() * 3); }
+  g.fillStyle = '#3d2d20';
+  for (let y = 10; y < 128; y += 32) g.fillRect(58, y, 140, 13);
+  g.fillStyle = '#9aa0a8'; g.fillRect(84, 0, 7, 128); g.fillRect(165, 0, 7, 128);
+  g.fillStyle = 'rgba(225,232,245,.5)';
+  for (let k = 0; k < 60; k++) g.fillRect(r() * 256, r() * 128, 8 + r() * 22, 3 + r() * 6);      // snow lying between
+  return tex(c, { repeat: true });
+}
+
+// Lettering cut into stone: dark and shallow, on a clear ground.
+export function carved(text, w = 2048, h = 96, size = 60, colour = '#3b382f') {
+  const [c, g] = canvas(w, h);
+  g.clearRect(0, 0, w, h);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `600 ${size}px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`;
+  g.fillStyle = 'rgba(255,250,235,.35)'; g.fillText(text, w / 2 + 2, h / 2 + 3);
+  g.fillStyle = colour; g.fillText(text, w / 2, h / 2);
+  return tex(c);
+}
+
+// The sunshade over the Modern Wing: thousands of thin blades, seen as fine stripes.
+export function blades() {
+  const [c, g] = canvas(64, 64);
+  g.clearRect(0, 0, 64, 64);
+  g.fillStyle = 'rgba(235,240,250,.95)';
+  for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 3, 64);
+  g.fillStyle = 'rgba(235,240,250,.6)'; g.fillRect(0, 0, 64, 2);
+  return tex(c, { repeat: true });
+}
+
+// A railway carriage's side: brushed steel with a row of lit windows.
+export function carriage() {
+  const [c, g] = canvas(512, 128);
+  const grad = g.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0, '#8d949c'); grad.addColorStop(1, '#5d636b');
+  g.fillStyle = grad; g.fillRect(0, 0, 512, 128);
+  g.fillStyle = 'rgba(0,0,0,.25)'; for (let y = 6; y < 128; y += 9) g.fillRect(0, y, 512, 1);
+  for (const y of [22, 70]) for (let x = 26; x < 490; x += 42) { g.fillStyle = (x * 7 + y) % 5 ? '#ffd98a' : '#2a2f38'; g.fillRect(x, y, 28, 22); }
+  g.fillStyle = '#d0661c'; g.fillRect(0, 108, 512, 7);
+  return tex(c, { repeat: true });
+}

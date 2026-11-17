@@ -5,50 +5,10 @@ import * as THREE from 'three';
 import * as TX from './textures.js';
 import { T, HW, SPRING, VAULT_R, wallPoint, hang, heightOf, roomAt } from './plan.js';
 import { imageUrl } from './collection.js';
+import { Geo } from './geo.js';
+import { buildGrounds } from './grounds.js';
 
 // ---------------------------------------------------------------- geometry --
-
-class Geo {
-  constructor() { this.p = []; this.n = []; this.uv = []; this.idx = []; this.c = []; this.col = null; }
-  // Corners in order round the quad; `n` is the side it should face.
-  quad(a, b, c, d, n, uv = [[0, 0], [1, 0], [1, 1], [0, 1]]) {
-    const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
-    const cx = e1[1] * e2[2] - e1[2] * e2[1], cy = e1[2] * e2[0] - e1[0] * e2[2], cz = e1[0] * e2[1] - e1[1] * e2[0];
-    let v = [a, b, c, d], t = uv;
-    if (cx * n[0] + cy * n[1] + cz * n[2] < 0) { v = [a, d, c, b]; t = [uv[0], uv[3], uv[2], uv[1]]; }
-    const i = this.p.length / 3;
-    for (let k = 0; k < 4; k++) { this.p.push(...v[k]); this.n.push(...n); this.uv.push(...t[k]); if (this.col) this.c.push(...this.col); }
-    this.idx.push(i, i + 1, i + 2, i, i + 2, i + 3);
-  }
-  box(x0, x1, y0, y1, z0, z1, s = 1) {
-    const dx = (x1 - x0) / s, dy = (y1 - y0) / s, dz = (z1 - z0) / s;
-    this.quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [[0, 0], [dx, 0], [dx, dy], [0, dy]]);
-    this.quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [0, 0, -1], [[0, 0], [dx, 0], [dx, dy], [0, dy]]);
-    this.quad([x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [1, 0, 0], [[0, 0], [dz, 0], [dz, dy], [0, dy]]);
-    this.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [[0, 0], [dz, 0], [dz, dy], [0, dy]]);
-    this.quad([x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1], [0, 1, 0], [[0, 0], [dx, 0], [dx, dz], [0, dz]]);
-    this.quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [0, -1, 0], [[0, 0], [dx, 0], [dx, dz], [0, dz]]);
-  }
-  // A box described relative to a point on a wall: along the wall, up, and out from it.
-  wallBox(at, nx, nz, u0, u1, y0, y1, d0, d1) {
-    const horiz = nz !== 0;
-    const a = horiz ? at.z + nz * d0 : at.x + nx * d0, b = horiz ? at.z + nz * d1 : at.x + nx * d1;
-    const lo = Math.min(a, b), hi = Math.max(a, b);
-    if (horiz) this.box(at.x + u0, at.x + u1, at.y + y0, at.y + y1, lo, hi);
-    else this.box(lo, hi, at.y + y0, at.y + y1, at.z + u0, at.z + u1);
-  }
-  get empty() { return this.idx.length === 0; }
-  build() {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
-    if (this.c.length) g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
-    g.setIndex(this.idx);
-    return g;
-  }
-  mesh(mat) { const m = new THREE.Mesh(this.build(), mat); m.matrixAutoUpdate = false; return m; }
-}
 
 const WARM = new THREE.Color(1.0, 0.8, 0.56);
 
@@ -446,8 +406,8 @@ export class Museum {
 
     // The lions. Bronze gone green, each standing on its block of stone, as on Michigan Avenue:
     // a deep chest, a long muzzle, a great mane, and the tail held out behind with a tuft on the end.
-    const bronze = new THREE.MeshStandardMaterial({ color: 0x4f6f66, roughness: 0.6, metalness: 0.3, emissive: 0x1f302c, emissiveIntensity: 0.8 });       // weathered bronze: a dull grey-green
-    const dark = new THREE.MeshStandardMaterial({ color: 0x3a534c, roughness: 0.65, metalness: 0.3, emissive: 0x182622, emissiveIntensity: 0.8 });
+    const bronze = new THREE.MeshStandardMaterial({ color: 0x4fa596, roughness: 0.6, metalness: 0.2, emissive: 0x1d4a42, emissiveIntensity: 0.8 });       // verdigris: the real pair are a bright blue-green
+    const dark = new THREE.MeshStandardMaterial({ color: 0x3c8577, roughness: 0.65, metalness: 0.2, emissive: 0x163a34, emissiveIntensity: 0.8 });
     const block = new THREE.MeshStandardMaterial({ color: 0xa9a294, roughness: 0.85, emissive: 0x3a3f4d, emissiveIntensity: 0.4 });
     const box = new THREE.BoxGeometry(1, 1, 1), ball = new THREE.SphereGeometry(0.5, 16, 12), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
     const part = (g, geo, mat, x, y, z, sx, sy, sz, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.x = rx; g.add(m); return m; };
@@ -485,10 +445,8 @@ export class Museum {
       g.position.set(l.x, 0, l.z); g.rotation.y = -Math.PI / 2;        // facing the avenue
       this.group.add(g);
     }
-    // The name over the door.
-    const f = plan.front, title = new THREE.Mesh(new THREE.PlaneGeometry(11, 11 * 96 / 512), new THREE.MeshBasicMaterial({ map: TX.sign('The Art Institute', 'of Chicago'), transparent: true, depthWrite: false, color: new THREE.Color(1.4, 1.3, 1.0), fog: false }));
-    title.position.set(f.x0 - 0.05, f.h + 1.9, (f.z0 + f.z1) / 2); title.rotation.y = -Math.PI / 2;
-    this.group.add(title);
+    // The Michigan Avenue front, the streets, the railway and the gardens.
+    buildGrounds(this, plan);
 
     // ---- closed ----
     // Every outside door is shut: two bronze leaves in each doorway, which swing open once you are in.
@@ -520,8 +478,8 @@ export class Museum {
     // The sign on the front door, hung from the lintel on two chains, low enough to read from the ground.
     {
       const f2 = plan.front, cz2 = (f2.z0 + f2.z1) / 2, hang = new THREE.Group();
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.25), new THREE.MeshStandardMaterial({ map: TX.closedSign(), roughness: 0.6, emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0, side: THREE.DoubleSide }));
-      board.material.emissiveMap = board.material.map; board.material.emissiveIntensity = 0.55;
+      // Painted, not lit: headlamps on it must not wash the words out.
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.25), new THREE.MeshBasicMaterial({ map: TX.closedSign(), color: new THREE.Color(0.62, 0.6, 0.55), side: THREE.DoubleSide }));
       board.position.y = -(f2.h - 2.0); board.rotation.y = -Math.PI / 2;
       hang.add(board);
       const chain = new THREE.MeshStandardMaterial({ color: 0x8a8478, metalness: 0.6, roughness: 0.4 });
@@ -550,7 +508,7 @@ export class Museum {
     }
     // The way in for a drone: one pane of the big skylight left propped open, and the light coming up out of it.
     if (plan.skylight) {
-      const k = plan.skylight, top = plan.masses.find(m => m.room.id === k.room).top, cx2 = (k.x0 + k.x1) / 2, cz3 = (k.z0 + k.z1) / 2;
+      const k = plan.skylight, top = plan.masses.find(m => m.room && m.room.id === k.room).top, cx2 = (k.x0 + k.x1) / 2, cz3 = (k.z0 + k.z1) / 2;
       const rim = new Geo();
       for (const [a, b, c, e] of [[k.x0 - 0.1, k.x1 + 0.1, k.z0 - 0.1, k.z0], [k.x0 - 0.1, k.x1 + 0.1, k.z1, k.z1 + 0.1], [k.x0 - 0.1, k.x0, k.z0, k.z1], [k.x1, k.x1 + 0.1, k.z0, k.z1]]) rim.box(a, b, k.y - 0.05, top + 0.25, c, e);
       this.group.add(rim.mesh(new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5, metalness: 0.5, emissive: 0x3a2c18, emissiveIntensity: 0.8 })));

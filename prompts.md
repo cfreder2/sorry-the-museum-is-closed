@@ -198,3 +198,11 @@ the previous one was still being worked on; those are marked.
 ## 47 (sent during the build)
 
 > you can go in reverse but not forwards?  I think that is odd.  Maybe we don't need gass then, just a jump button and the joystick
+
+## 48
+
+> okay, the after hours name is gone, what is it now
+
+## 49
+
+> find images of the chicago art institute from the outside, top, and sides.  Make the building look the same, and the grounds around it as well.

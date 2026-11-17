@@ -128,6 +128,8 @@ export class Car {
       // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.
       const room = roomAt(this.plan, this.pos.x, this.pos.z);
       let grip = !room ? 3.4 : room.kind === 'gallery' && room.floor !== '1' ? 9 : 5.2;
+      // Gritted streets hold better than snow; the frozen pool does not hold at all.
+      if (!room) { for (const q of this.plan.paved) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 6; for (const q of this.plan.ice) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 0.3; }
       // Snow outdoors, unless there is track laid on it.
       if (!room) for (const d of this.plan.decals) if (this.pos.x > d.x0 && this.pos.x < d.x1 && this.pos.z > d.z0 - 0.3 && this.pos.z < d.z1 + 0.3) grip = 9;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
