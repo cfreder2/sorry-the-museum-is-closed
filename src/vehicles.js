@@ -267,7 +267,7 @@ export class Car {
       this.pos.y = yb; this.vy -= GRAVITY * dt; this.airT += dt;
       if (this.vert && this.vert.t < this.vert.T) { const v = this.vert, step = Math.min(dt, v.T - v.t); v.t += step; this.yaw += v.turn * step / v.T; }
       // Ceilings are real.
-      const roof = ceilingAt(this.plan, this.pos.x, this.pos.z) - 0.3;
+      const roof = ceilingAt(this.plan, this.pos.x, this.pos.z, this.pos.y) - 0.3;
       if (this.pos.y > roof) { this.pos.y = roof; if (this.vy > 0) { this.bump = Math.max(this.bump, this.vy); this.vy *= -0.2; } }
     } else {
       if (this.air) {

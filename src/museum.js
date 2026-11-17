@@ -31,6 +31,18 @@ function motes(color, size, alpha, near, far, additive) {
 }
 const P3 = (x, y, z) => [x, y, z];
 
+// What each building is built of: how big one tile of its wall is, the moulding along its top
+// ([how far out, how deep]) and its footing, the colour of that trim, and how it shows at night.
+const STYLES = {
+  beaux: { u: 5.12, v: 5.12, cap: [0.22, 0.45], base: [0.07, 0.62], trim: 0xbdb6a6, glow: [0.34, 0.38, 0.5] },
+  bridge: { u: 5.12, v: 5.12, cap: [0.12, 0.3], base: [0.1, 0.3], trim: 0x1a2224, glow: [0.6, 0.62, 0.66] },
+  columbus: { u: 5.12, v: 5.12, cap: [0.08, 0.3], base: [0.04, 0.5], trim: 0xa9a59a, glow: [0.34, 0.38, 0.5] },
+  modern: { u: 5.12, v: 5.12, cap: [0.34, 0.12], base: [0, 0], trim: 0xe9edf2, glow: [0.4, 0.44, 0.56] },
+  brick: { u: 5.12, v: 5.12, cap: [0.12, 0.26], base: [0.05, 0.4], trim: 0xb3ab9c, glow: [0.52, 0.5, 0.52] },
+  concrete: { u: 5.12, v: 5.12, cap: [0.06, 0.2], base: [0, 0], trim: 0x777a7c, glow: [0.4, 0.44, 0.52] },
+};
+const FAC = {};
+
 // ------------------------------------------------------------------ frames --
 //
 // A frame is built as rings of moulding, each a different width, depth and
@@ -288,7 +300,7 @@ export class Museum {
         }
       }
       // The ceiling takes the room's own paint and glows with it, faintly.
-      const hole = plan.skylight && plan.skylight.room === r.id ? plan.skylight : null;
+      const hole = plan.skylights.find(k => k.room === r.id) || null;
       if (r.kind !== 'hall') sheet(walls, r.x0, r.x1, r.z0, r.z1, r.h, [0, -1, 0], () => [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]], hole);
       const tint = new THREE.Color(r.tint);
       const wallMat = new THREE.MeshStandardMaterial({
@@ -327,13 +339,18 @@ export class Museum {
         { name: 'n', at: m.z0, lo: m.x0, hi: m.x1, n: [0, 0, -1], beyond: o => o.z0 < m.z0 - 0.01 && o.z1 > m.z0 - 0.01, span: o => [o.x0, o.x1], P: (u, y) => [u, y, m.z0], door: dd => dd.along === 'z' && dd.z1 <= r.z0 + 0.01 && [dd.x0, dd.x1] },
         { name: 's', at: m.z1, lo: m.x0, hi: m.x1, n: [0, 0, 1], beyond: o => o.z0 < m.z1 + 0.01 && o.z1 > m.z1 + 0.01, span: o => [o.x0, o.x1], P: (u, y) => [u, y, m.z1], door: dd => dd.along === 'z' && dd.z0 >= r.z1 - 0.01 && [dd.x0, dd.x1] },
       ];
+      const style = r.building === 'modern' ? 'modern' : r.building === 'lower' ? 'concrete' : r.building === 'first' ? 'brick' : r.x0 < 126 && r.x1 > 108 ? 'bridge' : r.x0 >= 124 ? 'columbus' : 'beaux';
+      const SK = STYLES[style], skin = (FAC[style] = FAC[style] || { wall: new Geo(), trim: new Geo() });
       for (const sd of sides) {
         if (sd.name === r.glass) continue;
+        // Mouldings: a cap along the top of the wall, a footing along the bottom.
+        const band = (u0, u1, y0, y1, d) => { if (d <= 0 || u1 - u0 < 0.02) return; if (sd.n[0]) { const a = sd.at, b = sd.at + sd.n[0] * d; skin.trim.box(Math.min(a, b), Math.max(a, b), y0, y1, u0, u1); } else { const a = sd.at, b = sd.at + sd.n[2] * d; skin.trim.box(u0, u1, y0, y1, Math.min(a, b), Math.max(a, b)); } };
         const next = plan.masses.filter(o => o !== m && sd.beyond(o)), cuts = next.map(sd.span);
-        const face = (u0, u1, y0, y1) => facade.quad(sd.P(u0, y0), sd.P(u1, y0), sd.P(u1, y1), sd.P(u0, y1), sd.n, [[u0 / 2.6, y0 / 2.6], [u1 / 2.6, y0 / 2.6], [u1 / 2.6, y1 / 2.6], [u0 / 2.6, y1 / 2.6]]);
+        const face = (u0, u1, y0, y1) => skin.wall.quad(sd.P(u0, y0), sd.P(u1, y0), sd.P(u1, y1), sd.P(u0, y1), sd.n, [[u0 / SK.u, y0 / SK.v], [u1 / SK.u, y0 / SK.v], [u1 / SK.u, y1 / SK.v], [u0 / SK.u, y1 / SK.v]]);
         const openings = outs.map(dd => ({ span: sd.door(dd), h: dd.h })).filter(o => o.span);
         for (const [a, bb] of minus(sd.lo, sd.hi, cuts)) {
-          for (const [p, qq] of minus(a, bb, openings.map(o => o.span))) face(p, qq, 0, top);
+          for (const [p, qq] of minus(a, bb, openings.map(o => o.span))) { face(p, qq, 0, top); band(p, qq, 0, SK.base[1], SK.base[0]); }
+          band(a, bb, top - SK.cap[1], top + 0.1, SK.cap[0]);
           for (const o of openings) if (o.span[0] >= a && o.span[1] <= bb) face(o.span[0], o.span[1], o.h, top);
         }
         // Where this room stands taller than the one against it, its wall shows above that one's roof.
@@ -369,7 +386,13 @@ export class Museum {
     this.group.add(...this.floors);
     this.group.add(lay.mesh(new THREE.MeshBasicMaterial({ map: TX.laylight(), color: new THREE.Color(0.34, 0.4, 0.56) })));
     const ash = TX.ashlar(), snowTex = TX.snow();
-    this.group.add(facade.mesh(new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.32, 0.36, 0.5), emissiveIntensity: 0.42 })));
+    if (!facade.empty) this.group.add(facade.mesh(new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.32, 0.36, 0.5), emissiveIntensity: 0.42 })));
+    // Each building in its own stone, brick, steel or concrete.
+    for (const [name, sk] of Object.entries(FAC)) {
+      const t = TX.wallStyle(name), K = STYLES[name];
+      if (!sk.wall.empty) this.group.add(sk.wall.mesh(new THREE.MeshStandardMaterial({ map: t, roughness: 0.88, emissiveMap: t, emissive: new THREE.Color(K.glow[0], K.glow[1], K.glow[2]), emissiveIntensity: 0.5 })));
+      if (!sk.trim.empty) this.group.add(sk.trim.mesh(new THREE.MeshStandardMaterial({ color: K.trim, roughness: 0.8, emissive: K.trim, emissiveIntensity: 0.22 })));
+    }
     this.group.add(roofs.mesh(new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 })));
     this.snowTex = snowTex;
 
@@ -531,8 +554,8 @@ export class Museum {
       this.group.add(spill, am);
     }
     // The way in for a drone: one pane of the big skylight left propped open, and the light coming up out of it.
-    if (plan.skylight) {
-      const k = plan.skylight, top = plan.masses.find(m => m.room && m.room.id === k.room).top, cx2 = (k.x0 + k.x1) / 2, cz3 = (k.z0 + k.z1) / 2;
+    for (const k of plan.skylights) {
+      const top = plan.masses.find(m => m.room && m.room.id === k.room).top, cx2 = (k.x0 + k.x1) / 2, cz3 = (k.z0 + k.z1) / 2;
       const rim = new Geo();
       for (const [a, b, c, e] of [[k.x0 - 0.1, k.x1 + 0.1, k.z0 - 0.1, k.z0], [k.x0 - 0.1, k.x1 + 0.1, k.z1, k.z1 + 0.1], [k.x0 - 0.1, k.x0, k.z0, k.z1], [k.x1, k.x1 + 0.1, k.z0, k.z1]]) rim.box(a, b, k.y - 0.05, top + 0.25, c, e);
       this.group.add(rim.mesh(new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5, metalness: 0.5, emissive: 0x3a2c18, emissiveIntensity: 0.8 })));
@@ -545,6 +568,49 @@ export class Museum {
       const bm = beam.mesh(new THREE.MeshBasicMaterial({ map: TX.shaft(), color: new THREE.Color(1.0, 0.72, 0.38), transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
       bm.renderOrder = 5;
       this.group.add(pane, bm);
+    }
+    // The other ways in for a car. Each is a short tunnel of sheet metal through the wall, and on the
+    // outside whatever was left open: a delivery shutter, a duct, a kicked-in door, a cellar window.
+    if (plan.holes.length) {
+      const sheet = TX.duct(), alu = new THREE.MeshStandardMaterial({ map: sheet, emissiveMap: sheet, emissive: 0x8d98a6, emissiveIntensity: 0.5, metalness: 0.45, roughness: 0.42, side: THREE.DoubleSide });
+      const steel = new THREE.MeshStandardMaterial({ color: 0x7c848c, roughness: 0.45, metalness: 0.6, emissive: 0x2c3138, emissiveIntensity: 0.7 }), paint = new THREE.MeshStandardMaterial({ color: 0x6a1c18, roughness: 0.6, emissive: 0x2c0a08, emissiveIntensity: 0.8 });
+      const warm = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.4) }), cyan = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.1, 1.3) }), yellow = new THREE.MeshStandardMaterial({ color: 0xe8b21c, roughness: 0.6, emissive: 0x6a4c06, emissiveIntensity: 0.8 });
+      const glass = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 0.5, 0.62), transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+      const tube = new Geo();
+      for (const d of plan.holes) {
+        const e = 0.012, x0 = d.x0, x1 = d.x1, z0 = d.z0, z1 = d.z1, h = d.h - e;
+        if (d.along === 'x') {
+          tube.quad([x0, 0, z0 + e], [x1, 0, z0 + e], [x1, h, z0 + e], [x0, h, z0 + e], [0, 0, 1]); tube.quad([x0, 0, z1 - e], [x1, 0, z1 - e], [x1, h, z1 - e], [x0, h, z1 - e], [0, 0, -1]);
+        } else {
+          tube.quad([x0 + e, 0, z0], [x0 + e, 0, z1], [x0 + e, h, z1], [x0 + e, h, z0], [1, 0, 0]); tube.quad([x1 - e, 0, z0], [x1 - e, 0, z1], [x1 - e, h, z1], [x1 - e, h, z0], [-1, 0, 0]);
+        }
+        tube.quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1], [0, -1, 0]); tube.quad([x0, e, z0], [x1, e, z0], [x1, e, z1], [x0, e, z1], [0, 1, 0]);
+        // What is on the outside, built looking out from the wall: x along it, z away from it.
+        const n = d.side === 'e' ? [1, 0] : d.side === 'w' ? [-1, 0] : d.side === 's' ? [0, 1] : [0, -1];
+        const g = new THREE.Group(), w = d.along === 'x' ? z1 - z0 : x1 - x0;
+        g.position.set(d.side === 'e' ? x1 : d.side === 'w' ? x0 : (x0 + x1) / 2, 0, d.side === 's' ? z1 : d.side === 'n' ? z0 : (z0 + z1) / 2); g.rotation.y = Math.atan2(n[0], n[1]);
+        const bx = (mat, bw, bh, bd, px, py, pz) => { const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat); m.position.set(px, py, pz); g.add(m); return m; };
+        const lamp = d.kind === 'duct' ? cyan : warm;
+        bx(lamp, w, 0.025, 0.03, 0, d.h - 0.03, 0.03); for (const sx of [-1, 1]) bx(lamp, 0.025, d.h - 0.04, 0.03, sx * (w / 2 - 0.02), d.h / 2, 0.03);
+        if (d.kind === 'dock') {
+          for (let i = 0; i < 16; i++) bx(steel, w + 0.3, 0.1, 0.05, 0, d.h + 0.06 + i * 0.12, 0.05 + (i % 2) * 0.012);          // the shutter, stopped short of the ground
+          for (const sx of [-1, 1]) { bx(steel, 0.1, 2.7, 0.12, sx * (w / 2 + 0.2), 1.35, 0.06); const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 10), yellow); p.position.set(sx * (w / 2 + 0.6), 0.45, 1.0); g.add(p); }
+          const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: TX.notice(['Deliveries', 'ring bell']), color: new THREE.Color(0.6, 0.58, 0.54) })); sign.position.set(0, 3.25, 0.03); g.add(sign);
+        } else if (d.kind === 'duct') {
+          for (const sx of [-1, 1]) bx(alu, 0.05, d.h + 0.05, 0.3, sx * (w / 2 + 0.025), (d.h + 0.05) / 2, 0.15); bx(alu, w + 0.1, 0.05, 0.3, 0, d.h + 0.025, 0.15);
+          const gr = new THREE.Group(); for (let i = 0; i < 6; i++) { const sl = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, 0.05), steel); sl.position.y = 0.06 + i * 0.09; sl.rotation.x = 0.7; gr.add(sl); } gr.position.set(w / 2 + 0.75, 0, 0.16); gr.rotation.x = -0.3; g.add(gr);
+        } else if (d.kind === 'flap') {
+          bx(paint, 1.0, 2.1 - d.h, 0.06, 0, d.h + (2.1 - d.h) / 2, 0.03); for (const sx of [-1, 1]) bx(paint, (1.0 - w) / 2, d.h, 0.06, sx * (w / 2 + (1.0 - w) / 4), d.h / 2, 0.03);
+          bx(steel, 0.04, 0.22, 0.08, 0.36, 1.05, 0.08); const fl = bx(paint, w, d.h, 0.03, 0, d.h - 0.02, 0.2); fl.rotation.x = -1.1; fl.position.set(0, d.h - 0.02 - Math.cos(1.1) * d.h / 2 + d.h * 0.05, 0.03 + Math.sin(1.1) * d.h / 2);
+        } else {
+          for (const sx of [-1, 1]) bx(steel, 0.05, d.h + 0.05, 0.08, sx * (w / 2 + 0.025), (d.h + 0.05) / 2, 0.04); bx(steel, w + 0.1, 0.05, 0.08, 0, d.h + 0.025, 0.04);
+          const pane = bx(glass, w, d.h, 0.02, 0, 0, 0); pane.rotation.x = 0.75; pane.position.set(0, d.h - Math.cos(0.75) * d.h / 2, 0.06 + Math.sin(0.75) * d.h / 2);
+        }
+        const spill = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.6), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: d.kind === 'duct' ? new THREE.Color(0.3, 0.5, 0.6) : new THREE.Color(0.6, 0.42, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+        spill.rotation.x = -Math.PI / 2; spill.position.set(0, 0.014, 1.0); spill.renderOrder = 4; g.add(spill);
+        this.group.add(g);
+      }
+      this.group.add(tube.mesh(alu));
     }
 
     // Snow, falling wherever you are. It is carried along with the camera and wrapped round.
@@ -914,6 +980,16 @@ export class Museum {
             else { t[0][0] += m; t[3][0] += m; t[1][0] -= m; t[2][0] -= m; arrows.quad(t[0], t[1], t[2], t[3], [0, 1, 0], up ? [[0, L0], [1, L0], [1, L1], [0, L1]] : [[0, -L0], [1, -L0], [1, -L1], [0, -L1]]); }
           }
         }
+        // Scaffolding: a tube down to the ground under every few planks, and a rail.
+        if (s.posts) {
+          const along = run === 'x' ? x1 - x0 : z1 - z0, count = Math.max(2, Math.round(along / 2.2) + 1);
+          for (let i = 0; i < count; i++) for (const side of [0, 1]) {
+            const t = i / (count - 1);
+            const wx = run === 'x' ? x0 + (x1 - x0) * t : (side ? x1 - 0.04 : x0 + 0.04), wz = run === 'z' ? z0 + (z1 - z0) * t : (side ? z1 - 0.04 : z0 + 0.04);
+            const y = heightOf(s, Math.min(x1, Math.max(x0, wx)), Math.min(z1, Math.max(z0, wz)));
+            if (y > 0.3) steel.box(wx - 0.03, wx + 0.03, 0, y + 0.02, wz - 0.03, wz + 0.03);
+          }
+        }
         // Hung from the ceiling on wires.
         if (s.hang) {
           const along = run === 'x' ? x1 - x0 : z1 - z0, count = Math.max(2, Math.round(along / 3.2) + 1);
@@ -949,6 +1025,7 @@ export class Museum {
     if (extras) for (const o of plan.obstacles) {
       if (o.leg) wood.box(o.x0, o.x1, 0, o.y1, o.z0, o.z1);
       if (o.post) steel.box(o.x0, o.x1, 0, o.y1, o.z0, o.z1);
+      if (o.rail) { steel.box(o.x0, o.x1, o.y1 - 0.05, o.y1, o.z0, o.z1); steel.box(o.x0, Math.min(o.x1, o.x0 + 0.05), o.y0, o.y1, o.z0, Math.min(o.z1, o.z0 + 0.05)); }
     }
 
     // Track laid flat on the floor: where to line up, and which way.
@@ -1126,7 +1203,7 @@ export class Museum {
       if (!o.mesh.visible || dx * dx + dz * dz > 1600) continue;
       o.mesh.rotation.y = Math.atan2(dx, dz); o.mesh.updateMatrix();
     }
-    this.flakes.visible = !roomAt(this.plan, cam.x, cam.z);
+    { const rm = roomAt(this.plan, cam.x, cam.z); this.flakes.visible = !rm || cam.y > rm.h + 0.3; }
     for (const a of this._waking) {
       const e = t - a.wakeAt;
       if (e < 0) continue;

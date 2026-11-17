@@ -6,7 +6,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { buildPlan, roomAt, confine } from './plan.js';
+import { buildPlan, roomAt, confine, onRoof } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
@@ -853,7 +853,10 @@ function play(dt, real) {
     if (G.resultsAt && G.t > G.resultsAt) { G.resultsAt = 0; G.state = 'results'; results(); }
   }
 
-  const room = roomAt(G.plan, v.pos.x, v.pos.z);
+  // On a roof you are over a room, not in it.
+  const aloft = onRoof(G.plan, v.pos.x, v.pos.z, v.pos.y);
+  const room = aloft ? null : roomAt(G.plan, v.pos.x, v.pos.z);
+  if (aloft && v.kind === 'car' && !v.air && !G.roofed) { G.roofed = true; callout('ON THE ROOF'); sound.lap(); say('Every roof is a floor. Mind the edge, and the open skylights.', 0.6, 7); }
   if ((room ? room.id : null) !== G.roomId) {
     G.roomId = room ? room.id : null;
     if (!racing && G.t - G.startedAt > 2) {

@@ -57,6 +57,32 @@ export function buildPlan() {
   // ...and somebody has left a pane of the big skylight over the Grand Staircase propped open.
   const sr = byId.G200;
   const skylight = sr ? { room: sr.id, x0: (sr.x0 + sr.x1) / 2 - 1.3, x1: (sr.x0 + sr.x1) / 2 + 1.3, z0: sr.z1 - 14.2, z1: sr.z1 - 11.6, y: sr.h } : null;
+  // Two more skylights have been left open, further in: one over the bridge, one over the old first floor.
+  const skylights = skylight ? [skylight] : [];
+  for (const id of ['G240', 'G151']) { const r = byId[id]; if (r) skylights.push({ room: id, x0: (r.x0 + r.x1) / 2 - 1.3, x1: (r.x0 + r.x1) / 2 + 1.3, z0: (r.z0 + r.z1) / 2 - 1.3, z1: (r.z0 + r.z1) / 2 + 1.3, y: r.h }); }
+  // And for a car there are other ways in, for anyone who goes looking: low openings through an
+  // outside wall, each a different kind of thing left open.
+  const holes = [];
+  const solid = (x, z) => rooms.some(r => x > r.x0 - T && x < r.x1 + T && z > r.z0 - T && z < r.z1 + T);
+  const pierce = (id, side, kind, w = 1.2, h = 0.6) => {
+    const r = byId[id];
+    if (!r) return;
+    const horiz = side === 'n' || side === 's', lo = horiz ? r.x0 : r.z0, hi = horiz ? r.x1 : r.z1;
+    for (const t of [0.5, 0.32, 0.68, 0.2, 0.8]) {
+      const u = lo + (hi - lo) * t, ox = side === 'w' ? r.x0 - T - 2 : side === 'e' ? r.x1 + T + 2 : u, oz = side === 'n' ? r.z0 - T - 2 : side === 's' ? r.z1 + T + 2 : u;
+      if (solid(ox, oz) || solid(ox + (horiz ? 1.5 : 0), oz + (horiz ? 0 : 1.5)) || solid(ox - (horiz ? 1.5 : 0), oz - (horiz ? 0 : 1.5))) continue;
+      if (doors.some(d => (d.a === id || d.b === id) && (horiz ? d.along === 'z' && Math.abs((d.x0 + d.x1) / 2 - u) < 3.5 : d.along === 'x' && Math.abs((d.z0 + d.z1) / 2 - u) < 3.5))) continue;
+      const d = horiz ? { along: 'z', x0: u - w / 2, x1: u + w / 2, z0: side === 'n' ? r.z0 - T : r.z1, z1: side === 'n' ? r.z0 : r.z1 + T } : { along: 'x', z0: u - w / 2, z1: u + w / 2, x0: side === 'w' ? r.x0 - T : r.x1, x1: side === 'w' ? r.x0 : r.x1 + T };
+      Object.assign(d, { id: 'hole' + holes.length, a: id, b: 'out', h, out: true, vent: true, kind, side });
+      doors.push(d); holes.push(d);
+      return;
+    }
+  };
+  pierce('GStock_Exchange', 'e', 'dock', 2.2, 0.7);     // a delivery shutter not quite pulled down, on the path to the skate park
+  pierce('G184', 's', 'duct', 1.1, 0.6);                // another duct, in the courtyard
+  pierce('G238', 'e', 'flap', 0.8, 0.45);               // a service door onto the railway with its bottom panel kicked in
+  pierce('G239', 'w', 'window', 1.0, 0.5);              // a cellar window propped open, by the South Garden
+  pierce('G59', 'w', 'window', 1.0, 0.5);
   const hall = rooms.find(r => r.kind === 'hall');
 
   // Walkable volumes indoors: every room, every doorway stretched a little
@@ -64,7 +90,7 @@ export function buildPlan() {
   const boxes = rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y1: r.ceil }));
   const hx = (hall.x0 + hall.x1) / 2;
   boxes.push({ x0: hx - 4, x1: hx + 4, z0: hall.z0, z1: hall.z1, y1: 14.5 });
-  if (skylight) boxes.push({ x0: skylight.x0, x1: skylight.x1, z0: skylight.z0, z1: skylight.z1, y1: SKY });     // straight up and out
+  for (const k of skylights) boxes.push({ x0: k.x0, x1: k.x1, z0: k.z0, z1: k.z1, y1: SKY });     // straight up and out
   if (transom) boxes.push({ x0: transom.x0 - 1.6, x1: transom.x1 + 1.6, z0: transom.z0, z1: transom.z1, y0: transom.y0, y1: transom.y1 });   // above the door: for things that fly
   for (const d of doors) {
     const e = 1.6;
@@ -89,7 +115,7 @@ export function buildPlan() {
   const xs = rooms.flatMap(r => [r.x0, r.x1]), zs = rooms.flatMap(r => [r.z0, r.z1]);
   const bounds = { x0: -28, x1: Math.max(298, Math.max(...xs) + 12), z0: Math.min(-42, Math.min(...zs) - 12), z1: Math.max(262, Math.max(...zs) + 8) };
 
-  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made, vent, transom, skylight, locked: true, facade };
+  const plan = { rooms, doors, byId, boxes, masses, bounds, obstacles: [], hall, made: LAYOUT.made, vent, transom, skylight, skylights, holes, locked: true, facade };
   plan.walls = rooms.flatMap(r => wallsOf(plan, r));
   plan.doorsOf = id => doors.filter(d => d.a === id || d.b === id);
   // Where you begin: out on Michigan Avenue in the snow, facing the front door.
@@ -97,6 +123,7 @@ export function buildPlan() {
   plan.spawn = { x: PX - 6.5, z: fz, yaw: Math.PI / 2 };
   addGrounds(plan);
   addStunts(plan);
+  addRoofs(plan);
   return plan;
 }
 
@@ -142,8 +169,16 @@ export function roomAt(plan, x, z) {
   return null;
 }
 
+// Is this point on top of a building rather than in it?
+export function onRoof(plan, x, z, y) {
+  if (y < 2.5) return false;
+  for (const m of plan.masses) if (x > m.x0 && x < m.x1 && z > m.z0 && z < m.z1 && y >= m.top - 0.4) return m;
+  return false;
+}
+
 // How high the ceiling is over a point: a room's, a doorway's, or the sky.
-export function ceilingAt(plan, x, z) {
+export function ceilingAt(plan, x, z, y) {
+  if (y != null && onRoof(plan, x, z, y)) return SKY + 20;
   const r = roomAt(plan, x, z);
   if (r) return r.kind === 'hall' ? SPRING + Math.sqrt(Math.max(0, VAULT_R * VAULT_R - (x - (r.x0 + r.x1) / 2) ** 2)) - 0.2 : r.h;
   for (const d of plan.doors) if (x >= d.x0 && x <= d.x1 && z >= d.z0 && z <= d.z1) return d.h;
@@ -156,7 +191,9 @@ export function ceilingAt(plan, x, z) {
 const _o = { x: 0, y: 0, z: 0 };
 export function confine(plan, p, r, flying, out, noFurniture) {
   let best = Infinity, bx = p.x, by = p.y, bz = p.z;
-  for (const b of plan.boxes) {
+  // Up on a roof, a car is outdoors: the rooms below are nothing to do with it.
+  const up = !flying && p.y > 2.5 && onRoof(plan, p.x, p.z, p.y);
+  if (!up) for (const b of plan.boxes) {
     if (b.lock && plan.locked) continue;              // a locked door is a wall
     if (b.y0 && !flying) continue;                    // a way through up in the air is no use to a car
     const x0 = b.x0 + r, x1 = b.x1 - r, z0 = b.z0 + r, z1 = b.z1 - r;
@@ -179,6 +216,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
       for (const m of plan.masses) {
         if (_o.x + r <= m.x0 || _o.x - r >= m.x1 || _o.z + r <= m.z0 || _o.z - r >= m.z1) continue;
         if (flying && _o.y - r >= m.top) continue;
+        if (up && _o.y >= m.top - 0.4) continue;                   // a roof no higher than this one is floor, not wall
         if (flying && _o.y > m.top - 0.7) { _o.y = m.top + r; moved = true; continue; }
         const l = _o.x + r - m.x0, rr = m.x1 - (_o.x - r), n = _o.z + r - m.z0, s = m.z1 - (_o.z - r), k = Math.min(l, rr, n, s);
         if (k === l) _o.x -= l; else if (k === rr) _o.x += rr; else if (k === n) _o.z -= n; else _o.z += s;
@@ -615,6 +653,49 @@ function addStunts(plan) {
   for (const m of PG.snowmen) P.push({ type: 'snowman', x: m.x, z: m.z, s: m.s, yaw: (m.x * 7 + m.z * 3) % 6.28 });
 }
 
+// ------------------------------------------------------------------ the roofs --
+//
+// Every roof is a floor, for anything that can get up there: a drone can land on one, and for a
+// car there is the builders' scaffold at the south end of the Michigan Avenue wing. Roofs of the
+// same height run into one another; a taller neighbour is a wall, a lower one a drop. The glass of
+// a skylight stands a little proud and can be hopped onto. Where a skylight has been left open
+// there is a hole, and what drives into it comes down inside.
+function addRoofs(plan) {
+  const S = plan.surfaces;
+  plan.roofs = [];
+  const roof = (x0, x1, z0, z1, h, o = {}) => { if (x1 - x0 > 0.01 && z1 - z0 > 0.01) { plan.roofs.push({ skin: 'roof', x0, x1, z0, z1, axis: null, h0: h, h1: h, thick: 0.45, roof: true, ...o }); } };
+  for (const m of plan.masses) {
+    const r = m.room;
+    if (r && r.kind === 'hall') continue;                // Griffin Court's roof is a glass vault
+    const k = r && plan.skylights.find(q => q.room === r.id);
+    if (k) { roof(m.x0, m.x1, m.z0, k.z0, m.top); roof(m.x0, m.x1, k.z1, m.z1, m.top); roof(m.x0, k.x0, k.z0, k.z1, m.top); roof(k.x1, m.x1, k.z0, k.z1, m.top); }
+    else roof(m.x0, m.x1, m.z0, m.z1, m.top);
+    if (r && r.kind === 'gallery' && r.floor !== 'LL' && !k) {
+      const w = r.x1 - r.x0, d = r.z1 - r.z0;
+      if (Math.min(w, d) >= 8.5 && !(plan.terrace && plan.terrace.room === r.id)) roof(r.x0 + w * 0.27 - 0.2, r.x1 - w * 0.27 + 0.2, r.z0 + d * 0.27 - 0.2, r.z1 - d * 0.27 + 0.2, m.top + 0.32, { skin: 'roofglass', thick: 0.32 });
+    }
+  }
+  // The scaffold: two flights of planking up the south wall of Gallery 211, and a landing level with its roof.
+  const g = plan.masses.find(m => m.room && m.room.id === 'G211');
+  if (g) {
+    const z = g.z1, top = g.top + 0.02, half = top / 2, x0 = g.x0 + 0.3, x1 = g.x1 - 0.1;
+    const piece = (rect, axis, h0, h1, o = {}) => { const s = { skin: 'ply', x0: rect[0], x1: rect[1], z0: rect[2], z1: rect[3], axis, h0, h1, thick: 0.1, posts: true, ...o }; S.push(s); plan.paved.push(s); return s; };
+    piece([x0, x1, z + 2.6, z + 4.6], 'x', half, 0);                                  // up from the east end, going west
+    piece([x0 - 2.6, x0, z + 0.2, z + 4.6], null, half, half);                         // the turn
+    piece([x0, x1 - 3.4, z + 0.2, z + 2.2], 'x', half, top);                           // back east, up to the top
+    piece([x1 - 3.4, x1, z - 1.2, z + 2.2], null, top, top, { perch: 'scaffold' });    // and onto the roof
+    // Guard rails, so that the turn can be taken at speed: along the outside of the first flight, round
+    // the turn, and round the top landing. A rail on a slope is a run of short level lengths.
+    const O = plan.obstacles, rail = (rx0, rx1, rz0, rz1, lo, hi) => O.push({ x0: rx0, x1: rx1, z0: rz0, z1: rz1, y0: lo + 0.03, y1: hi + 0.38, rail: true, kit: true });
+    for (let i = 0; i < 10; i++) { const xa = x0 + (x1 - x0) * i / 10, xb = x0 + (x1 - x0) * (i + 1) / 10, ha = half * (1 - (i + 1) / 10), hb = half * (1 - i / 10); rail(xa, xb, z + 4.6, z + 4.66, ha, hb); }
+    rail(x0 - 2.66, x0 - 2.6, z + 0.2, z + 4.66, half, half); rail(x0 - 2.6, x0, z + 4.6, z + 4.66, half, half); rail(x0 - 2.6, x0, z + 0.14, z + 0.2, half, half);
+    rail(x1, x1 + 0.06, z, z + 2.2, top, top); rail(x1 - 3.4, x1, z + 2.2, z + 2.26, top, top);
+    for (let i = 0; i < 8; i++) { const L = x1 - 3.4 - x0, xa = x0 + L * i / 8, xb = x0 + L * (i + 1) / 8, ha = half + (top - half) * i / 8, hb = half + (top - half) * (i + 1) / 8; rail(xa, xb, z + 2.2, z + 2.26, ha, hb); }
+    plan.scaffold = { x: x1 + 1.5, z: z + 3.6, top };
+    plan.decals.push({ x0: x1, x1: x1 + 4, z0: z + 3.0, z1: z + 4.2, axis: 'x', dir: -1 });
+  }
+}
+
 // Is this bare snow: outdoors, off the streets, the paths, the ice and the railway?
 export function onSnow(plan, x, z) {
   const G = plan.grounds;
@@ -644,8 +725,8 @@ export function heightOf(s, x, z) {
 // `sticky` is the piece already under the wheels: it stays underfoot however steeply it climbs.
 export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
   let g = 0, under = null;
-  for (const s of plan.surfaces) {
-    if (plan.racing && !s.line && s.skin !== 'bench') continue;        // in a race, only what is on the track is there
+  for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
+    if (plan.racing && !s.line && s.skin !== 'bench' && !s.roof) continue;        // in a race, only what is on the track is there
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if ((h <= y + step || (s === sticky && h <= y + 1.6)) && h > g) { g = h; under = s; }
@@ -656,8 +737,8 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
 
 // Is there a solid piece here standing taller than something at height y can climb?
 export function wallAt(plan, x, z, y, step = STEP, ignore = null) {
-  for (const s of plan.surfaces) {
-    if (s === ignore || (plan.racing && !s.line && s.skin !== 'bench')) continue;
+  for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
+    if (s === ignore || (plan.racing && !s.line && s.skin !== 'bench' && !s.roof)) continue;
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if (h <= y + step) continue;

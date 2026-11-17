@@ -283,7 +283,7 @@ export function buildGrounds(museum, plan) {
     const curb = new Geo(), glass = new Geo();
     for (const q of plan.masses) {
       const r = q.room;
-      if (!r || r.kind !== 'gallery' || r.floor === 'LL' || (plan.skylight && plan.skylight.room === r.id)) continue;
+      if (!r || r.kind !== 'gallery' || r.floor === 'LL' || plan.skylights.some(k => k.room === r.id) || (plan.terrace && plan.terrace.room === r.id)) continue;
       const w = r.x1 - r.x0, d = r.z1 - r.z0;
       if (Math.min(w, d) < 8.5) continue;
       const x0 = r.x0 + w * 0.27, x1 = r.x1 - w * 0.27, z0 = r.z0 + d * 0.27, z1 = r.z1 - d * 0.27, y = q.top;

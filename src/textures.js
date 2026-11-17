@@ -318,6 +318,67 @@ export function duct() {
   return tex(c, { repeat: true });
 }
 
+// What each building is built of. One tile of wall, mapped so its foot is the ground.
+//   beaux     the 1893 building: limestone in courses on a rusticated base, tall arched windows
+//   bridge    the galleries over the railway: riveted steel, a row of small lit windows
+//   columbus  the buildings east of the tracks: smooth pale stone, dark strips of glass
+//   modern    the Modern Wing: tall narrow panels of pale stone between thin white fins
+//   brick     the old first floor: brick on a stone footing, some windows lit
+//   concrete  the lower level: board-marked concrete with a band of glass block
+export function wallStyle(kind) {
+  const [c, g] = canvas(512, 512);
+  const r = rng(kind.length * 97 + kind.charCodeAt(0));
+  const speck = (a, b, n = 2600) => { for (let k = 0; k < n; k++) { g.fillStyle = r() > 0.5 ? a : b; g.fillRect(r() * 512, r() * 512, 1 + r() * 4, 1 + r() * 3); } };
+  const Y = m => 512 - m;                               // metres up from the ground, at 100 px to the tile's unit
+  if (kind === 'beaux') {
+    g.fillStyle = '#b7b1a2'; g.fillRect(0, 0, 512, 512); speck('rgba(255,255,255,.06)', 'rgba(40,40,50,.07)');
+    g.strokeStyle = 'rgba(52,50,46,.5)'; g.lineWidth = 2;
+    for (let j = 0; j < 10; j++) { const y = j * 51.2; g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); for (let x = (j % 2) * 64; x < 512; x += 128) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 51.2); g.stroke(); } }
+    g.fillStyle = '#8f8a7e'; g.fillRect(0, Y(62), 512, 62); g.strokeStyle = 'rgba(30,30,30,.6)'; g.lineWidth = 5; for (let x = 0; x <= 512; x += 128) { g.beginPath(); g.moveTo(x, Y(62)); g.lineTo(x, 512); g.stroke(); } g.strokeRect(-4, Y(62), 520, 31);
+    // one tall window with a round head, in a moulded surround with a keystone
+    const cx = 256, w = 84, y0 = Y(150), y1 = Y(380);
+    g.fillStyle = '#cfc9ba'; g.beginPath(); g.moveTo(cx - w - 16, y0 + 10); g.lineTo(cx - w - 16, y1); g.arc(cx, y1, w + 16, Math.PI, 0); g.lineTo(cx + w + 16, y0 + 10); g.fill();
+    const gl = g.createLinearGradient(0, y1 - w, 0, y0); gl.addColorStop(0, '#2a3446'); gl.addColorStop(1, '#10141c');
+    g.fillStyle = gl; g.beginPath(); g.moveTo(cx - w, y0); g.lineTo(cx - w, y1); g.arc(cx, y1, w, Math.PI, 0); g.lineTo(cx + w, y0); g.fill();
+    g.strokeStyle = '#8d8778'; g.lineWidth = 5; g.beginPath(); g.moveTo(cx, y0); g.lineTo(cx, y1 - w); g.moveTo(cx - w, y1); g.lineTo(cx + w, y1); g.moveTo(cx - w, (y0 + y1) / 2); g.lineTo(cx + w, (y0 + y1) / 2); g.stroke();
+    g.fillStyle = '#d9d3c4'; g.fillRect(cx - 14, y1 - w - 30, 28, 34); g.fillRect(cx - w - 26, y0, 2 * w + 52, 14);
+  } else if (kind === 'bridge') {
+    g.fillStyle = '#1d2a2b'; g.fillRect(0, 0, 512, 512); speck('rgba(120,150,150,.08)', 'rgba(0,0,0,.12)');
+    g.strokeStyle = '#0c1213'; g.lineWidth = 6; for (let x = 0; x <= 512; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 512); g.stroke(); } for (const y of [0, 170, 340, 512]) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); }
+    g.strokeStyle = 'rgba(70,95,95,.55)'; g.lineWidth = 9; for (let x = 0; x < 512; x += 256) { g.beginPath(); g.moveTo(x, 340); g.lineTo(x + 256, 512); g.moveTo(x + 256, 340); g.lineTo(x, 512); g.stroke(); }
+    g.fillStyle = '#5a7272'; for (let x = 10; x < 512; x += 20) for (const y of [8, 162, 178, 332, 348, 504]) { g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.fill(); }
+    for (let i = 0; i < 4; i++) { g.fillStyle = i === 1 ? '#f1c56a' : i === 3 ? '#b98f4a' : '#0d1418'; g.fillRect(i * 128 + 36, 206, 56, 84); g.strokeStyle = '#0a0f10'; g.lineWidth = 4; g.strokeRect(i * 128 + 36, 206, 56, 84); }
+  } else if (kind === 'columbus') {
+    g.fillStyle = '#c6c1b4'; g.fillRect(0, 0, 512, 512); speck('rgba(255,255,255,.05)', 'rgba(50,50,60,.05)');
+    g.strokeStyle = 'rgba(70,68,62,.45)'; g.lineWidth = 2; for (let k = 0; k <= 512; k += 128) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 512); g.moveTo(0, k); g.lineTo(512, k); g.stroke(); }
+    const gl = g.createLinearGradient(0, 0, 0, 512); gl.addColorStop(0, '#1c2636'); gl.addColorStop(1, '#0b0f16'); g.fillStyle = gl; g.fillRect(228, 0, 56, 512);
+    g.strokeStyle = '#3d4654'; g.lineWidth = 3; for (let y = 0; y <= 512; y += 64) { g.beginPath(); g.moveTo(228, y); g.lineTo(284, y); g.stroke(); } g.strokeRect(228, -4, 56, 520);
+  } else if (kind === 'modern') {
+    g.fillStyle = '#dedbd2'; g.fillRect(0, 0, 512, 512); speck('rgba(255,255,255,.05)', 'rgba(60,60,70,.04)');
+    g.strokeStyle = 'rgba(96,96,92,.4)'; g.lineWidth = 2; for (let x = 0; x <= 512; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 512); g.stroke(); }
+    g.beginPath(); g.moveTo(0, 256); g.lineTo(512, 256); g.stroke();
+    g.fillStyle = '#f7f9fb'; g.fillRect(0, 0, 9, 512); g.fillStyle = 'rgba(40,50,70,.35)'; g.fillRect(9, 0, 6, 512);
+    const gl = g.createLinearGradient(0, 0, 0, 90); gl.addColorStop(0, '#2c3c56'); gl.addColorStop(1, '#151c2a'); g.fillStyle = gl; g.fillRect(15, 6, 497, 84); g.fillStyle = '#f2f4f6'; for (let x = 15; x < 512; x += 62) g.fillRect(x, 6, 4, 84);
+  } else if (kind === 'brick') {
+    g.fillStyle = '#a2978a'; g.fillRect(0, 0, 512, 512);
+    for (let j = 0; j < 32; j++) for (let x = -(j % 2) * 21; x < 512; x += 42) { const v = r(); g.fillStyle = `rgb(${118 + v * 34},${58 + v * 16},${44 + v * 12})`; g.fillRect(x + 1, j * 16 + 1, 40, 14); }
+    g.fillStyle = '#b3ab9c'; g.fillRect(0, Y(40), 512, 40); g.fillRect(0, 0, 512, 16);
+    for (const [x, lit] of [[128, true], [384, false]]) {
+      const w = 60, y0 = Y(130), y1 = Y(300);
+      g.fillStyle = '#b3ab9c'; g.fillRect(x - w - 10, y0, 2 * w + 20, 12); g.beginPath(); g.moveTo(x - w - 8, y1 + 10); g.quadraticCurveTo(x, y1 - 26, x + w + 8, y1 + 10); g.lineTo(x + w + 8, y1 + 22); g.quadraticCurveTo(x, y1 - 12, x - w - 8, y1 + 22); g.fill();
+      g.fillStyle = lit ? '#e9b85c' : '#141a22'; g.beginPath(); g.moveTo(x - w, y0); g.lineTo(x - w, y1 + 14); g.quadraticCurveTo(x, y1 - 14, x + w, y1 + 14); g.lineTo(x + w, y0); g.fill();
+      g.strokeStyle = '#3a2a22'; g.lineWidth = 5; g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y1); g.moveTo(x - w, (y0 + y1) / 2); g.lineTo(x + w, (y0 + y1) / 2); g.stroke();
+    }
+  } else {
+    g.fillStyle = '#85888b'; g.fillRect(0, 0, 512, 512); speck('rgba(255,255,255,.05)', 'rgba(0,0,0,.08)', 4000);
+    g.strokeStyle = 'rgba(40,42,46,.3)'; g.lineWidth = 1; for (let y = 0; y < 512; y += 13) { g.beginPath(); g.moveTo(0, y + r() * 2); g.lineTo(512, y + r() * 2); g.stroke(); }
+    g.strokeStyle = 'rgba(30,32,36,.6)'; g.lineWidth = 3; for (let k = 0; k <= 512; k += 256) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 512); g.moveTo(0, k); g.lineTo(512, k); g.stroke(); }
+    g.fillStyle = '#2c2f33'; for (let x = 64; x < 512; x += 128) for (let y = 64; y < 512; y += 128) { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); }
+    for (let x = 0; x < 512; x += 26) for (let y = Y(260); y < Y(182); y += 26) { g.fillStyle = `rgba(${150 + r() * 60},${200 + r() * 40},${190 + r() * 40},.85)`; g.fillRect(x + 2, y + 2, 22, 22); }
+  }
+  return tex(c, { repeat: true });
+}
+
 // A swimming pool's tiles: small, square, blue-green, white in the joints. One metre of them.
 export function poolTile() {
   const [c, g] = canvas(256, 256);
