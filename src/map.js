@@ -28,7 +28,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     return null;
   }
   function build() {
-    const p = G.plan, nodes = [], adj = [];
+    const p = G.plan, nodes = [], adj = [], flights = [];
     const node = (x, y, z, place) => { nodes.push({ x, y, z, place }); adj.push([]); return nodes.length - 1; };
     const link = (a, b, cost, how) => { adj[a].push([b, cost, how]); adj[b].push([a, cost, how]); };
     const way = (A, B, cost, how) => { if (A.place && B.place && A.place !== B.place) link(node(A.x, A.y, A.z, A.place), node(B.x, B.y, B.z, B.place), cost, how); };
@@ -48,7 +48,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       // Up one side of a wide flight, not the middle: the middle of the Grand Staircase's landing has a kicker on it.
       const wide = q.axis === 'x' ? q.z1 - q.z0 : q.x1 - q.x0, c = (q.axis === 'x' ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2) + (wide > 4.5 ? wide * 0.28 : 0), len = q.axis === 'x' ? q.x1 - q.x0 : q.z1 - q.z0;
       const lo = q.axis === 'x' ? { x: q.x0 - 0.4, z: c } : { x: c, z: q.z0 - 0.4 }, hi = q.axis === 'x' ? { x: q.x1 + 0.4, z: c } : { x: c, z: q.z1 + 0.4 };
+      const n0 = nodes.length;
       way({ ...lo, y: q.y0, place: placeAt(lo.x, lo.z, q.y0) }, { ...hi, y: q.y1, place: placeAt(hi.x, hi.z, q.y1) }, len * 1.2, q.y1 > q.y0 ? 'up' : 'down');
+      if (nodes.length === n0 + 2) flights.push({ q, lo: n0, hi: n0 + 1 });
     }
     for (const l of p.lifts) {
       const cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2, stops = [];
@@ -63,7 +65,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     }
     const byPlace = new Map();
     nodes.forEach((n, i) => { if (!byPlace.has(n.place)) byPlace.set(n.place, []); byPlace.get(n.place).push(i); });
-    return { nodes, adj, byPlace };
+    return { nodes, adj, byPlace, flights };
   }
   const walk = (a, b, place) => Math.hypot(a.x - b.x, a.z - b.z) * (place === 'OUT' ? 3 : 1);      // indoors for choice
 
@@ -132,7 +134,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     if (!tp) return null;
     // In the air or on a flight of stairs you are nowhere in particular: start from the nearest way.
     const startLinks = [];
-    if (fp && byPlace.has(fp)) for (const i of byPlace.get(fp)) startLinks.push([i, walk(from, nodes[i], fp)]);
+    // Part-way up a flight, the ways on are its two ends, not the floor it started from.
+    const on = nav.flights.find(f => from.x >= f.q.x0 && from.x <= f.q.x1 && from.z >= f.q.z0 && from.z <= f.q.z1 && from.y > Math.min(f.q.y0, f.q.y1) + 0.12 && from.y < Math.max(f.q.y0, f.q.y1) + 0.5);
+    if (on) { for (const i of [on.lo, on.hi]) startLinks.push([i, Math.hypot(nodes[i].x - from.x, nodes[i].z - from.z) * 1.2]); fp = null; }
+    else if (fp && byPlace.has(fp)) for (const i of byPlace.get(fp)) startLinks.push([i, walk(from, nodes[i], fp)]);
     else { let b = -1, bd = Infinity; nodes.forEach((n, i) => { const d = Math.hypot(n.x - from.x, n.z - from.z) + Math.abs(n.y - from.y) * 4; if (d < bd) { bd = d; b = i; } }); if (b >= 0) startLinks.push([b, bd]); fp = null; }
     const endCost = new Map();
     if (byPlace.has(tp)) for (const i of byPlace.get(tp)) endCost.set(i, walk(to, nodes[i], tp));
