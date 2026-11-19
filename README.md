@@ -88,6 +88,14 @@ against one; it stands down on stairs, ramps and lifts. Both are switches
 under Settings, Driving: with "Drive for me" off the stick is the throttle as
 well. On a keyboard or a gamepad both start off.
 
+## The toy stall
+
+On the roof beside the card game somebody has set up a stall under a striped
+awning. Two toys turn on their stands: a Supercar and a black flying wing
+called the Manta. Each costs 2,000 chips, and the only chips there are are the
+ones on the card table, where you sit down with 1,000. Pull up at the counter
+and the button says SHOP. Nothing else unlocks them.
+
 ## The outside
 
 The outside follows photographs of the building (Wikimedia Commons) and the

@@ -9,6 +9,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
+import { Shop } from './shop.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
@@ -154,6 +155,9 @@ async function boot() {
   G.props = new Props(plan);
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
+  // The stall beside the card table: two toys for sale, for chips won at it (src/shop.js).
+  G.shop = new Shop(G, { museum: G.museum, plan, garage, poker: G.poker, sound, resume: () => act('resume'), thumb: id => garage.thumbs[id],
+    onBuy: v => { garage.sel[v.kind] = v.id; garage.shown = v.id; garage.save(); garage.apply(G.car, G.drone); tm.event('buy', v.id); } });
   G.hockey = new Hockey(G.museum, plan, sound);
   G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.arcade = new Arcade(G.museum, plan, sound);            // the monitors with games on them (src/arcade.js)
@@ -979,6 +983,7 @@ function play(dt, real) {
       }
     }
     // On the roof, by the card table, the same button sits you down at it.
+    const shopTap = !!G.shop && G.mode === 'explore' && !G.poker.near(v) && G.shop.near(v) && input.took('look');      // asked for before anything else can take the press
     G.pokerNear = G.poker.near(v);
     if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
     // A monitor with a game on it, or the button in the security control room, takes the same button.
@@ -989,6 +994,12 @@ function play(dt, real) {
     $('bLook').hidden = !(G.facing || G.pokerNear || G.arcadeNear || G.heistNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : 'LOOK';
     if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.facing) beginStudy(G.facing); }
     G.heist.update(dt, v);
+    // The toy stall on the roof.
+    if (G.shop && G.mode === 'explore' && !G.pokerNear && G.shop.near(v)) {
+      once('stall', 'A toy stall, up here of all places. Two for sale, 2,000 chips each. E to look.', 7);
+      $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
+      if (shopTap) G.shop.open();
+    }
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -1114,6 +1125,7 @@ function tick(now) {
   }
   input.endFrame();
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
+  if (G.shop && G.state !== 'results') G.shop.update(dt);
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
   if (G.state === 'arcade') return;                      // the game on the monitor covers the screen: nothing behind it needs drawing

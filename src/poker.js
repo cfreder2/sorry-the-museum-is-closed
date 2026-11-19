@@ -120,6 +120,17 @@ export class Poker {
     $('poker').hidden = false;
     this._deal();
   }
+  // Your chips, as they stand between sittings, and spending them (at the stall beside the table).
+  chips() { try { const sv = JSON.parse(localStorage.getItem(KEY) || 'null'); if (sv && Array.isArray(sv.stacks) && sv.stacks[0] > 0) return sv.stacks[0]; } catch { /* fine */ } return STAKE; }
+  spend(n) {
+    const have = this.chips(); if (n > have) return false;
+    let sv = null; try { sv = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* fine */ }
+    if (!sv || !Array.isArray(sv.stacks) || sv.stacks.length !== WHO.length) sv = { stacks: WHO.map(() => STAKE), button: 0 };
+    sv.stacks[0] = have - n;
+    try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch { return false; }
+    this.game = null;
+    return true;
+  }
   leave() { this.on = false; $('poker').hidden = true; this._save(); }
   reset() { try { localStorage.removeItem(KEY); } catch { /* fine */ } this.game = null; if (this.T) this._table(); }
   _save() { if (!this.game) return; try { localStorage.setItem(KEY, JSON.stringify({ stacks: this.game.p.map(q => q.stack + q.total), button: this.game.button })); } catch { /* fine */ } }
