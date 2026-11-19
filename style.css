@@ -424,3 +424,13 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 @media (max-height: 520px) { #heist .row { font-size: 11px; padding: 3px 10px; gap: 10px; } #hClock { font-size: 16px; } #hArrow { margin-top: 4px; } #hArrow svg { width: 30px; height: 30px; } #heistBrief h2 { font-size: 20px; margin: .1em 0 .3em; } #heistBrief .about { font-size: 12.5px; line-height: 1.4; margin-bottom: 8px; } #heistBrief .times { font-size: 11px; line-height: 1.5; margin-bottom: 8px; } #heistBrief .col button { padding: 8px; font-size: 14px; } }
 #heistBrief.screen { background: rgba(4,5,9,.84); }
 .heisting #tally .minor { visibility: hidden; }
+
+/* A whiteboard, read: its card (src/whiteboards.js). */
+#boardCard { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4,5,9,.95); padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+#boardCard[hidden] { display: none; }
+#boardCard .bc { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 100%; max-height: 100%; }
+#boardCard canvas { display: block; box-sizing: border-box; width: auto; height: auto; max-width: min(96vw, 1180px); max-height: calc(100vh - 96px); max-height: calc(100dvh - 96px); border: 10px solid #b4bac0; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.6); background: #f4f5f1; }
+#boardCard h2, #boardCard p { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: pre-line; }
+#boardCard button { min-width: 110px; height: 46px; padding: 0 18px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.66); font: 700 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gilt); cursor: pointer; }
+#boardCard button:focus-visible { outline: 2px solid var(--gilt); outline-offset: 2px; }
+@media (max-height: 520px) { #boardCard .bc { flex-direction: row; align-items: flex-end; } #boardCard canvas { max-height: calc(100vh - 22px); max-height: calc(100dvh - 22px); max-width: calc(100vw - 170px); border-width: 6px; } #boardCard button { min-width: 84px; } }

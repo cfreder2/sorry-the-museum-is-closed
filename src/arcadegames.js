@@ -479,6 +479,98 @@ export class Noughts {
   }
 }
 
+// ------------------------------------------------------------- outpost nine --
+//
+// Not one of the ten, and not on a monitor anybody left on by accident (src/secret.js knows where it
+// is). You are a star base in the middle of the screen. Saucers come at you from every side, in
+// waves; turn the gun and shoot them before they reach you. Each one that gets through costs a
+// shield, and the base has three.
+
+export class Outpost {
+  static id = 'outpost'; static title = 'Outpost Nine';
+  static keys = 'Left and Right to turn the gun, Space to fire'; static touch = 'Touch where you want to shoot: the gun turns there and fires. Or the buttons';
+  static pad = { dirs: 'lr', a: 'FIRE' };
+  static CX = 160; static CY = 124;
+  static KINDS = { scout: { r: 7, hp: 1, v: 26, pts: 10 }, dart: { r: 5, hp: 1, v: 46, pts: 20 }, hulk: { r: 10, hp: 3, v: 17, pts: 40 } };
+  static icon(c, t) {
+    c.fillStyle = INK.w; for (let i = 0; i < 14; i++) c.fillRect((i * 53 + 11) % 160, 20 + (i * 37) % 84, 1, 1);
+    c.strokeStyle = INK.c; c.lineWidth = 1.5; c.beginPath(); c.arc(80, 62, 13, 0, 7); c.stroke();
+    c.fillStyle = INK.g; c.beginPath(); c.arc(80, 62, 7, 0, 7); c.fill();
+    const a = t * 1.4; c.strokeStyle = INK.w; c.lineWidth = 2; c.beginPath(); c.moveTo(80, 62); c.lineTo(80 + Math.cos(a) * 12, 62 + Math.sin(a) * 12); c.stroke();
+    for (let i = 0; i < 4; i++) { const b = i * 1.7 + 0.4, d = 52 - ((t * 9 + i * 13) % 30), x = 80 + Math.cos(b) * d * 1.3, y = 62 + Math.sin(b) * d * 0.8; c.fillStyle = INK.m; c.fillRect(x - 6, y - 1, 12, 3); c.fillStyle = INK.c; c.fillRect(x - 3, y - 4, 6, 3); }
+  }
+  constructor(rnd = Math.random) {
+    this.rnd = rnd; this.aim = -Math.PI / 2; this.shields = 3; this.wave = 0; this.score = 0; this.over = false; this.won = false; this.msg = ''; this.fx = [];
+    this.ufos = []; this.shots = []; this.bangs = []; this.cool = 0; this.burst = 0; this.t = 0; this.flash = 0; this.rest = 1.2; this.queue = 0; this.gap = 0;
+    this.stars = Array.from({ length: 40 }, (_, i) => [(i * 97 + 31) % W, (i * 61 + 17) % H, i % 3]);
+  }
+  // A wave: more of them each time, quicker, and from the third wave on some that take three hits.
+  newWave() { this.wave++; this.queue = 4 + this.wave * 2; this.gap = 0.4; if (this.wave > 1) { this.score += 50; this.fx.push('good'); if (this.wave % 3 === 1 && this.shields < 3) this.shields++; } }
+  // One saucer, on its way in from `dist` away at `angle` (a test may say exactly where and what).
+  spawn(kind, angle = this.rnd() * Math.PI * 2, dist = 210) {
+    const K = Outpost.KINDS[kind] || Outpost.KINDS.scout, k = 1 + Math.min(1.2, (this.wave - 1) * 0.09);
+    const u = { kind: K === Outpost.KINDS[kind] ? kind : 'scout', x: Outpost.CX + Math.cos(angle) * dist, y: Outpost.CY + Math.sin(angle) * dist, r: K.r, hp: K.hp, v: K.v * k, pts: K.pts, wob: this.rnd() * 6 };
+    this.ufos.push(u); return u;
+  }
+  fire() {
+    if (this.over || this.cool > 0) return false;
+    this.cool = 0.2; this.shots.push({ x: Outpost.CX + Math.cos(this.aim) * 14, y: Outpost.CY + Math.sin(this.aim) * 14, dx: Math.cos(this.aim), dy: Math.sin(this.aim) }); this.fx.push(880);
+    return true;
+  }
+  press(k) { if (k === 'a') this.fire(); else if (k === 'left') this.aim -= 0.03; else if (k === 'right') this.aim += 0.03; }
+  // A finger on the glass: the gun turns to it at once and fires, and goes on firing for a moment.
+  point(x, y) { if (Math.hypot(x - Outpost.CX, y - Outpost.CY) > 6) this.aim = Math.atan2(y - Outpost.CY, x - Outpost.CX); this.fire(); this.burst = 0.3; }
+  tap(x, y) { this.point(x, y); }
+  drag(x, y) { this.point(x, y); }
+  update(dt, held = {}) {
+    if (this.over) return;
+    this.t += dt; this.cool -= dt; this.burst -= dt; this.flash = Math.max(0, this.flash - dt);
+    // The gun turns slowly at first and then quickly: a tap on a key is a fine adjustment, a held key swings it round.
+    const turn = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+    this.turning = turn && turn === this.turnWas ? this.turning + dt : 0; this.turnWas = turn;
+    if (turn) this.aim += turn * (0.9 + 3.3 * Math.min(1, this.turning / 0.35)) * dt;
+    if (held.a || this.burst > 0) this.fire();
+    // The next of this wave, or the next wave once the sky is clear.
+    if (this.queue > 0) {
+      this.gap -= dt;
+      if (this.gap <= 0) { const r = this.rnd(); this.spawn(this.wave >= 3 && r < 0.18 ? 'hulk' : this.wave >= 2 && r < 0.45 ? 'dart' : 'scout'); this.queue--; this.gap = Math.max(0.35, 1.5 - this.wave * 0.1) * (0.6 + this.rnd() * 0.8); }
+    } else if (!this.ufos.length) { this.rest -= dt; if (this.rest <= 0) { this.newWave(); this.rest = 1.6; } }
+    for (const s of this.shots) { s.x += s.dx * 270 * dt; s.y += s.dy * 270 * dt; }
+    for (const u of this.ufos) {
+      const dx = Outpost.CX - u.x, dy = Outpost.CY - u.y, d = Math.hypot(dx, dy) || 1;
+      u.x += dx / d * u.v * dt; u.y += dy / d * u.v * dt;
+      for (const s of this.shots) if (!s.dead && Math.hypot(s.x - u.x, s.y - u.y) < u.r + 4.5) { s.dead = true; u.hp--; if (u.hp <= 0) { u.dead = true; this.score += u.pts; this.fx.push('blip'); this.bangs.push({ x: u.x, y: u.y, t: 0.3 }); } else this.fx.push('hit'); break; }
+      if (!u.dead && d < 15 + u.r * 0.5) {
+        u.dead = true; this.shields--; this.flash = 0.35; this.fx.push('bad'); this.bangs.push({ x: u.x, y: u.y, t: 0.4 });
+        if (this.shields <= 0) { this.over = true; this.msg = `The base is lost. Wave ${this.wave}.`; return; }
+      }
+    }
+    this.ufos = this.ufos.filter(u => !u.dead);
+    this.shots = this.shots.filter(s => !s.dead && s.x > -8 && s.x < W + 8 && s.y > -8 && s.y < H + 8);
+    for (const b of this.bangs) b.t -= dt;
+    this.bangs = this.bangs.filter(b => b.t > 0);
+  }
+  draw(c) {
+    cls(c); const X = Outpost.CX, Y = Outpost.CY;
+    for (const [x, y, k] of this.stars) { c.fillStyle = k ? INK.d : INK.w; c.fillRect(x, y, 1, 1); }
+    text(c, 'SHIELDS ' + Math.max(0, this.shields), 6, 9, this.shields > 1 ? INK.g : INK.r, 10, 'left'); text(c, 'WAVE ' + Math.max(1, this.wave), 314, 9, INK.g, 10, 'right');
+    for (let i = 0; i < this.shields; i++) { c.strokeStyle = this.flash > 0 ? INK.r : INK.c; c.globalAlpha = 0.35 + 0.2 * i; c.lineWidth = 1; c.beginPath(); c.arc(X, Y, 13 + i * 3, 0, 7); c.stroke(); }
+    c.globalAlpha = 1;
+    c.fillStyle = this.flash > 0 ? INK.r : INK.g; c.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + this.t * 0.3; c[i ? 'lineTo' : 'moveTo'](X + Math.cos(a) * 9, Y + Math.sin(a) * 9); } c.fill();
+    c.strokeStyle = INK.w; c.lineWidth = 3; c.beginPath(); c.moveTo(X, Y); c.lineTo(X + Math.cos(this.aim) * 15, Y + Math.sin(this.aim) * 15); c.stroke();
+    c.fillStyle = INK.bg; c.fillRect(X - 2, Y - 2, 4, 4);
+    for (const u of this.ufos) {
+      const r = u.r, wob = Math.sin(this.t * 6 + u.wob) * 1.2;
+      c.fillStyle = u.kind === 'hulk' ? INK.r : u.kind === 'dart' ? INK.a : INK.m; c.beginPath(); c.ellipse(u.x, u.y + wob, r * 1.25, r * 0.45, 0, 0, 7); c.fill();
+      c.fillStyle = INK.c; c.beginPath(); c.arc(u.x, u.y + wob - r * 0.25, r * 0.5, Math.PI, 0); c.fill();
+      if (u.kind === 'hulk') { c.fillStyle = INK.bg; for (let i = 0; i < u.hp; i++) c.fillRect(u.x - 6 + i * 5, u.y + wob - 1, 3, 2); }
+    }
+    c.fillStyle = INK.w; for (const s of this.shots) c.fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
+    for (const b of this.bangs) { c.strokeStyle = INK.a; c.lineWidth = 1; c.beginPath(); c.arc(b.x, b.y, (0.42 - b.t) * 40, 0, 7); c.stroke(); }
+    if (!this.wave && !this.over) text(c, 'THEY ARE COMING', 160, 60, INK.a, 12);
+  }
+}
+
 // One to a monitor, in the order of ARCADE_ROOMS in src/furnish.js.
 export const GAMES = [Snake, Mines, Paddles, Bricks, Blocks, StarGuard, Twice, LampsOut, Echo, Noughts];
 export { banner, text, cls, INK };

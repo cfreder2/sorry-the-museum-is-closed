@@ -241,6 +241,10 @@ What is not true:
   the walls by importance and size; sculpture, armour and vessels stand in
   glass cases on the floor. In the Grand Staircase everything is on the
   first-floor level, under the gallery; nothing is hung on the gallery itself.
+- **What is under the building is invented**, all of it: nothing below the
+  lower level comes from any drawing or survey, and the survey in `survey/`
+  does not have it. Neither does the real building have the one small blank
+  tower that goes with it. It is there for the fun of finding it.
 - **The polish on the floors** mirrors only on the level you are on. Floors
   seen on another level (down a stair well, across a tall hall) are matt.
 
@@ -337,7 +341,8 @@ tap: the two choices, Continue, New game, Settings and Trophies.
 - **The garage.** Five cars and four drones. The Vehicle choice on the title
   screen goes through all of them; a locked one is shown as a silhouette with
   what it needs ("See 12 more works"). They unlock at 15, 25, 40, 60 and 100
-  works seen, and two for trophies. Each is a different body and handles a
+  works seen, and two for trophies. (There is a tenth place in the selector,
+  shown only as "???". It is not for sale.) Each is a different body and handles a
   little differently (top speed, grip, steering, hop; for a drone, pull, climb
   and turn); none climbs worse than the first. SWAP still goes between car and
   drone: the last one chosen of each. They are `VEHICLES` in `src/garage.js`.
@@ -423,6 +428,21 @@ kind of room, add a line to the list.
   the plinth, and back, without coming near a beam, and a pattern that fails
   is dealt again.
 
+## Whiteboards, and something under the building
+
+- **The staff have left their whiteboards written on.** Twenty-three of them, in
+  the offices, the conservation studios and laboratories, the security rooms,
+  the canteen, the school's studios and elsewhere, on every level: rotas, lists,
+  a conservation checklist, the lost-property tally, and a good deal of
+  grumbling about tyre marks and plywood. They hang low, where a toy can read
+  them. Pull up in front of one and press `E` (READ on a phone) and it comes up
+  full screen. They are worth reading: the staff have noticed more about what
+  goes on in here at night than they let on, and one or two of them know
+  something they should not have written down. What each says is in
+  `src/boardtext.js`.
+- **There is something under the building.** It is not on the map. That is all
+  this file has to say about it.
+
 ## Settings and access
 
 Settings are on the title screen and the pause menu, and are remembered.
@@ -505,6 +525,11 @@ better plan is a better file. What is in it:
   end, `y1` at the high, `stairs`). One that goes down through a floor cuts
   its own well in it.
 - `lifts`: a platform (`x0..z1`, `stops`).
+- A room or a doorway may be marked `secret`, and one doorway `hidden`: what
+  section 8 of `tools/build_layout.mjs` adds after everything else, without
+  moving anything that was there. `tools/check_layout.mjs` checks that such
+  rooms are reached through the hidden doorway and through nothing else, and
+  that nothing else is reached through them.
 
 ## The museum's API
 
@@ -579,6 +604,9 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/arcade.js             the monitors with games on them: the screens in the rooms, and playing one
     src/arcadegames.js        the ten games (no three.js, no DOM)
     src/heist.js              the heist: the button, the beams, the clock
+    src/whiteboards.js        the whiteboards: the writing on them, and reading one
+    src/boardtext.js          what each of them says (no three.js, no DOM)
+    src/secret.js, secretclue.js, secretfit.js   what the whiteboards are not telling you
     src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop

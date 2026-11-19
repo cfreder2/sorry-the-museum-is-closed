@@ -49,6 +49,9 @@ export const TROPHIES = [
   { id: 'cabinets', tier: 'gold', hidden: true, name: 'Screen Time', desc: 'Find every monitor with a game on it.', test: s => s.flags.arcadeAll },
   { id: 'heist', tier: 'silver', hidden: true, name: 'The Heist', desc: 'Lift a treasure through the lasers and get it back to the security room.', test: s => s.flags.heist },
   { id: 'ghost', tier: 'gold', hidden: true, name: 'A Ghost', desc: 'Pull off a heist without tripping a single alarm.', test: s => s.flags.ghost },
+  { id: 'boards', tier: 'bronze', hidden: true, name: 'Read the Room', desc: 'Read five of the whiteboards the staff have left written on.', test: s => s.flags.boards },
+  { id: 'vault', tier: 'gold', hidden: true, name: 'Need to Know', desc: 'Find what is kept under the building.', test: s => s.flags.vault },
+  { id: 'ufo', tier: 'gold', hidden: true, name: 'Not From Round Here', desc: 'Take the thing on the pedestal.', test: s => s.flags.ufo },
   // ---- gold ----
   { id: 'w250', tier: 'gold', name: 'Connoisseur', desc: 'See 250 different works.', ...works(250) },
   { id: 'w500', tier: 'gold', name: 'Curator', desc: 'See 500 different works.', ...works(500) },

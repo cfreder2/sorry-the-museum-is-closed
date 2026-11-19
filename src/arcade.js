@@ -30,8 +30,8 @@ export class Arcade {
     const g = this.group = new THREE.Group(); museum.group.add(g);
     const shell = new THREE.MeshStandardMaterial({ color: 0x6f6a5c, roughness: 0.85, emissive: 0x3a362c, emissiveIntensity: 0.5 }), dark = new THREE.MeshStandardMaterial({ color: 0x19191b, roughness: 0.5 });
     const body = new THREE.BoxGeometry(0.62, 0.5, 0.44), back = new THREE.BoxGeometry(0.4, 0.36, 0.14), bezel = new THREE.BoxGeometry(0.56, 0.44, 0.02), face = new THREE.PlaneGeometry(0.5, 0.375), pool = new THREE.PlaneGeometry(2.6, 2.6);
-    this.list = (plan.arcades || []).filter(a => GAMES[a.slot]).map(a => {
-      const Game = GAMES[a.slot], m = new THREE.Group();
+    const monitor = this._monitor = (a, Game) => {
+      const m = new THREE.Group();
       m.position.set(a.x + a.fx * 0.4, a.y + 0.3, a.z + a.fz * 0.4); m.rotation.y = Math.atan2(a.fx, a.fz);
       const put = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); m.add(o); return o; };
       put(body, shell, 0, 0.25, 0); put(back, shell, 0, 0.24, -0.27); put(bezel, dark, 0, 0.26, 0.222);
@@ -45,10 +45,16 @@ export class Arcade {
       const it = { ...a, id: Game.id, Game, cv, c: cv.getContext('2d'), tex, glow, sx: a.x + a.fx * 1.35, sz: a.z + a.fz * 1.35 };
       this._attract(it, 0);
       return it;
-    });
+    };
+    this.list = (plan.arcades || []).filter(a => GAMES[a.slot]).map(a => monitor(a, GAMES[a.slot]));
     this.total = this.list.length;
     this._dom();
   }
+
+  // One more monitor, somewhere the ten are not: `at` is { x, z, y, fx, fz } as the fit-out gives them. It is
+  // played like the others and keeps a best score, but it is `bonus`: never counted among the arcades
+  // found or played, so the tally and the trophies for those are about the ten and only the ten.
+  addBonus(at, Game) { const it = this._monitor(at, Game); it.bonus = true; this.list.push(it); return it; }
 
   // What the screen shows in the room: the name, a small moving picture of the game, and PLAY.
   _attract(it, t) {
@@ -70,7 +76,7 @@ export class Arcade {
       if (dy < -0.3 || dy > 2.4) continue;
       const dx = v.pos.x - it.sx, dz = v.pos.z - it.sz;
       if (dx * dx + dz * dz > 1.6 * 1.6 || (v.pos.x - it.x) * it.fx + (v.pos.z - it.z) * it.fz < 0.55 || Math.hypot(v.vel.x, v.vel.z) > 3) continue;
-      if (!this.found.has(it.id)) { this.found.add(it.id); this._save(); this._tell(it.id, 'found'); this.justFound = it; }
+      if (!it.bonus && !this.found.has(it.id)) { this.found.add(it.id); this._save(); this._tell(it.id, 'found'); this.justFound = it; }
       return it;
     }
     return null;
@@ -91,7 +97,7 @@ export class Arcade {
   // ---- sitting down at one ----
   open(it) {
     this.cur = it; this.on = true; this.held = { up: false, down: false, left: false, right: false, a: false };
-    if (!this.played.has(it.id)) { this.played.add(it.id); this._save(); this._tell(it.id, 'played'); }
+    if (it.bonus) this._tell(it.id, 'bonus'); else if (!this.played.has(it.id)) { this.played.add(it.id); this._save(); this._tell(it.id, 'played'); }
     const G = it.Game, touch = document.body.classList.contains('touch');
     $('arcName').textContent = G.title; $('arcHelp').textContent = (touch ? G.touch : G.keys + '. R starts again, Esc leaves') + '.';
     const pad = G.pad || {};
@@ -106,7 +112,7 @@ export class Arcade {
   _record() {
     const g = this.game, id = this.cur.id;
     if (!g || !(g.score > (this.best[id] || 0))) return false;
-    this.best[id] = g.score; this._save(); this._tell(id, 'score', g.score);
+    this.best[id] = g.score; this._save(); this._tell(id, this.cur.bonus ? 'bonus-score' : 'score', g.score);
     return true;
   }
   leave() { if (!this.on) return; this._record(); this._stopRepeat(); this.on = false; this.game = null; $('arcade').hidden = true; if (this.cur) this._attract(this.cur, this.t); }

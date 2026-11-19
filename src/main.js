@@ -24,6 +24,8 @@ import { Trophies, toast } from './trophies.js';
 import { Garage } from './garage.js';
 import { Arcade } from './arcade.js';
 import { Heist } from './heist.js';
+import { Whiteboards } from './whiteboards.js';
+import { Secret } from './secret.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -158,6 +160,9 @@ async function boot() {
   G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.arcade = new Arcade(G.museum, plan, sound);            // the monitors with games on them (src/arcade.js)
   G.heist = new Heist(G, { say, callout });                // the button in the security control room (src/heist.js)
+  G.boards = new Whiteboards(G.museum, plan);              // the whiteboards the staff have left written on (src/whiteboards.js)
+  G.secret = new Secret(G, { say, callout, endStudy, trophies, boards: G.boards, canvas });      // and what one of them is about (src/secret.js)
+  addEventListener('museum:board', e => { if (e.detail && e.detail.read >= 5) trophies.flag('boards'); });
   // The side games earn trophies too.
   addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'played' || d.event === 'score') trophies.flag('arcade'); if (G.arcade && G.arcade.found && G.arcade.found.size >= G.arcade.total) trophies.flag('arcadeAll'); });
   addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (!d.trips) trophies.flag('ghost'); } });
@@ -213,7 +218,7 @@ function setVehicle(kind) {
 function start(mode, fresh = false) {
   queueMicrotask(() => tm.begin({ mode, toy: G.toy, resumed: mode === 'explore' && resumed && !fresh, seen: G.museum.seenCount }));
   sound.unlock();
-  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true);
+  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true); G.boards.close();
   input.endFrame();                                    // the Enter that started the game is not also a press of LOOK (or PLAY, or HEIST)
   G.mode = mode;
   G.museum.sleep();
@@ -320,7 +325,7 @@ function newGame() {
   G.museum.forget();
   score.reset();
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
-  G.arcade.reset();
+  G.arcade.reset(); G.secret.reset(); G.boards.reset();
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
@@ -334,7 +339,7 @@ function titleButtons() {
 function quit() {
   score.flush();
   if (G.poker.on) { G.poker.leave(); G.lamp.visible = G.lampWas !== false; }
-  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true);
+  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true); G.boards.close();
   $('hud').classList.remove('studying', 'atcards');
   G.race.end();
   G.plan.racing = false; G.museum.setRace(false); G.props.group.visible = true;
@@ -491,6 +496,7 @@ function act(a) {
     case 'closeSettings': show(settingsFrom); break;
     case 'controls': case 'about': infoFrom = shown === 'settings' ? 'settings' : G.state === 'title' ? 'title' : 'pause'; controlsList(); show(a); break;
     case 'closeInfo': show(infoFrom); break;
+    case 'closeBoard': endBoard(); break;
     case 'sound': sound.setMuted(!sound.muted); say(sound.muted ? 'Sound off.' : 'Sound on.', 0, 2); break;
     default: input.press(a);
   }
@@ -790,7 +796,7 @@ function hud() {
   if (frame % 6 === 0) {
     document.body.classList.toggle('touch', input.usedTouch);
     const kmh = Math.round(Math.hypot(v.vel.x, v.vel.z) * 3.6);
-    $('lcdA').textContent = `${v.kind === 'drone' ? 'DRONE' : 'CAR'}  ${String(kmh).padStart(2, ' ')} KM/H`;
+    $('lcdA').textContent = `${v.kind === 'drone' ? (garage.on.drone === 'ufo' ? 'UFO' : 'DRONE') : 'CAR'}  ${String(kmh).padStart(2, ' ')} KM/H`;
     $('lcdB').textContent = v.kind === 'drone' ? `ALT ${(v.pos.y - (v.floor || 0.07) + 0.07).toFixed(1)} M`
       : G.airMsg && G.t < G.airMsg.until ? G.airMsg.text : (G.lampOn ? 'LIGHTS ON' : 'LIGHTS OFF');
     if (G.mode === 'explore') {
@@ -986,8 +992,16 @@ function play(dt, real) {
     G.heistNear = G.pokerNear || G.arcadeNear ? null : G.heist.near(v);
     if (G.arcade.justFound) { const a = G.arcade.justFound; G.arcade.justFound = null; callout(`ARCADE ${G.arcade.found.size} / ${G.arcade.total}`); sound.lap(); say(`Somebody has left ${a.Game.title} running on an old monitor. ${input.usedTouch ? 'PLAY' : 'E'} to have a go.`, 0.3, 7); }
     if (G.heistNear) once('heist', `A big red button, and a sign: IN CASE OF HEIST. ${input.usedTouch ? 'HEIST' : 'E'} to press it.`, 7);
-    $('bLook').hidden = !(G.facing || G.pokerNear || G.arcadeNear || G.heistNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : 'LOOK';
-    if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.facing) beginStudy(G.facing); }
+    // So does the thing on the pedestal, and a whiteboard somebody has left written on.
+    const busy = G.pokerNear || G.arcadeNear || G.heistNear;
+    G.ufoNear = !busy && G.secret.nearUfo(v);
+    G.boardNear = busy || G.ufoNear ? null : G.boards.near(v);
+    // The headlamp is dipped while you are pulled up at a board, or the glare off it is all you would see.
+    { const dip = !!G.boardNear; if (dip || G.dipped) { const to = G.lampOn ? (dip ? 14 : 70) : 0; G.lamp.intensity += (to - G.lamp.intensity) * Math.min(1, real * 6); G.dipped = dip || Math.abs(G.lamp.intensity - to) > 0.5; if (!G.dipped) G.lamp.intensity = to; } }
+    if (G.boardNear) once('board', `A whiteboard somebody has left written on. ${input.usedTouch ? 'READ' : 'E'} to read it.`, 6);
+    if (G.ufoNear) once('ufo', `${input.usedTouch ? 'TAKE' : 'E'} to take it. Nobody is looking.`, 6);
+    $('bLook').hidden = !(G.facing || busy || G.ufoNear || G.boardNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : G.ufoNear ? 'TAKE' : G.boardNear ? 'READ' : 'LOOK';
+    if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.ufoNear) G.secret.take(); else if (G.boardNear) beginBoard(G.boardNear); else if (G.facing) beginStudy(G.facing); }
     G.heist.update(dt, v);
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
@@ -1002,11 +1016,16 @@ function play(dt, real) {
   keep();
   chase(real, false);
   G.arcade.update(real, G.t, camera.position, set.reduce);
+  G.boards.update(camera.position);
+  G.secret.update(real, v, G.roomId, camera.position);
 }
 
 // A go on one of the monitors: the world waits while you play (src/arcade.js runs the game).
 function beginArcade(a) { endFlyby(); G.state = 'arcade'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.arcade.open(a); tm.event('arcade', a.id); }
 function endArcade() { G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
+// Reading a whiteboard: the world waits while its card is up (src/whiteboards.js).
+function beginBoard(b) { endFlyby(); G.state = 'board'; $('placard').hidden = true; $('bLook').hidden = true; G.boards.open(b); }
+function endBoard() { if (G.state !== 'board') return; G.boards.close(); input.endFrame(); G.state = 'play'; canvas.focus({ preventScroll: true }); }
 // The button in the security control room: the world waits while the job is explained (src/heist.js).
 function beginHeist(c) { endFlyby(); if (G.heist.brief(c)) { G.state = 'heist'; $('placard').hidden = true; } }
 
@@ -1089,8 +1108,10 @@ function tick(now) {
     const st = input.sticks;
     if (input.took('info')) setLabel(!G.study.label);
     else if (G.study.label && G.study.t > G.study.hideAt) setLabel(false);
-    if (input.took('look') || input.took('pause') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8) endStudy();
+    // (A finger put down on the picture itself and not moved is a touch on the picture, not a push on the stick: src/secret.js.)
+    if (input.took('look') || input.took('pause') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8 && !G.secret.tapping) endStudy();
     else { studyCam(dt); G.museum.update(dt, G.vehicle.pos, G.roomId, camera.position); }
+    G.secret.update(dt, G.vehicle, G.roomId, camera.position);
     sound.update(G.vehicle, false);
     hud();
   } else if (G.state === 'poker') {
@@ -1105,6 +1126,9 @@ function tick(now) {
   } else if (G.state === 'arcade') {
     if (!G.arcade.on) endArcade(); else G.arcade.frame(dt);
     sound.update(G.vehicle, false);
+  } else if (G.state === 'board') {
+    if (!G.boards.on) endBoard(); else if (input.took('look') || input.took('pause')) endBoard();
+    sound.update(G.vehicle, false);
   } else if (G.state === 'heist') {
     if (!G.heist.briefing) { G.state = 'play'; canvas.focus({ preventScroll: true }); }
     sound.update(G.vehicle, false);
@@ -1116,7 +1140,7 @@ function tick(now) {
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
-  if (G.state === 'arcade') return;                      // the game on the monitor covers the screen: nothing behind it needs drawing
+  if (G.state === 'arcade' || G.state === 'board') return;      // the game on the monitor (or the whiteboard's card) covers the screen: nothing behind it needs drawing
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);

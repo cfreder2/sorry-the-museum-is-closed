@@ -16,13 +16,16 @@
 //   4. rooms traced a little over one another are trimmed so a wall stands between them;
 //   5. rooms that stand wall to wall on a level get a doorway;
 //   6. whatever is still cut off is joined on: by a doorway, a short passage, a flight of stairs
-//      or a lift, in that order of preference.
+//      or a lift, in that order of preference;
+//   7. the ways in from the street;
+//   8. and last, so that it disturbs nothing above, what is on no drawing at all (see section 8).
 //
 // The survey is in the building's own grid (the map turned 0.94 degrees so walls run along the
 // axes), and so is the game.
 
 import { writeFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { firstClue } from '../src/secretclue.js';
 
 const here = p => fileURLToPath(new URL(p, import.meta.url));
 const load = n => JSON.parse(readFileSync(here(`../survey/${n}.json`), 'utf8'));
@@ -453,21 +456,81 @@ for (const [id, side] of [['hall', 'n'], ['MW1-west', 'w'], ['G161', 'e'], ['G16
   }
 }
 
-// ---- 8. write it down ------------------------------------------------------
+// ---- 8. what is on no drawing ---------------------------------------------------
+//
+// Invented, not surveyed, and marked `secret`: a passage behind one wall of one gallery, a stair
+// tower down from it, and three rooms twelve metres under the street, below everything else in the
+// building. Which gallery is decided by a picture: the first on the list in src/secretclue.js that
+// is in the saved copy of the collection (data/collection.json) says which room, and the game
+// reads the same list. Each such room needs its site drawn here by hand, like the tall rooms at
+// the top of this file; a room with no site drawn gets no passage, and the game then leaves the
+// whole thing out.
+//
+// All of it is added after everything else, so nothing above is moved by it: the plan without the
+// `secret` rooms and doors is the plan as it was. The doorway marked `hidden` is the one way in.
+const DEEP = -12, VAULT_H = 5;
+const SITES = {
+  // Gallery 240, over the west end of the galleries that bridge the railway. Its north wall has
+  // 5 m of plaster west of its door, and behind that is a pocket between Gallery 230 and Gallery
+  // 241 that nothing uses. North of the pocket, outside the old wall, the corner between the
+  // railway-side range and the bridge galleries is open ground from the street up: the tower
+  // stands there, and goes on down past the lower level. The store is north of its foot.
+  G240(g) {
+    const sec = r => Object.assign(r, { secret: true, floor: 'X' });
+    const pass = sec(add({ id: 'X-pass', gallery: 'Unlisted passage', kind: 'room', use: 'corridor', passage: true, building: 'main', floor: 'X', x0: g.x0, x1: r2(g.x0 + 2.5), z0: r2(g.z0 - 6.3), z1: r2(g.z0 - 0.4), y: g.y, h: 3.4 }));
+    const T0 = { x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 5.4), z0: r2(pass.z0 - 12.4), z1: r2(pass.z0 - 0.4) };
+    const stair = sec(stairwell('X-stair', 'Stair to sub-level 9', T0, [DEEP, 0, g.y], 'main'));
+    const cx = r2((stair.x0 + stair.x1) / 2);
+    const vault = sec(add({ id: 'X-vault', gallery: 'Sub-level 9 storage', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: cx - 12, x1: cx + 12, z0: r2(stair.z0 - 20.4), z1: r2(stair.z0 - 0.4), y: DEEP, h: VAULT_H }));
+    const lab = sec(add({ id: 'X-lab', gallery: 'Specimen room', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: r2(vault.x0 - 10.4), x1: r2(vault.x0 - 0.4), z0: vault.z0 + 2, z1: vault.z0 + 11, y: DEEP, h: VAULT_H }));
+    const brief = sec(add({ id: 'X-brief', gallery: 'Debriefing room', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: r2(vault.x1 + 0.4), x1: r2(vault.x1 + 8.4), z0: vault.z0 + 2, z1: vault.z0 + 11, y: DEEP, h: VAULT_H }));
+    const door = d => { doors.push({ ...d, secret: true }); };
+    door({ a: 'X-pass', b: g.id, along: 'z', x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 2.2), z0: pass.z1, z1: g.z0, y: g.y, h: 3, hidden: true });
+    door({ a: 'X-stair', b: 'X-pass', along: 'z', x0: r2(stair.x0 + 0.2), x1: r2(stair.x0 + 2), z0: stair.z1, z1: pass.z0, y: g.y, h: 2.8 });
+    door({ a: 'X-vault', b: 'X-stair', along: 'z', x0: r2(cx - 0.9), x1: r2(cx + 0.9), z0: vault.z1, z1: stair.z0, y: DEEP, h: 3.2 });
+    door({ a: 'X-lab', b: 'X-vault', along: 'x', x0: lab.x1, x1: vault.x0, z0: r2(lab.z0 + 3.6), z1: r2(lab.z0 + 5.4), y: DEEP, h: 3.2 });
+    door({ a: 'X-vault', b: 'X-brief', along: 'x', x0: vault.x1, x1: brief.x0, z0: r2(brief.z0 + 3.6), z1: r2(brief.z0 + 5.4), y: DEEP, h: 3.2 });
+    return [pass, stair, vault, lab, brief];
+  },
+};
+let secret = null;
+{
+  const before = { rooms: rooms.length, doors: doors.length, decks: decks.length, ramps: ramps.length };
+  const saved = JSON.parse(readFileSync(here('../data/collection.json'), 'utf8'));
+  const first = firstClue(saved.works || []);
+  const g = first && rooms.find(r => r.kind === 'gallery' && r.gallery === first.work.g);
+  if (!first) console.log('nothing on the list in src/secretclue.js is in the saved copy: no passage built');
+  else if (!g || !SITES[g.id]) console.log(`no site is drawn in tools/build_layout.mjs for ${first.work.g} (“${first.work.t}”): no passage built`);
+  else {
+    const made = SITES[g.id](g);
+    // It must stand clear of everything that was there before it, by a wall's thickness, at every height it passes.
+    for (const r of made) for (const o of rooms) {
+      if (made.includes(o) || !(r.y < o.top + SLAB - 0.01 && o.y < r.top + SLAB - 0.01) || !over(r, o, 0.39)) continue;
+      throw new Error(`the secret ${r.id} runs into ${o.id}`);
+    }
+    // And of every way in from the street: a tower in front of a door would be no secret.
+    for (const r of made) if (r.top > 0.5) for (const d of doors) if (d.b === 'out' && over(d, r, 4)) throw new Error(`the secret ${r.id} stands in front of an outside door of ${d.a}`);
+    secret = { room: g.id, gallery: g.gallery, work: first.work.id, title: first.work.t, y: DEEP, rooms: made.map(r => r.id) };
+    console.log(`behind ${g.gallery} (“${first.work.t}”): ${rooms.length - before.rooms} rooms, ${doors.length - before.doors} doorways, ${ramps.length - before.ramps} flights and ${decks.length - before.decks} landings that are on no drawing`);
+  }
+}
+
+// ---- 9. write it down ------------------------------------------------------
 
 const out = {
   made: new Date().toISOString().slice(0, 10),
   levels: LEVELS,
   rooms: rooms.map(r => ({ id: r.id, gallery: r.gallery, floor: r.floor, building: r.building, kind: r.kind, x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y: r.y, h: r2(r.h),
-    ...(r.glass ? { glass: r.glass } : {}), ...(r.passage ? { passage: true } : {}), ...(r.use ? { use: r.use } : {}), ...(r.assumed ? { assumed: true } : {}) })),
+    ...(r.glass ? { glass: r.glass } : {}), ...(r.passage ? { passage: true } : {}), ...(r.use ? { use: r.use } : {}), ...(r.assumed ? { assumed: true } : {}), ...(r.secret ? { secret: true } : {}) })),
   doors: doors.map(({ side, ...d }) => d),
   decks, ramps, lifts,
+  ...(secret ? { secret } : {}),
 };
 const lines = s => JSON.stringify(s).replace(/\{"id"/g, '\n  {"id"').replace(/\{"a"/g, '\n  {"a"');
 writeFileSync(here('../src/layout.js'), `// Generated by tools/build_layout.mjs on ${out.made} from the survey in survey/.\n// Do not edit by hand: change the survey or the tool and run it again.\n\nexport default ${lines(out)};\n`);
 
 const sum = f => rooms.filter(r => r.floor === f);
-for (const f of ['LL', '1', '2', '3']) console.log(`level ${f.padEnd(2)}: ${String(sum(f).length).padStart(3)} rooms, ${Math.round(sum(f).reduce((s, r) => s + area(r), 0)).toLocaleString()} m2`);
+for (const f of ['LL', '1', '2', '3', 'X']) if (sum(f).length) console.log(`level ${f.padEnd(2)}: ${String(sum(f).length).padStart(3)} rooms, ${Math.round(sum(f).reduce((s, r) => s + area(r), 0)).toLocaleString()} m2`);
 console.log(`${rooms.length} rooms (${passages} passages added), ${doors.filter(d => d.b !== 'out').length} doorways (${forced} forced), ${doors.filter(d => d.b === 'out').length} to outside, ${decks.length} decks, ${ramps.length} flights, ${lifts.length} lifts`);
 console.log('flights and lifts added to join levels:', [...ramps.filter(q => /-down$/.test(q.id) && q.id !== 'G200-down').map(q => q.id), ...lifts.filter(l => /-lift$/.test(l.id)).map(l => l.id)].join(' ') || 'none');
 if (dropped.length) console.log(`left out (${dropped.length}): ${dropped.map(d => d + (why[d] ? '<' + why[d] : '')).join(' ')}`);

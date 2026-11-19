@@ -31,6 +31,7 @@ export const SLAB = 0.5;       // a floor, from its top to the ceiling of the ro
 const TINTS = {
   '2': [0x5e2f2c, 0x2f4638, 0x3a4059, 0x4a5a66, 0x56604f, 0x5c4a58, 0x445a5c, 0x6a5a48, 0x4f3c4d, 0x6b5536],
   '1': [0x6a6456, 0x5a6158, 0x66605c, 0x545a60], '3': [0x8a8880, 0x7c7e84], LL: [0x2a2c33, 0x30292a],
+  X: [0x3b4650, 0x36424a],            // what is on no drawing: bare concrete, lit cold
 };
 const hash = s => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 const same = (a, b) => Math.abs(a - b) < 0.02;
@@ -146,7 +147,9 @@ export function buildPlan() {
   const up = rooms.filter(r => r.top > 0.5), xs = up.flatMap(r => [r.x0, r.x1]), zs = up.flatMap(r => [r.z0, r.z1]);
   const bounds = { x0: -28, x1: Math.max(298, Math.max(...xs) + 12), z0: Math.min(-42, Math.min(...zs) - 12), z1: Math.max(262, Math.max(...zs) + 8) };
 
-  const plan = { rooms, doors, byId, boxes: [], masses, massOf, bounds, obstacles: [], surfaces: [], hall, made: LAYOUT.made, levels: LAYOUT.levels || {}, vent, transom, skylight, skylights, holes, locked: true, facade };
+  const plan = { rooms, doors, byId, boxes: [], masses, massOf, bounds, obstacles: [], surfaces: [], hall, made: LAYOUT.made, levels: { ...(LAYOUT.levels || {}) },
+    // What is on no drawing (see src/secret.js): which room it is behind, and whether its doorway has been found. Until it has, that doorway is a wall.
+    secret: LAYOUT.secret || null, secretOpen: false, pits: rooms.filter(r => r.secret && r.y < -0.5 && r.top > 0.5), vent, transom, skylight, skylights, holes, locked: true, facade };
   plan.walls = rooms.flatMap(r => wallsOf(plan, r));
   plan.doorsOf = id => doors.filter(d => d.a === id || d.b === id);
   addLevels(plan);
@@ -165,8 +168,8 @@ export function buildPlan() {
   for (const d of doors) {
     const e = 1.6;
     boxes.push(d.along === 'z'
-      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent }
-      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent });
+      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden }
+      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden });
   }
   for (const w of plan.wells) boxes.push({ x0: w.x0, x1: w.x1, z0: w.z0, z1: w.z1, y0: w.y - SLAB - 1.6, y1: w.y + 1 });
 
@@ -417,6 +420,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   // (Up on a roof a car is outdoors, and the rooms below are nothing to do with it: it is above their volumes.)
   for (const b of plan.boxes) {
     if (b.lock && plan.locked) continue;              // a locked door is a wall
+    if (b.hidden && !plan.secretOpen) continue;       // and so is one that has not been found
     if (b.fly && !flying) continue;                   // a way through up in the air is no use to a car
     const x0 = b.x0 + r, x1 = b.x1 - r, z0 = b.z0 + r, z1 = b.z1 - r;
     if (x0 > x1 || z0 > z1) continue;
@@ -1067,6 +1071,12 @@ function inWell(plan, x, z, y) {
   return false;
 }
 
+// A shaft that goes down through the ground from above it has no street in it: only its own floor, far below.
+function inPit(plan, x, z) {
+  for (const r of plan.pits) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return true;
+  return false;
+}
+
 // The highest thing under (x, z) that something at height y could be standing on: the floor of the
 // room on that level, the street, or a piece of the kit or the building. A floor a storey up is not
 // under you, and neither is one you have dropped below.
@@ -1074,7 +1084,7 @@ function inWell(plan, x, z, y) {
 export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
   let g = -Infinity, under = null;
   for (const f of plan.floors) if (f.y > g && f.y <= y + step && x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1 && !inWell(plan, x, z, f.y)) g = f.y;
-  if (g < 0 && y + step >= 0 && !inWell(plan, x, z, 0)) g = 0;                      // the street, and the snow
+  if (g < 0 && y + step >= 0 && !inWell(plan, x, z, 0) && !inPit(plan, x, z)) g = 0;      // the street, and the snow
   for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
     if (plan.racing && !s.line && s.skin !== 'bench' && !s.roof && !s.fixed) continue;        // in a race, only what is on the track is there
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
