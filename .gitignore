@@ -1,3 +1,6 @@
 # the offline image copy (node tools/fetch_collection.mjs --images)
 data/img/
 .DS_Store
+
+# scratch copies of the code used while work is in progress
+.claude/worktrees/

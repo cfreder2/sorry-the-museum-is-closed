@@ -1158,8 +1158,7 @@ function fillSegment(plan, wall, seg, queue, opts) {
       picked.push({ wk, frame, full });
       used = need;
       queue.splice(i, 1);
-    } else if (picked.length === 0 && i < 6) i++;   // too wide for this stretch: try the next
-    else break;
+    } else i++;                                     // too wide for what is left of this stretch: try the next, which may be smaller
   }
   if (!picked.length) return [];
   // Centre-out: 0 in the middle, then alternate sides.
@@ -1211,14 +1210,14 @@ export function hang(plan, collection) {
       continue;
     }
     const isHall = r.kind === 'hall';
-    const segs = walls.flatMap(wall => wall.segs.map(seg => ({ wall, seg, len: seg.hi - seg.lo }))).filter(s => s.len >= 2.2).sort((a, b) => b.len - a.len);
+    const segs = walls.flatMap(wall => wall.segs.map(seg => ({ wall, seg, len: seg.hi - seg.lo }))).filter(s => s.len >= 1.3).sort((a, b) => b.len - a.len);
     if (!segs.length) continue;
     const under = Math.min(r.h, ...plan.decks.filter(d => d.room === r.id && !isHall).map(d => d.y - d.thick - r.y));      // in a stair hall the pictures hang under the gallery
     const queue = set.wall.map(w => ({ ...w, _size: realSize(w, isHall ? 5.6 : under - 2.4, Math.min(isHall ? 9 : 12, segs[0].len - 2)) }));
     for (const { wall, seg } of segs) {
       placements.push(...fillSegment(plan, wall, seg, queue, isHall
         ? { margin: 1.4, gap: 1.6, maxPer: 3, frame: frameFor, kind: 'painting', centre: h => 1.5 + h / 2 }
-        : { margin: 0.9, gap: 1.0, maxPer: 4, frame: frameFor, kind: 'painting', centre: h => Math.max(1.62, 0.8 + h / 2) }));
+        : { margin: 0.35, gap: 0.5, maxPer: 8, frame: frameFor, kind: 'painting', centre: h => Math.max(1.62, 0.8 + h / 2) }));       // hung close, as the museum's own rooms are
     }
     if (!isHall) spill.push(...queue);
   }

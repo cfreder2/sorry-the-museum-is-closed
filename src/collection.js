@@ -1,17 +1,24 @@
 // Tonight's hang, from the Art Institute of Chicago's public API.
 //
-// Everything asked for is public domain and on view right now. Works go into
-// the room that carries their real gallery number. The same module runs in the
+// Everything asked for is on view right now. Works go into the room that
+// carries their real gallery number. The same module runs in the
 // browser (live) and in node (tools/fetch_collection.mjs, which saves the copy
 // the game falls back to when the API cannot be reached).
 
 import LAYOUT from './layout.js';
 
+// Works still in copyright (most of the Modern Wing). The museum's terms allow its data to be used
+// "for noncommercial educational and personal use and for fair use", keeping every copyright notice
+// and citing author and source. So these are shown only live from the museum's own server, at the
+// modest size it serves, each with its notice on its label; they are never saved with the game.
+// Set this to false and none of them is asked for or shown.
+export const SHOW_IN_COPYRIGHT = true;
+
 const API = 'https://api.artic.edu/api/v1/artworks/search';
 export const IIIF = 'https://www.artic.edu/iiif/2';
 const FIELDS = ['id', 'title', 'artist_title', 'artist_display', 'date_display', 'medium_display', 'image_id',
   'gallery_title', 'dimensions_detail', 'thumbnail', 'artwork_type_title', 'style_title', 'is_boosted',
-  'has_not_been_viewed_much'];
+  'has_not_been_viewed_much', 'is_public_domain', 'copyright_notice'];
 
 // Images come straight from the museum unless an offline copy has been saved
 // beside the game (tools/fetch_collection.mjs --images), which is then used.
@@ -21,7 +28,7 @@ export function useLocalImages(index, base) {
   local.ids = new Set(index.ids || []);
   local.base = base;
 }
-export const remoteUrl = (work, width) => `${IIIF}/${work.img}/full/${width},/0/default.jpg`;
+export const remoteUrl = (work, width) => `${IIIF}/${work.img}/full/${work.c ? Math.min(width, 843) : width},/0/default.jpg`;      // a work in copyright is never asked for larger than the museum's standard size
 export function imageUrl(work, width) {
   if (local.ids.has(work.img)) {
     const fit = local.sizes.find(s => s >= width) || local.sizes[local.sizes.length - 1];
@@ -69,6 +76,8 @@ function slim(d) {
     alt: th.alt_text && !/^A work made of/i.test(th.alt_text) ? th.alt_text : '',
     // 1 when the museum names a maker; 0 when all it gives is where the thing came from.
     ar: d.artist_title ? 1 : 0,
+    // The copyright notice, for a work that is not in the public domain. Empty for one that is.
+    c: d.is_public_domain === false ? (d.copyright_notice || 'Not in the public domain') : '',
   };
 }
 
@@ -76,11 +85,17 @@ function slim(d) {
 const WALL = ['Painting', 'Print', 'Textile', 'Drawing and Watercolor'];
 const CASE = ['Sculpture', 'Armor', 'Vessel', 'Mask', 'Funerary Object', 'Ceramics', 'Metalwork', 'Glass', 'Arms', 'Architectural fragment', 'Decorative Arts', 'Religious/Ritual Object', 'Furniture'];
 
-export async function fetchLive(signal) {
+export async function fetchLive(signal, { inCopyright = SHOW_IN_COPYRIGHT } = {}) {
   const base = [{ term: { is_public_domain: true } }, { term: { is_on_view: true } }, { exists: { field: 'image_id' } }];
   const of = types => all([...base, { terms: { 'artwork_type_title.keyword': types } }], signal);
   const groups = await Promise.all([of(['Painting']), of(['Sculpture', 'Armor']), of(['Vessel', 'Mask', 'Funerary Object', 'Print', 'Textile', 'Drawing and Watercolor', 'Miniature room']),
     of(['Ceramics', 'Metalwork', 'Glass']), of(['Arms', 'Architectural fragment', 'Decorative Arts', 'Religious/Ritual Object', 'Furniture'])]);
+  // And what is on view but still in copyright. If that question fails the building opens without them.
+  if (inCopyright) {
+    const kinds = [...WALL, ...CASE];
+    const more = await all([{ term: { is_public_domain: false } }, { term: { is_on_view: true } }, { exists: { field: 'image_id' } }], signal, 10).catch(() => []);
+    groups.push(more.filter(d => kinds.includes(d.artwork_type_title)));
+  }
   const works = groups.flat().filter(d => d.image_id && d.thumbnail && d.thumbnail.width).map(slim);
   return { fetched: new Date().toISOString(), works };
 }
@@ -119,6 +134,26 @@ export function curate(raw) {
     }
     rooms[r.id] = { gallery: r.gallery, names, wall, objects };
   }
+  // A gallery the museum lists nothing for is not left bare: it borrows what its nearest neighbours
+  // have more of than they can hang. Every borrowed work keeps its own gallery on its label.
+  {
+    const at = Object.fromEntries(LAYOUT.rooms.map(r => [r.gallery, r]));
+    const spare = raw.works.filter(w => !used.has(w.id) && at[w.g] && w.iw && w.ih && (WALL.includes(w.k) || CASE.includes(w.k)));
+    const far = (a, b) => Math.hypot((a.x0 + a.x1 - b.x0 - b.x1) / 2, (a.z0 + a.z1 - b.z0 - b.z1) / 2) + Math.abs(a.y - b.y) * 6;
+    const bare = LAYOUT.rooms.filter(r => r.kind === 'gallery' && !r.passage && r.id !== 'G200' && rooms[r.id] && !rooms[r.id].wall.length && !rooms[r.id].objects.length);
+    // The emptiest neighbourhoods are served in turn, one work at a time, so no room takes everything near it.
+    const want = r => ({ wall: Math.max(4, Math.min(16, Math.round(((r.x1 - r.x0) + (r.z1 - r.z0)) * 0.5))), objects: Math.min(6, Math.floor((r.x1 - r.x0) * (r.z1 - r.z0) / 40)) });
+    for (let round = 0; round < 16; round++) for (const r of bare) {
+      const set = rooms[r.id], n = want(r);
+      for (const [list, kinds, cap] of [[set.wall, WALL, n.wall], [set.objects, CASE, n.objects]]) {
+        if (list.length >= cap || list.length > round) continue;
+        let best = null, bd = Infinity;
+        for (const w of spare) { if (used.has(w.id) || !kinds.includes(w.k)) continue; const d = far(r, at[w.g]) - w.b * 5; if (d < bd) { bd = d; best = w; } }
+        if (best) { used.add(best.id); list.push({ ...best, lent: 1 }); }
+      }
+    }
+    for (const r of bare) { const set = rooms[r.id]; set.lent = set.wall.length + set.objects.length > 0; }
+  }
   // Griffin Court takes the biggest canvases that did not find a wall.
   const spare = raw.works.filter(w => w.k === 'Painting' && !used.has(w.id) && w.w && w.h && w.h >= 120 && w.h <= 600 && w.w <= 900)
     .sort((a, b) => (b.b - a.b) * 2e4 + (area(b) - area(a))).slice(0, 26);
@@ -148,7 +183,7 @@ export function trim(raw) {
   return { fetched: raw.fetched, works: [...keep.values()] };
 }
 
-const CACHE = 'after-hours.hang.v4';
+const CACHE = 'after-hours.hang.v4.c';
 
 // Live if the API answers quickly, the cached answer if it did so today, and
 // the saved copy otherwise.

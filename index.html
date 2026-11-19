@@ -24,7 +24,7 @@
     <div id="tally"></div>
   </div>
 
-  <canvas id="map" width="440" height="250" aria-hidden="true"></canvas>
+  <canvas id="map" width="300" height="300" role="button" aria-label="Open the map"></canvas>
   <div id="mapkey" aria-hidden="true"><i class="k0"></i>not visited <i class="k1"></i>more to see <i class="k2"></i>all seen</div>
 
   <div id="race" hidden>
@@ -52,12 +52,15 @@
     <div class="m"></div>
     <div class="alt"></div>
     <div class="g"></div>
+    <div class="c"></div>
+    <div class="v"></div>
     <div class="foot"><a target="_blank" rel="noopener">See it at artic.edu ↗</a><span><kbd>E</kbd> step back</span></div>
   </div>
 
   <div id="flyby"><i class="bar top"></i><i class="bar bot"></i><div class="cap" role="status" aria-live="polite"><div class="t"></div><div class="a"></div></div></div>
 
   <div id="trick" role="status" aria-live="polite"></div>
+  <div id="stunt" role="status" aria-live="polite"><div class="h"></div><div class="t"></div><div class="p"></div></div>
 
   <div id="studyBar">
     <button data-act="info" id="bInfo" aria-pressed="true">INFO</button>
@@ -73,12 +76,11 @@
   </div>
   <div id="drive">
     <button id="bJump" class="car" aria-label="Jump">JUMP</button>
-    <button id="bBrake" class="car" aria-label="Brake and reverse">BRAKE</button>
+    <button data-act="look" id="bLook" hidden aria-label="Look closer"><svg viewBox="0 0 48 30" aria-hidden="true"><path d="M2 15C9 4 17 1 24 1s15 3 22 14c-7 11-15 14-22 14S9 26 2 15z" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="15" r="7" fill="currentColor"/></svg><span>LOOK</span></button>
     <button id="bUp" class="drone" aria-label="Climb">UP</button>
     <button id="bDown" class="drone" aria-label="Descend">DOWN</button>
   </div>
   <div id="pads">
-    <button data-act="look" id="bLook" hidden>LOOK</button>
     <button data-act="camera">CAM</button>
     <button data-act="swap" id="bSwap">SWAP</button>
     <button data-act="lights" id="bLights" aria-pressed="true">LIGHTS</button>
@@ -95,6 +97,43 @@
     <button data-pk="leave" id="pkLeave">Leave the table</button>
   </div>
 </div>
+
+<!-- One of the monitors with a game on it, full screen (src/arcade.js). -->
+<div id="arcade" hidden role="dialog" aria-modal="true" aria-labelledby="arcName">
+  <div class="pad" id="arcPad">
+    <button data-arc="up" aria-label="Up">▲</button><button data-arc="left" aria-label="Left">◀</button><button data-arc="right" aria-label="Right">▶</button><button data-arc="down" aria-label="Down">▼</button>
+  </div>
+  <div class="cab">
+    <div class="top"><span id="arcName"></span><span class="sc">SCORE <b id="arcScore">0</b></span><span class="sc">BEST <b id="arcBest">0</b></span></div>
+    <div class="tube"><canvas id="arcScreen" width="640" height="480" tabindex="-1" aria-label="The game"></canvas><i class="scan"></i></div>
+    <div class="help" id="arcHelp" role="status"></div>
+  </div>
+  <div class="btns">
+    <button data-arc="leave" id="arcLeave">LEAVE</button>
+    <button data-arc="again" id="arcAgain" hidden>AGAIN</button>
+    <button data-arc="b" id="arcB" hidden></button>
+    <button data-arc="a" id="arcA" hidden></button>
+  </div>
+</div>
+
+<!-- The heist (src/heist.js): its clock while it runs, the alarm, and the briefing at the button. -->
+<div id="heist" hidden>
+  <div class="row" role="status"><span id="hClock"></span><span id="hTrips"></span></div>
+  <div id="hArrow"><svg viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0-15 L11 9 L0 3 L-11 9Z"/></svg><span id="hGoal"></span><span id="hDist"></span></div>
+</div>
+<div id="heistFlash" aria-hidden="true"></div>
+<section id="heistBrief" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="hbTitle">
+  <div class="panel small">
+    <div class="over">In case of heist &nbsp;·&nbsp; tonight's target</div>
+    <h2 id="hbTitle"></h2>
+    <p class="about" id="hbText"></p>
+    <div class="times" id="hbFacts"></div>
+    <div class="col">
+      <button data-heist="go" data-first>Start the heist</button>
+      <button data-heist="no">Not tonight</button>
+    </div>
+  </div>
+</section>
 
 <main id="title" class="screen">
   <div class="panel">
@@ -117,12 +156,17 @@
         <span class="hint" id="modeHint"></span>
       </div>
     </div>
+    <div id="garage" aria-hidden="true">
+      <img id="gImg" alt="" hidden>
+      <div><b id="gName"></b><span id="gNote"></span><span id="gCount"></span></div>
+    </div>
     <div class="startrow">
       <button class="big" data-act="start" data-first><b id="startLabel">Start</b><span id="startSub"></span></button>
       <button class="big second" data-act="newgame" id="bNew" hidden><b>New game</b></button>
     </div>
     <div class="row2">
       <button class="quiet" data-act="settings">Settings</button>
+      <button class="quiet" data-act="trophies">Trophies</button>
       <button class="quiet more" data-act="controls">Controls</button>
       <button class="quiet more" data-act="about">About</button>
     </div>
@@ -136,7 +180,9 @@
     <div class="col">
       <button data-act="resume">Carry on</button>
       <button data-act="restart" id="pRestart">Restart the race</button>
+      <button data-act="abandonHeist" id="pAbandon" hidden>Abandon the heist</button>
       <button data-act="notebook">Field-trip notebook</button>
+      <button data-act="trophies">Trophies</button>
       <button data-act="settings">Settings</button>
       <button data-act="quit">Back to the front door</button>
     </div>
@@ -193,7 +239,7 @@
     </fieldset>
     <fieldset>
       <legend>Driving</legend>
-      <label class="chk"><input type="checkbox" data-set="autogo"><span><b>Drive for me</b>On a phone: hold your thumb down and the car goes at an easy pace, slide to steer, let go and it stops. Push forward for speed, pull back to creep. BRAKE backs up. Off: the stick is the throttle too.</span></label>
+      <label class="chk"><input type="checkbox" data-set="autogo"><span><b>Drive for me</b>On a phone: hold your thumb down and the car goes at an easy pace, slide to steer, let go and it stops. Push forward for speed, pull back to back up. Off: the stick is the throttle too.</span></label>
       <label class="chk"><input type="checkbox" data-set="assist"><span><b>Steering help</b>Eases the car away from walls and backs it out when it is stuck against one.</span></label>
     </fieldset>
     <fieldset>
@@ -209,6 +255,32 @@
     <div class="col"><button data-act="closeSettings">Done</button></div>
   </div>
 </section>
+
+<section id="bigmap" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="bmH">
+  <div class="mapwrap">
+    <div class="maphead">
+      <h2 id="bmH">Map</h2>
+      <div id="bmLevels" role="group" aria-label="Level"></div>
+      <button id="bmOut" aria-label="Zoom out">−</button><button id="bmIn" aria-label="Zoom in">+</button>
+      <button id="bmClear" class="quiet" hidden>Clear route</button>
+      <button id="bmClose" data-first>Close</button>
+    </div>
+    <canvas id="bmCanvas" aria-label="Floor plan. Pick a room to light the way to it."></canvas>
+    <div class="mapfoot"><span id="bmNote"></span><span class="key"><i class="k0"></i>not visited <i class="k1"></i>more to see <i class="k2"></i>all seen <i class="k3"></i>stairs and lifts</span></div>
+  </div>
+</section>
+<!-- trophies: a screen that lies over the menu that opened it, and the card that slides in when one is earned -->
+<section id="trophies" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="trH">
+  <div class="panel wide">
+    <div class="over" id="trH">Trophies</div>
+    <h2><span id="trPct">0%</span></h2>
+    <div class="trTotal" aria-hidden="true"><i id="trBar"></i></div>
+    <div id="trSum"></div>
+    <ul id="trGrid" tabindex="0" aria-label="All trophies"></ul>
+    <div class="col"><button data-act="closeTrophies" data-first>Close</button></div>
+  </div>
+</section>
+<div id="trophyToast" hidden role="status" aria-live="polite"><span class="ico"></span><div><div class="h"></div><div class="n"></div></div></div>
 
 <div id="rotate" role="alert">
   <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="27" y="10" width="26" height="46" rx="5" fill="none" stroke-width="3"/><path d="M14 58a30 30 0 0 0 52 0" fill="none" stroke-width="3"/><path d="M66 58l-9 1 5-9z"/></svg>

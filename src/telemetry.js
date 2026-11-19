@@ -8,6 +8,9 @@
  * user, and the refresh token in localStorage is the device from then on. No name, no email,
  * no address; nothing typed, because nothing is typed in this game.
  *
+ * Besides the session and its events there is one count kept for everybody: how many times each
+ * work has been looked at (supabase/003-views.sql; `view` and `topViews` below).
+ *
  * Every call here fails soft and nothing in the game waits on it.
  *
  * Off when the player turns it off in Settings. Off by default on localhost, so building and
@@ -150,6 +153,20 @@ export class Telemetry {
   event(kind, ref, data = {}) {
     if (!this.enabled || !this.started) return;
     this.started.then(() => this.rpc('museum_record_event', { session: this.id, kind, ref: ref == null ? null : String(ref), secs: Math.round(this.play * 10) / 10, build: this.build, data, synth: this.synth }));
+  }
+
+  // ---------------------------------------------------------- view counts --
+  // How many times everybody has looked at each work (supabase/003-views.sql). Told only for a
+  // person playing, with statistics switched on: never from a test, never when the switch is off.
+  /** A work looked at. Resolves to the work's new total, or null. */
+  view(id, title, stunt = false) {
+    if (!this.enabled || !this.allowed || this.synth) return null;
+    return this.call('/rest/v1/rpc/museum_record_view', { artwork_id: id, title: String(title || '').slice(0, 200), stunt: !!stunt })
+      .then(r => (r && r.status === 200 && typeof r.data === 'number' ? r.data : null));
+  }
+  /** The most-viewed works: [{ artwork_id, title, views, stunt_views }], or null. */
+  topViews(n = 20) {
+    return this.call('/rest/v1/rpc/museum_top_views', { n }).then(r => (r && r.status === 200 && Array.isArray(r.data) ? r.data : null));
   }
 
   /** In through the wall, the window or the roof. */

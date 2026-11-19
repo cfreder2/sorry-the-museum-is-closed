@@ -62,8 +62,10 @@ You get from one level to another the way a toy car would have to:
   fly through a floor; the only ways through are the stair wells, the lift
   shafts and the open air of the two tall halls.
 
-The map in the corner shows the level you are on, with its stairs hatched and
-its lifts solid. `node tools/check_layout.mjs` proves that every room on every
+The round map in the corner turns with you and shows the level you are on,
+with its stairs hatched and its lifts solid. Touch it (or press G) for the
+whole building, a level at a time. Pick a room there and the way to it lights
+up, on the big map and on the round one, across stairs and lifts. `node tools/check_layout.mjs` proves that every room on every
 level can be driven to from the front door.
 
 You start outside on Michigan Avenue, between the lions, and the doors are
@@ -79,11 +81,12 @@ every outside door unlocks for good. Hints appear if you stay outside a while.
 
 On a phone the car drives for you. Hold a thumb down on the left and it goes
 at an easy pace; slide the thumb to steer; let go and it pulls up. Push the
-thumb forward for speed, pull it back to creep up to a picture. BRAKE stops it
-and then backs up. Steering help eases the car away from walls and backs it
-out when it is stuck nose-first against one. Both are switches under
-Settings, Driving: with "Drive for me" off the stick is the throttle as well,
-as before. On a keyboard or a gamepad both start off.
+thumb forward for speed; pull it back to brake and then back up. When you are
+near a work a gold LOOK button with an eye appears beside JUMP. Steering help
+eases the car away from walls and backs it out when it is stuck nose-first
+against one; it stands down on stairs, ramps and lifts. Both are switches
+under Settings, Driving: with "Drive for me" off the stick is the throttle as
+well. On a keyboard or a gamepad both start off.
 
 ## The outside
 
@@ -230,6 +233,10 @@ What is not true:
 - **The colours of Griffin Court's roof are mine.** It has the real roof's 126
   panes, three across and forty-two along, each with a coloured gel; which
   pane is which colour is not from a photograph.
+- **Empty galleries borrow from their neighbours.** A gallery the museum
+  lists nothing on view for is hung with works its nearest galleries have more
+  of than they can show. Each borrowed work's label names the gallery it
+  really hangs in.
 - **Where things hang within a room is mine.** Paintings are arranged along
   the walls by importance and size; sculpture, armour and vessels stand in
   glass cases on the floor. In the Grand Staircase everything is on the
@@ -286,6 +293,12 @@ What is not true:
   from. Hoops are counted too, but art is the objective.
 - **Slow motion.** Leave a ramp with a work alongside and time slows, the
   camera comes round, and that work is lit and named until you land.
+- **Stunt Looks.** Art is the goal, and the tricks are a way of looking at
+  it. While the car is in the air (off a ramp or a drop, a hop at speed, or
+  with a flip or spin going), or while either toy goes through a hoop, a work
+  that is close and plainly in view is caught: STUNT LOOK, its title, and
+  points when the wheels are down. It counts as seeing the work and as a look
+  at it. See *Art Score* below for what it is worth.
 - **Frames.** Each picture gets a moulding to suit its date and school:
   tabernacle and gilt-and-bole for the earliest, carved Baroque gilt, ebonised
   Dutch, Neoclassical, swept Salon gilt, walnut, oak, thin modern strips, and
@@ -293,8 +306,41 @@ What is not true:
 - **The drone** can go outside and over the roofs.
 
 The title screen has two choices, Vehicle and Game mode, set to RC Car and
-Explore; press Start (or Enter). On a phone the whole menu is five things to
-tap: the two choices, Continue, New game and Settings.
+Explore; press Start (or Enter). On a phone the whole menu is six things to
+tap: the two choices, Continue, New game, Settings and Trophies.
+
+## Art Score, view counts, trophies and the garage
+
+- **View counts.** Every time you look closer at a work it is counted, on
+  the device. Driving past a work is not a look, and nor is a Stunt Look. The label says "You have looked at this 3
+  times", and so does the notebook. Where the server can be asked, the label
+  adds "Seen N times by everyone". A new game keeps these.
+- **Art Score**, beside ART SEEN. 10 for looking closer at a work, 50 more the
+  first time you look at it, nothing for driving past, and for a Stunt Look a base by what the car
+  was doing (jump 100; more than 1.1 s of air 200; a flip or spin landed 300;
+  through a hoop 400), times 2 in slow motion, times 2 for a work never seen
+  before, times 1.5 for a perfect landing, halved for landing wrong way up.
+  Several different works in one air are a combo: the second is worth double,
+  the third triple. The same work cannot score a Stunt Look again for 90
+  seconds. The numbers are `POINTS` at the top of `src/score.js`. A new game
+  starts the score again.
+- **Trophies**, console fashion: bronze, silver, gold, and one platinum for
+  earning all the others. Mostly for seeing art (the first work, 10 to 500
+  works, a whole room, a whole floor, a work on every level, the famous
+  pictures), some for places (the Grand Staircase, Griffin Court's roof, and
+  hidden ones back of house), a few for Stunt Looks, hoops, snowmen, the card
+  game and the pond. A card slides in at the top left when one is earned; the
+  Trophies screen is on the title screen and the pause menu. A trophy for a
+  picture that is not in tonight's hang is left off the list. They are kept on
+  the device and a new game does not take them away. The list is `TROPHIES`
+  in `src/trophies.js`.
+- **The garage.** Five cars and four drones. The Vehicle choice on the title
+  screen goes through all of them; a locked one is shown as a silhouette with
+  what it needs ("See 12 more works"). They unlock at 15, 25, 40, 60 and 100
+  works seen, and two for trophies. Each is a different body and handles a
+  little differently (top speed, grip, steering, hop; for a drone, pull, climb
+  and turn); none climbs worse than the first. SWAP still goes between car and
+  drone: the last one chosen of each. They are `VEHICLES` in `src/garage.js`.
 
 With keys or a gamepad the controls are two sticks, like a toy transmitter. On
 a phone one thumbstick under the left thumb drives the car (forward to go, the
@@ -342,6 +388,41 @@ kind of room, add a line to the list.
 - Ways through are left clear: stairs, lifts, lobbies, balconies and the
   public corridors.
 
+## Arcades and the heist
+
+- **Somebody has left the monitors on.** Ten old monitors on low trolleys,
+  each with a different game on it: Snake, Minesweeper, a bat-and-ball game,
+  a wall of bricks, falling blocks, a shooting gallery of invaders, sliding
+  numbers, a lamps puzzle, a memory game and noughts and crosses. They are in
+  the rooms behind the galleries, on all four levels and in more than one
+  wing: the laboratories first, then wherever else a screen might be left
+  running. In its room it is the one screen that is lit, and it throws a
+  green light on the floor. Pull up in front of it (or hover there) and press
+  `E`, or PLAY on a phone. Keys: arrows or `W A S D`, `Space`, `F` to flag a
+  mine, `R` to start again, `Esc` to leave. On glass: swipe, tap, hold to
+  flag, and buttons beside the screen. Best scores are kept, and the display
+  counts the arcades found. The games are in `src/arcadegames.js`, one class
+  each, with no drawing library and no page under them, so their rules can be
+  tested alone; which room has which is `ARCADE_ROOMS` in `src/furnish.js`.
+- **The heist.** Each security control room (there are two, on the lower
+  level) has a plinth with a big red button. Press it and the building names
+  a gallery and a picture in it; say yes and a clock starts, a toy-sized copy
+  of the picture appears on a plinth in the middle of that gallery, and the
+  room fills with laser beams: fixed ones with a gap low down for a car and a
+  gap higher up for a drone, curtains that blink, curtains that slide, one
+  that turns about the plinth like a lighthouse, and a net over the top. An
+  arrow points the way. Touch a beam and the alarm goes and you are put back
+  at the doorway; three alarms are forgiven and the fourth ends it. Take the
+  copy (drive up to it) and the beams deal themselves again for the way out;
+  get it back to the button before the clock runs out. Heists done, clean
+  runs and the best time for each room are kept. The real picture never
+  leaves the wall. Not in a race. Pause has *Abandon the heist*.
+  Every pattern is built from a seed out of pieces with known gaps and then
+  proven before it is switched on: `solve` in `src/heistplan.js` searches the
+  floor and the clock for a way a slow toy car can get from the doorway to
+  the plinth, and back, without coming near a beam, and a pattern that fails
+  is dealt again.
+
 ## Settings and access
 
 Settings are on the title screen and the pause menu, and are remembered.
@@ -372,7 +453,14 @@ find the way in, how far round they get and what they stop to look at.
   frame rate, counts of hoops, snowmen and the like, and the settings in use),
   and a row for each of a few events: a game started, the way in, a room
   entered for the first time, a work looked at closely, a race finished, a roof
-  reached, a hand of cards left, a hockey goal.
+  reached, a hand of cards left, a hockey goal, a Stunt Look, a trophy earned,
+  a vehicle unlocked.
+- **View counts.** Each look at a work also adds one to that work's count for
+  everybody (`supabase/003-views.sql`): the museum's id for the work and
+  its title. Nothing about who looked is kept
+  with the count. The counts are the one thing the game reads back, to say
+  "Seen N times by everyone" on a label. A test never adds to them, and with
+  the switch off they are neither added to nor asked for.
 - **What is not:** no name, no email, nothing typed (nothing is typed in this
   game), nothing about where the player really is. The only position sent is
   the toy's, inside the game, when the session ends. The player is an
@@ -382,7 +470,10 @@ find the way in, how far round they get and what they stop to look at.
 - **Where it goes:** the `museum_*` tables of the Supabase project the author's
   other games report to (`supabase/001-telemetry.sql`). Clients can only call
   two functions that clamp every field; nothing can be read back without the
-  service key.
+  service key, except the per-work view counts, through one function that
+  gives back counts and titles only. `003-views.sql` has been written but is
+  not applied by anything here: run it on the project before the counts will
+  work. Until then the label simply leaves that line out.
 - **Tests are kept out of the numbers.** A browser driven by automation, a
   page where anything touched the test handle `window.__ah`, and a start from a
   test switch are all flagged, and every summary leaves them out. On localhost
@@ -417,6 +508,18 @@ better plan is a better file. What is in it:
 
 ## The museum's API
 
+**Works in copyright.** Besides the public-domain works, the game shows what
+is on view but still in copyright (most of the Modern Wing). The museum's API
+terms allow its data to be used "for noncommercial educational and personal
+use and for fair use", keeping copyright notices and citing author and
+source. So these works are loaded only live from the museum's own server, at
+the size it serves (843 pixels wide at most), with the copyright notice on
+each label and a link to the museum's page. They are never saved in this
+repository or in the offline copy, and when the API cannot be reached they are
+not shown at all. This is a non-commercial hobby project; a rights holder who
+wants a work removed need only ask, and `SHOW_IN_COPYRIGHT` at the top of
+`src/collection.js` turns every one of them off.
+
 `src/collection.js` asks `api.artic.edu` for public-domain works on view: all
 the paintings, sculpture and armour, vessels, ceramics, metalwork, glass,
 furniture, prints, textiles and miniature rooms (about twenty-five requests, answer cached for twelve hours, well
@@ -448,7 +551,8 @@ game is run from localhost and that folder has images, it uses them instead of
 the museum's server.
 
 URL switches, for testing: `?saved` skips the live API, `?remote` ignores the
-offline images, `?mode=explore|race&toy=car|drone` skips the title, `?auto`
+offline images, `?mode=explore|race&toy=car|drone` skips the title (`toy` may also be any id
+in `src/garage.js`, such as `truck`, which opens that one), `?auto`
 lets a test driver run the race. The game object is `window.__ah`; a test can
 drive by setting its `testInput` (what the sticks would send) and look from
 anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
@@ -472,8 +576,15 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/vehicles.js           the car and the drone
     src/race.js               gates, laps, rivals
     src/props.js              loose cones and signs, and snowmen
+    src/arcade.js             the monitors with games on them: the screens in the rooms, and playing one
+    src/arcadegames.js        the ten games (no three.js, no DOM)
+    src/heist.js              the heist: the button, the beams, the clock
+    src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
+    src/score.js              Art Score, view counts, Stunt Looks
+    src/trophies.js           the trophies, their screen and the card that slides in
+    src/garage.js             the other cars and drones, and what unlocks them
     src/telemetry.js          anonymous play statistics (see Telemetry)
     supabase/                 the tables they go to
     tools/telemetry.mjs       the report

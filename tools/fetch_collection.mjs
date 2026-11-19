@@ -15,7 +15,8 @@ import { fileURLToPath } from 'node:url';
 import { fetchLive, trim, curate, remoteUrl, AGENT } from '../src/collection.js';
 import { buildPlan, hang } from '../src/plan.js';
 
-const raw = trim(await fetchLive());
+// The saved copy holds public-domain works only. Works in copyright are shown live from the museum or not at all.
+const raw = trim(await fetchLive(undefined, { inCopyright: false }));
 const out = fileURLToPath(new URL('../data/collection.json', import.meta.url));
 writeFileSync(out, JSON.stringify(raw));
 

@@ -203,7 +203,8 @@ for (const s of rest) {
   const y = s.level === 'B' ? BASEMENT : LEVELS[floor];
   const nominal = Math.min(s.h || 99, CLEAR[s.src === 'mod' ? 'mod' : 'old'][floor]);
   const public_ = s.id === 'F1-library' || s.id === 'F1-fullerton' || s.kind === 'gallery' || s.kind === 'court' || s.kind === 'exhibition' || s.kind === 'stairhall';
-  const r = { id: s.id, gallery: s.id === 'G11' || public_ ? galleryName(s) : s.name, floor,
+  const numbered = /^G\d+[A-Z]?$/.test(s.id) && titles.includes('Gallery ' + s.id.slice(1));       // a balcony or corridor the museum hangs work in keeps its gallery number
+  const r = { id: s.id, gallery: s.id === 'G11' || public_ || numbered ? galleryName(s) : s.name, floor,
     kind: s.id === 'G11' ? 'corridor' : public_ ? 'gallery' : 'room',
     building: s.src === 'mod' ? 'modern' : lower ? 'lower' : 'main', ...rect(s), y, h: nominal, top: y + nominal, src: s.src };
   if (!public_) r.use = s.kind;
@@ -280,7 +281,8 @@ function join(a, b, y, maxGap = 3.01) {
     const lo = Math.max(fa.lo, fb.lo), hi = Math.min(fa.hi, fb.hi);
     if (hi - lo < 1.9) continue;
     const low = Math.min(a.top, b.top) - y, staff = a.assumed || b.assumed;
-    const w = Math.min(staff ? 1.8 : low < 4 ? 2.6 : 4, hi - lo - 0.4), c = r2((lo + hi) / 2);
+    // A gallery doorway is about a third of the wall it is in and never more than 2.6 m: the rest of the wall is for pictures.
+    const w = Math.min(staff ? 1.8 : Math.min(2.6, Math.max(1.6, (hi - lo) * 0.3)), hi - lo - 0.4), c = r2((lo + hi) / 2);
     const d = fa.s === 'e' ? { a: a.id, b: b.id, along: 'x', x0: fa.at, x1: fb.at, z0: r2(c - w / 2), z1: r2(c + w / 2), y } : { a: a.id, b: b.id, along: 'z', x0: r2(c - w / 2), x1: r2(c + w / 2), z0: fa.at, z1: fb.at, y };
     d.h = doorHeight(d, a, b);
     if (d.h < 1.2 || blocked(d, y)) continue;

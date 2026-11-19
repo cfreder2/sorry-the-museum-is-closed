@@ -8,6 +8,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
+import { createMap } from './map.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
@@ -18,6 +19,11 @@ import { Props } from './props.js';
 import { Poker } from './poker.js';
 import { Hockey } from './hockey.js';
 import { Telemetry } from './telemetry.js';
+import { Score } from './score.js';
+import { Trophies, toast } from './trophies.js';
+import { Garage } from './garage.js';
+import { Arcade } from './arcade.js';
+import { Heist } from './heist.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -75,11 +81,40 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.17';          // bump when publishing something worth telling apart in the numbers
+const BUILD = '2026.11.19';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
 Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
 try { G.seen = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); } catch { /* no storage */ }
+
+// ---- art score, trophies and the garage (score.js, trophies.js, garage.js) ----
+const note = w => { if (G.seen.some(s => s.id === w.id)) return; G.seen.push({ id: w.id, t: w.t, a: w.a, img: w.img }); try { localStorage.setItem('after-hours.seen', JSON.stringify(G.seen)); } catch { /* fine */ } };      // into the notebook
+const score = G.score = new Score({
+  tm,
+  // A Stunt Look has caught a work: it is seen, lit and noted, like any other look.
+  onCatch: art => { if (art.wakeAt < 0) { art.wakeAt = G.museum.time; G.museum._waking.add(art); } G.museum.see(art); note(art.work); sound.gate(); },
+  onCall: (c, big) => stuntCall(c, big),
+});
+const trophies = G.trophies = new Trophies();
+const garage = G.garage = new Garage();
+trophies.onEarn = t => { toast({ tier: t.tier, head: t.tier === 'platinum' ? 'Platinum trophy earned' : 'Trophy earned', name: t.name, sound: () => (t.tier === 'platinum' ? sound.finish() : sound.perfect()), hold: t.tier === 'platinum' ? 6500 : 4200 }); tm.event('trophy', t.id, { tier: t.tier }); };
+garage.onUnlock = v => { toast({ head: 'Vehicle unlocked', name: v.name, sound: () => sound.lap() }); tm.event('unlock', v.id); };
+function stuntCall(c, big) {
+  const el = $('stunt');
+  el.querySelector('.h').textContent = c.head + (c.tags ? '  \u00b7  ' + c.tags : '');
+  el.querySelector('.t').textContent = c.title;
+  el.querySelector('.p').textContent = c.pts ? '+' + c.pts.toLocaleString() : '';
+  el.classList.remove('on', 'landed'); void el.offsetWidth; el.classList.add('on'); el.classList.toggle('landed', !!big);
+  if (big) sound.lap();
+}
+// Twice a second: has anything been earned, has anything unlocked?
+function progress(quiet) {
+  if (!G.museum || !G.vehicle) return;
+  if (!quiet) trophies.check(trophies.snap(G, score));
+  garage.check(G.museum.seenCount, trophies.ids, quiet);
+}
+// While the trophies are up the keys are theirs: nothing reaches the menu or the game underneath, and Esc shuts them.
+addEventListener('keydown', e => { if (!trophies.isOpen) return; e.stopImmediatePropagation(); if (e.code === 'Escape') { e.preventDefault(); trophies.close(); } }, true);
 
 const camLook = new THREE.Vector3(60, 5, 120);
 const want = new THREE.Vector3();
@@ -120,7 +155,12 @@ async function boot() {
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
   G.hockey = new Hockey(G.museum, plan, sound);
-  G.hockey.onEvent = (text, kind) => { if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
+  G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
+  G.arcade = new Arcade(G.museum, plan, sound);            // the monitors with games on them (src/arcade.js)
+  G.heist = new Heist(G, { say, callout });                // the button in the security control room (src/heist.js)
+  // The side games earn trophies too.
+  addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'played' || d.event === 'score') trophies.flag('arcade'); if (G.arcade && G.arcade.found && G.arcade.found.size >= G.arcade.total) trophies.flag('arcadeAll'); });
+  addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (!d.trips) trophies.flag('ghost'); } });
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);
@@ -142,13 +182,16 @@ async function boot() {
     + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed. The outside and grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
+  trophies.setup(G.museum);
+  progress(true);                                       // what an older save has already earned is unlocked without fuss
+  garage.portraits(renderer);
   // Come back with the toy you left with.
   const sv = saved();
-  if (sv && sv.toy === 'drone' && pick.toy !== 'drone') choose('toy', 1);
+  garage.chooseKind(sv ? sv.toy : garage.kind, pick);
   titleButtons();
   G.state = 'title';
   if (shown === 'title' && !params.get('mode')) show('title');       // puts focus on Start, so Enter begins
-  if (params.get('mode')) { G.toy = params.get('toy') || 'car'; start(params.get('mode')); }
+  if (params.get('mode')) { G.toy = garage.fromParam(params.get('toy') || 'car', pick); start(params.get('mode')); }
 }
 
 function setVehicle(kind) {
@@ -170,6 +213,8 @@ function setVehicle(kind) {
 function start(mode, fresh = false) {
   queueMicrotask(() => tm.begin({ mode, toy: G.toy, resumed: mode === 'explore' && resumed && !fresh, seen: G.museum.seenCount }));
   sound.unlock();
+  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true);
+  input.endFrame();                                    // the Enter that started the game is not also a press of LOOK (or PLAY, or HEIST)
   G.mode = mode;
   G.museum.sleep();
   G.allLit = false;
@@ -181,6 +226,7 @@ function start(mode, fresh = false) {
   prev.set(0, -99, 0);
   G.study = null; G.facing = null;
   $('label').hidden = true; $('placard').hidden = true; $('hud').classList.remove('studying');
+  garage.apply(G.car, G.drone);
   setVehicle(G.toy);
   // A race is run on a cleared floor: only the jumps on the track stay.
   G.plan.racing = mode === 'race';
@@ -201,7 +247,7 @@ function start(mode, fresh = false) {
     sound.musicOn = true;
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
     else say(G.toy === 'drone' ? 'Locked. But the window over the doors is open: fly in.' : 'Locked. But the air vent just left of the doors is open: drive in.', 3.5, 9);
-    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : (set.autogo ? 'Hold your left thumb down to go. Slide it to steer. Let go to stop. BRAKE backs up.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.'), 7.5, 8);
+    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : (set.autogo ? 'Hold your left thumb down to go. Slide it to steer. Let go to stop. Pull back to back up.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.'), 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -272,7 +318,9 @@ function keep() {
 }
 function newGame() {
   G.museum.forget();
+  score.reset();
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
+  G.arcade.reset();
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
@@ -284,7 +332,9 @@ function titleButtons() {
 }
 
 function quit() {
+  score.flush();
   if (G.poker.on) { G.poker.leave(); G.lamp.visible = G.lampWas !== false; }
+  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true);
   $('hud').classList.remove('studying', 'atcards');
   G.race.end();
   G.plan.racing = false; G.museum.setRace(false); G.props.group.visible = true;
@@ -305,7 +355,7 @@ function quit() {
 
 let shown = 'title';
 function show(name) {
-  for (const id of ['title', 'pause', 'results', 'notebook', 'settings', 'controls', 'about']) $(id).hidden = id !== name;
+  for (const id of ['title', 'pause', 'results', 'notebook', 'settings', 'controls', 'about', 'bigmap']) $(id).hidden = id !== name;
   shown = name;
   // Keyboard and switch users land on the first control of whatever just opened.
   if (name) { const first = $(name).querySelector('[data-first]:not([disabled])') || $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }
@@ -348,7 +398,7 @@ addEventListener('keydown', e => {
   else if (shown === 'notebook') act('closeNotebook');
 });
 // The buttons under the right thumb are held, not tapped.
-input.bind($('bJump'), 'jump'); input.bind($('bBrake'), 'brake'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
+input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
 upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study')) pause(); });
@@ -382,6 +432,15 @@ function announce(room) {
   roomUntil = G.t + 3.6;
 }
 
+// On glass the game's own buttons answer the moment they are touched. (A phone makes no click from
+// a tap while another finger is down, and a thumb is down the whole time you are driving.)
+document.addEventListener('touchstart', e => {
+  const b = e.target.closest && e.target.closest('#pads button[data-act], #studyBar button[data-act], #drive button[data-act]');
+  if (!b) return;
+  e.preventDefault();                                   // and no click follows
+  sound.unlock();
+  act(b.dataset.act);
+}, { passive: false });
 document.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
@@ -399,6 +458,7 @@ const CHOICES = {
 };
 const pick = G.pick = { toy: 'car', mode: 'explore' };
 function choose(key, step) {
+  if (key === 'toy') { garage.step(step, pick); if (G.museum) titleButtons(); return; }      // the vehicle is chosen in the garage, locked ones and all
   const list = CHOICES[key], i = (list.findIndex(c => c[0] === pick[key]) + step + list.length) % list.length;
   pick[key] = list[i][0];
   $(key + 'Val').textContent = list[i][1];
@@ -415,13 +475,16 @@ addEventListener('keydown', e => {
 
 function act(a) {
   switch (a) {
-    case 'start': if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
-    case 'newgame': if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;      // no questions: asked for, done
+    case 'trophies': if (G.museum) { trophies.last = trophies.snap(G, score); trophies.open(); } break;
+    case 'closeTrophies': trophies.close(); break;
+    case 'start': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
+    case 'newgame': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;      // no questions: asked for, done
     case 'pause': if (G.state === 'play' || G.state === 'study') pause(); break;
     case 'resume': G.state = G.study ? 'study' : 'play'; show(null); break;
     case 'restart': case 'again': start('race'); break;
     case 'wander': start('explore'); break;
     case 'quit': quit(); break;
+    case 'abandonHeist': G.heist.abandon(); G.state = G.study ? 'study' : 'play'; show(null); break;
     case 'notebook': openNotebook(); break;
     case 'closeNotebook': show(G.state === 'title' ? 'title' : 'pause'); break;
     case 'settings': settingsFrom = G.state === 'title' ? 'title' : 'pause'; applySettings(); show('settings'); break;
@@ -448,6 +511,7 @@ function openNotebook() {
     const f = document.createElement('figure'), img = document.createElement('img'), c = document.createElement('figcaption');
     img.loading = 'lazy'; img.alt = w.t; img.src = imageUrl(w, 200);
     c.textContent = w.t + (w.a ? ', ' + w.a : '');
+    { const n = score.viewsOf(w.id), sm = document.createElement('small'); sm.textContent = n === 1 ? 'looked at once' : `looked at ${n} times`; if (n) c.append(sm); }
     f.append(img, c); grid.append(f);
   }
   show('notebook');
@@ -457,8 +521,8 @@ function openNotebook() {
 function controlsList() {
   const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
   const rows = touch
-    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, pull back to creep up to a picture, let go to stop. BRAKE stops it and then backs up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
-    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
+    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Map', 'Touch the round map for the whole building. Pick a room and the way lights up.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Map', 'G, or click the radar'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
 for (const b of document.querySelectorAll('button.big')) b.disabled = true;
@@ -633,11 +697,15 @@ function beginStudy(art) {
     try { localStorage.setItem('after-hours.seen', JSON.stringify(G.seen)); } catch { /* fine */ }
   }
   const el = $('label');
+  // How often you have looked at it, and, when the server can say, how often everybody has.
+  score.look(art);
+  { const line = el.querySelector('.v'); line.textContent = score.yours(w.id); score.everyone(w.id).then(n => { if (n > 0 && G.study && G.study.art === art) line.textContent = `${score.yours(w.id)} \u00b7 Seen ${n.toLocaleString()} time${n === 1 ? '' : 's'} by everyone`; }).catch(() => {}); }
   el.querySelector('.t').textContent = w.t;
   el.querySelector('.a').textContent = [w.a, w.d].filter(Boolean).join(', ');
   el.querySelector('.m').textContent = w.m;
   el.querySelector('.alt').textContent = w.alt || '';
-  el.querySelector('.g').textContent = [w.g, art.mini ? 'one inch to the foot' : art.obj ? `${Math.round(art.h * 100)} cm tall` : `${Math.round(art.w * 100)} × ${Math.round(art.h * 100)} cm on the wall`].filter(Boolean).join(' · ');
+  el.querySelector('.g').textContent = [w.lent ? `Hangs in ${w.g}; shown here because this room had nothing on view` : w.g, art.mini ? 'one inch to the foot' : art.obj ? `${Math.round(art.h * 100)} cm tall` : `${Math.round(art.w * 100)} × ${Math.round(art.h * 100)} cm on the wall`].filter(Boolean).join(' · ');
+  el.querySelector('.c').textContent = w.c ? `${w.c}. Image: Art Institute of Chicago, shown for non-commercial use.` : '';
   el.querySelector('a').href = pageUrl(w);
   el.hidden = false;
   $('placard').hidden = true;
@@ -703,69 +771,9 @@ function attract(dt) {
 
 // -------------------------------------------------------------------- HUD ---
 
-const mapEl = $('map'), mctx = mapEl.getContext('2d');
-function drawMap() {
-  const c = mctx, v = G.vehicle, s = 4, W = 440, Hh = 250;
-  const X = x => (x - v.pos.x) * s + W / 2, Z = z => (z - v.pos.z) * s + Hh / 2;
-  c.clearRect(0, 0, W, Hh);
-  c.fillStyle = 'rgba(10,12,18,.5)'; c.fillRect(0, 0, W, Hh);
-  c.lineWidth = 1.5; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '600 21px ui-monospace, Menlo, monospace';
-  // Three kinds of room: not yet visited (dark, dashed), visited with works still to see
-  // (lighter, with a gold bar for how far through you are), and finished (gold).
-  // The map is of the level you are on: the rooms whose floor is here, and the tall ones that rise through it.
-  const ly = G.roomId ? v.pos.y : 0, here = r => r.y <= ly + 0.6 && r.top > ly + 0.3;
-  for (const st of Object.values(G.museum.rooms)) {
-    const r = st.room;
-    if (!here(r) || X(r.x1) < 0 || X(r.x0) > W || Z(r.z1) < 0 || Z(r.z0) > Hh) continue;
-    const been = G.museum.visited.has(r.id), n = st.arts.length, f = n ? st.seen / n : 0, done = n ? st.done : been;
-    const x = X(r.x0), z = Z(r.z0), w = (r.x1 - r.x0) * s, h = (r.z1 - r.z0) * s;
-    c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : 'rgba(14,16,24,.92)';
-    c.fillRect(x, z, w, h);
-    if (!done && f > 0) { c.fillStyle = 'rgba(240,200,110,.95)'; c.fillRect(x, z + h - 7, w * f, 7); }
-    c.setLineDash(been ? [] : [5, 5]);
-    c.strokeStyle = done ? 'rgba(255,235,170,1)' : been ? 'rgba(226,205,148,.75)' : 'rgba(150,150,165,.5)';
-    c.strokeRect(x, z, w, h);
-    c.setLineDash([]);
-    if (w > 34) {
-      const name = r.kind === 'hall' ? 'Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '').slice(0, 7);
-      c.fillStyle = done ? 'rgba(30,22,6,.95)' : been ? 'rgba(240,225,185,.95)' : 'rgba(150,150,165,.7)';
-      c.font = '600 21px ui-monospace, Menlo, monospace';
-      c.fillText(name, x + w / 2, z + h / 2 - (n && h > 46 ? 9 : 0));
-      if (n && h > 46) { c.font = '500 16px ui-monospace, Menlo, monospace'; c.fillText(done ? 'all ' + n : `${st.seen}/${n}`, x + w / 2, z + h / 2 + 13); }
-    }
-  }
-  c.fillStyle = 'rgba(226,205,148,.9)';
-  for (const d of G.plan.doors) if (Math.abs(d.y - ly) < 1.6) c.fillRect(X(d.x0), Z(d.z0), Math.max(2, (d.x1 - d.x0) * s), Math.max(2, (d.z1 - d.z0) * s));
-  // Ways up and down from here: stairs hatched, lifts solid.
-  c.strokeStyle = 'rgba(127,233,245,.9)'; c.fillStyle = 'rgba(127,233,245,.85)';
-  for (const q of G.plan.ramps) {
-    if (Math.min(q.y0, q.y1) > ly + 1.6 || Math.max(q.y0, q.y1) < ly - 1.6) continue;
-    c.strokeRect(X(q.x0), Z(q.z0), (q.x1 - q.x0) * s, (q.z1 - q.z0) * s);
-    c.beginPath();
-    if (q.axis === 'x') for (let x = q.x0 + 1; x < q.x1; x += 1) { c.moveTo(X(x), Z(q.z0)); c.lineTo(X(x), Z(q.z1)); } else for (let z = q.z0 + 1; z < q.z1; z += 1) { c.moveTo(X(q.x0), Z(z)); c.lineTo(X(q.x1), Z(z)); }
-    c.stroke();
-  }
-  for (const l of G.plan.lifts) if (l.stops[0] < ly + 1.6 && l.stops[l.stops.length - 1] > ly - 1.6) c.fillRect(X(l.x0), Z(l.z0), (l.x1 - l.x0) * s, (l.z1 - l.z0) * s);
-  c.fillStyle = 'rgba(226,205,148,.9)';
-  c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5;
-  for (const L of G.plan.loops) { c.beginPath(); c.arc(X(L.x), Z(L.z), 5.5, 0, 7); c.stroke(); }
-  c.lineWidth = 1.5;
-  if (G.mode === 'race' && G.race.active) {
-    const R = G.race;
-    c.strokeStyle = 'rgba(127,233,245,.6)'; c.lineWidth = 2; c.beginPath();
-    R.route.pts.forEach((p, i) => (i % 4 === 0) && (i ? c.lineTo(X(p.x), Z(p.z)) : c.moveTo(X(p.x), Z(p.z))));
-    c.closePath(); c.stroke();
-    const g = R.gates[R.next];
-    c.fillStyle = '#7fe9f5'; c.beginPath(); c.arc(Math.max(8, Math.min(W - 8, X(g.x))), Math.max(8, Math.min(Hh - 8, Z(g.z))), 6, 0, 7); c.fill();
-    for (const b of R.bots) { c.fillStyle = '#' + b.colour.toString(16).padStart(6, '0'); c.beginPath(); c.arc(X(b.x), Z(b.z), 5, 0, 7); c.fill(); }
-  }
-  c.save();
-  c.translate(W / 2, Hh / 2);
-  c.rotate(Math.atan2(Math.cos(v.yaw), Math.sin(v.yaw)) - Math.PI / 2);
-  c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 2;
-  c.beginPath(); c.moveTo(0, 11); c.lineTo(7, -8); c.lineTo(0, -3); c.lineTo(-7, -8); c.closePath(); c.stroke(); c.fill();
-  c.restore();
-}
+// The map is its own module: a round radar in the corner and the whole building behind it.
+const nav = createMap(G, { radarEl: $('map'), show, resume: () => act('resume'), say, THREE, scene, wallAt });
+G.nav = nav;                                         // G.nav.goTo({ x, y, z, label }) lights the way to a spot; G.mapMarks = [{ x, y, z, colour, ring }] puts marks on it
 
 const knobL = $('stickL').firstElementChild, knobR = $('stickR').firstElementChild;
 let frame = 0;
@@ -788,9 +796,10 @@ function hud() {
     if (G.mode === 'explore') {
       const m = G.museum;
       const here = G.roomId && m.rooms[G.roomId], rooms = m.galleries;
-      $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><br>`
+      $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><span class="pts">ART SCORE <b>${score.score.toLocaleString()}</b></span><br>`
         + (here && here.arts.length ? `THIS ROOM <b>${here.seen}</b> / ${here.arts.length}` : 'OUTSIDE') + ` \u00b7 ROOMS <b>${rooms.filter(r => r.done).length}</b> / ${rooms.length}<br>`
         + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal} \u00b7 snowmen ${G.props.busted} / ${G.props.snowmen}</span>`;
+      $('tally').lastElementChild.append(` \u00b7 arcades ${G.arcade.found.size} / ${G.arcade.total}`);
     } else {
       const R = G.race;
       $('rLap').textContent = `LAP ${Math.min(R.lap, LAPS)}/${LAPS}`;
@@ -803,7 +812,7 @@ function hud() {
       $('fpv').querySelector('.stamp').innerHTML = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }).toUpperCase()
         + '<br>' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
     }
-    if (frame % 12 === 0) drawMap();
+    if (frame % 2 === 0) nav.radar();
   }
   if (G.mode === 'race') {
     const R = G.race, b = R.bearing();
@@ -840,6 +849,14 @@ function results() {
 const _probe = { x: 0, y: 0, z: 0 }, _push = { x: 0, y: 0, z: 0 }, help = { stuck: 0, back: 0, turn: 1 };
 function steerHelp(v, inp, dt) {
   if (v.air || v.rail) { help.stuck = 0; return; }
+  // Not on a flight of stairs, a ramp or anything else that slopes, nor at the foot or head of one:
+  // the steps and the rails either side are not walls to be steered away from or backed out of.
+  {
+    const p = v.pos, fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), g = groundAt(G.plan, p.x, p.z, p.y + 0.3);
+    const slope = Math.abs(groundAt(G.plan, p.x + fx * 0.9, p.z + fz * 0.9, p.y + 0.6) - g) > 0.05 || Math.abs(groundAt(G.plan, p.x - fx * 0.6, p.z - fz * 0.6, p.y + 0.6) - g) > 0.05;
+    const near = (q, m) => p.x > q.x0 - m && p.x < q.x1 + m && p.z > q.z0 - m && p.z < q.z1 + m;
+    if (slope || G.plan.ramps.some(q => near(q, 2.5) && p.y > Math.min(q.y0, q.y1) - 0.5 && p.y < Math.max(q.y0, q.y1) + 0.8) || G.plan.lifts.some(q => near(q, 2.5))) { help.stuck = 0; help.back = 0; return; }
+  }
   const sp = Math.hypot(v.vel.x, v.vel.z), vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw), reach = 0.55 + sp * 0.42;
   const feel = a => {
     const sx = Math.sin(v.yaw + a), sz = Math.cos(v.yaw + a);
@@ -875,6 +892,7 @@ function play(dt, real) {
   v.update(dt, inp);
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
+  if (!racing) score.update(G.museum, v, dt, G.roomId, slow.live);       // Stunt Looks: a work in view while the car is in the air
 
   // Loose things, and whatever is ploughing into them.
   movers.length = 0;
@@ -894,6 +912,7 @@ function play(dt, real) {
     if (h) {
       const n = G.museum.hoopsDone, all = G.museum.hoops.length;
       sound.hoop(n);
+      score.hoop(G.museum, v, G.roomId);
       callout(n === all ? 'EVERY HOOP' : `HOOP ${n} / ${all}`);
       if (n === all) say('Every hoop in the building. Show-off.', 1, 8);
     }
@@ -904,10 +923,12 @@ function play(dt, real) {
   if (input.took('lights')) { G.lampOn = !G.lampOn; G.lamp.intensity = G.lampOn ? 70 : 0; $('bLights').setAttribute('aria-pressed', G.lampOn); sound.tick(0.08, 2200, 0.03); }
   if (input.took('mute')) act('sound');
   if (input.took('notebook')) { pause(); openNotebook(); }
+  if (input.took('map')) nav.open();
   if (input.took('pause')) pause();
   if (input.took('reset')) { if (racing) R.reset(); else { v.vel.set(0, 0, 0); } }
   if (input.took('swap') && !racing) {
     const to = v.kind === 'car' ? 'drone' : 'car', from = v;
+    score.flush();
     setVehicle(to);
     endFlyby();
     if (to === 'drone') G.drone.place(from.pos.x, from.pos.z, from.yaw, from.pos.y + 0.5); else G.car.place(from.pos.x, from.pos.z, from.yaw, from.pos.y);
@@ -960,8 +981,14 @@ function play(dt, real) {
     // On the roof, by the card table, the same button sits you down at it.
     G.pokerNear = G.poker.near(v);
     if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
-    $('bLook').hidden = !(G.facing || G.pokerNear); $('bLook').textContent = G.pokerNear ? 'PLAY' : 'LOOK';
-    if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.facing) beginStudy(G.facing); }
+    // A monitor with a game on it, or the button in the security control room, takes the same button.
+    G.arcadeNear = G.pokerNear ? null : G.arcade.near(v);
+    G.heistNear = G.pokerNear || G.arcadeNear ? null : G.heist.near(v);
+    if (G.arcade.justFound) { const a = G.arcade.justFound; G.arcade.justFound = null; callout(`ARCADE ${G.arcade.found.size} / ${G.arcade.total}`); sound.lap(); say(`Somebody has left ${a.Game.title} running on an old monitor. ${input.usedTouch ? 'PLAY' : 'E'} to have a go.`, 0.3, 7); }
+    if (G.heistNear) once('heist', `A big red button, and a sign: IN CASE OF HEIST. ${input.usedTouch ? 'HEIST' : 'E'} to press it.`, 7);
+    $('bLook').hidden = !(G.facing || G.pokerNear || G.arcadeNear || G.heistNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : 'LOOK';
+    if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.facing) beginStudy(G.facing); }
+    G.heist.update(dt, v);
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -974,13 +1001,21 @@ function play(dt, real) {
   }
   keep();
   chase(real, false);
+  G.arcade.update(real, G.t, camera.position, set.reduce);
 }
+
+// A go on one of the monitors: the world waits while you play (src/arcade.js runs the game).
+function beginArcade(a) { endFlyby(); G.state = 'arcade'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.arcade.open(a); tm.event('arcade', a.id); }
+function endArcade() { G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
+// The button in the security control room: the world waits while the job is explained (src/heist.js).
+function beginHeist(c) { endFlyby(); if (G.heist.brief(c)) { G.state = 'heist'; $('placard').hidden = true; } }
 
 // Sitting in at the card game on the roof: the toy takes the empty place and the camera stands back to watch.
 function beginPoker() {
   const v = G.vehicle, s = G.pokerSeat = G.poker.seat();
   endFlyby();
   v.place(s.x, s.z, s.yaw, v.kind === 'drone' ? s.y + 0.6 : s.y);
+  trophies.flag('cards');
   G.state = 'poker'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true;
   G.lampWas = G.lamp.visible; G.lamp.visible = false;                 // headlamps off at the table: they dazzle the cards
   G.poker.sit();
@@ -1033,7 +1068,8 @@ function tick(now) {
 
   input.capture = G.state === 'play' || G.state === 'study';
   // What the telemetry will say next time it reports: brought up to date once a second.
-  if (G.state === 'play' || G.state === 'study' || G.state === 'poker') tm.play += dt;
+  if (G.state === 'play' || G.state === 'study' || G.state === 'poker' || G.state === 'arcade') tm.play += dt;
+  if (frame % 30 === 0 && (G.state === 'play' || G.state === 'study' || G.state === 'poker' || G.state === 'arcade')) progress();
   if (G.museum && G.vehicle && frame % 60 === 0) {
     tm.seen = G.museum.seenCount; tm.toy = G.vehicle.kind; tm.input = input.usedTouch ? 'touch' : 'keys';
     tm.stats = { hoops: G.museum.hoopsDone, high: G.perched.size, snowmen: G.props.busted, roof: !!G.roofed, poker: G.poker.game ? G.poker.game.hand : 0, hockey: [G.hockey.you, G.hockey.bot],
@@ -1066,6 +1102,12 @@ function tick(now) {
       G.museum.winter.update(dt, G.t, camera.position, null, set.reduce);
     }
     sound.update(G.vehicle, false);
+  } else if (G.state === 'arcade') {
+    if (!G.arcade.on) endArcade(); else G.arcade.frame(dt);
+    sound.update(G.vehicle, false);
+  } else if (G.state === 'heist') {
+    if (!G.heist.briefing) { G.state = 'play'; canvas.focus({ preventScroll: true }); }
+    sound.update(G.vehicle, false);
   } else if (G.state === 'paused') {
     if (input.took('pause')) act('resume');
     sound.update(G.vehicle, false);
@@ -1074,6 +1116,7 @@ function tick(now) {
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
+  if (G.state === 'arcade') return;                      // the game on the monitor covers the screen: nothing behind it needs drawing
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);

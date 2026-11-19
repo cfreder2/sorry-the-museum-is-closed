@@ -7,7 +7,7 @@
 
 const KEYS = {
   look: ['KeyE', 'Enter', 'KeyF'], info: ['KeyI'], camera: ['KeyC'], swap: ['KeyV'], pause: ['Escape', 'KeyP'],
-  reset: ['KeyR'], mute: ['KeyM'], notebook: ['KeyN'], lights: ['KeyL'],
+  reset: ['KeyR'], mute: ['KeyM'], notebook: ['KeyN'], lights: ['KeyL'], map: ['KeyG'],
 };
 
 export class Input {
@@ -164,11 +164,10 @@ export class Input {
         // The stick is the whole car: push it forward to go (the further, the faster), pull it
         // back to brake and then reverse, lean it to steer. Leaning hard does not count as pulling back.
         // Or, with 'drive for me' on: a thumb on the stick is the throttle. It goes while you hold, you
-        // only slide left and right to steer, it stops when you let go, and BRAKE backs it up.
+        // slide left and right to steer, it stops when you let go, and pulling back backs it up.
         if (this.autogo) {
-          if (tl) { rx = curve(tl.x); ly = tl.y < -0.3 ? 0.2 : 0.45 + 0.55 * Math.max(0, (tl.y - 0.1) / 0.9); }       // thumb down is an easy pace; forward is faster, back is a crawl for pulling up to a picture
-          if (b.brake) ly = -1;
-          coast = !tl && !b.brake;
+          if (tl) { rx = curve(tl.x); ly = tl.y < -0.35 ? (tl.y + 0.35) / 0.65 : 0.45 + 0.55 * Math.max(0, (tl.y - 0.1) / 0.9); }       // thumb down is an easy pace; forward is faster; back brakes and then reverses
+          coast = !tl;
         } else if (tl) { rx = curve(tl.x); ly = tl.y > 0.15 ? (tl.y - 0.15) / 0.85 : tl.y < -0.4 ? (tl.y + 0.4) / 0.6 : 0; }
       }
     }
