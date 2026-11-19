@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+// Checks that src/layout.js describes a building a toy car can get all the way round.
+//
+//   node tools/check_layout.mjs [path/to/layout.js]
+//
+// The plan is turned into places you can stand (the floor of each room, each deck, each doorway's
+// threshold, and outdoors) and the ways between them (stairs and ramps, lifts, decks that touch, a
+// threshold and whatever is level with it either side), and then walked from the front door. It
+// fails, with a list, if a room or a deck cannot be reached, if a doorway opens onto nothing (a
+// door a storey up a wall with no deck in front of it; a door into a room whose floor is at another
+// height with no ramp to it), if a ramp or a lift does not arrive at a floor, or if a ramp is steeper
+// than about one in three.
+
+import { pathToFileURL, fileURLToPath } from 'node:url';
+
+const file = process.argv[2] || fileURLToPath(new URL('../src/layout.js', import.meta.url));
+const L = (await import(pathToFileURL(file))).default;
+const rooms = L.rooms, doors = L.doors, decks = L.decks || [], ramps = L.ramps || [], lifts = L.lifts || [];
+const byId = Object.fromEntries(rooms.map(r => [r.id, r]));
+const same = (a, b) => Math.abs(a - b) < 0.06;
+const problems = [], notes = [];
+
+// ---- places ----
+const R = r => 'room ' + r.id, D = d => 'deck ' + d.id, T = i => 'doorway ' + i, OUT = 'outdoors';
+const edges = new Map();
+const link = (a, b, how) => { if (!a || !b || a === b) return; for (const [p, q] of [[a, b], [b, a]]) { if (!edges.has(p)) edges.set(p, []); edges.get(p).push([q, how]); } };
+// What is there to stand on at (x, z, y)? A deck there at that height, the floor of a room there at that height, or a doorway's threshold.
+function standAt(x, z, y) {
+  for (const [i, d] of doors.entries()) if (same(d.y, y) && x >= d.x0 - 0.01 && x <= d.x1 + 0.01 && z >= d.z0 - 0.01 && z <= d.z1 + 0.01) return T(i);
+  for (const d of decks) if (same(d.y, y) && x >= d.x0 - 0.01 && x <= d.x1 + 0.01 && z >= d.z0 - 0.01 && z <= d.z1 + 0.01) return D(d);
+  for (const r of rooms) if (same(r.y || 0, y) && x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) return R(r);
+  return null;
+}
+const insideRoom = (o, r) => o.x0 >= r.x0 - 0.01 && o.x1 <= r.x1 + 0.01 && o.z0 >= r.z0 - 0.01 && o.z1 <= r.z1 + 0.01;
+
+// ---- the schema, as far as it can be checked ----
+if (!L.levels) problems.push('no `levels` table');
+for (const r of rooms) {
+  if (typeof r.y !== 'number' || !(r.h > 0)) problems.push(`${r.id}: needs a floor height y and a clear height h`);
+  if (!['LL', '1', '2', '3'].includes(r.floor)) problems.push(`${r.id}: floor is ${r.floor}`);
+  if (!(r.x1 > r.x0 && r.z1 > r.z0)) problems.push(`${r.id}: no size`);
+}
+// Two rooms may lie one over the other, but not one inside the other.
+for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++) {
+  const a = rooms[i], b = rooms[j];
+  if (a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0 && a.y < b.y + b.h - 0.01 && b.y < a.y + a.h - 0.01) problems.push(`${a.id} and ${b.id} run into each other (${a.y}..${(a.y + a.h).toFixed(2)} and ${b.y}..${(b.y + b.h).toFixed(2)})`);
+}
+for (const d of decks) { const r = byId[d.room]; if (!r) problems.push(`deck ${d.id}: no room ${d.room}`); else { if (!insideRoom(d, r)) problems.push(`deck ${d.id}: sticks out of ${r.id}`); if (d.y <= r.y + 0.5 || d.y > r.y + r.h - 1) problems.push(`deck ${d.id}: at ${d.y}, not inside the height of ${r.id}`); } }
+
+// ---- doorways ----
+const unmet = [];                    // doorways into a room whose floor is not at the sill: a ramp must make up the difference
+for (const [i, d] of doors.entries()) {
+  const name = `door ${i} (${d.a} to ${d.b})`;
+  if (typeof d.y !== 'number') { problems.push(`${name}: no y`); continue; }
+  for (const id of [d.a, d.b]) {
+    if (id === 'out') { if (!same(d.y, 0)) problems.push(`${name}: a way outdoors at ${d.y} m, not at the street`); link(T(i), OUT, 'door'); continue; }
+    const r = byId[id];
+    if (!r) { problems.push(`${name}: no room ${id}`); continue; }
+    if (same(d.y, r.y)) { link(T(i), R(r), 'door'); continue; }
+    // A storey up a tall room: a deck at the sill, against the wall the door is in.
+    const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2, px = d.along === 'x' ? (cx < (r.x0 + r.x1) / 2 ? r.x0 + 0.3 : r.x1 - 0.3) : cx, pz = d.along === 'z' ? (cz < (r.z0 + r.z1) / 2 ? r.z0 + 0.3 : r.z1 - 0.3) : cz;
+    const k = decks.find(k => k.room === id && same(k.y, d.y) && px >= k.x0 && px <= k.x1 && pz >= k.z0 && pz <= k.z1);
+    if (k) { link(T(i), D(k), 'door'); const [lo, hi, a, b] = d.along === 'x' ? [d.z0, d.z1, k.z0, k.z1] : [d.x0, d.x1, k.x0, k.x1]; if (lo < a - 0.01 || hi > b + 0.01) problems.push(`${name}: wider than the deck ${k.id} it opens onto`); }
+    else unmet.push([i, name, r]);
+  }
+}
+
+// ---- stairs and ramps ----
+for (const q of ramps) {
+  const run = q.axis === 'x' ? q.x1 - q.x0 : q.z1 - q.z0, rise = Math.abs(q.y1 - q.y0), cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, e = 0.3;
+  if (rise / run > 0.345) problems.push(`ramp ${q.id}: ${rise.toFixed(2)} m in ${run} m is steeper than one in three`);
+  const lo = q.axis === 'x' ? standAt(q.x0 - e, cz, q.y0) : standAt(cx, q.z0 - e, q.y0), hi = q.axis === 'x' ? standAt(q.x1 + e, cz, q.y1) : standAt(cx, q.z1 + e, q.y1);
+  if (!lo) problems.push(`ramp ${q.id}: nothing to drive onto at its low-coordinate end (${q.y0} m)`);
+  if (!hi) problems.push(`ramp ${q.id}: nothing to drive onto at its high-coordinate end (${q.y1} m)`);
+  link(lo, hi, q.stairs ? 'stair' : 'ramp');
+  notes.push(`  ${q.stairs ? 'stair' : 'ramp '} ${q.id.padEnd(14)} ${rise.toFixed(1)} m in ${String(run).padStart(4)} m (1 in ${(run / rise).toFixed(1)})   ${lo} <-> ${hi}`);
+}
+
+// ---- lifts ----
+for (const l of lifts) {
+  const at = [];
+  for (const y of l.stops) {
+    const cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2, e = 0.3;
+    const p = [standAt(l.x0 - e, cz, y), standAt(l.x1 + e, cz, y), standAt(cx, l.z0 - e, y), standAt(cx, l.z1 + e, y)].filter(Boolean);
+    if (!p.length) problems.push(`lift ${l.id}: nothing to drive off onto at its stop at ${y} m`);
+    at.push(...p);
+  }
+  for (const p of at) link(at[0], p, 'lift');
+  notes.push(`  lift  ${l.id.padEnd(14)} stops at ${l.stops.join(', ')} m   ${[...new Set(at)].join(' <-> ')}`);
+}
+
+// ---- decks that touch are one floor ----
+for (let i = 0; i < decks.length; i++) for (let j = i + 1; j < decks.length; j++) {
+  const a = decks[i], b = decks[j];
+  if (!same(a.y, b.y)) continue;
+  const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
+  if ((ox >= -0.05 && oz > 0.5) || (oz >= -0.05 && ox > 0.5)) link(D(a), D(b), 'deck');
+}
+
+// A doorway into a room at another height is sound if a ramp starts at its threshold and ends on that room's floor.
+for (const [i, name, r] of unmet) if (!(edges.get(T(i)) || []).some(([p, how]) => p === R(r) && how !== 'door')) problems.push(`${name}: opens into ${r.id} at ${doors[i].y} m, where its floor is at ${r.y} m, and there is neither a deck nor a ramp`);
+
+// ---- walk it ----
+const front = doors.filter(d => d.b === 'out' && d.along === 'x' && byId[d.a] && byId[d.a].x0 >= d.x1 - 0.01).sort((a, b) => a.x0 - b.x0)[0];
+if (!front) problems.push('no front door: no doorway to outdoors that opens west');
+function walk(start, outdoors) {
+  const seen = new Set([start]), q = [start];
+  while (q.length) for (const [n] of edges.get(q.shift()) || []) if (!seen.has(n) && (outdoors || n !== OUT)) { seen.add(n); q.push(n); }
+  return seen;
+}
+if (front) {
+  const start = R(byId[front.a]), indoors = walk(start, false), all = walk(start, true);
+  const places = [...rooms.map(R), ...decks.map(D)];
+  const lost = places.filter(p => !all.has(p)), across = places.filter(p => all.has(p) && !indoors.has(p));
+  for (const p of lost) problems.push(`${p}: cannot be reached from the front door`);
+  console.log(`${rooms.length} rooms, ${doors.length} doorways, ${decks.length} decks, ${ramps.length} ramps, ${lifts.length} lifts; levels ${JSON.stringify(L.levels)}`);
+  console.log(notes.join('\n'));
+  for (const f of ['LL', '1', '2', '3']) { const here = rooms.filter(r => r.floor === f); console.log(`  level ${f.padEnd(2)}: ${here.length} rooms, ${here.filter(r => indoors.has(R(r))).length} reached from the front door without going outdoors, ${here.filter(r => all.has(R(r))).length} reached in all`); }
+  console.log(`  decks: ${decks.filter(d => indoors.has(D(d))).length} of ${decks.length} reached`);
+  if (across.length) console.log(`  reached only by going out across the snow: ${across.join(', ')}`);
+}
+if (problems.length) { console.log(`\nNOT SOUND: ${problems.length} problem${problems.length > 1 ? 's' : ''}`); for (const p of problems) console.log('  ' + p); process.exit(1); }
+console.log('\nSound: every room and every deck can be driven to from the front door.');

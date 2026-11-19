@@ -6,7 +6,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { buildPlan, roomAt, confine, onRoof } from './plan.js';
+import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
@@ -192,7 +192,7 @@ function start(mode, fresh = false) {
     G.race.end();
     // Carry on from where you were, or begin again on the avenue.
     const sv = fresh ? null : saved(), sp = sv || G.plan.spawn;
-    if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, sv ? Math.max(0.9, sv.y || 0) : 0.9); else G.car.place(sp.x, sp.z, sp.yaw, sv ? sv.y || 0 : 0);
+    if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, sv ? (sv.y || 0) + (sv.toy === 'drone' ? 0 : 0.9) : 0.9); else G.car.place(sp.x, sp.z, sp.yaw, sv ? sv.y || 0 : 0);
     resumed = !!sv;
     // The doors stay locked until you have found your way in once.
     G.museum.setLocked(!(sv && unlocked()), true);
@@ -256,7 +256,8 @@ let resumed = false;
 function saved() {
   try {
     const sv = JSON.parse(localStorage.getItem(SAVE) || 'null');
-    if (sv && isFinite(sv.x) && isFinite(sv.z) && isFinite(sv.yaw)) return sv;
+    // (A place kept from an older plan of the building is no use: the rooms have moved.)
+    if (sv && isFinite(sv.x) && isFinite(sv.z) && isFinite(sv.yaw) && sv.plan === G.plan.made) return sv;
   } catch { /* no storage */ }
   return null;
 }
@@ -266,7 +267,7 @@ function keep() {
   const v = G.vehicle;
   if (G.mode !== 'explore' || G.state !== 'play' || G.t - lastSave < 3 || v.air || v.rail) return;
   lastSave = G.t;
-  try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind })); } catch { /* fine */ }
+  try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind, plan: G.plan.made })); } catch { /* fine */ }
 }
 function newGame() {
   G.museum.forget();
@@ -497,14 +498,15 @@ function chase(dt, snap) {
       let cx = -dx - ux * 0.45, cz = -dz - uz * 0.45, lift = -0.08;
       if (Math.abs(along) > 0.7) { cx = -dx * 0.75 - uz * 0.7; cz = -dz * 0.75 + ux * 0.7; lift = 0.3; }
       const cl = Math.hypot(cx, cz) || 1;
-      cine.set(v.pos.x + cx / cl * back, Math.max(0.14, v.pos.y + lift), v.pos.z + cz / cl * back);
+      cine.set(v.pos.x + cx / cl * back, Math.max((G.floorY || 0) + 0.14, v.pos.y + lift), v.pos.z + cz / cl * back);
       want.lerp(cine, k);
       cine.set(v.pos.x + (a.x - v.pos.x) * 0.32, v.pos.y + (a.y - v.pos.y) * 0.32 + 0.04, v.pos.z + (a.z - v.pos.z) * 0.32);
       tmp.lerp(cine, k);
       rate = 7;
     }
     confine(G.plan, want, 0.14, true, null, true);
-    if (want.y < 0.1) want.y = 0.1;
+    // Never under the floor: whichever floor that is, on this level.
+    { const gy = groundAt(G.plan, want.x, want.z, Math.max(want.y, v.pos.y) + 0.3, 0); if (want.y < gy + 0.1) want.y = gy + 0.1; }
     camera.position.lerp(want, snap ? 1 : 1 - Math.exp(-dt * rate));
     camLook.lerp(tmp, snap ? 1 : 1 - Math.exp(-dt * 14));
     camera.up.set(0, 1, 0);
@@ -581,7 +583,7 @@ function flight(v, real, racing) {
         if (best) { bestAir = v.landed.air; try { localStorage.setItem('after-hours.air', bestAir.toFixed(2)); } catch { /* fine */ } }
         G.airMsg = { text: `AIR ${v.landed.air.toFixed(2)} S  ${v.landed.dist.toFixed(1)} M${best ? ' *' : ''}`, until: G.t + 3.5 };
       }
-      if (!racing && v.pos.y > 0.3) once('ontop', 'You are on the furniture. Nobody saw.');
+      if (!racing && v.on && !v.on.fixed && !v.on.hill && !v.on.roof && G.roomId && v.pos.y > (G.floorY || 0) + 0.3) once('ontop', 'You are on the furniture. Nobody saw.');
       if (!racing && v.landed.air > 0.55 && G.roomId === 'G200' && v.landed.dist > 3.5) once('stairs', 'Down the Grand Staircase without touching a step.');
     }
     if (slow.live && !v.air) { slow.live = false; slow.until = G.t + 1.1; }
@@ -707,9 +709,11 @@ function drawMap() {
   c.lineWidth = 1.5; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '600 21px ui-monospace, Menlo, monospace';
   // Three kinds of room: not yet visited (dark, dashed), visited with works still to see
   // (lighter, with a gold bar for how far through you are), and finished (gold).
+  // The map is of the level you are on: the rooms whose floor is here, and the tall ones that rise through it.
+  const ly = G.roomId ? v.pos.y : 0, here = r => r.y <= ly + 0.6 && r.top > ly + 0.3;
   for (const st of Object.values(G.museum.rooms)) {
     const r = st.room;
-    if (X(r.x1) < 0 || X(r.x0) > W || Z(r.z1) < 0 || Z(r.z0) > Hh) continue;
+    if (!here(r) || X(r.x1) < 0 || X(r.x0) > W || Z(r.z1) < 0 || Z(r.z0) > Hh) continue;
     const been = G.museum.visited.has(r.id), n = st.arts.length, f = n ? st.seen / n : 0, done = n ? st.done : been;
     const x = X(r.x0), z = Z(r.z0), w = (r.x1 - r.x0) * s, h = (r.z1 - r.z0) * s;
     c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : 'rgba(14,16,24,.92)';
@@ -728,7 +732,18 @@ function drawMap() {
     }
   }
   c.fillStyle = 'rgba(226,205,148,.9)';
-  for (const d of G.plan.doors) c.fillRect(X(d.x0), Z(d.z0), Math.max(2, (d.x1 - d.x0) * s), Math.max(2, (d.z1 - d.z0) * s));
+  for (const d of G.plan.doors) if (Math.abs(d.y - ly) < 1.6) c.fillRect(X(d.x0), Z(d.z0), Math.max(2, (d.x1 - d.x0) * s), Math.max(2, (d.z1 - d.z0) * s));
+  // Ways up and down from here: stairs hatched, lifts solid.
+  c.strokeStyle = 'rgba(127,233,245,.9)'; c.fillStyle = 'rgba(127,233,245,.85)';
+  for (const q of G.plan.ramps) {
+    if (Math.min(q.y0, q.y1) > ly + 1.6 || Math.max(q.y0, q.y1) < ly - 1.6) continue;
+    c.strokeRect(X(q.x0), Z(q.z0), (q.x1 - q.x0) * s, (q.z1 - q.z0) * s);
+    c.beginPath();
+    if (q.axis === 'x') for (let x = q.x0 + 1; x < q.x1; x += 1) { c.moveTo(X(x), Z(q.z0)); c.lineTo(X(x), Z(q.z1)); } else for (let z = q.z0 + 1; z < q.z1; z += 1) { c.moveTo(X(q.x0), Z(z)); c.lineTo(X(q.x1), Z(z)); }
+    c.stroke();
+  }
+  for (const l of G.plan.lifts) if (l.stops[0] < ly + 1.6 && l.stops[l.stops.length - 1] > ly - 1.6) c.fillRect(X(l.x0), Z(l.z0), (l.x1 - l.x0) * s, (l.z1 - l.z0) * s);
+  c.fillStyle = 'rgba(226,205,148,.9)';
   c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5;
   for (const L of G.plan.loops) { c.beginPath(); c.arc(X(L.x), Z(L.z), 5.5, 0, 7); c.stroke(); }
   c.lineWidth = 1.5;
@@ -822,6 +837,7 @@ function play(dt, real) {
   if (G.auto && racing) inp = autopilot(v, R);
   if (G.testInput) inp = G.testInput;
   if (racing && (R.locked || R.finished)) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };
+  stepLifts(G.plan, dt, [v.pos]);
   v.update(dt, inp);
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
@@ -834,7 +850,7 @@ function play(dt, real) {
   if (!racing) G.props.update(dt, movers);
   if (!racing) { G.hockey.update(dt, v); const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 18) once('pond', 'A pond, frozen hard, with a goal at each end and a puck in the middle. Somebody is waiting for a game.', 7); }
   // Outdoors: tyre tracks, and a word about whatever sculpture you have just come up to.
-  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && (v.on ? v.on.hill : v.pos.y < 0.03) ? v : null, set.reduce);
+  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && (v.on ? v.on.hill : Math.abs(v.pos.y) < 0.03) ? v : null, set.reduce);
   if (!racing && !G.roomId) for (const a of G.plan.outdoorArt) if ((v.pos.x - a.x) ** 2 + (v.pos.z - a.z) ** 2 < a.r * a.r) once('out:' + a.text, a.text, 6);
 
   // Hoops.
@@ -881,7 +897,8 @@ function play(dt, real) {
 
   // On a roof you are over a room, not in it.
   const aloft = onRoof(G.plan, v.pos.x, v.pos.z, v.pos.y);
-  const room = aloft ? null : roomAt(G.plan, v.pos.x, v.pos.z);
+  const room = aloft ? null : roomAt(G.plan, v.pos.x, v.pos.z, v.pos.y);
+  G.floorY = room ? room.y : 0;                      // the floor of the level you are on: the polish is laid on it, and the map drawn for it
   if (aloft && v.kind === 'car' && !v.air && !G.roofed) { G.roofed = true; tm.event('roof', G.plan.scaffold && Math.hypot(v.pos.x - G.plan.scaffold.x, v.pos.z - G.plan.scaffold.z) < 16 ? 'scaffold' : G.plan.skiJump && Math.hypot(v.pos.x - G.plan.skiJump.x, v.pos.z - G.plan.skiJump.z1) < 16 ? 'skijump' : 'other'); callout('ON THE ROOF'); sound.lap(); say('Every roof is a floor. Mind the edge, and the open skylights.', 0.6, 7); }
   if ((room ? room.id : null) !== G.roomId) {
     G.roomId = room ? room.id : null;
@@ -913,7 +930,7 @@ function play(dt, real) {
     if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.facing) beginStudy(G.facing); }
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
-    if (v.kind === 'drone' && !room && v.pos.y > 14) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
+    if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
     // Somewhere high to stop and look from.
     const on = v.kind === 'car' && !v.air ? v.on : null;
     if (on && on.perch && Math.abs(v.speed) < 2.5) {
@@ -1024,7 +1041,8 @@ function tick(now) {
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
-  mirror.render(renderer, scene, camera, G.museum.floors);
+  if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
+  mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
 }
 

@@ -67,7 +67,7 @@ export class Props {
   reset() {
     this.busted = 0;
     for (const p of this.items) {
-      p.pos.set(p.def.x, 0, p.def.z); p.vel.set(0, 0, 0);
+      p.pos.set(p.def.x, p.def.y || 0, p.def.z); p.vel.set(0, 0, 0);
       p.yaw = p.def.yaw || 0; p.av = 0; p.tip = p.tipTo = 0; p.rest = true;
       if (p.snow) { p.bust = false; for (const l of p.lumps) { l.g.position.copy(l.home); l.g.rotation.set(0, 0, l.g === p.lumps[3].g ? 0.12 : 0); l.rest = true; } }
       this._place(p);
@@ -87,7 +87,7 @@ export class Props {
     if (!p.bust) {
       for (const m of movers) {
         const dx = p.pos.x - m.x, dz = p.pos.z - m.z, rr = p.r + m.r, sp = Math.hypot(m.vx, m.vz);
-        if (dx * dx + dz * dz > rr * rr || m.y > p.h || sp < 0.5) continue;
+        if (dx * dx + dz * dz > rr * rr || m.y > p.h || m.y < -1 || sp < 0.5) continue;
         p.bust = true; this.busted++;
         const k = p.def.s || 1, d = Math.hypot(dx, dz) || 0.01, c = Math.cos(p.yaw), s2 = Math.sin(p.yaw);
         p.lumps.forEach((l, i) => {

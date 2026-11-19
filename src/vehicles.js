@@ -2,7 +2,7 @@
 // driven the way the real ones are: two sticks.
 
 import * as THREE from 'three';
-import { confine, roomAt, groundAt, wallAt, heightOf, ceilingAt, GRAVITY, STEP } from './plan.js';
+import { confine, roomAt, groundAt, wallAt, heightOf, ceilingAt, headAt, GRAVITY, STEP } from './plan.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
@@ -126,7 +126,7 @@ export class Car {
       else if (th < 0) vf += th * (vf > 0.4 ? 20 : 9 * (1 - Math.max(0, -vf) / REV)) * dt;
       vf -= vf * 0.24 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 0.4 * dt);     // tops out near 9.5 m/s
       // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.
-      const room = roomAt(this.plan, this.pos.x, this.pos.z);
+      const room = roomAt(this.plan, this.pos.x, this.pos.z, this.pos.y);
       let grip = !room ? 3.4 : room.kind === 'gallery' && room.floor !== '1' ? 9 : 5.2;
       // Gritted streets hold better than snow; the frozen pool does not hold at all.
       if (!room) { for (const q of this.plan.paved) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 6; for (const q of this.plan.ice) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 0.3; }
@@ -134,10 +134,10 @@ export class Car {
       if (!room) for (const d of this.plan.decals) if (this.pos.x > d.x0 && this.pos.x < d.x1 && this.pos.z > d.z0 - 0.3 && this.pos.z < d.z1 + 0.3) grip = 9;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
       this.wet = false;
-      if (this.pos.y < 0.03 && !this.plan.racing) for (const p of this.plan.puddles) if ((this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
+      if (!this.plan.racing) for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
-      const icy = !this.wet && !room && this.pos.y < 0.05 && this.plan.ice.some(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1);
+      const icy = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.some(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1);
       if (icy) { grip = 0.15; bite *= 0.8; vf -= (vf - this._vf0) * 0.8; }
       rate = this.steer * bite * 3.6 / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
@@ -255,7 +255,9 @@ export class Car {
     // drops faster than the car can fall (by a clear margin, 4 m/s2), and that is the same test at any frame rate.
     // A fixed distance let it hop at thirty frames a second and never leave the ground at sixty.
     const onHill = !this.air && on && on.hill && beneath && beneath.hill;
-    if (onHill ? yb - g > 2 * dt * dt + 0.0002 : yb > g + 0.004) {
+    // A lift going down takes the car with it: the floor is not falling away, it is being lowered.
+    const lowered = !this.air && beneath && beneath.lift && yb - g < 0.25;
+    if (!lowered && (onHill ? yb - g > 2 * dt * dt + 0.0002 : yb > g + 0.004)) {
       if (!this.air) {
         this.air = true; this.airT = 0; this._from.x = this.pos.x; this._from.z = this.pos.z;
         this.vert = null;
@@ -360,7 +362,7 @@ export class Car {
 
     // Onto the loop? Squarely, and with enough behind you to be worth trying.
     // It can be taken from either end: in by one lane and out by the other.
-    if (!this.air && this.pos.y < 0.05 && !this.plan.racing) for (const L of this.plan.loops) {
+    if (!this.air && Math.abs(this.pos.y) < 0.05 && !this.plan.racing) for (const L of this.plan.loops) {
       for (const way of [1, -1]) {
         const lane = way === L.dir ? L.z : L.z + L.shift;
         if ((ox - L.x) * way < 0 && (this.pos.x - L.x) * way >= 0 && Math.abs(this.pos.z - lane) < 0.36 && fx * way > 0.88 && vf > 4) {
@@ -379,7 +381,7 @@ export class Car {
     this.roll += (Math.max(-0.16, Math.min(0.16, latAcc * 0.012)) - this.roll) * Math.min(1, dt * 8);
     this.pitch += (Math.max(-0.07, Math.min(0.07, -th * 0.05)) - this.pitch) * Math.min(1, dt * 6);
     this.squash = this.calm ? 0 : Math.max(0, this.squash - dt * 5);
-    const under = this.pos.y < 0.3 && this.plan.obstacles.some(o => o.bench && this.pos.x > o.x0 - 0.1 && this.pos.x < o.x1 + 0.1 && this.pos.z > o.z0 - 0.1 && this.pos.z < o.z1 + 0.1);
+    const under = this.plan.obstacles.some(o => o.bench && this.pos.y < o.y0 && this.pos.y > o.y0 - 0.6 && this.pos.x > o.x0 - 0.1 && this.pos.x < o.x1 + 0.1 && this.pos.z > o.z0 - 0.1 && this.pos.z < o.z1 + 0.1);
     const tx = -latAcc * 0.02 + this.bump * 0.2, tz = -th * 0.22 - (under ? 1.25 : 0) + vf * 0.02 + this.squash * 0.9 + (this.air ? 0.25 : 0);
     this.aerialV.x += ((tx - this.aerialP.x) * 90 - this.aerialV.x * 5) * dt;
     this.aerialV.y += ((tz - this.aerialP.y) * 90 - this.aerialV.y * 5) * dt;
@@ -509,6 +511,9 @@ export class Drone {
     const floor = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y, 0.02) + 0.07;
     this.floor = floor;
     if (this.pos.y < floor) { this.pos.y = floor; if (this.vel.y < 0) this.vel.y = 0; }
+    // And a balcony, a bridge or a stair overhead is as solid from below as from above.
+    const head = headAt(this.plan, this.pos.x, this.pos.z, this.pos.y) - 0.2;
+    if (this.pos.y > head && head > floor + 0.1) { this.pos.y = head; if (this.vel.y > 0) { this.bump = this.vel.y; this.vel.y = 0; } }
     const push = this._push;
     if (confine(this.plan, this.pos, this.radius, true, push)) {
       const l = Math.hypot(push.x, push.y, push.z);

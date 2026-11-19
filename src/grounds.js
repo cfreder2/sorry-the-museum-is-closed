@@ -295,13 +295,13 @@ export function buildGrounds(museum, plan) {
   {
     const h = plan.hall, white = new THREE.MeshStandardMaterial({ color: 0xe9edf2, roughness: 0.5, emissive: 0x5a6070, emissiveIntensity: 0.7 });
     // The sunshade: a flat sheet of blades floating over the whole wing on thin white columns.
-    const x0 = h.x0 - 30, x1 = h.x1 + 22, z0 = h.z0 - 9, z1 = h.z1 + 6, y = 18.4, bt = TX.blades();
+    const x0 = h.x0 - 30, x1 = h.x1 + 22, z0 = h.z0 - 9, z1 = h.z1 + 6, y = Math.max(22.4, plan.massOf[h.id].top + 0.4), bt = TX.blades();      // 22.4 m in the architect's section; clear of the court's glass roof here
     bt.repeat.set((x1 - x0) / 1.6, (z1 - z0) / 6);
     const sheet = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: bt, transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.5, 0.55, 0.68), fog: false }));
     sheet.rotation.x = -Math.PI / 2; sheet.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); sheet.renderOrder = 3; add(sheet);
     const edge = new Geo();
     edge.box(x0, x1, y - 0.12, y + 0.12, z0 - 0.15, z0); edge.box(x0, x1, y - 0.12, y + 0.12, z1, z1 + 0.15); edge.box(x0 - 0.15, x0, y - 0.12, y + 0.12, z0, z1); edge.box(x1, x1 + 0.15, y - 0.12, y + 0.12, z0, z1);
-    const inMass = (x, z) => plan.masses.find(q => x > q.x0 - 0.3 && x < q.x1 + 0.3 && z > q.z0 - 0.3 && z < q.z1 + 0.3);
+    const inMass = (x, z) => plan.masses.filter(q => x > q.x0 - 0.3 && x < q.x1 + 0.3 && z > q.z0 - 0.3 && z < q.z1 + 0.3).sort((p, q) => q.top - p.top)[0];      // the tallest block here: a column stands on its roof
     for (let x = x0 + 3; x <= x1 - 3; x += (x1 - x0 - 6) / 4) for (const z of [z0 + 2, (z0 + z1) / 2, z1 - 2]) {
       const m = inMass(x, z), foot = m ? m.top : 0;
       edge.box(x - 0.14, x + 0.14, foot, y, z - 0.14, z + 0.14);
@@ -322,10 +322,8 @@ export function buildGrounds(museum, plan) {
     const curb = new Geo(), glass = new Geo();
     for (const q of plan.masses) {
       const r = q.room;
-      if (!r || r.kind !== 'gallery' || r.floor === 'LL' || plan.skylights.some(k => k.room === r.id) || (plan.terrace && plan.terrace.room === r.id)) continue;
-      const w = r.x1 - r.x0, d = r.z1 - r.z0;
-      if (Math.min(w, d) < 8.5) continue;
-      const x0 = r.x0 + w * 0.27, x1 = r.x1 - w * 0.27, z0 = r.z0 + d * 0.27, z1 = r.z1 - d * 0.27, y = q.top;
+      if (!r || !q.glass) continue;                       // only a room with sky over it has one (see addRoofs)
+      const x0 = q.glass.x0 + 0.2, x1 = q.glass.x1 - 0.2, z0 = q.glass.z0 + 0.2, z1 = q.glass.z1 - 0.2, y = q.top;
       curb.box(x0 - 0.2, x1 + 0.2, y, y + 0.35, z0 - 0.2, z0); curb.box(x0 - 0.2, x1 + 0.2, y, y + 0.35, z1, z1 + 0.2); curb.box(x0 - 0.2, x0, y, y + 0.35, z0, z1); curb.box(x1, x1 + 0.2, y, y + 0.35, z0, z1);
       glass.quad([x0, y + 0.3, z0], [x1, y + 0.3, z0], [x1, y + 0.3, z1], [x0, y + 0.3, z1], [0, 1, 0]);
     }

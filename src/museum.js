@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { T, HW, SPRING, VAULT_R, wallPoint, hang, heightOf, roomAt } from './plan.js';
+import { T, HW, SPRING, VAULT_R, SLAB, wallPoint, hang, heightOf, roomAt, ceilingAt, carve } from './plan.js';
 import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
@@ -249,6 +249,7 @@ export class Museum {
     this._buildArt();
     this._buildFurniture();
     this._buildStunts();
+    this._buildLevels();
     this.group.updateMatrixWorld(true);
   }
 
@@ -259,8 +260,9 @@ export class Museum {
     const portals = new Geo(), stone = new Geo(), slate = new Geo(), lay = new Geo(), facade = new Geo(), roofs = new Geo();
     const woodTex = TX.wood();
     this.floors = [];
-    const fq = (g, x0, x1, z0, z1, s) => g.quad(P3(x0, 0, z0), P3(x1, 0, z0), P3(x1, 0, z1), P3(x0, 0, z1), [0, 1, 0],
+    const fq = (g, x0, x1, z0, z1, s, y = 0) => g.quad(P3(x0, y, z0), P3(x1, y, z0), P3(x1, y, z1), P3(x0, y, z1), [0, 1, 0],
       [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
+    const over = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
     // What is left of a stretch once the bits in `cuts` are taken out.
     // A flat sheet with a rectangular hole in it (or without, if `hole` is null).
     const sheet = (geo, x0, x1, z0, z1, y, n, uv, hole) => {
@@ -274,64 +276,76 @@ export class Museum {
       return segs;
     };
 
-    plan.rooms.forEach((r, ri) => {
+    // Each room is built from its own floor up, as if that were the ground, and then lifted to its level.
+    const lift = (m, y) => { m.position.y = y; m.updateMatrix(); return m; };
+    plan.rooms.forEach(r => {
       const walls = new Geo(), trim = new Geo();
       const lower = r.floor === 'LL' || r.kind === 'corridor';
       for (const w of plan.walls.filter(w => w.room === r)) {
         if (w.side === r.glass) continue;                  // one end of Griffin Court is all window
-        const q = (u0, u1, y0, y1) => walls.quad(
+        const q = (u0, u1, y0, y1) => { if (u1 - u0 > 0.005 && y1 - y0 > 0.005) walls.quad(
           Object.values(wallPoint(w, u0, y0)), Object.values(wallPoint(w, u1, y0)),
           Object.values(wallPoint(w, u1, y1)), Object.values(wallPoint(w, u0, y1)),
-          [w.nx, 0, w.nz], [[u0 / 3, y0 / r.h], [u1 / 3, y0 / r.h], [u1 / 3, y1 / r.h], [u0 / 3, y1 / r.h]]);
-        for (const s of w.segs) {
-          q(s.lo, s.hi, 0, r.h);
-          if (!lower) {
-            const at = wallPoint(w, (s.lo + s.hi) / 2, 0), half = (s.hi - s.lo) / 2;
-            trim.wallBox(at, w.nx, w.nz, -half, half, 0, 0.24, 0, 0.035);
-            trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.34, r.h, 0, 0.14);
-            trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.46, r.h - 0.34, 0, 0.06);
-          }
+          [w.nx, 0, w.nz], [[u0 / 3, y0 / r.h], [u1 / 3, y0 / r.h], [u1 / 3, y1 / r.h], [u0 / 3, y1 / r.h]]); };
+        // The holes in this wall: its doorways, each starting at its own height above the floor (in a
+        // tall room a doorway may be a storey up, over another), and over the front door the open fanlight.
+        const holes = w.openings.map(o => ({ lo: o.lo, hi: o.hi, y0: Math.max(0, o.y), y1: o.y + o.h }));
+        const t = w.openings.some(o => o.door === plan.front) ? plan.transom : null;
+        if (t) holes.push({ lo: t.z0, hi: t.z1, y0: t.y0 - r.y, y1: t.y1 - r.y });
+        // Cut the wall into upright strips at every edge of every hole, and plaster each strip between the holes in it.
+        const cuts = [...new Set([w.lo, w.hi, ...holes.flatMap(o => [o.lo, o.hi])])].filter(u => u >= w.lo - 0.001 && u <= w.hi + 0.001).sort((a, b) => a - b);
+        for (let i = 0; i < cuts.length - 1; i++) {
+          const a = cuts[i], b = cuts[i + 1], mid = (a + b) / 2;
+          let y = 0;
+          for (const o of holes.filter(o => o.lo < mid && o.hi > mid).sort((p, n) => p.y0 - n.y0)) { q(a, b, y, o.y0); y = Math.max(y, o.y1); }
+          q(a, b, y, r.h);
         }
-        for (const o of w.openings) {
-          const t = o.door === plan.front ? plan.transom : null;
-          if (!t) { q(o.lo, o.hi, o.h, r.h); continue; }
-          // Over the front door the wall has the open fanlight in it.
-          q(o.lo, t.z0, o.h, r.h); q(t.z1, o.hi, o.h, r.h); q(t.z0, t.z1, o.h, t.y0); q(t.z0, t.z1, t.y1, r.h);
+        if (!lower) for (const sg of w.segs) {
+          const at = wallPoint(w, (sg.lo + sg.hi) / 2, 0), half = (sg.hi - sg.lo) / 2;
+          trim.wallBox(at, w.nx, w.nz, -half, half, 0, 0.24, 0, 0.035);
+          trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.34, r.h, 0, 0.14);
+          trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.46, r.h - 0.34, 0, 0.06);
         }
       }
-      // The ceiling takes the room's own paint and glows with it, faintly.
+      // The ceiling takes the room's own paint and glows with it, faintly. It has a hole where a skylight
+      // stands open, and wherever a stair or a lift comes down through it from the room above.
       const hole = plan.skylights.find(k => k.room === r.id) || null;
-      if (r.kind !== 'hall') sheet(walls, r.x0, r.x1, r.z0, r.z1, r.h, [0, -1, 0], () => [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]], hole);
+      const through = plan.wells.filter(k => k.y > r.y + 1 && Math.abs(k.y - SLAB - r.top) < 1.3 && over(k, r));
+      if (r.kind !== 'hall') for (const c of carve(r, hole ? [hole, ...through] : through)) sheet(walls, c.x0, c.x1, c.z0, c.z1, r.h, [0, -1, 0], () => [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]], null);
       const tint = new THREE.Color(r.tint);
       const wallMat = new THREE.MeshStandardMaterial({
         color: tint, roughness: 0.94, metalness: 0,
         emissive: tint.clone().lerp(WARM, 0.35), emissiveMap: this.textures.wallGlow, emissiveIntensity: 0,
       });
       const trimMat = new THREE.MeshStandardMaterial({ color: 0xb9ae9b, roughness: 0.8, emissive: new THREE.Color(0.75, 0.62, 0.45), emissiveIntensity: 0 });
-      this.group.add(walls.mesh(wallMat));
-      if (!trim.empty) this.group.add(trim.mesh(trimMat));
+      this.group.add(lift(walls.mesh(wallMat), r.y));
+      if (!trim.empty) this.group.add(lift(trim.mesh(trimMat), r.y));
       const state = this.rooms[r.id] = { room: r, wallMat, trimMat, wake: 0, lit: false, arts: [], frameMats: [], seen: 0, done: false };
 
       // Floors: wood upstairs, stone on the ground floor and in the great rooms, slate below.
-      const w = r.x1 - r.x0, d = r.z1 - r.z0;
-      if (lower) fq(slate, r.x0, r.x1, r.z0, r.z1, 1.6);
-      else if (r.kind === 'hall' || r.floor === '1' || r.id === 'G200') fq(stone, r.x0, r.x1, r.z0, r.z1, 1.3);
+      // A floor has a hole in it where a stair or a lift goes down through it.
+      const w = r.x1 - r.x0, d = r.z1 - r.z0, boards = carve(r, plan.wells.filter(k => Math.abs(k.y - r.y) < 0.02 && over(k, r)));
+      if (lower) for (const c of boards) fq(slate, c.x0, c.x1, c.z0, c.z1, 1.6, r.y);
+      else if (r.kind === 'hall' || r.floor === '1' || r.id === 'G200') for (const c of boards) fq(stone, c.x0, c.x1, c.z0, c.z1, 1.3, r.y);
       else {
         const fl = new Geo();
-        fq(fl, r.x0, r.x1, r.z0, r.z1, 1.7);
+        for (const c of boards) fq(fl, c.x0, c.x1, c.z0, c.z1, 1.7, r.y);
         const fm = mirror.patch(new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55, emissiveMap: woodTex, emissive: new THREE.Color(1, 0.86, 0.7), emissiveIntensity: 0.02 }), [0.02, 0.5]);
         this.floors.push(fl.mesh(fm));
         state.floorMat = fm;
       }
-      // A skylight in any room big enough to have had one.
-      if (r.kind === 'gallery' && !lower && Math.min(w, d) >= 8.5) {
+      // A skylight in any room big enough to have had one, and with sky over it: not under another floor.
+      if (r.kind === 'gallery' && !lower && r.sky && Math.min(w, d) >= 8.5) {
         const mx = w * 0.27, mz = d * 0.27;
         const X0 = r.x0 + mx, X1 = r.x1 - mx, Z0 = r.z0 + mz, Z1 = r.z1 - mz;
-        sheet(lay, X0, X1, Z0, Z1, r.h - 0.03, [0, -1, 0], (a, b, c, d) => [[(a - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)], [(a - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)]], hole);
+        sheet(lay, X0, X1, Z0, Z1, r.top - 0.03, [0, -1, 0], (a, b, c, d) => [[(a - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)], [(a - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)]], hole);
       }
 
       // The outside of it: stone wherever no other room stands against this one, and a roof under snow.
-      const m = plan.masses[ri], top = r.kind === 'hall' ? SPRING + 0.4 : m.top;
+      // (A room below ground has no outside. One above it is a block from the street to its roof, whatever level its floor is on.)
+      const m = plan.massOf[r.id];
+      if (!m) return;
+      const top = r.kind === 'hall' ? SPRING + 0.4 : m.top;
       const outs = plan.doors.filter(dd => dd.a === r.id || dd.b === r.id);      // every doorway pierces the outside wall it passes through
       const sides = [
         { name: 'w', at: m.x0, lo: m.z0, hi: m.z1, n: [-1, 0, 0], beyond: o => o.x0 < m.x0 - 0.01 && o.x1 > m.x0 - 0.01, span: o => [o.z0, o.z1], P: (u, y) => [m.x0, y, u], door: dd => dd.along === 'x' && dd.x1 <= r.x0 + 0.01 && [dd.z0, dd.z1] },
@@ -347,36 +361,45 @@ export class Museum {
         const band = (u0, u1, y0, y1, d) => { if (d <= 0 || u1 - u0 < 0.02) return; if (sd.n[0]) { const a = sd.at, b = sd.at + sd.n[0] * d; skin.trim.box(Math.min(a, b), Math.max(a, b), y0, y1, u0, u1); } else { const a = sd.at, b = sd.at + sd.n[2] * d; skin.trim.box(u0, u1, y0, y1, Math.min(a, b), Math.max(a, b)); } };
         const next = plan.masses.filter(o => o !== m && sd.beyond(o)), cuts = next.map(sd.span);
         const face = (u0, u1, y0, y1) => skin.wall.quad(sd.P(u0, y0), sd.P(u1, y0), sd.P(u1, y1), sd.P(u0, y1), sd.n, [[u0 / SK.u, y0 / SK.v], [u1 / SK.u, y0 / SK.v], [u1 / SK.u, y1 / SK.v], [u0 / SK.u, y1 / SK.v]]);
-        const openings = outs.map(dd => ({ span: sd.door(dd), h: dd.h })).filter(o => o.span);
+        const openings = outs.map(dd => ({ span: sd.door(dd), y: dd.y, h: dd.h })).filter(o => o.span);
         for (const [a, bb] of minus(sd.lo, sd.hi, cuts)) {
           for (const [p, qq] of minus(a, bb, openings.map(o => o.span))) { face(p, qq, 0, top); band(p, qq, 0, SK.base[1], SK.base[0]); }
           band(a, bb, top - SK.cap[1], top, SK.cap[0]);            // flush with the roof: a cap standing proud of it looked like a kerb to be got over
-          for (const o of openings) if (o.span[0] >= a && o.span[1] <= bb) face(o.span[0], o.span[1], o.h, top);
+          for (const o of openings) if (o.span[0] >= a && o.span[1] <= bb) { face(o.span[0], o.span[1], o.y + o.h, top); if (o.y > 0.05) face(o.span[0], o.span[1], 0, o.y); }
         }
-        // Where this room stands taller than the one against it, its wall shows above that one's roof.
-        for (const o of next) {
-          const [a, bb] = sd.span(o), lo = Math.max(a, sd.lo), hi = Math.min(bb, sd.hi);
-          if (top > o.top + 0.05 && hi - lo > 0.02) face(lo, hi, o.top, top);
+        // Where this room stands taller than whatever is against it, its wall shows above that roof. Blocks
+        // overlap now that rooms are stacked, so along each stretch it is the tallest neighbour that counts.
+        const ends = [...new Set(next.flatMap(o => sd.span(o)).map(u => Math.max(sd.lo, Math.min(sd.hi, u))))].sort((p, q) => p - q);
+        for (let i = 0; i < ends.length - 1; i++) {
+          const lo = ends[i], hi = ends[i + 1], mid = (lo + hi) / 2, by = next.filter(o => sd.span(o)[0] < mid && sd.span(o)[1] > mid);
+          if (!by.length || hi - lo < 0.02) continue;
+          const cover = Math.max(...by.map(o => o.top));
+          if (top <= cover + 0.05) continue;
+          // (A doorway a storey up goes through this wall too: from a room over a lower one into its neighbour.)
+          const through = openings.filter(o => o.span[0] < hi && o.span[1] > lo && o.y + o.h > cover);
+          for (const [p, qq] of minus(lo, hi, through.map(o => o.span))) face(p, qq, cover, top);
+          for (const o of through) { const p = Math.max(lo, o.span[0]), qq = Math.min(hi, o.span[1]); face(p, qq, o.y + o.h, top); if (o.y > cover + 0.05) face(p, qq, cover, o.y); }
         }
       }
-      if (r.kind !== 'hall') sheet(roofs, m.x0, m.x1, m.z0, m.z1, m.top, [0, 1, 0], (a, b, c, d) => [[a / 5, c / 5], [b / 5, c / 5], [b / 5, d / 5], [a / 5, d / 5]], hole);
+      // Its roof, where there is one: not under a taller block, and not where a skylight stands open.
+      for (const c of m.roofs || []) sheet(roofs, c.x0, c.x1, c.z0, c.z1, m.top, [0, 1, 0], (a, b, c2, d2) => [[a / 5, c2 / 5], [b / 5, c2 / 5], [b / 5, d2 / 5], [a / 5, d2 / 5]], null);
     });
 
     // Doorways: stone surround right through the wall, and a threshold.
     for (const d of plan.doors) {
-      const j = 0.3, p = 0.07;
+      const j = 0.3, p = 0.07, Y = d.y;
       if (d.vent) continue;                           // the vent has its own frame, below
       if (d.along === 'z') {
-        portals.box(d.x0 - j, d.x0, 0, d.h, d.z0 - p, d.z1 + p);
-        portals.box(d.x1, d.x1 + j, 0, d.h, d.z0 - p, d.z1 + p);
-        portals.box(d.x0 - j - 0.08, d.x1 + j + 0.08, d.h, d.h + 0.36, d.z0 - p - 0.03, d.z1 + p + 0.03);
+        portals.box(d.x0 - j, d.x0, Y, Y + d.h, d.z0 - p, d.z1 + p);
+        portals.box(d.x1, d.x1 + j, Y, Y + d.h, d.z0 - p, d.z1 + p);
+        portals.box(d.x0 - j - 0.08, d.x1 + j + 0.08, Y + d.h, Y + d.h + 0.36, d.z0 - p - 0.03, d.z1 + p + 0.03);
       } else {
-        portals.box(d.x0 - p, d.x1 + p, 0, d.h, d.z0 - j, d.z0);
-        portals.box(d.x0 - p, d.x1 + p, 0, d.h, d.z1, d.z1 + j);
-        portals.box(d.x0 - p - 0.03, d.x1 + p + 0.03, d.h, d.h + 0.36, d.z0 - j - 0.08, d.z1 + j + 0.08);
+        portals.box(d.x0 - p, d.x1 + p, Y, Y + d.h, d.z0 - j, d.z0);
+        portals.box(d.x0 - p, d.x1 + p, Y, Y + d.h, d.z1, d.z1 + j);
+        portals.box(d.x0 - p - 0.03, d.x1 + p + 0.03, Y + d.h, Y + d.h + 0.36, d.z0 - j - 0.08, d.z1 + j + 0.08);
       }
       const low = [d.a, d.b].some(id => plan.byId[id] && (plan.byId[id].floor === 'LL' || plan.byId[id].kind === 'corridor'));
-      fq(low ? slate : stone, d.x0, d.x1, d.z0, d.z1, low ? 1.6 : 1.3);
+      fq(low ? slate : stone, d.x0, d.x1, d.z0, d.z1, low ? 1.6 : 1.3, Y);
     }
     // Faintly self-lit, so a doorway always reads as a doorway in the dark.
     this.group.add(portals.mesh(new THREE.MeshStandardMaterial({ color: 0xa69c8a, roughness: 0.75, emissive: 0x8a7f6c, emissiveIntensity: 0.07 })));
@@ -408,8 +431,10 @@ export class Museum {
     const signs = new THREE.Group();
     const hang1 = (d, into, from) => {
       // Stand in room `from`; the sign over the door names `into`.
-      const r = plan.byId[from], lo = from ? r.h : 99;
-      const dw = d.along === 'z' ? d.x1 - d.x0 : d.z1 - d.z0, w = Math.min(5.2, dw + 1.8), h = w * 96 / 512, y = d.h + 0.36 + h / 2 + 0.12;
+      // (It needs wall to hang on: under the ceiling of the room it is in, and under any balcony that runs over the door.)
+      const r = plan.byId[from], near = k => k.room === from && k.y > d.y + 1 && k.x0 < d.x1 + 2 && k.x1 > d.x0 - 2 && k.z0 < d.z1 + 2 && k.z1 > d.z0 - 2;
+      const lo = from ? Math.min(r.top, ...plan.decks.filter(near).map(k => k.y - k.thick)) : 99;
+      const dw = d.along === 'z' ? d.x1 - d.x0 : d.z1 - d.z0, w = Math.min(5.2, dw + 1.8), h = w * 96 / 512, y = d.y + d.h + 0.36 + h / 2 + 0.12;
       if (y + h / 2 > lo - 0.1) return;
       const [title, sub] = nameOf(into);
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), label(title, sub));
@@ -555,7 +580,7 @@ export class Museum {
     }
     // The way in for a drone: one pane of the big skylight left propped open, and the light coming up out of it.
     for (const k of plan.skylights) {
-      const top = plan.masses.find(m => m.room && m.room.id === k.room).top, cx2 = (k.x0 + k.x1) / 2, cz3 = (k.z0 + k.z1) / 2;
+      const top = plan.massOf[k.room].top, cx2 = (k.x0 + k.x1) / 2, cz3 = (k.z0 + k.z1) / 2;
       const rim = new Geo();
       for (const [a, b, c, e] of [[k.x0 - 0.1, k.x1 + 0.1, k.z0 - 0.1, k.z0], [k.x0 - 0.1, k.x1 + 0.1, k.z1, k.z1 + 0.1], [k.x0 - 0.1, k.x0, k.z0, k.z1], [k.x1, k.x1 + 0.1, k.z0, k.z1]]) rim.box(a, b, k.y - 0.05, top + 0.25, c, e);
       this.group.add(rim.mesh(new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5, metalness: 0.5, emissive: 0x3a2c18, emissiveIntensity: 0.8 })));
@@ -632,7 +657,7 @@ export class Museum {
   _buildHall() {
     const R = VAULT_R, hall = this.plan.hall, LEN = hall.z1 - hall.z0;
     const hg = this.hallGroup = new THREE.Group();
-    hg.position.set((hall.x0 + hall.x1) / 2, 0, hall.z1); hg.rotation.y = Math.PI / 2;
+    hg.position.set((hall.x0 + hall.x1) / 2, hall.y, hall.z1); hg.rotation.y = Math.PI / 2;
     this.group.add(hg);
     // Glass barrel vault.
     const vault = new Geo();
@@ -660,7 +685,7 @@ export class Museum {
       const top = SPRING + Math.sqrt(Math.max(0, R * R - z * z));
       steel.box(LEN - 0.08, LEN + 0.08, 0, top, z - 0.06, z + 0.06);
     }
-    for (const y of [0.5, 3.2, 6.1, SPRING]) steel.box(LEN - 0.07, LEN + 0.07, y - 0.06, y + 0.06, -HW, HW);
+    for (const y of [...Array.from({ length: Math.floor((SPRING - 0.5) / 2.9) + 1 }, (_, i) => 0.5 + i * 2.9), SPRING]) steel.box(LEN - 0.07, LEN + 0.07, y - 0.06, y + 0.06, -HW, HW);
     for (let i = 0; i <= na; i += 1) {       // arch rim
       const a = Math.PI * i / na, y = SPRING + R * Math.sin(a), z = -R * Math.cos(a);
       steel.box(LEN - 0.14, LEN + 0.14, y - 0.12, y + 0.12, z - 0.12, z + 0.12);
@@ -698,11 +723,11 @@ export class Museum {
     const uvS = [[0, 1], [1, 1], [1, 0], [0, 0]];
     for (let i = 0; i < 5; i++) {
       const x = 8 + i * (LEN - 24) / 4, z = (i % 2 ? 1 : -1) * 1.4;
-      const top = [x + 7.5, 15.4], bot = [x, 0];
+      const top = [x + 7.5, SPRING + 6.4], bot = [x, 0];
       shafts.quad(P3(top[0], top[1], z - 1.7), P3(top[0], top[1], z + 1.7), P3(bot[0], bot[1], z + 1.7), P3(bot[0], bot[1], z - 1.7), [1, 0, 0], uvS);
       shafts.quad(P3(top[0] - 1.7, top[1], z), P3(top[0] + 1.7, top[1], z), P3(bot[0] + 1.7, bot[1], z), P3(bot[0] - 1.7, bot[1], z), [0, 0, 1], uvS);
       patches.quad(P3(x - 2.6, 0.012, z - 2), P3(x + 2.6, 0.012, z - 2), P3(x + 2.6, 0.012, z + 2), P3(x - 2.6, 0.012, z + 2), [0, 1, 0]);
-      this.shaftSpots.push({ x, z, tx: 7.5 / 15.4 });
+      this.shaftSpots.push({ x, z, tx: 7.5 / (SPRING + 6.4) });
     }
     // The window end throws a long pale rug of light down the hall.
     patches.quad(P3(LEN - 26, 0.012, -6.2), P3(LEN - 0.2, 0.012, -6.2), P3(LEN - 0.2, 0.012, 6.2), P3(LEN - 26, 0.012, 6.2), [0, 1, 0]);
@@ -715,7 +740,7 @@ export class Museum {
     const dn = 900, dp = new Float32Array(dn * 3), ds = new Float32Array(dn * 4);
     for (let i = 0; i < dn; i++) {
       const s = this.shaftSpots[i % this.shaftSpots.length];
-      const y = r() * 14;
+      const y = r() * (SPRING + 5);
       ds[i * 4] = s.x + s.tx * y + (r() - 0.5) * 3; ds[i * 4 + 1] = y; ds[i * 4 + 2] = s.z + (r() - 0.5) * 3; ds[i * 4 + 3] = r() * 100;
     }
     const dg = new THREE.BufferGeometry();
@@ -773,7 +798,7 @@ export class Museum {
     const flatQ = new THREE.Quaternion();
     let lampIdx = 0;
     this.arts = placements.map((p, i) => {
-      const mini = p.kind === 'miniature', obj = p.kind === 'object';
+      const mini = p.kind === 'miniature', obj = p.kind === 'object', fy = p.fy || 0;       // fy: the floor of the room it is in
       // Mostly self-lit: a headlamp should warm a picture, not bleach it.
       const mat = new THREE.MeshStandardMaterial({ color: 0x4c4c4c, map: blank, emissiveMap: blank, emissive: 0xffffff, emissiveIntensity: 0.03, roughness: 0.6, metalness: 0 });
       if (obj) { mat.alphaTest = 0.5; mat.side = THREE.DoubleSide; mat.color.set(0x8a8a8a); }
@@ -798,10 +823,10 @@ export class Museum {
       if (!obj) buildFrame(frames[p.room] || (frames[p.room] = new Geo()), p, frameStyle(p.work, mini));
       else {
         // A plinth, and a glass case over whatever stands on it.
-        const a = p.half, top = p.plinth + p.h + 0.18;
-        plinths.box(p.x - a, p.x + a, 0, p.plinth, p.z - a, p.z + a);
-        glass.box(p.x - a + 0.02, p.x + a - 0.02, p.plinth + 0.012, top - 0.012, p.z - a + 0.02, p.z + a - 0.02);
-        for (const sx of [-1, 1]) for (const sz of [-1, 1]) brass.box(p.x + sx * (a - 0.02) - 0.008, p.x + sx * (a - 0.02) + 0.008, p.plinth, top, p.z + sz * (a - 0.02) - 0.008, p.z + sz * (a - 0.02) + 0.008);
+        const a = p.half, top = fy + p.plinth + p.h + 0.18;
+        plinths.box(p.x - a, p.x + a, fy, fy + p.plinth, p.z - a, p.z + a);
+        glass.box(p.x - a + 0.02, p.x + a - 0.02, fy + p.plinth + 0.012, top - 0.012, p.z - a + 0.02, p.z + a - 0.02);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) brass.box(p.x + sx * (a - 0.02) - 0.008, p.x + sx * (a - 0.02) + 0.008, fy + p.plinth, top, p.z + sz * (a - 0.02) - 0.008, p.z + sz * (a - 0.02) + 0.008);
         for (const sgn of [-1, 1]) { brass.box(p.x - a, p.x + a, top, top + 0.02, p.z + sgn * a - (sgn > 0 ? 0.03 : 0), p.z + sgn * a + (sgn > 0 ? 0 : 0.03)); brass.box(p.x + sgn * a - (sgn > 0 ? 0.03 : 0), p.x + sgn * a + (sgn > 0 ? 0 : 0.03), top, top + 0.02, p.z - a, p.z + a); }
       }
 
@@ -825,15 +850,15 @@ export class Museum {
       // What the lamp spills on the floor.
       E.set(-Math.PI / 2, 0, 0); flatQ.setFromEuler(E);
       const reach = obj ? p.half * 2 + 1.8 : mini ? 1.5 : 2.2 + p.h * 0.4;
-      if (obj) V.set(p.x, 0.014, p.z); else V.set(p.x + p.nx * reach * 0.42, 0.014, p.z + p.nz * reach * 0.42);
+      if (obj) V.set(p.x, fy + 0.014, p.z); else V.set(p.x + p.nx * reach * 0.42, fy + 0.014, p.z + p.nz * reach * 0.42);
       const along = obj ? reach : p.w + (mini ? 1.2 : 2.6);
       S.set(p.nz !== 0 ? along : reach, p.nz !== 0 ? reach : along, 1);
       this.pools.setMatrixAt(i, M.compose(V, flatQ, S));
       // The label.
       const cw = mini ? 0.18 : 0.16, ch = mini ? 0.055 : 0.11;
-      if (obj) V.set(p.x, p.plinth * 0.6, p.z + p.half + 0.012);
+      if (obj) V.set(p.x, fy + p.plinth * 0.6, p.z + p.half + 0.012);
       else if (mini) V.set(p.x + p.nx * 0.03, p.y - hh - f - 0.1, p.z + p.nz * 0.03);
-      else V.set(p.x + tx * (hw + f + 0.24) - p.nx * 0.03, 1.22, p.z + tz * (hw + f + 0.24) - p.nz * 0.03);
+      else V.set(p.x + tx * (hw + f + 0.24) - p.nx * 0.03, fy + 1.22, p.z + tz * (hw + f + 0.24) - p.nz * 0.03);
       S.set(cw, ch, 1);
       this.cards.setMatrixAt(i, M.compose(V, Q, S));
       return art;
@@ -881,37 +906,111 @@ export class Museum {
   _buildFurniture() {
     const { plan } = this;
     const leather = new Geo(), metal = new Geo();
-    const bench = (cx, cz, alongX) => {
+    const bench = (cx, cz, alongX, y = 0) => {
       const L = 1.4, W = 0.38;
       const hx = alongX ? L : W, hz = alongX ? W : L;
-      leather.box(cx - hx, cx + hx, 0.4, 0.5, cz - hz, cz + hz);
-      plan.obstacles.push({ x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz, y0: 0.37, y1: 0.488, bench: true });
+      leather.box(cx - hx, cx + hx, y + 0.4, y + 0.5, cz - hz, cz + hz);
+      plan.obstacles.push({ x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz, y0: y + 0.37, y1: y + 0.488, bench: true });
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
         const lx = cx + sx * (hx - 0.07), lz = cz + sz * (hz - 0.07);
-        metal.box(lx - 0.03, lx + 0.03, 0, 0.4, lz - 0.03, lz + 0.03);
-        plan.obstacles.push({ x0: lx - 0.03, x1: lx + 0.03, z0: lz - 0.03, z1: lz + 0.03, y0: 0, y1: 0.4 });
+        metal.box(lx - 0.03, lx + 0.03, y, y + 0.4, lz - 0.03, lz + 0.03);
+        plan.obstacles.push({ x0: lx - 0.03, x1: lx + 0.03, z0: lz - 0.03, z1: lz + 0.03, y0: y, y1: y + 0.4 });
       }
     };
-    for (const b of plan.benches) bench(b.x, b.z, b.alongX);
+    for (const b of plan.benches) bench(b.x, b.z, b.alongX, b.y || 0);
     this.group.add(leather.mesh(new THREE.MeshStandardMaterial({ color: 0x45201b, roughness: 0.45, emissive: 0x45201b, emissiveIntensity: 0.4 })));
     this.group.add(metal.mesh(new THREE.MeshStandardMaterial({ color: 0x6d6a66, roughness: 0.35, metalness: 0.7 })));
 
     // The guard's desk, lamp left on.
     const desk = new Geo();
-    const lobby = plan.byId.G214 || plan.rooms[0];
-    const dx = lobby.x0 + 2.4, dz = lobby.z0 + 1.1;
-    desk.box(dx - 1.1, dx + 1.1, 0, 1.02, dz - 0.5, dz + 0.5);
-    desk.box(dx - 1.16, dx + 1.16, 1.02, 1.07, dz - 0.56, dz + 0.56);
-    plan.obstacles.push({ x0: dx - 1.16, x1: dx + 1.16, z0: dz - 0.56, z1: dz + 0.56, y0: 0, y1: 1.5 });
+    // (Inside the front doors, on the side away from the air duct.)
+    const lobby = plan.byId[plan.front.a] || plan.rooms[0];
+    const dx = lobby.x0 + 2.4, dz = lobby.z1 - 1.1, dy = lobby.y;
+    desk.box(dx - 1.1, dx + 1.1, dy, dy + 1.02, dz - 0.5, dz + 0.5);
+    desk.box(dx - 1.16, dx + 1.16, dy + 1.02, dy + 1.07, dz - 0.56, dz + 0.56);
+    plan.obstacles.push({ x0: dx - 1.16, x1: dx + 1.16, z0: dz - 0.56, z1: dz + 0.56, y0: dy, y1: dy + 1.5 });
     this.group.add(desk.mesh(new THREE.MeshStandardMaterial({ color: 0x2c1e14, roughness: 0.55, emissive: 0x2a1a0c, emissiveIntensity: 0.25 })));
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.26, 12, 1, false), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 1.5, 0.6) }));
-    shade.rotation.z = Math.PI / 2; shade.position.set(dx + 0.1, 1.42, dz);
+    shade.rotation.z = Math.PI / 2; shade.position.set(dx + 0.1, dy + 1.42, dz);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.34, 6), new THREE.MeshStandardMaterial({ color: 0x8a6a2a, metalness: 0.6, roughness: 0.4 }));
-    stem.position.set(dx + 0.1, 1.24, dz);
+    stem.position.set(dx + 0.1, dy + 1.24, dz);
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.1), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.9, 0.7, 0.4), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    glow.rotation.x = -Math.PI / 2; glow.position.set(dx + 0.05, 1.075, dz);
+    glow.rotation.x = -Math.PI / 2; glow.position.set(dx + 0.05, dy + 1.075, dz);
     this.group.add(shade, stem, glow);
 
+  }
+
+  // ------------------------------------------------------------------ levels --
+
+  // What joins the floors: balconies and bridges, flights of real steps with a plank laid up them,
+  // lifts, and the guard rails round all of them. They are part of the building, so they stay when
+  // the stunt kit is cleared away for a race.
+  _buildLevels() {
+    const { plan } = this, stone = new Geo(), ply = new Geo(), steel = new Geo(), arrows = new Geo();
+    const g = this.levels = new THREE.Group(); this.group.add(g);
+    for (const d of plan.decks) stone.box(d.x0, d.x1, d.y - d.thick, d.y, d.z0, d.z1, 1.3);
+    for (const q of plan.ramps) {
+      const alongX = q.axis === 'x', a = alongX ? q.x0 : q.z0, b = alongX ? q.x1 : q.z1, lo = Math.min(q.y0, q.y1), rise = Math.abs(q.y1 - q.y0), up = q.y1 > q.y0;
+      if (q.stairs) {
+        // The steps, counted from the low end: each tread comes just under the plank where the plank passes its edge.
+        const n = Math.max(2, Math.round(rise / 0.17));
+        for (let k = 1; k < n; k++) {
+          const i = up ? k : n - 1 - k, u0 = a + (b - a) * i / n, u1 = a + (b - a) * (i + 1) / n, top = lo + rise * k / n;
+          if (alongX) stone.box(u0, u1, lo, top, q.z0, q.z1, 1.3); else stone.box(q.x0, q.x1, lo, top, u0, u1, 1.3);
+        }
+      }
+      // The plank: plywood, a hand narrower than the flight each side, with arrows running up it.
+      const m = q.stairs ? 0.3 : 0, e = 0.014, th = q.stairs ? 0.03 : 0.22, w = (alongX ? q.z1 - q.z0 : q.x1 - q.x0) - 2 * m, len = Math.hypot(b - a, rise), sl = (q.y1 - q.y0) / (b - a), nl = Math.hypot(sl, 1);
+      const P = alongX ? [[q.x0, q.y0, q.z0 + m], [q.x1, q.y1, q.z0 + m], [q.x1, q.y1, q.z1 - m], [q.x0, q.y0, q.z1 - m]] : [[q.x0 + m, q.y0, q.z0], [q.x1 - m, q.y0, q.z0], [q.x1 - m, q.y1, q.z1], [q.x0 + m, q.y1, q.z1]];
+      const nrm = alongX ? [-sl / nl, 1 / nl, 0] : [0, 1 / nl, -sl / nl], at = dy => P.map(c => [c[0], c[1] + dy, c[2]]);
+      const t = at(e), u = at(e - th);
+      ply.quad(t[0], t[1], t[2], t[3], nrm, alongX ? [[0, 0], [len / 1.2, 0], [len / 1.2, w / 1.2], [0, w / 1.2]] : [[0, 0], [w / 1.2, 0], [w / 1.2, len / 1.2], [0, len / 1.2]]);
+      ply.quad(u[0], u[1], u[2], u[3], nrm.map(v => -v));
+      const k2 = w * 0.3, L0 = a / 0.55, L1 = b / 0.55, r2 = at(e + 0.012);
+      if (alongX) { r2[0][2] += k2; r2[1][2] += k2; r2[2][2] -= k2; r2[3][2] -= k2; arrows.quad(r2[0], r2[1], r2[2], r2[3], nrm, up ? [[0, L0], [0, L1], [1, L1], [1, L0]] : [[0, -L0], [0, -L1], [1, -L1], [1, -L0]]); }
+      else { r2[0][0] += k2; r2[3][0] += k2; r2[1][0] -= k2; r2[2][0] -= k2; arrows.quad(r2[0], r2[1], r2[2], r2[3], nrm, up ? [[0, L0], [1, L0], [1, L1], [0, L1]] : [[0, -L0], [1, -L0], [1, -L1], [0, -L1]]); }
+    }
+    // The edge of the slab, wherever a floor has been cut for a stair or a lift.
+    for (const w of plan.wells) {
+      const y1 = w.y, y0 = w.y - SLAB;
+      stone.quad([w.x0, y0, w.z0], [w.x1, y0, w.z0], [w.x1, y1, w.z0], [w.x0, y1, w.z0], [0, 0, 1]); stone.quad([w.x0, y0, w.z1], [w.x1, y0, w.z1], [w.x1, y1, w.z1], [w.x0, y1, w.z1], [0, 0, -1]);
+      stone.quad([w.x0, y0, w.z0], [w.x0, y0, w.z1], [w.x0, y1, w.z1], [w.x0, y1, w.z0], [1, 0, 0]); stone.quad([w.x1, y0, w.z0], [w.x1, y0, w.z1], [w.x1, y1, w.z1], [w.x1, y1, w.z0], [-1, 0, 0]);
+    }
+    // Guard rails: a top bar, a bar half way down, and a post to each length.
+    for (const o of plan.obstacles) {
+      if (!o.rail || o.kit || o.gate) continue;
+      steel.box(o.x0, o.x1, o.y1 - 0.05, o.y1, o.z0, o.z1); steel.box(o.x0, o.x1, (o.y0 + o.y1) / 2 - 0.02, (o.y0 + o.y1) / 2 + 0.02, o.z0, o.z1);
+      steel.box(o.x0, Math.min(o.x1, o.x0 + 0.05), o.y0 - 0.03, o.y1, o.z0, Math.min(o.z1, o.z0 + 0.05));
+    }
+    // Lifts: an open platform in a cage of four posts. The platform is the only part that moves.
+    const plate = new THREE.MeshStandardMaterial({ color: 0x3c4046, roughness: 0.5, metalness: 0.6, emissive: 0x1c2026, emissiveIntensity: 0.6 }), lit = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.22) });
+    this.lifts = plan.lifts.map(l => {
+      const lo = l.stops[0], hi = l.stops[l.stops.length - 1] + 1.8, c = 0.05;
+      for (const x of [l.x0, l.x1 - c]) for (const z of [l.z0, l.z1 - c]) steel.box(x, x + c, lo, hi, z, z + c);
+      steel.box(l.x0, l.x1, hi - c, hi, l.z0, l.z0 + c); steel.box(l.x0, l.x1, hi - c, hi, l.z1 - c, l.z1); steel.box(l.x0, l.x0 + c, hi - c, hi, l.z0, l.z1); steel.box(l.x1 - c, l.x1, hi - c, hi, l.z0, l.z1);
+      const mesh = new THREE.Group(), w = l.x1 - l.x0, d = l.z1 - l.z0, cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(w - 0.12, 0.14, d - 0.12), plate); deck.position.set(cx, -0.07, cz);
+      mesh.add(deck);
+      for (const [bw, bd, bx, bz] of [[w - 0.12, 0.05, cx, l.z0 + 0.09], [w - 0.12, 0.05, cx, l.z1 - 0.09], [0.05, d - 0.12, l.x0 + 0.09, cz], [0.05, d - 0.12, l.x1 - 0.09, cz]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, bd), lit); b.position.set(bx, 0.007, bz); mesh.add(b); }
+      mesh.position.y = l.y;
+      g.add(mesh);
+      // The gates: a yellow bar round the shaft at each stop, there whenever the platform is not.
+      const gates = l.gates.map(gt => {
+        const bars = new THREE.Group();
+        for (const o of gt.bars) for (const y of [o.y1 - 0.03, (o.y0 + o.y1) / 2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(o.x1 - o.x0, 0.04, o.z1 - o.z0), lit); b.position.set((o.x0 + o.x1) / 2, y, (o.z0 + o.z1) / 2); bars.add(b); }
+        g.add(bars);
+        return { gate: gt, bars };
+      });
+      return { lift: l, mesh, gates };
+    });
+    const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); g.add(m); return m; } };
+    const plyTex = TX.plywood();
+    const marble = TX.marble();
+    put(stone, new THREE.MeshStandardMaterial({ map: marble, color: 0xc9c2b4, roughness: 0.5, emissiveMap: marble, emissive: new THREE.Color(0.6, 0.6, 0.62), emissiveIntensity: 0.3 }));
+    put(ply, new THREE.MeshStandardMaterial({ map: plyTex, roughness: 0.75, emissiveMap: plyTex, emissive: 0x8a7a66, emissiveIntensity: 0.16, side: THREE.DoubleSide }));
+    put(steel, new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.45, metalness: 0.6, emissive: 0x15120e, emissiveIntensity: 0.6 }));
+    const am = put(arrows, new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+    if (am) am.renderOrder = 6;
   }
 
   // ------------------------------------------------------------------ stunts --
@@ -921,7 +1020,7 @@ export class Museum {
   _buildStunts() {
     this.kitLine = new THREE.Group(); this.group.add(this.kitLine);
     this.arrowTex = TX.chevrons();
-    this._kit(this.plan.surfaces.filter(s => !s.line), this.kit, true);
+    this._kit(this.plan.surfaces.filter(s => !s.line && !s.fixed), this.kit, true);
     this._kit(this.plan.surfaces.filter(s => s.line), this.kitLine, false);
   }
   setRace(on) { this.kit.visible = !on; }
@@ -932,12 +1031,12 @@ export class Museum {
     const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo(), gold = new Geo();
     const poolG = new Geo(), snowG = new Geo(), coping = new Geo(), lane = new Geo(), chrome = new Geo();
     const n3 = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
-    const ceilingAt = (x, z) => { const r = roomAt(plan, x, z); return !r ? 6 : r.kind === 'hall' ? SPRING + Math.sqrt(Math.max(0, VAULT_R * VAULT_R - z * z)) - 0.15 : r.h; };
+    const hungFrom = (x, y, z) => Math.min(ceilingAt(plan, x, z, y), y + 20);      // what a wire goes up to: the ceiling, or the underside of a bridge
 
     // One slab of a piece: the top following its slope, sides down to its base.
     const slab = (geo, s, x0, x1, z0, z1, along) => {
       const P = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], h = P.map(([x, z]) => heightOf(s, x, z));
-      const base = i => (s.onTop != null ? s.onTop : s.thick ? h[i] - s.thick : 0);
+      const base = i => (s.onTop != null ? s.onTop : s.thick ? h[i] - s.thick : s.base || 0);
       const top = i => [P[i][0], h[i], P[i][1]], bot = i => [P[i][0], base(i), P[i][1]];
       const dx = x1 - x0, dz = z1 - z0, nrm = n3(-(h[1] - h[0]) / dx, 1, -(h[3] - h[0]) / dz);
       geo.quad(top(0), top(1), top(2), top(3), nrm, along === 'z' ? [[0, z0], [1, z0], [1, z1], [0, z1]] : along === 'x' ? [[0, x0 / 1.2], [0, x1 / 1.2], [1, x1 / 1.2], [1, x0 / 1.2]] : [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
@@ -997,19 +1096,19 @@ export class Museum {
             const t = i / (count - 1);
             const wx = run === 'x' ? x0 + (x1 - x0) * t : (side ? x1 - 0.03 : x0 + 0.03), wz = run === 'z' ? z0 + (z1 - z0) * t : (side ? z1 - 0.03 : z0 + 0.03);
             const y = heightOf(s, Math.min(x1, Math.max(x0, wx)), Math.min(z1, Math.max(z0, wz)));
-            wire.box(wx - 0.006, wx + 0.006, y, ceilingAt(wx, wz), wz - 0.006, wz + 0.006);
+            wire.box(wx - 0.006, wx + 0.006, y, hungFrom(wx, y, wz), wz - 0.006, wz + 0.006);
           }
         }
       } else if (s.skin === 'stone') {
-        stone.box(x0, x1, 0, h0, z0, z1, 1.3);
+        stone.box(x0, x1, s.base || 0, h0, z0, z1, 1.3);
         if (s.carpet) {
           // A red runner down the middle, laid across the narrower way.
-          const y0 = Math.max(0, h0 - 0.19), y1 = h0 + 0.012;
+          const y0 = Math.max(s.base || 0, h0 - 0.19), y1 = h0 + 0.012;
           if (z1 - z0 > x1 - x0) carpet.box(x0 - 0.012, x1 + 0.012, y0, y1, (z0 + z1) / 2 + s.carpet[0], (z0 + z1) / 2 + s.carpet[1]);
           else carpet.box((x0 + x1) / 2 + s.carpet[0], (x0 + x1) / 2 + s.carpet[1], y0, y1, z0 - 0.012, z1 + 0.012);
         }
       } else if (s.skin === 'crate') {
-        crate.box(x0, x1, 0, h0, z0, z1, 0.9);
+        crate.box(x0, x1, s.base || 0, h0, z0, z1, 0.9);
       } else if (s.skin === 'table') {
         wood.box(x0 - 0.03, x1 + 0.03, h0 - 0.06, h0, z0 - 0.03, z1 + 0.03, 1.2);
         wood.box(x0 + 0.05, x1 - 0.05, h0 - 0.16, h0 - 0.06, z0 + 0.06, z0 + 0.09);
@@ -1023,14 +1122,14 @@ export class Museum {
       for (let i = 0; i < 2; i++) chrome.box(q.bx0 + 0.06, q.bx0 + 0.1, q.lip - 0.15 - i * 0.28, q.lip - 0.11 - i * 0.28, zl - 0.25, zl + 0.25);
     }
     if (extras) for (const o of plan.obstacles) {
-      if (o.leg) wood.box(o.x0, o.x1, 0, o.y1, o.z0, o.z1);
+      if (o.leg) wood.box(o.x0, o.x1, o.y0, o.y1, o.z0, o.z1);
       if (o.post) steel.box(o.x0, o.x1, 0, o.y1, o.z0, o.z1);
-      if (o.rail) { steel.box(o.x0, o.x1, o.y1 - 0.05, o.y1, o.z0, o.z1); steel.box(o.x0, Math.min(o.x1, o.x0 + 0.05), o.y0, o.y1, o.z0, Math.min(o.z1, o.z0 + 0.05)); }
+      if (o.rail && o.kit) { steel.box(o.x0, o.x1, o.y1 - 0.05, o.y1, o.z0, o.z1); steel.box(o.x0, Math.min(o.x1, o.x0 + 0.05), o.y0, o.y1, o.z0, Math.min(o.z1, o.z0 + 0.05)); }
     }
 
     // Track laid flat on the floor: where to line up, and which way.
     if (extras) for (const d of plan.decals) {
-      const y = 0.007, alongX = d.axis !== 'z', len = alongX ? d.x1 - d.x0 : d.z1 - d.z0, w = alongX ? d.z1 - d.z0 : d.x1 - d.x0;
+      const y = (d.y || 0) + 0.007, alongX = d.axis !== 'z', len = alongX ? d.x1 - d.x0 : d.z1 - d.z0, w = alongX ? d.z1 - d.z0 : d.x1 - d.x0;
       const k = len / 0.6, m = w * 0.22, e = 0.004, v = len / 1.2;
       const c = [[d.x0, y, d.z0], [d.x1, y, d.z0], [d.x1, y, d.z1], [d.x0, y, d.z1]];
       // Texture runs along the track: v follows x for one kind, z for the other.
@@ -1089,7 +1188,7 @@ export class Museum {
     // Mopped floor: a patch that mirrors like nothing else in the building.
     if (extras) for (const p of plan.puddles) {
       const m = new THREE.Mesh(new THREE.CircleGeometry(p.r, 44), this.mirror.patch(new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 0.05, transparent: true, opacity: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [0.6, 0.4]));
-      m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.004, p.z); m.updateMatrix(); m.matrixAutoUpdate = false;
+      m.rotation.x = -Math.PI / 2; m.position.set(p.x, (p.y || 0) + 0.004, p.z); m.updateMatrix(); m.matrixAutoUpdate = false;
       this.kit.add(m); this.floors.push(m);
     }
 
@@ -1193,7 +1292,7 @@ export class Museum {
       const dx = pos.x - a.x, dz = pos.z - a.z, d = Math.hypot(dx, dz);
       // Near means near: a couple of metres for a small picture, about five for the very largest.
       // Something glimpsed across the room does not count.
-      if (d > (a.obj ? 2.6 : a.mini ? 2.2 : Math.max(2.4, Math.min(5.2, 1.7 + Math.max(a.w, a.h) * 1.05)))) continue;
+      if (d > (a.obj ? 2.6 : a.mini ? 2.2 : Math.max(2.4, Math.min(5.2, 1.7 + Math.max(a.w, a.h) * 1.05))) || Math.abs(pos.y - (a.fy || 0)) > 3) continue;      // and not from a balcony overhead
       if (!a.obj && dx * a.nx + dz * a.nz < 0.4) continue;
       this.see(a);
     }
@@ -1203,7 +1302,8 @@ export class Museum {
       if (!o.mesh.visible || dx * dx + dz * dz > 1600) continue;
       o.mesh.rotation.y = Math.atan2(dx, dz); o.mesh.updateMatrix();
     }
-    { const rm = roomAt(this.plan, cam.x, cam.z); this.flakes.visible = !rm || cam.y > rm.h + 0.3; }
+    this.flakes.visible = !roomAt(this.plan, cam.x, cam.z, cam.y);
+    for (const L of this.lifts) { L.mesh.position.y = L.lift.y; for (const q of L.gates) q.bars.visible = !q.gate.off; }
     for (const a of this._waking) {
       const e = t - a.wakeAt;
       if (e < 0) continue;
@@ -1226,7 +1326,7 @@ export class Museum {
     // Lamps in the hall and passage light their own frames; approximate with how many are on.
     for (const id of ['hall', 'C']) {
       const s = this.rooms[id];
-      if (!s.arts.length) continue;
+      if (!s || !s.arts.length) continue;
       const on = s.arts.reduce((n, a) => n + a.lit, 0) / s.arts.length;
       for (const m of s.frameMats) m.emissiveIntensity = 0.06 + 0.85 * on;
     }
@@ -1262,7 +1362,7 @@ export class Museum {
         // Each flake keeps its own place in a block of air that is tiled round the camera.
         const wx = sx * W + Math.sin(t * 0.5 + sy * 40) * 0.6, wz = sz * W + Math.cos(t * 0.4 + sx * 40) * 0.6, wy = sy * Hh - t * (0.8 + sx * 0.7);
         f.array[i * 3] = cam.x + ((((wx - cam.x) % W) + W) % W) - W / 2;
-        f.array[i * 3 + 1] = (((wy % Hh) + Hh) % Hh) - 2;
+        f.array[i * 3 + 1] = Math.max(-2, cam.y - 10) + (((wy % Hh) + Hh) % Hh);          // the block of air comes up with you, onto a roof or over one
         f.array[i * 3 + 2] = cam.z + ((((wz - cam.z) % W) + W) % W) - W / 2;
       }
       f.needsUpdate = true;
@@ -1279,7 +1379,7 @@ export class Museum {
     for (let i = 0; i < d.count; i++) {
       const s = b[i * 4 + 3];
       d.array[i * 3] = b[i * 4] + Math.sin(t * 0.11 + s) * 0.5;
-      d.array[i * 3 + 1] = (b[i * 4 + 1] + t * 0.035 * (0.5 + (s % 1))) % 14;
+      d.array[i * 3 + 1] = (b[i * 4 + 1] + t * 0.035 * (0.5 + (s % 1))) % (SPRING + 5);
       d.array[i * 3 + 2] = b[i * 4 + 2] + Math.cos(t * 0.09 + s * 1.7) * 0.5;
     }
     d.needsUpdate = true;
@@ -1304,7 +1404,7 @@ export class Museum {
     if (this._streamT % 12) return;
     const queue = [];
     for (const a of this.arts) {
-      const d = Math.hypot(a.x - cam.x, a.z - cam.z);
+      const d = Math.hypot(a.x - cam.x, a.z - cam.z) + Math.abs(a.y - cam.y) * 2.5;      // a floor up or down is a long way off
       // From outdoors almost nothing indoors can be seen: only what is close to a door is worth fetching.
       let want = d < (roomId ? 55 : 26) ? 1 : (a.tier >= 1 && d < (roomId ? 80 : 45) ? 1 : 0);
       const near = a.mini || a.obj ? 5 : 13;
@@ -1407,6 +1507,7 @@ export class Museum {
     const mx = pos.x + vel.x * air * 0.5, mz = pos.z + vel.z * air * 0.5;
     let best = null, bd = s.room.kind === 'hall' ? 11 : 9.5;
     for (const a of s.arts) {
+      if (Math.abs(pos.y - (a.fy || 0)) > 4.5) continue;                       // not one on another level of a tall room
       const d = Math.hypot(a.x - mx, a.z - mz) - Math.min(1.5, a.w * 0.3);     // big pictures pull harder
       if (d < bd) { bd = d; best = a; }
     }
@@ -1422,7 +1523,7 @@ export class Museum {
     for (const a of s.arts) {
       const dx = a.x - pos.x, dz = a.z - pos.z, d = Math.hypot(dx, dz);
       const reach = a.mini || a.obj ? 3.2 : 5.5 + a.w * 0.6;
-      if (d > reach) continue;
+      if (d > reach || Math.abs(pos.y - (a.fy || 0)) > 3) continue;
       const ahead = (dx * fx + dz * fz) / (d || 1);
       const sc = d - ahead * 2.2;
       if (sc < score) { score = sc; best = a; }

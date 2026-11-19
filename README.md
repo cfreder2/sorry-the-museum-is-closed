@@ -19,19 +19,55 @@ then open <http://localhost:8791>.
 
 ## How true the building is
 
+The building has its four public levels, one over another at their real
+heights: the lower level 4.6 m below the street, the first floor at street
+level, the second 5.2 m up and the third (the top of the Modern Wing) at
+11.3 m. Those heights are from the architect's section of the Modern Wing.
+
 The API gives every gallery a latitude, a longitude and a floor.
-`tools/build_layout.mjs` puts each gallery on its true spot and grows it until
-it meets its neighbours, so the plan has the museum's real arrangement: the
-ring of European painting galleries round the Grand Staircase, the
-Impressionists running east along the bridge over the railway, medieval art and
-arms and armour down the south arm, the Greek and Roman rooms round McKinlock
-Court, the Modern Wing to the north-east. You start outside on Michigan Avenue,
-between the lions, and the doors are locked: a sign on the front door says
-so. The way in is right at the door and hard to miss: for the car, an aluminium
-air duct at the foot of the wall just left of the doors, its grille swung open
-and arrows on the pavement running into it; for the drone, the fanlight over the doors standing open (a
-pane of the skylight over the Grand Staircase is open too). Once you are in, every
-outside door unlocks for good. Hints appear if you stay outside a while.
+`tools/build_layout.mjs` puts each gallery on its true spot on its true level
+and grows it until it meets its neighbours on that level, so each floor has
+the museum's real arrangement: on the second, the ring of European painting
+galleries round the Grand Staircase, the Impressionists running east along the
+bridge over the railway, medieval art and arms and armour down the south arm;
+on the first, the Asian galleries under them and the rooms round McKinlock
+Court; underneath, the Thorne Miniature Rooms and the lower-level galleries;
+the Modern Wing to the north-east on three floors.
+
+You get from one level to another the way a toy car would have to:
+
+- **Stairs with planks on them.** Somebody has been in here with plywood. Every
+  flight is real steps with a sheet laid up it, arrows running uphill, and a
+  rail down each side so it can be taken at speed. None is steeper than about
+  one in three.
+- **The Grand Staircase** (Gallery 200) is one hall from the first floor to the
+  skylight over the second. A wide flight goes up from the door to a landing,
+  two flights come back from the landing to the gallery that runs round the
+  well on the second floor, and the second-floor rooms open onto that gallery.
+  A fourth flight goes down through the floor to the lower level.
+- **Griffin Court** is three storeys to the spring of its glass roof. A stair
+  climbs its west side to a second-floor gallery, a second flight goes on to
+  the third floor, a bridge crosses to the gallery along the east side, and
+  there is a lift.
+- **Lifts** are open platforms in a cage of four posts. Drive on and it goes;
+  wait at its gate on another floor and it comes for you. The gate at each
+  stop is shut whenever the platform is somewhere else.
+- **Floors are solid.** A car cannot jump through a ceiling and a drone cannot
+  fly through a floor; the only ways through are the stair wells, the lift
+  shafts and the open air of the two tall halls.
+
+The map in the corner shows the level you are on, with its stairs hatched and
+its lifts solid. `node tools/check_layout.mjs` proves that every room on every
+level can be driven to from the front door.
+
+You start outside on Michigan Avenue, between the lions, and the doors are
+locked: a sign on the front door says so. The way in is right at the door and
+hard to miss: for the car, an aluminium air duct at the foot of the wall just
+left of the doors, its grille swung open and arrows on the pavement running
+into it; for the drone, the fanlight over the doors standing open (a pane of
+the skylight over the Grand Staircase is open too). Both lead into the lobby
+on the first floor, with the Grand Staircase straight ahead. Once you are in,
+every outside door unlocks for good. Hints appear if you stay outside a while.
 
 ## The outside
 
@@ -93,18 +129,20 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   courses with tall arched windows; the galleries over the railway are riveted
   steel with a row of small lit windows; the buildings east of the tracks are
   smooth pale stone with dark strips of glass; the Modern Wing is tall narrow
-  panels between white fins; the old first floor is brick; the lower level is
-  board-marked concrete with a band of glass block. These are impressions, not
+  panels between white fins; the old first floor is brick. (The lower level
+  is under the ground now and has no outside.) These are impressions, not
   surveys of the real elevations.
 - **More ways in.** Besides the duct by the front doors there are five more
   low openings for a car, each a different thing left open: a delivery shutter
-  not quite pulled down (on the path to the skate park), a second duct in the
-  courtyard, a service door onto the railway with its bottom panel kicked in,
-  and two cellar windows propped open. For anything that flies, three
-  skylights stand open instead of one.
+  not quite pulled down (on the Stock Exchange Trading Room), a second duct in
+  the courtyard, a service door with its bottom panel kicked in, and two low
+  windows propped open. Each is at street level and leads into a first-floor
+  room. For anything that flies, three skylights stand open instead of one,
+  each over a room with nothing but sky above it.
 - **Every roof is a floor.** A drone can land on any of them. For the car a
   builders' scaffold goes up the south wall of Gallery 211, by the South
-  Garden: two flights with guard rails, and a landing level with the roof.
+  Garden: four flights with guard rails, turn and turn about (the roof is two
+  storeys up now, 13 m), and a landing level with the roof.
   Roofs of the same height run into one another; a taller neighbour is a wall
   and a lower one a drop. Skylight glass stands proud and can be hopped onto.
   Drive into an open skylight and you come down inside.
@@ -150,26 +188,42 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   solid from the rail up.
 
 Where this departs from the real thing: there is no flight of steps up to the
-door (the galleries are on the ground here); the names on the frieze are a
-representative roll of old masters, not a transcription; sculpture outdoors is
-suggested with simple shapes; and the two unfolded floors stand where other
-museum buildings really are (the first floor to the south-east, the lower level
-at the Modern Wing's east end). No usable close aerial photograph was found, so
-the roofs are from the map outline.
+door (the first floor is at street level here); the front wall has a plain
+attic over its cornice, to stand as high as the two storeys behind it; the
+names on the frieze are a representative roll of old masters, not a
+transcription; sculpture outdoors is suggested with simple shapes. No usable
+close aerial photograph was found, so the roofs are from the map outline.
 
 What is not true:
 
-- **It is one level.** The second floor, where nearly all the paintings are,
-  stays exactly where it is. First-floor and lower-level galleries that sit
-  directly underneath it are moved out into two pavilions of their own, reached
-  across the snow. Ground-floor rooms with nothing above them stay put.
 - **Room shapes and doorways are guessed.** The API has a point for each
-  gallery, not an outline. Rooms that end up wall to wall get a door.
+  gallery, not an outline. Rooms are rectangles grown from those points; rooms
+  that end up wall to wall on the same level get a door. Outlines traced from
+  the architects' drawings are to replace them (see `survey/`).
+- **Only galleries with public-domain work on view are rooms**: 82 of the 170
+  the museum lists. A second-floor gallery whose first-floor neighbour is not
+  among them stands on a solid block instead of on a room, and the galleries
+  over the railway are solid down to the ground, not a bridge.
+- **Eleven plain passages are invented**, to join rooms the grown plan leaves
+  cut off on their level; so are the Michigan Avenue lobby and the lower-level
+  room at the foot of the Grand Staircase.
+- **Stairs and lifts are placed by hand**, sized to be driven, not surveyed.
+  The Grand Staircase has the real one's arrangement (one flight up, two
+  back); Griffin Court's stair, bridge and lift are in sensible places, not
+  the real ones. The stair and lift down to the east lower level are put
+  wherever a first-floor room lies over a lower-level one.
+- **Clear heights are guessed**, except in the Modern Wing. A room under
+  another stops half a metre short of that room's floor.
+- **Griffin Court has a glass barrel vault**; the real one has a flat glass
+  roof under the sunshade.
 - **Where things hang within a room is mine.** Paintings are arranged along
   the walls by importance and size; sculpture, armour and vessels stand in
-  glass cases on the floor.
+  glass cases on the floor. In the Grand Staircase everything is on the
+  first-floor level, under the gallery; nothing is hung on the gallery itself.
 - **Two rooms are placed by hand:** Griffin Court (the API lists no art in it)
   and the passage the Thorne Miniature Rooms line.
+- **The polish on the floors** mirrors only on the level you are on. Floors
+  seen on another level (down a stair well, across a tall hall) are matt.
 
 ## What is in it
 
@@ -185,7 +239,8 @@ What is not true:
   to see (and how many), or finished. Press `E` at any work to leave
   the toy and stand in front of it like a person.
 - **Race.** Two laps of the real ring of galleries round the Grand Staircase,
-  against three other toys. The track is painted on the floor with arrows
+  on the second floor, against three other toys. The circuit keeps to that one
+  level. The track is painted on the floor with arrows
   running the way to go, and the rest of the stunt kit is cleared away, leaving
   only the five jumps on the track. Leave the track and the arrow turns gold
   and points the way back; stay off it for 4.5 seconds and you are put back
@@ -209,8 +264,9 @@ What is not true:
   back) it goes over the top and down the other side. Throw a flip or a spin
   and bring it round square for a perfect landing, which keeps your speed.
   Griffin Court has a skyway of toy track slung from its glass roof, curved
-  like the real thing, with gaps to clear. The Grand Staircase room has a ramp,
-  a landing and the steps to launch down. Outside there is a loop-the-loop
+  like the real thing, with gaps to clear. The Grand Staircase has a kicker on
+  its landing, aimed back down the middle flight, and a hoop hung over the
+  steps. Outside there is a loop-the-loop
   (either way round) and a big curved launcher. Cones and wet-floor signs are
   loose, the mopped floor is slippery, and so is the snow.
 - **High places.** Ledges at the top of every skate ramp, two beside the
@@ -288,6 +344,27 @@ find the way in, how far round they get and what they stop to look at.
 `BUILD` at the top of `src/main.js` is recorded with every row: change it when
 publishing something worth telling apart in the numbers.
 
+## The plan, as data
+
+`src/layout.js` is written by a tool, and the engine only ever reads it, so a
+better plan is a better file. What is in it:
+
+- `levels`: the floor elevation of each level, metres above the street.
+- `rooms`: each with its rectangle, `floor` (`LL`, `1`, `2`, `3`), `y` (its
+  floor elevation) and `h` (its clear height above its own floor). A room
+  taller than a storey just has a large `h`. Rooms on different levels overlap
+  in plan; nothing in the engine takes a height from the name of a floor, only
+  from `y`. Walls between rooms may be any thickness: a door spans the gap.
+- `doors`: each with `y`, its sill. A door joins two rooms whose floors are at
+  that height there, or a room and a deck in a tall room. `b: 'out'` doors are
+  at the street.
+- `decks`: a floor slab inside a tall room (`x0..z1`, `y`, `thick`, `rails`).
+  Drivable on top, passable underneath, solid from the side.
+- `ramps`: a sloping way between levels (`axis`, `y0` at the low-coordinate
+  end, `y1` at the high, `stairs`). One that goes down through a floor cuts
+  its own well in it.
+- `lifts`: a platform (`x0..z1`, `stops`).
+
 ## The museum's API
 
 `src/collection.js` asks `api.artic.edu` for public-domain works on view: all
@@ -311,7 +388,11 @@ Three things the docs do not make obvious:
   cannot load images from the museum. Use the offline copy below.
 
 `node tools/build_layout.mjs` regenerates `src/layout.js`, the floor plan, from
-the gallery records. `node tools/fetch_collection.mjs` refreshes
+the gallery records (behind a proxy, `NODE_USE_ENV_PROXY=1 node
+tools/build_layout.mjs`; name a file after it to keep the records it fetched,
+or to build from ones kept earlier). `node tools/check_layout.mjs` then checks
+that the plan is sound: every room and deck reached from the front door, no
+doorway opening onto nothing, no ramp too steep. `node tools/fetch_collection.mjs` refreshes
 `data/collection.json`, the saved copy the game falls back to when the API
 cannot be reached. Add `--images` to also save every image to `data/img/`
 (about 190 MB, not in git); when the
@@ -320,13 +401,16 @@ the museum's server.
 
 URL switches, for testing: `?saved` skips the live API, `?remote` ignores the
 offline images, `?mode=explore|race&toy=car|drone` skips the title, `?auto`
-lets a test driver run the race. The game object is `window.__ah`.
+lets a test driver run the race. The game object is `window.__ah`; a test can
+drive by setting its `testInput` (what the sticks would send) and look from
+anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
 
 ## Layout
 
     index.html, style.css     page and on-screen display
-    src/layout.js             the rooms and doorways (generated by tools/build_layout.mjs)
-    src/plan.js               collision, stunt kit, hanging, cases, race route (no three.js)
+    src/layout.js             the rooms, doorways, decks, ramps and lifts (generated by tools/build_layout.mjs)
+    tools/check_layout.mjs    proves the plan can be driven all the way round
+    src/plan.js               levels, collision, stunt kit, hanging, cases, race route (no three.js)
     src/collection.js         API calls and sorting works into rooms
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
@@ -335,7 +419,7 @@ lets a test driver run the race. The game object is `window.__ah`.
     src/sculpt.js             clay: lumps blended on a grid and skinned into a mesh
     src/geo.js                the small mesh builder both use
     src/textures.js           every surface, painted on a canvas at start-up
-    src/reflect.js            polished-floor reflections
+    src/reflect.js            polished-floor reflections, on the level you are on
     src/vehicles.js           the car and the drone
     src/race.js               gates, laps, rivals
     src/props.js              loose cones and signs, and snowmen

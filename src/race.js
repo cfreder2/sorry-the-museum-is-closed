@@ -18,6 +18,7 @@ export class Race {
     this.plan = plan;
     this.src = buildRoute(plan);
     this.route = sampleRoute(this.src, 0.5);
+    this.fy = plan.lineY || 0;         // the circuit keeps to one level: this is its floor
     this.group = new THREE.Group();
     this.group.visible = false;
     scene.add(this.group);
@@ -37,7 +38,7 @@ export class Race {
     const pts = this.route.pts, n = pts.length, half = 1.35, pos = [], uv = [], idx = [];
     for (let i = 0; i <= n; i++) {
       const p = pts[i % n], nx = p.tz, nz = -p.tx, v = i * this.route.step / 2.2;
-      pos.push(p.x + nx * half, 0.013, p.z + nz * half, p.x - nx * half, 0.013, p.z - nz * half);
+      pos.push(p.x + nx * half, this.fy + 0.013, p.z + nz * half, p.x - nx * half, this.fy + 0.013, p.z - nz * half);
       uv.push(0, v, 1, v);
       if (i < n) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     }
@@ -67,7 +68,7 @@ export class Race {
       const s = this.route.gateS[i], q = this.at(s);
       const g = { i: this.gates.length, s, x: p.x, z: p.z, y: p.y, tx: q.tx, tz: q.tz, half: p.gate, start: !!p.start };
       const grp = new THREE.Group();
-      grp.position.set(p.x, 0, p.z);
+      grp.position.set(p.x, this.fy, p.z);
       grp.rotation.y = Math.atan2(q.tx, q.tz);
       const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       // On the floor: two cones and a line of light between them.
@@ -81,9 +82,9 @@ export class Race {
       strip.rotation.x = -Math.PI / 2; strip.position.y = 0.012;
       floor.add(strip);
       // In the air: a hoop.
-      g.r = Math.min(2.2, p.gate * 0.82, p.y - 0.15);
+      g.r = Math.min(2.2, p.gate * 0.82, p.y - this.fy - 0.15);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(g.r, 0.035, 8, 48), mat);
-      ring.position.y = p.y;
+      ring.position.y = p.y - this.fy;
       grp.add(floor, ring);
       g.floor = floor; g.ring = ring; g.mat = mat; g.group = grp;
       this.group.add(grp);
@@ -113,14 +114,14 @@ export class Race {
       const model = this.flying ? buildDrone(r.colour) : buildCar(r.colour);
       model.group.remove(model.lamp, model.lamp.target);        // rivals do not need real lights
       this.group.add(model.group, model.shadow);
-      return { ...r, model, s: s0 - 1.3 - i * 1.15, v: 0, lapsDone: 0, done: false, spin: 0, y: 0, vy: 0, tilt: 0 };
+      return { ...r, model, s: s0 - 1.3 - i * 1.15, v: 0, lapsDone: 0, done: false, spin: 0, y: this.fy, vy: 0, tilt: 0 };
     });
     for (const g of this.gates) { g.floor.visible = !this.flying; g.ring.visible = this.flying; }
     // Player lines up at the back: you earn it.
     const grid = this.at(s0 - 1.3 - RIVALS.length * 1.15);
     const yaw = Math.atan2(grid.tx, grid.tz);
-    if (this.flying) player.place(grid.x + grid.tz * 0.3, grid.z - grid.tx * 0.3, yaw, 1.2);
-    else player.place(grid.x + grid.tz * 0.3, grid.z - grid.tx * 0.3, yaw);
+    if (this.flying) player.place(grid.x + grid.tz * 0.3, grid.z - grid.tx * 0.3, yaw, this.fy + 1.2);
+    else player.place(grid.x + grid.tz * 0.3, grid.z - grid.tx * 0.3, yaw, this.fy);
     this.sP = this.sOn = s0 - 1.3 - RIVALS.length * 1.15;
     this.off = false; this.offT = 0;
     this.prev = player.pos.clone();
@@ -164,7 +165,7 @@ export class Race {
     this.offT += dt;
     if (this.offT > 4.5) {
       const b = this.at(this.sOn), yaw = Math.atan2(b.tx, b.tz);
-      if (this.flying) this.player.place(b.x, b.z, yaw, b.y); else this.player.place(b.x, b.z, yaw);
+      if (this.flying) this.player.place(b.x, b.z, yaw, b.y); else this.player.place(b.x, b.z, yaw, this.fy);
       this.prev.copy(this.player.pos); this.sP = this.sOn; this.off = false; this.offT = 0; this.warped = true;
     }
   }
@@ -224,7 +225,7 @@ export class Race {
   reset() {
     const g = this.gates[this.lastGate];
     const yaw = Math.atan2(g.tx, g.tz);
-    if (this.flying) this.player.place(g.x, g.z, yaw, g.y); else this.player.place(g.x, g.z, yaw);
+    if (this.flying) this.player.place(g.x, g.z, yaw, g.y); else this.player.place(g.x, g.z, yaw, this.fy);
     this.prev.copy(this.player.pos);
     this.sP = g.s;
   }
@@ -270,7 +271,7 @@ export class Race {
         for (const p of b.model.props) p.blade.rotation.y = b.spin * p.dir;
         b.model.body.rotation.x = 0.1 + b.v * 0.02;
         b.model.body.rotation.z = -d * 2;
-        b.model.shadow.position.set(x, 0.006, z);
+        b.model.shadow.position.set(x, this.fy + 0.006, z);
       } else {
         for (const w of b.model.wheels) { w.spin.rotation.x += (b.v / w.r) * dt; if (w.front) w.pivot.rotation.y = d * 3; }
         b.model.aerial.rotation.x = -0.1 - b.v * 0.02;
