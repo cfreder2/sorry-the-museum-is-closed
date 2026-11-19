@@ -9,6 +9,27 @@ import { buildCar, buildDrone } from './vehicles.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
 const paintOf = c => std(c, { roughness: 0.3, emissive: c, emissiveIntensity: 0.12 });
+// Polished chrome. A mirror needs something to reflect, so it is given a night to look at: a dark
+// sky, a band of city lights, the warm lamps of the galleries and the colours of Griffin Court's
+// roof, painted once onto a panorama. It is not the room you are in, but it moves the way one would.
+let _night = null;
+function night() {
+  if (_night || typeof document === 'undefined') return _night;
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512;
+  const c = cv.getContext('2d'), sky = c.createLinearGradient(0, 0, 0, 512);
+  sky.addColorStop(0, '#02040c'); sky.addColorStop(0.42, '#101a3a'); sky.addColorStop(0.5, '#3a3350'); sky.addColorStop(0.52, '#1a1410'); sky.addColorStop(1, '#040404');
+  c.fillStyle = sky; c.fillRect(0, 0, 1024, 512);
+  let k = 11; const rnd = () => ((k = (k * 1103515245 + 12345) >>> 0) / 4294967296);
+  for (let i = 0; i < 260; i++) { c.fillStyle = `rgba(255,255,255,${0.3 + rnd() * 0.7})`; c.fillRect(rnd() * 1024, rnd() * 190, 1.5, 1.5); }                 // stars
+  for (let i = 0; i < 700; i++) { c.fillStyle = ['#ffd98a', '#fff3cf', '#9fd0ff', '#ffb46a'][i % 4]; c.fillRect(rnd() * 1024, 200 + rnd() * 56, 2, 2 + rnd() * 3); }   // the city
+  const lamp = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); };
+  ['#ffe9b0', '#f2c70f', '#f39a2d', '#e6283c', '#e040c8', '#8a3fd8', '#3b3fd6', '#2a93d8', '#7fe9f5', '#8fc45a'].forEach((col, i) => lamp(60 + i * 100, 96 + (i % 3) * 34, 46, col));   // the coloured roof, overhead
+  for (let i = 0; i < 9; i++) lamp(40 + i * 118, 300 + (i % 2) * 40, 70, 'rgba(255,214,150,.85)');                                                              // gallery lamps, and their shine on the floor
+  lamp(512, 60, 90, 'rgba(235,240,255,.95)');                                             // the moon
+  const t = new THREE.CanvasTexture(cv); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  return (_night = t);
+}
+const mirror = () => new THREE.MeshStandardMaterial({ color: 0xf4f7ff, metalness: 1, roughness: 0.03, envMap: night(), envMapIntensity: 2.2 });
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cyl = (r0, r1, h, n = 12, hs = 1, open = false) => new THREE.CylinderGeometry(r0, r1, h, n, hs, open);
@@ -33,7 +54,7 @@ export const VEHICLES = [
   { id: 'hex', kind: 'drone', name: 'Hexacopter', hint: 'Six rotors. Climbs hard, turns steadily.', need: 25, spec: { accel: 0.95, climb: 1.2, yaw: 0.95 } },
   { id: 'airship', kind: 'drone', name: 'Airship', hint: 'Drifts. Good for standing off from a large canvas.', need: 60, spec: { accel: 0.82, climb: 0.85, yaw: 0.85 } },
   { id: 'fpv', kind: 'drone', name: 'Racing Quad', hint: 'Small and sharp. Quicker in every direction.', trophy: 'bullet', how: 'Land a Stunt Look in slow motion', spec: { accel: 1.15, climb: 1.12, yaw: 1.2 } },
-  { id: 'manta', kind: 'drone', name: 'Manta', hint: 'A black wing with four buried fans. Quiet, quick and very smooth.', shop: 2000, how: 'For sale at the stall by the card game', spec: { accel: 1.12, climb: 1.1, yaw: 1.12 } },
+  { id: 'manta', kind: 'drone', name: 'Manta', hint: 'A ray in polished chrome. Everything round it slides across it.', shop: 2000, how: 'For sale at the stall by the card game', spec: { accel: 1.12, climb: 1.1, yaw: 1.12 } },
 ];
 const BY_ID = Object.fromEntries(VEHICLES.map(v => [v.id, v]));
 
@@ -236,25 +257,31 @@ const DRONES = {
     part(ball(0.008, 6, 5), glow(3, 3, 3), 0, -0.07, -0.2, body);
     return { group: g, body, props };
   },
-  // The Manta: a thin black wing with its four fans buried in it and a line of light round the edge.
+  // The Manta: a ray in polished chrome. Everything on it is curved, so that everything round it
+  // slides over it as it turns: four fans buried in the wings, a whip of a tail, and a line of
+  // light under each leading edge.
   manta() {
     const g = new THREE.Group(), body = new THREE.Group(), props = [];
     g.add(body);
-    const skin = std(0x0d0f13, { roughness: 0.22, metalness: 0.7 }), edge = glow(0.15, 2.2, 3.2), dark = std(0x050608, { roughness: 0.5 });
-    const hull = part(ball(1, 20, 12), skin, 0, 0, 0.01, body); hull.scale.set(0.085, 0.022, 0.19);          // the spine
+    const chrome = mirror(), dark = std(0x050608, { roughness: 0.5 }), edge = glow(0.15, 2.4, 3.4), glass = std(0x02060c, { roughness: 0.02, metalness: 1, envMap: chrome.envMap, envMapIntensity: 1.2 });
+    const blob = (sx, sy, sz, x, y, z, m = chrome) => { const k = part(ball(1, 28, 18), m, x, y, z, body); k.scale.set(sx, sy, sz); return k; };
+    blob(0.062, 0.024, 0.2, 0, 0, 0.012);                                                 // the spine, nose to tail
+    blob(0.03, 0.016, 0.06, 0, 0.018, 0.085, glass);                                      // a black glass canopy
     for (const s of [-1, 1]) {
-      const wing = part(box(0.17, 0.008, 0.15), skin, s * 0.11, 0, -0.02, body); wing.rotation.y = s * 0.42;  // swept wings
-      const tip = part(box(0.06, 0.006, 0.07), skin, s * 0.205, 0.004, -0.09, body); tip.rotation.y = s * 0.7; tip.rotation.z = -s * 0.35;   // turned-up tips
-      const le = part(box(0.19, 0.003, 0.005), edge, s * 0.105, 0.002, 0.052, body); le.rotation.y = s * 0.42;                               // light along the leading edge
-      part(box(0.006, 0.024, 0.05), skin, s * 0.03, 0.02, -0.16, body);                   // twin fins
+      const wing = blob(0.165, 0.009, 0.1, s * 0.105, 0.002, -0.012); wing.rotation.y = s * 0.36; wing.rotation.z = -s * 0.07;      // the wing: a flattened drop, swept back, with a little droop
+      const tip = blob(0.05, 0.006, 0.05, s * 0.232, 0.014, -0.07); tip.rotation.y = s * 0.7; tip.rotation.z = s * 0.5;             // and a tip that curls up
+      const horn = blob(0.012, 0.01, 0.045, s * 0.034, 0.002, 0.196); horn.rotation.y = -s * 0.25;                                  // the two lobes either side of the mouth
+      const le = part(box(0.2, 0.0025, 0.004), edge, s * 0.11, -0.006, 0.058, body); le.rotation.y = s * 0.36;                       // light under the leading edge
+      part(ball(0.006, 8, 6), s > 0 ? glow(0.2, 3, 0.4) : glow(3, 0.15, 0.1), s * 0.262, 0.03, -0.092, body);                       // a lamp on each tip
     }
-    part(box(0.05, 0.012, 0.07), std(0x0a1622, { roughness: 0.05, metalness: 0.9 }), 0, 0.02, 0.07, body);   // a dark canopy
-    part(ball(0.012), std(0x05070a, { roughness: 0.1, metalness: 0.8 }), 0, -0.012, 0.15, body);             // the eye
-    part(box(0.05, 0.004, 0.006), glow(3, 0.15, 0.1), 0, 0.004, -0.185, body);            // tail light
+    const tail = part(cyl(0.006, 0.0012, 0.2, 8), chrome, 0, 0.004, -0.27, body); tail.rotation.x = Math.PI / 2 + 0.06;              // the whip
+    part(ball(0.006, 8, 6), glow(3.2, 0.2, 0.3), 0, 0.016, -0.37, body);
+    part(ball(0.011), glass, 0, -0.014, 0.17, body);                                      // the eye underneath
     for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
-      const x = sx * (sz > 0 ? 0.085 : 0.125), z = sz > 0 ? 0.03 : -0.07;
-      const ring = part(cyl(0.05, 0.05, 0.016, 18, 1, true), dark, x, 0.004, z, body); ring.material.side = THREE.DoubleSide;                  // the duct
-      rotor(body, props, x, 0.008, z, 0.045, sx * sz, dark, 0x58d8ff);
+      const x = sx * (sz > 0 ? 0.088 : 0.135), z = sz > 0 ? 0.03 : -0.055, r = sz > 0 ? 0.04 : 0.036;
+      const lip = part(new THREE.TorusGeometry(r + 0.004, 0.005, 8, 24), chrome, x, 0.01, z, body); lip.rotation.x = Math.PI / 2;    // a polished lip round each fan
+      const well = part(cyl(r, r, 0.012, 20, 1, true), dark, x, 0.004, z, body); well.material.side = THREE.DoubleSide;
+      rotor(body, props, x, 0.008, z, r - 0.003, sx * sz, dark, 0x58d8ff);
     }
     return { group: g, body, props };
   },

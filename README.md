@@ -91,7 +91,7 @@ well. On a keyboard or a gamepad both start off.
 ## The toy stall
 
 On the roof beside the card game somebody has set up a stall under a striped
-awning. Two toys turn on their stands: a Supercar and a black flying wing
+awning. Two toys turn on their stands: a Supercar and a chrome flying wing
 called the Manta. Each costs 2,000 chips, and the only chips there are are the
 ones on the card table, where you sit down with 1,000. Pull up at the counter
 and the button says SHOP. Nothing else unlocks them.
