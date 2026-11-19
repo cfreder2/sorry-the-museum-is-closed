@@ -79,11 +79,12 @@ every outside door unlocks for good. Hints appear if you stay outside a while.
 
 On a phone the car drives for you. Hold a thumb down on the left and it goes
 at an easy pace; slide the thumb to steer; let go and it pulls up. Push the
-thumb forward for speed, pull it back to creep up to a picture. BRAKE stops it
-and then backs up. Steering help eases the car away from walls and backs it
-out when it is stuck nose-first against one. Both are switches under
-Settings, Driving: with "Drive for me" off the stick is the throttle as well,
-as before. On a keyboard or a gamepad both start off.
+thumb forward for speed; pull it back to brake and then back up. When you are
+near a work a gold LOOK button with an eye appears beside JUMP. Steering help
+eases the car away from walls and backs it out when it is stuck nose-first
+against one; it stands down on stairs, ramps and lifts. Both are switches
+under Settings, Driving: with "Drive for me" off the stick is the throttle as
+well. On a keyboard or a gamepad both start off.
 
 ## The outside
 

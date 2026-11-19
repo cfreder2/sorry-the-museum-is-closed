@@ -201,7 +201,7 @@ function start(mode, fresh = false) {
     sound.musicOn = true;
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
     else say(G.toy === 'drone' ? 'Locked. But the window over the doors is open: fly in.' : 'Locked. But the air vent just left of the doors is open: drive in.', 3.5, 9);
-    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : (set.autogo ? 'Hold your left thumb down to go. Slide it to steer. Let go to stop. BRAKE backs up.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.'), 7.5, 8);
+    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : (set.autogo ? 'Hold your left thumb down to go. Slide it to steer. Let go to stop. Pull back to back up.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.'), 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -348,7 +348,7 @@ addEventListener('keydown', e => {
   else if (shown === 'notebook') act('closeNotebook');
 });
 // The buttons under the right thumb are held, not tapped.
-input.bind($('bJump'), 'jump'); input.bind($('bBrake'), 'brake'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
+input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
 upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study')) pause(); });
@@ -382,6 +382,15 @@ function announce(room) {
   roomUntil = G.t + 3.6;
 }
 
+// On glass the game's own buttons answer the moment they are touched. (A phone makes no click from
+// a tap while another finger is down, and a thumb is down the whole time you are driving.)
+document.addEventListener('touchstart', e => {
+  const b = e.target.closest && e.target.closest('#pads button[data-act], #studyBar button[data-act], #drive button[data-act]');
+  if (!b) return;
+  e.preventDefault();                                   // and no click follows
+  sound.unlock();
+  act(b.dataset.act);
+}, { passive: false });
 document.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
@@ -457,7 +466,7 @@ function openNotebook() {
 function controlsList() {
   const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
   const rows = touch
-    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, pull back to creep up to a picture, let go to stop. BRAKE stops it and then backs up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
     : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
@@ -840,6 +849,14 @@ function results() {
 const _probe = { x: 0, y: 0, z: 0 }, _push = { x: 0, y: 0, z: 0 }, help = { stuck: 0, back: 0, turn: 1 };
 function steerHelp(v, inp, dt) {
   if (v.air || v.rail) { help.stuck = 0; return; }
+  // Not on a flight of stairs, a ramp or anything else that slopes, nor at the foot or head of one:
+  // the steps and the rails either side are not walls to be steered away from or backed out of.
+  {
+    const p = v.pos, fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), g = groundAt(G.plan, p.x, p.z, p.y + 0.3);
+    const slope = Math.abs(groundAt(G.plan, p.x + fx * 0.9, p.z + fz * 0.9, p.y + 0.6) - g) > 0.05 || Math.abs(groundAt(G.plan, p.x - fx * 0.6, p.z - fz * 0.6, p.y + 0.6) - g) > 0.05;
+    const near = (q, m) => p.x > q.x0 - m && p.x < q.x1 + m && p.z > q.z0 - m && p.z < q.z1 + m;
+    if (slope || G.plan.ramps.some(q => near(q, 2.5) && p.y > Math.min(q.y0, q.y1) - 0.5 && p.y < Math.max(q.y0, q.y1) + 0.8) || G.plan.lifts.some(q => near(q, 2.5))) { help.stuck = 0; help.back = 0; return; }
+  }
   const sp = Math.hypot(v.vel.x, v.vel.z), vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw), reach = 0.55 + sp * 0.42;
   const feel = a => {
     const sx = Math.sin(v.yaw + a), sz = Math.cos(v.yaw + a);
@@ -960,7 +977,7 @@ function play(dt, real) {
     // On the roof, by the card table, the same button sits you down at it.
     G.pokerNear = G.poker.near(v);
     if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
-    $('bLook').hidden = !(G.facing || G.pokerNear); $('bLook').textContent = G.pokerNear ? 'PLAY' : 'LOOK';
+    $('bLook').hidden = !(G.facing || G.pokerNear); $('bLook').lastElementChild.textContent = G.pokerNear ? 'PLAY' : 'LOOK';
     if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.facing) beginStudy(G.facing); }
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);

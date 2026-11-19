@@ -96,8 +96,10 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #drive button { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); font: 700 15px var(--mono); letter-spacing: .12em; color: #fff; background: rgba(12,14,20,.5); touch-action: none; }
 #drive button:active { background: rgba(255,255,255,.28); }
 #bJump { width: 104px; height: 104px; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); background: rgba(127,233,245,.3) !important; border-color: #7fe9f5 !important; font-size: 17px !important; }
-#bBrake { display: none; width: 84px; height: 84px; right: calc(max(24px, env(safe-area-inset-right)) + 120px); bottom: max(24px, env(safe-area-inset-bottom)); }
-.autogo #drive #bBrake.car { display: block; } .flying #drive #bBrake.car { display: none; }
+#drive #bLook { width: 92px; height: 92px; right: calc(max(24px, env(safe-area-inset-right)) + 122px); bottom: max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: rgba(226,205,148,.92); border-color: #fff; color: #14120c; font-size: 13px; animation: lookin .25s ease-out; box-shadow: 0 0 22px rgba(226,205,148,.55); }
+#drive #bLook[hidden] { display: none; }
+#drive #bLook svg { width: 44px; height: 27px; }
+@keyframes lookin { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 #pads #bLights[aria-pressed="false"] { opacity: .55; }
 #bUp, #bDown { width: 88px; height: 88px; right: max(22px, env(safe-area-inset-right)); }
 #bUp { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 98px); } #bDown { bottom: max(18px, env(safe-area-inset-bottom)); }
@@ -118,7 +120,6 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #pads { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: 170px; display: none; flex-direction: column; gap: 10px; }
 .touch #pads { display: flex; }
 #pads button { width: 62px; height: 44px; border-radius: 8px; border: 1px solid rgba(226,205,148,.4); background: rgba(8,9,14,.6); font: 700 11px var(--mono); letter-spacing: .1em; color: var(--gilt); }
-#pads #bLook { background: rgba(226,205,148,.9); color: #14120c; }
 .touch .hint, .touch #label .foot span { display: none; }
 
 /* the camcorder */

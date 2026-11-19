@@ -73,12 +73,11 @@
   </div>
   <div id="drive">
     <button id="bJump" class="car" aria-label="Jump">JUMP</button>
-    <button id="bBrake" class="car" aria-label="Brake and reverse">BRAKE</button>
+    <button data-act="look" id="bLook" hidden aria-label="Look closer"><svg viewBox="0 0 48 30" aria-hidden="true"><path d="M2 15C9 4 17 1 24 1s15 3 22 14c-7 11-15 14-22 14S9 26 2 15z" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="15" r="7" fill="currentColor"/></svg><span>LOOK</span></button>
     <button id="bUp" class="drone" aria-label="Climb">UP</button>
     <button id="bDown" class="drone" aria-label="Descend">DOWN</button>
   </div>
   <div id="pads">
-    <button data-act="look" id="bLook" hidden>LOOK</button>
     <button data-act="camera">CAM</button>
     <button data-act="swap" id="bSwap">SWAP</button>
     <button data-act="lights" id="bLights" aria-pressed="true">LIGHTS</button>
@@ -193,7 +192,7 @@
     </fieldset>
     <fieldset>
       <legend>Driving</legend>
-      <label class="chk"><input type="checkbox" data-set="autogo"><span><b>Drive for me</b>On a phone: hold your thumb down and the car goes at an easy pace, slide to steer, let go and it stops. Push forward for speed, pull back to creep. BRAKE backs up. Off: the stick is the throttle too.</span></label>
+      <label class="chk"><input type="checkbox" data-set="autogo"><span><b>Drive for me</b>On a phone: hold your thumb down and the car goes at an easy pace, slide to steer, let go and it stops. Push forward for speed, pull back to back up. Off: the stick is the throttle too.</span></label>
       <label class="chk"><input type="checkbox" data-set="assist"><span><b>Steering help</b>Eases the car away from walls and backs it out when it is stuck against one.</span></label>
     </fieldset>
     <fieldset>
