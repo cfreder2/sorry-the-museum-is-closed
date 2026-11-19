@@ -79,7 +79,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.17';          // bump when publishing something worth telling apart in the numbers
+const BUILD = '2026.11.19';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
 Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
