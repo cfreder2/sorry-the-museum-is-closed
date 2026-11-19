@@ -24,8 +24,9 @@ export class Input {
     this.capture = false;            // true while driving: arrows and space belong to the game, not the page
     this.hold = false;               // 'hold my speed' setting
     this.latched = false;
-    this.btn = { jump: false, up: false, down: false };     // on-screen buttons being held
-    this._ids = { jump: new Set(), up: new Set(), down: new Set() };
+    this.autogo = false;             // 'drive for me' setting: on glass, a thumb on the stick is the throttle
+    this.btn = { jump: false, up: false, down: false, brake: false };     // on-screen buttons being held
+    this._ids = { jump: new Set(), up: new Set(), down: new Set(), brake: new Set() };
     this.thumb = { x: 0, y: 0, ox: 0, oy: 0, on: false };                // where the thumbstick is, for drawing it
     this._jump = false;
     this.onGesture = null;           // called on any lift or key, to unlock sound
@@ -120,7 +121,7 @@ export class Input {
 
   // Reads everything into the two sticks. `drone` picks the key layout.
   read(drone) {
-    let lx = 0, ly = 0, rx = 0, ry = 0, trig = 0;
+    let lx = 0, ly = 0, rx = 0, ry = 0, trig = 0, coast = false;
     if (drone) {
       ry = this._axis(['KeyS'], ['KeyW']);
       lx = this._axis(['KeyA'], ['KeyD']);
@@ -162,7 +163,13 @@ export class Input {
       } else {
         // The stick is the whole car: push it forward to go (the further, the faster), pull it
         // back to brake and then reverse, lean it to steer. Leaning hard does not count as pulling back.
-        if (tl) { rx = curve(tl.x); ly = tl.y > 0.15 ? (tl.y - 0.15) / 0.85 : tl.y < -0.4 ? (tl.y + 0.4) / 0.6 : 0; }
+        // Or, with 'drive for me' on: a thumb on the stick is the throttle. It goes while you hold, you
+        // only slide left and right to steer, it stops when you let go, and BRAKE backs it up.
+        if (this.autogo) {
+          if (tl) { rx = curve(tl.x); ly = tl.y < -0.3 ? 0.2 : 0.45 + 0.55 * Math.max(0, (tl.y - 0.1) / 0.9); }       // thumb down is an easy pace; forward is faster, back is a crawl for pulling up to a picture
+          if (b.brake) ly = -1;
+          coast = !tl && !b.brake;
+        } else if (tl) { rx = curve(tl.x); ly = tl.y > 0.15 ? (tl.y - 0.15) / 0.85 : tl.y < -0.4 ? (tl.y + 0.4) / 0.6 : 0; }
       }
     }
     let held = this.down.has('Space') || this.btn.jump;
@@ -175,7 +182,7 @@ export class Input {
       lx = 0; ry = 0;
     }
     // Hold my speed: push forward once and it stays pushed, pull back once to let go.
-    if (this.hold) {
+    if (this.hold && !(this.autogo && this.usedTouch && !drone)) {
       const fwd = drone ? ry : ly;
       if (fwd > 0.6) this.latched = true; else if (fwd < -0.3) this.latched = false;
       if (this.latched && fwd === 0) { if (drone) ry = 0.8; else ly = 0.8; }
@@ -184,6 +191,6 @@ export class Input {
     s.lx = lx; s.ly = ly; s.rx = rx; s.ry = ry;
     return drone
       ? { pitch: ry, roll: rx, yaw: lx, climb: ly }
-      : { throttle: ly, steer: rx, jump, trick: held };
+      : { throttle: ly, steer: rx, jump, trick: held, coast };
   }
 }

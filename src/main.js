@@ -6,7 +6,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts } from './plan.js';
+import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
@@ -63,7 +63,8 @@ input.onGesture = () => sound.unlock();
 
 // Settings, kept between visits. Reduced motion starts on if the system asks for it.
 const SETTINGS = 'after-hours.settings';
-const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true };
+const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true,
+  autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
 
 const G = {
@@ -162,7 +163,7 @@ function setVehicle(kind) {
   G.drone.group.visible = kind === 'drone';
   G.drone.shadow.visible = kind === 'drone';
   document.body.classList.toggle('flying', kind === 'drone');
-  $('stickL').lastElementChild.textContent = input.usedTouch ? (kind === 'drone' ? 'fly' : 'drive') : kind === 'drone' ? 'climb · turn' : 'throttle';
+  $('stickL').lastElementChild.textContent = input.usedTouch ? (kind === 'drone' ? 'fly' : set.autogo ? 'hold to go' : 'drive') : kind === 'drone' ? 'climb · turn' : 'throttle';
   $('stickR').lastElementChild.textContent = kind === 'drone' ? 'fly' : 'steer';
 }
 
@@ -200,7 +201,7 @@ function start(mode, fresh = false) {
     sound.musicOn = true;
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
     else say(G.toy === 'drone' ? 'Locked. But the window over the doors is open: fly in.' : 'Locked. But the air vent just left of the doors is open: drive in.', 3.5, 9);
-    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.', 7.5, 8);
+    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : (set.autogo ? 'Hold your left thumb down to go. Slide it to steer. Let go to stop. BRAKE backs up.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.'), 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
       : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
@@ -317,6 +318,8 @@ function applySettings(save) {
   document.body.classList.toggle('bigtext', set.big);
   mirror.enabled = set.mirror;
   input.hold = set.hold;
+  input.autogo = !!set.autogo;
+  document.body.classList.toggle('autogo', !!set.autogo);
   tm.allowed = set.stats !== false;
   tm.settings = { reduce: !!set.reduce, big: !!set.big, hold: !!set.hold, slowmo: !!set.slowmo, mirror: !!set.mirror };
   if (G.museum) G.museum.calm = set.reduce;
@@ -345,7 +348,7 @@ addEventListener('keydown', e => {
   else if (shown === 'notebook') act('closeNotebook');
 });
 // The buttons under the right thumb are held, not tapped.
-input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
+input.bind($('bJump'), 'jump'); input.bind($('bBrake'), 'brake'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
 upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study')) pause(); });
@@ -454,7 +457,7 @@ function openNotebook() {
 function controlsList() {
   const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
   const rows = touch
-    ? [['Car', 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, pull back to creep up to a picture, let go to stop. BRAKE stops it and then backs up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
     : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
@@ -831,11 +834,42 @@ function results() {
 
 // ------------------------------------------------------------------- loop ---
 
+// Steering help. Three feelers reach out ahead of the car, further the faster it goes. Where one
+// finds a wall the wheel is eased the other way, unless the driver is already turning hard. And a
+// car held nose-first against something for most of a second backs itself out and turns away.
+const _probe = { x: 0, y: 0, z: 0 }, _push = { x: 0, y: 0, z: 0 }, help = { stuck: 0, back: 0, turn: 1 };
+function steerHelp(v, inp, dt) {
+  if (v.air || v.rail) { help.stuck = 0; return; }
+  const sp = Math.hypot(v.vel.x, v.vel.z), vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw), reach = 0.55 + sp * 0.42;
+  const feel = a => {
+    const sx = Math.sin(v.yaw + a), sz = Math.cos(v.yaw + a);
+    for (const t of [0.35, 0.6, 0.8, 1]) {
+      _probe.x = v.pos.x + sx * reach * t; _probe.y = v.pos.y + 0.1; _probe.z = v.pos.z + sz * reach * t;
+      if (wallAt(G.plan, _probe.x, _probe.z, v.pos.y) || confine(G.plan, _probe, 0.12, false, _push)) return t;
+    }
+    return 2;
+  };
+  const left = feel(0.5), right = feel(-0.5);
+  if (help.back > 0) { help.back -= dt; inp.throttle = -1; inp.steer = -help.turn; return; }
+  if (inp.throttle > 0.3 && sp < 0.25) help.stuck += dt; else help.stuck = 0;
+  if (help.stuck > 0.7) { help.stuck = 0; help.back = 0.75; help.turn = left < right ? 1 : left > right ? -1 : (inp.steer >= 0 ? 1 : -1); return; }
+  if (vf < 0.8 || inp.throttle <= 0) return;
+  const near = Math.min(left, right);
+  if (near > 1) return;
+  const away = left < right ? 1 : right < left ? -1 : feel(0) <= 1 ? (inp.steer >= 0 ? 1 : -1) : 0;      // steer > 0 turns right
+  if (!away || (Math.abs(inp.steer) > 0.6 && Math.sign(inp.steer) !== away)) return;                    // the driver means it
+  inp.steer = Math.max(-1, Math.min(1, inp.steer + away * (1.25 - near) * 0.9));
+}
+
 function play(dt, real) {
   const v = G.vehicle, R = G.race, racing = G.mode === 'race';
   let inp = input.read(v.kind === 'drone');
   if (G.auto && racing) inp = autopilot(v, R);
   if (G.testInput) inp = G.testInput;
+  if (v.kind === 'car') {
+    if (inp.coast && !G.testInput) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
+    if (set.assist && !(G.auto && racing)) steerHelp(v, inp, dt);
+  }
   if (racing && (R.locked || R.finished)) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };
   stepLifts(G.plan, dt, [v.pos]);
   v.update(dt, inp);
