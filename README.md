@@ -230,9 +230,10 @@ What is not true:
   another. The tool prints which.
 - **McKinlock Court and the Bluhm Family Terrace are roofed**; the real ones
   are open to the sky. The Pritzker Garden is open ground.
-- **The colours of Griffin Court's roof are mine.** It has the real roof's 126
-  panes, three across and forty-two along, each with a coloured gel; which
-  pane is which colour is not from a photograph.
+- **Griffin Court's roof is from one photograph.** It has the real roof's 126
+  panes, two abreast and sixty-three along, warm colours down the west side
+  and cool down the east. The order at the south end is read from a
+  photograph; further north it is carried on by repeating it.
 - **Empty galleries borrow from their neighbours.** A gallery the museum
   lists nothing on view for is hung with works its nearest galleries have more
   of than they can show. Each borrowed work's label names the gallery it

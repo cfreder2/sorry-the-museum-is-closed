@@ -660,38 +660,46 @@ export class Museum {
     const hg = this.hallGroup = new THREE.Group();
     hg.position.set((hall.x0 + hall.x1) / 2, hall.y, hall.z1); hg.rotation.y = Math.PI / 2;
     this.group.add(hg);
-    // The glass roof: flat, 126 panes in three rows down the length of the court, each with a
-    // coloured gel over it. The colours fall on the floor underneath.
-    const COLS = 42, ROWS = 3, GELS = ['#e4002b', '#ff6a13', '#ffc72c', '#f6eb61', '#78be20', '#00a887', '#00a3e0', '#0057b8', '#5f259f', '#c800a1', '#f478c4', '#eef2f6'];
-    const gel = (cell, line) => {
-      const cv = document.createElement('canvas'); cv.width = COLS * cell; cv.height = ROWS * cell;
-      const g = cv.getContext('2d'); let k = 7;
-      g.fillStyle = '#0c0d10'; g.fillRect(0, 0, cv.width, cv.height);
+    // The glass roof: flat, 126 panes, two abreast and sixty-three down the length of the court,
+    // each with a coloured gel over it and white steel between. The west row runs through the warm
+    // colours and the east through the cool, as the real ones do; the order is read from a
+    // photograph of the south end and carried on from there. The colours fall on the floor.
+    const COLS = 63, ROWS = 2;
+    const WARM = ['#f2c70f', '#dfe6a8', '#f6cfa0', '#f39a2d', '#b8651a', '#d99a1e', '#f4a6a0', '#f3e08a', '#f5ecc8', '#f6d5cf', '#f1efe9', '#cfd2d0', '#f1d23c', '#ef8a2a', '#e5552a', '#f0b04a', '#f6e27a', '#c9d84a', '#8fc45a', '#e9c63a', '#f2a03a'];
+    const COOL = ['#dfeee6', '#3b3fd6', '#2f6fe0', '#2a93d8', '#7cc4ea', '#cfe6f3', '#e6e3f3', '#5a2fd0', '#cdbdf0', '#8a3fd8', '#e5a6e6', '#e6283c', '#e040c8', '#f2a0c8', '#c93ad0', '#e0303a', '#f07a8a', '#9a6ae0', '#58a8e8', '#48c0b0', '#c9d84a'];
+    const gel = (cw, ch, line) => {
+      const cv = document.createElement('canvas'); cv.width = COLS * cw; cv.height = ROWS * ch;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#ecece8'; g.fillRect(0, 0, cv.width, cv.height);
       for (let i = 0; i < COLS; i++) for (let j = 0; j < ROWS; j++) {
-        k = (k * 1103515245 + 12345) >>> 0;
-        g.fillStyle = GELS[(k >>> 16) % GELS.length];
-        g.fillRect(i * cell + line, j * cell + line, cell - 2 * line, cell - 2 * line);
+        g.fillStyle = (j === WEST ? WARM : COOL)[i % WARM.length];
+        g.fillRect(i * cw + line, j * ch + line, cw - 2 * line, ch - 2 * line);
+        // the mesh in the glass
+        if (line) { g.fillStyle = 'rgba(255,255,255,.16)'; for (let x = 6; x < cw - line; x += 6) g.fillRect(i * cw + x, j * ch + line, 1, ch - 2 * line); for (let y = 6; y < ch - line; y += 6) g.fillRect(i * cw + line, j * ch + y, cw - 2 * line, 1); }
       }
-      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
     };
+    const WEST = 1;                                      // which row of the texture lies along the west wall
     const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
     const lay = new Geo();
     lay.quad([0, SPRING - 0.05, -HW], [LEN, SPRING - 0.05, -HW], [LEN, SPRING - 0.05, HW], [0, SPRING - 0.05, HW], [0, -1, 0], uv);
-    hg.add(lay.mesh(new THREE.MeshBasicMaterial({ map: gel(32, 2), side: THREE.DoubleSide })));
+    hg.add(lay.mesh(new THREE.MeshBasicMaterial({ map: gel(32, 96, 2), side: THREE.DoubleSide })));
     const cast = new Geo();
     cast.quad([0, 0.012, -HW], [LEN, 0.012, -HW], [LEN, 0.012, HW], [0, 0.012, HW], [0, 1, 0], uv);
-    const castMesh = cast.mesh(new THREE.MeshBasicMaterial({ map: gel(8, 0), transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const castMesh = cast.mesh(new THREE.MeshBasicMaterial({ map: gel(8, 8, 0), transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     hg.add(castMesh);
     const na = 18;
 
-    const steel = new Geo();
+    const steel = new Geo(), white = new Geo();
     for (let z = -HW; z <= HW + 0.01; z += 2) {
       const top = SPRING + Math.sqrt(Math.max(0, R * R - z * z));
       steel.box(LEN - 0.08, LEN + 0.08, 0, top, z - 0.06, z + 0.06);
     }
     for (const y of [...Array.from({ length: Math.floor((SPRING - 0.5) / 2.9) + 1 }, (_, i) => 0.5 + i * 2.9), SPRING]) steel.box(LEN - 0.07, LEN + 0.07, y - 0.06, y + 0.06, -HW, HW);
-    for (let x = 0; x <= LEN; x += LEN / 42) steel.box(x - 0.05, x + 0.05, SPRING - 0.5, SPRING - 0.06, -HW, HW);       // a beam under each joint of the glass
+    for (let x = 0; x <= LEN; x += LEN / 63) white.box(x - 0.04, x + 0.04, SPRING - 0.42, SPRING - 0.06, -HW, HW);
+    white.box(0, LEN, SPRING - 0.5, SPRING - 0.06, -0.06, 0.06);            // the spine between the two rows       // a beam under each joint of the glass
     hg.add(steel.mesh(new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.6 })));
+    hg.add(white.mesh(new THREE.MeshBasicMaterial({ color: 0xcfd0cc })));
 
     // Snow beyond the window.
     const n = 500;
