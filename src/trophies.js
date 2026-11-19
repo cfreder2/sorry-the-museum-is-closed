@@ -45,6 +45,10 @@ export const TROPHIES = [
   { id: 'combo', tier: 'silver', name: 'Diptych', desc: 'Stunt Look two different works in one jump.', test: s => s.combo >= 2 },
   { id: 'snow', tier: 'silver', name: 'No Snowman Left Standing', desc: 'Knock down every snowman in the grounds in one visit.', goal: 0, count: s => s.snowmen, total: s => s.snowmenAll, test: s => s.snowmenAll > 0 && s.snowmen >= s.snowmenAll },
   { id: 'pond', tier: 'silver', hidden: true, name: 'Pond Champion', desc: 'Beat the blue car at pond hockey.', test: s => s.flags.pond },
+  { id: 'coin', tier: 'bronze', hidden: true, name: 'Insert Coin', desc: 'Play a game on one of the monitors somebody left switched on.', test: s => s.flags.arcade },
+  { id: 'cabinets', tier: 'gold', hidden: true, name: 'Screen Time', desc: 'Find every monitor with a game on it.', test: s => s.flags.arcadeAll },
+  { id: 'heist', tier: 'silver', hidden: true, name: 'The Heist', desc: 'Lift a treasure through the lasers and get it back to the security room.', test: s => s.flags.heist },
+  { id: 'ghost', tier: 'gold', hidden: true, name: 'A Ghost', desc: 'Pull off a heist without tripping a single alarm.', test: s => s.flags.ghost },
   // ---- gold ----
   { id: 'w250', tier: 'gold', name: 'Connoisseur', desc: 'See 250 different works.', ...works(250) },
   { id: 'w500', tier: 'gold', name: 'Curator', desc: 'See 500 different works.', ...works(500) },

@@ -388,6 +388,41 @@ kind of room, add a line to the list.
 - Ways through are left clear: stairs, lifts, lobbies, balconies and the
   public corridors.
 
+## Arcades and the heist
+
+- **Somebody has left the monitors on.** Ten old monitors on low trolleys,
+  each with a different game on it: Snake, Minesweeper, a bat-and-ball game,
+  a wall of bricks, falling blocks, a shooting gallery of invaders, sliding
+  numbers, a lamps puzzle, a memory game and noughts and crosses. They are in
+  the rooms behind the galleries, on all four levels and in more than one
+  wing: the laboratories first, then wherever else a screen might be left
+  running. In its room it is the one screen that is lit, and it throws a
+  green light on the floor. Pull up in front of it (or hover there) and press
+  `E`, or PLAY on a phone. Keys: arrows or `W A S D`, `Space`, `F` to flag a
+  mine, `R` to start again, `Esc` to leave. On glass: swipe, tap, hold to
+  flag, and buttons beside the screen. Best scores are kept, and the display
+  counts the arcades found. The games are in `src/arcadegames.js`, one class
+  each, with no drawing library and no page under them, so their rules can be
+  tested alone; which room has which is `ARCADE_ROOMS` in `src/furnish.js`.
+- **The heist.** Each security control room (there are two, on the lower
+  level) has a plinth with a big red button. Press it and the building names
+  a gallery and a picture in it; say yes and a clock starts, a toy-sized copy
+  of the picture appears on a plinth in the middle of that gallery, and the
+  room fills with laser beams: fixed ones with a gap low down for a car and a
+  gap higher up for a drone, curtains that blink, curtains that slide, one
+  that turns about the plinth like a lighthouse, and a net over the top. An
+  arrow points the way. Touch a beam and the alarm goes and you are put back
+  at the doorway; three alarms are forgiven and the fourth ends it. Take the
+  copy (drive up to it) and the beams deal themselves again for the way out;
+  get it back to the button before the clock runs out. Heists done, clean
+  runs and the best time for each room are kept. The real picture never
+  leaves the wall. Not in a race. Pause has *Abandon the heist*.
+  Every pattern is built from a seed out of pieces with known gaps and then
+  proven before it is switched on: `solve` in `src/heistplan.js` searches the
+  floor and the clock for a way a slow toy car can get from the doorway to
+  the plinth, and back, without coming near a beam, and a pattern that fails
+  is dealt again.
+
 ## Settings and access
 
 Settings are on the title screen and the pause menu, and are remembered.
@@ -541,6 +576,10 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/vehicles.js           the car and the drone
     src/race.js               gates, laps, rivals
     src/props.js              loose cones and signs, and snowmen
+    src/arcade.js             the monitors with games on them: the screens in the rooms, and playing one
+    src/arcadegames.js        the ten games (no three.js, no DOM)
+    src/heist.js              the heist: the button, the beams, the clock
+    src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
     src/score.js              Art Score, view counts, Stunt Looks

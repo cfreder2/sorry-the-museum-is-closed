@@ -1564,24 +1564,76 @@ class Room {
   }
 }
 
+// ------------------------------------------------- the extras: arcades, heist --
+//
+// Two things stand in a few back rooms that are not furniture so much as something to do: an old
+// monitor on a low trolley with a game on it (src/arcade.js lights the screen), and, in each
+// security control room, a console with a big red button (src/heist.js). Each is set down before
+// the room's own recipe runs, against a long wall, and keeps the floor clear from itself to the
+// aisle, so a toy can always pull up in front of it.
+//
+// One game to a monitor: the rooms, in the order of the games in src/arcade.js. To move one, rename it here.
+export const ARCADE_ROOMS = [
+  'Conservation science laboratory', 'Microscopy', 'Conservation science laboratory 2', 'X-ray room 2', 'Information technology',
+  'Server room', 'Dye laboratory', 'Photograph conservation', 'Projection booth 3', 'Curators, American art',
+];
+const EXTRA_W = 1.2;
+const EXTRAS = {
+  arcade(g) {                                             // a low AV trolley; the monitor itself is drawn by src/arcade.js
+    g.b(-0.36, 0.36, 0.27, 0.3, 0.1, 0.62, C.black, 'matte', true); g.b(-0.36, 0.36, 0.08, 0.1, 0.1, 0.62, C.black, 'matte', true);
+    for (const u of [-0.34, 0.34]) for (const d of [0.12, 0.6]) { g.b(u - 0.015, u + 0.015, 0.06, 0.3, d - 0.015, d + 0.015, C.steelD, 'matte'); g.c(u, 0.035, d, 0.035, 0.03, 'u', C.rubber, 'matte', 6); }
+    g.q(0.12, 0.36, 0.3, 0.2, 0.1, 0.16, C.grey); g.q(-0.2, 0.36, 0.12, 0.16, 0.1, 0.2, C.black);                 // an old computer and a box of leads on the shelf
+    g.q(0, 0.88, 0.34, 0.12, 0, 0.018, C.steelD); g.q(0.3, 0.86, 0.1, 0.1, 0, 0.03, C.redD);                      // the keyboard and a joystick, on the floor in front
+    g.s(-0.37, 0.37, 0, 0.74, 0.08, 0.64);
+  },
+  heist(g) {                                              // a plinth with a slanted top, hazard stripes and the button
+    g.bs(-0.3, 0.3, 0, 0.34, 0.08, 0.5, C.steelD, 'metal');
+    g.b(-0.3, 0.3, 0.34, 0.37, 0.08, 0.5, C.black, 'matte', true);
+    for (let k = 0; k < 6; k++) g.b(-0.3 + k * 0.1, -0.25 + k * 0.1, 0.345, 0.365, 0.5, 0.503, C.yellow);
+    g.c(0, 0.385, 0.29, 0.13, 0.03, 'y', C.steelL, 'metal', 12);
+    g.b(-0.3, 0.3, 0.04, 0.3, 0.5, 0.503, C.redD); g.b(-0.22, 0.22, 0.2, 0.26, 0.503, 0.506, C.yellow);
+  },
+};
+// Set one down in room R; returns where it is ({ x, z, y, fx, fz }: its middle at the wall, and which way it faces) or null.
+function extra(R, kind) {
+  const { L, W } = R, A = R.aisle, rnd = dice(hash(R.room.id + ':' + kind)), tries = [];
+  for (let a = Math.max(1.2, R.spine[0]); a <= Math.min(L - 1.2, R.spine[1]); a += 0.4) for (const side of [0, 1]) tries.push([a, side, rnd()]);
+  tries.sort((p, q) => p[2] - q[2]);
+  for (const [a, side] of tries) {
+    const b0 = side ? R.mid + A : 0, b1 = side ? W : R.mid - A;
+    if (b1 - b0 < 1.9) continue;
+    const q = R.rect(a - EXTRA_W / 2, a + EXTRA_W / 2, b0 + 0.01, b1 - 0.01);
+    if (!R.free(q, 0.3)) continue;
+    R.taken.push(q); R.placed++;
+    const [fx, fz] = R.dir(side ? [0, -1] : [0, 1]), [ox, oz] = R.xz(a, side ? W : 0);
+    EXTRAS[kind](new Pen(R, ox, oz, fx, fz, 0.7));
+    return { room: R.room.id, x: ox, z: oz, y: R.y, fx, fz };
+  }
+  return null;
+}
+
 // ------------------------------------------------------------ the builder --
 
 // Furnish every room that is not a gallery. Adds what is solid to plan.obstacles and returns the
 // triangles: { batches: [{ mat, floor, position, normal, color, index, bounds }], rooms, items, solids }.
 // Normals are signed bytes and colours unsigned bytes (linear), both to be read as normalised.
 export function furnish(plan) {
-  const out = { batches: {}, solids: [] }, rooms = {};
+  const out = { batches: {}, solids: [] }, rooms = {}, arcades = [], consoles = [];
   let items = 0;
   for (const room of plan.rooms) {
     const recipe = fitoutOf(room);
     if (!recipe) continue;
     const R = new Room(plan, room, out, OPTS[recipe]);
+    const slot = ARCADE_ROOMS.indexOf(room.gallery);
+    if (slot >= 0) { const at = extra(R, 'arcade'); if (at) arcades.push({ slot, ...at }); }
+    if (recipe === 'securityControl') { const at = extra(R, 'heist'); if (at) consoles.push(at); }
     RECIPES[recipe](R);
     rooms[room.id] = { recipe, items: R.placed, clear: R.clear, entries: R.entries.map(([a, b]) => R.xz(a, b)), aisle: [R.xz(R.spine[0], R.mid), R.xz(R.spine[1], R.mid)] };
     items += R.placed;
   }
   for (const s of out.solids) plan.obstacles.push(s);
   plan.fitout = rooms;
+  plan.arcades = arcades.sort((p, q) => p.slot - q.slot); plan.heistConsoles = consoles;      // where src/arcade.js and src/heist.js will find their things
   const batches = Object.values(out.batches).filter(b => b.i.length).map(b => ({
     mat: b.mat, floor: b.floor, boxes: b.boxes,
     position: new Float32Array(b.p), normal: new Int8Array(b.n), color: new Uint8Array(b.c), index: b.p.length / 3 > 65535 ? new Uint32Array(b.i) : new Uint16Array(b.i),

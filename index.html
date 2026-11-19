@@ -98,6 +98,43 @@
   </div>
 </div>
 
+<!-- One of the monitors with a game on it, full screen (src/arcade.js). -->
+<div id="arcade" hidden role="dialog" aria-modal="true" aria-labelledby="arcName">
+  <div class="pad" id="arcPad">
+    <button data-arc="up" aria-label="Up">▲</button><button data-arc="left" aria-label="Left">◀</button><button data-arc="right" aria-label="Right">▶</button><button data-arc="down" aria-label="Down">▼</button>
+  </div>
+  <div class="cab">
+    <div class="top"><span id="arcName"></span><span class="sc">SCORE <b id="arcScore">0</b></span><span class="sc">BEST <b id="arcBest">0</b></span></div>
+    <div class="tube"><canvas id="arcScreen" width="640" height="480" tabindex="-1" aria-label="The game"></canvas><i class="scan"></i></div>
+    <div class="help" id="arcHelp" role="status"></div>
+  </div>
+  <div class="btns">
+    <button data-arc="leave" id="arcLeave">LEAVE</button>
+    <button data-arc="again" id="arcAgain" hidden>AGAIN</button>
+    <button data-arc="b" id="arcB" hidden></button>
+    <button data-arc="a" id="arcA" hidden></button>
+  </div>
+</div>
+
+<!-- The heist (src/heist.js): its clock while it runs, the alarm, and the briefing at the button. -->
+<div id="heist" hidden>
+  <div class="row" role="status"><span id="hClock"></span><span id="hTrips"></span></div>
+  <div id="hArrow"><svg viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0-15 L11 9 L0 3 L-11 9Z"/></svg><span id="hGoal"></span><span id="hDist"></span></div>
+</div>
+<div id="heistFlash" aria-hidden="true"></div>
+<section id="heistBrief" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="hbTitle">
+  <div class="panel small">
+    <div class="over">In case of heist &nbsp;·&nbsp; tonight's target</div>
+    <h2 id="hbTitle"></h2>
+    <p class="about" id="hbText"></p>
+    <div class="times" id="hbFacts"></div>
+    <div class="col">
+      <button data-heist="go" data-first>Start the heist</button>
+      <button data-heist="no">Not tonight</button>
+    </div>
+  </div>
+</section>
+
 <main id="title" class="screen">
   <div class="panel">
     <div class="over">The Art Institute of Chicago &nbsp;·&nbsp; by remote control</div>
@@ -143,6 +180,7 @@
     <div class="col">
       <button data-act="resume">Carry on</button>
       <button data-act="restart" id="pRestart">Restart the race</button>
+      <button data-act="abandonHeist" id="pAbandon" hidden>Abandon the heist</button>
       <button data-act="notebook">Field-trip notebook</button>
       <button data-act="trophies">Trophies</button>
       <button data-act="settings">Settings</button>
