@@ -17,10 +17,11 @@
 import LAYOUT from './layout.js';
 
 export const T = 1;            // wall thickness, for the outside of a building
-export const HW = 7;           // Griffin Court's half-width
+export const HW = HALL_HW();    // Griffin Court's half-width
 const HALL = LAYOUT.rooms.find(r => r.kind === 'hall');
 export const SPRING = (HALL.y || 0) + HALL.h;      // where its vault starts
-export const VAULT_R = 7;
+export const VAULT_R = 0.5;   // its roof is flat glass: this is only the depth of the roof over the ceiling
+function HALL_HW() { const h = LAYOUT.rooms.find(r => r.kind === 'hall'); return (h.x1 - h.x0) / 2; }
 export const GRAVITY = 9.8;
 export const STEP = 0.09;      // the tallest lip a toy wheel will climb
 export const SKY = 46;         // how high a drone may go outdoors
@@ -158,7 +159,7 @@ export function buildPlan() {
   const boxes = plan.boxes;
   for (const r of rooms) boxes.push({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y0: r.y, y1: r.y + r.ceil });
   const hx = (hall.x0 + hall.x1) / 2;
-  boxes.push({ x0: hx - 4, x1: hx + 4, z0: hall.z0, z1: hall.z1, y0: hall.y, y1: SPRING + 5.5 });
+  boxes.push({ x0: hx - 4, x1: hx + 4, z0: hall.z0, z1: hall.z1, y0: hall.y, y1: SPRING + VAULT_R });
   for (const k of skylights) boxes.push({ x0: k.x0, x1: k.x1, z0: k.z0, z1: k.z1, y0: k.y - 1, y1: SKY });     // straight up and out
   if (transom) boxes.push({ x0: transom.x0 - 1.6, x1: transom.x1 + 1.6, z0: transom.z0, z1: transom.z1, y0: transom.y0, y1: transom.y1, fly: true });   // above the door: for things that fly
   for (const d of doors) {

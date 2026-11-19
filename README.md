@@ -217,8 +217,9 @@ What is not true:
   another. The tool prints which.
 - **McKinlock Court and the Bluhm Family Terrace are roofed**; the real ones
   are open to the sky. The Pritzker Garden is open ground.
-- **Griffin Court has a glass barrel vault**; the real one has a flat glass
-  roof under the sunshade.
+- **The colours of Griffin Court's roof are mine.** It has the real roof's 126
+  panes, three across and forty-two along, each with a coloured gel; which
+  pane is which colour is not from a photograph.
 - **Where things hang within a room is mine.** Paintings are arranged along
   the walls by importance and size; sculpture, armour and vessels stand in
   glass cases on the floor. In the Grand Staircase everything is on the

@@ -659,26 +659,29 @@ export class Museum {
     const hg = this.hallGroup = new THREE.Group();
     hg.position.set((hall.x0 + hall.x1) / 2, hall.y, hall.z1); hg.rotation.y = Math.PI / 2;
     this.group.add(hg);
-    // Glass barrel vault.
-    const vault = new Geo();
+    // The glass roof: flat, 126 panes in three rows down the length of the court, each with a
+    // coloured gel over it. The colours fall on the floor underneath.
+    const COLS = 42, ROWS = 3, GELS = ['#e4002b', '#ff6a13', '#ffc72c', '#f6eb61', '#78be20', '#00a887', '#00a3e0', '#0057b8', '#5f259f', '#c800a1', '#f478c4', '#eef2f6'];
+    const gel = (cell, line) => {
+      const cv = document.createElement('canvas'); cv.width = COLS * cell; cv.height = ROWS * cell;
+      const g = cv.getContext('2d'); let k = 7;
+      g.fillStyle = '#0c0d10'; g.fillRect(0, 0, cv.width, cv.height);
+      for (let i = 0; i < COLS; i++) for (let j = 0; j < ROWS; j++) {
+        k = (k * 1103515245 + 12345) >>> 0;
+        g.fillStyle = GELS[(k >>> 16) % GELS.length];
+        g.fillRect(i * cell + line, j * cell + line, cell - 2 * line, cell - 2 * line);
+      }
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+    };
+    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const lay = new Geo();
+    lay.quad([0, SPRING - 0.05, -HW], [LEN, SPRING - 0.05, -HW], [LEN, SPRING - 0.05, HW], [0, SPRING - 0.05, HW], [0, -1, 0], uv);
+    hg.add(lay.mesh(new THREE.MeshBasicMaterial({ map: gel(32, 2), side: THREE.DoubleSide })));
+    const cast = new Geo();
+    cast.quad([0, 0.012, -HW], [LEN, 0.012, -HW], [LEN, 0.012, HW], [0, 0.012, HW], [0, 1, 0], uv);
+    const castMesh = cast.mesh(new THREE.MeshBasicMaterial({ map: gel(8, 0), transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    hg.add(castMesh);
     const na = 18;
-    for (let i = 0; i < na; i++) {
-      const a0 = Math.PI * i / na, a1 = Math.PI * (i + 1) / na, am = (a0 + a1) / 2;
-      const pt = (x, a) => [x, SPRING + R * Math.sin(a), -R * Math.cos(a)];
-      const v0 = R * a0 / 2.45, v1 = R * a1 / 2.45;
-      vault.quad(pt(0, a0), pt(LEN, a0), pt(LEN, a1), pt(0, a1), [0, -Math.sin(am), Math.cos(am)], [[0, v0], [LEN / 2.1, v0], [LEN / 2.1, v1], [0, v1]]);
-    }
-    hg.add(vault.mesh(new THREE.MeshBasicMaterial({ map: TX.vaultGlass(), color: new THREE.Color(0.75, 0.8, 0.95), side: THREE.DoubleSide })));
-
-    // West lunette closes the vault with wall; the east end is all window.
-    const lun = new Geo();
-    for (let i = 0; i < na; i++) {
-      const a0 = Math.PI * i / na, a1 = Math.PI * (i + 1) / na;
-      const pt = a => [0, SPRING + R * Math.sin(a), -R * Math.cos(a)];
-      const c = [0, SPRING, 0];
-      lun.quad(c, pt(a0), pt(a1), c, [1, 0, 0], [[0, 1], [0, 1], [0, 1], [0, 1]]);
-    }
-    hg.add(lun.mesh(this.rooms.hall.wallMat));
 
     const steel = new Geo();
     for (let z = -HW; z <= HW + 0.01; z += 2) {
@@ -686,15 +689,7 @@ export class Museum {
       steel.box(LEN - 0.08, LEN + 0.08, 0, top, z - 0.06, z + 0.06);
     }
     for (const y of [...Array.from({ length: Math.floor((SPRING - 0.5) / 2.9) + 1 }, (_, i) => 0.5 + i * 2.9), SPRING]) steel.box(LEN - 0.07, LEN + 0.07, y - 0.06, y + 0.06, -HW, HW);
-    for (let i = 0; i <= na; i += 1) {       // arch rim
-      const a = Math.PI * i / na, y = SPRING + R * Math.sin(a), z = -R * Math.cos(a);
-      steel.box(LEN - 0.14, LEN + 0.14, y - 0.12, y + 0.12, z - 0.12, z + 0.12);
-    }
-    // Ribs along the vault.
-    for (let x = 0; x <= LEN; x += 4.2) for (let i = 0; i < na; i++) {
-      const a = Math.PI * (i + 0.5) / na, y = SPRING + (R - 0.1) * Math.sin(a), z = -(R - 0.1) * Math.cos(a);
-      steel.box(x - 0.07, x + 0.07, y - 0.66, y + 0.66, z - 0.1, z + 0.1);
-    }
+    for (let x = 0; x <= LEN; x += LEN / 42) steel.box(x - 0.05, x + 0.05, SPRING - 0.5, SPRING - 0.06, -HW, HW);       // a beam under each joint of the glass
     hg.add(steel.mesh(new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.6 })));
 
     // Snow beyond the window.
@@ -723,11 +718,11 @@ export class Museum {
     const uvS = [[0, 1], [1, 1], [1, 0], [0, 0]];
     for (let i = 0; i < 5; i++) {
       const x = 8 + i * (LEN - 24) / 4, z = (i % 2 ? 1 : -1) * 1.4;
-      const top = [x + 7.5, SPRING + 6.4], bot = [x, 0];
+      const top = [x + 7.5, SPRING], bot = [x, 0];
       shafts.quad(P3(top[0], top[1], z - 1.7), P3(top[0], top[1], z + 1.7), P3(bot[0], bot[1], z + 1.7), P3(bot[0], bot[1], z - 1.7), [1, 0, 0], uvS);
       shafts.quad(P3(top[0] - 1.7, top[1], z), P3(top[0] + 1.7, top[1], z), P3(bot[0] + 1.7, bot[1], z), P3(bot[0] - 1.7, bot[1], z), [0, 0, 1], uvS);
       patches.quad(P3(x - 2.6, 0.012, z - 2), P3(x + 2.6, 0.012, z - 2), P3(x + 2.6, 0.012, z + 2), P3(x - 2.6, 0.012, z + 2), [0, 1, 0]);
-      this.shaftSpots.push({ x, z, tx: 7.5 / (SPRING + 6.4) });
+      this.shaftSpots.push({ x, z, tx: 7.5 / (SPRING) });
     }
     // The window end throws a long pale rug of light down the hall.
     patches.quad(P3(LEN - 26, 0.012, -6.2), P3(LEN - 0.2, 0.012, -6.2), P3(LEN - 0.2, 0.012, 6.2), P3(LEN - 26, 0.012, 6.2), [0, 1, 0]);
@@ -740,7 +735,7 @@ export class Museum {
     const dn = 900, dp = new Float32Array(dn * 3), ds = new Float32Array(dn * 4);
     for (let i = 0; i < dn; i++) {
       const s = this.shaftSpots[i % this.shaftSpots.length];
-      const y = r() * (SPRING + 5);
+      const y = r() * (SPRING - 0.3);
       ds[i * 4] = s.x + s.tx * y + (r() - 0.5) * 3; ds[i * 4 + 1] = y; ds[i * 4 + 2] = s.z + (r() - 0.5) * 3; ds[i * 4 + 3] = r() * 100;
     }
     const dg = new THREE.BufferGeometry();
@@ -1379,7 +1374,7 @@ export class Museum {
     for (let i = 0; i < d.count; i++) {
       const s = b[i * 4 + 3];
       d.array[i * 3] = b[i * 4] + Math.sin(t * 0.11 + s) * 0.5;
-      d.array[i * 3 + 1] = (b[i * 4 + 1] + t * 0.035 * (0.5 + (s % 1))) % (SPRING + 5);
+      d.array[i * 3 + 1] = (b[i * 4 + 1] + t * 0.035 * (0.5 + (s % 1))) % (SPRING - 0.3);
       d.array[i * 3 + 2] = b[i * 4 + 2] + Math.cos(t * 0.09 + s * 1.7) * 0.5;
     }
     d.needsUpdate = true;
