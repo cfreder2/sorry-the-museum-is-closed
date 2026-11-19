@@ -17,19 +17,22 @@ function night() {
   if (_night || typeof document === 'undefined') return _night;
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512;
   const c = cv.getContext('2d'), sky = c.createLinearGradient(0, 0, 0, 512);
-  sky.addColorStop(0, '#02040c'); sky.addColorStop(0.42, '#101a3a'); sky.addColorStop(0.5, '#3a3350'); sky.addColorStop(0.52, '#1a1410'); sky.addColorStop(1, '#040404');
+  sky.addColorStop(0, '#1a1050'); sky.addColorStop(0.2, '#3a2a9a'); sky.addColorStop(0.4, '#c040b0'); sky.addColorStop(0.5, '#ffb060'); sky.addColorStop(0.53, '#6a3a20'); sky.addColorStop(0.75, '#2a2440'); sky.addColorStop(1, '#101020');
   c.fillStyle = sky; c.fillRect(0, 0, 1024, 512);
   let k = 11; const rnd = () => ((k = (k * 1103515245 + 12345) >>> 0) / 4294967296);
-  for (let i = 0; i < 260; i++) { c.fillStyle = `rgba(255,255,255,${0.3 + rnd() * 0.7})`; c.fillRect(rnd() * 1024, rnd() * 190, 1.5, 1.5); }                 // stars
-  for (let i = 0; i < 700; i++) { c.fillStyle = ['#ffd98a', '#fff3cf', '#9fd0ff', '#ffb46a'][i % 4]; c.fillRect(rnd() * 1024, 200 + rnd() * 56, 2, 2 + rnd() * 3); }   // the city
   const lamp = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); };
-  ['#ffe9b0', '#f2c70f', '#f39a2d', '#e6283c', '#e040c8', '#8a3fd8', '#3b3fd6', '#2a93d8', '#7fe9f5', '#8fc45a'].forEach((col, i) => lamp(60 + i * 100, 96 + (i % 3) * 34, 46, col));   // the coloured roof, overhead
-  for (let i = 0; i < 9; i++) lamp(40 + i * 118, 300 + (i % 2) * 40, 70, 'rgba(255,214,150,.85)');                                                              // gallery lamps, and their shine on the floor
-  lamp(512, 60, 90, 'rgba(235,240,255,.95)');                                             // the moon
+  // Broad bands of the roof's colours right round the sky, so that every curve picks one up.
+  const GEL = ['#ffe14a', '#ff9a2d', '#ff4a3c', '#ff40c8', '#a050ff', '#4a5aff', '#30b0ff', '#40f0e0', '#70e060', '#fff0c0'];
+  for (let i = 0; i < 20; i++) lamp(26 + i * 51.2, 70 + (i % 4) * 44, 78, GEL[i % GEL.length]);
+  for (let i = 0; i < 12; i++) lamp(40 + i * 86, 330 + (i % 3) * 46, 90, GEL[(i * 3 + 2) % GEL.length]);                    // and their light off the floor
+  for (let i = 0; i < 320; i++) { c.fillStyle = `rgba(255,255,255,${0.5 + rnd() * 0.5})`; c.fillRect(rnd() * 1024, rnd() * 200, 2, 2); }                          // stars
+  for (let i = 0; i < 900; i++) { c.fillStyle = ['#ffe9a0', '#ffffff', '#a8dcff', '#ffc27a', '#ff8ad8'][i % 5]; c.fillRect(rnd() * 1024, 226 + rnd() * 44, 3, 3 + rnd() * 4); }   // the city
+  lamp(512, 64, 110, 'rgba(255,255,255,1)'); lamp(512, 64, 40, 'rgba(255,255,255,1)');   // the moon, and a hard white glint
+  lamp(120, 250, 60, 'rgba(255,255,255,.9)'); lamp(860, 250, 60, 'rgba(255,255,255,.9)');
   const t = new THREE.CanvasTexture(cv); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
   return (_night = t);
 }
-const mirror = () => new THREE.MeshStandardMaterial({ color: 0xf4f7ff, metalness: 1, roughness: 0.03, envMap: night(), envMapIntensity: 2.2 });
+const mirror = () => new THREE.MeshStandardMaterial({ color: 0xf4f7ff, metalness: 1, roughness: 0.02, envMap: night(), envMapIntensity: 2.6 });
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cyl = (r0, r1, h, n = 12, hs = 1, open = false) => new THREE.CylinderGeometry(r0, r1, h, n, hs, open);

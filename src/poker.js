@@ -53,6 +53,12 @@ export class Poker {
     put(new THREE.BoxGeometry(0.08, 0.05, PW * 0.7), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.7, 0.9) }), px + 0.3, py + PH / 2 + 0.3, 0);
     put(new THREE.BoxGeometry(0.34, 0.03, 0.03), dark, px + 0.15, py + PH / 2 + 0.3, 0);
     plan.obstacles.push({ x0: T.x + px - 0.9, x1: T.x + px + 0.2, z0: T.z - PW / 2 - 0.3, z1: T.z + PW / 2 + 0.3, y0: T.top, y1: T.top + 4 });
+    // The picture can be looked at like any other. It is not the museum's, so it carries its own label.
+    this.easel = { easel: true, room: null, x: T.x + px + 0.05, y: T.top + py, z: T.z, fy: T.top, nx: 1, nz: 0, rot: Math.PI / 2, w: PW, h: PH, seen: true, wakeAt: 0, focus: false,
+      work: { id: 0, t: 'A Friend in Need', a: 'Cassius Marcellus Coolidge', d: '1903', m: 'Oil on canvas. This one is a print, on an easel, on a roof.', g: 'The roof of Gallery 211', c: '',
+        alt: 'Seven dogs round a card table late at night. The bulldog nearest us is passing an ace under the table to his friend.',
+        note: 'Public domain: painted in 1903 for a calendar company, by an artist who died in 1934. Not in the Art Institute\u2019s collection.',
+        url: 'https://en.wikipedia.org/wiki/Dogs_Playing_Poker' } };
     // Christmas lights: four poles, strings round the square and across it, sagging between.
     const poles = [[-5.2, -3.7], [4.0, -3.7], [4.0, 3.7], [-5.2, 3.7]], PT = 3.1, P = [], C = [], Ph = [], line = [];
     const palette = [[2.6, 0.35, 0.3], [2.6, 1.9, 0.5], [0.4, 2.2, 0.7], [0.5, 0.9, 2.8], [2.4, 2.2, 1.8]];
@@ -107,6 +113,12 @@ export class Poker {
 
   // Close enough, on the roof, and not going anywhere?
   near(v) { const T = this.T; return !!T && !this.on && v.pos.y > T.top - 0.3 && v.pos.y < T.top + 3 && Math.hypot(v.pos.x - T.x, v.pos.z - T.z) < 2.6 && Math.hypot(v.vel.x, v.vel.z) < 3; }
+  // In front of the picture on the easel, on the roof, and pointed at it?
+  facingEasel(v) {
+    const e = this.easel; if (!e || this.on) return false;
+    const dx = v.pos.x - e.x, dz = v.pos.z - e.z;
+    return v.pos.y > e.fy - 0.3 && v.pos.y < e.fy + 4 && dx > 0.4 && dx < 9 && Math.abs(dz) < 3 && -Math.sin(v.yaw) > 0.5 && Math.hypot(v.vel.x, v.vel.z) < 3;
+  }
   // Where your toy sits, and where the camera stands to watch.
   seat() { const T = this.T, s = this.seats[0]; return { x: T.x + s.x, z: T.z + s.z, y: T.top, yaw: -Math.PI / 2, cam: new THREE.Vector3(T.x + 3.3, T.top + 1.5, T.z + 0.9), look: new THREE.Vector3(T.x - 1.4, T.top + 0.7, T.z) }; }
 

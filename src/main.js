@@ -717,6 +717,24 @@ function beginStudy(art) {
   sound.bell(293.66, 0, 0.05, 3.5);
 }
 
+// The dogs at their poker, on the roof: looked at like any other picture, but it is not one of the
+// museum's, so nothing about it is counted, kept in the notebook or sent anywhere.
+function lookAtEasel(art) {
+  endFlyby();
+  const brief = input.usedTouch || innerHeight <= 520, w = art.work;
+  G.study = { art, t: 0, from: camera.position.clone(), look: camLook.clone(), fov: camera.fov, label: true, wide: innerWidth > 720 ? 0.72 : 1, brief, hideAt: brief ? 6 : Infinity };
+  setLabel(true);
+  G.lamp.intensity = G.lampOn ? 14 : 0;
+  toastUntil = 0; toasts.length = 0;
+  G.state = 'study';
+  G.vehicle.group.visible = false; G.car.shadow.visible = G.drone.shadow.visible = false; G.museum.kit.visible = false; G.props.group.visible = false;
+  const el = $('label'), put = (q, text) => { const n = el.querySelector(q); if (n) n.textContent = text; };
+  put('.v', ''); put('.t', w.t); put('.a', `${w.a}, ${w.d}`); put('.m', w.m); put('.alt', w.alt); put('.g', w.g); put('.c', w.note);
+  el.querySelector('a').href = w.url; el.querySelector('a').textContent = 'Read about it \u2197';
+  el.hidden = false; $('placard').hidden = true; $('hud').classList.add('studying');
+  sound.bell(293.66, 0, 0.05, 3.5);
+}
+
 function setLabel(on) {
   const s = G.study;
   if (!s) return;
@@ -734,6 +752,7 @@ function endStudy() {
   G.lamp.intensity = G.lampOn ? 70 : 0;
   G.state = 'play';
   $('label').hidden = true;
+  $('label').querySelector('a').textContent = 'See it at artic.edu \u2197';
   $('hud').classList.remove('studying');
 }
 
@@ -983,7 +1002,10 @@ function play(dt, real) {
       }
     }
     // On the roof, by the card table, the same button sits you down at it.
-    const shopTap = !!G.shop && G.mode === 'explore' && !G.poker.near(v) && G.shop.near(v) && input.took('look');      // asked for before anything else can take the press
+    // On the roof: the toy stall, and the picture on the easel. Asked for before anything else can take the press.
+    const stallNear = !!G.shop && G.mode === 'explore' && !G.poker.near(v) && G.shop.near(v);
+    const easelNear = !stallNear && G.mode === 'explore' && !G.poker.near(v) && G.poker.facingEasel(v);
+    const shopTap = stallNear && input.took('look'), easelTap = easelNear && input.took('look');
     G.pokerNear = G.poker.near(v);
     if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
     // A monitor with a game on it, or the button in the security control room, takes the same button.
@@ -995,11 +1017,12 @@ function play(dt, real) {
     if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.facing) beginStudy(G.facing); }
     G.heist.update(dt, v);
     // The toy stall on the roof.
-    if (G.shop && G.mode === 'explore' && !G.pokerNear && G.shop.near(v)) {
+    if (stallNear) {
       once('stall', 'A toy stall, up here of all places. Two for sale, 2,000 chips each. E to look.', 7);
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
       if (shopTap) G.shop.open();
     }
+    if (easelNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (easelTap) lookAtEasel(G.poker.easel); }
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
