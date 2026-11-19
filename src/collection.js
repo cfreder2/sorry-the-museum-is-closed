@@ -1,17 +1,24 @@
 // Tonight's hang, from the Art Institute of Chicago's public API.
 //
-// Everything asked for is public domain and on view right now. Works go into
-// the room that carries their real gallery number. The same module runs in the
+// Everything asked for is on view right now. Works go into the room that
+// carries their real gallery number. The same module runs in the
 // browser (live) and in node (tools/fetch_collection.mjs, which saves the copy
 // the game falls back to when the API cannot be reached).
 
 import LAYOUT from './layout.js';
 
+// Works still in copyright (most of the Modern Wing). The museum's terms allow its data to be used
+// "for noncommercial educational and personal use and for fair use", keeping every copyright notice
+// and citing author and source. So these are shown only live from the museum's own server, at the
+// modest size it serves, each with its notice on its label; they are never saved with the game.
+// Set this to false and none of them is asked for or shown.
+export const SHOW_IN_COPYRIGHT = true;
+
 const API = 'https://api.artic.edu/api/v1/artworks/search';
 export const IIIF = 'https://www.artic.edu/iiif/2';
 const FIELDS = ['id', 'title', 'artist_title', 'artist_display', 'date_display', 'medium_display', 'image_id',
   'gallery_title', 'dimensions_detail', 'thumbnail', 'artwork_type_title', 'style_title', 'is_boosted',
-  'has_not_been_viewed_much'];
+  'has_not_been_viewed_much', 'is_public_domain', 'copyright_notice'];
 
 // Images come straight from the museum unless an offline copy has been saved
 // beside the game (tools/fetch_collection.mjs --images), which is then used.
@@ -21,7 +28,7 @@ export function useLocalImages(index, base) {
   local.ids = new Set(index.ids || []);
   local.base = base;
 }
-export const remoteUrl = (work, width) => `${IIIF}/${work.img}/full/${width},/0/default.jpg`;
+export const remoteUrl = (work, width) => `${IIIF}/${work.img}/full/${work.c ? Math.min(width, 843) : width},/0/default.jpg`;      // a work in copyright is never asked for larger than the museum's standard size
 export function imageUrl(work, width) {
   if (local.ids.has(work.img)) {
     const fit = local.sizes.find(s => s >= width) || local.sizes[local.sizes.length - 1];
@@ -69,6 +76,8 @@ function slim(d) {
     alt: th.alt_text && !/^A work made of/i.test(th.alt_text) ? th.alt_text : '',
     // 1 when the museum names a maker; 0 when all it gives is where the thing came from.
     ar: d.artist_title ? 1 : 0,
+    // The copyright notice, for a work that is not in the public domain. Empty for one that is.
+    c: d.is_public_domain === false ? (d.copyright_notice || 'Not in the public domain') : '',
   };
 }
 
@@ -76,11 +85,17 @@ function slim(d) {
 const WALL = ['Painting', 'Print', 'Textile', 'Drawing and Watercolor'];
 const CASE = ['Sculpture', 'Armor', 'Vessel', 'Mask', 'Funerary Object', 'Ceramics', 'Metalwork', 'Glass', 'Arms', 'Architectural fragment', 'Decorative Arts', 'Religious/Ritual Object', 'Furniture'];
 
-export async function fetchLive(signal) {
+export async function fetchLive(signal, { inCopyright = SHOW_IN_COPYRIGHT } = {}) {
   const base = [{ term: { is_public_domain: true } }, { term: { is_on_view: true } }, { exists: { field: 'image_id' } }];
   const of = types => all([...base, { terms: { 'artwork_type_title.keyword': types } }], signal);
   const groups = await Promise.all([of(['Painting']), of(['Sculpture', 'Armor']), of(['Vessel', 'Mask', 'Funerary Object', 'Print', 'Textile', 'Drawing and Watercolor', 'Miniature room']),
     of(['Ceramics', 'Metalwork', 'Glass']), of(['Arms', 'Architectural fragment', 'Decorative Arts', 'Religious/Ritual Object', 'Furniture'])]);
+  // And what is on view but still in copyright. If that question fails the building opens without them.
+  if (inCopyright) {
+    const kinds = [...WALL, ...CASE];
+    const more = await all([{ term: { is_public_domain: false } }, { term: { is_on_view: true } }, { exists: { field: 'image_id' } }], signal, 10).catch(() => []);
+    groups.push(more.filter(d => kinds.includes(d.artwork_type_title)));
+  }
   const works = groups.flat().filter(d => d.image_id && d.thumbnail && d.thumbnail.width).map(slim);
   return { fetched: new Date().toISOString(), works };
 }
@@ -148,7 +163,7 @@ export function trim(raw) {
   return { fetched: raw.fetched, works: [...keep.values()] };
 }
 
-const CACHE = 'after-hours.hang.v4';
+const CACHE = 'after-hours.hang.v4.c';
 
 // Live if the API answers quickly, the cached answer if it did so today, and
 // the saved copy otherwise.

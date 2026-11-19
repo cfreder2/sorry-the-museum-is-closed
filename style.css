@@ -194,6 +194,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 .quiet:hover { color: #fff; border-color: #fff; }
 #label .alt { font-size: 12.5px; line-height: 1.45; color: #44413a; margin-top: 8px; max-height: 9.5em; overflow: auto; }
 #label .alt:empty { display: none; }
+#label .c { font-size: 11px; line-height: 1.4; color: #6a6558; margin-top: 8px; } #label .c:empty { display: none; }
 
 /* larger text, stronger contrast */
 .bigtext #tally { font-size: 16px; background: rgba(0,0,0,.82); padding: 6px 10px; border-radius: 4px; color: #fff; }

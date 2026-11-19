@@ -203,7 +203,8 @@ for (const s of rest) {
   const y = s.level === 'B' ? BASEMENT : LEVELS[floor];
   const nominal = Math.min(s.h || 99, CLEAR[s.src === 'mod' ? 'mod' : 'old'][floor]);
   const public_ = s.id === 'F1-library' || s.id === 'F1-fullerton' || s.kind === 'gallery' || s.kind === 'court' || s.kind === 'exhibition' || s.kind === 'stairhall';
-  const r = { id: s.id, gallery: s.id === 'G11' || public_ ? galleryName(s) : s.name, floor,
+  const numbered = /^G\d+[A-Z]?$/.test(s.id) && titles.includes('Gallery ' + s.id.slice(1));       // a balcony or corridor the museum hangs work in keeps its gallery number
+  const r = { id: s.id, gallery: s.id === 'G11' || public_ || numbered ? galleryName(s) : s.name, floor,
     kind: s.id === 'G11' ? 'corridor' : public_ ? 'gallery' : 'room',
     building: s.src === 'mod' ? 'modern' : lower ? 'lower' : 'main', ...rect(s), y, h: nominal, top: y + nominal, src: s.src };
   if (!public_) r.use = s.kind;

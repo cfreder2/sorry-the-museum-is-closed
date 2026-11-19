@@ -418,6 +418,18 @@ better plan is a better file. What is in it:
 
 ## The museum's API
 
+**Works in copyright.** Besides the public-domain works, the game shows what
+is on view but still in copyright (most of the Modern Wing). The museum's API
+terms allow its data to be used "for noncommercial educational and personal
+use and for fair use", keeping copyright notices and citing author and
+source. So these works are loaded only live from the museum's own server, at
+the size it serves (843 pixels wide at most), with the copyright notice on
+each label and a link to the museum's page. They are never saved in this
+repository or in the offline copy, and when the API cannot be reached they are
+not shown at all. This is a non-commercial hobby project; a rights holder who
+wants a work removed need only ask, and `SHOW_IN_COPYRIGHT` at the top of
+`src/collection.js` turns every one of them off.
+
 `src/collection.js` asks `api.artic.edu` for public-domain works on view: all
 the paintings, sculpture and armour, vessels, ceramics, metalwork, glass,
 furniture, prints, textiles and miniature rooms (about twenty-five requests, answer cached for twelve hours, well
