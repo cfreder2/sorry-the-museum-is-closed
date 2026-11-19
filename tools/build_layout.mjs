@@ -280,7 +280,8 @@ function join(a, b, y, maxGap = 3.01) {
     const lo = Math.max(fa.lo, fb.lo), hi = Math.min(fa.hi, fb.hi);
     if (hi - lo < 1.9) continue;
     const low = Math.min(a.top, b.top) - y, staff = a.assumed || b.assumed;
-    const w = Math.min(staff ? 1.8 : low < 4 ? 2.6 : 4, hi - lo - 0.4), c = r2((lo + hi) / 2);
+    // A gallery doorway is about a third of the wall it is in and never more than 2.6 m: the rest of the wall is for pictures.
+    const w = Math.min(staff ? 1.8 : Math.min(2.6, Math.max(1.6, (hi - lo) * 0.3)), hi - lo - 0.4), c = r2((lo + hi) / 2);
     const d = fa.s === 'e' ? { a: a.id, b: b.id, along: 'x', x0: fa.at, x1: fb.at, z0: r2(c - w / 2), z1: r2(c + w / 2), y } : { a: a.id, b: b.id, along: 'z', x0: r2(c - w / 2), x1: r2(c + w / 2), z0: fa.at, z1: fb.at, y };
     d.h = doorHeight(d, a, b);
     if (d.h < 1.2 || blocked(d, y)) continue;
