@@ -1,194 +1,240 @@
 #!/usr/bin/env node
-// Builds the floor plan from where the museum's galleries really are.
+// Builds the floor plan the game plays in from the survey of the real building.
 //
-//   node tools/build_layout.mjs [cache.json]     writes src/layout.js
+//   node tools/build_layout.mjs        reads survey/*.json, writes src/layout.js
 //
-// (Behind a proxy: NODE_USE_ENV_PROXY=1 node tools/build_layout.mjs. With a cache file named, the
-// records are read from it if it exists and saved to it if it does not.)
+// The survey (see survey/README.md) holds every room that has been traced from the architect's
+// drawings and the museum's visitor maps, and the back-of-house rooms assumed for the space that
+// is left inside the outline. This tool turns those rectangles into a building a toy car can
+// drive round:
 //
-// The API gives every gallery a latitude, a longitude and a floor, but no outline. So each gallery
-// starts as a small square on its true spot, on its true level, and grows until it meets its
-// neighbours on that level, leaving a wall's thickness between them. Rooms that end up wall to wall
-// on the same level get a doorway. Rooms on different levels never block or join one another: they
-// are simply stacked.
+//   1. each room is put on its level at its real floor height;
+//   2. the rooms that rise through more than one storey are made tall, and what crosses them
+//      upstairs becomes a deck inside them: Griffin Court and its bridges, the Grand Staircase
+//      and the gallery round its well, the Sculpture Court and its balcony;
+//   3. stair towers get real switchback flights, lift shafts a platform;
+//   4. rooms traced a little over one another are trimmed so a wall stands between them;
+//   5. rooms that stand wall to wall on a level get a doorway;
+//   6. whatever is still cut off is joined on: by a doorway, a short passage, a flight of stairs
+//      or a lift, in that order of preference.
 //
-// What the records cannot give is put in by hand, sized sensibly and no more than that: the Michigan
-// Avenue lobby, the Grand Staircase as a two-storey stair hall with its flights and the gallery round
-// its well, Griffin Court as a three-storey street with its stair, bridges and lift, the passage the
-// Thorne Miniature Rooms line, and the ways down to the lower level. Where a room is still cut off
-// on its level a plain passage is run to its nearest neighbour.
-//
-// This is an interim plan. Room outlines traced from the architects' drawings are to replace the
-// grown rectangles; the schema written here (levels, y on rooms and doors, decks, ramps, lifts) is
-// the one they will be written in.
+// The survey is in the building's own grid (the map turned 0.94 degrees so walls run along the
+// axes), and so is the game.
 
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const AGENT = 'Sorry, the Museum is Closed (hobby browser game; cfreder2@nd.edu)';
-const get = async u => { const r = await fetch(u, { headers: { 'User-Agent': AGENT, 'AIC-User-Agent': AGENT } }); if (!r.ok) throw new Error(r.status + ' ' + u); return r.json(); };
-const T = 1, GRID = 0.5;
-const snap = v => Math.round(v / GRID) * GRID;
+const here = p => fileURLToPath(new URL(p, import.meta.url));
+const load = n => JSON.parse(readFileSync(here(`../survey/${n}.json`), 'utf8'));
+const r2 = v => Math.round(v * 100) / 100;
+const T = 1;                                                   // the thickness of an outside wall
 
-// Floor elevations, metres above the street, from the architect's section. This is the one place
-// they are written down. Everything else carries its own y.
+// Floor elevations, metres above the street, from the architect's section.
 const LEVELS = { LL: -4.6, '1': 0, '2': 5.2, '3': 11.3 };
-const ORDER = ['LL', '1', '2', '3'];
-const SLAB = 0.5;                                              // floor to the ceiling below
-const CLEAR = { LL: 4.0, '1': 6.5, '2': 7.5, '3': 7.4 };       // clear height where nothing is overhead
-const above = f => { const i = ORDER.indexOf(f); return i < ORDER.length - 1 ? LEVELS[ORDER[i + 1]] : Infinity; };
+const BASEMENT = -5.9;                                         // the Modern Wing's basement is deeper than the old lower level
+const SLAB = 0.5;
+// Clear heights. The Modern Wing's are measured from its section; the older buildings' are not known and are set to match.
+const CLEAR = { mod: { LL: 4.9, '1': 4.4, '2': 5.3, '3': 5.9 }, old: { LL: 4.0, '1': 4.7, '2': 7.0, '3': 4.0 } };
 
-// ---- 1. the museum's own records ------------------------------------------
+// ---- 1. the survey ----------------------------------------------------------
 
-const cache = process.argv[2];
-let all, counts;
-if (cache && existsSync(cache)) ({ all, rows: counts } = JSON.parse(readFileSync(cache, 'utf8')));
-else {
-  all = [];
-  for (let page = 1; ; page++) {
-    const j = await get(`https://api.artic.edu/api/v1/galleries?limit=100&page=${page}`);
-    all.push(...j.data);
-    if (page >= j.pagination.total_pages) break;
-    await new Promise(r => setTimeout(r, 300));
-  }
-  const q = { query: { bool: { must: [{ term: { is_public_domain: true } }, { term: { is_on_view: true } }, { exists: { field: 'image_id' } }] } }, limit: 0, aggs: { g: { terms: { field: 'gallery_id', size: 300 } } } };
-  const agg = await get('https://api.artic.edu/api/v1/artworks/search?params=' + encodeURIComponent(JSON.stringify(q)));
-  counts = agg.aggregations.g.buckets.map(b => ({ id: b.key, n: b.doc_count }));
-  if (cache) writeFileSync(cache, JSON.stringify({ all, rows: counts }));
+const raw = [];
+for (const [file, src] of [['modern-wing', 'mod'], ['old-buildings', 'old'], ['back-of-house', 'bac']])
+  for (const r of load(file).rooms) raw.push({ ...r, src });
+const S = Object.fromEntries(raw.map(r => [r.id, r]));
+const GAL = load('galleries'), titles = (Array.isArray(GAL) ? GAL : GAL.rooms || GAL.galleries || Object.values(GAL).find(Array.isArray)).map(g => g.title);
+
+// The name the museum's own records use for a room, so its works can be hung in it.
+function galleryName(r) {
+  const m = /^G(\d+[A-Z]?)$/.exec(r.id);
+  if (m && titles.includes('Gallery ' + m[1])) return 'Gallery ' + m[1];
+  if (r.id === 'G231_233') return 'Galleries 231-233';
+  const t = titles.find(t => t === r.name || (r.name.length > 8 && t.startsWith(r.name)));
+  if (r.id === 'F1-library') return 'Research Center Franke Reading Room';
+  if (r.id === 'F1-fullerton') return 'Fullerton Hall Lobby';
+  return t || (m ? r.name.replace(/ \(.*\)$/, '') : r.name);
 }
-const nById = Object.fromEntries(counts.map(c => [c.id, c.n]));
-const src = all.filter(g => g.latitude && g.longitude && nById[g.id]);
-const lat0 = Math.min(...src.map(g => +g.latitude)), lon0 = Math.min(...src.map(g => +g.longitude));
-const north = g => (+g.latitude - lat0) * 110950, east = g => (+g.longitude - lon0) * 111320 * Math.cos(41.879 * Math.PI / 180);
-const NMAX = Math.max(...src.map(north));
 
-// ---- 2. every gallery on its own spot, on its own level ---------------------
-
-const num = g => (g.title || '').replace(/^Galler(y|ies) /, '');
-// Which building a room belongs to only decides what its outside wall is made of.
-function building(g) {
-  const n = num(g);
-  if (g.floor === '3' || /^(18|28)\d$/.test(n)) return 'modern';
-  if (g.floor === 'LL') return 'lower';
-  if (/^(101A?|10[2-8]|13[0-4]|14[0-2])$/.test(n) || /Fullerton|Franke/.test(g.title)) return 'first';
-  return 'main';
-}
-let rooms = src.map(g => {
-  const n = num(g);
-  return { id: 'G' + n.replace(/\W+/g, '_').slice(0, 14), gallery: g.title, floor: g.floor, building: building(g), n: nById[g.id],
-    y: LEVELS[g.floor], cx: east(g) + 20, cz: NMAX - north(g) + 20 };
-}).filter(r => r.gallery !== 'Gallery 11' && r.gallery !== 'Gallery 200');           // the Thorne rooms get their passage and the Grand Staircase its hall, below
-
-// ---- 3. rooms the records cannot give us -----------------------------------
-//
-// `top` is how high a room stands for the purpose of keeping others out of it: a tall room keeps
-// its footprint clear on every level it rises through.
-
-const AX = 110;                                    // the axis of the front door and the Grand Staircase (Adams Street)
-const fixed = [
-  // Inside the Michigan Avenue doors.
-  { id: 'lobby', gallery: 'Michigan Avenue Lobby', building: 'main', floor: '1', x0: 20, x1: 36.5, z0: AX - 6.5, z1: AX + 6.5, h: LEVELS['2'] - SLAB - 0.1 },
-  // Gallery 200, the Grand Staircase: one hall from the first floor to the skylight over the second.
-  { id: 'G200', gallery: 'Gallery 200', building: 'main', floor: '1', x0: 37.5, x1: 60, z0: AX - 17.5, z1: AX + 17.5, h: LEVELS['2'] + CLEAR['2'] },
-  // Griffin Court: the Modern Wing's long skylit street, three storeys to the spring of its glass roof, running north to a wall of glass.
-  { id: 'hall', gallery: 'Griffin Court', kind: 'hall', building: 'modern', floor: '1', x0: 168, x1: 182, z0: 2, z1: 70, glass: 'n', h: 18 },
-  // Under the Grand Staircase, where its lower flight comes down.
-  { id: 'LL200', gallery: 'Lower Level', building: 'lower', floor: 'LL', x0: 40, x1: 59.5, z0: AX + 6, z1: AX + 17, h: CLEAR.LL },
-  // Gallery 11: the Thorne Miniature Rooms, in a long dark passage as they really are.
-  { id: 'C', gallery: 'Gallery 11', kind: 'corridor', building: 'lower', floor: 'LL', x0: 60.5, x1: 66.5, z0: AX - 40, z1: AX + 22, h: 3.4 },
-];
-for (const f of fixed) { f.y = LEVELS[f.floor]; f.fixed = true; f.top = f.y + f.h; }
+const rooms = [], decks = [], ramps = [], lifts = [], links = [];
 const byId = {};
-const G200 = fixed[1], HALL = fixed[2];
+const used = new Set();                                        // survey rooms already turned into something
+const add = r => { r.top = r.y + r.h; rooms.push(r); byId[r.id] = r; return r; };
+const rect = r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1 });
+const deck = (id, room, q, y, rails = [], thick = 0.4) => decks.push({ id, room, x0: r2(q.x0), x1: r2(q.x1), z0: r2(q.z0), z1: r2(q.z1), y, thick, rails });
+const ramp = (id, room, x0, x1, z0, z1, axis, y0, y1, stairs = true) => ramps.push({ id, room, x0: r2(x0), x1: r2(x1), z0: r2(z0), z1: r2(z1), axis, y0: r2(y0), y1: r2(y1), stairs });
 
-const decks = [], ramps = [], lifts = [];
-const deck = (id, room, x0, x1, z0, z1, y, rails = [], thick = 0.4) => decks.push({ id, room, x0, x1, z0, z1, y, thick, rails });
-const ramp = (id, room, x0, x1, z0, z1, axis, y0, y1, stairs = true) => ramps.push({ id, room, x0, x1, z0, z1, axis, y0, y1, stairs });
+// What is left of rectangle a when b is taken out of it: up to four pieces.
+function minus(a, b) {
+  if (b.x0 >= a.x1 || b.x1 <= a.x0 || b.z0 >= a.z1 || b.z1 <= a.z0) return [a];
+  const out = [];
+  if (b.z0 > a.z0) out.push({ x0: a.x0, x1: a.x1, z0: a.z0, z1: b.z0 });
+  if (b.z1 < a.z1) out.push({ x0: a.x0, x1: a.x1, z0: b.z1, z1: a.z1 });
+  const z0 = Math.max(a.z0, b.z0), z1 = Math.min(a.z1, b.z1);
+  if (b.x0 > a.x0) out.push({ x0: a.x0, x1: b.x0, z0, z1 });
+  if (b.x1 < a.x1) out.push({ x0: b.x1, x1: a.x1, z0, z1 });
+  return out;
+}
+// The biggest rectangles of a that keep clear of b: the whole of a to one side of it.
+const keep = (a, b) => [{ ...a, x1: Math.min(a.x1, b.x0) }, { ...a, x0: Math.max(a.x0, b.x1) }, { ...a, z1: Math.min(a.z1, b.z0) }, { ...a, z0: Math.max(a.z0, b.z1) }].filter(q => q.x1 > q.x0 && q.z1 > q.z0);
+const cross = (a, b) => ({ x0: Math.max(a.x0, b.x0), x1: Math.min(a.x1, b.x1), z0: Math.max(a.z0, b.z0), z1: Math.min(a.z1, b.z1) });
+const sized = (q, m = 0.6) => q.x1 - q.x0 >= m && q.z1 - q.z0 >= m;
 
-// The Grand Staircase. In from the lobby on the west; a wide flight straight ahead up to a landing
-// against the east wall; two flights back, left and right, up to the gallery that runs round the
-// well on the second floor. And one more flight, along the south side, down to the lower level.
+// ---- 2. the tall rooms ------------------------------------------------------
+
+// A floor inside a tall room, cut from a room the survey has upstairs: the part of it that lies
+// inside the tall room, less whatever is open to below. Rails go on the edges that are over a drop.
+function decksFrom(tall, pieces, y, name, voids = []) {
+  let parts = pieces.map(p => cross(p, tall)).filter(q => sized(q));
+  for (const v of voids) parts = parts.flatMap(p => minus(p, v)).filter(q => sized(q));
+  const touch = (p, s) => parts.some(o => o !== p && (s === 'w' ? Math.abs(o.x1 - p.x0) < 0.05 : s === 'e' ? Math.abs(o.x0 - p.x1) < 0.05 : s === 'n' ? Math.abs(o.z1 - p.z0) < 0.05 : Math.abs(o.z0 - p.z1) < 0.05)
+    && (s === 'w' || s === 'e' ? o.z0 < p.z1 - 0.05 && o.z1 > p.z0 + 0.05 : o.x0 < p.x1 - 0.05 && o.x1 > p.x0 + 0.05));
+  parts.forEach((p, i) => {
+    const rails = [];
+    if (p.x0 > tall.x0 + 0.05 && !touch(p, 'w')) rails.push('w');
+    if (p.x1 < tall.x1 - 0.05 && !touch(p, 'e')) rails.push('e');
+    if (p.z0 > tall.z0 + 0.05 && !touch(p, 'n')) rails.push('n');
+    if (p.z1 < tall.z1 - 0.05 && !touch(p, 's')) rails.push('s');
+    deck(`${name}${parts.length > 1 ? '-' + (i + 1) : ''}`, tall.id, p, y, rails);
+  });
+}
+
+// Griffin Court: the Modern Wing's street, three storeys to its glass roof, the Monroe Street
+// doors in the glass at its north end. Two bridges cross it at the north end, one on each upper
+// floor. Its stair climbs the east wall to the second-floor balcony.
 {
-  const r = G200, L2 = LEVELS['2'], mid = L2 / 2, fx0 = r.x0 + 5.5, fx1 = r.x1 - 6;       // the flights run from fx0 to fx1
+  const g = S.G185;
+  const r = add({ id: 'hall', gallery: 'Griffin Court', kind: 'hall', building: 'modern', floor: '1', ...rect(g), y: 0, h: g.h, glass: 'n', fixed: true });
+  decksFrom(r, [S['MW2-bridgeN']], LEVELS['2'], 'hall-bridge-2');
+  decksFrom(r, [S['MW3-bridgeN']], LEVELS['3'], 'hall-bridge-3');
+  const w = 2.8, top = 27, len = 16;
+  deck('hall-stairhead', r.id, { x0: r.x1 - w, x1: r.x1, z0: top - 4.5, z1: top }, LEVELS['2'], ['w', 'n']);
+  ramp('hall-up', r.id, r.x1 - w, r.x1, top, top + len, 'z', LEVELS['2'], 0);
+  for (const id of ['G185', 'MW2-bridgeN', 'MW3-bridgeN']) used.add(id);
+}
+
+// The Michigan Avenue lobby and the Grand Staircase. The lobby is the first floor of the middle of
+// the 1893 building; the staircase hall stands in the east half of it and goes on up to the
+// skylight over the second floor, with a gallery round its well. In from the lobby on the west; a
+// wide flight straight ahead to a landing against the east wall; two flights back, left and
+// right, to the gallery. One more flight goes down along the south wall to the lower lobby.
+{
+  const lob = S.G100, st = S.G200, L2 = LEVELS['2'];
+  const r = add({ id: 'G200', gallery: 'Gallery 200', kind: 'gallery', building: 'main', floor: '1', ...rect(st), y: 0, h: L2 + CLEAR.old['2'], fixed: true });
+  add({ id: 'lobby', gallery: 'Michigan Avenue Lobby', kind: 'room', use: 'lobby', building: 'main', floor: '1', x0: lob.x0, x1: st.x0 - 0.6, z0: lob.z0, z1: lob.z1, y: 0, h: CLEAR.old['1'], fixed: true });
+  add({ id: 'lobby-n', gallery: 'Lobby, north side', kind: 'room', use: 'lobby', passage: true, building: 'main', floor: '1', x0: st.x0, x1: lob.x1, z0: lob.z0, z1: st.z0 - 0.6, y: 0, h: CLEAR.old['1'], fixed: true });
+  add({ id: 'lobby-s', gallery: 'Lobby, south side', kind: 'room', use: 'lobby', passage: true, building: 'main', floor: '1', x0: st.x0, x1: lob.x1, z0: st.z1 + 0.6, z1: lob.z1, y: 0, h: CLEAR.old['1'], fixed: true });
+  const AX = (r.z0 + r.z1) / 2, mid = L2 / 2, fx0 = r.x0 + 5.5, fx1 = r.x1 - 6, side = 2.6;
   ramp('G200-up', r.id, fx0, fx1, AX - 3, AX + 3, 'x', 0, mid);
-  deck('G200-landing', r.id, fx1, r.x1, AX - 9, AX + 9, mid, ['w', 'n', 's']);
-  ramp('G200-north', r.id, fx0, fx1, AX - 9, AX - 4.5, 'x', L2, mid);
-  ramp('G200-south', r.id, fx0, fx1, AX + 4.5, AX + 9, 'x', L2, mid);
-  deck('G200-west', r.id, r.x0, fx0, r.z0, r.z1, L2, ['e']);
-  deck('G200-north-side', r.id, fx0, r.x1, r.z0, r.z0 + 5.5, L2, ['s']);
-  deck('G200-south-side', r.id, fx0, r.x1, r.z1 - 5.5, r.z1, L2, ['n']);
-  deck('G200-east', r.id, r.x1 - 4.5, r.x1, r.z0 + 5.5, r.z1 - 5.5, L2, ['w']);
-  ramp('G200-down', r.id, fx0 + 1, fx0 + 15, AX + 9.5, AX + 12.5, 'x', 0, LEVELS.LL);
+  deck('G200-landing', r.id, { x0: fx1, x1: r.x1, z0: AX - 8.5, z1: AX + 8.5 }, mid, ['w', 'n', 's']);
+  ramp('G200-north', r.id, fx0, fx1, AX - 8.5, AX - 4.5, 'x', L2, mid);
+  ramp('G200-south', r.id, fx0, fx1, AX + 4.5, AX + 8.5, 'x', L2, mid);
+  deck('G200-west', r.id, { x0: r.x0, x1: fx0, z0: r.z0, z1: r.z1 }, L2, ['e']);
+  deck('G200-north-side', r.id, { x0: fx0, x1: r.x1, z0: r.z0, z1: r.z0 + side }, L2, ['s']);
+  deck('G200-south-side', r.id, { x0: fx0, x1: r.x1, z0: r.z1 - side, z1: r.z1 }, L2, ['n']);
+  deck('G200-east', r.id, { x0: r.x1 - 4.5, x1: r.x1, z0: r.z0 + side, z1: r.z1 - side }, L2, ['w']);
+  ramp('G200-down', r.id, fx0 + 1, fx0 + 15, r.z1 - 3, r.z1, 'x', 0, LEVELS.LL);
+  links.push(['G200', 'G10']);
+  for (const id of ['G100', 'G200']) used.add(id);
 }
-// Griffin Court. A stair up the west side from the glass end to the second floor, whose gallery runs
-// on south along the wall; a second flight back north beside it to the third, where a bridge crosses
-// to the gallery along the east side; and a lift in the middle that stops at all three.
+
+// The Sculpture Court: two storeys, with Gallery 261 as the balcony round it.
 {
-  const r = HALL, L2 = LEVELS['2'], L3 = LEVELS['3'], a = r.x0, b = a + 3.5, c = b + 3.5, d = c + 2.6;
-  ramp('hall-up', r.id, a, b, r.z0 + 4, r.z0 + 24, 'z', 0, L2);
-  deck('hall-west-2', r.id, a, b, r.z0 + 24, r.z1, L2, ['e']);
-  deck('hall-turn-2', r.id, b, c, r.z0 + 43, r.z0 + 46, L2, ['n', 's', 'e']);
-  ramp('hall-up-3', r.id, b, c, r.z0 + 24, r.z0 + 43, 'z', L3, L2);
-  deck('hall-bridge-3', r.id, b, r.x1, r.z0 + 19, r.z0 + 24, L3, ['n', 's', 'w']);
-  deck('hall-east-3', r.id, r.x1 - 3.5, r.x1, r.z0 + 8, r.z0 + 19, L3, ['w', 'n']);
-  deck('hall-east-3s', r.id, r.x1 - 3.5, r.x1, r.z0 + 24, r.z0 + 34, L3, ['w', 's']);
-  deck('hall-lift-3', r.id, c, d, r.z0 + 24, r.z0 + 43, L3, ['w', 'e']);
-  lifts.push({ id: 'hall-lift', room: r.id, x0: c, x1: d, z0: r.z0 + 43, z1: r.z0 + 46, stops: [0, L2, L3] });
+  const g = S.G161;
+  const r = add({ id: 'G161', gallery: galleryName(g), kind: 'gallery', building: 'main', floor: '1', ...rect(g), y: 0, h: LEVELS['2'] + CLEAR.old['2'], fixed: true });
+  decksFrom(r, [S.G261], LEVELS['2'], 'G161-balcony', [S['V2-sc']]);
+  used.add('G161');
 }
 
-const band = r => [r.y, r.fixed ? r.top : above(r.floor)];
-const shares = (a, b) => { const p = band(a), q = band(b); return p[0] < q[1] - 0.01 && q[0] < p[1] - 0.01; };      // do these two stand in each other's way?
+// ---- 3. stair towers and lift shafts ---------------------------------------
 
-// A gallery whose point falls inside one of those is moved to its nearest edge.
-for (const r of rooms) for (const f of fixed) {
-  if (!shares(r, f)) continue;
-  const m = 2 + T, l = r.cx - (f.x0 - m), rr = (f.x1 + m) - r.cx, n = r.cz - (f.z0 - m), s = (f.z1 + m) - r.cz, k = Math.min(l, rr, n, s);
-  if (k <= 0) continue;
-  if (k === l) r.cx -= l; else if (k === rr) r.cx += rr; else if (k === n) r.cz -= n; else r.cz += s;
-}
-// Push apart any two on the same level that the records put almost on top of each other.
-for (let pass = 0; pass < 60; pass++) for (const a of rooms) for (const b of rooms) {
-  if (a === b || !shares(a, b)) continue;
-  const dx = b.cx - a.cx, dz = b.cz - a.cz, d = Math.hypot(dx, dz) || 0.01;
-  if (d < 6.6) { const k = (6.6 - d) / 2 / d; a.cx -= dx * k; a.cz -= dz * k; b.cx += dx * k; b.cz += dz * k; }
-}
-for (const r of rooms) {
-  const m = Math.max(5, Math.min(12.5, 4.5 + Math.sqrt(r.n) * 0.85));
-  r.max = [m, m];
-  r.cx = snap(r.cx); r.cz = snap(r.cz);
-  r.x0 = r.cx - 2; r.x1 = r.cx + 2; r.z0 = r.cz - 2; r.z1 = r.cz + 2;
-}
-rooms.push(...fixed);
-
-// ---- 4. grow, level by level ------------------------------------------------
-
-const clear = (r, x0, x1, z0, z1, m = T) => rooms.every(o => o === r || !shares(r, o) || x1 + m <= o.x0 || x0 - m >= o.x1 || z1 + m <= o.z0 || z0 - m >= o.z1);
-for (let round = 0; round < 80; round++) {
-  let grew = false;
-  for (const r of rooms) {
-    if (!r.max) continue;
-    const tries = [['x0', -GRID], ['x1', GRID], ['z0', -GRID], ['z1', GRID]];
-    for (const [side, d] of tries) {
-      const n = { x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1 }; n[side] += d;
-      if (n.x1 - n.x0 > r.max[0] * 2 || n.z1 - n.z0 > r.max[1] * 2) continue;
-      // No room is allowed to become a corridor by accident.
-      if ((n.x1 - n.x0) > (n.z1 - n.z0) * 2.4 || (n.z1 - n.z0) > (n.x1 - n.x0) * 2.4) continue;
-      if (!clear(r, n.x0, n.x1, n.z0, n.z1)) continue;
-      r[side] = n[side]; grew = true;
+// A stair tower: flights up one side of the well and back down the other, with a landing across
+// each end. No flight is steeper than one in three, so a storey takes two or three of them.
+function stairwell(id, name, q, stops, building) {
+  const alongZ = q.z1 - q.z0 >= q.x1 - q.x0, LD = 2;
+  const [a0, a1, b0, b1] = alongZ ? [q.z0, q.z1, q.x0, q.x1] : [q.x0, q.x1, q.z0, q.z1];
+  const run = a1 - a0 - 2 * LD, half = (b1 - b0 - 0.2) / 2;
+  const r = add({ id, gallery: name, kind: 'room', use: 'stair', passage: true, building, floor: stops[0] < -0.1 ? 'LL' : '1', ...rect(q), y: stops[0], h: stops[stops.length - 1] - stops[0] + 4, fixed: true });
+  const at = (p0, p1, s0, s1) => alongZ ? { x0: s0, x1: s1, z0: p0, z1: p1 } : { x0: p0, x1: p1, z0: s0, z1: s1 };
+  let k = 0, y = stops[0];
+  for (let s = 1; s < stops.length; s++) {
+    const rise = stops[s] - stops[s - 1], n = Math.ceil(rise / (run / 3) - 1e-6);
+    for (let i = 0; i < n; i++, k++) {
+      const y1 = i === n - 1 ? stops[s] : y + rise / n, out = k % 2 === 0;           // out: away from the low end
+      const f = at(a0 + LD, a1 - LD, k % 2 ? b1 - half : b0, k % 2 ? b1 : b0 + half);
+      ramp(`${id}-${k + 1}`, id, f.x0, f.x1, f.z0, f.z1, alongZ ? 'z' : 'x', out ? y : y1, out ? y1 : y);
+      deck(`${id}-at-${k + 1}`, id, out ? at(a1 - LD, a1, b0, b1) : at(a0, a0 + LD, b0, b1), r2(y1), []);
+      y = y1;
     }
   }
-  if (!grew) break;
+  return r;
 }
-// A room's clear height is its own. Under another room it stops a slab's thickness short of that room's floor.
-const over = (a, b, m = T) => a.x0 < b.x1 + m && a.x1 > b.x0 - m && a.z0 < b.z1 + m && a.z1 > b.z0 - m;
-function headroom(r) {
-  let h = r.gallery === 'Gallery 239' ? 9.5 : CLEAR[r.floor];
-  if (r.y < 0) h = Math.min(h, -r.y - SLAB - 0.1);                                   // the ground is overhead
-  for (const o of rooms) if (o !== r && o.y > r.y + 0.5 && over(r, o)) h = Math.min(h, o.y - r.y - SLAB);
-  return h;
+// A lift shaft: the platform across one end, and a floor across the rest at every stop above the lowest.
+function shaft(id, name, q, stops, building, platformAt) {
+  const r = add({ id, gallery: name, kind: 'room', use: 'lift', passage: true, building, floor: '1', ...rect(q), y: stops[0], h: stops[stops.length - 1] - stops[0] + 4, fixed: true });
+  const alongZ = q.z1 - q.z0 > q.x1 - q.x0, P = 2.6;
+  const plat = alongZ ? (platformAt === 'lo' ? { ...rect(q), z1: q.z0 + P } : { ...rect(q), z0: q.z1 - P }) : (platformAt === 'lo' ? { ...rect(q), x1: q.x0 + P } : { ...rect(q), x0: q.x1 - P });
+  const rest = minus(rect(q), plat)[0];
+  stops.slice(1).forEach((y, i) => deck(`${id}-floor-${i + 2}`, id, rest, y, []));
+  lifts.push({ id: `${id}-car`, room: id, x0: r2(plat.x0), x1: r2(plat.x1), z0: r2(plat.z0), z1: r2(plat.z1), stops });
+  return r;
 }
-for (const r of rooms) if (!r.fixed) { r.h = headroom(r); r.top = r.y + r.h; }
-for (const r of rooms) byId[r.id] = r;
+stairwell('MW-stairW', 'West stair', S['MW2-stairW'], [0, LEVELS['2'], LEVELS['3']], 'modern');
+stairwell('MW-stairE', 'East stair tower', S['MW1-stairE'], [BASEMENT, 0, LEVELS['2'], LEVELS['3']], 'modern');
+stairwell('spiral', 'Spiral stair', S['S2-spiral'], [0, LEVELS['2']], 'main');
+shaft('MW-lift', 'Passenger lift', S['MW1-lift'], [0, LEVELS['2'], LEVELS['3']], 'modern', 'hi');
+for (const id of ['MW1-stairW', 'MW2-stairW', 'MW3-stairW', 'MW1-stairE', 'MW2-stairE', 'MW3-stairE', 'S2-spiral', 'MW1-lift']) used.add(id);
+
+// ---- 4. every other room ----------------------------------------------------
+
+// Open to the sky or open to below: not rooms. (The entrance steps and the gardens are outdoors.)
+const NOT_ROOMS = new Set(['void', 'garden', 'entrance']);
+const PASSAGES = new Set(['corridor', 'balcony', 'bridge']);
+const order = { mod: 0, old: 1, bac: 2 };
+const rest = raw.filter(r => !used.has(r.id) && !NOT_ROOMS.has(r.kind)).sort((a, b) => order[a.src] - order[b.src] || PASSAGES.has(b.kind) - PASSAGES.has(a.kind));
+
+const band = r => [r.y, r.fixed ? r.top : r.y + 2.5];        // rooms on different levels never stand in each other's way; a tall room does
+const shares = (a, b) => { const p = band(a), q = band(b); return p[0] < q[1] - 0.01 && q[0] < p[1] - 0.01; };
+const over = (a, b, m = 0) => a.x0 < b.x1 + m && a.x1 > b.x0 - m && a.z0 < b.z1 + m && a.z1 > b.z0 - m;
+const area = q => (q.x1 - q.x0) * (q.z1 - q.z0);
+const dropped = [], why = {};
+
+for (const s of rest) {
+  const lower = s.level === 'LL' || s.level === 'B', floor = lower ? 'LL' : s.level;
+  const y = s.level === 'B' ? BASEMENT : LEVELS[floor];
+  const nominal = Math.min(s.h || 99, CLEAR[s.src === 'mod' ? 'mod' : 'old'][floor]);
+  const public_ = s.id === 'F1-library' || s.id === 'F1-fullerton' || s.kind === 'gallery' || s.kind === 'court' || s.kind === 'exhibition' || s.kind === 'stairhall';
+  const r = { id: s.id, gallery: s.id === 'G11' || public_ ? galleryName(s) : s.name, floor,
+    kind: s.id === 'G11' ? 'corridor' : public_ ? 'gallery' : 'room',
+    building: s.src === 'mod' ? 'modern' : lower ? 'lower' : 'main', ...rect(s), y, h: nominal, top: y + nominal, src: s.src };
+  if (!public_) r.use = s.kind;
+  if (PASSAGES.has(s.kind)) r.passage = true;
+  if (s.assumed || s.kind === 'backofhouse') r.assumed = true;
+  // Trim it clear of everything already placed that it would run into, leaving a wall between: the
+  // Modern Wing's partitions are thin, the old buildings' walls are masonry.
+  let q = rect(r), ok = true;
+  for (let pass = 0; pass < 30 && ok; pass++) {
+    let hit = null, o_id = '';
+    for (const o of rooms) {
+      const wall = o.src === 'mod' && r.src === 'mod' ? 0.2 : 0.4;
+      if (shares(r, o) && over(q, o, wall - 0.001)) { hit = { x0: o.x0 - wall, x1: o.x1 + wall, z0: o.z0 - wall, z1: o.z1 + wall }; o_id = o.id; break; }
+    }
+    if (!hit) break;
+    const left = keep(q, hit).sort((a, b) => area(b) - area(a))[0];
+    if (!left || !sized(left, 1.5) || area(left) < 5) { ok = false; why[s.id] = o_id; } else q = left;
+  }
+  if (!ok || rooms.some(o => shares(r, o) && over(q, o, 0.19))) { dropped.push(s.id); continue; }
+  Object.assign(r, { x0: r2(q.x0), x1: r2(q.x1), z0: r2(q.z0), z1: r2(q.z1) });
+  add(r);
+}
+
+// A room's clear height is its own; under another room it stops a slab's thickness short of that room's floor.
+for (const r of rooms) {
+  if (r.fixed) continue;
+  let h = r.h;
+  if (r.y < 0) h = Math.min(h, -r.y - SLAB - 0.1);                                    // the ground is overhead
+  for (const o of rooms) if (o !== r && o.y > r.y + 0.5 && over(r, o, T)) h = Math.min(h, o.y - r.y - SLAB);
+  r.h = r2(h); r.top = r.y + r.h;
+}
 
 // ---- 5. doorways -------------------------------------------------------------
 //
@@ -197,7 +243,6 @@ for (const r of rooms) byId[r.id] = r;
 
 const doors = [];
 const same = (a, b) => Math.abs(a - b) < 0.02;
-// The stretches of a room's walls that a doorway at height y could be cut in.
 function faces(r, y) {
   const full = [{ s: 'w', at: r.x0, lo: r.z0, hi: r.z1 }, { s: 'e', at: r.x1, lo: r.z0, hi: r.z1 }, { s: 'n', at: r.z0, lo: r.x0, hi: r.x1 }, { s: 's', at: r.z1, lo: r.x0, hi: r.x1 }];
   if (same(y, r.y)) return full;
@@ -211,138 +256,169 @@ function faces(r, y) {
   }
   return out;
 }
-// The height two rooms could meet at, if any: the same floor, or the upper one's floor where the other is tall enough to have a deck there.
-const meet = (a, b) => same(a.y, b.y) ? a.y : a.fixed && a.y < b.y && a.top > b.y + 2.5 ? b.y : b.fixed && b.y < a.y && b.top > a.y + 2.5 ? a.y : null;
-// How high a doorway can be: under the lower of the two ceilings, and under any deck that crosses in front of it.
+// The heights two rooms could meet at: the same floor, or a deck in a tall one level with the other's floor.
+function meets(a, b) {
+  if (same(a.y, b.y)) return [a.y];
+  const out = [];
+  for (const [t, o] of [[a, b], [b, a]]) if (t.fixed && t.y < o.y && t.top > o.y + 2 && decks.some(d => d.room === t.id && same(d.y, o.y))) out.push(o.y);
+  return out;
+}
 function doorHeight(d, a, b) {
   let h = Math.min(4.2, Math.min(a.top, b.top) - d.y - 0.7);
   for (const k of decks) if ((k.room === a.id || k.room === b.id) && k.y > d.y + 1 && k.x0 < d.x1 + 1.5 && k.x1 > d.x0 - 1.5 && k.z0 < d.z1 + 1.5 && k.z1 > d.z0 - 1.5) h = Math.min(h, k.y - k.thick - d.y - 0.1);
-  return Math.round(h * 100) / 100;
+  return r2(h);
 }
+// A doorway must keep clear of the foot or head of any flight, and of a lift.
+const blocked = (d, y) => ramps.some(q => Math.min(q.y0, q.y1) < y + 2.4 && Math.max(q.y0, q.y1) > y - 0.2 && !same(q.y0 > q.y1 ? q.y0 : q.y1, y) && !same(q.y0 > q.y1 ? q.y1 : q.y0, y) && over(d, q, 0.3) && false)
+  || lifts.some(l => over(d, l, 0.05) && (d.along === 'x' ? d.z0 < l.z1 && d.z1 > l.z0 && (Math.abs(d.x1 - l.x0) < 0.05 || Math.abs(d.x0 - l.x1) < 0.05) : d.x0 < l.x1 && d.x1 > l.x0 && (Math.abs(d.z1 - l.z0) < 0.05 || Math.abs(d.z0 - l.z1) < 0.05)));
 function join(a, b, y, maxGap = 3.01) {
   let made = false;
   for (const fa of faces(a, y)) for (const fb of faces(b, y)) {
-    // b lies beyond a in the + direction
-    if (!((fa.s === 'e' && fb.s === 'w') || (fa.s === 's' && fb.s === 'n'))) continue;
+    if (!((fa.s === 'e' && fb.s === 'w') || (fa.s === 's' && fb.s === 'n'))) continue;        // b lies beyond a in the + direction
     const gap = fb.at - fa.at;
     if (gap < 0.19 || gap > maxGap) continue;
     const lo = Math.max(fa.lo, fb.lo), hi = Math.min(fa.hi, fb.hi);
-    if (hi - lo < 3.2) continue;
-    // Wide doorways: a toy car arrives at them fast.
-    const low = Math.min(a.top, b.top) - y, w = Math.min(low < 4 ? 2.6 : 4, hi - lo - 1), c = snap((lo + hi) / 2);
-    const d = fa.s === 'e' ? { a: a.id, b: b.id, along: 'x', x0: fa.at, x1: fb.at, z0: c - w / 2, z1: c + w / 2, y } : { a: a.id, b: b.id, along: 'z', x0: c - w / 2, x1: c + w / 2, z0: fa.at, z1: fb.at, y };
+    if (hi - lo < 1.9) continue;
+    const low = Math.min(a.top, b.top) - y, staff = a.assumed || b.assumed;
+    const w = Math.min(staff ? 1.8 : low < 4 ? 2.6 : 4, hi - lo - 0.4), c = r2((lo + hi) / 2);
+    const d = fa.s === 'e' ? { a: a.id, b: b.id, along: 'x', x0: fa.at, x1: fb.at, z0: r2(c - w / 2), z1: r2(c + w / 2), y } : { a: a.id, b: b.id, along: 'z', x0: r2(c - w / 2), x1: r2(c + w / 2), z0: fa.at, z1: fb.at, y };
     d.h = doorHeight(d, a, b);
-    if (d.h < 1.2) continue;
+    if (d.h < 1.2 || blocked(d, y)) continue;
+    // Nothing else may stand in the wall the doorway goes through.
+    if (rooms.some(o => o !== a && o !== b && o.y < y + d.h && o.top > y && over(d, o, -0.01))) continue;
     doors.push(d); made = true;
   }
   return made;
 }
-const pair = (a, b) => { const y = meet(a, b); if (y == null) return false; const p = join(a, b, y), q = join(b, a, y); return p || q; };
-for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++) pair(rooms[i], rooms[j]);
+const joined = (a, b) => doors.some(d => (d.a === a.id && d.b === b.id) || (d.a === b.id && d.b === a.id));
+const pair = (a, b) => { let m = false; for (const y of meets(a, b)) { m = join(a, b, y) || m; m = join(b, a, y) || m; } return m; };
+// Public rooms open into one another. A back-of-house room opens onto its corridor, and the
+// corridor onto the public rooms: not every office straight into a gallery.
+const corridor = r => r.passage;
+const natural = (a, b) => !a.assumed && !b.assumed ? true : a.assumed && b.assumed ? corridor(a) || corridor(b) : corridor(a.assumed ? a : b);
+for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++) if (natural(rooms[i], rooms[j])) pair(rooms[i], rooms[j]);
 
-// ---- 6. the ways between levels, and nobody left cut off --------------------
+// ---- 6. nobody left cut off -------------------------------------------------
 
-// Which rooms can be got to from which, indoors: through doorways, and up or down any ramp or lift
-// (those are put in a tall room that every level opens onto, or run from one room down into the one below).
-const links = [];                                   // pairs of room ids joined by a ramp or a lift
-function groups() {
-  const g = Object.fromEntries(rooms.map(r => [r.id, r.id]));
-  const find = x => (g[x] === x ? x : (g[x] = find(g[x])));
-  for (const d of doors) if (d.b !== 'out') g[find(d.a)] = find(d.b);
-  for (const [a, b] of links) g[find(a)] = find(b);
-  return r => find(r.id);
+// Places you can stand: the floor of each room and each deck. What joins them: a doorway (to the
+// room's floor, or to the deck at its sill), a flight, a lift, and decks that touch.
+function standAt(x, z, y) {
+  for (const d of decks) if (same(d.y, y) && x >= d.x0 - 0.05 && x <= d.x1 + 0.05 && z >= d.z0 - 0.05 && z <= d.z1 + 0.05) return 'D' + d.id;
+  for (const r of rooms) if (same(r.y, y) && x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) return 'R' + r.id;
+  return null;
 }
-links.push(['G200', 'LL200']);                      // the flight down
-
+function groups() {
+  const g = {};
+  const find = x => (g[x] === undefined ? (g[x] = x) : g[x] === x ? x : (g[x] = find(g[x])));
+  const link = (a, b) => { if (a && b) g[find(a)] = find(b); };
+  const side = (id, d) => { const r = byId[id]; if (same(r.y, d.y)) return 'R' + id; const k = decks.find(k => k.room === id && same(k.y, d.y) && over(k, d, 0.05)); return k ? 'D' + k.id : null; };
+  for (const d of doors) if (d.b !== 'out') link(side(d.a, d), side(d.b, d));
+  for (const q of ramps) {
+    const c = q.axis === 'x' ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2;
+    const lo = q.axis === 'x' ? standAt(q.x0 - 0.3, c, q.y0) : standAt(c, q.z0 - 0.3, q.y0), hi = q.axis === 'x' ? standAt(q.x1 + 0.3, c, q.y1) : standAt(c, q.z1 + 0.3, q.y1);
+    link(lo, hi);
+  }
+  for (const l of lifts) {
+    const cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2; let first = null;
+    for (const y of l.stops) for (const [x, z] of [[l.x0 - 0.3, cz], [l.x1 + 0.3, cz], [cx, l.z0 - 0.3], [cx, l.z1 + 0.3]]) { const p = standAt(x, z, y); if (p) { if (first) link(first, p); else first = p; } }
+  }
+  for (let i = 0; i < decks.length; i++) for (let j = i + 1; j < decks.length; j++) { const a = decks[i], b = decks[j]; if (a.room === b.room && same(a.y, b.y) && over(a, b, 0.05)) link('D' + a.id, 'D' + b.id); }
+  return r => find('R' + r.id);
+}
+const HOME = byId.G200;
+let passages = 0, forced = 0;
+// A doorway straight through, where two rooms stand wall to wall after all.
+function force(of, home) {
+  for (const a of rooms) if (of(a) === home) for (const b of rooms) if (of(b) !== home && over(a, b, 3.02) && !joined(a, b) && pair(a, b)) { forced++; return true; }
+  return false;
+}
 // A plain passage from a room that is cut off to the nearest room on its level that is not.
-let passages = 0;
 function passage(of, home) {
   let best = null;
   for (const a of rooms) for (const b of rooms) {
-    if (of(a) === home || of(b) !== home || a === b) continue;
-    const y = meet(a, b);
-    if (y == null) continue;
-    for (const [p, q] of [[a, b], [b, a]]) for (const fp of faces(p, y)) for (const fq of faces(q, y)) {
+    if (of(a) === home || of(b) !== home || a === b || !over(a, b, 14)) continue;
+    for (const y of meets(a, b)) for (const [p, q] of [[a, b], [b, a]]) for (const fp of faces(p, y)) for (const fq of faces(q, y)) {
       if (!((fp.s === 'e' && fq.s === 'w') || (fp.s === 's' && fq.s === 'n'))) continue;
       const gap = fq.at - fp.at, lo = Math.max(fp.lo, fq.lo), hi = Math.min(fp.hi, fq.hi);
-      if (gap <= 3.01 || gap > 60 || hi - lo < 3) continue;
-      const w = Math.min(4, hi - lo), c = snap((lo + hi) / 2);
-      const k = fp.s === 'e' ? { x0: fp.at + T, x1: fq.at - T, z0: c - w / 2, z1: c + w / 2 } : { x0: c - w / 2, x1: c + w / 2, z0: fp.at + T, z1: fq.at - T };
-      Object.assign(k, { y, floor: (same(y, p.y) ? p : q).floor, fixed: true, top: y + 4.2 });
-      if (!rooms.every(o => o === p || o === q || !shares(k, o) || !over(k, o, T - 0.01))) continue;
+      if (gap <= 3.01 || gap > 14 || hi - lo < 2.4) continue;
+      const w = Math.min(3, hi - lo), c = r2((lo + hi) / 2), W = 0.4;
+      const k = fp.s === 'e' ? { x0: fp.at + W, x1: fq.at - W, z0: c - w / 2, z1: c + w / 2 } : { x0: c - w / 2, x1: c + w / 2, z0: fp.at + W, z1: fq.at - W };
+      Object.assign(k, { y, floor: (same(y, p.y) ? p : q).floor, top: y + 3 });
+      if (!rooms.every(o => o === p || o === q || !shares(k, o) || !over(k, o, 0.39))) continue;
       if (!best || gap < best.gap) best = { gap, k, p, q, y };
     }
   }
   if (!best) return false;
   const { k, p, q, y } = best;
-  Object.assign(k, { id: 'K' + (++passages), gallery: 'Passage', kind: 'gallery', building: p.building === q.building ? p.building : 'main', passage: true });
-  k.h = Math.min(4.2, headroom(k)); k.top = y + k.h;
-  rooms.push(k); byId[k.id] = k;
+  Object.assign(k, { id: 'K' + (++passages), gallery: 'Passage', kind: 'room', use: 'corridor', building: p.building === q.building ? p.building : 'main', passage: true, h: 3 });
+  for (const o of rooms) if (o.y > k.y + 0.5 && over(k, o, T)) k.h = Math.min(k.h, o.y - k.y - SLAB);
+  if (k.y < 0) k.h = Math.min(k.h, -k.y - SLAB - 0.1);
+  add(k);
   join(p, k, y); join(k, q, y);
   return true;
 }
-// Start from the Grand Staircase and keep joining things to it until nothing more can be joined.
-for (let n = 0; n < 60; n++) {
-  const of = groups(), home = of(G200);
-  if (rooms.every(r => of(r) === home) || !passage(of, home)) break;
-}
-
-// A flight of stairs from a first-floor room down into a lower-level room beneath it, and a lift.
-// The flight lies along a wall of the lower room; its head must come up inside one room above.
+// A flight of stairs from a first-floor room down into a lower-level room beneath it. The flight
+// lies along a wall of the lower room; its head must come up inside one room above.
 const inside = (r, x0, x1, z0, z1, m = 0) => r && x0 >= r.x0 + m && x1 <= r.x1 - m && z0 >= r.z0 + m && z1 <= r.z1 - m;
-const doorsNear = (x0, x1, z0, z1, m = 2.2) => doors.some(d => d.x0 < x1 + m && d.x1 > x0 - m && d.z0 < z1 + m && d.z1 > z0 - m);
-function flightDown(b) {
+const taken = (q, m) => doors.some(d => over(d, q, m)) || ramps.some(o => over(o, q, m)) || lifts.some(o => over(o, q, m)) || decks.some(o => over(o, q, m));
+function flight(a, b) {
+  if (a.fixed || b.fixed || !same(a.y, 0) || !(b.y < 0) || a.passage) return false;
   const rise = -b.y, run = Math.ceil(rise * 3 * 2) / 2, w = 3, head = 6, before = 2;
-  for (const a of rooms.filter(r => same(r.y, 0) && over(r, b, -3)).sort((p, q) => (q.x1 - q.x0) * (q.z1 - q.z0) - (p.x1 - p.x0) * (p.z1 - p.z0))) {
-    for (const axis of ['x', 'z']) for (const dir of [1, -1]) {
-      const [lo, hi, c0, c1, a0, a1] = axis === 'x' ? [b.x0, b.x1, b.z0, b.z1, a.z0, a.z1] : [b.z0, b.z1, b.x0, b.x1, a.x0, a.x1];
-      // Against a wall of the room above for choice, then of the room below, then wherever it fits.
-      const across = [a0, a1 - w, c0, c1 - w];                       // (hard against it: no gap behind a stair for a car to wedge itself into)
-      for (let c = c0; c + w <= c1; c += GRID) across.push(c);
-      for (const c of across) for (let u = lo + (dir > 0 ? 0 : 2.5); u + run <= hi - (dir > 0 ? 2.5 : 0) + 0.01; u += GRID) {
-        // The head of the flight is at u when it runs down in the + direction, and at u + run when it does not.
-        const top = dir > 0 ? u : u + run, h0 = dir > 0 ? top - before : top - head, h1 = dir > 0 ? top + head : top + before;
-        const rect = (p, q, r, s) => axis === 'x' ? [p, q, r, s] : [r, s, p, q];
-        const [x0, x1, z0, z1] = rect(u, u + run, c, c + w);
-        const flush = c - a0 < 0.01 || a1 - (c + w) < 0.01, side = flush ? 0 : 1.7;
-        if (!inside(b, x0, x1, z0, z1) || !inside(a, ...rect(h0 + 0.1, h1 - 0.1, Math.max(a0, c - side), Math.min(a1, c + w + side))) || (!flush && (c - side < a0 || c + w + side > a1))) continue;      // the well, and floor to drive onto it from
-        if (doorsNear(x0, x1, z0, z1) || ramps.some(q => over({ x0, x1, z0, z1 }, q, 1))) continue;
-        ramp(`${a.id}-down`, a.id, x0, x1, z0, z1, axis, dir > 0 ? 0 : b.y, dir > 0 ? b.y : 0);
-        links.push([a.id, b.id]);
-        return a;
-      }
-    }
-  }
-  return null;
-}
-function liftDown(b) {
-  const w = 2.6;
-  for (const a of rooms.filter(r => same(r.y, 0) && over(r, b, -3))) {
-    const x0 = Math.max(a.x0, b.x0), x1 = Math.min(a.x1, b.x1), z0 = Math.max(a.z0, b.z0), z1 = Math.min(a.z1, b.z1);
-    for (let x = x0 + 1; x + w <= x1 - 1; x += GRID) for (let z = z0 + 1; z + w <= z1 - 1; z += GRID) {
-      if (doorsNear(x, x + w, z, z + w, 3) || ramps.some(q => over({ x0: x, x1: x + w, z0: z, z1: z + w }, q, 2.5))) continue;
-      lifts.push({ id: `${a.id}-lift`, room: a.id, x0: x, x1: x + w, z0: z, z1: z + w, stops: [b.y, 0] });
+  for (const axis of ['x', 'z']) for (const dir of [1, -1]) {
+    const [lo, hi, c0, c1, a0, a1] = axis === 'x' ? [b.x0, b.x1, b.z0, b.z1, a.z0, a.z1] : [b.z0, b.z1, b.x0, b.x1, a.x0, a.x1];
+    const across = [a0, a1 - w, c0, c1 - w];
+    for (let c = c0; c + w <= c1; c += 0.5) across.push(c);
+    for (const c of across) for (let u = lo + (dir > 0 ? 0 : 2.5); u + run <= hi - (dir > 0 ? 2.5 : 0) + 0.01; u += 0.5) {
+      const top = dir > 0 ? u : u + run, h0 = dir > 0 ? top - before : top - head, h1 = dir > 0 ? top + head : top + before;
+      const at = (p, q, r, s) => axis === 'x' ? [p, q, r, s] : [r, s, p, q];
+      const [x0, x1, z0, z1] = at(u, u + run, c, c + w);
+      const flush = c - a0 < 0.01 || a1 - (c + w) < 0.01, side = flush ? 0 : 1.7;
+      if (!inside(b, x0, x1, z0, z1) || !inside(a, ...at(h0 + 0.1, h1 - 0.1, Math.max(a0, c - side), Math.min(a1, c + w + side))) || (!flush && (c - side < a0 || c + w + side > a1))) continue;
+      if (taken({ x0, x1, z0, z1 }, 2.2)) continue;
+      ramp(`${a.id}-down`, a.id, x0, x1, z0, z1, axis, dir > 0 ? 0 : b.y, dir > 0 ? b.y : 0);
       links.push([a.id, b.id]);
-      return a;
+      return true;
     }
   }
-  return null;
+  return false;
 }
-{
-  // Each cut-off part of the lower level gets a flight down to it; the biggest room of the first gets the lift as well.
-  let lifted = false;
-  for (let n = 0; n < 8; n++) {
-    const of = groups(), home = of(G200);
-    const cut = rooms.filter(r => r.y < 0 && of(r) !== home).sort((p, q) => (q.x1 - q.x0) * (q.z1 - q.z0) - (p.x1 - p.x0) * (p.z1 - p.z0));
-    if (!cut.length) break;
-    const b = cut.find(flightDown);
-    if (!b) break;
-    if (!lifted) lifted = !!cut.find(liftDown);
+// A lift between two rooms that stand one over the other.
+function lift(a, b) {
+  const [lo, up] = a.y < b.y ? [a, b] : [b, a];
+  if (lo.fixed || up.fixed || up.y - lo.top > 1.5 || up.y - lo.top < -0.01) return false;
+  const q = cross(lo, up), w = 2.6;
+  for (let x = q.x0 + 1; x + w <= q.x1 - 1; x += 0.5) for (let z = q.z0 + 1; z + w <= q.z1 - 1; z += 0.5) {
+    const p = { x0: r2(x), x1: r2(x + w), z0: r2(z), z1: r2(z + w) };
+    if (taken(p, 2.6)) continue;
+    lifts.push({ id: `${up.id}-lift`, room: up.id, ...p, stops: [lo.y, up.y] });
+    links.push([lo.id, up.id]);
+    return true;
   }
+  return false;
+}
+// The ways between levels the survey knows of come first: where it has a lift or a stair, that is where one goes.
+const vertical = r => r.use === 'lift' || r.use === 'stair' || /stair|Lift/.test(r.gallery) ? 0 : r.assumed ? 2 : 1;
+function between(of, home, make) {
+  const c = [];
+  for (const a of rooms) if (of(a) === home) for (const b of rooms) if (of(b) !== home && !same(a.y, b.y) && over(a, b, -2.3)) c.push([a, b]);
+  c.sort((p, q) => (vertical(p[0]) + vertical(p[1])) - (vertical(q[0]) + vertical(q[1])) || area(cross(q[0], q[1])) - area(cross(p[0], p[1])));
+  for (const [a, b] of c) if (make(a, b)) return true;
+  return false;
+}
+for (let n = 0; n < 400; n++) {
+  const of = groups(), home = of(HOME);
+  if (rooms.every(r => of(r) === home)) break;
+  if (force(of, home) || passage(of, home) || between(of, home, (a, b) => flight(a, b) || flight(b, a)) || between(of, home, lift)) continue;
+  break;
+}
+// What could not be joined on at all is left out.
+{
+  const of = groups(), home = of(HOME), cut = rooms.filter(r => of(r) !== home);
+  for (const r of cut) { dropped.push(r.id); rooms.splice(rooms.indexOf(r), 1); delete byId[r.id]; }
+  for (let i = doors.length - 1; i >= 0; i--) if (!byId[doors[i].a] || (doors[i].b !== 'out' && !byId[doors[i].b])) doors.splice(i, 1);
 }
 
-// Ways in from outside, on the ground floor only. Named ones first; then every group of rooms that is
-// still cut off indoors gets a door on whichever of its walls has open ground beyond.
+// ---- 7. ways in from outside, on the ground floor only -----------------------
 // A building is solid from the street to its roof, so "open ground" means clear of every room on any floor above ground.
 const sideFree = (r, side, depth = 4) => {
   const [x0, x1, z0, z1] = side === 'w' ? [r.x0 - T - depth, r.x0 - T, r.z0, r.z1] : side === 'e' ? [r.x1 + T, r.x1 + T + depth, r.z0, r.z1]
@@ -353,7 +429,7 @@ function outside(id, side, w = 4, force = false) {
   const r = byId[id];
   if (!r || !same(r.y, 0) || doors.some(d => d.a === id && d.b === 'out' && d.side === side)) return false;
   if (!force && !sideFree(r, side)) return false;
-  const h = Math.min(4.2, r.h - 0.7), cx = snap((r.x0 + r.x1) / 2), cz = snap((r.z0 + r.z1) / 2);
+  const h = Math.min(4.2, r.h - 0.7), cx = r2((r.x0 + r.x1) / 2), cz = r2((r.z0 + r.z1) / 2);
   w = Math.min(w, (side === 'w' || side === 'e' ? r.z1 - r.z0 : r.x1 - r.x0) - 1);
   doors.push(side === 'w' ? { a: id, b: 'out', side, along: 'x', x0: r.x0 - T, x1: r.x0, z0: cz - w / 2, z1: cz + w / 2, y: 0, h }
     : side === 'e' ? { a: id, b: 'out', side, along: 'x', x0: r.x1, x1: r.x1 + T, z0: cz - w / 2, z1: cz + w / 2, y: 0, h }
@@ -361,60 +437,35 @@ function outside(id, side, w = 4, force = false) {
     : { a: id, b: 'out', side, along: 'z', x0: cx - w / 2, x1: cx + w / 2, z0: r.z1, z1: r.z1 + T, y: 0, h });
   return true;
 }
-// The Michigan Avenue front door, on the axis of Adams Street where the real one is, opening into the
-// lobby and straight on to the Grand Staircase. Then the court, the hall's south end, and the far ends of each arm.
+// The Michigan Avenue front door, on the axis of the Grand Staircase. Then the museum's other real
+// ways in: Monroe Street into Griffin Court, the Modern Wing's west door, Columbus Drive.
 if (!outside('lobby', 'w', 4, true)) throw new Error('the front door has nowhere to go');
 { const d = doors[doors.length - 1]; d.h = Math.min(d.h, byId.lobby.h - 1.7); }      // low enough to leave wall over it for the fanlight, which is the drone's way in
-for (const [id, side] of [['hall', 's'], ['G150', 'e'], ['G151', 's'], ['G152', 'w'], ['G153', 'n'], ['G154', 'n'], ['G161', 's'], ['G184', 's'], ['G182', 'w'], ['G134', 's'], ['G142', 'e']]) outside(id, side);
+for (const [id, side] of [['hall', 'n'], ['MW1-west', 'w'], ['G161', 'e'], ['G161', 's'], ['F1-regenstein', 's'], ['G184', 'w'], ['G142', 'n']]) outside(id, side);
 {
-  const of = groups(), home = of(G200);
-  for (const r of rooms.filter(q => same(q.y, 0)).sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0))) {
-    if (of(r) === home || rooms.some(m => of(m) === of(r) && doors.some(d => d.a === m.id && d.b === 'out'))) continue;
-    for (const side of ['s', 'w', 'e', 'n']) if (outside(r.id, side)) break;
-  }
-  // And a few more, so that once the building is open there are ways in and out all round it: the biggest
-  // ground-floor rooms that still have a wall on open ground and no outside door.
   const count = () => doors.filter(d => d.b === 'out').length;
-  for (const r of rooms.filter(q => same(q.y, 0) && !q.passage && !q.fixed).sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0))) {
-    if (count() >= 14) break;
+  for (const r of rooms.filter(q => same(q.y, 0) && !q.passage && !q.fixed && q.kind === 'gallery').sort((a, b) => area(b) - area(a))) {
+    if (count() >= 12) break;
     if (doors.some(d => d.a === r.id && d.b === 'out')) continue;
     for (const side of ['s', 'e', 'w', 'n']) if (outside(r.id, side)) break;
   }
 }
 
-// ---- 7. write it down ------------------------------------------------------
+// ---- 8. write it down ------------------------------------------------------
 
-const r2 = v => Math.round(v * 100) / 100;
 const out = {
   made: new Date().toISOString().slice(0, 10),
   levels: LEVELS,
-  rooms: rooms.map(r => ({ id: r.id, gallery: r.gallery, floor: r.floor, building: r.building, kind: r.kind || 'gallery', x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y: r.y, h: r2(r.h), ...(r.glass ? { glass: r.glass } : {}), ...(r.passage ? { passage: true } : {}) })),
+  rooms: rooms.map(r => ({ id: r.id, gallery: r.gallery, floor: r.floor, building: r.building, kind: r.kind, x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y: r.y, h: r2(r.h),
+    ...(r.glass ? { glass: r.glass } : {}), ...(r.passage ? { passage: true } : {}), ...(r.use ? { use: r.use } : {}), ...(r.assumed ? { assumed: true } : {}) })),
   doors: doors.map(({ side, ...d }) => d),
-  decks, ramps: ramps.map(q => ({ ...q, y0: r2(q.y0), y1: r2(q.y1) })), lifts,
+  decks, ramps, lifts,
 };
-const file = fileURLToPath(new URL('../src/layout.js', import.meta.url));
 const lines = s => JSON.stringify(s).replace(/\{"id"/g, '\n  {"id"').replace(/\{"a"/g, '\n  {"a"');
-writeFileSync(file, `// Generated by tools/build_layout.mjs on ${out.made} from the gallery records at\n// api.artic.edu/api/v1/galleries. Do not edit by hand: change the tool and run it again.\n\nexport default ${lines(out)};\n`);
+writeFileSync(here('../src/layout.js'), `// Generated by tools/build_layout.mjs on ${out.made} from the survey in survey/.\n// Do not edit by hand: change the survey or the tool and run it again.\n\nexport default ${lines(out)};\n`);
 
-// A picture of each level for the terminal.
-const X1 = Math.max(...rooms.map(r => r.x1)) + 4, Z1 = Math.max(...rooms.map(r => r.z1)) + 4, sx = 2.2, sz = 4.4;
-for (const f of ORDER) {
-  const y = LEVELS[f], here = rooms.filter(r => r.y <= y + 0.01 && r.top > y + 2.5);
-  const grid = Array.from({ length: Math.ceil(Z1 / sz) + 1 }, () => Array(Math.ceil(X1 / sx) + 1).fill(' '));
-  for (const r of here) {
-    for (let z = r.z0; z < r.z1; z += sz / 2) for (let x = r.x0; x < r.x1; x += sx / 2) grid[Math.floor(z / sz)][Math.floor(x / sx)] = same(r.y, y) ? '·' : ':';
-    const label = r.id.replace(/^G/, '');
-    [...label].forEach((ch, i) => { const gx = Math.floor((r.x0 + 0.6) / sx) + i, gz = Math.floor((r.z0 + r.z1) / 2 / sz); if (gx < Math.floor(r.x1 / sx) + 1) grid[gz][gx] = ch; });
-  }
-  for (const d of doors) if (same(d.y, y)) grid[Math.floor((d.z0 + d.z1) / 2 / sz)][Math.floor((d.x0 + d.x1) / 2 / sx)] = d.b === 'out' ? 'O' : '+';
-  for (const q of ramps) if (Math.max(q.y0, q.y1) >= y - 0.01 && Math.min(q.y0, q.y1) <= y + 0.01) grid[Math.floor((q.z0 + q.z1) / 2 / sz)][Math.floor((q.x0 + q.x1) / 2 / sx)] = Math.min(q.y0, q.y1) < y - 0.01 ? 'v' : '^';
-  for (const l of lifts) if (l.stops.some(s => same(s, y))) grid[Math.floor((l.z0 + l.z1) / 2 / sz)][Math.floor((l.x0 + l.x1) / 2 / sx)] = '#';
-  console.log(`\n==== level ${f} (floor at ${y} m) ====   + door  O door to outside  ^ stair up  v stair down  # lift  : a tall room rising through`);
-  console.log(grid.map(r => r.join('').replace(/\s+$/, '')).filter((l, i, a) => l || a[i - 1]).join('\n'));
-}
-const of = groups(), home = of(G200), groupsOut = {};
-for (const r of rooms) (groupsOut[of(r)] = groupsOut[of(r)] || []).push(r.id.replace(/^G/, ''));
-console.log(`\n${rooms.length} rooms (${passages} of them passages), ${doors.filter(d => d.b !== 'out').length} doors between rooms, ${doors.filter(d => d.b === 'out').length} doors to outside, ${decks.length} decks, ${ramps.length} ramps, ${lifts.length} lifts`);
-console.log(`joined indoors to the Grand Staircase: ${groupsOut[home].length} rooms`);
-for (const [k, g] of Object.entries(groupsOut)) if (k !== home) console.log('  apart, reached across the snow: ' + g.join(' '));
-console.log('ramps', ramps.map(q => `${q.id} ${Math.abs(q.y1 - q.y0).toFixed(1)} m in ${(q.axis === 'x' ? q.x1 - q.x0 : q.z1 - q.z0)} m`).join('; '));
+const sum = f => rooms.filter(r => r.floor === f);
+for (const f of ['LL', '1', '2', '3']) console.log(`level ${f.padEnd(2)}: ${String(sum(f).length).padStart(3)} rooms, ${Math.round(sum(f).reduce((s, r) => s + area(r), 0)).toLocaleString()} m2`);
+console.log(`${rooms.length} rooms (${passages} passages added), ${doors.filter(d => d.b !== 'out').length} doorways (${forced} forced), ${doors.filter(d => d.b === 'out').length} to outside, ${decks.length} decks, ${ramps.length} flights, ${lifts.length} lifts`);
+console.log('flights and lifts added to join levels:', [...ramps.filter(q => /-down$/.test(q.id) && q.id !== 'G200-down').map(q => q.id), ...lifts.filter(l => /-lift$/.test(l.id)).map(l => l.id)].join(' ') || 'none');
+if (dropped.length) console.log(`left out (${dropped.length}): ${dropped.map(d => d + (why[d] ? '<' + why[d] : '')).join(' ')}`);
