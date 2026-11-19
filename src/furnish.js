@@ -1612,6 +1612,47 @@ function extra(R, kind) {
   return null;
 }
 
+// The conservation line (src/repair.js): in the larger paintings conservation studio, a low conveyor
+// bench with a few canvases standing on it, a lamp on an arm over them and a stool; and in any other
+// paintings studio, a notice on a stand saying where the line is. Set down like the extras above,
+// before the room's own recipe, with the floor kept clear from it to the aisle.
+const LINE_ROOM = /^Paintings conservation studio( \d+)?$/i;
+EXTRAS.repair = (g, r) => {
+  for (const u of [-1.2, 0, 1.2]) for (const d of [0.14, 0.56]) g.b(u - 0.025, u + 0.025, 0, 0.24, d - 0.025, d + 0.025, C.steelD, 'metal');
+  g.b(-1.28, 1.28, 0.24, 0.28, 0.08, 0.62, C.steelD, 'metal', true);                                    // the bed
+  g.b(-1.24, 1.24, 0.28, 0.294, 0.13, 0.57, C.rubber, 'matte', true);                                   // the belt
+  for (let u = -1.1; u < 1.15; u += 0.22) g.b(u - 0.012, u + 0.012, 0.294, 0.297, 0.14, 0.56, C.grey);
+  for (const u of [-1.26, 1.26]) g.c(u, 0.262, 0.35, 0.036, 0.46, 'd', C.steelL, 'metal', 8);           // a roller at each end
+  g.b(-1.28, 1.28, 0.28, 0.33, 0.08, 0.1, C.yellow); g.b(-1.28, 1.28, 0.28, 0.315, 0.6, 0.62, C.yellow);
+  picture(g, 'd', -0.86, -0.4, 0.297, 0.62, 0.33, 0.03, r); picture(g, 'd', -0.22, 0.3, 0.297, 0.7, 0.33, 0.03, r); picture(g, 'd', 0.5, 0.92, 0.297, 0.6, 0.33, 0.03, r);
+  lampArm(g, 0.05, 0.11, 0.28, 0.42, 1);
+  g.b(1.02, 1.26, 0.3, 0.5, 0.1, 0.2, C.greyL, 'metal', true); g.b(1.06, 1.1, 0.42, 0.46, 0.2, 0.203, C.led, 'glow'); g.b(1.16, 1.2, 0.42, 0.46, 0.2, 0.203, C.ledA, 'glow');      // the motor's box
+  g.b(-1.25, -0.99, 0.3, 0.42, 0.42, 0.6, C.pine, 'matte', true); for (let k = 0; k < 4; k++) g.c(-1.2 + k * 0.055, 0.46, 0.5, 0.012, 0.1, 'y', pick(r, PAINT), 'matte', 5);      // a box of brushes
+  stool(g, -1.0, 0.98, 0.3);
+  g.s(-1.3, 1.3, 0, 0.88, 0.06, 0.64);
+};
+EXTRAS.repairNote = g => {
+  g.b(-0.26, 0.26, 0, 0.03, 0.1, 0.44, C.steelD, 'metal', true); g.b(-0.025, 0.025, 0.03, 0.22, 0.22, 0.27, C.steelD, 'metal');
+  g.b(-0.3, 0.3, 0.2, 0.66, 0.24, 0.27, C.white, 'matte', true);
+  g.s(-0.3, 0.3, 0, 0.66, 0.1, 0.44);
+};
+function extraWide(R, kind, width) {
+  const { L, W } = R, A = R.aisle, rnd = dice(hash(R.room.id + ':' + kind)), tries = [], half = width / 2;
+  for (let a = Math.max(half + 0.4, R.spine[0]); a <= Math.min(L - half - 0.4, R.spine[1]); a += 0.3) for (const side of [0, 1]) tries.push([a, side, rnd()]);
+  tries.sort((p, q) => p[2] - q[2]);
+  for (const [a, side] of tries) {
+    const b0 = side ? R.mid + A : 0, b1 = side ? W : R.mid - A;
+    if (b1 - b0 < 1.9) continue;
+    const q = R.rect(a - half, a + half, b0 + 0.01, b1 - 0.01);
+    if (!R.free(q, 0.3)) continue;
+    R.taken.push(q); R.placed++;
+    const [fx, fz] = R.dir(side ? [0, -1] : [0, 1]), [ox, oz] = R.xz(a, side ? W : 0);
+    EXTRAS[kind](new Pen(R, ox, oz, fx, fz, 0.7), dice(hash(R.room.id + ':' + kind + ':look')));
+    return { room: R.room.id, x: ox, z: oz, y: R.y, fx, fz };
+  }
+  return null;
+}
+
 // ------------------------------------------------------------ the builder --
 
 // Furnish every room that is not a gallery. Adds what is solid to plan.obstacles and returns the
@@ -1620,6 +1661,7 @@ function extra(R, kind) {
 export function furnish(plan) {
   const out = { batches: {}, solids: [] }, rooms = {}, arcades = [], consoles = [];
   let items = 0;
+  const lineRooms = plan.rooms.filter(r => LINE_ROOM.test(String(r.gallery || ''))).sort((p, q) => (q.x1 - q.x0) * (q.z1 - q.z0) - (p.x1 - p.x0) * (p.z1 - p.z0)); plan.repair = null; plan.repairNotes = [];      // where the conservation line goes (src/repair.js)
   for (const room of plan.rooms) {
     const recipe = fitoutOf(room);
     if (!recipe) continue;
@@ -1627,9 +1669,11 @@ export function furnish(plan) {
     const slot = ARCADE_ROOMS.indexOf(room.gallery);
     if (slot >= 0) { const at = extra(R, 'arcade'); if (at) arcades.push({ slot, ...at }); }
     if (recipe === 'securityControl') { const at = extra(R, 'heist'); if (at) consoles.push(at); }
+    if (lineRooms.includes(room)) { const first = !plan.repair && room === lineRooms.find(r => fitoutOf(r)), at = extraWide(R, first ? 'repair' : 'repairNote', first ? 2.8 : 1.0); if (at) { if (first) plan.repair = at; else plan.repairNotes.push(at); } }
     RECIPES[recipe](R);
     rooms[room.id] = { recipe, items: R.placed, clear: R.clear, entries: R.entries.map(([a, b]) => R.xz(a, b)), aisle: [R.xz(R.spine[0], R.mid), R.xz(R.spine[1], R.mid)] };
     items += R.placed;
+    rooms[room.id].taken = R.taken;                       // every footprint, solid or not: src/lights.js keeps its switch plates off them
   }
   for (const s of out.solids) plan.obstacles.push(s);
   plan.fitout = rooms;
