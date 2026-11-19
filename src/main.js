@@ -11,6 +11,8 @@ import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection
 import { createMap } from './map.js';
 import { Shop } from './shop.js';
 import { Paint } from './paint.js';
+import { Secrets } from './secrets.js';
+import { Simon } from './simon.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
@@ -98,6 +100,8 @@ const score = G.score = new Score({
   onCall: (c, big) => stuntCall(c, big),
 });
 const trophies = G.trophies = new Trophies();
+// Secrets: everything in the building that is not a room or a picture. Each one found is counted (src/secrets.js).
+const secrets = G.secrets = new Secrets({ onFind: f => { toast({ head: `Secret ${f.count} of ${f.total}`, name: f.name, sound: () => sound.lap() }); tm.event('secret', f.id); } });
 const garage = G.garage = new Garage();
 trophies.onEarn = t => { toast({ tier: t.tier, head: t.tier === 'platinum' ? 'Platinum trophy earned' : 'Trophy earned', name: t.name, sound: () => (t.tier === 'platinum' ? sound.finish() : sound.perfect()), hold: t.tier === 'platinum' ? 6500 : 4200 }); tm.event('trophy', t.id, { tier: t.tier }); };
 garage.onUnlock = v => { toast({ head: 'Vehicle unlocked', name: v.name, sound: () => sound.lap() }); tm.event('unlock', v.id); };
@@ -156,6 +160,8 @@ async function boot() {
   G.props = new Props(plan);
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
+  // The colour pedestal in Griffin Court: five patterns right and the roof lets go (src/simon.js).
+  G.simon = new Simon(G, { museum: G.museum, plan, sound, resume: () => act('resume'), calm: () => set.reduce, onWin: () => { callout('THE ROOF LETS GO'); tm.event('simon'); } });
   // Your own picture: an easel in a studio, and the frame in the lobby it hangs in (src/paint.js).
   G.paint = new Paint(G, { museum: G.museum, plan, resume: () => act('resume'), say, onHang: () => { tm.event('paint'); if (G.nav && G.nav.target && G.nav.target.paint) G.nav.clear(); } });
   // The stall beside the card table: two toys for sale, for chips won at it (src/shop.js).
@@ -165,6 +171,11 @@ async function boot() {
   G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.arcade = new Arcade(G.museum, plan, sound);            // the monitors with games on them (src/arcade.js)
   G.heist = new Heist(G, { say, callout });                // the button in the security control room (src/heist.js)
+  // What counts as a secret. (Anything added later, by anything, raises the total.)
+  secrets.add('poker', 'The card game on the roof').add('dogs', 'A Friend in Need, on its easel').add('stall', 'The toy stall').add('hockey', 'The hockey pond')
+    .add('heist', 'The big red button').add('easel', 'The easel in the studio').add('simon', 'The colour pedestal');
+  for (const it of G.arcade.list) { secrets.add('arcade:' + it.id, `A monitor left on: ${it.Game.title || it.id}`); if (G.arcade.found.has(it.id)) secrets.found.add('arcade:' + it.id); }
+  addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'found') secrets.find('arcade:' + d.id); });
   // The side games earn trophies too.
   addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'played' || d.event === 'score') trophies.flag('arcade'); if (G.arcade && G.arcade.found && G.arcade.found.size >= G.arcade.total) trophies.flag('arcadeAll'); });
   addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (!d.trips) trophies.flag('ghost'); } });
@@ -328,6 +339,7 @@ function newGame() {
   score.reset();
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
   G.arcade.reset();
+  secrets.reset();
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
@@ -825,7 +837,7 @@ function hud() {
       $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><span class="pts">ART SCORE <b>${score.score.toLocaleString()}</b></span><br>`
         + (here && here.arts.length ? `THIS ROOM <b>${here.seen}</b> / ${here.arts.length}` : 'OUTSIDE') + ` \u00b7 ROOMS <b>${rooms.filter(r => r.done).length}</b> / ${rooms.length}<br>`
         + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal} \u00b7 snowmen ${G.props.busted} / ${G.props.snowmen}</span>`;
-      $('tally').lastElementChild.append(` \u00b7 arcades ${G.arcade.found.size} / ${G.arcade.total}`);
+      $('tally').lastElementChild.append(` \u00b7 secrets ${secrets.count} / ${secrets.total}`);
     } else {
       const R = G.race;
       $('rLap').textContent = `LAP ${Math.min(R.lap, LAPS)}/${LAPS}`;
@@ -1012,6 +1024,7 @@ function play(dt, real) {
     // Indoors: the easel you paint at, and the frame your picture hangs in.
     const paintNear = !!G.paint && G.mode === 'explore' && G.paint.near(v), frameNear = !!G.paint && !paintNear && G.mode === 'explore' && !G.facing && G.paint.facing(v);
     const paintTap = (paintNear || frameNear) && input.took('look');
+    const simonNear = !!G.simon && G.mode === 'explore' && G.simon.near(v), simonTap = simonNear && input.took('look');
     G.pokerNear = G.poker.near(v);
     if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
     // A monitor with a game on it, or the button in the security control room, takes the same button.
@@ -1028,12 +1041,18 @@ function play(dt, real) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
       if (shopTap) G.shop.open();
     }
+    if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
+    // Secrets are found by coming across them.
+    if (G.mode === 'explore') {
+      if (G.pokerNear) secrets.find('poker'); if (stallNear) secrets.find('stall'); if (G.heistNear) secrets.find('heist'); if (paintNear) secrets.find('easel'); if (simonNear) secrets.find('simon');
+      const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 16) secrets.find('hockey');
+    }
     if (paintNear) { once('easel', 'An easel, and paint. Whatever you make here hangs in the lobby. E to paint.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PAINT'; if (paintTap) G.paint.open(); }
     if (frameNear) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK';
       if (paintTap) { lookAtEasel(G.paint.art); const to = !G.paint.done && G.paint.studioSpot; if (to && G.nav) G.nav.goTo({ ...to, paint: true }); }      // an empty frame lights the way to the studio
     }
-    if (easelNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (easelTap) lookAtEasel(G.poker.easel); }
+    if (easelNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (easelTap) { secrets.find('dogs'); lookAtEasel(G.poker.easel); } }
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -1160,6 +1179,7 @@ function tick(now) {
   input.endFrame();
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
   if (G.shop && G.state !== 'results') G.shop.update(dt);
+  if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
   if (G.state === 'arcade') return;                      // the game on the monitor covers the screen: nothing behind it needs drawing

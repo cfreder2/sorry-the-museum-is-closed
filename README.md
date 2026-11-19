@@ -88,6 +88,19 @@ against one; it stands down on stairs, ramps and lifts. Both are switches
 under Settings, Driving: with "Drive for me" off the stick is the throttle as
 well. On a keyboard or a gamepad both start off.
 
+## Secrets
+
+Everything in the building that is not a room or a picture is a secret: the
+card game, the toy stall, the picture on its easel, the hockey pond, the big
+red button, the easel in the studio, every monitor somebody left switched on,
+and a pedestal with four lit pads under the coloured roof of Griffin Court.
+Nothing says where they are. The screen counts them, "secrets 3 / 17", and
+each one found is announced.
+
+The pedestal plays a pattern of colours and you play it back; it adds one each
+time. Get five right and the roof lets go: confetti in the colours of all 126
+panes comes down the length of the court.
+
 ## Your own picture
 
 One big gilt frame hangs in the Michigan Avenue lobby, where everybody comes
