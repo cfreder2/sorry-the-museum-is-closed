@@ -18,7 +18,7 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 
 /* ------------------------------------------------------------------ HUD */
 #hud { position: fixed; inset: 0; pointer-events: none; }
-#hud button { pointer-events: auto; }
+#hud button, #hud #map { pointer-events: auto; }
 
 #room { position: absolute; top: 15%; left: 0; right: 0; text-align: center; opacity: 0; transition: opacity 1.4s ease; text-shadow: 0 2px 24px #000, 0 0 3px #000; }
 #room.on { opacity: 1; }
@@ -33,7 +33,8 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #tally .art b { font-size: 19px; }
 #tally .minor { font-size: 10.5px; opacity: .8; }
 
-#map { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); width: 220px; height: 125px; opacity: .9; }
+#map { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); width: 170px; height: 170px; border-radius: 50%; cursor: pointer; touch-action: none; box-shadow: 0 2px 14px rgba(0,0,0,.6); }
+#mapkey { display: none !important; }
 
 #mapkey { position: absolute; top: calc(max(14px, env(safe-area-inset-top)) + 129px); right: max(14px, env(safe-area-inset-right)); width: 220px; text-align: right; font: 9.5px var(--mono); letter-spacing: .04em; color: #b9b2a0; text-shadow: 0 1px 4px #000; }
 #mapkey i { display: inline-block; width: 9px; height: 9px; margin: 0 4px 0 9px; vertical-align: -1px; border: 1px solid rgba(226,205,148,.6); }
@@ -247,7 +248,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .screen { background: rgba(4,5,9,.8); align-items: flex-start; }
   .sel { grid-template-columns: 44px 1fr 44px; row-gap: 4px; } .sel .lab { grid-column: 1 / -1; } .sel .hint { grid-column: 1 / -1; text-align: center; }
   .big { width: 100%; }
-  #map { width: 150px; height: 85px; } #mapkey { display: none; }
+  #map { width: 120px; height: 120px; }
   #label { top: auto; bottom: 170px; left: 50%; transform: translateX(-50%); width: calc(100vw - 32px); }
   #placard { bottom: 160px; width: calc(100vw - 32px); }
   .lcd { min-width: 0; font-size: 10px; padding: 5px 8px; }
@@ -260,7 +261,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .col { gap: 6px; } .col button { padding: 8px; font-size: 14px; }
   #room { top: 9%; } #room .num { font-size: min(4.2vw, 9vh); } #room .names { font-size: 14px; }
   #toast { top: 30%; font-size: 14px; }
-  #map, #mapkey { display: none; }
+  #map { width: 104px; height: 104px; top: calc(max(12px, env(safe-area-inset-top)) + 46px); }
   .touch #pads { top: max(12px, env(safe-area-inset-top)); bottom: auto; flex-direction: row; }
   #pads button { height: 38px; }
   .lcd { display: none; }
@@ -298,3 +299,17 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .pc { width: 34px; height: 48px; font-size: 16px; } .pc b { font-size: 16px; } #pkMine .pc { width: 40px; height: 56px; } #pkMine .pc b { font-size: 19px; }
   #pkLog { font-size: 13px; } #poker button { height: 40px; padding: 0 10px; font-size: 12px; } #pkMe { gap: 8px; }
 }
+
+/* the whole-building map */
+#bigmap { padding: 0; align-items: stretch; }
+.mapwrap { display: flex; flex-direction: column; width: 100%; height: 100%; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); box-sizing: border-box; background: rgba(4,5,9,.93); }
+.maphead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.maphead h2 { margin: 0 auto 0 0; font-size: 20px; }
+#bmLevels { display: flex; gap: 6px; }
+.maphead button { min-width: 64px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.66); font: 700 12px var(--mono); letter-spacing: .1em; color: var(--gilt); }
+.maphead button[aria-pressed="true"], #bmClose { background: rgba(226,205,148,.9); color: #14120c; }
+#bmCanvas { flex: 1; min-height: 0; width: 100%; margin: 8px 0 6px; cursor: crosshair; touch-action: none; }
+.mapfoot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 12px var(--mono); color: var(--gilt); }
+.mapfoot .key { color: var(--gilt-dim); font-size: 10.5px; }
+.mapfoot i { display: inline-block; width: 9px; height: 9px; margin: 0 4px 0 9px; vertical-align: -1px; border: 1px solid rgba(226,205,148,.6); }
+.mapfoot .k0 { background: #1e2230; } .mapfoot .k1 { background: #3e4662; } .mapfoot .k2 { background: #e2be6e; } .mapfoot .k3 { background: #7fe9f5; border-color: #7fe9f5; }

@@ -24,7 +24,7 @@
     <div id="tally"></div>
   </div>
 
-  <canvas id="map" width="440" height="250" aria-hidden="true"></canvas>
+  <canvas id="map" width="300" height="300" role="button" aria-label="Open the map"></canvas>
   <div id="mapkey" aria-hidden="true"><i class="k0"></i>not visited <i class="k1"></i>more to see <i class="k2"></i>all seen</div>
 
   <div id="race" hidden>
@@ -207,6 +207,19 @@
     </fieldset>
     <div class="row2 inset"><button class="quiet" data-act="controls">Controls</button><button class="quiet" data-act="about">About</button></div>
     <div class="col"><button data-act="closeSettings">Done</button></div>
+  </div>
+</section>
+
+<section id="bigmap" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="bmH">
+  <div class="mapwrap">
+    <div class="maphead">
+      <h2 id="bmH">Map</h2>
+      <div id="bmLevels" role="group" aria-label="Level"></div>
+      <button id="bmClear" class="quiet" hidden>Clear route</button>
+      <button id="bmClose" data-first>Close</button>
+    </div>
+    <canvas id="bmCanvas" aria-label="Floor plan. Pick a room to light the way to it."></canvas>
+    <div class="mapfoot"><span id="bmNote"></span><span class="key"><i class="k0"></i>not visited <i class="k1"></i>more to see <i class="k2"></i>all seen <i class="k3"></i>stairs and lifts</span></div>
   </div>
 </section>
 

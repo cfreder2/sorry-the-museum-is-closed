@@ -62,8 +62,10 @@ You get from one level to another the way a toy car would have to:
   fly through a floor; the only ways through are the stair wells, the lift
   shafts and the open air of the two tall halls.
 
-The map in the corner shows the level you are on, with its stairs hatched and
-its lifts solid. `node tools/check_layout.mjs` proves that every room on every
+The round map in the corner turns with you and shows the level you are on,
+with its stairs hatched and its lifts solid. Touch it (or press G) for the
+whole building, a level at a time. Pick a room there and the way to it lights
+up, on the big map and on the round one, across stairs and lifts. `node tools/check_layout.mjs` proves that every room on every
 level can be driven to from the front door.
 
 You start outside on Michigan Avenue, between the lions, and the doors are

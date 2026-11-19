@@ -8,6 +8,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
+import { createMap } from './map.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
@@ -305,7 +306,7 @@ function quit() {
 
 let shown = 'title';
 function show(name) {
-  for (const id of ['title', 'pause', 'results', 'notebook', 'settings', 'controls', 'about']) $(id).hidden = id !== name;
+  for (const id of ['title', 'pause', 'results', 'notebook', 'settings', 'controls', 'about', 'bigmap']) $(id).hidden = id !== name;
   shown = name;
   // Keyboard and switch users land on the first control of whatever just opened.
   if (name) { const first = $(name).querySelector('[data-first]:not([disabled])') || $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }
@@ -466,8 +467,8 @@ function openNotebook() {
 function controlsList() {
   const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
   const rows = touch
-    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
-    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
+    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Map', 'Touch the round map for the whole building. Pick a room and the way lights up.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Map', 'G, or click the radar'], ['Notebook', 'N'], ['Mute', 'M'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
 for (const b of document.querySelectorAll('button.big')) b.disabled = true;
@@ -713,69 +714,9 @@ function attract(dt) {
 
 // -------------------------------------------------------------------- HUD ---
 
-const mapEl = $('map'), mctx = mapEl.getContext('2d');
-function drawMap() {
-  const c = mctx, v = G.vehicle, s = 4, W = 440, Hh = 250;
-  const X = x => (x - v.pos.x) * s + W / 2, Z = z => (z - v.pos.z) * s + Hh / 2;
-  c.clearRect(0, 0, W, Hh);
-  c.fillStyle = 'rgba(10,12,18,.5)'; c.fillRect(0, 0, W, Hh);
-  c.lineWidth = 1.5; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '600 21px ui-monospace, Menlo, monospace';
-  // Three kinds of room: not yet visited (dark, dashed), visited with works still to see
-  // (lighter, with a gold bar for how far through you are), and finished (gold).
-  // The map is of the level you are on: the rooms whose floor is here, and the tall ones that rise through it.
-  const ly = G.roomId ? v.pos.y : 0, here = r => r.y <= ly + 0.6 && r.top > ly + 0.3;
-  for (const st of Object.values(G.museum.rooms)) {
-    const r = st.room;
-    if (!here(r) || X(r.x1) < 0 || X(r.x0) > W || Z(r.z1) < 0 || Z(r.z0) > Hh) continue;
-    const been = G.museum.visited.has(r.id), n = st.arts.length, f = n ? st.seen / n : 0, done = n ? st.done : been;
-    const x = X(r.x0), z = Z(r.z0), w = (r.x1 - r.x0) * s, h = (r.z1 - r.z0) * s;
-    c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : 'rgba(14,16,24,.92)';
-    c.fillRect(x, z, w, h);
-    if (!done && f > 0) { c.fillStyle = 'rgba(240,200,110,.95)'; c.fillRect(x, z + h - 7, w * f, 7); }
-    c.setLineDash(been ? [] : [5, 5]);
-    c.strokeStyle = done ? 'rgba(255,235,170,1)' : been ? 'rgba(226,205,148,.75)' : 'rgba(150,150,165,.5)';
-    c.strokeRect(x, z, w, h);
-    c.setLineDash([]);
-    if (w > 34) {
-      const name = r.kind === 'hall' ? 'Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '').slice(0, 7);
-      c.fillStyle = done ? 'rgba(30,22,6,.95)' : been ? 'rgba(240,225,185,.95)' : 'rgba(150,150,165,.7)';
-      c.font = '600 21px ui-monospace, Menlo, monospace';
-      c.fillText(name, x + w / 2, z + h / 2 - (n && h > 46 ? 9 : 0));
-      if (n && h > 46) { c.font = '500 16px ui-monospace, Menlo, monospace'; c.fillText(done ? 'all ' + n : `${st.seen}/${n}`, x + w / 2, z + h / 2 + 13); }
-    }
-  }
-  c.fillStyle = 'rgba(226,205,148,.9)';
-  for (const d of G.plan.doors) if (Math.abs(d.y - ly) < 1.6) c.fillRect(X(d.x0), Z(d.z0), Math.max(2, (d.x1 - d.x0) * s), Math.max(2, (d.z1 - d.z0) * s));
-  // Ways up and down from here: stairs hatched, lifts solid.
-  c.strokeStyle = 'rgba(127,233,245,.9)'; c.fillStyle = 'rgba(127,233,245,.85)';
-  for (const q of G.plan.ramps) {
-    if (Math.min(q.y0, q.y1) > ly + 1.6 || Math.max(q.y0, q.y1) < ly - 1.6) continue;
-    c.strokeRect(X(q.x0), Z(q.z0), (q.x1 - q.x0) * s, (q.z1 - q.z0) * s);
-    c.beginPath();
-    if (q.axis === 'x') for (let x = q.x0 + 1; x < q.x1; x += 1) { c.moveTo(X(x), Z(q.z0)); c.lineTo(X(x), Z(q.z1)); } else for (let z = q.z0 + 1; z < q.z1; z += 1) { c.moveTo(X(q.x0), Z(z)); c.lineTo(X(q.x1), Z(z)); }
-    c.stroke();
-  }
-  for (const l of G.plan.lifts) if (l.stops[0] < ly + 1.6 && l.stops[l.stops.length - 1] > ly - 1.6) c.fillRect(X(l.x0), Z(l.z0), (l.x1 - l.x0) * s, (l.z1 - l.z0) * s);
-  c.fillStyle = 'rgba(226,205,148,.9)';
-  c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5;
-  for (const L of G.plan.loops) { c.beginPath(); c.arc(X(L.x), Z(L.z), 5.5, 0, 7); c.stroke(); }
-  c.lineWidth = 1.5;
-  if (G.mode === 'race' && G.race.active) {
-    const R = G.race;
-    c.strokeStyle = 'rgba(127,233,245,.6)'; c.lineWidth = 2; c.beginPath();
-    R.route.pts.forEach((p, i) => (i % 4 === 0) && (i ? c.lineTo(X(p.x), Z(p.z)) : c.moveTo(X(p.x), Z(p.z))));
-    c.closePath(); c.stroke();
-    const g = R.gates[R.next];
-    c.fillStyle = '#7fe9f5'; c.beginPath(); c.arc(Math.max(8, Math.min(W - 8, X(g.x))), Math.max(8, Math.min(Hh - 8, Z(g.z))), 6, 0, 7); c.fill();
-    for (const b of R.bots) { c.fillStyle = '#' + b.colour.toString(16).padStart(6, '0'); c.beginPath(); c.arc(X(b.x), Z(b.z), 5, 0, 7); c.fill(); }
-  }
-  c.save();
-  c.translate(W / 2, Hh / 2);
-  c.rotate(Math.atan2(Math.cos(v.yaw), Math.sin(v.yaw)) - Math.PI / 2);
-  c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 2;
-  c.beginPath(); c.moveTo(0, 11); c.lineTo(7, -8); c.lineTo(0, -3); c.lineTo(-7, -8); c.closePath(); c.stroke(); c.fill();
-  c.restore();
-}
+// The map is its own module: a round radar in the corner and the whole building behind it.
+const nav = createMap(G, { radarEl: $('map'), show, resume: () => act('resume'), say });
+G.nav = nav;                                         // G.nav.goTo({ x, y, z, label }) lights the way to a spot; G.mapMarks = [{ x, y, z, colour, ring }] puts marks on it
 
 const knobL = $('stickL').firstElementChild, knobR = $('stickR').firstElementChild;
 let frame = 0;
@@ -813,7 +754,7 @@ function hud() {
       $('fpv').querySelector('.stamp').innerHTML = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }).toUpperCase()
         + '<br>' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
     }
-    if (frame % 12 === 0) drawMap();
+    if (frame % 2 === 0) nav.radar();
   }
   if (G.mode === 'race') {
     const R = G.race, b = R.bearing();
@@ -922,6 +863,7 @@ function play(dt, real) {
   if (input.took('lights')) { G.lampOn = !G.lampOn; G.lamp.intensity = G.lampOn ? 70 : 0; $('bLights').setAttribute('aria-pressed', G.lampOn); sound.tick(0.08, 2200, 0.03); }
   if (input.took('mute')) act('sound');
   if (input.took('notebook')) { pause(); openNotebook(); }
+  if (input.took('map')) nav.open();
   if (input.took('pause')) pause();
   if (input.took('reset')) { if (racing) R.reset(); else { v.vel.set(0, 0, 0); } }
   if (input.took('swap') && !racing) {

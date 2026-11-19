@@ -7,7 +7,7 @@
 
 const KEYS = {
   look: ['KeyE', 'Enter', 'KeyF'], info: ['KeyI'], camera: ['KeyC'], swap: ['KeyV'], pause: ['Escape', 'KeyP'],
-  reset: ['KeyR'], mute: ['KeyM'], notebook: ['KeyN'], lights: ['KeyL'],
+  reset: ['KeyR'], mute: ['KeyM'], notebook: ['KeyN'], lights: ['KeyL'], map: ['KeyG'],
 };
 
 export class Input {
