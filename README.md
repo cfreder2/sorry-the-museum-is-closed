@@ -24,15 +24,18 @@ heights: the lower level 4.6 m below the street, the first floor at street
 level, the second 5.2 m up and the third (the top of the Modern Wing) at
 11.3 m. Those heights are from the architect's section of the Modern Wing.
 
-The API gives every gallery a latitude, a longitude and a floor.
-`tools/build_layout.mjs` puts each gallery on its true spot on its true level
-and grows it until it meets its neighbours on that level, so each floor has
-the museum's real arrangement: on the second, the ring of European painting
-galleries round the Grand Staircase, the Impressionists running east along the
-bridge over the railway, medieval art and arms and armour down the south arm;
-on the first, the Asian galleries under them and the rooms round McKinlock
-Court; underneath, the Thorne Miniature Rooms and the lower-level galleries;
-the Modern Wing to the north-east on three floors.
+The rooms are the real ones. `tools/build_layout.mjs` builds the plan from the
+survey in `survey/`: the Modern Wing traced from the architect's plans, the
+older buildings from the museum's visitor maps fitted to the mapped outline,
+and the offices, stores, workshops and plant assumed for the space that is
+left (see `survey/README.md` for what each is drawn from and how far to trust
+it). That is 436 rooms on four levels, about 65,000 m² of floor, in the
+building's own 246 m square.
+
+- **Public rooms** are where they are in the building and open into their
+  neighbours.
+- **Back-of-house** rooms are named for what they are assumed to be and open
+  off service corridors. Their extent is real; their uses are a guess.
 
 You get from one level to another the way a toy car would have to:
 
@@ -40,15 +43,18 @@ You get from one level to another the way a toy car would have to:
   flight is real steps with a sheet laid up it, arrows running uphill, and a
   rail down each side so it can be taken at speed. None is steeper than about
   one in three.
-- **The Grand Staircase** (Gallery 200) is one hall from the first floor to the
-  skylight over the second. A wide flight goes up from the door to a landing,
-  two flights come back from the landing to the gallery that runs round the
-  well on the second floor, and the second-floor rooms open onto that gallery.
-  A fourth flight goes down through the floor to the lower level.
-- **Griffin Court** is three storeys to the spring of its glass roof. A stair
-  climbs its west side to a second-floor gallery, a second flight goes on to
-  the third floor, a bridge crosses to the gallery along the east side, and
-  there is a lift.
+- **The Grand Staircase** (Gallery 200) is one hall from the lobby floor to the
+  skylight over the second floor. A wide flight goes up to a landing, two
+  flights come back from the landing to the gallery that runs round the well,
+  and the second-floor corridors open onto that gallery. A fourth flight goes
+  down to the lower lobby.
+- **Griffin Court** is three storeys, 97 m long and under 9 m wide. Its stair
+  climbs the east wall to the second-floor balcony, and a bridge crosses its
+  north end on each upper floor.
+- **Stair towers** in the Modern Wing have switchback flights with a landing
+  across each end, from the basement to the third floor.
+- **The Sculpture Court** is two storeys, with Gallery 261 as the balcony
+  round it.
 - **Lifts** are open platforms in a cage of four posts. Drive on and it goes;
   wait at its gate on another floor and it comes for you. The gate at each
   stop is shut whenever the platform is somewhere else.
@@ -196,32 +202,27 @@ close aerial photograph was found, so the roofs are from the map outline.
 
 What is not true:
 
-- **Room shapes and doorways are guessed.** The API has a point for each
-  gallery, not an outline. Rooms are rectangles grown from those points; rooms
-  that end up wall to wall on the same level get a door. Outlines traced from
-  the architects' drawings are to replace them (see `survey/`).
-- **Only galleries with public-domain work on view are rooms**: 82 of the 170
-  the museum lists. A second-floor gallery whose first-floor neighbour is not
-  among them stands on a solid block instead of on a room, and the galleries
-  over the railway are solid down to the ground, not a bridge.
-- **Eleven plain passages are invented**, to join rooms the grown plan leaves
-  cut off on their level; so are the Michigan Avenue lobby and the lower-level
-  room at the foot of the Grand Staircase.
-- **Stairs and lifts are placed by hand**, sized to be driven, not surveyed.
-  The Grand Staircase has the real one's arrangement (one flight up, two
-  back); Griffin Court's stair, bridge and lift are in sensible places, not
-  the real ones. The stair and lift down to the east lower level are put
-  wherever a first-floor room lies over a lower-level one.
-- **Clear heights are guessed**, except in the Modern Wing. A room under
-  another stops half a metre short of that room's floor.
+- **Doorways are placed by rule, not surveyed.** Rooms that stand wall to wall
+  on a level get one, in the middle of the wall they share. The real building
+  has fewer, and not always there.
+- **The older buildings are good to about a metre**, not to a wall's
+  thickness: they come from the visitor maps, not from an architect's plan.
+  The first-floor rooms east of the railway are the roughest.
+- **Back-of-house uses are assumed.** Which wing does what is known; which
+  room is which is not on any public drawing.
+- **Clear heights in the older buildings are guessed.** A room under another
+  stops half a metre short of that room's floor.
+- **Some ways between levels are invented**: where a group of rooms had no
+  surveyed stair or lift, a lift or a flight is put where one room lies over
+  another. The tool prints which.
+- **McKinlock Court and the Bluhm Family Terrace are roofed**; the real ones
+  are open to the sky. The Pritzker Garden is open ground.
 - **Griffin Court has a glass barrel vault**; the real one has a flat glass
   roof under the sunshade.
 - **Where things hang within a room is mine.** Paintings are arranged along
   the walls by importance and size; sculpture, armour and vessels stand in
   glass cases on the floor. In the Grand Staircase everything is on the
   first-floor level, under the gallery; nothing is hung on the gallery itself.
-- **Two rooms are placed by hand:** Griffin Court (the API lists no art in it)
-  and the passage the Thorne Miniature Rooms line.
 - **The polish on the floors** mirrors only on the level you are on. Floors
   seen on another level (down a stair well, across a tall hall) are matt.
 
@@ -388,9 +389,7 @@ Three things the docs do not make obvious:
   cannot load images from the museum. Use the offline copy below.
 
 `node tools/build_layout.mjs` regenerates `src/layout.js`, the floor plan, from
-the gallery records (behind a proxy, `NODE_USE_ENV_PROXY=1 node
-tools/build_layout.mjs`; name a file after it to keep the records it fetched,
-or to build from ones kept earlier). `node tools/check_layout.mjs` then checks
+the survey in `survey/`. `node tools/check_layout.mjs` then checks
 that the plan is sound: every room and deck reached from the front door, no
 doorway opening onto nothing, no ramp too steep. `node tools/fetch_collection.mjs` refreshes
 `data/collection.json`, the saved copy the game falls back to when the API
