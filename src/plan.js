@@ -526,7 +526,18 @@ function addGrounds(plan) {
   path(G.south.x0 + PW, G.south.x1 - 7, smz, smz); path(smx, smx, G.south.z0 + PW, G.pool.z0 - 2.4); path(smx, smx, G.pool.z1 + 2.4, G.south.z1 - PW);
   for (const q of G.paths) plan.paved.push(q);
   // The courtyard: the big tree, lit, with parcels under it, and Milles's Tritons with the water off.
+  // It stands where it always has if that is still open ground, and otherwise on the nearest open ground to it.
   G.tree = { x: 160, z: 87.5, h: 11.5 };
+  {
+    const open = (x, z) => !inMass(x, z, 6.5) && Math.hypot(x - 141, z - 87) > 11 && !(x > G.rail.x0 - 6 && x < G.rail.x1 + 6) && x > B.x0 + 8 && x < G.columbus.x0 - 8 && z > G.monroe.z1 + 8 && z < G.jackson.z0 - 8;
+    let best = null;
+    for (let x = 130; x <= 270 && !open(G.tree.x, G.tree.z); x += 1) for (let z = -20; z <= 240; z += 1) {
+      if (!open(x, z)) continue;
+      const d = Math.hypot(x - 160, z - 87.5);
+      if (!best || d < best.d) best = { x, z, d };
+    }
+    if (best) { G.tree.x = best.x; G.tree.z = best.z; const n = G.paths.length; path(best.x, best.x, CZ, best.z); path(137, best.x, CZ, CZ); plan.paved.push(...G.paths.slice(n)); }
+  }
   G.plazas.push({ x: G.tree.x, z: G.tree.z, r: 5.6 });
   plan.paved.push({ x0: G.tree.x - 4, x1: G.tree.x + 4, z0: G.tree.z - 4, z1: G.tree.z + 4 });
   O.push({ x0: G.tree.x - 0.3, x1: G.tree.x + 0.3, z0: G.tree.z - 0.3, z1: G.tree.z + 0.3, y0: 0, y1: G.tree.h });
@@ -552,6 +563,8 @@ function addGrounds(plan) {
   ];
   // Somebody has been building snowmen.
   G.snowmen = [[5.6, F.cz - 7.2, 1], [6.1, F.cz + 6.6, 0.82], [32.6, 21.6, 1.05], [39.2, 15.2, 0.8], [152.5, 82, 1.1], [166, 93.2, 0.78], [170.5, 79.4, 0.95], [243.5, 136.5, 1], [206.5, 161, 0.85], [41.2, 207.6, 1.1], [30.5, 187.5, 0.8]].map(([x, z, s]) => ({ x, z, s }));
+  // One that a building now stands on has been rebuilt beside the tree.
+  G.snowmen.filter(m => inMass(m.x, m.z, 0.6)).forEach((m, i) => { const a = 0.9 + i * 2.1; m.x = G.tree.x + Math.cos(a) * 7.5; m.z = G.tree.z + Math.sin(a) * 7.5; });
   const keepOff = (x, z) => G.paths.some(q => x > q.x0 - 0.9 && x < q.x1 + 0.9 && z > q.z0 - 0.9 && z < q.z1 + 0.9) || G.snowmen.some(m => Math.hypot(x - m.x, z - m.z) < 1.4)
     || G.fountains.some(f => Math.hypot(x - f.x, z - f.z) < f.r + 1.5) || G.sculpt.some(c => Math.hypot(x - c.x, z - c.z) < 3);
 
@@ -914,7 +927,17 @@ function addLand(plan) {
     && !plan.obstacles.some(o => o.y0 < 0.5 && x1 > o.x0 && x0 < o.x1 && z1 > o.z0 && z0 < o.z1)
     && !G.snowmen.some(m2 => m2.x > x0 - 1 && m2.x < x1 + 1 && m2.z > z0 - 1 && m2.z < z1 + 1)
     && x0 > plan.bounds.x0 + 2 && x1 < plan.bounds.x1 - 2 && z0 > plan.bounds.z0 + 2 && z1 < plan.bounds.z1 - 2;
-  if (clear(rink.x - rink.rx - 1, rink.x + rink.rx + 1, rink.z - rink.rz - 3.5, rink.z + rink.rz + 1)) {
+  // Where it was if that is still open snow; otherwise the nearest open snow to there.
+  const fits = (x, z) => clear(x - rink.rx - 1, x + rink.rx + 1, z - rink.rz - 3.5, z + rink.rz + 1);
+  if (!fits(rink.x, rink.z)) {
+    let best = null;
+    for (let x = 20; x <= 260; x += 1) for (let z = -24; z <= 236; z += 0.5) {
+      const d = Math.hypot(x - 88, z + 6);
+      if ((!best || d < best.d) && fits(x, z)) best = { x, z, d };
+    }
+    if (best) { rink.x = best.x; rink.z = best.z; }
+  }
+  if (fits(rink.x, rink.z)) {
     plan.rink = rink;
     plan.ice.push({ x0: rink.x - rink.rx * 0.9, x1: rink.x + rink.rx * 0.9, z0: rink.z - rink.rz * 0.8, z1: rink.z + rink.rz * 0.8 });
   }
