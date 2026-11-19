@@ -74,7 +74,7 @@ export class Score {
     if (p) p.then(n => { if (Number.isFinite(n) && n > 0) { if (!this.all) this.all = new Map(); this.all.set(work.id, n); } });
   }
   /** Looking closer at a work. */
-  look(art) { this._view(art.work, false); this.s.looks++; this.add(POINTS.look); }
+  look(art) { const first = !this.views[art.work.id]; this._view(art.work, false); this.s.looks++; this.add(POINTS.look + (first ? POINTS.fresh : 0)); }      // the first look at a work is worth more; driving past one is worth nothing
   /** A work seen for the first time, by any means. */
   fresh() { this.add(POINTS.fresh); }
 
@@ -122,8 +122,7 @@ export class Score {
   _catch(a, bullet) {
     const fresh = !a.seen;
     this.cool.set(a.work.id, this.clock + AGAIN);
-    this._view(a.work, true);
-    this.onCatch(a, fresh);
+    this.onCatch(a, fresh);                              // a Stunt Look scores, but only a deliberate look is counted as a view
     return { art: a, bullet, fresh };
   }
   _worth(type, got, landed) {

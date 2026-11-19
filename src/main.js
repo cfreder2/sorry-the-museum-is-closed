@@ -134,7 +134,6 @@ async function boot() {
   G.museum.onSeen = (art, st, complete) => {
     if (G.state !== 'play' && G.state !== 'study') return;
     sound.seen();
-    score.fresh();
     if (complete && G.mode === 'explore') {
       const r = st.room, name = r.kind === 'hall' ? 'GRIFFIN COURT' : r.kind === 'corridor' ? 'GALLERY 11' : r.gallery.replace(/^Galleries /, 'Gallery ').toUpperCase();
       callout(`${name} \u00b7 ALL ${st.arts.length} SEEN`); sound.finish();

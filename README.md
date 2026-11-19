@@ -311,12 +311,12 @@ tap: the two choices, Continue, New game, Settings and Trophies.
 
 ## Art Score, view counts, trophies and the garage
 
-- **View counts.** Every time you look closer at a work (or Stunt Look it)
-  is counted, on the device. The label says "You have looked at this 3
+- **View counts.** Every time you look closer at a work it is counted, on
+  the device. Driving past a work is not a look, and nor is a Stunt Look. The label says "You have looked at this 3
   times", and so does the notebook. Where the server can be asked, the label
   adds "Seen N times by everyone". A new game keeps these.
-- **Art Score**, beside ART SEEN. 10 for looking closer at a work, 50 for a
-  work seen for the first time, and for a Stunt Look a base by what the car
+- **Art Score**, beside ART SEEN. 10 for looking closer at a work, 50 more the
+  first time you look at it, nothing for driving past, and for a Stunt Look a base by what the car
   was doing (jump 100; more than 1.1 s of air 200; a flip or spin landed 300;
   through a hoop 400), times 2 in slow motion, times 2 for a work never seen
   before, times 1.5 for a perfect landing, halved for landing wrong way up.
@@ -421,8 +421,8 @@ find the way in, how far round they get and what they stop to look at.
   reached, a hand of cards left, a hockey goal, a Stunt Look, a trophy earned,
   a vehicle unlocked.
 - **View counts.** Each look at a work also adds one to that work's count for
-  everybody (`supabase/003-views.sql`): the museum's id for the work, its
-  title, and whether it was a Stunt Look. Nothing about who looked is kept
+  everybody (`supabase/003-views.sql`): the museum's id for the work and
+  its title. Nothing about who looked is kept
   with the count. The counts are the one thing the game reads back, to say
   "Seen N times by everyone" on a label. A test never adds to them, and with
   the switch off they are neither added to nor asked for.
