@@ -88,6 +88,16 @@ against one; it stands down on stairs, ramps and lifts. Both are switches
 under Settings, Driving: with "Drive for me" off the stick is the throttle as
 well. On a keyboard or a gamepad both start off.
 
+## Your own picture
+
+One big gilt frame hangs in the Michigan Avenue lobby, where everybody comes
+in, and it is empty: ARTWORK IN PROGRESS, it says, in a studio of the Ryan
+Learning Center. Look at it and the way to the studio lights up. At the easel
+there the button says PAINT, and you get a paint program of the old sort:
+twenty colours, four brushes, a bucket, a rubber and undo. Give it a title,
+press Hang it, and it hangs in the lobby frame. It is kept on your device and
+goes nowhere else; a new game leaves it up.
+
 ## The toy stall
 
 On the roof beside the card game somebody has set up a stall under a striped
