@@ -18,6 +18,9 @@ import { Props } from './props.js';
 import { Poker } from './poker.js';
 import { Hockey } from './hockey.js';
 import { Telemetry } from './telemetry.js';
+import { Score } from './score.js';
+import { Trophies, toast } from './trophies.js';
+import { Garage } from './garage.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -81,6 +84,35 @@ const tm = G.tm = new Telemetry({ build: BUILD });
 Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
 try { G.seen = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); } catch { /* no storage */ }
 
+// ---- art score, trophies and the garage (score.js, trophies.js, garage.js) ----
+const note = w => { if (G.seen.some(s => s.id === w.id)) return; G.seen.push({ id: w.id, t: w.t, a: w.a, img: w.img }); try { localStorage.setItem('after-hours.seen', JSON.stringify(G.seen)); } catch { /* fine */ } };      // into the notebook
+const score = G.score = new Score({
+  tm,
+  // A Stunt Look has caught a work: it is seen, lit and noted, like any other look.
+  onCatch: art => { if (art.wakeAt < 0) { art.wakeAt = G.museum.time; G.museum._waking.add(art); } G.museum.see(art); note(art.work); sound.gate(); },
+  onCall: (c, big) => stuntCall(c, big),
+});
+const trophies = G.trophies = new Trophies();
+const garage = G.garage = new Garage();
+trophies.onEarn = t => { toast({ tier: t.tier, head: t.tier === 'platinum' ? 'Platinum trophy earned' : 'Trophy earned', name: t.name, sound: () => (t.tier === 'platinum' ? sound.finish() : sound.perfect()), hold: t.tier === 'platinum' ? 6500 : 4200 }); tm.event('trophy', t.id, { tier: t.tier }); };
+garage.onUnlock = v => { toast({ head: 'Vehicle unlocked', name: v.name, sound: () => sound.lap() }); tm.event('unlock', v.id); };
+function stuntCall(c, big) {
+  const el = $('stunt');
+  el.querySelector('.h').textContent = c.head + (c.tags ? '  \u00b7  ' + c.tags : '');
+  el.querySelector('.t').textContent = c.title;
+  el.querySelector('.p').textContent = c.pts ? '+' + c.pts.toLocaleString() : '';
+  el.classList.remove('on', 'landed'); void el.offsetWidth; el.classList.add('on'); el.classList.toggle('landed', !!big);
+  if (big) sound.lap();
+}
+// Twice a second: has anything been earned, has anything unlocked?
+function progress(quiet) {
+  if (!G.museum || !G.vehicle) return;
+  if (!quiet) trophies.check(trophies.snap(G, score));
+  garage.check(G.museum.seenCount, trophies.ids, quiet);
+}
+// While the trophies are up the keys are theirs: nothing reaches the menu or the game underneath, and Esc shuts them.
+addEventListener('keydown', e => { if (!trophies.isOpen) return; e.stopImmediatePropagation(); if (e.code === 'Escape') { e.preventDefault(); trophies.close(); } }, true);
+
 const camLook = new THREE.Vector3(60, 5, 120);
 const want = new THREE.Vector3();
 const tmp = new THREE.Vector3();
@@ -101,6 +133,7 @@ async function boot() {
   G.museum.onSeen = (art, st, complete) => {
     if (G.state !== 'play' && G.state !== 'study') return;
     sound.seen();
+    score.fresh();
     if (complete && G.mode === 'explore') {
       const r = st.room, name = r.kind === 'hall' ? 'GRIFFIN COURT' : r.kind === 'corridor' ? 'GALLERY 11' : r.gallery.replace(/^Galleries /, 'Gallery ').toUpperCase();
       callout(`${name} \u00b7 ALL ${st.arts.length} SEEN`); sound.finish();
@@ -120,7 +153,7 @@ async function boot() {
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
   G.hockey = new Hockey(G.museum, plan, sound);
-  G.hockey.onEvent = (text, kind) => { if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
+  G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);
@@ -142,13 +175,16 @@ async function boot() {
     + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed. The outside and grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
+  trophies.setup(G.museum);
+  progress(true);                                       // what an older save has already earned is unlocked without fuss
+  garage.portraits(renderer);
   // Come back with the toy you left with.
   const sv = saved();
-  if (sv && sv.toy === 'drone' && pick.toy !== 'drone') choose('toy', 1);
+  garage.chooseKind(sv ? sv.toy : garage.kind, pick);
   titleButtons();
   G.state = 'title';
   if (shown === 'title' && !params.get('mode')) show('title');       // puts focus on Start, so Enter begins
-  if (params.get('mode')) { G.toy = params.get('toy') || 'car'; start(params.get('mode')); }
+  if (params.get('mode')) { G.toy = garage.fromParam(params.get('toy') || 'car', pick); start(params.get('mode')); }
 }
 
 function setVehicle(kind) {
@@ -181,6 +217,7 @@ function start(mode, fresh = false) {
   prev.set(0, -99, 0);
   G.study = null; G.facing = null;
   $('label').hidden = true; $('placard').hidden = true; $('hud').classList.remove('studying');
+  garage.apply(G.car, G.drone);
   setVehicle(G.toy);
   // A race is run on a cleared floor: only the jumps on the track stay.
   G.plan.racing = mode === 'race';
@@ -272,6 +309,7 @@ function keep() {
 }
 function newGame() {
   G.museum.forget();
+  score.reset();
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
@@ -284,6 +322,7 @@ function titleButtons() {
 }
 
 function quit() {
+  score.flush();
   if (G.poker.on) { G.poker.leave(); G.lamp.visible = G.lampWas !== false; }
   $('hud').classList.remove('studying', 'atcards');
   G.race.end();
@@ -408,6 +447,7 @@ const CHOICES = {
 };
 const pick = G.pick = { toy: 'car', mode: 'explore' };
 function choose(key, step) {
+  if (key === 'toy') { garage.step(step, pick); if (G.museum) titleButtons(); return; }      // the vehicle is chosen in the garage, locked ones and all
   const list = CHOICES[key], i = (list.findIndex(c => c[0] === pick[key]) + step + list.length) % list.length;
   pick[key] = list[i][0];
   $(key + 'Val').textContent = list[i][1];
@@ -424,8 +464,10 @@ addEventListener('keydown', e => {
 
 function act(a) {
   switch (a) {
-    case 'start': if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
-    case 'newgame': if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;      // no questions: asked for, done
+    case 'trophies': if (G.museum) { trophies.last = trophies.snap(G, score); trophies.open(); } break;
+    case 'closeTrophies': trophies.close(); break;
+    case 'start': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
+    case 'newgame': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;      // no questions: asked for, done
     case 'pause': if (G.state === 'play' || G.state === 'study') pause(); break;
     case 'resume': G.state = G.study ? 'study' : 'play'; show(null); break;
     case 'restart': case 'again': start('race'); break;
@@ -457,6 +499,7 @@ function openNotebook() {
     const f = document.createElement('figure'), img = document.createElement('img'), c = document.createElement('figcaption');
     img.loading = 'lazy'; img.alt = w.t; img.src = imageUrl(w, 200);
     c.textContent = w.t + (w.a ? ', ' + w.a : '');
+    { const n = score.viewsOf(w.id), sm = document.createElement('small'); sm.textContent = n === 1 ? 'looked at once' : `looked at ${n} times`; if (n) c.append(sm); }
     f.append(img, c); grid.append(f);
   }
   show('notebook');
@@ -642,6 +685,9 @@ function beginStudy(art) {
     try { localStorage.setItem('after-hours.seen', JSON.stringify(G.seen)); } catch { /* fine */ }
   }
   const el = $('label');
+  // How often you have looked at it, and, when the server can say, how often everybody has.
+  score.look(art);
+  { const line = el.querySelector('.v'); line.textContent = score.yours(w.id); score.everyone(w.id).then(n => { if (n > 0 && G.study && G.study.art === art) line.textContent = `${score.yours(w.id)} \u00b7 Seen ${n.toLocaleString()} time${n === 1 ? '' : 's'} by everyone`; }).catch(() => {}); }
   el.querySelector('.t').textContent = w.t;
   el.querySelector('.a').textContent = [w.a, w.d].filter(Boolean).join(', ');
   el.querySelector('.m').textContent = w.m;
@@ -798,7 +844,7 @@ function hud() {
     if (G.mode === 'explore') {
       const m = G.museum;
       const here = G.roomId && m.rooms[G.roomId], rooms = m.galleries;
-      $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><br>`
+      $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><span class="pts">ART SCORE <b>${score.score.toLocaleString()}</b></span><br>`
         + (here && here.arts.length ? `THIS ROOM <b>${here.seen}</b> / ${here.arts.length}` : 'OUTSIDE') + ` \u00b7 ROOMS <b>${rooms.filter(r => r.done).length}</b> / ${rooms.length}<br>`
         + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal} \u00b7 snowmen ${G.props.busted} / ${G.props.snowmen}</span>`;
     } else {
@@ -893,6 +939,7 @@ function play(dt, real) {
   v.update(dt, inp);
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
+  if (!racing) score.update(G.museum, v, dt, G.roomId, slow.live);       // Stunt Looks: a work in view while the car is in the air
 
   // Loose things, and whatever is ploughing into them.
   movers.length = 0;
@@ -912,6 +959,7 @@ function play(dt, real) {
     if (h) {
       const n = G.museum.hoopsDone, all = G.museum.hoops.length;
       sound.hoop(n);
+      score.hoop(G.museum, v, G.roomId);
       callout(n === all ? 'EVERY HOOP' : `HOOP ${n} / ${all}`);
       if (n === all) say('Every hoop in the building. Show-off.', 1, 8);
     }
@@ -926,6 +974,7 @@ function play(dt, real) {
   if (input.took('reset')) { if (racing) R.reset(); else { v.vel.set(0, 0, 0); } }
   if (input.took('swap') && !racing) {
     const to = v.kind === 'car' ? 'drone' : 'car', from = v;
+    score.flush();
     setVehicle(to);
     endFlyby();
     if (to === 'drone') G.drone.place(from.pos.x, from.pos.z, from.yaw, from.pos.y + 0.5); else G.car.place(from.pos.x, from.pos.z, from.yaw, from.pos.y);
@@ -999,6 +1048,7 @@ function beginPoker() {
   const v = G.vehicle, s = G.pokerSeat = G.poker.seat();
   endFlyby();
   v.place(s.x, s.z, s.yaw, v.kind === 'drone' ? s.y + 0.6 : s.y);
+  trophies.flag('cards');
   G.state = 'poker'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true;
   G.lampWas = G.lamp.visible; G.lamp.visible = false;                 // headlamps off at the table: they dazzle the cards
   G.poker.sit();
@@ -1052,6 +1102,7 @@ function tick(now) {
   input.capture = G.state === 'play' || G.state === 'study';
   // What the telemetry will say next time it reports: brought up to date once a second.
   if (G.state === 'play' || G.state === 'study' || G.state === 'poker') tm.play += dt;
+  if (frame % 30 === 0 && (G.state === 'play' || G.state === 'study' || G.state === 'poker')) progress();
   if (G.museum && G.vehicle && frame % 60 === 0) {
     tm.seen = G.museum.seenCount; tm.toy = G.vehicle.kind; tm.input = input.usedTouch ? 'touch' : 'keys';
     tm.stats = { hoops: G.museum.hoopsDone, high: G.perched.size, snowmen: G.props.busted, roof: !!G.roofed, poker: G.poker.game ? G.poker.game.hand : 0, hockey: [G.hockey.you, G.hockey.bot],

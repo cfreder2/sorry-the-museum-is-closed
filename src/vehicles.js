@@ -77,6 +77,10 @@ export function buildCar(colour = 0xd2261c) {
   return { group: g, body, wheels, aerial, lamp, shadow, radius: 0.19, kind: 'car' };
 }
 
+// How a car handles, as multiples of the first one's. Every body in the garage starts from these.
+export const CAR_SPEC = { top: 1, accel: 1, grip: 1, steer: 1, jump: 1 };
+export const DRONE_SPEC = { accel: 1, climb: 1, yaw: 1 };
+
 export class Car {
   constructor(plan, colour) {
     this.plan = plan;
@@ -97,6 +101,16 @@ export class Car {
     this.landed = null;          // for one frame: { air, dist, impact }
     this._from = { x: 0, z: 0 };
     this._push = { x: 0, y: 0, z: 0 };
+    this.spec = { ...CAR_SPEC };
+  }
+
+  // Another body on the same toy (see garage.js): new bodywork, wheels and aerial, and how it handles.
+  reskin(model, spec = {}) {
+    this.group.remove(this.body); for (const w of this.wheels) this.group.remove(w.pivot);
+    this.body = model.body; this.wheels = model.wheels; this.aerial = model.aerial;
+    this.group.add(this.body); for (const w of this.wheels) this.group.add(w.pivot);
+    this.spec = { ...CAR_SPEC, ...spec };
+    this.sync(0);
   }
 
   place(x, z, yaw, y = 0) {
@@ -110,7 +124,7 @@ export class Car {
     this.launched = 0; this.landed = null; this.bump = 0;
     this.clock = (this.clock || 0) + dt;
     if (this.rail) return this._loop(dt, inp);
-    const TOP = 12, REV = 4.5;
+    const S = this.spec, TOP = 12 * S.top, REV = 4.5;
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     const rx = -fz, rz = fx;
     let vf = this.vel.x * fx + this.vel.z * fz;
@@ -122,7 +136,7 @@ export class Car {
     let rate = 0;
     if (!this.air) {
       // Part throttle is a lower top speed, not just a slower run up to the same one.
-      if (th > 0) vf += th * 13 * (1 - Math.max(0, vf) / (TOP * (0.22 + 0.78 * th))) * dt * (vf < 0 ? 2.2 : 1);
+      if (th > 0) vf += th * 13 * S.accel * (1 - Math.max(0, vf) / (TOP * (0.22 + 0.78 * th))) * dt * (vf < 0 ? 2.2 : 1);
       else if (th < 0) vf += th * (vf > 0.4 ? 20 : 9 * (1 - Math.max(0, -vf) / REV)) * dt;
       vf -= vf * 0.24 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 0.4 * dt);     // tops out near 9.5 m/s
       // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.
@@ -132,6 +146,7 @@ export class Car {
       if (!room) { for (const q of this.plan.paved) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 6; for (const q of this.plan.ice) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 0.3; }
       // Snow outdoors, unless there is track laid on it.
       if (!room) for (const d of this.plan.decals) if (this.pos.x > d.x0 && this.pos.x < d.x1 && this.pos.z > d.z0 - 0.3 && this.pos.z < d.z1 + 0.3) grip = 9;
+      grip *= S.grip;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
       this.wet = false;
       if (!this.plan.racing) for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
@@ -139,7 +154,7 @@ export class Car {
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
       const icy = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.some(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1);
       if (icy) { grip = 0.15; bite *= 0.8; vf -= (vf - this._vf0) * 0.8; }
-      rate = this.steer * bite * 3.6 / (1 + Math.abs(vf) / 13);
+      rate = this.steer * bite * 3.6 * S.steer / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);
       const nfx = Math.sin(this.yaw), nfz = Math.cos(this.yaw);
@@ -165,7 +180,7 @@ export class Car {
     this.cool -= dt;
     if (inp.jump && !this.air && this.cool <= 0) {
       this.hopped = this.vy < 0.8;             // a hop off the flat, as opposed to extra off a ramp
-      this.vy = Math.max(0, this.vy) + 3.7; this.cool = 0.2; this.jumped = true;
+      this.vy = Math.max(0, this.vy) + 3.7 * S.jump; this.cool = 0.2; this.jumped = true;
     }
 
     const ox = this.pos.x, oz = this.pos.z;
@@ -484,6 +499,16 @@ export class Drone {
     this.yaw = 0; this.roll = 0; this.pitch = 0;
     this.speed = 0; this.bump = 0; this.thrust = 0; this.spin = 0;
     this._push = { x: 0, y: 0, z: 0 };
+    this.spec = { ...DRONE_SPEC };
+  }
+
+  // Another airframe on the same toy (see garage.js).
+  reskin(model, spec = {}) {
+    this.group.remove(this.body);
+    this.body = model.body; this.props = model.props;
+    this.group.add(this.body);
+    this.spec = { ...DRONE_SPEC, ...spec };
+    this.sync(0);
   }
 
   place(x, z, yaw, y = 1.2) { this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw; this.sync(0); }
@@ -491,13 +516,13 @@ export class Drone {
   update(dt, inp) {
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     const rx = -fz, rz = fx;
-    const A = 22;
+    const S = this.spec, A = 22 * S.accel;
     this.vel.x += (fx * inp.pitch + rx * inp.roll) * A * dt;
     this.vel.z += (fz * inp.pitch + rz * inp.roll) * A * dt;
     const drag = Math.exp(-1.7 * dt);
     this.vel.x *= drag; this.vel.z *= drag;
-    this.vel.y += (inp.climb * 5.2 - this.vel.y) * Math.min(1, dt * 5);
-    this.yaw -= inp.yaw * 2.5 * dt;
+    this.vel.y += (inp.climb * 5.2 * S.climb - this.vel.y) * Math.min(1, dt * 5);
+    this.yaw -= inp.yaw * 2.5 * S.yaw * dt;
     const ox = this.pos.x, oz = this.pos.z;
     this.pos.addScaledVector(this.vel, dt);
 
