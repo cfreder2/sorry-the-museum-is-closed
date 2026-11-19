@@ -754,6 +754,9 @@ function addStunts(plan) {
       const a = pts[i], b = pts[(i + 1) % pts.length], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
       if (d < 10.5 || (Math.abs(dx) > 1.2 && Math.abs(dz) > 1.2) || a.start || b.start) continue;
       const F = { ax: Math.abs(dx) > Math.abs(dz) ? 'x' : 'z', y: lineY, cx: (a.x + b.x) / 2, cz: (a.z + b.z) / 2, L: d - 1.5, W: 6, lanes: [], onLine: true, r: null };
+      // Only where the whole jump stands on one room's floor: a line that runs along a wall, or through one, gets none.
+      const within = plan.rooms.find(r => Math.abs(r.y - lineY) < 0.1 && F.cx > r.x0 && F.cx < r.x1 && F.cz > r.z0 && F.cz < r.z1), half = 1.5;
+      if (!within || (F.ax === 'z' ? F.cx - half < within.x0 || F.cx + half > within.x1 || F.cz - 3 < within.z0 || F.cz + 3 > within.z1 : F.cz - half < within.z0 || F.cz + half > within.z1 || F.cx - 3 < within.x0 || F.cx + 3 > within.x1)) continue;
       const i0 = S.length;
       tabletop(F, 0, 0, 0.42, 2.4, 1.6, 0.5);
       for (let j = i0; j < S.length; j++) S[j].line = true;      // these stay when the race is on
@@ -766,7 +769,7 @@ function addStunts(plan) {
   // towards the window. Every change of slope is a curve, as on the real thing.
   const hall = plan.hall, HF = frame(hall); HF.lanes = lanes(hall);
   {
-    const N = hall.z1, lane = [hall.x1 - 3.4, hall.x1 - 2.1];
+    const N = hall.z1, lane = [hall.x0 + 2.1, hall.x0 + 3.4];       // down the west side: the court's own stair climbs the east wall
     // A piece from s0 to s1 metres north of the hall's south wall, at height hA rising (or falling) to hB.
     const sky = (s0, s1, hA, hB, o = {}) => push('track', [lane[0], lane[1], N - s1, N - s0], hA === hB ? null : 'z', hB, hA, { thick: 0.07, hang: true, run: 'z', lip: true, ...o }, hall.y);
     sky(5, 16, 0, 2.6, { ease: true }); sky(16, 22, 2.6, 2.6);
@@ -776,8 +779,8 @@ function addStunts(plan) {
     const lx = (lane[0] + lane[1]) / 2;
     for (const [s, y, r] of [[23.3, 2.55, 0.8], [35, 2.95, 0.8], [53.8, 2.5, 0.9], [57, 1.7, 0.95]]) H.push({ x: lx, y: y + hall.y, z: N - s, axis: 'z', r });
     // Two ledges beside the track to hop across to, and one hung out in the middle of the hall, to look from.
-    push('track', [lane[1] + 0.25, hall.x1 - 0.3, N - 21.5, N - 17], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'skyway ledge' }, hall.y);
-    push('track', [lane[0] - 2.4, lane[0] - 0.25, N - 42.5, N - 37.5], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'crow’s nest' }, hall.y);
+    push('track', [hall.x0 + 0.3, lane[0] - 0.25, N - 21.5, N - 17], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'skyway ledge' }, hall.y);
+    push('track', [lane[1] + 0.25, lane[1] + 2.4, N - 42.5, N - 37.5], null, 2.6, 2.6, { thick: 0.07, hang: true, run: 'z', perch: 'crow’s nest' }, hall.y);
   }
 
   // Two spines down the middle of Griffin Court.

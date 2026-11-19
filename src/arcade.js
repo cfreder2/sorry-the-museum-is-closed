@@ -35,14 +35,15 @@ export class Arcade {
       m.position.set(a.x + a.fx * 0.4, a.y + 0.3, a.z + a.fz * 0.4); m.rotation.y = Math.atan2(a.fx, a.fz);
       const put = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); m.add(o); return o; };
       put(body, shell, 0, 0.25, 0); put(back, shell, 0, 0.24, -0.27); put(bezel, dark, 0, 0.26, 0.222);
-      const cv = document.createElement('canvas'); cv.width = 160; cv.height = 120;
+      const cv = document.createElement('canvas'); cv.width = 640; cv.height = 480;      // drawn as if 160 by 120; big enough to play on when the camera comes close
       const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
       put(face, new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.7, 1.7, 1.7) }), 0, 0.26, 0.234);
       // The light it throws on the floor in front of it: nothing else in the room does that.
       const glow = put(pool, new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.1, 0.42, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 0, -0.285, 1.0);
       glow.rotation.x = -Math.PI / 2; glow.renderOrder = 4;
       g.add(m);
-      const it = { ...a, id: Game.id, Game, cv, c: cv.getContext('2d'), tex, glow, sx: a.x + a.fx * 1.35, sz: a.z + a.fz * 1.35 };
+      const c2 = cv.getContext('2d'); c2.scale(4, 4);
+      const it = { ...a, id: Game.id, Game, cv, c: c2, tex, glow, sx: a.x + a.fx * 1.35, sz: a.z + a.fz * 1.35 };
       this._attract(it, 0);
       return it;
     };
@@ -87,7 +88,7 @@ export class Arcade {
     this.t = t; this.since += dt;
     if (this.since < 0.28) return;
     this.since = 0;
-    for (const it of this.list) if (Math.abs(cam.y - it.y - 1) < 5 && (cam.x - it.x) ** 2 + (cam.z - it.z) ** 2 < 26 * 26) this._attract(it, calm ? 0 : t);
+    for (const it of this.list) if (!(this.on && it === this.cur) && Math.abs(cam.y - it.y - 1) < 5 && (cam.x - it.x) ** 2 + (cam.z - it.z) ** 2 < 26 * 26) this._attract(it, calm ? 0 : t);
   }
 
   reset() { this.found.clear(); this.played.clear(); this._save(); }      // a new game forgets what was found, not the best scores
@@ -114,6 +115,14 @@ export class Arcade {
     if (!g || !(g.score > (this.best[id] || 0))) return false;
     this.best[id] = g.score; this._save(); this._tell(id, this.cur.bonus ? 'bonus-score' : 'score', g.score);
     return true;
+  }
+  // The glass of a monitor, as a rectangle in the building: where the camera goes to play on it.
+  surface(it) { return { x: it.x + it.fx * 0.636, y: it.y + 0.56, z: it.z + it.fz * 0.636, nx: it.fx, ny: 0, nz: it.fz, w: 0.5, h: 0.375 }; }
+  // Put the game being played onto its monitor's glass.
+  show() {
+    const it = this.cur; if (!this.on || !it) return;
+    it.c.save(); it.c.setTransform(1, 0, 0, 1, 0, 0); it.c.drawImage($('arcScreen'), 0, 0, it.cv.width, it.cv.height); it.c.restore();
+    it.tex.needsUpdate = true;
   }
   leave() { if (!this.on) return; this._record(); this._stopRepeat(); this.on = false; this.game = null; $('arcade').hidden = true; if (this.cur) this._attract(this.cur, this.t); }
 

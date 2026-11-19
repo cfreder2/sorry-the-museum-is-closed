@@ -272,6 +272,7 @@ export class Secret {
     if (room && room.secret && room.y < -6 && room.use === 'secret' && !this.arrived) {
       this.arrived = true; this._save();
       this.ui.trophies.flag('vault');
+      try { window.dispatchEvent(new CustomEvent('museum:secret', { detail: { event: 'arrived' } })); } catch { /* fine */ }
       this.ui.callout('SUB-LEVEL 9'); this.G.sound.roomChord();
       this.ui.say('Twelve metres under the street, and on nobody’s drawings. Somebody has been keeping things down here.', 1.2, 9);
     }

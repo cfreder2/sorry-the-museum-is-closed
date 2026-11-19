@@ -4,7 +4,8 @@
 // says what is on each. This file does the writing: each board's text is drawn in marker on a small
 // canvas the first time the camera comes near and laid over the board, and thrown away again when
 // the camera has gone. Pull up in front of one and the action button reads READ: that brings the
-// same board up full screen, clean, with its words as text for anyone who cannot see it.
+// camera goes and stands square in front of the board (src/stage.js), which is written out again
+// finer for the occasion, and its words are put on the page as text for anyone who cannot see it.
 //
 // Reading is remembered ('after-hours.boards'), and each read is announced with
 //   window.dispatchEvent(new CustomEvent('museum:board', { detail: { id, read } }))      read: how many different boards so far
@@ -128,10 +129,13 @@ export class Whiteboards {
   get total() { return this.list.filter(b => !b.secret).length; }
 
   // What a board says can be changed (the Director's is written from tonight's hang: src/secret.js).
-  setLines(id, lines, title) { const b = this.byId[id]; if (!b) return; b.lines = lines; if (title) b.title = title; if (b.tex) { b.tex.dispose(); b.tex = null; b.mesh.material.dispose(); b.mesh.material = this.blank; this.live--; } }
+  setLines(id, lines, title) { const b = this.byId[id]; if (!b) return; b.lines = lines; if (title) b.title = title; this._wipe(b); }
 
-  _write(b) {
-    const cv = document.createElement('canvas'); cv.width = 512; cv.height = Math.round(512 * b.h / b.w);
+  // Where a board is, as src/stage.js wants it: the camera goes and stands square in front of it.
+  surface(b) { return { x: b.x + b.fx * 0.004, y: b.y, z: b.z + b.fz * 0.004, nx: b.fx, ny: 0, nz: b.fz, w: b.w + 0.1, h: b.h + 0.1 }; }
+  _wipe(b) { if (b.tex) { b.tex.dispose(); b.tex = null; b.mesh.material.dispose(); b.mesh.material = this.blank; this.live--; } }
+  _write(b, px = 512) {
+    const cv = document.createElement('canvas'); cv.width = px; cv.height = Math.round(px * b.h / b.w); b.px = px;
     drawBoard(cv.getContext('2d'), cv.width, cv.height, b.lines, b.doodle, hash(b.id));
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     b.tex = tex; b.mesh.material = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.8, 0.8, 0.8) }); this.live++;
@@ -144,7 +148,7 @@ export class Whiteboards {
       const near = d2 < 30 * 30 && dy < 6;
       b.mesh.visible = near;
       if (near && !b.tex && !wrote && d2 < 22 * 22) { this._write(b); wrote = true; }
-      else if (b.tex && (d2 > 46 * 46 || dy > 9)) { b.tex.dispose(); b.tex = null; b.mesh.material.dispose(); b.mesh.material = this.blank; this.live--; }
+      else if (b.tex && b !== this.on && (d2 > 46 * 46 || dy > 9)) this._wipe(b);
     }
   }
   // The board this toy is pulled up in front of, if any.
@@ -162,15 +166,14 @@ export class Whiteboards {
   }
 
   // ---- the card ----
+  // The camera is about to stand in front of this one (main.js and src/stage.js do that): write it out again, finer, and say what it says.
   open(b) {
     this.on = b;
-    const cv = this.cv, W = 1200, H = Math.round(1200 * b.h / b.w);
-    cv.width = W; cv.height = H;
-    drawBoard(cv.getContext('2d'), W, H, b.lines, b.doodle, hash(b.id));
+    if (b.px !== 1024) { this._wipe(b); this._write(b, 1024); }
+    b.mesh.visible = true;
     const text = plainText(b.lines);
     this.el.querySelector('#bcTitle').textContent = b.title;
     this.el.querySelector('#bcText').textContent = text;
-    cv.setAttribute('aria-label', b.title + '. ' + text.replace(/\n/g, '. '));
     this.el.hidden = false;
     this.el.querySelector('button').focus({ preventScroll: true });
     const fresh = !this.read.has(b.id);
@@ -183,8 +186,7 @@ export class Whiteboards {
   _dom() {
     const el = this.el = document.createElement('section');
     el.id = 'boardCard'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'bcTitle');
-    el.innerHTML = '<div class="bc"><h2 id="bcTitle"></h2><canvas id="bcCanvas" role="img"></canvas><p id="bcText"></p><button data-act="closeBoard">Back</button></div>';
+    el.innerHTML = '<div class="bc"><h2 id="bcTitle"></h2><p id="bcText" aria-live="polite"></p><button data-act="closeBoard">Back</button></div>';
     document.body.append(el);
-    this.cv = el.querySelector('canvas');
   }
 }

@@ -88,6 +88,46 @@ against one; it stands down on stairs, ramps and lifts. Both are switches
 under Settings, Driving: with "Drive for me" off the stick is the throttle as
 well. On a keyboard or a gamepad both start off.
 
+## Secrets
+
+Everything in the building that is not a room or a picture is a secret: the
+card game, the toy stall, the picture on its easel, the hockey pond, the big
+red button, the easel in the studio, every monitor somebody left switched on,
+and a pedestal with four lit pads under the coloured roof of Griffin Court.
+Nothing says where they are. The screen counts them, "secrets 3 / 17", and
+each one found is announced.
+
+The pedestal plays a pattern of colours and you play it back; it adds one each
+time. Get five right and the roof lets go: confetti in the colours of all 126
+panes comes down the length of the court.
+
+## Playing on the thing itself
+
+A game on a monitor, the pads on the pedestal and the canvas on the easel are
+played where they are. The camera goes and stands square in front of the
+thing, as it does for a painting, with the building still round it, and what
+you touch on the glass is the monitor's screen, the pad or the canvas. Only
+the controls that have nowhere else to be (a direction pad, LEAVE, the paint
+pots) stay on the page.
+
+## Your own picture
+
+One big gilt frame hangs in the Michigan Avenue lobby, where everybody comes
+in, and it is empty: ARTWORK IN PROGRESS, it says, in a studio of the Ryan
+Learning Center. Look at it and the way to the studio lights up. At the easel
+there the button says PAINT, and you get a paint program of the old sort:
+twenty colours, four brushes, a bucket, a rubber and undo. Give it a title,
+press Hang it, and it hangs in the lobby frame. It is kept on your device and
+goes nowhere else; a new game leaves it up.
+
+## The toy stall
+
+On the roof beside the card game somebody has set up a stall under a striped
+awning. Two toys turn on their stands: a Supercar and a chrome flying wing
+called the Manta. Each costs 2,000 chips, and the only chips there are are the
+ones on the card table, where you sit down with 1,000. Pull up at the counter
+and the button says SHOP. Nothing else unlocks them.
+
 ## The outside
 
 The outside follows photographs of the building (Wikimedia Commons) and the
@@ -230,9 +270,10 @@ What is not true:
   another. The tool prints which.
 - **McKinlock Court and the Bluhm Family Terrace are roofed**; the real ones
   are open to the sky. The Pritzker Garden is open ground.
-- **The colours of Griffin Court's roof are mine.** It has the real roof's 126
-  panes, three across and forty-two along, each with a coloured gel; which
-  pane is which colour is not from a photograph.
+- **Griffin Court's roof is from one photograph.** It has the real roof's 126
+  panes, two abreast and sixty-three along, warm colours down the west side
+  and cool down the east. The order at the south end is read from a
+  photograph; further north it is carried on by repeating it.
 - **Empty galleries borrow from their neighbours.** A gallery the museum
   lists nothing on view for is hung with works its nearest galleries have more
   of than they can show. Each borrowed work's label names the gallery it
