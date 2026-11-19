@@ -670,12 +670,15 @@ export class Museum {
     const gel = (cw, ch, line) => {
       const cv = document.createElement('canvas'); cv.width = COLS * cw; cv.height = ROWS * ch;
       const g = cv.getContext('2d');
-      g.fillStyle = '#ecece8'; g.fillRect(0, 0, cv.width, cv.height);
+      g.fillStyle = '#9a9c98'; g.fillRect(0, 0, cv.width, cv.height);
+      // A gel is a wash over frosted glass, not paint: each colour is pulled a little way toward
+      // grey, and it is night outside, so nothing up there is bright.
+      const soft = hex => { const n = parseInt(hex.slice(1), 16), r = n >> 16, gr = (n >> 8) & 255, b = n & 255, m = (r + gr + b) / 3, k = 0.26; return `rgb(${Math.round(r + (m - r) * k)},${Math.round(gr + (m - gr) * k)},${Math.round(b + (m - b) * k)})`; };
       for (let i = 0; i < COLS; i++) for (let j = 0; j < ROWS; j++) {
-        g.fillStyle = (j === WEST ? WARM : COOL)[i % WARM.length];
+        g.fillStyle = soft((j === WEST ? WARM : COOL)[i % WARM.length]);
         g.fillRect(i * cw + line, j * ch + line, cw - 2 * line, ch - 2 * line);
         // the mesh in the glass
-        if (line) { g.fillStyle = 'rgba(255,255,255,.16)'; for (let x = 6; x < cw - line; x += 6) g.fillRect(i * cw + x, j * ch + line, 1, ch - 2 * line); for (let y = 6; y < ch - line; y += 6) g.fillRect(i * cw + line, j * ch + y, cw - 2 * line, 1); }
+        if (line) { g.fillStyle = 'rgba(255,255,255,.07)'; for (let x = 6; x < cw - line; x += 6) g.fillRect(i * cw + x, j * ch + line, 1, ch - 2 * line); for (let y = 6; y < ch - line; y += 6) g.fillRect(i * cw + line, j * ch + y, cw - 2 * line, 1); }
       }
       const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
     };
@@ -683,10 +686,10 @@ export class Museum {
     const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
     const lay = new Geo();
     lay.quad([0, SPRING - 0.05, -HW], [LEN, SPRING - 0.05, -HW], [LEN, SPRING - 0.05, HW], [0, SPRING - 0.05, HW], [0, -1, 0], uv);
-    hg.add(lay.mesh(new THREE.MeshBasicMaterial({ map: gel(32, 96, 2), side: THREE.DoubleSide })));
+    hg.add(lay.mesh(new THREE.MeshBasicMaterial({ map: gel(32, 96, 1), color: new THREE.Color(0.6, 0.6, 0.62), side: THREE.DoubleSide })));
     const cast = new Geo();
     cast.quad([0, 0.012, -HW], [LEN, 0.012, -HW], [LEN, 0.012, HW], [0, 0.012, HW], [0, 1, 0], uv);
-    const castMesh = cast.mesh(new THREE.MeshBasicMaterial({ map: gel(8, 8, 0), transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const castMesh = cast.mesh(new THREE.MeshBasicMaterial({ map: gel(8, 8, 0), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     hg.add(castMesh);
     const na = 18;
 
@@ -699,7 +702,7 @@ export class Museum {
     for (let x = 0; x <= LEN; x += LEN / 63) white.box(x - 0.04, x + 0.04, SPRING - 0.42, SPRING - 0.06, -HW, HW);
     white.box(0, LEN, SPRING - 0.5, SPRING - 0.06, -0.06, 0.06);            // the spine between the two rows       // a beam under each joint of the glass
     hg.add(steel.mesh(new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.6 })));
-    hg.add(white.mesh(new THREE.MeshBasicMaterial({ color: 0xcfd0cc })));
+    hg.add(white.mesh(new THREE.MeshBasicMaterial({ color: 0x6f716e })));
 
     // Snow beyond the window.
     const n = 500;
