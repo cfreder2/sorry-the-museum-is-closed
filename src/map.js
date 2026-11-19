@@ -6,10 +6,10 @@
 const TAU = Math.PI * 2;
 const near = (a, b, e = 0.7) => Math.abs(a - b) < e;
 
-export function createMap(G, { radarEl, show, resume, say }) {
+export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt }) {
   const rc = radarEl.getContext('2d');
   const big = document.getElementById('bigmap'), bc = document.getElementById('bmCanvas'), bx = bc.getContext('2d');
-  const state = { level: null, target: null, path: null, at: 0, fit: null, marks: [] };
+  const state = { level: null, target: null, path: null, at: 0, fit: null, marks: [], zoom: 1, cx: null, cz: null };
   let nav = null;
 
   // ---- which level is which --------------------------------------------------
@@ -45,7 +45,8 @@ export function createMap(G, { radarEl, show, resume, say }) {
       way(P(side(d.a)), P(side(d.b)), d.vent ? 3 : 0.5, 'door');
     }
     for (const q of p.ramps) {
-      const c = q.axis === 'x' ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2, len = q.axis === 'x' ? q.x1 - q.x0 : q.z1 - q.z0;
+      // Up one side of a wide flight, not the middle: the middle of the Grand Staircase's landing has a kicker on it.
+      const wide = q.axis === 'x' ? q.z1 - q.z0 : q.x1 - q.x0, c = (q.axis === 'x' ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2) + (wide > 4.5 ? wide * 0.28 : 0), len = q.axis === 'x' ? q.x1 - q.x0 : q.z1 - q.z0;
       const lo = q.axis === 'x' ? { x: q.x0 - 0.4, z: c } : { x: c, z: q.z0 - 0.4 }, hi = q.axis === 'x' ? { x: q.x1 + 0.4, z: c } : { x: c, z: q.z1 + 0.4 };
       way({ ...lo, y: q.y0, place: placeAt(lo.x, lo.z, q.y0) }, { ...hi, y: q.y1, place: placeAt(hi.x, hi.z, q.y1) }, len * 1.2, q.y1 > q.y0 ? 'up' : 'down');
     }
@@ -65,6 +66,63 @@ export function createMap(G, { radarEl, show, resume, say }) {
     return { nodes, adj, byPlace };
   }
   const walk = (a, b, place) => Math.hypot(a.x - b.x, a.z - b.z) * (place === 'OUT' ? 3 : 1);      // indoors for choice
+
+  // Inside a room the way from one doorway to the next is not always a straight line: there may be
+  // a desk, a case or a ramp in it. Each room gets a coarse grid of where a toy car can go, made
+  // the first time it is needed, and a leg that would cross something is walked round it instead.
+  const CELL = 0.4, grids = new Map();
+  function gridOf(room) {
+    if (grids.has(room.id)) return grids.get(room.id);
+    const nx = Math.max(1, Math.ceil((room.x1 - room.x0) / CELL)), nz = Math.max(1, Math.ceil((room.z1 - room.z0) / CELL)), blocked = new Uint8Array(nx * nz), m = 0.22;
+    const mark = (x0, x1, z0, z1) => { const i0 = Math.max(0, Math.floor((x0 - m - room.x0) / CELL)), i1 = Math.min(nx - 1, Math.floor((x1 + m - room.x0) / CELL)), j0 = Math.max(0, Math.floor((z0 - m - room.z0) / CELL)), j1 = Math.min(nz - 1, Math.floor((z1 + m - room.z0) / CELL)); for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) blocked[j * nx + i] = 1; };
+    for (const o of G.plan.obstacles) if (!o.gate && o.x1 > room.x0 && o.x0 < room.x1 && o.z1 > room.z0 && o.z0 < room.z1 && o.y0 < room.y + 0.3 && o.y1 > room.y + 0.04) mark(o.x0, o.x1, o.z0, o.z1);
+    if (wallAt) for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) if (!blocked[j * nx + i] && wallAt(G.plan, room.x0 + (i + 0.5) * CELL, room.z0 + (j + 0.5) * CELL, room.y)) blocked[j * nx + i] = 1;
+    const g = { nx, nz, blocked, room };
+    grids.set(room.id, g);
+    return g;
+  }
+  function around(room, a, b) {
+    const g = gridOf(room), { nx, nz, blocked } = g;
+    const cell = p => [Math.max(0, Math.min(nx - 1, Math.floor((p.x - room.x0) / CELL))), Math.max(0, Math.min(nz - 1, Math.floor((p.z - room.z0) / CELL)))];
+    const clear = (p, q) => { const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / (CELL * 0.5)); for (let k = 1; k < n; k++) { const [i, j] = cell({ x: p.x + (q.x - p.x) * k / n, z: p.z + (q.z - p.z) * k / n }); if (blocked[j * nx + i]) return false; } return true; };
+    if (clear(a, b)) return null;
+    // The nearest open cell to each end (a doorway's own cell may be shadowed by something beside it).
+    const open = p => { const [ci, cj] = cell(p); for (let r = 0; r < 8; r++) for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) if (i >= 0 && j >= 0 && i < nx && j < nz && !blocked[j * nx + i]) return j * nx + i; return -1; };
+    const A = open(a), B = open(b);
+    if (A < 0 || B < 0) return null;
+    const from = new Int32Array(nx * nz).fill(-1), queue = [A]; from[A] = A;
+    for (let h = 0; h < queue.length && from[B] < 0; h++) {
+      const u = queue[h], ui = u % nx, uj = (u - ui) / nx;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const i = ui + di, j = uj + dj;
+        if (i < 0 || j < 0 || i >= nx || j >= nz) continue;
+        const v = j * nx + i;
+        if (from[v] >= 0 || blocked[v] || (di && dj && (blocked[uj * nx + i] || blocked[j * nx + ui]))) continue;
+        from[v] = u; queue.push(v);
+      }
+    }
+    if (from[B] < 0) return null;
+    const cells = [];
+    for (let u = B; u !== A; u = from[u]) cells.unshift(u);
+    const pts = [a, ...cells.map(u => ({ x: room.x0 + (u % nx + 0.5) * CELL, y: a.y, z: room.z0 + (Math.floor(u / nx) + 0.5) * CELL })), b];
+    // Pull the string tight: keep only the corners.
+    const out = [pts[0]];
+    for (let i = 0; i < pts.length - 1;) { let j = pts.length - 1; while (j > i + 1 && !clear(pts[i], pts[j])) j--; out.push(pts[j]); i = j; }
+    return out.slice(1, -1);
+  }
+  function refine(path) {
+    const out = [];
+    for (let k = 0; k < path.pts.length; k++) {
+      const a = path.pts[k], b = path.pts[k + 1];
+      out.push(a);
+      if (!b || a.how || Math.abs(a.y - b.y) > 0.1) continue;
+      const room = G.plan.rooms.find(r => near(r.y, a.y, 0.1) && a.x >= r.x0 - 0.6 && a.x <= r.x1 + 0.6 && a.z >= r.z0 - 0.6 && a.z <= r.z1 + 0.6 && b.x >= r.x0 - 0.6 && b.x <= r.x1 + 0.6 && b.z >= r.z0 - 0.6 && b.z <= r.z1 + 0.6);
+      const via = room && around(room, a, b);
+      if (via) out.push(...via);
+    }
+    path.pts = out;
+    return path;
+  }
 
   // The shortest way from one spot to another: a list of points, each with how you get to the next.
   function route(from, to) {
@@ -97,7 +155,39 @@ export function createMap(G, { radarEl, show, resume, say }) {
     for (let u = T; u >= 0; u = prev[u]) pts.unshift(u === T ? { x: to.x, y: to.y, z: to.z } : u === S ? { x: from.x, y: from.y, z: from.z } : { x: nodes[u].x, y: nodes[u].y, z: nodes[u].z, i: u });
     // Mark the legs that change level, and how.
     for (let k = 0; k + 1 < pts.length; k++) if (pts[k].i != null && pts[k + 1].i != null) { const e = adj[pts[k].i].find(e => e[0] === pts[k + 1].i); if (e && (e[2] === 'up' || e[2] === 'down' || e[2] === 'lift')) pts[k].how = e[2] === 'lift' ? (pts[k + 1].y > pts[k].y ? 'lift up' : 'lift down') : (pts[k + 1].y > pts[k].y ? 'up' : 'down'); }
-    return { pts, length: dist[T] };
+    return refine({ pts, length: dist[T] });
+  }
+
+  // ---- the way, laid on the floor ------------------------------------------
+  // The same route as a ribbon of arrows on the floor of the building, running ahead of you.
+  let ribbon = null;
+  function layRibbon() {
+    if (!THREE || !scene) return;
+    if (!ribbon) {
+      const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+      const g = cv.getContext('2d'); g.strokeStyle = '#7fe9f5'; g.lineWidth = 9; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.beginPath(); g.moveTo(14, 12); g.lineTo(40, 32); g.lineTo(14, 52); g.stroke();
+      const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4 });
+      ribbon = new THREE.Mesh(new THREE.BufferGeometry(), mat); ribbon.frustumCulled = false; ribbon.renderOrder = 4; ribbon.visible = false;
+      scene.add(ribbon);
+    }
+    const path = state.path;
+    if (!path) { ribbon.visible = false; return; }
+    const pos = [], uv = [], idx = [], W = 0.2, LIFT = 0.05;
+    let run = 0;
+    for (let k = 0; k + 1 < path.pts.length; k++) {
+      const a = path.pts[k], b = path.pts[k + 1], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
+      if (len < 0.05 || (a.how && /lift/.test(a.how))) continue;
+      const nx = -dz / len * W, nz = dx / len * W, n = pos.length / 3;
+      pos.push(a.x + nx, a.y + LIFT, a.z + nz, a.x - nx, a.y + LIFT, a.z - nz, b.x + nx, b.y + LIFT, b.z + nz, b.x - nx, b.y + LIFT, b.z - nz);
+      uv.push(run / 0.8, 0, run / 0.8, 1, (run + len) / 0.8, 0, (run + len) / 0.8, 1);
+      idx.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
+      run += len;
+    }
+    const geo = ribbon.geometry;
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    ribbon.visible = pos.length > 0;
   }
 
   // ---- drawing a level -------------------------------------------------------
@@ -187,6 +277,7 @@ export function createMap(G, { radarEl, show, resume, say }) {
     const t = performance.now() / 1000;
     // Keep the route fresh: you rarely follow it exactly.
     if (state.target && t - state.at > 1.2) { state.at = t; refresh(); }
+    if (ribbon && ribbon.visible) ribbon.material.map.offset.x = -(t * 1.6) % 1;
     const ly = G.roomId ? v.pos.y : 0;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, W);
     c.save();
@@ -233,8 +324,13 @@ export function createMap(G, { radarEl, show, resume, say }) {
     const dpr = Math.min(2, window.devicePixelRatio || 1), w = bc.clientWidth, h = bc.clientHeight;
     if (bc.width !== Math.round(w * dpr) || bc.height !== Math.round(h * dpr)) { bc.width = Math.round(w * dpr); bc.height = Math.round(h * dpr); }
     const B = G.plan.rooms.reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
-    const pad = 6, s = Math.min(bc.width / (B.x1 - B.x0 + 2 * pad), bc.height / (B.z1 - B.z0 + 2 * pad));
-    state.fit = { s, ox: (bc.width - (B.x1 - B.x0) * s) / 2 - B.x0 * s, oz: (bc.height - (B.z1 - B.z0) * s) / 2 - B.z0 * s, dpr };
+    const pad = 6, s0 = Math.min(bc.width / (B.x1 - B.x0 + 2 * pad), bc.height / (B.z1 - B.z0 + 2 * pad));
+    if (state.cx == null) { state.cx = (B.x0 + B.x1) / 2; state.cz = (B.z0 + B.z1) / 2; }
+    state.zoom = Math.max(1, Math.min(9, state.zoom));
+    // Never drag the building right off the screen.
+    state.cx = Math.max(B.x0, Math.min(B.x1, state.cx)); state.cz = Math.max(B.z0, Math.min(B.z1, state.cz));
+    const s = s0 * state.zoom;
+    state.fit = { s, ox: bc.width / 2 - state.cx * s, oz: bc.height / 2 - state.cz * s, dpr };
   }
   function drawBig() {
     if (big.hidden) return;
@@ -267,16 +363,35 @@ export function createMap(G, { radarEl, show, resume, say }) {
     if (G.state !== 'play') return;
     state.level = levelOf(G.roomId ? G.vehicle.pos.y : 0);
     G.state = 'paused'; show('bigmap'); tabs();
+    if (innerWidth < 900 && state.zoom === 1) { state.zoom = 2; state.cx = G.vehicle.pos.x; state.cz = G.vehicle.pos.z; }
     requestAnimationFrame(drawBig);
   }
   function close() { resume(); }
   function refresh() {
     const v = G.vehicle;
     state.path = state.target ? route({ x: v.pos.x, y: G.roomId ? v.pos.y : 0, z: v.pos.z }, state.target) : null;
+    layRibbon();
   }
-  function clear() { state.target = null; state.path = null; }
+  function clear() { state.target = null; state.path = null; layRibbon(); }
   // Set a destination from anywhere in the game: { x, y, z, label }.
   function goTo(target) { state.target = target; nav = nav || build(); refresh(); return !!state.path; }
+  // Drag to move the plan, pinch or roll the wheel to zoom, tap to pick.
+  {
+    const fingers = new Map(); let moved = 0, pinch = 0;
+    const world = (cx, cy) => { const r = bc.getBoundingClientRect(), { s, ox, oz, dpr } = state.fit; return [((cx - r.left) * dpr - ox) / s, ((cy - r.top) * dpr - oz) / s]; };
+    const zoomAt = (cx, cy, k) => { const [wx, wz] = world(cx, cy), z0 = state.zoom; state.zoom = Math.max(1, Math.min(9, z0 * k)); const f = state.zoom / z0; state.cx = wx - (wx - state.cx) / f; state.cz = wz - (wz - state.cz) / f; };
+    bc.addEventListener('pointerdown', ev => { if (!state.fit) return; bc.setPointerCapture(ev.pointerId); fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); if (fingers.size === 1) moved = 0; pinch = 0; });
+    bc.addEventListener('pointermove', ev => {
+      const f = fingers.get(ev.pointerId); if (!f || !state.fit) return;
+      const dx = ev.clientX - f.x, dy = ev.clientY - f.y;
+      if (fingers.size === 1) { moved += Math.hypot(dx, dy); if (moved > 8) { state.cx -= dx * state.fit.dpr / state.fit.s; state.cz -= dy * state.fit.dpr / state.fit.s; } }
+      f.x = ev.clientX; f.y = ev.clientY;
+      if (fingers.size === 2) { const [p, q] = [...fingers.values()], d = Math.hypot(p.x - q.x, p.y - q.y); if (pinch) zoomAt((p.x + q.x) / 2, (p.y + q.y) / 2, d / pinch); pinch = d; moved = 99; }
+    });
+    const up = ev => { const had = fingers.delete(ev.pointerId); pinch = 0; if (had && ev.type === 'pointerup' && fingers.size === 0 && moved <= 8) pick(ev); };
+    bc.addEventListener('pointerup', up); bc.addEventListener('pointercancel', up);
+    bc.addEventListener('wheel', ev => { ev.preventDefault(); if (state.fit) zoomAt(ev.clientX, ev.clientY, ev.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
+  }
   function pick(ev) {
     const r = bc.getBoundingClientRect(), { s, ox, oz, dpr } = state.fit;
     const x = ((ev.clientX - r.left) * dpr - ox) / s, z = ((ev.clientY - r.top) * dpr - oz) / s, ly = state.level.y, p = G.plan;
@@ -297,11 +412,12 @@ export function createMap(G, { radarEl, show, resume, say }) {
     if (b && b.dataset.level) { state.level = levels().find(l => l.name === b.dataset.level); tabs(); }
     else if (b && b.id === 'bmClear') { clear(); tabs(); }
     else if (b && b.id === 'bmClose') close();
-    else if (ev.target === bc) pick(ev);
+    else if (b && b.id === 'bmIn') state.zoom *= 1.5;
+    else if (b && b.id === 'bmOut') state.zoom /= 1.5;
   });
   const tap = ev => { ev.preventDefault(); open(); };
   radarEl.addEventListener('touchstart', tap, { passive: false });
   radarEl.addEventListener('click', tap);
 
-  return { radar, open, close, goTo, clear, route, get target() { return state.target; }, get path() { return state.path; }, reset() { nav = null; clear(); } };
+  return { radar, open, close, goTo, clear, route, get target() { return state.target; }, get path() { return state.path; }, reset() { nav = null; grids.clear(); clear(); } };
 }

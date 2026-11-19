@@ -309,6 +309,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 .maphead button { min-width: 64px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.66); font: 700 12px var(--mono); letter-spacing: .1em; color: var(--gilt); }
 .maphead button[aria-pressed="true"], #bmClose { background: rgba(226,205,148,.9); color: #14120c; }
 #bmCanvas { flex: 1; min-height: 0; width: 100%; margin: 8px 0 6px; cursor: crosshair; touch-action: none; }
+#bmIn, #bmOut { min-width: 40px; font-size: 18px; padding: 0; }
 .mapfoot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 12px var(--mono); color: var(--gilt); }
 .mapfoot .key { color: var(--gilt-dim); font-size: 10.5px; }
 .mapfoot i { display: inline-block; width: 9px; height: 9px; margin: 0 4px 0 9px; vertical-align: -1px; border: 1px solid rgba(226,205,148,.6); }

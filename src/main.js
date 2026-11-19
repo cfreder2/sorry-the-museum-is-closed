@@ -715,7 +715,7 @@ function attract(dt) {
 // -------------------------------------------------------------------- HUD ---
 
 // The map is its own module: a round radar in the corner and the whole building behind it.
-const nav = createMap(G, { radarEl: $('map'), show, resume: () => act('resume'), say });
+const nav = createMap(G, { radarEl: $('map'), show, resume: () => act('resume'), say, THREE, scene, wallAt });
 G.nav = nav;                                         // G.nav.goTo({ x, y, z, label }) lights the way to a spot; G.mapMarks = [{ x, y, z, colour, ring }] puts marks on it
 
 const knobL = $('stickL').firstElementChild, knobR = $('stickR').firstElementChild;
