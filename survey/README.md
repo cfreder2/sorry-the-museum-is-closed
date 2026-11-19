@@ -31,6 +31,25 @@ half levels comes to about that, so the outline and the published figure agree.
 - `galleries.json`: every gallery the museum's API lists with a position:
   number, floor, whether it is closed, and where it is.
 
+## What has been traced
+
+`python3 tools/survey/draw.py out.png` draws all of it over the outline.
+
+| File | Rooms | From | Good to |
+|---|---|---|---|
+| `modern-wing.json` | 78, basement to third floor | the architect's plans and section | 0.2 to 0.3 m |
+| `old-buildings.json` | 128, lower level to second floor | the museum's visitor maps, each building fitted to the outline | about 1 m |
+| `back-of-house.json` | 240 | the space left inside the outline; uses assumed | extent 1 m; uses are a guess |
+
+Floor levels, from the Modern Wing section: lower level −4.6 m, first floor 0,
+second floor +5.2 m, third floor +11.3 m, Modern Wing roof +19.2 m, its canopy
++22.4 m, its basement −5.9 m with plant down to −9.4 m.
+
+All three files use the grid frame: the game frame turned 0.94° about
+(140, 110), so walls run along the axes.
+
+Traced and assumed floor together come to about 74,000 m² (800,000 sq ft).
+
 ## Drawings (not kept here)
 
 These are other people's drawings. They are read for measurements; the files
@@ -54,6 +73,10 @@ themselves are not in the repository.
 - **Heights in the older buildings.** No section has been found. They will be
   taken from photographs and from the count of steps on the Grand Staircase.
 - **Back-of-house.** Offices, stores, conservation and plant are on no public
-  drawing. They are solid.
+  drawing. Which building does what is known (see `basis` in
+  `back-of-house.json`); which room is which is assumed.
+- **The first-floor rooms east of the railway** (Rubloff Auditorium, the Stock
+  Exchange Trading Room, the ring round McKinlock Court) are placed roughly and
+  need a second pass against the architect's site plan.
 - **The 1900 plans** could not be downloaded when this was written (Wikimedia
   was refusing requests).
