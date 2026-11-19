@@ -646,7 +646,7 @@ function beginStudy(art) {
   el.querySelector('.a').textContent = [w.a, w.d].filter(Boolean).join(', ');
   el.querySelector('.m').textContent = w.m;
   el.querySelector('.alt').textContent = w.alt || '';
-  el.querySelector('.g').textContent = [w.g, art.mini ? 'one inch to the foot' : art.obj ? `${Math.round(art.h * 100)} cm tall` : `${Math.round(art.w * 100)} × ${Math.round(art.h * 100)} cm on the wall`].filter(Boolean).join(' · ');
+  el.querySelector('.g').textContent = [w.lent ? `Hangs in ${w.g}; shown here because this room had nothing on view` : w.g, art.mini ? 'one inch to the foot' : art.obj ? `${Math.round(art.h * 100)} cm tall` : `${Math.round(art.w * 100)} × ${Math.round(art.h * 100)} cm on the wall`].filter(Boolean).join(' · ');
   el.querySelector('.c').textContent = w.c ? `${w.c}. Image: Art Institute of Chicago, shown for non-commercial use.` : '';
   el.querySelector('a').href = pageUrl(w);
   el.hidden = false;

@@ -231,6 +231,10 @@ What is not true:
 - **The colours of Griffin Court's roof are mine.** It has the real roof's 126
   panes, three across and forty-two along, each with a coloured gel; which
   pane is which colour is not from a photograph.
+- **Empty galleries borrow from their neighbours.** A gallery the museum
+  lists nothing on view for is hung with works its nearest galleries have more
+  of than they can show. Each borrowed work's label names the gallery it
+  really hangs in.
 - **Where things hang within a room is mine.** Paintings are arranged along
   the walls by importance and size; sculpture, armour and vessels stand in
   glass cases on the floor. In the Grand Staircase everything is on the

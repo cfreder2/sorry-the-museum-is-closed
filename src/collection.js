@@ -134,6 +134,26 @@ export function curate(raw) {
     }
     rooms[r.id] = { gallery: r.gallery, names, wall, objects };
   }
+  // A gallery the museum lists nothing for is not left bare: it borrows what its nearest neighbours
+  // have more of than they can hang. Every borrowed work keeps its own gallery on its label.
+  {
+    const at = Object.fromEntries(LAYOUT.rooms.map(r => [r.gallery, r]));
+    const spare = raw.works.filter(w => !used.has(w.id) && at[w.g] && w.iw && w.ih && (WALL.includes(w.k) || CASE.includes(w.k)));
+    const far = (a, b) => Math.hypot((a.x0 + a.x1 - b.x0 - b.x1) / 2, (a.z0 + a.z1 - b.z0 - b.z1) / 2) + Math.abs(a.y - b.y) * 6;
+    const bare = LAYOUT.rooms.filter(r => r.kind === 'gallery' && !r.passage && r.id !== 'G200' && rooms[r.id] && !rooms[r.id].wall.length && !rooms[r.id].objects.length);
+    // The emptiest neighbourhoods are served in turn, one work at a time, so no room takes everything near it.
+    const want = r => ({ wall: Math.max(4, Math.min(16, Math.round(((r.x1 - r.x0) + (r.z1 - r.z0)) * 0.5))), objects: Math.min(6, Math.floor((r.x1 - r.x0) * (r.z1 - r.z0) / 40)) });
+    for (let round = 0; round < 16; round++) for (const r of bare) {
+      const set = rooms[r.id], n = want(r);
+      for (const [list, kinds, cap] of [[set.wall, WALL, n.wall], [set.objects, CASE, n.objects]]) {
+        if (list.length >= cap || list.length > round) continue;
+        let best = null, bd = Infinity;
+        for (const w of spare) { if (used.has(w.id) || !kinds.includes(w.k)) continue; const d = far(r, at[w.g]) - w.b * 5; if (d < bd) { bd = d; best = w; } }
+        if (best) { used.add(best.id); list.push({ ...best, lent: 1 }); }
+      }
+    }
+    for (const r of bare) { const set = rooms[r.id]; set.lent = set.wall.length + set.objects.length > 0; }
+  }
   // Griffin Court takes the biggest canvases that did not find a wall.
   const spare = raw.works.filter(w => w.k === 'Painting' && !used.has(w.id) && w.w && w.h && w.h >= 120 && w.h <= 600 && w.w <= 900)
     .sort((a, b) => (b.b - a.b) * 2e4 + (area(b) - area(a))).slice(0, 26);
