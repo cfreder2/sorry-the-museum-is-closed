@@ -1,0 +1,279 @@
+{"note": "The Modern Wing, traced from Renzo Piano Building Workshop's plans (ground and second floor) and north-south section. Metres. The frame is the game frame turned 0.94 degrees about (140,110) so that the building's own grid lies along the axes: x east, z south.","frame": {"turnDegrees": 0.94,"pivot": [
+140,
+110
+]
+},"levels": {"B": {"y": -5.9,"clear": 4.9
+},"1": {"y": 0,"clear": 4.4
+},"2": {"y": 5.2,"clear": 5.3
+},"3": {"y": 11.3,"clear": 5.9
+}
+},"roof": {"y": 19.2,"canopy": 22.4,"canopyOverhang": "the canopy stands on columns outside the south and north walls"
+},"ribs": {"thick": 2.1,"x": [
+[
+186.8,
+188.9
+],
+[
+203.3,
+205.4
+],
+[
+219.7,
+221.6
+],
+[
+236.0,
+238.0
+]
+],"z": [
+-8.7,
+32.2
+],"openings": {"z": [
+[
+1.1,
+4.0
+],
+[
+18.1,
+22.3
+]
+]
+}
+},"accuracy": {"level 1": "0.2 m: read off the colour fills of the plan","level 2": "0.3 m: same, the sheet is stretched 5 % east to west and was corrected against the ribs","level 3": "rooms follow the ribs; partitions from the visitor map","B": "only what the one section shows; the rest of the basement is assumed"
+},"rooms": [
+
+{"id": "G185","name": "Griffin Court","level": "1","kind": "court","x0": 167.2,"x1": 176.0,"z0": -7.0,"z1": 90.0,"h": 18.6,"note": "three storeys to the glass roof"
+},
+
+{"id": "MW1-aisle","name": "Griffin Court, east aisle","level": "1","kind": "court","x0": 176.6,"x1": 181.7,"z0": 22.0,"z1": 90.0,"h": 4.4
+},
+
+{"id": "MW1-shop","name": "Modern Shop","level": "1","kind": "shop","x0": 152.2,"x1": 166.2,"z0": -7.5,"z1": 11.1
+},
+
+{"id": "MW1-core","name": "Service core (risers, goods lift)","level": "1","kind": "service","x0": 152.2,"x1": 166.2,"z0": 11.1,"z1": 16.9
+},
+
+{"id": "MW1-west","name": "West entrance passage","level": "1","kind": "corridor","x0": 144.8,"x1": 166.2,"z0": 16.9,"z1": 22.1
+},
+
+{"id": "MW1-check","name": "Checkroom","level": "1","kind": "checkroom","x0": 152.2,"x1": 166.2,"z0": 22.1,"z1": 34.8
+},
+
+{"id": "G182","name": "Gallery 182","level": "1","kind": "gallery","x0": 152.3,"x1": 167.0,"z0": 35.0,"z1": 49.2
+},
+
+{"id": "G183a","name": "Gallery 183 (west cabinet)","level": "1","kind": "gallery","x0": 152.2,"x1": 157.5,"z0": 49.2,"z1": 56.2
+},
+
+{"id": "G183","name": "Gallery 183","level": "1","kind": "gallery","x0": 157.5,"x1": 161.1,"z0": 49.2,"z1": 56.2
+},
+
+{"id": "G183b","name": "Gallery 183 (east cabinet)","level": "1","kind": "gallery","x0": 161.1,"x1": 166.5,"z0": 49.2,"z1": 56.2
+},
+
+{"id": "G184","name": "Gallery 184","level": "1","kind": "gallery","x0": 152.3,"x1": 167.0,"z0": 56.2,"z1": 78.3
+},
+
+{"id": "MW1-wc","name": "Restrooms and member services","level": "1","kind": "wc","x0": 152.3,"x1": 166.5,"z0": 78.3,"z1": 100.0
+},
+
+{"id": "G188","name": "Gallery 188","level": "1","kind": "gallery","x0": 181.9,"x1": 190.2,"z0": 53.8,"z1": 73.0
+},
+
+{"id": "MW1-proj","name": "Projection and plant","level": "1","kind": "service","x0": 181.9,"x1": 190.2,"z0": 73.0,"z1": 78.8
+},
+
+{"id": "G186","name": "Gallery 186","level": "1","kind": "gallery","x0": 182.2,"x1": 190.2,"z0": 78.8,"z1": 88.4
+},
+
+{"id": "MW1-lobby","name": "Lift lobby","level": "1","kind": "corridor","x0": 176.2,"x1": 181.4,"z0": 5.5,"z1": 16.9
+},
+
+{"id": "MW1-stairW","name": "West stair","level": "1","kind": "stair","x0": 181.8,"x1": 187.0,"z0": 5.6,"z1": 16.5,"up": "2"
+},
+
+{"id": "MW1-lift","name": "Passenger lift","level": "1","kind": "lift","x0": 182.5,"x1": 187.9,"z0": 23.6,"z1": 26.7
+},
+
+{"id": "MW1-stairE","name": "East stair tower","level": "1","kind": "stair","x0": 237.9,"x1": 243.4,"z0": 5.2,"z1": 17.1,"up": "2"
+},
+
+{"id": "G199","name": "Gallery 199 (Touch Gallery)","level": "1","kind": "gallery","x0": 181.9,"x1": 186.8,"z0": -7.0,"z1": 4.0
+},
+
+{"id": "MW1-ed00","name": "Ryan Learning Center, studio","level": "1","kind": "education","x0": 189.0,"x1": 203.2,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "MW1-ed10","name": "Ryan Learning Center, studio","level": "1","kind": "education","x0": 205.4,"x1": 219.6,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "MW1-ed20","name": "Ryan Learning Center, studio","level": "1","kind": "education","x0": 221.7,"x1": 235.9,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "G191","name": "Gallery 191 (Ryan Learning Center)","level": "1","kind": "gallery","x0": 189.0,"x1": 203.2,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW1-ed21","name": "Ryan Learning Center, family room","level": "1","kind": "education","x0": 221.7,"x1": 235.9,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW1-ed02","name": "Ryan Learning Center, classroom","level": "1","kind": "education","x0": 189.0,"x1": 203.2,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "MW1-ed12","name": "Ryan Learning Center, classroom","level": "1","kind": "education","x0": 205.4,"x1": 219.6,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "MW1-ed22","name": "Ryan Learning Center, classroom","level": "1","kind": "education","x0": 221.7,"x1": 235.9,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "MW1-wcW","name": "Restrooms","level": "1","kind": "wc","x0": 205.3,"x1": 210.8,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW1-wcE","name": "Restrooms","level": "1","kind": "wc","x0": 214.1,"x1": 219.6,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW1-wcP","name": "Passage between the restrooms","level": "1","kind": "corridor","x0": 210.8,"x1": 214.1,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW1-corN","name": "Learning centre, north corridor","level": "1","kind": "corridor","x0": 187.0,"x1": 238.0,"z0": 1.1,"z1": 4.0
+},
+
+{"id": "MW1-corS","name": "Learning centre, south corridor","level": "1","kind": "corridor","x0": 187.0,"x1": 238.0,"z0": 18.1,"z1": 22.3
+},
+
+{"id": "MW1-garden","name": "Pritzker Garden","level": "1","kind": "garden","x0": 190.4,"x1": 238.0,"z0": 33.0,"z1": 56.5,"open": true
+},
+
+{"id": "G283","name": "Gallery 283","level": "2","kind": "gallery","x0": 152.2,"x1": 166.4,"z0": -7.2,"z1": 28.6
+},
+
+{"id": "G284","name": "Gallery 284","level": "2","kind": "gallery","x0": 152.2,"x1": 166.4,"z0": 28.6,"z1": 50.0
+},
+
+{"id": "G285","name": "Gallery 285","level": "2","kind": "gallery","x0": 152.2,"x1": 166.4,"z0": 50.0,"z1": 74.0
+},
+
+{"id": "G286","name": "Gallery 286","level": "2","kind": "gallery","x0": 152.3,"x1": 166.5,"z0": 74.0,"z1": 100.0
+},
+
+{"id": "MW2-bridgeN","name": "Bridge over Griffin Court","level": "2","kind": "bridge","x0": 166.4,"x1": 176.7,"z0": -3.4,"z1": -1.3
+},
+
+{"id": "G288","name": "Gallery 288 (balcony)","level": "2","kind": "balcony","x0": 176.7,"x1": 182.2,"z0": -3.0,"z1": 32.0
+},
+
+{"id": "G288S","name": "Gallery 288 (Corridor South)","level": "2","kind": "balcony","x0": 176.6,"x1": 181.9,"z0": 32.0,"z1": 90.0
+},
+
+{"id": "G290","name": "Gallery 290 (Vestibule)","level": "2","kind": "corridor","x0": 182.2,"x1": 187.0,"z0": 17.0,"z1": 22.3
+},
+
+{"id": "G299","name": "Gallery 299","level": "2","kind": "gallery","x0": 181.9,"x1": 186.8,"z0": -7.0,"z1": 4.0
+},
+
+{"id": "MW2-stairW","name": "West stair","level": "2","kind": "stair","x0": 181.9,"x1": 187.0,"z0": 5.7,"z1": 17.0,"up": "3"
+},
+
+{"id": "MW2-stairE","name": "East stair tower","level": "2","kind": "stair","x0": 237.9,"x1": 243.4,"z0": 5.2,"z1": 17.1,"up": "3"
+},
+
+{"id": "G289","name": "Gallery 289","level": "2","kind": "gallery","x0": 181.9,"x1": 190.2,"z0": 53.8,"z1": 73.0
+},
+
+{"id": "G287","name": "Balcony Caf\u00e9","level": "2","kind": "cafe","x0": 176.6,"x1": 190.2,"z0": 78.8,"z1": 90.0
+},
+
+{"id": "G297","name": "Gallery 297","level": "2","kind": "gallery","x0": 189.0,"x1": 203.2,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "G296","name": "Gallery 296","level": "2","kind": "gallery","x0": 205.4,"x1": 219.6,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "G295","name": "Gallery 295","level": "2","kind": "gallery","x0": 221.7,"x1": 235.9,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "G291","name": "Gallery 291","level": "2","kind": "gallery","x0": 189.0,"x1": 203.2,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "G292","name": "Gallery 292","level": "2","kind": "gallery","x0": 205.4,"x1": 219.6,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "G293","name": "Gallery 293","level": "2","kind": "gallery","x0": 221.7,"x1": 235.9,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "G294","name": "Gallery 294","level": "2","kind": "gallery","x0": 221.7,"x1": 235.9,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW2-midA","name": "Gallery 297 (south room)","level": "2","kind": "gallery","x0": 189.0,"x1": 203.2,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW2-midB","name": "Gallery 296 (south room)","level": "2","kind": "gallery","x0": 205.4,"x1": 219.6,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "G398","name": "Gallery 398","level": "3","kind": "gallery","x0": 189.0,"x1": 203.2,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "G396","name": "Gallery 396","level": "3","kind": "gallery","x0": 205.4,"x1": 219.6,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "G395","name": "Gallery 395","level": "3","kind": "gallery","x0": 221.7,"x1": 235.9,"z0": -7.7,"z1": 1.1
+},
+
+{"id": "G391","name": "Gallery 391","level": "3","kind": "gallery","x0": 189.0,"x1": 203.2,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "G392","name": "Gallery 392","level": "3","kind": "gallery","x0": 205.4,"x1": 219.6,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "G393","name": "Gallery 393","level": "3","kind": "gallery","x0": 221.7,"x1": 235.9,"z0": 22.3,"z1": 31.1
+},
+
+{"id": "G394","name": "Gallery 394","level": "3","kind": "gallery","x0": 221.7,"x1": 235.9,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "G397","name": "Gallery 397","level": "3","kind": "gallery","x0": 205.4,"x1": 219.6,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "MW3-midA","name": "Gallery 398 (south room)","level": "3","kind": "gallery","x0": 189.0,"x1": 203.2,"z0": 4.0,"z1": 18.1
+},
+
+{"id": "G399","name": "Gallery 399","level": "3","kind": "gallery","x0": 181.9,"x1": 186.8,"z0": -7.0,"z1": 4.0
+},
+
+{"id": "G389","name": "Gallery 389 (corridor)","level": "3","kind": "balcony","x0": 176.7,"x1": 182.2,"z0": -3.0,"z1": 32.0
+},
+
+{"id": "MW3-stairW","name": "West stair","level": "3","kind": "stair","x0": 181.9,"x1": 187.0,"z0": 5.7,"z1": 17.0
+},
+
+{"id": "MW3-stairE","name": "East stair tower","level": "3","kind": "stair","x0": 237.9,"x1": 243.4,"z0": 5.2,"z1": 17.1
+},
+
+{"id": "MW3-terrace","name": "Bluhm Family Terrace","level": "3","kind": "terrace","x0": 152.2,"x1": 166.4,"z0": -7.2,"z1": 40.0,"open": true
+},
+
+{"id": "MW3-terzo","name": "Terzo Piano Restaurant","level": "3","kind": "restaurant","x0": 152.2,"x1": 166.4,"z0": 40.0,"z1": 74.0
+},
+
+{"id": "MW3-kitchen","name": "Terzo Piano kitchen","level": "3","kind": "kitchen","x0": 152.3,"x1": 166.5,"z0": 74.0,"z1": 100.0
+},
+
+{"id": "MW3-bridgeN","name": "Bridge over Griffin Court","level": "3","kind": "bridge","x0": 166.4,"x1": 176.7,"z0": -3.4,"z1": -1.3
+},
+
+{"id": "MW0-lockers","name": "Staff lockers","level": "B","kind": "lockers","x0": 189.0,"x1": 196.0,"z0": -7.7,"z1": 31.1,"h": 4.9
+},
+
+{"id": "MW0-plant","name": "Mechanical plant (two storeys deep)","level": "B","kind": "plant","x0": 196.0,"x1": 238.0,"z0": -7.7,"z1": 31.1,"h": 8.4,"y": -9.4
+},
+
+{"id": "MW0-storeN","name": "Art storage","level": "B","kind": "store","x0": 190.4,"x1": 214.0,"z0": 33.0,"z1": 56.5,"h": 4.9
+},
+
+{"id": "MW0-storeS","name": "Art storage","level": "B","kind": "store","x0": 214.0,"x1": 232.0,"z0": 33.0,"z1": 56.5,"h": 4.9
+},
+
+{"id": "MW0-cor","name": "Service corridor","level": "B","kind": "corridor","x0": 232.0,"x1": 238.0,"z0": 33.0,"z1": 56.5,"h": 4.9
+}
+]
+}
