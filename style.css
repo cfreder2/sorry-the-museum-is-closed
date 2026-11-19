@@ -298,3 +298,50 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .pc { width: 34px; height: 48px; font-size: 16px; } .pc b { font-size: 16px; } #pkMine .pc { width: 40px; height: 56px; } #pkMine .pc b { font-size: 19px; }
   #pkLog { font-size: 13px; } #poker button { height: 40px; padding: 0 10px; font-size: 12px; } #pkMe { gap: 8px; }
 }
+
+/* ---- the monitors with games on them (src/arcade.js) ---- */
+#arcade { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; gap: 18px; padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: radial-gradient(ellipse at center, #0c1712 0%, #020403 75%); font-family: var(--mono); color: #9fe6a0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+#arcade[hidden] { display: none; }
+#arcade .cab { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+#arcade .top { display: flex; gap: 22px; align-items: baseline; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; }
+#arcName { color: var(--gilt); font-weight: 700; font-size: 16px; letter-spacing: .2em; }
+#arcade .sc b { color: #fff; font-size: 16px; }
+#arcade .tube { position: relative; padding: 14px 14px 18px; border-radius: 20px; background: linear-gradient(#d6cdb7, #a79e89); box-shadow: 0 0 0 1px #6f6858, 0 0 60px rgba(125,255,154,.16), inset 0 0 0 3px rgba(0,0,0,.18); }
+#arcScreen { display: block; height: min(calc(100vh - 130px), calc((100vw - 60px) * .75)); aspect-ratio: 4 / 3; border-radius: 14px / 12px; background: #04100a; image-rendering: pixelated; box-shadow: 0 0 0 3px #19191b, 0 0 26px rgba(125,255,154,.4); outline: none; touch-action: none; }
+.touch #arcScreen { height: min(calc(100vh - 96px), calc((100vw - 400px) * .75)); }
+#arcade .scan { position: absolute; left: 14px; right: 14px; top: 14px; bottom: 18px; border-radius: 14px / 12px; pointer-events: none; background: repeating-linear-gradient(to bottom, rgba(0,0,0,.24) 0 1px, rgba(0,0,0,0) 1px 3px), radial-gradient(ellipse at center, rgba(255,255,255,.03) 0%, rgba(0,0,0,0) 55%, rgba(0,0,0,.5) 100%); }
+#arcade .help { font-size: 12px; letter-spacing: .04em; color: #8fb89a; text-align: center; max-width: 640px; min-height: 1.3em; }
+#arcade button { border: 2px solid rgba(159,230,160,.5); background: rgba(10,22,14,.85); color: #c8f7cc; font: 700 13px var(--mono); letter-spacing: .1em; border-radius: 12px; touch-action: none; }
+#arcade button.down, #arcade button:active { background: rgba(159,230,160,.35); }
+#arcade .pad { display: grid; grid-template: repeat(3, 60px) / repeat(3, 60px); gap: 4px; flex: none; }
+#arcade .pad button { font-size: 20px; }
+#arcade .pad [data-arc=up] { grid-area: 1 / 2; } #arcade .pad [data-arc=left] { grid-area: 2 / 1; } #arcade .pad [data-arc=right] { grid-area: 2 / 3; } #arcade .pad [data-arc=down] { grid-area: 3 / 2; }
+#arcade .pad[data-dirs="lr"] [data-arc=up], #arcade .pad[data-dirs="lr"] [data-arc=down], #arcade .pad[data-dirs="ud"] [data-arc=left], #arcade .pad[data-dirs="ud"] [data-arc=right], #arcade .pad[data-dirs=""] button { visibility: hidden; }
+#arcade .btns { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: none; width: 110px; }
+#arcade .btns button { width: 100%; height: 44px; }
+#arcade #arcA { height: 88px; width: 88px; border-radius: 50%; background: rgba(226,205,148,.9); color: #14120c; border-color: #fff; }
+#arcade #arcB { height: 56px; }
+#arcade #arcAgain { background: rgba(226,205,148,.9); color: #14120c; border-color: #fff; }
+#arcade #arcLeave { border-color: rgba(159,230,160,.3); color: #8fb89a; }
+#arcade button[hidden] { display: none; }
+body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { display: none; }
+@media (max-height: 520px) { #arcade { gap: 10px; } #arcade .top { font-size: 11px; gap: 14px; } #arcName, #arcade .sc b { font-size: 13px; } #arcade .tube { padding: 8px 8px 10px; border-radius: 14px; } #arcade .scan { left: 8px; right: 8px; top: 8px; bottom: 10px; } #arcade .help { font-size: 10.5px; } #arcade .cab { gap: 3px; } #arcade .btns { width: 96px; gap: 8px; } #arcade .btns button { height: 38px; } #arcade #arcA { width: 80px; height: 80px; } #arcade #arcB { height: 46px; } }
+.bigtext #arcade .help { font-size: 16px; color: #fff; } .bigtext #arcade .top { font-size: 16px; }
+
+/* ---- the heist (src/heist.js) ---- */
+#heist { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; text-align: center; pointer-events: none; z-index: 4; }
+#heist .row { display: inline-flex; gap: 18px; align-items: baseline; font: 600 13px var(--mono); color: #ffb0a0; background: rgba(16,5,4,.66); border: 1px solid rgba(255,90,70,.4); border-radius: 6px; padding: 6px 14px; letter-spacing: .08em; }
+#hClock { font-size: 20px; color: #fff; min-width: 3.2em; } #heist.late #hClock { color: #ff5a46; }
+#hArrow { margin-top: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; font: 11px var(--mono); letter-spacing: .08em; color: #ffc9bd; text-shadow: 0 1px 5px #000; }
+#hArrow svg { width: 38px; height: 38px; fill: #ff6a55; filter: drop-shadow(0 0 7px #ff2a10); }
+.studying #heist, .cine #heist { opacity: .35; }
+#heistFlash { position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 5; background: radial-gradient(ellipse at center, rgba(255,40,20,.08) 35%, rgba(255,30,10,.6) 100%); }
+#heistFlash.on { animation: heistAlarm 1.3s linear both; }
+@keyframes heistAlarm { 0% { opacity: .95; } 16% { opacity: .1; } 33% { opacity: .9; } 50% { opacity: .1; } 66% { opacity: .8; } 100% { opacity: 0; } }
+#heistBrief { z-index: 20; } #heistBrief .panel { margin: auto; max-width: 440px; }
+#heistBrief h2 { font-size: 28px; margin: .3em 0 .5em; } #heistBrief .times { text-align: left; font-size: 13px; line-height: 1.8; margin-bottom: 14px; }
+#heistBrief .col button:first-child { background: rgba(160,30,20,.75); border-color: #ff8a78; color: #fff; }
+.bigtext #heist .row { font-size: 18px; background: #000; } .bigtext #hArrow { font-size: 15px; color: #fff; }
+@media (max-height: 520px) { #heist .row { font-size: 11px; padding: 3px 10px; gap: 10px; } #hClock { font-size: 16px; } #hArrow { margin-top: 4px; } #hArrow svg { width: 30px; height: 30px; } #heistBrief h2 { font-size: 20px; margin: .1em 0 .3em; } #heistBrief .about { font-size: 12.5px; line-height: 1.4; margin-bottom: 8px; } #heistBrief .times { font-size: 11px; line-height: 1.5; margin-bottom: 8px; } #heistBrief .col button { padding: 8px; font-size: 14px; } }
+#heistBrief.screen { background: rgba(4,5,9,.84); }
+.heisting #tally .minor { visibility: hidden; }
