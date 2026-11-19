@@ -293,6 +293,12 @@ What is not true:
   from. Hoops are counted too, but art is the objective.
 - **Slow motion.** Leave a ramp with a work alongside and time slows, the
   camera comes round, and that work is lit and named until you land.
+- **Stunt Looks.** Art is the goal, and the tricks are a way of looking at
+  it. While the car is in the air (off a ramp or a drop, a hop at speed, or
+  with a flip or spin going), or while either toy goes through a hoop, a work
+  that is close and plainly in view is caught: STUNT LOOK, its title, and
+  points when the wheels are down. It counts as seeing the work and as a look
+  at it. See *Art Score* below for what it is worth.
 - **Frames.** Each picture gets a moulding to suit its date and school:
   tabernacle and gilt-and-bole for the earliest, carved Baroque gilt, ebonised
   Dutch, Neoclassical, swept Salon gilt, walnut, oak, thin modern strips, and
@@ -300,8 +306,41 @@ What is not true:
 - **The drone** can go outside and over the roofs.
 
 The title screen has two choices, Vehicle and Game mode, set to RC Car and
-Explore; press Start (or Enter). On a phone the whole menu is five things to
-tap: the two choices, Continue, New game and Settings.
+Explore; press Start (or Enter). On a phone the whole menu is six things to
+tap: the two choices, Continue, New game, Settings and Trophies.
+
+## Art Score, view counts, trophies and the garage
+
+- **View counts.** Every time you look closer at a work (or Stunt Look it)
+  is counted, on the device. The label says "You have looked at this 3
+  times", and so does the notebook. Where the server can be asked, the label
+  adds "Seen N times by everyone". A new game keeps these.
+- **Art Score**, beside ART SEEN. 10 for looking closer at a work, 50 for a
+  work seen for the first time, and for a Stunt Look a base by what the car
+  was doing (jump 100; more than 1.1 s of air 200; a flip or spin landed 300;
+  through a hoop 400), times 2 in slow motion, times 2 for a work never seen
+  before, times 1.5 for a perfect landing, halved for landing wrong way up.
+  Several different works in one air are a combo: the second is worth double,
+  the third triple. The same work cannot score a Stunt Look again for 90
+  seconds. The numbers are `POINTS` at the top of `src/score.js`. A new game
+  starts the score again.
+- **Trophies**, console fashion: bronze, silver, gold, and one platinum for
+  earning all the others. Mostly for seeing art (the first work, 10 to 500
+  works, a whole room, a whole floor, a work on every level, the famous
+  pictures), some for places (the Grand Staircase, Griffin Court's roof, and
+  hidden ones back of house), a few for Stunt Looks, hoops, snowmen, the card
+  game and the pond. A card slides in at the top left when one is earned; the
+  Trophies screen is on the title screen and the pause menu. A trophy for a
+  picture that is not in tonight's hang is left off the list. They are kept on
+  the device and a new game does not take them away. The list is `TROPHIES`
+  in `src/trophies.js`.
+- **The garage.** Five cars and four drones. The Vehicle choice on the title
+  screen goes through all of them; a locked one is shown as a silhouette with
+  what it needs ("See 12 more works"). They unlock at 15, 25, 40, 60 and 100
+  works seen, and two for trophies. Each is a different body and handles a
+  little differently (top speed, grip, steering, hop; for a drone, pull, climb
+  and turn); none climbs worse than the first. SWAP still goes between car and
+  drone: the last one chosen of each. They are `VEHICLES` in `src/garage.js`.
 
 With keys or a gamepad the controls are two sticks, like a toy transmitter. On
 a phone one thumbstick under the left thumb drives the car (forward to go, the
@@ -379,7 +418,14 @@ find the way in, how far round they get and what they stop to look at.
   frame rate, counts of hoops, snowmen and the like, and the settings in use),
   and a row for each of a few events: a game started, the way in, a room
   entered for the first time, a work looked at closely, a race finished, a roof
-  reached, a hand of cards left, a hockey goal.
+  reached, a hand of cards left, a hockey goal, a Stunt Look, a trophy earned,
+  a vehicle unlocked.
+- **View counts.** Each look at a work also adds one to that work's count for
+  everybody (`supabase/003-views.sql`): the museum's id for the work, its
+  title, and whether it was a Stunt Look. Nothing about who looked is kept
+  with the count. The counts are the one thing the game reads back, to say
+  "Seen N times by everyone" on a label. A test never adds to them, and with
+  the switch off they are neither added to nor asked for.
 - **What is not:** no name, no email, nothing typed (nothing is typed in this
   game), nothing about where the player really is. The only position sent is
   the toy's, inside the game, when the session ends. The player is an
@@ -389,7 +435,10 @@ find the way in, how far round they get and what they stop to look at.
 - **Where it goes:** the `museum_*` tables of the Supabase project the author's
   other games report to (`supabase/001-telemetry.sql`). Clients can only call
   two functions that clamp every field; nothing can be read back without the
-  service key.
+  service key, except the per-work view counts, through one function that
+  gives back counts and titles only. `003-views.sql` has been written but is
+  not applied by anything here: run it on the project before the counts will
+  work. Until then the label simply leaves that line out.
 - **Tests are kept out of the numbers.** A browser driven by automation, a
   page where anything touched the test handle `window.__ah`, and a start from a
   test switch are all flagged, and every summary leaves them out. On localhost
@@ -467,7 +516,8 @@ game is run from localhost and that folder has images, it uses them instead of
 the museum's server.
 
 URL switches, for testing: `?saved` skips the live API, `?remote` ignores the
-offline images, `?mode=explore|race&toy=car|drone` skips the title, `?auto`
+offline images, `?mode=explore|race&toy=car|drone` skips the title (`toy` may also be any id
+in `src/garage.js`, such as `truck`, which opens that one), `?auto`
 lets a test driver run the race. The game object is `window.__ah`; a test can
 drive by setting its `testInput` (what the sticks would send) and look from
 anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
@@ -493,6 +543,9 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/props.js              loose cones and signs, and snowmen
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
+    src/score.js              Art Score, view counts, Stunt Looks
+    src/trophies.js           the trophies, their screen and the card that slides in
+    src/garage.js             the other cars and drones, and what unlocks them
     src/telemetry.js          anonymous play statistics (see Telemetry)
     supabase/                 the tables they go to
     tools/telemetry.mjs       the report

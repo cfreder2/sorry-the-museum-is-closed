@@ -314,3 +314,67 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 .mapfoot .key { color: var(--gilt-dim); font-size: 10.5px; }
 .mapfoot i { display: inline-block; width: 9px; height: 9px; margin: 0 4px 0 9px; vertical-align: -1px; border: 1px solid rgba(226,205,148,.6); }
 .mapfoot .k0 { background: #1e2230; } .mapfoot .k1 { background: #3e4662; } .mapfoot .k2 { background: #e2be6e; } .mapfoot .k3 { background: #7fe9f5; border-color: #7fe9f5; }
+/* ---- trophies, the garage, Stunt Looks and view counts ---- */
+#tally .pts { margin-left: 12px; font-size: 12px; letter-spacing: .1em; color: var(--gilt-dim); white-space: nowrap; } #tally .pts b { font-size: 15px; }
+.bigtext #tally .pts { font-size: 15px; color: #fff; }
+#label .v { font: 11px var(--mono); letter-spacing: .04em; color: #6a655a; margin-top: 8px; } #label .v:empty { display: none; }
+.bigtext #label .v { font-size: 13px; color: #1b1a17; }
+#nbGrid figcaption small { display: block; font: 10px var(--mono); font-style: normal; letter-spacing: .04em; color: var(--gilt-dim); margin-top: 2px; }
+
+#stunt { position: absolute; left: 0; right: 0; top: 60%; text-align: center; opacity: 0; pointer-events: none; text-shadow: 0 2px 12px #000, 0 0 3px #000; padding: 0 16px; }
+#stunt .h { font: 700 clamp(15px, 2.2vw, 24px) var(--mono); letter-spacing: .22em; color: #7fe9f5; text-shadow: 0 0 18px rgba(127,233,245,.6), 0 2px 10px #000; }
+#stunt .t { font-style: italic; font-size: clamp(15px, 2vw, 22px); color: #fff; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#stunt .p { font: 700 clamp(18px, 2.8vw, 30px) var(--mono); letter-spacing: .08em; color: var(--gilt); margin-top: 2px; } #stunt .p:empty { display: none; }
+#stunt.on { animation: stunt 2.6s ease-out both; } #stunt.on.landed { animation-duration: 3.4s; }
+.reduce #stunt.on { animation: none !important; opacity: 1; }
+.bigtext #stunt { background: rgba(0,0,0,.8); left: 15%; right: 15%; padding: 8px 16px; border-radius: 4px; }
+.studying #stunt { display: none; }
+@keyframes stunt { 0% { opacity: 0; transform: translateY(10px); } 10% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+#trophyToast { position: fixed; z-index: 40; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); display: flex; align-items: center; gap: 12px; min-width: 250px; max-width: min(380px, calc(100vw - 24px)); padding: 9px 18px 9px 10px; border-radius: 30px; background: rgba(14,16,24,.94); border: 1px solid rgba(226,205,148,.45); box-shadow: 0 8px 30px rgba(0,0,0,.6); color: var(--cream); transform: translateX(calc(-100% - 30px)); opacity: 0; transition: transform .4s cubic-bezier(.2,.9,.3,1), opacity .3s ease; pointer-events: none; }
+#trophyToast.on { transform: none; opacity: 1; }
+#trophyToast .ico { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.08); color: #7fe9f5; }
+#trophyToast .ico svg { width: 28px; height: 28px; }
+#trophyToast .h { font: 10.5px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--gilt-dim); }
+#trophyToast .n { font-size: 17px; line-height: 1.2; margin-top: 2px; }
+#trophyToast.bronze .ico, .tr.bronze .ico, .tier.bronze svg { color: #c98a52; } #trophyToast.silver .ico, .tr.silver .ico, .tier.silver svg { color: #cfd6dd; }
+#trophyToast.gold .ico, .tr.gold .ico, .tier.gold svg { color: #f1c84b; } #trophyToast.platinum .ico, .tr.platinum .ico, .tier.platinum svg { color: #a9e4f5; }
+.bigtext #trophyToast { background: #000; } .bigtext #trophyToast .n { font-size: 21px; } .bigtext #trophyToast .h { font-size: 13px; color: #fff; }
+
+#trophies { z-index: 30; justify-content: center; background: rgba(4,5,9,.9); backdrop-filter: blur(5px); }
+#trophies .panel { margin: auto; display: flex; flex-direction: column; max-height: 100%; }
+#trophies h2 { margin: .1em 0 .2em; }
+.trTotal { height: 5px; border-radius: 3px; background: rgba(226,205,148,.18); overflow: hidden; max-width: 420px; width: 100%; margin: 0 auto 10px; flex: none; } .trTotal i { display: block; height: 100%; background: var(--gilt); width: 0; }
+#trSum { display: flex; justify-content: center; gap: 22px; flex-wrap: wrap; font: 13px var(--mono); color: #cfc8b6; margin-bottom: 10px; }
+#trSum .tier { display: inline-flex; align-items: center; gap: 6px; } #trSum svg { width: 20px; height: 20px; } #trSum b { color: var(--cream); font-size: 16px; } #trSum i { font-style: normal; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--gilt-dim); margin-left: 2px; }
+#trGrid { list-style: none; margin: 0 0 12px; padding: 2px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; overflow: auto; text-align: left; touch-action: pan-y; flex: 1 1 auto; min-height: 90px; max-height: 58vh; }
+.tr { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: start; padding: 9px 12px 9px 9px; border: 1px solid rgba(226,205,148,.2); border-radius: 5px; background: rgba(12,13,19,.75); opacity: .62; }
+.tr.got { opacity: 1; border-color: rgba(226,205,148,.55); background: rgba(34,31,22,.82); }
+.tr .ico { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.06); } .tr .ico svg { width: 28px; height: 28px; }
+.tr:not(.got) .ico { filter: grayscale(.7) brightness(.7); }
+.tr .b { display: flex; flex-direction: column; min-width: 0; } .tr .b b { font-weight: 400; font-size: 16px; color: var(--cream); } .tr.got .b b { color: var(--gilt); }
+.tr .d { font-size: 12.5px; line-height: 1.35; color: #cfc8b6; margin-top: 1px; } .tr.secret .d { font-style: italic; }
+.tr .m { font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gilt-dim); margin-top: 5px; }
+.tr .bar { display: block; height: 5px; border-radius: 3px; background: rgba(226,205,148,.18); overflow: hidden; margin-top: 6px; } .tr .bar i { display: block; height: 100%; background: var(--gilt); }
+.tr .num { font: 10.5px var(--mono); color: #cfc8b6; margin-top: 3px; }
+.bigtext .tr .d { font-size: 15px; color: #fff; } .bigtext .tr .b b { font-size: 19px; } .bigtext .tr .m, .bigtext .tr .num { font-size: 13px; color: #fff; } .bigtext .tr { opacity: 1; }
+
+#garage { display: flex; align-items: center; gap: 12px; margin: -4px 0 14px; min-height: 84px; }
+#garage img { width: 132px; height: 84px; object-fit: contain; flex: none; background: radial-gradient(ellipse at 50% 70%, rgba(226,205,148,.16), rgba(226,205,148,0) 70%); }
+#garage.locked img { filter: brightness(0) drop-shadow(0 0 1.5px rgba(226,205,148,.95)); opacity: .9; }
+#garage div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#garage b { font-weight: 400; font-size: 17px; letter-spacing: .08em; color: var(--gilt); } #garage.locked b::after { content: " \00b7 locked"; color: var(--gilt-dim); font-size: 13px; }
+#gNote { font-size: 13.5px; color: #e6dfcf; } #garage.locked #gNote { font-style: italic; }
+#gCount { font: 10.5px var(--mono); letter-spacing: .08em; color: var(--gilt-dim); }
+.sel .val.long { font-size: 17px; letter-spacing: .1em; }
+#title .big.nogo { opacity: .4; cursor: not-allowed; }
+.bigtext #gNote { font-size: 16px; color: #fff; } .bigtext #gCount { font-size: 13px; color: #fff; }
+@media (pointer: coarse), (max-height: 520px) {
+  #garage { margin: 0 0 8px; min-height: 0; gap: 8px; } #garage img { width: 80px; height: 50px; } #garage b { display: none; } #gNote { font-size: 12px; } #gCount { font-size: 9.5px; }
+  #title .sel .val.long { font-size: 13px; }
+  #trophies h2 { font-size: 20px; margin: 0; } #trSum { gap: 14px; font-size: 11px; margin-bottom: 6px; } .trTotal { margin-bottom: 6px; }
+  #trGrid { max-height: none; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; } .tr { padding: 6px 9px 6px 7px; grid-template-columns: 36px 1fr; } .tr .ico { width: 36px; height: 36px; } .tr .ico svg { width: 23px; height: 23px; } .tr .b b { font-size: 14px; } .tr .d { font-size: 11.5px; }
+  #trophyToast { min-width: 200px; padding: 6px 14px 6px 7px; } #trophyToast .ico { width: 34px; height: 34px; } #trophyToast .ico svg { width: 23px; height: 23px; } #trophyToast .n { font-size: 14px; }
+  #stunt { top: 62%; }
+  body:has(#hud.studying:not(.atcards)) #trophyToast { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }      /* the label has the top left while you look */
+}
