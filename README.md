@@ -101,6 +101,15 @@ The pedestal plays a pattern of colours and you play it back; it adds one each
 time. Get five right and the roof lets go: confetti in the colours of all 126
 panes comes down the length of the court.
 
+## Playing on the thing itself
+
+A game on a monitor, the pads on the pedestal and the canvas on the easel are
+played where they are. The camera goes and stands square in front of the
+thing, as it does for a painting, with the building still round it, and what
+you touch on the glass is the monitor's screen, the pad or the canvas. Only
+the controls that have nowhere else to be (a direction pad, LEAVE, the paint
+pots) stay on the page.
+
 ## Your own picture
 
 One big gilt frame hangs in the Michigan Avenue lobby, where everybody comes

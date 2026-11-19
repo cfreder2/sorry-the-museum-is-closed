@@ -21,7 +21,12 @@ const STYLE = `
 #simon .head { text-align: center; }
 #simon h2 { margin: 0; font-size: 22px; letter-spacing: .14em; text-transform: uppercase; color: var(--gilt, #e2cd94); }
 #simon .say { font: 600 13px var(--mono, ui-monospace, monospace); letter-spacing: .08em; color: var(--gilt, #e2cd94); min-height: 1.3em; margin-top: 4px; }
-#simon .pads { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: min(62vh, 86vw, 420px); aspect-ratio: 1; }
+#simon .pads { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 0; width: min(62vh, 86vw, 420px); aspect-ratio: 1; }
+#simon [data-pad="0"] { grid-area: 1 / 2; } #simon [data-pad="1"] { grid-area: 1 / 1; } #simon [data-pad="2"] { grid-area: 2 / 1; } #simon [data-pad="3"] { grid-area: 2 / 2; }
+#simon.inworld { background: none; justify-content: space-between; pointer-events: none; }
+#simon.inworld button { pointer-events: auto; }
+#simon.inworld .head, #simon.inworld .row { background: rgba(4,5,9,.72); padding: 6px 14px; border-radius: 10px; }
+#simon.inworld .pads button { opacity: 0 !important; border: 0; box-shadow: none !important; border-radius: 0; }
 #simon .pads button { border: 3px solid rgba(255,255,255,.25); border-radius: 18px; opacity: .45; transition: opacity .08s, transform .08s; touch-action: none; }
 #simon .pads button.lit { opacity: 1; transform: scale(1.03); box-shadow: 0 0 34px currentColor; border-color: #fff; }
 #simon .row { display: flex; gap: 10px; }
@@ -33,7 +38,7 @@ export class Simon {
   // deps: { museum, plan, sound, resume(), onWin(round), calm() }
   constructor(G, deps) {
     Object.assign(this, deps);
-    this.G = G; this.on = false; this.best = 0; this.won = false;
+    this.G = G; this.on = false; this.best = 0; this.won = false; this.flash = [0, 0, 0, 0];
     try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) { this.best = s.best || 0; this.won = !!s.won; } } catch { /* no storage */ }
     this._pedestal();
     this._dom();
@@ -68,7 +73,8 @@ export class Simon {
   near(v) { const a = this.at; return !!a && !this.on && Math.abs(v.pos.y - a.y) < 2 && Math.hypot(v.pos.x - a.x, v.pos.z - a.z) < 1.9 && Math.hypot(v.vel.x, v.vel.z) < 3; }
   // The pads on the pedestal breathe in turn, so that it reads as something to press.
   update(dt, t) {
-    if (this.lamps) this.lamps.forEach((m, i) => { const k = 0.45 + 0.55 * Math.max(0, Math.sin(t * 1.6 - i * 1.57)); m.material.color.setHex(PADS[i].hex).multiplyScalar(k); });
+    // Idle, the pads breathe in turn so that it reads as something to press. In play they are dim until lit.
+    if (this.lamps) this.lamps.forEach((m, i) => { this.flash[i] = Math.max(0, this.flash[i] - dt); const k = this.on ? (this.flash[i] > 0 ? 2.4 : 0.22) : 0.45 + 0.55 * Math.max(0, Math.sin(t * 1.6 - i * 1.57)); m.material.color.setHex(PADS[i].hex).multiplyScalar(k); });
     this._fall(dt);
   }
 
@@ -89,13 +95,14 @@ export class Simon {
     });
     addEventListener('keydown', e => {
       if (!this.on) return;
-      const k = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, KeyQ: 0, KeyW: 1, KeyA: 2, KeyS: 3 }[e.code];
+      const k = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, KeyW: 0, KeyQ: 1, KeyA: 2, KeyS: 3 }[e.code];      // Q W / A S, laid out as the pads are
       if (e.code === 'Escape') this.close(); else if (k != null) this._press(k); else if (e.code === 'Enter' || e.code === 'Space') { if (!this.playing && !this.turn) this._start(); } else return;
       e.preventDefault(); e.stopPropagation();
     }, true);
   }
   _say(t) { this.el.querySelector('.say').textContent = t; }
   _light(i, ms = 320) {
+    this.flash[i] = ms / 1000;                           // the pad on the pedestal itself lights
     const b = this.el.querySelector(`[data-pad="${i}"]`); b.classList.add('lit');
     if (this.sound && this.sound.bell) this.sound.bell(PADS[i].note, 0, 0.09, 0.5, 0.3);
     setTimeout(() => b.classList.remove('lit'), ms);
@@ -130,8 +137,13 @@ export class Simon {
   }
   _record(n) { if (n > this.best) { this.best = n; this._save(); } }
   _save() { try { localStorage.setItem(KEY, JSON.stringify({ best: this.best, won: this.won })); } catch { /* fine */ } }
-  open() { if (this.on || !this.at) return; this.on = true; this.G.state = 'paused'; this.el.hidden = false; this._start(); }
-  close() { if (!this.on) return; this.on = false; this.turn = false; this.run++; this.el.hidden = true; this.resume(); }
+  open() {
+    if (this.on || !this.at) return; this.on = true; this.G.state = 'paused'; this.el.hidden = false;
+    // The camera stands over the pedestal, looking straight down at the pads, north at the top.
+    if (this.stage) { this.stage.enter({ x: this.at.x, y: this.at.y + 0.41, z: this.at.z, nx: 0, ny: 1, nz: 0, w: 0.86, h: 0.86, up: [0, 0, -1] }, { el: this.el.querySelector('.pads'), fill: 0.62 }); this.el.classList.add('inworld'); }
+    this._start();
+  }
+  close() { if (!this.on) return; this.on = false; this.turn = false; this.run++; this.el.hidden = true; if (this.stage) { this.stage.leave(); this.el.classList.remove('inworld'); } this.resume(); }
 
   // ---- confetti ----
   // A piece of paper for every pane, several times over, let go along the whole roof.

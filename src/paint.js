@@ -14,6 +14,13 @@ const SIZES = [3, 8, 18, 36];
 const STYLE = `
 #paint { position: fixed; inset: 0; z-index: 31; display: flex; align-items: center; justify-content: center; background: #008080; font: 13px "MS Sans Serif", Tahoma, Geneva, sans-serif; color: #000; padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); box-sizing: border-box; user-select: none; -webkit-user-select: none; }
 #paint[hidden] { display: none; }
+#paint.inworld { background: none; pointer-events: none; }
+#paint.inworld .win { background: none; border: 0; box-shadow: none; }
+#paint.inworld .bar { display: none; }
+#paint.inworld .tools, #paint.inworld .foot { pointer-events: auto; background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; padding: 6px; }
+#paint.inworld .body { padding: 0; align-items: flex-start; }
+#paint.inworld .stage { background: none; border: 0; }
+#paint.inworld canvas { opacity: 0; pointer-events: auto; background: none; }
 #paint .win { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 1100px; background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; box-shadow: 1px 1px 0 #000; }
 #paint .bar { display: flex; align-items: center; gap: 8px; background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: 700; padding: 4px 6px; }
 #paint .bar span { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -137,7 +144,7 @@ export class Paint {
     for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.04, 1.0, 0.04), wood, s * 0.32, 0.48, 0.02, -0.16);
     add(new THREE.BoxGeometry(0.04, 1.0, 0.04), wood, 0, 0.46, -0.3, 0.34);
     add(new THREE.BoxGeometry(0.8, 0.04, 0.08), wood, 0, 0.2, 0.1);
-    add(new THREE.PlaneGeometry(0.72, 0.54), new THREE.MeshBasicMaterial({ map: this.tex || null, color: 0xffffff }), 0, 0.5, 0.075, -0.16);
+    this.sheet = add(new THREE.PlaneGeometry(0.72, 0.54), new THREE.MeshBasicMaterial({ map: this.tex || null, color: 0xffffff }), 0, 0.5, 0.075, -0.16);
     add(new THREE.BoxGeometry(0.76, 0.58, 0.02), new THREE.MeshStandardMaterial({ color: 0xe8e2d2, roughness: 0.8 }), 0, 0.5, 0.06, -0.16);
     // Pots of paint on the floor beside it.
     [0xed1c24, 0xfff200, 0x00a2e8, 0x22b14c].forEach((c, i) => add(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 12), new THREE.MeshBasicMaterial({ color: c }), 0.55 + (i % 2) * 0.16, 0.05, 0.1 + Math.floor(i / 2) * 0.16));
@@ -231,8 +238,21 @@ export class Paint {
     this.el.querySelector('input').value = this.title;
     this.el.querySelector('.bar span').textContent = `${this.title || 'untitled'} - Paint`;
     this._ui(); this.el.hidden = false;
+    // The camera stands at the easel, and you paint on the canvas that is on it.
+    if (this.stage && this.sheet) {
+      if (!this.live) { this.live = new THREE.CanvasTexture(this.pc); this.live.colorSpace = THREE.SRGBColorSpace; }
+      this.sheet.material.map = this.live; this.sheet.material.needsUpdate = true;
+      const s = Math.sin(0.16), c = Math.cos(0.16), y = 0.5, z = 0.075;
+      this.stage.enter({ x: this.spot.x, y: this.spot.y + y, z: this.spot.z + z, nx: 0, ny: s, nz: c, w: 0.72, h: 0.54, up: [0, c, -s] }, { el: this.pc, fill: 0.56 });
+      this.el.classList.add('inworld');
+    }
   }
-  close() { if (!this.on) return; this.on = false; this.el.hidden = true; this.resume(); }
+  update() { if (this.on && this.live) this.live.needsUpdate = true; }
+  close() {
+    if (!this.on) return; this.on = false; this.el.hidden = true;
+    if (this.stage && this.sheet) { this.stage.leave(); this.el.classList.remove('inworld'); this.sheet.material.map = this.tex; this.sheet.material.needsUpdate = true; }
+    this.resume();
+  }
   hang() {
     this.title = this.el.querySelector('input').value.trim().slice(0, 40);
     this.saved = this.pc.toDataURL('image/jpeg', 0.86);

@@ -424,3 +424,14 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 @media (max-height: 520px) { #heist .row { font-size: 11px; padding: 3px 10px; gap: 10px; } #hClock { font-size: 16px; } #hArrow { margin-top: 4px; } #hArrow svg { width: 30px; height: 30px; } #heistBrief h2 { font-size: 20px; margin: .1em 0 .3em; } #heistBrief .about { font-size: 12.5px; line-height: 1.4; margin-bottom: 8px; } #heistBrief .times { font-size: 11px; line-height: 1.5; margin-bottom: 8px; } #heistBrief .col button { padding: 8px; font-size: 14px; } }
 #heistBrief.screen { background: rgba(4,5,9,.84); }
 .heisting #tally .minor { visibility: hidden; }
+
+/* a game played on the thing itself: the page only holds the controls, and an unseen pane over the glass to take the taps */
+.staged #hud { display: none; }
+#arcade.inworld { background: none; justify-content: space-between; align-items: flex-end; pointer-events: none; }
+#arcade.inworld button, #arcade.inworld #arcScreen { pointer-events: auto; }
+#arcade.inworld .cab { position: fixed; left: 0; right: 0; top: max(8px, env(safe-area-inset-top)); pointer-events: none; }
+#arcade.inworld .top, #arcade.inworld .help { background: rgba(4,8,6,.72); padding: 4px 12px; border-radius: 10px; }
+#arcade.inworld .help { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); max-width: 46vw; }
+#arcade.inworld .tube { padding: 0; background: none; box-shadow: none; border: 0; }
+#arcade.inworld .scan { display: none; }
+#arcade.inworld #arcScreen { opacity: 0; border-radius: 0; box-shadow: none; }

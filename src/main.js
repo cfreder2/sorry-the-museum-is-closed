@@ -13,6 +13,7 @@ import { Shop } from './shop.js';
 import { Paint } from './paint.js';
 import { Secrets } from './secrets.js';
 import { Simon } from './simon.js';
+import { Stage } from './stage.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
@@ -100,6 +101,8 @@ const score = G.score = new Score({
   onCall: (c, big) => stuntCall(c, big),
 });
 const trophies = G.trophies = new Trophies();
+// Standing in front of a thing to use it: the camera goes to it as it does to a painting (src/stage.js).
+const stage = G.stage = new Stage(camera, on => { if (G.vehicle) { G.vehicle.group.visible = !on; G.car.shadow.visible = !on && G.vehicle.kind === 'car'; G.drone.shadow.visible = !on && G.vehicle.kind === 'drone'; } });
 // Secrets: everything in the building that is not a room or a picture. Each one found is counted (src/secrets.js).
 const secrets = G.secrets = new Secrets({ onFind: f => { toast({ head: `Secret ${f.count} of ${f.total}`, name: f.name, sound: () => sound.lap() }); tm.event('secret', f.id); } });
 const garage = G.garage = new Garage();
@@ -161,9 +164,9 @@ async function boot() {
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
   // The colour pedestal in Griffin Court: five patterns right and the roof lets go (src/simon.js).
-  G.simon = new Simon(G, { museum: G.museum, plan, sound, resume: () => act('resume'), calm: () => set.reduce, onWin: () => { callout('THE ROOF LETS GO'); tm.event('simon'); } });
+  G.simon = new Simon(G, { museum: G.museum, plan, sound, stage, resume: () => act('resume'), calm: () => set.reduce, onWin: () => { callout('THE ROOF LETS GO'); tm.event('simon'); } });
   // Your own picture: an easel in a studio, and the frame in the lobby it hangs in (src/paint.js).
-  G.paint = new Paint(G, { museum: G.museum, plan, resume: () => act('resume'), say, onHang: () => { tm.event('paint'); if (G.nav && G.nav.target && G.nav.target.paint) G.nav.clear(); } });
+  G.paint = new Paint(G, { museum: G.museum, plan, stage, resume: () => act('resume'), say, onHang: () => { tm.event('paint'); if (G.nav && G.nav.target && G.nav.target.paint) G.nav.clear(); } });
   // The stall beside the card table: two toys for sale, for chips won at it (src/shop.js).
   G.shop = new Shop(G, { museum: G.museum, plan, garage, poker: G.poker, sound, resume: () => act('resume'), thumb: id => garage.thumbs[id],
     onBuy: v => { garage.sel[v.kind] = v.id; garage.shown = v.id; garage.save(); garage.apply(G.car, G.drone); tm.event('buy', v.id); } });
@@ -1069,8 +1072,8 @@ function play(dt, real) {
 }
 
 // A go on one of the monitors: the world waits while you play (src/arcade.js runs the game).
-function beginArcade(a) { endFlyby(); G.state = 'arcade'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.arcade.open(a); tm.event('arcade', a.id); }
-function endArcade() { G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
+function beginArcade(a) { endFlyby(); G.state = 'arcade'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.arcade.open(a); stage.enter(G.arcade.surface(a), { el: $('arcScreen'), fill: 0.74 }); $('arcade').classList.add('inworld'); tm.event('arcade', a.id); }
+function endArcade() { stage.leave(); $('arcade').classList.remove('inworld'); G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
 // The button in the security control room: the world waits while the job is explained (src/heist.js).
 function beginHeist(c) { endFlyby(); if (G.heist.brief(c)) { G.state = 'heist'; $('placard').hidden = true; } }
 
@@ -1167,7 +1170,7 @@ function tick(now) {
     }
     sound.update(G.vehicle, false);
   } else if (G.state === 'arcade') {
-    if (!G.arcade.on) endArcade(); else G.arcade.frame(dt);
+    if (!G.arcade.on) endArcade(); else { G.arcade.frame(dt); G.arcade.show(); }
     sound.update(G.vehicle, false);
   } else if (G.state === 'heist') {
     if (!G.heist.briefing) { G.state = 'play'; canvas.focus({ preventScroll: true }); }
@@ -1180,9 +1183,12 @@ function tick(now) {
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
   if (G.shop && G.state !== 'results') G.shop.update(dt);
   if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
+  if (G.paint && G.paint.on) G.paint.update();
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
-  if (G.state === 'arcade') return;                      // the game on the monitor covers the screen: nothing behind it needs drawing
+  // A game being played on something in the building: the camera stands in front of it, and the building is drawn round it.
+  if (stage.on && (G.state === 'arcade' || G.state === 'paused')) { stage.update(dt); composer.render(); return; }
+  if (G.state === 'arcade') return;
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
