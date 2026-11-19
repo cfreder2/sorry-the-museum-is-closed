@@ -9,6 +9,7 @@ import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
 import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
+import { furnish, MATERIALS } from './furnish.js';
 
 // ---------------------------------------------------------------- geometry --
 
@@ -932,7 +933,35 @@ export class Museum {
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.1), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.9, 0.7, 0.4), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     glow.rotation.x = -Math.PI / 2; glow.position.set(dx + 0.05, dy + 1.075, dz);
     this.group.add(shade, stem, glow);
+    this._buildFitout();
+  }
 
+  // Back of house: desks, racks, boilers. src/furnish.js decides what stands where and hands back
+  // batches of triangles, one to a material, a level and a patch of the building; each is one mesh,
+  // and a mesh is only drawn while the camera is near it and on or next to its level.
+  _buildFitout() {
+    const fit = furnish(this.plan), g = new THREE.Group(), mats = {};
+    for (const [k, m] of Object.entries(MATERIALS)) {
+      if (m.unlit) { mats[k] = new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(m.gain, m.gain, m.gain) }); continue; }
+      // Everything in the building glows a little with its own colour, or the back rooms would be black: here the colour is the vertex's.
+      mats[k] = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: m.roughness, metalness: m.metalness, emissive: 0xffffff, emissiveIntensity: m.glow });
+      mats[k].onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;'); };
+    }
+    const chunks = [];
+    for (const b of fit.batches) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(b.position, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(b.normal, 3, true));
+      geo.setAttribute('color', new THREE.BufferAttribute(b.color, 3, true));
+      geo.setIndex(new THREE.BufferAttribute(b.index, 1));
+      const q = b.bounds, mid = new THREE.Vector3((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2, (q.z0 + q.z1) / 2);
+      geo.boundingSphere = new THREE.Sphere(mid, Math.hypot(q.x1 - q.x0, q.y1 - q.y0, q.z1 - q.z0) / 2);
+      for (const a of Object.values(geo.attributes)) a.onUpload(function () { this.array = null; });      // once it is on the graphics card, the copy here can go
+      const mesh = new THREE.Mesh(geo, mats[b.mat]); mesh.matrixAutoUpdate = false; mesh.visible = false;
+      g.add(mesh); chunks.push({ mesh, ...b.bounds });
+    }
+    this.group.add(g);
+    this.fitout = { group: g, chunks, stats: { rooms: Object.keys(fit.rooms).length, items: fit.items, solids: fit.solids, meshes: chunks.length, triangles: fit.batches.reduce((n, b) => n + b.index.length / 3, 0) } };
   }
 
   // ------------------------------------------------------------------ levels --
@@ -1298,6 +1327,9 @@ export class Museum {
       o.mesh.rotation.y = Math.atan2(dx, dz); o.mesh.updateMatrix();
     }
     this.flakes.visible = !roomAt(this.plan, cam.x, cam.z, cam.y);
+    // The back rooms' fittings: only what is near, and on this level or the one below (down a stair well, over a balcony). From outdoors, only what is just inside a door.
+    const near = this.flakes.visible ? 10 : 32;
+    for (const c of this.fitout.chunks) c.mesh.visible = cam.x > c.x0 - near && cam.x < c.x1 + near && cam.z > c.z0 - near && cam.z < c.z1 + near && cam.y > c.y0 - 2.5 && cam.y < c.y1 + 7;
     for (const L of this.lifts) { L.mesh.position.y = L.lift.y; for (const q of L.gates) q.bars.visible = !q.gate.off; }
     for (const a of this._waking) {
       const e = t - a.wakeAt;

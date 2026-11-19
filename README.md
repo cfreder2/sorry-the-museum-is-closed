@@ -294,6 +294,44 @@ On a phone a work's label appears only when you tap LOOK, to one side, and
 fades after a few seconds; INFO brings it back. Phones are played sideways.
 The Controls link on the title screen lists everything.
 
+## Back of house, fitted out
+
+The rooms that are not galleries (offices, stores, studios, workshops, plant,
+kitchens, the school, the auditoria, the service corridors: about 270 of them)
+are furnished according to what their names say they are. A curators' office
+has desks, filing cabinets and bookcases; a painting store has rolling mesh
+racks hung with canvases; a conservation studio has easels, work tables, lamps
+on arms and extraction trunks; the boiler room has boilers; the loading dock
+has two vans backed up to it.
+
+**All of it is assumed, not surveyed.** The survey gives a room's outline and
+(often itself a guess, marked `assumed`) its name; nothing records what stands
+in it. Each room is fitted out the way a room of that name in a large museum
+generally is, and no piece of furniture is where a real one is.
+
+It is all in `src/furnish.js`. At the top is `FITOUT`, a list of name patterns
+and the recipe each selects; below it the recipes, a few lines each ("desks
+either side of the aisle, bookcases and filing cabinets round the walls");
+below that the items, each drawn from boxes and cylinders. To furnish another
+kind of room, add a line to the list.
+
+- Every doorway has 1.6 m clear in front of it, an aisle 1.4 m wide (1.2 m in a
+  service corridor) runs the length of each room, and every doorway, stair,
+  ramp and lift is joined to that aisle. Nothing stands on a stair, a ramp, a
+  deck, a lift or a well.
+- What is solid goes into the same list of obstacles as the gallery benches
+  and the display cases, so it stops the car, and the drone at that height. A
+  table is four legs and a top: the car goes under it between the legs, the
+  drone cannot go through the top. What hangs from a ceiling (pipes, ducts,
+  cable trays, strip lights) is not solid.
+- The same rooms get the same furniture every time: the dice are seeded from
+  the room's id.
+- It is drawn as one mesh per material, per level, per 32 m patch of the
+  building, and a mesh is drawn only while the camera is within about 30 m of
+  it and on its level or the one above.
+- Ways through are left clear: stairs, lifts, lobbies, balconies and the
+  public corridors.
+
 ## Settings and access
 
 Settings are on the title screen and the pause menu, and are remembered.
@@ -417,6 +455,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/winter.js             paths, the courtyard tree, glitter, tyre tracks
     src/statues.js            the lions, the fountains and the sculpture outdoors
     src/sculpt.js             clay: lumps blended on a grid and skinned into a mesh
+    src/furnish.js            what stands in the rooms that are not galleries (assumed, not surveyed)
     src/geo.js                the small mesh builder both use
     src/textures.js           every surface, painted on a canvas at start-up
     src/reflect.js            polished-floor reflections, on the level you are on
