@@ -1,0 +1,449 @@
+// Ice fishing on Monroe Harbor (features.js). A hole augered through clear black ice, with the harbour under it:
+// weed, stones, and yellow perch and smelt swimming in the dark water, seen through the ice as you drive over it.
+// FISH stands over the hole with a little ice rod: drag to lower the jig, raise it and sweep it from side to side,
+// tap to jiggle it. A fish that likes the look of it comes up to it, noses it, and takes it: the rod tip dips.
+// Yank then, and the fight is on: hold to reel, and ease off while it runs or the line goes. Three is the secret.
+import * as THREE from 'three';
+import { feature } from './features.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const lit = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, emissive: new THREE.Color(color).multiplyScalar(0.35), ...o });
+const canvas = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+const rng = s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+const lerp = (a, b, t) => a + (b - a) * t;
+// A smooth curve through keys [s, value] (s from 0 at the snout to 1 at the root of the tail).
+const curve = keys => s => { for (let i = 1; i < keys.length; i++) if (s <= keys[i][0]) { const [a, va] = keys[i - 1], [b, vb] = keys[i], t = (s - a) / (b - a), e = t * t * (3 - 2 * t); return lerp(va, vb, e); } return keys[keys.length - 1][1]; };
+
+// ---------------------------------------------------------------- the fish
+// Two kinds that really are caught through the ice off Chicago. Lengths in metres; the body runs along x, head to +x.
+const KINDS = {
+  perch: {
+    len: 0.24, top: curve([[0, 0.01], [0.06, 0.07], [0.18, 0.125], [0.34, 0.15], [0.5, 0.135], [0.7, 0.09], [0.86, 0.055], [1, 0.05]]),
+    bot: curve([[0, -0.012], [0.06, -0.06], [0.2, -0.095], [0.38, -0.105], [0.55, -0.095], [0.72, -0.07], [0.88, -0.05], [1, -0.045]]),
+    wid: curve([[0, 0.005], [0.08, 0.05], [0.22, 0.075], [0.4, 0.078], [0.6, 0.06], [0.82, 0.03], [1, 0.016]]),
+    back: '#39461d', side: '#c8ac38', belly: '#efe6c6', bars: 7, fin: '#8a8a3a', low: '#e0662a',
+    dorsal: [[0.3, 0.5, 0.42, true], [0.56, 0.74, 0.34, false]], tail: 0.36, eye: 0.13,
+  },
+  smelt: {
+    len: 0.17, top: curve([[0, 0.006], [0.07, 0.05], [0.25, 0.075], [0.5, 0.08], [0.75, 0.06], [0.9, 0.04], [1, 0.035]]),
+    bot: curve([[0, -0.012], [0.07, -0.045], [0.3, -0.07], [0.55, -0.068], [0.78, -0.05], [0.92, -0.035], [1, -0.032]]),
+    wid: curve([[0, 0.004], [0.1, 0.035], [0.35, 0.045], [0.65, 0.04], [0.88, 0.022], [1, 0.012]]),
+    back: '#4a6a62', side: '#c9d6d6', belly: '#f4f6f4', bars: 0, stripe: '#9fd0c8', fin: '#9fb0aa', low: '#c8d4d0',
+    dorsal: [[0.45, 0.6, 0.3, false]], tail: 0.4, eye: 0.16,
+  },
+};
+
+function skin(K) {
+  return canvas(256, 128, (c, w, h) => {
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, K.back); g.addColorStop(0.32, K.side); g.addColorStop(0.62, K.side); g.addColorStop(0.8, K.belly); g.addColorStop(1, K.belly);
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    const r = rng(K.bars * 31 + 7);
+    // scales: rows of small arcs, catching the light
+    c.strokeStyle = 'rgba(255,250,220,.13)'; c.lineWidth = 1;
+    for (let y = 6; y < h * 0.85; y += 5) for (let x = 40 + (y % 10); x < w - 6; x += 7) { c.beginPath(); c.arc(x, y, 3, Math.PI * 0.6, Math.PI * 1.4); c.stroke(); }
+    // the perch's dark saddles, wide on the back and narrowing down the flank
+    for (let i = 0; i < K.bars; i++) {
+      const x = w * (0.3 + i * 0.62 / K.bars) + (r() - 0.5) * 6, bw = 9 + r() * 6, deep = h * (0.52 + r() * 0.12);
+      c.fillStyle = 'rgba(28,36,12,.62)'; c.beginPath(); c.moveTo(x - bw, 0); c.lineTo(x + bw, 0); c.quadraticCurveTo(x + bw * 0.5, deep * 0.6, x + 2, deep); c.quadraticCurveTo(x - bw * 0.6, deep * 0.6, x - bw, 0); c.fill();
+    }
+    if (K.stripe) { c.fillStyle = K.stripe; c.globalAlpha = 0.8; c.fillRect(w * 0.18, h * 0.44, w * 0.82, 5); c.globalAlpha = 1; }
+    // the head: darker above, the gill cover's curve behind it
+    const hg = c.createLinearGradient(0, 0, w * 0.22, 0); hg.addColorStop(0, 'rgba(30,30,20,.35)'); hg.addColorStop(1, 'rgba(30,30,20,0)'); c.fillStyle = hg; c.fillRect(0, 0, w * 0.22, h);
+    c.strokeStyle = 'rgba(40,40,20,.55)'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(w * 0.2, h * 0.18); c.quadraticCurveTo(w * 0.25, h * 0.55, w * 0.18, h * 0.86); c.stroke();
+    c.strokeStyle = 'rgba(255,250,230,.25)'; c.lineWidth = 1; c.beginPath(); c.moveTo(w * 0.21, h * 0.2); c.quadraticCurveTo(w * 0.26, h * 0.55, w * 0.19, h * 0.84); c.stroke();
+    // the lateral line
+    c.strokeStyle = 'rgba(30,30,20,.3)'; c.beginPath(); c.moveTo(w * 0.22, h * 0.3); c.quadraticCurveTo(w * 0.6, h * 0.22, w, h * 0.42); c.stroke();
+  });
+}
+// Fin membrane: rays fanning out from the base, a little see-through.
+function finSkin(color) {
+  return canvas(64, 64, (c, w, h) => {
+    c.clearRect(0, 0, w, h); c.fillStyle = color; c.globalAlpha = 0.55; c.fillRect(0, 0, w, h); c.globalAlpha = 1;
+    c.strokeStyle = 'rgba(255,255,240,.5)'; c.lineWidth = 1.2; for (let x = 2; x < w; x += 5) { c.beginPath(); c.moveTo(x, h); c.lineTo(x + (x - w / 2) * 0.2, 0); c.stroke(); }
+  });
+}
+
+// A flat fin in the body's own plane (z = 0), from its outline, with ray-mapped uvs.
+function flatFin(outline) {
+  const g = new THREE.ShapeGeometry(new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y))));
+  const P = g.attributes.position, U = g.attributes.uv; let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let i = 0; i < P.count; i++) { x0 = Math.min(x0, P.getX(i)); x1 = Math.max(x1, P.getX(i)); y0 = Math.min(y0, P.getY(i)); y1 = Math.max(y1, P.getY(i)); }
+  for (let i = 0; i < P.count; i++) U.setXY(i, (P.getX(i) - x0) / (x1 - x0 || 1), (P.getY(i) - y0) / (y1 - y0 || 1));
+  return g;
+}
+
+function buildKind(name) {
+  const K = KINDS[name], L = K.len, N = 30, R = 16, pos = [], uv = [], idx = [];
+  const X = s => L * (0.5 - s);
+  // The body: an ellipse at each step along it, its top and bottom where the profile says.
+  for (let i = 0; i <= N; i++) {
+    const s = i / N, t = K.top(s), b = K.bot(s), wd = K.wid(s), mid = (t + b) / 2, half = (t - b) / 2;
+    for (let j = 0; j <= R; j++) {
+      const a = (j / R) * Math.PI * 2, sa = Math.sin(a), ca = Math.cos(a);
+      pos.push(X(s), mid + half * sa, wd * ca);
+      uv.push(s, (sa + 1) / 2);
+    }
+  }
+  for (let i = 0; i < N; i++) for (let j = 0; j < R; j++) { const a = i * (R + 1) + j, b = a + R + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+  const body = new THREE.BufferGeometry(); body.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); body.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); body.setIndex(idx); body.computeVertexNormals();
+  // (the profiles are in metres for a 24 cm fish; a smaller kind is scaled whole below)
+  const sc = L / 0.24; body.scale(1, sc, sc);
+  // Fins.
+  const fins = [], low = [], tailX = X(1), tb = K.top(1) * sc, bb = K.bot(1) * sc;
+  // the tail: forked, two lobes
+  const tl = K.tail * L;
+  fins.push(flatFin([[tailX + 0.01, tb * 0.8], [tailX - tl * 0.55, tb + tl * 0.55], [tailX - tl, tb + tl * 0.62], [tailX - tl * 0.62, (tb + bb) / 2], [tailX - tl, bb - tl * 0.62], [tailX - tl * 0.55, bb - tl * 0.55], [tailX + 0.01, bb * 0.8]]));
+  for (const [s0, s1, hgt, spiny] of K.dorsal) {
+    const x0 = X(s0), x1 = X(s1), y0 = K.top(s0) * sc - 0.004, y1 = K.top(s1) * sc - 0.004, H = hgt * L * 0.3;
+    const out = [[x0, y0]]; const n = spiny ? 9 : 6;
+    for (let i = 0; i <= n; i++) { const t = i / n, x = lerp(x0, x1, t), y = lerp(y0, y1, t), hh = H * (spiny ? Math.sin(Math.min(1, t * 1.6 + 0.15) * Math.PI * 0.75) : (1 - t * 0.6)); out.push([x, y + hh * (spiny && i % 2 ? 0.8 : 1)]); }
+    out.push([x1, y1]); fins.push(flatFin(out));
+  }
+  // anal and pelvic fins (the perch's are orange), pectorals behind the gills, angled out
+  { const s0 = 0.62, s1 = 0.78, x0 = X(s0), x1 = X(s1), y0 = K.bot(s0) * sc + 0.003, y1 = K.bot(s1) * sc + 0.003, H = 0.1 * L;
+    low.push(flatFin([[x0, y0], [x0 - 0.01 * sc, y0 - H], [x1, y1 - H * 0.4], [x1, y1]])); }
+  for (const side of [-1, 1]) {
+    const s = 0.3, x = X(s), y = K.bot(s) * sc + 0.004, H = 0.12 * L;
+    const g = flatFin([[x, y], [x - H * 0.6, y - H], [x - H * 1.1, y - H * 0.8], [x - H * 0.4, y]]); g.translate(-x, -y, 0); g.rotateX(side * 0.6); g.translate(x, y, side * K.wid(s) * sc * 0.6); low.push(g);
+    const s2 = 0.22, x2 = X(s2), y2 = lerp(K.top(s2), K.bot(s2), 0.62) * sc, H2 = 0.15 * L;
+    const p = flatFin([[x2, y2], [x2 - H2, y2 + H2 * 0.35], [x2 - H2 * 1.05, y2 - H2 * 0.25], [x2, y2 - H2 * 0.3]]); p.translate(-x2, -y2, 0); p.rotateX(side * 1.2); p.rotateY(side * -0.5); p.translate(x2, y2, side * K.wid(s2) * sc * 0.95); fins.push(p);
+  }
+  // Eyes: a dark pupil in a gold ring, either side.
+  const eyes = [], s = K.eye, ex = X(s), ey = lerp(K.top(s), K.bot(s), 0.35) * sc, ez = K.wid(s) * sc * 0.82;
+  for (const side of [-1, 1]) { const ring = new THREE.SphereGeometry(0.011 * sc, 10, 8); ring.scale(1, 1, 0.5); ring.translate(ex, ey, side * ez); eyes.push(ring); }
+  const pupils = []; for (const side of [-1, 1]) { const p = new THREE.SphereGeometry(0.0065 * sc, 8, 6); p.translate(ex, ey, side * (ez + 0.004 * sc)); pupils.push(p); }
+  return { K, body, fins: mergeGeometries(fins), low: mergeGeometries(low), eyes: mergeGeometries(eyes), pupils: mergeGeometries(pupils), skin: skin(K), finT: finSkin(K.fin), lowT: finSkin(K.low) };
+}
+
+// Swimming: the body bends in a wave that grows towards the tail (the vertex shader), each fish its own clock.
+function swimmer(mat, u) {
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = 'uniform float uT; uniform float uAmp; uniform float uLen;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      { float s = clamp((uLen * 0.5 - transformed.x) / uLen, 0.0, 1.0); float w = s * s * 0.9 + s * 0.1;
+        transformed.z += sin(uT - s * 4.2) * uAmp * w * uLen; transformed.x -= abs(sin(uT - s * 4.2)) * uAmp * w * uLen * 0.25; }`);
+  };
+  mat.customProgramCacheKey = () => 'swimmer';
+  return mat;
+}
+
+class Fish {
+  constructor(kit, kind, r) {
+    const B = kit[kind], u = this.u = { uT: { value: r() * 10 }, uAmp: { value: 0.12 }, uLen: { value: B.K.len } };
+    this.kind = kind; this.len = B.K.len * (0.85 + r() * 0.35);
+    const g = this.g = new THREE.Group();
+    const bodyM = swimmer(new THREE.MeshStandardMaterial({ map: B.skin, roughness: 0.45, metalness: 0.15, emissive: 0xffffff, emissiveMap: B.skin, emissiveIntensity: 0.16 }), u);
+    const finM = swimmer(new THREE.MeshStandardMaterial({ map: B.finT, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 0.6, emissive: 0xffffff, emissiveMap: B.finT, emissiveIntensity: 0.16 }), u);
+    const lowM = swimmer(new THREE.MeshStandardMaterial({ map: B.lowT, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 0.6, emissive: 0xffffff, emissiveMap: B.lowT, emissiveIntensity: 0.2 }), u);
+    const ringM = swimmer(new THREE.MeshStandardMaterial({ color: 0xd9a830, roughness: 0.3, metalness: 0.4, emissive: 0x6a4a10, emissiveIntensity: 0.6 }), u);
+    const pupM = swimmer(new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.1, metalness: 0.2 }), u);
+    g.add(new THREE.Mesh(B.body, bodyM), new THREE.Mesh(B.fins, finM), new THREE.Mesh(B.low, lowM), new THREE.Mesh(B.eyes, ringM), new THREE.Mesh(B.pupils, pupM));
+    g.scale.setScalar(this.len / B.K.len);
+    this.p = new THREE.Vector3(); this.v = new THREE.Vector3(); this.to = new THREE.Vector3(); this.yaw = r() * 6.28; this.pitch = 0;
+    this.state = 'cruise'; this.t = 0; this.wary = 0; this.mood = r();
+  }
+}
+
+feature({
+  id: 'icefish',
+  secrets: [['icefish', 'Ice fishing']],
+  init(k) {
+    this.k = k; const L = k.plan.lakefront; if (!L || !L.window) return;
+    const W = this.W = L.window, x = L.fish.x, z = L.fish.z, r = this.r = rng(4242);
+    this.at = { x, y: 0, z }; this.caught = 0; this.fishes = []; this.bucketed = [];
+    this.DEEP = 2.6;
+    const g = this.g = new THREE.Group(); g.position.set(x, 0, z); k.group.add(g);
+    const wx0 = W.x0 - x, wx1 = W.x1 - x, wz0 = W.z0 - z, wz1 = W.z1 - z, D = this.DEEP;
+    // ---- under the ice: the water's sides falling away into the dark, the bottom, stones and weed
+    {
+      const box = new THREE.BoxGeometry(wx1 - wx0, D, wz1 - wz0, 1, 4, 1), P = box.attributes.position, col = [];
+      for (let i = 0; i < P.count; i++) { const t = (P.getY(i) + D / 2) / D; col.push(lerp(0.01, 0.07, t), lerp(0.05, 0.22, t), lerp(0.07, 0.26, t)); }
+      box.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); box.translate((wx0 + wx1) / 2, -D / 2 - 0.02, (wz0 + wz1) / 2);
+      g.add(new THREE.Mesh(box, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false })));
+      const bed = canvas(256, 256, (c, w, h) => { c.fillStyle = '#1c2a26'; c.fillRect(0, 0, w, h); for (let i = 0; i < 2600; i++) { const v = 26 + r() * 46; c.fillStyle = `rgba(${v},${v + 10},${v + 6},.55)`; c.beginPath(); c.arc(r() * w, r() * h, 0.6 + r() * 1.6, 0, 7); c.fill(); }
+        const gl = c.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w * 0.6); gl.addColorStop(0, 'rgba(90,150,140,.22)'); gl.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = gl; c.fillRect(0, 0, w, h); });
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(wx1 - wx0, wz1 - wz0), new THREE.MeshBasicMaterial({ map: bed, fog: false })); floor.rotation.x = -Math.PI / 2; floor.position.set((wx0 + wx1) / 2, -D + 0.005, (wz0 + wz1) / 2); g.add(floor);
+      const stones = []; for (let i = 0; i < 14; i++) { const s = new THREE.DodecahedronGeometry(0.08 + r() * 0.22, 0); s.scale(1, 0.45 + r() * 0.3, 0.8 + r() * 0.4); s.rotateY(r() * 6); s.translate(lerp(wx0 + 0.3, wx1 - 0.3, r()), -D + 0.03, lerp(wz0 + 0.3, wz1 - 0.3, r())); stones.push(s); }
+      g.add(new THREE.Mesh(mergeGeometries(stones), new THREE.MeshLambertMaterial({ color: 0x3f4d48, emissive: 0x1a2b2a })));
+      // Weed: ribbons up from the bottom, swaying (each a strip bent by the same shader trick as the fish).
+      const weeds = []; for (let i = 0; i < 26; i++) { const h = 0.5 + r() * 1.3, wd = 0.03 + r() * 0.03, q = new THREE.PlaneGeometry(wd, h, 1, 6); q.translate(0, h / 2, 0); q.rotateY(r() * 3); q.translate(lerp(wx0 + 0.25, wx1 - 0.25, r()), -D, lerp(wz0 + 0.25, wz1 - 0.25, r())); weeds.push(q); }
+      this.weedU = { uT: { value: 0 } };
+      const wm = new THREE.MeshLambertMaterial({ color: 0x3c6a2e, emissive: 0x16301a, side: THREE.DoubleSide });
+      wm.onBeforeCompile = sh => { sh.uniforms.uT = this.weedU.uT; sh.vertexShader = 'uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        { vec4 wp = modelMatrix * vec4(transformed, 1.0); float up = clamp(wp.y + ${D.toFixed(2)}, 0.0, 2.0); transformed.x += sin(uT * 0.9 + wp.x * 2.1 + wp.z) * 0.07 * up * up; transformed.z += cos(uT * 0.7 + wp.z * 1.7) * 0.05 * up * up; }`); };
+      g.add(new THREE.Mesh(mergeGeometries(weeds), wm));
+      // a glow in the water under the hole, where the lantern's light comes down
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.1, 0.24, 0.24), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+      glow.rotation.x = -Math.PI / 2; glow.position.y = -D + 0.02; g.add(glow);
+    }
+    // ---- the clear ice over it all: black ice, frost lying on it in drifts, cracks, snow banked at the edges, the hole
+    {
+      const T = canvas(512, 512, (c, w, h) => {
+        c.clearRect(0, 0, w, h);
+        // see-through in the middle, frosting up towards the edges until it is the harbour's own white ice
+        const gr = c.createRadialGradient(w / 2, h / 2, w * 0.08, w / 2, h / 2, w * 0.52); gr.addColorStop(0, 'rgba(200,220,236,.16)'); gr.addColorStop(0.55, 'rgba(195,212,230,.3)'); gr.addColorStop(0.85, 'rgba(188,205,226,.85)'); gr.addColorStop(1, 'rgba(185,203,224,1)');
+        c.fillStyle = gr; c.fillRect(0, 0, w, h);
+        c.fillStyle = 'rgba(185,203,224,1)'; c.fillRect(0, 0, w, 10); c.fillRect(0, h - 10, w, 10); c.fillRect(0, 0, 10, h); c.fillRect(w - 10, 0, 10, h);
+        for (let i = 0; i < 70; i++) { const px = r() * w, py = r() * h, d = Math.hypot(px - w / 2, py - h / 2) / (w / 2); c.fillStyle = `rgba(230,240,252,${(0.05 + r() * 0.2) * Math.min(1, d * 1.4)})`; c.beginPath(); c.ellipse(px, py, 10 + r() * 50, 5 + r() * 18, r() * 3, 0, 7); c.fill(); }
+        c.strokeStyle = 'rgba(235,245,255,.28)'; c.lineWidth = 0.8; for (let i = 0; i < 11; i++) { let px = w / 2 + (r() - 0.5) * 60, py = h / 2 + (r() - 0.5) * 60; c.beginPath(); c.moveTo(px, py); const a = r() * 6.28; for (let kk = 0; kk < 7; kk++) { px += Math.cos(a + (r() - 0.5)) * 34; py += Math.sin(a + (r() - 0.5)) * 34; c.lineTo(px, py); } c.stroke(); }
+        // the hole, and the slush round it
+        const R = 0.2 / 8 * w; c.globalCompositeOperation = 'destination-out'; c.beginPath(); c.arc(w / 2, h / 2, R, 0, 7); c.fill(); c.globalCompositeOperation = 'source-over';
+        const sl = c.createRadialGradient(w / 2, h / 2, R, w / 2, h / 2, R * 2.6); sl.addColorStop(0, 'rgba(240,246,255,.95)'); sl.addColorStop(1, 'rgba(240,246,255,0)'); c.fillStyle = sl; c.beginPath(); c.arc(w / 2, h / 2, R * 2.6, 0, 7); c.arc(w / 2, h / 2, R, 0, 7, true); c.fill();
+      });
+      T.colorSpace = THREE.SRGBColorSpace;
+      const ice = new THREE.Mesh(new THREE.PlaneGeometry(wx1 - wx0, wz1 - wz0), new THREE.MeshStandardMaterial({ map: T, transparent: true, depthWrite: false, roughness: 0.12, metalness: 0.1, emissive: new THREE.Color(0.2, 0.26, 0.4), emissiveMap: T, emissiveIntensity: 0.55 }));
+      ice.rotation.x = -Math.PI / 2; ice.position.set((wx0 + wx1) / 2, 0.01, (wz0 + wz1) / 2); ice.renderOrder = 3; g.add(ice);
+      // the hole's water, a shade lighter, and a ring when anything stirs it
+      this.water = new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshBasicMaterial({ color: 0x1d4d5c, transparent: true, opacity: 0.45, depthWrite: false, fog: false })); this.water.rotation.x = -Math.PI / 2; this.water.position.y = -0.05; this.water.renderOrder = 2; g.add(this.water);
+      this.ripple = new THREE.Mesh(new THREE.RingGeometry(0.04, 0.05, 32), new THREE.MeshBasicMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0, depthWrite: false })); this.ripple.rotation.x = -Math.PI / 2; this.ripple.position.y = -0.045; this.ripple.renderOrder = 4; g.add(this.ripple);
+      // the ice is thick: its cut edge shows down the side of the hole
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0xa8c8dc, roughness: 0.2, transparent: true, opacity: 0.75, side: THREE.BackSide, emissive: 0x3a5a70, emissiveIntensity: 0.6 })); wall.position.y = -0.06; g.add(wall);
+      const chips = []; for (let i = 0; i < 18; i++) { const a = r() * 6.28, d = 0.23 + r() * 0.16, q = new THREE.DodecahedronGeometry(0.006 + r() * 0.012, 0); q.scale(1, 0.45, 1); q.rotateY(r() * 3); q.translate(Math.cos(a) * d, 0.012, Math.sin(a) * d); chips.push(q); }
+      g.add(new THREE.Mesh(mergeGeometries(chips), lit(0xdde8f2, { roughness: 0.3, transparent: true, opacity: 0.85 })));
+    }
+    // ---- on the ice: the rod in its holder, a lantern, a stool, the bucket, the shanty
+    {
+      const wood = lit(0x6b4426), dark = lit(0x2a2a2a, { roughness: 0.5 });
+      // The rod: a short ice rod, cork grip, a little reel; it lies in a holder until you fish, then you hold it.
+      const rod = this.rod = new THREE.Group();
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 10), lit(0xb08a5a, { roughness: 0.9 })); grip.rotation.z = Math.PI / 2; grip.position.x = -0.08;
+      const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 16), lit(0x30343c, { metalness: 0.5, roughness: 0.35 })); reel.position.set(-0.05, -0.03, 0);
+      this.blank = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.006, 0.5, 6), lit(0x1c2e4a, { metalness: 0.3, roughness: 0.3 })); this.blank.rotation.z = -Math.PI / 2; this.blank.position.x = 0.25;
+      const tipM = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff5a2a })); tipM.position.x = 0.5; this.tipBall = tipM;
+      rod.add(grip, reel, this.blank, tipM); g.add(rod);
+      this.holder = new THREE.Group(); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.22, 8), wood); post.position.y = 0.11; this.holder.add(post); this.holder.position.set(-0.55, 0, 0.15); g.add(this.holder);
+      // Line: rod tip, down through the hole, to the jig. The jig: a lead head, painted, and a little marabou tail.
+      this.lineGeo = new THREE.BufferGeometry(); this.lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(9), 3));
+      const line = new THREE.Line(this.lineGeo, new THREE.LineBasicMaterial({ color: 0xe8f0f4, transparent: true, opacity: 0.85 })); line.frustumCulled = false; g.add(line);
+      const jig = this.jig = new THREE.Group();
+      jig.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), new THREE.MeshStandardMaterial({ color: 0xf2b21a, emissive: 0x8a5a00, emissiveIntensity: 0.9, roughness: 0.3 })));
+      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.009, 0.04, 6), new THREE.MeshStandardMaterial({ color: 0xff4a3a, emissive: 0x902010, emissiveIntensity: 0.8 })); tail.position.y = -0.026; tail.rotation.z = Math.PI; jig.add(tail);
+      const spot = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.9, 0.7, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); spot.rotation.x = -Math.PI / 2; this.jigGlow = spot; jig.add(spot);
+      g.add(jig);
+      // the lantern, the stool, the bucket
+      const lantern = new THREE.Group(); lantern.position.set(-0.75, 0, 0.7); g.add(lantern);
+      lantern.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.02, 12), dark));
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.5, 0.7) })); glass.position.y = 0.07; lantern.add(glass);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.04, 12), dark); cap.position.y = 0.14; lantern.add(cap);
+      const pool = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.3, 0.21, 0.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = 0.015; pool.renderOrder = 5; lantern.add(pool);
+      const stool = new THREE.Group(); stool.position.set(-1.1, 0, 0.1); g.add(stool);
+      { const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.03, 16), lit(0x7a2a22)); seat.position.y = 0.3; stool.add(seat); }
+      for (let i = 0; i < 3; i++) { const a = i * 2.09, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.32, 6), dark); leg.position.set(Math.cos(a) * 0.08, 0.15, Math.sin(a) * 0.08); leg.rotation.set(Math.sin(a) * 0.25, 0, -Math.cos(a) * 0.25); stool.add(leg); }
+      this.bucket = new THREE.Group(); this.bucket.position.set(0.75, 0, 0.55); g.add(this.bucket);
+      const pail = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.22, 18, 1, true), lit(0xb4502a, { roughness: 0.5, side: THREE.DoubleSide })); pail.position.y = 0.11; this.bucket.add(pail);
+      const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.1, 18), lit(0x8a3a1e)); bottom.rotation.x = -Math.PI / 2; bottom.position.y = 0.01; this.bucket.add(bottom);
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.004, 4, 20, Math.PI), lit(0x888888, { metalness: 0.6 })); handle.position.y = 0.22; handle.rotation.y = 0.4; this.bucket.add(handle);
+      k.plan.obstacles.push({ x0: x + 0.62, x1: x + 0.88, z0: z + 0.42, z1: z + 0.68, y0: -0.3, y1: 0.22 });
+      // The shanty: boards, a door, a stovepipe, a lit window.
+      const hut = new THREE.Group(); hut.position.set(3.6, 0, 5.2); g.add(hut);
+      const boards = canvas(128, 128, (c, w, h) => { c.fillStyle = '#7a4a2a'; c.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 16) { c.fillStyle = `rgba(0,0,0,${0.15 + r() * 0.15})`; c.fillRect(0, y, w, 2); c.fillStyle = `rgba(255,220,180,${r() * 0.08})`; c.fillRect(0, y + 2, w, 14); } });
+      boards.wrapS = boards.wrapT = THREE.RepeatWrapping; boards.repeat.set(2, 2);
+      const planks = new THREE.MeshStandardMaterial({ map: boards, roughness: 0.85, emissive: 0xffffff, emissiveMap: boards, emissiveIntensity: 0.25 });
+      const add = (geo, m, px, py, pz) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); hut.add(o); return o; };
+      add(new THREE.BoxGeometry(2.2, 2.0, 1.8), planks, 0, 1.0, 0);
+      const roofG = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.25, 2.0, -1.0), new THREE.Vector3(1.25, 2.0, -1.0), new THREE.Vector3(0, 2.5, -1.0), new THREE.Vector3(-1.25, 2.0, 1.0), new THREE.Vector3(1.25, 2.0, 1.0), new THREE.Vector3(0, 2.5, 1.0)]);
+      roofG.setIndex([0, 2, 1, 3, 4, 5, 0, 3, 5, 0, 5, 2, 1, 2, 5, 1, 5, 4]); roofG.computeVertexNormals();
+      hut.add(new THREE.Mesh(roofG, lit(0xeef3f8, { side: THREE.DoubleSide })));
+      add(new THREE.BoxGeometry(0.7, 1.5, 0.04), lit(0x4a2e1a), -0.45, 0.75, -0.92);
+      add(new THREE.BoxGeometry(0.42, 0.32, 0.04), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.1, 0.5) }), 0.5, 1.3, -0.92);
+      add(new THREE.CylinderGeometry(0.06, 0.06, 0.8, 10), dark, 0.6, 2.6, 0.3);
+      k.plan.obstacles.push({ x0: x + 2.45, x1: x + 4.75, z0: z + 4.25, z1: z + 6.15, y0: -0.3, y1: 2.6 });
+    }
+    // ---- the fish
+    const kit = this.kit = { perch: buildKind('perch'), smelt: buildKind('smelt') };
+    void kit;
+    for (let i = 0; i < 7; i++) { const f = new Fish(this.kit, i < 5 ? 'perch' : 'smelt', r); f.p.set(lerp(wx0 + 0.6, wx1 - 0.6, r()), -0.5 - r() * 1.8, lerp(wz0 + 0.6, wz1 - 0.6, r())); this._pick(f); g.add(f.g); this.fishes.push(f); }
+    // ---- the line's state: where the rod tip is, how deep the jig, its little hops
+    this.depth = 0.6; this.sweep = 0; this.hop = 0; this.hopV = 0; this.tug = 0; this.tension = 0; this.hooked = null; this.phase = 'idle';
+    this.tipAt = new THREE.Vector3(); this.jigAt = new THREE.Vector3();
+    this._rest();
+    this._dom();
+  },
+  // A new place for a fish to swim to, in its own band of the water.
+  _pick(f) { const W = this.W, x = this.at.x, z = this.at.z, r = this.r; f.to.set(lerp(W.x0 - x + 0.5, W.x1 - x - 0.5, r()), f.kind === 'smelt' ? -0.4 - r() * 0.9 : -0.7 - r() * 1.6, lerp(W.z0 - z + 0.5, W.z1 - z - 0.5, r())); f.t = 0; },
+  _rest() { const R = this.rod; R.position.set(-0.55, 0.24, 0.15); R.rotation.set(0, -0.6, 0.35); },
+  _dom() {
+    const el = this.el = document.createElement('div'); el.hidden = true;
+    el.style.cssText = 'position:fixed;inset:0;z-index:40;touch-action:none;user-select:none;-webkit-user-select:none';
+    const btn = 'position:absolute;bottom:calc(env(safe-area-inset-bottom) + 22px);padding:14px 22px;border-radius:14px;border:1px solid rgba(240,236,226,.5);background:rgba(8,12,20,.6);color:#f3efe2;font:600 16px/1 system-ui,sans-serif;letter-spacing:.06em';
+    el.innerHTML = '<div data-t style="position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 18px);transform:translateX(-50%);padding:7px 14px;border-radius:10px;background:rgba(8,12,20,.6);color:#f3efe2;font:600 15px/1.35 system-ui,sans-serif;text-align:center;max-width:80vw"></div>'
+      + '<div data-bar hidden style="position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 62px);transform:translateX(-50%);width:min(60vw,320px);height:10px;border-radius:5px;background:rgba(8,12,20,.6);border:1px solid rgba(240,236,226,.4);overflow:hidden"><i style="display:block;height:100%;width:0;background:#7ad08a;transition:background .2s"></i></div>'
+      + `<button data-jig style="${btn};left:max(16px,env(safe-area-inset-left))">JIGGLE</button>`
+      + `<button data-yank style="${btn};right:max(16px,env(safe-area-inset-right))">YANK</button>`
+      + '<button data-leave style="position:absolute;right:max(16px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 16px);padding:8px 16px;border-radius:10px;border:0;background:rgba(240,236,226,.92);color:#16202c;font:600 15px system-ui,sans-serif">Leave</button>';
+    document.body.append(el);
+    this.txt = el.querySelector('[data-t]'); this.bar = el.querySelector('[data-bar]'); this.barFill = this.bar.firstElementChild;
+    this.keys = new Set(); this.pull = false;
+    let drag = null;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (e.target.closest('[data-leave]')) return this.close();
+      if (e.target.closest('[data-jig]')) return this.jiggle();
+      if (e.target.closest('[data-yank]')) { this.pull = true; this.yank(); const up = () => { this.pull = false; removeEventListener('pointerup', up); removeEventListener('pointercancel', up); }; addEventListener('pointerup', up); addEventListener('pointercancel', up); return; }
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, d0: this.depth, s0: this.sweep }; el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y, H = innerHeight; drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+      this.depth = Math.max(0.15, Math.min(this.DEEP - 0.15, drag.d0 + dy / H * 3.2)); this.sweep = Math.max(-1, Math.min(1, drag.s0 + dx / innerWidth * 2.4));
+      // a quick flick upwards is a yank
+      const dt = performance.now() - drag.t; if (dy < -H * 0.12 && dt < 260 && !drag.yanked) { drag.yanked = true; this.depth = drag.d0; this.yank(); }
+    });
+    const end = e => { if (!drag || e.pointerId !== drag.id) return; if (drag.moved < 8 && performance.now() - drag.t < 350) this.jiggle(); drag = null; };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    addEventListener('keydown', e => {
+      if (!this.on) return;
+      const c = e.code; e.preventDefault(); e.stopPropagation();
+      if (c === 'Escape') return this.close();
+      if (e.repeat) return;
+      this.keys.add(c);
+      if (c === 'Space') this.jiggle();
+      if (c === 'KeyE' || c === 'Enter') { this.pull = true; this.yank(); }
+    }, true);
+    addEventListener('keyup', e => { if (!this.on) return; this.keys.delete(e.code); if (e.code === 'KeyE' || e.code === 'Enter') this.pull = false; }, true);
+  },
+  near(v, k) {
+    if (this.on || !this.at || !k.close(this.at, 1.4, 1)) return null;
+    return { verb: 'FISH', hint: 'A hole in the ice, and a rod. Fish?', act: () => this.open() };
+  },
+  open() {
+    const k = this.k; this.on = true; k.G.state = 'paused'; this.el.hidden = false; this.keys.clear(); this.pull = false;
+    this.hid = k.G.vehicle.group.visible; k.G.vehicle.group.visible = false; if (k.G.car.shadow) k.G.car.shadow.visible = false;
+    // Over the hole, a little to one side, looking down through the ice into the water.
+    k.stage.enter({ x: this.at.x, y: -0.7, z: this.at.z + 0.45, nx: 0, ny: 0.8, nz: -0.6, w: 3.0, h: 2.6, up: [0, 0, 1] }, { fill: 0.95 });
+    this.phase = 'fish'; this.depth = 0.6; this.sweep = 0; this.tension = 0; this.hooked = null;
+    this.say(this.caught >= 3 ? 'Three in the bucket. Fish on if you like.' : 'Drag to move the jig. Tap to jiggle it.');
+    this.last = performance.now(); const loop = t => { if (!this.on) return; this.tick(Math.min(0.05, (t - this.last) / 1000), true); this.last = t; requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+  },
+  close() {
+    if (!this.on) return; const k = this.k; this.on = false; this.el.hidden = true; this.bar.hidden = true;
+    if (this.hooked) { this.hooked.state = 'flee'; this.hooked = null; }
+    this.phase = 'idle'; this.depth = 0.6; this.sweep = 0; this._rest();
+    k.G.vehicle.group.visible = this.hid !== false; if (k.G.vehicle === k.G.car) k.G.car.shadow.visible = true; k.resume();
+  },
+  say(t) { this.txt.textContent = t; },
+  jiggle() {
+    if (this.phase !== 'fish') return;
+    this.hopV = 0.55; this.k.synth.note(1400 + Math.random() * 300, 0.04, { type: 'triangle', vol: 0.015 });
+    // Fish nearby notice; a fish too close and jiggled at too often grows wary.
+    for (const f of this.fishes) { const d = f.p.distanceTo(this.jigAt); if (d < 1.9 && f.state === 'cruise' && f.wary < 1) { f.state = 'come'; f.t = 0; } if (d < 0.25) f.wary += 0.18; }
+  },
+  yank() {
+    if (this.phase !== 'fish') return;
+    const f = this.fishes.find(q => q.state === 'bite');
+    this.rodKick = 1; this.k.synth.noise(0.12, { vol: 0.05, lp: 1800 });
+    if (f) { for (const q of this.fishes) if (q !== f && (q.state === 'nose' || q.state === 'bite' || q.state === 'come')) { q.state = 'flee'; q.t = 0; }
+      f.state = 'hooked'; this.hooked = f; this.phase = 'fight'; this.tension = 0.3; this.run = 0; this.restFor = 1.5; this.bar.hidden = false; this.say('Hooked! Hold YANK to reel. Ease off when it runs.'); this.k.synth.chime([523, 784], { gap: 0.06, dur: 0.3, vol: 0.04 }); }
+    else {
+      // Yanked at nothing: whatever was nosing the jig is off.
+      let scared = false; for (const q of this.fishes) if ((q.state === 'nose' || q.state === 'come') && q.p.distanceTo(this.jigAt) < 0.6) { q.state = 'flee'; q.t = 0; q.wary = 1.2; scared = true; }
+      this.say(scared ? 'Too soon. It shot off.' : 'Nothing on. Wait for the tip to dip.');
+    }
+  },
+  active(k) { this.k = k; return !!this.at && (this.on || k.close(this.at, 40, 6)); },
+  update(dt, k) { if (k.close(this.at, 7, 2)) k.once('icefish', 'Clear ice here. Fish under it.', 4); if (!this.on) this.tick(dt, false); },
+  tick(dt, playing) {
+    const T = (this.clock = (this.clock || 0) + dt), r = this.r;
+    this.weedU.uT.value = T;
+    // ---- the rod and the jig
+    if (playing) {
+      const kx = (this.keys.has('ArrowRight') || this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('ArrowLeft') || this.keys.has('KeyA') ? 1 : 0);
+      const ky = (this.keys.has('ArrowDown') || this.keys.has('KeyS') ? 1 : 0) - (this.keys.has('ArrowUp') || this.keys.has('KeyW') ? 1 : 0);
+      this.sweep = Math.max(-1, Math.min(1, this.sweep + kx * dt * 1.2)); if (this.phase !== 'fight') this.depth = Math.max(0.15, Math.min(this.DEEP - 0.15, this.depth + ky * dt * 0.9));
+    }
+    this.hop += this.hopV * dt; this.hopV -= dt * 4.2; if (this.hop < 0) { this.hop = 0; this.hopV = 0; }
+    this.rodKick = Math.max(0, (this.rodKick || 0) - dt * 3);
+    const held = playing, sw = this.sweep, bend = Math.min(1, this.tug + this.tension * 0.8);
+    // Held, the rod points out over the hole from the near side; the tip dips with what is on the line.
+    if (held) { const R = this.rod; R.position.set(-0.05 + sw * 0.05, 0.42 + this.rodKick * 0.12, -0.42); R.rotation.set(0, -Math.PI / 2 + sw * 0.6, -0.35 + bend * 0.45 - this.rodKick * 0.35); }
+    this.rod.updateMatrixWorld(); this.tipAt.set(0.5, 0, 0).applyMatrix4(this.rod.matrix);
+    this.blank.scale.y = 1; this.tipBall.position.y = -bend * 0.03;
+    const hole = this._hole || (this._hole = new THREE.Vector3()); hole.set(sw * 0.1, -0.01, 0);
+    const jx = sw * (0.15 + this.depth * 0.25), jy = -this.depth + this.hop * 0.25 - this.tug * 0.05, jz = Math.sin(T * 0.7) * 0.015;
+    this.jigAt.set(jx, jy, jz); this.jig.position.copy(this.jigAt); this.jig.rotation.z = Math.sin(T * 2) * 0.2 + this.hopV * 0.6;
+    this.jig.visible = held || !this.hooked; this.jigGlow.material.opacity = held ? 0.9 : 0.4;
+    const a = this.lineGeo.attributes.position; a.setXYZ(0, this.tipAt.x, this.tipAt.y, this.tipAt.z); a.setXYZ(1, hole.x, hole.y, hole.z); a.setXYZ(2, jx, jy + 0.012, jz); a.needsUpdate = true;
+    this.tug = Math.max(0, this.tug - dt * 2.5);
+    // ---- the fish
+    const W = this.W, ox = this.at.x, oz = this.at.z, lo = { x: W.x0 - ox + 0.3, X: W.x1 - ox - 0.3, z: W.z0 - oz + 0.3, Z: W.z1 - oz - 0.3 };
+    for (const f of this.fishes) {
+      f.t += dt; f.wary = Math.max(0, f.wary - dt * 0.05);
+      let want = f.to, speed = 0.18 + f.mood * 0.12, swim = 1;
+      if (f.state === 'cruise') { if (f.p.distanceTo(f.to) < 0.3 || f.t > 12) this._pick(f); if (held && this.phase === 'fish' && f.wary < 0.8 && f.p.distanceTo(this.jigAt) < 1.0 && r() < dt * 0.12) { f.state = 'come'; f.t = 0; } }
+      else if (f.state === 'come') {
+        want = this._v1 || (this._v1 = new THREE.Vector3()); want.copy(this.jigAt); want.x += Math.cos(f.yaw) * 0.12; want.z -= Math.sin(f.yaw) * 0.12; speed = 0.22;
+        if (!held || this.phase !== 'fish' || f.t > 9 || Math.abs(f.p.y - this.jigAt.y) > 1.6) { f.state = 'cruise'; this._pick(f); }
+        else if (f.p.distanceTo(this.jigAt) < 0.16) { f.state = 'nose'; f.t = 0; f.biteAt = 0.8 + r() * 2.2 - (this.hop > 0 ? 0.4 : 0); }
+      } else if (f.state === 'nose') {
+        want = this.jigAt; speed = 0.08; swim = 0.5;
+        if (f.t > 0.3 && Math.sin(f.t * 9) > 0.96) this.tug = Math.max(this.tug, 0.25);      // nibbles
+        if (f.t > f.biteAt) { f.state = 'bite'; f.t = 0; this.tug = 1; this.k.synth.noise(0.1, { vol: 0.04, lp: 700 }); if (playing) this.say('It has it! YANK!'); }
+        if (!held || f.wary > 1 || this.phase !== 'fish') { f.state = 'flee'; f.t = 0; }
+      } else if (f.state === 'bite') {
+        want = this.jigAt; speed = 0.05; this.tug = Math.max(this.tug, 0.85 + Math.sin(f.t * 30) * 0.15);
+        if (f.t > 0.75 || this.phase !== 'fish') { f.state = 'flee'; f.t = 0; f.wary = 0.9; if (playing && this.phase === 'fish') this.say('Spat it out. Next time, quicker.'); }
+      } else if (f.state === 'hooked') {
+        // The fight: now and again it runs for the bottom; reel while it rests.
+        this.run -= dt; if (this.run < -this.restFor) { this.run = 0.45 + r() * 0.6; this.restFor = 1.4 + r() * 1.6; }
+        const running = this.run > 0, pulling = this.pull;
+        this.tension += dt * (pulling ? (running ? 1.4 : 0.06) : -0.7) + (running ? dt * 0.2 : 0);
+        this.tension = Math.max(0, this.tension);
+        this.depth = Math.max(0, Math.min(this.DEEP - 0.1, this.depth + dt * (running ? 0.24 : 0) - (pulling ? dt * (running ? 0.1 : 0.62) : 0)));
+        f.p.copy(this.jigAt); f.p.x += Math.sin(T * 7) * 0.05; f.yaw = Math.PI / 2 + Math.sin(T * 9) * 0.6; f.pitch = 1.1;
+        f.u.uAmp.value = running ? 0.3 : 0.18; f.u.uT.value += dt * (running ? 26 : 16);
+        this.barFill.style.width = Math.min(100, this.tension * 100) + '%'; this.barFill.style.background = this.tension > 0.8 ? '#e0533a' : this.tension > 0.55 ? '#e3b23c' : '#7ad08a';
+        if (this.tension >= 1) { f.state = 'flee'; f.t = 0; f.wary = 1.5; this.hooked = null; this.phase = 'fish'; this.bar.hidden = true; this.depth = Math.min(this.depth, 0.8); this.say('Snap! The line went. Tie on and try again.'); this.k.synth.noise(0.2, { vol: 0.06, lp: 3000 }); }
+        else if (this.depth < 0.12) this._land(f);
+        this._place(f);
+        continue;
+      } else if (f.state === 'flee') { want = this._v2 || (this._v2 = new THREE.Vector3()); want.set(f.p.x * 3, -this.DEEP + 0.4, f.p.z * 3); speed = 0.8; swim = 2.2; if (f.t > 2.5) { f.state = 'cruise'; this._pick(f); } }
+      else if (f.state === 'landed') { this._flop(f, dt); continue; }
+      // steer towards where it wants to be: turning, rising and sinking gently, never leaving the water
+      const dx = want.x - f.p.x, dy = want.y - f.p.y, dz = want.z - f.p.z, d = Math.hypot(dx, dz) || 1e-6;
+      const yawTo = Math.atan2(-dz, dx); let dyaw = yawTo - f.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); f.yaw += dyaw * Math.min(1, dt * (f.state === 'flee' ? 6 : 2.2));
+      const sp = speed * Math.min(1, d / 0.25 + 0.15);
+      f.p.x += Math.cos(f.yaw) * sp * dt; f.p.z -= Math.sin(f.yaw) * sp * dt; f.p.y += Math.max(-0.25, Math.min(0.25, dy)) * dt * 0.8;
+      f.p.x = Math.max(lo.x, Math.min(lo.X, f.p.x)); f.p.z = Math.max(lo.z, Math.min(lo.Z, f.p.z)); f.p.y = Math.max(-this.DEEP + 0.15, Math.min(-0.22, f.p.y));
+      f.pitch += (Math.max(-0.4, Math.min(0.4, dy * 1.5)) - f.pitch) * Math.min(1, dt * 2);
+      f.u.uAmp.value += ((0.08 + sp * 0.5 * swim) - f.u.uAmp.value) * Math.min(1, dt * 3); f.u.uT.value += dt * (4 + sp * 22 * swim);
+      this._place(f);
+    }
+    // ---- the hole's water stirs whenever the line moves in it
+    const rp = this.ripple; if ((this.hopV > 0.4 || this.tug > 0.6 || this.phase === 'fight') && rp.material.opacity < 0.1) { rp.scale.setScalar(1); rp.material.opacity = 0.7; }
+    rp.scale.multiplyScalar(1 + dt * 1.8); if (rp.scale.x > 4) rp.material.opacity = 0; rp.material.opacity = Math.max(0, rp.material.opacity - dt * 0.8);
+  },
+  _place(f) { f.g.position.copy(f.p); f.g.rotation.set(0, f.yaw, 0); f.g.rotateZ(f.pitch); },
+  // Out through the hole, onto the ice, and a few flaps before it goes in the bucket.
+  _land(f) {
+    const k = this.k; f.state = 'landed'; f.t = 0; this.hooked = null; this.phase = 'fish'; this.bar.hidden = true; this.depth = 0.6;
+    f.u.uAmp.value = 0.35; f.land = { from: new THREE.Vector3(0, 0.05, 0), to: new THREE.Vector3(0.25 + this.r() * 0.15, 0.03, -0.15 - this.r() * 0.1) };
+    this.caught++; k.chips(10); k.synth.noise(0.25, { vol: 0.06, lp: 2600 }); k.synth.chime([660, 880, 1046], { gap: 0.08, dur: 0.6 });
+    const name = f.kind === 'perch' ? 'A yellow perch' : 'A smelt', cm = Math.round(f.len * 100);
+    if (this.caught === 3) { this.say(`${name}, ${cm} cm. Three! +10 chips.`); if (k.find('icefish')) k.callout('ICE FISHING'); }
+    else this.say(`${name}, ${cm} cm. +10 chips.`);
+  },
+  _flop(f, dt) {
+    const L = f.land, t = Math.min(1, f.t / 0.7);
+    if (f.t < 0.7) { f.p.lerpVectors(L.from, L.to, t); f.p.y = 0.05 + Math.sin(t * Math.PI) * 0.35; f.yaw += dt * 9; f.pitch = Math.sin(f.t * 12) * 0.8; }
+    else if (f.t < 2.6) { f.p.copy(L.to); f.p.y = 0.03 + Math.abs(Math.sin(f.t * 7)) * 0.05 * (2.6 - f.t); f.pitch = 0; f.g.rotation.x = Math.PI / 2; f.u.uT.value += dt * 20; }
+    else {
+      // into the bucket, and a new fish takes its place in the water
+      const i = this.fishes.indexOf(f); if (i >= 0) this.fishes.splice(i, 1);
+      this.g.remove(f.g); this.bucket.add(f.g); const n = this.bucketed.length; this.bucketed.push(f);
+      f.g.position.set(Math.cos(n * 2.1) * 0.035, 0.15, Math.sin(n * 2.1) * 0.035); f.g.rotation.set(0, n * 1.4, Math.PI / 2 - 0.2); f.u.uAmp.value = 0.02;
+      const nf = new Fish(this.kit, this.r() < 0.7 ? 'perch' : 'smelt', this.r); nf.p.set(this.W.x0 - this.at.x + 1, -this.DEEP + 0.4, this.W.z0 - this.at.z + 1); this._pick(nf); this.g.add(nf.g); this.fishes.push(nf);
+      return;
+    }
+    f.g.position.copy(f.p); if (f.t < 0.7) { f.g.rotation.set(0, f.yaw, 0); f.g.rotateZ(f.pitch); } else f.g.rotation.set(Math.PI / 2, f.yaw, 0);
+  },
+  spots() { return this.at ? [{ kind: 'secret', id: 'icefish', name: 'Ice fishing (three fish)', ...this.at }] : []; },
+  reset() { for (const f of this.bucketed) this.bucket.remove(f.g); this.bucketed = []; this.caught = 0; },
+});
+
+let _radial = null;
+function radial() {
+  if (_radial) return _radial;
+  _radial = canvas(64, 64, (c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); });
+  return _radial;
+}

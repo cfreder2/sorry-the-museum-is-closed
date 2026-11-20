@@ -60,7 +60,9 @@ export function buildLakefront(museum, plan) {
   for (let z = z0 + 30; z < z1 - 10; z += 34) if (z < slip[0] - 4 || z > slip[1] + 4) { dark.box(prom.x1 - 1.9, prom.x1 - 1.3, 0, 0.42, z - 1, z + 1); snow.box(prom.x1 - 1.9, prom.x1 - 1.3, 0.42, 0.5, z - 1, z + 1); plan.obstacles.push({ x0: prom.x1 - 1.9, x1: prom.x1 - 1.3, z0: z - 1, z1: z + 1, y0: 0, y1: 0.5 }); }
 
   // ---- the harbour ice, out to the buoys
-  flat(ice, shore, buoys + 0.6, z0 - 200, z1 + 200, 0.01, 22);
+  { const w = L.window, X0 = shore, X1 = buoys + 0.6, Z0 = z0 - 200, Z1 = z1 + 200;
+    if (!w) flat(ice, X0, X1, Z0, Z1, 0.01, 22);
+    else { flat(ice, X0, X1, Z0, w.z0, 0.01, 22); flat(ice, X0, X1, w.z1, Z1, 0.01, 22); flat(ice, X0, w.x0, w.z0, w.z1, 0.01, 22); flat(ice, w.x1, X1, w.z0, w.z1, 0.01, 22); } }      // (clear ice over the fishing hole: icefish.js)
 
   // ---- the breakwater, and its light
   { const b = L.breakwater; stone.box(b.x0, b.x1, -0.2, 1.2, b.z0, b.z1, 1.4); snow.box(b.x0 + 0.3, b.x1 - 0.3, 1.2, 1.27, b.z0 + 4, b.z1 - 0.3);

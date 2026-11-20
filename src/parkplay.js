@@ -1,4 +1,4 @@
-// Things to do out in the park (features.js): a sledding run by the band shell, ice fishing on the harbour,
+// Things to do out in the park (features.js): a sledding run by the band shell,
 // a row of snowball targets on Butler Field, and a skater going round the rink who will let you follow her.
 import * as THREE from 'three';
 import { feature } from './features.js';
@@ -81,104 +81,8 @@ feature({
   reset() { if (this.timer) this.timer.cancel(); },
 });
 
-// ---------------------------------------------------------------- ice fishing
-// A hole in the harbour ice beside a little hut. FISH looks down into the hole: watch the bobber, and tap the
-// moment it goes under. Too soon and the fish swims off. Three in a night is the secret; each is worth chips.
-feature({
-  id: 'icefish',
-  secrets: [['icefish', 'Ice fishing']],
-  init(k) {
-    this.k = k;
-    const L = k.plan.lakefront, x = L ? (L.shore + L.buoys) / 2 - 2.5 : 550, z = 122;
-    this.at = { x, y: 0, z }; this.caught = 0;
-    const g = this.g = new THREE.Group(); g.position.set(x, 0, z); k.group.add(g);
-    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.32, 28), new THREE.MeshStandardMaterial({ color: 0x163a4e, emissive: 0x0c2a3a, roughness: 0.15, metalness: 0.2 }));
-    hole.rotation.x = -Math.PI / 2; hole.position.y = 0.012; g.add(hole);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.06, 6, 28), mat(0xeef3f8)); rim.rotation.x = Math.PI / 2; rim.position.y = 0.02; rim.scale.z = 0.5; g.add(rim);
-    // The rod on its little stand, the line, the bobber.
-    const wood = mat(0x6b4426), rod = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.014, 1.0, 6), mat(0x2b2b2b));
-    g.add(box(0.05, 0.22, 0.05, wood, -0.55, 0.11, 0));
-    rod.position.set(-0.3, 0.32, 0); rod.rotation.z = -1.1; g.add(rod);
-    this.tip = new THREE.Vector3(0.14, 0.53, 0);
-    this.bob = new THREE.Group(); const red = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xd23a2a, { roughness: 0.4 })), wh = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat(0xf4f4f0, { roughness: 0.4 }));
-    this.bob.add(red, wh); this.bob.position.set(0.12, 0.02, 0.02); g.add(this.bob);
-    this.ripple = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.058, 24), new THREE.MeshBasicMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0 })); this.ripple.rotation.x = -Math.PI / 2; this.ripple.position.set(0.12, 0.016, 0.02); g.add(this.ripple);
-    this.lineGeo = new THREE.BufferGeometry().setFromPoints([this.tip, this.bob.position]); g.add(new THREE.Line(this.lineGeo, new THREE.LineBasicMaterial({ color: 0xdddddd })));
-    // The hut: plank walls, a door, a stovepipe.
-    const hut = new THREE.Group(); hut.position.set(3.6, 0, 5); g.add(hut);
-    const planks = mat(0x8a5a35), roof = mat(0xe9eff5);
-    hut.add(box(2.2, 2.0, 1.8, planks, 0, 1.0, 0), box(2.4, 0.12, 2.0, roof, 0, 2.06, 0), box(0.7, 1.5, 0.04, mat(0x5a3820), -0.4, 0.75, -0.92), box(0.12, 0.7, 0.12, mat(0x222222), 0.6, 2.45, 0.3));
-    const win = box(0.4, 0.3, 0.04, new THREE.MeshBasicMaterial({ color: 0xffc778 }), 0.5, 1.3, -0.92); hut.add(win);
-    k.plan.obstacles.push({ x0: x + 2.5, x1: x + 4.7, z0: z + 4.1, z1: z + 5.9, y0: -0.3, y1: 2.2 });
-    // The bucket the catch goes in.
-    this.bucket = new THREE.Group(); this.bucket.position.set(0.55, 0, -0.35); g.add(this.bucket);
-    const pail = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.22, 14, 1, true), mat(0x8c99a6, { metalness: 0.5, roughness: 0.4, side: THREE.DoubleSide })); pail.position.y = 0.11; this.bucket.add(pail);
-    k.plan.obstacles.push({ x0: x + 0.42, x1: x + 0.68, z0: z - 0.48, z1: z - 0.22, y0: -0.3, y1: 0.22 });
-    this.fishM = mat(0x9fb3a0, { metalness: 0.4, roughness: 0.35 });
-    this.fishes = [];
-    this._dom();
-  },
-  _fishMesh() { const f = new THREE.Group(), b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), this.fishM); b.scale.set(1.9, 0.7, 0.6); const t = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.05, 4), this.fishM); t.rotation.z = Math.PI / 2; t.position.x = -0.11; f.add(b, t); return f; },
-  _dom() {
-    const el = this.el = document.createElement('div'); el.hidden = true;
-    el.style.cssText = 'position:fixed;inset:0;z-index:40;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none';
-    el.innerHTML = '<div data-t style="position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);padding:8px 16px;border-radius:12px;background:rgba(8,12,20,.66);color:#f3efe2;font:600 17px/1.35 system-ui,sans-serif;text-align:center;max-width:86vw"></div>'
-      + '<button data-leave style="position:absolute;right:16px;top:calc(env(safe-area-inset-top) + 16px);padding:8px 16px;border-radius:10px;border:0;background:rgba(240,236,226,.92);color:#16202c;font:600 15px system-ui,sans-serif">Leave</button>';
-    document.body.append(el);
-    this.txt = el.querySelector('[data-t]');
-    el.addEventListener('pointerdown', e => { e.preventDefault(); if (e.target.closest('[data-leave]')) this.close(); else this.strike(); });
-    addEventListener('keydown', e => { if (!this.on) return; if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); this.close(); } else if (e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) this.strike(); } }, true);
-  },
-  near(v, k) {
-    if (this.on || !k.close(this.at, 1.3, 1)) return null;
-    return { verb: 'FISH', hint: 'A hole in the ice and a rod left by it. E to fish.', act: () => this.open() };
-  },
-  open() {
-    const k = this.k; this.on = true; k.G.state = 'paused'; this.el.hidden = false;
-    k.stage.enter({ x: this.at.x + 0.05, y: 0.02, z: this.at.z, nx: 0, ny: 1, nz: 0, w: 1.9, h: 1.35, up: [0, 0, -1] }, { fill: 0.9 });
-    this.say(this.caught >= 3 ? 'Three in the bucket already. Fish on if you like.' : 'Watch the bobber. Tap the moment it goes under.');
-    this.wait(); this.last = performance.now(); const loop = t => { if (!this.on) return; this.tick(Math.min(0.05, (t - this.last) / 1000)); this.last = t; requestAnimationFrame(loop); }; requestAnimationFrame(loop);
-  },
-  close() { if (!this.on) return; this.on = false; this.el.hidden = true; this.bob.position.y = 0.02; this._line(); this.k.resume(); },
-  say(t) { this.txt.textContent = t; },
-  wait(extra = 0) { this.phase = 'wait'; this.t = 0; this.biteAt = 1.6 + Math.random() * 3.6 + extra; this.nibbles = Math.random() < 0.6 ? [this.biteAt * (0.4 + Math.random() * 0.3)] : []; },
-  tick(dt) {
-    this.t += dt; const b = this.bob.position, T = performance.now() / 1000;
-    if (this.phase === 'wait') {
-      let y = 0.02 + Math.sin(T * 2.3) * 0.004;
-      for (const n of this.nibbles) if (this.t > n && this.t < n + 0.18) y -= 0.012 * Math.sin((this.t - n) / 0.18 * Math.PI);      // a nibble: not yet
-      b.y = y;
-      if (this.t > this.biteAt) { this.phase = 'bite'; this.t = 0; this.k.synth.noise(0.18, { vol: 0.05, lp: 900 }); }
-    } else if (this.phase === 'bite') {
-      b.y = 0.02 - 0.05 * Math.min(1, this.t / 0.08);
-      if (this.t > 0.55) { this.say('It took the bait and let go. Wait for the next one.'); this.wait(0.5); }
-    } else if (this.phase === 'reel') {
-      const f = this.fly; f.position.y = 0.05 + Math.sin(Math.min(1, this.t / 0.9) * Math.PI) * 0.35; f.rotation.z = Math.sin(T * 18) * 0.5;
-      if (this.t > 1.0) { this.g.remove(f); this._stow(f); this.wait(); }
-    }
-    // A ring spreads on the water whenever the bobber is pulled.
-    const rp = this.ripple, pulled = b.y < 0.012; if (pulled && rp.material.opacity < 0.1) { rp.scale.setScalar(1); rp.material.opacity = 0.8; }
-    rp.scale.multiplyScalar(1 + dt * 2.2); rp.material.opacity = Math.max(0, rp.material.opacity - dt * 0.9);
-    this._line();
-  },
-  _line() { const a = this.lineGeo.attributes.position; a.setXYZ(1, this.bob.position.x, this.bob.position.y + 0.03, this.bob.position.z); a.needsUpdate = true; },
-  strike() {
-    const k = this.k;
-    if (this.phase === 'bite') {
-      this.phase = 'reel'; this.t = 0; this.caught++;
-      const f = this.fly = this._fishMesh(); f.position.set(0.12, 0.05, 0.02); this.g.add(f);
-      k.synth.noise(0.3, { vol: 0.07, lp: 2400 }); k.synth.chime([660, 880], { gap: 0.08, dur: 0.6 });
-      k.chips(10);
-      if (this.caught === 3) { this.say('Three fish! +10 chips. That will do for a night.'); if (k.find('icefish')) k.callout('ICE FISHING'); }
-      else this.say(`A fish! +10 chips. ${this.caught} in the bucket.`);
-    } else if (this.phase === 'wait') { this.say('Too soon: the fish swims off. Wait for it to go right under.'); k.synth.note(180, 0.25, { vol: 0.05 }); this.wait(1.2); }
-  },
-  _stow(f) { const n = this.fishes.length; f.position.set(Math.cos(n * 2.1) * 0.05, 0.2 + n * 0.012, Math.sin(n * 2.1) * 0.05); f.rotation.set(0, n * 1.3, 0); f.scale.setScalar(0.9); this.bucket.add(f); this.fishes.push(f); },
-  active(k) { this.k = k; return k.close(this.at, 30, 3); },
-  update(dt, k) { if (k.close(this.at, 6, 2)) k.once('icefish', 'Somebody has cut a hole in the ice out here.', 4); },
-  spots() { return this.at ? [{ kind: 'secret', id: 'icefish', name: 'Ice fishing (three fish)', ...this.at }] : []; },
-  reset() { for (const f of this.fishes) this.bucket.remove(f); this.fishes = []; this.caught = 0; },
-});
+// (Ice fishing on the harbour is icefish.js.)
+
 
 // ---------------------------------------------------------------- snowball targets
 // A row of painted targets on stakes out on Butler Field, as if for snowballs. Knock them all down (drive into

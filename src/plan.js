@@ -724,6 +724,9 @@ function addLakefront(plan) {
     breakwater: { x0: 600, x1: 605, z0: 44, z1: 200 }, light: { x: 602.5, z: 46 },
     paths: [], cars: [], hills: [[352, 48, 17, 4.5, 14], [436, 178, 21, 6.5, 17]],
   };
+  // Clear ice over the fishing hole (icefish.js): the harbour ice and the snow under it are left open here, and the
+  // water, the weed and the fish are drawn below.
+  { const fx = (L.shore + L.buoys) / 2 - 2.5, fz = 122; L.fish = { x: fx, z: fz }; L.window = { x0: fx - 4, x1: fx + 4, z0: fz - 4, z1: fz + 4 }; }
   // Paths shovelled across the field, and the roads and the promenade.
   const PW = 1.5, path = q => { L.paths.push(q); plan.paved.push(q); };
   path({ x0: C.x1, x1: L.lsd.x0, z0: 110 - PW, z1: 110 + PW }); path({ x0: 387 - PW, x1: 387 + PW, z0, z1 });

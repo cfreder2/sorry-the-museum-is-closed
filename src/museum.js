@@ -501,7 +501,18 @@ export class Museum {
     const { plan } = this, B = plan.bounds, cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2;
     // Snow on the ground, as far as you are allowed to go.
     const gt = this.snowTex.clone(); gt.needsUpdate = true; gt.repeat.set((B.x1 - B.x0) / 6, (B.z1 - B.z0) / 6);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0 + 400, B.z1 - B.z0 + 400), new THREE.MeshStandardMaterial({ map: gt, roughness: 1, emissiveMap: gt, emissive: new THREE.Color(0.2, 0.25, 0.4), emissiveIntensity: 0.55 }));
+    // A sheet of snow w by h centred on (gx, gz), with the fishing window (plan.lakefront.window) left open in it.
+    const sheetGeo = (w, h, gx, gz) => {
+      const win = plan.lakefront && plan.lakefront.window;
+      if (!win || win.x0 < gx - w / 2 || win.x1 > gx + w / 2) return new THREE.PlaneGeometry(w, h);
+      const sh = new THREE.Shape([new THREE.Vector2(-w / 2, -h / 2), new THREE.Vector2(w / 2, -h / 2), new THREE.Vector2(w / 2, h / 2), new THREE.Vector2(-w / 2, h / 2)]);
+      const u0 = win.x0 - gx, u1 = win.x1 - gx, v0 = gz - win.z1, v1 = gz - win.z0;      // (turned flat, the sheet's y runs to -z)
+      sh.holes.push(new THREE.Path([new THREE.Vector2(u0, v0), new THREE.Vector2(u0, v1), new THREE.Vector2(u1, v1), new THREE.Vector2(u1, v0)]));
+      const g = new THREE.ShapeGeometry(sh), P = g.attributes.position, U = g.attributes.uv;
+      for (let i = 0; i < P.count; i++) U.setXY(i, P.getX(i) / w + 0.5, P.getY(i) / h + 0.5);
+      return g;
+    };
+    const ground = new THREE.Mesh(sheetGeo(B.x1 - B.x0 + 400, B.z1 - B.z0 + 400, cx, cz), new THREE.MeshStandardMaterial({ map: gt, roughness: 1, emissiveMap: gt, emissive: new THREE.Color(0.2, 0.25, 0.4), emissiveIntensity: 0.55 }));
     ground.rotation.x = -Math.PI / 2; ground.position.set(cx, -0.03, cz); ground.updateMatrix(); ground.matrixAutoUpdate = false;
     this.group.add(ground);
     if (plan.street) {
@@ -510,7 +521,7 @@ export class Museum {
       // The high ground starts a little way back from the wall, and a strip fills in between, left open wherever
       // steps, a ramp or a climbing street comes up through it: otherwise the snow lies over them like a lid.
       const EDGE = 12, hE = B.z1 - B.z0 + 400, zA = cz - hE / 2, zB = cz + hE / 2;
-      ground.geometry.dispose(); ground.geometry = new THREE.PlaneGeometry(wE - EDGE, hE); ground.position.x = S.x + EDGE + (wE - EDGE) / 2; ground.updateMatrix();
+      ground.geometry.dispose(); ground.geometry = sheetGeo(wE - EDGE, hE, S.x + EDGE + (wE - EDGE) / 2, cz); ground.position.x = S.x + EDGE + (wE - EDGE) / 2; ground.updateMatrix();
       gt.repeat.x *= (wE - EDGE) / W; gt.offset.x = ((S.x + EDGE - x0) / W) * ((B.x1 - B.x0) / 6);
       const strip = new Geo(), fill = (xa, xb, za, zb) => { if (xb - xa > 0.01 && zb - za > 0.01) strip.quad([xa, -0.03, za], [xa, -0.03, zb], [xb, -0.03, zb], [xb, -0.03, za], [0, 1, 0], [[xa / 6, za / 6], [xa / 6, zb / 6], [xb / 6, zb / 6], [xb / 6, za / 6]]); };
       const ways = S.ways.map(w => ({ z0: w.road ? w.z0 : w.z0 - (w.id === 'steps' ? 1.05 : 0.3), z1: w.road ? w.z1 : w.z1 + (w.id === 'steps' ? 1.05 : 0.3), run: w.road ? EDGE : w.run + (w.id === 'steps' ? 0.3 : 0.05) })).sort((p, q) => p.z0 - q.z0);
