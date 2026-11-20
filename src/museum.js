@@ -1372,7 +1372,9 @@ export class Museum {
       if (!o.mesh.visible || dx * dx + dz * dz > 1600) continue;
       o.mesh.rotation.y = Math.atan2(dx, dz); o.mesh.updateMatrix();
     }
-    this.flakes.visible = !roomAt(this.plan, cam.x, cam.z, cam.y);
+    // Snow falls outdoors only: not when the camera is in a room, nor in the thickness of a wall or a gap between rooms
+    // (inside a building's block), nor when the toy it is following is indoors and it has backed out through a wall.
+    this.flakes.visible = !this.playerIndoors && !roomAt(this.plan, cam.x, cam.z, cam.y) && !this.plan.masses.some(m => cam.x > m.x0 && cam.x < m.x1 && cam.z > m.z0 && cam.z < m.z1 && cam.y < m.top);
     // The back rooms' fittings: only what is near, and on this level or the one below (down a stair well, over a balcony). From outdoors, only what is just inside a door.
     const near = this.flakes.visible ? 10 : 32;
     for (const c of this.fitout.chunks) c.mesh.visible = cam.x > c.x0 - near && cam.x < c.x1 + near && cam.z > c.z0 - near && cam.z < c.z1 + near && cam.y > c.y0 - 2.5 && cam.y < c.y1 + 7;
