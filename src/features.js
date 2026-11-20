@@ -1,6 +1,7 @@
 // The shared kit for things to find and do. Every gallery set-piece, little secret and outdoor game is a
 // "feature": a plain object registered here, which main.js runs through one hook. Nothing else in main.js
 // has to change to add one. Use this, and the helpers below, rather than writing your own.
+// A worked example, start to finish: src/lostfound.js (placed once, instanced, carried, handed in, counted).
 //
 //   import { feature } from './features.js';
 //   feature({
@@ -25,6 +26,8 @@
 //   k.chips(n)            give n chips (negative to take; returns false if there are not enough)
 //   k.carry               what the toy is carrying: k.carry.take(item), k.carry.has(id), k.carry.drop(id), k.carry.list
 //   k.synth               small synthesised sounds: k.synth.note(freq, dur, opts), k.synth.chime(freqs), k.synth.noise(dur, opts)
+//   k.tally(key, total)   a set of things to collect across the building, remembered between visits:
+//                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done
 
 export const features = [];
 export function feature(f) { features.push(f); return f; }
@@ -88,6 +91,16 @@ export function startFeatures(o) {
     close(q, r, dy = 1.5) { const p = G.vehicle.pos; return !!q && Math.abs(p.y - (q.y || 0)) < dy && (p.x - q.x) ** 2 + (p.z - q.z) ** 2 < r * r; },
     chips(n) { const P = G.poker; if (!P) return false; if (n < 0) return P.spend(-n); if (P.earn) P.earn(n); else if (P.spend) P.spend(-n); return true; },
     synth: synth(sound),
+    // A "collect N of a set across the building" counter (mice followed, notes read, lost things returned, lions
+    // counted...), kept in localStorage so it lasts between visits.
+    tally(key, total) {
+      const store = 'after-hours.tally.' + key; let got;
+      try { got = new Set(JSON.parse(localStorage.getItem(store) || '[]')); } catch { got = new Set(); }
+      return {
+        total, has: id => got.has(id), get count() { return got.size; }, get done() { return got.size >= total; },
+        add(id) { if (got.has(id)) return false; got.add(id); try { localStorage.setItem(store, JSON.stringify([...got])); } catch { } return true; },
+      };
+    },
   };
   k.carry = new Carry(k);
   for (const f of features) {

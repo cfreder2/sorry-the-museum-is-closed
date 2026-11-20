@@ -43,7 +43,10 @@ import { Loose } from './loose.js';
 import { Vending } from './vending.js';
 import { startFeatures } from './features.js';
 // Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
-import './feature-example.js';
+import './lostfound.js';
+import './mice.js';
+import './notes.js';
+import './music.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -89,7 +92,7 @@ input.onGesture = () => sound.unlock();
 
 // Settings, kept between visits. Reduced motion starts on if the system asks for it.
 const SETTINGS = 'after-hours.settings';
-const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true,
+const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true,
   autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
 

@@ -1,18 +1,11 @@
-// Little things all over the building, so that no part of it is far from something to find: lost
-// property to pick up and hand in (lostfound.js), a mouse in each wing to follow home (mice.js), the
-// night guard's sticky notes (notes.js), and a quiet tune of the period in some of the galleries
-// (music.js). This file places them and runs them; the four files say what each one is.
+// Where to put a small thing down in the building: a clear patch of floor, a clear stretch of wall
+// low down, and how far a spot is from everything else there is to find. Used by the lost property,
+// the mice and the guard's notes (lostfound.js, mice.js, notes.js); anything else may use it too.
 //
-// Placement is worked out once, the first time the toy is driving, from the plan alone: the same
-// building gets the same things in the same places every night.
+// Placement is worked out from the plan alone, so the same building gets the same things in the same
+// places every night.
 
 import { groundAt } from './plan.js';
-import { LostFound } from './lostfound.js';
-import { Mice } from './mice.js';
-import { Notes } from './notes.js';
-import { GalleryMusic } from './music.js';
-
-// ------------------------------------------------------------- shared helpers --
 
 /** A seeded random number, so that every night is the same. */
 export function rng(seed) { let s = seed >>> 0 || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -38,7 +31,7 @@ export function blocked(plan, x0, x1, z0, z1, y0, y1) {
   return false;
 }
 
-/** A clear patch of floor in room r near (x, z): spiralling out until one is found, or null. */
+/** A clear patch of floor in room r near (x, z), spiralling out until one is found; or null. */
 export function freeFloor(plan, r, x, z, rad = 0.45, clearDoors = 1.4) {
   const ds = plan.doorsOf(r.id).filter(d => Math.abs(d.y - r.y) < 1.2);
   for (let k = 0; k < 90; k++) {
@@ -55,8 +48,8 @@ export function freeFloor(plan, r, x, z, rad = 0.45, clearDoors = 1.4) {
 }
 
 /**
- * Places along the walls of room r, low down, clear of doorways, of anything standing against the wall,
- * and of anything hung low on it. Each: { x, z, nx, nz, side, u, lo, hi } (u along the wall, n pointing into the room).
+ * Places along the walls of room r, low down: clear of doorways, of anything standing against the wall,
+ * and of anything hung low on it. Each: { x, z, nx, nz, side, u, lo, hi, room } (u along the wall, n pointing into the room).
  */
 export function wallSpots(plan, museum, r, { step = 0.6, clear = 0.7, depth = 0.4, height = 0.6, width = 0.3 } = {}) {
   const out = [];
@@ -69,7 +62,7 @@ export function wallSpots(plan, museum, r, { step = 0.6, clear = 0.7, depth = 0.
     for (let u = lo + 0.5; u <= hi - 0.5; u += step) {
       if (doors.some(([a, b]) => u > a - clear && u < b + clear)) continue;
       if (works.some(a => Math.abs((horiz ? a.x : a.z) - u) < a.w / 2 + 0.3 && a.y - a.h / 2 - (a.frame || 0) < r.y + height + 0.15)) continue;
-      const x = horiz ? u : at + nx * 0.01, z = horiz ? at + nz * 0.01 : u;
+      const x = horiz ? u : at, z = horiz ? at : u;
       const bx0 = horiz ? u - width : Math.min(at, at + nx * depth), bx1 = horiz ? u + width : Math.max(at, at + nx * depth);
       const bz0 = horiz ? Math.min(at, at + nz * depth) : u - width, bz1 = horiz ? Math.max(at, at + nz * depth) : u + width;
       if (blocked(plan, bx0, bx1, bz0, bz1, r.y - 0.05, r.y + height)) continue;
@@ -85,36 +78,17 @@ export const sameFloor = (a, b) => (Math.abs((a.y || 0) - (b.y || 0)) < 2.4 ? Ma
 /** The museum's gallery number for a room, or 0. */
 export const galleryNo = r => { const m = /Galler(?:y|ies) (\d+)/.exec(r && r.gallery || ''); return m ? +m[1] : 0; };
 
-// ------------------------------------------------------------------ the layer --
-
-export class Density {
-  constructor(G, ctx) {
-    this.G = G; this.ctx = ctx; this.placed = false; this.placing = false;
-    this.lost = new LostFound(G, ctx); this.mice = new Mice(G, ctx); this.notes = new Notes(G, ctx); this.music = new GalleryMusic(G, ctx);
-    this.parts = [this.lost, this.mice, this.notes];
-    this.last = performance.now();
-    const loop = () => { requestAnimationFrame(loop); const now = performance.now(), dt = Math.min(0.1, (now - this.last) / 1000); this.last = now; try { this.update(dt); } catch (e) { if (!this.err) { this.err = true; console.error(e); } } };
-    requestAnimationFrame(loop);
+// What is already somewhere, so that new things keep away from it: every spot on the debug map (G.spots),
+// read once, plus whatever the small-things files have put down since.
+let busy = false, taken = null;
+export function claimed(G) {
+  if (!taken) {
+    busy = true;
+    try { taken = (G.spots ? G.spots() : []).map(s => ({ x: s.x, y: s.y, z: s.z })); } catch { taken = []; }
+    busy = false;
   }
-  /** Lay everything out, once. */
-  place() {
-    if (this.placed || this.placing) return;
-    const G = this.G; if (!G.plan || !G.museum || !G.vehicle) return;
-    this.placing = true;
-    let existing = [];
-    try { existing = (G.spots ? G.spots() : []).filter(s => !/^(lost|note|mouse)/.test(s.id)); } catch { existing = []; }
-    const taken = existing.map(s => ({ x: s.x, y: s.y, z: s.z }));
-    for (const p of this.parts) p.place(taken);            // each adds what it puts down to `taken`, so the next keeps away from it
-    this.placed = true; this.placing = false;
-  }
-  update(dt) {
-    const G = this.G;
-    if (!G.plan || !G.museum) return;
-    const live = G.state === 'play' && G.mode !== 'race' && !(G.plan && G.plan.racing);
-    if (live && !this.placed) this.place();
-    for (const p of this.parts) if (this.placed) p.update(dt, live);
-    this.music.update(dt, live || G.state === 'study');
-  }
-  /** For the debug map (?secrets): [{ kind, id, name, x, y, z }]. */
-  spots() { if (!this.placed && !this.placing) this.place(); return this.placing ? [] : this.parts.flatMap(p => p.spots()); }
+  return taken;
 }
+export const claim = p => { if (taken) taken.push({ x: p.x, y: p.y, z: p.z }); };
+/** True while the list above is being read: a spots() that would place things itself must return [] then. */
+export const placingNow = () => busy;
