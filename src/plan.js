@@ -616,8 +616,35 @@ function addGrounds(plan) {
   let z = B.z0;
   for (const q of bridge) { if (q.z0 - z > 1) G.railGaps.push([z, q.z0]); z = Math.max(z, q.z1); }
   if (B.z1 - z > 1) G.railGaps.push([z, B.z1]);
-  const gap = G.railGaps.find(([a, b]) => b - a > 60);
-  if (gap) { G.train = { x: G.rail.x1 - 2.6, z0: gap[1] - 64, z1: gap[1] - 6 }; O.push({ x0: G.train.x - 1.5, x1: G.train.x + 1.5, z0: G.train.z0, z1: G.train.z1, y0: 0, y1: 4.6 }); }
+  // The cutting. The tracks lie well below the street between retaining walls; the museum's own
+  // galleries bridge them, the two streets cross on bridges, and the garden path on a footbridge.
+  // `open` are the stretches open to the sky, each with a service ramp up its east wall so that
+  // nothing that drops in is stuck there: the ramp climbs towards `top` and lets out through the wall.
+  {
+    const R = G.rail, D = 4.4, x0 = R.x0 + 0.3, x1 = R.x1 - 0.3, RW = 2.0, RUN = 14.2, hall = bridge.length ? [Math.min(...bridge.map(q => q.z0)), Math.max(...bridge.map(q => q.z1))] : [0, 0];
+    const C = R.cut = { x0, x1, y: -D, lane: x1 - RW, run: RUN, open: [] };
+    const stretch = (z0, z1, top) => { if (z1 - z0 < RUN + 12) return; const up = top === z0 ? 1 : -1; C.open.push({ z0, z1, top, up, land: top + up * 2.6, foot: top + up * (2.6 + RUN) }); };
+    stretch(G.monroe.z1 + 0.6, 16.6, 16.6); stretch(20.4, hall[0] - 3.9, 20.4); stretch(hall[1] + 4.3, G.jackson.z0 - 0.6, hall[1] + 4.3);
+    // Tracks: two right through, and a third down the east side wherever the ramp is not.
+    R.tracks = [x0 + 1.6, x0 + 4.7, x0 + 7.8];
+    // Two trains laid up for the night.
+    const s2 = C.open[1], s3 = C.open[2]; G.train = null; G.trains = [];
+    if (s2) G.trains.push({ x: R.tracks[2], z0: s2.foot + 6, z1: s2.z1 - 1.5 });       // clear of the foot of the ramp
+    if (s3) G.trains.push({ x: R.tracks[0], z0: s3.z0 + 30, z1: s3.z0 + 88 });
+    G.train = G.trains[0] || null;
+    for (const t of G.trains) O.push({ x0: t.x - 1.5, x1: t.x + 1.5, z0: t.z0, z1: t.z1, y0: -D, y1: -D + 5 });
+    // Walls. The sides hold the ground up and carry a balustrade; the ends are the bridges' abutments.
+    const wall = (ax0, ax1, az0, az1, y1 = 0.95, y0 = -D - 0.4) => O.push({ x0: ax0, x1: ax1, z0: az0, z1: az1, y0, y1 });
+    for (const s of C.open) {
+      wall(R.x0, x0, s.z0, s.z1); wall(x0, x1, s.z0 - 0.3, s.z0); wall(x0, x1, s.z1, s.z1 + 0.3);
+      const a = Math.min(s.top, s.land), b = Math.max(s.top, s.land);                 // the landing, where the east wall stands open
+      wall(x1, R.x1, s.z0, a); wall(x1, R.x1, b, s.z1); wall(x1, R.x1, a, b, -0.06);
+      // The ramp's own kerb, on the side of the drop, and across the head of the landing.
+      wall(C.lane - 0.12, C.lane, a, b); wall(C.lane, x1, s.up > 0 ? a - 0.12 : b, s.up > 0 ? a : b + 0.12);
+      for (let i = 0; i < 12; i++) { const za = s.land + s.up * RUN * i / 12, zb = s.land + s.up * RUN * (i + 1) / 12; wall(C.lane - 0.12, C.lane, Math.min(za, zb), Math.max(za, zb), -D * i / 12 + 0.4); }
+    }
+    plan.cut = C;
+  }
 
   // The lions, either side of the way in, and lamps: along the avenue and by every door.
   plan.lions = []; plan.lamps = [];
@@ -1098,6 +1125,11 @@ function inWell(plan, x, z, y) {
 // How high the open ground is at (x, z): the museum's floor level, or the avenue below it, or part
 // of the way up between the two.
 export function streetY(plan, x, z) {
+  { const C = plan.cut; if (C && x > C.x0 && x < C.x1) for (const s of C.open) if (z > s.z0 && z < s.z1) {      // down in the railway cutting
+    if (x < C.lane) return C.y;
+    const d = (z - s.land) * s.up;                       // on the service ramp: level at the top, then down
+    return d <= 0 ? ((z - s.top) * s.up >= 0 ? 0 : C.y) : d >= C.run ? C.y : C.y * d / C.run;
+  } }
   const S = plan.street; if (!S || x >= S.x + S.reach) return 0;
   if (x <= S.x) return S.y;
   for (const w of S.ways) if (z > w.z0 && z < w.z1) {
