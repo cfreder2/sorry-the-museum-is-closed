@@ -537,7 +537,7 @@ export class Drone {
     this.vel.x *= drag; this.vel.z *= drag;
     this.vel.y += (inp.climb * 5.2 * S.climb - this.vel.y) * Math.min(1, dt * 5 * (S.drag || 1));
     this.yaw -= inp.yaw * 2.5 * S.yaw * dt;
-    const ox = this.pos.x, oz = this.pos.z;
+    const ox = this.pos.x, oy = this.pos.y, oz = this.pos.z;
     this.pos.addScaledVector(this.vel, dt);
 
     this.bump = 0;
@@ -547,12 +547,15 @@ export class Drone {
       else if (!wallAt(this.plan, this.pos.x, oz, this.pos.y - 0.07, 0.06)) { this.pos.z = oz; this.vel.z *= -0.3; }
       else { this.pos.x = ox; this.pos.z = oz; this.vel.x *= -0.3; this.vel.z *= -0.3; }
     }
-    const floor = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y, 0.02) + 0.07;
+    // Whatever it was above before this step it is still above. (Coming down fast, a quick airframe or a slow frame moves
+    // it further in one step than a deck or a plank is thick: it must land on it, not pass into it and be found under it.)
+    const floor = groundAt(this.plan, this.pos.x, this.pos.z, Math.max(this.pos.y, oy), 0.02) + 0.07;
     this.floor = floor;
     if (this.pos.y < floor) { this.pos.y = floor; if (this.vel.y < 0) this.vel.y = 0; }
-    // And a balcony, a bridge or a stair overhead is as solid from below as from above.
-    const head = headAt(this.plan, this.pos.x, this.pos.z, this.pos.y) - 0.2;
-    if (this.pos.y > head && head > floor + 0.1) { this.pos.y = head; if (this.vel.y > 0) { this.bump = this.vel.y; this.vel.y = 0; } }
+    // And a balcony, a bridge or a stair overhead is as solid from below as from above: from below. Something it is
+    // already in (a lift car that has come up round it) does not push it down through itself; climbing takes it out on top.
+    const head = headAt(this.plan, this.pos.x, this.pos.z, Math.min(this.pos.y, oy)) - 0.2;
+    if (this.pos.y > head && head > floor + 0.1 && oy <= head + 0.12 && !(this._free > 0)) { this.pos.y = head; if (this.vel.y > 0) { this.bump = this.vel.y; this.vel.y = 0; } }
     const push = this._push;
     if (confine(this.plan, this.pos, this.radius, true, push)) {
       const l = Math.hypot(push.x, push.y, push.z);
@@ -565,6 +568,12 @@ export class Drone {
         }
       }
     }
+    // Never trapped. Holding still with climb held and yet carried down, frame after frame, by something overhead (still
+    // air under a fixed slab does not do that; flying along under a sloping plank does, and is left alone): for a moment
+    // nothing overhead holds it, and it goes up through.
+    if (this._free > 0) this._free -= dt;
+    if (inp.climb > 0.3 && this.pos.y < oy - 1e-4 && Math.hypot(this.pos.x - ox, this.pos.z - oz) < 0.6 * dt) { this._sunk = (this._sunk || 0) + dt; if (this._sunk > 0.6) { this._free = 1.2; this._sunk = 0; } }
+    else this._sunk = 0;
     this.speed = this.vel.x * fx + this.vel.z * fz;
     this.thrust = Math.min(1, 0.45 + Math.abs(inp.pitch) * 0.25 + Math.abs(inp.roll) * 0.2 + Math.max(0, inp.climb) * 0.4 - Math.max(0, -inp.climb) * 0.2);
     this.landed = this.pos.y <= floor + 0.001 && inp.climb <= 0;
