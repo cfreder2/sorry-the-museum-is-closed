@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
+import { streetY } from './plan.js';
 
 // Ballast under a little snow, with nothing else on it.
 function ballastTex() {
@@ -212,4 +213,148 @@ export function buildRailway(museum, plan) {
       for (const m of parts) { m.position.y = y0; add(m); }
   };
   for (const t of G.trains || []) train(t, Y);
+  museum.trains = new Trains(museum, plan);
+}
+
+
+// ------------------------------------------------------------ the running trains --
+//
+// The line is the old Illinois Central's electric suburban railway: Metra Electric's double-deck
+// stainless cars with a blue stripe, and the South Shore Line's single-deck silver ones with a
+// maroon and orange stripe, all under the wires, all bound for or just out of the terminus beyond
+// Monroe Street. So they come through slowly. The two western tracks are theirs: one train each
+// way, every minute or so.
+//
+// A moving train is solid. Whatever is on its track is shoved to the side there is room on; if
+// there is no room, the train stops short and leans on the horn until the way is clear.
+
+const LIVERY = {
+  metra: { name: 'Metra Electric', H: 4.75, cars: 4, len: 19.5, base: '#aeb4bb', stripe: '#1f4fa8', stripe2: null, rows: [[30, 20], [72, 20]], sy: 54, sh: 8 },
+  shore: { name: 'South Shore', H: 3.95, cars: 3, len: 19.5, base: '#b9bcc0', stripe: '#7a1f2a', stripe2: '#e07a1a', rows: [[40, 30]], sy: 80, sh: 9 },
+};
+
+function sideTex(L) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128; const g = cv.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, L.base); gr.addColorStop(1, '#6b7078'); g.fillStyle = gr; g.fillRect(0, 0, 512, 128);
+  g.fillStyle = 'rgba(0,0,0,.18)'; for (let y = 4; y < 128; y += 5) g.fillRect(0, y, 512, 1);                       // fluted steel
+  g.fillStyle = L.stripe; g.fillRect(0, L.sy, 512, L.sh); if (L.stripe2) { g.fillStyle = L.stripe2; g.fillRect(0, L.sy + L.sh, 512, 4); }
+  for (const [y, h] of L.rows) for (let x = 62; x < 452; x += 34) { g.fillStyle = '#20242b'; g.fillRect(x - 2, y - 2, 28, h + 4); g.fillStyle = (x * 7 + y) % 9 ? '#ffe2a0' : '#3a3f48'; g.fillRect(x, y, 24, h); }
+  for (const x of [14, 468]) { g.fillStyle = '#20242b'; g.fillRect(x, 26, 30, 92); g.fillStyle = '#ffd98a'; g.fillRect(x + 4, 32, 9, 40); g.fillRect(x + 17, 32, 9, 40); }      // doors at each end
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
+export class Trains {
+  constructor(museum, plan) {
+    const C = plan.cut, R = plan.grounds.rail;
+    this.plan = plan; this.C = C; this.list = []; this.t = 0; this.rumble = null;
+    this.zA = C.open[0].z0 - 50; this.zB = C.open[C.open.length - 1].z1 + 50;
+    const steel = new THREE.MeshStandardMaterial({ color: 0x8a9199, roughness: 0.4, metalness: 0.6, emissive: 0x2a2e34, emissiveIntensity: 0.7 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.7, emissive: 0x0a0b0d, emissiveIntensity: 0.8 });
+    const white = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 2.4, 1.9) }), red = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.15, 0.1) }), warm = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 1.05, 0.55) });
+    const pool = TX.radial(0, 1), roofM = new THREE.MeshStandardMaterial({ color: 0xb4b9c2, roughness: 0.6, metalness: 0.3, emissive: 0x4c5262, emissiveIntensity: 0.6 }); void steel;
+    const mk = (kind, x, dir, first) => {
+      const L = LIVERY[kind], hw = 1.45, gap = 0.9, tex = sideTex(L), skin = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4, metalness: 0.5, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.75 });
+      // One carriage, tail at 0 and head at len, made once and used for each.
+      const sides = new Geo(), body = new Geo(), under = new Geo(), lit = new Geo(), panto = new Geo(), a = 0, b = L.len;
+      for (const [sx, nx] of [[-hw, -1], [hw, 1]]) sides.quad([sx, 1.0, a], [sx, 1.0, b], [sx, L.H - 0.35, b], [sx, L.H - 0.35, a], [nx, 0, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
+      body.box(-hw, hw, 1.0, L.H - 0.35, a, a + 0.04); body.box(-hw, hw, 1.0, L.H - 0.35, b - 0.04, b);
+      body.box(-hw + 0.1, hw - 0.1, L.H - 0.35, L.H - 0.15, a + 0.1, b - 0.1); body.box(-hw + 0.4, hw - 0.4, L.H - 0.15, L.H, a + 0.3, b - 0.3);
+      under.box(-hw + 0.08, hw - 0.08, 0.75, 1.0, a + 0.05, b - 0.05); under.box(-1.25, 1.25, 0.28, 0.75, a + b * 0.36, a + b * 0.64);
+      for (const z of [a + 2.7, b - 2.7]) { under.box(-1.08, 1.08, 0.38, 0.78, z - 1.5, z + 1.5); for (const dz of [-0.95, 0.95]) under.box(-0.8, 0.8, 0.14, 1.06, z + dz - 0.42, z + dz + 0.42); }
+      under.box(-0.12, 0.12, 0.82, 0.98, a - gap / 2, a); under.box(-0.12, 0.12, 0.82, 0.98, b, b + gap / 2);
+      for (const z of [a - 0.012, b]) lit.box(-0.38, 0.38, 1.45, 3.1, z, z + 0.012);
+      // The pantograph: a base, two arms making a knee, the bow under the wire.
+      { const y = L.H, top = 5.75, z = b - 4.2; panto.box(-0.5, 0.5, y, y + 0.1, z - 0.9, z + 0.9);
+        for (let i = 0; i < 6; i++) { const t0 = i / 6, t1 = (i + 1) / 6, m = (top + y) / 2; for (const sx of [-0.3, 0.3]) { panto.box(sx - 0.03, sx + 0.03, y + (m - y) * t0, y + (m - y) * t1 + 0.04, z - 0.7 + 1.1 * t0, z - 0.7 + 1.1 * t1); panto.box(sx - 0.03, sx + 0.03, m + (top - m) * t0, m + (top - m) * t1 + 0.04, z + 0.4 - 0.5 * t1 - 0.08, z + 0.4 - 0.5 * t0); } }
+        panto.box(-0.85, 0.85, top, top + 0.05, z - 0.18, z - 0.1); panto.box(-0.85, 0.85, top, top + 0.05, z + 0.02, z + 0.1); }
+      const parts = [sides.mesh(skin), body.mesh(roofM), under.mesh(dark), lit.mesh(warm)], pm = panto.mesh(dark);
+      const g = new THREE.Group(), cars = [], len = L.cars * L.len + (L.cars - 1) * gap;
+      for (let i = 0; i < L.cars; i++) { const c = new THREE.Group(); for (const m of parts) c.add(new THREE.Mesh(m.geometry, m.material)); if (i % 2 === 0 || i === L.cars - 1) c.add(new THREE.Mesh(pm.geometry, pm.material)); c.position.z = i * (L.len + gap); c.userData = { a: i * (L.len + gap), b: i * (L.len + gap) + L.len }; g.add(c); cars.push(c); }
+      // Lamps: a headlight and two markers at the head, two red ones at the tail; and the light they and the windows throw on the ballast.
+      const lamps = new Geo(), tail = new Geo();
+      lamps.box(-0.16, 0.16, L.H - 0.75, L.H - 0.47, L.len, L.len + 0.03); for (const sx of [-1, 1]) { lamps.box(sx * 1.0 - 0.1, sx * 1.0 + 0.1, 1.35, 1.55, L.len, L.len + 0.03); tail.box(sx * 1.0 - 0.1, sx * 1.0 + 0.1, 1.5, 1.72, -0.03, 0); }
+      cars[L.cars - 1].add(lamps.mesh(white)); cars[0].add(tail.mesh(red));
+      const add = (w, d, z, col, k) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: pool, color: new THREE.Color(col[0] * k, col[1] * k, col[2] * k), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); m.rotation.x = -Math.PI / 2; m.position.set(0, 0.2, z); m.renderOrder = 5; return m; };
+      const beam = add(7, 30, len + 13, [1, 0.92, 0.75], 0.55), spill = add(11, len + 8, len / 2, [1, 0.72, 0.36], 0.22), glare = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: pool, color: new THREE.Color(1.6, 1.5, 1.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+      glare.position.set(0, L.H - 0.6, len + 0.06); g.add(beam, spill, glare);
+      g.visible = false; g.rotation.y = dir > 0 ? 0 : Math.PI; museum.group.add(g);
+      const ob = { x0: x - hw, x1: x + hw, z0: 1e6, z1: 1e6, y0: C.y, y1: C.y + L.H, train: true };
+      plan.obstacles.push(ob);
+      this.list.push({ kind, name: L.name, x, dir, len, hw, H: L.H, g, cars, lights: [beam, spill, glare], ob, on: false, wait: first, head: 0, v: 0, held: 0, horn: 0, bell: 0, clack: 0, runs: 0 });
+    };
+    mk('metra', R.tracks[1], -1, 9);                     // northbound, into town, up the middle
+    mk('shore', R.tracks[0], 1, 40);                     // southbound, out, on the west track
+  }
+  /** Send one off now. (Also what a test calls.) */
+  depart(i) { const t = this.list[i]; if (!t || t.on) return; t.on = true; t.v = 0; t.held = 0; t.head = t.dir > 0 ? this.zA : this.zB; t.horn = 0; t.blown = false; }
+  // Is there room for something r wide at (x, z) down here, apart from this train?
+  _free(x, z, y, r, self) {
+    const C = this.C; if (x < C.x0 + r || x > C.x1 - r) return false;
+    if (Math.abs(streetY(this.plan, x, z) - y) > 0.5 && y < C.y + 1) return false;
+    for (const o of this.plan.obstacles) { if (o === self || y + 0.24 < o.y0 || y > o.y1) continue; if (x + r > o.x0 && x - r < o.x1 && z + r > o.z0 && z - r < o.z1) return false; }
+    return true;
+  }
+  update(dt, G, sound, secrets) {
+    if (!this.reg && secrets) { this.reg = true; secrets.add('train', 'The last train, going through under you'); }
+    dt = Math.min(dt, 0.1); this.t += dt;
+    const v = G.vehicle, C = this.C, P = this.plan;
+    let near = 1e9, loud = null;
+    for (const t of this.list) {
+      if (!t.on) { t.wait -= dt; if (t.wait <= 0 && !P.racing) this.depart(this.list.indexOf(t)); if (!t.on) continue; }
+      // Slower at the town end, where the platforms are.
+      const want = 8 + 4 * Math.max(0, Math.min(1, (t.head - this.zA) / (this.zB - this.zA)));
+      t.v += Math.max(-6 * dt, Math.min(1.6 * dt, want - t.v));
+      let step = t.v * dt, blocked = false;
+      if (v && G.state === 'play') {
+        const r = v.kind === 'drone' ? 0.34 : 0.3, p = v.pos, along = (p.z - t.head) * t.dir;      // how far ahead of the nose
+        if (Math.abs(p.x - t.x) < t.hw + r && p.y > C.y - 0.5 && p.y < C.y + t.H + 0.1 && along > -t.len - r && along < step + r + 0.5) {
+          const sides = [t.x - t.hw - r - 0.06, t.x + t.hw + r + 0.06].sort((a, b) => Math.abs(a - p.x) - Math.abs(b - p.x));
+          const to = sides.find(x => this._free(x, p.z, p.y, r, t.ob));
+          if (to != null) { const s = Math.sign(to - p.x) || 1; p.x = to; v.vel.x = s * 3.5; v.vel.z += t.dir * Math.min(3, t.v * 0.4); if (sound.bump) sound.bump(0.7); t.pushed = (t.pushed || 0) + 1; }
+          else if (v.kind === 'drone') { p.y = C.y + t.H + 0.5; v.vel.y = Math.max(v.vel.y, 2.5); t.pushed = (t.pushed || 0) + 1; }
+          else if (along > -r) { blocked = true; step = Math.max(0, Math.min(step, along - r - 0.5)); }
+        }
+      }
+      if (blocked) { t.v = 0; t.held += dt; t.horn -= dt; if (t.horn <= 0) { t.horn = 2.6; this._horn(sound, this._vol(G, t), 0.9); t.honks = (t.honks || 0) + 1; } } else t.held = 0;
+      t.head += t.dir * step;
+      const tz = t.head - t.dir * t.len, z0 = Math.min(t.head, tz), z1 = Math.max(t.head, tz);
+      t.ob.z0 = z0; t.ob.z1 = z1;
+      t.g.position.set(t.x, C.y, tz); t.g.visible = true;
+      // Only what is out under the sky is drawn: the rest is in the tunnels.
+      let seen = false;
+      for (const c of t.cars) { const a = tz + t.dir * c.userData.a, b = tz + t.dir * c.userData.b, lo = Math.min(a, b), hi = Math.max(a, b); c.visible = C.open.some(s => hi > s.z0 - 0.4 && lo < s.z1 + 0.4); seen = seen || c.visible; }
+      const headOut = C.open.some(s => t.head > s.z0 + 1 && t.head < s.z1 - 1), midOut = C.open.some(s => (z0 + z1) / 2 > s.z0 && (z0 + z1) / 2 < s.z1);
+      t.lights[0].visible = t.lights[2].visible = headOut; t.lights[1].visible = midOut;
+      // A blast as it first comes out into the open, and a bell all the way through.
+      const vol = this._vol(G, t);
+      if (!t.blown && headOut) { t.blown = true; this._horn(sound, vol, 1.1); }
+      t.bell -= dt; if (t.bell <= 0 && seen && vol > 0.02) { t.bell = 0.42; sound.bell(t.kind === 'metra' ? 1568 : 1319, 0, 0.035 * vol, 0.5, 0.5); }
+      t.clack -= dt; if (t.clack <= 0 && t.v > 1 && vol > 0.03) { t.clack = 19.5 / Math.max(2, t.v) / 2; sound.tick(0.07 * vol, 120, 0.05); setTimeout(() => sound.tick(0.06 * vol, 105, 0.05), 110); }
+      const d = this._dist(G, t); if (d < near) { near = d; loud = t; }
+      // Somebody up on a bridge with the train going through underneath.
+      if (secrets && v && G.state === 'play' && t.v > 2 && v.pos.y > -0.6 && v.pos.y < C.y + t.H + 12 && Math.abs(v.pos.x - t.x) < 7 && v.pos.z > z0 && v.pos.z < z1) { t.over = (t.over || 0) + dt; if (t.over > 0.6) secrets.find('train'); } else t.over = 0;
+      if ((t.dir > 0 && tz > this.zB) || (t.dir < 0 && tz < this.zA)) { t.on = false; t.g.visible = false; t.ob.z0 = t.ob.z1 = 1e6; t.wait = 22 + ((t.runs * 37 + (t.dir > 0 ? 11 : 0)) % 24); t.runs++; }
+    }
+    this._rumble(sound, loud && loud.on ? this._vol(G, loud) * Math.min(1, loud.v / 6) : 0);
+  }
+  _dist(G, t) { const p = G.vehicle ? G.vehicle.pos : null; if (!p) return 1e9; const tz = t.head - t.dir * t.len, z = Math.max(Math.min(t.head, tz), Math.min(Math.max(t.head, tz), p.z)); return Math.hypot(p.x - t.x, p.z - z, p.y - (this.C.y + 2)); }
+  // How loud this train is to whoever is driving: nothing far off, little indoors, nothing indoors on another floor.
+  _vol(G, t) {
+    const d = this._dist(G, t); let k = Math.max(0, 1 - d / 95); k *= k;
+    if (G.roomId) { const y = G.vehicle.pos.y; k *= y > 3 || y < -2 ? 0 : 0.3; }
+    if (G.state !== 'play') k = 0;
+    return k;
+  }
+  _horn(sound, vol, dur) {
+    const c = sound.ctx; if (!c || c.state !== 'running' || vol < 0.02) return;
+    const t = c.currentTime, f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1500; const e = c.createGain();
+    e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(0.11 * vol, t + 0.05); e.gain.setValueAtTime(0.11 * vol, t + dur - 0.12); e.gain.linearRampToValueAtTime(0, t + dur);
+    for (const hz of [311, 370, 466]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz; o.connect(f); o.start(t); o.stop(t + dur + 0.05); }
+    f.connect(e); e.connect(sound.dry); if (sound.send) e.connect(sound.send);
+  }
+  _rumble(sound, vol) {
+    const c = sound.ctx; if (!c || c.state !== 'running' || !sound.noise) return;
+    if (!this.rumble) { if (vol <= 0) return; const s = c.createBufferSource(); s.buffer = sound.noise; s.loop = true; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 170; const e = c.createGain(); e.gain.value = 0; s.connect(f); f.connect(e); e.connect(sound.dry); s.start(); this.rumble = e; }
+    this.rumble.gain.setTargetAtTime(0.55 * vol, c.currentTime, 0.15);
+  }
 }

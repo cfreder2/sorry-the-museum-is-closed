@@ -630,7 +630,7 @@ function addGrounds(plan) {
     // Two trains laid up for the night.
     const s2 = C.open[1], s3 = C.open[2]; G.train = null; G.trains = [];
     if (s2) G.trains.push({ x: R.tracks[2], z0: s2.foot + 6, z1: s2.z1 - 1.5 });       // clear of the foot of the ramp
-    if (s3) G.trains.push({ x: R.tracks[0], z0: s3.z0 + 30, z1: s3.z0 + 88 });
+    if (s3) G.trains.push({ x: R.tracks[2], z0: s3.z0 + 30, z1: s3.z0 + 88 });       // both on the east siding: the other two tracks are running lines (railway.js)
     G.train = G.trains[0] || null;
     for (const t of G.trains) O.push({ x0: t.x - 1.5, x1: t.x + 1.5, z0: t.z0, z1: t.z1, y0: -D, y1: -D + 5 });
     // Walls. The sides hold the ground up and carry a balustrade; the ends are the bridges' abutments.
