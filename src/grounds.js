@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { T, streetY } from './plan.js';
+import { buildBridgeway } from './bridgeway.js';
 
 export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
@@ -357,32 +358,6 @@ export function buildGrounds(museum, plan) {
     // (The fountains and the sculpture are in statues.js.)
   }
 
-  // ------------------------------------------------------- the Modern Wing from above
-  {
-    const h = plan.hall, white = new THREE.MeshStandardMaterial({ color: 0xe9edf2, roughness: 0.5, emissive: 0x5a6070, emissiveIntensity: 0.7 });
-    // The sunshade: a flat sheet of blades floating over the whole wing on thin white columns.
-    const x0 = h.x0 - 30, x1 = h.x1 + 22, z0 = h.z0 - 9, z1 = h.z1 + 6, y = Math.max(22.4, plan.massOf[h.id].top + 0.4), bt = TX.blades();      // 22.4 m in the architect's section; clear of the court's glass roof here
-    bt.repeat.set((x1 - x0) / 1.6, (z1 - z0) / 6);
-    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: bt, transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.5, 0.55, 0.68), fog: false }));
-    sheet.rotation.x = -Math.PI / 2; sheet.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); sheet.renderOrder = 3; add(sheet);
-    const edge = new Geo();
-    edge.box(x0, x1, y - 0.12, y + 0.12, z0 - 0.15, z0); edge.box(x0, x1, y - 0.12, y + 0.12, z1, z1 + 0.15); edge.box(x0 - 0.15, x0, y - 0.12, y + 0.12, z0, z1); edge.box(x1, x1 + 0.15, y - 0.12, y + 0.12, z0, z1);
-    const inMass = (x, z) => plan.masses.filter(q => x > q.x0 - 0.3 && x < q.x1 + 0.3 && z > q.z0 - 0.3 && z < q.z1 + 0.3).sort((p, q) => q.top - p.top)[0];      // the tallest block here: a column stands on its roof
-    for (let x = x0 + 3; x <= x1 - 3; x += (x1 - x0 - 6) / 4) for (const z of [z0 + 2, (z0 + z1) / 2, z1 - 2]) {
-      const m = inMass(x, z), foot = m ? m.top : 0;
-      edge.box(x - 0.14, x + 0.14, foot, y, z - 0.14, z + 0.14);
-      if (!m) plan.obstacles.push({ x0: x - 0.18, x1: x + 0.18, z0: z - 0.18, z1: z + 0.18, y0: 0, y1: y });
-    }
-    // The Nichols Bridgeway: a long white blade of a footbridge, climbing from Millennium Park to the wing's roof.
-    const ax = h.x0 - 22, az = h.z0 + 16, ay = 8.4, bx = ax - 9, bz = B.z0 - 60, by = 4.2;
-    const deck = new Geo(), dir = [bx - ax, by - ay, bz - az], len = Math.hypot(dir[0], dir[2]), px = -dir[2] / len * 1.4, pz = dir[0] / len * 1.4;
-    deck.quad([ax - px, ay, az - pz], [ax + px, ay, az + pz], [bx + px, by, bz + pz], [bx - px, by, bz - pz], [0, 1, 0]);
-    deck.quad([ax - px, ay - 0.35, az - pz], [ax + px, ay - 0.35, az + pz], [bx + px, by - 0.35, bz + pz], [bx - px, by - 0.35, bz - pz], [0, -1, 0]);
-    for (const sgn of [-1, 1]) deck.quad([ax + sgn * px, ay - 0.35, az + sgn * pz], [bx + sgn * px, by - 0.35, bz + sgn * pz], [bx + sgn * px, by + 1.1, bz + sgn * pz], [ax + sgn * px, ay + 1.1, az + sgn * pz], [sgn * px, 0, sgn * pz]);
-    for (const t of [0.3, 0.55]) { const x = ax + dir[0] * t, z = az + dir[2] * t, yy = ay + dir[1] * t; if (!inMass(x, z)) { edge.box(x - 0.2, x + 0.2, 0, yy - 0.35, z - 0.2, z + 0.2); plan.obstacles.push({ x0: x - 0.25, x1: x + 0.25, z0: z - 0.25, z1: z + 0.25, y0: 0, y1: yy }); } }
-    add(edge.mesh(white), deck.mesh(new THREE.MeshStandardMaterial({ color: 0xe9edf2, roughness: 0.5, emissive: 0x5a6070, emissiveIntensity: 0.7, side: THREE.DoubleSide })));
-  }
-
   // ---------------------------------------------- skylights, as the roofs are seen from the air
   {
     const curb = new Geo(), glass = new Geo();
@@ -395,5 +370,7 @@ export function buildGrounds(museum, plan) {
     }
     add(curb.mesh(base), glass.mesh(new THREE.MeshBasicMaterial({ map: TX.laylight(), color: new THREE.Color(0.3, 0.34, 0.46) })));
   }
+  // The Modern Wing's glass, its sunshade, and the footbridge from the park (bridgeway.js).
+  buildBridgeway(museum, plan);
   void T;
 }
