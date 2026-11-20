@@ -94,11 +94,11 @@ const G = {
   set,
   state: 'loading', mode: 'explore', toy: 'car', view: 'chase',
   t: 0, plan: null, museum: null, race: null, car: null, drone: null, vehicle: null,
-  roomId: null, facing: null, study: null, camYaw: 0, lampOn: true,
+  roomId: null, facing: null, study: null, camYaw: 0, lampOn: false,
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.42';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.43';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -184,7 +184,7 @@ async function boot() {
   garage.toys = { car: G.car, drone: G.drone }; garage.recoat();      // whatever colour was last sprayed on it (vending.js)
   scene.add(G.car.group, G.car.shadow, G.drone.group, G.drone.shadow);
   // One real lamp, moved to whichever toy is in use, so swapping never recompiles a shader.
-  G.lamp = G.car.lamp;
+  G.lamp = G.car.lamp; G.lamp.intensity = G.lampOn ? 70 : 0;       // the headlamp starts switched off
   G.drone.group.remove(G.drone.lamp, G.drone.lamp.target);
   G.race = new Race(scene, plan);
   G.props = new Props(plan);

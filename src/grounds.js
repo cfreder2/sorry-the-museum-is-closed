@@ -33,8 +33,10 @@ export function buildGrounds(museum, plan) {
   const stone = new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.78, 0.66, 0.50), emissiveIntensity: 0.5 });
   const trim = new THREE.MeshStandardMaterial({ color: 0xbdb3a0, roughness: 0.9, emissive: new THREE.Color(0.78, 0.66, 0.50).multiplyScalar(0.47), emissiveIntensity: 0.5, side: THREE.DoubleSide });       // dressed limestone, the wall's own colour
   const base = new THREE.MeshStandardMaterial({ color: 0x8a867e, roughness: 0.8, emissive: 0x3c404e, emissiveIntensity: 0.55 });
-  const night = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.035, 0.045, 0.075) });
-  const warm = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.66, 0.3) });
+  // (Glass and lit panels lie a finger's width in front of what is behind them. From across the avenue that is too little for the
+  // depth buffer to tell apart, and the two flicker: so they are drawn with an offset towards the eye.)
+  const night = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.035, 0.045, 0.075), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
+  const warm = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.66, 0.3), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
   const verdigris = new THREE.MeshStandardMaterial({ color: 0x4fa596, roughness: 0.6, metalness: 0.2, emissive: 0x1d4a42, emissiveIntensity: 0.8 });
   const snowTex = museum.snowTex;
   const snow = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 });
@@ -330,17 +332,20 @@ export function buildGrounds(museum, plan) {
     const ledge = (x0, x1, z0, z1, top, base = SY) => { plan.surfaces.push({ skin: 'wall', fixed: true, x0, x1, z0, z1, axis: null, h0: top, h1: top, base }); plan.obstacles.push({ x0, x1, z0, z1, y0: base - 0.3, y1: top - 0.07 }); };
     for (const sg of [-1, 1]) { const z0 = F.cz + sg * F.steps - (sg < 0 ? 1.0 : 0); ledge(SX - 0.16, SX + 2.6, z0 - 0.06, z0 + 1.06, SY / 2 + 0.67); ledge(SX + 2.6, SX + 5.96, z0 - 0.06, z0 + 1.06, 0.72); }
     for (const id of ['north', 'south']) { const g = way(id); for (const zz of [g.z0, g.z1]) ledge(SX - 0.2, SX + g.run + 0.35, zz - 0.28, zz + 0.28, 0.6); }
-    { const w = way('steps'), n = 8, tread = 0.45, rise = -SY / n, x9 = SX + w.run + 0.02;
+    { const w = way('steps'), n = 8, tread = 0.45, rise = -SY / n, x9 = SX + w.run + 0.45;       // the top tread runs on under the edge of the terrace's snow: stopped short, there was a slot to look down
       // The stretches of z a flight keeps for its steps, between its ramps.
       const between = g => { const out = []; let z = g.z0; for (const [ra, rb] of [...(g.ramps || [])].sort((p, q) => p[0] - q[0])) { if (ra - z > 0.05) out.push([z, ra]); z = rb; } if (g.z1 - z > 0.05) out.push([z, g.z1]); return out; };
       // A ramp: one plain slope the length of the flight, with a kerb and a handrail each side.
       const ramp = (g, za, zb) => { const xa = SX, xb = SX + g.run, L = Math.hypot(g.run, -SY), ang = Math.atan2(-SY, g.run);
+        rampG.quad([xb, 0.01, za], [xb, 0.01, zb], [xb + 0.45, 0.01, zb], [xb + 0.45, 0.01, za], [0, 1, 0]);
         rampG.quad([xa, SY + 0.01, za], [xa, SY + 0.01, zb], [xb, 0.01, zb], [xb, 0.01, za], [SY / L, g.run / L, 0], [[0, 0], [(zb - za) / 1.2, 0], [(zb - za) / 1.2, L / 1.2], [0, L / 1.2]]);
         for (const zz of [za, zb]) { rampG.quad([xa, SY, zz], [xb, SY, zz], [xb, 0.01, zz], [xa, SY + 0.01, zz], [0, 0, zz === za ? -1 : 1]);
           const zr = zz === za ? zz + 0.06 : zz - 0.06;
           const kerbM = new THREE.Mesh(new THREE.BoxGeometry(L, 0.07, 0.1), trim); kerbM.position.set((xa + xb) / 2, SY / 2 + 0.04, zr); kerbM.rotation.z = ang; add(kerbM);
           const rail = new THREE.Mesh(new THREE.BoxGeometry(L + 0.5, 0.035, 0.035), railM); rail.position.set((xa + xb) / 2, SY / 2 + 0.62, zr); rail.rotation.z = ang; add(rail);
-          for (const t of [0.02, 0.5, 0.98]) posts.box(xa + g.run * t - 0.02, xa + g.run * t + 0.02, SY * (1 - t), SY * (1 - t) + 0.62, zr - 0.02, zr + 0.02); } };
+          for (const t of [0.02, 0.5, 0.98]) posts.box(xa + g.run * t - 0.02, xa + g.run * t + 0.02, SY * (1 - t), SY * (1 - t) + 0.62, zr - 0.02, zr + 0.02);
+          // The rail is solid: a run of short lengths following the slope, from the lower of ramp and step up to the handrail.
+          for (let i = 0; i < 8; i++) { const t0 = i / 8, t1 = (i + 1) / 8, yl = SY * (1 - t0); plan.obstacles.push({ x0: xa + g.run * t0, x1: xa + g.run * t1, z0: zr - 0.04, z1: zr + 0.04, y0: yl - 0.35, y1: SY * (1 - t1) + 0.66, rail: true }); } } };
       for (const [za, zb] of between(w)) for (let i = 0; i < n; i++) { const x0 = SX + (i < 4 ? i * tread : w.land[1] + (i - 4) * tread), top = SY + (i + 1) * rise; stepG.box(x0, x9, top - rise, top, za, zb); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, za, zb); }
       for (const [za, zb] of w.ramps || []) ramp(w, za, zb);
       // Its stone cheeks, stepping up with it, each carrying an urn of flowers on the landing and at the head.
@@ -349,7 +354,7 @@ export function buildGrounds(museum, plan) {
         cope.box(SX - 0.16, SX + 2.66, SY / 2 + 0.55, SY / 2 + 0.67, z0 - 0.06, z1 + 0.06); cope.box(SX + 2.56, SX + 5.96, 0.6, 0.72, z0 - 0.06, z1 + 0.06);
         urns.push([SX + 1.3, SY / 2 + 0.67, (z0 + z1) / 2], [SX + 4.3, 0.72, (z0 + z1) / 2]); }
       const tr2 = way('north').run / n;
-      for (const id of ['north', 'south']) { const g = way(id); for (const [za, zb] of g.ramps || []) ramp(g, za, zb); for (const [gz0, gz1] of between(g)) for (let i = 0; i < n; i++) { const x0 = SX + i * tr2, top = SY + (i + 1) * rise; stepG.box(x0, SX + g.run + 0.02, top - rise, top, gz0, gz1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, gz0, gz1); }
+      for (const id of ['north', 'south']) { const g = way(id); for (const [za, zb] of g.ramps || []) ramp(g, za, zb); for (const [gz0, gz1] of between(g)) for (let i = 0; i < n; i++) { const x0 = SX + i * tr2, top = SY + (i + 1) * rise; stepG.box(x0, SX + g.run + 0.45, top - rise, top, gz0, gz1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, gz0, gz1); }
         for (const zz of [g.z0, g.z1]) { cheek.box(SX - 0.15, SX + g.run + 0.3, SY, 0.5, zz - 0.22, zz + 0.22); cope.box(SX - 0.2, SX + g.run + 0.35, 0.5, 0.6, zz - 0.28, zz + 0.28); } } }
     // The wall that holds the terrace up, with its coping; and along the museum's own front a balustrade on top of it.
     for (const [a, b2] of S.walls) {
