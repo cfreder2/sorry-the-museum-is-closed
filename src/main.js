@@ -244,7 +244,7 @@ function setVehicle(kind) {
 function start(mode, fresh = false) {
   queueMicrotask(() => tm.begin({ mode, toy: G.toy, resumed: mode === 'explore' && resumed && !fresh, seen: G.museum.seenCount }));
   sound.unlock();
-  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true); if (G.boards.on) { stage.leave(); G.boards.close(); }
+  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true); if (G.boards.on) { stage.leave(); G.museum.fitout.group.visible = true; G.boards.close(); }
   input.endFrame();                                    // the Enter that started the game is not also a press of LOOK (or PLAY, or HEIST)
   G.mode = mode;
   G.museum.sleep();
@@ -366,7 +366,7 @@ function titleButtons() {
 function quit() {
   score.flush();
   if (G.poker.on) { G.poker.leave(); G.lamp.visible = G.lampWas !== false; }
-  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true); if (G.boards.on) { stage.leave(); G.boards.close(); }
+  if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true); if (G.boards.on) { stage.leave(); G.museum.fitout.group.visible = true; G.boards.close(); }
   $('hud').classList.remove('studying', 'atcards');
   G.race.end();
   G.plan.racing = false; G.museum.setRace(false); G.props.group.visible = true;
@@ -1099,8 +1099,8 @@ function play(dt, real) {
 function beginArcade(a) { endFlyby(); G.state = 'arcade'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.arcade.open(a); stage.enter(G.arcade.surface(a), { el: $('arcScreen'), fill: 0.74 }); $('arcade').classList.add('inworld'); tm.event('arcade', a.id); }
 function endArcade() { stage.leave(); $('arcade').classList.remove('inworld'); G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
 // Reading a whiteboard: the camera goes and stands in front of it, and the world waits (src/whiteboards.js).
-function beginBoard(b) { endFlyby(); G.state = 'board'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; $('bLook').hidden = true; G.boards.open(b); stage.enter(G.boards.surface(b), { fill: 0.84 }); }
-function endBoard() { if (G.state !== 'board') return; stage.leave(); G.boards.close(); $('hud').classList.remove('studying', 'atcards'); input.endFrame(); G.state = 'play'; G.camYaw = G.vehicle.yaw; canvas.focus({ preventScroll: true }); }
+function beginBoard(b) { endFlyby(); G.state = 'board'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; $('bLook').hidden = true; G.boards.open(b); G.museum.fitout.group.visible = false; stage.enter(G.boards.surface(b), { fill: 0.84 }); }      // (the furniture is put away while you read, as the toy is: a filing cabinet may stand between you and the board)
+function endBoard() { if (G.state !== 'board') return; stage.leave(); G.museum.fitout.group.visible = true; G.boards.close(); $('hud').classList.remove('studying', 'atcards'); input.endFrame(); G.state = 'play'; G.camYaw = G.vehicle.yaw; canvas.focus({ preventScroll: true }); }
 // The button in the security control room: the world waits while the job is explained (src/heist.js).
 function beginHeist(c) { endFlyby(); if (G.heist.brief(c)) { G.state = 'heist'; $('placard').hidden = true; } }
 

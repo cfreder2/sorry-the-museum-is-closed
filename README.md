@@ -94,8 +94,9 @@ Everything in the building that is not a room or a picture is a secret: the
 card game, the toy stall, the picture on its easel, the hockey pond, the big
 red button, the easel in the studio, every monitor somebody left switched on,
 and a pedestal with four lit pads under the coloured roof of Griffin Court.
-Nothing says where they are. The screen counts them, "secrets 3 / 17", and
-each one found is announced.
+Nothing says where they are. The screen counts them, "secrets 3 / 21", and
+each one found is announced. (The whiteboards count as one between them, and
+three of the twenty-one this file is not going to describe.)
 
 The pedestal plays a pattern of colours and you play it back; it adds one each
 time. Get five right and the roof lets go: confetti in the colours of all 126
@@ -284,7 +285,7 @@ What is not true:
   first-floor level, under the gallery; nothing is hung on the gallery itself.
 - **What is under the building is invented**, all of it: nothing below the
   lower level comes from any drawing or survey, and the survey in `survey/`
-  does not have it. Neither does the real building have the one small blank
+  does not have it. Neither does the real building have the one small extra
   tower that goes with it. It is there for the fun of finding it.
 - **The polish on the floors** mirrors only on the level you are on. Floors
   seen on another level (down a stair well, across a tall hall) are matt.
@@ -382,7 +383,7 @@ tap: the two choices, Continue, New game, Settings and Trophies.
 - **The garage.** Five cars and four drones. The Vehicle choice on the title
   screen goes through all of them; a locked one is shown as a silhouette with
   what it needs ("See 12 more works"). They unlock at 15, 25, 40, 60 and 100
-  works seen, and two for trophies. (There is a tenth place in the selector,
+  works seen, and two for trophies. (There is one more place in the selector,
   shown only as "???". It is not for sale.) Each is a different body and handles a
   little differently (top speed, grip, steering, hop; for a drone, pull, climb
   and turn); none climbs worse than the first. SWAP still goes between car and
@@ -476,8 +477,8 @@ kind of room, add a line to the list.
   the canteen, the school's studios and elsewhere, on every level: rotas, lists,
   a conservation checklist, the lost-property tally, and a good deal of
   grumbling about tyre marks and plywood. They hang low, where a toy can read
-  them. Pull up in front of one and press `E` (READ on a phone) and it comes up
-  full screen. They are worth reading: the staff have noticed more about what
+  them. Pull up in front of one and press `E` (READ on a phone) and you are stood
+  square in front of it, with its words on the page as text for a screen reader. They are worth reading: the staff have noticed more about what
   goes on in here at night than they let on, and one or two of them know
   something they should not have written down. What each says is in
   `src/boardtext.js`.
