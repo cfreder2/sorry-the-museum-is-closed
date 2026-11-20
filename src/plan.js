@@ -1676,7 +1676,8 @@ function stand(plan, collection, hung) {
 // middle of each doorway on the way round.
 const RING = ['G201', 'G226', 'G225', 'G223', 'G222', 'G221', 'G220', 'G219', 'G218', 'G217', 'G216', 'G215', 'G213', 'G212', 'G211', 'G209', 'G208', 'G207', 'G206', 'G205', 'G204', 'G202'];
 
-export function buildRoute(plan) {
+// The doorways the circuit goes through, in order: each with the room it leads into.
+export function ringSteps(plan) {
   // The circuit keeps to one level: only doorways between rooms whose floors are level with each other.
   const flat = d => !d.out && same(plan.byId[d.a].y, d.y) && same(plan.byId[d.b].y, d.y);
   const nb = id => plan.doorsOf(id).filter(flat).map(d => [d.a === id ? d.b : d.a, d]);
@@ -1697,7 +1698,13 @@ export function buildRoute(plan) {
     const leg = path(ring[i], ring[(i + 1) % ring.length], used) || path(ring[i], ring[(i + 1) % ring.length], new Set());
     if (leg) steps.push(...leg);
   }
-  const pts = [];
+  return steps;
+}
+
+// The circuit's doorways and a steering point across each big room: the rough line the stunt kit
+// and the cases keep clear of. (The line raced on is src/course.js, laid round what is really there.)
+export function buildRoute(plan) {
+  const steps = ringSteps(plan), pts = [];
   steps.forEach((s, i) => {
     const d = s.door, r = plan.byId[s.room];
     pts.push({ x: (d.x0 + d.x1) / 2, z: (d.z0 + d.z1) / 2, y: d.y + Math.min(2.2, d.h - 1.3), fy: d.y, gate: (d.along === 'z' ? d.x1 - d.x0 : d.z1 - d.z0) / 2, room: s.room });

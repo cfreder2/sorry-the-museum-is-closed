@@ -41,7 +41,17 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #mapkey .k0 { background: #0e1018; border-style: dashed; } #mapkey .k1 { background: #3e4662; } #mapkey .k2 { background: #e2be6e; }
 .studying #mapkey, .cine #mapkey { display: none; }
 #race { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; text-align: center; }
-#race .row { display: inline-flex; gap: 22px; font: 600 15px var(--mono); color: var(--lcd); background: rgba(6,10,8,.6); border: 1px solid rgba(159,230,160,.25); border-radius: 6px; padding: 7px 16px; letter-spacing: .08em; }
+#race .row { display: inline-flex; align-items: baseline; gap: 22px; font: 600 17px var(--mono); color: var(--lcd); background: rgba(6,10,8,.6); border: 1px solid rgba(159,230,160,.25); border-radius: 6px; padding: 7px 16px; letter-spacing: .08em; }
+#rPlace { color: #fff; } #rPlace b { font-size: 30px; line-height: 1; color: var(--gilt); text-shadow: 0 0 12px rgba(226,205,148,.45); }
+#rTime { min-width: 7.2ch; text-align: right; }
+#race .row { position: relative; }
+#rFlash { position: absolute; top: calc(100% + 8px); left: 4px; white-space: nowrap; font: 700 24px var(--mono); letter-spacing: .08em; opacity: 0; text-shadow: 0 0 14px currentColor, 0 2px 6px #000; pointer-events: none; }
+#rFlash.up { color: #9fe6a0; } #rFlash.down { color: #ffb36b; }
+#rFlash.on { animation: rflash 1.5s ease-out both; }
+.reduce #rFlash.on { animation: rflashCalm 1.5s linear both; }
+@keyframes rflash { 0% { opacity: 0; transform: translateY(-8px) scale(1.3); } 12% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rflashCalm { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+#trick small { display: block; margin-top: .45em; font: 600 max(14px, .34em) var(--mono); letter-spacing: .1em; color: #f3ead2; }
 #arrow { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; font: 11px var(--mono); color: #8fe; }
 #arrow svg { width: 34px; height: 34px; fill: #7fe9f5; filter: drop-shadow(0 0 6px #19c5d8); }
 #arrow.lost { color: #ffd98a; font-size: 14px; font-weight: 700; }
@@ -256,6 +266,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   #placard { bottom: 160px; width: calc(100vw - 32px); }
   .lcd { min-width: 0; font-size: 10px; padding: 5px 8px; }
   .keys { display: none; }
+  #race .row { gap: 12px; font-size: 14px; padding: 6px 11px; } #rPlace b { font-size: 24px; }
 }
 @media (max-height: 520px) {
   h1 { font-size: 40px; } h2 { font-size: 24px; margin: 0 0 .4em; }
@@ -268,6 +279,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
   .touch #pads { top: max(12px, env(safe-area-inset-top)); bottom: auto; flex-direction: row; }
   #pads button { height: 38px; }
   .lcd { display: none; }
+  #race .row { gap: 12px; font-size: 14px; padding: 5px 11px; } #rPlace b { font-size: 22px; } #rFlash { font-size: 19px; top: calc(100% + 5px); }
   #tx { justify-content: space-between; }
   #placard { bottom: 14px; width: calc(100vw - 340px); min-width: 240px; }
   #label { top: 12px; bottom: auto; left: max(12px, env(safe-area-inset-left)); transform: none; width: min(300px, 38vw); max-height: calc(100vh - 24px); overflow: auto; padding: 10px 14px; touch-action: pan-y; }

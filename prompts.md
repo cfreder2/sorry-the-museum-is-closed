@@ -286,3 +286,7 @@ the previous one was still being worked on; those are marked.
 ## 68
 
 > We could use the Open Library API to find art history books relevant to the works that are in the catalog. So then in the library, and other places, we could display them, link to them, or however we can best utilize those assets IN GAME.
+
+## 69
+
+> The race itself had the course going through walls, the bots just drove right through the walls, no collision detection. It wasn't clear when I finished a lap, or if I had another one, or what position I was in.

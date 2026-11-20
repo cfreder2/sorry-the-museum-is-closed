@@ -23,7 +23,7 @@ import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
-import { Race, LAPS, clockText } from './race.js';
+import { Race, LAPS, clockText, ordinal } from './race.js';
 import { Props } from './props.js';
 import { Poker } from './poker.js';
 import { Hockey } from './hockey.js';
@@ -113,7 +113,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.77';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.78';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -798,11 +798,27 @@ const movers = [], prev = new THREE.Vector3(0, -99, 0), here = new THREE.Vector3
 const camFrom = new THREE.Vector3(), camTry = new THREE.Vector3(), camHit = new THREE.Vector3();
 
 // A word or two in the middle of the screen when you pull something off.
-let calloutUntil = 0;
+let calloutUntil = 0, calloutHeld = 0;
 function callout(text) {
+  if (G.t < calloutHeld) return;                       // a lap or the finish is on screen: a trick can wait
   const el = $('trick');
   el.textContent = text; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   calloutUntil = G.t + 2.2;
+}
+
+// What the race has to say: a lap done, the finish, a place gained or lost. Big, short, and held long enough to read.
+function raceNews(e) {
+  if (e.type === 'place') {
+    const el = $('rFlash');
+    el.textContent = `${e.up ? '↑' : '↓'} ${ordinal(e.place)}`;
+    el.className = e.up ? 'up' : 'down'; void el.offsetWidth; el.classList.add('on');
+    return;
+  }
+  const el = $('trick'), big = e.type === 'finish' ? `FINISH — ${ordinal(e.place)}` : e.final ? `LAP ${e.lap} — FINAL LAP` : `LAP ${e.lap} / ${LAPS}`;
+  const small = e.type === 'finish' ? `LAP ${LAPS}  ${clockText(e.split)}  ·  TOTAL ${clockText(e.total)}` : `LAP ${e.n}  ${clockText(e.split)}`;
+  el.innerHTML = ''; el.append(big); const s = document.createElement('small'); s.textContent = small; el.append(s);
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  calloutUntil = G.t + 2.2; calloutHeld = G.t + 2;
 }
 
 function trickName(l) {
@@ -1065,11 +1081,6 @@ function hud() {
         + (here && here.arts.length ? `THIS ROOM <b>${here.seen}</b> / ${here.arts.length}` : 'OUTSIDE') + ` \u00b7 ROOMS <b>${rooms.filter(r => r.done).length}</b> / ${rooms.length}<br>`
         + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal} \u00b7 snowmen ${G.props.busted} / ${G.props.snowmen}</span>`;
       $('tally').lastElementChild.append(` \u00b7 secrets ${secrets.count} / ${secrets.total}`);
-    } else {
-      const R = G.race;
-      $('rLap').textContent = `LAP ${Math.min(R.lap, LAPS)}/${LAPS}`;
-      $('rTime').textContent = clockText(Math.max(0, R.finished ? R.total : R.clock));
-      $('rPlace').textContent = ['1ST', '2ND', '3RD', '4TH'][R.place - 1] || '';
     }
     $('fpv').hidden = G.view !== 'fpv' || G.state !== 'play';
     if (G.view === 'fpv') {
@@ -1081,13 +1092,19 @@ function hud() {
   }
   if (G.mode === 'race') {
     const R = G.race, b = R.bearing();
+    // Every frame, so a place won or lost shows the moment it happens. (Only what has changed is written.)
+    const put = (id, text) => { const el = $(id); if (el.textContent !== text) el.textContent = text; };
+    put('rLap', `LAP ${Math.min(R.lap, LAPS)} / ${LAPS}`);
+    put('rTime', clockText(R.finished ? R.lapTimes[R.lapTimes.length - 1] : Math.max(0, R.clock - R.lapStart)));
+    const pl = $('rPlace');
+    if (pl.dataset.v !== R.place + '/' + (R.bots.length + 1)) { pl.dataset.v = R.place + '/' + (R.bots.length + 1); pl.innerHTML = `<b>${ordinal(R.place)}</b> of ${R.bots.length + 1}`; }
     $('arrow').firstElementChild.style.transform = `rotate(${b.angle}rad)`;
     $('arrow').classList.toggle('lost', b.off && !R.finished);
     $('rDist').textContent = R.finished ? '' : b.off ? `OFF THE TRACK \u00b7 back on in ${Math.ceil(b.left)}` : `${Math.round(b.dist)} m` + (R.flying && Math.abs(b.dy) > 0.8 ? (b.dy > 0 ? ' ▲' : ' ▼') : '');
     if (R.warped) { R.warped = false; callout('BACK ON THE TRACK'); sound.gate(); }
     const c = $('count');
     if (R.state === 'countdown') { const n = Math.ceil(-R.clock); c.textContent = n <= 3 ? n : ''; c.style.opacity = n <= 3 ? 1 : 0; }
-    else if (R.clock < 1) { c.textContent = 'Go'; c.style.opacity = 1 - R.clock; }
+    else if (R.clock < 1) { c.textContent = 'GO'; c.style.opacity = 1 - R.clock; }
     else c.style.opacity = 0;
   } else $('count').style.opacity = 0;
   if (G.t > roomUntil) $('room').classList.remove('on');
@@ -1099,7 +1116,7 @@ function results() {
   queueMicrotask(() => tm.event('race', null, { result: $('resPlace').textContent.slice(0, 40), toy: G.vehicle.kind }));
   const R = G.race;
   $('resOver').textContent = `The Night Circuit · ${R.flying ? 'drone' : 'car'}`;
-  $('resPlace').textContent = ['First', 'Second', 'Third', 'Fourth'][R.finalPlace - 1];
+  $('resPlace').textContent = `${ordinal(R.finalPlace)} of ${R.bots.length + 1}`;
   const best = R.best[G.vehicle.kind];
   $('resTimes').innerHTML = R.lapTimes.map((t, i) => `LAP ${i + 1}  ${clockText(t)}`).join('<br>')
     + `<br><b>TOTAL  ${clockText(R.total)}</b><br>` + (R.record ? 'A NEW BEST' : `BEST  ${clockText(best)}`);
@@ -1146,7 +1163,7 @@ function steerHelp(v, inp, dt) {
 function play(dt, real) {
   const v = G.vehicle, R = G.race, racing = G.mode === 'race';
   let inp = input.read(v.kind === 'drone');
-  if (G.auto && racing) inp = autopilot(v, R);
+  if (G.auto && racing) inp = autopilot(v, R, dt);
   if (G.testInput) inp = G.testInput;
   if (v.kind === 'car') {
     if (inp.coast && !G.testInput) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
@@ -1200,18 +1217,20 @@ function play(dt, real) {
     sound.tick(0.1, 1200, 0.08);
   }
 
-  // Bump the rivals aside (they are on rails; you are not).
+  // Bump the rivals aside, and be bumped (they have shoved themselves clear of you already: this is what is left).
   if (racing) {
     R.update(dt, G.t);
+    for (const e of R.events.splice(0)) raceNews(e);
     for (const b of R.bots) {
-      const dx = v.pos.x - b.x, dz = v.pos.z - b.z, dy = v.pos.y - (b.y || 0), d = Math.hypot(dx, dz);
-      if (d < 0.42 && d > 1e-4 && Math.abs(dy) < 0.3) {
-        const k = (0.42 - d) / d;
+      const dx = v.pos.x - b.x, dz = v.pos.z - b.z, dy = v.pos.y - (b.y || 0), d = Math.hypot(dx, dz), near = v.radius + b.v.radius + 0.04;
+      if (d < near && d > 1e-4 && Math.abs(dy) < 0.3) {
+        const k = (near - d) / d;
         v.pos.x += dx * k; v.pos.z += dz * k; v.vel.x += dx / d * 1.5; v.vel.z += dz / d * 1.5;
+        confine(G.plan, v.pos, v.radius, v.kind === 'drone');           // (never into a wall)
         if (!b.hitT || G.t - b.hitT > 0.4) { sound.bump(2); b.hitT = G.t; }
       }
     }
-    if (R.finished && !G.resultsAt) G.resultsAt = G.t + 2.2;
+    if (R.finished && !G.resultsAt) G.resultsAt = G.t + 2.6;
     if (G.resultsAt && G.t > G.resultsAt) { G.resultsAt = 0; G.state = 'results'; results(); }
   }
 
@@ -1395,10 +1414,11 @@ function beginPoker() {
 function endPoker() { if (G.poker.game) tm.event('poker', null, { hands: G.poker.game.hand, stack: G.poker.game.p[0].stack }); if (G.poker.on) G.poker.leave(); G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); G.lamp.visible = G.lampWas !== false; G.camYaw = G.vehicle.yaw; }
 addEventListener('keydown', e => { if (G.state === 'poker' && !e.repeat && G.poker.key(e.code)) e.preventDefault(); });
 
-// A plain follow-the-line driver, for testing that a lap can be finished (?auto).
-function autopilot(v, R) {
+// A plain follow-the-line driver, for testing that a lap can be finished (?auto). Nose in to something, it backs off as the rivals do.
+const ap = { stuck: 0, back: 0, a: 0, x: 0, z: 0 };
+function autopilot(v, R, dt) {
   R._progress();
-  const look = R.at(R.sP + 1.6 + Math.abs(v.speed) * 0.32), here = R.at(R.sP + 2);
+  const look = R.aim(v.pos, R.sP, 1.6 + Math.abs(v.speed) * 0.32), here = R.at(R.sP + 2);
   let k = 0;
   for (let d = 0; d < 3 + Math.abs(v.speed); d += 1) k = Math.max(k, R.at(R.sP + d).k);
   const vt = Math.min(11.5, Math.sqrt(6.4 / Math.max(k, 0.004)));
@@ -1408,6 +1428,9 @@ function autopilot(v, R) {
     const yawErr = angDiff(Math.atan2(here.tx, here.tz), v.yaw);
     return { pitch: sp < vt ? 1 : -0.4, roll: Math.max(-1, Math.min(1, -a * 2.2)), yaw: Math.max(-1, Math.min(1, -(a + yawErr) * 2.5)), climb: Math.max(-1, Math.min(1, (look.y - v.pos.y) * 2.5)) };
   }
+  if (R.locked || v.air || ap.back > 0 || Math.hypot(v.pos.x - ap.x, v.pos.z - ap.z) > 0.25) { ap.x = v.pos.x; ap.z = v.pos.z; ap.stuck = 0; } else ap.stuck += dt;
+  if (ap.stuck > 0.7) { ap.stuck = 0; ap.back = 0.75; ap.a = a; }
+  if (ap.back > 0) { ap.back -= dt; return { throttle: -1, steer: Math.sign(ap.a) || 1 }; }
   return { throttle: sp < vt ? 1 : sp > vt + 1.5 ? -0.6 : 0, steer: Math.max(-1, Math.min(1, -a * 3)) };
 }
 G.auto = params.has('auto');
