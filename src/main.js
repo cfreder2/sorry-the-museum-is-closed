@@ -113,7 +113,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.81';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.82';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -1059,6 +1059,8 @@ G.spots = () => {
   void lv; return out;
 };
 if (params.has('secrets')) setTimeout(function mark() { if (!G.museum || !G.plan || !G.poker || !G.boards || !G.arcade || G.state === 'title' && !G.vehicle) return setTimeout(mark, 500); try { G.mapMarks = G.spots().map(q => ({ x: q.x, y: q.y, z: q.z, colour: q.kind === 'secret' ? '#ff4d6d' : '#4dd2ff', ring: q.kind === 'secret' })); } catch (e) { console.error(e); } }, 500);
+// The secrets you have found, where they are, for the big map (a gold star on each, as it is found; never the ones still to find).
+G.foundSpots = () => { try { return G.spots().filter(q => q.kind === 'secret' && secrets.has(q.id)); } catch { return []; } };
 G.nav = nav;                                         // G.nav.goTo({ x, y, z, label }) lights the way to a spot; G.mapMarks = [{ x, y, z, colour, ring }] puts marks on it
 
 const knobL = $('stickL').firstElementChild, knobR = $('stickR').firstElementChild;

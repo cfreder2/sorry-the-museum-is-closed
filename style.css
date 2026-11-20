@@ -342,6 +342,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 .mapfoot .key { color: var(--gilt-dim); font-size: 10.5px; }
 .mapfoot i { display: inline-block; width: 9px; height: 9px; margin: 0 4px 0 9px; vertical-align: -1px; border: 1px solid rgba(226,205,148,.6); }
 .mapfoot .k0 { background: #1e2230; } .mapfoot .k1 { background: #3e4662; } .mapfoot .k2 { background: #e2be6e; } .mapfoot .k3 { background: #7fe9f5; border-color: #7fe9f5; }
+.mapfoot .kst { color: #ffd25e; font-weight: 700; margin: 0 3px 0 10px; text-shadow: 0 0 2px #000; }
 /* ---- trophies, the garage, Stunt Looks and view counts ---- */
 #tally .pts { margin-left: 12px; font-size: 12px; letter-spacing: .1em; color: var(--gilt-dim); white-space: nowrap; } #tally .pts b { font-size: 15px; }
 .bigtext #tally .pts { font-size: 15px; color: #fff; }

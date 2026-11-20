@@ -478,6 +478,16 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const e = state.target;
     if (e && here(e)) { const s = px * (7 + Math.sin(t * 5) * 1.5); c.strokeStyle = '#7fe9f5'; c.lineWidth = px * 2.5; c.beginPath(); c.arc(e.x, e.z, s, 0, TAU); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(e.x, e.z, px * 3, 0, TAU); c.fill(); }
   }
+  // The secrets found so far: a small gold star on each, on its own level.
+  let gotSpots = [];
+  function drawFound(c, ly, px) {
+    for (const m of gotSpots) {
+      if (Math.abs((m.y || 0) - ly) > 2.4 && !(ly === 0 && (m.y || 0) > -2 && (m.y || 0) < 2.5)) continue;
+      c.save(); c.translate(m.x, m.z); c.scale(px, px); c.beginPath();
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 4.4 : 10.5; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      c.closePath(); c.fillStyle = '#ffd25e'; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 2; c.fill(); c.stroke(); c.restore();
+    }
+  }
   // Marks other parts of the game ask for (G.mapMarks: [{ x, y, z, colour, ring }]).
   function drawMarks(c, ly, px, t) {
     for (const m of G.mapMarks || []) {
@@ -678,6 +688,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     c.setTransform(s, 0, 0, s, ox, oz);
     drawPath(c, ly, 1 / s, t);
     drawMarks(c, ly, 1 / s, t);
+    drawFound(c, ly, dpr / s);
     if (here) drawYou(c, v.pos.x, v.pos.z, v.yaw, dpr / s);
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (here) drawHere(c, v.pos.x, v.pos.z);
@@ -711,6 +722,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     if (state.zoom > 1.05) { state.cx = G.vehicle.pos.x; state.cz = G.vehicle.pos.z; }
   }
   function open() {
+    gotSpots = G.foundSpots ? G.foundSpots() : [];
     if (G.state !== 'play') return;
     G.state = 'paused'; show('bigmap'); card(null);
     if (innerWidth < 900 && state.zoom === 1) state.zoom = 3;            // (a phone: near enough in for the names to fit)
@@ -775,6 +787,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const lv = levelOf(at.target.y), bits = [`${NAMES[lv.name] || lv.name} level`];
     if (arts) bits.unshift(st.done ? `All ${arts} works seen ✓` : `${st.seen} of ${arts} works seen`);
     else if (r && G.museum.visited.has(r.id)) bits.unshift('Visited');
+    if (r) { const got = gotSpots.filter(q => q.x >= r.x0 && q.x <= r.x1 && q.z >= r.z0 && q.z <= r.z1 && Math.abs((q.y || 0) - r.y) < 3).map(q => q.name).filter((v, i, a) => a.indexOf(v) === i); if (got.length) bits.push('★ ' + (got.length > 2 ? `${got.slice(0, 2).join(', ')} +${got.length - 2}` : got.join(', '))); }
     document.getElementById('bmCardN').textContent = r ? bits.join(' · ') : '';
     const go = document.getElementById('bmGo'), inIt = r ? G.roomId === r.id && Math.abs(youY() - at.target.y) < 0.7 : false;
     go.disabled = inIt; go.textContent = inIt ? '★ You are here' : 'Show the way';
