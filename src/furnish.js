@@ -566,9 +566,74 @@ const RECIPES = {
     R.walls(['sideboard', 'plant', 'banquette', 'banquette', 'plant', 'sideboard'], { gap: 0.3 });
   },
   cafe(R) {
-    R.end('servery', R.quietEnd(), 0);
-    R.grid('cafeTable', { da: 2.5, db: 2.4, face: 'a+', mb: 1.0, skip: 0.06, ...R.back(3.8, 1) });
-    R.walls(['banquette', 'banquette', 'plant', 'trayRack', 'bin', 'banquette', 'vending'], { gap: 0.3 });
+    if (R.L < 22 || R.W < 18) {                                         // a small one: a counter, a few tables
+      R.end('servery', R.quietEnd(), 0);
+      R.grid('cafeTable', { da: 2.5, db: 2.4, face: 'a+', mb: 1.0, skip: 0.06, ...R.back(3.8, 1) });
+      R.walls(['banquette', 'banquette', 'plant', 'trayRack', 'bin', 'banquette', 'vending'], { gap: 0.3 });
+      return;
+    }
+    // The big one, laid out the way a canteen is: a servery down one side, booths along the walls, long tables,
+    // round and square ones in loose groups, high tables, and room to walk between. The chairs, stools, bins and
+    // small tables are not fixed down (src/loose.js): here they are only noted. Same dice every night.
+    const { L, W } = R, r = R.rnd, TAU = Math.PI * 2;
+    R.clear.push(...R.clear.map(c => ({ x0: c.x0 - 0.35, x1: c.x1 + 0.35, z0: c.z0 - 0.35, z1: c.z1 + 0.35 })));       // the ways through, wide enough for two
+    // (a, b, yaw) are the room's own: a along it, b across it, yaw 0 facing +b. The note is in the world's.
+    const loose = (type, a, b, yaw, o = {}) => { const [x, z] = R.xz(a, b); R.out.marks.push({ kind: 'loose', room: R.room.id, type, x, y: R.y + (o.up || 0), z, yaw: R.longX ? yaw : Math.PI / 2 - yaw, ...o }); };
+    const claim = (a, b, h) => { const q = R.rect(a - h, a + h, b - h, b + h); if (!R.free(q, 0.1)) return false; R.taken.push(q); R.placed++; return true; };
+    const SEAT = [0x35465c, 0xa02c22, 0x19191b, 0x2c4f8a, 0x8a6a45, 0x3d6b3a, 0xc8641a, 0x6c7076];
+    for (const fa of [1 / 8, 3 / 8, 5 / 8, 7 / 8]) for (const fb of [1 / 6, 0.5, 5 / 6]) R.putC('column', L * fa, W * fb + (fb === 0.5 ? 2.2 : 0), 'b+', 0.2);
+    // the servery, along the long wall fewest come in by, with the fridges and the tray return beside it
+    const far = R.doorsAt.filter(e => e[1] > W - 2).length <= R.doorsAt.filter(e => e[1] < 2).length, sb = far ? W : 0, sf = far ? 'b-' : 'b+', bf = far ? 'b+' : 'b-', bb = far ? 0 : W;
+    let sa = L * 0.5; for (const t of [0.5, 0.6, 0.4, 0.68, 0.32]) if (R.put('cafeCounter', (sa = L * t), sb, sf, 0.3)) break;
+    R.put('drinksFridge', sa + 6.6, sb, sf); R.put('drinksFridge', sa + 8.0, sb, sf); R.put('trayReturn', sa - 6.8, sb, sf); R.put('trayReturn', sa - 8.6, sb, sf); R.put('plant', sa + 9.2, sb, sf); R.put('plant', sa - 10, sb, sf);
+    for (let a = sa - 4; a <= sa + 4.1; a += 2.7) { const b = far ? W - 4.7 : 4.7; if (claim(a, b, 0.25)) loose('post', a, b, 0); }       // the queue's posts
+    // booths, end-on to the wall opposite and to one short wall
+    for (let a = 1.3; a < L - 1.2; a += 2.35) R.put('booth', a, bb, bf, 0.12);
+    for (let b = 4.2; b < W - 7; b += 2.35) R.put('booth', 0, far ? b : W - b, 'a+', 0.12);
+    // the machines, in a row on the other short wall, with a plant, a rack of trays and the water
+    let mb = far ? 3.4 : W - 3.4; const step = far ? 1.12 : -1.12;
+    for (let k = 0, n = 0; k < 12 && n < 5; k++, mb += step) if (R.put('vending', L, mb, 'a-', 0.08)) n++;
+    R.put('plant', L, mb + step * 0.4, 'a-'); R.put('trayRack', L, mb + step * 1.6, 'a-'); R.put('waterCooler', L, mb + step * 2.5, 'a-');
+    // long tables: a rank of them, each with its chairs, some left pulled out
+    const chairs = (n, at) => { for (let k = 0; k < n; k++) { const [a, b, yaw] = at(k); if (r() < 0.07) continue; const out = r() < 0.22 ? 0.18 + r() * 0.3 : 0, t = yaw + (out ? (r() - 0.5) * 1.1 : (r() - 0.5) * 0.16); loose('chair', a - Math.sin(yaw) * out + (r() - 0.5) * 0.06, b - Math.cos(yaw) * out + (r() - 0.5) * 0.06, t, { col: pick(r, SEAT) }); } };
+    const zb0 = far ? 4.4 : 7.4, zb1 = far ? W - 7.4 : W - 4.4;                                    // the floor the loose tables have, between the booths and the queue
+    for (let k = 0; k < 3; k++) {
+      const a = L * 0.72 + (r() - 0.5) * 1.2, b = zb0 + 1.0 + k * 3.4;
+      if (b > W / 2 - 3.0 || !R.put('refectory', a, b, 'b+', 0.9)) continue;
+      chairs(5, i => [a - 1.7 + i * 0.85, b - 0.42, 0]); chairs(5, i => [a - 1.7 + i * 0.85, b + 1.32, Math.PI]);
+      R.taken.push(R.rect(a - 2.3, a + 2.3, b - 0.9, b + 1.8));
+    }
+    // high tables with stools, towards the servery
+    for (let k = 0; k < 5; k++) { const a = L * 0.56 + k * 2.6 + (r() - 0.5) * 0.5, b = (far ? W / 2 + 3.6 : W / 2 - 3.6) + (r() - 0.5) * 1.4; if (!R.putC('highTable', a, b, 'b+', 0.6)) continue; const n = 2 + (r() < 0.5 ? 1 : 0), t0 = r() * TAU; for (let i = 0; i < n; i++) { const t = t0 + i * TAU / n + (r() - 0.5) * 0.5, d = 0.52 + r() * 0.12; loose('stool', a + Math.cos(t) * d, b + Math.sin(t) * d, r() * TAU); } R.taken.push(R.rect(a - 0.95, a + 0.95, b - 0.95, b + 0.95)); }
+    // round and square tables in loose groups, at whatever angle they were left
+    let tables = 0, seats = 0;
+    const group = (a0, a1, b0, b1, kinds, pitch) => {
+      for (let b = b0 + pitch / 2; b < b1 - 0.8; b += pitch) for (let a = a0 + pitch / 2 + (Math.round((b - b0) / pitch) % 2) * pitch * 0.35; a < a1 - 0.8; a += pitch) {
+        if (tables >= 42 || r() < 0.1) continue;
+        const ta = a + (r() - 0.5) * pitch * 0.42, tb = b + (r() - 0.5) * pitch * 0.42, kind = pick(r, kinds), big = kind === 'round4', hh = big ? 1.22 : 1.02;
+        if (!claim(ta, tb, hh)) continue;
+        const yaw = kind === 'square' ? (r() < 0.6 ? 0 : (r() - 0.5) * 1.2) : r() * TAU, top = pick(r, [0xb89b6e, 0xdedcd4, 0x4a3222, 0xd8c8a0, 0x8a9098]), col = r() < 0.55 ? pick(r, SEAT) : null;
+        loose(kind, ta, tb, yaw, { col: top }); tables++;
+        const n = big ? 4 : kind === 'square' ? (r() < 0.5 ? 4 : 2) : 2 + Math.floor(r() * 2.4), rad = (big ? 0.62 : 0.4) + 0.3;
+        for (let i = 0; i < n; i++) {
+          if (seats >= 104 || r() < 0.06) continue;
+          const t = (kind === 'square' ? yaw + Math.PI / 2 : yaw) + i * TAU / n, out = r() < 0.2 ? 0.2 + r() * 0.35 : 0, d = rad + out;
+          loose('chair', ta + Math.cos(t) * d, tb + Math.sin(t) * d, Math.atan2(-Math.cos(t), -Math.sin(t)) + (out ? (r() - 0.5) * 1.4 : (r() - 0.5) * 0.2), { col: col || pick(r, SEAT), ...(r() < 0.03 ? { tip: 1 } : {}) }); seats++;
+        }
+        if (r() < 0.3) { const [x, z] = R.xz(ta + 0.27, tb + 0.2); R.out.marks.push({ kind: 'coin', room: R.room.id, x, y: R.y, z }); }      // somebody's change, under the table
+      }
+    };
+    group(3.0, L * 0.47, zb0, W / 2 - 1.4, ['round', 'round', 'round4', 'square'], 2.55);
+    group(L * 0.5, L - 2.2, W / 2 + 1.6, zb1, ['square', 'square', 'round'], 2.5);
+    group(3.0, L * 0.47, W / 2 + 1.5, zb1, ['round', 'round4', 'round4', 'square'], 2.7);
+    group(L * 0.47, L - 2.2, zb0, W / 2 - 1.4, ['round', 'square'], 2.5);
+    // a stack of spare chairs by the wall, bins, a coffee cart, planters between the groups
+    for (const [a, b] of [[2.6, zb1 + 0.9], [3.4, zb1 + 1.0]]) if (claim(a, b, 0.3)) for (let k = 0; k < 3; k++) loose('chair', a, b, 0.2, { col: SEAT[2], up: k * 0.13 });
+    for (const [fa, fb] of [[0.3, 0.44], [0.72, 0.56], [0.12, 0.6], [0.9, 0.42]]) { const a = L * fa + (r() - 0.5), b = W * fb + (r() - 0.5); if (claim(a, b, 0.24)) loose('bin', a, b, 0); }
+    for (const t of [0.2, 0.3, 0.12]) if (R.putC('coffeeCart', L * t, far ? W - 3.6 : 3.6, sf, 0.4)) break;
+    for (const [fa, fb] of [[0.48, 0.3], [0.48, 0.72]]) R.putC('planter', L * fa, W * fb, 'a+', 0.3);
+    // and loose change on the floor where it rolled
+    for (let k = 0, n = 0; k < 80 && n < 10; k++) { const a = 1.5 + r() * (L - 3), b = 1.5 + r() * (W - 3), q = R.rect(a - 0.12, a + 0.12, b - 0.12, b + 0.12); if (R.taken.some(c => q.x0 < c.x1 && q.x1 > c.x0 && q.z0 < c.z1 && q.z1 > c.z0)) continue; const [x, z] = R.xz(a, b); R.out.marks.push({ kind: 'coin', room: R.room.id, x, y: R.y, z }); n++; }
   },
   terrace(R) {
     R.grid(['cafeTable', 1.9, { outdoor: true }], { da: 4.2, db: 3.4, face: 'a+', rows: 1, skip: 0.3 });
@@ -587,6 +652,63 @@ const OPTS = {
   varnishing: { keepEnd: 2.4 }, paintShop: { keepEnd: 2.4 }, xray: { keepEnd: 4.8 }, projectionBooth: { keepEnd: 2.0 }, coatStore: { keepEnd: 2.6 }, canteen: { keepEnd: 2.6 },
   lectureRoom: { keepEnd: 2.0 }, auditorium: { keepEnd: 3.4 }, auditoriumBalcony: { keepEnd: 0.4 }, stage: { keepEnd: 0.4 }, shop: { keepEnd: 2.6 }, restaurant: { keepEnd: 2.6 }, cafe: { keepEnd: 2.6 }, foyer: { keepEnd: 2.4 },
 };
+
+// ----------------------------------------------------------------- finish --
+//
+// What makes a back room read as a room and not as the inside of a box: a ceiling of tiles in a darker tone than
+// the walls, a shadow gap where it meets them, a skirting, and the lower wall painted a second colour up to a rail.
+// (The lit panels in the ceiling are src/lights.js's; this sits a hair above them.) Everything is kept a few
+// centimetres inside the room, so that every corner of it belongs to this room when the lights are worked out.
+const NO_FINISH = /^(auditorium|auditoriumBalcony|stage|foyer|loadingDock|terrace|x[A-Z])/;
+const DADO = [0xa3b0bc, 0xaebaa8, 0xc0ae96, 0x98acc2, 0xbcb39a, 0xb4a4b0];
+function cut(rect, holes) {
+  let out = [rect];
+  for (const h of holes) {
+    const next = [];
+    for (const q of out) {
+      if (h.x0 >= q.x1 || h.x1 <= q.x0 || h.z0 >= q.z1 || h.z1 <= q.z0) { next.push(q); continue; }
+      if (h.x0 > q.x0) next.push({ x0: q.x0, x1: h.x0, z0: q.z0, z1: q.z1 }); if (h.x1 < q.x1) next.push({ x0: h.x1, x1: q.x1, z0: q.z0, z1: q.z1 });
+      const a = Math.max(q.x0, h.x0), b = Math.min(q.x1, h.x1);
+      if (h.z0 > q.z0) next.push({ x0: a, x1: b, z0: q.z0, z1: h.z0 }); if (h.z1 < q.z1) next.push({ x0: a, x1: b, z0: h.z1, z1: q.z1 });
+    }
+    out = next;
+  }
+  return out;
+}
+function finish(R, recipe) {
+  const r = R.room, plan = R.plan;
+  if (r.kind !== 'room' || r.secret || r.use === 'secret' || NO_FINISH.test(recipe) || r.h < 2.7 || r.h > 6 || r.x1 - r.x0 < 1.6 || r.z1 - r.z0 < 1.6) return;
+  const I = 0.04, x0 = r.x0 + I, x1 = r.x1 - I, z0 = r.z0 + I, z1 = r.z1 - I, y = r.y, top = y + r.h, m = R.batch('matte');
+  const lap = (q, g) => q.x0 - g < r.x1 && q.x1 + g > r.x0 && q.z0 - g < r.z1 && q.z1 + g > r.z0, grow = (q, g) => ({ x0: q.x0 - g, x1: q.x1 + g, z0: q.z0 - g, z1: q.z1 + g });
+  const holes = [];
+  for (const k of plan.wells || []) if (k.y > y + 1 && k.y < top + 1.7 && lap(k, 0)) holes.push(grow(k, 0.06));
+  for (const s of plan.surfaces || []) { if (s.hill || !lap(s, 0)) continue; const lo = s.lift ? s.lift.stops[0] : Math.min(s.h0, s.h1) - (s.thick || 0), hi = s.lift ? s.lift.stops[s.lift.stops.length - 1] : Math.max(s.h0, s.h1); if (!(hi > top - 0.6 && lo < top)) continue;
+    const q = grow(s, 0.06);
+    if (!s.lift && (s.axis === 'x' || s.axis === 'z') && s.h0 !== s.h1) {              // a slope: from where it is within a car's height of the ceiling, up
+      const a0 = s.axis === 'x' ? s.x0 : s.z0, a1 = s.axis === 'x' ? s.x1 : s.z1, t = Math.max(0, Math.min(1, (top - 1.1 - s.h0) / (s.h1 - s.h0))), at = a0 + (a1 - a0) * t;
+      if (s.h1 > s.h0) q[s.axis + '0'] = at - 0.06; else q[s.axis + '1'] = at + 0.06;
+    }
+    holes.push(q); }
+  // the ceiling, and the grid its tiles hang in
+  const tone = [0x4b4f55, 0x53514c, 0x464c52][hash(r.id) % 3];
+  for (const q of cut({ x0, x1, z0, z1 }, holes)) m.box(q.x0, q.x1, top - 0.012, top - 0.006, q.z0, q.z1, tone, true);
+  const w = x1 - x0, d = z1 - z0, pitch = Math.max(1.2, Math.max(w, d) / 30);
+  if (w * d > 9) {
+    for (let x = x0 + (w % pitch) / 2 + pitch / 2; x < x1 - 0.3; x += pitch) for (const q of cut({ x0: x - 0.018, x1: x + 0.018, z0, z1 }, holes)) m.box(q.x0, q.x1, top - 0.02, top - 0.013, q.z0, q.z1, 0x8b9096, true);
+    for (let z = z0 + (d % pitch) / 2 + pitch / 2; z < z1 - 0.3; z += pitch) for (const q of cut({ x0, x1, z0: z - 0.018, z1: z + 0.018 }, holes)) m.box(q.x0, q.x1, top - 0.02, top - 0.013, q.z0, q.z1, 0x8b9096, true);
+  }
+  // round the walls: the shadow at the top, and below it the skirting, the painted lower wall and its rail, broken at each doorway
+  const doors = plan.doorsOf(r.id).filter(dd => dd.y < y + 1.2 && dd.y > y - 0.5), dado = DADO[(hash(r.id) >>> 3) % DADO.length], low = r.h > 3.2 ? 1.0 : 0.85;
+  const runs = (lo, hi, spans) => { const out = []; let a = lo; for (const [p, q] of spans.sort((s, t) => s[0] - t[0])) { if (p - a > 0.05) out.push([a, Math.min(p, hi)]); a = Math.max(a, q); } if (hi - a > 0.05) out.push([a, hi]); return out; };
+  for (const side of ['n', 's', 'w', 'e']) {
+    const alongX = side === 'n' || side === 's', at = side === 'n' ? z0 : side === 's' ? z1 : side === 'w' ? x0 : x1, sg = side === 'n' || side === 'w' ? 1 : -1, lo = alongX ? x0 : z0, hi = alongX ? x1 : z1;
+    const wall = side === 'n' ? r.z0 : side === 's' ? r.z1 : side === 'w' ? r.x0 : r.x1;
+    const B = (a, b, ya, yb, dep, hex) => { const p = Math.min(at, at + sg * dep), q = Math.max(at, at + sg * dep); alongX ? m.box(a, b, y + ya, y + yb, p, q, hex, true) : m.box(p, q, y + ya, y + yb, a, b, hex, true); };
+    B(lo, hi, r.h - 0.2, r.h - 0.02, 0.06, 0x1b1d21);
+    const spans = doors.filter(dd => (alongX ? dd.along !== 'x' : dd.along === 'x') && Math.abs((alongX ? (dd.z0 + dd.z1) / 2 : (dd.x0 + dd.x1) / 2) - wall) < 0.8).map(dd => (alongX ? [dd.x0 - 0.1, dd.x1 + 0.1] : [dd.z0 - 0.1, dd.z1 + 0.1]));
+    for (const [a, b] of runs(lo, hi, spans)) { B(a, b, 0, 0.11, 0.07, 0x3c3f45); B(a, b, 0.11, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); }      // (proud enough to stand clear of a wall that is itself built a little way in)
+  }
+}
 
 // ---------------------------------------------------------------- colours --
 
@@ -821,7 +943,83 @@ def('kitchenette', 1.8, 0.6, (g, w, r) => {
 def('fridge', 0.75, 0.75, (g, w, r) => { g.bs(-0.36, 0.36, 0, 1.95, 0, 0.72, C.steelL, 'metal'); g.b(-0.36, 0.36, 0.72, 0.735, 0.72, 0.724, C.steelD); for (const y of [0.9, 0.45]) g.b(0.26, 0.29, y, y + 0.4, 0.72, 0.76, C.steel, 'metal', true); });
 def('toolchest', 0.9, 0.5, (g, w, r) => { g.bs(-0.45, 0.45, 0.1, 1.0, 0, 0.5, C.red, 'metal'); for (let y = 0.2; y < 0.98; y += 0.13) g.b(-0.4, 0.4, y, y + 0.02, 0.5, 0.51, C.steelL, 'metal'); castors(g, -0.45, 0.45, 0, 0.5); g.b(-0.45, 0.45, 1.0, 1.25, 0.05, 0.45, C.red, 'metal', true); g.s(-0.45, 0.45, 0, 1.25, 0, 0.5); });
 def('waterCooler', 0.4, 0.4, g => { g.bs(-0.17, 0.17, 0, 1.0, 0.03, 0.37, C.white); g.c(0, 1.2, 0.2, 0.13, 0.4, 'y', C.blueL, 'matte', 8); g.s(-0.17, 0.17, 1, 1.4, 0.03, 0.37); });
-def('vending', 0.95, 0.85, (g, w, r) => { g.bs(-0.47, 0.47, 0, 1.85, 0, 0.8, pick(r, [C.red, C.blue, C.black])); g.b(-0.4, 0.2, 0.6, 1.75, 0.8, 0.805, 0x8a98a8, 'glow'); for (let y = 0.7; y < 1.7; y += 0.25) for (let u = -0.36; u < 0.14; u += 0.13) g.b(u, u + 0.09, y, y + 0.16, 0.805, 0.81, pick(r, MERCH), 'glow'); g.b(0.26, 0.42, 1.1, 1.4, 0.8, 0.805, C.steelD); });
+// A vending machine. The cabinet is drawn here; what is in it (the cans, the glass, the name over the top) and
+// what happens when you pull up to it are src/vending.js, which is told where each one stands.
+def('vending', 0.95, 0.85, (g, w, r) => {
+  const c = pick(r, [0xb3261e, 0x1f4f9a, 0x1c1d21, 0x1f6b4a, 0xd98a14]), d0 = 0.5, d1 = 0.8;
+  g.b(-0.47, 0.47, 0.06, 1.85, 0, d0, c); g.b(-0.47, -0.42, 0.06, 1.85, d0, d1, c); g.b(0.18, 0.47, 0.06, 1.85, d0, d1, c);         // back, left cheek, the column the keypad is on
+  g.b(-0.42, 0.18, 1.7, 1.85, d0, d1, c); g.b(-0.42, 0.18, 0.06, 0.52, d0, d1, c); g.b(-0.47, 0.47, 1.85, 1.88, -0.0, d1 + 0.02, C.steelD, 'metal', true);
+  for (const u of [-0.4, 0.4]) for (const d of [0.08, 0.72]) g.b(u - 0.04, u + 0.04, 0, 0.06, d - 0.04, d + 0.04, C.black);       // feet
+  g.b(-0.42, 0.18, 0.52, 1.7, d0, d0 + 0.006, 0x333a44, 'glow');                                                               // the lit back of the case
+  for (const u of [-0.415, 0.172]) g.b(u, u + 0.008, 0.54, 1.68, d0 + 0.02, d1 - 0.03, 0xaab6c4, 'glow');                       // a tube up each side
+  for (const y of [0.6, 0.97, 1.34]) { g.b(-0.42, 0.18, y - 0.02, y, d0, d1 - 0.05, C.steelL, 'metal', true); g.b(-0.42, 0.18, y - 0.05, y - 0.02, d1 - 0.06, d1 - 0.05, C.steelD, 'metal'); }
+  g.b(-0.36, 0.12, 0.18, 0.4, d1, d1 + 0.004, C.black); g.b(-0.37, 0.13, 0.4, 0.43, d1, d1 + 0.02, C.steelL, 'metal', true);       // the flap it comes out of
+  g.b(-0.3, 0.06, 0.2, 0.23, d1 + 0.004, d1 + 0.008, C.steelD, 'metal');
+  g.b(0.22, 0.43, 1.42, 1.54, d1, d1 + 0.005, 0x1c5a3a, 'glow');                                                               // the little screen
+  for (let i = 0; i < 12; i++) g.b(0.235 + (i % 3) * 0.065, 0.28 + (i % 3) * 0.065, 1.3 - Math.floor(i / 3) * 0.06, 1.34 - Math.floor(i / 3) * 0.06, d1, d1 + 0.008, i === 11 ? C.led : i === 9 ? C.ledR : C.steelL, 'metal');
+  g.b(0.25, 0.4, 0.94, 1.04, d1, d1 + 0.006, C.steelL, 'metal'); g.b(0.315, 0.335, 0.955, 1.025, d1 + 0.006, d1 + 0.008, C.black);       // coins
+  g.b(0.24, 0.41, 0.8, 0.86, d1, d1 + 0.006, C.black); g.b(0.25, 0.4, 0.822, 0.836, d1 + 0.006, d1 + 0.008, C.ledB, 'glow');             // notes
+  g.b(0.26, 0.39, 0.6, 0.7, d1, d1 + 0.012, C.steelD, 'metal'); g.b(0.28, 0.37, 0.56, 0.6, d1, d1 + 0.03, C.steelL, 'metal', true);       // change
+  g.s(-0.47, 0.47, 0, 1.88, 0, d1);
+  g.mark('vending', 0, d1, 0, { colour: c });
+});
+
+// ---- the café ----
+def('column', 0.56, 0.56, g => { g.bs(-0.26, 0.26, 0, g.H, 0.02, 0.54, 0xb9b6ad); g.b(-0.28, 0.28, 0, 0.14, 0, 0.56, C.steelD); g.b(-0.27, 0.27, 0.14, 1.0, 0.01, 0.55, 0x7c8690); g.b(-0.285, 0.285, 1.0, 1.04, -0.005, 0.565, C.steelL, 'metal'); g.b(-0.29, 0.29, g.H - 0.22, g.H, -0.01, 0.57, 0x8f8c84); });
+def('booth', 2.1, 1.75, (g, w, r) => {                                  // two benches with high backs and a table between, end-on to the wall
+  const c = pick(r, [C.leather, C.velvet, C.greenD, 0x2c4460, 0x8a4a1c]), t = pick(r, [C.woodL, C.white, C.woodD]);
+  for (const sg of [-1, 1]) {
+    const u0 = sg < 0 ? -1.03 : 0.45, u1 = u0 + 0.58, ub = sg < 0 ? -1.03 : 0.91;
+    g.bs(u0, u1, 0, 0.44, 0.02, 1.6, c); g.b(u0 + 0.02, u1 - 0.02, 0.44, 0.5, 0.04, 1.58, c, 'matte', true);
+    g.bs(ub, ub + 0.12, 0, 1.25, 0.02, 1.6, c); g.b(ub - 0.01, ub + 0.13, 1.25, 1.29, 0.01, 1.61, C.woodD, 'matte', true);
+  }
+  g.b(-0.4, 0.4, 0.71, 0.75, 0.02, 1.45, t, 'matte', true); g.bs(-0.05, 0.05, 0, 0.71, 0.7, 0.8, C.steelD, 'metal'); g.b(-0.2, 0.2, 0, 0.03, 0.55, 0.95, C.steelD, 'metal'); g.s(-0.4, 0.4, 0.66, 0.78, 0.02, 1.45);
+  g.b(-0.38, 0.38, 1.3, 1.7, 0, 0.02, pick(r, PAINT)); g.c(0, 1.98, 0.75, 0.16, 0.2, 'y', C.woodD, 'matte', 8); g.c(0, 1.875, 0.75, 0.13, 0.012, 'y', C.lamp, 'glow', 8); g.c(0, 2.08 + Math.max(0.1, g.H - 2.1) / 2, 0.75, 0.008, Math.max(0.1, g.H - 2.1), 'y', C.black, 'matte', 4);
+  if (r() < 0.6) g.c(0.2 * (r() - 0.5), 0.8, 0.3 + r() * 0.8, 0.035, 0.1, 'y', C.white, 'matte', 6); if (r() < 0.4) g.q(-0.15, 1.0, 0.3, 0.22, 0.75, 0.765, C.orange);
+});
+def('refectory', 4.4, 0.9, (g, w, r) => {                               // a long table, too heavy to shift; the chairs along it are not
+  const e = w / 2, t = pick(r, [C.woodL, C.pine, C.woodD]);
+  g.b(-e, e, 0.69, 0.75, 0, 0.9, t, 'matte', true); g.b(-e + 0.2, e - 0.2, 0.6, 0.69, 0.1, 0.8, C.woodD, 'matte', true);
+  for (const u of [-e + 0.35, e - 0.35]) { g.bs(u - 0.05, u + 0.05, 0, 0.69, 0.12, 0.78, C.woodD); g.b(u - 0.07, u + 0.07, 0, 0.05, 0.04, 0.86, C.woodD); }
+  g.b(-e + 0.4, e - 0.4, 0.22, 0.28, 0.41, 0.49, C.woodD, 'matte', true); g.s(-e, e, 0.6, 0.78, 0, 0.9);
+  for (let u = -e + 0.5; u < e - 0.3; u += 0.9 + r() * 0.5) { const k = r(); if (k < 0.3) g.c(u, 0.8, 0.3 + r() * 0.3, 0.035, 0.1, 'y', C.white, 'matte', 6); else if (k < 0.5) g.q(u, 0.45, 0.42, 0.3, 0.75, 0.765, pick(r, [C.orange, C.fabric, C.cream])); else if (k < 0.6) g.c(u, 0.83, 0.45, 0.05, 0.16, 'y', C.glass, 'matte', 6); }
+});
+def('highTable', 0.7, 0.7, (g, w, r) => { g.c(0, 1.05, 0.35, 0.33, 0.04, 'y', pick(r, [C.woodD, C.white, C.black]), 'matte', 12); g.c(0, 0.52, 0.35, 0.035, 1.02, 'y', C.steelL, 'metal', 6); g.c(0, 0.015, 0.35, 0.25, 0.03, 'y', C.steelD, 'metal', 10); g.c(0, 0.3, 0.35, 0.16, 0.02, 'y', C.steelL, 'metal', 8); g.s(-0.05, 0.05, 0, 1.03, 0.3, 0.4); g.s(-0.33, 0.33, 1.0, 1.1, 0.02, 0.68); });
+def('cafeCounter', 11, 3.1, (g, w, r) => {                              // the servery: back counter, the counter you queue along with its tray rail, tills, a cold case, the menu overhead
+  const e = w / 2, f0 = 1.9, f1 = 2.6;
+  g.bs(-e, e, 0, 0.9, 0, 0.65, C.steelL, 'metal'); g.b(-e, e, 0.9, 0.93, 0, 0.68, C.steelD, 'metal', true); g.b(-e, e, 0.93, 1.5, 0, 0.02, C.enamel);
+  for (let u = -e + 0.1; u < e - 0.5; u += 1.3) g.b(u, u + 1.2, 0.08, 0.84, 0.65, 0.655, C.steel, 'metal');
+  g.b(-e, e, 1.55, 1.58, 0, 0.36, C.steelL, 'metal', true); fill(g, -e + 0.05, e - 0.05, 1.58, 0, 0.36, 0.34, r, 'crockery'); fill(g, -e + 0.05, e - 2.4, 0.93, 0.04, 0.6, 0.4, r, 'pots');
+  g.qs(e - 1.6, 0.34, 0.5, 0.5, 0.93, 1.5, C.steelD, 'metal'); g.c(e - 1.6, 1.56, 0.34, 0.2, 0.12, 'y', C.steelL, 'metal', 10); for (const du of [-0.14, 0.14]) g.c(e - 1.6 + du, 1.12, 0.62, 0.02, 0.1, 'd', C.black, 'matte', 6);       // the coffee machine
+  g.qs(e - 0.75, 0.34, 0.4, 0.4, 0.93, 1.38, C.black); g.c(e - 0.75, 1.5, 0.34, 0.14, 0.24, 'y', C.glass, 'matte', 8);                 // a grinder
+  g.s(-e, e, 0.9, 1.95, 0, 0.4);
+  g.bs(-e, e, 0, 0.9, f0, f1, C.woodD); for (let u = -e + 0.15; u < e - 0.2; u += 0.55) g.b(u, u + 0.42, 0.1, 0.82, f1, f1 + 0.012, C.wood);
+  g.b(-e - 0.04, e + 0.04, 0.9, 0.94, f0 - 0.06, f1 + 0.06, 0x2b2d31, 'matte', true);
+  for (const d of [f1 + 0.16, f1 + 0.26, f1 + 0.36]) g.b(-e, e, 0.84, 0.86, d - 0.012, d + 0.012, C.steelL, 'metal', true); for (let u = -e + 0.2; u < e; u += 1.5) g.b(u - 0.015, u + 0.015, 0.8, 0.84, f1, f1 + 0.38, C.steelD, 'metal', true);         // the tray rail
+  g.b(-e + 0.3, -e + 4.3, 0.94, 1.42, f0 + 0.06, f1 - 0.06, C.glass, 'matte', true); g.b(-e + 0.3, -e + 4.3, 1.42, 1.45, f0 + 0.02, f1 - 0.02, C.steelL, 'metal', true); g.b(-e + 0.32, -e + 4.28, 1.4, 1.415, f0 + 0.08, f1 - 0.08, 0xf2f6ff, 'glow');
+  g.b(-0.6, 1.9, 0.94, 0.99, f0 + 0.08, f1 - 0.08, C.steelL, 'metal', true); for (let u = -0.4; u < 1.8; u += 0.55) g.q(u, f0 + 0.35, 0.44, 0.4, 0.99, 1.0, pick(r, [0x8a4a1c, 0xc8a040, 0x5c7a3a, 0xa02c22]));      // the hot plates
+  g.b(-0.6, 1.9, 1.5, 1.54, f0 + 0.1, f1 - 0.1, C.steelL, 'metal', true); for (const u of [-0.58, 1.88]) g.b(u - 0.02, u + 0.02, 0.99, 1.5, f0 + 0.32, f0 + 0.38, C.steelD, 'metal'); g.b(-0.5, 1.8, 1.47, 1.5, f0 + 0.2, f1 - 0.2, 0xffd9a0, 'glow');
+  for (const u of [e - 2.6, e - 1.0]) { g.q(u, f0 + 0.35, 0.36, 0.34, 0.94, 1.08, C.black); g.b(u - 0.15, u + 0.15, 1.1, 1.34, f0 + 0.3, f0 + 0.33, C.black, 'matte', true); g.b(u - 0.13, u + 0.13, 1.12, 1.32, f0 + 0.33, f0 + 0.334, C.screen, 'glow'); g.q(u + 0.32, f0 + 0.5, 0.1, 0.16, 0.94, 1.0, C.steelD); }       // tills
+  g.c(e - 0.2, 1.02, f0 + 0.35, 0.09, 0.16, 'y', C.woodL, 'matte', 8);
+  g.s(-e, e, 0.9, 1.5, f0, f1);
+  const my = Math.min(g.H - 0.95, 2.3); g.b(-e, e, my, my + 0.8, 0.0, 0.07, C.black);                                        // the menu, lit, over the back counter
+  for (let u = -e + 0.25; u < e - 1.2; u += 1.55) { g.b(u, u + 1.35, my + 0.08, my + 0.72, 0.07, 0.075, 0x2a2c2e, 'glow'); for (let k = 0; k < 6; k++) g.b(u + 0.1, u + 0.5 + r() * 0.6, my + 0.14 + k * 0.095, my + 0.165 + k * 0.095, 0.075, 0.078, k === 5 ? 0xffc864 : 0xe8e4d8, 'glow'); }
+});
+def('drinksFridge', 1.3, 0.75, (g, w, r) => {
+  g.bs(-0.63, 0.63, 0, 2.0, 0, 0.7, C.black); g.b(-0.58, 0.58, 0.14, 1.72, 0.7, 0.705, 0x66727e, 'glow'); g.b(-0.02, 0.02, 0.1, 1.76, 0.705, 0.72, C.steelD, 'metal'); g.b(-0.6, 0.6, 1.78, 1.96, 0.7, 0.705, 0x2a6ea8, 'glow');
+  for (let y = 0.2; y < 1.6; y += 0.3) { g.b(-0.58, 0.58, y - 0.014, y, 0.705, 0.71, C.steelD, 'metal'); const c = pick(r, MERCH); for (let u = -0.54; u < 0.5; u += 0.085) if (Math.abs(u) > 0.04) g.b(u, u + 0.06, y, y + 0.17 + r() * 0.05, 0.706, 0.712, r() < 0.75 ? c : pick(r, MERCH)); }
+  for (const u of [-0.08, 0.08]) g.b(u - 0.012, u + 0.012, 0.8, 1.2, 0.72, 0.745, C.steelL, 'metal');
+});
+def('trayReturn', 1.5, 0.7, (g, w, r) => {
+  for (const u of [-0.72, 0.72]) for (const d of [0.04, 0.64]) g.q(u, d, 0.03, 0.03, 0.1, 1.85, C.steelL, 'metal'); g.b(-0.74, 0.74, 1.85, 1.88, 0.02, 0.66, C.steelL, 'metal', true);
+  for (let y = 0.3; y < 1.8; y += 0.14) { g.b(-0.7, 0.7, y, y + 0.012, 0.05, 0.63, C.steelL, 'metal', true); if (r() < 0.65) { g.b(-0.66, -0.04, y + 0.012, y + 0.03, 0.08, 0.6, pick(r, [C.fabric, C.orange, C.cream])); if (r() < 0.6) g.c(-0.4, y + 0.05, 0.3, 0.09, 0.03, 'y', C.white, 'matte', 8); } if (r() < 0.5) g.b(0.04, 0.66, y + 0.012, y + 0.03, 0.08, 0.6, pick(r, [C.fabric, C.orange, C.cream])); }
+  castors(g, -0.74, 0.74, 0.02, 0.66); g.b(-0.5, 0.5, 1.95, 2.2, 0, 0.02, C.green); g.s(-0.74, 0.74, 0, 1.88, 0.02, 0.66);
+});
+def('coffeeCart', 1.6, 0.9, (g, w, r) => {
+  g.bs(-0.75, 0.75, 0.22, 0.95, 0.1, 0.8, 0x2a4a3a); g.b(-0.8, 0.8, 0.95, 0.99, 0.05, 0.85, C.woodL, 'matte', true); for (const u of [-0.6, 0.6]) { g.c(u, 0.22, 0.45, 0.22, 0.05, 'u', C.black, 'matte', 12); g.c(u, 0.22, 0.45, 0.06, 0.07, 'u', C.steelL, 'metal', 6); }
+  g.q(-0.3, 0.45, 0.5, 0.4, 0.99, 1.4, C.steelL, 'metal'); g.c(0.35, 1.07, 0.4, 0.07, 0.16, 'y', C.white, 'matte', 6); g.c(0.52, 1.07, 0.45, 0.07, 0.16, 'y', C.white, 'matte', 6); g.q(0.4, 0.68, 0.3, 0.14, 0.99, 1.08, C.woodD);
+  for (const u of [-0.76, 0.76]) g.c(u, 1.55, 0.45, 0.018, 1.12, 'y', C.steelD, 'metal', 5); g.b(-0.95, 0.95, 2.1, 2.14, -0.1, 1.0, 0x8a2a22, 'matte', true); g.b(-0.95, 0.95, 1.96, 2.1, 0.98, 1.0, C.cream); g.b(-0.4, 0.4, 0.4, 0.8, 0.8, 0.806, 0x1e1f22); g.s(-0.8, 0.8, 0.9, 2.14, 0.05, 0.85);
+});
 
 // ---- books and paper ----
 def('shelf', 1.2, 0.5, (g, w, r, o = {}) => {                           // steel shelving, open both sides
@@ -1706,6 +1904,7 @@ export function furnish(plan) {
     if (recipe === 'xBrief') { const at = extra(R, 'arcade'); if (at) plan.bonusArcade = at; }           // one more monitor, where nobody was meant to find it
     // A whiteboard with something written on it goes up before the furniture, in the middle of whichever wall has room, so that it is not behind a bookcase.
     if (!room.secret) for (const id of boards[room.id] || []) writtenBoard(R, id);
+    finish(R, recipe);
     RECIPES[recipe](R);
     // A room somebody has left a whiteboard written on gets a board to carry it, if the recipe has not hung one (or enough) already.
     for (const id of boards[room.id] || []) {

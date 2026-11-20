@@ -35,6 +35,8 @@ import { Lights } from './lights.js';
 import { Repair } from './repair.js';
 import { Whiteboards } from './whiteboards.js';
 import { Secret } from './secret.js';
+import { Loose } from './loose.js';
+import { Vending } from './vending.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -175,6 +177,7 @@ async function boot() {
 
   G.car = new Car(plan);
   G.drone = new Drone(plan);
+  garage.toys = { car: G.car, drone: G.drone }; garage.recoat();      // whatever colour was last sprayed on it (vending.js)
   scene.add(G.car.group, G.car.shadow, G.drone.group, G.drone.shadow);
   // One real lamp, moved to whichever toy is in use, so swapping never recompiles a shader.
   G.lamp = G.car.lamp;
@@ -191,6 +194,10 @@ async function boot() {
   // The stall beside the card table: two toys for sale, for chips won at it (src/shop.js).
   G.shop = new Shop(G, { museum: G.museum, plan, garage, poker: G.poker, sound, stage, resume: () => act('resume'), thumb: id => garage.thumbs[id],
     onBuy: v => { garage.sel[v.kind] = v.id; garage.shown = v.id; garage.save(); garage.apply(G.car, G.drone); tm.event('buy', v.id); } });
+  // The café: furniture that can be knocked about (src/loose.js), and the machines that sell paint (src/vending.js).
+  G.loose = new Loose(G.museum, plan, sound); scene.add(G.loose.group);
+  G.vending = new Vending(G, { museum: G.museum, plan, garage, poker: G.poker, sound, stage, resume: () => act('resume'), callout, secrets, trophies, onBuy: p => tm.event('paint-can', p.id) });
+  if (G.vending.list.length) secrets.add('vending', 'The vending machines');
   G.hockey = new Hockey(G.museum, plan, sound);
   G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.arcade = new Arcade(G.museum, plan, sound);            // the monitors with games on them (src/arcade.js)
@@ -286,7 +293,7 @@ function start(mode, fresh = false) {
   G.allLit = false;
   G.resultsAt = 0;
   endFlyby();
-  G.props.reset();
+  G.props.reset(); if (G.loose) G.loose.reset(); if (G.vending) G.vending.reset();
   G.museum.winter.clear();
   G.museum.showHoops(mode !== 'race');
   prev.set(0, -99, 0);
@@ -1028,6 +1035,7 @@ function play(dt, real) {
   if (racing) for (const b of R.bots) movers.push({ x: b.x, y: b.y || 0, z: b.z, vx: (b.x - (b.px ?? b.x)) / Math.max(dt, 1e-3), vz: (b.z - (b.pz ?? b.z)) / Math.max(dt, 1e-3), r: 0.19 });
   if (racing) for (const b of R.bots) { b.px = b.x; b.pz = b.z; }
   if (!racing) G.props.update(dt, movers);
+  if (!racing && G.loose) G.loose.update(dt, movers, v);
   if (!racing) { G.hockey.update(dt, v); const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 18) once('pond', 'A pond, frozen hard, with a goal at each end and a puck in the middle. Somebody is waiting for a game.', 7); }
   // Outdoors: tyre tracks, and a word about whatever sculpture you have just come up to.
   G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && (v.on ? v.on.hill : Math.abs(v.pos.y) < 0.03) ? v : null, set.reduce);
@@ -1118,6 +1126,7 @@ function play(dt, real) {
     const paintNear = !!G.paint && G.mode === 'explore' && G.paint.near(v), frameNear = !!G.paint && !paintNear && G.mode === 'explore' && !G.facing && G.paint.facing(v);
     const paintTap = (paintNear || frameNear) && input.took('look');
     const simonNear = !!G.simon && G.mode === 'explore' && G.simon.near(v), simonTap = simonNear && input.took('look');
+    const vendNear = G.vending && G.mode === 'explore' ? G.vending.near(v) : null, vendTap = !!vendNear && input.took('look');      // a vending machine (vending.js)
     const giftNear = G.presents && G.mode === 'explore' ? G.presents.near(v) : null, giftTap = giftNear != null && input.took('look');
     // The conservation line's bench, and the light switches (src/repair.js, src/lights.js). A switch is the last thing to have the button:
     // after anything you have pulled up to, and after a picture to look at, unless the toy's nose is plainly at the plate.
@@ -1151,6 +1160,7 @@ function play(dt, real) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
       if (shopTap) G.shop.open();
     }
+    if (vendNear) { once('vend', 'A vending machine, lit up. It sells spray paint, for chips. E to look.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'VEND'; if (vendTap) G.vending.open(vendNear); }
     if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
     if (giftNear != null) { once('parcel', 'A parcel with nobody\u2019s name on it. E to open it.', 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'OPEN'; if (giftTap) { const what = G.presents.open(giftNear); tm.event('present', what); } }
     { const st = G.roomId && G.museum.rooms[G.roomId]; if (st && st.room.kind === 'room' && !st.room.passage && st.sw !== true && G.mode === 'explore') once('dark', 'Dark in here. There is a light switch by the door: pull up to it.', 8); }
@@ -1335,6 +1345,7 @@ function tick(now) {
   if (G.shop && G.state !== 'results') G.shop.update(dt);
   if (G.museum && G.museum.trains && G.state !== 'paused') G.museum.trains.update(dt, G, sound, secrets);      // the railway (railway.js)
   if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
+  if (G.vending && G.state !== 'results') G.vending.update(dt, G.t);
   if (G.presents) G.presents.update(dt);
   if (G.paint && G.paint.on) G.paint.update();
   // Jingle Bells from the courtyard tree, louder as you come nearer.

@@ -20,7 +20,7 @@ export function buildCar(colour = 0xd2261c) {
   const g = new THREE.Group();
   const body = new THREE.Group();
   g.add(body);
-  const paint = std(colour, { roughness: 0.3, emissive: colour, emissiveIntensity: 0.12 });
+  const paint = std(colour, { roughness: 0.3, emissive: colour, emissiveIntensity: 0.12 }); paint.name = 'paint';      // (the one a can of paint goes on: src/garage.js)
   const black = std(0x0c0c0e, { roughness: 0.7 });
   const trim = std(0xf3c21b, { roughness: 0.4, emissive: 0xf3c21b, emissiveIntensity: 0.15 });
 
@@ -473,7 +473,7 @@ export function buildDrone(colour = 0xe9e6df) {
   const g = new THREE.Group();
   const body = new THREE.Group();
   g.add(body);
-  const shell = std(colour, { roughness: 0.35, emissive: colour, emissiveIntensity: 0.1 });
+  const shell = std(colour, { roughness: 0.35, emissive: colour, emissiveIntensity: 0.1 }); shell.name = 'paint';
   const dark = std(0x121316, { roughness: 0.6 });
   part(new THREE.BoxGeometry(0.1, 0.04, 0.16), shell, 0, 0, 0, body);
   part(new THREE.BoxGeometry(0.07, 0.02, 0.1), dark, 0, 0.03, -0.01, body);
