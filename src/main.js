@@ -97,7 +97,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.24';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.25';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -327,7 +327,7 @@ function start(mode, fresh = false) {
     G.outsideSince = G.t; G.hinted = 0;
     sound.musicOn = true;
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
-    else say(G.toy === 'drone' ? 'Locked. But the window over the doors is open: fly in.' : 'Locked. But the air vent just left of the doors is open: drive in.', 3.5, 9);
+    else say(G.toy === 'drone' ? 'Locked. But the air vent just left of the doors is open: fly in low.' : 'Locked. But the air vent just left of the doors is open: drive in.', 3.5, 9);
     if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : (set.autogo ? 'Hold your left thumb down to go. Slide it to steer. Let go to stop. Pull back to back up.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.'), 7.5, 8);
     if (!input.usedTouch) say(G.toy === 'drone'
       ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
@@ -357,7 +357,7 @@ function unlocked() { try { return localStorage.getItem(IN) === '1'; } catch { r
 function wayIn() {
   const v = G.vehicle, P = G.plan, x = v.pos.x, z = v.pos.z;
   if (v.kind === 'car' && (G.roofed || v.pos.y > 3)) return 'roof';
-  if (v.kind === 'drone') return P.skylights.some(k => x > k.x0 - 2.5 && x < k.x1 + 2.5 && z > k.z0 - 2.5 && z < k.z1 + 2.5) ? 'skylight' : 'fanlight';
+  if (v.kind === 'drone') return P.skylights.some(k => x > k.x0 - 2.5 && x < k.x1 + 2.5 && z > k.z0 - 2.5 && z < k.z1 + 2.5) ? 'skylight' : 'vent';
   const h = P.holes.find(d => Math.hypot((d.x0 + d.x1) / 2 - x, (d.z0 + d.z1) / 2 - z) < 6);
   return h ? h.kind : 'vent';
 }
@@ -372,8 +372,8 @@ function letIn() {
 function hints(v, room) {
   if (!G.plan.locked || room || G.mode !== 'explore') return;
   const out = G.t - G.outsideSince;
-  if (G.hinted === 0 && out > 30) { G.hinted = 1; say(v.kind === 'drone' ? 'The way in is the open window over the front doors, with the blue light round it.' : 'The way in is the open air vent at the foot of the wall, just left of the front doors. Follow the arrows.', 0, 10); }
-  else if (G.hinted === 1 && out > 70) { G.hinted = 2; say(v.kind === 'drone' ? 'Or go over the roof: a pane of the big skylight is propped open too.' : 'Press V for the drone if you would rather fly in through the window over the doors.', 0, 10); }
+  if (G.hinted === 0 && out > 30) { G.hinted = 1; say(v.kind === 'drone' ? 'The way in is the open air vent at the foot of the wall, just left of the front doors: fly in low. Or find an open skylight on the roof.' : 'The way in is the open air vent at the foot of the wall, just left of the front doors. Follow the arrows.', 0, 10); }
+  else if (G.hinted === 1 && out > 70) { G.hinted = 2; say(v.kind === 'drone' ? 'Up on the roofs, a pane has been left propped open here and there, with light coming up out of it.' : 'There are other ways in all round the building: a duct, a kicked-in door panel, a propped window. Look low along the walls.', 0, 10); }
 }
 
 // ---- one game at a time, kept between visits ----

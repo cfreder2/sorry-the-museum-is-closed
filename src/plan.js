@@ -83,7 +83,7 @@ export function buildPlan() {
   if (atFront) {
     vent = { id: 'vent', a: lobby.id, b: 'out', along: 'x', x0: PX, x1: lobby.x0, z0: fz - 4.4, z1: fz - 3.2, y: 0, h: 0.75, out: true, vent: true };
     doors.push(vent);
-    transom = { x0: PX, x1: lobby.x0, z0: fz - 1.3, z1: fz + 1.3, y0: front.h + 0.36, y1: Math.min(front.h + 1.5, lobby.ceil - 0.1) };
+    // (The fanlight over the doors used to stand open for the drone. It did not look right, and the vent takes a drone as well.)
   }
   // ...and somebody has left a pane of the big skylight over the Grand Staircase propped open.
   // Two more have been left open, further in: one over the bridge, one over the old first floor.
@@ -92,6 +92,14 @@ export function buildPlan() {
   const skylights = [];
   if (sr && sr.sky) skylights.push({ room: sr.id, x0: (sr.x0 + sr.x1) / 2 - 1.3, x1: (sr.x0 + sr.x1) / 2 + 1.3, z0: sr.z1 - 14.2, z1: sr.z1 - 11.6, y: sr.top });
   for (const id of ['G240', 'G151']) { const r = byId[id]; if (r && r.sky) skylights.push({ room: id, x0: (r.x0 + r.x1) / 2 - 1.3, x1: (r.x0 + r.x1) / 2 + 1.3, z0: (r.z0 + r.z1) / 2 - 1.3, z1: (r.z0 + r.z1) / 2 + 1.3, y: r.top }); }
+  // And a pane left open here and there across the rest of the roofs, so that no part of the building is far from a way down
+  // into it: over any top-lit gallery, the biggest first, none within forty-five metres of another.
+  for (const r of rooms.filter(r => r.sky && r.kind === 'gallery' && !r.secret && Math.min(r.x1 - r.x0, r.z1 - r.z0) >= 8.5).sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0))) {
+    if (skylights.length >= 9) break;
+    const cx = (r.x0 + r.x1) / 2, cz2 = (r.z0 + r.z1) / 2;
+    if (skylights.some(k => k.room === r.id || Math.hypot((k.x0 + k.x1) / 2 - cx, (k.z0 + k.z1) / 2 - cz2) < 45)) continue;
+    skylights.push({ room: r.id, x0: cx - 1.3, x1: cx + 1.3, z0: cz2 - 1.3, z1: cz2 + 1.3, y: r.top });
+  }
   const skylight = skylights[0] || null;
   // And for a car there are other ways in, for anyone who goes looking: low openings through an
   // outside wall, each a different kind of thing left open. They are at street level, so each must
@@ -123,6 +131,25 @@ export function buildPlan() {
   pierce([['G142', 'n'], ['G142', 's'], ['G141', 'n'], ['G141', 's'], ['G140', 'n']], 'flap', 0.8, 0.45);    // a service door by the railway with its bottom panel kicked in
   pierce([['G134', 's'], ['G134', 'w'], ['G108', 's'], ['G108', 'w'], ['G133', 's']], 'window', 1.0, 0.5);   // a cellar window propped open, by the South Garden
   pierce([['G161', 'w'], ['G161', 'e'], ['G153', 'e'], ['G153', 's'], ['G151', 'n'], ['G151', 'e']], 'window', 1.0, 0.5);
+  // And more of them, all the way round: any street-level room with an outside wall on open ground will do, each at least
+  // forty metres from the next way in, so that you are never far from one whichever side of the building you are on.
+  // (Not the Michigan Avenue front or the Modern Wing's glass, whose faces are built separately; nor into the railway cutting.)
+  {
+    const KIND = [['duct', 1.1, 0.6], ['flap', 0.8, 0.45], ['window', 1.0, 0.5], ['dock', 2.2, 0.7]], ways = () => [...holes, ...doors.filter(d => d.out)];
+    let n = 0;
+    for (const r of rooms.filter(r => same(r.y, 0) && !r.secret && r.kind !== 'hall' && !/^MW/.test(r.id) && r.id !== lobby.id).sort((a, b) => a.x0 + a.z0 - b.x0 - b.z0)) {
+      for (const side of ['n', 'e', 's', 'w']) {
+        if (side === 'w' && r.x0 < 30) continue;
+        const mx = side === 'w' ? r.x0 : side === 'e' ? r.x1 : (r.x0 + r.x1) / 2, mz = side === 'n' ? r.z0 : side === 's' ? r.z1 : (r.z0 + r.z1) / 2;
+        const ox = mx + (side === 'w' ? -2.5 : side === 'e' ? 2.5 : 0), oz = mz + (side === 'n' ? -2.5 : side === 's' ? 2.5 : 0);
+        if (ox > 108 && ox < 128) continue;                                                     // the railway
+        if (ox > 150 && oz < 2) continue;                                                       // the Modern Wing's glass front on Monroe Street
+        if (ways().some(d => Math.hypot((d.x0 + d.x1) / 2 - mx, (d.z0 + d.z1) / 2 - mz) < 40)) continue;
+        const k = KIND[n % KIND.length];
+        if (pierce([[r.id, side]], k[0], k[1], k[2])) { n++; break; }
+      }
+    }
+  }
   const hall = rooms.find(r => r.kind === 'hall');
 
   // Outdoors is everywhere that is not a building. Each room that stands above the ground, with its
