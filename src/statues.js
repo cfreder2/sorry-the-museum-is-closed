@@ -317,7 +317,7 @@ export function buildStatues(museum, plan) {
       // The entrance arch of Adler and Sullivan's Stock Exchange, set up on its own when the building
       // came down: a block of buff terracotta, every inch of it ornament, with one great round opening.
       const cv = document.createElement('canvas'); cv.width = cv.height = 512; const x = cv.getContext('2d'), rn = TX.rng(31);
-      x.fillStyle = '#c99c6a'; x.fillRect(0, 0, 512, 512);
+      x.fillStyle = '#c9ad88'; x.fillRect(0, 0, 512, 512);
       for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) {                                              // Sullivan's ornament, near enough: rosettes in squares, leafwork between
         const cx = i * 128 + 64, cy = j * 128 + 64;
         x.strokeStyle = 'rgba(70,40,18,0.55)'; x.lineWidth = 3; x.strokeRect(cx - 58, cy - 58, 116, 116);
@@ -327,7 +327,7 @@ export function buildStatues(museum, plan) {
       }
       for (let i = 0; i < 2500; i++) { x.fillStyle = rn() > 0.5 ? 'rgba(255,235,200,0.07)' : 'rgba(60,34,14,0.08)'; x.fillRect(rn() * 512, rn() * 512, 2 + rn() * 4, 2 + rn() * 4); }
       const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-      const terra = std({ map: t, roughness: 0.85, emissiveMap: t, emissive: 0xa08060, emissiveIntensity: 0.55, side: THREE.DoubleSide }), trimM = std({ color: 0xb98a5c, roughness: 0.85, emissive: 0x6a4424, emissiveIntensity: 0.6 }), deep = std({ color: 0x8a6038, roughness: 0.9, emissive: 0x3e2812, emissiveIntensity: 0.6 });
+      const terra = std({ map: t, roughness: 0.85, emissiveMap: t, emissive: 0xb4ab9a, emissiveIntensity: 0.6, side: THREE.DoubleSide }), trimM = std({ color: 0xbfa27c, roughness: 0.85, emissive: 0x5e4c36, emissiveIntensity: 0.6 }), deep = std({ color: 0x8a6038, roughness: 0.9, emissive: 0x3e2812, emissiveIntensity: 0.6 });
       const a = new Geo(), tr = new Geo(), dp = new Geo(), X = 0.75, sp = 2.3, R = s.open, n = 20, U = 1.6;
       const fz = (x0, y0, y1, z0, z1, nx) => a.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [nx, 0, 0], [[z0 / U, y0 / U], [z1 / U, y0 / U], [z1 / U, y1 / U], [z0 / U, y1 / U]]);
       for (const [x0, nx] of [[-X, -1], [X, 1]]) { fz(x0, 0, s.h, -s.half, -R, nx); fz(x0, 0, s.h, R, s.half, nx); fz(x0, sp + R, s.h, -R, R, nx); }

@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { T, streetY } from './plan.js';
+import { buildEastSide } from './eastside.js';
 
 export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
@@ -396,4 +397,7 @@ export function buildGrounds(museum, plan) {
     add(curb.mesh(base), glass.mesh(new THREE.MeshBasicMaterial({ map: TX.laylight(), color: new THREE.Color(0.3, 0.34, 0.46) })));
   }
   void T;
+
+  // The Columbus Drive side, and the gardens as they lie from above.
+  buildEastSide(museum, plan);
 }
