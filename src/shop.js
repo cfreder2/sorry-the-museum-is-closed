@@ -15,11 +15,17 @@ const STYLE = `
 #shop.inworld h2 { display: none; }
 #shop.inworld .chips { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); background: rgba(4,5,9,.78); padding: 6px 14px; border-radius: 10px; margin: 0; }
 #shop.inworld .goods { display: block; }
-#shop.inworld .item { position: fixed; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); transform: translateX(-50%); width: min(220px, 42vw); pointer-events: auto; background: rgba(8,9,14,.82); padding: 8px 10px; gap: 3px; }
-#shop.inworld .item img { display: none; }
-#shop.inworld .item span { min-height: 0; font-size: 12px; }
-#shop.inworld .item .stat { font-size: 10px; overflow: visible; }
-@media (max-height: 520px) { #shop.inworld .item span:not(.stat) { display: none; } #shop.inworld .item { bottom: max(44px, calc(env(safe-area-inset-bottom) + 44px)); } #shop.inworld .item button { height: 40px; } }
+#shop.inworld .item { position: static; border: 0; background: none; padding: 0; display: block; }
+#shop.inworld .item img, #shop.inworld .item b, #shop.inworld .item span:not(.price):not(.short) { display: none; }
+#shop.inworld .item .price { display: block; position: fixed; left: var(--x, 50%); top: var(--ty, 30%); transform: translate(-50%, -100%); font: 700 20px var(--mono, ui-monospace, monospace); letter-spacing: .08em; color: var(--gilt, #e2cd94); white-space: nowrap; pointer-events: none; background: rgba(4,5,9,.72); padding: 2px 10px; border-radius: 8px; }
+#shop.inworld .item .price.own { font-size: 13px; color: var(--cream, #f1ead8); letter-spacing: .16em; }
+#shop.inworld .item button { position: fixed; left: var(--x, 50%); top: var(--by, 70%); transform: translateX(-50%); width: 112px; height: 46px; margin: 0; pointer-events: auto; font-size: 15px; letter-spacing: .18em; }
+#shop.inworld .item button:not([disabled]) { background: #dcc88e; color: #15130d; border-color: #fff3c8; box-shadow: 0 3px 14px rgba(0,0,0,.6); }
+#shop.inworld .item button[disabled] { opacity: .45; }
+#shop.inworld .item button.own { display: none; }
+#shop .item button span { color: inherit; font: inherit; letter-spacing: inherit; min-height: 0; }
+#shop.inworld .item button .full { display: none; } #shop.inworld .item button .short { display: inline; }
+#shop.inworld .note:empty { display: none; }
 #shop.inworld .note { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); width: min(70vw, 560px); text-align: center; background: rgba(4,5,9,.78); padding: 5px 12px; border-radius: 10px; margin: 0; min-height: 0; }
 #shop.inworld .leave { position: fixed; right: max(12px, env(safe-area-inset-right)); top: max(10px, env(safe-area-inset-top)); width: auto; padding: 0 18px; margin: 0; pointer-events: auto; }
 #shop .stall { width: min(720px, 100%); max-height: 100%; overflow: auto; }
@@ -29,6 +35,7 @@ const STYLE = `
 #shop .item { border: 1px solid rgba(226,205,148,.45); border-radius: 10px; padding: 12px; background: rgba(12,14,20,.7); display: flex; flex-direction: column; gap: 6px; }
 #shop .item img { width: 100%; height: 120px; object-fit: contain; }
 #shop .item b { font-size: 19px; }
+#shop .item .price, #shop .item button .short { display: none; }
 #shop .item span { font-size: 13px; line-height: 1.35; color: #cfc8b4; min-height: 2.7em; }
 #shop .item .stat { font: 11px var(--mono, ui-monospace, monospace); color: var(--gilt-dim, #a8996c); min-height: 0; }
 #shop button { height: 46px; border-radius: 8px; border: 1px solid rgba(226,205,148,.6); background: rgba(226,205,148,.92); color: #14120c; font: 700 13px var(--mono, ui-monospace, monospace); letter-spacing: .12em; }
@@ -109,7 +116,13 @@ export class Shop {
   update(dt) {
     if (this.turn) for (const h of this.turn) h.rotation.y += dt * 0.7;
     // At the counter, each price tag sits under its own toy.
-    if (this.on && this.stage && this.stage.on) this.el.querySelectorAll('.item').forEach((d, i) => { const h = this.turn[i]; if (!h) return; const p = h.getWorldPosition(this._v || (this._v = new THREE.Vector3())).project(this.stage.camera); d.style.left = ((p.x + 1) / 2 * innerWidth) + 'px'; });
+    if (this.on && this.stage && this.stage.on) this.el.querySelectorAll('.item').forEach((d, i) => {
+      const h = this.turn[i]; if (!h) return;
+      const v = this._v || (this._v = new THREE.Vector3()), w = h.getWorldPosition(v), wy = w.y;
+      const top = v.set(w.x, wy + 0.27, w.z).project(this.stage.camera), x = (top.x + 1) / 2 * innerWidth, ty = (1 - top.y) / 2 * innerHeight;
+      h.getWorldPosition(v); v.y = wy - 0.19; v.project(this.stage.camera); const by = (1 - v.y) / 2 * innerHeight;
+      d.style.setProperty('--x', x + 'px'); d.style.setProperty('--ty', Math.max(46, ty) + 'px'); d.style.setProperty('--by', Math.min(innerHeight - 56, by) + 'px');
+    });
   }
 
   // ---- buying ----
@@ -136,19 +149,21 @@ export class Shop {
       const hint = document.createElement('span'); hint.textContent = v.hint;
       const stat = document.createElement('span'); stat.className = 'stat'; stat.textContent = this.garage.statText(v);
       const b = document.createElement('button'); b.dataset.buy = v.id;
-      if (owned) { b.textContent = 'YOURS'; b.disabled = true; }
-      else if (chips >= v.shop) b.textContent = `BUY · ${v.shop.toLocaleString()}`;
-      else { b.textContent = `${(v.shop - chips).toLocaleString()} MORE CHIPS`; b.disabled = true; }
-      d.append(img, name, hint, stat, b); box.append(d);
+      const price = document.createElement('span'); price.className = 'price' + (owned ? ' own' : ''); price.textContent = owned ? 'YOURS' : v.shop.toLocaleString();
+      const lab = (full, short) => { const f = document.createElement('span'); f.className = 'full'; f.textContent = full; const sh = document.createElement('span'); sh.className = 'short'; sh.textContent = short; b.append(f, sh); };
+      if (owned) { lab('YOURS', 'YOURS'); b.disabled = true; b.className = 'own'; }
+      else if (chips >= v.shop) lab(`BUY \u00b7 ${v.shop.toLocaleString()}`, 'BUY');
+      else { lab(`${(v.shop - chips).toLocaleString()} MORE CHIPS`, 'BUY'); b.disabled = true; }
+      d.append(img, name, hint, stat, price, b); box.append(d);
     }
-    this.el.querySelector('.note').textContent = note || (this.goods.every(v => this.garage.isOpen(v.id)) ? 'Sold out. You have the lot.' : chips < 2000 ? 'Chips are won at the card table behind you. You sit down with 1,000.' : 'Pick one. Choose it afterwards from the title screen.');
+    this.el.querySelector('.note').textContent = note || (this.stage && this.stage.on ? (this.goods.some(v => !this.garage.isOpen(v.id)) && chips < 2000 ? 'Chips are won at the card table behind you.' : '') : this.goods.every(v => this.garage.isOpen(v.id)) ? 'Sold out. You have the lot.' : chips < 2000 ? 'Chips are won at the card table behind you. You sit down with 1,000.' : 'Pick one. Choose it afterwards from the title screen.');
   }
   open() {
     if (this.on || !this.front) return;
     this.on = true; this.G.state = 'paused';
     this._draw(); this.el.hidden = false;
     // The camera goes and stands at the counter.
-    if (this.stage && this.at) { const W = 2.9, f = this.at.face; this.stage.enter({ x: this.at.x, y: this.at.y + 0.52, z: this.at.z + f * 0.55, nx: 0, ny: 0.18, nz: f, w: W, h: 1.5 }, { fill: 0.92 }); this.el.classList.add('inworld'); }
+    if (this.stage && this.at) { const W = 2.9, f = this.at.face; this.stage.enter({ x: this.at.x, y: this.at.y + 0.52, z: this.at.z + f * 0.55, nx: 0, ny: 0.18, nz: f, w: W, h: 1.5 }, { fill: 0.92 }); this.el.classList.add('inworld'); this._draw(); }
     const f = this.el.querySelector('button:not([disabled])'); if (f) f.focus({ preventScroll: true });
   }
   close() { if (!this.on) return; this.on = false; this.el.hidden = true; if (this.stage && this.stage.on) { this.stage.leave(); this.el.classList.remove('inworld'); } this.resume(); }
