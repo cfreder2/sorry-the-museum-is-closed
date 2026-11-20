@@ -25,6 +25,7 @@ const TYPES = {
   lowstool: { r: 0.2, h: 0.5, m: 0.8, lie: 0.17, tip: 2.0 },
   bin: { r: 0.17, h: 0.5, m: 0.6, lie: 0.15, tip: 1.6 },
   post: { r: 0.17, h: 0.95, m: 1.3, lie: 0.05, tip: 2.0 },
+  wetfloor: { r: 0.2, h: 0.64, m: 0.4, lie: 0.04, tip: 1.0 },
   round: { r: 0.44, h: 0.76, m: 4, lie: 0.4, tip: 5.2, foot: 0.27 },
   square: { r: 0.46, h: 0.76, m: 4.5, lie: 0.4, tip: 5.4, foot: 0.27 },
   round4: { r: 0.62, h: 0.76, m: 6.5, lie: 0.58, tip: 6.4, foot: 0.36 },
@@ -45,6 +46,8 @@ function shape(type) {
     p.push(cy(0.17, 0.17, 0.045, 0, s, 0, WHITE, 12), cy(0.025, 0.025, s - 0.04, 0, s / 2, 0, DARK, 6), cy(0.2, 0.2, 0.03, 0, 0.015, 0, DARK, 12), cy(0.13, 0.13, 0.015, 0, 0.24, 0, STEEL, 10));
   } else if (type === 'bin') {
     p.push(cy(0.16, 0.13, 0.46, 0, 0.23, 0, WHITE, 10), cy(0.165, 0.165, 0.04, 0, 0.48, 0, DARK, 10));
+  } else if (type === 'wetfloor') {                     // two boards leaning on each other
+    for (const sg of [-1, 1]) p.push(tint(new THREE.BoxGeometry(0.3, 0.66, 0.02).rotateX(sg * 0.3).translate(0, 0.31, -sg * 0.1), WHITE), tint(new THREE.BoxGeometry(0.2, 0.2, 0.004).rotateX(sg * 0.3).translate(0, 0.38, -sg * 0.112), DARK));
   } else if (type === 'post') {
     p.push(cy(0.022, 0.022, 0.9, 0, 0.47, 0, STEEL, 8), cy(0.16, 0.17, 0.035, 0, 0.018, 0, DARK, 12), cy(0.04, 0.04, 0.05, 0, 0.93, 0, WHITE, 8));
   } else {
