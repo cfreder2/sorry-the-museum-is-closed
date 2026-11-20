@@ -28,5 +28,33 @@ export class Secrets {
   }
   /** For a list: every secret, found ones named, the rest as question marks. */
   rows() { return [...this.list].map(([id, name]) => ({ id, name: this.found.has(id) ? name : '? ? ?', found: this.found.has(id) })); }
+  // The list, as a screen laid over whichever menu opened it: found ones by name, the rest as question marks.
+  open() {
+    if (!this.el) {
+      const st = document.createElement('style');
+      st.textContent = `#secrets { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(4,5,9,.93); padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); box-sizing: border-box; font-family: var(--serif, Georgia, serif); color: var(--cream, #f1ead8); }
+#secrets[hidden] { display: none; }
+#secrets .box { width: min(760px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 10px; }
+#secrets h2 { margin: 0; font-size: 22px; letter-spacing: .14em; text-transform: uppercase; color: var(--gilt, #e2cd94); }
+#secrets .n { font: 600 13px var(--mono, ui-monospace, monospace); letter-spacing: .08em; color: var(--gilt, #e2cd94); }
+#secrets ol { list-style: none; margin: 0; padding: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; }
+#secrets li { display: flex; gap: 10px; align-items: baseline; font-size: 15px; padding: 5px 0; border-bottom: 1px solid rgba(226,205,148,.16); }
+#secrets li i { flex: none; width: 1.1em; font-style: normal; color: var(--gilt, #e2cd94); }
+#secrets li.no { color: #7d786c; letter-spacing: .2em; }
+#secrets li.no i { color: #5a564d; }
+#secrets button { height: 44px; border-radius: 8px; border: 1px solid rgba(226,205,148,.6); background: rgba(8,9,14,.66); color: var(--gilt, #e2cd94); font: 700 12px var(--mono, ui-monospace, monospace); letter-spacing: .12em; }`;
+      document.head.append(st);
+      const el = this.el = document.createElement('section'); el.id = 'secrets'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Secrets');
+      el.innerHTML = '<div class="box"><h2>Secrets</h2><div class="n"></div><ol></ol><button>Close</button></div>';
+      document.body.append(el);
+      el.querySelector('button').addEventListener('click', () => this.close());
+      addEventListener('keydown', e => { if (!this.el.hidden && e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); this.close(); } }, true);
+    }
+    const ol = this.el.querySelector('ol'); ol.textContent = '';
+    for (const r of this.rows().sort((a, b) => b.found - a.found)) { const li = document.createElement('li'); li.className = r.found ? '' : 'no'; const i = document.createElement('i'); i.textContent = r.found ? '\u2605' : '\u00b7'; li.append(i, r.name); ol.append(li); }
+    this.el.querySelector('.n').textContent = `${this.count} OF ${this.total} FOUND`;
+    this.back = document.activeElement; this.el.hidden = false; this.el.querySelector('button').focus({ preventScroll: true });
+  }
+  close() { if (!this.el || this.el.hidden) return; this.el.hidden = true; if (this.back && this.back.focus) this.back.focus({ preventScroll: true }); }
   reset() { this.found.clear(); try { localStorage.removeItem(KEY); } catch { /* fine */ } }
 }

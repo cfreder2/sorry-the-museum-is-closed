@@ -32,7 +32,7 @@ function night() {
   const t = new THREE.CanvasTexture(cv); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
   return (_night = t);
 }
-const mirror = () => new THREE.MeshStandardMaterial({ color: 0xf4f7ff, metalness: 1, roughness: 0.02, envMap: night(), envMapIntensity: 2.6 });
+const mirror = () => { const m = new THREE.MeshStandardMaterial({ color: 0xf4f7ff, metalness: 1, roughness: 0.02, envMap: night(), envMapIntensity: 2.6 }); m.userData.chrome = true; return m; };      // (chrome: src/livemirror.js may show the real surroundings in it)
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cyl = (r0, r1, h, n = 12, hs = 1, open = false) => new THREE.CylinderGeometry(r0, r1, h, n, hs, open);

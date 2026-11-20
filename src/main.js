@@ -15,6 +15,7 @@ import { Secrets } from './secrets.js';
 import { Simon } from './simon.js';
 import { Stage } from './stage.js';
 import { Presents } from './presents.js';
+import { LiveMirror } from './livemirror.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
@@ -174,7 +175,7 @@ async function boot() {
   // Your own picture: an easel in a studio, and the frame in the lobby it hangs in (src/paint.js).
   G.paint = new Paint(G, { museum: G.museum, plan, stage, resume: () => act('resume'), say, onHang: () => { tm.event('paint'); if (G.nav && G.nav.target && G.nav.target.paint) G.nav.clear(); } });
   // The stall beside the card table: two toys for sale, for chips won at it (src/shop.js).
-  G.shop = new Shop(G, { museum: G.museum, plan, garage, poker: G.poker, sound, resume: () => act('resume'), thumb: id => garage.thumbs[id],
+  G.shop = new Shop(G, { museum: G.museum, plan, garage, poker: G.poker, sound, stage, resume: () => act('resume'), thumb: id => garage.thumbs[id],
     onBuy: v => { garage.sel[v.kind] = v.id; garage.shown = v.id; garage.save(); garage.apply(G.car, G.drone); tm.event('buy', v.id); } });
   G.hockey = new Hockey(G.museum, plan, sound);
   G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
@@ -551,6 +552,7 @@ addEventListener('keydown', e => {
 
 function act(a) {
   switch (a) {
+    case 'secrets': if (G.museum) secrets.open(); break;
     case 'trophies': if (G.museum) { trophies.last = trophies.snap(G, score); trophies.open(); } break;
     case 'closeTrophies': trophies.close(); break;
     case 'start': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { G.toy = pick.toy; start(pick.mode); } break;
@@ -1309,6 +1311,8 @@ function tick(now) {
   if (G.state === 'arcade' || G.state === 'repair') return;
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
+  // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
+  if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
 }

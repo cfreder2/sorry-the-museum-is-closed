@@ -9,6 +9,19 @@ import { VEHICLES, buildVehicle } from './garage.js';
 const STYLE = `
 #shop { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4,5,9,.86); font-family: var(--serif, Georgia, serif); color: var(--cream, #f1ead8); padding: 14px; box-sizing: border-box; }
 #shop[hidden] { display: none; }
+/* at the counter itself: the camera stands in front of the stall, and the page holds only the price tags */
+#shop.inworld { background: none; align-items: stretch; pointer-events: none; padding: 0; }
+#shop.inworld .stall { width: 100%; max-height: none; overflow: visible; }
+#shop.inworld h2 { display: none; }
+#shop.inworld .chips { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); background: rgba(4,5,9,.78); padding: 6px 14px; border-radius: 10px; margin: 0; }
+#shop.inworld .goods { display: block; }
+#shop.inworld .item { position: fixed; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); transform: translateX(-50%); width: min(220px, 42vw); pointer-events: auto; background: rgba(8,9,14,.82); padding: 8px 10px; gap: 3px; }
+#shop.inworld .item img { display: none; }
+#shop.inworld .item span { min-height: 0; font-size: 12px; }
+#shop.inworld .item .stat { font-size: 10px; overflow: visible; }
+@media (max-height: 520px) { #shop.inworld .item span:not(.stat) { display: none; } #shop.inworld .item { bottom: max(44px, calc(env(safe-area-inset-bottom) + 44px)); } #shop.inworld .item button { height: 40px; } }
+#shop.inworld .note { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); width: min(70vw, 560px); text-align: center; background: rgba(4,5,9,.78); padding: 5px 12px; border-radius: 10px; margin: 0; min-height: 0; }
+#shop.inworld .leave { position: fixed; right: max(12px, env(safe-area-inset-right)); top: max(10px, env(safe-area-inset-top)); width: auto; padding: 0 18px; margin: 0; pointer-events: auto; }
 #shop .stall { width: min(720px, 100%); max-height: 100%; overflow: auto; }
 #shop h2 { margin: 0 0 2px; font-size: 24px; letter-spacing: .12em; text-transform: uppercase; color: var(--gilt, #e2cd94); }
 #shop .chips { font: 600 14px var(--mono, ui-monospace, monospace); letter-spacing: .08em; color: var(--gilt, #e2cd94); margin-bottom: 12px; }
@@ -93,7 +106,11 @@ export class Shop {
     const f = this.front; if (!f || this.on) return false;
     return v.pos.y > this.at.y - 0.3 && v.pos.y < this.at.y + 3 && Math.hypot(v.pos.x - f.x, v.pos.z - f.z) < 1.9 && Math.hypot(v.vel.x, v.vel.z) < 3;
   }
-  update(dt) { if (this.turn) for (const h of this.turn) h.rotation.y += dt * 0.7; }
+  update(dt) {
+    if (this.turn) for (const h of this.turn) h.rotation.y += dt * 0.7;
+    // At the counter, each price tag sits under its own toy.
+    if (this.on && this.stage && this.stage.on) this.el.querySelectorAll('.item').forEach((d, i) => { const h = this.turn[i]; if (!h) return; const p = h.getWorldPosition(this._v || (this._v = new THREE.Vector3())).project(this.stage.camera); d.style.left = ((p.x + 1) / 2 * innerWidth) + 'px'; });
+  }
 
   // ---- buying ----
   _dom() {
@@ -130,9 +147,11 @@ export class Shop {
     if (this.on || !this.front) return;
     this.on = true; this.G.state = 'paused';
     this._draw(); this.el.hidden = false;
+    // The camera goes and stands at the counter.
+    if (this.stage && this.at) { const W = 2.9, f = this.at.face; this.stage.enter({ x: this.at.x, y: this.at.y + 0.52, z: this.at.z + f * 0.55, nx: 0, ny: 0.18, nz: f, w: W, h: 1.5 }, { fill: 0.92 }); this.el.classList.add('inworld'); }
     const f = this.el.querySelector('button:not([disabled])'); if (f) f.focus({ preventScroll: true });
   }
-  close() { if (!this.on) return; this.on = false; this.el.hidden = true; this.resume(); }
+  close() { if (!this.on) return; this.on = false; this.el.hidden = true; if (this.stage && this.stage.on) { this.stage.leave(); this.el.classList.remove('inworld'); } this.resume(); }
   buy(id) {
     const v = this.goods.find(g => g.id === id);
     if (!v || this.garage.isOpen(id)) return;
