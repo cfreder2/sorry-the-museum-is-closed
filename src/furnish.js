@@ -603,15 +603,19 @@ const RECIPES = {
       for (const q of R.kept || []) { const [a0, b0] = R.ab(q.x0, q.z0), [a1, b1] = R.ab(q.x1, q.z1); if (Math.max(b0, b1) > B0 && Math.min(b0, b1) < B1) gaps.push([Math.min(a0, a1) - 0.2, Math.max(a0, a1) + 0.2]); }
       let a = e0; for (const [p, q] of gaps.sort((x, y) => x[0] - y[0])) { if (Math.min(p, L - e1) - a > 0.3) spaces.push({ s, D, p: a, q: Math.min(p, L - e1) }); a = Math.max(a, q); } if (L - e1 - a > 0.3) spaces.push({ s, D, p: a, q: L - e1 });
     }
-    const WISH = { WOMEN: [5.4, 7.2, 8.2], MEN: [6.2, 6.6, 7.6], FAMILY: [2.3, 2.8, 3.3], CLEANER: [1.5, 1.8, 2.2], COAT: [4, 7, 9], MEMBER: [4, 7, 9], FIRSTAID: [3, 3.8, 4.6], PARENTS: [3.4, 4.4, 5.6], LOCKERS: [2.6, 5, 8], STAFF: [1.5, 3, 5] };
+    const WISH = { WOMEN: [5.4, 7.2, 8.2], MEN: [6.2, 6.6, 7.6], FAMILY: [2.3, 2.8, 3.3], CLEANER: [1.5, 1.8, 2.2], COAT: [3.6, 7, 9], MEMBER: [4, 7, 9], FIRSTAID: [3, 4.6, 4.8], PARENTS: [3.4, 4.4, 5.6], LOCKERS: [2.6, 5, 8], STAFF: [1.5, 3, 5] };
     const NAME = { WOMEN: 'WOMEN', MEN: 'MEN', FAMILY: 'FAMILY', CLEANER: 'CLEANER', COAT: 'COAT CHECK', MEMBER: 'MEMBER SERVICES', FIRSTAID: 'FIRST AID', PARENTS: 'PARENTS’ ROOM', LOCKERS: 'LOCKERS', STAFF: 'STAFF ONLY' };
     const bays = [], take = (use, least) => {
       const [mn, pf, mx] = WISH[use], m = least || mn, sp = spaces.filter(x => x.q - x.p >= m).sort((x, y) => (y.q - y.p) - (x.q - x.p))[0]; if (!sp) return false;
       let len = Math.min(pf, sp.q - sp.p); if (sp.q - sp.p - len < 1.5) len = Math.min(mx, sp.q - sp.p);
       bays.push({ use, s: sp.s, D: sp.D, a0: sp.p, a1: sp.p + len }); sp.p += len; return true;
     };
-    const first = ['WOMEN', 'MEN', 'FAMILY', 'CLEANER', 'FAMILY'];
-    const more = /member/i.test(R.name) ? ['MEMBER', 'COAT', 'PARENTS', 'LOCKERS', 'FIRSTAID'] : r.id === 'F0-wcM' ? ['COAT', 'PARENTS', 'FIRSTAID', 'LOCKERS'] : ['LOCKERS', 'FIRSTAID', 'PARENTS', 'COAT'];
+    // (The middle block on the lower level keeps the coats, and the long east one has the first-aid room: each is asked for
+    // before the second family room and the lockers, which take what is left.)
+    const coats = r.id === 'F0-wcM', aid = r.id === 'F0-wcE';
+    if (coats) WISH.COAT = [3.6, 4.4, 4.6];             // room left beside it for a family room and the cleaner
+    const first = coats ? ['WOMEN', 'MEN', 'COAT', 'FAMILY', 'CLEANER'] : aid ? ['WOMEN', 'MEN', 'FAMILY', 'FIRSTAID', 'CLEANER', 'FAMILY'] : ['WOMEN', 'MEN', 'FAMILY', 'CLEANER', 'FAMILY'];
+    const more = /member/i.test(R.name) ? ['MEMBER', 'PARENTS', 'COAT', 'LOCKERS', 'FIRSTAID'] : coats ? ['FAMILY', 'PARENTS', 'FIRSTAID', 'LOCKERS'] : ['LOCKERS', 'FIRSTAID', 'PARENTS', 'COAT'];
     { const big = spaces.slice().sort((x, y) => (y.q - y.p) - (x.q - x.p)), l0 = big[0] ? big[0].q - big[0].p : 0, l1 = big[1] ? big[1].q - big[1].p : 0;
       if (first.includes('WOMEN') && first.includes('MEN') && l1 < 6.2 && l0 >= 11.6) {       // side by side on the one stretch that will take them
         const sp = big[0], wl = Math.max(5.4, Math.min(7.2, l0 - 6.6)), ml = Math.min(7.6, l0 - wl - (l0 - wl - 6.6 > 1.5 ? l0 - wl - 6.6 : 0));
@@ -628,13 +632,19 @@ const RECIPES = {
       const { use, s, D, a0, a1 } = bay, len = a1 - a0, bOf = t => s > 0 ? c1 + t : c0 - t, toCorr = s > 0 ? 'b-' : 'b+', away = s > 0 ? 'b+' : 'b-';
       const span = (t0, t1) => [Math.min(bOf(t0), bOf(t1)), Math.max(bOf(t0), bOf(t1))];
       const tw = (p, q, t0, t1, y0, y1) => wall(p, q, ...span(t0, t1), y0, y1);
-      const shut = use === 'CLEANER' || use === 'STAFF', hatch = (use === 'COAT' || use === 'MEMBER') && len > 4.5, o0 = a0 + 0.4, o1 = o0 + 1.4;
+      const shut = use === 'CLEANER' || use === 'STAFF', hatch = (use === 'COAT' || use === 'MEMBER') && len > 3.5, o0 = a0 + 0.4, o1 = o0 + 1.4;
       tw(a0, a0 + 0.06, 0, D); tw(a1 - 0.06, a1, 0, D);
       tw(a0, o0, 0, T); tw(o0, o1, 0, T, 2.1, H);
       if (hatch) {       // a counter in the wall, open above it
         tw(o1, o1 + 0.3, 0, T); tw(a1 - 0.3, a1, 0, T); tw(o1 + 0.3, a1 - 0.3, 0, T, 0, 1.0); tw(o1 + 0.3, a1 - 0.3, 0, T, 2.1, H);
         const [p, q] = span(-0.12, 0.42); R.box(o1 + 0.3, a1 - 0.3, 1.0, 1.045, p, q, C.woodL);
         const k = R.rect(o1 + 0.3, a1 - 0.3, p, q); R.solid(k.x0, k.x1, 0.9, 1.05, k.z0, k.z1);
+        if (use === 'COAT') {       // on the counter: a bell to ring, a spike of ticket stubs, a tray of numbered tags
+          const ca = o1 + 0.75, cb = bOf(0.16), bx = (da, db, w, d, y0, y1, hex, mat) => R.box(ca + da - w / 2, ca + da + w / 2, y0, y1, Math.min(cb + db - d / 2, cb + db + d / 2), Math.max(cb + db - d / 2, cb + db + d / 2), hex, mat);
+          bx(0, 0, 0.13, 0.13, 1.045, 1.06, C.black); bx(0, 0, 0.1, 0.1, 1.06, 1.1, 0xc9a24a, 'metal'); bx(0, 0, 0.025, 0.025, 1.1, 1.125, C.black);
+          bx(0.45, 0, 0.1, 0.1, 1.045, 1.055, C.woodD); bx(0.45, 0, 0.012, 0.012, 1.055, 1.26, C.steelL, 'metal'); for (let i = 0; i < 5; i++) bx(0.45 + (rnd() - 0.5) * 0.02, (rnd() - 0.5) * 0.02, 0.07, 0.045, 1.06 + i * 0.022, 1.064 + i * 0.022, i % 2 ? 0xf2e6b8 : 0xe8a8a0);
+          if (a1 - 0.3 - (o1 + 0.3) > 1.9) { bx(1.05, 0, 0.3, 0.2, 1.045, 1.07, C.steelD); for (let i = 0; i < 4; i++) bx(0.95 + i * 0.07, 0, 0.045, 0.14, 1.07, 1.078, [0xd84a3a, 0x3a7ad8, 0xe2b21c, 0x3aa86a][i]); }
+        }
       } else tw(o1, a1, 0, T);
       if (shut) {
         const [p, q] = span(0.03, 0.07); R.box(o0, o1, 0, 2.1, p, q, 0x5a626b);
@@ -670,8 +680,9 @@ const RECIPES = {
         row([['bookcase'], ['pigeonholes'], ['filing'], ['plant'], ['bookcase'], ['filing']]);
         if (D > 4.2) set('desk', (o1 + 0.3 + a1 - 0.3) / 2, bOf(2.6), toCorr);
       } else if (use === 'FIRSTAID') {
-        const a = row([['sofa'], ['filing'], ['filing']]); if (a1 - 0.2 - a > 0.75) { set('basinRun', a + 0.35, bOf(D), toCorr, 0.7); tally.basins++; }
-        sideA1('towels', Math.min(D - 1.3, 1.5));
+        // a couch under a paper sheet, the cabinet with the green cross, a basin, and a wheelchair folded against the wall
+        const a = row([['aidCouch'], ['aidCabinet']]); if (a1 - 0.2 - a > 0.75) { set('basinRun', a + 0.35, bOf(D), toCorr, 0.7); tally.basins++; }
+        sideA1('towels', Math.min(D - 1.3, 1.5)); if (D > 2.6) sideA0('wheelchair', Math.min(D - 0.8, 1.9));
       } else if (use === 'PARENTS') {
         row([['sofa'], ['armchair'], ['plant']]); basins(1);
         if (D > 3.1) { sideA1('changeTable', D - 1.6); if (D > 4.6) sideA1('changeTable', D - 2.8); }
@@ -1475,9 +1486,34 @@ def('lockerRun', 1.2, 0.5, (g, w, r) => {
 def('bench', 1.6, 0.4, (g, w, r) => { const e = w / 2; g.b(-e, e, 0.4, 0.45, 0, 0.4, C.woodL, 'matte', true); for (const u of [-e + 0.15, e - 0.15]) g.bs(u - 0.03, u + 0.03, 0, 0.4, 0.04, 0.36, C.steelD, 'metal'); g.s(-e, e, 0.38, 0.47, 0, 0.4); });
 def('coatRail', 1.5, 0.6, (g, w, r) => {
   const e = w / 2; for (const u of [-e + 0.04, e - 0.04]) { g.bs(u - 0.02, u + 0.02, 0.1, 1.75, 0.28, 0.32, C.steelL, 'metal'); g.b(u - 0.02, u + 0.02, 0.06, 0.1, 0.02, 0.58, C.steelL, 'metal', true); } g.b(-e, e, 1.72, 1.75, 0.285, 0.315, C.steelL, 'metal', true); g.b(-e, e, 1.95, 1.97, 0.1, 0.5, C.steelL, 'metal', true); for (const u of [-e + 0.04, e - 0.04]) g.b(u - 0.015, u + 0.015, 1.75, 1.95, 0.29, 0.31, C.steelL, 'metal');
-  for (let u = -e + 0.1; u < e - 0.12; u += 0.085) if (r() < 0.6) { const l = 0.6 + r() * 0.5; g.b(u, u + 0.05, 1.7 - l, 1.7, 0.08, 0.52, pick(r, COATS), 'matte', true); }
+  for (let u = -e + 0.1; u < e - 0.12; u += 0.085) { g.b(u + 0.012, u + 0.038, 1.6, 1.7, 0.53, 0.534, C.white);       // a numbered tag on every hook
+    if (r() < 0.6) { const l = 0.6 + r() * 0.5; g.b(u, u + 0.05, 1.7 - l, 1.7, 0.08, 0.52, pick(r, COATS), 'matte', true); } }
+  g.b(-e + 0.1, e - 0.1, 1.99, 2.09, 0.5, 0.505, 0x1f2a44); for (let u = -e + 0.2; u < e - 0.2; u += 0.3) g.b(u, u + 0.12, 2.01, 2.07, 0.505, 0.508, C.cream);      // and the run of numbers over them
   for (let u = -e + 0.1; u < e - 0.3; u += 0.3) if (r() < 0.35) g.b(u, u + 0.24, 1.97, 2.05 + r() * 0.1, 0.12, 0.45, pick(r, COATS), 'matte', true);
   g.s(-e, e, 0.55, 1.97, 0.08, 0.52);
+});
+// First aid: an examination couch with a paper sheet drawn down it and a pillow; a wall cabinet with a green cross (drawn here
+// as two bars); a wheelchair folded flat against the wall.
+def('aidCouch', 1.95, 0.7, g => {
+  for (const u of [-0.85, 0.85]) for (const d of [0.08, 0.6]) g.b(u - 0.025, u + 0.025, 0, 0.5, d - 0.025, d + 0.025, C.steelL, 'metal');
+  g.b(-0.9, 0.9, 0.28, 0.31, 0.06, 0.62, C.steelL, 'metal', true); g.b(-0.95, 0.95, 0.5, 0.6, 0.02, 0.68, 0x2f5d56, 'matte', true);
+  g.b(-0.93, 0.6, 0.6, 0.607, 0.07, 0.63, C.white, 'matte'); g.b(0.56, 0.93, 0.6, 0.69, 0.1, 0.6, C.white, 'matte', true);      // the sheet, and the pillow
+  g.c(-0.99, 0.56, 0.35, 0.05, 0.56, 'u', C.white, 'matte', 8);                                                                   // the roll it comes off
+  g.s(-0.95, 0.95, 0, 0.62, 0.02, 0.68);
+});
+def('aidCabinet', 0.8, 0.3, g => {
+  g.b(-0.36, 0.36, 1.15, 1.95, 0, 0.22, C.white, 'matte', true); g.b(-0.005, 0.005, 1.17, 1.93, 0.22, 0.223, C.greyL);
+  g.b(-0.25, -0.11, 1.5, 1.62, 0.22, 0.226, 0x1f9a55, 'glow'); g.b(-0.21, -0.15, 1.44, 1.68, 0.22, 0.227, 0x1f9a55, 'glow');     // the cross, on one door
+  g.b(0.3, 0.32, 1.5, 1.6, 0.22, 0.24, C.steelL, 'metal'); g.b(-0.02, 0.0, 1.5, 1.6, 0.22, 0.24, C.steelL, 'metal');
+  g.bs(-0.3, 0.3, 0, 0.75, 0.02, 0.28, C.greyL); g.b(-0.3, 0.3, 0.75, 0.78, 0, 0.3, C.steelL, 'metal', true);                    // a low unit under it
+  g.b(-0.2, -0.02, 0.78, 0.9, 0.06, 0.22, 0xd84a3a, 'matte', true); g.b(-0.16, -0.06, 0.82, 0.86, 0.22, 0.223, C.white);         // the bag
+});
+def('wheelchair', 1.0, 0.35, g => {
+  for (const d of [0.06, 0.26]) { g.c(-0.12, 0.3, d, 0.3, 0.035, 'd', C.rubber, 'matte', 14); g.c(-0.12, 0.3, d, 0.24, 0.04, 'd', C.steelL, 'metal', 10); g.c(0.36, 0.09, d, 0.09, 0.035, 'd', C.rubber, 'matte', 8); }
+  g.b(-0.3, -0.26, 0.3, 0.95, 0.07, 0.25, C.steelL, 'metal', true); g.b(-0.3, -0.24, 0.5, 0.92, 0.09, 0.23, 0x24385a, 'matte', true);      // the back, folded in
+  g.b(-0.28, 0.3, 0.48, 0.52, 0.09, 0.23, 0x24385a, 'matte', true); g.b(-0.4, -0.26, 0.9, 0.94, 0.07, 0.25, C.black, 'matte', true);      // the seat sling, the handles
+  g.b(0.28, 0.32, 0.12, 0.5, 0.08, 0.24, C.steelL, 'metal', true); g.b(0.3, 0.46, 0.12, 0.15, 0.08, 0.24, C.black, 'matte', true);         // the footplates
+  g.s(-0.42, 0.46, 0, 0.95, 0.03, 0.3);
 });
 def('umbrellaStand', 0.6, 0.4, (g, w, r) => { g.bs(-0.28, 0.28, 0, 0.5, 0.03, 0.37, C.steelD, 'metal'); for (let i = 0; i < 6; i++) g.c(-0.22 + i * 0.09, 0.55, 0.12 + r() * 0.16, 0.02, 0.8, 'y', pick(r, COATS), 'matte', 5); g.s(-0.28, 0.28, 0.5, 0.95, 0.03, 0.37); });
 def('janitorCart', 1.1, 0.6, (g, w, r) => { g.bs(-0.5, 0.5, 0.12, 0.2, 0.03, 0.57, C.grey); castors(g, -0.5, 0.5, 0.03, 0.57, 0.12); g.bs(-0.5, -0.05, 0.2, 0.95, 0.05, 0.55, C.yellow); g.b(0.0, 0.48, 0.2, 0.55, 0.08, 0.52, C.grey, 'matte', true); for (let i = 0; i < 3; i++) g.c(0.1 + i * 0.14, 0.68, 0.3, 0.045, 0.26, 'y', pick(r, [C.blue, C.pink, C.green, C.white]), 'matte', 6); g.c(-0.45, 0.9, 0.3, 0.015, 1.5, 'y', C.woodL, 'matte', 5); g.s(-0.5, 0.5, 0.2, 1.65, 0.05, 0.55); });

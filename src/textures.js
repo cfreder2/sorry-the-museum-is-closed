@@ -105,6 +105,20 @@ export function slate() {
   return tex(c, { repeat: true });
 }
 
+// Restroom floor: small square mosaic, mid grey-blue, matt. `border` gives the darker course laid along the walls.
+export function mosaic(border = false) {
+  const [c, g] = canvas(256, 256);
+  const r = rng(border ? 61 : 59), n = 8, p = 256 / n;
+  g.fillStyle = border ? '#2c3a44' : '#4b5c68'; g.fillRect(0, 0, 256, 256);          // the grout
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const l = (border ? 27 : 44) + r() * 7, h = 200 + r() * 10;
+    g.fillStyle = `hsl(${h}, ${16 + r() * 8}%, ${l}%)`; g.fillRect(i * p + 2, j * p + 2, p - 4, p - 4);
+    g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(i * p + 2, j * p + 2, p - 4, 3);
+  }
+  for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(${r() > 0.5 ? '230,240,250' : '10,16,22'},${0.03 + r() * 0.05})`; g.fillRect(r() * 256, r() * 256, 1 + r() * 2, 1 + r() * 2); }
+  return tex(c, { repeat: true });
+}
+
 // One pane of the hall's glass vault, steel ribs round the edge, night behind.
 export function vaultGlass() {
   const [c, g] = canvas(256, 256);
