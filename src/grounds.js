@@ -131,7 +131,8 @@ export function buildGrounds(museum, plan) {
         dark.quad([x, 0, zc + dw], [x, 0, zc - dw], [x, d.h, zc - dw], [x, d.h, zc + dw], W);
         bs.box(PX - 0.09, PX - 0.03, 0, d.h, zc - 0.05, zc + 0.05);
       }
-      arch(dark, PX, zc, 2.5, 7.7, 9.1); surround(PX, zc, 2.5, 7.7, 9.1);
+      arch(glow, PX, zc, 2.5, 7.7, 9.1); surround(PX, zc, 2.5, 7.7, 9.1);       // lit from inside, behind the banners
+      tr.box(PX - 0.3, PX, 7.5, 7.7, zc - 1.5, zc + 1.5); for (let b2 = -1.3; b2 <= 1.31; b2 += 0.26) tr.box(PX - 0.26, PX - 0.18, 7.7, 8.25, zc + b2 - 0.04, zc + b2 + 0.04); tr.box(PX - 0.3, PX - 0.14, 8.25, 8.33, zc - 1.4, zc + 1.4);
     }
     add(blind.mesh(new THREE.MeshStandardMaterial({ color: 0xb5b0a4, roughness: 0.9, emissive: 0x6c6c7c, emissiveIntensity: 0.62 })));
     add(wall.mesh(stone), tr.mesh(trim), bs.mesh(base), dark.mesh(night), glow.mesh(warm));
@@ -164,15 +165,17 @@ export function buildGrounds(museum, plan) {
       for (let i = 0; i < 26; i++) { c.fillStyle = ['#d9b48a', '#c99a6e', '#3d7a52', '#e6d2a8', '#1f4468'][i % 5]; c.globalAlpha = 0.75; c.beginPath(); c.ellipse(r() * 128, 40 + r() * 130, 8 + r() * 22, 5 + r() * 12, r() * 3, 0, 7); c.fill(); }
       c.globalAlpha = 1;
       const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.5), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.6, 0.6, 0.66) })); m.position.set(PX - 0.07, 9.0, cz + k * 7.6); m.rotation.y = -Math.PI / 2; add(m);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.5), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.95, 0.9, 0.82) })); m.position.set(PX - 0.07, 9.25, cz + k * 7.6); m.scale.set(0.82, 0.86, 1); m.rotation.y = -Math.PI / 2; add(m);
     }
-    // Banners between the arches.
-    const cloth = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, emissive: c, emissiveIntensity: 0.45, side: THREE.DoubleSide });
-    for (const [k, c] of [[-3.8, 0xb3242b], [3.8, 0x1f4f8a]]) {
-      const b = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 4.2), cloth(c)); b.position.set(PX - 0.75, 4.2, cz + k); b.rotation.y = -Math.PI / 2;
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.0, 6), base); pole.rotation.z = Math.PI / 2; pole.position.set(PX - 0.45, 6.32, cz + k);
-      add(b, pole);
-    }
+    // Carved panels at the two ends of the upper storey, and two flags on poles leaning out between the windows.
+    for (const sg of [-1, 1]) { const zc = cz + sg * 11.4; tr.box(PX - 0.1, PX, 8.0, 9.9, zc - 1.2, zc + 1.2); blind.quad([PX - 0.11, 8.15, zc + 1.05], [PX - 0.11, 8.15, zc - 1.05], [PX - 0.11, 9.75, zc - 1.05], [PX - 0.11, 9.75, zc + 1.05], W); }
+    const flag = (draw) => { const cv = document.createElement('canvas'); cv.width = 96; cv.height = 64; draw(cv.getContext('2d')); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, color: new THREE.Color(0.75, 0.75, 0.8) }); };
+    const flags = [flag(c => { for (let i = 0; i < 13; i++) { c.fillStyle = i % 2 ? '#f2efe6' : '#b3242b'; c.fillRect(0, i * 64 / 13, 96, 64 / 13 + 0.5); } c.fillStyle = '#243a73'; c.fillRect(0, 0, 40, 35); c.fillStyle = '#f2efe6'; for (let i = 0; i < 20; i++) c.fillRect(4 + (i % 5) * 7.5, 4 + Math.floor(i / 5) * 8, 2, 2); }),
+      flag(c => { c.fillStyle = '#f2efe6'; c.fillRect(0, 0, 96, 64); c.fillStyle = '#6fb3de'; c.fillRect(0, 10, 96, 10); c.fillRect(0, 44, 96, 10); c.fillStyle = '#c8202b'; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(18 + i * 20, 32, 5, 0, 7); c.fill(); } })];
+    [[-3.8, 0], [3.8, 1]].forEach(([k, i]) => {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 3.4, 6), base); pole.position.set(PX - 1.15, 8.6, cz + k); pole.rotation.z = 0.72; add(pole);
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), flags[i]); f.position.set(PX - 1.75, 8.7, cz + k + 0.02); f.rotation.set(0, -Math.PI / 2, 0); f.rotation.z = 0; add(f);
+    });
     // Roofs behind the front, and the forecourt in front of it.
     for (const m of plan.masses) if (m.facade) roof.quad([m.x0, m.top, m.z0], [m.x1, m.top, m.z0], [m.x1, m.top, m.z1], [m.x0, m.top, m.z1], [0, 1, 0], [[m.x0 / 5, m.z0 / 5], [m.x1 / 5, m.z0 / 5], [m.x1 / 5, m.z1 / 5], [m.x0 / 5, m.z1 / 5]]);
     // The back of the front wall, where it stands taller than the rooms behind.
