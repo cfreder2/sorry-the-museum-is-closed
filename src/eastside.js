@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export function buildEastSide(museum, plan) {
   const G = plan.grounds, B = plan.bounds, group = museum.group, O = plan.obstacles;
@@ -129,4 +130,120 @@ export function buildEastSide(museum, plan) {
   }
 
   add(walk.mesh(paving), kerb.mesh(trim), grass.mesh(lawn), box.mesh(trim), cap.mesh(snow), hedge.mesh(hedgeM), hcap.mesh(snow));
+  buildCourt(museum, plan, { add, trim, snow, hedgeM });
+}
+
+// ---------------------------------------------------------------------- McKinlock Court
+// The open court with the Fountain of the Tritons in it: stone flags, the long shallow pool the
+// fountain stands in (frozen), the café's tables left out for the winter under their green
+// parasols, clipped hedges, a couple of firs, and on the walls the arcade of round-headed glazed
+// doors with the balustraded gallery over it. The tree and the fountain are drawn elsewhere and
+// stay where they are; the court is laid out round them.
+function buildCourt(museum, plan, { add, trim, snow, hedgeM }) {
+  const G = plan.grounds, O = plan.obstacles, f = (G.fountains || []).find(q => q.kind === 'triton'), t = G.tree;
+  if (!f) return;
+  // The walls it lies against: the nearest building east of the fountain, and the nearest south of it.
+  const eastM = plan.masses.filter(m => m.x0 > f.x && m.x0 < f.x + 22 && m.z0 < f.z && m.z1 > f.z).sort((a, b) => a.x0 - b.x0)[0];
+  const southM = plan.masses.filter(m => m.z0 > f.z && m.z0 < f.z + 22 && m.x0 < f.x && m.x1 > f.x).sort((a, b) => a.z0 - b.z0)[0];
+  if (!eastM || !southM) return;
+  const E = eastM.x0, S = southM.z0, X0 = Math.max(G.rail.x1 + 4, f.x - 14), Z0 = t ? Math.max(t.z + 4, f.z - 8) : f.z - 8;
+  if (E - X0 < 16 || S - Z0 < 14) return;
+  const solid = (x0, x1, z0, z1, y1, y0 = 0) => O.push({ x0, x1, z0, z1, y0, y1 });
+  const blocked = (x0, x1, z0, z1) => O.some(o => o.y0 < 3 && o.y1 > 0.05 && o.x0 < x1 && o.x1 > x0 && o.z0 < z1 && o.z1 > z0)
+    || (G.snowmen || []).some(m => m.x > x0 - 0.8 && m.x < x1 + 0.8 && m.z > z0 - 0.8 && m.z < z1 + 0.8)
+    || plan.doors.some(d => d.out && d.x0 < x1 + 1.2 && d.x1 > x0 - 1.2 && d.z0 < z1 + 2.5 && d.z1 > z0 - 2.5);
+
+  // Flags underfoot.
+  const flagT = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d'), r = TX.rng(77);
+    c.fillStyle = '#a9a7a4'; c.fillRect(0, 0, 128, 128);
+    for (let j = 0; j < 4; j++) for (let i = -1; i < 5; i++) { const v = 158 + Math.floor(r() * 30); c.fillStyle = `rgb(${v},${v},${v + 6})`; c.fillRect(i * 32 + (j % 2 ? 16 : 0) + 1, j * 32 + 1, 30, 30); }
+    const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.anisotropy = 4; return tx; })();
+  const flags = new THREE.MeshStandardMaterial({ map: flagT, roughness: 0.9, emissiveMap: flagT, emissive: new THREE.Color(0.32, 0.35, 0.45), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const floor = new Geo();
+  floor.quad([X0, 0.008, Z0], [X0, 0.008, S], [E, 0.008, S], [E, 0.008, Z0], [0, 1, 0], [[X0 / 2.4, Z0 / 2.4], [X0 / 2.4, S / 2.4], [E / 2.4, S / 2.4], [E / 2.4, Z0 / 2.4]]);
+  plan.paved.push({ x0: X0, x1: E, z0: Z0, z1: S });
+
+  // The pool, frozen, inside a low kerb with snow along the top of it.
+  const stoneG = new Geo(), capG = new Geo(), iceG = new Geo(), hedgeG = new Geo();
+  const P = { x0: f.x - 5.4, x1: f.x + 5.4, z0: f.z - 4.4, z1: f.z + 4.4 }, kw = 0.36, kh = 0.24;
+  iceG.quad([P.x0, 0.07, P.z0], [P.x0, 0.07, P.z1], [P.x1, 0.07, P.z1], [P.x1, 0.07, P.z0], [0, 1, 0]);
+  for (const [x0, x1, z0, z1] of [[P.x0 - kw, P.x1 + kw, P.z0 - kw, P.z0], [P.x0 - kw, P.x1 + kw, P.z1, P.z1 + kw], [P.x0 - kw, P.x0, P.z0, P.z1], [P.x1, P.x1 + kw, P.z0, P.z1]]) {
+    stoneG.box(x0, x1, 0, kh, z0, z1); capG.box(x0 + 0.03, x1 - 0.03, kh, kh + 0.05, z0 + 0.03, z1 - 0.03); solid(x0, x1, z0, z1, kh + 0.05);
+  }
+
+  // Clipped hedges round the edges, and a fir in two of the corners.
+  const hedge = (x0, x1, z0, z1, h = 0.95) => { if (blocked(x0, x1, z0, z1)) return; hedgeG.box(x0, x1, 0, h, z0, z1); capG.box(x0 - 0.03, x1 + 0.03, h, h + 0.07, z0 - 0.03, z1 + 0.03); solid(x0, x1, z0, z1, h + 0.07); };
+  hedge(X0, X0 + 0.8, Z0 + 0.6, S - 7);                                   // along the side towards the railway, stopping short of the door
+  hedge(E - 4.6, E - 0.5, S - 1.5, S - 0.6); hedge(E - 1.3, E - 0.5, S - 7.5, S - 1.5);
+  hedge(E - 1.3, E - 0.5, Z0 + 0.6, Z0 + 6);
+  const parts = { green: [], white: [], wood: [], metal: [] };
+  const put = (k, g, x, y, z) => { g.translate(x, y, z); parts[k].push(g); };
+  const fir = (x, z, s) => {
+    if (blocked(x - 0.9 * s, x + 0.9 * s, z - 0.9 * s, z + 0.9 * s)) return;
+    put('wood', new THREE.CylinderGeometry(0.09 * s, 0.12 * s, 0.7 * s, 6), x, 0.35 * s, z);
+    for (let i = 0; i < 4; i++) { const r = (1.05 - i * 0.22) * s, y = (0.75 + i * 0.72) * s; put('green', new THREE.ConeGeometry(r, 1.1 * s, 9), x, y + 0.3 * s, z); put('white', new THREE.ConeGeometry(r * 0.72, 0.5 * s, 9), x, y + 0.66 * s, z); }
+    solid(x - 0.7 * s, x + 0.7 * s, z - 0.7 * s, z + 0.7 * s, 3.8 * s);
+  };
+  fir(X0 + 2.4, Z0 + 1.6, 1.25); fir(E - 2.9, S - 3.4, 1.05);
+
+  // The café's tables: a round top on a pedestal, two chairs, and a green parasol, open with the
+  // snow lying on it or furled for the winter.
+  const table = (x, z, open, turn) => {
+    if (blocked(x - 0.8, x + 0.8, z - 0.8, z + 0.8)) return;
+    put('metal', new THREE.CylinderGeometry(0.46, 0.46, 0.035, 14), x, 0.72, z); put('metal', new THREE.CylinderGeometry(0.035, 0.035, 0.7, 6), x, 0.36, z); put('metal', new THREE.CylinderGeometry(0.22, 0.24, 0.03, 10), x, 0.02, z);
+    put('white', new THREE.CylinderGeometry(0.43, 0.45, 0.05, 14), x, 0.765, z);
+    for (const sg of [-1, 1]) { const cx = x + Math.cos(turn) * 0.68 * sg, cz = z + Math.sin(turn) * 0.68 * sg;
+      put('metal', new THREE.BoxGeometry(0.38, 0.03, 0.38), cx, 0.44, cz); put('white', new THREE.BoxGeometry(0.34, 0.035, 0.34), cx, 0.47, cz);
+      const back = new THREE.BoxGeometry(0.38, 0.42, 0.03); back.rotateY(-turn + Math.PI / 2); put('metal', back, cx + Math.cos(turn) * 0.19 * sg, 0.66, cz + Math.sin(turn) * 0.19 * sg);
+      for (const a of [-1, 1]) for (const b of [-1, 1]) put('metal', new THREE.CylinderGeometry(0.014, 0.014, 0.44, 4), cx + a * 0.16, 0.22, cz + b * 0.16); }
+    put('wood', new THREE.CylinderGeometry(0.028, 0.028, 2.5, 6), x, 1.25, z);
+    if (open) { put('green', new THREE.ConeGeometry(1.3, 0.5, 8, 1, true), x, 2.35, z); put('white', new THREE.ConeGeometry(0.98, 0.38, 8), x, 2.44, z); solid(x - 1.1, x + 1.1, z - 1.1, z + 1.1, 2.7, 2.05); }
+    else { put('green', new THREE.ConeGeometry(0.15, 1.35, 8), x, 1.85, z); put('white', new THREE.ConeGeometry(0.08, 0.3, 8), x, 2.5, z); }
+    solid(x - 0.78, x + 0.78, z - 0.78, z + 0.78, 1.0);
+  };
+  { let i = 0;
+    for (const z of [f.z - 4, f.z, f.z + 4]) table(P.x0 - 3.9, z, i++ % 3 !== 1, 1.57);                       // the side towards the railway
+    for (const x of [P.x0 - 1.6, P.x0 + 2.4, P.x1 - 2.2, P.x1 + 1.2]) table(x, P.z1 + 3.9, i++ % 3 !== 1, 0.2 + i); }      // and the side towards the arcade
+
+  // ------------------------------------------------------------------------ the walls
+  // Thin dressings just proud of what is there: an arcade, a balustraded gallery over it, and (on
+  // the south side) a row of wide square windows above that.
+  const wallG = new Geo(), trimG = new Geo(), glowG = new Geo(), barG = new Geo(), winG = new Geo();
+  const dress = (east, u0, u1, upper) => {
+    // u runs along the wall, d out from it into the court.
+    const bx = (g, a, b, y0, y1, d0, d1) => east ? g.box(E - d1, E - d0, y0, y1, a, b) : g.box(a, b, y0, y1, S - d1, S - d0);
+    const pt = (u, y, d) => east ? [E - d, y, u] : [u, y, S - d], n = east ? [-1, 0, 0] : [0, 0, -1];
+    const top = upper ? 9.3 : 5.5, nb = Math.max(2, Math.round((u1 - u0) / 4.3)), bay = (u1 - u0) / nb, w = 2.3, spring = 2.55, r = w / 2;
+    bx(wallG, u0, u1, 0, top, 0, 0.07);
+    bx(trimG, u0, u1, 0, 0.3, 0.07, 0.16); bx(trimG, u0, u1, 4.25, 4.5, 0.07, 0.3); bx(trimG, u0, u1, top - 0.28, top, 0.07, 0.26);
+    for (let i = 0; i <= nb; i++) { const u = u0 + i * bay; bx(trimG, u - 0.3, u + 0.3, 0.3, 4.25, 0.07, 0.2); bx(trimG, u - 0.36, u + 0.36, 3.95, 4.25, 0.07, 0.26); }
+    for (let i = 0; i < nb; i++) {
+      const c = u0 + (i + 0.5) * bay, d = 0.09;
+      // the glazed door and its round head, lit from inside
+      glowG.quad(pt(c - r, 0.3, d), pt(c + r, 0.3, d), pt(c + r, spring, d), pt(c - r, spring, d), n);
+      for (let k = 0; k < 10; k++) { const a0 = Math.PI * k / 10, a1 = Math.PI * (k + 1) / 10; glowG.quad(pt(c, spring, d), pt(c + r * Math.cos(a0), spring + r * Math.sin(a0), d), pt(c + r * Math.cos(a1), spring + r * Math.sin(a1), d), pt(c, spring, d), n); }
+      for (let k = 0; k < 10; k++) { const a = Math.PI * (k + 0.5) / 10, y = spring + (r + 0.13) * Math.sin(a), u = c + (r + 0.13) * Math.cos(a); bx(trimG, u - 0.2, u + 0.2, y - 0.19, y + 0.19, 0.07, 0.19); }
+      bx(trimG, c - r - 0.26, c - r, 0.3, spring, 0.07, 0.19); bx(trimG, c + r, c + r + 0.26, 0.3, spring, 0.07, 0.19);
+      bx(barG, c - 0.035, c + 0.035, 0.3, spring + r - 0.05, 0.09, 0.13); bx(barG, c - r, c + r, spring - 0.04, spring + 0.04, 0.09, 0.13); bx(barG, c - r, c + r, 0.3, 0.42, 0.09, 0.13);
+      for (const o of [-r / 2, r / 2]) bx(barG, c + o - 0.02, c + o + 0.02, 0.3, spring, 0.09, 0.12);
+      // the gallery's balustrade over it
+      bx(trimG, c - bay / 2 + 0.3, c + bay / 2 - 0.3, 5.22, 5.36, 0.1, 0.3); bx(trimG, c - bay / 2 + 0.3, c + bay / 2 - 0.3, 4.5, 4.6, 0.1, 0.3);
+      for (let u = c - bay / 2 + 0.55; u < c + bay / 2 - 0.45; u += 0.3) bx(trimG, u - 0.055, u + 0.055, 4.6, 5.22, 0.15, 0.26);
+      if (upper) { const ww = Math.min(3.1, bay - 1.1) / 2; winG.quad(pt(c - ww, 6.1, d), pt(c + ww, 6.1, d), pt(c + ww, 8.3, d), pt(c - ww, 8.3, d), n); bx(trimG, c - ww - 0.12, c + ww + 0.12, 8.3, 8.48, 0.07, 0.18); bx(trimG, c - ww - 0.12, c + ww + 0.12, 5.94, 6.1, 0.07, 0.2); bx(barG, c - 0.03, c + 0.03, 6.1, 8.3, 0.09, 0.13); }
+    }
+    for (let i = 0; i <= nb; i++) { const u = u0 + i * bay; bx(trimG, u - 0.3, u + 0.3, 4.5, 5.42, 0.07, 0.32); if (upper) bx(trimG, u - 0.24, u + 0.24, 5.42, top - 0.28, 0.07, 0.16); }
+  };
+  // The south wall: clear of the real door in it. The east wall: the length of the court.
+  { const doors = plan.doors.filter(d => d.out && Math.abs(d.z0 - S) < 1.5 && d.x1 > X0 - 6 && d.x0 < E), u0 = Math.max(X0, ...doors.map(d => d.x1 + 1.6)); if (E - 0.4 - u0 > 8) dress(false, u0, E - 0.4, true); }
+  { const doors = plan.doors.filter(d => d.out && Math.abs(d.x0 - E) < 1.5 && d.z1 > Z0 && d.z0 < S), u0 = Math.max(Z0 - 1.5, ...doors.map(d => d.z1 + 1.6)); if (S - 0.4 - u0 > 8) dress(true, u0, S - 0.4, false); }
+
+  const std = (c, e, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, emissive: e, emissiveIntensity: 0.6, ...o });
+  const both = { side: THREE.DoubleSide };
+  add(floor.mesh(flags), stoneG.mesh(trim), capG.mesh(snow), hedgeG.mesh(hedgeM),
+    iceG.mesh(new THREE.MeshStandardMaterial({ color: 0xa9c4d6, roughness: 0.18, metalness: 0.1, emissive: 0x2c4660, emissiveIntensity: 0.7 })),
+    wallG.mesh(std(0xb9b3a5, 0x4d4f5e)), trimG.mesh(trim),
+    glowG.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.8, 0.54, 0.25), ...both })), winG.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 0.19, 0.2), ...both })),
+    barG.mesh(std(0x25262b, 0x0c0d10)));
+  const mats = { green: std(0x1f4a34, 0x0d2418, { side: THREE.DoubleSide }), white: snow, wood: std(0x4a3a2a, 0x1a140e), metal: std(0x8d9198, 0x34373f, { roughness: 0.5 }) };
+  for (const k in parts) if (parts[k].length) add(new THREE.Mesh(mergeGeometries(parts[k].map(g => g.index ? g.toNonIndexed() : g)), mats[k]));
 }
