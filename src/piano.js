@@ -46,13 +46,19 @@ export class Piano {
     Object.assign(this, deps); this.G = G; this.on = false; this.cur = null; this.list = [];
     this.voices = []; this.held = new Map(); this.sus = false; this.base = 48; this.auto = null; this.played = 0;
     this.ptr = new Map(); this.keysDown = new Map();
+    for (const m of (this.plan.marks || []).filter(q => q.kind === 'piano')) this.add(m);
+    this._dom();
+  }
+  /** Another keyboard to play: `m` is { room, x, y, z, fx, fz } (the front edge of the keys, and the way into the instrument).
+   *  o.grand === false: no grand's lid and prop (an upright stands its own case round the keys); o.secret === false: not a secret of its own; o.id: an id of its own. */
+  add(m, o = {}) {
     const plan = this.plan, up = new THREE.Vector3(0, 1, 0);
     const ivory = new THREE.MeshStandardMaterial({ color: 0xf2ecdc, roughness: 0.35, emissive: 0xb9b3a4, emissiveIntensity: 0.8 });
     const ebony = new THREE.MeshStandardMaterial({ color: 0x16161a, roughness: 0.3, emissive: 0x08080a, emissiveIntensity: 0.6 });
     const lacquer = new THREE.MeshStandardMaterial({ color: 0x0c0c0f, roughness: 0.18, metalness: 0.3, emissive: 0x050506, emissiveIntensity: 0.6 });
     const brass = new THREE.MeshStandardMaterial({ color: 0xb8964a, roughness: 0.35, metalness: 0.8, emissive: 0x3a2c10, emissiveIntensity: 0.6 });
     const wg = new THREE.BoxGeometry(WW - 0.0022, KH, KL), bg = new THREE.BoxGeometry(WW * 0.56, KH + 0.012, BL);
-    for (const m of (plan.marks || []).filter(q => q.kind === 'piano')) {
+    {
       const f = new THREE.Vector3(m.fx, 0, m.fz).normalize(), r = new THREE.Vector3().crossVectors(f, up).normalize();      // away from the player; to the player's right
       const O = new THREE.Vector3(m.x, m.y, m.z), room = plan.byId[m.room], name = room ? String(room.gallery || 'a back room') : 'a back room';
       const basis = new THREE.Matrix4().makeBasis(r, up, f.clone().negate());                                                 // local: x right, y up, -z away
@@ -63,7 +69,7 @@ export class Piano {
         const mw = whiteMidi(i); slots.set(mw, { mesh: white, i, x: (i - 25.5) * WW, y: KH / 2, z: -KL / 2 });
         if (isBlack(mw + 1) && mw + 1 <= 108) slots.set(mw + 1, { mesh: black, i: nb++, x: (i - 25) * WW, y: KH / 2 + 0.006, z: -(KL - BL / 2) });
       }
-      const P = { id: 'piano:' + m.room + ':' + Math.round(m.x) + ',' + Math.round(m.z), name, room: m.room, O, f, r, group, slots, dip: new Map(), seat: O.clone().addScaledVector(f, -0.5) };
+      const P = { id: o.id || 'piano:' + m.room + ':' + Math.round(m.x) + ',' + Math.round(m.z), name, room: m.room, O, f, r, group, slots, dip: new Map(), seat: O.clone().addScaledVector(f, -0.5) };
       for (const [, s] of slots) this._set(s, 0);
       white.frustumCulled = black.frustumCulled = false; group.add(white, black);
       // A felt strip behind the keys, the fallboard with a line of brass on it, and the lid, propped.
@@ -72,14 +78,16 @@ export class Piano {
       const bed = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.002, KL), new THREE.MeshBasicMaterial({ color: 0x4e4b44 })); bed.position.set(0, 0.004, -KL / 2); group.add(bed);
       const fall = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.16, 0.02), lacquer); fall.position.set(0, 0.1, -KL - 0.024); group.add(fall);
       const line = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.012, 0.004), brass); line.position.set(0, 0.11, -KL - 0.012); group.add(line);
-      const hinge = new THREE.Group(); hinge.position.set(-0.75, 0.275, -1.12); hinge.rotation.z = 0.5;
-      const lid = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.028, 1.5), lacquer); lid.position.set(0.525, 0, 0); hinge.add(lid); group.add(hinge);
-      const prop = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.02), brass); prop.position.set(0.12, 0.5, -0.62); group.add(prop);
+      if (o.grand !== false) {
+        const hinge = new THREE.Group(); hinge.position.set(-0.75, 0.275, -1.12); hinge.rotation.z = 0.5;
+        const lid = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.028, 1.5), lacquer); lid.position.set(0.525, 0, 0); hinge.add(lid); group.add(hinge);
+        const prop = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.02), brass); prop.position.set(0.12, 0.5, -0.62); group.add(prop);
+      }
       this.museum.group.add(group); group.updateMatrixWorld(true);
       this.list.push(P);
-      if (this.secrets) this.secrets.add(P.id, `The piano in the ${name}`);
+      if (this.secrets && o.secret !== false) this.secrets.add(P.id, `The piano in the ${name}`);
+      return P;
     }
-    this._dom();
   }
   _set(s, dip) { const M = this._m || (this._m = new THREE.Matrix4()); s.mesh.setMatrixAt(s.i, M.makeTranslation(s.x, s.y - dip, s.z)); s.mesh.instanceMatrix.needsUpdate = true; }
 
