@@ -13,12 +13,15 @@ export const TIERS = { bronze: { name: 'Bronze', colour: '#c98a52', worth: 15 },
 const title = re => m => m.arts.filter(a => re.test(a.work.t || ''));
 const seenAny = id => s => s.famous[id] && s.famous[id].some(a => a.seen);
 const inRoom = re => s => !!s.room && re.test(s.room.gallery || '');
+// Discovered: come across, by driving or flying past. Looked at: stopped, and looked closely.
+const found = n => ({ goal: n, count: s => s.seen, test: s => s.seen >= n, needs: m => (m.arts.length >= n ? [1] : []) });
 const works = n => ({ goal: n, count: s => s.looked, test: s => s.looked >= n, needs: m => (m.arts.length >= n ? [1] : []) });
 
 export const TROPHIES = [
   // ---- bronze ----
   { id: 'in', tier: 'bronze', name: 'After Hours', desc: 'Find a way into the building.', test: s => s.inside },
   { id: 'first', tier: 'bronze', name: 'First Impression', desc: 'Look closely at your first work of art.', test: s => s.looked >= 1 },
+  { id: 'l5', tier: 'bronze', name: 'Five Good Looks', desc: 'Look closely at 5 different works.', ...works(5) },
   { id: 'w10', tier: 'bronze', name: 'A Good Start', desc: 'Look closely at 10 different works.', ...works(10) },
   { id: 'room', tier: 'bronze', name: 'The Whole Room', desc: 'See every work in one room.', test: s => s.roomsDone >= 1 },
   { id: 'levels', tier: 'bronze', name: 'Upstairs, Downstairs', desc: 'See a work on every level of the building.', goal: 0, count: s => s.levels.filter(l => l.seen > 0).length, total: s => s.levels.length, test: s => s.levels.length > 0 && s.levels.every(l => l.seen > 0) },
@@ -34,6 +37,8 @@ export const TROPHIES = [
   { id: 'cards', tier: 'bronze', hidden: true, name: 'A Friend in Need', desc: 'Sit in at the card game on the roof.', test: s => s.flags.cards },
   { id: 'goal', tier: 'bronze', hidden: true, name: 'He Shoots', desc: 'Score a goal on the hockey pond.', test: s => s.flags.goal },
   // ---- silver ----
+  { id: 'l25', tier: 'silver', name: 'Getting Your Eye In', desc: 'Look closely at 25 different works.', ...works(25) },
+  { id: 'd200', tier: 'silver', name: 'Well Travelled', desc: 'Discover 200 works: drive or fly past them.', ...found(200) },
   { id: 'w50', tier: 'silver', name: 'Regular Visitor', desc: 'Look closely at 50 different works.', ...works(50) },
   { id: 'w100', tier: 'silver', name: 'Member', desc: 'Look closely at 100 different works.', ...works(100) },
   { id: 'jatte', tier: 'silver', name: 'Sunday in the Park', desc: 'See Seurat’s A Sunday on La Grande Jatte.', needs: m => { const a = title(/grande jatte/i)(m), b = a.filter(x => !/sketch|study/i.test(x.work.t)); return b.length ? b : a; }, test: seenAny('jatte') },
@@ -59,6 +64,8 @@ export const TROPHIES = [
   // ---- gold ----
   { id: 'w250', tier: 'gold', name: 'Connoisseur', desc: 'Look closely at 250 different works.', ...works(250) },
   { id: 'w500', tier: 'gold', name: 'Curator', desc: 'Look closely at 500 different works.', ...works(500) },
+  { id: 'd500', tier: 'gold', name: 'Seen It All', desc: 'Discover 500 works: drive or fly past them.', ...found(500) },
+  { id: 'lall', tier: 'gold', name: 'Every Last One', desc: 'Look closely at every work on view tonight.', goal: 0, count: s => s.lookedHung, total: s => s.total, test: s => s.total > 0 && s.lookedHung >= s.total },
   { id: 'level', tier: 'gold', name: 'A Whole Floor', desc: 'See every work in every room on one level.', test: s => s.levels.some(l => l.rooms > 0 && l.done === l.rooms) },
   { id: 'hoops', tier: 'gold', name: 'Every Hoop', desc: 'Go through every hoop in the building in one visit.', goal: 0, count: s => s.hoops, total: s => s.hoopsAll, test: s => s.hoopsAll > 0 && s.hoops >= s.hoopsAll },
   { id: 'stunts', tier: 'gold', name: 'Stunt Curator', desc: 'Land 25 Stunt Looks.', goal: 25, count: s => s.stunts, test: s => s.stunts >= 25 },
@@ -131,7 +138,7 @@ export class Trophies {
       if (l) { l.rooms++; if (st.done) l.done++; l.seen += st.seen; }
     }
     return {
-      seen: m.seenCount, looked: score ? score.looked : 0, total: m.arts.length, roomsDone, levels, famous: this.famous, flags: this.flags,
+      seen: m.seenCount, looked: score ? score.looked : 0, lookedHung: score ? m.arts.filter(a => score.viewsOf(a.work.id) > 0).length : 0, total: m.arts.length, roomsDone, levels, famous: this.famous, flags: this.flags,
       room: G.roomId ? G.plan.byId[G.roomId] : null, y: v.pos.y, grounded: v.kind !== 'car' || !v.air,
       inside: !G.plan.locked && G.mode === 'explore' && !!G.roomId,
       stunts: score.s.stunts, bullet: score.s.bullet, combo: score.s.combo, score: score.s.score,

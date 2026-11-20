@@ -235,6 +235,7 @@ async function boot() {
   garage.chooseKind(sv ? sv.toy : garage.kind, pick);
   titleButtons();
   G.state = 'title';
+  admired();
   if (shown === 'title' && !params.get('mode')) show('title');       // puts focus on Start, so Enter begins
   if (params.get('mode')) { G.toy = garage.fromParam(params.get('toy') || 'car', pick); start(params.get('mode')); }
 }
@@ -382,6 +383,27 @@ function titleButtons() {
   $('bNew').hidden = !game;
 }
 
+// The title screen's tally of art admired: what you have looked at closely and come across, and,
+// when the server answers, what everybody has between them and which works they keep going back to.
+function admired() {
+  const m = G.museum; if (!m) return;
+  const b = n => `<b>${Number(n).toLocaleString()}</b>`;
+  $('adYou').innerHTML = `${b(score.looked)} looked at closely \u00b7 ${b(m.seenCount)} discovered \u00b7 of ${b(m.arts.length)} on view`;
+  $('admired').hidden = false;
+  if (admired.asked && Date.now() - admired.asked < 600e3) return;
+  admired.asked = Date.now();
+  const ask = tm.topViews ? tm.topViews(2000) : null;
+  if (ask && ask.then) ask.then(rows => {
+    if (!rows || !rows.length) return;
+    const total = rows.reduce((s, r) => s + (+r.views || 0), 0);
+    $('adAll').innerHTML = `${b(total)} look${total === 1 ? '' : 's'} at ${b(rows.length)} work${rows.length === 1 ? '' : 's'}`;
+    $('adAllRow').hidden = false;
+    const top = $('adTop'); top.textContent = '';
+    rows.slice(0, 3).forEach((r, i) => { if (i) top.append(' \u00b7 '); const t = document.createElement('i'); t.textContent = String(r.title || 'Untitled').slice(0, 60); top.append(t, ` ${(+r.views).toLocaleString()}`); });
+    $('adTopRow').hidden = false;
+  }).catch(() => {});
+}
+
 function quit() {
   score.flush();
   if (G.poker.on) { G.poker.leave(); G.lamp.visible = G.lampWas !== false; }
@@ -401,7 +423,7 @@ function quit() {
   endFlyby();
   titleButtons();
   $('hud').hidden = true;
-  show('title');
+  show('title'); admired();
 }
 
 // ---------------------------------------------------------------- screens ---
