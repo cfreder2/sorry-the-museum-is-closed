@@ -92,7 +92,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.6';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.7';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -137,11 +137,23 @@ const want = new THREE.Vector3();
 const tmp = new THREE.Vector3();
 const angDiff = (a, b) => { const d = a - b; return Math.atan2(Math.sin(d), Math.cos(d)); };
 
+// The loading screen's bar. Each step is shown before the work behind it starts, so the screen gets a frame in between.
+function loading(pct, step) {
+  const el = $('loading'); if (!el) return Promise.resolve();
+  $('lfill').style.transform = `scaleX(${pct / 100})`; el.querySelector('.lbar').setAttribute('aria-valuenow', pct);
+  if (step) $('lstep').textContent = step;
+  if (pct >= 100) { el.classList.add('done'); setTimeout(() => { el.hidden = true; }, 900); return Promise.resolve(); }
+  return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+}
+
 async function boot() {
+  await loading(8, 'Seeing the last visitors out');
   // ?saved skips the live API; ?remote ignores any offline image copy, which is only looked for when run locally.
   const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || params.has('local');
   const [collection] = await Promise.all([loadCollection({ timeout: params.has('saved') ? 1 : 7000 }), local && !params.has('remote') ? loadLocalImages() : null]);
+  await loading(30, 'Walking the galleries');
   const plan = G.plan = buildPlan();
+  await loading(42, 'Covering the sculpture court');
   G.collection = collection;
   G.museum = new Museum(plan, collection, mirror, renderer.capabilities.getMaxAnisotropy());
   G.museum.renderer = renderer;
@@ -158,6 +170,7 @@ async function boot() {
     }
     if (G.museum.seenCount === G.museum.arts.length) say('You have seen every work on view tonight.', 2, 10);
   };
+  await loading(78, 'Locking the front doors');
   G.perchTotal = new Set(plan.surfaces.filter(q => q.perch).map(q => q.perch + '@' + Math.round(q.x0) + ',' + Math.round(q.z0))).size;
 
   G.car = new Car(plan);
@@ -169,6 +182,7 @@ async function boot() {
   G.race = new Race(scene, plan);
   G.props = new Props(plan);
   scene.add(G.props.group);
+  await loading(86, 'Turning down the lights');
   G.poker = new Poker(G.museum, plan, sound);
   // The colour pedestal in Griffin Court: five patterns right and the roof lets go (src/simon.js).
   G.simon = new Simon(G, { museum: G.museum, plan, sound, stage, resume: () => act('resume'), calm: () => set.reduce, onWin: () => { callout('THE ROOF LETS GO'); tm.event('simon'); } });
@@ -224,6 +238,7 @@ async function boot() {
   const when = new Date(collection.fetched);
   const n = G.museum.arts.length;
   $('status').textContent = '';
+  loading(100);
   $('source').innerHTML = (collection.live
     ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
     : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${params.has('saved') ? '' : ', because the live API could not be reached'}.`)
@@ -1344,4 +1359,5 @@ if (params.has('probe')) setTimeout(() => {
 boot().then(() => requestAnimationFrame(tick)).catch(err => {
   console.error(err);
   $('status').textContent = 'The building would not open: ' + err.message;
+  { const el = $('loading'); if (el) { el.classList.add('failed'); $('lstep').textContent = 'The building would not open: ' + err.message; } }
 });

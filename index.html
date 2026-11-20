@@ -18,6 +18,13 @@
 </script>
 </head>
 <body>
+<div id="loading" role="status" aria-live="polite">
+  <div class="lbox">
+    <div class="ltext">The museum is closing for the evening</div>
+    <div class="lbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading"><i id="lfill"></i><b></b></div>
+    <div class="lstep" id="lstep">Seeing the last visitors out</div>
+  </div>
+</div>
 <canvas id="view" tabindex="-1" role="img" aria-label="The museum in three dimensions, seen from behind a toy car or drone. Room names, artwork titles and messages are announced as text."></canvas>
 
 <div id="hud" hidden>
