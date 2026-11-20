@@ -548,10 +548,139 @@ const RECIPES = {
     R.services('track');
   },
 
+  // A restroom block, not one hall of cubicles: a corridor off the room's own doors, and walled off it a Women's, a Men's,
+  // a family room or two, the cleaner's cupboard, and in what is left whatever a museum keeps next to its restrooms.
   restroom(R) {
-    R.walls(['stall'], { walls: 'side0', gap: 0 });
-    R.walls(['basins', 'basins', 'handDryer', 'basins', 'bin'], { walls: 'side1', gap: 0.2 });
-    R.walls(['stall', 'stall', 'handDryer', 'bin', 'babyChange'], { walls: 'short', gap: 0.05 });
+    const { L, W, plan } = R, r = R.room, H = R.H, rnd = R.rnd, T = 0.1, TILE = 0xdfe6e4, BAND = 0x5f8794, PAINT = 0xc9cdca;
+    const wall = (a0, a1, b0, b1, y0 = 0, y1 = H) => {
+      if (a1 - a0 < 0.01 || b1 - b0 < 0.01) return;
+      const seg = (ya, yb, hex) => { const p = Math.max(ya, y0), q = Math.min(yb, y1); if (q > p + 0.005) R.box(a0, a1, p, q, b0, b1, hex); };
+      seg(0, 1.1, TILE); seg(1.1, 1.24, BAND); seg(1.24, 2.1, TILE); seg(2.1, H, PAINT);
+      const q = R.rect(a0, a1, b0, b1); R.solid(q.x0, q.x1, y0, Math.min(y1, H), q.z0, q.z1);
+    };
+    const set = (name, a, b, face, w, o) => { const it = ITEMS[name], [fx, fz] = R.dir(FACES[face]), [ox, oz] = R.xz(a, b); it.draw(new Pen(R, ox, oz, fx, fz, it.d), w || it.w, rnd, o); R.placed++; };
+    // where the ways in are
+    const doors = plan.doorsOf(r.id).filter(d => Math.abs(d.y - r.y) <= 0.3).map(d => { const [a0, b0] = R.ab(d.x0, d.z0), [a1, b1] = R.ab(d.x1, d.z1), ca = (a0 + a1) / 2, cb = (b0 + b1) / 2, dist = [cb, W - cb, ca, L - ca], k = dist.indexOf(Math.min(...dist));
+      return { wall: k, lo: k < 2 ? Math.min(a0, a1) : Math.min(b0, b1), hi: k < 2 ? Math.max(a0, a1) : Math.max(b0, b1) }; });
+    // A small room is one restroom and needs no corridor: cubicles down one long wall, basins and the mirror down the other,
+    // each broken where a door is, and the floor between them left clear from door to door.
+    if (W < 7.5 && L < 20) {
+      const use = /wcE$/.test(r.id) ? 'MEN' : 'WOMEN', tally = { room: r.id, use, len: +L.toFixed(2), depth: +W.toFixed(2), stalls: 0, urinals: 0, basins: 0, at: R.xz(L / 2, W / 2), out: R.xz(L / 2, W / 2) };
+      const runs = k => { const out = []; let a = 0.12; for (const [p, q] of doors.filter(d => d.wall === k).map(d => [d.lo - 0.5, d.hi + 0.5]).sort((x, y) => x[0] - y[0])) { if (p - a > 0.9) out.push([a, p]); a = Math.max(a, q); } if (L - 0.12 - a > 0.9) out.push([a, L - 0.12]); return out.sort((x, y) => (y[1] - y[0]) - (x[1] - x[0])); };
+      const ks = hash(r.id) & 1, kb = 1 - ks, fS = ks ? 'b-' : 'b+', fB = kb ? 'b-' : 'b+', bS = ks ? W : 0, bB = kb ? W : 0;
+      const sr = runs(ks), br = runs(kb);
+      // the cubicles: the wide one first, then as many as the wall takes, eight at the most
+      let first = true;
+      for (const [p, q] of sr) {
+        let a = p;
+        if (use === 'MEN' && !first) { const nu = Math.max(0, Math.min(5 - tally.urinals, Math.floor((q - a) / 0.75))); for (let i = 0; i < nu; i++) { set('urinal', a + 0.375, bS, fS); a += 0.75; tally.urinals++; } continue; }
+        if (first && q - a > 1.5) { set('stall', a + 0.75, bS, fS, 1.5, { wide: true, door: 'ajar' }); a += 1.5; tally.stalls++; }
+        const cap = use === 'MEN' ? 3 : first ? 5 : 8;
+        while (a + 0.95 <= q && tally.stalls < cap) { set('stall', a + 0.475, bS, fS, 0.95, tally.stalls === 2 ? { door: 'open' } : undefined); a += 0.95; tally.stalls++; }
+        if (use === 'MEN' && first) { a += 0.1; while (a + 0.75 <= q && tally.urinals < 2) { set('urinal', a + 0.375, bS, fS); a += 0.75; tally.urinals++; } }
+        first = false;
+      }
+      // the basins under their mirror, and on the next stretch of wall what dries hands and changes babies
+      br.forEach(([p, q], i) => {
+        if (i === 0) { const k = Math.max(1, Math.min(6, Math.floor((q - p - 0.2) / 0.7))); set('basinRun', (p + q) / 2, bB, fB, k * 0.7); tally.basins += k; }
+        else if (i === 1) { let a = p + 0.3; for (const name of ['handDryer', 'towels', 'babyChange', 'handDryer']) { const w = ITEMS[name].w; if (a + w > q - 0.1) break; set(name, a + w / 2, bB, fB); a += w + 0.45; } if (q - a > 1.9) set('bench', a + 0.9, bB, fB); }
+      });
+      { const [p, q] = br[0] || [L / 2 - 1, L / 2 + 1], [x, z] = R.xz((p + q) / 2, kb ? W - 0.012 : 0.012), [fx, fz] = R.dir(FACES[fB]); R.out.marks.push({ kind: 'wcsign', room: r.id, x, y: R.y + Math.min(2.5, H - 0.3), z, fx, fz, text: use, icon: use, w: 1.05, h: 0.3 }); }
+      { const [x, z] = R.xz(L / 2 + 1.2, W / 2 + 0.3); R.out.marks.push({ kind: 'loose', room: r.id, type: 'wetfloor', x, y: R.y, z, yaw: rnd() * 6.28, col: 0xe2b21c }); }
+      (R.out.wc || (R.out.wc = [])).push(tally);
+      R.services('lights');
+      return;
+    }
+    // the corridor: down the middle of a wide room, along the wall with the doors in a narrow one
+    const narrow = W < 7.5, cw = narrow ? (W < 5.2 ? 1.6 : 1.9) : 2.2, n0 = doors.filter(d => d.wall === 0).length, n1 = doors.filter(d => d.wall === 1).length;
+    const c0 = narrow ? (n1 > n0 ? W - cw : 0) : W / 2 - cw / 2, c1 = c0 + cw;
+    const lobby = k => doors.some(d => d.wall === k && (d.lo < c0 + 0.05 || d.hi > c1 - 0.05)) ? 1.6 : 0, e0 = lobby(2), e1 = lobby(3);
+    // each side of it: the stretches no door or stair needs
+    const spaces = [];
+    for (const s of [-1, 1]) {
+      const D = s > 0 ? W - c1 : c0; if (D < 2.9) continue;
+      const B0 = s > 0 ? c1 : 0, B1 = s > 0 ? W : c0, gaps = doors.filter(d => d.wall === (s > 0 ? 1 : 0)).map(d => [d.lo - 0.45, d.hi + 0.45]);
+      for (const q of R.kept || []) { const [a0, b0] = R.ab(q.x0, q.z0), [a1, b1] = R.ab(q.x1, q.z1); if (Math.max(b0, b1) > B0 && Math.min(b0, b1) < B1) gaps.push([Math.min(a0, a1) - 0.2, Math.max(a0, a1) + 0.2]); }
+      let a = e0; for (const [p, q] of gaps.sort((x, y) => x[0] - y[0])) { if (Math.min(p, L - e1) - a > 0.3) spaces.push({ s, D, p: a, q: Math.min(p, L - e1) }); a = Math.max(a, q); } if (L - e1 - a > 0.3) spaces.push({ s, D, p: a, q: L - e1 });
+    }
+    const WISH = { WOMEN: [5.4, 7.2, 8.2], MEN: [6.2, 6.6, 7.6], FAMILY: [2.3, 2.8, 3.3], CLEANER: [1.5, 1.8, 2.2], COAT: [4, 7, 9], MEMBER: [4, 7, 9], FIRSTAID: [3, 3.8, 4.6], PARENTS: [3.4, 4.4, 5.6], LOCKERS: [2.6, 5, 8], STAFF: [1.5, 3, 5] };
+    const NAME = { WOMEN: 'WOMEN', MEN: 'MEN', FAMILY: 'FAMILY', CLEANER: 'CLEANER', COAT: 'COAT CHECK', MEMBER: 'MEMBER SERVICES', FIRSTAID: 'FIRST AID', PARENTS: 'PARENTS’ ROOM', LOCKERS: 'LOCKERS', STAFF: 'STAFF ONLY' };
+    const bays = [], take = (use, least) => {
+      const [mn, pf, mx] = WISH[use], m = least || mn, sp = spaces.filter(x => x.q - x.p >= m).sort((x, y) => (y.q - y.p) - (x.q - x.p))[0]; if (!sp) return false;
+      let len = Math.min(pf, sp.q - sp.p); if (sp.q - sp.p - len < 1.5) len = Math.min(mx, sp.q - sp.p);
+      bays.push({ use, s: sp.s, D: sp.D, a0: sp.p, a1: sp.p + len }); sp.p += len; return true;
+    };
+    const first = ['WOMEN', 'MEN', 'FAMILY', 'CLEANER', 'FAMILY'];
+    const more = /member/i.test(R.name) ? ['MEMBER', 'COAT', 'PARENTS', 'LOCKERS', 'FIRSTAID'] : r.id === 'F0-wcM' ? ['COAT', 'PARENTS', 'FIRSTAID', 'LOCKERS'] : ['LOCKERS', 'FIRSTAID', 'PARENTS', 'COAT'];
+    { const big = spaces.slice().sort((x, y) => (y.q - y.p) - (x.q - x.p)), l0 = big[0] ? big[0].q - big[0].p : 0, l1 = big[1] ? big[1].q - big[1].p : 0;
+      if (first.includes('WOMEN') && first.includes('MEN') && l1 < 6.2 && l0 >= 11.6) {       // side by side on the one stretch that will take them
+        const sp = big[0], wl = Math.max(5.4, Math.min(7.2, l0 - 6.6)), ml = Math.min(7.6, l0 - wl - (l0 - wl - 6.6 > 1.5 ? l0 - wl - 6.6 : 0));
+        bays.push({ use: 'WOMEN', s: sp.s, D: sp.D, a0: sp.p, a1: sp.p + wl }, { use: 'MEN', s: sp.s, D: sp.D, a0: sp.p + wl, a1: sp.p + wl + ml }); sp.p += wl + ml;
+        first.splice(first.indexOf('WOMEN'), 1); first.splice(first.indexOf('MEN'), 1);
+      } }
+    for (const u of first) if (!take(u) && (u === 'WOMEN' || u === 'MEN')) take(u, 4.4);
+    for (const u of more) take(u);
+    for (let i = 0; i < 12 && take('STAFF'); i++);
+    const count = [];
+    for (const sp of spaces) if (sp.q - sp.p > 0.05) { const b0 = sp.s > 0 ? c1 : 0, b1 = sp.s > 0 ? W : c0; wall(sp.p, sp.q, b0, b1); }      // what is left over is a riser, walled in
+
+    for (const bay of bays) {
+      const { use, s, D, a0, a1 } = bay, len = a1 - a0, bOf = t => s > 0 ? c1 + t : c0 - t, toCorr = s > 0 ? 'b-' : 'b+', away = s > 0 ? 'b+' : 'b-';
+      const span = (t0, t1) => [Math.min(bOf(t0), bOf(t1)), Math.max(bOf(t0), bOf(t1))];
+      const tw = (p, q, t0, t1, y0, y1) => wall(p, q, ...span(t0, t1), y0, y1);
+      const shut = use === 'CLEANER' || use === 'STAFF', hatch = (use === 'COAT' || use === 'MEMBER') && len > 4.5, o0 = a0 + 0.4, o1 = o0 + 1.4;
+      tw(a0, a0 + 0.06, 0, D); tw(a1 - 0.06, a1, 0, D);
+      tw(a0, o0, 0, T); tw(o0, o1, 0, T, 2.1, H);
+      if (hatch) {       // a counter in the wall, open above it
+        tw(o1, o1 + 0.3, 0, T); tw(a1 - 0.3, a1, 0, T); tw(o1 + 0.3, a1 - 0.3, 0, T, 0, 1.0); tw(o1 + 0.3, a1 - 0.3, 0, T, 2.1, H);
+        const [p, q] = span(-0.12, 0.42); R.box(o1 + 0.3, a1 - 0.3, 1.0, 1.045, p, q, C.woodL);
+        const k = R.rect(o1 + 0.3, a1 - 0.3, p, q); R.solid(k.x0, k.x1, 0.9, 1.05, k.z0, k.z1);
+      } else tw(o1, a1, 0, T);
+      if (shut) {
+        const [p, q] = span(0.03, 0.07); R.box(o0, o1, 0, 2.1, p, q, 0x5a626b);
+        { const [p2, q2] = span(0.02, 0.08); R.box(o0, o1, 0, 0.25, p2, q2, C.steelL, 'metal'); }
+        { const [p2, q2] = span(-0.03, 0.07); R.box(o1 - 0.18, o1 - 0.12, 0.98, 1.06, p2, q2, C.steelL, 'metal'); }
+        const k = R.rect(o0, o1, p, q); R.solid(k.x0, k.x1, 0, 2.1, k.z0, k.z1);
+      }
+      // its name over the way in, on the corridor side
+      { const [x, z] = R.xz((o0 + o1) / 2, bOf(-0.008)), [fx, fz] = R.dir(FACES[toCorr]); R.out.marks.push({ kind: 'wcsign', room: r.id, x, y: R.y + Math.min(2.34, H - 0.3), z, fx, fz, text: NAME[use], icon: use, w: use === 'MEMBER' || use === 'PARENTS' ? 1.3 : 1.05, h: 0.3 }); }
+      const tally = { room: r.id, use, len: +len.toFixed(2), depth: +D.toFixed(2), stalls: 0, urinals: 0, basins: 0, at: R.xz((o0 + o1) / 2, bOf(1.0)), out: R.xz((o0 + o1) / 2, bOf(-0.8)) }; count.push(tally);
+      if (shut) continue;
+      const row = (list, from = a0 + 0.15, to = a1 - 0.15, gap = 0.12) => { let a = from; for (const [name, w, o] of list) { const ww = w || ITEMS[name].w; if (a + ww > to) continue; set(name, a + ww / 2, bOf(D), toCorr, ww, o); a += ww + gap; } return a; };
+      const basins = (n, from = o1 + 0.25) => { const avail = a1 - 0.15 - from, k = Math.max(0, Math.min(n, Math.floor(avail / 0.7))); if (k) { set('basinRun', from + k * 0.35, bOf(T), away, k * 0.7); tally.mirror = R.xz(from + k * 0.35, bOf(T)); tally.eye = R.xz(from + k * 0.35 - 1.3, bOf(Math.min(D - 1.7, 2.2))); } tally.basins += k; return k; };
+      const sideA1 = (name, t) => set(name, a1 - 0.06, bOf(t), 'a-'), sideA0 = (name, t) => set(name, a0 + 0.06, bOf(t), 'a+');
+      if (use === 'WOMEN' || use === 'MEN') {
+        let a = a0 + 0.1; set('stall', a + 0.75, bOf(D), toCorr, 1.5, { wide: true, door: 'ajar' }); a += 1.5; tally.stalls++;
+        const n = use === 'MEN' ? 2 : Math.max(2, Math.min(7, Math.floor((a1 - 0.1 - a) / 0.95)));
+        for (let i = 0; i < n; i++) { set('stall', a + 0.475, bOf(D), toCorr, 0.95, i === n - 1 && use === 'WOMEN' ? { door: 'open' } : undefined); a += 0.95; tally.stalls++; }
+        if (use === 'MEN') { a += 0.12; const nu = Math.max(0, Math.min(5, Math.floor((a1 - 0.12 - a) / 0.75))); for (let i = 0; i < nu; i++) { set('urinal', a + 0.375, bOf(D), toCorr); a += 0.75; tally.urinals++; } }
+        basins(6);
+        const free = D - 1.5 - 0.7; if (free > 0.8) { sideA1('handDryer', 0.7 + free * 0.3); sideA1('towels', 0.7 + free * 0.75); }
+        if (free > 1.0) sideA0('babyChange', 0.9 + free * 0.5);
+        if (D > 4.4) set('bench', (a0 + a1) / 2, bOf(D - 2.6), toCorr);
+        if (use === 'WOMEN') { const [x, z] = R.xz(o1 + 0.5, bOf(1.25)); R.out.marks.push({ kind: 'loose', room: r.id, type: 'wetfloor', x, y: R.y, z, yaw: rnd() * 6.28, col: 0xe2b21c }); }
+      } else if (use === 'FAMILY') {
+        set('pan', a1 - 0.6, bOf(D), toCorr); tally.stalls++; set('basinRun', a0 + Math.max(1.0, len / 2 - 0.3), bOf(D), toCorr, 0.7); tally.basins++;
+        if (D > 3.1) sideA0('changeTable', D - 1.25);
+        sideA1('towels', Math.min(D - 1.2, 1.4));
+      } else if (use === 'COAT') {
+        for (let a = a0 + 0.3; a + 1.5 < a1 - 0.2; a += 1.62) { set('coatRail', a + 0.75, bOf(D - 0.05), toCorr); if (D > 4.6) set('coatRail', a + 0.75, bOf(D - 1.75), toCorr); }
+        if (len > 5) set('umbrellaStand', a1 - 0.6, bOf(0.9), toCorr);
+      } else if (use === 'MEMBER') {
+        row([['bookcase'], ['pigeonholes'], ['filing'], ['plant'], ['bookcase'], ['filing']]);
+        if (D > 4.2) set('desk', (o1 + 0.3 + a1 - 0.3) / 2, bOf(2.6), toCorr);
+      } else if (use === 'FIRSTAID') {
+        const a = row([['sofa'], ['filing'], ['filing']]); if (a1 - 0.2 - a > 0.75) { set('basinRun', a + 0.35, bOf(D), toCorr, 0.7); tally.basins++; }
+        sideA1('towels', Math.min(D - 1.3, 1.5));
+      } else if (use === 'PARENTS') {
+        row([['sofa'], ['armchair'], ['plant']]); basins(1);
+        if (D > 3.1) { sideA1('changeTable', D - 1.6); if (D > 4.6) sideA1('changeTable', D - 2.8); }
+      } else if (use === 'LOCKERS') {
+        set('lockerRun', (a0 + a1) / 2, bOf(D), toCorr, Math.floor((len - 0.3) / 0.3) * 0.3);
+        for (let a = a0 + 2.6; a + 0.9 < a1 - 0.3; a += 2.4) set('bench', a, bOf(D - 1.75), toCorr);
+      }
+    }
+    (R.out.wc || (R.out.wc = [])).push(...count);
     R.services('lights');
   },
   shop(R) {
@@ -706,7 +835,9 @@ function finish(R, recipe) {
     const B = (a, b, ya, yb, dep, hex) => { const p = Math.min(at, at + sg * dep), q = Math.max(at, at + sg * dep); alongX ? m.box(a, b, y + ya, y + yb, p, q, hex, true) : m.box(p, q, y + ya, y + yb, a, b, hex, true); };
     B(lo, hi, r.h - 0.2, r.h - 0.02, 0.06, 0x1b1d21);
     const spans = doors.filter(dd => (alongX ? dd.along !== 'x' : dd.along === 'x') && (alongX ? dd.z0 <= wall + 0.06 && dd.z1 >= wall - 0.06 : dd.x0 <= wall + 0.06 && dd.x1 >= wall - 0.06))       /* the doorway meets this wall, however long the passage beyond it */.map(dd => (alongX ? [dd.x0 - 0.1, dd.x1 + 0.1] : [dd.z0 - 0.1, dd.z1 + 0.1]));
-    for (const [a, b] of runs(lo, hi, spans)) { B(a, b, 0, 0.11, 0.07, 0x3c3f45); B(a, b, 0.11, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); }      // (proud enough to stand clear of a wall that is itself built a little way in)
+    for (const [a, b] of runs(lo, hi, spans)) { B(a, b, 0, 0.11, 0.07, 0x3c3f45);
+      if (recipe === 'restroom') { B(a, b, 0.11, 1.1, 0.045, 0xdfe6e4); B(a, b, 1.1, 1.24, 0.05, 0x5f8794); B(a, b, 1.24, 2.1, 0.045, 0xdfe6e4); B(a, b, 2.1, 2.14, 0.06, 0xb7b2a6); }      // tiled to the height of the doors, with a darker band
+      else { B(a, b, 0.11, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); } }      // (proud enough to stand clear of a wall that is itself built a little way in)
   }
 }
 
@@ -1456,11 +1587,51 @@ def('blocks', 0.9, 0.9, (g, w, r) => { for (let i = 0; i < 7; i++) { const s = 0
 def('beanbag', 0.9, 0.9, (g, w, r) => { const c = pick(r, MERCH); g.c(0, 0.16, 0.45, 0.4, 0.32, 'y', c, 'matte', 10); g.c(0, 0.4, 0.45, 0.28, 0.18, 'y', c, 'matte', 10); g.s(-0.38, 0.38, 0, 0.5, 0.07, 0.83); });
 
 // ---- restrooms, shops ----
-def('stall', 0.95, 1.6, (g, w, r) => {
-  const e = w / 2, c = C.greyL; g.bs(-e, -e + 0.03, 0.15, 2.0, 0, 1.6, c); g.bs(e - 0.03, e, 0.15, 2.0, 0, 1.6, c); g.b(-e + 0.12, e - 0.12, 0.15, 2.0, 1.57, 1.6, r() < 0.25 ? C.steelD : C.blueL, 'matte', true); for (const u of [-e, e - 0.12]) g.bs(u, u + 0.12, 0, 2.0, 1.56, 1.6, c);
-  g.q(0, 0.42, 0.36, 0.5, 0, 0.4, C.enamel); g.q(0, 0.42, 0.38, 0.52, 0.4, 0.43, C.enamel); g.bs(-0.22, 0.22, 0, 0.8, 0, 0.17, C.enamel); g.s(-0.19, 0.19, 0, 0.43, 0.16, 0.68); g.c(e - 0.12, 0.7, 0.9, 0.06, 0.1, 'u', C.white, 'matte', 6); g.s(-e, e, 0.13, 2.0, 1.56, 1.6);
+// A cubicle. Partitions clear of the floor, a door that is shut, pushed half in or standing open against the partition
+// with the pan in view. `wide`: the accessible one, with a grab rail.
+def('stall', 0.95, 1.5, (g, w, r, o = {}) => {
+  const e = w / 2, c = C.greyL, x = r(), door = o.door || (x < 0.58 ? 'shut' : x < 0.8 ? 'ajar' : 'open'), dc = o.wide ? C.blue : r() < 0.25 ? C.steelD : C.blueL, dw = w - 0.2;
+  g.bs(-e, -e + 0.03, 0.15, 2.0, 0, 1.5, c); g.bs(e - 0.03, e, 0.15, 2.0, 0, 1.5, c);
+  for (const u of [-e, e - 0.1]) g.bs(u, u + 0.1, 0, 2.05, 1.46, 1.5, c);
+  g.b(-e, e, 2.0, 2.05, 1.46, 1.5, C.steelL, 'metal', true);
+  if (door === 'shut') { g.bs(-e + 0.1, e - 0.1, 0.15, 1.95, 1.465, 1.495, dc); g.b(e - 0.2, e - 0.16, 1.0, 1.06, 1.495, 1.52, C.steelL, 'metal', true); }
+  else if (door === 'ajar') g.bs(-e + 0.1, -e + 0.1 + dw * 0.62, 0.15, 1.95, 1.3, 1.33, dc);
+  else g.bs(-e + 0.04, -e + 0.07, 0.15, 1.95, 1.46 - dw, 1.46, dc);
+  g.q(0, 0.42, 0.36, 0.5, 0, 0.4, C.enamel); g.q(0, 0.42, 0.38, 0.52, 0.4, 0.43, C.enamel); g.bs(-0.22, 0.22, 0, 0.8, 0, 0.17, C.enamel); g.s(-0.19, 0.19, 0, 0.43, 0.16, 0.68);
+  g.c(e - 0.12, 0.7, 0.9, 0.06, 0.1, 'u', C.white, 'matte', 6);
+  if (o.wide) { g.c(-e + 0.1, 0.8, 0.6, 0.02, 0.9, 'd', C.steelL, 'metal', 6); g.c(0.42, 0.8, 0.07, 0.02, 0.5, 'u', C.steelL, 'metal', 6); }
 });
-def('basins', 1.9, 0.55, (g, w, r) => { const e = w / 2; g.b(-e, e, 0.8, 0.88, 0, 0.55, C.enamel, 'matte', true); g.b(-e, e, 0.55, 0.8, 0, 0.1, C.enamel, 'matte', true); for (const u of [-e / 2, e / 2]) { g.q(u, 0.3, 0.4, 0.3, 0.875, 0.882, C.steelL, 'metal'); g.c(u, 0.95, 0.07, 0.015, 0.14, 'y', C.steelL, 'metal', 5); g.b(u - 0.012, u + 0.012, 1.0, 1.02, 0.06, 0.2, C.steelL, 'metal', true); g.c(u, 0.6, 0.3, 0.03, 0.4, 'y', C.steelL, 'metal', 5); } g.b(-e, e, 1.1, 1.95, 0, 0.012, C.glass); g.s(-e, e, 0.5, 0.9, 0, 0.55); });
+// A urinal, with a screen at its shoulder.
+def('urinal', 0.75, 0.42, (g, w) => {
+  const e = w / 2; g.b(-0.19, 0.19, 0.42, 1.2, 0, 0.06, C.enamel, 'matte', true); g.q(0, 0.2, 0.36, 0.3, 0.42, 0.62, C.enamel); g.q(0, 0.1, 0.3, 0.14, 0.62, 1.1, C.enamel);
+  g.c(0, 1.3, 0.04, 0.018, 0.22, 'y', C.steelL, 'metal', 5); g.c(0, 0.25, 0.08, 0.025, 0.36, 'y', C.steelL, 'metal', 5);
+  g.bs(e - 0.025, e, 0.4, 1.5, 0, 0.42, C.greyL); g.s(-0.19, 0.19, 0.4, 0.7, 0, 0.36);
+});
+// A run of basins set in a counter, and over it the mirror: framed, with a shelf under it and a strip light above. The
+// glass is painted, not a true reflection: silver graded across its width, a bright streak, and the dim shapes of the
+// cubicle doors on the wall behind you.
+def('basinRun', 0.7, 0.5, (g, w, r) => {
+  const e = w / 2, n = Math.max(1, Math.round(w / 0.7));
+  g.b(-e, e, 0.8, 0.86, 0, 0.5, C.enamel, 'matte', true); g.b(-e, e, 0.66, 0.8, 0.42, 0.46, C.greyL, 'matte', true); g.b(-e, e, 0.3, 0.8, 0, 0.1, C.greyL, 'matte', true);
+  for (const u of [-e + 0.02, e - 0.02]) g.b(u - 0.02, u + 0.02, 0, 0.8, 0.04, 0.44, C.greyL);
+  g.s(-e, e, 0.5, 0.9, 0, 0.5);
+  for (let i = 0; i < n; i++) { const u = -e + (i + 0.5) * w / n;
+    g.q(u, 0.28, 0.42, 0.3, 0.855, 0.864, C.steelL, 'metal'); g.c(u, 0.93, 0.07, 0.014, 0.14, 'y', C.steelL, 'metal', 5); g.b(u - 0.012, u + 0.012, 0.98, 1.0, 0.06, 0.2, C.steelL, 'metal', true);
+    g.c(u, 0.6, 0.26, 0.03, 0.4, 'y', C.steelL, 'metal', 5); g.b(u + 0.2, u + 0.28, 1.1, 1.26, 0.02, 0.09, C.white, 'matte', true); g.b(u + 0.225, u + 0.255, 1.06, 1.1, 0.05, 0.08, C.steelD, 'matte', true); }
+  const y0 = 1.34, y1 = 2.0, k = Math.max(4, Math.round(w / 0.3));
+  g.b(-e, e, y0 - 0.04, y1 + 0.04, 0, 0.018, C.steelD);
+  for (let i = 0; i < k; i++) { const t = i / (k - 1 || 1), v = 0.5 + 0.5 * Math.cos((t - 0.3) * 3.4), c = (Math.round(0xb4 + 0x22 * v) << 16) | (Math.round(0xc3 + 0x1e * v) << 8) | Math.round(0xca + 0x1c * v);
+    g.b(-e + 0.03 + (w - 0.06) * i / k, -e + 0.03 + (w - 0.06) * (i + 1) / k, y0, y1, 0.018, 0.024, c, 'metal'); }
+  for (let u = -e + 0.2; u + 0.5 < e - 0.1; u += 0.62) { g.b(u, u + 0.5, y0, y0 + 0.4, 0.024, 0.0255, 0x93a5ae, 'metal'); g.b(u + 0.4, u + 0.43, y0 + 0.16, y0 + 0.22, 0.0255, 0.0265, 0xb9c6cc, 'metal'); }
+  g.b(-e + 0.03, e - 0.03, y0 + 0.4, y0 + 0.425, 0.024, 0.0255, 0xa9b8bf, 'metal');
+  { const u = -e + w * 0.22; for (let j = 0; j < 5; j++) g.b(u + j * 0.05, u + j * 0.05 + 0.07, y0 + 0.06 + j * 0.11, y0 + 0.2 + j * 0.11, 0.0265, 0.0275, 0xf1f6f7, 'metal'); }
+  g.b(-e, e, y0 - 0.1, y0 - 0.08, 0, 0.12, C.steelL, 'metal', true);
+  g.b(-e + 0.08, e - 0.08, y1 + 0.1, y1 + 0.17, 0, 0.09, C.steelD, 'matte', true); g.b(-e + 0.1, e - 0.1, y1 + 0.085, y1 + 0.1, 0.01, 0.08, C.tube, 'glow', true);
+});
+def('towels', 0.4, 0.16, g => { g.b(-0.15, 0.15, 1.3, 1.7, 0, 0.14, C.steelL, 'metal', true); g.b(-0.1, 0.1, 1.25, 1.3, 0.03, 0.11, C.white, 'matte', true); });
+def('changeTable', 1.0, 0.6, g => { g.b(-0.47, 0.47, 0.9, 1.5, 0, 0.05, C.cream, 'matte', true); g.b(-0.45, 0.45, 0.86, 0.9, 0, 0.58, C.cream, 'matte', true); g.b(-0.4, 0.4, 0.9, 0.93, 0.05, 0.54, C.blueL, 'matte', true); g.s(-0.45, 0.45, 0.82, 0.95, 0, 0.58); });
+def('pan', 0.9, 0.7, g => { g.q(0, 0.42, 0.36, 0.5, 0, 0.4, C.enamel); g.q(0, 0.42, 0.38, 0.52, 0.4, 0.43, C.enamel); g.bs(-0.22, 0.22, 0, 0.8, 0, 0.17, C.enamel); g.s(-0.19, 0.19, 0, 0.43, 0.16, 0.68);
+  for (const u of [-0.42, 0.42]) { g.c(u, 0.8, 0.3, 0.02, 0.6, 'd', C.steelL, 'metal', 6); g.c(u, 0.4, 0.02, 0.02, 0.8, 'y', C.steelL, 'metal', 6); } });
 def('handDryer', 0.4, 0.25, g => { g.b(-0.15, 0.15, 1.05, 1.5, 0, 0.2, C.steelL, 'metal', true); g.b(-0.1, 0.1, 1.05, 1.06, 0.05, 0.2, C.black, 'matte', true); });
 def('babyChange', 1.0, 0.15, g => { g.b(-0.45, 0.45, 0.9, 1.45, 0, 0.12, C.cream, 'matte', true); });
 def('displayTable', 2.0, 1.2, (g, w, r) => {
@@ -1598,7 +1769,7 @@ class Room {
     }
     // Stairs, ramps, decks, lifts, wells; and whatever else already stands in the room.
     const y0 = r.y - 0.3, y1 = r.y + r.h, lap = (q, m) => q.x0 - m < r.x1 && q.x1 + m > r.x0 && q.z0 - m < r.z1 && q.z1 + m > r.z0;
-    const keep = (q, m, way) => { this.clear.push({ x0: q.x0 - m, x1: q.x1 + m, z0: q.z0 - m, z1: q.z1 + m }); if (way) { const [ea, eb] = this.ab(Math.max(r.x0 + 0.75, Math.min(r.x1 - 0.75, (q.x0 + q.x1) / 2)), Math.max(r.z0 + 0.75, Math.min(r.z1 - 0.75, (q.z0 + q.z1) / 2))); entries.push([ea, eb]); } };
+    const keep = (q, m, way) => { this.clear.push({ x0: q.x0 - m, x1: q.x1 + m, z0: q.z0 - m, z1: q.z1 + m }); (this.kept || (this.kept = [])).push({ x0: q.x0 - m, x1: q.x1 + m, z0: q.z0 - m, z1: q.z1 + m }); if (way) { const [ea, eb] = this.ab(Math.max(r.x0 + 0.75, Math.min(r.x1 - 0.75, (q.x0 + q.x1) / 2)), Math.max(r.z0 + 0.75, Math.min(r.z1 - 0.75, (q.z0 + q.z1) / 2))); entries.push([ea, eb]); } };
     for (const s of plan.surfaces || []) {
       if (s.hill || !lap(s, 1.5)) continue;
       { const o = s.deck || s.ramp, of = o && plan.byId[o.room]; if (of && of.secret && of !== r) continue; }      // a stair nobody knows is there, the other side of the wall, moves nobody's furniture
@@ -1927,6 +2098,7 @@ export function furnish(plan) {
   }
   for (const s of out.solids) plan.obstacles.push(s);
   plan.fitout = rooms;
+  plan.wc = out.wc || [];                                 // how each restroom block was divided, and what is in each part of it
   plan.marks = out.marks;                                 // spots the fit-out leaves for others to dress: whiteboards (src/whiteboards.js), and what is under the building (src/secret.js)
   plan.arcades = arcades.sort((p, q) => p.slot - q.slot); plan.heistConsoles = consoles;      // where src/arcade.js and src/heist.js will find their things
   const batches = Object.values(out.batches).filter(b => b.i.length).map(b => ({

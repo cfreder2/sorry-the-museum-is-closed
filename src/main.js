@@ -36,6 +36,7 @@ import { Heist } from './heist.js';
 import { Lights } from './lights.js';
 import { Repair } from './repair.js';
 import { Whiteboards } from './whiteboards.js';
+import { buildSigns } from './signs.js';
 import { Secret } from './secret.js';
 import { Traffic } from './traffic.js';
 import { Loose } from './loose.js';
@@ -97,7 +98,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.41';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.42';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -216,6 +217,7 @@ async function boot() {
   secrets.add('presents', 'The parcels under the tree');
   G.traffic = new Traffic(G.museum, plan);                 // cars, a bus, and the lights they stop at (src/traffic.js)
   if (plan.lakefront) secrets.add('harbour', 'The light at the end of the breakwater');
+  G.signs = buildSigns(G.museum, plan);                    // the plaques over the doors of the restroom blocks (src/signs.js)
   G.boards = new Whiteboards(G.museum, plan);              // the whiteboards the staff have left written on (src/whiteboards.js)
   G.secret = new Secret(G, { say, callout, endStudy, trophies, boards: G.boards, canvas });      // and what one of them is about (src/secret.js)
   addEventListener('museum:board', e => { if (e.detail && e.detail.read >= 5) trophies.flag('boards'); });
