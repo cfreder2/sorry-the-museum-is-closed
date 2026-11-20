@@ -195,7 +195,7 @@ export function buildGrounds(museum, plan) {
 
   // ------------------------------------------------------------------- the streets
   {
-    const urns = [], cheek2 = new Geo(), road = new Geo(), paint = new Geo(), walk = new Geo(), kerb = new Geo(), drift = new Geo(), stepG = new Geo(), nosing = new Geo(), cheek = new Geo(), cope = new Geo(), balus = new Geo();
+    const urns = [], rampG = new Geo(), posts = new Geo(), railM = new THREE.MeshStandardMaterial({ color: 0x2a2d34, roughness: 0.4, metalness: 0.6, emissive: 0x15171c, emissiveIntensity: 0.6 }), cheek2 = new Geo(), road = new Geo(), paint = new Geo(), walk = new Geo(), kerb = new Geo(), drift = new Geo(), stepG = new Geo(), nosing = new Geo(), cheek = new Geo(), cope = new Geo(), balus = new Geo();
     const flat = (g, x0, x1, z0, z1, y, s = 4) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
     const M = G.michigan, S = plan.street, SX = S.x, SY = S.y, way = id => S.ways.find(w => w.id === id);
     // A stretch that climbs east from the avenue's level to the museum's.
@@ -222,14 +222,25 @@ export function buildGrounds(museum, plan) {
 
     // The steps. Eight of them, the width of the pavilion, between the lions' blocks.
     { const w = way('steps'), n = 8, tread = 0.45, rise = -SY / n, x9 = SX + w.run + 0.02;
-      for (let i = 0; i < n; i++) { const x0 = SX + (i < 4 ? i * tread : w.land[1] + (i - 4) * tread), top = SY + (i + 1) * rise; stepG.box(x0, x9, top - rise, top, w.z0, w.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, w.z0, w.z1); }
+      // The stretches of z a flight keeps for its steps, between its ramps.
+      const between = g => { const out = []; let z = g.z0; for (const [ra, rb] of [...(g.ramps || [])].sort((p, q) => p[0] - q[0])) { if (ra - z > 0.05) out.push([z, ra]); z = rb; } if (g.z1 - z > 0.05) out.push([z, g.z1]); return out; };
+      // A ramp: one plain slope the length of the flight, with a kerb and a handrail each side.
+      const ramp = (g, za, zb) => { const xa = SX, xb = SX + g.run, L = Math.hypot(g.run, -SY), ang = Math.atan2(-SY, g.run);
+        rampG.quad([xa, SY + 0.01, za], [xa, SY + 0.01, zb], [xb, 0.01, zb], [xb, 0.01, za], [SY / L, g.run / L, 0], [[0, 0], [(zb - za) / 1.2, 0], [(zb - za) / 1.2, L / 1.2], [0, L / 1.2]]);
+        for (const zz of [za, zb]) { rampG.quad([xa, SY, zz], [xb, SY, zz], [xb, 0.01, zz], [xa, SY + 0.01, zz], [0, 0, zz === za ? -1 : 1]);
+          const zr = zz === za ? zz + 0.06 : zz - 0.06;
+          const kerbM = new THREE.Mesh(new THREE.BoxGeometry(L, 0.07, 0.1), trim); kerbM.position.set((xa + xb) / 2, SY / 2 + 0.04, zr); kerbM.rotation.z = ang; add(kerbM);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(L + 0.5, 0.035, 0.035), railM); rail.position.set((xa + xb) / 2, SY / 2 + 0.62, zr); rail.rotation.z = ang; add(rail);
+          for (const t of [0.02, 0.5, 0.98]) posts.box(xa + g.run * t - 0.02, xa + g.run * t + 0.02, SY * (1 - t), SY * (1 - t) + 0.62, zr - 0.02, zr + 0.02); } };
+      for (const [za, zb] of between(w)) for (let i = 0; i < n; i++) { const x0 = SX + (i < 4 ? i * tread : w.land[1] + (i - 4) * tread), top = SY + (i + 1) * rise; stepG.box(x0, x9, top - rise, top, za, zb); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, za, zb); }
+      for (const [za, zb] of w.ramps || []) ramp(w, za, zb);
       // Its stone cheeks, stepping up with it, each carrying an urn of flowers on the landing and at the head.
       for (const sg of [-1, 1]) { const z0 = F.cz + sg * 11.1 - (sg < 0 ? 1.0 : 0), z1 = z0 + 1.0;
         cheek2.box(SX - 0.1, SX + 2.6, SY, SY / 2 + 0.55, z0, z1); cheek2.box(SX + 2.6, SX + 5.9, SY, 0.6, z0, z1);
         cope.box(SX - 0.16, SX + 2.66, SY / 2 + 0.55, SY / 2 + 0.67, z0 - 0.06, z1 + 0.06); cope.box(SX + 2.56, SX + 5.96, 0.6, 0.72, z0 - 0.06, z1 + 0.06);
         urns.push([SX + 1.3, SY / 2 + 0.67, (z0 + z1) / 2], [SX + 4.3, 0.72, (z0 + z1) / 2]); }
       const tr2 = way('north').run / n;
-      for (const id of ['north', 'south']) { const g = way(id); for (let i = 0; i < n; i++) { const x0 = SX + i * tr2, top = SY + (i + 1) * rise; stepG.box(x0, SX + g.run + 0.02, top - rise, top, g.z0, g.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, g.z0, g.z1); }
+      for (const id of ['north', 'south']) { const g = way(id); for (const [za, zb] of g.ramps || []) ramp(g, za, zb); for (const [gz0, gz1] of between(g)) for (let i = 0; i < n; i++) { const x0 = SX + i * tr2, top = SY + (i + 1) * rise; stepG.box(x0, SX + g.run + 0.02, top - rise, top, gz0, gz1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, gz0, gz1); }
         for (const zz of [g.z0, g.z1]) { cheek.box(SX - 0.15, SX + g.run + 0.3, SY, 0.5, zz - 0.22, zz + 0.22); cope.box(SX - 0.2, SX + g.run + 0.35, 0.5, 0.6, zz - 0.28, zz + 0.28); } } }
     // The wall that holds the terrace up, with its coping; and along the museum's own front a balustrade on top of it.
     for (const [a, b2] of S.walls) {
@@ -254,6 +265,7 @@ export function buildGrounds(museum, plan) {
     const steps = new THREE.MeshStandardMaterial({ color: 0xbdb9b0, roughness: 0.85, emissive: 0x5a6078, emissiveIntensity: 0.62 });
     add(stepG.mesh(steps), cheek.mesh(stone), cope.mesh(trim), balus.mesh(trim));
     add(nosing.mesh(snow), cheek2.mesh(steps));
+    add(rampG.mesh(new THREE.MeshStandardMaterial({ color: 0x8f8c85, roughness: 0.9, emissive: 0x3c4152, emissiveIntensity: 0.55 })), posts.mesh(railM));
     { const bowl = new THREE.CylinderGeometry(0.5, 0.26, 0.55, 12), leaf = new THREE.SphereGeometry(0.46, 10, 8), fl = new THREE.SphereGeometry(0.5, 10, 6);
       const green = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.9, emissive: 0x0e1c12, emissiveIntensity: 0.6 }), red = new THREE.MeshStandardMaterial({ color: 0xb3202a, roughness: 0.8, emissive: 0x6a0d14, emissiveIntensity: 0.8 });
       for (const [x, y, z] of urns) { const u = new THREE.Mesh(bowl, trim), l = new THREE.Mesh(leaf, green), f = new THREE.Mesh(fl, red); u.position.set(x, y + 0.28, z); f.position.set(x, y + 0.6, z); f.scale.set(1.15, 0.32, 1.15); l.position.set(x, y + 0.82, z); l.scale.y = 0.7; add(u, f, l); } }

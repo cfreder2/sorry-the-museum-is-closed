@@ -510,8 +510,8 @@ function addGrounds(plan) {
   // each climbing east over `run` metres.
   const SX = 7, SY = -1.2, nz = 18.5, sz = 204;
   plan.street = { x: SX, y: SY, reach: 12, ways: [
-    { id: 'steps', z0: F.cz - 11.1, z1: F.cz + 11.1, run: 5.6, land: [1.8, 3.8] },       // two flights and a landing
-    { id: 'north', z0: nz - 3, z1: nz + 3, run: 3.6 }, { id: 'south', z0: sz - 3, z1: sz + 3, run: 3.6 },
+    { id: 'steps', z0: F.cz - 11.1, z1: F.cz + 11.1, run: 5.6, land: [1.8, 3.8], stairs: 8, ramps: [[F.cz - 11.1, F.cz - 8.5], [-1.5 + F.cz, F.cz + 1.5], [F.cz + 8.5, F.cz + 11.1]] },       // two flights and a landing
+    { id: 'north', z0: nz - 3, z1: nz + 3, run: 3.6, stairs: 8, ramps: [[nz - 3, nz - 0.4]] }, { id: 'south', z0: sz - 3, z1: sz + 3, run: 3.6, stairs: 8, ramps: [[sz + 0.4, sz + 3]] },
     { id: 'monroe', z0: B.z0 - 1, z1: -24, run: 12, road: true }, { id: 'jackson', z0: 244, z1: B.z1 + 1, run: 12, road: true }] };
   // The wall that holds the terrace up, between the ways.
   { const cuts = plan.street.ways.map(w => [w.z0, w.z1]).sort((a, b) => a[0] - b[0]); let z = B.z0; plan.street.walls = [];
@@ -1182,7 +1182,12 @@ export function streetY(plan, x, z) {
   if (x <= S.x) return S.y;
   for (const w of S.ways) if (z > w.z0 && z < w.z1) {
     const d = x - S.x; if (d >= w.run) return 0;
-    if (!w.land) return S.y * (1 - d / w.run);
+    // Real steps are steps: each tread is level. Between them, in places, a plain ramp for anything on wheels.
+    if (w.stairs && !(w.ramps && w.ramps.some(q => z > q[0] && z < q[1]))) {
+      const n = w.stairs, tread = 0.45, i = w.land ? (d < w.land[0] ? Math.floor(d / tread) : d < w.land[1] ? n / 2 - 1 : n / 2 + Math.floor((d - w.land[1]) / tread)) : Math.floor(d / tread);
+      return S.y * (1 - Math.min(n, i + 1) / n);
+    }
+    if (!w.land || w.ramps) return S.y * (1 - d / w.run);
     const [a, b] = w.land;                               // half way up, a landing
     return S.y * (d < a ? 1 - 0.5 * d / a : d < b ? 0.5 : 0.5 - 0.5 * (d - b) / (w.run - b));
   }
