@@ -599,7 +599,15 @@ function addGrounds(plan) {
   for (const b of G.parcels) O.push({ x0: b.x - b.w / 2, x1: b.x + b.w / 2, z0: b.z - b.w / 2, z1: b.z + b.w / 2, y0: 0, y1: b.h });
   // Fountains, drained for the winter.
   G.fountains.push({ kind: 'triton', x: 141, z: 87, r: 2.7, h: 3.6 }, { kind: 'bowl', x: 29.5, z: 12, r: 2.2, h: 1.9 });
-  for (const f of G.fountains) O.push({ x0: f.x - f.r, x1: f.x + f.r, z0: f.z - f.r, z1: f.z + f.r, y0: 0, y1: f.h });
+  // A fountain is a round basin you can get into: a low rim to hop, the frozen water inside, and only what stands in the
+  // middle of it solid. (It used to be one square block as tall as the whole thing.)
+  for (const f of G.fountains) {
+    const rimH = f.kind === 'triton' ? 0.6 : 0.5, n = 20, w = Math.PI * f.r / n + 0.04;
+    for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2, x = f.x + Math.cos(a) * (f.r - 0.1), z = f.z + Math.sin(a) * (f.r - 0.1); O.push({ x0: x - w, x1: x + w, z0: z - w, z1: z + w, y0: 0, y1: rimH - 0.07 }); plan.surfaces.push({ skin: 'wall', fixed: true, x0: x - w, x1: x + w, z0: z - w, z1: z + w, axis: null, h0: rimH, h1: rimH, base: 0 }); }
+    const core = f.kind === 'triton' ? 0.95 : 0.45; O.push({ x0: f.x - core, x1: f.x + core, z0: f.z - core, z1: f.z + core, y0: 0, y1: f.h });
+    if (f.kind === 'triton') for (let i = 0; i < 3; i++) { const a = i * 2.0944 + 0.5, x = f.x + Math.sin(a) * 1.5, z = f.z + Math.cos(a) * 1.5; O.push({ x0: x - 0.45, x1: x + 0.45, z0: z - 0.45, z1: z + 0.45, y0: 0, y1: 3 }); }
+    const q = (f.r - 0.35) * 0.7; (plan.ice || (plan.ice = [])).push({ x0: f.x - q, x1: f.x + q, z0: f.z - q, z1: f.z + q });
+  }
   // Sculpture that stands outdoors. (The Calder and the Fountain of the Great Lakes are placed above.)
   G.sculpt.push({ kind: 'moore', x: 29.5, z: 26 }, { kind: 'cubi', x: 42.5, z: 12 }, { kind: 'arch', x: 266, z: -14, half: 7, open: 3.2, h: 8.6 });
   O.push({ x0: 28.6, x1: 30.4, z0: 25.2, z1: 26.8, y0: 0, y1: 5 }, { x0: 41.8, x1: 43.2, z0: 11.3, z1: 12.7, y0: 0, y1: 3.2 });
