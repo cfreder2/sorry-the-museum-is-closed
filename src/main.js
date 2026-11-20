@@ -1120,6 +1120,7 @@ function play(dt, real) {
     }
     if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
     if (giftNear != null) { once('parcel', 'A parcel with nobody\u2019s name on it. E to open it.', 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'OPEN'; if (giftTap) { const what = G.presents.open(giftNear); tm.event('present', what); } }
+    { const st = G.roomId && G.museum.rooms[G.roomId]; if (st && st.sw === false && G.mode === 'explore') once('dark', 'Dark in here. There is a light switch by every door: pull up to one.', 8); }
     // Secrets are found by coming across them.
     if (G.mode === 'explore') {
       if (G.arcadeNear && G.arcadeNear.bonus) secrets.find('outpost');

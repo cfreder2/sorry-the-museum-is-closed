@@ -485,12 +485,12 @@ the height a person wants it, and under it, at skirting height, a big rocker
 with an amber pilot lamp for people 46 cm long. Pull up to either (or hover
 there) and the action button reads LIGHTS (E on a keyboard).
 
-A gallery still wakes by itself the first time you go in; after that its
-switch puts it out, picture lamps and all, and brings it back. Every other
-room (offices, stores, plant, corridors, Griffin Court) is dark until its
-switch is thrown, and then properly lit: cooler and whiter than a gallery,
-the ceiling fittings glowing. Which rooms you left on or off is kept between
-visits; a new game forgets it. In a race the switches are dead.
+Every room starts dark, the galleries too. Nothing lights itself: you find
+the switch, and a gallery's lamps then come up over its pictures. Until then
+there is the toy's own headlamp, which has its own button (the lamp-and-beams
+sign at the top of the screen). A work is only counted as discovered once its
+lamp is on, though you can still pull up to one in the dark and look. In a
+race the building is lit throughout.
 
 No lights are added to do this. Every surface in the building already glows
 a little in its own colour, and a room's working light is one more term of
