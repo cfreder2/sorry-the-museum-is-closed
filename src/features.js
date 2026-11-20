@@ -25,6 +25,8 @@
 //   k.chips(n)            give n chips (negative to take; returns false if there are not enough)
 //   k.carry               what the toy is carrying: k.carry.take(item), k.carry.has(id), k.carry.drop(id), k.carry.list
 //   k.synth               small synthesised sounds: k.synth.note(freq, dur, opts), k.synth.chime(freqs), k.synth.noise(dur, opts)
+//   k.tint(roomId)        light a room differently: .set(color, secs), .off(secs)   (see the end of this file)
+//   k.course(gates, opts) a timed run through gates in order: .start(), .update(dt), .fail(why)   (ditto)
 
 export const features = [];
 export function feature(f) { features.push(f); return f; }
@@ -88,6 +90,8 @@ export function startFeatures(o) {
     close(q, r, dy = 1.5) { const p = G.vehicle.pos; return !!q && Math.abs(p.y - (q.y || 0)) < dy && (p.x - q.x) ** 2 + (p.z - q.z) ** 2 < r * r; },
     chips(n) { const P = G.poker; if (!P) return false; if (n < 0) return P.spend(-n); if (P.earn) P.earn(n); else if (P.spend) P.spend(-n); return true; },
     synth: synth(sound),
+    tint: id => tint(k, id),
+    course: (gates, opts) => new Course(k, gates, opts),
   };
   k.carry = new Carry(k);
   for (const f of features) {
@@ -104,4 +108,52 @@ export function startFeatures(o) {
     reset() { k.carry.clear(); for (const f of features) if (f.reset) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },
   };
   return api;
+}
+
+// ---------------------------------------------------------------- light a room differently
+// k.tint(roomId): a wash of colour over one room's walls, floor and ceiling. It is multiplied in, so it can
+// only warm, cool or dim the light; the works hang in front of it and keep their own colours. Nothing is drawn
+// while it is off. t.set(color, secs = 1.2) fades to that colour (white is no tint); t.off(secs) fades it away.
+const tints = new WeakMap();
+function tint(k, id) {
+  let made = tints.get(k); if (!made) tints.set(k, made = new Map());
+  if (made.has(id)) return made.get(id);
+  const r = k.plan.byId[id]; if (!r) return null;
+  const T = k.THREE, h = r.h || 4, e = 0.02, now = () => performance.now() / 1000;
+  const mat = new T.MeshBasicMaterial({ color: 0xffffff, side: T.BackSide, transparent: true, premultipliedAlpha: true, blending: T.MultiplyBlending, depthWrite: false, fog: false, toneMapped: false });
+  const m = new T.Mesh(new T.BoxGeometry(r.x1 - r.x0 - 2 * e, h - 2 * e, r.z1 - r.z0 - 2 * e), mat);
+  m.position.set((r.x0 + r.x1) / 2, r.y + h / 2, (r.z0 + r.z1) / 2); m.visible = false; m.renderOrder = 5; m.frustumCulled = false; m.name = 'tint:' + id;
+  k.group.add(m);
+  const from = new T.Color(1, 1, 1), to = new T.Color(1, 1, 1); let t0 = 0, dur = 1;
+  const at = () => { const a = Math.min(1, (now() - t0) / dur); return { a, c: from.clone().lerp(to, a * a * (3 - 2 * a)) }; };
+  m.onBeforeRender = () => { const { a, c } = at(); mat.color.copy(c); if (a >= 1 && to.r === 1 && to.g === 1 && to.b === 1) m.visible = false; };
+  const t = {
+    mesh: m,
+    set(color, secs = 1.2) { from.copy(at().c); to.set(color); t0 = now(); dur = Math.max(0.01, secs); m.visible = true; },
+    off(secs = 1.2) { if (m.visible) t.set(0xffffff, secs); },
+    get on() { return m.visible; },
+  };
+  made.set(id, t); return t;
+}
+
+// ---------------------------------------------------------------- a timed run through gates
+// k.course(gates, opts): gates [{ x, z, r }] to be reached in order; the clock starts at the first.
+// opts.limit (seconds, 0 for none), opts.onPass(i, n), opts.onDone(time), opts.onFail(why).
+// c.start() arms it, c.update(dt) from the feature's update, c.fail(why) ends it early (a touched barrier,
+// left the track), c.stop() quietly. c.armed, c.running, c.t (seconds since the first gate), c.next (the gate wanted).
+class Course {
+  constructor(k, gates, o = {}) { this.k = k; this.gates = gates; this.o = o; this.stop(); }
+  start() { this.armed = true; this.running = false; this.next = 0; this.t = 0; }
+  stop() { this.armed = false; this.running = false; this.next = 0; this.t = 0; }
+  fail(why) { if (!this.armed) return; this.stop(); if (this.o.onFail) this.o.onFail(why); }
+  update(dt) {
+    if (!this.armed) return;
+    if (this.running) { this.t += dt; if (this.o.limit && this.t > this.o.limit) return this.fail('time'); }
+    const g = this.gates[this.next], p = this.k.pos;
+    if (!g || (p.x - g.x) ** 2 + (p.z - g.z) ** 2 > (g.r || 0.6) ** 2) return;
+    if (this.next === 0) this.running = true;
+    this.next++;
+    if (this.o.onPass) this.o.onPass(this.next - 1, this.gates.length);
+    if (this.next >= this.gates.length) { const t = this.t; this.stop(); if (this.o.onDone) this.o.onDone(t); }
+  }
 }
