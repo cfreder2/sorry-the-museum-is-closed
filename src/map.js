@@ -310,8 +310,11 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   // The plan of a level is drawn once onto a picture of its own, and the radar only turns and slides
   // that picture each frame: drawing several hundred rooms afresh every frame is what made it jerk.
   // The picture is redrawn when something on it changes (a room visited, a work seen), at most twice a second.
-  let pic = null;
-  function levelPicture(ly) {
+  // One picture per storey, keyed by the storey and not by the toy's exact height: a jump, a ramp or a hovering drone
+  // changes the height every frame, and redrawing the whole plan each time is what made the radar stutter.
+  const pics = new Map(); let pic = null;
+  function levelPicture(y) {
+    const ly = levelOf(y).y; pic = pics.get(ly) || null;
     const m = G.museum, key = `${Math.round(ly * 10)}|${m.visited.size}|${m.seenCount}|${G.plan.rooms.length}|${G.secret && G.secret.open ? 1 : 0}`, now = performance.now();
     if (pic && (pic.key === key || now - pic.at < 500) && pic.ly === Math.round(ly * 10)) return pic;
     const B = G.plan.rooms.reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
@@ -321,7 +324,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     k.setTransform(ppm, 0, 0, ppm, -(B.x0 - pad) * ppm, -(B.z0 - pad) * ppm);
     k.textAlign = 'center'; k.textBaseline = 'middle';
     drawLevel(k, ly, 1 / ppm, false);
-    return (pic = { key, ly: Math.round(ly * 10), at: now, canvas: cv, x0: B.x0 - pad, z0: B.z0 - pad, ppm });
+    pic = { key, ly: Math.round(ly * 10), at: now, canvas: cv, x0: B.x0 - pad, z0: B.z0 - pad, ppm }; pics.set(ly, pic); return pic;
   }
   function radar() {
     const v = G.vehicle, c = rc, W = radarEl.width, R = W / 2, s = W / 62;             // 62 m across
