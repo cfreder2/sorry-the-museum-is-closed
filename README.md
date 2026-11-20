@@ -737,3 +737,19 @@ Artwork images and data: the Art Institute of Chicago, <https://api.artic.edu>.
 Positions of streets, gardens and the railway: © OpenStreetMap contributors.
 Data is CC0; images used are those the museum marks public domain. This is a
 fan project and is not affiliated with or endorsed by the museum.
+
+Films on the screens in the auditoriums and lecture rooms (`FILMS` in
+`src/cinema.js`) are streamed from Wikimedia Commons, not kept here. Each is
+public domain or openly licensed, as its Commons page says, and its credit and
+licence show under it while it plays:
+
+- *Corner Madison and State Streets, Chicago* (1897), Edison; Library of Congress Paper Print Collection. Public domain.
+- *The Enchanted Drawing* (1900), J. Stuart Blackton, Edison. Public domain.
+- *Humorous Phases of Funny Faces* (1906), J. Stuart Blackton, Vitagraph. Public domain.
+- *Fantasmagorie* (1908), Émile Cohl. Public domain.
+- *Little Nemo* (1911) and *Gertie the Dinosaur* (1914), Winsor McCay. Public domain.
+- *Chicago Photographed from Ray Knabenshue's Dirigible Air Ship* (1914), National Archives; the enhanced copy with 1914 recordings. Public domain.
+- Polygoon Hollands Nieuws newsreels, Netherlands Institute for Sound and Vision (Open Images): the Rembrandt exhibition at the Rijksmuseum (1932), *Rondom Rodin* at the Stedelijk (1939), the Night Watch being cleaned (1947) and sculpture in Sonsbeek park (1949), public domain; *Achter de schermen van het Rijksmuseum* (1950), CC BY-SA 3.0 NL.
+- *Twee jaar lang de verbouwing van het Mauritshuis* (2014), Joost Guntenaar. CC0. Shown without its music.
+- *Brooklyn Museum Conservation Lab: An Unknown Girl* (2015), Brooklyn Museum. CC BY 3.0.
+- *Time Lapse of Rotunda Floor & Art Protection* (2015), Architect of the Capitol. Public domain (US government work).
