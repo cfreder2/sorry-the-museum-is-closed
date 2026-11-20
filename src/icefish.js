@@ -205,16 +205,30 @@ feature({
     // ---- on the ice: the rod in its holder, a lantern, a stool, the bucket, the shanty
     {
       const wood = lit(0x6b4426), dark = lit(0x2a2a2a, { roughness: 0.5 });
-      // The rod: a short ice rod, cork grip, a little reel; it lies in a holder until you fish, then you hold it.
-      const rod = this.rod = new THREE.Group();
-      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 10), lit(0xb08a5a, { roughness: 0.9 })); grip.rotation.z = Math.PI / 2; grip.position.x = -0.08;
-      const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 16), lit(0x30343c, { metalness: 0.5, roughness: 0.35 })); reel.position.set(-0.05, -0.03, 0);
-      this.blank = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.006, 0.5, 6), lit(0x1c2e4a, { metalness: 0.3, roughness: 0.3 })); this.blank.rotation.z = -Math.PI / 2; this.blank.position.x = 0.25;
-      const tipM = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff5a2a })); tipM.position.x = 0.5; this.tipBall = tipM;
-      rod.add(grip, reel, this.blank, tipM); g.add(rod);
+      // The rod: a short ice rod. Cork grip, a little spinning reel under it, and a blank that bends with what is on the line,
+      // three guides and a tip-top for the line to run through. Built along its own x, the reel seat at 0; it rests in a
+      // holder until you fish, then you hold it out over the hole.
+      const rod = this.rod = new THREE.Group(); rod.matrixAutoUpdate = false;
+      const cork = lit(0xb08a5a, { roughness: 0.9 }), black = lit(0x22252b, { metalness: 0.4, roughness: 0.35 }), chrome = lit(0xc8ccd2, { metalness: 0.8, roughness: 0.25 });
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.013, 0.17, 12), cork); grip.rotation.z = Math.PI / 2; grip.position.x = -0.1;
+      const butt = new THREE.Mesh(new THREE.SphereGeometry(0.013, 10, 8), black); butt.position.x = -0.185;
+      const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.05, 10), black); seat.rotation.z = Math.PI / 2; seat.position.x = -0.0;
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.022, 0.006), black); foot.position.set(0, -0.016, 0);
+      const spool = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.022, 18), chrome); spool.rotation.z = Math.PI / 2; spool.position.set(0.012, -0.034, 0);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.02, 14), black); body.rotation.z = Math.PI / 2; body.position.set(-0.008, -0.034, 0);
+      const crank = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.03), chrome); crank.position.set(-0.008, -0.034, 0.024);
+      rod.add(grip, butt, seat, foot, spool, body, crank);
+      this.ROD = 0.56; this.SEGS = 12;
+      const seg = new THREE.CylinderGeometry(1, 1, 1, 7, 1, true); seg.translate(0, 0.5, 0);
+      const blankM = lit(0x1c2e4a, { metalness: 0.35, roughness: 0.3 });
+      this.segs = []; for (let i = 0; i < this.SEGS; i++) { const m = new THREE.Mesh(seg, blankM); rod.add(m); this.segs.push(m); }
+      const ring = new THREE.TorusGeometry(1, 0.22, 5, 12);
+      this.guides = [0.28, 0.56, 0.8, 1].map((u, i) => { const m = new THREE.Mesh(ring, chrome); m.userData.u = u; m.userData.r = i === 3 ? 0.0035 : 0.007 - i * 0.0012; rod.add(m); return m; });
+      this.tipBall = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff5a2a })); rod.add(this.tipBall);
+      g.add(rod);
       this.holder = new THREE.Group(); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.22, 8), wood); post.position.y = 0.11; this.holder.add(post); this.holder.position.set(-0.55, 0, 0.15); g.add(this.holder);
       // Line: rod tip, down through the hole, to the jig. The jig: a lead head, painted, and a little marabou tail.
-      this.lineGeo = new THREE.BufferGeometry(); this.lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(9), 3));
+      this.lineGeo = new THREE.BufferGeometry(); this.lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(21), 3));
       const line = new THREE.Line(this.lineGeo, new THREE.LineBasicMaterial({ color: 0xe8f0f4, transparent: true, opacity: 0.85 })); line.frustumCulled = false; g.add(line);
       const jig = this.jig = new THREE.Group();
       jig.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), new THREE.MeshStandardMaterial({ color: 0xf2b21a, emissive: 0x8a5a00, emissiveIntensity: 0.9, roughness: 0.3 })));
@@ -262,7 +276,7 @@ feature({
   },
   // A new place for a fish to swim to, in its own band of the water.
   _pick(f) { const W = this.W, x = this.at.x, z = this.at.z, r = this.r; f.to.set(lerp(W.x0 - x + 0.5, W.x1 - x - 0.5, r()), f.kind === 'smelt' ? -0.4 - r() * 0.9 : -0.7 - r() * 1.6, lerp(W.z0 - z + 0.5, W.z1 - z - 0.5, r())); f.t = 0; },
-  _rest() { const R = this.rod; R.position.set(-0.55, 0.24, 0.15); R.rotation.set(0, -0.6, 0.35); },
+  _rest() {},
   _dom() {
     const el = this.el = document.createElement('div'); el.hidden = true;
     el.style.cssText = 'position:fixed;inset:0;z-index:40;touch-action:none;user-select:none;-webkit-user-select:none;color:#f3efe2;font:600 15px/1.35 system-ui,sans-serif';
@@ -397,16 +411,17 @@ feature({
     }
     this.hop += this.hopV * dt; this.hopV -= dt * 4.2; if (this.hop < 0) { this.hop = 0; this.hopV = 0; }
     this.rodKick = Math.max(0, (this.rodKick || 0) - dt * 3);
-    const held = playing, sw = this.sweep, bend = Math.min(1, this.tug);
-    // Held, the rod points out over the hole from the near side; the tip dips with what is on the line.
-    if (held) { const R = this.rod; R.position.set(-0.05 + sw * 0.05, 0.42 + this.rodKick * 0.12, -0.42); R.rotation.set(0, -Math.PI / 2 + sw * 0.6, -0.35 + bend * 0.45 - this.rodKick * 0.35); }
-    this.rod.updateMatrixWorld(); this.tipAt.set(0.5, 0, 0).applyMatrix4(this.rod.matrix);
-    this.blank.scale.y = 1; this.tipBall.position.y = -bend * 0.03;
-    const hole = this._hole || (this._hole = new THREE.Vector3()); hole.set(sw * 0.1, -0.01, 0);
-    const jx = sw * (0.15 + this.depth * 0.25), jy = -this.depth + this.hop * 0.25 - this.tug * 0.05, jz = Math.sin(T * 0.7) * 0.015;
-    this.jigAt.set(jx, jy, jz); this.jig.position.copy(this.jigAt); this.jig.rotation.z = Math.sin(T * 2) * 0.2 + this.hopV * 0.6;
-    this.jig.visible = held || !this.hooked; this.jigGlow.material.opacity = held ? 0.9 : 0.4;
-    const a = this.lineGeo.attributes.position; a.setXYZ(0, this.tipAt.x, this.tipAt.y, this.tipAt.z); a.setXYZ(1, hole.x, hole.y, hole.z); a.setXYZ(2, jx, jy + 0.012, jz); a.needsUpdate = true;
+    const held = playing, sw = this.sweep;
+    // What the rod carries: the jig's weight, a nibble or a bite, a fish coming up; a yank whips it up for a moment.
+    const load = held ? Math.max(0, Math.min(1.4, 0.18 + this.tug * 0.75 + (this.phase === 'reel' ? 0.55 + Math.sin(T * 20) * 0.12 : 0) - this.rodKick * 0.5)) : 0.04;
+    this._pose(held, sw, load, T);
+    // The jig hangs straight down from the tip, through the hole (or just under the tip, the rod in its holder).
+    const tip = this.tipAt, sway = Math.sin(T * 0.7) * 0.012;
+    const jy = held ? -this.depth + this.hop * 0.25 - this.tug * 0.05 : tip.y - 0.12;
+    this.jigAt.set(tip.x + sway, jy, tip.z + sway * 0.5); this.jig.position.copy(this.jigAt); this.jig.rotation.z = Math.sin(T * 2) * 0.2 + this.hopV * 0.6;
+    this.jig.visible = held || !this.hooked; this.jigGlow.visible = held;
+    // The line: off the reel's spool, through each guide, out of the tip-top, down to the jig.
+    const a = this.lineGeo.attributes.position, L = this.linePts; for (let i = 0; i < 5; i++) a.setXYZ(i, L[i].x, L[i].y, L[i].z); for (const i of [5, 6]) a.setXYZ(i, this.jigAt.x, this.jigAt.y + 0.012, this.jigAt.z); a.needsUpdate = true;
     this.tug = Math.max(0, this.tug - dt * 2.5);
     // ---- the fish
     const W = this.W, ox = this.at.x, oz = this.at.z, lo = { x: W.x0 - ox + 0.3, X: W.x1 - ox - 0.3, z: W.z0 - oz + 0.3, Z: W.z1 - oz - 0.3 };
@@ -457,6 +472,36 @@ feature({
     rp.scale.multiplyScalar(1 + dt * 1.8); if (rp.scale.x > 4) rp.material.opacity = 0; rp.material.opacity = Math.max(0, rp.material.opacity - dt * 0.8);
 
     if (playing) { this._steps(); this._drawSonar(); }
+  },
+  // Where the rod is and how far it bends. The blank is a row of short tubes along a curve that droops more towards the
+  // tip (as a rod loaded at its end does); the guides sit under it, square to it.
+  _pose(held, sw, load, T) {
+    const R = this.rod, B = this._B || (this._B = new THREE.Vector3()), A = this._A || (this._A = new THREE.Vector3()), up = this._up || (this._up = new THREE.Vector3(0, 1, 0));
+    if (held) { B.set(-0.56 + sw * 0.14, 0.42 + this.rodKick * 0.04, 0.05); A.set(0.02 + sw * 0.15, 0.5 + this.rodKick * 0.24, 0); }      // in from the side, so its bend and the line's drop are seen
+    else { B.set(-0.6, 0.2, 0.16); A.set(-0.35, 0.5, 0.5); }
+    const X = this._X || (this._X = new THREE.Vector3()), Y = this._Y || (this._Y = new THREE.Vector3()), Z = this._Z || (this._Z = new THREE.Vector3());
+    X.subVectors(A, B).normalize(); Z.crossVectors(X, up).normalize(); Y.crossVectors(Z, X);
+    R.matrix.makeBasis(X, Y, Z).setPosition(B); R.matrixWorldNeedsUpdate = true;
+    const L = this.ROD, P = (u, out) => out.set(u * L * (1 - 0.12 * load * load * u), -load * L * 0.42 * u * u, 0);
+    const p0 = this._p0 || (this._p0 = new THREE.Vector3()), p1 = this._p1 || (this._p1 = new THREE.Vector3()), d = this._d || (this._d = new THREE.Vector3()), Q = this._Q || (this._Q = new THREE.Quaternion()), Yax = this._Ya || (this._Ya = new THREE.Vector3(0, 1, 0)), Zax = this._Za || (this._Za = new THREE.Vector3(0, 0, 1));
+    for (let i = 0; i < this.SEGS; i++) {
+      const u0 = i / this.SEGS, u1 = (i + 1) / this.SEGS, m = this.segs[i], r = lerp(0.0055, 0.0018, (u0 + u1) / 2);
+      P(u0, p0); P(u1, p1); d.subVectors(p1, p0); const len = d.length(); d.normalize();
+      m.position.copy(p0); m.quaternion.setFromUnitVectors(Yax, d); m.scale.set(r, len * 1.02, r);
+    }
+    // guides, and the points the line passes through in the rod's own frame
+    const pts = this.linePts || (this.linePts = Array.from({ length: 5 }, () => new THREE.Vector3()));
+    pts[0].set(0.012, -0.034, 0);
+    this.guides.forEach((g, i) => {
+      const u = g.userData.u, r = g.userData.r; P(u, p0); P(Math.min(1, u + 0.01), p1); d.subVectors(p1, p0).normalize(); if (u >= 1) { P(0.99, p1); d.subVectors(p0, p1).normalize(); }
+      const nx = -d.y, ny = d.x;                                       // square to the blank, below it
+      g.position.set(p0.x + nx * (u >= 1 ? 0 : 0.011), p0.y - Math.abs(ny) * (u >= 1 ? 0 : 0.011), 0); g.quaternion.setFromUnitVectors(Zax, d); g.scale.setScalar(r);
+      pts[i + 1].copy(g.position);
+    });
+    P(1, p0); this.tipBall.position.copy(p0);
+    R.updateMatrixWorld(true);
+    for (const p of pts) p.applyMatrix4(R.matrix);
+    this.tipAt.copy(pts[4]);
   },
   _place(f) { f.g.position.copy(f.p); f.g.rotation.set(0, f.yaw, 0); f.g.rotateZ(f.pitch); },
   // Out through the hole, onto the ice, and a few flaps before it goes in the bucket.
