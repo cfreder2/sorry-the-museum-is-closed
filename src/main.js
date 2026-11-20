@@ -1313,6 +1313,7 @@ function tick(now) {
   input.endFrame();
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
   if (G.shop && G.state !== 'results') G.shop.update(dt);
+  if (G.museum && G.museum.trains && G.state !== 'paused') G.museum.trains.update(dt, G, sound, secrets);      // the railway (railway.js)
   if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
   if (G.presents) G.presents.update(dt);
   if (G.paint && G.paint.on) G.paint.update();
