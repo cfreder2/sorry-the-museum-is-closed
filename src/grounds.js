@@ -211,13 +211,13 @@ export function buildGrounds(museum, plan) {
     // The crossing at Adams Street, opposite the door.
     for (let z = F.cz - 3.2; z < F.cz + 3.2; z += 0.9) flat(paint, M.x0 + 0.5, M.x1 - 0.5, z, z + 0.45, SY + 0.008);
     // The pavement, down at the avenue's level, under snow, with a strip shovelled along it and across to the steps.
-    flat(drift, M.x1, SX, B.z0, B.z1, SY + 0.006, 3);
-    flat(walk, 3.9, 5.9, B.z0, B.z1, SY + 0.012, 2.5); flat(walk, M.x1, SX, F.cz - 3.4, F.cz + 3.4, SY + 0.012, 2.5);
-    for (const id of ['north', 'south']) { const w = way(id); flat(walk, 5.9, SX, w.z0, w.z1, SY + 0.012, 2.5); }
+    // Shovelled, the whole width of it: the city does the avenue's pavement. A ridge of what came off it lies along the kerb.
+    flat(walk, M.x1, SX, B.z0, B.z1, SY + 0.008, 2.5);
+    for (let z = B.z0; z < B.z1; z += 9) if (Math.abs(z + 3.5 - F.cz) > 6) drift.box(M.x1 + 0.15, M.x1 + 0.6, SY, SY + 0.07 + ((z * 7) % 5) * 0.012, z + 0.4, z + 7.2);
     // The pavements of the two side streets, climbing with them.
-    for (const w of S.ways) if (w.road) { const st = w.id === 'monroe' ? G.monroe : G.jackson; for (const [a, b2] of [[w.z0, st.z0], [st.z1, w.z1]]) if (b2 - a > 0.2) { slope(drift, SX, SX + 12, a, b2, 0.006, 3); } }
+    for (const w of S.ways) if (w.road) { const st = w.id === 'monroe' ? G.monroe : G.jackson; for (const [a, b2] of [[w.z0, st.z0], [st.z1, w.z1]]) if (b2 - a > 0.2) { slope(walk, SX, SX + 12, a, b2, 0.008, 2.5); } }
     // The terrace before the door: snow, with a way shovelled from the head of the steps to the doors.
-    flat(walk, SX + 3.6, F.PX, F.cz - 3.4, F.cz + 3.4, 0.006, 2.5); flat(walk, F.PX - 2.4, F.PX, F.cz - 11, F.cz + 11, 0.006, 2.5);
+    flat(walk, SX + 5.6, F.PX, F.cz - 3.4, F.cz + 3.4, 0.006, 2.5); flat(walk, F.PX - 2.4, F.PX, F.cz - 11, F.cz + 11, 0.006, 2.5);
     kerb.box(M.x1 - 0.12, M.x1 + 0.12, SY, SY + 0.07, B.z0, B.z1);
 
     // The steps. Eight of them, the width of the pavilion, between the lions' blocks.

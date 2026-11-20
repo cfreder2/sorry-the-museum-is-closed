@@ -504,10 +504,12 @@ export class Museum {
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), I = new THREE.Quaternion();
     plan.lamps.forEach((l, i) => {
       const y = streetY(plan, l.x, l.z);
+      // A pool of light lies on the ground it is over: one by the head of the steps is kept small enough not to hang in the air beyond them.
+      const edge = plan.street ? plan.street.x + 4.4 : -1e9, pw = y < 0 ? 9 : l.x > edge && l.x - edge < 5.5 ? Math.max(3, 2 * (l.x - edge)) : 11;
       posts.box(l.x - 0.04, l.x + 0.04, y, y + 3.1, l.z - 0.04, l.z + 0.04);
       plan.obstacles.push({ x0: l.x - 0.05, x1: l.x + 0.05, z0: l.z - 0.05, z1: l.z + 0.05, y0: y, y1: y + 3.2 });
       globes.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, y + 3.25, l.z), I, new THREE.Vector3(1, 1, 1)));
-      pools.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, y + 0.012, l.z), Q, new THREE.Vector3(y < 0 ? 9 : 11, y < 0 ? 9 : 11, 1)));
+      pools.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, y + 0.045, l.z), Q, new THREE.Vector3(pw, pw, 1)));
     });
     globes.frustumCulled = pools.frustumCulled = false; pools.renderOrder = 4;
     if (!posts.empty) this.group.add(posts.mesh(new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.5 })), globes, pools);
@@ -592,6 +594,10 @@ export class Museum {
       for (const hy of [0.14, gh - 0.14]) { const h = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.12, 8), bare); h.position.set(0, hy, 0); grille.add(h); }
       grille.position.set(xm - 0.03, 0.02, v.z0 - f); grille.rotation.y = Math.PI - 0.42;
       this.group.add(grille);
+      // The grille is solid, and so are the sides of the length of duct that sticks out of the wall.
+      { const c = Math.cos(Math.PI - 0.42), sn = -Math.sin(Math.PI - 0.42), px0 = xm - 0.03, pz0 = v.z0 - f;
+        for (let k = 0; k < 6; k++) { const a = (k + 0.5) / 6 * w, gx = px0 + c * a, gz = pz0 + sn * a; plan.obstacles.push({ x0: gx - 0.1, x1: gx + 0.1, z0: gz - 0.1, z1: gz + 0.1, y0: 0, y1: gh }); }
+        plan.obstacles.push({ x0: xm, x1: v.x0, z0: v.z0 - 0.07, z1: v.z0 - 0.01, y0: 0, y1: v.h + 0.1 }, { x0: xm, x1: v.x0, z0: v.z1 + 0.01, z1: v.z1 + 0.07, y0: 0, y1: v.h + 0.1 }); }
       const spill = new THREE.Mesh(new THREE.PlaneGeometry(5, 3), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.55, 0.8, 0.95), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
       spill.rotation.x = -Math.PI / 2; spill.position.set(xm - 1.9, 0.012, zc); spill.renderOrder = 4;
       const arrows = new Geo(), ct = TX.chevrons(), ax0 = xm - 4.4, ax1 = xm - 0.3;

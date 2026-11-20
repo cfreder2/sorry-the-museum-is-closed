@@ -533,7 +533,7 @@ function addGrounds(plan) {
   G.pool = { x0: 34, x1: Math.min(56, mw - 11), z0: 191.5, z1: 201.5 };
   G.calder = { x: 42.5, z: 26 };
   plan.ice = [G.pool];                                   // frozen over
-  plan.paved = [{ x0: G.michigan.x0, x1: SX + 0.3, z0: B.z0, z1: B.z1 }, { x0: SX, x1: F.PX, z0: F.cz - 11.1, z1: F.cz + 11.1 }, { x0: SX, x1: SX + 12, z0: B.z0, z1: -24 }, { x0: SX, x1: SX + 12, z0: 244, z1: B.z1 }, { x0: SX, x1: 12, z0: nz - 3, z1: nz + 3 }, { x0: SX, x1: 12, z0: sz - 3, z1: sz + 3 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
+  plan.paved = [{ x0: G.michigan.x0, x1: SX + 0.3, z0: B.z0, z1: B.z1 }, { x0: SX, x1: SX + 5.7, z0: F.cz - 11.1, z1: F.cz + 11.1 }, { x0: SX + 5.6, x1: F.PX, z0: F.cz - 3.4, z1: F.cz + 3.4 }, { x0: F.PX - 2.4, x1: F.PX, z0: F.cz - 11, z1: F.cz + 11 }, { x0: SX, x1: SX + 12, z0: B.z0, z1: -24 }, { x0: SX, x1: SX + 12, z0: 244, z1: B.z1 }, { x0: SX, x1: 12, z0: nz - 3, z1: nz + 3 }, { x0: SX, x1: 12, z0: sz - 3, z1: sz + 3 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
   // Ground the stunt park must keep off.
   plan.reserved = [{ x0: B.x0, x1: F.FX + 2, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: B.z0, z1: G.monroe.z1 + 2 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0 - 2, z1: B.z1 }, { x0: G.columbus.x0 - 2, x1: B.x1, z0: B.z0, z1: B.z1 },
     { x0: G.rail.x0 - 2, x1: G.rail.x1 + 2, z0: B.z0, z1: B.z1 }, G.north, G.south];
