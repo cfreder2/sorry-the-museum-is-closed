@@ -597,7 +597,7 @@ const C = {
   canvas: 0xd8cdb4, gilt: 0xa8843a, tissue: 0xe6e3da, terracotta: 0xa85c3c, bronze: 0x5a4a32, celadon: 0x8fae9c, plaster: 0xe2ded2,
   fabric: 0x35465c, leather: 0x45201b, velvet: 0x6e1620, rubber: 0x202124, glass: 0x9dbcc4, plexi: 0xb6d6dc, foam: 0xc8cfd4, pink: 0xd9a0a0,
   enamel: 0xe9e9e6, copper: 0xa8643c, lagging: 0xc9c9c4, galv: 0x9aa2a8,
-  screen: 0x4a7fb8, led: 0x30d060, ledA: 0xe8a020, ledR: 0xe03020, ledB: 0x3080ff, lamp: 0xffe2a8, tube: 0xdfe8ff,
+  off: 0x07090c, screen: 0x4a7fb8, led: 0x30d060, ledA: 0xe8a020, ledR: 0xe03020, ledB: 0x3080ff, lamp: 0xffe2a8, tube: 0xdfe8ff,
 };
 const BOOKS = [0x6e2a22, 0x2a3c5c, 0x3c5a3a, 0x7a6a3c, 0x3a3030, 0x8a4a28, 0x4a2a4a, 0xa89878, 0x243a44];
 const TINS = [0xdedcd4, 0xa02c22, 0x2c4f8a, 0xd8a418, 0x3d6b3a, 0x6c7076, 0xc8641a, 0x19191b];
@@ -690,7 +690,8 @@ function monitor(g, u, d, y, dir, r, big) {                             // dir: 
   const w = big ? 0.42 : 0.27, h = big ? 0.5 : 0.33;
   g.b(u - 0.03, u + 0.03, y, y + 0.14, d - 0.02, d + 0.02, C.black, 'matte', true); g.q(u, d, 0.2, 0.16, y, y + 0.012, C.black);
   g.b(u - w, u + w, y + 0.12, y + 0.12 + h, d - 0.015, d + 0.015, C.black, 'matte', true);
-  if (r() < 0.45) g.b(u - w + 0.02, u + w - 0.02, y + 0.14, y + 0.1 + h, Math.min(d + dir * 0.016, d + dir * 0.019), Math.max(d + dir * 0.016, d + dir * 0.019), pick(r, [C.screen, C.screen, 0x285088, 0x3a6a5a]), 'glow', true);
+  r();                                                                   // switched off for the night: dark glass (the draw is kept so the rooms furnish as they did)
+  g.b(u - w + 0.02, u + w - 0.02, y + 0.14, y + 0.1 + h, Math.min(d + dir * 0.016, d + dir * 0.019), Math.max(d + dir * 0.016, d + dir * 0.019), C.off, 'metal', true);
 }
 function figure(g, u, d, y, r, wrapped) {                               // somebody's statue, under tissue and polythene if `wrapped`
   const c = wrapped ? pick(r, [C.tissue, C.tissue, C.foam, C.white]) : pick(r, [C.plaster, C.bronze, C.terracotta, C.plaster, C.greyL]), h = 1.0 + r() * 0.7;
@@ -736,7 +737,7 @@ def('plant', 0.6, 0.6, (g, w, r) => {
 def('bin', 0.32, 0.32, g => { g.c(0, 0.17, 0.16, 0.14, 0.34, 'y', C.steelD, 'metal', 8); g.s(-0.14, 0.14, 0, 0.34, 0.02, 0.3); });
 def('printer', 0.7, 0.65, (g, w, r) => {
   g.bs(-0.33, 0.33, 0, 0.85, 0.02, 0.62, C.greyL); g.b(-0.33, 0.33, 0.85, 1.02, 0.02, 0.5, C.white, 'matte', true); g.b(-0.3, 0.3, 1.02, 1.06, 0.06, 0.46, C.grey);
-  g.b(0.1, 0.28, 0.92, 0.97, 0.5, 0.504, C.screen, 'glow'); for (const y of [0.25, 0.5]) g.b(-0.3, 0.3, y, y + 0.012, 0.62, 0.624, C.steelD);
+  g.b(0.1, 0.28, 0.92, 0.97, 0.5, 0.504, C.off, 'metal'); for (const y of [0.25, 0.5]) g.b(-0.3, 0.3, y, y + 0.012, 0.62, 0.624, C.steelD);
   g.s(-0.33, 0.33, 0.85, 1.06, 0.02, 0.5);
 });
 def('coatstand', 0.5, 0.5, (g, w, r) => {
@@ -782,7 +783,7 @@ def('sideboard', 1.8, 0.5, (g, w, r) => {
 def('counter', 2.6, 0.9, (g, w, r, o = {}) => {
   const e = w / 2; g.bs(-e, e, 0, 1.05, 0.5, 0.9, C.woodD); g.b(-e - 0.03, e + 0.03, 1.05, 1.09, 0.42, 0.95, C.cream, 'matte', true); g.b(-e, e, 0.72, 0.75, 0, 0.5, C.woodL, 'matte', true);
   g.bs(-e, -e + 0.04, 0, 0.72, 0, 0.5, C.woodD); g.bs(e - 0.04, e, 0, 0.72, 0, 0.5, C.woodD);
-  monitor(g, -e * 0.4, 0.3, 0.75, -1, r); if (o.till || r() < 0.5) { g.q(e * 0.4, 0.28, 0.36, 0.34, 0.75, 0.9, C.black); g.b(e * 0.4 - 0.12, e * 0.4 + 0.12, 0.9, 1.08, 0.2, 0.23, C.screen, 'glow', true); }
+  monitor(g, -e * 0.4, 0.3, 0.75, -1, r); if (o.till || r() < 0.5) { g.q(e * 0.4, 0.28, 0.36, 0.34, 0.75, 0.9, C.black); g.b(e * 0.4 - 0.12, e * 0.4 + 0.12, 0.9, 1.08, 0.2, 0.23, C.off, 'metal', true); }
   g.s(-e, e, 0.7, 1.1, 0, 0.5);
 });
 def('brochures', 0.8, 0.3, (g, w, r) => { g.bs(-0.4, 0.4, 0, 1.5, 0, 0.06, C.steelD); for (let y = 0.3; y < 1.4; y += 0.3) { g.b(-0.38, 0.38, y, y + 0.02, 0.06, 0.2, C.steelD, 'metal', true); for (let u = -0.36; u < 0.3; u += 0.19) g.b(u, u + 0.15, y + 0.02, y + 0.24, 0.07, 0.1 + r() * 0.06, pick(r, MERCH), 'matte', true); } g.s(-0.4, 0.4, 0, 1.5, 0, 0.2); });
@@ -795,13 +796,13 @@ def('meetingTable', 2.4, 3.0, (g, w, r, o = {}) => {                    // one b
 });
 def('console', 2.0, 1.7, (g, w, r) => {
   const e = w / 2; g.b(-e, e, 0.7, 0.74, 0, 0.9, C.grey, 'matte', true); g.bs(-e, -e + 0.04, 0, 0.7, 0, 0.9, C.steelD); g.bs(e - 0.04, e, 0, 0.7, 0, 0.9, C.steelD); g.bs(-e, e, 0, 0.7, 0, 0.05, C.steelD);
-  for (const u of [-0.6, 0, 0.6]) { g.b(u - 0.27, u + 0.27, 0.8, 1.14, 0.12, 0.15, C.black, 'matte', true); g.b(u - 0.25, u + 0.25, 0.82, 1.12, 0.15, 0.153, pick(r, [C.screen, 0x285088, 0x3a6a5a, 0x505860]), 'glow'); }
+  for (const u of [-0.6, 0, 0.6]) { g.b(u - 0.27, u + 0.27, 0.8, 1.14, 0.12, 0.15, C.black, 'matte', true); g.b(u - 0.25, u + 0.25, 0.82, 1.12, 0.15, 0.153, (pick(r, [C.screen, 0x285088, 0x3a6a5a, 0x505860]), C.off), 'metal'); }
   g.q(0, 0.6, 0.5, 0.16, 0.74, 0.76, C.black); g.q(0.7, 0.6, 0.2, 0.2, 0.74, 0.8, C.steelD); chair(g, (r() - 0.5) * 0.6, 1.35, -1, C.black);
   g.s(-e, e, 0.68, 1.14, 0, 0.9);
 });
 def('monitorWall', 4.4, 0.25, (g, w, r) => {
   const e = w / 2; g.b(-e, e, 0.9, 2.7, 0, 0.12, C.black);
-  for (let u = -e + 0.08; u + 0.72 < e; u += 0.74) for (let y = 0.98; y < 2.5; y += 0.56) g.b(u, u + 0.68, y, y + 0.5, 0.12, 0.125, pick(r, [0x1a2a3a, 0x24384a, 0x303840, 0x182a22, 0x2a3440, 0x0c1014]), 'glow');
+  for (let u = -e + 0.08; u + 0.72 < e; u += 0.74) for (let y = 0.98; y < 2.5; y += 0.56) g.b(u, u + 0.68, y, y + 0.5, 0.12, 0.125, (pick(r, [0x1a2a3a, 0x24384a, 0x303840, 0x182a22, 0x2a3440, 0x0c1014]), C.off), 'metal');
   g.s(-e, e, 0.9, 2.7, 0, 0.14);
 });
 def('keyCabinet', 0.8, 0.15, (g, w, r) => { g.b(-0.4, 0.4, 1.1, 1.9, 0, 0.12, C.steel, 'metal'); g.b(0.3, 0.33, 1.45, 1.55, 0.12, 0.14, C.steelD); });
@@ -1013,7 +1014,7 @@ def('frameRack', 1.6, 0.6, (g, w, r) => { g.b(-0.8, 0.8, 0, 0.1, 0, 0.6, C.woodL
 def('canvasRack', 1.8, 0.8, (g, w, r) => { g.b(-0.9, 0.9, 0, 0.06, 0, 0.8, C.pine, 'matte', true); for (let u = -0.9; u <= 0.91; u += 0.45) { g.b(u - 0.02, u + 0.02, 0.06, 1.9, 0, 0.04, C.pine); g.b(u - 0.02, u + 0.02, 0.06, 1.9, 0.76, 0.8, C.pine, 'matte', true); } g.b(-0.9, 0.9, 1.0, 1.04, 0, 0.8, C.pine, 'matte', true); for (const y of [0.06, 1.04]) for (let u = -0.86; u < 0.84; u += 0.06) if (r() < 0.55) g.b(u, u + 0.03, y, y + 0.4 + r() * 0.45, 0.05, 0.35 + r() * 0.4, r() < 0.6 ? C.canvas : pick(r, PAINT), 'matte', true); g.s(-0.9, 0.9, 0, 1.9, 0, 0.8); });
 def('labBench', 1.8, 0.75, (g, w, r) => {
   g.bs(-0.9, 0.9, 0, 0.86, 0, 0.72, C.white); g.b(-0.92, 0.92, 0.86, 0.9, 0, 0.75, C.steelD, 'matte', true); for (const u of [-0.45, 0, 0.45]) g.b(u - 0.004, u + 0.004, 0.08, 0.84, 0.72, 0.723, C.grey); g.b(-0.9, 0.9, 1.45, 1.48, 0, 0.3, C.white, 'matte', true); fill(g, -0.88, 0.88, 1.48, 0, 0.3, 0.3, r, 'tins');
-  const u = -0.5 + r() * 0.3; g.q(u, 0.35, 0.45, 0.4, 0.9, 1.25, C.cream, 'metal'); g.b(u - 0.16, u + 0.1, 1.08, 1.2, 0.55, 0.553, C.screen, 'glow'); g.q(0.5, 0.35, 0.3, 0.3, 0.9, 1.05, C.greyL); g.b(0.4, 0.44, 0.95, 0.97, 0.5, 0.503, C.led, 'glow'); g.s(-0.9, 0.9, 0.86, 1.8, 0, 0.75);
+  const u = -0.5 + r() * 0.3; g.q(u, 0.35, 0.45, 0.4, 0.9, 1.25, C.cream, 'metal'); g.b(u - 0.16, u + 0.1, 1.08, 1.2, 0.55, 0.553, C.off, 'metal'); g.q(0.5, 0.35, 0.3, 0.3, 0.9, 1.05, C.greyL); g.b(0.4, 0.44, 0.95, 0.97, 0.5, 0.503, C.led, 'glow'); g.s(-0.9, 0.9, 0.86, 1.8, 0, 0.75);
 });
 def('gasBottles', 0.9, 0.4, (g, w, r) => { for (const u of [-0.28, 0, 0.28]) { const c = pick(r, [C.blue, C.steelD, C.green, C.red, C.white]); g.c(u, 0.7, 0.2, 0.11, 1.4, 'y', c, 'metal', 8); g.c(u, 1.46, 0.2, 0.04, 0.12, 'y', C.gilt, 'metal', 6); } g.b(-0.42, 0.42, 0.9, 0.93, 0.05, 0.07, C.steelL, 'metal', true); g.s(-0.4, 0.4, 0, 1.5, 0.08, 0.32); });
 def('xrayTable', 2.6, 3.0, (g, w, r) => {
@@ -1104,7 +1105,7 @@ def('boiler', 2.0, 3.0, (g, w, r) => {
 def('chiller', 3.6, 1.8, (g, w, r) => {
   g.bs(-1.7, 1.7, 0, 0.14, 0.1, 1.7, C.steelD, 'metal'); g.c(0, 0.6, 0.55, 0.42, 3.2, 'u', C.blueL, 'metal', 12); g.c(0, 0.6, 1.3, 0.38, 3.2, 'u', C.lagging, 'metal', 12);
   for (const u of [-1.63, 1.63]) { g.c(u, 0.6, 0.55, 0.45, 0.06, 'u', C.steelD, 'metal', 12); g.c(u, 0.6, 1.3, 0.41, 0.06, 'u', C.steelD, 'metal', 12); }
-  g.c(-0.5, 1.45, 0.9, 0.38, 1.2, 'u', C.blue, 'metal', 12); g.q(0.6, 0.9, 0.5, 0.5, 1.05, 1.6, C.steelD, 'metal'); g.q(1.35, 1.72, 0.5, 0.08, 0.7, 1.6, C.cream, 'metal'); g.b(1.2, 1.5, 1.25, 1.45, 1.76, 1.764, C.screen, 'glow'); for (const u of [1.2, 1.3, 1.4]) g.b(u, u + 0.04, 1.1, 1.14, 1.76, 1.764, pick(r, [C.led, C.led, C.ledA]), 'glow');
+  g.c(-0.5, 1.45, 0.9, 0.38, 1.2, 'u', C.blue, 'metal', 12); g.q(0.6, 0.9, 0.5, 0.5, 1.05, 1.6, C.steelD, 'metal'); g.q(1.35, 1.72, 0.5, 0.08, 0.7, 1.6, C.cream, 'metal'); g.b(1.2, 1.5, 1.25, 1.45, 1.76, 1.764, C.off, 'metal'); for (const u of [1.2, 1.3, 1.4]) g.b(u, u + 0.04, 1.1, 1.14, 1.76, 1.764, pick(r, [C.led, C.led, C.ledA]), 'glow');
   for (const u of [-1.2, 1.0]) g.c(u, (1.0 + g.H) / 2, 0.55, 0.1, g.H - 1.0, 'y', C.blueL, 'metal', 8); g.s(-1.7, 1.7, 0, 1.85, 0.1, 1.7);
 });
 def('pumpSet', 1.4, 0.8, (g, w, r) => {
@@ -1129,7 +1130,7 @@ def('serverRack', 0.6, 1.1, (g, w, r) => {
   for (const [d, t] of [[1.08, 0.003], [0.02, -0.003]]) for (let y = 0.15; y < 1.95; y += 0.15) { if (r() < 0.2) continue; g.b(-0.24, 0.24, y, y + 0.12, Math.min(d, d + t), Math.max(d, d + t), 0x24262a, 'metal'); for (let k = 0; k < 3; k++) if (r() < 0.6) { const u = -0.2 + r() * 0.36; g.b(u, u + 0.018, y + 0.025, y + 0.043, Math.min(d + t, d + t * 2), Math.max(d + t, d + t * 2), pick(r, [C.led, C.led, C.led, C.ledA, C.ledB]), 'glow'); } }
 });
 def('ampRack', 0.6, 0.7, (g, w, r) => { g.bs(-0.3, 0.3, 0.08, 1.8, 0.02, 0.68, C.black, 'metal'); castors(g, -0.3, 0.3, 0.02, 0.68, 0.08); for (let y = 0.2; y < 1.7; y += 0.21) { g.b(-0.25, 0.25, y, y + 0.17, 0.68, 0.684, 0x2a2c30, 'metal'); for (let k = 0; k < 4; k++) if (r() < 0.45) { const u = -0.2 + k * 0.1; g.b(u, u + 0.02, y + 0.04, y + 0.06, 0.684, 0.687, pick(r, [C.led, C.ledA, C.ledR, C.ledB]), 'glow'); } } });
-def('crac', 1.8, 0.9, (g, w, r) => { g.bs(-0.9, 0.9, 0, 2.0, 0, 0.88, C.enamel, 'metal'); for (const u of [-0.45, 0.45]) { for (let y = 1.3; y < 1.9; y += 0.08) g.b(u - 0.38, u + 0.38, y, y + 0.03, 0.88, 0.885, C.steelD); } g.b(-0.15, 0.15, 0.95, 1.12, 0.88, 0.884, C.screen, 'glow'); g.b(-0.005, 0.005, 0.05, 1.95, 0.88, 0.883, C.steelD); });
+def('crac', 1.8, 0.9, (g, w, r) => { g.bs(-0.9, 0.9, 0, 2.0, 0, 0.88, C.enamel, 'metal'); for (const u of [-0.45, 0.45]) { for (let y = 1.3; y < 1.9; y += 0.08) g.b(u - 0.38, u + 0.38, y, y + 0.03, 0.88, 0.885, C.steelD); } g.b(-0.15, 0.15, 0.95, 1.12, 0.88, 0.884, C.off, 'metal'); g.b(-0.005, 0.005, 0.05, 1.95, 0.88, 0.883, C.steelD); });
 def('valveSet', 1.6, 0.6, (g, w, r) => {                                // sprinkler risers, each with its valve and gauge
   for (const u of [-0.5, 0, 0.5]) { g.c(u, g.H / 2, 0.25, 0.08, g.H, 'y', C.red, 'metal', 8); g.c(u, 1.0, 0.25, 0.14, 0.3, 'y', C.red, 'metal', 8); g.c(u, 1.0, 0.45, 0.14, 0.03, 'd', r() < 0.5 ? C.red : C.black, 'matte', 10); g.c(u, 1.0, 0.39, 0.02, 0.1, 'd', C.steelL, 'metal', 5); g.c(u + 0.14, 1.45, 0.3, 0.05, 0.02, 'd', C.white, 'matte', 8); g.s(u - 0.14, u + 0.14, 0, g.H, 0.1, 0.47); }
   g.c(0, 0.45, 0.25, 0.06, 1.3, 'u', C.red, 'metal', 8); g.q(-0.25, 0.02, 0.2, 0.01, 1.5, 1.62, C.white);
@@ -1225,7 +1226,7 @@ def('cafeTable', 1.9, 1.9, (g, w, r, o = {}) => {
 def('servery', 5.0, 2.4, (g, w, r) => {                                 // the counter you queue along, and what is behind it
   const e = w / 2; g.bs(-e, e, 0, 0.9, 1.5, 2.2, C.woodD); g.b(-e, e, 0.9, 0.94, 1.45, 2.3, C.steelL, 'metal', true); g.b(-e, e, 0.86, 0.88, 2.3, 2.42, C.steelL, 'metal', true);
   g.b(-e + 0.2, -0.2, 0.94, 1.4, 1.6, 2.15, C.glass, 'matte', true); for (let u = -e + 0.3; u < -0.4; u += 0.3) g.q(u, 1.88, 0.2, 0.3, 0.96, 1.04 + r() * 0.1, pick(r, [C.cream, C.terracotta, C.pink, C.woodL, C.green]));
-  g.q(0.5, 1.85, 0.6, 0.45, 0.94, 1.4, C.steelL, 'metal'); g.q(0.5, 1.85, 0.5, 0.3, 1.4, 1.5, C.steelD, 'metal'); g.q(e - 0.5, 1.85, 0.35, 0.35, 0.94, 1.1, C.black); g.b(e - 0.62, e - 0.38, 1.1, 1.3, 1.8, 1.83, C.screen, 'glow', true);
+  g.q(0.5, 1.85, 0.6, 0.45, 0.94, 1.4, C.steelL, 'metal'); g.q(0.5, 1.85, 0.5, 0.3, 1.4, 1.5, C.steelD, 'metal'); g.q(e - 0.5, 1.85, 0.35, 0.35, 0.94, 1.1, C.black); g.b(e - 0.62, e - 0.38, 1.1, 1.3, 1.8, 1.83, C.off, 'metal', true);
   g.bs(-e, e, 0, 0.9, 0, 0.65, C.steelL, 'metal'); g.b(-e, e, 1.5, 1.53, 0, 0.35, C.steelL, 'metal', true); fill(g, -e + 0.05, e - 0.05, 1.53, 0, 0.35, 0.35, r, 'crockery'); fill(g, -e + 0.05, e - 0.05, 0.9, 0, 0.6, 0.4, r, 'pots');
   g.b(-e, e, 2.2, 2.6, 0, 0.06, C.black); for (let u = -e + 0.2; u < e - 0.8; u += 1.1) g.b(u, u + 0.9, 2.25, 2.55, 0.06, 0.064, 0x3a3830, 'glow'); g.s(-e, e, 0.9, 1.9, 0, 0.4);
 });

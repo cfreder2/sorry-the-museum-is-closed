@@ -92,7 +92,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.15';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.16';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -680,7 +680,24 @@ function chase(dt, snap) {
       tmp.lerp(cine, k);
       rate = 7;
     }
-    confine(G.plan, want, 0.14, true, null, true);
+    // The camera stays in the same space as the toy: it is walked out from the toy towards where it wants to be, and
+    // stops at the first wall in the way. (Just being inside some room is not enough: that lets it sit in the room
+    // next door, or out in the street, looking in through the wall.)
+    {
+      camFrom.set(v.pos.x, v.pos.y + 0.22, v.pos.z);
+      const D = camFrom.distanceTo(want), n = Math.max(1, Math.ceil(D / 0.1)); let good = 0;
+      for (let i = 1; i <= n; i++) {
+        camTry.lerpVectors(camFrom, want, i / n); camHit.copy(camTry);
+        if (confine(G.plan, camHit, 0.14, true, null, true) && camHit.distanceToSquared(camTry) > 0.0009) break;
+        good = i;
+      }
+      if (good < n) {
+        const f = good / n; want.lerpVectors(camFrom, want, f);
+        want.y += (1 - f) * 0.55;                         // pressed up against the toy: come up and look down on it instead
+        camTry.set(v.pos.x + Math.sin(v.yaw) * 0.3, v.pos.y + 0.1, v.pos.z + Math.cos(v.yaw) * 0.3); tmp.lerp(camTry, Math.min(1, (1 - f) * 1.4));
+        confine(G.plan, want, 0.14, true, null, true); rate = Math.max(rate, 18);
+      }
+    }
     // Never under the floor: whichever floor that is, on this level.
     { const gy = groundAt(G.plan, want.x, want.z, Math.max(want.y, v.pos.y) + 0.3, 0); if (want.y < gy + 0.1) want.y = gy + 0.1; }
     camera.position.lerp(want, snap ? 1 : 1 - Math.exp(-dt * rate));
@@ -696,6 +713,7 @@ function chase(dt, snap) {
 // ------------------------------------------------------------------- air ---
 
 const movers = [], prev = new THREE.Vector3(0, -99, 0), here = new THREE.Vector3();
+const camFrom = new THREE.Vector3(), camTry = new THREE.Vector3(), camHit = new THREE.Vector3();
 
 // A word or two in the middle of the screen when you pull something off.
 let calloutUntil = 0;
