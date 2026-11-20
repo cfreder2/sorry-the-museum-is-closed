@@ -225,6 +225,9 @@ export class Lights {
       if (r.use === 'terrace' || r.top <= r.y + 0.5 || (r.x1 - r.x0) * (r.z1 - r.z0) < MIN_AREA) { stats.roomsExcluded.push(r.id); continue; }
       const st = museum.rooms[r.id], taken = (plan.fitout && plan.fitout[r.id] && plan.fitout[r.id].taken) || [];
       const walls = wallsOf.get(r.id) || [], hungBy = new Map();
+      // The obstacles near this room, picked out once: a plate's zone that lies inside this box can only be in the way of those.
+      const nearR = { x0: r.x0 - 2, x1: r.x1 + 2, z0: r.z0 - 2, z1: r.z1 + 2 }, nearObs = plan.obstacles.filter(b => lap(nearR, b));
+      const obsFor = z => (z.x0 >= nearR.x0 && z.x1 <= nearR.x1 && z.z0 >= nearR.z0 && z.z1 <= nearR.z1 ? nearObs : plan.obstacles);
       // Every picture on a wall, with its frame, its lamp and its label, as a stretch of that wall.
       const hungOn = w => {
         if (hungBy.has(w)) return hungBy.get(w);
@@ -245,7 +248,7 @@ export class Lights {
         const p = wallPoint(w, u, Y, off), q = wallPoint(w, u, Y, 0.34);
         const zone = { x0: Math.min(p.x, q.x) - (w.horiz ? 0.13 : 0), x1: Math.max(p.x, q.x) + (w.horiz ? 0.13 : 0), z0: Math.min(p.z, q.z) - (w.horiz ? 0 : 0.13), z1: Math.max(p.z, q.z) + (w.horiz ? 0 : 0.13) };
         if (level && taken.some(t => lap(zone, t))) return 'f';                                             // furniture stands against the wall here
-        if (plan.obstacles.some(b => lap(zone, b) && b.y1 > Y + 0.03 && b.y0 < Y + 1.4)) return 'o';         // or something else does
+        if (obsFor(zone).some(b => lap(zone, b) && b.y1 > Y + 0.03 && b.y0 < Y + 1.4)) return 'o';         // or something else does
         if (plan.lifts.some(b => lap(zone, b))) return 'l';
         if (Math.abs(groundAt(plan, q.x, q.z, Y + 0.3, 0) - Y) > 0.12) return 'g';                           // nothing to stand on in front of it (or a ramp is)
         return '';

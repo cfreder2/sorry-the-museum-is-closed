@@ -155,7 +155,18 @@ class Body {
 }
 
 // ---------------------------------------------------------------- the hook main.js calls
-export function startFeatures(o) {
+// startFeatures(o) starts every feature at once and returns the api. startFeaturesInTurn(o, rest) does the same, but
+// calls `await rest(done, total)` whenever starting them has held the page for a while, so a loading screen can move.
+export function startFeatures(o) { const s = kitFor(o); for (const f of features) s.start(f); return s.api; }
+export async function startFeaturesInTurn(o, rest, budget = 40) {
+  const s = kitFor(o); let t = performance.now();
+  for (let i = 0; i < features.length; i++) {
+    s.start(features[i]);
+    if (performance.now() - t > budget) { await rest(i + 1, features.length); t = performance.now(); }
+  }
+  return s.api;
+}
+function kitFor(o) {
   const { G, THREE, secrets, say, once, callout, sound, stage } = o;
   const group = new THREE.Group(); group.name = 'features'; G.museum.group.add(group);
   const k = {
@@ -276,10 +287,10 @@ export function startFeatures(o) {
     pushable(mesh, o) { return new Body(k, mesh, o); },
   };
   k.carry = new Carry(k);
-  for (const f of features) {
+  const start = f => {
     for (const [id, name] of f.secrets || []) secrets.add(id, name);
     try { if (f.init) f.init(k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; }
-  }
+  };
   const api = {
     kit: k,
     // Called where main.js decides what the action button says. Returns { verb, hint, act } or null.
@@ -289,7 +300,7 @@ export function startFeatures(o) {
     spots() { return features.flatMap(f => { try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },
   };
-  return api;
+  return { start, api };
 }
 
 // ---------------------------------------------------------------- light a room differently

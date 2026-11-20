@@ -497,11 +497,14 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 #loading .ltext { font: 400 clamp(17px, 3.4vw, 26px)/1.3 var(--serif); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt); margin-bottom: 22px; }
 #loading .lbar { position: relative; height: 6px; border-radius: 3px; background: rgba(226,205,148,.16); overflow: hidden; }
 #loading .lbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--gilt); transition: transform .5s ease; }
+#loading .lbar i, #loading .lbar b { will-change: transform; }
 #loading .lbar b { position: absolute; top: 0; bottom: 0; left: 0; width: 30%; background: linear-gradient(90deg, transparent, rgba(255,246,214,.55), transparent); animation: lsweep 1.5s linear infinite; }
 @keyframes lsweep { from { transform: translateX(-110%); } to { transform: translateX(440%); } }
 #loading .lstep { margin-top: 14px; font: 12px var(--mono); letter-spacing: .1em; color: var(--gilt-dim); min-height: 1.4em; }
 #loading.failed .lbar b { display: none; } #loading.failed .lstep { color: #e0a090; }
-@media (prefers-reduced-motion: reduce) { #loading .lbar b { animation: none; display: none; } #loading, #loading .lbar i { transition: none; } }
+/* (with reduced motion the light does not run along the bar: the whole bar breathes instead, so it still shows life) */
+@keyframes lbreathe { from { opacity: .55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #loading .lbar b { animation: none; display: none; } #loading, #loading .lbar i { transition: none; } #loading:not(.failed) .lbar i { animation: lbreathe 1.1s ease-in-out infinite alternate; will-change: opacity; } }
 
 #paLine .alltime { font-size: .72em; font-style: normal; color: var(--gilt-dim); letter-spacing: .04em; }
 #title .sel .hint[hidden] { display: none; }
