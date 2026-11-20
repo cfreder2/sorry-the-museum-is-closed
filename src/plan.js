@@ -709,8 +709,6 @@ function addLakefront(plan) {
   for (let z = B.z0 + 14; z < B.z1 - 6; z += 22) elm((L.lsd.med[0] + L.lsd.med[1]) / 2, z);
   // Lamps down the middle of the Drive and along the promenade.
   for (let z = B.z0 + 25; z < B.z1 - 6; z += 44) { plan.lamps.push({ x: 497, z }, { x: 521, z: z + 22 > B.z1 - 4 ? z - 22 : z + 22 }); }
-  // A few cars nobody came back for, snowed in at the kerb.
-  for (const [x, z, c] of [[481.5, 62, 0x7a2222], [481.5, 148, 0x26486e], [512.5, 196, 0x555a60], [512.5, 20, 0x2f5a3c]]) { L.cars.push({ x, z, c }); O.push({ x0: x - 0.95, x1: x + 0.95, z0: z - 2.3, z1: z + 2.3, y0: 0, y1: 1.6 }); }
   plan.reserved.push({ x0: C.x1, x1: B.x1, z0: B.z0, z1: B.z1 });
 }
 
