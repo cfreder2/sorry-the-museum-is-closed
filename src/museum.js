@@ -13,6 +13,7 @@ import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
 import { furnish, MATERIALS } from './furnish.js';
 import { buildSetPieces } from './setpieces.js';
+const AUDIT = typeof location !== 'undefined' && /[?&]audit\b/.test(location.search);      // a test switch: keep geometry readable so openings can be checked by ray (tools/audit_openings.md)
 
 // ---------------------------------------------------------------- geometry --
 
@@ -369,11 +370,25 @@ export class Museum {
         const band = (u0, u1, y0, y1, d) => { if (d <= 0 || u1 - u0 < 0.02) return; if (sd.n[0]) { const a = sd.at, b = sd.at + sd.n[0] * d; skin.trim.box(Math.min(a, b), Math.max(a, b), y0, y1, u0, u1); } else { const a = sd.at, b = sd.at + sd.n[2] * d; skin.trim.box(u0, u1, y0, y1, Math.min(a, b), Math.max(a, b)); } };
         const next = plan.masses.filter(o => o !== m && sd.beyond(o)), cuts = next.map(sd.span);
         const face = (u0, u1, y0, y1) => skin.wall.quad(sd.P(u0, y0), sd.P(u1, y0), sd.P(u1, y1), sd.P(u0, y1), sd.n, [[u0 / SK.u, y0 / SK.v], [u1 / SK.u, y0 / SK.v], [u1 / SK.u, y1 / SK.v], [u0 / SK.u, y1 / SK.v]]);
-        const openings = outs.map(dd => ({ span: sd.door(dd), y: dd.y, h: dd.h })).filter(o => o.span);
+        // What goes through this wall: this room's own doorways on this side, and any doorway at all whose passage crosses the
+        // plane of the wall. (Rooms are stacked, and each is a block from the street up: the wall of the room above or below
+        // stands in the same place as this one, or out in the thickness of the wall between two rooms, and would close the doorway.)
+        const crosses = dd => { if (dd.hidden || (dd.along === 'x') !== !!sd.n[0]) return null; let t0 = sd.n[0] ? dd.x0 : dd.z0, t1 = sd.n[0] ? dd.x1 : dd.z1; if (dd.out) { const ra = plan.byId[dd.a], c = ra && (sd.n[0] ? (ra.x0 + ra.x1) / 2 : (ra.z0 + ra.z1) / 2); if (ra) { if ((t0 + t1) / 2 < c) t0 -= 0.7; else t1 += 0.7; } }      /* a way in must be open to the air beyond its own wall, too */
+          return t0 <= sd.at + 0.02 && t1 >= sd.at - 0.02 ? (sd.n[0] ? [dd.z0, dd.z1] : [dd.x0, dd.x1]) : null; };
+        const openings = plan.doors.map(dd => ({ span: (outs.includes(dd) && sd.door(dd)) || crosses(dd), y: dd.y, h: dd.h })).filter(o => o.span && o.span[1] > sd.lo && o.span[0] < sd.hi && o.y < top - 0.05);
+        // A stretch of wall from y0 up to the top, less every opening in it: openings can stand one above another.
+        const column = (lo, hi, y0, base) => {
+          const us = [...new Set([lo, hi, ...openings.flatMap(o => o.span).filter(u => u > lo + 0.02 && u < hi - 0.02)])].sort((p, q) => p - q);
+          for (let i = 0; i < us.length - 1; i++) {
+            const p = us[i], qq = us[i + 1], mid = (p + qq) / 2; if (qq - p < 0.02) continue;
+            const holes = openings.filter(o => o.span[0] < mid && o.span[1] > mid).map(o => [o.y, o.y + o.h]).sort((u, w) => u[0] - w[0]);
+            let y = y0; for (const [h0, h1] of holes) { if (h0 - y > 0.05) face(p, qq, y, Math.min(h0, top)); y = Math.max(y, h1); } if (top - y > 0.02) face(p, qq, y, top);
+            if (base && !holes.some(([h0]) => h0 < SK.base[1])) band(p, qq, 0, SK.base[1], SK.base[0]);
+          }
+        };
         for (const [a, bb] of minus(sd.lo, sd.hi, cuts)) {
-          for (const [p, qq] of minus(a, bb, openings.map(o => o.span))) { face(p, qq, 0, top); band(p, qq, 0, SK.base[1], SK.base[0]); }
+          column(a, bb, 0, true);
           band(a, bb, top - SK.cap[1], top, SK.cap[0]);            // flush with the roof: a cap standing proud of it looked like a kerb to be got over
-          for (const o of openings) if (o.span[0] >= a && o.span[1] <= bb) { face(o.span[0], o.span[1], o.y + o.h, top); if (o.y > 0.05) face(o.span[0], o.span[1], 0, o.y); }
         }
         // Where this room stands taller than whatever is against it, its wall shows above that roof. Blocks
         // overlap now that rooms are stacked, so along each stretch it is the tallest neighbour that counts.
@@ -383,10 +398,7 @@ export class Museum {
           if (!by.length || hi - lo < 0.02) continue;
           const cover = Math.max(...by.map(o => o.top));
           if (top <= cover + 0.05) continue;
-          // (A doorway a storey up goes through this wall too: from a room over a lower one into its neighbour.)
-          const through = openings.filter(o => o.span[0] < hi && o.span[1] > lo && o.y + o.h > cover);
-          for (const [p, qq] of minus(lo, hi, through.map(o => o.span))) face(p, qq, cover, top);
-          for (const o of through) { const p = Math.max(lo, o.span[0]), qq = Math.min(hi, o.span[1]); face(p, qq, o.y + o.h, top); if (o.y > cover + 0.05) face(p, qq, cover, o.y); }
+          column(lo, hi, cover, false);
         }
       }
       // Its roof, where there is one: not under a taller block, and not where a skylight stands open.
@@ -476,7 +488,7 @@ export class Museum {
     this.group.add(ground);
     if (plan.street) {
       // The avenue side lies lower: the high ground stops at the terrace wall, and a second sheet carries on below.
-      const S = plan.street, W = B.x1 - B.x0 + 400, x0 = cx - W / 2, wE = cx + W / 2 - S.x, wW = S.x - x0 + 13;
+      const S = plan.street, W = B.x1 - B.x0 + 400, x0 = cx - W / 2, wE = cx + W / 2 - S.x, wW = S.x - x0 + 6;        // (as far east as the foot of the steps needs and no further: the lower level's rooms begin under the terrace, and it would lie through them. The climbing streets cover their own ground.)
       // The high ground starts a little way back from the wall, and a strip fills in between, left open wherever
       // steps, a ramp or a climbing street comes up through it: otherwise the snow lies over them like a lid.
       const EDGE = 12, hE = B.z1 - B.z0 + 400, zA = cz - hE / 2, zB = cz + hE / 2;
@@ -1004,7 +1016,7 @@ export class Museum {
       geo.setIndex(new THREE.BufferAttribute(b.index, 1));
       const q = b.bounds, mid = new THREE.Vector3((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2, (q.z0 + q.z1) / 2);
       geo.boundingSphere = new THREE.Sphere(mid, Math.hypot(q.x1 - q.x0, q.y1 - q.y0, q.z1 - q.z0) / 2);
-      for (const a of Object.values(geo.attributes)) a.onUpload(function () { this.array = null; });      // once it is on the graphics card, the copy here can go
+      if (!AUDIT) for (const a of Object.values(geo.attributes)) a.onUpload(function () { this.array = null; });      // once it is on the graphics card, the copy here can go
       const mesh = new THREE.Mesh(geo, mats[b.mat]); mesh.matrixAutoUpdate = false; mesh.visible = false;
       g.add(mesh); chunks.push({ mesh, ...b.bounds });
     }

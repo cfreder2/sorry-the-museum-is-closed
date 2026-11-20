@@ -197,18 +197,21 @@ export function buildGrounds(museum, plan) {
     incised('ANNO  DOMINI     ·     THE   ART   INSTITVTE   OF   CHICAGO     ·     MDCCCXCII', 30.5, 1.0, PX - 0.07, (AR + FZ) / 2, cz, 52);
     cornice(PX, FZ, PH, p0, p1, 0.95, 0.42);
     // The pediment: a low gable on the cornice, its raking cornices as deep as the level one, a palmette at each corner and at the apex.
-    { const H = 6.5, e = 1.05, hw = F.half + e, zl = cz - hw, zr = cz + hw, back = FX + 3, L = Math.hypot(hw, H), ang = Math.atan2(H, hw), rakeM = mk(plainT, 1.0);
+    { const H = 6.5, e = 1.05, hw = F.half + e, zl = cz - hw, zr = cz + hw, back = FX + 3,
+      // (How far down its sides and back come: to the roofs of the rooms behind, and no lower. Brought down further they stood
+      // as walls through the galleries on the floor below those roofs.)
+      yb = Math.max(5, ...plan.masses.filter(q => q.room && q.x0 < FX + 3 && q.x1 > FX && q.z0 < p1 && q.z1 > p0).map(q => q.top)), L = Math.hypot(hw, H), ang = Math.atan2(H, hw), rakeM = mk(plainT, 1.0);
       wall.quad([PX - 0.05, PH, p1], [PX - 0.05, PH, p0], [PX - 0.05, PH + H * F.half / hw, cz], [PX - 0.05, PH + H * F.half / hw, cz], W, [[p1 / 2.6, 0], [p0 / 2.6, 0], [cz / 2.6, H / 2.6], [cz / 2.6, H / 2.6]]);
       for (const sg of [-1, 1]) {
         for (const [dp, th, off] of [[1.15, 0.34, 0.34], [0.8, 0.3, 0.02], [0.45, 0.22, -0.24]]) { const rk = new THREE.Mesh(new THREE.BoxGeometry(dp, th, L + 0.2), rakeM); rk.position.set(PX - dp / 2 + 0.02, PH + H / 2 + off, cz + sg * hw / 2); rk.rotation.x = sg * ang; add(rk); }
         const ze = sg < 0 ? zl : zr, nn = [0, Math.cos(ang), sg * Math.sin(ang)];
         roof.quad([PX - 1.1, PH + 0.5, ze], [back, PH + 0.5, ze], [back, PH + H + 0.5, cz], [PX - 1.1, PH + H + 0.5, cz], nn, [[0, 0], [1, 0], [1, 5], [0, 5]]);
         // its side, closed down to the roofs behind
-        wall.quad([FX, 5, cz + sg * F.half], [back, 5, cz + sg * F.half], [back, PH + 0.5, cz + sg * F.half], [FX, PH + 0.5, cz + sg * F.half], [0, 0, sg], [[0, 0], [1, 0], [1, 6], [0, 6]]);
+        wall.quad([FX, yb, cz + sg * F.half], [back, yb, cz + sg * F.half], [back, PH + 0.5, cz + sg * F.half], [FX, PH + 0.5, cz + sg * F.half], [0, 0, sg], [[0, 0], [1, 0], [1, 3], [0, 3]]);
       }
-      wall.quad([back, 5, p0], [back, 5, p1], [back, PH + 0.5, p1], [back, PH + 0.5, p0], [1, 0, 0], [[0, 0], [12, 0], [12, 6], [0, 6]]);
+      wall.quad([back, yb, p0], [back, yb, p1], [back, PH + 0.5, p1], [back, PH + 0.5, p0], [1, 0, 0], [[0, 0], [12, 0], [12, 3], [0, 3]]);
       wall.quad([back, PH + 0.5, p0 - e], [back, PH + 0.5, p1 + e], [back, PH + H + 0.5, cz], [back, PH + H + 0.5, cz], [1, 0, 0]);
-      plan.obstacles.push({ x0: FX, x1: back, z0: p0, z1: p1, y0: 5, y1: PH + H });
+      plan.obstacles.push({ x0: FX, x1: back, z0: p0, z1: p1, y0: yb, y1: PH + H });
       const palm = mk(palmT, 1.0, { alphaTest: 0.5 });
       for (const [z, y, w2, h2] of [[zl + 0.5, PH + 0.5, 1.8, 2.3], [zr - 0.5, PH + 0.5, 1.8, 2.3], [cz, PH + H + 0.5, 2.3, 2.9]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w2, h2), palm); m.position.set(PX - 0.55, y + h2 / 2 - 0.05, z); m.rotation.y = -Math.PI / 2; add(m); tr.box(PX - 0.95, PX - 0.15, y - 0.25, y + 0.08, z - w2 * 0.4, z + w2 * 0.4); } }
     for (const side of [p0, p1]) { const nz = side === p0 ? -1 : 1; wall.quad([PX, 0, side], [FX, 0, side], [FX, PH, side], [PX, PH, side], [0, 0, nz], [[0, 0], [0.8, 0], [0.8, PH / 2.6], [0, PH / 2.6]]); }

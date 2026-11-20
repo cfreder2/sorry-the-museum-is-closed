@@ -705,7 +705,7 @@ function finish(R, recipe) {
     const wall = side === 'n' ? r.z0 : side === 's' ? r.z1 : side === 'w' ? r.x0 : r.x1;
     const B = (a, b, ya, yb, dep, hex) => { const p = Math.min(at, at + sg * dep), q = Math.max(at, at + sg * dep); alongX ? m.box(a, b, y + ya, y + yb, p, q, hex, true) : m.box(p, q, y + ya, y + yb, a, b, hex, true); };
     B(lo, hi, r.h - 0.2, r.h - 0.02, 0.06, 0x1b1d21);
-    const spans = doors.filter(dd => (alongX ? dd.along !== 'x' : dd.along === 'x') && Math.abs((alongX ? (dd.z0 + dd.z1) / 2 : (dd.x0 + dd.x1) / 2) - wall) < 0.8).map(dd => (alongX ? [dd.x0 - 0.1, dd.x1 + 0.1] : [dd.z0 - 0.1, dd.z1 + 0.1]));
+    const spans = doors.filter(dd => (alongX ? dd.along !== 'x' : dd.along === 'x') && (alongX ? dd.z0 <= wall + 0.06 && dd.z1 >= wall - 0.06 : dd.x0 <= wall + 0.06 && dd.x1 >= wall - 0.06))       /* the doorway meets this wall, however long the passage beyond it */.map(dd => (alongX ? [dd.x0 - 0.1, dd.x1 + 0.1] : [dd.z0 - 0.1, dd.z1 + 0.1]));
     for (const [a, b] of runs(lo, hi, spans)) { B(a, b, 0, 0.11, 0.07, 0x3c3f45); B(a, b, 0.11, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); }      // (proud enough to stand clear of a wall that is itself built a little way in)
   }
 }

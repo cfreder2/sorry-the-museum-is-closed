@@ -32,6 +32,7 @@
 
 import * as THREE from 'three';
 import { wallPoint, groundAt, SLAB } from './plan.js';
+const AUDIT = typeof location !== 'undefined' && /[?&]audit\b/.test(location.search);      // a test switch: keep geometry readable so openings can be checked by ray (tools/audit_openings.md)
 
 const KEY = 'after-hours.lights';
 const WORK = new THREE.Color(0.56, 0.62, 0.7);             // the colour of a room's working light (linear)
@@ -144,7 +145,7 @@ export class Lights {
       }
       if (basic) continue;
       const attr = new THREE.BufferAttribute(ix, 1);
-      attr.onUpload(function () { this.array = null; });
+      if (!AUDIT) attr.onUpload(function () { this.array = null; });
       geo.setAttribute('roomIx', attr);
       mats.add(c.mesh.material); count += n;
     }
