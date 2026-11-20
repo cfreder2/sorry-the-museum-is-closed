@@ -13,6 +13,7 @@ import { Shop } from './shop.js';
 import { Paint } from './paint.js';
 import { Secrets } from './secrets.js';
 import { Simon } from './simon.js';
+import { Cinema } from './cinema.js';
 import { Stage } from './stage.js';
 import { Presents } from './presents.js';
 import { LiveMirror } from './livemirror.js';
@@ -185,6 +186,9 @@ async function boot() {
   await loading(86, 'Turning down the lights');
   G.poker = new Poker(G.museum, plan, sound);
   // The colour pedestal in Griffin Court: five patterns right and the roof lets go (src/simon.js).
+  // The screens in the auditoriums and lecture rooms, and what is showing on them (src/cinema.js).
+  G.cinema = new Cinema(G, { museum: G.museum, plan, sound, stage, resume: () => act('resume'), onWatch: () => { secrets.find('cinema'); tm.event('cinema'); } });
+  if (G.cinema.screens.length) secrets.add('cinema', 'The late showing');
   G.simon = new Simon(G, { museum: G.museum, plan, sound, stage, resume: () => act('resume'), calm: () => set.reduce, onWin: () => { callout('THE ROOF LETS GO'); tm.event('simon'); } });
   // Your own picture: an easel in a studio, and the frame in the lobby it hangs in (src/paint.js).
   G.paint = new Paint(G, { museum: G.museum, plan, stage, resume: () => act('resume'), say, onHang: () => { tm.event('paint'); if (G.nav && G.nav.target && G.nav.target.paint) G.nav.clear(); } });
@@ -1136,6 +1140,7 @@ function play(dt, real) {
     const paintNear = !!G.paint && G.mode === 'explore' && G.paint.near(v), frameNear = !!G.paint && !paintNear && G.mode === 'explore' && !G.facing && G.paint.facing(v);
     const paintTap = (paintNear || frameNear) && input.took('look');
     const simonNear = !!G.simon && G.mode === 'explore' && G.simon.near(v), simonTap = simonNear && input.took('look');
+    const filmNear = !!G.cinema && G.mode === 'explore' && !G.facing && G.cinema.near(v), filmTap = filmNear && input.took('look');      // the screen in an auditorium (cinema.js)
     const giftNear = G.presents && G.mode === 'explore' ? G.presents.near(v) : null, giftTap = giftNear != null && input.took('look');
     // The conservation line's bench, and the light switches (src/repair.js, src/lights.js). A switch is the last thing to have the button:
     // after anything you have pulled up to, and after a picture to look at, unless the toy's nose is plainly at the plate.
@@ -1169,6 +1174,7 @@ function play(dt, real) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
       if (shopTap) G.shop.open();
     }
+    if (filmNear) { once('film', `The projector has been left running. ${input.usedTouch ? 'WATCH' : 'E'} to sit down.`, 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'WATCH'; if (filmTap) G.cinema.open(); }
     if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
     if (giftNear != null) { once('parcel', 'A parcel with nobody\u2019s name on it. E to open it.', 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'OPEN'; if (giftTap) { const what = G.presents.open(giftNear); tm.event('present', what); } }
     { const st = G.roomId && G.museum.rooms[G.roomId]; if (st && st.room.kind === 'room' && !st.room.passage && st.sw !== true && G.mode === 'explore') once('dark', 'Dark in here. There is a light switch by the door: pull up to it.', 8); }
@@ -1353,6 +1359,7 @@ function tick(now) {
   if (G.shop && G.state !== 'results') G.shop.update(dt);
   if (G.museum && G.museum.trains && G.state !== 'paused') G.museum.trains.update(dt, G, sound, secrets);      // the railway (railway.js)
   if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
+  if (G.cinema) G.cinema.update(dt, G, sound);
   if (G.presents) G.presents.update(dt);
   if (G.paint && G.paint.on) G.paint.update();
   // Jingle Bells from the courtyard tree, louder as you come nearer.
