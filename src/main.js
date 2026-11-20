@@ -98,7 +98,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.46';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.47';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -931,6 +931,35 @@ function attract(dt) {
 
 // The map is its own module: a round radar in the corner and the whole building behind it.
 const nav = createMap(G, { radarEl: $('map'), show, resume: () => act('resume'), say, THREE, scene, wallAt });
+// Where everything to find and do is, for debugging how thickly the building is seeded: `secret` entries are counted on the
+// Secrets screen (some stand at several places); `todo` entries are things to use that are not counted one by one.
+// With ?secrets in the address they are all marked on the radar and the big map.
+G.spots = () => {
+  const P = G.plan, out = [], put = (kind, id, name, x, y, z) => { if (x != null && z != null) out.push({ kind, id, name, x, y: y || 0, z }); };
+  const lv = y => y, tx = P.terrace;
+  if (tx) { put('secret', 'poker', 'Card game on the roof', tx.x, tx.top, tx.z); { const e = G.poker.easel && G.poker.easel.x != null ? G.poker.easel : G.poker.art; if (e) put('secret', 'dogs', 'A Friend in Need, on its easel', e.x, e.fy, e.z); } }
+  if (G.shop && G.shop.at) put('secret', 'stall', 'Toy stall', G.shop.at.x, G.shop.at.y, G.shop.at.z);
+  if (P.rink) put('secret', 'hockey', 'Hockey pond', P.rink.x, 0, P.rink.z);
+  for (const c of P.heistConsoles || []) put('secret', 'heist', 'Big red button', c.x, c.y, c.z);
+  if (G.paint && G.paint.spot) put('secret', 'easel', 'Easel in the studio', G.paint.spot.x, G.paint.spot.y, G.paint.spot.z);
+  if (G.simon && G.simon.at) put('secret', 'simon', 'Colour pedestal', G.simon.at.x, G.simon.at.y, G.simon.at.z);
+  for (const a of G.arcade.list) put('secret', a.bonus ? 'outpost' : 'arcade:' + a.id, 'Monitor: ' + (a.Game && a.Game.title || a.id), a.x, a.y, a.z);
+  if (P.grounds.tree) put('secret', 'presents', 'Parcels under the tree', P.grounds.tree.x, 0, P.grounds.tree.z);
+  if (P.lakefront) put('secret', 'harbour', 'Breakwater light (drone)', P.lakefront.light.x, 0, P.lakefront.light.z);
+  if (P.repair) put('secret', 'repair', 'Conservation line', P.repair.x, P.repair.y, P.repair.z);
+  for (const b of G.boards.list) put(b.id === 'clue' ? 'secret' : 'todo', b.id === 'clue' ? 'boards' : 'board', b.id === 'clue' ? 'Director\u2019s whiteboard (the clue)' : 'Whiteboard', b.x, b.y - 1.6, b.z);
+  for (const r of P.rooms) if (r.secret && /vault|storage/i.test(r.gallery)) { put('secret', 'vault', 'Sub-level 9', (r.x0 + r.x1) / 2, r.y, (r.z0 + r.z1) / 2); put('secret', 'ufo', 'The thing on the pedestal', (r.x0 + r.x1) / 2 + 2, r.y, (r.z0 + r.z1) / 2); }
+  if (G.secret && G.secret.door) put('todo', 'hidden-door', 'Hidden door', G.secret.door.x != null ? G.secret.door.x : (G.secret.door.x0 + G.secret.door.x1) / 2, G.secret.door.y, G.secret.door.z != null ? G.secret.door.z : (G.secret.door.z0 + G.secret.door.z1) / 2);
+  for (const p of (G.piano && G.piano.list) || []) put('secret', p.id, 'Piano', p.O.x, Math.round(p.O.y - 0.7), p.O.z);
+  for (const m of (G.vending && G.vending.list) || []) put('todo', 'vending', 'Vending machine', m.x, m.y, m.z);
+  if (G.vending && G.vending.list && G.vending.list[0]) { const m = G.vending.list[0]; put('secret', 'vending', 'Vending machines (any)', m.x, m.y, m.z); }
+  for (const c of (G.cinema && G.cinema.screens) || []) put('todo', 'cinema', 'Film screen', c.x, c.room.y, c.z);
+  if (G.cinema && G.cinema.screens[0]) { const c = G.cinema.screens[0]; put('secret', 'cinema', 'The late showing (any screen)', c.x, c.room.y, c.z); }
+  put('secret', 'traffic', 'Stop the traffic', -11, (P.street || {}).y || 0, P.facade.cz);
+  if (P.cut) put('secret', 'train', 'Watch a train from the footbridge', (P.grounds.rail.x0 + P.grounds.rail.x1) / 2, 0, P.cut.open[0] ? P.cut.open[0].z1 + 2 : 18);
+  void lv; return out;
+};
+if (params.has('secrets')) setTimeout(function mark() { if (!G.museum || !G.plan || !G.poker || !G.boards || !G.arcade || G.state === 'title' && !G.vehicle) return setTimeout(mark, 500); try { G.mapMarks = G.spots().map(q => ({ x: q.x, y: q.y, z: q.z, colour: q.kind === 'secret' ? '#ff4d6d' : '#4dd2ff', ring: q.kind === 'secret' })); } catch (e) { console.error(e); } }, 500);
 G.nav = nav;                                         // G.nav.goTo({ x, y, z, label }) lights the way to a spot; G.mapMarks = [{ x, y, z, colour, ring }] puts marks on it
 
 const knobL = $('stickL').firstElementChild, knobR = $('stickR').firstElementChild;
