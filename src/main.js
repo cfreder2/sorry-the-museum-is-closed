@@ -113,7 +113,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.79';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.80';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -142,8 +142,12 @@ function stuntCall(c, big) {
   el.querySelector('.t').textContent = c.title;
   el.querySelector('.p').textContent = c.pts ? '+' + c.pts.toLocaleString() : '';
   el.classList.remove('on', 'landed'); void el.offsetWidth; el.classList.add('on'); el.classList.toggle('landed', !!big);
+  // Put away once it has been shown: left 'on', it would play again whenever the HUD comes back (after a look
+  // closer), and with Reduce motion it would never go at all.
+  clearTimeout(stuntCall.t); stuntCall.t = setTimeout(stuntDone, big ? 3400 : 2600);
   if (big) sound.lap();
 }
+function stuntDone() { clearTimeout(stuntCall.t); $('stunt').classList.remove('on', 'landed'); }
 // Twice a second: has anything been earned, has anything unlocked?
 function progress(quiet) {
   if (!G.museum || !G.vehicle) return;
@@ -916,6 +920,7 @@ function beginStudy(art) {
   G.lamp.intensity = G.lampOn ? 14 : 0;                  // dip the headlamp while you look
   toastUntil = 0; toasts.length = 0;
   G.state = 'study';
+  stuntDone();                                           // a stunt's score still up is not to come back after the look
   art.focus = true;
   G.museum.see(art);
   // Nothing between you and the work: the toy and the stunt kit are put away while you look.
