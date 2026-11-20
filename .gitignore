@@ -7,3 +7,6 @@ tools/.cache/
 
 # scratch copies of the code used while work is in progress
 .claude/worktrees/
+
+# what tools/build.mjs stages for itch.io
+dist/

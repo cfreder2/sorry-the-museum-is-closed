@@ -1,0 +1,43 @@
+# Every push to main goes to itch.io as well. (GitHub Pages serves main from the root by itself.)
+# Needs the repository secret BUTLER_API_KEY, a key from itch.io/user/settings/api-keys. Until it is
+# set the job warns and skips, so the run stays green: check `butler status` to be sure a build went.
+name: itch.io
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: itch
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build dist/
+        run: node tools/build.mjs
+      - name: Install butler
+        if: ${{ env.BUTLER_API_KEY != '' }}
+        run: |
+          cd "$RUNNER_TEMP"
+          for host in broth.itch.zone broth.itch.ovh; do
+            curl -fsSL -o butler.zip "https://$host/butler/linux-amd64/LATEST/archive/default" && test -s butler.zip && break
+          done
+          test -s butler.zip
+          unzip -q butler.zip -d butler-bin && chmod +x butler-bin/butler
+          echo "$RUNNER_TEMP/butler-bin" >> "$GITHUB_PATH"
+      - name: Push to itch.io
+        run: |
+          if [ -z "$BUTLER_API_KEY" ]; then
+            echo "::warning::BUTLER_API_KEY is not set: not pushed to itch.io."
+            exit 0
+          fi
+          node tools/push_itch.mjs --no-build
