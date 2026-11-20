@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { frostHedges, hedgeMaterial } from './frost.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
+import { landable } from './plan.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export function buildEastSide(museum, plan) {
@@ -100,7 +101,7 @@ export function buildEastSide(museum, plan) {
       const mx = (x0 + x1) / 2, mz = a.z;
       run([x0, mx - 2, z0 - 0.9, z0 - 0.3]); run([mx + 2, x1 + 0.9, z0 - 0.9, z0 - 0.3], [mx + 2, x1, z0 - 0.9, z0 - 0.3]);
       run([x1 + 0.3, x1 + 0.9, z0 - 0.9, mz - a.open - 0.8], [x1 + 0.3, x1 + 0.9, z0, mz - a.open - 0.8]); run([x1 + 0.3, x1 + 0.9, mz + a.open + 0.8, z1]);
-      for (const q of runs) { O.push({ ...q, y0: 0, y1: 0.8 }); plan.surfaces.push({ skin: 'wall', fixed: true, x0: q.x0 - 0.05, x1: q.x1 + 0.05, z0: q.z0 - 0.05, z1: q.z1 + 0.05, axis: null, h0: 0.88, h1: 0.88, base: 0 }); }
+      for (const q of runs) landable(plan, q.x0, q.x1, q.z0, q.z1, 0.88, 0, 0.05);
       frostHedges(hedge, runs, 0, 0.86);
     }
   }
@@ -119,7 +120,7 @@ export function buildEastSide(museum, plan) {
       const r = 0.95, x0 = t.x - r, x1 = t.x + r, z0 = t.z - r, z1 = t.z + r;
       if (!free(x0, x1, z0, z1)) continue;
       box.box(x0, x1, 0, 0.34, z0, z1); cap.box(x0 + 0.14, x1 - 0.14, 0.34, 0.39, z0 + 0.14, z1 - 0.14);
-      O.push({ x0, x1, z0, z1, y0: 0, y1: 0.4 });
+      landable(plan, x0, x1, z0, z1, 0.39);                 // jump up onto it: its rim and the snow in it are a top to stand on
     }
   }
 
@@ -173,11 +174,11 @@ function buildCourt(museum, plan, { add, trim, snow, hedgeM }) {
   const P = { x0: f.x - 5.4, x1: f.x + 5.4, z0: f.z - 4.4, z1: f.z + 4.4 }, kw = 0.36, kh = 0.24;
   iceG.quad([P.x0, 0.07, P.z0], [P.x0, 0.07, P.z1], [P.x1, 0.07, P.z1], [P.x1, 0.07, P.z0], [0, 1, 0]);
   for (const [x0, x1, z0, z1] of [[P.x0 - kw, P.x1 + kw, P.z0 - kw, P.z0], [P.x0 - kw, P.x1 + kw, P.z1, P.z1 + kw], [P.x0 - kw, P.x0, P.z0, P.z1], [P.x1, P.x1 + kw, P.z0, P.z1]]) {
-    stoneG.box(x0, x1, 0, kh, z0, z1); capG.box(x0 + 0.03, x1 - 0.03, kh, kh + 0.05, z0 + 0.03, z1 - 0.03); solid(x0, x1, z0, z1, kh + 0.05);
+    stoneG.box(x0, x1, 0, kh, z0, z1); capG.box(x0 + 0.03, x1 - 0.03, kh, kh + 0.05, z0 + 0.03, z1 - 0.03); landable(plan, x0, x1, z0, z1, kh + 0.05);
   }
 
   // Clipped hedges round the edges, and a fir in two of the corners.
-  const hedges = [], hedge = (x0, x1, z0, z1, h = 0.95) => { if (blocked(x0, x1, z0, z1)) return; hedges.push({ x0, x1, z0, z1, h: h + 0.05 }); solid(x0, x1, z0, z1, h + 0.07); };
+  const hedges = [], hedge = (x0, x1, z0, z1, h = 0.95) => { if (blocked(x0, x1, z0, z1)) return; hedges.push({ x0, x1, z0, z1, h: h + 0.05 }); landable(plan, x0, x1, z0, z1, h + 0.07, 0, 0.05); };
   hedge(X0, X0 + 0.8, Z0 + 0.6, S - 7);                                   // along the side towards the railway, stopping short of the door
   hedge(E - 4.6, E - 0.5, S - 1.5, S - 0.6); hedge(E - 1.3, E - 0.5, S - 7.5, S - 1.5);
   hedge(E - 1.3, E - 0.5, Z0 + 0.6, Z0 + 6);

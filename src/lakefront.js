@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
+import { landable } from './plan.js';
 
 export function buildLakefront(museum, plan) {
   const L = plan.lakefront; if (!L) return;
@@ -55,7 +56,8 @@ export function buildLakefront(museum, plan) {
     stone.box(shore, shore + 1.1, 0, 0.3, a, b, 1.2); stone.box(shore + 1.1, shore + 2.3, 0, 0.13, a, b, 1.2);         // two steps down to the ice
   }
   flat(walk, prom.x1, shore + 4, slip[0], slip[1], 0.012, 2.5);
-  for (const z of slip) { stone.box(prom.x1 - 0.2, shore + 2.4, 0, 0.62, z - 0.25, z + 0.25); dark.box(prom.x1 + 0.9, prom.x1 + 1.1, 0.62, 1.5, z - 0.08, z + 0.08); }
+  for (const z of slip) { stone.box(prom.x1 - 0.2, shore + 2.4, 0, 0.62, z - 0.25, z + 0.25); dark.box(prom.x1 + 0.9, prom.x1 + 1.1, 0.62, 1.5, z - 0.08, z + 0.08);
+    landable(plan, prom.x1 - 0.2, shore + 2.4, z - 0.25, z + 0.25, 0.62); plan.obstacles.push({ x0: prom.x1 + 0.9, x1: prom.x1 + 1.1, z0: z - 0.08, z1: z + 0.08, y0: 0.5, y1: 1.5 }); }      // the slipway's walls, solid, with tops to drive along
   // Benches facing the water, and their snow.
   for (let z = z0 + 30; z < z1 - 10; z += 34) if (z < slip[0] - 4 || z > slip[1] + 4) { dark.box(prom.x1 - 1.9, prom.x1 - 1.3, 0, 0.42, z - 1, z + 1); snow.box(prom.x1 - 1.9, prom.x1 - 1.3, 0.42, 0.5, z - 1, z + 1); plan.obstacles.push({ x0: prom.x1 - 1.9, x1: prom.x1 - 1.3, z0: z - 1, z1: z + 1, y0: 0, y1: 0.5 }); }
 
