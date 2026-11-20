@@ -14,6 +14,7 @@ import { T, streetY } from './plan.js';
 import { buildBridgeway } from './bridgeway.js';
 import { buildEastSide } from './eastside.js';
 import { buildRailway } from './railway.js';
+import { buildLakefront } from './lakefront.js';
 
 export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
@@ -200,12 +201,12 @@ export function buildGrounds(museum, plan) {
     // A stretch that climbs east from the avenue's level to the museum's.
     const slope = (g, x0, x1, z0, z1, lift, s = 4) => { const ya = streetY(plan, x0 + 1e-4, (z0 + z1) / 2) + lift, yb = streetY(plan, x1 - 1e-4, (z0 + z1) / 2) + lift; g.quad([x0, ya, z0], [x1, yb, z0], [x1, yb, z1], [x0, ya, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]); };
     flat(road, M.x0, M.x1, B.z0, B.z1, SY + 0.004);
-    for (const st of [G.monroe, G.jackson]) { flat(road, M.x1, SX, st.z0, st.z1, SY + 0.004); slope(road, SX, SX + 12, st.z0, st.z1, 0.004); flat(road, SX + 12, B.x1, st.z0, st.z1, 0.004); }
+    for (const st of [G.monroe, G.jackson]) { flat(road, M.x1, SX, st.z0, st.z1, SY + 0.004); slope(road, SX, SX + 12, st.z0, st.z1, 0.004); flat(road, SX + 12, plan.lakefront ? plan.lakefront.lsd.x0 : B.x1, st.z0, st.z1, 0.004); }
     flat(road, G.columbus.x0, G.columbus.x1, G.monroe.z1, G.jackson.z0, 0.004);
     // Lane lines: dashes down the avenue, a double line up the middle.
     for (let z = B.z0; z < B.z1; z += 9) for (const x of [-19, -6.5]) flat(paint, x - 0.08, x + 0.08, z, z + 3.6, SY + 0.008);
     for (const x of [-12.9, -12.3]) flat(paint, x - 0.07, x + 0.07, B.z0, B.z1, SY + 0.008);
-    for (let x = SX + 14; x < B.x1; x += 9) for (const z of [(G.monroe.z0 + G.monroe.z1) / 2, (G.jackson.z0 + G.jackson.z1) / 2]) flat(paint, x, x + 3.6, z - 0.08, z + 0.08, 0.008);
+    for (let x = SX + 14; x < (plan.lakefront ? plan.lakefront.lsd.x0 - 4 : B.x1); x += 9) for (const z of [(G.monroe.z0 + G.monroe.z1) / 2, (G.jackson.z0 + G.jackson.z1) / 2]) flat(paint, x, x + 3.6, z - 0.08, z + 0.08, 0.008);
     for (let z = G.monroe.z1 + 6; z < G.jackson.z0; z += 9) flat(paint, 284.9, 285.1, z, z + 3.6, 0.008);
     // The crossing at Adams Street, opposite the door.
     for (let z = F.cz - 3.2; z < F.cz + 3.2; z += 0.9) flat(paint, M.x0 + 0.5, M.x1 - 0.5, z, z + 0.45, SY + 0.008);
@@ -308,6 +309,8 @@ export function buildGrounds(museum, plan) {
   buildBridgeway(museum, plan);
   // The railway in its cutting, and the bridges over it.
   buildRailway(museum, plan);
+  // Butler Field, Lake Shore Drive and the harbour (lakefront.js).
+  buildLakefront(museum, plan);
   void T;
 
   // The Columbus Drive side, and the gardens as they lie from above.

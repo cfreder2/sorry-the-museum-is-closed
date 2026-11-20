@@ -204,8 +204,23 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   // ---- drawing a level -------------------------------------------------------
   // Everything is drawn in metres; the caller has already set the transform. `px` is how many
   // metres one screen pixel is, so that lines keep their weight whatever the scale.
+  const ZMIN = 0.42;                                   // far enough out to see from the avenue to the water
   function drawLevel(c, ly, px, label) {
     const p = G.plan;
+    // Out of doors, on the big map: the park, the Drive and the harbour, as far as the buoys. (Zoom out to see them.)
+    if (label && p.lakefront && Math.abs(ly) < 1) {
+      const L = p.lakefront, B = p.bounds, z0 = B.z0, h = B.z1 - B.z0;
+      c.fillStyle = 'rgba(40,48,66,.55)'; c.fillRect(L.field.x0, L.field.z0, L.field.x1 - L.field.x0, L.field.z1 - L.field.z0);
+      c.fillStyle = 'rgba(16,18,26,.9)'; c.fillRect(L.lsd.x0, z0, L.lsd.x1 - L.lsd.x0, h);
+      c.fillStyle = 'rgba(70,76,92,.7)'; c.fillRect(L.prom.x0, z0, L.shore - L.prom.x0, h); for (const q of L.paths) c.fillRect(q.x0, q.z0, q.x1 - q.x0, q.z1 - q.z0);
+      c.fillStyle = 'rgba(150,180,215,.45)'; c.fillRect(L.shore, z0, L.buoys - L.shore, h);
+      c.fillStyle = 'rgba(22,38,70,.9)'; c.fillRect(L.buoys, z0, B.x1 - L.buoys, h);
+      c.fillStyle = 'rgba(200,200,205,.8)'; c.fillRect(L.shell.x0, L.shell.z0, L.shell.x1 - L.shell.x0, L.shell.z1 - L.shell.z0 + 1.2); c.fillRect(L.breakwater.x0, L.breakwater.z0, L.breakwater.x1 - L.breakwater.x0, L.breakwater.z1 - L.breakwater.z0);
+      c.fillStyle = 'rgba(120,255,170,1)'; c.beginPath(); c.arc(L.light.x, L.light.z, Math.max(1.6, px * 3), 0, TAU); c.fill();
+      c.fillStyle = 'rgba(226,205,148,.75)'; c.font = `${Math.max(5, px * 11)}px ui-monospace, monospace`;
+      c.fillText('BUTLER FIELD', (L.field.x0 + L.field.x1) / 2, 150); c.fillText('MONROE HARBOR', (L.buoys + B.x1) / 2 - 4, 120);
+      c.save(); c.translate((L.lsd.x0 + L.lsd.x1) / 2, 110); c.rotate(Math.PI / 2); c.fillText('LAKE SHORE DRIVE', 0, 0); c.restore();
+    }
     for (const st of Object.values(G.museum.rooms)) {
       const r = st.room;
       if (!onLevel(r, ly) || !shown(r)) continue;
@@ -358,9 +373,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const B = G.plan.rooms.reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
     const pad = 6, s0 = Math.min(bc.width / (B.x1 - B.x0 + 2 * pad), bc.height / (B.z1 - B.z0 + 2 * pad));
     if (state.cx == null) { state.cx = (B.x0 + B.x1) / 2; state.cz = (B.z0 + B.z1) / 2; }
-    state.zoom = Math.max(1, Math.min(9, state.zoom));
+    state.zoom = Math.max(ZMIN, Math.min(9, state.zoom));
     // Never drag the building right off the screen.
-    state.cx = Math.max(B.x0, Math.min(B.x1, state.cx)); state.cz = Math.max(B.z0, Math.min(B.z1, state.cz));
+    state.cx = Math.max(B.x0, Math.min(G.plan.lakefront ? G.plan.bounds.x1 : B.x1, state.cx)); state.cz = Math.max(B.z0, Math.min(B.z1, state.cz));
     const s = s0 * state.zoom;
     state.fit = { s, ox: bc.width / 2 - state.cx * s, oz: bc.height / 2 - state.cz * s, dpr };
   }
@@ -411,7 +426,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   {
     const fingers = new Map(); let moved = 0, pinch = 0;
     const world = (cx, cy) => { const r = bc.getBoundingClientRect(), { s, ox, oz, dpr } = state.fit; return [((cx - r.left) * dpr - ox) / s, ((cy - r.top) * dpr - oz) / s]; };
-    const zoomAt = (cx, cy, k) => { const [wx, wz] = world(cx, cy), z0 = state.zoom; state.zoom = Math.max(1, Math.min(9, z0 * k)); const f = state.zoom / z0; state.cx = wx - (wx - state.cx) / f; state.cz = wz - (wz - state.cz) / f; };
+    const zoomAt = (cx, cy, k) => { const [wx, wz] = world(cx, cy), z0 = state.zoom; state.zoom = Math.max(ZMIN, Math.min(9, z0 * k)); const f = state.zoom / z0; state.cx = wx - (wx - state.cx) / f; state.cz = wz - (wz - state.cz) / f; };
     bc.addEventListener('pointerdown', ev => { if (!state.fit) return; bc.setPointerCapture(ev.pointerId); fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); if (fingers.size === 1) moved = 0; pinch = 0; });
     bc.addEventListener('pointermove', ev => {
       const f = fingers.get(ev.pointerId); if (!f || !state.fit) return;
