@@ -84,7 +84,7 @@ feature({
     const k = this.k, P = k.plan, r = rng(4242), taken = claimed(k.G), used = new Set();
     const same = (a, b) => Math.abs(a - b) < 1.2;
     const ok = q => q && PUBLIC(q) && !q.secret && !q.passage && q.kind !== 'stair' && q.kind !== 'lift' && q.kind !== 'backofhouse' && (q.x1 - q.x0) > 2.2 && (q.z1 - q.z0) > 2.2;
-    const spotsIn = q => wallSpots(P, k.museum, q, { step: 0.4, clear: 0.55, depth: 0.25, height: 0.62, width: 0.12 });
+    const spots = new Map(), spotsIn = q => { if (!spots.has(q)) spots.set(q, wallSpots(P, k.museum, q, { step: 0.4, clear: 0.55, depth: 0.25, height: 0.62, width: 0.12 })); return spots.get(q); };      // (asked of a room again and again)
     const put = (s, text, about) => { const n = { id: 'note' + this.list.length, text, about, x: s.x, y: s.room.y + 0.36, z: s.z, nx: s.nx, nz: s.nz, room: s.room.id, tilt: (r() - 0.5) * 0.22, v: this.list.length % 4 }; this.list.push(n); used.add(s.room.id); claim(n); return n; };
     // beside the door into room T, in the room next to it (or just inside T if there is nowhere next door)
     const besideDoor = T => {

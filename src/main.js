@@ -41,7 +41,7 @@ import { Secret } from './secret.js';
 import { Traffic } from './traffic.js';
 import { Loose } from './loose.js';
 import { Vending } from './vending.js';
-import { startFeatures } from './features.js';
+import { startFeaturesInTurn } from './features.js';
 // Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
 import './thorne.js';
 import './galleries1.js';
@@ -158,12 +158,47 @@ const tmp = new THREE.Vector3();
 const angDiff = (a, b) => { const d = a - b; return Math.atan2(Math.sin(d), Math.cos(d)); };
 
 // The loading screen's bar. Each step is shown before the work behind it starts, so the screen gets a frame in between.
-function loading(pct, step) {
+// While a step's work runs, the bar creeps on towards `to` (short of the next step) by itself, and a light runs along
+// it: both are animations the browser keeps playing off the main thread, so the bar never stands still even while a
+// long step holds the page.
+let barAt = 0, barAnim = null;
+function loading(pct, step, to = pct) {
   const el = $('loading'); if (!el) return Promise.resolve();
-  $('lfill').style.transform = `scaleX(${pct / 100})`; el.querySelector('.lbar').setAttribute('aria-valuenow', pct);
+  const fill = $('lfill');
+  let now = barAt; try { const m = new DOMMatrixReadOnly(getComputedStyle(fill).transform).a; if (m >= 0 && m <= 1) now = m; } catch { /* not read: from the last step */ }
+  const a = Math.max(barAt, now, pct / 100), b = Math.max(a, Math.min(to, 99.5) / 100), end = pct >= 100 ? 1 : b;
+  if (barAnim) barAnim.cancel();
+  fill.style.transform = `scaleX(${end})`; el.querySelector('.lbar').setAttribute('aria-valuenow', Math.round(pct));
+  if (fill.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    fill.style.transition = 'none';                     // (the CSS one is only for a browser without this)
+    barAnim = fill.animate(pct >= 100 || b <= a ? [{ transform: `scaleX(${now})` }, { transform: `scaleX(${end})` }]
+      : [{ transform: `scaleX(${now})`, easing: 'ease-out' }, { transform: `scaleX(${a})`, offset: 0.06, easing: 'cubic-bezier(.15,.6,.35,1)' }, { transform: `scaleX(${end})` }],
+    { duration: pct >= 100 || b <= a ? 350 : 5000, fill: 'forwards' });
+  }
+  barAt = a;
   if (step) $('lstep').textContent = step;
   if (pct >= 100) { el.classList.add('done'); setTimeout(() => { el.hidden = true; }, 900); return Promise.resolve(); }
   return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+}
+
+// Everything the scene will draw with, made ready behind the loading screen, so the first frame drawn is not the one
+// that pays for it: the shaders compiled (in parallel, where the browser can: KHR_parallel_shader_compile) as they
+// will be drawn, into a target rather than the screen; and every texture sent to the graphics card, a few at a time.
+async function prepare(from, to, step) {
+  const was = renderer.getRenderTarget();
+  renderer.setRenderTarget(composer.readBuffer);
+  let compiled = null;
+  try { compiled = renderer.compileAsync(scene, camera); } catch (e) { console.warn('compile', e); }
+  renderer.setRenderTarget(was);
+  const tex = new Set();
+  const take = v => { if (v && v.isTexture && !v.isRenderTargetTexture && !v.isVideoTexture) tex.add(v); };
+  scene.traverse(o => { for (const m of o.material ? [].concat(o.material) : []) { for (const k in m) take(m[k]); if (m.uniforms) for (const k in m.uniforms) take(m.uniforms[k] && m.uniforms[k].value); } });
+  const list = [...tex]; let t = performance.now(), i = 0;
+  for (const tx of list) {
+    const im = tx.image; try { if (tx.version > 0 && im && im.complete !== false) renderer.initTexture(tx); } catch { /* sent when first drawn, then */ }
+    if (++i < list.length && performance.now() - t > 30) { await loading(from + (to - from) * 0.5 * i / list.length, step, to); t = performance.now(); }
+  }
+  if (compiled) { await loading(from + (to - from) * 0.5, step, to); await Promise.race([compiled.catch(() => {}), new Promise(r => setTimeout(r, 8000))]); }
 }
 
 async function boot() {
@@ -171,11 +206,18 @@ async function boot() {
   // ?saved skips the live API; ?remote ignores any offline image copy, which is only looked for when run locally.
   const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || params.has('local');
   const [collection] = await Promise.all([loadCollection({ timeout: params.has('saved') ? 1 : 7000 }), local && !params.has('remote') ? loadLocalImages() : null]);
-  await loading(30, 'Walking the galleries');
+  await loading(30, 'Walking the galleries', 40);
   const plan = G.plan = buildPlan();
-  await loading(42, 'Covering the sculpture court');
+  await loading(42, 'Pulling down the blinds', 46);
   G.collection = collection;
-  G.museum = new Museum(plan, collection, mirror, renderer.capabilities.getMaxAnisotropy());
+  // The building goes up a part at a time, with a step of the bar for each. (G.museum is only set once it all stands.)
+  const museum = new Museum(plan, collection, mirror, renderer.capabilities.getMaxAnisotropy(), true);
+  for (const [pct, to, step] of [[47, 54, 'Clearing snow from the steps'], [55, 57, 'Covering the sculpture court'], [58, 64, 'Straightening the frames'], [65, 71, 'Stacking the chairs'], [72, 76, 'Putting the ramps away']]) {
+    if (!museum.buildNext()) break;
+    await loading(pct, step, to);
+  }
+  while (museum.buildNext());
+  G.museum = museum;
   G.museum.renderer = renderer;
   scene.add(G.museum.group);
   G.museum.onWake = art => sound.lamp(art);
@@ -190,7 +232,7 @@ async function boot() {
     }
     if (G.museum.seenCount === G.museum.arts.length) say('You have seen every work on view tonight.', 2, 10);
   };
-  await loading(78, 'Locking the front doors');
+  await loading(77, 'Locking the front doors', 80);
   G.perchTotal = new Set(plan.surfaces.filter(q => q.perch).map(q => q.perch + '@' + Math.round(q.x0) + ',' + Math.round(q.z0))).size;
 
   G.car = new Car(plan);
@@ -203,7 +245,7 @@ async function boot() {
   G.race = new Race(scene, plan);
   G.props = new Props(plan);
   scene.add(G.props.group);
-  await loading(86, 'Turning down the lights');
+  await loading(81, 'Turning down the lights', 83);
   G.poker = new Poker(G.museum, plan, sound);
   // The colour pedestal in Griffin Court: five patterns right and the roof lets go (src/simon.js).
   // The screens in the auditoriums and lecture rooms, and what is showing on them (src/cinema.js).
@@ -216,6 +258,7 @@ async function boot() {
   // The stall beside the card table: two toys for sale, for chips won at it (src/shop.js).
   G.shop = new Shop(G, { museum: G.museum, plan, garage, poker: G.poker, sound, stage, resume: () => act('resume'), thumb: id => garage.thumbs[id],
     onBuy: v => { garage.sel[v.kind] = v.id; garage.shown = v.id; garage.save(); garage.apply(G.car, G.drone); tm.event('buy', v.id); } });
+  await loading(84, 'Closing the café', 85);
   // The café: furniture that can be knocked about (src/loose.js), and the machines that sell paint (src/vending.js).
   G.loose = new Loose(G.museum, plan, sound); scene.add(G.loose.group);
   G.vending = new Vending(G, { museum: G.museum, plan, garage, poker: G.poker, sound, stage, resume: () => act('resume'), callout, secrets, trophies, onBuy: p => tm.event('paint-can', p.id) });
@@ -247,6 +290,7 @@ async function boot() {
   addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'bonus' || d.event === 'bonus-found') secrets.find('outpost'); });
   // The side games earn trophies too.
   addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'played' || d.event === 'score') trophies.flag('arcade'); if (G.arcade && G.arcade.found && G.arcade.found.size >= G.arcade.total) trophies.flag('arcadeAll'); });
+  await loading(86, 'Checking every switch', 88);
   // A light switch by every door (src/lights.js), and the conservation line in one of the studios (src/repair.js).
   G.lights = new Lights(G.museum, plan, sound, [G.paint && G.paint.art].filter(Boolean));      // (the frame in the lobby is on a wall too)
   G.lights.onCount = (off, on) => { const f = trophies.flags; if (off > (f.lightsOff || 0) || on > (f.lightsOn || 0)) { f.lightsOff = Math.max(f.lightsOff || 0, off); f.lightsOn = Math.max(f.lightsOn || 0, on); trophies.save(); } };
@@ -262,17 +306,25 @@ async function boot() {
     callout(n === all ? 'EVERY SNOWMAN' : `SNOWMAN ${n} / ${all}`);
   };
 
-  // Every registered feature (features.js) is started here, with the shared kit.
-  G.features = startFeatures({ G, THREE, secrets, say, once, callout, sound, stage });
+  // Every registered feature (features.js) is started here, with the shared kit, the bar moving on as they start.
+  await loading(89, 'Making the last rounds', 91);
+  G.features = await startFeaturesInTurn({ G, THREE, secrets, say, once, callout, sound, stage }, (n, all) => loading(89 + 3 * n / all, 'Making the last rounds', 92));
 
   setVehicle('car');
   G.car.place(plan.spawn.x + 3, plan.spawn.z, plan.spawn.yaw);
   G.drone.group.visible = false; G.drone.shadow.visible = false;
+  await loading(93, 'Polishing the toys', 94);
+  garage.portraits(renderer);
+  await loading(95, 'Turning on the lights', 99);
+  await prepare(95, 99, 'Turning on the lights');
 
   const when = new Date(collection.fetched);
   const n = G.museum.arts.length;
   $('status').textContent = '';
-  loading(100);
+  // The bar's last stretch: the screen goes once the first frame has been drawn behind it (tick), since that frame
+  // still has the most to do (the guard's notes and the mice find their places, the last few shaders), and is best
+  // done while the bar is still seen to move.
+  await loading(98, null, 99.5);
   $('source').innerHTML = (collection.live
     ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
     : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${params.has('saved') ? '' : ', because the live API could not be reached'}.`)
@@ -281,7 +333,6 @@ async function boot() {
   applySettings();
   trophies.setup(G.museum);
   progress(true);                                       // what an older save has already earned is unlocked without fuss
-  garage.portraits(renderer);
   // Come back with the toy you left with.
   const sv = saved();
   garage.chooseKind(sv ? sv.toy : garage.kind, pick);
@@ -1382,6 +1433,7 @@ function tick(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   frame++;
+  if (frame === 2) loading(100);                         // the first frame is drawn: the loading screen can go (boot)
   if (G.state === 'loading') { renderer.render(scene, camera); return; }
   if (G.state !== 'paused' && G.state !== 'results') G.t += dt;
   govern(dt);

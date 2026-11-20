@@ -231,7 +231,9 @@ function flicker(e) {
 }
 
 export class Museum {
-  constructor(plan, collection, mirror, maxAniso) {
+  // With `later`, only the start is made here: buildNext() then puts up the building one part at a time, so a
+  // loading screen can be given a frame between the parts. Without it the whole building is put up at once.
+  constructor(plan, collection, mirror, maxAniso, later = false) {
     this.plan = plan;
     this.collection = collection;
     this.group = new THREE.Group();
@@ -248,15 +250,12 @@ export class Museum {
     try { this.seenIds = new Set(JSON.parse(localStorage.getItem('after-hours.seen-ids') || '[]')); this.visited = new Set(JSON.parse(localStorage.getItem('after-hours.rooms') || '[]')); } catch { /* no storage */ }
     this.kit = new THREE.Group();     // the stunt kit, so it can be put away while you look at a picture
     this.group.add(this.kit);
-    this._buildShell(mirror);
-    this._buildOutside();
-    this._buildHall();
-    this._buildArt();
-    this._buildFurniture();
-    this._buildStunts();
-    this._buildLevels();
-    this.group.updateMatrixWorld(true);
+    this._toBuild = [() => this._buildShell(mirror), () => this._buildOutside(), () => this._buildHall(), () => this._buildArt(), () => this._buildFurniture(),
+      () => { this._buildStunts(); this._buildLevels(); this.group.updateMatrixWorld(true); }];
+    if (!later) while (this.buildNext());
   }
+  /** Puts up the next part of the building. True while there is more to come. */
+  buildNext() { const f = this._toBuild.shift(); if (f) f(); return this._toBuild.length > 0; }
 
   // ------------------------------------------------------------------ shell --
 

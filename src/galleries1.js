@@ -28,10 +28,27 @@ const midi = n => 440 * Math.pow(2, (n - 69) / 12);
 const art = (k, room, re) => { const st = k.museum.rooms[room]; return st ? st.arts.find(a => re.test(a.work.t || '') && !a.work.c) : null; };
 
 // A spot of floor clear of walls, plinths and doorways.
+// The spot must lie inside the room, so only the obstacles that reach into the room at that height can be in its way:
+// those (and the room's door centres) are picked out once per room and height, not looked through in full on every
+// call. (The whole list is thousands long, and the ring search for Shiva asks hundreds of thousands of times.)
+const nearby = new WeakMap();
+function inRoom(k, room, y) {
+  const all = k.plan.obstacles;
+  let per = nearby.get(all); if (!per) nearby.set(all, per = new Map());
+  const key = room.id + '@' + y; let c = per.get(key);
+  if (!c || c.n !== all.length) {
+    const x0 = room.x0 + 0.25, x1 = room.x1 - 0.25, z0 = room.z0 + 0.25, z1 = room.z1 - 0.25;
+    c = { n: all.length, obs: all.filter(o => o.y1 > y + 0.04 && o.y0 < y + 1.2 && x1 > o.x0 && x0 < o.x1 && z1 > o.z0 && z0 < o.z1),
+      doors: k.plan.doorsOf(room.id).map(d => [(d.x0 + d.x1) / 2, (d.z0 + d.z1) / 2]) };
+    per.set(key, c);
+  }
+  return c;
+}
 function free(k, x, z, r, room, y = room.y, doorGap = 1.3) {
   if (x - r < room.x0 + 0.25 || x + r > room.x1 - 0.25 || z - r < room.z0 + 0.25 || z + r > room.z1 - 0.25) return false;
-  for (const o of k.plan.obstacles) if (o.y1 > y + 0.04 && o.y0 < y + 1.2 && x + r > o.x0 && x - r < o.x1 && z + r > o.z0 && z - r < o.z1) return false;
-  for (const d of k.plan.doorsOf(room.id)) { const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2; if (Math.hypot(x - cx, z - cz) < doorGap + r) return false; }
+  const c = inRoom(k, room, y);
+  for (const o of c.obs) if (x + r > o.x0 && x - r < o.x1 && z + r > o.z0 && z - r < o.z1) return false;
+  for (const [cx, cz] of c.doors) if (Math.hypot(x - cx, z - cz) < doorGap + r) return false;
   return true;
 }
 const gain = (k, x, z, reach) => Math.max(0, 1 - Math.hypot(k.pos.x - x, k.pos.z - z) / reach);
