@@ -311,7 +311,20 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 #bmLevels { display: flex; gap: 6px; }
 .maphead button { min-width: 64px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.66); font: 700 12px var(--mono); letter-spacing: .1em; color: var(--gilt); }
 .maphead button[aria-pressed="true"], #bmClose { background: rgba(226,205,148,.9); color: #14120c; }
-#bmCanvas { flex: 1; min-height: 0; width: 100%; margin: 8px 0 6px; cursor: crosshair; touch-action: none; }
+.mapbody { position: relative; flex: 1; min-height: 0; display: flex; margin: 8px 0 6px; }
+#bmCanvas { flex: 1; min-height: 0; width: 100%; cursor: crosshair; touch-action: none; }
+.maphead button .here { color: #ff5a3c; margin-right: 5px; font-size: 16px; line-height: 0; vertical-align: -1px; }
+.maphead button[aria-pressed="true"] .here { color: #c22a10; }
+#bmYou { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid #ff8a6e; background: rgba(20,8,6,.9); font: 600 14px var(--serif); color: #fff; white-space: nowrap; box-shadow: 0 2px 10px rgba(0,0,0,.6); }
+#bmYou b { color: #ff5a3c; margin-right: 6px; }
+#bmCard { position: absolute; width: min(260px, calc(100% - 16px)); padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(226,205,148,.6); background: rgba(10,11,17,.96); box-shadow: 0 6px 24px rgba(0,0,0,.7); color: var(--cream); }
+#bmCardX { position: absolute; top: 4px; right: 4px; width: 36px; height: 36px; border: 0; background: none; color: var(--gilt); font-size: 17px; }
+#bmCardT { font: 600 19px/1.2 var(--serif); color: var(--gilt); padding-right: 30px; }
+#bmCardS { font: italic 14px/1.3 var(--serif); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#bmCardS:empty, #bmCardN:empty { display: none; }
+#bmCardN { font: 12px var(--mono); letter-spacing: .04em; color: var(--gilt-dim); margin-top: 6px; }
+#bmGo { margin-top: 10px; width: 100%; height: 40px; border-radius: 8px; border: 0; background: #7fe9f5; color: #04121a; font: 700 13px var(--mono); letter-spacing: .08em; }
+#bmGo:disabled { background: rgba(226,205,148,.25); color: var(--cream); }
 #bmIn, #bmOut { min-width: 40px; font-size: 18px; padding: 0; }
 .mapfoot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 12px var(--mono); color: var(--gilt); }
 .mapfoot .key { color: var(--gilt-dim); font-size: 10.5px; }

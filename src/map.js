@@ -1,6 +1,6 @@
 // The map. In the corner, a round radar that turns with you, as in a driving game: the level you
 // are on, you in the middle, whatever way you face at the top. Touch it (or press G) and the whole
-// building opens, a level at a time. Pick a room there and the way to it lights up, on the big map
+// building opens on the level you are on, a level at a time. Tap a room there for its card, and Show the way lights it up, on the big map
 // and on the radar, across stairs and lifts if it is on another level.
 
 import { heightOf, GRAVITY } from './plan.js';
@@ -11,13 +11,24 @@ const near = (a, b, e = 0.7) => Math.abs(a - b) < e;
 export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt }) {
   const rc = radarEl.getContext('2d');
   const big = document.getElementById('bigmap'), bc = document.getElementById('bmCanvas'), bx = bc.getContext('2d');
-  const state = { level: null, target: null, path: null, at: 0, fit: null, marks: [], zoom: 1, cx: null, cz: null };
+  const state = { level: null, target: null, path: null, at: 0, fit: null, marks: [], zoom: 1, cx: null, cz: null, card: null };
   let nav = null;
 
   // ---- which level is which --------------------------------------------------
   const levels = () => Object.entries(G.plan.levels || { 1: 0 }).map(([name, y]) => ({ name, y })).sort((a, b) => a.y - b.y);
   const levelOf = y => { let best = null; for (const l of levels()) if (!best || Math.abs(l.y - y) < Math.abs(best.y - y)) best = l; return best; };
   const onLevel = (r, ly) => Math.abs(r.y - ly) < 0.7 || (r.y < ly && r.top > ly + 2.5);    // its floor is here, or it is a tall room rising through
+  // The floor you are on: the room's own, or the highest deck in it under you (a bridge over Griffin Court is upstairs),
+  // so a drone hovering high in a tall hall is still on the level it took off from. Outdoors, and on the roofs, it is the street.
+  function youY() {
+    const v = G.vehicle, r = G.roomId && G.plan.byId[G.roomId];
+    if (!r) return G.roomId ? v.pos.y : 0;
+    let y = r.y;
+    for (const d of G.plan.decks) if (d.room === r.id && d.y > y && d.y < v.pos.y + 0.6 && v.pos.x >= d.x0 - 0.3 && v.pos.x <= d.x1 + 0.3 && v.pos.z >= d.z0 - 0.3 && v.pos.z <= d.z1 + 0.3) y = d.y;
+    // On a flight of stairs, whichever end is nearer.
+    for (const q of G.plan.ramps) if (q.room === r.id && v.pos.x >= q.x0 && v.pos.x <= q.x1 && v.pos.z >= q.z0 && v.pos.z <= q.z1 && v.pos.y > Math.min(q.y0, q.y1) - 0.3 && v.pos.y < Math.max(q.y0, q.y1) + 0.6) y = levelOf(v.pos.y).y;
+    return y;
+  }
 
   // What is on no drawing is on no map either, until it has been found (src/secret.js).
   const found = () => !!G.plan.secretOpen;
@@ -414,16 +425,8 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       c.strokeStyle = done ? 'rgba(255,235,170,1)' : been ? 'rgba(226,205,148,.8)' : 'rgba(150,150,170,.45)';
       c.strokeRect(r.x0, r.z0, w, h);
       if (r.secret) { c.strokeStyle = 'rgba(255,90,77,.95)'; c.lineWidth = px * 2; c.setLineDash([px * 5, px * 3]); c.strokeRect(r.x0 + px * 2, r.z0 + px * 2, w - px * 4, h - px * 4); c.setLineDash([]); }
-      if (label && Math.min(w, h) > 9 * px && w > 26 * px) {
-        const name = r.secret ? (w > 12 ? 'TOP SECRET' : '?') : r.kind === 'hall' ? 'Griffin Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '');
-        const size = Math.max(9 * px, Math.min(13 * px, w / Math.max(3, name.length) * 1.5, h * 0.5));
-        c.font = `600 ${size}px ui-monospace, Menlo, monospace`;
-        c.fillStyle = r.secret ? 'rgba(255,120,105,.95)' : done ? 'rgba(30,22,6,.95)' : been ? 'rgba(240,225,185,.95)' : 'rgba(170,170,185,.8)';
-        const fits = c.measureText(name).width < w - 2 * px;
-        if (fits) c.fillText(name, r.x0 + w / 2, r.z0 + h / 2);
-        else if (/^\d/.test(name)) c.fillText(name.slice(0, 4), r.x0 + w / 2, r.z0 + h / 2);
-      }
     }
+    // (The names are written afterwards, on the big map only, at a size for the screen: see drawLabels.)
     // The partitions inside a restroom block (src/furnish.js walls it into rooms of its own): thin lines, so the way in can be seen.
     if (p.wc && p.wc.length) { const ids = new Set(p.wc.map(q => q.room)); c.fillStyle = 'rgba(170,176,196,.7)';
       for (const id of ids) { const r = p.byId[id]; if (!r || !onLevel(r, ly) || !shown(r)) continue; { const st = G.museum.rooms[id], gold = st && (st.arts.length ? st.done : G.museum.visited.has(id)); c.fillStyle = gold ? 'rgba(70,52,16,.8)' : 'rgba(170,176,196,.7)'; }
@@ -494,6 +497,80 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     c.restore();
   }
 
+  // ---- names on the big map ------------------------------------------------------
+  // Written in screen pixels, not metres: big enough to read whatever the zoom (a little bigger as you zoom in),
+  // light on dark with a dark edge, inside the room or not at all. A long name that will not fit tries a shorter
+  // form of itself ("west studio" for "Ryan Learning Center, west studio"), then two lines, then gives up.
+  const SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif', MONO = 'ui-monospace, Menlo, monospace';
+  const widths = new Map();
+  const measure = (c, font, text) => { const k = font + '|' + text; let w = widths.get(k); if (w == null) { if (widths.size > 6000) widths.clear(); c.font = font; w = c.measureText(text).width; widths.set(k, w); } return w; };
+  // What a room is called: its title, and what is in it.
+  function nameOf(r) {
+    if (!r) return { title: 'Outdoors', sub: '' };
+    if (r.secret) return { title: 'Top secret', sub: '' };
+    if (r.kind === 'hall') return { title: 'Griffin Court', sub: 'The Modern Wing' };
+    if (r.kind === 'corridor') return { title: 'Gallery 11', sub: 'The Thorne Miniature Rooms' };
+    const g = r.gallery || '', set = G.collection && G.collection.rooms && G.collection.rooms[r.id];
+    if (r.kind !== 'gallery') return { title: g, sub: '' };
+    const m = /^(.*?) \((.*)\)$/.exec(g), aside = m ? m[2][0].toUpperCase() + m[2].slice(1) : '';
+    return { title: (m ? m[1] : g).replace(/^Galleries /, 'Gallery '), sub: [aside, ...(set && set.names ? set.names : [])].filter(Boolean).join(' · ') };
+  }
+  function labelsOf(r) {
+    if (r.secret) return { names: ['TOP SECRET', '?'], mono: true };
+    if (r.kind === 'hall') return { names: ['Griffin Court', 'Griffin'] };
+    if (r.kind === 'corridor') return { names: ['11'], mono: true };
+    const g = r.gallery || '';
+    if (r.kind === 'gallery') { const n = g.replace(/^Galler(y|ies) /, '').replace(/ \(.*\)$/, ''); return { names: [n], mono: true }; }
+    const k = g.search(/, (?![^(]*\))/), tail = k > 0 ? g.slice(k + 2) : '', head = k > 0 ? g.slice(0, k) : '', bare = g.replace(/ \(.*\)$/, '');
+    return { names: [g, ...(bare !== g ? [bare] : []), ...(/ /.test(tail) ? [tail] : []), ...(head ? [head] : [])] };
+  }
+  function drawLabels(c, ly) {
+    const { s, ox, oz, dpr } = state.fit, W = bc.width, H = bc.height, sc = s / dpr;
+    const f0 = Math.round(Math.max(11.5, Math.min(17, 10 + sc * 0.4)) * 2) / 2, pad = 3 * dpr;
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+    for (const st of Object.values(G.museum.rooms)) {
+      const r = st.room;
+      if (r.passage || !onLevel(r, ly) || !shown(r)) continue;
+      const X0 = r.x0 * s + ox, X1 = r.x1 * s + ox, Z0 = r.z0 * s + oz, Z1 = r.z1 * s + oz, w = X1 - X0 - 2 * pad, h = Z1 - Z0 - pad;
+      if (X1 < 0 || X0 > W || Z1 < 0 || Z0 > H || w < 14 * dpr || h < 11 * dpr) continue;
+      const L = labelsOf(r), been = G.museum.visited.has(r.id), done = st.arts.length ? st.done : been;
+      let put = null;
+      outer: for (const name of L.names) for (const f of [f0, f0 * 0.88]) {
+        if (f < 10.5) continue;
+        const px = f * dpr, font = `${L.mono ? '700' : '600'} ${px}px ${L.mono ? MONO : SERIF}`, lh = px * 1.15;
+        if (lh <= h && measure(c, font, name) <= w) { put = { font, lines: [name], lh }; break outer; }
+        if (2 * lh <= h && / /.test(name)) {
+          // Two lines, broken at the space nearest the middle.
+          let best = -1; for (let i = name.indexOf(' '); i > 0; i = name.indexOf(' ', i + 1)) if (best < 0 || Math.abs(i - name.length / 2) < Math.abs(best - name.length / 2)) best = i;
+          const a = name.slice(0, best), b = name.slice(best + 1);
+          if (measure(c, font, a) <= w && measure(c, font, b) <= w) { put = { font, lines: [a, b], lh }; break outer; }
+        }
+      }
+      if (!put) continue;
+      c.font = put.font;
+      const cx = (X0 + X1) / 2, cy = (Z0 + Z1) / 2 - (put.lines.length - 1) * put.lh / 2;
+      c.fillStyle = r.secret ? '#ff8a78' : done ? '#22190a' : been ? '#fbf1d6' : r.assumed ? 'rgba(222,216,200,.82)' : '#ece5d2';
+      c.strokeStyle = 'rgba(5,6,10,.9)'; c.lineWidth = 3 * dpr;
+      put.lines.forEach((t, i) => { if (!done) c.strokeText(t, cx, cy + i * put.lh); c.fillText(t, cx, cy + i * put.lh); });
+    }
+  }
+  // "★ You are here", over the arrow on the big map: a tag in the arrow's own red that breathes.
+  function drawHere(c, x, z) {
+    const { s, ox, oz, dpr } = state.fit, X = x * s + ox, Z = z * s + oz, t = performance.now() / 1000;
+    if (X < -40 || X > bc.width + 40 || Z < -40 || Z > bc.height + 40) return;
+    const text = '★ You are here', font = `700 ${14 * dpr}px ${SERIF}`, tw = measure(c, font, text), ph = 26 * dpr, pw = tw + 20 * dpr;
+    const above = Z - 30 * dpr - ph > 0, py = above ? Z - 30 * dpr - ph : Z + 30 * dpr, px = Math.max(4 * dpr, Math.min(bc.width - pw - 4 * dpr, X - pw / 2));
+    const glow = 0.5 + 0.5 * Math.sin(t * 4);
+    c.save();
+    c.shadowColor = `rgba(255,90,60,${0.45 + glow * 0.45})`; c.shadowBlur = (6 + glow * 10) * dpr;
+    c.fillStyle = '#ff5a3c'; c.strokeStyle = '#fff'; c.lineWidth = 2 * dpr;
+    c.beginPath(); if (c.roundRect) c.roundRect(px, py, pw, ph, ph / 2); else c.rect(px, py, pw, ph); c.fill(); c.shadowBlur = 0; c.stroke();
+    // (A little stalk from the tag to the arrow.)
+    c.beginPath(); c.moveTo(Math.max(px + ph / 2, Math.min(px + pw - ph / 2, X)), above ? py + ph : py); c.lineTo(X, above ? Z - 16 * dpr : Z + 16 * dpr); c.stroke();
+    c.fillStyle = '#fff'; c.font = font; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, px + pw / 2, py + ph / 2 + dpr);
+    c.restore();
+  }
+
   // ---- the radar ---------------------------------------------------------------
   // The plan of a level is drawn once onto a picture of its own, and the radar only turns and slides
   // that picture each frame: drawing several hundred rooms afresh every frame is what made it jerk.
@@ -519,7 +596,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const t = performance.now() / 1000;
     // The route is drawn once, when it is asked for, and stays as drawn until you arrive or rub it out.
     if (ribbon && ribbon.visible) ribbon.material.map.offset.x = -(t * 1.6) % 1;
-    const ly = G.roomId ? v.pos.y : 0;
+    const ly = youY();
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, W);
     c.save();
     c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.clip();
@@ -558,10 +635,12 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     { const a = v.yaw - Math.PI, nx = Math.sin(a) * (R - 13), ny = -Math.cos(a) * (R - 13); c.fillStyle = 'rgba(226,205,148,.95)'; c.font = '700 15px ui-monospace, Menlo, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('N', R + nx, R + ny); }
     drawYou(c, R, R, Math.PI, 1.15);
     c.strokeStyle = 'rgba(226,205,148,.85)'; c.lineWidth = 3; c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.stroke();
-    // Which level, when there is more than one way to be wrong about it.
-    const lv = levelOf(ly);
-    c.fillStyle = 'rgba(8,10,16,.8)'; c.beginPath(); c.arc(R, W - 20, 15, 0, TAU); c.fill();
-    c.fillStyle = 'rgba(226,205,148,.95)'; c.font = '700 14px ui-monospace, Menlo, monospace'; c.fillText(lv.name, R, W - 19);
+    // Which level you are on: a gold tag on the rim at the bottom, big enough to read on the smallest radar (a phone's is a third the size).
+    { const lv = levelOf(ly), text = lv.name === 'LL' ? 'LL' : lv.name === 'X' ? 'SL9' : 'L' + lv.name, font = `700 ${Math.round(W * 0.11)}px ${MONO}`;
+      c.font = font; const tw = c.measureText(text).width, ph = W * 0.15, pw = Math.max(ph * 1.5, tw + W * 0.08), px = R - pw / 2, py = W - ph - W * 0.035;
+      c.fillStyle = 'rgba(226,205,148,.97)'; c.strokeStyle = 'rgba(8,10,16,.9)'; c.lineWidth = 3;
+      c.beginPath(); if (c.roundRect) c.roundRect(px, py, pw, ph, ph / 2); else c.rect(px, py, pw, ph); c.fill(); c.stroke();
+      c.fillStyle = '#14120c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, R, py + ph / 2 + 1); }
     if (state.target && Math.hypot(state.target.x - v.pos.x, state.target.z - v.pos.z) < 2.6 && Math.abs(state.target.y - v.pos.y) < 1.6) { say(`You are here: ${state.target.label}.`); clear(); }
   }
 
@@ -578,41 +657,65 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const s = s0 * state.zoom;
     state.fit = { s, ox: bc.width / 2 - state.cx * s, oz: bc.height / 2 - state.cz * s, dpr };
   }
+  let drawing = false;
   function drawBig() {
-    if (big.hidden) return;
+    if (big.hidden) { drawing = false; return; }
+    drawing = true;
     fit();
-    const { s, ox, oz } = state.fit, c = bx, t = performance.now() / 1000, ly = state.level.y, v = G.vehicle;
+    const { s, ox, oz, dpr } = state.fit, c = bx, t = performance.now() / 1000, ly = state.level.y, v = G.vehicle, here = Math.abs(youY() - ly) < 0.7;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, bc.width, bc.height);
     c.setTransform(s, 0, 0, s, ox, oz);
     c.textAlign = 'center'; c.textBaseline = 'middle';
     drawLevel(c, ly, 1 / s, true);
+    // The room whose card is open, ringed in gold.
+    const sel = state.card && state.card.room;
+    if (sel && onLevel(sel, ly)) { c.fillStyle = 'rgba(255,225,140,.16)'; c.fillRect(sel.x0, sel.z0, sel.x1 - sel.x0, sel.z1 - sel.z0); c.strokeStyle = '#ffe08a'; c.lineWidth = 3 * dpr / s; c.strokeRect(sel.x0, sel.z0, sel.x1 - sel.x0, sel.z1 - sel.z0); }
+    // The names go on in screen pixels; then the route, the marks and you, over them.
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    drawLabels(c, ly);
+    c.setTransform(s, 0, 0, s, ox, oz);
     drawPath(c, ly, 1 / s, t);
     drawMarks(c, ly, 1 / s, t);
-    if (Math.abs((G.roomId ? v.pos.y : 0) - ly) < 2.4) drawYou(c, v.pos.x, v.pos.z, v.yaw, 1.3 / s);
+    if (here) drawYou(c, v.pos.x, v.pos.z, v.yaw, dpr / s);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if (here) drawHere(c, v.pos.x, v.pos.z);
     requestAnimationFrame(drawBig);
   }
+  const NAMES = { LL: 'Lower', 1: 'First', 2: 'Second', 3: 'Third', X: 'Sub-level 9' };
   function tabs() {
     const el = document.getElementById('bmLevels'); el.textContent = '';
-    const names = { LL: 'Lower', 1: 'First', 2: 'Second', 3: 'Third', X: 'Sub-level 9' };
+    const you = levelOf(youY()), tg = state.target && levelOf(state.target.y);
     for (const l of levels().slice().reverse()) {
-      const b = document.createElement('button'); b.textContent = names[l.name] || l.name; b.dataset.level = l.name;
+      const b = document.createElement('button'); b.dataset.level = l.name;
+      // The level you are on carries your star, whichever level is being looked at.
+      if (l.name === you.name) { const i = document.createElement('span'); i.className = 'here'; i.textContent = '★'; b.append(i); b.setAttribute('aria-label', `${NAMES[l.name] || l.name}, you are here`); }
+      b.append(NAMES[l.name] || l.name);
       b.setAttribute('aria-pressed', l.name === state.level.name);
       el.append(b);
     }
-    const you = levelOf(G.roomId ? G.vehicle.pos.y : 0), tg = state.target && levelOf(state.target.y);
+    // Looking at another level: say where you are, and take you back with a tap.
+    const off = document.getElementById('bmYou');
+    off.hidden = you.name === state.level.name;
+    if (!off.hidden) { off.innerHTML = '<b>★</b>'; off.append(`You are on the ${(NAMES[you.name] || you.name).toLowerCase()} level`); }
     document.getElementById('bmNote').textContent = state.target
-      ? (state.path ? `To ${state.target.label}${tg.name !== you.name ? ` (${(names[tg.name] || tg.name).toLowerCase()} level)` : ''}: about ${Math.round(state.path.length)} m.${state.path.jumpIn != null ? ' There is a jump on the way.' : ''}` : `No way found to ${state.target.label}.`)
-      : 'Pick a room and the way to it lights up.';
+      ? (state.path ? `To ${state.target.label}${tg.name !== you.name ? ` (${(NAMES[tg.name] || tg.name).toLowerCase()} level)` : ''}: about ${Math.round(state.path.length)} m.${state.path.jumpIn != null ? ' There is a jump on the way.' : ''}` : `No way found to ${state.target.label}.`)
+      : 'Tap a room for its card.';
     document.getElementById('bmClear').hidden = !state.target;
+    if (state.card && state.card.room && !onLevel(state.card.room, state.level.y)) card(null);
+  }
+  // Show the level you are on, with you in the middle of it if the plan is zoomed in far enough to lose you.
+  function toYou() {
+    state.level = levelOf(youY());
+    if (state.zoom > 1.05) { state.cx = G.vehicle.pos.x; state.cz = G.vehicle.pos.z; }
   }
   function open() {
     if (G.state !== 'play') return;
-    state.level = levelOf(G.roomId ? G.vehicle.pos.y : 0);
-    G.state = 'paused'; show('bigmap'); tabs();
-    if (innerWidth < 900 && state.zoom === 1) { state.zoom = 2; state.cx = G.vehicle.pos.x; state.cz = G.vehicle.pos.z; }
-    requestAnimationFrame(drawBig);
+    G.state = 'paused'; show('bigmap'); card(null);
+    if (innerWidth < 900 && state.zoom === 1) state.zoom = 3;            // (a phone: near enough in for the names to fit)
+    toYou(); tabs();
+    if (!drawing) requestAnimationFrame(drawBig);
   }
-  function close() { resume(); }
+  function close() { card(null); resume(); }
   function refresh() {
     const v = G.vehicle;
     state.path = state.target ? route({ x: v.pos.x, y: G.roomId ? v.pos.y : 0, z: v.pos.z }, state.target) : null;
@@ -622,7 +725,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   function clear() { state.target = null; state.path = null; layRibbon(); }
   // Set a destination from anywhere in the game: { x, y, z, label }.
   function goTo(target) { state.target = target; nav = nav || build(); refresh(); return !!state.path; }
-  // Drag to move the plan, pinch or roll the wheel to zoom, tap to pick.
+  // Drag to move the plan, pinch or roll the wheel to zoom, tap (a touch that hardly moves) for a room's card.
   {
     const fingers = new Map(); let moved = 0, pinch = 0;
     const world = (cx, cy) => { const r = bc.getBoundingClientRect(), { s, ox, oz, dpr } = state.fit; return [((cx - r.left) * dpr - ox) / s, ((cy - r.top) * dpr - oz) / s]; };
@@ -639,21 +742,50 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     bc.addEventListener('pointerup', up); bc.addEventListener('pointercancel', up);
     bc.addEventListener('wheel', ev => { ev.preventDefault(); if (state.fit) zoomAt(ev.clientX, ev.clientY, ev.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
   }
+  // What is under a tap: a room on this level, a deck in a tall room, or the street.
+  function placeUnder(x, z) {
+    const ly = state.level.y, p = G.plan, inside = q => x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1;
+    const room = p.rooms.find(q => near(q.y, ly) && inside(q) && shown(q));
+    if (room) return { room, target: { x, y: room.y, z, place: 'R' + room.id, label: room.kind === 'hall' ? 'Griffin Court' : room.gallery } };
+    const d = p.decks.find(q => near(q.y, ly) && inside(q) && shown(p.byId[q.room]));
+    if (d) { const r = p.byId[d.room]; return { room: r, target: { x, y: d.y, z, place: 'D' + d.id, label: r.kind === 'hall' ? 'Griffin Court' : r.gallery } }; }
+    // (Not the thickness of a wall between two rooms: that is not outdoors.)
+    if (near(ly, 0) && !p.rooms.some(q => q.y < 1 && q.top > 0.5 && inside(q)) && !(p.masses || []).some(m => m.top > 0.5 && inside(m))) return { room: null, target: { x, y: 0, z, place: 'OUT', label: 'that spot outdoors' } };
+    return null;
+  }
   function pick(ev) {
     const r = bc.getBoundingClientRect(), { s, ox, oz, dpr } = state.fit;
-    const x = ((ev.clientX - r.left) * dpr - ox) / s, z = ((ev.clientY - r.top) * dpr - oz) / s, ly = state.level.y, p = G.plan;
-    const inside = q => x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1;
-    // The room whose floor is on this level; failing that a deck here in a tall room; failing that, outdoors.
-    let room = p.rooms.find(q => near(q.y, ly) && inside(q) && shown(q)), target = null;
-    if (room) target = { x, y: room.y, z, place: 'R' + room.id, label: room.kind === 'hall' ? 'Griffin Court' : room.gallery };
-    else {
-      const d = p.decks.find(q => near(q.y, ly) && inside(q) && shown(p.byId[q.room]));
-      if (d) { room = p.byId[d.room]; target = { x, y: d.y, z, place: 'D' + d.id, label: room.kind === 'hall' ? 'Griffin Court' : room.gallery }; }
-      else if (near(ly, 0) && !p.rooms.some(q => q.y < 1 && q.top > 0.5 && inside(q))) target = { x, y: 0, z, place: 'OUT', label: 'that spot outdoors' };
-    }
-    if (!target) return;
-    goTo(target); tabs();
+    const x = ((ev.clientX - r.left) * dpr - ox) / s, z = ((ev.clientY - r.top) * dpr - oz) / s;
+    const at = placeUnder(x, z);
+    // A tap on nothing, or on the room already open, puts the card away.
+    if (!at || (state.card && at.room && state.card.room === at.room)) { card(null); return; }
+    card(at, ev.clientX - r.left, ev.clientY - r.top);
   }
+  // ---- a room's card -------------------------------------------------------------
+  // Its name, its gallery number, what hangs in it and how much of that you have seen, and the button that lights the way.
+  const cardEl = document.getElementById('bmCard');
+  function card(at, cx, cy) {
+    state.card = at;
+    if (!at) { cardEl.hidden = true; return; }
+    const r = at.room, n = nameOf(r), st = r && G.museum.rooms[r.id], arts = st ? st.arts.length : 0;
+    document.getElementById('bmCardT').textContent = n.title;
+    document.getElementById('bmCardS').textContent = n.sub;
+    const lv = levelOf(at.target.y), bits = [`${NAMES[lv.name] || lv.name} level`];
+    if (arts) bits.unshift(st.done ? `All ${arts} works seen ✓` : `${st.seen} of ${arts} works seen`);
+    else if (r && G.museum.visited.has(r.id)) bits.unshift('Visited');
+    document.getElementById('bmCardN').textContent = r ? bits.join(' · ') : '';
+    const go = document.getElementById('bmGo'), inIt = r ? G.roomId === r.id && Math.abs(youY() - at.target.y) < 0.7 : false;
+    go.disabled = inIt; go.textContent = inIt ? '★ You are here' : 'Show the way';
+    cardEl.hidden = false;
+    // Beside the tap and kept on the plan (on a small screen it may sit over the tap: the room is ringed, so that is fine).
+    const box = cardEl.parentElement.getBoundingClientRect(), w = cardEl.offsetWidth, h = cardEl.offsetHeight, m = 8;
+    let x = cx + 16, y = cy - h / 2;
+    if (x + w > box.width - m) x = cx - 16 - w;
+    if (x < m) x = Math.max(m, Math.min(box.width - w - m, cx - w / 2));
+    y = Math.max(m, Math.min(box.height - h - m, y));
+    cardEl.style.left = x + 'px'; cardEl.style.top = y + 'px';
+  }
+  addEventListener('keydown', e => { if (e.code === 'Escape' && !big.hidden && state.card) { e.preventDefault(); e.stopImmediatePropagation(); card(null); } }, true);
   big.addEventListener('click', ev => {
     const b = ev.target.closest('button');
     if (b && b.dataset.level) { state.level = levels().find(l => l.name === b.dataset.level); tabs(); }
@@ -661,6 +793,11 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     else if (b && b.id === 'bmClose') close();
     else if (b && b.id === 'bmIn') state.zoom *= 1.5;
     else if (b && b.id === 'bmOut') state.zoom /= 1.5;
+    else if (b && b.id === 'bmYou') { toYou(); tabs(); }
+    else if (b && b.id === 'bmCardX') card(null);
+    else if (b && b.id === 'bmGo' && state.card) { const t = state.card.target; card(null); goTo(t); tabs(); }
+    // A tap anywhere off the plan and off the card (the heading, the key) puts the card away too.
+    else if (!b && state.card && !ev.target.closest('#bmCard') && ev.target !== bc) card(null);
   });
   const tap = ev => { ev.preventDefault(); open(); };
   radarEl.addEventListener('touchstart', tap, { passive: false });

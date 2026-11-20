@@ -89,7 +89,7 @@ export class Paint {
     this._show();
   }
   _studio() {
-    const rooms = this.plan.rooms, pick = rooms.find(r => r.id === 'MW1-ed00') || rooms.find(r => /Ryan Learning Center, studio/.test(r.gallery)) || rooms.find(r => /School painting studio/.test(r.gallery)) || rooms.find(r => /studio/i.test(r.gallery));
+    const rooms = this.plan.rooms, pick = rooms.find(r => r.id === 'MW1-ed00') || rooms.find(r => /Ryan Learning Center, .*studio/.test(r.gallery)) || rooms.find(r => /School painting studio/.test(r.gallery)) || rooms.find(r => /studio/i.test(r.gallery));
     return pick || null;
   }
   // Draw what hangs in the frame, and write its card and its label.

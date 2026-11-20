@@ -532,6 +532,25 @@ let secret = null;
   }
 }
 
+// ---- 8b. one name, one room ------------------------------------------------
+// Rooms on one level that the survey gives the same name (the Ryan Learning Center's three studios,
+// two blocks of restrooms, the plant rooms numbered per zone) are told apart by where they stand:
+// two or three by west, middle and east (or north and south), more by number from west to east.
+// Galleries keep their own names, and the service corridors are passages nobody needs to tell apart.
+{
+  const base = n => n.replace(/ \d+$/, ''), groups = new Map();
+  for (const r of rooms) if (r.kind !== 'gallery' && !r.passage && !r.secret) { const k = r.floor + '|' + base(r.gallery); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  const mid = (r, a) => (r[a + '0'] + r[a + '1']) / 2;
+  for (const list of groups.values()) {
+    if (list.length < 2 || new Set(list.map(r => r.gallery)).size === list.length) continue;
+    const spread = a => Math.max(...list.map(r => mid(r, a))) - Math.min(...list.map(r => mid(r, a))), ax = spread('x') >= spread('z') ? 'x' : 'z';
+    list.sort((p, q) => mid(p, ax) - mid(q, ax));
+    const name = base(list[0].gallery), words = list.length === 2 ? (ax === 'x' ? ['west', 'east'] : ['north', 'south']) : list.length === 3 ? (ax === 'x' ? ['west', 'middle', 'east'] : ['north', 'middle', 'south']) : null;
+    // "Ryan Learning Center, studio" becomes "Ryan Learning Center, west studio"; "Restrooms", "Restrooms, west".
+    list.forEach((r, i) => { r.gallery = !words ? `${name} ${i + 1}` : /, [^,]+$/.test(name) ? name.replace(/, ([^,]+)$/, `, ${words[i]} $1`) : `${name}, ${words[i]}`; });
+  }
+}
+
 // ---- 9. write it down ------------------------------------------------------
 
 const out = {
