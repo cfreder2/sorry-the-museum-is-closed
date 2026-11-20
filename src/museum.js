@@ -496,7 +496,7 @@ export class Museum {
     const R = Math.max(Math.hypot(bx1 - B.x0, B.z1 - B.z0) / 2 + 150, B.x1 - sx + 120), SK = R / 373;
     const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, SPAN * SK, 64, 1, true), new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, color: new THREE.Color(1.35, 1.35, 1.35), fog: false }));
     sky.position.set(sx, (SPAN / 2 - BELOW) * SK, cz);
-    const moonAt = new THREE.Vector3(sx + R * 0.9, 100 * SK, cz - R * 0.36);        // low in the east, over the lake
+    const moonAt = new THREE.Vector3(sx + R * 0.82, 100 * SK, cz - R * 0.33);       // far enough inside the backdrop that its glow is not sliced off by it        // low in the east, over the lake
     const moon = new THREE.Mesh(new THREE.SphereGeometry(13 * SK, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 2.8), fog: false }));
     moon.position.copy(moonAt);
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(190 * SK, 190 * SK), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.4), color: new THREE.Color(0.3, 0.38, 0.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
