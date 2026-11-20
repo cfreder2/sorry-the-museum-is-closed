@@ -286,6 +286,46 @@ export function flat(r, g, b) {
   return t;
 }
 
+// ---------------------------------------------------------------- lifts ---
+
+// Yellow and black, on the slant: the edge of a lift's floor, its sill, the gate across an empty shaft.
+export function hazard() {
+  const [c, g] = canvas(64, 64);
+  g.fillStyle = '#f2c21a'; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = '#141414';
+  for (const o of [-64, 0, 64]) { g.beginPath(); g.moveTo(o, 64); g.lineTo(o + 32, 64); g.lineTo(o + 96, 0); g.lineTo(o + 64, 0); g.closePath(); g.fill(); }
+  return tex(c, { repeat: true });
+}
+
+// Steel chequer plate, the floor of a goods lift: little raised bars, alternately one way and the other.
+export function chequer() {
+  const [c, g] = canvas(128, 128);
+  g.fillStyle = '#7d848b'; g.fillRect(0, 0, 128, 128);
+  const R = rng(41);
+  for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '255,255,255' : '0,0,0'},0.05)`; g.fillRect(0, R() * 128, 128, 1); }      // brushed
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+    g.save(); g.translate(x * 32 + 16, y * 32 + 16); g.rotate((x + y) % 2 ? Math.PI / 4 : -Math.PI / 4);
+    g.fillStyle = '#3d4248'; g.fillRect(-11, -2, 22, 6);
+    g.fillStyle = '#d2d7dc'; g.fillRect(-11, -4, 22, 4);
+    g.restore();
+  }
+  return tex(c, { repeat: true });
+}
+
+// The plate over a lift's doorway: each floor's name in amber, a cell apiece, `labels` across.
+export function liftSigns(labels) {
+  const n = Math.max(1, labels.length), [c, g] = canvas(128 * n, 64);
+  g.fillStyle = '#0b0c0d'; g.fillRect(0, 0, 128 * n, 64);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  labels.forEach((l, i) => {
+    const x = i * 128;
+    g.fillStyle = '#ffb52e'; g.font = '700 44px Helvetica, Arial, sans-serif'; g.fillText(l, x + 78, 34);
+    g.beginPath(); g.moveTo(x + 22, 28); g.lineTo(x + 32, 14); g.lineTo(x + 42, 28); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(x + 22, 36); g.lineTo(x + 32, 50); g.lineTo(x + 42, 36); g.closePath(); g.fill();
+  });
+  return tex(c);
+}
+
 // ---------------------------------------------------------- the stunt kit ---
 
 export function plywood() {

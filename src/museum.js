@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { T, HW, SPRING, VAULT_R, SLAB, wallPoint, hang, heightOf, roomAt, ceilingAt, carve, streetY } from './plan.js';
+import { T, HW, SPRING, VAULT_R, SLAB, LIFT, wallPoint, hang, heightOf, roomAt, ceilingAt, carve, streetY } from './plan.js';
 import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
@@ -1128,27 +1128,7 @@ export class Museum {
       steel.box(o.x0, o.x1, o.y1 - 0.05, o.y1, o.z0, o.z1); steel.box(o.x0, o.x1, (o.y0 + o.y1) / 2 - 0.02, (o.y0 + o.y1) / 2 + 0.02, o.z0, o.z1);
       steel.box(o.x0, Math.min(o.x1, o.x0 + 0.05), o.y0 - 0.03, o.y1, o.z0, Math.min(o.z1, o.z0 + 0.05));
     }
-    // Lifts: an open platform in a cage of four posts. The platform is the only part that moves.
-    const plate = new THREE.MeshStandardMaterial({ color: 0x3c4046, roughness: 0.5, metalness: 0.6, emissive: 0x1c2026, emissiveIntensity: 0.6 }), lit = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.22) });
-    this.lifts = plan.lifts.map(l => {
-      const lo = l.stops[0], hi = l.stops[l.stops.length - 1] + 1.8, c = 0.05;
-      for (const x of [l.x0, l.x1 - c]) for (const z of [l.z0, l.z1 - c]) steel.box(x, x + c, lo, hi, z, z + c);
-      steel.box(l.x0, l.x1, hi - c, hi, l.z0, l.z0 + c); steel.box(l.x0, l.x1, hi - c, hi, l.z1 - c, l.z1); steel.box(l.x0, l.x0 + c, hi - c, hi, l.z0, l.z1); steel.box(l.x1 - c, l.x1, hi - c, hi, l.z0, l.z1);
-      const mesh = new THREE.Group(), w = l.x1 - l.x0, d = l.z1 - l.z0, cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2;
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(w - 0.12, 0.14, d - 0.12), plate); deck.position.set(cx, -0.07, cz);
-      mesh.add(deck);
-      for (const [bw, bd, bx, bz] of [[w - 0.12, 0.05, cx, l.z0 + 0.09], [w - 0.12, 0.05, cx, l.z1 - 0.09], [0.05, d - 0.12, l.x0 + 0.09, cz], [0.05, d - 0.12, l.x1 - 0.09, cz]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, bd), lit); b.position.set(bx, 0.007, bz); mesh.add(b); }
-      mesh.position.y = l.y;
-      g.add(mesh);
-      // The gates: a yellow bar round the shaft at each stop, there whenever the platform is not.
-      const gates = l.gates.map(gt => {
-        const bars = new THREE.Group();
-        for (const o of gt.bars) for (const y of [o.y1 - 0.03, (o.y0 + o.y1) / 2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(o.x1 - o.x0, 0.04, o.z1 - o.z0), lit); b.position.set((o.x0 + o.x1) / 2, y, (o.z0 + o.z1) / 2); bars.add(b); }
-        g.add(bars);
-        return { gate: gt, bars };
-      });
-      return { lift: l, mesh, gates };
-    });
+    this._buildLifts(g);
     const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); g.add(m); return m; } };
     const plyTex = TX.plywood();
     const marble = TX.marble();
@@ -1157,6 +1137,113 @@ export class Museum {
     put(steel, new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.45, metalness: 0.6, emissive: 0x15120e, emissiveIntensity: 0.6 }));
     const am = put(arrows, new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
     if (am) am.renderOrder = 6;
+  }
+
+  // Lifts. A car in a glass shaft framed in steel. At each stop the shaft has one doorway, with a plate over it naming
+  // the floor, a call button on its jamb, a striped sill on the floor in front, and a gate across it whenever the car is
+  // somewhere else. The car has a chequer-plate floor a hand deep with a striped safety edge and toe guard, steel walls to
+  // rail height with glass above and a handrail, a lit ceiling, and is open on the side (or sides) it is entered by.
+  // plan.js says where all of it goes (lift.shaft, lift.doors, LIFT) and makes the same walls solid. The shaft is merged
+  // with every other lift's; each car is one group, the only thing that moves.
+  _buildLifts(g) {
+    const { plan } = this, { J, DOOR, CAB, W } = LIFT, SIDES = ['n', 's', 'w', 'e'];
+    const level = Object.entries(plan.levels || {}), floorName = y => { const k = level.find(([, v]) => Math.abs(v - y) < 0.05); return k ? k[0] : ''; };
+    const labels = [...new Set(plan.lifts.flatMap(l => l.stops.map(floorName)))].filter(Boolean);
+    const hzTex = TX.hazard(), chTex = TX.chequer();
+    const M = {
+      frame: new THREE.MeshStandardMaterial({ color: 0xb4bbc2, roughness: 0.35, metalness: 0.55, emissive: 0x4a5058, emissiveIntensity: 0.8 }),
+      glass: new THREE.MeshStandardMaterial({ color: 0xbfd8e6, transparent: true, opacity: 0.2, roughness: 0.05, metalness: 0.1, emissive: 0x16242c, depthWrite: false, side: THREE.DoubleSide }),
+      floor: new THREE.MeshStandardMaterial({ map: chTex, roughness: 0.38, metalness: 0.65, emissiveMap: chTex, emissive: 0xffffff, emissiveIntensity: 0.28 }),
+      stripe: new THREE.MeshStandardMaterial({ map: hzTex, roughness: 0.6, emissiveMap: hzTex, emissive: 0xffffff, emissiveIntensity: 0.4 }),
+      sign: new THREE.MeshBasicMaterial({ map: TX.liftSigns(labels.length ? labels : ['']) }),
+      lamp: new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.22) }),
+      ceiling: new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.92, 0.82) }),
+      pit: new THREE.MeshStandardMaterial({ color: 0x1b1c1e, roughness: 0.9 }),
+    };
+    // One side of a lift's footprint: `u` runs along it, `d` out from it (negative: in), y is up.
+    const sideOf = (l, s) => {
+      const nrm = s === 'n' ? [0, 0, -1] : s === 's' ? [0, 0, 1] : s === 'w' ? [-1, 0, 0] : [1, 0, 0];
+      const P = (u, y, d) => (s === 'n' ? [u, y, l.z0 - d] : s === 's' ? [u, y, l.z1 + d] : s === 'w' ? [l.x0 - d, y, u] : [l.x1 + d, y, u]);
+      const box = (G, u0, u1, y0, y1, d0, d1, k = 1) => { const A = P(u0, y0, d0), B = P(u1, y1, d1); G.box(Math.min(A[0], B[0]), Math.max(A[0], B[0]), y0, y1, Math.min(A[2], B[2]), Math.max(A[2], B[2]), k); };
+      const wall = (G, u0, u1, y0, y1, d, uv) => G.quad(P(u0, y0, d), P(u1, y0, d), P(u1, y1, d), P(u0, y1, d), nrm, uv);
+      const flat = (G, u0, u1, d0, d1, y, uv) => G.quad(P(u0, y, d0), P(u1, y, d0), P(u1, y, d1), P(u0, y, d1), [0, 1, 0], uv);
+      const [a, b] = s === 'n' || s === 's' ? [l.x0, l.x1] : [l.z0, l.z1];
+      return { box, wall, flat, a, b, flip: s === 'n' || s === 'e' };      // flip: seen from outside, u runs right to left
+    };
+    const stripes = (L, D) => [[0, 0], [L / 0.3, 0], [L / 0.3, D / 0.3], [0, D / 0.3]];
+    const frame = new Geo(), glass = new Geo(), stripe = new Geo(), sign = new Geo(), lamp = new Geo(), pit = new Geo();
+    this.lifts = plan.lifts.map(l => {
+      const S = l.shaft, lo = S.lo, top = S.top;
+      // ---- the shaft
+      for (const s of SIDES) {
+        const info = S.sides[s];
+        if (info.walled && !info.doors.length) continue;           // a room's own wall
+        const F = sideOf(l, s), { a, b } = F;
+        // Glass from the pit to the lid, but for a band of steel round each doorway.
+        let y = lo;
+        for (const [p, q] of [...info.doors.map(d => [d - 0.02, d + DOOR + 0.3]), [top, top]]) { if (p > y + 0.01) F.wall(glass, a, b, y, p, W / 2); y = Math.max(y, q); }
+        l.stops.forEach((y0, i) => {
+          F.box(frame, a - W, b + W, y0 + DOOR, y0 + DOOR + 0.3, 0.01, W + 0.02);          // a band round the shaft at every floor; over a doorway, its head
+          if (l.doors[i] !== s) { F.box(frame, a, b, y0 - 0.02, y0 + 0.12, 0.01, W + 0.01); return; }      // and a kick plate
+          // The doorway: steel either side, an architrave standing proud round it.
+          F.box(frame, a - W, a + J, y0 - 0.02, y0 + DOOR, 0.01, W + 0.02); F.box(frame, b - J, b + W, y0 - 0.02, y0 + DOOR, 0.01, W + 0.02);
+          F.box(frame, a + J - 0.06, a + J, y0 + 0.01, y0 + DOOR, W + 0.02, W + 0.05); F.box(frame, b - J, b - J + 0.06, y0 + 0.01, y0 + DOOR, W + 0.02, W + 0.05);
+          F.box(frame, a + J - 0.06, b - J + 0.06, y0 + DOOR - 0.07, y0 + DOOR, W + 0.05, W + 0.06);
+          F.box(frame, a + J, b - J, y0 + 0.004, y0 + 0.01, 0.005, W + 0.02);             // the sill
+          // Over it, which floor this is, lit; on the jamb to its right, the call button.
+          const k = Math.max(0, labels.indexOf(floorName(y0))), n = Math.max(1, labels.length), m = (a + b) / 2, u0 = k / n, u1 = (k + 1) / n;
+          F.wall(sign, m - 0.26, m + 0.26, y0 + DOOR + 0.05, y0 + DOOR + 0.25, W + 0.026, F.flip ? [[u1, 0], [u0, 0], [u0, 1], [u1, 1]] : [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+          const ub = F.flip ? a + 0.12 : b - 0.12;
+          F.box(frame, ub - 0.06, ub + 0.06, y0 + 0.95, y0 + 1.25, W + 0.02, W + 0.035);
+          for (const yb of [1.03, 1.14]) F.box(lamp, ub - 0.025, ub + 0.025, y0 + yb, y0 + yb + 0.05, W + 0.035, W + 0.045);
+          // And on the floor in front, yellow and black.
+          F.flat(stripe, a + J - 0.1, b - J + 0.1, W + 0.02, W + 0.34, y0 + 0.012, stripes(b - a - 2 * J + 0.2, 0.32));
+        });
+      }
+      // Posts up the corners (none where two rooms' walls meet), a lid over the top, and the floor of the pit.
+      for (const [sx, sz, ns, ew] of [[0, 0, 'n', 'w'], [1, 0, 'n', 'e'], [0, 1, 's', 'w'], [1, 1, 's', 'e']]) {
+        if ([ns, ew].every(s => S.sides[s].walled && !S.sides[s].doors.length)) continue;
+        const x = sx ? [l.x1 + 0.01, l.x1 + W + 0.03] : [l.x0 - W - 0.03, l.x0 - 0.01], z = sz ? [l.z1 + 0.01, l.z1 + W + 0.03] : [l.z0 - W - 0.03, l.z0 - 0.01];
+        frame.box(x[0], x[1], lo - 0.02, top, z[0], z[1]);
+      }
+      frame.box(l.x0 - W - 0.03, l.x1 + W + 0.03, top, top + 0.12, l.z0 - W - 0.03, l.z1 + W + 0.03);
+      pit.quad([l.x0 + 0.01, lo + 0.004, l.z0 + 0.01], [l.x1 - 0.01, lo + 0.004, l.z0 + 0.01], [l.x1 - 0.01, lo + 0.004, l.z1 - 0.01], [l.x0 + 0.01, lo + 0.004, l.z1 - 0.01], [0, 1, 0]);
+
+      // ---- the car, built at its own floor (y = 0) and moved up and down as one
+      const e = 0.015, open = new Set(l.doors), cf = new Geo(), cs = new Geo(), cg = new Geo(), ch = new Geo(), cl = new Geo();
+      cf.box(l.x0 + e, l.x1 - e, -0.2, 0.012, l.z0 + e, l.z1 - e, 0.4);                      // the floor: chequer plate on a slab a hand deep
+      cs.box(l.x0 + e, l.x1 - e, CAB, CAB + 0.1, l.z0 + e, l.z1 - e);                         // the roof
+      for (const x of [l.x0 + e, l.x1 - e - 0.05]) for (const z of [l.z0 + e, l.z1 - e - 0.05]) cs.box(x, x + 0.05, 0.012, CAB, z, z + 0.05);
+      for (const s of SIDES) {
+        const F = sideOf(l, s), { a, b } = F;
+        if (open.has(s)) {
+          // A way in: a return either side, a head over, and a striped edge to the floor with a toe guard under it.
+          F.box(cs, a + e, a + J, 0.012, CAB, -0.055, -e); F.box(cs, b - J, b - e, 0.012, CAB, -0.055, -e); F.box(cs, a + J, b - J, 2.15, CAB, -0.055, -e);
+          F.box(ch, a + e, b - e, -0.2, 0.022, -0.12, -0.005, 0.3); F.box(ch, a + e, b - e, -0.75, -0.2, -0.03, -0.005, 0.3);
+        } else {
+          // A wall: steel to rail height, glass over, a handrail along it.
+          F.box(cs, a + e, b - e, 0.012, 1.0, -0.055, -e); F.box(cs, a + e, b - e, 1.0, 1.03, -0.065, -e);
+          F.wall(cg, a + e, b - e, 1.03, CAB, -0.035);
+          F.box(cs, a + 0.2, b - 0.2, 0.86, 0.9, -0.13, -0.09);
+          for (const u of [a + 0.3, b - 0.3]) F.box(cs, u - 0.015, u + 0.015, 0.87, 0.89, -0.09, -0.055);
+        }
+      }
+      cl.quad([l.x0 + 0.7, CAB - 0.004, l.z0 + 0.7], [l.x1 - 0.7, CAB - 0.004, l.z0 + 0.7], [l.x1 - 0.7, CAB - 0.004, l.z1 - 0.7], [l.x0 + 0.7, CAB - 0.004, l.z1 - 0.7], [0, -1, 0]);
+      const mesh = new THREE.Group();
+      for (const [G, m] of [[cf, M.floor], [cs, M.frame], [cg, M.glass], [ch, M.stripe], [cl, M.ceiling]]) if (!G.empty) mesh.add(G.mesh(m));
+      mesh.position.y = l.y;
+      g.add(mesh);
+      // ---- the gates: a striped kick board, rails and stiles across the doorway, there whenever the car is not.
+      const gates = l.gates.map(gt => {
+        const F = sideOf(l, gt.side), { a, b } = F, G = new Geo(), y0 = gt.y, d0 = 0.014, d1 = W - 0.008;
+        F.box(G, a + J, b - J, y0 + 0.03, y0 + 0.3, d0, d1, 0.3); F.box(G, a + J, b - J, y0 + 0.58, y0 + 0.63, d0, d1, 0.3); F.box(G, a + J, b - J, y0 + 0.92, y0 + 1.0, d0, d1, 0.3);
+        for (let k = 0; k <= 4; k++) { const u = a + J + 0.03 + (b - a - 2 * J - 0.06) * k / 4; F.box(G, u - 0.02, u + 0.02, y0 + 0.3, y0 + 0.92, d0, d1, 0.3); }
+        const bars = G.mesh(M.stripe); g.add(bars);
+        return { gate: gt, bars };
+      });
+      return { lift: l, mesh, gates };
+    });
+    for (const [G, m] of [[frame, M.frame], [glass, M.glass], [stripe, M.stripe], [sign, M.sign], [lamp, M.lamp], [pit, M.pit]]) if (!G.empty) g.add(G.mesh(m));
   }
 
   // ------------------------------------------------------------------ stunts --
