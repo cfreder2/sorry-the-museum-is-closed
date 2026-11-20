@@ -111,7 +111,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.59';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.60';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -1448,14 +1448,31 @@ function tick(now) {
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
   // A game being played on something in the building (or a whiteboard being read): the camera stands in front of it, and the building is drawn round it.
-  if (stage.on && (G.state === 'arcade' || G.state === 'repair' || G.state === 'board' || G.state === 'paused')) { stage.update(dt); composer.render(); return; }
+  if (stage.on && (G.state === 'arcade' || G.state === 'repair' || G.state === 'board' || G.state === 'paused')) { stage.update(dt); if (camera.near !== 0.03) { camera.near = 0.03; camera.updateProjectionMatrix(); } composer.render(); return; }
   if (G.state === 'arcade' || G.state === 'repair') return;
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
   // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
+  fitNear();
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
+}
+
+// The near plane of the camera, as far out as it can safely go. The depth buffer's precision is shared out by the ratio
+// of far to near: at 3 cm, things a few centimetres apart fifty metres off (a door surround and the stone round it, a
+// pane and the wall behind it) cannot be told apart, and flicker as the camera moves. Out in the open it stands up to
+// 40 cm off; only when the camera is pressed up against a wall, or close to the toy, does it come back in to 3 cm.
+const _np = new THREE.Vector3();
+function fitNear() {
+  let n = 0.03;
+  if (G.plan && G.vehicle && G.state === 'play' && G.view !== 'fpv') {
+    const p = camera.position; let clear = 0;
+    for (const m of [1.0, 0.6, 0.35]) { _np.copy(p); confine(G.plan, _np, m, true, null, true); if (_np.distanceToSquared(p) < 1e-6) { clear = m; break; } }
+    n = Math.min(clear / 2.5, 0.3 * p.distanceTo(G.vehicle.pos));
+  } else if (G.state === 'title') n = 0.4;
+  n = Math.max(0.03, Math.min(0.4, n));
+  if (Math.abs(camera.near - n) > 0.003) { camera.near = n; camera.updateProjectionMatrix(); }
 }
 
 // ?probe reports what loaded to the page's own server after a few seconds (a test aid).
