@@ -488,6 +488,38 @@ kind of room, add a line to the list.
   the plinth, and back, without coming near a beam, and a pattern that fails
   is dealt again.
 
+## Security robots
+
+At night a few security robots patrol the galleries: squat wheeled things in a
+pale shell with a navy band, a searchlight in the head, a beacon on top and a
+copper prong. Each has its own beat, out along a short chain of galleries on
+one level and back, stopping in each room to sweep its light about. They keep
+to the floor a toy can drive (the same walls, doorways, cases, benches, stairs
+and ramps) and never wait in a doorway.
+
+- **What it sees is where its light falls.** The pool on the floor stops at
+  the walls, and that is the whole of what it can see. Walls, columns and
+  cases hide you; a bench or a box hides a car tucked close behind it. Your
+  headlamp gives you away: lights off, it sees you at 6 m; lights on, at
+  9.5 m, and sooner.
+- **? then !** Stay in the light and a **?** comes up while it makes up its
+  mind. Still there, and it is **!**: the light goes red and it comes for you.
+  It is a good deal slower than the car (5.6 m/s against 9.5) but turns
+  quicker. Out of its sight for three seconds and it gives up, goes to look
+  where it saw you last, and goes back to its beat.
+- **The bolt reaches 1.5 m.** Within that, its prong glows for half a second
+  before it fires: time to swerve, or get something between you. Caught, you
+  are zapped, carried out, and wake up in the dumpster by a back door, which
+  throws you out over its lid. It keeps 50 chips. Nothing else is lost.
+- Two trophies: one for the dumpster, one for shaking a robot off five times.
+- Explore only: never in a race, and not during a heist. They stand still
+  while you look at a work. On a phone there are three, otherwise six.
+  Settings, Driving, has a switch to turn them off.
+
+Their beats, the floor they drive on, what blocks their sight and the way
+they find are in `src/guardplan.js` (no three.js, no DOM: it runs in node);
+the robots, the bolt and the dumpster are in `src/guards.js`.
+
 ## Light switches
 
 Beside every doorway, inside the room, there is a light switch: a plate at
@@ -560,6 +592,7 @@ Settings are on the title screen and the pause menu, and are remembered.
 - **Larger text, stronger contrast** for every label on solid backgrounds.
 - **Hold my speed**: push forward once to keep going, pull back once to stop,
   so one hand can steer.
+- **Security robots** can be switched off.
 - Menus work from the keyboard with visible focus; `Esc` backs out. The game
   pauses when its tab is hidden.
 - Room names, artwork titles, messages and the race countdown are announced to
@@ -722,6 +755,8 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/repair.js             the conservation line: the table in the studio, and playing it
     src/repairgame.js         its rules (no three.js, no DOM)
     src/heist.js              the heist: the button, the beams, the clock
+    src/guards.js             the security robots, the bolt, the dumpster
+    src/guardplan.js          their beats, the floor they can drive, what they can see, the way they find (no three.js, no DOM)
     src/whiteboards.js        the whiteboards: the writing on them, and reading one
     src/boardtext.js          what each of them says (no three.js, no DOM)
     src/secret.js, secretclue.js, secretfit.js   what the whiteboards are not telling you
