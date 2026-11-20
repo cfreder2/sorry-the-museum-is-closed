@@ -1,18 +1,79 @@
 // The late showing. Every auditorium and lecture room has a screen, and with the building shut the
 // projector has been left running: go in and the film starts, leave and it stops.
 //
-// The programme is made here, by the game, a frame at a time on one canvas: tonight's hang, how a
+// The game's own films are made here, a frame at a time on one canvas: tonight's hang, how a
 // museum runs at night, how the building grew, and a few of the artists on the walls. Nothing is
-// fetched for it. Only works with no copyright notice are ever put on a screen.
+// fetched for them. Only works with no copyright notice are ever put on a screen.
 //
-// FILMS is for real public-domain clips streamed from where they are kept (never stored here). It
-// is empty: a clip goes in only when its file page has been read and its licence confirmed, and
-// that could not be done when this was written. One that fails to load is skipped without a word.
+// FILMS are real clips, public domain or openly licensed, streamed from Wikimedia Commons (never
+// stored here) and mixed into the programme between the game's own. Each went in only after its
+// file page was read and its licence confirmed (page). Only one video element ever exists; it is
+// loaded when a clip comes up in the room you are in and emptied when the clip ends or you leave.
+// A clip that will not load is skipped without a word and not tried again this session.
 
 import * as THREE from 'three';
 
-// { title, url, page, licence, credit }: url must be served with CORS; page is where the licence was read.
-export const FILMS = [];
+// { title, year, url, alt, page, licence, credit, start, end, sound, ar }
+//   url: VP9 WebM served with CORS (upload.wikimedia.org sends Access-Control-Allow-Origin: *).
+//   alt: the same clip as an MPEG-4 .mov, for a Safari that cannot play the WebM.
+//   start/end: the part shown, in seconds. sound: the soundtrack is covered by the licence and
+//   worth hearing (otherwise the Sound button is not offered). ar: display aspect, when the file's
+//   pixels are not square (PAL newsreels).
+const WM = 'https://upload.wikimedia.org/wikipedia/commons/', TC = WM + 'transcoded/';
+const tc = (p, f, r) => `${TC}${p}/${f}/${f}.${r}`;      // a Commons transcode: tc('a/ab', 'File.webm', '480p.vp9.webm')
+const PG = 'Polygoon / Beeld en Geluid';
+export const FILMS = [
+  { title: 'State and Madison, Chicago', year: 1897, credit: 'Edison / Library of Congress', licence: 'Public domain', start: 14, end: 39,
+    url: WM + '9/95/Corner_Madison_and_State_streets%2C_Chicago_-.webm', alt: tc('9/95', 'Corner_Madison_and_State_streets%2C_Chicago_-.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Corner_Madison_and_State_streets,_Chicago_-.webm' },
+  { title: 'The Enchanted Drawing', year: 1900, credit: 'J. Stuart Blackton / Edison', licence: 'Public domain', start: 3, end: 87,
+    url: tc('c/c6', 'The_Enchanted_Drawing.ogv', '240p.vp9.webm'), alt: tc('c/c6', 'The_Enchanted_Drawing.ogv', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:The_Enchanted_Drawing.ogv' },
+  { title: 'Cleaning the Night Watch', year: 1947, credit: PG, licence: 'Public domain', start: 2, end: 93, sound: true, ar: 4 / 3,
+    url: tc('3/36', 'REMBRANDTS_NACHTWACHT_WORDT_GERESTAUREERD-PGM4011921.webm', '480p.vp9.webm'), alt: tc('3/36', 'REMBRANDTS_NACHTWACHT_WORDT_GERESTAUREERD-PGM4011921.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:REMBRANDTS_NACHTWACHT_WORDT_GERESTAUREERD-PGM4011921.webm' },
+  { title: 'Over Chicago by Airship', year: 1914, credit: 'Roy Knabenshue / National Archives', licence: 'Public domain', start: 72, end: 250, sound: true,
+    url: tc('5/5d', 'Chicago_Photographed_from_Ray_Knabenshue%27s_Dirigible_Air_Ship_%28enhanced%29.webm', '480p.vp9.webm'), alt: tc('5/5d', 'Chicago_Photographed_from_Ray_Knabenshue%27s_Dirigible_Air_Ship_%28enhanced%29.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Chicago_Photographed_from_Ray_Knabenshue%27s_Dirigible_Air_Ship_(enhanced).webm' },
+  { title: 'Conservation Lab: An Unknown Girl', year: 2015, credit: 'Brooklyn Museum', licence: 'CC BY 3.0', end: 33, sound: true,
+    url: tc('6/60', 'Brooklyn_Museum_Conservation_Lab-_An_Unknown_Girl.webm', '480p.vp9.webm'), alt: tc('6/60', 'Brooklyn_Museum_Conservation_Lab-_An_Unknown_Girl.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_Conservation_Lab-_An_Unknown_Girl.webm' },
+  { title: 'Humorous Phases of Funny Faces', year: 1906, credit: 'J. Stuart Blackton / Vitagraph', licence: 'Public domain', start: 3, end: 180,
+    url: tc('2/2c', 'Humorous_Phases_of_Funny_Faces_HD.webm', '480p.vp9.webm'),
+    page: 'https://commons.wikimedia.org/wiki/File:Humorous_Phases_of_Funny_Faces_HD.webm' },
+  { title: 'The Rembrandt Show, Rijksmuseum', year: 1932, credit: PG, licence: 'Public domain', end: 128, sound: true, ar: 4 / 3,
+    url: tc('2/21', 'Rembrandt_tentoonstelling.webm', '480p.vp9.webm'), alt: tc('2/21', 'Rembrandt_tentoonstelling.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Rembrandt_tentoonstelling.webm' },
+  { title: 'Little Nemo', year: 1911, credit: 'Winsor McCay', licence: 'Public domain', start: 462, end: 690,
+    url: tc('6/6d', 'Winsor_McCay%2C_the_Famous_Cartoonist_of_the_N.Y._Herald_and_His_Moving_Comics_-_Little_Nemo_%281911%29.webm', '480p.vp9.webm'),
+    alt: tc('6/6d', 'Winsor_McCay%2C_the_Famous_Cartoonist_of_the_N.Y._Herald_and_His_Moving_Comics_-_Little_Nemo_%281911%29.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Winsor_McCay,_the_Famous_Cartoonist_of_the_N.Y._Herald_and_His_Moving_Comics_-_Little_Nemo_(1911).webm' },
+  { title: 'Behind the Scenes at the Rijksmuseum', year: 1950, credit: PG, licence: 'CC BY-SA 3.0 NL', start: 2, end: 168, sound: true,
+    url: tc('6/6b', 'Achter_de_schermen_van_het_Rijksmuseum_Weeknummer_50-11_-_Open_Beelden_-_30641.ogv', '240p.vp9.webm'),
+    alt: tc('6/6b', 'Achter_de_schermen_van_het_Rijksmuseum_Weeknummer_50-11_-_Open_Beelden_-_30641.ogv', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Achter_de_schermen_van_het_Rijksmuseum_Weeknummer_50-11_-_Open_Beelden_-_30641.ogv' },
+  { title: 'Fantasmagorie', year: 1908, credit: 'Émile Cohl', licence: 'Public domain', start: 30, end: 98,
+    url: tc('f/f2', 'Fantasmagorie_%281908%29.webm', '480p.vp9.webm'), alt: tc('f/f2', 'Fantasmagorie_%281908%29.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Fantasmagorie_(1908).webm' },
+  { title: 'Rodin at the Stedelijk', year: 1939, credit: PG, licence: 'Public domain', start: 2, end: 46, sound: true, ar: 4 / 3,
+    url: tc('b/b9', 'TENTOONSTELLING_RONDOM_RODIN-PGM4011579.webm', '480p.vp9.webm'), alt: tc('b/b9', 'TENTOONSTELLING_RONDOM_RODIN-PGM4011579.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:TENTOONSTELLING_RONDOM_RODIN-PGM4011579.webm' },
+  { title: 'Two Years Rebuilding the Mauritshuis', year: 2014, credit: 'Joost Guntenaar', licence: 'CC0', start: 20, end: 250,
+    url: tc('8/8e', 'Twee_jaar_lang_de_verbouwing_van_het_Mauritshuis_gefotografeerd_een_keus_uit_292.000_opnamen..webm', '480p.vp9.webm'),
+    alt: tc('8/8e', 'Twee_jaar_lang_de_verbouwing_van_het_Mauritshuis_gefotografeerd_een_keus_uit_292.000_opnamen..webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Twee_jaar_lang_de_verbouwing_van_het_Mauritshuis_gefotografeerd_een_keus_uit_292.000_opnamen..webm' },
+  { title: 'Gertie the Dinosaur', year: 1914, credit: 'Winsor McCay', licence: 'Public domain', start: 545, end: 770,
+    url: tc('a/ac', 'Winsor_McCay_%281914%29Gertie_the_Dinosaur.webm', '480p.vp9.webm'), alt: tc('a/ac', 'Winsor_McCay_%281914%29Gertie_the_Dinosaur.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Winsor_McCay_(1914)Gertie_the_Dinosaur.webm' },
+  { title: 'Sculpture in Sonsbeek Park', year: 1949, credit: PG, licence: 'Public domain', end: 67, sound: true, ar: 4 / 3,
+    url: tc('f/fb', 'Openluchtentoonstelling_van_Europese_beeldhouwkunst_in_Sonsbeek-PGM4012046.webm', '480p.vp9.webm'),
+    alt: tc('f/fb', 'Openluchtentoonstelling_van_Europese_beeldhouwkunst_in_Sonsbeek-PGM4012046.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Openluchtentoonstelling_van_Europese_beeldhouwkunst_in_Sonsbeek-PGM4012046.webm' },
+  { title: 'Protecting the Art, US Capitol', year: 2015, credit: 'Architect of the Capitol', licence: 'Public domain', start: 7, end: 71,
+    url: tc('5/5f', 'Time_Lapse_of_Rotunda_Floor_%26_Art_Protection_2015.webm', '480p.vp9.webm'), alt: tc('5/5f', 'Time_Lapse_of_Rotunda_Floor_%26_Art_Protection_2015.webm', '360p.mpeg4.mov'),
+    page: 'https://commons.wikimedia.org/wiki/File:Time_Lapse_of_Rotunda_Floor_%26_Art_Protection_2015.webm' },
+];
+const BAD = new Set();      // urls that would not load: not tried again this session
 
 const CW = 960, CH = 540, SERIF = 'Georgia, "Times New Roman", serif', MONO = 'ui-monospace, Menlo, monospace';
 const CREAM = '#f1ead8', GILT = '#e2cd94', INK = '#0b0d14';
@@ -106,16 +167,25 @@ export class Cinema {
   _start(sc) {
     this.now = sc; sc.mesh.material = this.lit; sc.beam.visible = true;
     this.t = 0; this.acc = 1; this.card = 0; this.slow = 0;
-    this.programme = this._programme(); this.index = this.index % this.programme.length;
+    this.programme = this._programme(); this._go(this.index % this.programme.length);
     this._whirr(true);
   }
   _stop() {
     const sc = this.now; if (!sc) return;
     sc.mesh.material = this.blank; sc.beam.visible = false; this.now = null; this.programme = null;
-    if (this.video) { try { this.video.pause(); this.video.removeAttribute('src'); this.video.load(); } catch { /* gone */ } this.video = null; if (this.vtex) { this.vtex.dispose(); this.vtex = null; } this.lit.map = this.tex; this.lit.needsUpdate = true; }
+    this._release();
     this._whirr(false);
   }
-  next() { if (!this.programme) return; this.index = (this.index + 1) % this.programme.length; this.t = 0; this.card = 0; this.acc = 1; this._label(); }
+  next() { if (this.programme) this._go(this.index + 1); }
+  // On to film i (or the first one after it that can be shown): a clip that would not load, or any clip while
+  // the browser refuses to start video without a tap, is passed over. The drawn films always can be shown.
+  _go(i) {
+    const P = this.programme, n = P.length;
+    if (P[this.index] && P[this.index].clip) this._release();
+    for (let k = 0; k < n; k++) { const f = P[(i + k) % n]; if (!f.clip || (!BAD.has(f.clip.url) && !this.noAuto)) { i = (i + k) % n; break; } }
+    this.index = i % n; this.t = 0; this.card = 0; this.acc = 1;
+    if (this.on) this._label();
+  }
 
   update(dt, G, sound) {
     if (sound) this.sound = sound;
@@ -126,14 +196,17 @@ export class Cinema {
     this.slow += ((dt > 1 / 22 ? 1 : 0) - this.slow) * Math.min(1, dt * 2);
     const step = this.slow > 0.5 ? 1 / 12 : 1 / 24;
     this.t += dt; this.acc += dt;
+    const film = this.programme[this.index], CARD = 4.5;
+    // A clip is fetched while its card is up and starts when the card ends; it ends at its end mark or when it runs out.
+    if (film.clip && !this._reel(film.clip, CARD)) return;
     if (this.acc < step) return;
     this.acc = Math.min(this.acc - step, step);
-    const film = this.programme[this.index], CARD = 4.5;
-    if (this.t >= film.dur + CARD) { this.index = (this.index + 1) % this.programme.length; this.t = 0; if (this.on) this._label(); return; }
+    if (this.t >= film.dur + CARD + (film.clip ? 30 : 0)) { this._go(this.index + 1); return; }
     const c = this.ctx;
     c.save(); c.globalAlpha = 1; c.fillStyle = INK; c.fillRect(0, 0, CW, CH);
     if (this.t < CARD) this._card(c, film, this.t, CARD); else film.draw(c, this.t - CARD, film.dur);
     c.restore(); this._grain(c);
+    if (film.clip && this.t >= CARD) this._credit(c, film.clip);
     this.tex.needsUpdate = true; this.frames++;
   }
 
@@ -214,8 +287,13 @@ export class Cinema {
     list.push({ id: 'night', title: 'How a Museum Runs at Night', sub: 'in five short lessons', dur: 70, draw: (c, t) => this._night(c, t) });
     list.push({ id: 'building', title: 'Chicago, 1893 to Now', sub: 'how the building grew', dur: 56, draw: (c, t) => this._building(c, t) });
     if (artists.length) list.push({ id: 'artists', title: 'The Artists', sub: `${artists.length} of those on view tonight`, dur: artists.length * 9, draw: (c, t) => this._artists(c, t, artists) });
-    for (const f of FILMS) list.push({ id: 'clip', title: f.title, sub: f.credit, dur: f.dur || 60, clip: f, draw: (c, t) => this._clip(c, t, f) });
-    return list;
+    // The real clips, in this hour's order, with the game's own films spread evenly among them.
+    const clips = FILMS.filter(f => !BAD.has(f.url)).map(f => [rnd(), f]).sort((p, q) => p[0] - q[0])
+      .map(([, f]) => ({ id: 'clip', title: f.title, sub: [f.year, f.credit].filter(Boolean).join('  ·  '), dur: Math.max(5, (f.end || 600) - (f.start || 0)), clip: f, draw: c => this._clip(c, f) }));
+    if (!clips.length) return list;
+    const out = [], every = Math.max(1, Math.ceil(clips.length / list.length));
+    clips.forEach((f, i) => { out.push(f); if ((i + 1) % every === 0 && list.length) out.push(list.shift()); });
+    return out.concat(list);
   }
   _caption(c, lines, a = 1) {
     c.save(); c.globalAlpha = a; c.fillStyle = 'rgba(6,7,11,.78)'; c.fillRect(0, CH - 128, CW, 128);
@@ -358,17 +436,67 @@ export class Cinema {
     c.fillStyle = 'rgba(6,7,11,.82)'; c.fillRect(0, CH - 92, CW, 92); c.fillStyle = CREAM; c.font = `italic 22px ${SERIF}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.globalAlpha = fade(u, S, 0.6); this._wrap(c, steps[i][2], CW / 2, CH - 46, CW - 110, 30, 2); c.globalAlpha = 1;
   }
 
-  // A real clip, streamed. If it will not play, the programme moves on.
-  _clip(c, t, f) {
-    if (!this.video || this.video._f !== f) {
-      const v = document.createElement('video'); v.crossOrigin = 'anonymous'; v.muted = true; v.playsInline = true; v.loop = false; v.preload = 'auto'; v._f = f; v.src = f.url;
-      v.addEventListener('error', () => { if (this.video === v) this.next(); }); v.addEventListener('ended', () => { if (this.video === v) this.next(); });
-      v.play().catch(() => { if (this.video === v) this.next(); }); this.video = v;
-    }
-    const v = this.video;
-    if (v.readyState >= 2) { try { const ar = v.videoWidth / v.videoHeight, h = Math.min(CH, CW / ar), w = h * ar; c.drawImage(v, (CW - w) / 2, (CH - h) / 2, w, h); } catch { this.next(); } }
-    if (t < 6) { c.fillStyle = 'rgba(6,7,11,.7)'; c.fillRect(0, CH - 40, CW, 40); c.fillStyle = CREAM; c.font = `13px ${MONO}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(this._clipText(c, `${f.title}  ·  ${f.credit}  ·  ${f.licence}`, CW - 40), CW / 2, CH - 20); }
-    if (t > 8 && v.readyState < 2) this.next();
+  // ---- the real clips ----
+  // One <video> for the whole visit, made the first time a clip comes up. It sits in the page, a pixel big and
+  // invisible, because iOS will not play one that is not; muted and inline, so it may start without a tap.
+  _vid() {
+    if (this.v) return this.v;
+    const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1';
+    const v = this.v = document.createElement('video');
+    v.crossOrigin = 'anonymous'; v.muted = v.defaultMuted = true; v.setAttribute('muted', ''); v.playsInline = true; v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+    v.preload = 'auto'; v.disablePictureInPicture = true; v.setAttribute('aria-hidden', 'true');
+    v.addEventListener('error', () => { if (this.cur && v.getAttribute('src')) this._fail(); });
+    v.addEventListener('ended', () => { if (this.cur && this.rolling) this._go(this.index + 1); });
+    box.append(v); document.body.append(box);
+    document.addEventListener('visibilitychange', () => { if (!this.cur || !this.rolling) return; if (document.hidden) v.pause(); else v.play().catch(() => {}); });
+    return v;
+  }
+  _load(f) {
+    const v = this._vid(), webm = v.canPlayType('video/webm; codecs="vp9"');
+    this.cur = f; this.rolling = false; this.shown = 0;
+    v.muted = true; v.src = !webm && f.alt ? f.alt : f.url;
+    if (f.start) { const go = () => { v.removeEventListener('loadedmetadata', go); try { v.currentTime = f.start; } catch { /* not yet seekable: plays from the top */ } }; v.addEventListener('loadedmetadata', go); }
+    try { v.load(); } catch { this._fail(); }
+  }
+  /** Empty the video, so nothing more is fetched or decoded. */
+  _release() {
+    const v = this.v; this.cur = null; this.rolling = false; if (!v) return;
+    try { v.pause(); v.removeAttribute('src'); v.load(); } catch { /* already empty */ }
+  }
+  _fail() { if (this.cur) BAD.add(this.cur.url); this._go(this.index + 1); }
+  _play() {
+    const v = this.v, f = this.cur;
+    v.muted = !(this.loud && this.on && f.sound);
+    v.play().catch(e => {
+      if (this.cur !== f) return;                                  // emptied meanwhile
+      if (e && e.name === 'NotAllowedError') {
+        if (!v.muted) { v.muted = true; this.loud = false; this._soundLabel(); v.play().catch(() => { if (this.cur === f) { this.noAuto = true; this._go(this.index + 1); } }); }
+        else { this.noAuto = true; this._go(this.index + 1); }     // no video without a tap (iOS Low Power Mode): drawn films only, until one
+      } else if (!e || e.name !== 'AbortError') this._fail();
+    });
+  }
+  // Keeps the clip in step with the programme; false when the programme has moved on.
+  _reel(f, CARD) {
+    if (this.cur !== f) this._load(f);
+    const v = this.v;
+    if (this.t < CARD) return true;
+    if (!this.rolling) { this.rolling = true; this.began = this.t; this._play(); }
+    if (v.readyState >= 2) this.shown = this.t;
+    if ((f.end && v.currentTime >= f.end) || v.ended) { this._go(this.index + 1); return false; }
+    if (!this.shown && this.t - this.began > 12) { this._fail(); return false; }     // never got a frame
+    if (this.shown && this.t - this.shown > 25) { this._go(this.index + 1); return false; }    // stalled for good
+    return true;
+  }
+  _clip(c, f) {
+    const v = this.v; if (!v || this.cur !== f || v.readyState < 2 || !v.videoWidth) return;
+    const ar = f.ar || v.videoWidth / v.videoHeight, h = Math.min(CH, CW / ar), w = h * ar;
+    try { c.drawImage(v, (CW - w) / 2, (CH - h) / 2, w, h); } catch { this._fail(); }
+  }
+  // Under every clip, all the way through: what it is, whose, and on what terms.
+  _credit(c, f) {
+    c.save(); c.fillStyle = 'rgba(6,7,11,.72)'; c.fillRect(0, CH - 30, CW, 30);
+    c.fillStyle = '#d8d0bc'; c.font = `13px ${MONO}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(this._clipText(c, `${f.title}, ${f.year}  ·  ${f.credit}  ·  ${f.licence}`, CW - 40), CW / 2, CH - 15); c.restore();
   }
 
   // ---- the projector's noise ----
@@ -392,11 +520,23 @@ export class Cinema {
     const el = this.el = document.createElement('section'); el.id = 'cinema'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'The late showing');
     el.innerHTML = '<div class="what" role="status"></div><div class="bar"><button data-film="next">Next film</button><button data-film="sound" hidden>Sound</button><button data-film="leave">Leave</button></div>';
     document.body.append(el);
-    const press = e => { const b = e.target.closest('button'); if (!b) return; e.preventDefault(); if (b.dataset.film === 'leave') this.close(); else if (b.dataset.film === 'next') this.next(); else if (b.dataset.film === 'sound' && this.video) { this.video.muted = !this.video.muted; b.textContent = this.video.muted ? 'Sound' : 'Sound off'; } };
+    // A tap is what lets a browser that refused to start a video try again, and what lets the sound be heard (iOS).
+    const press = e => { const b = e.target.closest('button'); if (!b) return; e.preventDefault(); this.noAuto = false; if (b.dataset.film === 'leave') this.close(); else if (b.dataset.film === 'next') this.next(); else if (b.dataset.film === 'sound') this._toggleSound(); };
     el.addEventListener('click', press);
-    addEventListener('keydown', e => { if (!this.on) return; if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); this.close(); } else if (e.code === 'ArrowRight' || e.code === 'KeyN') { e.preventDefault(); this.next(); } }, true);
+    addEventListener('keydown', e => { if (!this.on) return; if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); this.close(); } else if (e.code === 'ArrowRight' || e.code === 'KeyN') { e.preventDefault(); this.noAuto = false; this.next(); } }, true);
   }
-  _label() { if (!this.programme) return; const f = this.programme[this.index]; this.el.querySelector('.what').textContent = `${this.index + 1} / ${this.programme.length}  ·  ${f.title.toUpperCase()}`; this.el.querySelector('[data-film=sound]').hidden = !f.clip; }
+  _toggleSound() {
+    this.loud = !this.loud;
+    const v = this.v, f = this.cur;
+    if (v && f && this.rolling) { v.muted = !(this.loud && f.sound); if (!v.muted) v.play().catch(() => { v.muted = true; this.loud = false; this._soundLabel(); }); }
+    this._soundLabel();
+  }
+  _soundLabel() { const b = this.el.querySelector('[data-film=sound]'), f = this.programme && this.programme[this.index]; b.hidden = !(f && f.clip && f.clip.sound); b.textContent = this.loud ? 'Sound off' : 'Sound'; }
+  _label() {
+    if (!this.programme) return; const f = this.programme[this.index];
+    this.el.querySelector('.what').textContent = `${this.index + 1} / ${this.programme.length}  ·  ${f.title.toUpperCase()}${f.clip ? ', ' + f.clip.year : ''}`;
+    this._soundLabel();
+  }
   open() {
     const s = this.now; if (this.on || !s) return;
     this.on = true; this.G.state = 'paused'; this.el.hidden = false; this._label();
@@ -405,5 +545,9 @@ export class Cinema {
     if (this.onWatch) this.onWatch();
     const b = this.el.querySelector('button'); if (b) b.focus({ preventScroll: true });
   }
-  close() { if (!this.on) return; this.on = false; this.el.hidden = true; if (this.now) this.now.beam.visible = true; if (this.stage && this.stage.on) this.stage.leave(); this.resume(); }
+  close() {
+    if (!this.on) return; this.on = false; this.el.hidden = true;
+    this.loud = false; if (this.v) this.v.muted = true;           // standing up: the film plays on, silent, for the room
+    if (this.now) this.now.beam.visible = true; if (this.stage && this.stage.on) this.stage.leave(); this.resume();
+  }
 }
