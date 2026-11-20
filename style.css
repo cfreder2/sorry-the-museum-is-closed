@@ -462,3 +462,7 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 #pauseStats .art b, #pauseStats .pts b { font-size: 17px; }
 #pauseStats .minor { display: block; font-size: 11px; margin-top: 2px; }
 @media (max-height: 460px) { #pauseStats { font-size: 10.5px; line-height: 1.4; margin-bottom: 6px; } #pauseStats .art, #pauseStats .pts { display: inline; font-size: 12px; margin-right: 12px; } #pauseStats .art b, #pauseStats .pts b { font-size: 13px; } }
+
+/* which version this is, small, at the foot of the title screen */
+#build { font: 11px var(--mono); letter-spacing: .1em; color: var(--gilt-dim); margin-top: 8px; opacity: .85; }
+@media (max-height: 460px) { #build { position: fixed; right: max(12px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); margin: 0; font-size: 10px; } }
