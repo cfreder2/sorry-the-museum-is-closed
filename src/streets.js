@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Geo } from './geo.js';
 import { streetY } from './plan.js';
+import { frostHedge, hedgeMaterial } from './frost.js';
 
 const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
@@ -42,6 +43,7 @@ export function buildStreets(museum, plan) {
     snow: std({ map: museum.snowTex, roughness: 0.95, emissiveMap: museum.snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 }),
   };
   const g = {}; for (const k in mat) g[k] = new Geo();
+  const frost = new Geo();                               // clipped evergreens under the night's snow (frost.js)
   const ob = (x0, x1, z0, z1, y0, y1) => O.push({ x0, x1, z0, z1, y0, y1 });
   const flat = (q, x0, x1, z0, z1, y, s = 2.5) => q.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
   const paved = q => plan.paved.push(q);
@@ -113,7 +115,7 @@ export function buildStreets(museum, plan) {
     box(g.stone, a, b, y, y + KH, hw); box(g.snow, a + 0.12, b - 0.12, y + KH, y + KH + 0.05, hw - 0.12);
     for (let p = a + 1.4, i = 0; p < b - 1.2; p += 2.6, i++) {
       if (i % 4 === 3) { along === 'z' ? treeAt(c, y + KH, p, 1) : treeAt(p, y + KH, c, 1); continue; }
-      box(g.green, p - 0.8, p + 0.8, y + KH + 0.03, y + KH + 0.5, hw - 0.28); box(g.snow, p - 0.74, p + 0.74, y + KH + 0.5, y + KH + 0.56, hw - 0.34);
+      along === 'z' ? frostHedge(frost, c - hw + 0.28, c + hw - 0.28, p - 0.8, p + 0.8, y + KH + 0.03, 0.55) : frostHedge(frost, p - 0.8, p + 0.8, c - hw + 0.28, c + hw - 0.28, y + KH + 0.03, 0.55);
     }
     along === 'z' ? ob(c - hw, c + hw, a, b, y, y + KH + 0.6) : ob(a, b, c - hw, c + hw, y, y + KH + 0.6);
   };
@@ -210,7 +212,7 @@ export function buildStreets(museum, plan) {
     for (let i = 0; i < 8; i++) { const z = z0 + i * 1.05 + 0.4; g.steel.box(x - 0.86, x - 0.66, AV + 0.1, AV + 0.95, z - 0.1, z + 0.1); if (i !== 2 && i !== 5) bikeRow.push([x - 0.1, AV, z]); }
     g.steel.box(x - 0.95, x - 0.6, AV, AV + 1.9, z0 - 0.75, z0 - 0.35); g.glow.box(x - 0.59, x - 0.58, AV + 1.2, AV + 1.7, z0 - 0.7, z0 - 0.4); ob(x - 0.95, x - 0.6, z0 - 0.75, z0 + 8.3, AV, AV + 0.95); }
   // Hedges in kerbed beds at the foot of the terrace wall, either side of the steps and along the gardens.
-  const bed = (z0, z1) => { const x0 = SX - 0.82, x1 = SX - 0.06; g.stone.box(x0 - 0.08, x1, AV, AV + 0.16, z0, z1); g.green.box(x0 + 0.04, x1 - 0.04, AV + 0.16, AV + 0.74, z0 + 0.1, z1 - 0.1); g.snow.box(x0 + 0.08, x1 - 0.08, AV + 0.74, AV + 0.8, z0 + 0.14, z1 - 0.14); ob(x0 - 0.08, x1, z0, z1, AV, AV + 0.8); };
+  const bed = (z0, z1) => { const x0 = SX - 0.82, x1 = SX - 0.06; g.stone.box(x0 - 0.08, x1, AV, AV + 0.16, z0, z1); frostHedge(frost, x0 + 0.04, x1 - 0.04, z0 + 0.1, z1 - 0.1, AV + 0.16, 0.64); if (0) g.snow.box(x0 + 0.08, x1 - 0.08, AV + 0.74, AV + 0.8, z0 + 0.14, z1 - 0.14); ob(x0 - 0.08, x1, z0, z1, AV, AV + 0.8); };
   { const holes = [...S.ways.map(w => [w.z0 - (w.id === 'steps' ? 4.6 : 2.2), w.z1 + (w.id === 'steps' ? 4.6 : 2.2)])]; for (const [a, b] of gaps(MO.z1 + 5, JA.z0 - 5, holes)) for (let z = a; z < b - 2; z += 9.5) bed(z, Math.min(b, z + 8.3)); }
 
   // ---- Michigan Avenue, the far side: cars snowed in along the kerb, pay boxes, signs
@@ -243,6 +245,7 @@ export function buildStreets(museum, plan) {
   // ------------------------------------------------------------------ put it all in the world
   for (const [x, y, z] of bikeRow) bike(x, y, z, g.blue);
   const add = m => { m.matrixAutoUpdate = false; m.updateMatrix(); group.add(m); };
+  if (!frost.empty) add(frost.mesh(hedgeMaterial()));
   for (const k2 in g) if (!g[k2].empty) { const m = g[k2].mesh(mat[k2]); if (k2 === 'glass') m.renderOrder = 5; add(m); }
   if (twig.length) add(new THREE.Mesh(mergeGeometries(twig), std({ color: 0x2a221c, roughness: 0.9, emissive: 0x1a1d26, emissiveIntensity: 0.9 })));
   if (wheel.length) add(new THREE.Mesh(mergeGeometries(wheel), mat.black));

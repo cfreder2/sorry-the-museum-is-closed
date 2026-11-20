@@ -11,6 +11,7 @@
 // and a planter or a hedge is only put where nothing else already stands or runs.
 
 import * as THREE from 'three';
+import { frostHedge, hedgeMaterial } from './frost.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -24,7 +25,7 @@ export function buildEastSide(museum, plan) {
   const snowTex = museum.snowTex;
   const snow = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 });
   const lawn = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 1, emissiveMap: snowTex, emissive: new THREE.Color(0.3, 0.36, 0.5), emissiveIntensity: 0.62, ...off });
-  const hedgeM = new THREE.MeshStandardMaterial({ color: 0x1c3324, roughness: 0.95, emissive: 0x0c1810, emissiveIntensity: 0.7 });
+  const hedgeM = hedgeMaterial();
   const flat = (g, x0, x1, z0, z1, y, s = 3) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
 
   // Is this patch of ground free of everything that already stands on it, runs over it or is played on?
@@ -93,7 +94,7 @@ export function buildEastSide(museum, plan) {
       // Paving under the arch and out through it to the pavement, as people walk it.
       flat(walk, a.x - 2.2, G.columbus.x0 - 5.2, a.z - a.open - 0.4, a.z + a.open + 0.4, 0.016, 2.5);
       // A low hedge on the two street sides, with a way through in the middle of each.
-      const run = (hx0, hx1, hz0, hz1) => { if (!free(hx0, hx1, hz0, hz1)) return; hedge.box(hx0, hx1, 0, 0.8, hz0, hz1); hcap.box(hx0 - 0.03, hx1 + 0.03, 0.8, 0.88, hz0 - 0.03, hz1 + 0.03); O.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, y0: 0, y1: 0.9 }); };
+      const run = (hx0, hx1, hz0, hz1) => { if (!free(hx0, hx1, hz0, hz1)) return; frostHedge(hedge, hx0, hx1, hz0, hz1, 0, 0.86); O.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, y0: 0, y1: 0.9 }); };
       const mx = (x0 + x1) / 2, mz = a.z;
       run(x0, mx - 2, z0 - 0.9, z0 - 0.3); run(mx + 2, x1, z0 - 0.9, z0 - 0.3);
       run(x1 + 0.3, x1 + 0.9, z0, mz - a.open - 0.8); run(x1 + 0.3, x1 + 0.9, mz + a.open + 0.8, z1);
@@ -172,7 +173,7 @@ function buildCourt(museum, plan, { add, trim, snow, hedgeM }) {
   }
 
   // Clipped hedges round the edges, and a fir in two of the corners.
-  const hedge = (x0, x1, z0, z1, h = 0.95) => { if (blocked(x0, x1, z0, z1)) return; hedgeG.box(x0, x1, 0, h, z0, z1); capG.box(x0 - 0.03, x1 + 0.03, h, h + 0.07, z0 - 0.03, z1 + 0.03); solid(x0, x1, z0, z1, h + 0.07); };
+  const hedge = (x0, x1, z0, z1, h = 0.95) => { if (blocked(x0, x1, z0, z1)) return; frostHedge(hedgeG, x0, x1, z0, z1, 0, h + 0.05); solid(x0, x1, z0, z1, h + 0.07); };
   hedge(X0, X0 + 0.8, Z0 + 0.6, S - 7);                                   // along the side towards the railway, stopping short of the door
   hedge(E - 4.6, E - 0.5, S - 1.5, S - 0.6); hedge(E - 1.3, E - 0.5, S - 7.5, S - 1.5);
   hedge(E - 1.3, E - 0.5, Z0 + 0.6, Z0 + 6);

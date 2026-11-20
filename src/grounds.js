@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { T, streetY } from './plan.js';
+import { winterTree, frostHedge, hedgeMaterial } from './frost.js';
 import { buildBridgeway } from './bridgeway.js';
 import { buildEastSide } from './eastside.js';
 import { buildRailway } from './railway.js';
@@ -339,25 +340,20 @@ export function buildGrounds(museum, plan) {
 
   // ------------------------------------------------------------------- the gardens
   {
-    // Trees: one bare tree, drawn many times.
-    const parts = [];
-    const limb = (len, r0, r1, x, y, z, rx, rz) => { const g = new THREE.CylinderGeometry(r1, r0, len, 6); g.translate(0, len / 2, 0); g.rotateX(rx); g.rotateZ(rz); g.translate(x, y, z); parts.push(g); };
-    limb(2.3, 0.15, 0.1, 0, 0, 0, 0, 0);
-    for (let i = 0; i < 7; i++) { const a = i * 0.9 + 0.3, tilt = 0.55 + (i % 3) * 0.18; limb(2.2 + (i % 2) * 0.7, 0.07, 0.02, 0, 1.9 + (i % 3) * 0.25, 0, Math.cos(a) * tilt, Math.sin(a) * tilt); }
-    for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.8; limb(1.3, 0.035, 0.012, Math.sin(a) * 0.9, 3.0 + (i % 2) * 0.4, -Math.cos(a) * 0.9 + 0, Math.cos(a) * 0.9, Math.sin(a) * 0.9); }
-    const treeGeo = mergeGeometries(parts);
-    const bark = new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, emissive: 0x1a1d26, emissiveIntensity: 0.9 });
-    const trees = new THREE.InstancedMesh(treeGeo, bark, Math.max(1, G.trees.length));
+    // Trees: one winter tree, drawn many times. Trunk and boughs with snow lying along them, and a crown of fine twigs, each white on top (frost.js).
+    const WT = winterTree();
+    const trees = new THREE.InstancedMesh(WT.wood, WT.woodMat, Math.max(1, G.trees.length)), twigs = new THREE.InstancedMesh(WT.twigs, WT.twigMat, Math.max(1, G.trees.length));
     const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler();
     G.trees.forEach((t, i) => {
-      const wide = t.kind === 'hawthorn';
-      trees.setMatrixAt(i, M4.compose(new THREE.Vector3(t.x, streetY(plan, t.x, t.z), t.z), Q.setFromEuler(E.set(0, t.yaw, 0)), new THREE.Vector3(t.s * (wide ? 1.35 : 1), t.s * (wide ? 0.8 : 1.45), t.s * (wide ? 1.35 : 1))));
+      const wide = t.kind === 'hawthorn';                // low and spreading; the street trees stand taller and narrower
+      M4.compose(new THREE.Vector3(t.x, streetY(plan, t.x, t.z), t.z), Q.setFromEuler(E.set(0, t.yaw, 0)), new THREE.Vector3(t.s * (wide ? 1.45 : 1.0), t.s * (wide ? 1.05 : 1.6), t.s * (wide ? 1.45 : 1.0)));
+      trees.setMatrixAt(i, M4); twigs.setMatrixAt(i, M4);
     });
-    trees.frustumCulled = false; group.add(trees);
+    trees.frustumCulled = twigs.frustumCulled = false; group.add(trees, twigs);
     // Hedges, with snow lying on top.
     const hedge = new Geo(), cap = new Geo();
-    for (const h of G.hedges) { hedge.box(h.x0, h.x1, 0, 0.8, h.z0, h.z1); cap.box(h.x0 - 0.03, h.x1 + 0.03, 0.8, 0.88, h.z0 - 0.03, h.z1 + 0.03); }
-    add(hedge.mesh(new THREE.MeshStandardMaterial({ color: 0x1c3324, roughness: 0.95, emissive: 0x0c1810, emissiveIntensity: 0.7 })), cap.mesh(snow));
+    for (const h of G.hedges) frostHedge(hedge, h.x0, h.x1, h.z0, h.z1, 0, 0.86);
+    if (!hedge.empty) add(hedge.mesh(hedgeMaterial())); void cap;
 
     // The South Garden's long pool, frozen, in its stone rim.
     const p = G.pool, rim = new Geo();
