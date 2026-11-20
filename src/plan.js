@@ -136,7 +136,22 @@ export function buildPlan() {
     return false;
   };
   pierce([['GStock_Exchange', 'e'], ['G152', 'e']], 'dock', 2.2, 0.7);                         // a delivery shutter not quite pulled down, on the path to the skate park
-  pierce([['G184', 's'], ['G184', 'w'], ['G182', 'w']], 'duct', 1.1, 0.6);                     // another duct, in the courtyard
+  pierce([['G184', 's'], ['G184', 'w'], ['G182', 'w']], 'duct', 1.1, 0.6);
+  // From the south end of Griffin Court to the Christmas tree: a grille low in the end wall, a duct round one bend through
+  // the wall into the restrooms beside it, and across them a second duct out of their far wall, to the tree.
+  {
+    const h = byId.hall, wc = byId['MW1-wc'];
+    if (h && wc && same(wc.y, 0) && Math.abs(wc.x1 - (h.x0 - T)) < 1.2 && wc.z0 < h.z1 - 3 && wc.z1 > h.z1 + 3) {
+      const W = 1.2, H = 0.6, xa = h.x0 + 0.3, za = h.z1, zb = h.z1 + 3.4, zc = zb - W;      // the run south, then the run west
+      // (A passage is open 1.6 m past each end of a doorway, so each run is given 1.6 m short of where its duct ends.)
+      const s1 = { id: 'treeduct1', a: 'hall', b: 'out', along: 'z', x0: xa, x1: xa + W, z0: za, z1: zb - 1.6, y: 0, h: H, out: true, vent: true, kind: 'inner', side: 's',
+        tube: { x0: xa, x1: xa + W, z0: za, z1: zb }, open: { w: [zc, zb] }, cap: 'z1', mouth: { x: xa + W / 2, z: za, nx: 0, nz: -1, w: W } };
+      const s2 = { id: 'treeduct2', a: wc.id, b: 'out', along: 'x', x0: wc.x1, x1: xa + W - 1.6, z0: zc, z1: zb, y: 0, h: H, out: true, vent: true, kind: 'inner', side: 'e',
+        tube: { x0: wc.x1, x1: xa, z0: zc, z1: zb }, mouth: { x: wc.x1, z: zc + W / 2, nx: -1, nz: 0, w: W } };
+      pierce([[wc.id, 'w']], 'duct', 1.1, 0.6);                                         // out the other side, by the tree (first: a room gets one vent from pierce)
+      doors.push(s1, s2); holes.push(s1, s2);
+    }
+  }                     // another duct, in the courtyard
   pierce([['G142', 'n'], ['G142', 's'], ['G141', 'n'], ['G141', 's'], ['G140', 'n']], 'flap', 0.8, 0.45);    // a service door by the railway with its bottom panel kicked in
   pierce([['G134', 's'], ['G134', 'w'], ['G108', 's'], ['G108', 'w'], ['G133', 's']], 'window', 1.0, 0.5);   // a cellar window propped open, by the South Garden
   pierce([['G161', 'w'], ['G161', 'e'], ['G153', 'e'], ['G153', 's'], ['G151', 'n'], ['G151', 'e']], 'window', 1.0, 0.5);

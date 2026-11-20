@@ -692,6 +692,28 @@ export class Museum {
       const glass = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 0.5, 0.62), transparent: true, opacity: 0.45, side: THREE.DoubleSide });
       const tube = new Geo();
       for (const d of plan.holes) {
+        if (d.kind === 'inner') {
+          // A duct inside the building (to the Christmas tree): its own extent, a wall left open where the next run joins it,
+          // an end shut, and at the room end a louvred grille swung open.
+          const e = 0.012, { x0, x1, z0, z1 } = d.tube, h = d.h - e, op = d.open || {};
+          const wallZ = (x, a, b, n) => { const sp = op[n === 1 ? 'w' : 'e'] || null; for (const [p, q] of sp && d.along === 'z' ? [[a, sp[0]], [sp[1], b]] : [[a, b]]) if (q - p > 0.01) tube.quad([x, 0, p], [x, 0, q], [x, h, q], [x, h, p], [n, 0, 0]); };
+          const wallX = (z, a, b, n) => tube.quad([a, 0, z], [b, 0, z], [b, h, z], [a, h, z], [0, 0, n]);
+          if (d.along === 'z') { wallZ(x0 + e, z0, z1, 1); wallZ(x1 - e, z0, z1, -1); } else { wallX(z0 + e, x0, x1, 1); wallX(z1 - e, x0, x1, -1); }
+          tube.quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1], [0, -1, 0]); tube.quad([x0, e, z0], [x1, e, z0], [x1, e, z1], [x0, e, z1], [0, 1, 0]);
+          if (d.cap === 'z1') tube.quad([x0, 0, z1 - e], [x1, 0, z1 - e], [x1, h, z1 - e], [x0, h, z1 - e], [0, 0, -1]);
+          const m = d.mouth; if (m) {
+            const g = new THREE.Group(); g.position.set(m.x, 0, m.z); g.rotation.y = Math.atan2(m.nx, m.nz);
+            const bx = (mat, bw, bh, bd, px, py, pz) => { const o = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat); o.position.set(px, py, pz); g.add(o); return o; };
+            for (const sx of [-1, 1]) bx(alu, 0.05, d.h + 0.05, 0.06, sx * (m.w / 2 + 0.025), (d.h + 0.05) / 2, 0.03); bx(alu, m.w + 0.1, 0.05, 0.06, 0, d.h + 0.025, 0.03);
+            const gr = new THREE.Group(); for (let i = 0; i < 6; i++) { const sl = new THREE.Mesh(new THREE.BoxGeometry(m.w - 0.04, 0.02, 0.05), steel); sl.position.y = 0.06 + i * 0.09; sl.rotation.x = 0.7; gr.add(sl); }
+            gr.position.set(-m.w / 2, 0, 0.06); gr.rotation.y = -1.9; g.add(gr);                    // the grille, hinged at one side and swung back against the wall
+            bx(cyan, m.w, 0.02, 0.02, 0, d.h - 0.03, 0.05);
+            const spill = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.6), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.25, 0.42, 0.5), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+            spill.rotation.x = -Math.PI / 2; spill.position.set(0, 0.014, 0.7); spill.renderOrder = 4; g.add(spill);
+            this.group.add(g);
+          }
+          continue;
+        }
         const e = 0.012, x0 = d.x0, x1 = d.x1, z0 = d.z0, z1 = d.z1, h = d.h - e;
         if (d.along === 'x') {
           tube.quad([x0, 0, z0 + e], [x1, 0, z0 + e], [x1, h, z0 + e], [x0, h, z0 + e], [0, 0, 1]); tube.quad([x0, 0, z1 - e], [x1, 0, z1 - e], [x1, h, z1 - e], [x0, h, z1 - e], [0, 0, -1]);
