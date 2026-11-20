@@ -740,14 +740,11 @@ const def = (name, w, d, draw) => { ITEMS[name] = { w, d, draw }; };
 
 // Parts that several items share.
 function chair(g, u, d, dir, c = C.fabric, h = 0.45) {                  // dir: +1 faces +d, -1 faces -d
-  g.q(u, d, 0.44, 0.44, h - 0.05, h, c, 'matte', true);
-  g.q(u, d - dir * 0.2, 0.44, 0.05, h, h + 0.46, c, 'matte', true);
-  for (const su of [-1, 1]) for (const sd of [-1, 1]) g.q(u + su * 0.19, d + sd * 0.19, 0.03, 0.03, 0, h - 0.05, C.steelD, 'metal');
-  g.s(u - 0.23, u + 0.23, 0, h + 0.46, d - 0.23, d + 0.23);
+  // Not drawn here and not fixed down: a note is left, and src/loose.js stands a chair there that can be knocked over.
+  g.loose(h > 0.7 ? 'highchair' : 'chair', u, d, dir, c);
 }
 function stool(g, u, d, h = 0.62, c = C.steelD) {
-  g.c(u, h - 0.02, d, 0.17, 0.04, 'y', C.wood); g.c(u, (h - 0.04) / 2, d, 0.025, h - 0.04, 'y', c, 'metal'); g.c(u, 0.015, d, 0.2, 0.03, 'y', c, 'metal');
-  g.s(u - 0.17, u + 0.17, 0, h, d - 0.17, d + 0.17);
+  g.loose(h < 0.4 ? 'lowstool' : h > 0.7 ? 'barstool' : 'stool', u, d, 1, h < 0.56 && c === C.black ? c : C.wood);      // loose, like the chairs
 }
 function table(g, u0, u1, d0, d1, h, top = C.woodL, leg = C.steelD, o = {}) {
   g.b(u0, u1, h - 0.04, h, d0, d1, top, o.metal ? 'metal' : 'matte', true);
@@ -1546,6 +1543,8 @@ class Pen {
   Z(u, d) { return this.oz - u * this.fx + d * this.fz; }
   // Leave a note of a spot in the world for whoever dresses it further (writing on a whiteboard, glass
   // round a jar): the kind of thing, where (u across, d out, y up, in the item's frame) and anything else worth saying.
+  // Something that is not fixed down (src/loose.js): where it stands and which way it faces (dir: +1 out along d, -1 back).
+  loose(type, u, d, dir, col) { this.R.out.marks.push({ kind: 'loose', room: this.R.room.id, type, x: this.X(u, d), y: this.y, z: this.Z(u, d), yaw: Math.atan2(this.fx * dir, this.fz * dir), col }); }
   mark(kind, u, d, y, more) { this.R.out.marks.push({ kind, room: this.R.room.id, x: this.X(u, d), y: this.y + y, z: this.Z(u, d), fx: this.fx, fz: this.fz, ...more }); }
   b(u0, u1, y0, y1, d0, d1, hex, mat = 'matte', under = false) {
     const H = this.H - 0.01; if (y1 > H) y1 = H; if (y0 < 0) y0 = 0; if (y1 <= y0) return;

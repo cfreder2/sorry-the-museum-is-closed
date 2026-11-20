@@ -194,13 +194,12 @@ function buildCourt(museum, plan, { add, trim, snow, hedgeM }) {
     put('metal', new THREE.CylinderGeometry(0.46, 0.46, 0.035, 14), x, 0.72, z); put('metal', new THREE.CylinderGeometry(0.035, 0.035, 0.7, 6), x, 0.36, z); put('metal', new THREE.CylinderGeometry(0.22, 0.24, 0.03, 10), x, 0.02, z);
     put('white', new THREE.CylinderGeometry(0.43, 0.45, 0.05, 14), x, 0.765, z);
     for (const sg of [-1, 1]) { const cx = x + Math.cos(turn) * 0.68 * sg, cz = z + Math.sin(turn) * 0.68 * sg;
-      put('metal', new THREE.BoxGeometry(0.38, 0.03, 0.38), cx, 0.44, cz); put('white', new THREE.BoxGeometry(0.34, 0.035, 0.34), cx, 0.47, cz);
-      const back = new THREE.BoxGeometry(0.38, 0.42, 0.03); back.rotateY(-turn + Math.PI / 2); put('metal', back, cx + Math.cos(turn) * 0.19 * sg, 0.66, cz + Math.sin(turn) * 0.19 * sg);
-      for (const a of [-1, 1]) for (const b of [-1, 1]) put('metal', new THREE.CylinderGeometry(0.014, 0.014, 0.44, 4), cx + a * 0.16, 0.22, cz + b * 0.16); }
+      // (the chairs are loose: src/loose.js stands one here, facing the table, and it can be knocked about)
+      (plan.looseExtra || (plan.looseExtra = [])).push({ kind: 'loose', room: 'court', bounds: { x0: X0, x1: E, z0: Z0, z1: S, y: 0, h: 4 }, type: 'chair', x: cx, y: 0, z: cz, yaw: Math.atan2(-Math.cos(turn) * sg, -Math.sin(turn) * sg), col: 0x3d4a44 }); }
     put('wood', new THREE.CylinderGeometry(0.028, 0.028, 2.5, 6), x, 1.25, z);
     if (open) { put('green', new THREE.ConeGeometry(1.3, 0.5, 8, 1, true), x, 2.35, z); put('white', new THREE.ConeGeometry(0.98, 0.38, 8), x, 2.44, z); solid(x - 1.1, x + 1.1, z - 1.1, z + 1.1, 2.7, 2.05); }
     else { put('green', new THREE.ConeGeometry(0.15, 1.35, 8), x, 1.85, z); put('white', new THREE.ConeGeometry(0.08, 0.3, 8), x, 2.5, z); }
-    solid(x - 0.78, x + 0.78, z - 0.78, z + 0.78, 1.0);
+    solid(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 1.0);
   };
   { let i = 0;
     for (const z of [f.z - 4, f.z, f.z + 4]) table(P.x0 - 3.9, z, i++ % 3 !== 1, 1.57);                       // the side towards the railway
