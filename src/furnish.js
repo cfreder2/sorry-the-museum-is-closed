@@ -165,7 +165,7 @@ const RECIPES = {
   directorsOffice(R) {
     const e = R.quietEnd();
     R.rug(e ? 0.72 : 0.28, 0.5, 4.2, 3);
-    R.end(['desk', 2.2, { grand: true }], e, 1.0, true);
+    if (R.end(['desk', 2.2, { grand: true }], e, 1.0, true)) R.room.desk = R.last;      // where the Director's desk is, for its drawer (src/nests.js)
     R.walls(['bookcase', 'bookcase', 'pictureWall', 'sofa', 'plant', 'bookcase', 'sideboard', 'pictureWall'], { gap: 0.25 });
     R.scatter(['armchair', 'armchair', 'coffeeTable', 'plant'], 4);
     R.services('lights');
@@ -846,6 +846,10 @@ function finish(R, recipe) {
     const B = (a, b, ya, yb, dep, hex) => { const p = Math.min(at, at + sg * dep), q = Math.max(at, at + sg * dep); alongX ? m.box(a, b, y + ya, y + yb, p, q, hex, true) : m.box(p, q, y + ya, y + yb, a, b, hex, true); };
     B(lo, hi, r.h - 0.2, r.h - 0.02, 0.06, 0x1b1d21);
     const spans = doors.filter(dd => (alongX ? dd.along !== 'x' : dd.along === 'x') && (alongX ? dd.z0 <= wall + 0.06 && dd.z1 >= wall - 0.06 : dd.x0 <= wall + 0.06 && dd.x1 >= wall - 0.06))       /* the doorway meets this wall, however long the passage beyond it */.map(dd => (alongX ? [dd.x0 - 0.1, dd.x1 + 0.1] : [dd.z0 - 0.1, dd.z1 + 0.1]));
+    // a mouse's grille low in this wall (plan.js addNests): the skirting and the lower wall stop either side of it, and go on over it
+    const nests = (plan.nests || []).filter(n => n.room === r.id && n.side === side).map(n => [n.u - n.VW / 2 - 0.05, n.u + n.VW / 2 + 0.05, n.VH + 0.04]);
+    for (const [a, b, h] of nests) { if (recipe === 'restroom') { B(a, b, h, 1.1, 0.045, 0xdfe6e4); B(a, b, 1.1, 1.24, 0.05, 0x5f8794); B(a, b, 1.24, 2.1, 0.045, 0xdfe6e4); B(a, b, 2.1, 2.14, 0.06, 0xb7b2a6); } else { B(a, b, h, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); } }
+    spans.push(...nests.map(([a, b]) => [a, b]));
     for (const [a, b] of runs(lo, hi, spans)) { B(a, b, 0, 0.11, 0.07, 0x3c3f45);
       if (recipe === 'restroom') { B(a, b, 0.11, 1.1, 0.045, 0xdfe6e4); B(a, b, 1.1, 1.24, 0.05, 0x5f8794); B(a, b, 1.24, 2.1, 0.045, 0xdfe6e4); B(a, b, 2.1, 2.14, 0.06, 0xb7b2a6); }      // tiled to the height of the doors, with a darker band
       else { B(a, b, 0.11, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); } }      // (proud enough to stand clear of a wall that is itself built a little way in)
@@ -1815,6 +1819,7 @@ class Room {
     }
     for (const w of plan.wells || []) if (lap(w, 1.2) && w.y > y0 && w.y < y1 + 0.8) keep(w, 1.2, true);
     for (const ob of plan.obstacles) if (!ob.fit && lap(ob, 0.4) && ob.y1 > y0 && ob.y0 < y1) keep(ob, 0.4, false);
+    for (const n of plan.nests || []) if (n.room === r.id) keep(n.keep, 0.2, true);       // a mouse's grille low on the wall (plan.js addNests): the floor before it stays clear
     // The aisle: down the middle, or (in a room with something big in the middle of it) along the
     // wall most of its doors are in. It runs the length of the room, less whatever a recipe keeps
     // back at the quiet end for a stage or a counter. Then a leg to it from each way in.
@@ -1845,7 +1850,7 @@ class Room {
     const ux = fz, uz = -fx, xs = [ox - ux * w / 2, ox + ux * w / 2, ox - ux * w / 2 + fx * d, ox + ux * w / 2 + fx * d], zs = [oz - uz * w / 2, oz + uz * w / 2, oz - uz * w / 2 + fz * d, oz + uz * w / 2 + fz * d];
     const q = { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
     if (!this.free(q, gap)) return false;
-    this.taken.push(q); this.placed++;
+    this.taken.push(q); this.placed++; this.last = { ...q, fx, fz, y: this.room.y };      // (what was set down last, and which way it faces)
     it.draw(new Pen(this, ox, oz, fx, fz, d), w, this.rnd, extra ? { ...(o || {}), ...extra } : o);
     return true;
   }

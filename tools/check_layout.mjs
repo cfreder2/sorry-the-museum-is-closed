@@ -148,6 +148,20 @@ if (!process.argv[2]) {
   }
   if (lids.size) problems.push(`ground below the street left under snow near (x,z): ${[...lids.keys()].slice(0, 12).join('  ')}. Add it to groundOpenings() in src/plan.js.`);
   else console.log('  snow: open over every way below the street');
+  // The mice's nests (plan.js addNests): each a grille in a wall of its room, a run behind it and the nest, in a hollow outside
+  // wall or in the earth. None may run into a room, nor be open to the street; the grille must open off its room's floor.
+  const lap = (a, b, m = 0) => a.x0 < b.x1 - m && a.x1 > b.x0 + m && a.z0 < b.z1 - m && a.z1 > b.z0 + m;
+  for (const n of P.nests || []) {
+    const host = P.byId[n.room], parts = [n.mouth, n.duct, n.cham].filter(Boolean);
+    for (const q of parts) for (const r of P.rooms) if (r !== host && lap(q, r, -0.02) && n.y < r.y + r.h && n.y + n.CH > r.y) problems.push(`${n.id}: runs into ${r.id}`);
+    for (const q of [n.duct, n.cham].filter(Boolean)) {
+      if (lap(q, host, 0.005)) problems.push(`${n.id}: its nest is inside ${host.id}`);
+      if (n.y > -0.5) { for (const [x, z] of [[q.x0, q.z0], [q.x1, q.z1], [q.x0, q.z1], [q.x1, q.z0]]) if (!P.masses.some(m => x > m.x0 && x < m.x1 && z > m.z0 && z < m.z1 && m.top > n.y + n.CH)) problems.push(`${n.id}: open to the outside at (${x.toFixed(1)}, ${z.toFixed(1)})`); }
+      else if (n.y + n.CH > -0.5 || O.some(o => lap(q, o))) problems.push(`${n.id}: not under the ground`);
+    }
+    if (!lap(n.mouth, host) || !lap(n.mouth, n.duct || n.cham) || (n.duct && !lap(n.duct, n.cham))) problems.push(`${n.id}: its way in does not join its room to its nest`);
+  }
+  if (P.nests) console.log(`  nests: ${P.nests.length} (${P.nests.map(n => n.wing + ' ' + n.room).join(', ')}), each in a wall, none in a room`);
 }
 
 if (problems.length) { console.log(`\nNOT SOUND: ${problems.length} problem${problems.length > 1 ? 's' : ''}`); for (const p of problems) console.log('  ' + p); process.exit(1); }

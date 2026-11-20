@@ -309,7 +309,7 @@ export class Museum {
         if (!lower) for (const sg of w.segs) {
           // Each moulding stops a centimetre inside the stone surround of a doorway it runs up to (0.3 m of jamb, 0.38 m of
           // lintel either side): ending on the surround's own face, the two flickered against each other.
-          const by = (u, top) => { let n = 0; for (const o of w.openings) if (!o.door.hidden && (Math.abs(o.lo - u) < 0.03 || Math.abs(o.hi - u) < 0.03) && (top == null || o.y + o.h + 0.37 > top)) n = Math.max(n, top == null ? 0.29 : 0.37); return n; };
+          const by = (u, top) => { let n = 0; for (const o of w.openings) if (!o.door.hidden && !o.door.nest && (Math.abs(o.lo - u) < 0.03 || Math.abs(o.hi - u) < 0.03) && (top == null || o.y + o.h + 0.37 > top)) n = Math.max(n, top == null ? 0.29 : 0.37); return n; };
           const run = (y0, y1, dep, top) => { const a = sg.lo + by(sg.lo, top), b = sg.hi - by(sg.hi, top); if (b - a < 0.02) return; trim.wallBox(wallPoint(w, (a + b) / 2, 0), w.nx, w.nz, -(b - a) / 2, (b - a) / 2, y0, y1, 0, dep); };
           run(0, 0.24, 0.035, null);
           run(r.h - 0.34, r.h, 0.14, r.h - 0.46);
