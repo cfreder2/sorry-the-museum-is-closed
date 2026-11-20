@@ -266,8 +266,9 @@ export class Race {
     this.total = this.clock;
     this.finalPlace = 1 + this.bots.filter(b => b.done).length;
     const key = this.player.kind;
-    this.record = !this.best[key] || this.total < this.best[key];
-    if (this.record) { this.best[key] = this.total; try { localStorage.setItem('after-hours.best', JSON.stringify(this.best)); } catch { /* fine */ } }
+    this.first = !this.best[key];                          // the first finish is a time to beat, not a record broken
+    this.record = !this.first && this.total < this.best[key];
+    if (this.record || this.first) { this.best[key] = this.total; try { localStorage.setItem('after-hours.best', JSON.stringify(this.best)); } catch { /* fine */ } }
     this.sound.finish();
     this.events.push({ type: 'finish', place: this.finalPlace, of: this.bots.length + 1, split, total: this.total, record: this.record });
   }
@@ -307,6 +308,21 @@ export class Race {
         else if (ahead < 1.4) queue = Math.min(queue, Math.max(0.4, ov.vel.x * fx + ov.vel.z * fz) + (ahead - 0.6) * 2);
       }
       lane += b.shift;
+      // A doorway coming up (the course narrows to about one toy's room each side): close in to the middle, and of two
+      // toys arriving at it side by side, the one behind (or, level, the slower) waits its turn rather than both
+      // trying the gap at once and wedging there.
+      let narrow = Infinity; for (let d = 0; d <= 3.5; d += 0.5) narrow = Math.min(narrow, this.at(b.s + d).w);
+      if (narrow < 1.0) {
+        lane *= clamp((narrow - 0.55) / 0.6, 0, 1); b.shift = 0;
+        const others = [...this.bots.filter(o => o !== b).map(o => ({ v: o.v, prog: o.prog, done: o.done })), { v: this.player, prog: mine, done: this.finished }];
+        for (const o of others) {
+          if (o.done || !Number.isFinite(o.prog) || Math.abs(o.v.pos.y - v.pos.y) > 0.4) continue;
+          const lead = o.prog - b.prog, apart = Math.hypot(o.v.pos.x - v.pos.x, o.v.pos.z - v.pos.z), osp = Math.hypot(o.v.vel.x, o.v.vel.z);
+          if (apart > 2.4 || lead < -0.35 || lead > 2.2) continue;
+          if (Math.abs(lead) <= 0.35 && (osp < sp || (osp === sp && o.v !== this.player && this.bots.indexOf(b) < this.bots.findIndex(q => q.v === o.v)))) continue;      // level: the faster goes first
+          queue = Math.min(queue, Math.max(0.25, osp * 0.85) + Math.max(0, lead - 0.9) * 1.5);
+        }
+      }
       if (b.calm > 0) { b.calm -= dt; lane = 0; }           // just backed out of something: down the middle for a bit
       const { q, x: tx, z: tz } = this.aim(v.pos, b.s, (1.2 + sp * 0.32) * b.look, lane);
       const a = ang(Math.atan2(tx - v.pos.x, tz - v.pos.z) - v.yaw);
@@ -319,7 +335,7 @@ export class Race {
       // (Told by not having got anywhere, not by speed: pressed against a jamb a car rocks back and forth on the spot.)
       if (!b.at || Math.hypot(v.pos.x - b.at.x, v.pos.z - b.at.z) > 0.25 || b.backT > 0 || (!this.flying && v.air)) { b.at = { x: v.pos.x, z: v.pos.z }; b.stuckT = 0; }
       else b.stuckT += dt;
-      if (b.stuckT > 0.7) { b.stuckT = 0; b.backT = 0.75; b.backA = a; b.calm = 2.5; }
+      if (b.stuckT > 0.7) { b.stuckT = 0; b.backT = 0.75; b.backA = a; b.calm = 2.5; b.backs = (b.backs || 0) + 1; }
       let inp;
       if (this.flying) {
         const yawErr = ang(Math.atan2(q.tx, q.tz) - v.yaw), y = q.y + b.lane * 0.4;

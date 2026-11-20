@@ -113,7 +113,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.78';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.79';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -1119,7 +1119,7 @@ function results() {
   $('resPlace').textContent = `${ordinal(R.finalPlace)} of ${R.bots.length + 1}`;
   const best = R.best[G.vehicle.kind];
   $('resTimes').innerHTML = R.lapTimes.map((t, i) => `LAP ${i + 1}  ${clockText(t)}`).join('<br>')
-    + `<br><b>TOTAL  ${clockText(R.total)}</b><br>` + (R.record ? 'A NEW BEST' : `BEST  ${clockText(best)}`);
+    + `<br><b>TOTAL  ${clockText(R.total)}</b><br>` + (R.first ? 'YOUR FIRST TIME TO BEAT' : R.record ? 'A NEW BEST' : `BEST  ${clockText(best)}`);
   show('results');
 }
 
