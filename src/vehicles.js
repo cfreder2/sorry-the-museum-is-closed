@@ -280,7 +280,11 @@ export class Car {
     const onHill = !this.air && on && on.hill && beneath && beneath.hill;
     // A lift going down takes the car with it: the floor is not falling away, it is being lowered.
     const lowered = !this.air && beneath && beneath.lift && yb - g < 0.25;
-    if (!lowered && (onHill ? yb - g > 2 * dt * dt + 0.0002 : yb > g + 0.004)) {
+    // A plain slope of the street (the ramps beside the front steps, the side streets climbing from the avenue) is driven
+    // down with the wheels on it: the ground only ever drops a few centimetres a frame there. Without this the car left the
+    // slope every frame and fell back onto it, which felt like going down the stairs. (A stair tread drops 15 cm at once: that still bumps.)
+    const ST = this.plan.street, hug = !this.air && !beneath && ST && this.pos.x < ST.x + ST.reach && this.vy <= 0.01 && this.pos.y - g > 0 && this.pos.y - g < 0.12;
+    if (!lowered && !hug && (onHill ? yb - g > 2 * dt * dt + 0.0002 : yb > g + 0.004)) {
       if (!this.air) {
         this.air = true; this.airT = 0; this._from.x = this.pos.x; this._from.z = this.pos.z;
         this.vert = null;
