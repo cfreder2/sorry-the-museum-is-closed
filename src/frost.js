@@ -20,26 +20,97 @@ export function hedgeMaterial() {
   _hedgeMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, emissiveMap: t, emissive: new THREE.Color(0.42, 0.47, 0.6), emissiveIntensity: 0.55 });
   return _hedgeMat;
 }
-/** A hedge on the rectangle given, `h` tall from `y0`: a rounded, lumpy back, not a box. Goes into a Geo. */
-export function frostHedge(geo, x0, x1, z0, z1, y0 = 0, h = 0.8) {
-  const alongX = x1 - x0 >= z1 - z0, L = alongX ? x1 - x0 : z1 - z0, W = alongX ? z1 - z0 : x1 - x0, n = Math.max(1, Math.round(L / 0.42)), r = rng(Math.round(x0 * 31 + z0 * 17) + 5);
-  const P = (u, w, y) => alongX ? [x0 + u, y0 + y, z0 + w] : [x0 + w, y0 + y, z0 + u];
-  // The section across it: foot, a bulging shoulder, two points on the crown, shoulder, foot. Each a little different at every step along.
-  const sec = () => { const b = 0.05 + r() * 0.05, t = h * (0.92 + r() * 0.22); return [[0, 0, 0], [-b, h * (0.48 + r() * 0.1), 0.5], [W * 0.26, t, 0.93], [W * 0.74, h * (0.92 + r() * 0.22), 0.93], [W + b, h * (0.48 + r() * 0.1), 0.5], [W, 0, 0]]; };
-  let A = sec();
-  const N = [[0, 0.1, -1], [0, 0.75, -0.6], [0, 1, 0], [0, 0.75, 0.6], [0, 0.1, 1]];
-  const nrm = k => alongX ? N[k] : [N[k][2], N[k][1], 0];
-  for (let i = 0; i < n; i++) {
-    const B = sec(), u0 = L * i / n, u1 = L * (i + 1) / n;
-    for (let k = 0; k < 5; k++) {
-      const a = P(u0, A[k][0], A[k][1]), b = P(u1, B[k][0], B[k][1]), c2 = P(u1, B[k + 1][0], B[k + 1][1]), d = P(u0, A[k + 1][0], A[k + 1][1]);
-      const uv = [[u0 / 1.4, A[k][2]], [u1 / 1.4, B[k][2]], [u1 / 1.4, B[k + 1][2]], [u0 / 1.4, A[k + 1][2]]];
-      if (alongX) geo.quad(d, c2, b, a, nrm(k), [uv[3], uv[2], uv[1], uv[0]]); else geo.quad(a, b, c2, d, nrm(k), uv);
+/**
+ * Hedges along runs. `rects` is a list of {x0, x1, z0, z1, y0?, h?}; they are drawn into `geo` as
+ * unbroken clipped hedges. Lengths in line that meet or nearly meet (a gap under `gap`) are drawn
+ * as one; an end that meets the side of another hedge (a corner, a T) is carried on into it, so the
+ * two grow together; every end that is really an end (at a path, a gate, a tree pit) is clipped
+ * round. Returns the runs as drawn.
+ */
+export function frostHedges(geo, rects, y0 = 0, h = 0.8, gap = 0.6) {
+  const R = rects.filter(q => q.x1 > q.x0 && q.z1 > q.z0).map(q => ({ x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, y0: q.y0 ?? y0, h: q.h ?? h }));
+  const ax = q => q.x1 - q.x0 >= q.z1 - q.z0;
+  // Lengths in line, end to end or nearly: one hedge.
+  for (let again = true; again;) {
+    again = false;
+    for (let i = 0; i < R.length && !again; i++) for (let j = i + 1; j < R.length && !again; j++) {
+      const a = R[i], b = R[j]; if (ax(a) !== ax(b) || Math.abs(a.y0 - b.y0) > 0.05) continue;
+      const X = ax(a), a0 = X ? a.x0 : a.z0, a1 = X ? a.x1 : a.z1, b0 = X ? b.x0 : b.z0, b1 = X ? b.x1 : b.z1;
+      const inLine = X ? Math.abs(a.z0 - b.z0) < 0.15 && Math.abs(a.z1 - b.z1) < 0.15 : Math.abs(a.x0 - b.x0) < 0.15 && Math.abs(a.x1 - b.x1) < 0.15;
+      if (!inLine || b0 > a1 + gap || a0 > b1 + gap) continue;
+      R[i] = { x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), z0: Math.min(a.z0, b.z0), z1: Math.max(a.z1, b.z1), y0: a.y0, h: Math.max(a.h, b.h) };
+      R.splice(j, 1); again = true;
     }
-    A = B;
   }
-  // Its two ends.
-  for (const [u, s] of [[0, -1], [L, 1]]) { const a = P(u, 0, 0), b = P(u, W, 0), c2 = P(u, W * 0.74, h * 0.95), d = P(u, W * 0.26, h * 0.95), nn = alongX ? [s, 0.2, 0] : [0, 0.2, s]; const uv = [[0, 0], [W / 1.4, 0], [W * 0.74 / 1.4, 0.9], [W * 0.26 / 1.4, 0.9]]; if ((s > 0) === alongX) geo.quad(a, b, c2, d, nn, uv); else geo.quad(b, a, d, c2, nn, [uv[1], uv[0], uv[3], uv[2]]); }
+  // An end that meets the side of another hedge (a corner, a T) is carried on through it to just short
+  // of its far side, so that its clipped nose is buried in the other and the two grow together with no
+  // gap, no notch and no cut face showing; at an outside corner the two noses round the corner off.
+  const runs = R.map(r => {
+    const X = ax(r), c = X ? (r.z0 + r.z1) / 2 : (r.x0 + r.x1) / 2, out = { ...r };
+    for (const s of [0, 1]) {
+      const p = X ? (s ? r.x1 : r.x0) : (s ? r.z1 : r.z0);
+      for (const o of R) {
+        if (o === r || ax(o) === X || Math.abs(o.y0 - r.y0) > 0.3) continue;
+        const o0 = X ? o.x0 : o.z0, o1 = X ? o.x1 : o.z1, c0 = X ? o.z0 : o.x0, c1 = X ? o.z1 : o.x1;
+        if (c < c0 - 0.05 || c > c1 + 0.05) continue;
+        if (s ? !(p >= o0 - gap && p <= o1) : !(p >= o0 && p <= o1 + gap)) continue;
+        const inset = Math.min(0.12, (o1 - o0) * 0.2);
+        out[X ? (s ? 'x1' : 'x0') : (s ? 'z1' : 'z0')] = s ? o1 - inset : o0 + inset; break;
+      }
+    }
+    return out;
+  });
+  for (const q of runs) frostHedge(geo, q.x0, q.x1, q.z0, q.z1, q.y0, q.h);
+  return runs;
+}
+
+/**
+ * One clipped hedge on the rectangle given, `h` tall from `y0`: bellied sides, a rounded shoulder and
+ * a nearly level top under the snow, its height even along it but for a gentle unevenness. `round`
+ * says which ends ([low, high] along its length) are clipped round; a square end is closed flat
+ * (it is meant to be buried in another hedge). Smooth-shaded, into a Geo.
+ */
+export function frostHedge(geo, x0, x1, z0, z1, y0 = 0, h = 0.8, round = [true, true]) {
+  const alongX = x1 - x0 >= z1 - z0, L = alongX ? x1 - x0 : z1 - z0, W = alongX ? z1 - z0 : x1 - x0;
+  if (!(L > 0 && W > 0)) return;
+  const r = rng(Math.round(x0 * 31 + z0 * 17) + 5), ph = [r() * 6.3, r() * 6.3, r() * 6.3], u0 = alongX ? x0 : z0;
+  const P = (u, w, y) => alongX ? [x0 + u, y0 + y, z0 + w] : [x0 + w, y0 + y, z0 + u];
+  // The stations along it: [u, width scale, height scale, turn of the texture]. A round end draws in over a quarter circle.
+  const Rr = Math.min(W * 0.55, L * 0.5), st = [], put = s => { if (!st.length || Math.abs(st[st.length - 1][0] - s[0]) > 1e-4) st.push(s); };
+  const nose = k => { const f = k * Math.PI / 8; return [Rr * (1 - Math.cos(f)), 0.5 + 0.5 * Math.sin(f), 0.8 + 0.2 * Math.sin(f), 1 - Math.sin(f)]; };
+  if (round[0]) for (let k = 0; k <= 4; k++) { const [u, a, b, e] = nose(k); put([u, a, b, -e]); } else put([0, 1, 1, 0]);
+  const uA = round[0] ? Rr : 0, uB = round[1] ? L - Rr : L, n = Math.max(1, Math.round((uB - uA) / 0.4));
+  for (let i = 1; i < n; i++) put([uA + (uB - uA) * i / n, 1, 1, 0]);
+  if (round[1]) for (let k = 4; k >= 0; k--) { const [u, a, b, e] = nose(k); put([L - u, a, b, e]); } else put([L, 1, 1, 0]);
+  // The section across it at each station: foot, bellied side, shoulder, crown, shoulder, side, foot.
+  // v runs up the hedge in the material: dark yew at the foot, frost thickening to the snow on top. Round
+  // a nose the texture's u carries on outward by the distance from the middle (`e`), both sides alike,
+  // so the speckle wraps round the end instead of being drawn out into streaks (one side faster than the
+  // other, so the fold at the middle of the end is not an exact mirror).
+  const NP = 11, pos = [], uvs = [];
+  for (const [u, kw, kh, e] of st) {
+    const c = 1 + 0.016 * Math.sin(u * 1.7 + ph[0]) + 0.01 * Math.sin(u * 4.3 + ph[1]) + (r() - 0.5) * 0.016, b = 0.07 + 0.02 * Math.sin(u * 2.3 + ph[2]) + r() * 0.015;
+    const sec = [[0, 0, 0], [-b, 0.3 * h, 0.28], [-0.75 * b, 0.64 * h, 0.56], [0.09 * W, 0.9 * h * c, 0.8], [0.3 * W, 0.99 * h * c, 0.92], [0.5 * W, h * c, 0.95],
+      [0.7 * W, 0.99 * h * c, 0.92], [0.91 * W, 0.9 * h * c, 0.8], [W + 0.75 * b, 0.64 * h, 0.56], [W + b, 0.3 * h, 0.28], [W, 0, 0]];
+    for (const [w, y, v] of sec) { const ww = (w - W / 2) * kw; pos.push(P(u, W / 2 + ww, y * kh)); uvs.push([(u0 + u + e * (Math.abs(ww) + 0.45 * ww)) / 1.4, v]); }
+  }
+  // The two ends, closed by a fan from a point a little proud of the last section (and one at the middle of its foot).
+  const tri = [], M = st.length, caps = [[0, -1, round[0]], [M - 1, 1, round[1]]];
+  for (const [row, s, rnd] of caps) { const [u, , kh] = st[row], d = s * (rnd ? Rr * 0.14 : 0); pos.push(P(u + d, W / 2, 0.45 * h * kh), P(u + d * 0.6, W / 2, 0)); uvs.push([(u0 + u) / 1.4, 0.32], [(u0 + u) / 1.4, 0]); }
+  for (let i = 0; i < M - 1; i++) for (let k = 0; k < NP - 1; k++) { const a = i * NP + k, b = a + NP; tri.push([a, b, b + 1], [a, b + 1, a + 1]); }
+  caps.forEach(([row], j) => { const ci = M * NP + 2 * j, r0 = row * NP; for (let k = 0; k < NP - 1; k++) tri.push([ci, r0 + k, r0 + k + 1]); tri.push([ci, r0 + NP - 1, ci + 1], [ci, ci + 1, r0]); });
+  // Every face turned outward (judged from a point on its spine), then normals smoothed over the faces round each corner.
+  const nrm = pos.map(() => [0, 0, 0]), lo = Math.min(L / 2, 0.5), hi = Math.max(L / 2, L - 0.5);
+  for (const t of tri) {
+    const [A, B, C] = t.map(i => pos[i]), e1 = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], e2 = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+    let nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0];
+    const g = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3, (A[2] + B[2] + C[2]) / 3], sp = P(Math.min(hi, Math.max(lo, alongX ? g[0] - x0 : g[2] - z0)), W / 2, 0.4 * h);
+    if (nx * (g[0] - sp[0]) + ny * (g[1] - sp[1]) + nz * (g[2] - sp[2]) < 0) { [t[1], t[2]] = [t[2], t[1]]; nx = -nx; ny = -ny; nz = -nz; }
+    for (const i of t) { nrm[i][0] += nx; nrm[i][1] += ny; nrm[i][2] += nz; }
+  }
+  const base = geo.p.length / 3;
+  pos.forEach((p, i) => { const q = nrm[i], l = Math.hypot(q[0], q[1], q[2]) || 1; geo.p.push(...p); geo.n.push(q[0] / l, q[1] / l, q[2] / l); geo.uv.push(...uvs[i]); if (geo.col) geo.c.push(...geo.col); });
+  for (const t of tri) geo.idx.push(base + t[0], base + t[1], base + t[2]);
 }
 
 // ------------------------------------------------------------------- trees

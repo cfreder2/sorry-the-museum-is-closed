@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { T, streetY } from './plan.js';
-import { winterTree, frostHedge, hedgeMaterial } from './frost.js';
+import { winterTree, frostHedges, hedgeMaterial } from './frost.js';
 import { buildBridgeway } from './bridgeway.js';
 import { buildEastSide } from './eastside.js';
 import { buildRailway } from './railway.js';
@@ -398,10 +398,10 @@ export function buildGrounds(museum, plan) {
       trees.setMatrixAt(i, M4); twigs.setMatrixAt(i, M4);
     });
     trees.frustumCulled = twigs.frustumCulled = false; group.add(trees, twigs);
-    // Hedges, with snow lying on top.
-    const hedge = new Geo(), cap = new Geo();
-    for (const h of G.hedges) frostHedge(hedge, h.x0, h.x1, h.z0, h.z1, 0, 0.86);
-    if (!hedge.empty) add(hedge.mesh(hedgeMaterial())); void cap;
+    // Hedges, with snow lying on top: unbroken round each garden, square where two sides meet at a corner.
+    const hedge = new Geo();
+    frostHedges(hedge, G.hedges, 0, 0.86);
+    if (!hedge.empty) add(hedge.mesh(hedgeMaterial()));
 
     // The South Garden's long pool, frozen, in its stone rim.
     const p = G.pool, rim = new Geo();

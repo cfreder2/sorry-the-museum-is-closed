@@ -11,7 +11,7 @@
 // and a planter or a hedge is only put where nothing else already stands or runs.
 
 import * as THREE from 'three';
-import { frostHedge, hedgeMaterial } from './frost.js';
+import { frostHedges, hedgeMaterial } from './frost.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -93,11 +93,15 @@ export function buildEastSide(museum, plan) {
       panel(x0, x1, z0, z1);
       // Paving under the arch and out through it to the pavement, as people walk it.
       flat(walk, a.x - 2.2, G.columbus.x0 - 5.2, a.z - a.open - 0.4, a.z + a.open + 0.4, 0.016, 2.5);
-      // A low hedge on the two street sides, with a way through in the middle of each.
-      const run = (hx0, hx1, hz0, hz1) => { if (!free(hx0, hx1, hz0, hz1)) return; frostHedge(hedge, hx0, hx1, hz0, hz1, 0, 0.86); O.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, y0: 0, y1: 0.8 }); plan.surfaces.push({ skin: 'wall', fixed: true, x0: hx0 - 0.05, x1: hx1 + 0.05, z0: hz0 - 0.05, z1: hz1 + 0.05, axis: null, h0: 0.88, h1: 0.88, base: 0 }); };
+      // A low hedge on the two street sides, with a way through in the middle of each, the two sides
+      // meeting at the corner (each length is tried carried into the corner first, then short of it).
+      // Every length is judged before any is laid, so that one side does not shut out the other.
+      const runs = [], run = (...tries) => { const t = tries.find(([hx0, hx1, hz0, hz1]) => free(hx0, hx1, hz0, hz1)); if (t) runs.push({ x0: t[0], x1: t[1], z0: t[2], z1: t[3] }); };
       const mx = (x0 + x1) / 2, mz = a.z;
-      run(x0, mx - 2, z0 - 0.9, z0 - 0.3); run(mx + 2, x1, z0 - 0.9, z0 - 0.3);
-      run(x1 + 0.3, x1 + 0.9, z0, mz - a.open - 0.8); run(x1 + 0.3, x1 + 0.9, mz + a.open + 0.8, z1);
+      run([x0, mx - 2, z0 - 0.9, z0 - 0.3]); run([mx + 2, x1 + 0.9, z0 - 0.9, z0 - 0.3], [mx + 2, x1, z0 - 0.9, z0 - 0.3]);
+      run([x1 + 0.3, x1 + 0.9, z0 - 0.9, mz - a.open - 0.8], [x1 + 0.3, x1 + 0.9, z0, mz - a.open - 0.8]); run([x1 + 0.3, x1 + 0.9, mz + a.open + 0.8, z1]);
+      for (const q of runs) { O.push({ ...q, y0: 0, y1: 0.8 }); plan.surfaces.push({ skin: 'wall', fixed: true, x0: q.x0 - 0.05, x1: q.x1 + 0.05, z0: q.z0 - 0.05, z1: q.z1 + 0.05, axis: null, h0: 0.88, h1: 0.88, base: 0 }); }
+      frostHedges(hedge, runs, 0, 0.86);
     }
   }
 
@@ -173,10 +177,11 @@ function buildCourt(museum, plan, { add, trim, snow, hedgeM }) {
   }
 
   // Clipped hedges round the edges, and a fir in two of the corners.
-  const hedge = (x0, x1, z0, z1, h = 0.95) => { if (blocked(x0, x1, z0, z1)) return; frostHedge(hedgeG, x0, x1, z0, z1, 0, h + 0.05); solid(x0, x1, z0, z1, h + 0.07); };
+  const hedges = [], hedge = (x0, x1, z0, z1, h = 0.95) => { if (blocked(x0, x1, z0, z1)) return; hedges.push({ x0, x1, z0, z1, h: h + 0.05 }); solid(x0, x1, z0, z1, h + 0.07); };
   hedge(X0, X0 + 0.8, Z0 + 0.6, S - 7);                                   // along the side towards the railway, stopping short of the door
   hedge(E - 4.6, E - 0.5, S - 1.5, S - 0.6); hedge(E - 1.3, E - 0.5, S - 7.5, S - 1.5);
   hedge(E - 1.3, E - 0.5, Z0 + 0.6, Z0 + 6);
+  frostHedges(hedgeG, hedges, 0);
   const parts = { green: [], white: [], wood: [], metal: [] };
   const put = (k, g, x, y, z) => { g.translate(x, y, z); parts[k].push(g); };
   const fir = (x, z, s) => {
