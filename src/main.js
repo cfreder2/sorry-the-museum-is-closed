@@ -1096,6 +1096,7 @@ function play(dt, real) {
     const stallNear = !!G.shop && G.mode === 'explore' && !G.poker.near(v) && G.shop.near(v);
     const easelNear = !stallNear && G.mode === 'explore' && !G.poker.near(v) && G.poker.facingEasel(v);
     const shopTap = stallNear && input.took('look'), easelTap = easelNear && input.took('look');
+    const setNear = G.mode === 'explore' && !stallNear && !easelNear && G.museum.setpieces ? G.museum.setpieces.near(v) : null, setTap = setNear && input.took('look');      // the stair window, the blue wall (setpieces.js)
     // Indoors: the easel you paint at, and the frame your picture hangs in.
     const paintNear = !!G.paint && G.mode === 'explore' && G.paint.near(v), frameNear = !!G.paint && !paintNear && G.mode === 'explore' && !G.facing && G.paint.facing(v);
     const paintTap = (paintNear || frameNear) && input.took('look');
@@ -1147,6 +1148,7 @@ function play(dt, real) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK';
       if (paintTap) { lookAtEasel(G.paint.art); const to = !G.paint.done && G.paint.studioSpot; if (to && G.nav) G.nav.goTo({ ...to, paint: true }); }      // an empty frame lights the way to the studio
     }
+    if (setNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (setTap) lookAtEasel(setNear); }
     if (easelNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (easelTap) { secrets.find('dogs'); lookAtEasel(G.poker.easel); } }
     if (G.repairNear) {
       secrets.find('repair'); once('repair', `A conveyor belt, a lamp, and a queue of paintings that need seeing to. ${input.usedTouch ? 'REPAIR' : 'E'} to clock on.`, 7);

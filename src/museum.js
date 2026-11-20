@@ -11,6 +11,7 @@ import { buildRoofscape } from './roofscape.js';
 import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
 import { furnish, MATERIALS } from './furnish.js';
+import { buildSetPieces } from './setpieces.js';
 
 // ---------------------------------------------------------------- geometry --
 
@@ -960,6 +961,7 @@ export class Museum {
     glow.rotation.x = -Math.PI / 2; glow.position.set(dx + 0.05, dy + 1.075, dz);
     this.group.add(shade, stem, glow);
     this._buildFitout();
+    this.setpieces = buildSetPieces(this, this.plan);
   }
 
   // Back of house: desks, racks, boilers. src/furnish.js decides what stands where and hands back
