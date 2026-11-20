@@ -135,7 +135,8 @@ function decksFrom(tall, pieces, y, name, voids = []) {
   deck('G200-north-side', r.id, { x0: fx0, x1: r.x1, z0: r.z0, z1: r.z0 + side }, L2, ['s']);
   deck('G200-south-side', r.id, { x0: fx0, x1: r.x1, z0: r.z1 - side, z1: r.z1 }, L2, ['n']);
   deck('G200-east', r.id, { x0: r.x1 - 4.5, x1: r.x1, z0: r.z0 + side, z1: r.z1 - side }, L2, ['w']);
-  ramp('G200-down', r.id, fx0 + 1, fx0 + 15, r.z1 - 3, r.z1, 'x', 0, LEVELS.LL);
+  // (Kept 1.4 m off the south wall: the doorways in that wall, on this floor and the one below, open onto floor and not onto the stair.)
+  ramp('G200-down', r.id, fx0 + 1, fx0 + 15, r.z1 - 3, r.z1 - 1.4, 'x', 0, LEVELS.LL);
   links.push(['G200', 'G10']);
   for (const id of ['G100', 'G200']) used.add(id);
 }
@@ -285,7 +286,23 @@ function join(a, b, y, maxGap = 3.01) {
     if (hi - lo < 1.9) continue;
     const low = Math.min(a.top, b.top) - y, staff = a.assumed || b.assumed;
     // A gallery doorway is about a third of the wall it is in and never more than 2.6 m: the rest of the wall is for pictures.
-    const w = Math.min(staff ? 1.8 : Math.min(2.6, Math.max(1.6, (hi - lo) * 0.3)), hi - lo - 0.4), c = r2((lo + hi) / 2);
+    let w = Math.min(staff ? 1.8 : Math.min(2.6, Math.max(1.6, (hi - lo) * 0.3)), hi - lo - 0.4), c = r2((lo + hi) / 2);
+    // Into a stair tower, a doorway opens onto a landing: never onto the side of a flight, nor over the well. On the
+    // tower's own floor that is wherever no flight stands; higher up, the landing built at that level.
+    { let ok = true;
+      for (const t of [a, b]) {
+        if (t.use !== 'stair') continue;
+        const ax = fa.s === 'e' ? 'z' : 'x', ox = ax === 'z' ? 'x' : 'z', P = q => [q[ax + '0'], q[ax + '1']];
+        const off = q => t === b ? q[ox + '0'] - fb.at : fa.at - q[ox + '1'];      // how far a thing in the tower stands back from this wall
+        let free = same(y, t.y) ? [[t[ax + '0'], t[ax + '1']]] : decks.filter(k => k.room === t.id && same(k.y, y) && off(k) < 0.3).map(P);
+        if (same(y, t.y)) for (const q of ramps) if (q.room === t.id && Math.min(q.y0, q.y1) < y + 2.4 && off(q) < 1.4) free = free.flatMap(([p0, p1]) => { const [q0, q1] = P(q), out = []; if (q0 - p0 > 0.01) out.push([p0, Math.min(p1, q0)]); if (p1 - q1 > 0.01) out.push([Math.max(p0, q1), p1]); return q1 <= p0 || q0 >= p1 ? [[p0, p1]] : out; });
+        free = free.map(([p0, p1]) => [Math.max(p0, lo) + 0.15, Math.min(p1, hi) - 0.15]).filter(([p0, p1]) => p1 - p0 >= 1.2);
+        if (!free.length) { ok = false; break; }
+        if (free.some(([p0, p1]) => c - w / 2 >= p0 && c + w / 2 <= p1)) continue;      // already on a landing: leave it be
+        const best = free.sort((p, q) => Math.abs((p[0] + p[1]) / 2 - c) - Math.abs((q[0] + q[1]) / 2 - c))[0];
+        w = Math.min(w, r2(best[1] - best[0])); c = r2(Math.max(best[0] + w / 2, Math.min(best[1] - w / 2, c)));
+      }
+      if (!ok) continue; }
     const d = fa.s === 'e' ? { a: a.id, b: b.id, along: 'x', x0: fa.at, x1: fb.at, z0: r2(c - w / 2), z1: r2(c + w / 2), y } : { a: a.id, b: b.id, along: 'z', x0: r2(c - w / 2), x1: r2(c + w / 2), z0: fa.at, z1: fb.at, y };
     d.h = doorHeight(d, a, b);
     if (d.h < 1.2 || blocked(d, y)) continue;
