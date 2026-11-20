@@ -169,6 +169,11 @@ export class Telemetry {
     return this.call('/rest/v1/rpc/museum_top_views', { n }).then(r => (r && r.status === 200 && Array.isArray(r.data) ? r.data : null));
   }
 
+  /** Everybody's totals: { patrons, works, looks }, or null. */
+  totals() {
+    return this.call('/rest/v1/rpc/museum_view_totals', {}).then(r => { const d = r && r.status === 200 ? (Array.isArray(r.data) ? r.data[0] : r.data) : null; return d && d.patrons != null ? d : null; });
+  }
+
   /** In through the wall, the window or the roof. */
   inside(how) { if (this.gotIn) return; this.gotIn = how; this.gotInSecs = Math.round(this.play); this.event('in', how); if (this.started) this.flush(); }
   /** A room entered: reported the first time in a session. */

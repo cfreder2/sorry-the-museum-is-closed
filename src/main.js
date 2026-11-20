@@ -385,24 +385,36 @@ function titleButtons() {
   $('bNew').hidden = !game;
 }
 
+// A count short enough to sit in a sentence: 1, 10, 999, 1.5k, 12k, 999k, 1.2M.
+export function short(n) {
+  n = Math.max(0, Math.round(+n || 0));
+  if (n < 1000) return String(n);
+  const [div, unit] = n >= 1e9 ? [1e9, 'B'] : n >= 1e6 ? [1e6, 'M'] : [1e3, 'k'], v = n / div;
+  return (v < 10 ? String(Math.floor(v * 10) / 10).replace(/\.0$/, '') : String(Math.floor(v))) + unit;
+}
+
 // The title screen's tally of art admired: what you have looked at closely and come across, and,
-// when the server answers, what everybody has between them and which works they keep going back to.
+// when the server answers, how many patrons have enjoyed how many pieces and which they go back to.
 function admired() {
   const m = G.museum; if (!m) return;
-  const b = n => `<b>${Number(n).toLocaleString()}</b>`;
-  $('adYou').innerHTML = `${b(score.looked)} looked at closely \u00b7 ${b(m.seenCount)} discovered \u00b7 of ${b(m.arts.length)} on view`;
+  const b = n => `<b>${short(n)}</b>`;
+  $('adYou').innerHTML = `${b(score.looked)} looked at \u00b7 ${b(m.seenCount)} found \u00b7 ${b(m.arts.length)} on view`;
   $('admired').hidden = false;
   if (admired.asked && Date.now() - admired.asked < 600e3) return;
   admired.asked = Date.now();
-  const ask = tm.topViews ? tm.topViews(2000) : null;
-  if (ask && ask.then) ask.then(rows => {
+  const ask = tm.totals ? tm.totals() : null;
+  if (ask && ask.then) ask.then(t => {
+    if (!t || !(+t.works > 0)) return;
+    const p = Math.max(1, +t.patrons || 0), w = +t.works;
+    $('paLine').innerHTML = `${b(p)} patron${p === 1 ? ' has' : 's have'} enjoyed ${b(w)} art piece${w === 1 ? '' : 's'}`;
+    $('patrons').hidden = false;
+  }).catch(() => {});
+  const top = tm.topViews ? tm.topViews(3) : null;
+  if (top && top.then) top.then(rows => {
     if (!rows || !rows.length) return;
-    const total = rows.reduce((s, r) => s + (+r.views || 0), 0);
-    $('adAll').innerHTML = `${b(total)} look${total === 1 ? '' : 's'} at ${b(rows.length)} work${rows.length === 1 ? '' : 's'}`;
-    $('adAllRow').hidden = false;
-    const top = $('adTop'); top.textContent = '';
-    rows.slice(0, 3).forEach((r, i) => { if (i) top.append(' \u00b7 '); const t = document.createElement('i'); t.textContent = String(r.title || 'Untitled').slice(0, 60); top.append(t, ` ${(+r.views).toLocaleString()}`); });
-    $('adTopRow').hidden = false;
+    const el = $('paTop'); el.textContent = 'Most admired: ';
+    rows.slice(0, 3).forEach((r, i) => { if (i) el.append(' \u00b7 '); const t = document.createElement('i'); t.textContent = String(r.title || 'Untitled').slice(0, 44); el.append(t, ` ${short(r.views)}`); });
+    el.hidden = false;
   }).catch(() => {});
 }
 

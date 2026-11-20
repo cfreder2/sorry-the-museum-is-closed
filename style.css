@@ -448,7 +448,7 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 #admired .adlab { flex: none; width: 9.5em; color: var(--gilt-dim); text-transform: uppercase; letter-spacing: .1em; font-size: 10.5px; }
 #admired b { color: var(--gilt); font-weight: 600; }
 #admired i { font-style: italic; font-family: var(--serif); letter-spacing: 0; font-size: 13.5px; }
-@media (max-height: 460px) { #admired { font-size: 10.5px; margin: 5px 0 0; gap: 1px; } #admired .adlab { width: 8.5em; font-size: 9.5px; } #admired i { font-size: 11.5px; } }
+@media (max-height: 460px) { #admired { white-space: nowrap; font-size: 10.5px; margin: 5px 0 0; gap: 1px; } #admired .adlab { width: 8.5em; font-size: 9.5px; } #admired i { font-size: 11.5px; } }
 
 /* the headlamp button: the lamp-and-beams sign from a dashboard, so it is not mistaken for a room's light switch */
 #pads #bLights svg { width: 30px; height: 20px; display: block; margin: 0 auto; }
@@ -464,5 +464,12 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 @media (max-height: 460px) { #pauseStats { font-size: 10.5px; line-height: 1.4; margin-bottom: 6px; } #pauseStats .art, #pauseStats .pts { display: inline; font-size: 12px; margin-right: 12px; } #pauseStats .art b, #pauseStats .pts b { font-size: 13px; } }
 
 /* which version this is, small, at the foot of the title screen */
+/* everybody's count, bottom right, clear of the menu */
+#patrons { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: max(40px, calc(env(safe-area-inset-bottom) + 40px)); max-width: min(46vw, 520px); text-align: right; color: var(--cream); text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+#paLine { font: italic 19px/1.25 var(--serif); }
+#paLine b { font-style: normal; font-weight: 600; color: var(--gilt); }
+#paTop { margin-top: 4px; font: 10.5px/1.45 var(--mono); letter-spacing: .04em; color: var(--gilt-dim); }
+#paTop i { font: italic 12.5px var(--serif); letter-spacing: 0; color: var(--cream); }
+@media (max-height: 460px) { #patrons { right: max(12px, env(safe-area-inset-right)); bottom: max(26px, calc(env(safe-area-inset-bottom) + 26px)); max-width: 44vw; } #paLine { font-size: 14.5px; } #paTop { font-size: 9.5px; } #paTop i { font-size: 11px; } }
 #build { font: 11px var(--mono); letter-spacing: .1em; color: var(--gilt-dim); margin-top: 8px; opacity: .85; }
 @media (max-height: 460px) { #build { position: fixed; right: max(12px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); margin: 0; font-size: 10px; } }
