@@ -1,6 +1,7 @@
 // The shared kit for things to find and do. Every gallery set-piece, little secret and outdoor game is a
 // "feature": a plain object registered here, which main.js runs through one hook. Nothing else in main.js
 // has to change to add one. Use this, and the helpers below, rather than writing your own.
+// A worked example, start to finish: src/lostfound.js (placed once, instanced, carried, handed in, counted).
 //
 //   import { feature } from './features.js';
 //   feature({
@@ -27,6 +28,8 @@
 //   k.synth               small synthesised sounds: k.synth.note(freq, dur, opts), k.synth.chime(freqs), k.synth.noise(dur, opts)
 //   k.camClose            set to { at: {x,y,z}, look: {x,y,z} } from update() to stand the chase camera there this frame (inside a small
 //                         enclosure, say, where the usual camera behind the toy would end up in a wall). Cleared before each update round.
+//   k.tally(key, total)   a set of things to collect across the building, remembered between visits:
+//                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done
 
 export const features = [];
 export function feature(f) { features.push(f); return f; }
@@ -129,6 +132,16 @@ export function startFeatures(o) {
           return 'in';
         } };
       return L;
+    },
+    // A "collect N of a set across the building" counter (mice followed, notes read, lost things returned, lions
+    // counted...), kept in localStorage so it lasts between visits.
+    tally(key, total) {
+      const store = 'after-hours.tally.' + key; let got;
+      try { got = new Set(JSON.parse(localStorage.getItem(store) || '[]')); } catch { got = new Set(); }
+      return {
+        total, has: id => got.has(id), get count() { return got.size; }, get done() { return got.size >= total; },
+        add(id) { if (got.has(id)) return false; got.add(id); try { localStorage.setItem(store, JSON.stringify([...got])); } catch { } return true; },
+      };
     },
   };
   k.carry = new Carry(k);
