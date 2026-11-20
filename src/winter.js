@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
-import { onSnow, heightOf } from './plan.js';
+import { onSnow, heightOf, carve } from './plan.js';
 
 export function buildWinter(museum, plan) {
   const G = plan.grounds, B = plan.bounds, group = museum.group;
@@ -19,6 +19,8 @@ export function buildWinter(museum, plan) {
   const add = (...ms) => { for (const m of ms) group.add(fix(m)); };
   const std = o => new THREE.MeshStandardMaterial(o);
   const snowTex = museum.snowTex;
+  // The shovelled paths, less whatever of them a building now stands on: a path is not laid through a room.
+  const openPaths = G.paths.flatMap(q => carve(q, plan.masses.filter(m => m.x0 < q.x1 && m.x1 > q.x0 && m.z0 < q.z1 && m.z1 > q.z0)));
   const snow = std({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.3, 0.36, 0.52), emissiveIntensity: 0.55 });
   const white = std({ color: 0xf2f5fb, roughness: 0.95, emissive: 0x596a8c, emissiveIntensity: 0.55 });
   const ice = std({ color: 0xcfe6f5, roughness: 0.1, transparent: true, opacity: 0.8, emissive: 0x5a7f9c, emissiveIntensity: 0.7 });
@@ -31,9 +33,9 @@ export function buildWinter(museum, plan) {
   // ------------------------------------------------------------------ paths
   {
     const pv = TX.paving(), S = 2.4, paths = new Geo(), ridge = new Geo();
-    for (const q of G.paths) paths.quad([q.x0, 0.007, q.z0], [q.x1, 0.007, q.z0], [q.x1, 0.007, q.z1], [q.x0, 0.007, q.z1], [0, 1, 0], [[q.x0 / S, q.z0 / S], [q.x1 / S, q.z0 / S], [q.x1 / S, q.z1 / S], [q.x0 / S, q.z1 / S]]);
+    for (const q of openPaths) paths.quad([q.x0, 0.007, q.z0], [q.x1, 0.007, q.z0], [q.x1, 0.007, q.z1], [q.x0, 0.007, q.z1], [0, 1, 0], [[q.x0 / S, q.z0 / S], [q.x1 / S, q.z0 / S], [q.x1 / S, q.z1 / S], [q.x0 / S, q.z1 / S]]);
     // What came off the path lies in a low bank down each side of it, wherever there is snow beside it.
-    for (const q of G.paths) {
+    for (const q of openPaths) {
       const alongX = q.x1 - q.x0 > q.z1 - q.z0, a = alongX ? q.x0 : q.z0, b = alongX ? q.x1 : q.z1;
       for (const edge of alongX ? [q.z0 - 0.16, q.z1 + 0.16] : [q.x0 - 0.16, q.x1 + 0.16]) {
         let from = null;

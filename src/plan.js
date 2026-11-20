@@ -1004,6 +1004,9 @@ function addStunts(plan) {
   }
   // Snow, banked up into humps on the shovelled paths.
   const hump = (x, z, axis, hh = 0.36, run = 1.5, w = 1.1) => {
+    // Only where there is open ground for it: the buildings have grown since these paths were first walked.
+    const fx = axis === 'x' ? run : w, fz = axis === 'x' ? w : run;
+    if (plan.masses.some(m => x + fx > m.x0 - 0.5 && x - fx < m.x1 + 0.5 && z + fz > m.z0 - 0.5 && z - fz < m.z1 + 0.5)) return;
     if (axis === 'x') { push('snow', [x - run, x, z - w, z + w], 'x', 0, hh, { ease: true }); push('snow', [x, x + run, z - w, z + w], 'x', hh, 0, { ease: true }); }
     else { push('snow', [x - w, x + w, z - run, z], 'z', 0, hh, { ease: true }); push('snow', [x - w, x + w, z, z + run], 'z', hh, 0, { ease: true }); }
   };
