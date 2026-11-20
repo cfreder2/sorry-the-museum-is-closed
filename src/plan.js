@@ -160,7 +160,9 @@ export function buildPlan() {
   const massOf = Object.fromEntries(masses.map(m => [m.room.id, m]));
   // The front wall itself, and the solid between it and the rooms.
   // It stands a little higher than the rooms behind it, however many storeys of them there are: a plain attic over the cornice.
-  const WING = Math.max(9.6, ...west.map(r => r.top + 1.1)), PAV = WING + 3;
+  // (Measured off photographs against the people on the pavement: the wings' cornice is about 18.5 m above the terrace, the
+  // pavilion's about 20.5, and the pavilion is about 32 m wide. The steps run on past it to the lions, 26 m either side of the door.)
+  const WING = Math.max(18.5, ...west.map(r => r.top + 1.1)), PAV = WING + 2, HALF = 16, STEPS = 24.2, LION = 26.4;
   const cuts = [...new Set(west.flatMap(r => [r.z0 - T, r.z1 + T]))].sort((a, b) => a - b);
   for (let i = 0; i < cuts.length - 1; i++) {
     const a = cuts[i], b = cuts[i + 1], mid = (a + b) / 2;
@@ -168,8 +170,8 @@ export function buildPlan() {
     const behind = Math.min(FX + 6, ...rooms.filter(r => r.top > 0.5 && r.x0 < 60 && r.z0 - T <= mid && r.z1 + T >= mid).map(r => r.x0 - T));
     masses.push({ x0: FX, x1: behind, z0: a, z1: b, top: WING, facade: true });
   }
-  masses.push({ x0: PX, x1: FX, z0: fz - 13, z1: fz + 13, top: PAV, facade: true, pavilion: true });
-  const facade = { FX, PX, z0: cuts[0], z1: cuts[cuts.length - 1], cz: fz, half: 13, wing: WING, pav: PAV };
+  masses.push({ x0: PX, x1: FX, z0: fz - HALF, z1: fz + HALF, top: PAV, facade: true, pavilion: true });
+  const facade = { FX, PX, z0: cuts[0], z1: cuts[cuts.length - 1], cz: fz, half: HALF, wing: WING, pav: PAV, steps: STEPS, lion: LION };
   // The city block: Michigan Avenue to the west, Monroe to the north, Columbus to the east, Jackson to the south.
   const up = rooms.filter(r => r.top > 0.5), xs = up.flatMap(r => [r.x0, r.x1]), zs = up.flatMap(r => [r.z0, r.z1]);
   // (East of Columbus Drive the world goes on across the park to the lake: `cx1` is where the block itself ends.)
@@ -537,7 +539,7 @@ function addGrounds(plan) {
   // each climbing east over `run` metres.
   const SX = 7, SY = -1.2, nz = 18.5, sz = 204;
   plan.street = { x: SX, y: SY, reach: 12, ways: [
-    { id: 'steps', z0: F.cz - 11.1, z1: F.cz + 11.1, run: 5.6, land: [1.8, 3.8], stairs: 8, ramps: [[F.cz - 11.1, F.cz - 8.5], [-1.5 + F.cz, F.cz + 1.5], [F.cz + 8.5, F.cz + 11.1]] },       // two flights and a landing
+    { id: 'steps', z0: F.cz - F.steps, z1: F.cz + F.steps, run: 5.6, land: [1.8, 3.8], stairs: 8, ramps: [[F.cz - F.steps, F.cz - F.steps + 2.6], [-1.5 + F.cz, F.cz + 1.5], [F.cz + F.steps - 2.6, F.cz + F.steps]] },       // two flights and a landing
     { id: 'north', z0: nz - 3, z1: nz + 3, run: 3.6, stairs: 8, ramps: [[nz - 3, nz - 0.4]] }, { id: 'south', z0: sz - 3, z1: sz + 3, run: 3.6, stairs: 8, ramps: [[sz + 0.4, sz + 3]] },
     { id: 'monroe', z0: B.z0 - 1, z1: -24, run: 12, road: true }, { id: 'jackson', z0: 244, z1: B.z1 + 1, run: 12, road: true }] };
   // The wall that holds the terrace up, between the ways.
@@ -561,7 +563,7 @@ function addGrounds(plan) {
   G.pool = { x0: 34, x1: Math.min(56, mw - 11), z0: 191.5, z1: 201.5 };
   G.calder = { x: 42.5, z: 26 };
   plan.ice = [G.pool];                                   // frozen over
-  plan.paved = [{ x0: G.michigan.x0, x1: SX + 0.3, z0: B.z0, z1: B.z1 }, { x0: SX, x1: SX + 5.7, z0: F.cz - 11.1, z1: F.cz + 11.1 }, { x0: SX + 5.6, x1: F.PX, z0: F.cz - 3.4, z1: F.cz + 3.4 }, { x0: F.PX - 2.4, x1: F.PX, z0: F.cz - 11, z1: F.cz + 11 }, { x0: SX, x1: SX + 12, z0: B.z0, z1: -24 }, { x0: SX, x1: SX + 12, z0: 244, z1: B.z1 }, { x0: SX, x1: 12, z0: nz - 3, z1: nz + 3 }, { x0: SX, x1: 12, z0: sz - 3, z1: sz + 3 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
+  plan.paved = [{ x0: G.michigan.x0, x1: SX + 0.3, z0: B.z0, z1: B.z1 }, { x0: SX, x1: SX + 5.7, z0: F.cz - F.steps, z1: F.cz + F.steps }, { x0: SX + 5.6, x1: F.PX, z0: F.cz - 3.4, z1: F.cz + 3.4 }, { x0: F.PX - 2.4, x1: F.PX, z0: F.cz - F.half, z1: F.cz + F.half }, { x0: SX, x1: SX + 12, z0: B.z0, z1: -24 }, { x0: SX, x1: SX + 12, z0: 244, z1: B.z1 }, { x0: SX, x1: 12, z0: nz - 3, z1: nz + 3 }, { x0: SX, x1: 12, z0: sz - 3, z1: sz + 3 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
   // Ground the stunt park must keep off.
   plan.reserved = [{ x0: B.x0, x1: F.FX + 2, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: B.z0, z1: G.monroe.z1 + 2 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0 - 2, z1: B.z1 }, { x0: G.columbus.x0 - 2, x1: B.x1, z0: B.z0, z1: B.z1 },
     { x0: G.rail.x0 - 2, x1: G.rail.x1 + 2, z0: B.z0, z1: B.z1 }, G.north, G.south];
@@ -613,7 +615,7 @@ function addGrounds(plan) {
     { x: G.tree.x, z: G.tree.z, r: 12, text: 'The courtyard tree. You fit under the lowest branches.' },
   ];
   // Somebody has been building snowmen.
-  G.snowmen = [[12.6, F.cz - 19.4, 1], [13.1, F.cz + 18.6, 0.82], [32.6, 21.6, 1.05], [39.2, 15.2, 0.8], [152.5, 82, 1.1], [166, 93.2, 0.78], [170.5, 79.4, 0.95], [243.5, 136.5, 1], [206.5, 161, 0.85], [41.2, 207.6, 1.1], [30.5, 187.5, 0.8]].map(([x, z, s]) => ({ x, z, s }));
+  G.snowmen = [[13.6, F.cz - 30.4, 1], [14.1, F.cz + 29.6, 0.82], [32.6, 21.6, 1.05], [39.2, 15.2, 0.8], [152.5, 82, 1.1], [166, 93.2, 0.78], [170.5, 79.4, 0.95], [243.5, 136.5, 1], [206.5, 161, 0.85], [41.2, 207.6, 1.1], [30.5, 187.5, 0.8]].map(([x, z, s]) => ({ x, z, s }));
   // One that a building now stands on has been rebuilt beside the tree.
   G.snowmen.filter(m => inMass(m.x, m.z, 0.6)).forEach((m, i) => { const a = 0.9 + i * 2.1; m.x = G.tree.x + Math.cos(a) * 7.5; m.z = G.tree.z + Math.sin(a) * 7.5; });
   const keepOff = (x, z) => G.paths.some(q => x > q.x0 - 0.9 && x < q.x1 + 0.9 && z > q.z0 - 0.9 && z < q.z1 + 0.9) || G.snowmen.some(m => Math.hypot(x - m.x, z - m.z) < 1.4)
@@ -627,7 +629,7 @@ function addGrounds(plan) {
     if (Math.hypot(x - G.fountain.x, z - G.fountain.z) < 9) continue;
     tree(x, z, 'hawthorn');
   }
-  for (let z = B.z0 + 10; z < B.z1 - 6; z += 13) if (Math.abs(z - F.cz) > 21 && !(z > G.monroe.z0 - 2 && z < G.monroe.z1 + 2) && !(z > G.jackson.z0 - 2 && z < G.jackson.z1 + 2)) tree(3.4, z, 'locust');       // not in the mouths of the side streets
+  for (let z = B.z0 + 10; z < B.z1 - 6; z += 13) if (Math.abs(z - F.cz) > F.lion + 3 && !(z > G.monroe.z0 - 2 && z < G.monroe.z1 + 2) && !(z > G.jackson.z0 - 2 && z < G.jackson.z1 + 2)) tree(3.4, z, 'locust');       // not in the mouths of the side streets
   // And a row along Columbus Drive, on the pavement's edge.
   for (let z = G.monroe.z1 + 8; z < G.jackson.z0 - 6; z += 12.5) if (Math.abs(z + 14) > 4.2 && Math.abs(z - 110) > 6) tree(G.columbus.x0 - 1.4, z, 'locust');      // not across the arch, nor the east door
   // Street trees in grates along the block's side of Monroe Street and Jackson Drive (streets.js draws the grates).
@@ -642,7 +644,7 @@ function addGrounds(plan) {
   }
   O.push({ x0: G.fountain.x - 3.2, x1: G.fountain.x + 3, z0: G.fountain.z - 4.4, z1: G.fountain.z + 4.4, y0: 0, y1: 5 });
   O.push({ x0: G.calder.x - 0.5, x1: G.calder.x + 0.5, z0: G.calder.z - 0.5, z1: G.calder.z + 0.5, y0: 0, y1: 4 });
-  { const l = plan.facade; plan.outdoorArt.push({ x: 6.1, z: l.cz - 13.6, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.' }, { x: 6.1, z: l.cz + 13.6, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.', same: true }); }
+  { const l = plan.facade; plan.outdoorArt.push({ x: 6.1, z: l.cz - l.lion, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.' }, { x: 6.1, z: l.cz + l.lion, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.', same: true }); }
   // A commuter train, stopped for the night in the cutting north of the bridge.
   const bridge = plan.masses.filter(q => q.x0 < G.rail.x1 && q.x1 > G.rail.x0).sort((a, b) => a.z0 - b.z0);
   G.railGaps = [];
@@ -684,7 +686,7 @@ function addGrounds(plan) {
   for (const sgn of [-1, 1]) {
     // On the two great blocks that end the steps, as they are.
     // At the foot of the steps, out by the pavement, on blocks about as tall as a person.
-    const lion = { x: plan.street.x - 0.9, z: F.cz + sgn * 13.6, y: plan.street.y, h: 1.55 };
+    const lion = { x: plan.street.x - 0.9, z: F.cz + sgn * F.lion, y: plan.street.y, h: 1.55 };
     plan.lions.push(lion);
     O.push({ x0: lion.x - 2.3, x1: lion.x + 2.3, z0: lion.z - 1.0, z1: lion.z + 1.0, y0: lion.y - 0.3, y1: 2.6 });
   }
@@ -692,6 +694,7 @@ function addGrounds(plan) {
   for (let zz = B.z0 + 16; zz < B.z1 - 6; zz += 26) lamp(1.7, zz + (Math.abs(zz - F.cz) < 3 ? 6 : 0));
   for (const d of plan.doors) if (d.out && !d.vent) {
     const r = plan.byId[d.a], cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
+    if (d === plan.front) continue;                      // the front door has its own lamp standards (grounds.js)
     if (d.along === 'x') { const w = d.x0 < r.x0, ex = w ? d.x0 - 2.2 : d.x1 + 2.2; for (const sg of [-1, 1]) lamp(ex, cz + sg * (d === plan.front ? 6.6 : 3)); }
     else { const n = d.z0 < r.z0, ez = n ? d.z0 - 2.2 : d.z1 + 2.2; for (const sg of [-1, 1]) lamp(cx + sg * 3, ez); }
   }

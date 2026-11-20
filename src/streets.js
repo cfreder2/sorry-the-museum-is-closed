@@ -182,7 +182,7 @@ export function buildStreets(museum, plan) {
   // ---- Michigan Avenue, the museum's side (pavement x M.x1..SX, at the avenue's level)
   const px = M.x1 + 1.25;                                             // the kerb line the furniture keeps to
   // Bollards before the steps, leaving the crossing clear.
-  for (let z = cz - 10; z <= cz + 10.01; z += 2.5) if (Math.abs(z - cz) > 3.6) bollard(px + 0.1, z);
+  for (let z = cz - 22.5; z <= cz + 22.51; z += 2.5) if (Math.abs(z - cz) > 3.6) bollard(px + 0.1, z);
   // The bus stop: a glass shelter with a bench in it, a pole with the route plate, and the kerb painted.
   { const z0 = 62.8, z1 = 67.6, x0 = M.x1 + 0.9, x1 = x0 + 1.5, y = AV, HT = 2.5;
     for (const [x, z] of [[x0, z0], [x0, z1], [x1, z0], [x1, z1]]) { g.black.box(x - 0.04, x + 0.04, y, y + HT, z - 0.04, z + 0.04); ob(x - 0.05, x + 0.05, z - 0.05, z + 0.05, y, y + HT); }
@@ -194,7 +194,7 @@ export function buildStreets(museum, plan) {
     flat(g.yellow, M.x1 - 0.5, M.x1 - 0.25, z0 - 6, z1 + 8, AV + 0.008);
     for (const [zz, t] of [[z0 - 5, 0], [z1 + 7, 0]]) flat(g.white, -3.4, M.x1 - 0.6, zz - 0.1 + t, zz + 0.1 + t, AV + 0.008); }
   // The rest, kept off the ways up to the terrace, the lions and the trees.
-  const clearOfWays = z => !S.ways.some(w => z > w.z0 - 3 && z < w.z1 + 3) && Math.abs(Math.abs(z - cz) - 13.6) > 3.4 && !(z > 58 && z < 72);
+  const clearOfWays = z => !S.ways.some(w => z > w.z0 - 3 && z < w.z1 + 3) && Math.abs(Math.abs(z - cz) - F.lion) > 3.4 && !(z > 58 && z < 72);
   let k = 0;
   for (let z = B.z0 + 22; z < B.z1 - 20; z += 19.5, k++) {
     if (!clearOfWays(z)) continue;
