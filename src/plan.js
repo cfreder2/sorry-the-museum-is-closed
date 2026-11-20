@@ -635,7 +635,8 @@ function addGrounds(plan) {
   // Street trees in grates along the block's side of Monroe Street and Jackson Drive (streets.js draws the grates).
   for (let x = 51; x < G.columbus.x0 - 10; x += 23) if (!(x > G.rail.x0 - 8 && x < G.rail.x1 + 8)) { tree(x, G.monroe.z1 + 1.3, 'locust'); tree(x, G.jackson.z0 - 1.3, 'locust'); }
   // Low hedges round both gardens, with gaps to get in by.
-  const hedge = (x0, x1, z0, z1) => { G.hedges.push({ x0, x1, z0, z1 }); O.push({ x0, x1, z0, z1, y0: 0, y1: 0.9 }); };
+  // A hedge stops you from the side, and its clipped top can be landed on and driven along.
+  const hedge = (x0, x1, z0, z1) => { G.hedges.push({ x0, x1, z0, z1 }); O.push({ x0, x1, z0, z1, y0: 0, y1: 0.8 }); plan.surfaces.push({ skin: 'wall', fixed: true, x0: x0 - 0.05, x1: x1 + 0.05, z0: z0 - 0.05, z1: z1 + 0.05, axis: null, h0: 0.88, h1: 0.88, base: 0 }); };
   for (const g of [G.north, G.south]) {
     const mx = (g.x0 + g.x1) / 2, mz = (g.z0 + g.z1) / 2;
     hedge(g.x0, mx - 3, g.z0, g.z0 + 0.7); hedge(mx + 3, g.x1, g.z0, g.z0 + 0.7);

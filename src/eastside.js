@@ -94,7 +94,7 @@ export function buildEastSide(museum, plan) {
       // Paving under the arch and out through it to the pavement, as people walk it.
       flat(walk, a.x - 2.2, G.columbus.x0 - 5.2, a.z - a.open - 0.4, a.z + a.open + 0.4, 0.016, 2.5);
       // A low hedge on the two street sides, with a way through in the middle of each.
-      const run = (hx0, hx1, hz0, hz1) => { if (!free(hx0, hx1, hz0, hz1)) return; frostHedge(hedge, hx0, hx1, hz0, hz1, 0, 0.86); O.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, y0: 0, y1: 0.9 }); };
+      const run = (hx0, hx1, hz0, hz1) => { if (!free(hx0, hx1, hz0, hz1)) return; frostHedge(hedge, hx0, hx1, hz0, hz1, 0, 0.86); O.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, y0: 0, y1: 0.8 }); plan.surfaces.push({ skin: 'wall', fixed: true, x0: hx0 - 0.05, x1: hx1 + 0.05, z0: hz0 - 0.05, z1: hz1 + 0.05, axis: null, h0: 0.88, h1: 0.88, base: 0 }); };
       const mx = (x0 + x1) / 2, mz = a.z;
       run(x0, mx - 2, z0 - 0.9, z0 - 0.3); run(mx + 2, x1, z0 - 0.9, z0 - 0.3);
       run(x1 + 0.3, x1 + 0.9, z0, mz - a.open - 0.8); run(x1 + 0.3, x1 + 0.9, mz + a.open + 0.8, z1);

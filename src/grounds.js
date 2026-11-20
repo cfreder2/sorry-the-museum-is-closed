@@ -92,7 +92,11 @@ export function buildGrounds(museum, plan) {
       const end = a === F.z0 ? a : b, nz = a === F.z0 ? -1 : 1;
       // It goes back as far as the rooms do: stop short and you can see in round the corner.
       const fill = plan.masses.find(q => q.facade && !q.pavilion && Math.abs((a === F.z0 ? q.z0 : q.z1) - end) < 0.01), back = Math.max(FX + 4, fill ? fill.x1 : 0);
-      wall.quad([FX, 0, end], [back, 0, end], [back, WH, end], [FX, WH, end], [0, 0, nz], [[0, 0], [(back - FX) / 2.6, 0], [(back - FX) / 2.6, WH / 2.6], [0, WH / 2.6]]);
+      // Where a room stands behind, its own wall is the wall: only the thickness of the front (which stands taller than the room)
+      // is drawn here, a finger's width proud, so the two never lie in the same plane and fight.
+      const eb = fill ? FX + 0.62 : back, ez = end + nz * 0.02;
+      wall.quad([FX, 0, ez], [eb, 0, ez], [eb, WH, ez], [FX, WH, ez], [0, 0, nz], [[0, 0], [(eb - FX) / 2.6, 0], [(eb - FX) / 2.6, WH / 2.6], [0, WH / 2.6]]);
+      if (fill && fill.top < WH - 0.05) wall.quad([eb, fill.top, ez], [back, fill.top, ez], [back, WH, ez], [eb, WH, ez], [0, 0, nz]);      // and above the room's roof, the end of the parapet
     }
     // Names along the frieze. (A representative roll of old masters, not a transcription of the building's.)
     const names = ['PHIDIAS  ·  PRAXITELES  ·  GIOTTO  ·  DONATELLO  ·  BOTTICELLI  ·  LEONARDO', 'MICHELANGELO  ·  RAPHAEL  ·  TITIAN  ·  DÜRER  ·  REMBRANDT  ·  VELÁZQUEZ'];
