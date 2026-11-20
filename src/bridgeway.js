@@ -327,6 +327,7 @@ export function buildBridgeway(museum, plan) {
   {
     const A = new THREE.Vector3((tw.x0 + tw.x1) / 2, L3, tw.z0 - 0.1), E = new THREE.Vector3(A.x - 13, 0.5, B.z0 - 72);
     const len = A.distanceTo(E), HW = 1.9, g = new THREE.Group();
+    museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW });      // for the things to do round the wing (outplay.js)
     g.position.copy(A); g.lookAt(E);                     // local +z runs down the bridge
     const deck = new Geo(), rails = new Geo(), mesh = new Geo();
     deck.box(-HW, HW, -0.12, 0, 0, len);                 // the walking surface
@@ -367,6 +368,7 @@ export function buildBridgeway(museum, plan) {
     const bx0 = Math.min(...src.map(m => m.x0)), bx1 = Math.max(...src.map(m => m.x1)), bz0 = Math.min(...src.map(m => m.z0)), bz1 = Math.max(...src.map(m => m.z1));
     const roof = Math.max(...src.map(m => m.top), plan.massOf[h.id] ? plan.massOf[h.id].top : 0);
     const x0 = bx0 - 6.5, x1 = bx1 + 6.5, z0 = bz0 - 9.5, z1 = bz1 + 7, y = Math.max(22.4, roof + 2.6);      // 22.4 m in the architect's section
+    museum.mw = Object.assign(museum.mw || {}, { shade: { x0, x1, z0, z1, y } });
     const bt = blades(); bt.repeat.set((x1 - x0) / 1.2, (z1 - z0) / 6);
     const sheet = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: bt, transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.72, 0.77, 0.9), fog: false }));
     sheet.rotation.x = -Math.PI / 2; sheet.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); sheet.renderOrder = 3; add(sheet);
