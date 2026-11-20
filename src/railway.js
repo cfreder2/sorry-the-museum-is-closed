@@ -69,6 +69,16 @@ export function buildRailway(museum, plan) {
       const w = g.geometry.parameters.width, h = g.geometry.parameters.height, px = g.position.x, pz = g.position.z;
       const sh = new THREE.Shape(); sh.moveTo(-w / 2, -h / 2); sh.lineTo(w / 2, -h / 2); sh.lineTo(w / 2, h / 2); sh.lineTo(-w / 2, h / 2); sh.closePath();
       for (const s of C.open) { const p = new THREE.Path(), a = x0 - px, b = x1 - px, c = -(s.z0 - pz), d = -(s.z1 - pz); p.moveTo(a, d); p.lineTo(a, c); p.lineTo(b, c); p.lineTo(b, d); p.closePath(); sh.holes.push(p); }
+      // And a hole wherever the inside of the building goes down through street level: a stairwell, a lift shaft, a flight to
+      // the lower level, a room two storeys deep. The snow lies just under every ground floor, and showed as a lid on each of these.
+      { let rs = [];
+        for (const k of plan.wells || []) if (Math.abs(k.y) < 0.2) rs.push(k);
+        for (const k of plan.lifts || []) if (k.stops[0] < -0.5 && k.stops[k.stops.length - 1] > -0.5) rs.push(k);
+        for (const k of plan.ramps || []) if (Math.min(k.y0, k.y1) < -0.1 && Math.max(k.y0, k.y1) > -0.1) rs.push(k);
+        for (const k of plan.rooms) if (k.y < -0.5 && k.y + (k.ceil || k.h) > 0.1) rs.push(k);
+        rs = rs.map(k => ({ x0: k.x0 - 0.04, x1: k.x1 + 0.04, z0: k.z0 - 0.04, z1: k.z1 + 0.04 })).filter(k => k.x0 > px - w / 2 + 1 && !C.open.some(s => k.x1 > x0 - 0.5 && k.x0 < x1 + 0.5 && k.z1 > s.z0 - 0.5 && k.z0 < s.z1 + 0.5));
+        for (let merged = true; merged;) { merged = false; outer: for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) { const a = rs[i], b = rs[j]; if (a.x0 < b.x1 + 0.05 && a.x1 > b.x0 - 0.05 && a.z0 < b.z1 + 0.05 && a.z1 > b.z0 - 0.05) { rs[i] = { x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), z0: Math.min(a.z0, b.z0), z1: Math.max(a.z1, b.z1) }; rs.splice(j, 1); merged = true; break outer; } } }
+        for (const k of rs) { const p = new THREE.Path(), a = k.x0 - px, b = k.x1 - px, c = -(k.z0 - pz), d = -(k.z1 - pz); p.moveTo(a, d); p.lineTo(a, c); p.lineTo(b, c); p.lineTo(b, d); p.closePath(); sh.holes.push(p); } }
       const geo = new THREE.ShapeGeometry(sh), P = geo.attributes.position, uv = geo.attributes.uv;
       for (let i = 0; i < P.count; i++) uv.setXY(i, (P.getX(i) + w / 2) / w, (P.getY(i) + h / 2) / h);
       g.geometry.dispose(); g.geometry = geo;
