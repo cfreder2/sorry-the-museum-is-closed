@@ -72,6 +72,73 @@ function synth(sound) {
   };
 }
 
+// ---------------------------------------------------------------- shared helpers (k.solid, k.timer, k.pushable)
+function blockMesh(THREE, s, mat) {
+  const hAt = (x, z) => s.axis === 'x' ? s.h0 + (s.h1 - s.h0) * (x - s.x0) / (s.x1 - s.x0) : s.axis === 'z' ? s.h0 + (s.h1 - s.h0) * (z - s.z0) / (s.z1 - s.z0) : s.h0;
+  const c = [[s.x0, s.z0], [s.x1, s.z0], [s.x1, s.z1], [s.x0, s.z1]], top = c.map(([x, z]) => hAt(x, z)), bot = top.map(h => s.thick ? h - s.thick : (s.base || 0));
+  const P = [], V = (i, up) => { const [x, z] = c[i]; P.push(x, up ? top[i] : bot[i], z); };
+  const quad = (a, b, cc, d) => { for (const [i, u] of [a, b, cc, a, cc, d]) V(i, u); };
+  quad([0, 1], [3, 1], [2, 1], [1, 1]); quad([0, 0], [1, 0], [2, 0], [3, 0]);
+  for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; quad([i, 0], [i, 1], [j, 1], [j, 0]); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.updateMatrix(); return m;
+}
+const _in = (q, p) => !!q && p.x > q.x0 && p.x < q.x1 && p.z > q.z0 && p.z < q.z1 && (q.y0 == null || p.y > q.y0) && (q.y1 == null || p.y < q.y1);
+let _hud = null;
+const fmt = t => t.toFixed(2) + ' s';
+class Timer {
+  constructor(k, o) {
+    this.k = k; this.o = { limit: 90, min: 2, ...o }; this.state = 'idle'; this.t = 0;
+    try { this.best = parseFloat(localStorage.getItem('ah.best.' + o.id)) || null; } catch { this.best = null; }
+  }
+  hud(text, hold) {
+    if (!_hud) { _hud = document.createElement('div'); _hud.id = 'featTimer'; _hud.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);padding:4px 12px;border-radius:10px;background:rgba(10,14,22,.62);color:#f3efe2;font:600 17px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.04em;pointer-events:none;z-index:30;text-align:center'; document.body.append(_hud); }
+    _hud.hidden = !text; _hud.textContent = text || ''; clearTimeout(this._off); if (hold) this._off = setTimeout(() => { if (_hud) _hud.hidden = true; }, hold * 1000);
+  }
+  cancel(why) { if (this.state === 'running') { this.hud(null); if (why) this.k.say(why, 2.5); } this.state = 'idle'; }
+  update(dt) {
+    const p = this.k.pos, o = this.o, inS = _in(o.start, p);
+    if (this.state === 'idle') { if (inS) this.state = 'armed'; return; }
+    if (this.state === 'armed') {
+      if (inS) return;
+      if (o.inside && !o.inside(p)) { this.state = 'idle'; return; }
+      this.state = 'running'; this.t = 0; if (o.onStart) o.onStart(); return;
+    }
+    this.t += dt;
+    if (inS) { this.state = 'armed'; this.hud(null); return; }            // back over the start line: ready to go again
+    if (_in(o.finish, p) && this.t > o.min) {
+      const t = this.t, isBest = !this.best || t < this.best; this.state = 'idle';
+      if (isBest) { this.best = t; try { localStorage.setItem('ah.best.' + o.id, String(t)); } catch {} }
+      this.hud((o.name ? o.name + '  ' : '') + fmt(t) + (isBest ? '  BEST' : '  best ' + fmt(this.best)), 4);
+      if (o.onFinish) o.onFinish(t, this.best, isBest); return;
+    }
+    if (this.t > o.limit || (o.inside && !o.inside(p))) { this.cancel(o.inside && !o.inside(p) ? 'Off the course: the clock stops.' : null); return; }
+    this.hud((o.name ? o.name + '  ' : '') + fmt(this.t) + (this.best ? '   best ' + fmt(this.best) : ''));
+  }
+}
+class Body {
+  constructor(k, mesh, o = {}) {
+    this.k = k; this.mesh = mesh; this.o = { r: 0.15, h: 0.5, tip: false, hit: 0.5, drag: 2.5, ...o };
+    this.home = mesh.position.clone(); this.q0 = mesh.quaternion.clone(); this.vx = this.vz = 0; this.tipped = false; this.fall = 0; this.axis = new k.THREE.Vector3(); this._q = new k.THREE.Quaternion();
+  }
+  step(dt) {
+    const v = this.k.v, p = v.pos, m = this.mesh.position, o = this.o;
+    const dx = m.x - p.x, dz = m.z - p.z, d = Math.hypot(dx, dz), reach = o.r + (v.radius || 0.15);
+    if (d < reach && d > 1e-4 && p.y > m.y - 0.3 && p.y < m.y + o.h) {
+      const nx = dx / d, nz = dz / d, into = v.vel.x * nx + v.vel.z * nz;
+      if (into > 0.05) {
+        if (!this.tipped || !o.tip) { this.vx += nx * into * 1.3; this.vz += nz * into * 1.3; }
+        if (o.onHit) o.onHit(this, into);
+        if (o.tip && !this.tipped && into > o.hit) { this.tipped = true; this.fall = 0; this.axis.set(nz, 0, -nx); if (o.onTip) o.onTip(this, into); }
+      }
+      if (!this.tipped || !o.tip) { m.x = p.x + nx * reach; m.z = p.z + nz * reach; }
+    }
+    if (this.vx || this.vz) { m.x += this.vx * dt; m.z += this.vz * dt; const f = Math.exp(-o.drag * dt); this.vx *= f; this.vz *= f; if (Math.abs(this.vx) + Math.abs(this.vz) < 0.01) this.vx = this.vz = 0; }
+    if (this.tipped && o.tip && this.fall < 1) { this.fall = Math.min(1, this.fall + dt / 0.35); this.mesh.quaternion.copy(this._q.setFromAxisAngle(this.axis, (Math.PI / 2) * this.fall * this.fall)).multiply(this.q0); }
+  }
+  reset() { this.mesh.position.copy(this.home); this.mesh.quaternion.copy(this.q0); this.vx = this.vz = 0; this.tipped = false; this.fall = 0; }
+}
+
 // ---------------------------------------------------------------- the hook main.js calls
 export function startFeatures(o) {
   const { G, THREE, secrets, say, once, callout, sound, stage } = o;
@@ -88,6 +155,19 @@ export function startFeatures(o) {
     close(q, r, dy = 1.5) { const p = G.vehicle.pos; return !!q && Math.abs(p.y - (q.y || 0)) < dy && (p.x - q.x) ** 2 + (p.z - q.z) ** 2 < r * r; },
     chips(n) { const P = G.poker; if (!P) return false; if (n < 0) return P.spend(-n); if (P.earn) P.earn(n); else if (P.spend) P.spend(-n); return true; },
     synth: synth(sound),
+    // ---- added for the outdoor games (sledding, the bridgeway sprint, the targets); general, use them too
+    // k.resume(): back to the game after a staged view the feature opened itself (G.state = 'paused' and k.stage.enter).
+    resume() { if (stage && stage.on) stage.leave(); G.state = G.study ? 'study' : 'play'; },
+    // k.solid(piece, material): add a drivable piece to the plan (the same {x0,x1,z0,z1,axis,h0,h1,thick?,base?} as
+    // plan.surfaces; plain linear slopes only) and draw it as a block, since the museum has already drawn its own.
+    solid(s, mat) { G.plan.surfaces.push(s); const m = blockMesh(THREE, s, mat); if (m) group.add(m); return m; },
+    // k.timer({ id, name, start, finish, inside?, limit?, min?, onStart?, onFinish(t, best, isBest)? }): a timed run.
+    // start and finish are boxes {x0,x1,z0,z1,y0?,y1?}; the clock starts as the toy leaves the start box (into
+    // `inside(p)` if given) and stops in the finish box. Best time kept in localStorage. Call .update(dt) every frame.
+    timer(o) { return new Timer(k, o); },
+    // k.pushable(mesh, { r, h, tip?, hit?, drag?, onHit?, onTip? }): something light the toy shoves about (a board,
+    // a tile). With tip it falls over when hit harder than `hit` m/s. Call .step(dt) every frame; .reset() puts it back.
+    pushable(mesh, o) { return new Body(k, mesh, o); },
   };
   k.carry = new Carry(k);
   for (const f of features) {

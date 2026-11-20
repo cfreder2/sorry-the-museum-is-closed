@@ -327,7 +327,7 @@ export function buildBridgeway(museum, plan) {
   {
     const A = new THREE.Vector3((tw.x0 + tw.x1) / 2, L3, tw.z0 - 0.1), E = new THREE.Vector3(A.x - 13, 0.5, B.z0 - 72);
     const len = A.distanceTo(E), HW = 1.9, g = new THREE.Group();
-    museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW });      // for the things to do round the wing (outplay.js)
+    museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW });      // for the things to do round the wing (wingplay.js)
     g.position.copy(A); g.lookAt(E);                     // local +z runs down the bridge
     const deck = new Geo(), rails = new Geo(), mesh = new Geo();
     deck.box(-HW, HW, -0.12, 0, 0, len);                 // the walking surface
