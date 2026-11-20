@@ -486,3 +486,6 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 #loading .lstep { margin-top: 14px; font: 12px var(--mono); letter-spacing: .1em; color: var(--gilt-dim); min-height: 1.4em; }
 #loading.failed .lbar b { display: none; } #loading.failed .lstep { color: #e0a090; }
 @media (prefers-reduced-motion: reduce) { #loading .lbar b { animation: none; display: none; } #loading, #loading .lbar i { transition: none; } }
+
+#paLine .alltime { font-size: .72em; font-style: normal; color: var(--gilt-dim); letter-spacing: .04em; }
+#title .sel .hint[hidden] { display: none; }

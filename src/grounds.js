@@ -187,16 +187,30 @@ export function buildGrounds(museum, plan) {
       for (let i = 0; i < 26; i++) { c.fillStyle = ['#d9b48a', '#c99a6e', '#3d7a52', '#e6d2a8', '#1f4468'][i % 5]; c.globalAlpha = 0.75; c.beginPath(); c.ellipse(r() * 128, 40 + r() * 130, 8 + r() * 22, 5 + r() * 12, r() * 3, 0, 7); c.fill(); }
       c.globalAlpha = 1;
       const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.5), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.95, 0.9, 0.82) })); m.position.set(PX - 0.07, 9.25, cz + k * 7.6); m.scale.set(0.82, 0.86, 1); m.rotation.y = -Math.PI / 2; add(m);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.5), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.95, 0.9, 0.82) })); m.position.set(PX - 0.07, 9.08, cz + k * 7.6); m.scale.set(1.0, 0.56, 1); m.rotation.y = -Math.PI / 2; add(m);       // the width of the opening, from the balcony rail up to where the arch closes in
     }
     // Carved panels at the two ends of the upper storey, and two flags on poles leaning out between the windows.
     for (const sg of [-1, 1]) { const zc = cz + sg * 11.4; tr.box(PX - 0.1, PX, 8.0, 9.9, zc - 1.2, zc + 1.2); blind.quad([PX - 0.11, 8.15, zc + 1.05], [PX - 0.11, 8.15, zc - 1.05], [PX - 0.11, 9.75, zc - 1.05], [PX - 0.11, 9.75, zc + 1.05], W); }
-    const flag = (draw) => { const cv = document.createElement('canvas'); cv.width = 96; cv.height = 64; draw(cv.getContext('2d')); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, color: new THREE.Color(0.75, 0.75, 0.8) }); };
-    const flags = [flag(c => { for (let i = 0; i < 13; i++) { c.fillStyle = i % 2 ? '#f2efe6' : '#b3242b'; c.fillRect(0, i * 64 / 13, 96, 64 / 13 + 0.5); } c.fillStyle = '#243a73'; c.fillRect(0, 0, 40, 35); c.fillStyle = '#f2efe6'; for (let i = 0; i < 20; i++) c.fillRect(4 + (i % 5) * 7.5, 4 + Math.floor(i / 5) * 8, 2, 2); }),
-      flag(c => { c.fillStyle = '#f2efe6'; c.fillRect(0, 0, 96, 64); c.fillStyle = '#6fb3de'; c.fillRect(0, 10, 96, 10); c.fillRect(0, 44, 96, 10); c.fillStyle = '#c8202b'; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(18 + i * 20, 32, 5, 0, 7); c.fill(); } })];
+    // Two flags, drawn to their real designs. Each is painted mirrored, so that from either side the hoist is at the pole.
+    const flag = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.translate(w, 0); c.scale(-1, 1); draw(c, w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, color: new THREE.Color(0.78, 0.78, 0.82) }); };
+    const star = (c, x, y, r, n, inner) => { c.beginPath(); for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, q = i % 2 ? r * inner : r; c[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * q, y + Math.sin(a) * q); } c.closePath(); c.fill(); };
+    const flags = [
+      // The United States: thirteen stripes, red at top and bottom; a blue canton seven stripes deep and two fifths of the fly; fifty stars in nine rows of six and five.
+      [1.9, flag(494, 260, (c, w, h) => { for (let i = 0; i < 13; i++) { c.fillStyle = i % 2 ? '#ffffff' : '#b22234'; c.fillRect(0, i * h / 13, w, h / 13 + 0.6); }
+        const ch = h * 7 / 13, cw = w * 0.4; c.fillStyle = '#3c3b6e'; c.fillRect(0, 0, cw, ch); c.fillStyle = '#ffffff';
+        for (let row = 0; row < 9; row++) { const n = row % 2 ? 5 : 6; for (let i = 0; i < n; i++) star(c, cw / 12 * (row % 2 ? 2 + i * 2 : 1 + i * 2), ch / 10 * (row + 1), ch * 0.0616 * 0.8, 5, 0.382); } })],
+      // Chicago: white, with two blue bars a sixth of the height each, a sixth in from top and bottom, and four red six-pointed stars between them.
+      [1.5, flag(390, 260, (c, w, h) => { c.fillStyle = '#ffffff'; c.fillRect(0, 0, w, h); c.fillStyle = '#41b6e6'; c.fillRect(0, h / 6, w, h / 6); c.fillRect(0, h * 4 / 6, w, h / 6);
+        c.fillStyle = '#e4002b'; for (let i = 0; i < 4; i++) star(c, w * (0.5 + (i - 1.5) * 0.17), h / 2, h * 0.115, 6, 0.42); })]];
     [[-3.8, 0], [3.8, 1]].forEach(([k, i]) => {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 3.4, 6), base); pole.position.set(PX - 1.15, 8.6, cz + k); pole.rotation.z = 0.72; add(pole);
-      const f = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), flags[i]); f.position.set(PX - 1.75, 8.7, cz + k + 0.02); f.rotation.set(0, -Math.PI / 2, 0); f.rotation.z = 0; add(f);
+      // The pole leans out from the wall; the flag is bent to it along its hoist, at the tip, and stands off along the street.
+      const g = new THREE.Group(); g.position.set(PX - 1.15, 8.6, cz + k); g.rotation.z = 0.72;
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 3.4, 6), base));
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), trim); knob.position.y = 1.72; g.add(knob);
+      const [ratio, mat] = flags[i], Hh = 1.15, geo = new THREE.PlaneGeometry(Hh * ratio, Hh, 8, 1); geo.translate(-Hh * ratio / 2, 0, 0);
+      { const P = geo.attributes.position; for (let q = 0; q < P.count; q++) { const u = -P.getX(q) / (Hh * ratio); P.setZ(q, Math.sin(u * 5.5) * 0.07 * u); P.setY(q, P.getY(q) - u * u * 0.12); } geo.computeVertexNormals(); }      // a slow ripple, and a little sag
+      const f = new THREE.Mesh(geo, mat); f.position.set(0, 1.66 - Hh / 2, 0); f.rotation.y = 1.0; g.add(f);
+      g.updateMatrixWorld(true); group.add(g);
     });
     // Roofs behind the front, and the forecourt in front of it.
     for (const m of plan.masses) if (m.facade) roof.quad([m.x0, m.top, m.z0], [m.x1, m.top, m.z0], [m.x1, m.top, m.z1], [m.x0, m.top, m.z1], [0, 1, 0], [[m.x0 / 5, m.z0 / 5], [m.x1 / 5, m.z0 / 5], [m.x1 / 5, m.z1 / 5], [m.x0 / 5, m.z1 / 5]]);

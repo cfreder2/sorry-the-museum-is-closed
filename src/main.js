@@ -97,7 +97,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.25';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.26';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -437,15 +437,8 @@ function admired() {
   if (ask && ask.then) ask.then(t => {
     if (!t || !(+t.works > 0)) return;
     const p = Math.max(1, +t.patrons || 0), w = +t.works;
-    $('paLine').innerHTML = `${b(p)} patron${p === 1 ? ' has' : 's have'} enjoyed ${b(w)} art piece${w === 1 ? '' : 's'}`;
+    $('paLine').innerHTML = `${b(p)} patron${p === 1 ? ' has' : 's have'} enjoyed ${b(w)} art piece${w === 1 ? '' : 's'} <span class="alltime">(all time)</span>`;
     $('patrons').hidden = false;
-  }).catch(() => {});
-  const top = tm.topViews ? tm.topViews(3) : null;
-  if (top && top.then) top.then(rows => {
-    if (!rows || !rows.length) return;
-    const el = $('paTop'); el.textContent = 'Most admired: ';
-    rows.slice(0, 3).forEach((r, i) => { if (i) el.append(' \u00b7 '); const t = document.createElement('i'); t.textContent = String(r.title || 'Untitled').slice(0, 44); el.append(t, ` ${short(r.views)}`); });
-    el.hidden = false;
   }).catch(() => {});
 }
 

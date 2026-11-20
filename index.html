@@ -148,23 +148,22 @@
 
 <main id="title" class="screen">
   <div class="panel">
-    <div class="over">The Art Institute of Chicago &nbsp;·&nbsp; by remote control</div>
+    <div class="over">The Art Institute of Chicago</div>
     <h1><span>Sorry, the Museum</span> <span>is Closed</span></h1>
-    <p class="lede">Every work is real. You are the size of a shoe.</p>
     <div class="choose">
       <div class="sel" role="group" aria-labelledby="toyLab" data-sel="toy">
         <span class="lab" id="toyLab">Vehicle:</span>
         <button class="arr" data-step="-1" aria-label="Previous vehicle">←</button>
         <button class="val" data-step="1" id="toyVal" aria-live="polite" aria-describedby="toyHint">RC Car</button>
         <button class="arr" data-step="1" aria-label="Next vehicle">→</button>
-        <span class="hint" id="toyHint"></span>
+        <span class="hint" id="toyHint" hidden></span>
       </div>
       <div class="sel" role="group" aria-labelledby="modeLab" data-sel="mode">
         <span class="lab" id="modeLab">Game mode:</span>
         <button class="arr" data-step="-1" aria-label="Previous game mode">←</button>
         <button class="val" data-step="1" id="modeVal" aria-live="polite" aria-describedby="modeHint">Explore</button>
         <button class="arr" data-step="1" aria-label="Next game mode">→</button>
-        <span class="hint" id="modeHint"></span>
+        <span class="hint" id="modeHint" hidden></span>
       </div>
     </div>
     <div id="garage" aria-hidden="true">
