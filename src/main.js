@@ -44,6 +44,7 @@ import { Vending } from './vending.js';
 import { startFeatures } from './features.js';
 // Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
 import './feature-example.js';
+import './thorne.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -717,6 +718,7 @@ function chase(dt, snap) {
     }
     // Never under the floor: whichever floor that is, on this level.
     { const gy = groundAt(G.plan, want.x, want.z, Math.max(want.y, v.pos.y) + 0.3, 0); if (want.y < gy + 0.1) want.y = gy + 0.1; }
+    { const cc = G.features && G.features.kit.camClose; if (cc) { want.set(cc.at.x, cc.at.y, cc.at.z); tmp.set(cc.look.x, cc.look.y, cc.look.z); rate = 6; } }      // a feature can stand the camera somewhere (features.js k.camClose)
     camera.position.lerp(want, snap ? 1 : 1 - Math.exp(-dt * rate));
     camLook.lerp(tmp, snap ? 1 : 1 - Math.exp(-dt * 14));
     camera.up.set(0, 1, 0);
