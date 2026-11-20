@@ -19,7 +19,7 @@ const works = n => ({ goal: n, count: s => s.looked, test: s => s.looked >= n, n
 
 export const TROPHIES = [
   // ---- bronze ----
-  { id: 'in', tier: 'bronze', name: 'After Hours', desc: 'Find a way into the building.', test: s => s.inside },
+  { id: 'in', tier: 'bronze', name: 'Way In', desc: 'Find a way into the building.', test: s => s.inside },
   { id: 'first', tier: 'bronze', name: 'First Impression', desc: 'Look closely at your first work of art.', test: s => s.looked >= 1 },
   { id: 'l5', tier: 'bronze', name: 'Five Good Looks', desc: 'Look closely at 5 different works.', ...works(5) },
   { id: 'w10', tier: 'bronze', name: 'A Good Start', desc: 'Look closely at 10 different works.', ...works(10) },

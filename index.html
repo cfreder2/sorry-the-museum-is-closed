@@ -282,7 +282,15 @@
       <button id="bmClear" class="quiet" hidden>Clear route</button>
       <button id="bmClose" data-first>Close</button>
     </div>
-    <canvas id="bmCanvas" aria-label="Floor plan. Pick a room to light the way to it."></canvas>
+    <div class="mapbody">
+      <canvas id="bmCanvas" aria-label="Floor plan. Tap a room for its card."></canvas>
+      <button id="bmYou" hidden></button>
+      <div id="bmCard" hidden role="dialog" aria-labelledby="bmCardT">
+        <button id="bmCardX" aria-label="Close the card">✕</button>
+        <div id="bmCardT"></div><div id="bmCardS"></div><div id="bmCardN"></div>
+        <button id="bmGo">Show the way</button>
+      </div>
+    </div>
     <div class="mapfoot"><span id="bmNote"></span><span class="key"><i class="k0"></i>not visited <i class="k1"></i>more to see <i class="k2"></i>all seen <i class="k3"></i>stairs and lifts</span></div>
   </div>
 </section>

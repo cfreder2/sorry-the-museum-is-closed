@@ -112,7 +112,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.69';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.70';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -660,8 +660,8 @@ function openNotebook() {
 function controlsList() {
   const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
   const rows = touch
-    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Map', 'Touch the round map for the whole building. Pick a room and the way lights up.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
-    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Map', 'M or Tab, or click the radar'], ['Notebook', 'N'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
+    ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Map', 'Touch the round map for the whole building. Tap a room, then Show the way.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP']]
+    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Map', 'M or Tab, or click the radar. Click a room, then Show the way.'], ['Notebook', 'N'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
 for (const b of document.querySelectorAll('button.big')) b.disabled = true;
