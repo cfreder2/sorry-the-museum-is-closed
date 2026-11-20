@@ -1342,9 +1342,10 @@ function fillSegment(plan, wall, seg, queue, opts) {
   // Centre-out: 0 in the middle, then alternate sides.
   const order = [];
   picked.forEach((p, i) => (i % 2 ? order.unshift(p) : order.push(p)));
-  const slack = len - used;
+  // The margin is kept at both ends whatever is hung between: a frame run up to the end of its wall is cut off by the door jamb or the corner there.
+  const slack = len - margin * 2 - used;
   const pad = slack / (order.length + 1);
-  let u = seg.lo;
+  let u = seg.lo + margin;
   const placed = [];
   for (const p of order) {
     u += pad + p.full / 2;
@@ -1395,7 +1396,7 @@ export function hang(plan, collection) {
     for (const { wall, seg } of segs) {
       placements.push(...fillSegment(plan, wall, seg, queue, isHall
         ? { margin: 1.4, gap: 1.6, maxPer: 3, frame: frameFor, kind: 'painting', centre: h => 1.5 + h / 2 }
-        : { margin: 0.35, gap: 0.5, maxPer: 8, frame: frameFor, kind: 'painting', centre: h => Math.max(1.62, 0.8 + h / 2) }));       // hung close, as the museum's own rooms are
+        : { margin: 0.55, gap: 0.5, maxPer: 8, frame: frameFor, kind: 'painting', centre: h => Math.max(1.62, 0.8 + h / 2) }));       // hung close, as the museum's own rooms are
     }
     if (!isHall) spill.push(...queue);
   }
