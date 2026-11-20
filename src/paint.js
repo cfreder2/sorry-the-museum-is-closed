@@ -101,14 +101,15 @@ export class Paint {
     else {
       c.fillStyle = '#f6f2e8'; c.fillRect(0, 0, CW, CH);
       c.strokeStyle = '#b9ad92'; c.lineWidth = 4; c.setLineDash([18, 14]); c.strokeRect(40, 40, CW - 80, CH - 80); c.setLineDash([]);
-      c.fillStyle = '#3a3226'; c.textAlign = 'center'; c.font = '700 62px Georgia, serif'; c.fillText('EXHIBIT COMING SOON', CW / 2, CH / 2 - 14);
-      c.font = 'italic 34px Georgia, serif'; c.fillText('See the restoration in the Ryan Learning Center.', CW / 2, CH / 2 + 52, CW - 120);
+      c.fillStyle = '#3a3226'; c.textAlign = 'center'; c.font = '700 84px Georgia, serif'; c.fillText('EXHIBIT', CW / 2, CH / 2 - 78); c.fillText('COMING SOON', CW / 2, CH / 2 + 12);
+      // The line under it is set smaller until it fits inside the dashed rule, never squeezed.
+      { const line = 'See the restoration in the Ryan Learning Center.'; let px = 34; do { c.font = `italic ${px}px Georgia, serif`; px--; } while (c.measureText(line).width > CW - 150 && px > 14); c.fillText(line, CW / 2, CH / 2 + 84); }
       finish();
     }
     const k = this.card.getContext('2d');
     k.fillStyle = '#f4efe2'; k.fillRect(0, 0, 768, 192); k.fillStyle = '#14120c'; k.textAlign = 'center';
     if (this.saved) { k.font = 'italic 700 46px Georgia, serif'; k.fillText(this.title || 'Untitled', 384, 72, 720); k.font = '32px Georgia, serif'; k.fillText('You, tonight. Paint on screen.', 384, 132); }
-    else { k.font = '700 44px Georgia, serif'; k.fillText('EXHIBIT COMING SOON', 384, 72); k.font = 'italic 30px Georgia, serif'; k.fillText('See the restoration in the Ryan Learning Center.', 384, 132, 720); }
+    else { k.font = '700 44px Georgia, serif'; k.fillText('EXHIBIT COMING SOON', 384, 72); { const line = 'See the restoration in the Ryan Learning Center.'; let px = 30; do { k.font = `italic ${px}px Georgia, serif`; px--; } while (k.measureText(line).width > 700 && px > 12); k.fillText(line, 384, 132); } }
     this.cardTex.needsUpdate = true;
     const levels = { LL: 'lower level', 1: 'first floor', 2: 'second floor', 3: 'third floor' };
     this.art.work = this.saved
