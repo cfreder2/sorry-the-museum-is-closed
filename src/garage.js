@@ -154,10 +154,10 @@ const CARS = {
     part(box(0.03, 0.035, 0.04), black, 0, 0.155, -0.075, body);                          // air box
     part(ball(0.026, 12, 10), gold, 0, 0.118, -0.01, body);                               // the driver
     part(box(0.06, 0.012, 0.01), std(0x10151c, { roughness: 0.15, metalness: 0.5 }), 0, 0.12, 0.014, body);
-    for (const s of [-1, 1]) part(box(0.008, 0.075, 0.03), black, s * 0.05, 0.135, -0.2, body);             // rear wing
-    part(box(0.2, 0.01, 0.06), gold, 0, 0.175, -0.2, body); part(box(0.2, 0.008, 0.035), paint, 0, 0.145, -0.205, body);
+    for (const s of [-1, 1]) part(box(0.008, 0.09, 0.03), black, s * 0.035, 0.13, -0.165, body);            // rear wing, its posts standing on the tub
+    part(box(0.2, 0.01, 0.06), gold, 0, 0.175, -0.168, body); part(box(0.2, 0.008, 0.035), paint, 0, 0.145, -0.172, body);
     const disc = part(cyl(0.022, 0.022, 0.004, 14), white, 0, 0.1, 0.1, body); disc.rotation.x = 0.1;        // the number
-    for (const s of [-1, 1]) for (const z of [0.135, -0.14]) part(box(0.09, 0.008, 0.012), black, s * 0.075, 0.058, z, body);   // wishbones
+    for (const s of [-1, 1]) for (const z of [0.135, -0.14]) part(box(0.104, 0.008, 0.012), black, s * 0.07, 0.058, z, body);   // wishbones, from the nose and the tub out to the wheels
     for (const s of [-1, 1]) part(box(0.03, 0.014, 0.01), glow(2.2, 0.1, 0.08), s * 0.02, 0.07, -0.185, body);
     part(ball(0.012), glow(4, 3.6, 2.6), 0, 0.066, 0.25, body);
     for (const [x, z, r, w, f] of [[-0.13, 0.135, 0.05, 0.045, true], [0.13, 0.135, 0.05, 0.045, true], [-0.133, -0.14, 0.064, 0.072, false], [0.133, -0.14, 0.064, 0.072, false]]) wheel(g, wheels, x, z, r, w, f, gold, 10);
@@ -222,7 +222,7 @@ const CARS = {
     for (const s of [-1, 1]) part(box(0.006, 0.026, 0.065), paint, s * 0.116, 0.148, -0.205, body);         // its end plates
     part(box(0.19, 0.03, 0.02), carbon, 0, 0.05, -0.222, body);                           // the diffuser
     for (const x of [-0.045, -0.015, 0.015, 0.045]) { const e = part(cyl(0.008, 0.008, 0.02, 8), rim, x, 0.06, -0.232, body); e.rotation.x = Math.PI / 2; }   // four exhausts
-    part(box(0.17, 0.008, 0.006), glow(3.2, 0.12, 0.08), 0, 0.082, -0.226, body);         // a tail light bar right across
+    part(box(0.17, 0.008, 0.006), glow(3.2, 0.12, 0.08), 0, 0.082, -0.212, body);         // a tail light bar right across, set into the tail
     for (const s of [-1, 1]) { const h = part(box(0.04, 0.006, 0.02), glow(4, 3.8, 3.2), s * 0.07, 0.066, 0.222, body); h.rotation.y = -s * 0.3; }      // slit headlamps
     part(box(0.16, 0.004, 0.36), glow(0.1, 1.8, 2.6), 0, 0.02, 0, body);                  // the glow underneath
     for (const [x, z, r, w, f] of [[-0.098, 0.135, 0.046, 0.04, true], [0.098, 0.135, 0.046, 0.04, true], [-0.1, -0.135, 0.052, 0.052, false], [0.1, -0.135, 0.052, 0.052, false]]) wheel(g, wheels, x, z, r, w, f, rim, 10);
