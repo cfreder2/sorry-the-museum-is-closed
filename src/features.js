@@ -88,6 +88,45 @@ export function startFeatures(o) {
     close(q, r, dy = 1.5) { const p = G.vehicle.pos; return !!q && Math.abs(p.y - (q.y || 0)) < dy && (p.x - q.x) ** 2 + (p.z - q.z) ** 2 < r * r; },
     chips(n) { const P = G.poker; if (!P) return false; if (n < 0) return P.spend(-n); if (P.earn) P.earn(n); else if (P.spend) P.spend(-n); return true; },
     synth: synth(sound),
+    // A box lying on the floor that the toy shoves along: tiles, crates, targets. b = { x, z, y, hw, hd, vx, vz }.
+    // Call once a frame; it is pushed out of the toy's way, keeps a little of the toy's speed and slides to a stop.
+    // Walls of `room` (if given), fixed obstacles and the `others` boxes stop it. Returns true if it moved.
+    push(b, dt, { room = null, others = [], r = 0.2, friction = 3.2, lift = 0.4 } = {}) {
+      const v = G.vehicle, p = v.pos, x0 = b.x, z0 = b.z;
+      if (p.y - b.y < lift) {
+        const cx = Math.max(b.x - b.hw, Math.min(b.x + b.hw, p.x)), cz = Math.max(b.z - b.hd, Math.min(b.z + b.hd, p.z)), dx = cx - p.x, dz = cz - p.z, d = Math.hypot(dx, dz);
+        if (d < r) {
+          let nx, nz; if (d > 1e-4) { nx = dx / d; nz = dz / d; } else { const ax = b.x - p.x, az = b.z - p.z; if (Math.abs(ax) > Math.abs(az)) { nx = Math.sign(ax) || 1; nz = 0; } else { nx = 0; nz = Math.sign(az) || 1; } }
+          const sp = Math.max(0, v.vel.x * nx + v.vel.z * nz); this._slide(b, nx * (r - d + 0.005), nz * (r - d + 0.005), room, others); b.vx = nx * sp * 0.9; b.vz = nz * sp * 0.9;
+        }
+      }
+      if (Math.abs(b.vx || 0) + Math.abs(b.vz || 0) > 0.01) { this._slide(b, b.vx * dt, b.vz * dt, room, others); const f = Math.exp(-dt * friction); b.vx *= f; b.vz *= f; }
+      return b.x !== x0 || b.z !== z0;
+    },
+    _slide(b, dx, dz, room, others) {
+      const hit = (x, z) => G.plan.obstacles.some(o => o.y1 > b.y + 0.02 && o.y0 < b.y + 0.1 && x + b.hw > o.x0 && x - b.hw < o.x1 && z + b.hd > o.z0 && z - b.hd < o.z1) || others.some(q => q !== b && Math.abs(q.x - x) < b.hw + q.hw && Math.abs(q.z - z) < b.hd + q.hd);
+      if (room && (b.x + dx - b.hw < room.x0 + 0.05 || b.x + dx + b.hw > room.x1 - 0.05)) { dx = 0; b.vx = -(b.vx || 0) * 0.3; }
+      if (room && (b.z + dz - b.hd < room.z0 + 0.05 || b.z + dz + b.hd > room.z1 - 0.05)) { dz = 0; b.vz = -(b.vz || 0) * 0.3; }
+      if (dx && hit(b.x + dx, b.z)) { dx = 0; b.vx = 0; }
+      if (dz && hit(b.x + dx, b.z + dz)) { dz = 0; b.vz = 0; }
+      b.x += dx; b.z += dz;
+    },
+    // A lap course: a ring on the floor to drive once round inside, without touching its edges.
+    // const lap = k.lap({ x, z }, rin, rout); then each frame lap.step(k.pos) returns 'out', 'in', 'broke' (left the band
+    // part way round) or 'done' (all the way round, one way). lap.acc is how far round (radians), lap.reset() starts again.
+    lap(c, rin, rout, margin = 0.16) {
+      const L = { acc: 0, inside: false, prev: 0, reset() { this.acc = 0; this.inside = false; },
+        step(p) {
+          const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), a = Math.atan2(dz, dx), inn = d > rin + margin && d < rout - margin;
+          if (inn && !this.inside) { this.inside = true; this.acc = 0; this.prev = a; return 'in'; }
+          if (!inn) { const was = this.inside && Math.abs(this.acc) > 0.4; this.inside = false; this.acc = 0; return was ? 'broke' : 'out'; }
+          let da = a - this.prev; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI; this.prev = a;
+          if (this.acc && Math.sign(da) !== Math.sign(this.acc) && Math.abs(da) > 0.02) this.acc = 0;       // turned back: begin again
+          this.acc += da; if (Math.abs(this.acc) >= 2 * Math.PI) { this.acc = 0; this.inside = false; return 'done'; }
+          return 'in';
+        } };
+      return L;
+    },
   };
   k.carry = new Carry(k);
   for (const f of features) {

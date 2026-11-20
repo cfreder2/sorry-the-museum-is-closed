@@ -44,6 +44,7 @@ import { Vending } from './vending.js';
 import { startFeatures } from './features.js';
 // Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
 import './feature-example.js';
+import './galleries1.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
