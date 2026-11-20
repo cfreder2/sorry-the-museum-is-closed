@@ -93,7 +93,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.18';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.19';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -1099,8 +1099,22 @@ function play(dt, real) {
   }
 
   // On a roof you are over a room, not in it.
-  const aloft = onRoof(G.plan, v.pos.x, v.pos.z, v.pos.y);
-  const room = aloft ? null : roomAt(G.plan, v.pos.x, v.pos.z, v.pos.y);
+  // (Under a room's own ceiling you are in that room, whatever lower roof happens to lie beneath it. And in the thickness
+  // of a wall or a doorway between two rooms you are still indoors: you stay in the room you were last in.)
+  let room = roomAt(G.plan, v.pos.x, v.pos.z, v.pos.y);
+  const aloft = room && v.pos.y < room.top - 0.3 ? null : onRoof(G.plan, v.pos.x, v.pos.z, v.pos.y);
+  if (aloft) room = null;
+  else if (!room) {
+    // A doorway through a thick wall can be four metres long. In it you are in the room you came from (or, failing that, one of the two it joins).
+    const x = v.pos.x, z = v.pos.z, y = v.pos.y;
+    const d = G.plan.doors.find(q => !q.out && x >= q.x0 - 0.2 && x <= q.x1 + 0.2 && z >= q.z0 - 0.2 && z <= q.z1 + 0.2 && y >= q.y - 0.3 && y <= q.y + Math.max(q.h, 2.6) + 0.3);
+    if (d) room = (G.roomId === d.a || G.roomId === d.b ? G.plan.byId[G.roomId] : null) || G.plan.byId[d.a] || G.plan.byId[d.b] || null;
+  }
+  if (!aloft && !room && G.roomId) {
+    const was = G.plan.byId[G.roomId], x = v.pos.x, z = v.pos.z, y = v.pos.y;
+    if (was && x > was.x0 - 1.2 && x < was.x1 + 1.2 && z > was.z0 - 1.2 && z < was.z1 + 1.2 && y > was.y - 0.4 && y < was.top + 0.3
+      && G.plan.masses.some(m => x > m.x0 - 0.3 && x < m.x1 + 0.3 && z > m.z0 - 0.3 && z < m.z1 + 0.3 && y < m.top - 0.3)) room = was;
+  }
   G.floorY = room ? room.y : 0;                      // the floor of the level you are on: the polish is laid on it, and the map drawn for it
   if (aloft && v.kind === 'car' && !v.air && !G.roofed) { G.roofed = true; tm.event('roof', G.plan.scaffold && Math.hypot(v.pos.x - G.plan.scaffold.x, v.pos.z - G.plan.scaffold.z) < 16 ? 'scaffold' : G.plan.skiJump && Math.hypot(v.pos.x - G.plan.skiJump.x, v.pos.z - G.plan.skiJump.z1) < 16 ? 'skijump' : 'other'); callout('ON THE ROOF'); sound.lap(); say('Every roof is a floor. Mind the edge, and the open skylights.', 0.6, 7); }
   if ((room ? room.id : null) !== G.roomId) {
