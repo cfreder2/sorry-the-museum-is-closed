@@ -27,6 +27,15 @@ export const STEP = 0.09;      // the tallest lip a toy wheel will climb
 export const SKY = 46;         // how high a drone may go outdoors
 export const SLAB = 0.5;       // a floor, from its top to the ceiling of the room below
 
+// Something solid out of doors that can be jumped up onto and driven along: a kerbed planter, a hedge, a low wall.
+// Its top is a level surface at `top` (the height it is drawn at, snow and all), `pad` wider all round than the solid
+// (a hedge bellies out past its line); the solid under it stops just short of the top, so it is in the way from the
+// side but never of a car that has come down onto it from above. `base` is the ground it stands on.
+export function landable(plan, x0, x1, z0, z1, top, base = 0, pad = 0) {
+  plan.surfaces.push({ skin: 'wall', fixed: true, x0: x0 - pad, x1: x1 + pad, z0: z0 - pad, z1: z1 + pad, axis: null, h0: top, h1: top, base });
+  plan.obstacles.push({ x0, x1, z0, z1, y0: base, y1: top - 0.08 });
+}
+
 // Wall colours, the deep paint museums use so gilt frames sing.
 const TINTS = {
   '2': [0x5e2f2c, 0x2f4638, 0x3a4059, 0x4a5a66, 0x56604f, 0x5c4a58, 0x445a5c, 0x6a5a48, 0x4f3c4d, 0x6b5536],
@@ -893,9 +902,11 @@ function addLakefront(plan) {
   plan.paved.push({ x0: L.buoys, x1: B.x1 + 400, z0: B.z0 - 400, z1: B.z1 + 400 });   // open water: nothing glitters or takes a tyre track there
   plan.ice.push({ x0: L.shore, x1: L.buoys, z0: B.z0, z1: B.z1 });                    // the harbour, frozen as far as the buoys
   // The revetment along the water, with the slipway through it; the line of buoys where the ice gives out; the breakwater.
-  O.push({ x0: L.prom.x1, x1: L.shore, z0: B.z0, z1: L.slip[0], y0: -0.3, y1: 0.5 }, { x0: L.prom.x1, x1: L.shore, z0: L.slip[1], z1: B.z1, y0: -0.3, y1: 0.5 });
+  // The revetment and the breakwater are walls with tops: jump up and drive along them (the tops are their snow).
+  landable(plan, L.prom.x1, L.shore, B.z0, L.slip[0], 0.56, -0.3); landable(plan, L.prom.x1, L.shore, L.slip[1], B.z1, 0.56, -0.3);
   O.push({ x0: L.buoys, x1: L.buoys + 0.5, z0: B.z0, z1: B.z1, y0: -0.3, y1: 0.7 });
-  O.push({ ...L.breakwater, y0: -0.3, y1: 1.3 });
+  { const b = L.breakwater, t = L.light; landable(plan, b.x0, b.x1, b.z0, b.z0 + 4, 1.2, -0.3); landable(plan, b.x0, b.x1, b.z0 + 4, b.z1, 1.27, -0.3);
+    O.push({ x0: t.x - 0.9, x1: t.x + 0.9, z0: t.z - 0.9, z1: t.z + 0.9, y0: 1.1, y1: 6.5 }); }      // the light on it
   // The band shell: a stone stage facing north across the lawn, a ramp of somebody's plywood up its west end, and a kicker on its lip.
   const sh = L.shell;
   S.push({ skin: 'stone', x0: sh.x0, x1: sh.x1, z0: sh.z0, z1: sh.z1, axis: null, h0: sh.h, h1: sh.h });

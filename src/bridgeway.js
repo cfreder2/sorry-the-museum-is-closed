@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { Geo } from './geo.js';
+import { landable } from './plan.js';
 import { frostHedges, hedgeMaterial } from './frost.js';
 
 const tex = (w, h, draw, rx = 1, ry = 1) => {
@@ -306,7 +307,7 @@ export function buildBridgeway(museum, plan) {
       name.wrapS = name.wrapT = THREE.ClampToEdgeWrapping;
       const nm = new THREE.Mesh(new THREE.PlaneGeometry(wx1 - wx0 - 1.2, (wx1 - wx0 - 1.2) / 16), new THREE.MeshBasicMaterial({ map: name, transparent: true, depthWrite: false, color: new THREE.Color(0.9, 0.9, 0.95) }));
       nm.position.set((wx0 + wx1) / 2, wh * 0.56, wz - 0.3); nm.rotation.y = Math.PI; add(nm);
-      O.push({ x0: wx0, x1: wx1, z0: wz - 0.3, z1: wz + 0.3, y0: 0, y1: wh });
+      landable(plan, wx0 - 0.05, wx1 + 0.05, wz - 0.32, wz + 0.32, wh + 0.07);      // its coping is a top to land on
     }
     // The hedge: unbroken wherever the ground is free, clipped round only where something stands in its way.
     const zN = Math.min(...mod.map(q => q.z0)), east = mod.filter(m => m.x0 > h.x1 + 8 && m.z0 < zN + 1.5);
@@ -318,8 +319,7 @@ export function buildBridgeway(museum, plan) {
         if (ok && start === null) start = x;
         if ((!ok || xb >= ex1) && start !== null) { const end = ok ? xb : x; if (end - start >= 2) runs.push({ x0: start, x1: end, z0: hz - 0.5, z1: hz + 0.5 }); start = null; }
       }
-      for (const q of runs) O.push({ ...q, y0: 0, y1: 1.1 });
-      frostHedges(hedge, runs, 0, 1.05);
+      for (const q of frostHedges(hedge, runs, 0, 1.05)) landable(plan, q.x0, q.x1, q.z0, q.z1, 1.07, 0, 0.05);
       if (!hedge.empty) add(hedge.mesh(hedgeMaterial()));
     }
   }
