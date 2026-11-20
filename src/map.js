@@ -229,6 +229,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : r.assumed || r.passage ? 'rgba(20,23,32,.92)' : 'rgba(30,34,48,.94)';
       c.fillRect(r.x0, r.z0, w, h);
       if (!done && f > 0) { c.fillStyle = 'rgba(240,200,110,.95)'; c.fillRect(r.x0, r.z1 - Math.min(h * 0.2, 1.6), w * f, Math.min(h * 0.2, 1.6)); }
+      // A big room fills the radar edge to edge when you are in it: floor lines every four metres give it something to move against.
+      if (Math.max(w, h) > 14) { c.strokeStyle = done ? 'rgba(120,90,30,.28)' : 'rgba(170,180,215,.16)'; c.lineWidth = px * 0.8; c.beginPath();
+        for (let x = Math.ceil(r.x0 / 4) * 4; x < r.x1; x += 4) { c.moveTo(x, r.z0); c.lineTo(x, r.z1); } for (let z = Math.ceil(r.z0 / 4) * 4; z < r.z1; z += 4) { c.moveTo(r.x0, z); c.lineTo(r.x1, z); } c.stroke(); }
       c.lineWidth = px * 1.2;
       c.strokeStyle = done ? 'rgba(255,235,170,1)' : been ? 'rgba(226,205,148,.8)' : 'rgba(150,150,170,.45)';
       c.strokeRect(r.x0, r.z0, w, h);
@@ -293,8 +296,13 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   }
   function drawYou(c, x, z, yaw, s) {
     c.save(); c.translate(x, z); c.rotate(Math.PI - yaw); c.scale(s, s);
-    c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(0, -11); c.lineTo(7, 8); c.lineTo(0, 3); c.lineTo(-7, 8); c.closePath(); c.stroke(); c.fill();
+    // Unmissable: a cone of what is ahead, a ring that breathes, and a big bright arrow with a dark edge.
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260);
+    { const g = c.createRadialGradient(0, 0, 4, 0, 0, 46); g.addColorStop(0, 'rgba(255,90,60,.38)'); g.addColorStop(1, 'rgba(255,90,60,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 46, -Math.PI / 2 - 0.5, -Math.PI / 2 + 0.5); c.closePath(); c.fill(); }
+    c.strokeStyle = `rgba(255,90,60,${0.85 - pulse * 0.55})`; c.lineWidth = 2.5; c.beginPath(); c.arc(0, 0, 15 + pulse * 7, 0, TAU); c.stroke();
+    c.fillStyle = 'rgba(0,0,0,.55)'; c.beginPath(); c.arc(0, 0, 13, 0, TAU); c.fill();
+    c.fillStyle = '#ff5a3c'; c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(0, -14); c.lineTo(9.5, 10); c.lineTo(0, 4.5); c.lineTo(-9.5, 10); c.closePath(); c.fill(); c.stroke();
     c.restore();
   }
 
