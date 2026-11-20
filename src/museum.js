@@ -8,6 +8,7 @@ import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
 import { buildRoofscape } from './roofscape.js';
+import { panorama, lake } from './skyline.js';
 import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
 import { furnish, MATERIALS } from './furnish.js';
@@ -480,16 +481,17 @@ export class Museum {
       low.rotation.x = -Math.PI / 2; low.position.set(x0 + wW / 2, S.y - 0.03, cz); low.updateMatrix(); low.matrixAutoUpdate = false; this.group.add(low);
     }
     // The city all round, and one moon.
-    const city = TX.skyline(false); city.wrapS = THREE.RepeatWrapping; city.repeat.set(3, 1);
+    const city = panorama();                             // the Loop to the west and north, the lake to the east (skyline.js)
     const R = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2 + 150;
     const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 190, 64, 1, true), new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, color: new THREE.Color(1.35, 1.35, 1.35), fog: false }));
     sky.position.set(cx, 86, cz);
-    const moonAt = new THREE.Vector3(cx + R * 0.66, 118, cz - R * 0.7);
+    const moonAt = new THREE.Vector3(cx + R * 0.9, 100, cz - R * 0.36);        // low in the east, over the lake
     const moon = new THREE.Mesh(new THREE.SphereGeometry(13, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 2.8), fog: false }));
     moon.position.copy(moonAt);
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(190, 190), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.4), color: new THREE.Color(0.3, 0.38, 0.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     halo.position.copy(moonAt); halo.lookAt(cx, 20, cz);
     this.group.add(sky, moon, halo);
+    this.group.add(lake(B.x1 + 95, cx + R + 60, cz - R - 60, cz + R + 60, { x: B.x1 + 95, z: cz }, { x: moonAt.x, z: moonAt.z }));
 
     // A lamp either side of every way in.
     const posts = new Geo(), n = Math.max(1, plan.lamps.length);
