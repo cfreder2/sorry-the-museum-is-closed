@@ -8,6 +8,8 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
+import { Clay, cast } from './sculpt.js';
+import { figure } from './statues.js';
 
 const rngOf = seed => { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };
 
@@ -163,16 +165,22 @@ export function buildSetPieces(museum, plan) {
       const cyl = (a, b, h) => new THREE.CylinderGeometry(a, b, h, 14), ball = new THREE.SphereGeometry(1, 16, 12);
       put(new THREE.BoxGeometry(0.86, 0.16, 0.86), 0, 0.08, 0, 0, 0, 1, 1, 1, stoneMat); put(new THREE.BoxGeometry(0.7, 0.86, 0.7), 0, 0.59, 0, 0, 0, 1, 1, 1, stoneMat); put(new THREE.BoxGeometry(0.82, 0.1, 0.82), 0, 1.07, 0, 0, 0, 1, 1, 1, stoneMat);
       const B = 1.12;                                    // the top of the plinth
-      put(ball, 0, B + 0.1, 0.02, 0, 0, 0.3, 0.1, 0.26);                                             // a rock to stand on
-      put(cyl(0.085, 0.06, 0.78), -0.1, B + 0.5, 0.02, 0.05, 0.03); put(cyl(0.09, 0.06, 0.74), 0.1, B + 0.5, -0.06, -0.22, -0.05);      // legs: one straight, one bent back
-      put(ball, 0, B + 0.98, -0.02, 0.1, 0, 0.19, 0.2, 0.15);                                        // hips
-      put(new THREE.ConeGeometry(0.3, 0.75, 14, 1, true), 0.04, B + 0.62, -0.06, 0.08, 0.05, 1, 1, 0.75);      // drapery falling from the waist
-      put(ball, 0, B + 1.3, 0.02, -0.12, 0.06, 0.19, 0.27, 0.14);                                    // chest
-      put(ball, 0, B + 1.5, 0.03, 0, 0, 0.23, 0.07, 0.12);                                           // shoulders
-      put(cyl(0.05, 0.055, 0.14), 0.01, B + 1.6, 0.05); put(ball, 0.02, B + 1.75, 0.08, 0, 0, 0.105, 0.125, 0.115);      // neck, head turned down
-      put(ball, 0.02, B + 1.8, 0.04, 0, 0, 0.115, 0.09, 0.12);                                       // hair
-      put(cyl(0.045, 0.04, 0.42), -0.3, B + 1.62, 0.1, 0.5, 0.75); put(cyl(0.04, 0.035, 0.36), -0.48, B + 1.86, 0.2, 0.2, 0.2);      // one arm raised
-      put(cyl(0.045, 0.04, 0.4), 0.25, B + 1.3, 0.06, 0.15, -0.25); put(cyl(0.04, 0.035, 0.36), 0.31, B + 0.98, 0.14, 0.5, 0.05);     // the other down, holding the cloth
+      // The figure itself, modelled in clay like the bronzes outdoors (sculpt.js) and cast in white marble: a draped woman in
+      // contrapposto, weight on one leg, the other knee forward, one arm lifting a lamp, the other gathering her cloth, her
+      // head turned down towards the stairs.
+      { const c = new Clay([-0.7, -0.06, -0.55], [0.7, 2.25, 0.6], 0.022);
+        const J = { pelvis: [0.02, 0.98, 0], chest: [-0.02, 1.36, 0.02], head: [0.0, 1.71, 0.07],
+          lS: [-0.19, 1.47, 0.02], lE: [-0.33, 1.62, 0.12], lH: [-0.3, 1.94, 0.16],              // the lamp arm, raised
+          rS: [0.17, 1.45, 0.0], rE: [0.25, 1.17, 0.04], rH: [0.16, 0.95, 0.17],                 // the other across the hip, holding the cloth
+          lK: [-0.09, 0.52, 0.04], lF: [-0.1, 0.06, 0.0], rK: [0.13, 0.55, 0.16], rF: [0.16, 0.07, -0.06] };
+        figure(c, J, { female: true, skirt: true, s: 1.0 });
+        c.blob([0.0, 1.8, 0.0], [0.105, 0.075, 0.115], { k: 0.03 }); c.blob([0.0, 1.76, -0.11], [0.06, 0.06, 0.055], { k: 0.03 });      // hair bound up in a knot
+        c.limb([-0.3, 1.96, 0.16], [-0.3, 2.06, 0.17], 0.03, 0.05, { k: 0.02 }); c.blob([-0.3, 2.1, 0.17], [0.05, 0.035, 0.05], { k: 0.02 }); c.blob([-0.3, 2.16, 0.17], [0.022, 0.05, 0.022], { k: 0.02 });      // the lamp, and its flame
+        c.limb([-0.17, 1.46, -0.06], [0.2, 1.05, -0.1], 0.04, 0.06, { k: 0.05 }); c.limb([0.2, 1.05, -0.1], [0.24, 0.2, -0.16], 0.07, 0.1, { k: 0.06 });      // a mantle falling from the shoulder down her back
+        for (let i = 0; i < 4; i++) c.limb([0.14 + i * 0.03, 0.95 - i * 0.02, 0.15], [0.2 + i * 0.03, 0.12, 0.08 - i * 0.06], 0.022, 0.034, { k: 0.025 });      // the gathered cloth hanging from her hand
+        c.blob([0, 0.03, 0], [0.34, 0.06, 0.3], { k: 0.04 });                                         // the rock she stands on
+        const m = new THREE.Mesh(c.mesh({ hi: 0xffffff, lo: 0x8f8b86, snow: 0, sun: [0.45, 0.7, 0.55], reach: 0.16 }), cast({ roughness: 0.42, metalness: 0, emissiveIntensity: 0.5 }));
+        m.position.set(0, B, 0); g.add(m); }
       g.position.set(x, y, zc); g.rotation.y = Math.PI / 2; g.updateMatrixWorld(true); group.add(g);
       O.push({ x0: x - 0.45, x1: x + 0.45, z0: zc - 0.45, z1: zc + 0.45, y0: y, y1: y + 3.2 });
       // the columns either side of it, carrying a beam

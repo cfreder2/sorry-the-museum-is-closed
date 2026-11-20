@@ -17,7 +17,7 @@ const VERD = { hi: 0x86d2bd, lo: 0x1c4a42 }, BRONZE = { hi: 0xb08a52, lo: 0x2a1c
 // ---------------------------------------------------------------- a figure --
 // Built from where its joints are. Lengths in metres for someone about 1.75 tall; `s` scales the
 // thicknesses for a child or a giant. Faces +z.
-function figure(c, J, o = {}) {
+export function figure(c, J, o = {}) {
   const s = o.s || 1, f = o.female, add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], mid = (a, b, t = 0.5) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const P = J.pelvis, C = J.chest, H = J.head, k = 0.07 * s;
   // trunk
