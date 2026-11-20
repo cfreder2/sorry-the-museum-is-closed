@@ -48,6 +48,10 @@ export const TROPHIES = [
   { id: 'coin', tier: 'bronze', hidden: true, name: 'Insert Coin', desc: 'Play a game on one of the monitors somebody left switched on.', test: s => s.flags.arcade },
   { id: 'cabinets', tier: 'gold', hidden: true, name: 'Screen Time', desc: 'Find every monitor with a game on it.', test: s => s.flags.arcadeAll },
   { id: 'heist', tier: 'silver', hidden: true, name: 'The Heist', desc: 'Lift a treasure through the lasers and get it back to the security room.', test: s => s.flags.heist },
+  { id: 'lastout', tier: 'bronze', hidden: true, name: 'Last One Out', desc: 'Switch off the lights in 10 rooms.', goal: 10, count: s => Math.min(10, s.flags.lightsOff || 0), test: s => (s.flags.lightsOff || 0) >= 10 },
+  { id: 'letlight', tier: 'bronze', hidden: true, name: 'Let There Be Light', desc: 'Switch on the lights in 10 rooms behind the scenes.', goal: 10, count: s => Math.min(10, s.flags.lightsOn || 0), test: s => (s.flags.lightsOn || 0) >= 10 },
+  { id: 'steady', tier: 'silver', hidden: true, name: 'Steady Hand', desc: 'Repair 50 blemishes in one shift on the conservation line.', test: s => s.flags.steady },
+  { id: 'remedial', tier: 'bronze', hidden: true, name: 'Remedial Training', desc: 'Be sent home from the conservation line with fewer than 15 repaired.', test: s => s.flags.remedial },
   { id: 'ghost', tier: 'gold', hidden: true, name: 'A Ghost', desc: 'Pull off a heist without tripping a single alarm.', test: s => s.flags.ghost },
   // ---- gold ----
   { id: 'w250', tier: 'gold', name: 'Connoisseur', desc: 'See 250 different works.', ...works(250) },

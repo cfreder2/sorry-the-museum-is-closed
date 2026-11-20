@@ -472,6 +472,50 @@ kind of room, add a line to the list.
   the plinth, and back, without coming near a beam, and a pattern that fails
   is dealt again.
 
+## Light switches
+
+Beside every doorway, inside the room, there is a light switch: a plate at
+the height a person wants it, and under it, at skirting height, a big rocker
+with an amber pilot lamp for people 46 cm long. Pull up to either (or hover
+there) and the action button reads LIGHTS (E on a keyboard).
+
+A gallery still wakes by itself the first time you go in; after that its
+switch puts it out, picture lamps and all, and brings it back. Every other
+room (offices, stores, plant, corridors, Griffin Court) is dark until its
+switch is thrown, and then properly lit: cooler and whiter than a gallery,
+the ceiling fittings glowing. Which rooms you left on or off is kept between
+visits; a new game forgets it. In a race the switches are dead.
+
+No lights are added to do this. Every surface in the building already glows
+a little in its own colour, and a room's working light is one more term of
+that glow, scaled by the room's level. A room's own walls, trim and boards
+take it as a uniform; the merged floors, the door surrounds and all the
+furniture carry the number of the room each vertex stands in and look the
+level up in a 512 x 1 texture. The plates and ceiling panels are instanced
+boxes, one mesh to a 32 m patch, drawn only near the camera. It is all in
+`src/lights.js`. A switch plate keeps within half a metre of its door jamb
+and never sits over a picture, a label, another doorway or furniture.
+
+## The conservation line
+
+In a conservation studio there is a long low table with a belt across the
+top. Pull up to it and the button reads REPAIR. Like the other games it is
+played on the thing itself: the camera stands over the table, paintings come
+along the belt in gilded frames, and you tap their blemishes (a scratch, a
+flake, a tear, fly specks, a water stain, yellowed varnish) before they reach
+the far end. A missed blemish and a tap on a good bit both count against you.
+Every repair makes the belt faster and the paintings busier; once ten
+blemishes have been resolved, the moment your accuracy is under 90% the shift
+is over and Human Resources asks you to return tomorrow for remedial
+training. The score is blemishes repaired in one shift. Keys work too: the
+arrows choose a blemish, Space repairs it.
+
+The paintings are real works from tonight's hang, public domain only, drawn
+from the tiny preview in the collection data and replaced by a 400 px image
+if one loads. The rules are in `src/repairgame.js` (no page, no three.js;
+they run in node) and the rest in `src/repair.js`. It is a secret, and it
+announces itself with a `museum:repair` event (`start`, `end`).
+
 ## Settings and access
 
 Settings are on the title screen and the pause menu, and are remembered.
@@ -627,6 +671,9 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/props.js              loose cones and signs, and snowmen
     src/arcade.js             the monitors with games on them: the screens in the rooms, and playing one
     src/arcadegames.js        the ten games (no three.js, no DOM)
+    src/lights.js             a light switch by every door, and each room's working lights
+    src/repair.js             the conservation line: the table in the studio, and playing it
+    src/repairgame.js         its rules (no three.js, no DOM)
     src/heist.js              the heist: the button, the beams, the clock
     src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised

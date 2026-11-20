@@ -1304,14 +1304,14 @@ export class Museum {
     if (state && !this.visited.has(roomId)) { this.visited.add(roomId); try { localStorage.setItem('after-hours.rooms', JSON.stringify([...this.visited])); } catch { /* fine */ } }
     if (state) {
       const kind = state.room.kind;
-      if (kind === 'gallery' && !state.lit) {
+      if (kind === 'gallery' && !state.lit && state.sw !== false) {      // (sw: its light switch, src/lights.js; false once it has been switched off)
         state.lit = true;
         for (const a of state.arts) {
           a.wakeAt = t + 0.05 + Math.hypot(a.x - pos.x, a.z - pos.z) * 0.06 + Math.random() * 0.08;
           this._waking.add(a);
         }
         if (this.onRoomLit) this.onRoomLit(roomId, state);
-      } else if (kind !== 'gallery') {
+      } else if (kind !== 'gallery' && state.sw !== false) {
         // In the hall and the passage, lamps come on only as you draw near.
         const reach = kind === 'hall' ? 13 : 7.5;
         for (const a of state.arts) {
@@ -1353,7 +1353,7 @@ export class Museum {
     if (this._spot) { this._paint(this._spot); if (!this._spot.boost) this._spot = null; }
     for (const s of Object.values(this.rooms)) {
       const k = s.room.kind;
-      const target = k === 'gallery' ? (s.lit ? 1 : 0) : 0;
+      const target = k === 'gallery' ? (s.lit && s.sw !== false ? 1 : 0) : 0;
       s.wake += (target - s.wake) * Math.min(1, dt * 1.1);
       const base = k === 'hall' ? 0.05 : k === 'corridor' ? 0.012 : 0.022;
       s.wallMat.emissiveIntensity = base + 0.34 * s.wake;
