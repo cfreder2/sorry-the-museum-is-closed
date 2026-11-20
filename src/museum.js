@@ -475,8 +475,15 @@ export class Museum {
     if (plan.street) {
       // The avenue side lies lower: the high ground stops at the terrace wall, and a second sheet carries on below.
       const S = plan.street, W = B.x1 - B.x0 + 400, x0 = cx - W / 2, wE = cx + W / 2 - S.x, wW = S.x - x0 + 13;
-      ground.geometry.dispose(); ground.geometry = new THREE.PlaneGeometry(wE, B.z1 - B.z0 + 400); ground.position.x = S.x + wE / 2; ground.updateMatrix();
-      gt.repeat.x *= wE / W; gt.offset.x = ((S.x - x0) / W) * ((B.x1 - B.x0) / 6);
+      // The high ground starts a little way back from the wall, and a strip fills in between, left open wherever
+      // steps, a ramp or a climbing street comes up through it: otherwise the snow lies over them like a lid.
+      const EDGE = 12, hE = B.z1 - B.z0 + 400, zA = cz - hE / 2, zB = cz + hE / 2;
+      ground.geometry.dispose(); ground.geometry = new THREE.PlaneGeometry(wE - EDGE, hE); ground.position.x = S.x + EDGE + (wE - EDGE) / 2; ground.updateMatrix();
+      gt.repeat.x *= (wE - EDGE) / W; gt.offset.x = ((S.x + EDGE - x0) / W) * ((B.x1 - B.x0) / 6);
+      const strip = new Geo(), fill = (xa, xb, za, zb) => { if (xb - xa > 0.01 && zb - za > 0.01) strip.quad([xa, -0.03, za], [xa, -0.03, zb], [xb, -0.03, zb], [xb, -0.03, za], [0, 1, 0], [[xa / 6, za / 6], [xa / 6, zb / 6], [xb / 6, zb / 6], [xb / 6, za / 6]]); };
+      const ways = S.ways.map(w => ({ z0: w.road ? w.z0 : w.z0 - (w.id === 'steps' ? 1.05 : 0.3), z1: w.road ? w.z1 : w.z1 + (w.id === 'steps' ? 1.05 : 0.3), run: w.road ? EDGE : w.run + (w.id === 'steps' ? 0.3 : 0.05) })).sort((p, q) => p.z0 - q.z0);
+      let zz = zA; for (const w of ways) { fill(S.x, S.x + EDGE, zz, w.z0); fill(S.x + w.run, S.x + EDGE, w.z0, w.z1); zz = w.z1; } fill(S.x, S.x + EDGE, zz, zB);
+      const sm = strip.mesh(ground.material.clone()); { const st = this.snowTex.clone(); st.needsUpdate = true; st.repeat.set(1, 1); sm.material.map = sm.material.emissiveMap = st; } sm.matrixAutoUpdate = false; sm.updateMatrix(); this.group.add(sm);
       const lt = this.snowTex.clone(); lt.needsUpdate = true; lt.repeat.set(wW / 6, (B.z1 - B.z0 + 400) / 6);
       const low = new THREE.Mesh(new THREE.PlaneGeometry(wW, B.z1 - B.z0 + 400), ground.material.clone()); low.material.map = low.material.emissiveMap = lt;
       low.rotation.x = -Math.PI / 2; low.position.set(x0 + wW / 2, S.y - 0.03, cz); low.updateMatrix(); low.matrixAutoUpdate = false; this.group.add(low);
