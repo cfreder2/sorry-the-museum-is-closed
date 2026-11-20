@@ -129,7 +129,7 @@ export function buildStreets(museum, plan) {
   const blades = {}; const bladeMat = n => blades[n] || (blades[n] = new THREE.MeshBasicMaterial({ map: blade(n), side: THREE.DoubleSide, color: new THREE.Color(0.85, 0.85, 0.85) }));
   // A head: a black box with three lamps, one lit. Faces along `ax` ('x' or 'z') in direction `dir`.
   const head = (x, y, z, ax, dir, lit) => {
-    if (lit !== 'A') return;                             // where the traffic runs, its own working heads hang here (traffic.js); only the caution light at the Adams crossing is ours
+    return;                                              // the working heads are traffic.js's; these poles carry the street names only
     const t = 0.13, w = 0.17;
     ax === 'z' ? g.black.box(x - w, x + w, y, y + 0.96, z - t, z + t) : g.black.box(x - t, x + t, y, y + 0.96, z - w, z + w);
     ['R', 'A', 'G'].forEach((c, i) => { const q = c === lit ? g['lamp' + c] : c === 'A' ? g.lampA : g.dark, yy = y + 0.96 - 0.17 - i * 0.31, f = dir * (t + 0.015);
@@ -137,10 +137,10 @@ export function buildStreets(museum, plan) {
   };
   // A pole at (x, z) with a mast arm reaching `reach` along `ax` (sign gives which way), and its heads facing `dir` along the other... the traffic it governs.
   const signal = (x, z, armAx, reach, faceAx, faceDir, lit, names) => {
-    const y = streetY(plan, x, z), HT = 5.6;
+    const y = streetY(plan, x, z), HT = 4.7;
     g.black.box(x - 0.09, x + 0.09, y, y + HT, z - 0.09, z + 0.09); g.black.box(x - 0.16, x + 0.16, y, y + 0.5, z - 0.16, z + 0.16);
     const a0 = Math.min(0, reach), a1 = Math.max(0, reach);
-    armAx === 'x' ? g.black.box(x + a0, x + a1, y + HT - 0.2, y + HT - 0.08, z - 0.06, z + 0.06) : g.black.box(x - 0.06, x + 0.06, y + HT - 0.2, y + HT - 0.08, z + a0, z + a1);
+    void a0; void a1;                                    // no mast arm: nothing hangs from it
     for (const f of [0.55, 0.95]) { const hx = armAx === 'x' ? x + reach * f : x, hz = armAx === 'z' ? z + reach * f : z; head(hx, y + HT - 1.2, hz, faceAx, faceDir, lit); }
     head(x + (faceAx === 'x' ? faceDir * 0.24 : 0), y + 2.6, z + (faceAx === 'z' ? faceDir * 0.24 : 0), faceAx, faceDir, lit);
     names.forEach((n, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.24), bladeMat(n)); m.position.set(x + (i ? 0 : 0.72), y + 4.0 + i * 0.3, z + (i ? 0.72 : 0)); if (i) m.rotation.y = Math.PI / 2; extra.push(m); });

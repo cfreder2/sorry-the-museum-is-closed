@@ -252,14 +252,18 @@ export class Traffic {
       const hx = ns ? a.sx : px, hz = ns ? pz : a.sz;       // the head hangs over the middle of the lanes
       if (ns) g.box(Math.min(px, hx) - 0.05, Math.max(px, hx) + 0.05, y + H, y + H + 0.12, pz - 0.06, pz + 0.06); else g.box(px - 0.06, px + 0.06, y + H, y + H + 0.12, Math.min(pz, hz) - 0.05, Math.max(pz, hz) + 0.05);
       for (const [qx, qz, qy] of [[hx, hz, y + H - 1.05], [px + (ns ? -out * 0.3 : 0), pz + (ns ? 0 : -out * 0.3), y + 2.6]]) {
-        g.box(qx - 0.19, qx + 0.19, qy, qy + 1.05, qz - 0.19, qz + 0.19);
-        heads.push({ a, x: qx - a.hx * 0.2, y: qy, z: qz - a.hz * 0.2 });
+        g.box(qx - 0.24, qx + 0.24, qy - 0.06, qy + 1.16, qz - 0.24, qz + 0.24);
+        if (ns) g.box(qx - 0.42, qx + 0.42, qy - 0.12, qy + 1.22, qz - a.hz * 0.2 - 0.02, qz - a.hz * 0.2 + 0.02); else g.box(qx - a.hx * 0.2 - 0.02, qx - a.hx * 0.2 + 0.02, qy - 0.12, qy + 1.22, qz - 0.42, qz + 0.42);      // a backboard, so the lamp shows against the city
+        heads.push({ a, x: qx - a.hx * 0.25, y: qy, z: qz - a.hz * 0.25 });
       }
     }
     const pm = g.mesh(new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.5, emissive: 0x08090b, emissiveIntensity: 0.8 })); pm.updateMatrix(); grp.add(pm);
-    const lamps = new THREE.InstancedMesh(new THREE.CircleGeometry(0.115, 10), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), heads.length * 3), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
-    heads.forEach((h, i) => { Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-h.a.hx, -h.a.hz)); for (let j = 0; j < 3; j++) { lamps.setMatrixAt(i * 3 + j, M.compose(new THREE.Vector3(h.x, h.y + 0.85 - j * 0.32, h.z), Q, one)); lamps.setColorAt(i * 3 + j, c.setRGB(0.05, 0.05, 0.05)); } });
-    lamps.frustumCulled = false; grp.add(lamps); this.group.add(grp);
+    const lamps = new THREE.InstancedMesh(new THREE.CircleGeometry(0.15, 14), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), heads.length * 3), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
+    heads.forEach((h, i) => { Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-h.a.hx, -h.a.hz)); for (let j = 0; j < 3; j++) { lamps.setMatrixAt(i * 3 + j, M.compose(new THREE.Vector3(h.x, h.y + 0.92 - j * 0.37, h.z), Q, one)); lamps.setColorAt(i * 3 + j, c.setRGB(0.05, 0.05, 0.05)); } });
+    lamps.frustumCulled = false; grp.add(lamps);
+    // A soft glow round whichever lamp is lit, and its colour thrown on the road beneath: what makes it read from a distance.
+    const halo = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), heads.length * 2);
+    halo.frustumCulled = false; halo.renderOrder = 6; grp.add(halo); this.halo = halo; this.group.add(grp);
     this.heads = heads; this.lamps = lamps; this.signalGroup = grp;
   }
   _lights() {
@@ -268,6 +272,10 @@ export class Traffic {
     this.heads.forEach((h, i) => {
       const st = h.a.sig.state(h.a.key); if (h.st === st) return; h.st = st; dirty = true;
       for (let j = 0; j < 3; j++) { const q = (IDX[st] === j ? ON : OFF)[j]; this.lamps.setColorAt(i * 3 + j, c.setRGB(q[0], q[1], q[2])); }
+      if (this.halo) { const j = IDX[st], q = ON[j], M = this._hm || (this._hm = new THREE.Matrix4()), Q = this._hq || (this._hq = new THREE.Quaternion()), V = this._hv || (this._hv = new THREE.Vector3()), S = this._hs || (this._hs = new THREE.Vector3());
+        Q.setFromAxisAngle(V.set(0, 1, 0), Math.atan2(-h.a.hx, -h.a.hz)); this.halo.setMatrixAt(i * 2, M.compose(V.set(h.x - h.a.hx * 0.03, h.y + 0.92 - j * 0.37, h.z - h.a.hz * 0.03), Q, S.set(1.5, 1.5, 1)));
+        Q.setFromAxisAngle(V.set(1, 0, 0), -Math.PI / 2); const gy = streetY(this.plan, h.x, h.z) + 0.03; this.halo.setMatrixAt(i * 2 + 1, M.compose(V.set(h.x - h.a.hx * 2.2, gy, h.z - h.a.hz * 2.2), Q, S.set(h.y - gy > 3 ? 7 : 0.001, h.y - gy > 3 ? 7 : 0.001, 1)));
+        this.halo.setColorAt(i * 2, c.setRGB(q[0] * 0.5, q[1] * 0.5, q[2] * 0.5)); this.halo.setColorAt(i * 2 + 1, c.setRGB(q[0] * 0.1, q[1] * 0.1, q[2] * 0.1)); this.halo.instanceMatrix.needsUpdate = true; if (this.halo.instanceColor) this.halo.instanceColor.needsUpdate = true; }
     });
     if (dirty && this.lamps.instanceColor) this.lamps.instanceColor.needsUpdate = true;
   }
