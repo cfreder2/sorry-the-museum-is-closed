@@ -24,7 +24,7 @@ export function buildCar(colour = 0xd2261c) {
   const black = std(0x0c0c0e, { roughness: 0.7 });
   const trim = std(0xf3c21b, { roughness: 0.4, emissive: 0xf3c21b, emissiveIntensity: 0.15 });
 
-  part(new THREE.BoxGeometry(0.2, 0.025, 0.42), black, 0, 0.07, 0, body);                     // chassis
+  part(new THREE.BoxGeometry(0.2, 0.04, 0.42), black, 0, 0.0695, 0, body);                    // chassis: up to the underside of the tub, down to the axles
   part(new THREE.BoxGeometry(0.19, 0.055, 0.4), paint, 0, 0.115, -0.005, body);               // tub
   const hood = part(new THREE.BoxGeometry(0.17, 0.03, 0.15), paint, 0, 0.15, 0.12, body);
   hood.rotation.x = 0.22;
@@ -33,9 +33,10 @@ export function buildCar(colour = 0xd2261c) {
   part(new THREE.BoxGeometry(0.155, 0.012, 0.11), paint, 0, 0.206, -0.035, body);             // roof
   part(new THREE.BoxGeometry(0.19, 0.008, 0.02), trim, 0, 0.146, -0.19, body);                // stripe
   part(new THREE.BoxGeometry(0.02, 0.008, 0.36), trim, 0, 0.147, 0, body);
-  for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.012, 0.07, 0.03), black, s * 0.08, 0.2, -0.2, body);
-  part(new THREE.BoxGeometry(0.24, 0.01, 0.07), paint, 0, 0.24, -0.205, body);                // wing
-  part(new THREE.BoxGeometry(0.22, 0.03, 0.02), black, 0, 0.075, 0.225, body);                // bumper
+  for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.012, 0.1, 0.03), black, s * 0.08, 0.187, -0.188, body);      // wing posts, standing on the tub
+  part(new THREE.BoxGeometry(0.24, 0.01, 0.07), paint, 0, 0.24, -0.195, body);                // wing
+  part(new THREE.BoxGeometry(0.22, 0.03, 0.02), black, 0, 0.075, 0.228, body);                // bumper
+  for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.02, 0.016, 0.03), black, s * 0.07, 0.072, 0.212, body);       // and the two stays that hold it to the chassis
   for (const s of [-1, 1]) {
     part(new THREE.SphereGeometry(0.018, 10, 8), glow(4, 3.6, 2.6), s * 0.06, 0.125, 0.2, body);
     part(new THREE.BoxGeometry(0.03, 0.014, 0.01), glow(2.2, 0.1, 0.08), s * 0.07, 0.125, -0.207, body);
@@ -56,9 +57,14 @@ export function buildCar(colour = 0xd2261c) {
     wheels.push({ pivot, spin, r, front });
   }
 
+  // An axle through each pair of wheels, so that they are plainly on the car.
+  const steel = std(0x8d9299, { metalness: 0.8, roughness: 0.35 });
+  for (const [z, r, half] of [[0.14, 0.058, 0.125], [-0.14, 0.068, 0.135]]) { const ax = part(new THREE.CylinderGeometry(0.009, 0.009, half * 2, 8), steel, 0, r, z, g); ax.rotation.z = Math.PI / 2; }
+
   // The aerial. It whips.
   const aerial = new THREE.Group();
-  aerial.position.set(-0.07, 0.2, -0.14);
+  aerial.position.set(-0.07, 0.143, -0.14);                // its foot is on the deck behind the cab
+  part(new THREE.CylinderGeometry(0.008, 0.01, 0.012, 8), black, 0, 0.006, 0, aerial);
   part(new THREE.CylinderGeometry(0.0022, 0.003, 0.36, 5), std(0xbfc4c9, { metalness: 0.8, roughness: 0.3 }), 0, 0.18, 0, aerial);
   part(new THREE.SphereGeometry(0.008, 8, 6), glow(1.3, 0.45, 0.05), 0, 0.365, 0, aerial);
   body.add(aerial);
