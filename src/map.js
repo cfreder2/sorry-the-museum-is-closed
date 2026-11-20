@@ -3,6 +3,8 @@
 // building opens, a level at a time. Pick a room there and the way to it lights up, on the big map
 // and on the radar, across stairs and lifts if it is on another level.
 
+import { heightOf, GRAVITY } from './plan.js';
+
 const TAU = Math.PI * 2;
 const near = (a, b, e = 0.7) => Math.abs(a - b) < e;
 
@@ -47,7 +49,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
         return k ? 'D' + k.id : null;
       };
       const P = place => ({ x: cx, y: d.y, z: cz, place });
+      const n0 = nodes.length;
       way(P(side(d.a)), P(side(d.b)), d.vent ? 3 : 0.5, 'door');
+      // (Which way it is gone through, and how deep the wall is: the route runs square through the middle of it.)
+      for (let i = n0; i < nodes.length; i++) { nodes[i].ax = d.along === 'x' ? [1, 0] : [0, 1]; nodes[i].deep = (d.along === 'x' ? d.x1 - d.x0 : d.z1 - d.z0) / 2; }
     }
     for (const q of p.ramps) {
       if (!shown(p.byId[q.room])) continue;
@@ -69,73 +74,231 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       const x = (Math.max(a.x0, b.x0) + Math.min(a.x1, b.x1)) / 2, z = (Math.max(a.z0, b.z0) + Math.min(a.z1, b.z1)) / 2;
       way({ x, y: a.y, z, place: 'D' + a.id }, { x, y: a.y, z, place: 'D' + b.id }, 0.1, 'deck');
     }
+    // The stunt kit. A kicker with a landing ramp beyond it (or a hump: the two back to back) is a way too, in the one
+    // direction it can be taken: up the kicker and down the landing, never across and never backwards. It is offered a
+    // little cheaper than walking round, so a route that passes a jump takes it, and only if the plain car can clear the gap.
+    const jumps = new Map(), kit = p.surfaces.filter(q => (q.skin === 'ply' || q.skin === 'snow') && q.axis && !q.curve && !q.hang && !q.hill && Math.abs(q.h1 - q.h0) > 0.12);
+    for (const U of kit) for (const Dn of kit) {
+      if (U === Dn || U.axis !== Dn.axis) continue;
+      const ax = U.axis, dir = U.h1 > U.h0 ? 1 : -1, lo = q => (ax === 'x' ? q.x0 : q.z0), hi = q => (ax === 'x' ? q.x1 : q.z1), c0 = Math.max(ax === 'x' ? U.z0 : U.x0, ax === 'x' ? Dn.z0 : Dn.x0), c1 = Math.min(ax === 'x' ? U.z1 : U.x1, ax === 'x' ? Dn.z1 : Dn.x1);
+      if (c1 - c0 < 0.6) continue;
+      const lip = dir > 0 ? hi(U) : lo(U), foot = dir > 0 ? lo(U) : hi(U), land = dir > 0 ? lo(Dn) : hi(Dn), far = dir > 0 ? hi(Dn) : lo(Dn), gap = (land - lip) * dir;
+      const top = Math.max(U.h0, U.h1), bot = Math.min(U.h0, U.h1), dTop = dir > 0 ? Dn.h0 : Dn.h1, dBot = dir > 0 ? Dn.h1 : Dn.h0;
+      if (gap < -0.05 || gap > 5 || dTop - dBot < 0.12 || Math.abs(dTop - top) > 0.35 || Math.abs(dBot - bot) > 0.3) continue;
+      const theta = Math.atan2(top - bot, hi(U) - lo(U)), need = gap < 0.15 ? 0 : Math.sqrt(GRAVITY * gap / Math.sin(2 * theta));
+      if (need > 12 * 0.8) continue;                       // (the plain car's top speed is 12 m/s: leave a fifth in hand)
+      // A run-up to get straight and up to speed, and a run-out to land in: 2.4 m of clear floor each if there is that much, a metre if not.
+      const c = (c0 + c1) / 2, at = a => (ax === 'x' ? { x: a, z: c } : { x: c, z: a });
+      const free = (a, b) => { for (let t = 0; t <= 1.001; t += 0.25) { const q = at(a + (b - a) * t); if (placeAt(q.x, q.z, bot) == null || (wallAt && wallAt(p, q.x, q.z, bot)) || p.obstacles.some(o => !o.gate && q.x > o.x0 - 0.2 && q.x < o.x1 + 0.2 && q.z > o.z0 - 0.2 && q.z < o.z1 + 0.2 && o.y0 < bot + 0.3 && o.y1 > bot + 0.04)) return false; } return true; };
+      const eOff = free(foot - dir * 0.4, foot - dir * 2.4) ? 2.4 : free(foot - dir * 0.4, foot - dir * 1.0) ? 1.0 : 0, xOff = free(far + dir * 0.4, far + dir * 2.4) ? 2.4 : free(far + dir * 0.4, far + dir * 1.0) ? 1.0 : 0;
+      if (!eOff || !xOff) continue;                        // nowhere to come from, or nowhere to land
+      const e = foot - dir * eOff, x = far + dir * xOff, E = at(e), X = at(x);
+      const place = placeAt(E.x, E.z, bot);
+      if (!place || place !== placeAt(X.x, X.z, bot)) continue;
+      const a = node(E.x, bot, E.z, place), b = node(X.x, bot, X.z, place);
+      adj[a].push([b, Math.abs(x - e) * 0.85, 'jump']);
+      jumps.set(a + ':' + b, { U, D: Dn, ax, dir, c, bot, theta, gap, v: Math.max(need * 1.12, 5) });
+    }
     const byPlace = new Map();
     nodes.forEach((n, i) => { if (!byPlace.has(n.place)) byPlace.set(n.place, []); byPlace.get(n.place).push(i); });
-    return { nodes, adj, byPlace, flights };
+    return { nodes, adj, byPlace, flights, jumps };
   }
   const walk = (a, b, place) => Math.hypot(a.x - b.x, a.z - b.z) * (place === 'OUT' ? 3 : 1);      // indoors for choice
 
-  // Inside a room the way from one doorway to the next is not always a straight line: there may be
-  // a desk, a case or a ramp in it. Each room gets a coarse grid of where a toy car can go, made
-  // the first time it is needed, and a leg that would cross something is walked round it instead.
-  const CELL = 0.4, grids = new Map();
+  // Inside a room the way from one doorway to the next is walked on a grid of where a toy car can
+  // go, made the first time the room is needed. Every cell knows how far it is from the nearest solid
+  // thing (a wall, a jamb, a case, a ramp's side), and a cell near one costs more to cross, steeply
+  // more the nearer: so the way keeps to the middle of a corridor and of a doorway by itself, and
+  // only comes close where there is no room to do otherwise. (Loose chairs are not in it: they move.)
+  const CELL = 0.3, KEEP = 0.6, grids = new Map();
   function gridOf(room) {
     if (grids.has(room.id)) return grids.get(room.id);
-    const nx = Math.max(1, Math.ceil((room.x1 - room.x0) / CELL)), nz = Math.max(1, Math.ceil((room.z1 - room.z0) / CELL)), blocked = new Uint8Array(nx * nz), m = 0.22;
+    const nx = Math.max(1, Math.ceil((room.x1 - room.x0) / CELL)), nz = Math.max(1, Math.ceil((room.z1 - room.z0) / CELL)), N = nx * nz, blocked = new Uint8Array(N), dist = new Float32Array(N).fill(99), m = 0.2;
     const mark = (x0, x1, z0, z1) => { const i0 = Math.max(0, Math.floor((x0 - m - room.x0) / CELL)), i1 = Math.min(nx - 1, Math.floor((x1 + m - room.x0) / CELL)), j0 = Math.max(0, Math.floor((z0 - m - room.z0) / CELL)), j1 = Math.min(nz - 1, Math.floor((z1 + m - room.z0) / CELL)); for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) blocked[j * nx + i] = 1; };
     for (const o of G.plan.obstacles) if (!o.gate && o.x1 > room.x0 && o.x0 < room.x1 && o.z1 > room.z0 && o.z0 < room.z1 && o.y0 < room.y + 0.3 && o.y1 > room.y + 0.04) mark(o.x0, o.x1, o.z0, o.z1);
-    if (wallAt) for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) if (!blocked[j * nx + i] && wallAt(G.plan, room.x0 + (i + 0.5) * CELL, room.z0 + (j + 0.5) * CELL, room.y)) blocked[j * nx + i] = 1;
-    const g = { nx, nz, blocked, room };
+    if (wallAt) {
+      // (Only where a piece of the kit or the building stands: asking of every cell of a big room is what took the time.)
+      const kit = G.plan.surfaces.filter(q => !q.hill && q.x1 > room.x0 && q.x0 < room.x1 && q.z1 > room.z0 && q.z0 < room.z1 && Math.max(q.h0, q.h1) > room.y + 0.09 && (q.thick ? Math.max(q.h0, q.h1) - q.thick : (q.base || 0)) < room.y + 0.3);       // (not the roofs: a room is indoors)
+      for (const q of kit) { const i0 = Math.max(0, Math.floor((q.x0 - room.x0) / CELL) - 1), i1 = Math.min(nx - 1, Math.floor((q.x1 - room.x0) / CELL) + 1), j0 = Math.max(0, Math.floor((q.z0 - room.z0) / CELL) - 1), j1 = Math.min(nz - 1, Math.floor((q.z1 - room.z0) / CELL) + 1);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (!blocked[j * nx + i] && wallAt(G.plan, room.x0 + (i + 0.5) * CELL, room.z0 + (j + 0.5) * CELL, room.y)) blocked[j * nx + i] = 1; }
+    }
+    // How far from anything solid: nothing at a blocked cell, and half a cell at the room's own walls, except where a doorway is.
+    const doors = (G.plan.doorsOf ? G.plan.doorsOf(room.id) : G.plan.doors.filter(d => d.a === room.id || d.b === room.id)).filter(d => Math.abs(d.y - room.y) < 0.6);
+    const inDoor = (x, z) => doors.some(d => x > d.x0 - 0.3 && x < d.x1 + 0.3 && z > d.z0 - 0.3 && z < d.z1 + 0.3);
+    for (let k = 0; k < N; k++) if (blocked[k]) dist[k] = 0;
+    for (let i = 0; i < nx; i++) { const x = room.x0 + (i + 0.5) * CELL; if (!inDoor(x, room.z0 - 0.15)) dist[i] = Math.min(dist[i], CELL / 2); if (!inDoor(x, room.z1 + 0.15)) dist[(nz - 1) * nx + i] = Math.min(dist[(nz - 1) * nx + i], CELL / 2); }
+    for (let j = 0; j < nz; j++) { const z = room.z0 + (j + 0.5) * CELL; if (!inDoor(room.x0 - 0.15, z)) dist[j * nx] = Math.min(dist[j * nx], CELL / 2); if (!inDoor(room.x1 + 0.15, z)) dist[j * nx + nx - 1] = Math.min(dist[j * nx + nx - 1], CELL / 2); }
+    const D1 = CELL, D2 = CELL * Math.SQRT2, relax = (k, i, j, di, dj, w) => { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= nx || b >= nz) return; const v = dist[b * nx + a] + w; if (v < dist[k]) dist[k] = v; };
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; relax(k, i, j, -1, 0, D1); relax(k, i, j, 0, -1, D1); relax(k, i, j, -1, -1, D2); relax(k, i, j, 1, -1, D2); }
+    for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i; relax(k, i, j, 1, 0, D1); relax(k, i, j, 0, 1, D1); relax(k, i, j, 1, 1, D2); relax(k, i, j, -1, 1, D2); }
+    const g = { nx, nz, blocked, dist, room };
     grids.set(room.id, g);
     return g;
   }
+  // How much room there is round a point on the floor: metres to the nearest solid thing (a guess of plenty where nothing is known).
+  let lastRoom = null;
+  function clearance(x, y, z) {
+    const inside = r => near(r.y, y, 0.3) && x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
+    const room = lastRoom && inside(lastRoom) ? lastRoom : G.plan.rooms.find(inside);      // (asked thousands of times along one route, nearly always of the same room as last time)
+    if (!room) return 9;
+    lastRoom = room;
+    const g = gridOf(room), i = Math.min(g.nx - 1, Math.floor((x - room.x0) / CELL)), j = Math.min(g.nz - 1, Math.floor((z - room.z0) / CELL)), k = j * g.nx + i;
+    return g.blocked[k] ? 0 : g.dist[k];
+  }
+  // From a to b across a room: the cheapest way over the grid, pulled tight wherever that costs no clearance.
   function around(room, a, b) {
-    const g = gridOf(room), { nx, nz, blocked } = g;
+    const g = gridOf(room), { nx, nz, blocked, dist } = g, N = nx * nz;
     const cell = p => [Math.max(0, Math.min(nx - 1, Math.floor((p.x - room.x0) / CELL))), Math.max(0, Math.min(nz - 1, Math.floor((p.z - room.z0) / CELL)))];
-    const clear = (p, q) => { const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / (CELL * 0.5)); for (let k = 1; k < n; k++) { const [i, j] = cell({ x: p.x + (q.x - p.x) * k / n, z: p.z + (q.z - p.z) * k / n }); if (blocked[j * nx + i]) return false; } return true; };
-    if (clear(a, b)) return null;
     // The nearest open cell to each end (a doorway's own cell may be shadowed by something beside it).
-    const open = p => { const [ci, cj] = cell(p); for (let r = 0; r < 8; r++) for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) if (i >= 0 && j >= 0 && i < nx && j < nz && !blocked[j * nx + i]) return j * nx + i; return -1; };
+    const open = p => { const [ci, cj] = cell(p); for (let r = 0; r < 10; r++) for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) if (i >= 0 && j >= 0 && i < nx && j < nz && !blocked[j * nx + i]) return j * nx + i; return -1; };
     const A = open(a), B = open(b);
     if (A < 0 || B < 0) return null;
-    const from = new Int32Array(nx * nz).fill(-1), queue = [A]; from[A] = A;
-    for (let h = 0; h < queue.length && from[B] < 0; h++) {
-      const u = queue[h], ui = u % nx, uj = (u - ui) / nx;
+    const pen = k => { const d = dist[k]; return d >= KEEP + 0.15 ? 0 : ((KEEP + 0.15 - d) / (KEEP + 0.15)) ** 2 * 7; };
+    const cost = new Float32Array(N).fill(Infinity), from = new Int32Array(N).fill(-1), heap = [[0, A]]; cost[A] = 0; from[A] = A;
+    const bi = B % nx, bj = (B - bi) / nx;
+    const push = e => { let i = heap.push(e) - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let s = i; if (l < heap.length && heap[l][0] < heap[s][0]) s = l; if (r < heap.length && heap[r][0] < heap[s][0]) s = r; if (s === i) break; [heap[s], heap[i]] = [heap[i], heap[s]]; i = s; } } return top; };
+    const done = new Uint8Array(N);
+    while (heap.length) {
+      const [, u] = pop(); if (done[u]) continue; done[u] = 1; if (u === B) break;
+      const ui = u % nx, uj = (u - ui) / nx;
       for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         const i = ui + di, j = uj + dj;
         if (i < 0 || j < 0 || i >= nx || j >= nz) continue;
         const v = j * nx + i;
-        if (from[v] >= 0 || blocked[v] || (di && dj && (blocked[uj * nx + i] || blocked[j * nx + ui]))) continue;
-        from[v] = u; queue.push(v);
+        if (done[v] || blocked[v] || (di && dj && (blocked[uj * nx + i] || blocked[j * nx + ui]))) continue;
+        const c = cost[u] + (di && dj ? Math.SQRT2 : 1) * CELL * (1 + pen(v));
+        if (c < cost[v]) { cost[v] = c; from[v] = u; push([c + Math.hypot(i - bi, j - bj) * CELL, v]); }
       }
     }
     if (from[B] < 0) return null;
     const cells = [];
     for (let u = B; u !== A; u = from[u]) cells.unshift(u);
-    const pts = [a, ...cells.map(u => ({ x: room.x0 + (u % nx + 0.5) * CELL, y: a.y, z: room.z0 + (Math.floor(u / nx) + 0.5) * CELL })), b];
-    // Pull the string tight: keep only the corners.
-    const out = [pts[0]];
-    for (let i = 0; i < pts.length - 1;) { let j = pts.length - 1; while (j > i + 1 && !clear(pts[i], pts[j])) j--; out.push(pts[j]); i = j; }
-    return out.slice(1, -1);
+    cells.unshift(A);
+    const at = u => ({ x: room.x0 + (u % nx + 0.5) * CELL, y: a.y, z: room.z0 + (Math.floor(u / nx) + 0.5) * CELL });
+    const pts = cells.map(at), dd = cells.map(u => dist[u]);
+    // Pull the string tight: a stretch may be cut straight only if the straight line keeps as clear as the way round did (or clear enough).
+    const lineMin = (p, q) => { const n = Math.max(1, Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / (CELL * 0.5))); let mn = 99; for (let k = 0; k <= n; k++) { const [i, j] = cell({ x: p.x + (q.x - p.x) * k / n, z: p.z + (q.z - p.z) * k / n }), c = j * nx + i; if (blocked[c]) return -1; if (dist[c] < mn) mn = dist[c]; } return mn; };
+    const out = [];
+    for (let i = 0; i < pts.length - 1;) {
+      let best = i + 1, run = dd[i];
+      const mins = [run]; for (let j = i + 1; j < pts.length; j++) { run = Math.min(run, dd[j]); mins.push(run); }
+      for (let j = pts.length - 1; j > i + 1; j--) { if (lineMin(pts[i], pts[j]) >= Math.min(KEEP, mins[j - i]) - 0.02) { best = j; break; } }
+      out.push(pts[best]); i = best;
+    }
+    out.pop();                                             // the last is b's own cell: b itself follows
+    // The first and last cells stand in for a and b; keep them only if they are a real step away.
+    const res = [pts[0], ...out].filter(p => Math.hypot(p.x - a.x, p.z - a.z) > 0.45 && Math.hypot(p.x - b.x, p.z - b.z) > 0.45);
+    return res;
   }
   function refine(path) {
     const out = [];
     for (let k = 0; k < path.pts.length; k++) {
       const a = path.pts[k], b = path.pts[k + 1];
       out.push(a);
-      if (!b || a.how || Math.abs(a.y - b.y) > 0.1) continue;
+      if (!b || a.how || a.thru || Math.abs(a.y - b.y) > 0.1) continue;
       const room = G.plan.rooms.find(r => near(r.y, a.y, 0.1) && a.x >= r.x0 - 0.6 && a.x <= r.x1 + 0.6 && a.z >= r.z0 - 0.6 && a.z <= r.z1 + 0.6 && b.x >= r.x0 - 0.6 && b.x <= r.x1 + 0.6 && b.z >= r.z0 - 0.6 && b.z <= r.z1 + 0.6);
       const via = room && around(room, a, b);
       if (via) out.push(...via);
     }
     path.pts = out;
+    return curve(path);
+  }
+
+  // ---- the way made smooth ----------------------------------------------------
+  // The corners are rounded (a turning circle of 0.9 m wherever there is room for one), the result
+  // is stepped out evenly a quarter of a metre at a time and eased, and it is never allowed to cut a
+  // corner into something solid. Flights of stairs and jumps are left dead straight. What comes out
+  // is `path.runs`: one unbroken line of points for each stretch between lifts.
+  const STEP = 0.25, TURN = 0.9;
+  function jumpLine(J, from, to) {
+    // Up the kicker, through the air, and down the landing: stepped out along the piece's own axis.
+    const { U, D, ax, dir, c, bot } = J, out = [], P = a => (ax === 'x' ? { x: a, z: c } : { x: c, z: a });
+    const a0 = ax === 'x' ? from.x : from.z, a1 = ax === 'x' ? to.x : to.z, uLo = ax === 'x' ? U.x0 : U.z0, uHi = ax === 'x' ? U.x1 : U.z1, dLo = ax === 'x' ? D.x0 : D.z0, dHi = ax === 'x' ? D.x1 : D.z1;
+    const lip = dir > 0 ? uHi : uLo, land = dir > 0 ? dLo : dHi, far = dir > 0 ? dHi : dLo, inside = (a, lo, hi) => a >= lo - 1e-6 && a <= hi + 1e-6;
+    const top = Math.max(U.h0, U.h1), tan = Math.tan(J.theta), kk = GRAVITY / (2 * J.v * J.v * Math.cos(J.theta) ** 2);
+    let flying = false, down = false;
+    // (The run-up and the run-out on the flat are left to be curved into like any other leg: only the pieces and the air between are fixed.)
+    const foot = dir > 0 ? uLo : uHi; out.push({ x: from.x, y: bot, z: from.z });
+    for (let s = Math.max(0, (foot - a0) * dir - 0.3), L = Math.min(Math.abs(a1 - a0), (far - a0) * dir + 0.3); s <= L + 1e-6; s += STEP) {
+      const a = a0 + dir * Math.min(s, L), p = P(a); let y = bot, air = false;
+      if (!down && inside(a, uLo, uHi) && (a - lip) * dir <= 0) y = Math.max(bot, heightOf(U, p.x, p.z));
+      else if ((a - lip) * dir > 0 && !down) {
+        const t = (a - lip) * dir, fall = top + t * tan - kk * t * t, under = inside(a, dLo, dHi) ? heightOf(D, p.x, p.z) : (a - land) * dir < 0 ? -1e9 : bot;
+        if (fall > under + 0.02 && (a - far) * dir < 0) { y = Math.max(fall, bot); air = flying = true; } else { down = true; y = Math.max(bot, inside(a, dLo, dHi) ? heightOf(D, p.x, p.z) : bot); }
+      } else if (down) y = Math.max(bot, inside(a, dLo, dHi) ? heightOf(D, p.x, p.z) : bot);
+      out.push({ x: p.x, y, z: p.z, rigid: true, air });
+    }
+    void flying; out[out.length - 1].rigid = false;
+    return out;
+  }
+  function curve(path) {
+    const runs = []; let V = [];
+    const flush = () => { if (V.length > 1) runs.push(V); V = []; };
+    for (let k = 0; k < path.pts.length; k++) {
+      const a = path.pts[k], b = path.pts[k + 1];
+      if (a.how === 'jump' && b && a.jump) { V.push(...jumpLine(a.jump, a, b)); continue; }
+      V.push({ x: a.x, y: a.y, z: a.z, rigid: !!(a.how && !/lift/.test(a.how)), flight: !!(a.how && !/lift/.test(a.how)) });
+      if (a.how && /lift/.test(a.how)) flush();
+    }
+    flush();
+    path.runs = runs.map(smooth).filter(r => r.length > 1);
+    path.draw = path.runs.map(r => r.filter((p, i) => i % 4 === 0 || i === r.length - 1 || p.air !== (r[i - 1] || p).air));
+    path.jumpIn = null;
+    { let s = 0; outer: for (const r of path.runs) for (let i = 0; i < r.length; i++) { if (r[i].air) { path.jumpIn = s; break outer; } s += STEP; } }
     return path;
+  }
+  function smooth(V) {
+    // Drop points that sit on top of one another.
+    V = V.filter((p, i) => i === 0 || Math.hypot(p.x - V[i - 1].x, p.z - V[i - 1].z) > 0.02 || Math.abs(p.y - V[i - 1].y) > 0.02);
+    if (V.length < 2) return V;
+    const blockedAt = p => clearance(p.x, p.y, p.z) <= 0;
+    // 1. Round each corner with a curve that leaves one leg and joins the next tangentially.
+    const R = [V[0]];
+    for (let i = 1; i < V.length - 1; i++) {
+      const A = R[R.length - 1], B = V[i], C = V[i + 1], la = Math.hypot(B.x - A.x, B.z - A.z), lc = Math.hypot(C.x - B.x, C.z - B.z);
+      if (la < 0.03 || lc < 0.03) { R.push(B); continue; }
+      const ux = (B.x - A.x) / la, uz = (B.z - A.z) / la, wx = (C.x - B.x) / lc, wz = (C.z - B.z) / lc, phi = Math.acos(Math.max(-1, Math.min(1, ux * wx + uz * wz)));
+      if (phi < 0.06) { R.push(B); continue; }
+      // How far back along each leg the bend may start: nearly half of an ordinary leg, but only a short lead on a flight of
+      // stairs or through a doorway, which must themselves stay straight. The two need not be the same.
+      const inRigid = V[i - 1].rigid, outRigid = B.rigid, want = TURN * Math.tan(Math.min(phi, 2.6) / 2) * 1.5;
+      // (A flight is wide: the bend may begin a metre down it, and the car takes the last steps at a slant. A doorway gives up to half its depth.)
+      let ti = Math.min(want, V[i - 1].flight ? Math.min(1.0, la * 0.25) : la * 0.48), to = Math.min(want, B.flight ? Math.min(1.0, lc * 0.25) : lc * 0.48); void inRigid; void outRigid;
+      let arc = null;
+      for (let tries = 0; tries < 4 && Math.max(ti, to) > 0.06; tries++, ti *= 0.55, to *= 0.55) {
+        const p0 = { x: B.x - ux * ti, z: B.z - uz * ti, y: B.y + (A.y - B.y) * (ti / la) }, p2 = { x: B.x + wx * to, z: B.z + wz * to, y: B.y + (C.y - B.y) * (to / lc) }, n = Math.max(3, Math.ceil(phi / 0.15)), pts = [];
+        for (let k = 0; k <= n; k++) { const s = k / n, q = 1 - s; pts.push({ x: q * q * p0.x + 2 * q * s * B.x + s * s * p2.x, y: q * q * p0.y + 2 * q * s * B.y + s * s * p2.y, z: q * q * p0.z + 2 * q * s * B.z + s * s * p2.z, rigid: k === n ? B.rigid : false, bend: true }); }
+        if (!pts.some(blockedAt)) { arc = pts; break; }
+      }
+      if (arc) R.push(...arc); else R.push(B);
+    }
+    R.push(V[V.length - 1]);
+    // 2. Step it out evenly.
+    const S = [{ ...R[0] }]; let carry = 0;
+    for (let i = 0; i + 1 < R.length; i++) {
+      const a = R[i], b = R[i + 1], len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 1e-4) { if (Math.abs(b.y - a.y) > 0.05) S.push({ ...b }); continue; }
+      let s = STEP - carry;
+      for (; s <= len; s += STEP) { const f = s / len; S.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, rigid: a.rigid, air: a.air && b.air, bend: a.bend || b.bend }); }
+      carry = len - (s - STEP);
+    }
+    { const e = R[R.length - 1], l = S[S.length - 1]; if (Math.hypot(e.x - l.x, e.z - l.z) > 0.05) S.push({ ...e }); }
+    // 3. Ease it: each point towards the middle of its neighbours, unless that would take it nearer to something solid than it should be.
+    for (let it = 0; it < 24; it++) for (let i = 1; i < S.length - 1; i++) {
+      const p = S[i]; if (p.air || S[i - 1].air || S[i + 1].air || ((p.rigid || S[i - 1].rigid) && !p.bend) || (p.bend && (S[i - 1].rigid && !S[i - 1].bend || S[i + 1].rigid && !S[i + 1].bend))) continue;
+      const nx2 = p.x * 0.5 + (S[i - 1].x + S[i + 1].x) * 0.25, nz2 = p.z * 0.5 + (S[i - 1].z + S[i + 1].z) * 0.25, was = clearance(p.x, p.y, p.z), now = clearance(nx2, p.y, nz2);
+      if (now >= Math.min(was, 0.45) - 0.01 && now > 0) { p.x = nx2; p.z = nz2; }       // (a bend may give up a little room to be a bend, but never the car's own width)
+    }
+    // A bend that begins on a flight of stairs lies on the stairs: its height is the flight's at that point.
+    for (const q of S) { if (!q.bend) continue; const f = G.plan.ramps.find(f => q.x >= f.x0 && q.x <= f.x1 && q.z >= f.z0 && q.z <= f.z1 && q.y > Math.min(f.y0, f.y1) - 0.4 && q.y < Math.max(f.y0, f.y1) + 0.4); if (f) { const t = f.axis === 'x' ? (q.x - f.x0) / (f.x1 - f.x0) : (q.z - f.z0) / (f.z1 - f.z0); q.y = f.y0 + (f.y1 - f.y0) * t; q.rigid = true; } }
+    return S;
   }
 
   // The shortest way from one spot to another: a list of points, each with how you get to the next.
   function route(from, to) {
     if (!nav) nav = build();
-    const { nodes, adj, byPlace } = nav, N = nodes.length, S = N, T = N + 1;
+    const { nodes, adj, byPlace } = nav, N = nodes.length, S = N, T = N + 1, noJumps = !!(G.vehicle && G.vehicle.kind === 'drone');
     let fp = placeAt(from.x, from.z, from.y), tp = to.place || placeAt(to.x, to.z, to.y);
     if (!tp) return null;
     // In the air or on a flight of stairs you are nowhere in particular: start from the nearest way.
@@ -156,7 +319,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       if (u < 0 || u === T) break;
       done[u] = 1;
       const out = u === S ? startLinks : adj[u];
-      for (const [v, c] of out) if (dist[u] + c < dist[v]) { dist[v] = dist[u] + c; prev[v] = u; }
+      for (const [v, c, how] of out) if (!(how === 'jump' && noJumps) && dist[u] + c < dist[v]) { dist[v] = dist[u] + c; prev[v] = u; }
       if (u !== S && endCost.has(u) && dist[u] + endCost.get(u) < dist[T]) { dist[T] = dist[u] + endCost.get(u); prev[T] = u; }
       // Within a place, every way in it is a straight walk from every other.
       if (u !== S) for (const v of byPlace.get(nodes[u].place)) { const c = walk(nodes[u], nodes[v], nodes[u].place); if (dist[u] + c < dist[v]) { dist[v] = dist[u] + c; prev[v] = u; } }
@@ -166,7 +329,19 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     for (let u = T; u >= 0; u = prev[u]) pts.unshift(u === T ? { x: to.x, y: to.y, z: to.z } : u === S ? { x: from.x, y: from.y, z: from.z } : { x: nodes[u].x, y: nodes[u].y, z: nodes[u].z, i: u });
     // Mark the legs that change level, and how.
     for (let k = 0; k + 1 < pts.length; k++) if (pts[k].i != null && pts[k + 1].i != null) { const e = adj[pts[k].i].find(e => e[0] === pts[k + 1].i); if (e && (e[2] === 'up' || e[2] === 'down' || e[2] === 'lift')) pts[k].how = e[2] === 'lift' ? (pts[k + 1].y > pts[k].y ? 'lift up' : 'lift down') : (pts[k + 1].y > pts[k].y ? 'up' : 'down'); }
-    return refine({ pts, length: dist[T] });
+    for (let k = 0; k + 1 < pts.length; k++) if (pts[k].i != null && pts[k + 1].i != null && !pts[k].how) { const J = nav.jumps.get(pts[k].i + ':' + pts[k + 1].i); if (J && !noJumps) { pts[k].how = 'jump'; pts[k].jump = J; } }
+    // Through a doorway: square on, down the middle, from a stride inside one room to a stride inside the next.
+    const full = [];
+    for (let k = 0; k < pts.length; k++) {
+      const q = pts[k], n = q.i != null ? nodes[q.i] : null, room = n && n.ax && n.place[0] === 'R' ? G.plan.byId[n.place.slice(1)] : null;
+      if (!room || q.how) { full.push(q); continue; }
+      const along = n.ax[0] ? 'x' : 'z', mid = along === 'x' ? (room.x0 + room.x1) / 2 : (room.z0 + room.z1) / 2, sg = Math.sign(mid - (along === 'x' ? q.x : q.z)) || 1, off = n.deep + 0.75;
+      const inner = { x: q.x + n.ax[0] * sg * off, y: q.y, z: q.z + n.ax[1] * sg * off };
+      const prev = pts[k - 1], after = prev && Math.hypot(prev.x - q.x, prev.z - q.z) < 0.05 && Math.abs(prev.y - q.y) < 0.1;        // just come through it: the stride is on the far side
+      if (after || k === 0) { full.push({ ...q, thru: true }, inner); } else { full.push({ ...inner, thru: true }, q); }
+    }
+    for (let k = 0; k + 1 < full.length; k++) if (Math.hypot(full[k].x - full[k + 1].x, full[k].z - full[k + 1].z) < 0.05 && Math.abs(full[k].y - full[k + 1].y) < 0.1 && !full[k].how) full[k].thru = true;
+    return refine({ pts: full, length: dist[T] });
   }
 
   // ---- the way, laid on the floor ------------------------------------------
@@ -185,16 +360,19 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     }
     const path = state.path;
     if (!path) { ribbon.visible = false; return; }
-    const pos = [], uv = [], idx = [], W = 0.2, LIFT = 0.05;
-    let run = 0;
-    for (let k = 0; k + 1 < path.pts.length; k++) {
-      const a = path.pts[k], b = path.pts[k + 1], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
-      if (len < 0.05 || (a.how && /lift/.test(a.how))) continue;
-      const nx = -dz / len * W, nz = dx / len * W, n = pos.length / 3;
-      pos.push(a.x + nx, a.y + LIFT, a.z + nz, a.x - nx, a.y + LIFT, a.z - nz, b.x + nx, b.y + LIFT, b.z + nz, b.x - nx, b.y + LIFT, b.z - nz);
-      uv.push(run / 0.8, 0, run / 0.8, 1, (run + len) / 0.8, 0, (run + len) / 0.8, 1);
-      idx.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
-      run += len;
+    // One strip per run, as wide all the way round a bend as on the straight (the edges are set out along the
+    // bisector at each point), two centimetres off the floor. Over a jump it is dotted, and hangs in the air where the car will be.
+    const pos = [], uv = [], idx = [], W = 0.2, LIFT = 0.03;
+    for (const r of path.runs || []) {
+      let run = 0, base = -1;
+      for (let i = 0; i < r.length; i++) {
+        const a = r[Math.max(0, i - 1)], b = r[Math.min(r.length - 1, i + 1)], p = r[i]; let dx = b.x - a.x, dz = b.z - a.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+        if (i) run += Math.hypot(p.x - r[i - 1].x, p.z - r[i - 1].z);
+        const n = pos.length / 3;
+        pos.push(p.x - dz * W, p.y + LIFT, p.z + dx * W, p.x + dz * W, p.y + LIFT, p.z - dx * W); uv.push(run / 0.8, 0, run / 0.8, 1);
+        if (base >= 0 && !(p.air && r[i - 1].air && (i >> 1) % 2)) idx.push(base, base + 1, n, base + 1, n + 1, n);
+        base = n;
+      }
     }
     const geo = ribbon.geometry;
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
@@ -269,13 +447,19 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const path = state.path; if (!path) return;
     const here = q => Math.abs(q.y - ly) < 2.4;
     c.lineCap = 'round'; c.lineJoin = 'round';
-    for (const pass of [0, 1]) for (let k = 0; k + 1 < path.pts.length; k++) {
-      const a = path.pts[k], b = path.pts[k + 1], on = here(a) || here(b);
-      if ((pass === 1) !== on) continue;
-      c.beginPath(); c.moveTo(a.x, a.z); c.lineTo(b.x, b.z);
-      if (on) { c.strokeStyle = 'rgba(0,0,0,.55)'; c.lineWidth = px * 7; c.setLineDash([]); c.stroke(); c.strokeStyle = '#7fe9f5'; c.lineWidth = px * 3.5; c.setLineDash([px * 9, px * 7]); c.lineDashOffset = -t * px * 22; }
-      else { c.strokeStyle = 'rgba(127,233,245,.3)'; c.lineWidth = px * 2; c.setLineDash([px * 3, px * 6]); c.lineDashOffset = 0; }
-      c.stroke();
+    // The same smooth line as on the floor: each unbroken stretch on this level in one stroke, so its dashes run on round the bends.
+    for (const pass of [0, 1]) for (const r of path.draw || []) {
+      for (let k = 0; k + 1 < r.length;) {
+        const on = here(r[k]) || here(r[k + 1]); let e = k + 1;
+        while (e + 1 < r.length && (here(r[e]) || here(r[e + 1])) === on) e++;
+        if ((pass === 1) === on) {
+          c.beginPath(); c.moveTo(r[k].x, r[k].z); for (let i = k + 1; i <= e; i++) c.lineTo(r[i].x, r[i].z);
+          if (on) { c.strokeStyle = 'rgba(0,0,0,.55)'; c.lineWidth = px * 7; c.setLineDash([]); c.stroke(); c.strokeStyle = '#7fe9f5'; c.lineWidth = px * 3.5; c.setLineDash([px * 9, px * 7]); c.lineDashOffset = -t * px * 22; }
+          else { c.strokeStyle = 'rgba(127,233,245,.3)'; c.lineWidth = px * 2; c.setLineDash([px * 3, px * 6]); c.lineDashOffset = 0; }
+          c.stroke();
+        }
+        k = e;
+      }
     }
     c.setLineDash([]);
     for (const a of path.pts) if (a.how && here(a)) {
@@ -364,9 +548,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     };
     if (state.path) {
       // The part of the route still ahead: from the point of it nearest you, the first that is off the edge of the radar.
-      const pts = state.path.pts; let near = 0, nd = Infinity;
+      const pts = (state.path.draw || []).flat(); let near = 0, nd = Infinity;
       pts.forEach((p, i) => { const d = Math.hypot(p.x - v.pos.x, p.z - v.pos.z) + Math.abs(p.y - v.pos.y) * 3; if (d < nd) { nd = d; near = i; } });
-      const far = pts.slice(near).find(p => Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > (R - 12) / s) || state.target; rim(far.x, far.z, '#7fe9f5');
+      const far = !pts.length ? state.target : pts.slice(near).find(p => Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > (R - 12) / s) || state.target; rim(far.x, far.z, '#7fe9f5');
     }
     if (G.mode === 'race' && G.race && G.race.active) { const g = G.race.gates[G.race.next]; if (g) rim(g.x, g.z, '#7fe9f5'); }
     for (const m of G.mapMarks || []) rim(m.x, m.z, m.colour || '#ff5a4d');
@@ -417,7 +601,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     }
     const you = levelOf(G.roomId ? G.vehicle.pos.y : 0), tg = state.target && levelOf(state.target.y);
     document.getElementById('bmNote').textContent = state.target
-      ? (state.path ? `To ${state.target.label}${tg.name !== you.name ? ` (${(names[tg.name] || tg.name).toLowerCase()} level)` : ''}: about ${Math.round(state.path.length)} m.` : `No way found to ${state.target.label}.`)
+      ? (state.path ? `To ${state.target.label}${tg.name !== you.name ? ` (${(names[tg.name] || tg.name).toLowerCase()} level)` : ''}: about ${Math.round(state.path.length)} m.${state.path.jumpIn != null ? ' There is a jump on the way.' : ''}` : `No way found to ${state.target.label}.`)
       : 'Pick a room and the way to it lights up.';
     document.getElementById('bmClear').hidden = !state.target;
   }
@@ -433,6 +617,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const v = G.vehicle;
     state.path = state.target ? route({ x: v.pos.x, y: G.roomId ? v.pos.y : 0, z: v.pos.z }, state.target) : null;
     layRibbon();
+    if (state.path && state.path.jumpIn != null && state.path.jumpIn < 15 && say) say('Jump ahead: the arrows leave the floor. Take it at speed.');
   }
   function clear() { state.target = null; state.path = null; layRibbon(); }
   // Set a destination from anywhere in the game: { x, y, z, label }.
@@ -481,5 +666,5 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   radarEl.addEventListener('touchstart', tap, { passive: false });
   radarEl.addEventListener('click', tap);
 
-  return { radar, open, close, goTo, clear, route, get target() { return state.target; }, get path() { return state.path; }, reset() { nav = null; grids.clear(); clear(); } };
+  return { radar, open, close, goTo, clear, route, clearance, get target() { return state.target; }, get path() { return state.path; }, reset() { nav = null; grids.clear(); clear(); } };
 }
