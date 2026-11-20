@@ -88,6 +88,19 @@ export function startFeatures(o) {
     close(q, r, dy = 1.5) { const p = G.vehicle.pos; return !!q && Math.abs(p.y - (q.y || 0)) < dy && (p.x - q.x) ** 2 + (p.z - q.z) ** 2 < r * r; },
     chips(n) { const P = G.poker; if (!P) return false; if (n < 0) return P.spend(-n); if (P.earn) P.earn(n); else if (P.spend) P.spend(-n); return true; },
     synth: synth(sound),
+    // A set of things to collect across the building (the lions, mice, lost property...), remembered between visits.
+    //   const lions = k.collect('lions', 12); lions.add('L3') -> the new count the first time, 0 if already had;
+    //   lions.has(id), lions.count, lions.total, lions.done, lions.clear()
+    collect(name, total) {
+      const key = 'feature-set-' + name;
+      let got = []; try { got = JSON.parse(localStorage.getItem(key) || '[]'); } catch { got = []; }
+      const save = () => { try { localStorage.setItem(key, JSON.stringify(got)); } catch { /* private window: it lasts the visit */ } };
+      return {
+        total, has: id => got.includes(id), get count() { return got.length; }, get done() { return got.length >= total; },
+        add(id) { if (got.includes(id)) return 0; got.push(id); save(); return got.length; },
+        clear() { got = []; save(); },
+      };
+    },
   };
   k.carry = new Carry(k);
   for (const f of features) {
