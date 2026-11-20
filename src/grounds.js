@@ -20,6 +20,14 @@ import { buildLakefront } from './lakefront.js';
 export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
   const add = (...m) => { for (const x of m) { x.matrixAutoUpdate = false; x.updateMatrix(); group.add(x); } };
+  // Turned stone, not blocks: a baluster and an urn, each a profile spun round its axis.
+  const balAt = [];                                      // [x, y, z, height, radius] of every baluster, drawn together at the end
+  const lathe = (pts, seg) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+  const balGeo = lathe([[0.001, 0], [1, 0], [1, 0.07], [0.62, 0.1], [0.55, 0.16], [0.95, 0.34], [1, 0.44], [0.8, 0.56], [0.48, 0.72], [0.45, 0.82], [0.62, 0.86], [0.62, 0.9], [1, 0.93], [1, 1], [0.001, 1]], 8);
+  // An urn 1 unit wide at the rim and `h` tall, standing on y = 0: foot, stem, a gadrooned bowl, a rolled rim.
+  const urnGeo = (w, h) => lathe([[0.001, 0], [0.5, 0], [0.52, 0.04], [0.5, 0.08], [0.3, 0.12], [0.22, 0.2], [0.26, 0.26], [0.5, 0.34], [0.78, 0.5], [0.9, 0.7], [0.92, 0.86], [1.0, 0.92], [1.0, 0.97], [0.9, 1], [0.8, 0.94], [0.001, 0.9]].map(([r, y]) => [r * w / 2, y * h]), 20);
+  const clump = (r, mat, x, y, z, sy = 0.7) => { const g = new THREE.Group(); for (const [dx, dy, dz, k] of [[0, 0, 0, 1], [0.45, -0.12, 0.2, 0.62], [-0.4, -0.1, 0.3, 0.6], [0.1, -0.1, -0.48, 0.62], [-0.2, 0.2, -0.1, 0.6]]) { const m = new THREE.Mesh(clumpGeo, mat); m.position.set(dx * r, dy * r, dz * r); m.scale.set(r * k, r * k * sy, r * k); g.add(m); } g.position.set(x, y, z); return g; };
+  const clumpGeo = new THREE.SphereGeometry(1, 14, 10);
   const ash = TX.ashlar();
   const stone = new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.45, 0.43, 0.46), emissiveIntensity: 0.52 });
   const trim = new THREE.MeshStandardMaterial({ color: 0xbdb6a6, roughness: 0.85, emissive: 0x4a4d5c, emissiveIntensity: 0.55 });
@@ -146,7 +154,7 @@ export function buildGrounds(museum, plan) {
         bs.box(PX - 0.09, PX - 0.03, 0, d.h, zc - 0.05, zc + 0.05);
       }
       arch(glow, PX, zc, 2.5, 7.7, 9.1); surround(PX, zc, 2.5, 7.7, 9.1);       // lit from inside, behind the banners
-      tr.box(PX - 0.3, PX, 7.5, 7.7, zc - 1.5, zc + 1.5); for (let b2 = -1.3; b2 <= 1.31; b2 += 0.26) tr.box(PX - 0.26, PX - 0.18, 7.7, 8.25, zc + b2 - 0.04, zc + b2 + 0.04); tr.box(PX - 0.3, PX - 0.14, 8.25, 8.33, zc - 1.4, zc + 1.4);
+      tr.box(PX - 0.3, PX, 7.5, 7.7, zc - 1.5, zc + 1.5); for (let b2 = -1.3; b2 <= 1.31; b2 += 0.26) balAt.push([PX - 0.22, 7.7, zc + b2, 0.55, 0.055]); tr.box(PX - 0.3, PX - 0.14, 8.25, 8.33, zc - 1.4, zc + 1.4);
     }
     add(blind.mesh(new THREE.MeshStandardMaterial({ color: 0xb5b0a4, roughness: 0.9, emissive: 0x6c6c7c, emissiveIntensity: 0.62 })));
     add(wall.mesh(stone), tr.mesh(trim), bs.mesh(base), dark.mesh(night), glow.mesh(warm));
@@ -196,11 +204,12 @@ export function buildGrounds(museum, plan) {
     wall.quad([FX + 0.6, 7, F.z0], [FX + 0.6, 7, F.z1], [FX + 0.6, WH, F.z1], [FX + 0.6, WH, F.z0], [1, 0, 0]);
     add(roof.mesh(snow));
     // Stone urns either side of the way in, as in the photographs.
-    const urn = new THREE.CylinderGeometry(0.55, 0.3, 0.7, 12), ped = new THREE.BoxGeometry(0.9, 1.0, 0.9), bush = new THREE.SphereGeometry(0.5, 10, 8);
+    const urn = urnGeo(1.15, 0.8).translate(0, -0.35, 0), ped = new THREE.BoxGeometry(0.9, 1.0, 0.9), pedCap = new THREE.BoxGeometry(1.06, 0.1, 1.06);
     const green = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.9, emissive: 0x0e1c12, emissiveIntensity: 0.6 });
     for (const k of [-11.6, 11.6]) {
-      const a = new THREE.Mesh(ped, trim), u = new THREE.Mesh(urn, trim), s2 = new THREE.Mesh(bush, green);
-      a.position.set(PX - 1.0, 0.5, cz + k); u.position.set(PX - 1.0, 1.35, cz + k); s2.position.set(PX - 1.0, 1.85, cz + k); s2.scale.y = 0.7;
+      const a = new THREE.Mesh(ped, trim), u = new THREE.Mesh(urn, trim), s2 = clump(0.5, green, PX - 1.0, 1.9, cz + k);
+      a.position.set(PX - 1.0, 0.5, cz + k); u.position.set(PX - 1.0, 1.35, cz + k);
+      for (const y of [0.05, 0.97]) { const c = new THREE.Mesh(pedCap, trim); c.position.set(PX - 1.0, y, cz + k); add(c); }
       add(a, u, s2);
       plan.obstacles.push({ x0: PX - 1.5, x1: PX - 0.5, z0: cz + k - 0.5, z1: cz + k + 0.5, y0: 0, y1: 2.2 });
     }
@@ -267,7 +276,7 @@ export function buildGrounds(museum, plan) {
       if (z1 - z0 > 1 && !(Math.abs((a + b2) / 2 - F.cz) < 12)) {
         const lo = Math.abs(z0 - F.cz) < 14 ? z0 + 1.05 : z0, hi = Math.abs(z1 - F.cz) < 14 ? z1 - 1.05 : z1;      // the lion's block takes the end nearest the steps
         cope.box(SX - 0.02, SX + 0.3, 0.1, 0.2, lo, hi); cope.box(SX - 0.06, SX + 0.34, 0.82, 0.96, lo, hi);
-        for (let z = lo + 0.2; z < hi - 0.1; z += 0.36) balus.box(SX + 0.07, SX + 0.21, 0.2, 0.82, z - 0.07, z + 0.07);
+        for (let z = lo + 0.2; z < hi - 0.1; z += 0.36) balAt.push([SX + 0.14, 0.2, z, 0.62, 0.085]);
         for (let z = lo; z <= hi + 0.01; z += Math.max(3.6, (hi - lo) / Math.max(1, Math.round((hi - lo) / 5.4)))) cope.box(SX - 0.08, SX + 0.36, 0.1, 1.04, z - 0.2, z + 0.2);
         ledge(SX - 0.06, SX + 0.34, lo, hi, 0.96);
       }
@@ -283,9 +292,9 @@ export function buildGrounds(museum, plan) {
     add(stepG.mesh(steps), cheek.mesh(stone), cope.mesh(trim), balus.mesh(trim));
     add(nosing.mesh(snow), cheek2.mesh(steps));
     add(rampG.mesh(new THREE.MeshStandardMaterial({ color: 0x8f8c85, roughness: 0.9, emissive: 0x3c4152, emissiveIntensity: 0.55 })), posts.mesh(railM));
-    { const bowl = new THREE.CylinderGeometry(0.5, 0.26, 0.55, 12), leaf = new THREE.SphereGeometry(0.46, 10, 8), fl = new THREE.SphereGeometry(0.5, 10, 6);
+    { const bowl = urnGeo(1.05, 0.62).translate(0, -0.28, 0), fl = new THREE.SphereGeometry(0.5, 16, 8);
       const green = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.9, emissive: 0x0e1c12, emissiveIntensity: 0.6 }), red = new THREE.MeshStandardMaterial({ color: 0xb3202a, roughness: 0.8, emissive: 0x6a0d14, emissiveIntensity: 0.8 });
-      for (const [x, y, z] of urns) { const u = new THREE.Mesh(bowl, trim), l = new THREE.Mesh(leaf, green), f = new THREE.Mesh(fl, red); u.position.set(x, y + 0.28, z); f.position.set(x, y + 0.6, z); f.scale.set(1.15, 0.32, 1.15); l.position.set(x, y + 0.82, z); l.scale.y = 0.7; add(u, f, l); } }
+      for (const [x, y, z] of urns) { const u = new THREE.Mesh(bowl, trim), l = clump(0.44, green, x, y + 0.86, z), f = new THREE.Mesh(fl, red); u.position.set(x, y + 0.28, z); f.position.set(x, y + 0.62, z); f.scale.set(1.1, 0.3, 1.1); add(u, f, l); } }
     const dm = snow.clone(); dm.polygonOffset = true; dm.polygonOffsetFactor = -1; dm.polygonOffsetUnits = -1; add(drift.mesh(dm));
   }
 
@@ -335,6 +344,8 @@ export function buildGrounds(museum, plan) {
     add(curb.mesh(base), glass.mesh(new THREE.MeshBasicMaterial({ map: TX.laylight(), color: new THREE.Color(0.3, 0.34, 0.46) })));
   }
   // The Modern Wing's glass, its sunshade, and the footbridge from the park (bridgeway.js).
+  // Every baluster out here, turned on the one lathe.
+  if (balAt.length) { const im = new THREE.InstancedMesh(balGeo, trim, balAt.length), M4 = new THREE.Matrix4(), Q0 = new THREE.Quaternion(); balAt.forEach(([x, y, z, hh, r], i) => im.setMatrixAt(i, M4.compose(new THREE.Vector3(x, y, z), Q0, new THREE.Vector3(r, hh, r)))); im.frustumCulled = false; group.add(im); }
   buildBridgeway(museum, plan);
   // The railway in its cutting, and the bridges over it.
   buildRailway(museum, plan);
