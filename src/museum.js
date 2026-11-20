@@ -1463,6 +1463,7 @@ export class Museum {
     this.shaftMesh.material.opacity = 0.19 + Math.sin(t * 0.23) * 0.02;
     if (!this.calm) this.arrowTex.offset.y = -(t * 0.9) % 1;
     if (!this.calm && this.ventArrows) this.ventArrows.offset.y = -(t * 0.9) % 1;
+    if (this.flagWave) this.flagWave(t, this.calm);       // the flags over the door (grounds.js)
     for (const h of this.hoops) {
       if (h.pop > 0) { h.pop = Math.max(0, h.pop - dt * 1.6); h.mesh.scale.setScalar(1 + (this.calm ? 0 : h.pop * 0.5)); }
       const g = h.done ? 0.12 + h.pop * 2.5 : this.calm ? 1 : 0.85 + 0.15 * Math.sin(t * 3 + h.x);

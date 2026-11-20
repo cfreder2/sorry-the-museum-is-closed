@@ -101,20 +101,19 @@ export class Paint {
     else {
       c.fillStyle = '#f6f2e8'; c.fillRect(0, 0, CW, CH);
       c.strokeStyle = '#b9ad92'; c.lineWidth = 4; c.setLineDash([18, 14]); c.strokeRect(40, 40, CW - 80, CH - 80); c.setLineDash([]);
-      c.fillStyle = '#3a3226'; c.textAlign = 'center'; c.font = '700 62px Georgia, serif'; c.fillText('ARTWORK IN PROGRESS', CW / 2, CH / 2 - 40);
-      c.font = 'italic 40px Georgia, serif'; c.fillText('in the ' + where, CW / 2, CH / 2 + 30, CW - 120);
-      c.font = '30px Georgia, serif'; c.fillText('The artist is you. Go and paint it.', CW / 2, CH / 2 + 100);
+      c.fillStyle = '#3a3226'; c.textAlign = 'center'; c.font = '700 62px Georgia, serif'; c.fillText('EXHIBIT COMING SOON', CW / 2, CH / 2 - 14);
+      c.font = 'italic 34px Georgia, serif'; c.fillText('See the restoration in the Ryan Learning Center.', CW / 2, CH / 2 + 52, CW - 120);
       finish();
     }
     const k = this.card.getContext('2d');
     k.fillStyle = '#f4efe2'; k.fillRect(0, 0, 768, 192); k.fillStyle = '#14120c'; k.textAlign = 'center';
     if (this.saved) { k.font = 'italic 700 46px Georgia, serif'; k.fillText(this.title || 'Untitled', 384, 72, 720); k.font = '32px Georgia, serif'; k.fillText('You, tonight. Paint on screen.', 384, 132); }
-    else { k.font = '700 44px Georgia, serif'; k.fillText('ARTWORK IN PROGRESS', 384, 72); k.font = 'italic 32px Georgia, serif'; k.fillText('in the ' + where, 384, 132, 720); }
+    else { k.font = '700 44px Georgia, serif'; k.fillText('EXHIBIT COMING SOON', 384, 72); k.font = 'italic 30px Georgia, serif'; k.fillText('See the restoration in the Ryan Learning Center.', 384, 132, 720); }
     this.cardTex.needsUpdate = true;
     const levels = { LL: 'lower level', 1: 'first floor', 2: 'second floor', 3: 'third floor' };
     this.art.work = this.saved
       ? { id: 0, t: this.title || 'Untitled', a: 'You', d: 'tonight', m: 'Paint on screen, 800 × 600.', g: 'Michigan Avenue Lobby', alt: 'Painted in the ' + where + '. Go back to the easel there to change it or start again.', note: 'Yours. It is kept on this device and goes nowhere else.' }
-      : { id: 0, t: 'Artwork in progress', a: 'You', d: 'not yet', m: 'An empty frame.', g: 'Michigan Avenue Lobby', alt: `It is being made in the ${where}${room ? ', on the ' + (levels[room.floor] || 'first floor') : ''}. Pull up at the easel there and paint it; it will hang here.`, note: 'The way to the studio is lit on the map and on the floor.' };
+      : { id: 0, t: 'Exhibit coming soon', a: '', d: '', m: '', g: 'Michigan Avenue Lobby', alt: 'See the restoration in the Ryan Learning Center.' };
   }
   /** Facing the frame, close enough to look? */
   facing(v) {

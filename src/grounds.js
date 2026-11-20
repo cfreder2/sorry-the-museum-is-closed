@@ -207,11 +207,36 @@ export function buildGrounds(museum, plan) {
       const g = new THREE.Group(); g.position.set(PX - 1.15, 8.6, cz + k); g.rotation.z = 0.72;
       g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 3.4, 6), base));
       const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), trim); knob.position.y = 1.72; g.add(knob);
-      const [ratio, mat] = flags[i], Hh = 1.15, geo = new THREE.PlaneGeometry(Hh * ratio, Hh, 8, 1); geo.translate(-Hh * ratio / 2, 0, 0);
-      { const P = geo.attributes.position; for (let q = 0; q < P.count; q++) { const u = -P.getX(q) / (Hh * ratio); P.setZ(q, Math.sin(u * 5.5) * 0.07 * u); P.setY(q, P.getY(q) - u * u * 0.12); } geo.computeVertexNormals(); }      // a slow ripple, and a little sag
-      const f = new THREE.Mesh(geo, mat); f.position.set(0, 1.66 - Hh / 2, 0); f.rotation.y = 1.0; g.add(f);
+      // Cloth: a fine sheet held along the hoist by three rings, everything else moved by the wind each frame (museum.flagWave).
+      const [ratio, mat] = flags[i], Hh = 1.15, Wd = Hh * ratio, NX = 22, NY = 10, geo = new THREE.PlaneGeometry(Wd, Hh, NX, NY); geo.translate(-Wd / 2, 0, 0);
+      const rest = geo.attributes.position.array.slice(); geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3).fill(1), 3));
+      mat.vertexColors = true; mat.needsUpdate = true;
+      const f = new THREE.Mesh(geo, mat); f.position.set(0, 1.66 - Hh / 2, 0); f.rotation.y = 1.0; f.frustumCulled = false; g.add(f);
+      for (const yy of [1.62, 1.66 - Hh / 2, 1.70 - Hh]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 5, 10), base); ring.position.y = yy; ring.rotation.x = Math.PI / 2; g.add(ring); }
+      (museum.cloths || (museum.cloths = [])).push({ geo, rest, Wd, Hh, seed: i * 2.7 });
       g.updateMatrixWorld(true); group.add(g);
     });
+    // The wind in them. A wave runs out from the pole, growing towards the free edge; gusts lift the cloth and lulls let it
+    // hang; the folds are shaded by how steeply the cloth turns away, which is what makes it read as cloth.
+    museum.flagWave = (t, calm) => {
+      for (const c of museum.cloths || []) {
+        const P = c.geo.attributes.position, C = c.geo.attributes.color, R = c.rest, tt = calm ? 0 : t;
+        const gust = 0.62 + 0.38 * Math.sin(tt * 0.31 + c.seed) * Math.sin(tt * 0.13 + c.seed * 2), w = 4.6;
+        for (let q = 0; q < P.count; q++) {
+          const x = R[q * 3], y = R[q * 3 + 1], u = Math.max(0, -x / c.Wd), v = y / c.Hh + 0.5;                      // u: 0 at the pole, 1 at the fly; v: 0 at the foot, 1 at the head
+          const ph = u * 7.5 - tt * w + v * 1.1 + c.seed, ph2 = u * 13 - tt * w * 1.6 + v * 2.3;
+          const amp = (0.035 + 0.12 * gust) * Math.pow(u, 0.8);
+          const z = amp * (Math.sin(ph) + 0.4 * Math.sin(ph2));
+          const droop = (1 - gust) * 0.55 * u * u * c.Wd + 0.05 * u * u;                                // in a lull the fly end falls
+          const flut = 0.02 * u * Math.sin(u * 20 - tt * 9 + v * 5);
+          P.setXYZ(q, x + droop * 0.25 * u, y - droop + flut, z);
+          const slope = amp * (7.5 * Math.cos(ph) + 5.2 * Math.cos(ph2)) / c.Wd, sh = Math.max(0.5, Math.min(1.12, 0.86 - slope * 0.9));
+          C.setXYZ(q, sh, sh, sh);
+        }
+        P.needsUpdate = true; C.needsUpdate = true;
+      }
+    };
+    museum.flagWave(0, false);
     // Roofs behind the front, and the forecourt in front of it.
     for (const m of plan.masses) if (m.facade) roof.quad([m.x0, m.top, m.z0], [m.x1, m.top, m.z0], [m.x1, m.top, m.z1], [m.x0, m.top, m.z1], [0, 1, 0], [[m.x0 / 5, m.z0 / 5], [m.x1 / 5, m.z0 / 5], [m.x1 / 5, m.z1 / 5], [m.x0 / 5, m.z1 / 5]]);
     // The back of the front wall, where it stands taller than the rooms behind.
