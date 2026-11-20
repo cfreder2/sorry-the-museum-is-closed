@@ -246,6 +246,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
         else if (/^\d/.test(name)) c.fillText(name.slice(0, 4), r.x0 + w / 2, r.z0 + h / 2);
       }
     }
+    // The partitions inside a restroom block (src/furnish.js walls it into rooms of its own): thin lines, so the way in can be seen.
+    if (p.wc && p.wc.length) { const ids = new Set(p.wc.map(q => q.room)); c.fillStyle = 'rgba(170,176,196,.7)';
+      for (const id of ids) { const r = p.byId[id]; if (!r || !onLevel(r, ly) || !shown(r)) continue; { const st = G.museum.rooms[id], gold = st && (st.arts.length ? st.done : G.museum.visited.has(id)); c.fillStyle = gold ? 'rgba(70,52,16,.8)' : 'rgba(170,176,196,.7)'; }
+        for (const o of p.obstacles) if (o.fit && o.y1 - o.y0 > 1.9 && Math.abs(o.y0 - r.y) < 0.05 && Math.min(o.x1 - o.x0, o.z1 - o.z0) < 0.2 && o.x0 >= r.x0 - 0.01 && o.x1 <= r.x1 + 0.01 && o.z0 >= r.z0 - 0.01 && o.z1 <= r.z1 + 0.01) c.fillRect(o.x0, o.z0, Math.max(o.x1 - o.x0, px * 1.2), Math.max(o.z1 - o.z0, px * 1.2)); } }
     c.fillStyle = 'rgba(226,205,148,.95)';
     for (const d of p.doors) if (Math.abs(d.y - ly) < 1.6 && (!d.secret || found())) c.fillRect(d.x0 - px, d.z0 - px, Math.max(2 * px, d.x1 - d.x0 + 2 * px), Math.max(2 * px, d.z1 - d.z0 + 2 * px));
     // Ways up and down from here: stairs hatched, lifts solid.

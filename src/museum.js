@@ -262,7 +262,7 @@ export class Museum {
 
   _buildShell(mirror) {
     const { plan } = this;
-    const portals = new Geo(), stone = new Geo(), slate = new Geo(), lay = new Geo(), facade = new Geo(), roofs = new Geo();
+    const wcTile = new Geo(), wcEdge = new Geo(), portals = new Geo(), stone = new Geo(), slate = new Geo(), lay = new Geo(), facade = new Geo(), roofs = new Geo();
     const woodTex = TX.wood();
     this.floors = [];
     const fq = (g, x0, x1, z0, z1, s, y = 0) => g.quad(P3(x0, y, z0), P3(x1, y, z0), P3(x1, y, z1), P3(x0, y, z1), [0, 1, 0],
@@ -332,7 +332,13 @@ export class Museum {
       // Floors: wood upstairs, stone on the ground floor and in the great rooms, slate below.
       // A floor has a hole in it where a stair or a lift goes down through it.
       const w = r.x1 - r.x0, d = r.z1 - r.z0, boards = carve(r, plan.wells.filter(k => Math.abs(k.y - r.y) < 0.02 && over(k, r)));
-      if (lower) for (const c of boards) fq(slate, c.x0, c.x1, c.z0, c.z1, 1.6, r.y);
+      if (r.use === 'wc' || /^Restroom/i.test(r.gallery || '')) {
+        // A restroom has its own floor: small non-slip mosaic, with a darker course along the walls.
+        for (const c of boards) fq(wcTile, c.x0, c.x1, c.z0, c.z1, 0.8, r.y);
+        const e = 0.16, y = r.y + 0.002;
+        for (const [x0, x1, z0, z1] of [[r.x0, r.x1, r.z0, r.z0 + e], [r.x0, r.x1, r.z1 - e, r.z1], [r.x0, r.x0 + e, r.z0 + e, r.z1 - e], [r.x1 - e, r.x1, r.z0 + e, r.z1 - e]]) fq(wcEdge, x0, x1, z0, z1, 0.8, y);
+      }
+      else if (lower) for (const c of boards) fq(slate, c.x0, c.x1, c.z0, c.z1, 1.6, r.y);
       else if (r.kind === 'hall' || r.floor === '1' || r.id === 'G200') for (const c of boards) fq(stone, c.x0, c.x1, c.z0, c.z1, 1.3, r.y);
       else {
         const fl = new Geo();
@@ -427,6 +433,11 @@ export class Museum {
 
     const floorMat = (map, rough, k, glow) => mirror.patch(new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, emissiveMap: map, emissive: new THREE.Color(0.55, 0.66, 1), emissiveIntensity: glow }), k);
     this.floors.push(stone.mesh(floorMat(TX.marble(), 0.35, [0.04, 0.62], 0.05)), slate.mesh(floorMat(TX.slate(), 0.4, [0.05, 0.6], 0.03)));
+    if (!wcTile.empty) {
+      this.floors.push(wcTile.mesh(floorMat(TX.mosaic(), 0.85, [0.01, 0.3], 0.05)));
+      const em = TX.mosaic(true), edge = wcEdge.mesh(new THREE.MeshStandardMaterial({ map: em, roughness: 0.9, emissiveMap: em, emissive: new THREE.Color(0.55, 0.66, 1), emissiveIntensity: 0.05, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+      this.group.add(edge);
+    }
     this.group.add(...this.floors);
     this.group.add(lay.mesh(new THREE.MeshBasicMaterial({ map: TX.laylight(), color: new THREE.Color(0.34, 0.4, 0.56) })));
     const ash = TX.ashlar(), snowTex = TX.snow();
