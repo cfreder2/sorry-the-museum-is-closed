@@ -343,8 +343,9 @@ export function buildStatues(museum, plan) {
       }
       tr.box(-X - 0.22, X + 0.22, s.h - 0.34, s.h, -s.half - 0.22, s.half + 0.22); tr.box(-X - 0.12, X + 0.12, s.h - 0.62, s.h - 0.34, -s.half - 0.12, s.half + 0.12);
       for (let z = -s.half + 0.2; z < s.half; z += 0.46) dp.box(-X - 0.17, X + 0.17, s.h - 0.82, s.h - 0.62, z, z + 0.22);         // a row of brackets under the cornice
-      tr.box(-X - 0.1, X + 0.1, 0, 0.6, -s.half - 0.1, -R); tr.box(-X - 0.1, X + 0.1, 0, 0.6, R, s.half + 0.1);
-      for (const [z0, z1] of [[-s.half, -R], [R, s.half]]) tr.box(-X - 0.07, X + 0.07, sp - 0.26, sp, z0, z1);
+      // (the plinth and the impost band stand a little proud of the jambs all round: flush with them, the two surfaces fight)
+      tr.box(-X - 0.1, X + 0.1, 0, 0.6, -s.half - 0.1, -R + 0.05); tr.box(-X - 0.1, X + 0.1, 0, 0.6, R - 0.05, s.half + 0.1);
+      for (const [z0, z1] of [[-s.half - 0.04, -R + 0.04], [R - 0.04, s.half + 0.04]]) tr.box(-X - 0.07, X + 0.07, sp - 0.26, sp, z0, z1);
       g.add(a.mesh(terra), tr.mesh(trimM), dp.mesh(deep));
       for (const zz of [-1, 1]) for (const xx of [-1, 1]) { const m = put(g, cyl, trimM, xx * (X + 0.04), sp + R + 1.3, zz * (R + 1.5), 0.62, 0.12, 0.62); m.rotation.z = Math.PI / 2; const m2 = put(g, cyl, deep, xx * (X + 0.09), sp + R + 1.3, zz * (R + 1.5), 0.4, 0.1, 0.4); m2.rotation.z = Math.PI / 2; }     // the two roundels
       put(g, box, white, 0, s.h + 0.07, 0, X * 2 + 0.4, 0.14, s.half * 2 + 0.4);
