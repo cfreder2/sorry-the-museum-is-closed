@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { T, HW, SPRING, VAULT_R, SLAB, wallPoint, hang, heightOf, roomAt, ceilingAt, carve } from './plan.js';
+import { T, HW, SPRING, VAULT_R, SLAB, wallPoint, hang, heightOf, roomAt, ceilingAt, carve, streetY } from './plan.js';
 import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
@@ -469,6 +469,15 @@ export class Museum {
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(B.x1 - B.x0 + 400, B.z1 - B.z0 + 400), new THREE.MeshStandardMaterial({ map: gt, roughness: 1, emissiveMap: gt, emissive: new THREE.Color(0.2, 0.25, 0.4), emissiveIntensity: 0.55 }));
     ground.rotation.x = -Math.PI / 2; ground.position.set(cx, -0.03, cz); ground.updateMatrix(); ground.matrixAutoUpdate = false;
     this.group.add(ground);
+    if (plan.street) {
+      // The avenue side lies lower: the high ground stops at the terrace wall, and a second sheet carries on below.
+      const S = plan.street, W = B.x1 - B.x0 + 400, x0 = cx - W / 2, wE = cx + W / 2 - S.x, wW = S.x - x0 + 13;
+      ground.geometry.dispose(); ground.geometry = new THREE.PlaneGeometry(wE, B.z1 - B.z0 + 400); ground.position.x = S.x + wE / 2; ground.updateMatrix();
+      gt.repeat.x *= wE / W; gt.offset.x = ((S.x - x0) / W) * ((B.x1 - B.x0) / 6);
+      const lt = this.snowTex.clone(); lt.needsUpdate = true; lt.repeat.set(wW / 6, (B.z1 - B.z0 + 400) / 6);
+      const low = new THREE.Mesh(new THREE.PlaneGeometry(wW, B.z1 - B.z0 + 400), ground.material.clone()); low.material.map = low.material.emissiveMap = lt;
+      low.rotation.x = -Math.PI / 2; low.position.set(x0 + wW / 2, S.y - 0.03, cz); low.updateMatrix(); low.matrixAutoUpdate = false; this.group.add(low);
+    }
     // The city all round, and one moon.
     const city = TX.skyline(false); city.wrapS = THREE.RepeatWrapping; city.repeat.set(3, 1);
     const R = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2 + 150;
@@ -487,10 +496,11 @@ export class Museum {
     const pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.5, 0.36, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), n);
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), I = new THREE.Quaternion();
     plan.lamps.forEach((l, i) => {
-      posts.box(l.x - 0.04, l.x + 0.04, 0, 3.1, l.z - 0.04, l.z + 0.04);
-      plan.obstacles.push({ x0: l.x - 0.05, x1: l.x + 0.05, z0: l.z - 0.05, z1: l.z + 0.05, y0: 0, y1: 3.2 });
-      globes.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, 3.25, l.z), I, new THREE.Vector3(1, 1, 1)));
-      pools.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, 0.01, l.z), Q, new THREE.Vector3(11, 11, 1)));
+      const y = streetY(plan, l.x, l.z);
+      posts.box(l.x - 0.04, l.x + 0.04, y, y + 3.1, l.z - 0.04, l.z + 0.04);
+      plan.obstacles.push({ x0: l.x - 0.05, x1: l.x + 0.05, z0: l.z - 0.05, z1: l.z + 0.05, y0: y, y1: y + 3.2 });
+      globes.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, y + 3.25, l.z), I, new THREE.Vector3(1, 1, 1)));
+      pools.setMatrixAt(i, M.compose(new THREE.Vector3(l.x, y + 0.012, l.z), Q, new THREE.Vector3(y < 0 ? 9 : 11, y < 0 ? 9 : 11, 1)));
     });
     globes.frustumCulled = pools.frustumCulled = false; pools.renderOrder = 4;
     if (!posts.empty) this.group.add(posts.mesh(new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.5 })), globes, pools);

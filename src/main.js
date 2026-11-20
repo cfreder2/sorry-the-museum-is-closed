@@ -92,7 +92,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.2';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.3';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -873,7 +873,7 @@ function studyCam(dt) {
 function attract(dt) {
   // Out on the avenue in the snow, drifting towards the front door and the lions.
   const sp = G.plan.spawn, k = 0.5 + 0.5 * Math.sin(G.t * 0.05 - 1.3);
-  camera.position.set(sp.x - 9 + k * 5, 0.5 + 0.12 * Math.sin(G.t * 0.11), sp.z + 3.4 - k * 1.2);
+  camera.position.set(sp.x - 13 + k * 5, (G.plan.street ? G.plan.street.y : 0) + 0.6 + 0.12 * Math.sin(G.t * 0.11), sp.z + 3.4 - k * 1.2);
   camLook.set(sp.x + 14, 3.6, sp.z - 0.6);
   camera.up.set(0, 1, 0);
   camera.lookAt(camLook);

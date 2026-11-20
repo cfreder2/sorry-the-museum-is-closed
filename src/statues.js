@@ -150,11 +150,11 @@ export function buildStatues(museum, plan) {
     c.blob([0.1, 0.5, -1.33], [0.09, 0.1, 0.14], { k: 0.04 });
     return c.mesh({ ...VERD, snow: 0.8, reach: 0.3 });
   };
-  const block = std({ color: 0xa9a294, roughness: 0.85, emissive: 0x3a3f4d, emissiveIntensity: 0.42 });
+  const block = std({ color: 0xb4aea0, roughness: 0.85, emissive: 0x555b72, emissiveIntensity: 0.6 });
   const fir = std({ color: 0x1f5a30, roughness: 0.9, emissive: 0x0e2a16, emissiveIntensity: 0.9, flatShading: true }), bow = std({ color: 0xc8261c, roughness: 0.7, emissive: 0x6a100a, emissiveIntensity: 0.8 });
   plan.lions.forEach((l, i) => {
-    const g = new THREE.Group(), B = 1.1, prowl = l.z < plan.facade.cz;          // north of the door
-    put(g, box, block, 0, B / 2, 0.1, 1.55, B, 4.2); put(g, box, block, 0, B + 0.04, 0.1, 1.38, 0.1, 3.95); put(g, box, block, 0, 0.09, 0.1, 1.75, 0.18, 4.4);
+    const g = new THREE.Group(), B = 1.1 - (l.y || 0), prowl = l.z < plan.facade.cz;          // north of the door
+    put(g, box, block, 0, B / 2, 0.1, 1.75, B, 4.2); put(g, box, block, 0, B + 0.04, 0.1, 1.5, 0.1, 3.95); put(g, box, block, 0, 0.09, 0.1, 1.95, 0.18, 4.4); put(g, box, block, 0, B - 0.12, 0.1, 1.9, 0.14, 4.34);
     put(g, lion(prowl), metal, 0, B + 0.08, 0);
     // The wreath it is given every December, hung round its neck.
     const w = new THREE.Group(), t = prowl ? 0.42 : -0.12;
@@ -163,7 +163,7 @@ export function buildStatues(museum, plan) {
     put(w, box, bow, 0, -0.62, 0.15, 0.4, 0.18, 0.07); for (const sx of [-1, 1]) put(w, box, bow, sx * 0.12, -0.9, 0.15, 0.12, 0.4, 0.05).rotation.z = sx * 0.25;
     w.position.set(Math.sin(t) * 0.52, B + 1.55 + (prowl ? -0.1 : 0.05), 0.9 + Math.cos(t) * 0.52); w.rotation.set(-0.5, t, 0);
     g.add(w);
-    g.position.set(l.x, 0, l.z); g.rotation.y = -Math.PI / 2;        // facing the avenue
+    g.position.set(l.x, l.y || 0, l.z); g.rotation.y = -Math.PI / 2;        // facing the avenue
     group.add(g); void i;
   });
 

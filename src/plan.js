@@ -175,7 +175,7 @@ export function buildPlan() {
 
   // Where you begin: out on Michigan Avenue in the snow, facing the front door.
   plan.front = front;
-  plan.spawn = { x: PX - 6.5, z: fz, yaw: Math.PI / 2 };
+  plan.spawn = { x: PX - 3.6, z: fz, yaw: Math.PI / 2 };
   addGrounds(plan);
   addStunts(plan);
   addLand(plan);
@@ -502,6 +502,20 @@ export function confine(plan, p, r, flying, out, noFurniture) {
 function addGrounds(plan) {
   const F = plan.facade, B = plan.bounds, O = plan.obstacles;
   const inMass = (x, z, m = 1.2) => plan.masses.some(q => x > q.x0 - m && x < q.x1 + m && z > q.z0 - m && z < q.z1 + m);
+  // Michigan Avenue lies below the museum's floor, as it does: the door is up a flight of steps
+  // from the pavement. Everything west of `x` is at `y`; `ways` are the places the two levels meet,
+  // each climbing east over `run` metres.
+  const SX = 7, SY = -1.2, nz = 18.5, sz = 204;
+  plan.street = { x: SX, y: SY, reach: 12, ways: [
+    { id: 'steps', z0: F.cz - 11.1, z1: F.cz + 11.1, run: 3.6 },
+    { id: 'north', z0: nz - 3, z1: nz + 3, run: 3.6 }, { id: 'south', z0: sz - 3, z1: sz + 3, run: 3.6 },
+    { id: 'monroe', z0: B.z0 - 1, z1: -24, run: 12, road: true }, { id: 'jackson', z0: 244, z1: B.z1 + 1, run: 12, road: true }] };
+  // The wall that holds the terrace up, between the ways.
+  { const cuts = plan.street.ways.map(w => [w.z0, w.z1]).sort((a, b) => a[0] - b[0]); let z = B.z0; plan.street.walls = [];
+    for (const [a, b] of [...cuts, [B.z1, B.z1]]) { if (a - z > 0.05) { plan.street.walls.push([z, a]); O.push({ x0: SX, x1: SX + 0.3, z0: z, z1: a, y0: SY - 0.3, y1: -0.04 }); } z = Math.max(z, b); }
+    // and the sides of the two streets that climb beside it
+    for (const w of plan.street.ways) if (w.road) { const zz = w.z0 < 0 ? w.z1 : w.z0; O.push({ x0: SX, x1: SX + w.run, z0: zz - 0.15, z1: zz + 0.15, y0: SY - 0.3, y1: -0.04 }); }
+    for (const w of plan.street.ways) if (!w.road && w.id !== 'steps') for (const zz of [w.z0, w.z1]) O.push({ x0: SX, x1: SX + w.run, z0: zz - 0.15, z1: zz + 0.15, y0: SY - 0.3, y1: 0.5 }); }
   const G = plan.grounds = {
     michigan: { x0: -24, x1: 1 }, walk: { x0: 1, x1: F.FX }, monroe: { z0: -38, z1: -27 }, jackson: { z0: 247, z1: 258 }, columbus: { x0: 276, x1: 294 },
     rail: { x0: 113, x1: 123 }, north: { x0: 8, x1: 63, z0: -16, z1: 53 }, south: { x0: 11, x1: 62, z0: 168, z1: 240 },
@@ -514,7 +528,7 @@ function addGrounds(plan) {
   G.pool = { x0: 34, x1: Math.min(56, mw - 11), z0: 191.5, z1: 201.5 };
   G.calder = { x: 42.5, z: 26 };
   plan.ice = [G.pool];                                   // frozen over
-  plan.paved = [{ x0: G.michigan.x0, x1: F.FX, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
+  plan.paved = [{ x0: G.michigan.x0, x1: SX + 0.3, z0: B.z0, z1: B.z1 }, { x0: SX, x1: F.PX, z0: F.cz - 11.1, z1: F.cz + 11.1 }, { x0: SX, x1: SX + 12, z0: B.z0, z1: -24 }, { x0: SX, x1: SX + 12, z0: 244, z1: B.z1 }, { x0: SX, x1: 12, z0: nz - 3, z1: nz + 3 }, { x0: SX, x1: 12, z0: sz - 3, z1: sz + 3 }, { x0: B.x0, x1: B.x1, z0: G.monroe.z0, z1: G.monroe.z1 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0, z1: G.jackson.z1 }, { x0: G.columbus.x0, x1: G.columbus.x1, z0: B.z0, z1: B.z1 }];
   // Ground the stunt park must keep off.
   plan.reserved = [{ x0: B.x0, x1: F.FX + 2, z0: B.z0, z1: B.z1 }, { x0: B.x0, x1: B.x1, z0: B.z0, z1: G.monroe.z1 + 2 }, { x0: B.x0, x1: B.x1, z0: G.jackson.z0 - 2, z1: B.z1 }, { x0: G.columbus.x0 - 2, x1: B.x1, z0: B.z0, z1: B.z1 },
     { x0: G.rail.x0 - 2, x1: G.rail.x1 + 2, z0: B.z0, z1: B.z1 }, G.north, G.south];
@@ -566,14 +580,14 @@ function addGrounds(plan) {
     { x: G.tree.x, z: G.tree.z, r: 12, text: 'The courtyard tree. You fit under the lowest branches.' },
   ];
   // Somebody has been building snowmen.
-  G.snowmen = [[5.6, F.cz - 7.2, 1], [6.1, F.cz + 6.6, 0.82], [32.6, 21.6, 1.05], [39.2, 15.2, 0.8], [152.5, 82, 1.1], [166, 93.2, 0.78], [170.5, 79.4, 0.95], [243.5, 136.5, 1], [206.5, 161, 0.85], [41.2, 207.6, 1.1], [30.5, 187.5, 0.8]].map(([x, z, s]) => ({ x, z, s }));
+  G.snowmen = [[12.6, F.cz - 19.4, 1], [13.1, F.cz + 18.6, 0.82], [32.6, 21.6, 1.05], [39.2, 15.2, 0.8], [152.5, 82, 1.1], [166, 93.2, 0.78], [170.5, 79.4, 0.95], [243.5, 136.5, 1], [206.5, 161, 0.85], [41.2, 207.6, 1.1], [30.5, 187.5, 0.8]].map(([x, z, s]) => ({ x, z, s }));
   // One that a building now stands on has been rebuilt beside the tree.
   G.snowmen.filter(m => inMass(m.x, m.z, 0.6)).forEach((m, i) => { const a = 0.9 + i * 2.1; m.x = G.tree.x + Math.cos(a) * 7.5; m.z = G.tree.z + Math.sin(a) * 7.5; });
   const keepOff = (x, z) => G.paths.some(q => x > q.x0 - 0.9 && x < q.x1 + 0.9 && z > q.z0 - 0.9 && z < q.z1 + 0.9) || G.snowmen.some(m => Math.hypot(x - m.x, z - m.z) < 1.4)
     || G.fountains.some(f => Math.hypot(x - f.x, z - f.z) < f.r + 1.5) || G.sculpt.some(c => Math.hypot(x - c.x, z - c.z) < 3);
 
   // Trees, bare for the winter. Honey locusts in rows in the North Garden, hawthorns in a grid in the South, and a line along the avenue.
-  const tree = (x, z, kind) => { if (inMass(x, z) || keepOff(x, z)) return; G.trees.push({ x, z, kind, s: 0.85 + ((x * 13 + z * 7) % 10) / 30, yaw: (x * 3 + z * 5) % 6.28 }); O.push({ x0: x - 0.16, x1: x + 0.16, z0: z - 0.16, z1: z + 0.16, y0: 0, y1: 5 }); };
+  const tree = (x, z, kind) => { if (inMass(x, z) || keepOff(x, z)) return; G.trees.push({ x, z, kind, s: 0.85 + ((x * 13 + z * 7) % 10) / 30, yaw: (x * 3 + z * 5) % 6.28 }); O.push({ x0: x - 0.16, x1: x + 0.16, z0: z - 0.16, z1: z + 0.16, y0: streetY(plan, x, z), y1: 5 }); };
   for (let x = 13; x <= 60; x += 7.8) for (let z = -11; z <= 49; z += 7.5) if (!(x > 28 && x < 48 && z > 10 && z < 36)) tree(x, z, 'locust');
   for (let x = 15; x <= G.south.x1 - 3; x += 6.4) for (let z = 172; z <= 237; z += 6.4) {
     if (x > G.pool.x0 - 3 && x < G.pool.x1 + 3 && z > G.pool.z0 - 3 && z < G.pool.z1 + 3) continue;
@@ -591,7 +605,7 @@ function addGrounds(plan) {
   }
   O.push({ x0: G.fountain.x - 3.2, x1: G.fountain.x + 3, z0: G.fountain.z - 4.4, z1: G.fountain.z + 4.4, y0: 0, y1: 5 });
   O.push({ x0: G.calder.x - 0.5, x1: G.calder.x + 0.5, z0: G.calder.z - 0.5, z1: G.calder.z + 0.5, y0: 0, y1: 4 });
-  { const l = plan.facade; plan.outdoorArt.push({ x: l.PX - 3.4, z: l.cz - 15.5, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.' }, { x: l.PX - 3.4, z: l.cz + 15.5, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.', same: true }); }
+  { const l = plan.facade; plan.outdoorArt.push({ x: 8.9, z: l.cz - 12.15, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.' }, { x: 8.9, z: l.cz + 12.15, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.', same: true }); }
   // A commuter train, stopped for the night in the cutting north of the bridge.
   const bridge = plan.masses.filter(q => q.x0 < G.rail.x1 && q.x1 > G.rail.x0).sort((a, b) => a.z0 - b.z0);
   G.railGaps = [];
@@ -604,9 +618,10 @@ function addGrounds(plan) {
   // The lions, either side of the way in, and lamps: along the avenue and by every door.
   plan.lions = []; plan.lamps = [];
   for (const sgn of [-1, 1]) {
-    const lion = { x: F.PX - 3.4, z: F.cz + sgn * 15.5 };
+    // On the two great blocks that end the steps, as they are.
+    const lion = { x: plan.street.x + 1.9, z: F.cz + sgn * 12.15, y: plan.street.y };
     plan.lions.push(lion);
-    O.push({ x0: lion.x - 1.95, x1: lion.x + 1.95, z0: lion.z - 0.75, z1: lion.z + 0.75, y0: 0, y1: 3.6 });
+    O.push({ x0: lion.x - 2.3, x1: lion.x + 2.3, z0: lion.z - 1.0, z1: lion.z + 1.0, y0: lion.y - 0.3, y1: 3.6 });
   }
   const lamp = (x, z) => { if (!inMass(x, z, 0.3)) plan.lamps.push({ x, z }); };
   for (let zz = B.z0 + 16; zz < B.z1 - 6; zz += 26) lamp(1.7, zz + (Math.abs(zz - F.cz) < 3 ? 6 : 0));
@@ -1075,6 +1090,15 @@ function inWell(plan, x, z, y) {
 }
 
 // A shaft that goes down through the ground from above it has no street in it: only its own floor, far below.
+// How high the open ground is at (x, z): the museum's floor level, or the avenue below it, or part
+// of the way up between the two.
+export function streetY(plan, x, z) {
+  const S = plan.street; if (!S || x >= S.x + S.reach) return 0;
+  if (x <= S.x) return S.y;
+  for (const w of S.ways) if (z > w.z0 && z < w.z1) return x < S.x + w.run ? S.y * (1 - (x - S.x) / w.run) : 0;
+  return 0;
+}
+
 function inPit(plan, x, z) {
   for (const r of plan.pits) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return true;
   return false;
@@ -1087,7 +1111,8 @@ function inPit(plan, x, z) {
 export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
   let g = -Infinity, under = null;
   for (const f of plan.floors) if (f.y > g && f.y <= y + step && x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1 && !inWell(plan, x, z, f.y)) g = f.y;
-  if (g < 0 && y + step >= 0 && !inWell(plan, x, z, 0) && !inPit(plan, x, z)) g = 0;      // the street, and the snow
+  const sy = streetY(plan, x, z);
+  if (g < sy && y + step >= sy && !inWell(plan, x, z, 0) && !inPit(plan, x, z)) g = sy;      // the street, and the snow
   for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
     if (plan.racing && !s.line && s.skin !== 'bench' && !s.roof && !s.fixed) continue;        // in a race, only what is on the track is there
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
@@ -1095,7 +1120,7 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
     if ((h <= y + step || (s.hill && y > -1) || (s === sticky && h <= y + 1.6)) && h > g) { g = h; under = s; }      // a hill is ground at any height: there is no under it (short of being in a cellar)
   }
   plan.under = under;          // which piece that was, for whoever just asked
-  if (g === -Infinity) { g = 0; for (const f of plan.floors) if (f.y < g && x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1) g = f.y; }      // below everything: the lowest floor there is here
+  if (g === -Infinity) { g = sy > y + 0.5 && plan.street && x < plan.street.x + plan.street.reach ? plan.street.y : sy; for (const f of plan.floors) if (f.y < g && x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1) g = f.y; }      // below everything: the lowest floor there is here
   return g;
 }
 

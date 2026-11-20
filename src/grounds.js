@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
-import { T } from './plan.js';
+import { T, streetY } from './plan.js';
 
 export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
@@ -18,7 +18,7 @@ export function buildGrounds(museum, plan) {
   const ash = TX.ashlar();
   const stone = new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.36, 0.39, 0.5), emissiveIntensity: 0.5 });
   const trim = new THREE.MeshStandardMaterial({ color: 0xbdb6a6, roughness: 0.85, emissive: 0x4a4d5c, emissiveIntensity: 0.55 });
-  const base = new THREE.MeshStandardMaterial({ color: 0x6e6a63, roughness: 0.8, emissive: 0x23252c, emissiveIntensity: 0.5 });
+  const base = new THREE.MeshStandardMaterial({ color: 0x8a867e, roughness: 0.8, emissive: 0x3c404e, emissiveIntensity: 0.55 });
   const night = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.035, 0.045, 0.075) });
   const warm = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.66, 0.3) });
   const verdigris = new THREE.MeshStandardMaterial({ color: 0x4fa596, roughness: 0.6, metalness: 0.2, emissive: 0x1d4a42, emissiveIntensity: 0.8 });
@@ -163,28 +163,60 @@ export function buildGrounds(museum, plan) {
 
   // ------------------------------------------------------------------- the streets
   {
-    const road = new Geo(), paint = new Geo(), walk = new Geo(), kerb = new Geo();
+    const road = new Geo(), paint = new Geo(), walk = new Geo(), kerb = new Geo(), drift = new Geo(), stepG = new Geo(), nosing = new Geo(), cheek = new Geo(), cope = new Geo(), balus = new Geo();
     const flat = (g, x0, x1, z0, z1, y, s = 4) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
-    const M = G.michigan;
-    flat(road, M.x0, M.x1, B.z0, B.z1, 0.004);
-    flat(road, M.x1, B.x1, G.monroe.z0, G.monroe.z1, 0.004); flat(road, M.x1, B.x1, G.jackson.z0, G.jackson.z1, 0.004);
+    const M = G.michigan, S = plan.street, SX = S.x, SY = S.y, way = id => S.ways.find(w => w.id === id);
+    // A stretch that climbs east from the avenue's level to the museum's.
+    const slope = (g, x0, x1, z0, z1, lift, s = 4) => { const ya = streetY(plan, x0 + 1e-4, (z0 + z1) / 2) + lift, yb = streetY(plan, x1 - 1e-4, (z0 + z1) / 2) + lift; g.quad([x0, ya, z0], [x1, yb, z0], [x1, yb, z1], [x0, ya, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]); };
+    flat(road, M.x0, M.x1, B.z0, B.z1, SY + 0.004);
+    for (const st of [G.monroe, G.jackson]) { flat(road, M.x1, SX, st.z0, st.z1, SY + 0.004); slope(road, SX, SX + 12, st.z0, st.z1, 0.004); flat(road, SX + 12, B.x1, st.z0, st.z1, 0.004); }
     flat(road, G.columbus.x0, G.columbus.x1, G.monroe.z1, G.jackson.z0, 0.004);
     // Lane lines: dashes down the avenue, a double line up the middle.
-    for (let z = B.z0; z < B.z1; z += 9) for (const x of [-19, -6.5]) flat(paint, x - 0.08, x + 0.08, z, z + 3.6, 0.008);
-    for (const x of [-12.9, -12.3]) flat(paint, x - 0.07, x + 0.07, B.z0, B.z1, 0.008);
-    for (let x = M.x1 + 6; x < B.x1; x += 9) for (const z of [(G.monroe.z0 + G.monroe.z1) / 2, (G.jackson.z0 + G.jackson.z1) / 2]) flat(paint, x, x + 3.6, z - 0.08, z + 0.08, 0.008);
+    for (let z = B.z0; z < B.z1; z += 9) for (const x of [-19, -6.5]) flat(paint, x - 0.08, x + 0.08, z, z + 3.6, SY + 0.008);
+    for (const x of [-12.9, -12.3]) flat(paint, x - 0.07, x + 0.07, B.z0, B.z1, SY + 0.008);
+    for (let x = SX + 14; x < B.x1; x += 9) for (const z of [(G.monroe.z0 + G.monroe.z1) / 2, (G.jackson.z0 + G.jackson.z1) / 2]) flat(paint, x, x + 3.6, z - 0.08, z + 0.08, 0.008);
     for (let z = G.monroe.z1 + 6; z < G.jackson.z0; z += 9) flat(paint, 284.9, 285.1, z, z + 3.6, 0.008);
     // The crossing at Adams Street, opposite the door.
-    for (let z = F.cz - 3.2; z < F.cz + 3.2; z += 0.9) flat(paint, M.x0 + 0.5, M.x1 - 0.5, z, z + 0.45, 0.008);
-    // The pavement, and the stone forecourt before the entrance.
-    // The pavement stops at the wall: carried on underneath, it shows through the floor of the doorway and the duct.
-    flat(walk, M.x1, F.FX, B.z0, F.cz - F.half, 0.006, 2.5); flat(walk, M.x1, F.FX, F.cz + F.half, B.z1, 0.006, 2.5); flat(walk, M.x1, F.PX, F.cz - F.half, F.cz + F.half, 0.006, 2.5);
-    kerb.box(M.x1 - 0.12, M.x1 + 0.12, 0, 0.07, B.z0, B.z1);
+    for (let z = F.cz - 3.2; z < F.cz + 3.2; z += 0.9) flat(paint, M.x0 + 0.5, M.x1 - 0.5, z, z + 0.45, SY + 0.008);
+    // The pavement, down at the avenue's level, under snow, with a strip shovelled along it and across to the steps.
+    flat(drift, M.x1, SX, B.z0, B.z1, SY + 0.006, 3);
+    flat(walk, 3.9, 5.9, B.z0, B.z1, SY + 0.012, 2.5); flat(walk, M.x1, SX, F.cz - 3.4, F.cz + 3.4, SY + 0.012, 2.5);
+    for (const id of ['north', 'south']) { const w = way(id); flat(walk, 5.9, SX, w.z0, w.z1, SY + 0.012, 2.5); }
+    // The pavements of the two side streets, climbing with them.
+    for (const w of S.ways) if (w.road) { const st = w.id === 'monroe' ? G.monroe : G.jackson; for (const [a, b2] of [[w.z0, st.z0], [st.z1, w.z1]]) if (b2 - a > 0.2) { slope(drift, SX, SX + 12, a, b2, 0.006, 3); } }
+    // The terrace before the door: snow, with a way shovelled from the head of the steps to the doors.
+    flat(walk, SX + 3.6, F.PX, F.cz - 3.4, F.cz + 3.4, 0.006, 2.5); flat(walk, F.PX - 2.4, F.PX, F.cz - 11, F.cz + 11, 0.006, 2.5);
+    kerb.box(M.x1 - 0.12, M.x1 + 0.12, SY, SY + 0.07, B.z0, B.z1);
+
+    // The steps. Eight of them, the width of the pavilion, between the lions' blocks.
+    { const w = way('steps'), n = 8, tread = w.run / n, rise = -SY / n;
+      for (let i = 0; i < n; i++) { const x0 = SX + i * tread, top = SY + (i + 1) * rise; stepG.box(x0, SX + w.run + 0.02, top - rise, top, w.z0, w.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, w.z0, w.z1); }
+      for (const id of ['north', 'south']) { const g = way(id); for (let i = 0; i < n; i++) { const x0 = SX + i * tread, top = SY + (i + 1) * rise; stepG.box(x0, SX + g.run + 0.02, top - rise, top, g.z0, g.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, g.z0, g.z1); }
+        for (const zz of [g.z0, g.z1]) { cheek.box(SX - 0.15, SX + g.run + 0.3, SY, 0.5, zz - 0.22, zz + 0.22); cope.box(SX - 0.2, SX + g.run + 0.35, 0.5, 0.6, zz - 0.28, zz + 0.28); } } }
+    // The wall that holds the terrace up, with its coping; and along the museum's own front a balustrade on top of it.
+    for (const [a, b2] of S.walls) {
+      cheek.quad([SX, SY, a], [SX, SY, b2], [SX, 0.02, b2], [SX, 0.02, a], [-1, 0, 0], [[a / 2, 0], [b2 / 2, 0], [b2 / 2, 0.6], [a / 2, 0.6]]);
+      cope.box(SX - 0.1, SX + 0.34, -0.04, 0.1, a, b2);
+      const z0 = Math.max(a, F.z0 - 2), z1 = Math.min(b2, F.z1 + 2);
+      if (z1 - z0 > 1 && !(Math.abs((a + b2) / 2 - F.cz) < 12)) {
+        const lo = Math.abs(z0 - F.cz) < 14 ? z0 + 1.05 : z0, hi = Math.abs(z1 - F.cz) < 14 ? z1 - 1.05 : z1;      // the lion's block takes the end nearest the steps
+        cope.box(SX - 0.02, SX + 0.3, 0.1, 0.2, lo, hi); cope.box(SX - 0.06, SX + 0.34, 0.82, 0.96, lo, hi);
+        for (let z = lo + 0.2; z < hi - 0.1; z += 0.36) balus.box(SX + 0.07, SX + 0.21, 0.2, 0.82, z - 0.07, z + 0.07);
+        for (let z = lo; z <= hi + 0.01; z += Math.max(3.6, (hi - lo) / Math.max(1, Math.round((hi - lo) / 5.4)))) cope.box(SX - 0.08, SX + 0.36, 0.1, 1.04, z - 0.2, z + 0.2);
+        plan.obstacles.push({ x0: SX, x1: SX + 0.3, z0: lo, z1: hi, y0: -0.05, y1: 1.0 });
+      }
+    }
+    // The walls beside the two streets as they climb.
+    for (const w of S.ways) if (w.road) { const zz = w.z0 < 0 ? w.z1 : w.z0, d = w.z0 < 0 ? 1 : -1; cheek.quad([SX, SY, zz], [SX + 12, SY, zz], [SX + 12, 0.02, zz], [SX, 0.02, zz], [0, 0, -d]); cheek.quad([SX + 12, SY, zz], [SX, SY, zz], [SX, 0.02, zz], [SX + 12, 0.02, zz], [0, 0, d]); cope.box(SX, SX + 12, -0.04, 0.1, zz - 0.17, zz + 0.17); }
     const at = TX.asphalt();
     add(road.mesh(new THREE.MeshStandardMaterial({ map: at, roughness: 0.55, emissiveMap: at, emissive: new THREE.Color(0.4, 0.45, 0.6), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })));
     add(paint.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.6, 0.5), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
     add(walk.mesh(new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: 0.85, emissive: 0x3a3f4f, emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })));
     add(kerb.mesh(base));
+    const steps = new THREE.MeshStandardMaterial({ color: 0xbdb9b0, roughness: 0.85, emissive: 0x5a6078, emissiveIntensity: 0.62 });
+    add(stepG.mesh(steps), cheek.mesh(stone), cope.mesh(trim), balus.mesh(trim));
+    add(nosing.mesh(snow));
+    const dm = snow.clone(); dm.polygonOffset = true; dm.polygonOffsetFactor = -1; dm.polygonOffsetUnits = -1; add(drift.mesh(dm));
   }
 
   // ------------------------------------------------------------------- the railway
@@ -272,7 +304,7 @@ export function buildGrounds(museum, plan) {
     const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler();
     G.trees.forEach((t, i) => {
       const wide = t.kind === 'hawthorn';
-      trees.setMatrixAt(i, M4.compose(new THREE.Vector3(t.x, 0, t.z), Q.setFromEuler(E.set(0, t.yaw, 0)), new THREE.Vector3(t.s * (wide ? 1.35 : 1), t.s * (wide ? 0.8 : 1.45), t.s * (wide ? 1.35 : 1))));
+      trees.setMatrixAt(i, M4.compose(new THREE.Vector3(t.x, streetY(plan, t.x, t.z), t.z), Q.setFromEuler(E.set(0, t.yaw, 0)), new THREE.Vector3(t.s * (wide ? 1.35 : 1), t.s * (wide ? 0.8 : 1.45), t.s * (wide ? 1.35 : 1))));
     });
     trees.frustumCulled = false; group.add(trees);
     // Hedges, with snow lying on top.
