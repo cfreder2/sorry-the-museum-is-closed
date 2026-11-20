@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import { rng } from './textures.js';
 
-const W = 4096, H = 1024, SPAN = 190, BELOW = 9;                 // the cylinder it goes on: 190 m tall, 9 of them below the ground
+export const SPAN = 330, BELOW = 9;
+const W = 4096, H = 1536;                 // the cylinder it goes on: 190 m tall, 9 of them below the ground
 const py = y => H * (1 - (y + BELOW) / SPAN);                    // metres up -> pixels down
 const px = b => { const t = Math.atan2(Math.sin(b * Math.PI / 180), -Math.cos(b * Math.PI / 180)); return ((t / (2 * Math.PI)) % 1 + 1) % 1 * W; };
 const K = W / 360;
@@ -19,11 +20,11 @@ export function panorama() {
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d'), r = rng(1893);
   const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#04060f'); sky.addColorStop(0.55, '#0c1730'); sky.addColorStop(0.86, '#1f2a4c'); sky.addColorStop(0.955, '#3a3c5c'); sky.addColorStop(1, '#3a3c5c');
+  sky.addColorStop(0, '#04060f'); sky.addColorStop(0.6, '#0b152c'); sky.addColorStop(0.9, '#1f2a4c'); sky.addColorStop(0.972, '#3a3c5c'); sky.addColorStop(1, '#3a3c5c');
   g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(255,255,255,${0.2 + r() * 0.7})`; const s = r() < 0.06 ? 2.2 : 1.1; g.fillRect(r() * W, r() * H * 0.7, s, s); }
+  for (let k = 0; k < 1500; k++) { g.fillStyle = `rgba(255,255,255,${0.2 + r() * 0.7})`; const s = r() < 0.06 ? 2.2 : 1.1; g.fillRect(r() * W, r() * H * 0.7, s, s); }
   // The glow a city puts in the sky: over the Loop, none over the water.
-  for (const [b, w, a] of [[285, 120, 0.2], [350, 80, 0.16], [200, 60, 0.07]]) for (const off of [-W, 0, W]) { const x = px(b) + off, gr = g.createRadialGradient(x, py(0), 10, x, py(0), w * K); gr.addColorStop(0, `rgba(255,170,110,${a})`); gr.addColorStop(1, 'rgba(255,170,110,0)'); g.fillStyle = gr; g.fillRect(x - w * K, 0, 2 * w * K, H); }
+  for (const [b, w, a] of [[285, 120, 0.3], [350, 80, 0.24], [200, 60, 0.1]]) for (const off of [-W, 0, W]) { const x = px(b) + off, gr = g.createRadialGradient(x, py(0), 10, x, py(0), w * K); gr.addColorStop(0, `rgba(255,170,110,${a})`); gr.addColorStop(1, 'rgba(255,170,110,0)'); g.fillStyle = gr; g.fillRect(x - w * K, 0, 2 * w * K, H); }
 
   const lights = (x, top, w, bottom, lit, cw = 4, ch = 6, gx = 8, gy = 11, blue = 0.2) => {
     for (let wy = top + 6; wy < bottom - 4; wy += gy) for (let wx = x + 4; wx < x + w - cw - 2; wx += gx) if (r() < lit) { g.fillStyle = r() > blue ? `rgba(255,${190 + r() * 40},${110 + r() * 60},${0.45 + r() * 0.5})` : 'rgba(190,220,255,0.75)'; g.fillRect(wx, wy, cw, ch); }
@@ -37,12 +38,17 @@ export function panorama() {
       if (o.shape === 'diamond') { g.moveTo(x, base); g.lineTo(x, top + w * 1.1); g.lineTo(x + w / 2, top); g.lineTo(x + w, top + w * 1.1); g.lineTo(x + w, base); }
       else if (o.shape === 'point') { g.moveTo(x, base); g.lineTo(x, top + w * 1.3); g.lineTo(x + w * 0.2, top + w * 1.3); g.lineTo(x + w * 0.2, top + w * 0.8); g.lineTo(x + w * 0.35, top + w * 0.8); g.lineTo(x + w / 2, top); g.lineTo(x + w * 0.65, top + w * 0.8); g.lineTo(x + w * 0.8, top + w * 0.8); g.lineTo(x + w * 0.8, top + w * 1.3); g.lineTo(x + w, top + w * 1.3); g.lineTo(x + w, base); }
       else if (o.shape === 'steps') { const s = (py(0) - top); g.moveTo(x, base); g.lineTo(x, top + s * 0.45); g.lineTo(x + w * 0.22, top + s * 0.45); g.lineTo(x + w * 0.22, top + s * 0.18); g.lineTo(x + w * 0.4, top + s * 0.18); g.lineTo(x + w * 0.4, top); g.lineTo(x + w * 0.72, top); g.lineTo(x + w * 0.72, top + s * 0.3); g.lineTo(x + w, top + s * 0.3); g.lineTo(x + w, base); }
+      else if (o.shape === 'pyramid') { g.moveTo(x, base); g.lineTo(x, top + w * 0.9); g.lineTo(x + w / 2, top); g.lineTo(x + w, top + w * 0.9); g.lineTo(x + w, base); }
+      else if (o.shape === 'trio') { const s = py(0) - top; g.moveTo(x, base); g.lineTo(x, top + s * 0.36); g.lineTo(x + w * 0.33, top + s * 0.36); g.lineTo(x + w * 0.33, top + s * 0.16); g.lineTo(x + w * 0.66, top + s * 0.16); g.lineTo(x + w * 0.66, top); g.lineTo(x + w, top); g.lineTo(x + w, base); }
       else if (o.shape === 'crown') { g.moveTo(x, base); g.lineTo(x, top + w * 0.5); g.lineTo(x + w * 0.15, top + w * 0.5); g.lineTo(x + w * 0.15, top); g.lineTo(x + w * 0.85, top); g.lineTo(x + w * 0.85, top + w * 0.5); g.lineTo(x + w, top + w * 0.5); g.lineTo(x + w, base); }
       else { g.moveTo(x, base); g.lineTo(x, top); g.lineTo(x + w, top); g.lineTo(x + w, base); }
       g.closePath(); g.fill();
       if (o.stripes) { g.fillStyle = o.stripes; for (let sx = x + 2; sx < x + w - 1; sx += 5) g.fillRect(sx, top + 2, 2, base - top); }
       if (o.mast) { g.fillStyle = col; for (const m of [].concat(o.mast)) { g.fillRect(x + w * m - 1.5, top - o.mastH * H / SPAN, 3, o.mastH * H / SPAN + 4); g.fillStyle = '#ff5040'; g.fillRect(x + w * m - 2.5, top - o.mastH * H / SPAN - 3, 5, 5); g.fillStyle = col; } }
       if (o.cap) { g.fillStyle = o.cap; g.fillRect(x, top, w, 5); }
+      if (o.edge) { g.fillStyle = o.edge; g.fillRect(x, top, 2, base - top); g.fillRect(x + w - 2, top, 2, base - top); }
+      if (o.outline) { g.strokeStyle = o.outline; g.lineWidth = 3; g.beginPath(); if (o.shape === 'diamond') { g.moveTo(x, top + w * 1.1); g.lineTo(x + w / 2, top); g.lineTo(x + w, top + w * 1.1); g.lineTo(x + w / 2, top + w * 2.2); g.closePath(); } else if (o.shape === 'pyramid') { g.moveTo(x, top + w * 0.9); g.lineTo(x + w / 2, top); g.lineTo(x + w, top + w * 0.9); } g.stroke(); }
+      if (o.crown) { const cy = top + (o.crownAt || 0) * w, gl = g.createRadialGradient(x + w / 2, cy, 2, x + w / 2, cy, w * 1.5); gl.addColorStop(0, o.crown); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gl; g.fillRect(x - w, cy - w * 1.5, w * 3, w * 3); g.fillStyle = o.crown; g.fillRect(x + w * 0.1, cy, w * 0.8, o.crownH || 8); }
       const t0 = o.shape === 'diamond' ? top + w * 1.1 : o.shape === 'point' ? top + w * 1.3 : top;
       lights(x, t0, w, py(0), o.lit == null ? 0.3 : o.lit, o.cw || 4, o.ch || 6, o.gx || 8, o.gy || 11, o.blue == null ? 0.2 : o.blue);
     }
@@ -50,19 +56,25 @@ export function panorama() {
   // How built-up the horizon is, by bearing: nothing over the lake, little over the park to the south.
   const city = b => (b >= 200 && b <= 360) || b <= 32 ? 1 : b > 32 && b < 48 ? (48 - b) / 16 : b > 172 && b < 200 ? 0.35 + 0.65 * (b - 172) / 28 : 0;
   // The far rank: the Loop behind, tallest to the west and north-west.
-  for (let b = 0; b < 360;) { const c = city(b), wd = 2.2 + r() * 3.2; if (c > 0 && r() < 0.9) tower(b + wd / 2, wd, (40 + r() * 75) * (0.5 + 0.5 * c) * (b > 240 && b < 340 ? 1.25 : 1), { col: '#101728', lit: 0.2, mast: r() < 0.12 ? 0.5 : null, mastH: 14 }); b += wd + r() * 0.6; }
-  // The ones you can name.
-  tower(266, 5.2, 158, { shape: 'steps', col: '#05070c', mast: [0.47, 0.64], mastH: 24, lit: 0.26, blue: 0.5 });                 // the black stepped giant, twin masts
-  tower(252, 3.6, 92, { col: '#3a1418', lit: 0.3 });                                                                               // the red one
-  tower(20, 3.4, 150, { col: '#3b4252', stripes: 'rgba(210,220,235,0.16)', lit: 0.2, cw: 2, gx: 5, blue: 0.6 });                   // tall, white, plain as a ruler
-  tower(12, 3.8, 132, { shape: 'point', col: '#1a2233', mast: 0.5, mastH: 18, lit: 0.28 });                                        // the chevron-topped one, with its spire
-  tower(6.5, 4.6, 96, { col: '#181d2a', mast: 0.5, mastH: 30, lit: 0.3 });                                                         // the slab beside it, with the big aerial
-  tower(356, 3.4, 104, { shape: 'diamond', col: '#1c2436', cap: 'rgba(255,255,255,0.25)', lit: 0.24 });                            // the one with the slanted diamond face
-  tower(344, 2.4, 128, { col: '#141c2c', mast: 0.4, mastH: 26, lit: 0.22, blue: 0.7 });                                            // glass and a spire, farther off
-  tower(30, 2.6, 118, { col: '#16283c', lit: 0.2, blue: 0.9 });                                                                    // the blue one, towards the lake
-  tower(300, 3.2, 112, { shape: 'crown', col: '#0d121e', lit: 0.28 }); tower(318, 2.8, 124, { col: '#0a0e18', lit: 0.25, mast: 0.5, mastH: 16 });
+  for (let b = 0; b < 360;) { const c = city(b), wd = 2.4 + r() * 3.4; if (c > 0 && r() < 0.92) tower(b + wd / 2, wd, (70 + r() * 95) * (0.5 + 0.5 * c) * (b > 240 && b < 340 ? 1.2 : 1), { col: r() < 0.3 ? '#131c30' : '#0e1526', lit: 0.22, mast: r() < 0.12 ? 0.5 : null, mastH: 16, shape: r() < 0.18 ? 'crown' : null, cap: r() < 0.2 ? 'rgba(255,240,200,0.5)' : null }); b += wd + r() * 0.5; }
+  // The ones you can name, placed by where they stand from the museum's door.
+  tower(270, 7.5, 232, { shape: 'steps', col: '#04060a', mast: [0.47, 0.64], mastH: 44, lit: 0.3, blue: 0.45, cap: 'rgba(255,255,255,0.55)', edge: 'rgba(120,140,180,0.25)' });   // the black stepped giant, twin white masts
+  tower(261, 3.4, 150, { col: '#141a2a', lit: 0.3, crown: 'rgba(255,255,255,0.9)', crownH: 12 });                                    // the one with the glowing glass drum on top
+  tower(277.5, 4, 160, { shape: 'crown', col: '#1a2030', mast: [0.3, 0.7], mastH: 34, lit: 0.3 });                                   // twin spires
+  tower(250, 5, 138, { col: '#5a1a1e', lit: 0.34, edge: 'rgba(255,120,110,0.25)' });                                                 // the red one
+  tower(236, 4.4, 150, { shape: 'pyramid', col: '#0c1220', lit: 0.36, outline: 'rgba(255,220,150,0.5)', crown: 'rgba(90,170,255,0.95)', crownAt: 0.1, crownH: 10 });   // pyramid roof, blue beehive lantern
+  tower(291, 4.6, 268, { col: '#152c4a', lit: 0.3, blue: 0.85, cw: 3, gx: 6, edge: 'rgba(140,190,255,0.35)', cap: 'rgba(160,210,255,0.6)' });   // tall, slim and blue, close by
+  tower(301, 5, 150, { col: '#101622', lit: 0.3, shape: 'crown' });
+  tower(10, 5, 222, { col: '#4a5264', stripes: 'rgba(225,232,245,0.22)', lit: 0.16, cw: 2, gx: 5, blue: 0.6, cap: 'rgba(255,255,255,0.7)' });   // tall, white, plain as a ruler
+  tower(1, 5.4, 190, { shape: 'point', col: '#1c2538', mast: 0.5, mastH: 30, lit: 0.3, crown: 'rgba(255,245,220,0.8)', crownAt: 0.75, crownH: 6 });   // chevron top and spire
+  tower(355, 6, 128, { col: '#1a2030', mast: 0.5, mastH: 46, lit: 0.34 });                                                           // the slab beside it, with the big aerial
+  tower(346, 5, 150, { shape: 'diamond', col: '#1e2940', outline: 'rgba(255,255,255,0.85)', lit: 0.26 });                           // the slanted diamond face, outlined in light
+  tower(338, 3, 176, { shape: 'trio', col: '#17243a', mast: 0.83, mastH: 40, lit: 0.26, blue: 0.75, edge: 'rgba(150,190,240,0.25)' });   // stepped glass and a spire, farther off
+  tower(332, 2.6, 112, { col: '#0d1a14', lit: 0.3, crown: 'rgba(255,205,90,0.95)', crownH: 14, mast: 0.5, mastH: 14 });              // dark green with a gold top
+  tower(19, 4.4, 178, { shape: 'trio', col: '#1a3350', lit: 0.24, blue: 0.9, cap: 'rgba(170,220,255,0.6)', edge: 'rgba(150,200,255,0.3)' });   // three stepped tubes of blue glass, by the river
+  tower(26, 4, 120, { col: '#16283c', lit: 0.3, blue: 0.8 }); tower(31, 3.4, 96, { col: '#10202e', lit: 0.3, blue: 0.9 });
   // The near rank: the wall of old masonry towers across the avenue, and the lower blocks round the park.
-  for (let b = 196; b < 396;) { const bb = b % 360, c = city(bb), wd = 3 + r() * 3.6; if (c > 0) tower(bb + wd / 2, wd, (44 + r() * 44) * (bb > 232 && bb < 318 ? 1.2 : 0.8) * (0.6 + 0.4 * c), { col: '#070b14', lit: 0.34, cw: 5, ch: 8, gx: 10, gy: 15, shape: r() < 0.25 ? 'crown' : null }); b += wd + 0.15; }
+  for (let b = 198; b < 398;) { const bb = b % 360, c = city(bb), wd = 4.5 + r() * 4.5; if (c > 0) tower(bb + wd / 2, wd, (58 + r() * 50) * (bb > 225 && bb < 322 ? 1.25 : 0.8) * (0.6 + 0.4 * c), { col: ['#070b14', '#0b0f18', '#0a0c12'][Math.floor(r() * 3)], lit: 0.4, cw: 6, ch: 10, gx: 12, gy: 18, shape: r() < 0.3 ? 'crown' : null, cap: r() < 0.35 ? 'rgba(255,225,170,0.45)' : null }); b += wd + 0.12; }
   // Trees: Grant Park to the south and east, Millennium Park to the north. Bare, so a soft dark fringe.
   for (let d = 0; d < 360; d += 0.12) { const park = (d > 150 && d < 205) || (d > 28 && d < 44) || d > 335 || d < 12; if (!park) continue; const h = 5 + r() * 7 + (r() < 0.1 ? 5 : 0), x = px(d); g.fillStyle = '#05080f'; g.fillRect(x - 2, py(h), 4 + r() * 3, py(-BELOW) - py(h)); }
   // The lake itself, out to its horizon: dark water with a paler line where it meets the sky, and the moon's road on it.

@@ -8,7 +8,7 @@ import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
 import { buildRoofscape } from './roofscape.js';
-import { panorama, lake } from './skyline.js';
+import { panorama, lake, SPAN, BELOW } from './skyline.js';
 import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
 import { furnish, MATERIALS } from './furnish.js';
@@ -484,8 +484,8 @@ export class Museum {
     // The city all round, and one moon.
     const city = panorama();                             // the Loop to the west and north, the lake to the east (skyline.js)
     const R = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2 + 150;
-    const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 190, 64, 1, true), new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, color: new THREE.Color(1.35, 1.35, 1.35), fog: false }));
-    sky.position.set(cx, 86, cz);
+    const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, SPAN, 64, 1, true), new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, color: new THREE.Color(1.35, 1.35, 1.35), fog: false }));
+    sky.position.set(cx, SPAN / 2 - BELOW, cz);
     const moonAt = new THREE.Vector3(cx + R * 0.9, 100, cz - R * 0.36);        // low in the east, over the lake
     const moon = new THREE.Mesh(new THREE.SphereGeometry(13, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 2.8), fog: false }));
     moon.position.copy(moonAt);
