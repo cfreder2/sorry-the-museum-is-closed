@@ -14,6 +14,8 @@ export class Input {
   constructor(surface) {
     this.surface = surface;
     this.down = new Set();
+    this.at = new Map();             // when each key held was pressed: of two opposite keys, the later one wins
+    this._n = 0;
     this.queue = new Set();          // actions pressed since the last frame
     this.touch = { l: null, r: null };
     this.sticks = { lx: 0, ly: 0, rx: 0, ry: 0 };
@@ -27,6 +29,9 @@ export class Input {
     this.autogo = false;             // 'drive for me' setting: on glass, a thumb on the stick is the throttle
     this.btn = { jump: false, up: false, down: false, brake: false };     // on-screen buttons being held
     this._ids = { jump: new Set(), up: new Set(), down: new Set(), brake: new Set() };
+    this._btnAt = { jump: 0, up: 0, down: 0, brake: 0 };                  // when each was pressed (UP and DOWN both held: the later wins)
+    this._mouse = { jump: false, up: false, down: false, brake: false };  // held with a mouse, not a finger
+    this._live = {};                 // gamepad axes seen at rest, and so to be believed (see read)
     this.thumb = { x: 0, y: 0, ox: 0, oy: 0, on: false };                // where the thumbstick is, for drawing it
     this._jump = false;
     this.onGesture = null;           // called on any lift or key, to unlock sound
@@ -35,15 +40,28 @@ export class Input {
     addEventListener('keydown', e => {
       const ours = this.capture && (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab');      // (Tab opens the map, not the next button)
       if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;      // a slider or tick box has the keys
+      this._mods(e);
       if (e.repeat) { if (ours) e.preventDefault(); return; }
-      this.down.add(e.code);
+      this.down.add(e.code); this.at.set(e.code, ++this._n);
       for (const [a, codes] of Object.entries(KEYS)) if (codes.includes(e.code)) this.queue.add(a);
       this.queue.add('any');
       if (ours) e.preventDefault();
       if (this.onGesture) this.onGesture();
     });
-    addEventListener('keyup', e => this.down.delete(e.code));
-    const release = () => { this.down.clear(); this.touch.l = this.touch.r = null; };
+    addEventListener('keyup', e => {
+      this.down.delete(e.code);
+      // On a Mac no key lets go while Command is held: whatever went down meanwhile is still 'down'. Let go of the lot.
+      if (e.code === 'MetaLeft' || e.code === 'MetaRight') this.down.clear();
+      this._mods(e);
+    });
+    // Shift is a key of its own here (the drone's DOWN), and its own let-go is easily lost to the system (a screenshot,
+    // a shortcut, a dialog). Every key and pointer event says whether it is really held.
+    addEventListener('pointermove', e => this._mods(e), { passive: true });
+    addEventListener('pointerdown', e => this._mods(e), { passive: true });
+    const release = () => {
+      this.down.clear(); this.touch.l = this.touch.r = null;
+      for (const k in this._ids) { this._ids[k].clear(); this._mouse[k] = false; this.btn[k] = false; }
+    };
     addEventListener('blur', release);
     addEventListener('pagehide', release);
     document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
@@ -87,11 +105,24 @@ export class Input {
     surface.addEventListener('touchmove', move, opt);
     surface.addEventListener('touchend', end, opt);
     surface.addEventListener('touchcancel', end, opt);
-    // A button let go of anywhere on the page is let go of.
-    const lift = e => { const live = new Set(Array.from(e.touches, t => t.identifier)); for (const k in this._ids) { for (const id of this._ids[k]) if (!live.has(id)) this._ids[k].delete(id); this.btn[k] = this._ids[k].size > 0; } };
+    // A button let go of anywhere on the page is let go of; and a finger the system took without telling us (no touchend
+    // ever came) is let go of the next time any finger comes down or moves, not only when one lifts.
+    const lift = e => {
+      const live = new Set(Array.from(e.touches, t => t.identifier));
+      for (const k in this._ids) { for (const id of this._ids[k]) if (!live.has(id)) this._ids[k].delete(id); this.btn[k] = this._ids[k].size > 0 || this._mouse[k]; }
+    };
+    const cap = { passive: true, capture: true };
+    document.addEventListener('touchstart', lift, cap);
+    document.addEventListener('touchmove', lift, cap);
     document.addEventListener('touchend', lift, opt);
     document.addEventListener('touchcancel', lift, opt);
-    addEventListener('blur', () => { for (const k in this._ids) { this._ids[k].clear(); this.btn[k] = false; } });
+    // And a mouse button let go of anywhere is let go of.
+    addEventListener('mouseup', () => { for (const k in this._mouse) if (this._mouse[k]) { this._mouse[k] = false; this.btn[k] = this._ids[k].size > 0; } });
+  }
+
+  // What the modifier keys really are, from any event that says.
+  _mods(e) {
+    if (!e.shiftKey && e.code !== 'ShiftLeft' && e.code !== 'ShiftRight') { this.down.delete('ShiftLeft'); this.down.delete('ShiftRight'); }
   }
 
   // A finger the system took without telling us is let go at the next event.
@@ -103,20 +134,23 @@ export class Input {
   // Make an element a button that is held down: jump, up, down.
   bind(el, name) {
     const opt = { passive: false };
-    el.addEventListener('touchstart', e => { e.preventDefault(); this.usedTouch = true; for (const t of e.changedTouches) this._ids[name].add(t.identifier); this.btn[name] = true; }, opt);
-    el.addEventListener('touchend', e => { e.preventDefault(); for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0; if (this.onGesture) this.onGesture(); }, opt);
-    el.addEventListener('touchcancel', e => { for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0; }, opt);
-    el.addEventListener('mousedown', () => { this.btn[name] = true; });
-    for (const ev of ['mouseup', 'mouseleave']) el.addEventListener(ev, () => { if (!this._ids[name].size) this.btn[name] = false; });
+    el.addEventListener('touchstart', e => { e.preventDefault(); this.usedTouch = true; for (const t of e.changedTouches) this._ids[name].add(t.identifier); this.btn[name] = true; this._btnAt[name] = ++this._n; }, opt);
+    el.addEventListener('touchend', e => { e.preventDefault(); for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0 || this._mouse[name]; if (this.onGesture) this.onGesture(); }, opt);
+    el.addEventListener('touchcancel', e => { for (const t of e.changedTouches) this._ids[name].delete(t.identifier); this.btn[name] = this._ids[name].size > 0 || this._mouse[name]; }, opt);
+    el.addEventListener('mousedown', () => { this._mouse[name] = true; this.btn[name] = true; this._btnAt[name] = ++this._n; });
+    for (const ev of ['mouseup', 'mouseleave']) el.addEventListener(ev, () => { this._mouse[name] = false; if (!this._ids[name].size) this.btn[name] = false; });
   }
 
   press(action) { this.queue.add(action); }
   took(action) { const had = this.queue.has(action); this.queue.delete(action); return had; }
   endFrame() { this.queue.clear(); }
 
+  // Of two opposite keys both held, the one pressed later counts: a key whose let-go was lost never locks out the other.
   _axis(neg, pos) {
-    const d = this.down;
-    return (pos.some(k => d.has(k)) ? 1 : 0) - (neg.some(k => d.has(k)) ? 1 : 0);
+    let p = 0, n = 0;
+    for (const k of pos) if (this.down.has(k)) p = Math.max(p, this.at.get(k) || 1);
+    for (const k of neg) if (this.down.has(k)) n = Math.max(n, this.at.get(k) || 1);
+    return p > n ? 1 : n > p ? -1 : 0;
   }
 
   // Reads everything into the two sticks. `drone` picks the key layout.
@@ -135,8 +169,11 @@ export class Input {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const p of pads) {
       if (!p || !p.connected) continue;
-      const a = p.axes, b = p.buttons;
-      const glx = dz(a[0] || 0), gly = -dz(a[1] || 0), grx = dz(a[2] || 0), gry = -dz(a[3] || 0);
+      const b = p.buttons;
+      // An axis counts only once it has been seen at rest. Some things that call themselves gamepads (pedals, a wheel, a
+      // flight stick's throttle, odd USB receivers) have axes that sit at one end: read as a stick, held down for ever.
+      const a = [0, 1, 2, 3].map(i => { const v = p.axes[i] || 0, key = p.index + ':' + i; if (Math.abs(v) < 0.3) this._live[key] = true; return this._live[key] ? v : 0; });
+      const glx = dz(a[0]), gly = -dz(a[1]), grx = dz(a[2]), gry = -dz(a[3]);
       if (Math.abs(glx) > Math.abs(lx)) lx = glx;
       if (Math.abs(gly) > Math.abs(ly)) ly = gly;
       if (Math.abs(grx) > Math.abs(rx)) rx = grx;
@@ -159,7 +196,7 @@ export class Input {
       const curve = v => Math.sign(v) * Math.pow(Math.abs(v), 1.35);
       if (drone) {
         if (tl) { ry = tl.y; lx = curve(tl.x); }
-        if (b.up || b.down) ly = (b.up ? 1 : 0) - (b.down ? 1 : 0);
+        if (b.up || b.down) ly = b.up && (!b.down || this._btnAt.up > this._btnAt.down) ? 1 : -1;
       } else {
         // The stick is the whole car: push it forward to go (the further, the faster), pull it
         // back to brake and then reverse, lean it to steer. Leaning hard does not count as pulling back.
