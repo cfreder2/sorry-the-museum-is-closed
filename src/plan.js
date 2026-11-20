@@ -597,6 +597,8 @@ function addGrounds(plan) {
     tree(x, z, 'hawthorn');
   }
   for (let z = B.z0 + 10; z < B.z1 - 6; z += 13) if (Math.abs(z - F.cz) > 21) tree(3.4, z, 'locust');
+  // And a row along Columbus Drive, on the pavement's edge.
+  for (let z = G.monroe.z1 + 8; z < G.jackson.z0 - 6; z += 12.5) if (Math.abs(z + 14) > 4.2 && Math.abs(z - 110) > 6) tree(G.columbus.x0 - 1.4, z, 'locust');      // not across the arch, nor the east door
   // Low hedges round both gardens, with gaps to get in by.
   const hedge = (x0, x1, z0, z1) => { G.hedges.push({ x0, x1, z0, z1 }); O.push({ x0, x1, z0, z1, y0: 0, y1: 0.9 }); };
   for (const g of [G.north, G.south]) {

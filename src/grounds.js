@@ -12,6 +12,7 @@ import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { T, streetY } from './plan.js';
 import { buildBridgeway } from './bridgeway.js';
+import { buildEastSide } from './eastside.js';
 
 export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
@@ -373,4 +374,7 @@ export function buildGrounds(museum, plan) {
   // The Modern Wing's glass, its sunshade, and the footbridge from the park (bridgeway.js).
   buildBridgeway(museum, plan);
   void T;
+
+  // The Columbus Drive side, and the gardens as they lie from above.
+  buildEastSide(museum, plan);
 }
