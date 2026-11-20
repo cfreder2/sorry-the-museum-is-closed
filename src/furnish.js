@@ -1166,11 +1166,14 @@ def('musicStands', 1.4, 0.5, (g, w, r) => { for (let u = -0.55; u < 0.6; u += 0.
 def('lectern', 0.7, 0.6, g => { g.bs(-0.3, 0.3, 0, 1.1, 0.1, 0.5, C.woodD); g.b(-0.34, 0.34, 1.1, 1.16, 0.05, 0.55, C.woodD, 'matte', true); g.c(0.15, 1.3, 0.2, 0.008, 0.3, 'y', C.black, 'metal', 5); g.b(-0.15, 0.1, 1.16, 1.17, 0.2, 0.45, C.lamp, 'glow', true); });
 def('micStand', 0.4, 0.4, g => { g.c(0, 0.015, 0.2, 0.15, 0.03, 'y', C.black, 'metal', 8); g.c(0, 0.75, 0.2, 0.012, 1.5, 'y', C.steelL, 'metal', 5); g.c(0, 1.52, 0.2, 0.025, 0.14, 'd', C.black, 'matte', 6); g.s(-0.1, 0.1, 0, 1.55, 0.1, 0.3); });
 def('piano', 1.6, 3.1, (g, w, r) => {
+  // The straight side is on the player's left, as it is: the bass strings are the long ones. The keys themselves,
+  // and the lid propped open, are made by src/piano.js, which is told here where the keyboard is.
   const k = 0.55;
-  g.b(-0.75, 0.75, 0.7, 1.0, k + 0.3, k + 1.2, C.black, 'matte', true); g.b(-0.75, 0.3, 0.7, 1.0, k + 1.2, k + 2.0, C.black, 'matte', true); g.b(-0.75, -0.1, 0.7, 1.0, k + 2.0, k + 2.5, C.black, 'matte', true);
-  g.b(-0.72, 0.72, 0.72, 0.75, k + 0.12, k + 0.32, C.enamel, 'matte', true); for (let u = -0.68; u < 0.7; u += 0.1) g.b(u, u + 0.04, 0.75, 0.76, k + 0.2, k + 0.32, C.black, 'matte', true); g.b(-0.75, 0.75, 0.6, 0.7, k + 0.1, k + 0.32, C.black, 'matte', true);
-  for (const [u, d] of [[-0.65, 0.4], [0.65, 0.4], [-0.4, 2.35]]) g.qs(u, k + d, 0.1, 0.1, 0, 0.7, C.black); g.b(-0.75, 0.3, 1.0, 1.03, k + 0.5, k + 2.0, C.black, 'matte', true);
+  g.b(-0.75, 0.75, 0.7, 1.0, k + 0.3, k + 1.2, C.black, 'matte', true); g.b(-0.3, 0.75, 0.7, 1.0, k + 1.2, k + 2.0, C.black, 'matte', true); g.b(0.1, 0.75, 0.7, 1.0, k + 2.0, k + 2.5, C.black, 'matte', true);
+  g.b(-0.75, 0.75, 0.6, 0.74, k + 0.1, k + 0.32, C.black, 'matte', true); for (const u of [-0.75, 0.72]) g.b(u, u + 0.03, 0.74, 0.8, k + 0.1, k + 0.32, C.black, 'matte', true);
+  for (const [u, d] of [[-0.65, 0.4], [0.65, 0.4], [0.4, 2.35]]) g.qs(u, k + d, 0.1, 0.1, 0, 0.7, C.black);
   stool(g, 0, 0.3, 0.5, C.black); g.s(-0.75, 0.75, 0.6, 1.05, k + 0.1, k + 2.5);
+  g.mark('piano', 0, k + 0.13, 0.74);
 });
 def('curtain', 1.2, 0.3, (g, w, r) => { const e = w / 2, h = g.H - 0.3; for (let u = -e; u < e - 0.01; u += 0.2) g.b(u, u + 0.2, 0.03, h, 0.05, 0.15 + (Math.round(u * 5) % 2 ? 0.08 : 0), C.velvet, 'matte', true); g.b(-e, e, h, h + 0.06, 0.05, 0.25, C.steelD, 'metal'); g.s(-e, e, 0, h, 0.05, 0.25); });
 def('ropeRail', 2.0, 0.4, (g, w, r) => { g.b(-1, 1, 1.1, 1.2, 0.05, 0.25, C.woodD, 'matte', true); for (const u of [-0.95, 0.95]) g.bs(u - 0.04, u + 0.04, 0, 1.1, 0.1, 0.2, C.woodD); for (let u = -0.8; u < 0.85; u += 0.2) { g.c(u, 1.25, 0.15, 0.02, 0.3, 'y', C.woodL, 'matte', 5); g.c(u + 0.02, (1.4 + g.H) / 2, 0.15, 0.012, g.H - 1.4, 'y', C.canvas, 'matte', 4); } g.s(-1, 1, 1, 1.4, 0.05, 0.25); });
