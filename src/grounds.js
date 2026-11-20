@@ -16,7 +16,7 @@ export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
   const add = (...m) => { for (const x of m) { x.matrixAutoUpdate = false; x.updateMatrix(); group.add(x); } };
   const ash = TX.ashlar();
-  const stone = new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.36, 0.39, 0.5), emissiveIntensity: 0.5 });
+  const stone = new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.45, 0.43, 0.46), emissiveIntensity: 0.52 });
   const trim = new THREE.MeshStandardMaterial({ color: 0xbdb6a6, roughness: 0.85, emissive: 0x4a4d5c, emissiveIntensity: 0.55 });
   const base = new THREE.MeshStandardMaterial({ color: 0x8a867e, roughness: 0.8, emissive: 0x3c404e, emissiveIntensity: 0.55 });
   const night = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.035, 0.045, 0.075) });
@@ -90,6 +90,19 @@ export function buildGrounds(museum, plan) {
     tr.box(PX - 0.14, PX, 10.7, 11.6, p0, p1);
     tr.box(PX - 0.55, PX, 11.6, 11.95, p0 - 0.3, p1 + 0.3);
     face(PX, p0, p1, 11.95, PH);
+    // The pediment: the low gable that crowns the pavilion, with its roof running back behind it.
+    { const H = 3.7, e = 0.45, zl = p0 - e, zr = p1 + e, back = FX + 9, L = Math.hypot(F.half + e, H), ang = Math.atan2(H, F.half + e);
+      tr.box(PX - 0.6, PX, PH - 0.34, PH, zl, zr);
+      wall.quad([PX - 0.05, PH, p1], [PX - 0.05, PH, p0], [PX - 0.05, PH + H - 0.1, cz], [PX - 0.05, PH + H - 0.1, cz], W, [[p1 / 2.6, 0], [p0 / 2.6, 0], [cz / 2.6, H / 2.6], [cz / 2.6, H / 2.6]]);
+      for (const sg of [-1, 1]) {
+        const rake = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.36, L + 0.3), trim); rake.position.set(PX - 0.3, PH + H / 2 + 0.1, cz + sg * (F.half + e) / 2); rake.rotation.x = sg * ang; add(rake);
+        const ze = sg < 0 ? zl : zr, n = [0, Math.cos(ang), sg * Math.sin(ang)];
+        const q = sg < 0 ? [[PX - 0.6, PH + 0.05, ze], [back, PH + 0.05, ze], [back, PH + H + 0.25, cz], [PX - 0.6, PH + H + 0.25, cz]] : [[PX - 0.6, PH + H + 0.25, cz], [back, PH + H + 0.25, cz], [back, PH + 0.05, ze], [PX - 0.6, PH + 0.05, ze]];
+        roof.quad(q[0], q[1], q[2], q[3], n, [[0, 0], [3, 0], [3, 3], [0, 3]]);
+      }
+      wall.quad([back, PH, p0], [back, PH, p1], [back, PH + H, cz], [back, PH + H, cz], [1, 0, 0]);
+      for (const side of [p0, p1]) wall.quad([FX, WH, side], [back, WH, side], [back, PH, side], [FX, PH, side], [0, 0, side === p0 ? -1 : 1]);
+      tr.box(PX - 0.5, PX + 0.1, PH + H + 0.2, PH + H + 0.95, cz - 0.35, cz + 0.35); for (const z of [zl + 0.3, zr - 0.3]) tr.box(PX - 0.5, PX + 0.1, PH, PH + 0.6, z - 0.3, z + 0.3); }
     for (const side of [p0, p1]) { const nz = side === p0 ? -1 : 1; wall.quad([PX, 0, side], [FX, 0, side], [FX, PH, side], [PX, PH, side], [0, 0, nz], [[0, 0], [0.8, 0], [0.8, PH / 2.6], [0, PH / 2.6]]); wall.quad([FX, WH, side], [FX + 6, WH, side], [FX + 6, PH, side], [FX, PH, side], [0, 0, nz]); }
     const tun = new Geo(), t = plan.transom;
     for (const k of [-1, 0, 1]) {
