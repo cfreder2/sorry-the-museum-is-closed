@@ -345,14 +345,15 @@ What is not true:
 - **High places.** Ledges at the top of every skate ramp, two beside the
   skyway, table tops and the staircase landing are somewhere to land and look
   from. Hoops are counted too, but art is the objective.
-- **Slow motion.** Leave a ramp with a work alongside and time slows, the
-  camera comes round, and that work is lit and named until you land.
+- **Slow motion.** Leave a ramp with a work alongside and time slows to half,
+  and that work is lit and named until you land. The car keeps its speed.
 - **Stunt Looks.** Art is the goal, and the tricks are a way of looking at
   it. While the car is in the air (off a ramp or a drop, a hop at speed, or
   with a flip or spin going), or while either toy goes through a hoop, a work
   that is close and plainly in view is caught: STUNT LOOK, its title, and
-  points when the wheels are down. It counts as seeing the work and as a look
-  at it. See *Art Score* below for what it is worth.
+  points when the wheels are down. The camera stays with the car but swings
+  round to keep the work in frame, and comes back behind once you land. It
+  counts as seeing the work and as a look at it. See *Art Score* below for what it is worth.
 - **Frames.** Each picture gets a moulding to suit its date and school:
   tabernacle and gilt-and-bole for the earliest, carved Baroque gilt, ebonised
   Dutch, Neoclassical, swept Salon gilt, walnut, oak, thin modern strips, and

@@ -124,7 +124,7 @@ const note = w => { if (G.seen.some(s => s.id === w.id)) return; G.seen.push({ i
 const score = G.score = new Score({
   tm,
   // A Stunt Look has caught a work: it is seen, lit and noted, like any other look.
-  onCatch: art => { if (art.wakeAt < 0) { art.wakeAt = G.museum.time; G.museum._waking.add(art); } G.museum.see(art); note(art.work); sound.gate(); },
+  onCatch: art => { if (G.vehicle && G.vehicle.kind === 'car' && G.vehicle.air) slow.caught = art; if (art.wakeAt < 0) { art.wakeAt = G.museum.time; G.museum._waking.add(art); } G.museum.see(art); note(art.work); sound.gate(); },
   onCall: (c, big) => stuntCall(c, big),
 });
 const trophies = G.trophies = new Trophies();
@@ -691,24 +691,23 @@ function chase(dt, snap) {
       want.set(L.x - v.rail.way * (L.r + 2.5), L.r * 1.05, L.z - 2.4);
       tmp.set((v.pos.x + L.x) / 2, (v.pos.y + L.r) / 2, v.pos.z);
       rate = 5;
-    } else if (slow.cine > 0.02 && slow.art) {
-      // Flying past a picture: get round the far side of the car, low, so the
-      // work is what the car is seen against.
-      const a = slow.art, k = slow.cine;
-      let dx = a.x - v.pos.x, dz = a.z - v.pos.z;
-      const D = Math.hypot(dx, dz) || 1; dx /= D; dz /= D;
-      const sp = Math.hypot(v.vel.x, v.vel.z) || 1, ux = v.vel.x / sp, uz = v.vel.z / sp;
-      const back = Math.min(2.6, 1.5 + D * 0.13), along = dx * ux + dz * uz;
-      // Picture abeam: shoot across the car at it. Picture dead ahead or dead
-      // astern: come off to one side instead, or the car is all you would see.
-      let cx = -dx - ux * 0.45, cz = -dz - uz * 0.45, lift = -0.08;
-      if (Math.abs(along) > 0.7) { cx = -dx * 0.75 - uz * 0.7; cz = -dz * 0.75 + ux * 0.7; lift = 0.3; }
-      const cl = Math.hypot(cx, cz) || 1;
-      cine.set(v.pos.x + cx / cl * back, Math.max((G.floorY || 0) + 0.14, v.pos.y + lift), v.pos.z + cz / cl * back);
-      want.lerp(cine, k);
-      cine.set(v.pos.x + (a.x - v.pos.x) * 0.32, v.pos.y + (a.y - v.pos.y) * 0.32 + 0.04, v.pos.z + (a.z - v.pos.z) * 0.32);
+    } else if (slow.cine > 0.02 && slow.eye) {
+      // A work caught in the air: the camera stays with the car, swings round it away from the work (so the car is
+      // seen against it), and turns to look between the two, mostly at the work. The car flies on regardless.
+      const a = slow.eye, k = slow.cine;
+      const off = angDiff(Math.atan2(a.x - v.pos.x, a.z - v.pos.z), G.camYaw), m = Math.abs(off);
+      const swing = Math.sign(off) * Math.min(m * 0.75, 1.2) * Math.min(1, (Math.PI - m) / 0.7) * k;      // and back behind once the work is well past
+      const cy = G.camYaw + swing, back = dist * (1 + 0.3 * k);
+      want.set(v.pos.x - Math.sin(cy) * back, v.pos.y + up + 0.12 * k, v.pos.z - Math.cos(cy) * back);
+      // From where the camera is: as far round to the work as keeps the car within 0.6 rad of the middle.
+      const cp = camera.position;
+      camTry.set(v.pos.x - cp.x, v.pos.y + 0.15 - cp.y, v.pos.z - cp.z); const dc = camTry.length() || 1; camTry.divideScalar(dc);
+      camHit.set(a.x - cp.x, a.y - cp.y, a.z - cp.z).normalize();
+      const th = Math.acos(Math.max(-1, Math.min(1, camTry.dot(camHit)))), t = th > 2.8 ? 0 : Math.min(0.7, 0.6 / Math.max(th, 1e-3));
+      if (th > 1e-3 && t > 0) { const sn = Math.sin(th); camTry.multiplyScalar(Math.sin((1 - t) * th) / sn).addScaledVector(camHit, Math.sin(t * th) / sn); }
+      cine.copy(cp).addScaledVector(camTry, Math.max(dc, 1.5));
       tmp.lerp(cine, k);
-      rate = 7;
+      rate = 10 - 3 * k;
     }
     // The camera stays in the same space as the toy: it is walked out from the toy towards where it wants to be, and
     // stops at the first wall in the way. (Just being inside some room is not enough: that lets it sit in the room
@@ -736,7 +735,7 @@ function chase(dt, snap) {
     camera.up.set(0, 1, 0);
     camera.lookAt(camLook);
   }
-  const fov = ((G.view === 'fpv' ? 84 : 70) + (set.reduce ? 0 : Math.min(14, Math.abs(v.speed) * 1.1))) * (1 - 0.34 * slow.cine);
+  const fov = (G.view === 'fpv' ? 84 : 70) + (set.reduce ? 0 : Math.min(14, Math.abs(v.speed) * 1.1));
   camera.fov += (fov - camera.fov) * (snap ? 1 : Math.min(1, dt * 5));
   camera.updateProjectionMatrix();
 }
@@ -761,10 +760,10 @@ function trickName(l) {
   return parts.join(' + ');
 }
 
-// Slow motion. Leave a ramp with a picture alongside and the world drops to a
-// fifth of its speed, the camera comes round, and that one work is lit up and
-// named until the wheels are down again.
-const slow = G.slow = { k: 1, target: 1, art: null, live: false, boost: 0, cine: 0, until: 0 };
+// Slow motion. Leave a ramp with a picture alongside and the world drops to
+// half speed, the camera turns to the work, and that one work is lit up and
+// named until the wheels are down again. The car keeps all its speed.
+const slow = G.slow = { k: 1, target: 1, art: null, live: false, boost: 0, cine: 0, until: 0, caught: null, eye: null };      // caught: a Stunt Look's work this air; eye: the work the camera turns to
 const cine = new THREE.Vector3();
 let bestAir = 0;
 try { bestAir = +localStorage.getItem('after-hours.air') || 0; } catch { /* no storage */ }
@@ -773,7 +772,7 @@ try { bestAir = +localStorage.getItem('after-hours.air') || 0; } catch { /* no s
 const calmAir = () => set.reduce || !set.slowmo;
 
 function endFlyby() {
-  slow.k = slow.target = 1; slow.live = false; slow.boost = slow.cine = 0; slow.until = 0;
+  slow.k = slow.target = 1; slow.live = false; slow.boost = slow.cine = 0; slow.until = 0; slow.caught = slow.eye = null;
   if (slow.art && G.museum) G.museum.spotlight(slow.art, 0);
   slow.art = null;
   renderer.toneMappingExposure = 1.15;
@@ -789,7 +788,7 @@ function flight(v, real, racing) {
       const art = G.museum.beside(v.pos, v.vel, v.launched, G.roomId);
       if (art) {
         if (slow.art && slow.art !== art) G.museum.spotlight(slow.art, 0);
-        slow.art = art; slow.live = true; slow.target = !calmAir() ? (racing ? 0.5 : 0.2) : 1;
+        slow.art = art; slow.live = true; slow.target = !calmAir() ? 0.5 : 1;
         const el = $('flyby');
         el.querySelector('.t').textContent = art.work.t;
         el.querySelector('.a').textContent = [art.work.a, art.work.d].filter(Boolean).join(', ');
@@ -820,7 +819,12 @@ function flight(v, real, racing) {
   slow.k += (slow.target - slow.k) * Math.min(1, real * (slow.target < slow.k ? 12 : 4));
   const on = slow.live ? 1 : 0;
   slow.boost += (on - slow.boost) * Math.min(1, real * (on ? 8 : 2.5));
-  slow.cine += ((slow.live && !racing && G.view === 'chase' && !calmAir() ? 1 : 0) - slow.cine) * Math.min(1, real * 6);
+  // The camera turns to the work while the car is in the air, and back to the chase once it is down.
+  if (v.kind !== 'car' || !v.air) slow.caught = null;
+  const eye = v.kind === 'car' && v.air && !racing && G.view === 'chase' && !calmAir() ? slow.caught || (slow.live ? slow.art : null) : null;
+  if (eye) slow.eye = eye;
+  slow.cine += ((eye ? 1 : 0) - slow.cine) * Math.min(1, real * (eye ? 4 : 1.8));
+  if (!eye && slow.cine < 0.02) { slow.cine = 0; slow.eye = null; }
   if (slow.art) {
     G.museum.spotlight(slow.art, slow.boost);
     if (!slow.live && slow.boost < 0.02) { G.museum.spotlight(slow.art, 0); slow.art = null; }
