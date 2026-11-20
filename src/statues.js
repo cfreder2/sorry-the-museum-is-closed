@@ -153,7 +153,7 @@ export function buildStatues(museum, plan) {
   const block = std({ color: 0xb4aea0, roughness: 0.85, emissive: 0x555b72, emissiveIntensity: 0.6 });
   const fir = std({ color: 0x1f5a30, roughness: 0.9, emissive: 0x0e2a16, emissiveIntensity: 0.9, flatShading: true }), bow = std({ color: 0xc8261c, roughness: 0.7, emissive: 0x6a100a, emissiveIntensity: 0.8 });
   plan.lions.forEach((l, i) => {
-    const g = new THREE.Group(), B = 1.1 - (l.y || 0), prowl = l.z < plan.facade.cz;          // north of the door
+    const g = new THREE.Group(), B = l.h || 1.1, prowl = l.z < plan.facade.cz;          // north of the door
     put(g, box, block, 0, B / 2, 0.1, 1.75, B, 4.2); put(g, box, block, 0, B + 0.04, 0.1, 1.5, 0.1, 3.95); put(g, box, block, 0, 0.09, 0.1, 1.95, 0.18, 4.4); put(g, box, block, 0, B - 0.12, 0.1, 1.9, 0.14, 4.34);
     put(g, lion(prowl), metal, 0, B + 0.08, 0);
     // The wreath it is given every December, hung round its neck.

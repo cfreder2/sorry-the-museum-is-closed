@@ -175,7 +175,7 @@ export function buildPlan() {
 
   // Where you begin: out on Michigan Avenue in the snow, facing the front door.
   plan.front = front;
-  plan.spawn = { x: PX - 3.6, z: fz, yaw: Math.PI / 2 };
+  plan.spawn = { x: PX - 2.7, z: fz, yaw: Math.PI / 2 };
   addGrounds(plan);
   addStunts(plan);
   addLand(plan);
@@ -507,7 +507,7 @@ function addGrounds(plan) {
   // each climbing east over `run` metres.
   const SX = 7, SY = -1.2, nz = 18.5, sz = 204;
   plan.street = { x: SX, y: SY, reach: 12, ways: [
-    { id: 'steps', z0: F.cz - 11.1, z1: F.cz + 11.1, run: 3.6 },
+    { id: 'steps', z0: F.cz - 11.1, z1: F.cz + 11.1, run: 5.6, land: [1.8, 3.8] },       // two flights and a landing
     { id: 'north', z0: nz - 3, z1: nz + 3, run: 3.6 }, { id: 'south', z0: sz - 3, z1: sz + 3, run: 3.6 },
     { id: 'monroe', z0: B.z0 - 1, z1: -24, run: 12, road: true }, { id: 'jackson', z0: 244, z1: B.z1 + 1, run: 12, road: true }] };
   // The wall that holds the terrace up, between the ways.
@@ -515,7 +515,9 @@ function addGrounds(plan) {
     for (const [a, b] of [...cuts, [B.z1, B.z1]]) { if (a - z > 0.05) { plan.street.walls.push([z, a]); O.push({ x0: SX, x1: SX + 0.3, z0: z, z1: a, y0: SY - 0.3, y1: -0.04 }); } z = Math.max(z, b); }
     // and the sides of the two streets that climb beside it
     for (const w of plan.street.ways) if (w.road) { const zz = w.z0 < 0 ? w.z1 : w.z0; O.push({ x0: SX, x1: SX + w.run, z0: zz - 0.15, z1: zz + 0.15, y0: SY - 0.3, y1: -0.04 }); }
-    for (const w of plan.street.ways) if (!w.road && w.id !== 'steps') for (const zz of [w.z0, w.z1]) O.push({ x0: SX, x1: SX + w.run, z0: zz - 0.15, z1: zz + 0.15, y0: SY - 0.3, y1: 0.5 }); }
+    for (const w of plan.street.ways) if (!w.road && w.id !== 'steps') for (const zz of [w.z0, w.z1]) O.push({ x0: SX, x1: SX + w.run, z0: zz - 0.15, z1: zz + 0.15, y0: SY - 0.3, y1: 0.5 });
+    // the stone cheeks of the great steps
+    for (const sg of [-1, 1]) O.push({ x0: SX, x1: SX + 5.9, z0: F.cz + sg * 11.1 - (sg < 0 ? 1.0 : 0), z1: F.cz + sg * 11.1 + (sg > 0 ? 1.0 : 0), y0: SY - 0.3, y1: 0.7 }); }
   const G = plan.grounds = {
     michigan: { x0: -24, x1: 1 }, walk: { x0: 1, x1: F.FX }, monroe: { z0: -38, z1: -27 }, jackson: { z0: 247, z1: 258 }, columbus: { x0: 276, x1: 294 },
     rail: { x0: 113, x1: 123 }, north: { x0: 8, x1: 63, z0: -16, z1: 53 }, south: { x0: 11, x1: 62, z0: 168, z1: 240 },
@@ -605,7 +607,7 @@ function addGrounds(plan) {
   }
   O.push({ x0: G.fountain.x - 3.2, x1: G.fountain.x + 3, z0: G.fountain.z - 4.4, z1: G.fountain.z + 4.4, y0: 0, y1: 5 });
   O.push({ x0: G.calder.x - 0.5, x1: G.calder.x + 0.5, z0: G.calder.z - 0.5, z1: G.calder.z + 0.5, y0: 0, y1: 4 });
-  { const l = plan.facade; plan.outdoorArt.push({ x: 8.9, z: l.cz - 12.15, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.' }, { x: 8.9, z: l.cz + 12.15, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.', same: true }); }
+  { const l = plan.facade; plan.outdoorArt.push({ x: 6.1, z: l.cz - 13.6, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.' }, { x: 6.1, z: l.cz + 13.6, r: 6, text: 'Edward Kemeys, the lions. Wreathed for the season.', same: true }); }
   // A commuter train, stopped for the night in the cutting north of the bridge.
   const bridge = plan.masses.filter(q => q.x0 < G.rail.x1 && q.x1 > G.rail.x0).sort((a, b) => a.z0 - b.z0);
   G.railGaps = [];
@@ -619,9 +621,10 @@ function addGrounds(plan) {
   plan.lions = []; plan.lamps = [];
   for (const sgn of [-1, 1]) {
     // On the two great blocks that end the steps, as they are.
-    const lion = { x: plan.street.x + 1.9, z: F.cz + sgn * 12.15, y: plan.street.y };
+    // At the foot of the steps, out by the pavement, on blocks about as tall as a person.
+    const lion = { x: plan.street.x - 0.9, z: F.cz + sgn * 13.6, y: plan.street.y, h: 1.55 };
     plan.lions.push(lion);
-    O.push({ x0: lion.x - 2.3, x1: lion.x + 2.3, z0: lion.z - 1.0, z1: lion.z + 1.0, y0: lion.y - 0.3, y1: 3.6 });
+    O.push({ x0: lion.x - 2.3, x1: lion.x + 2.3, z0: lion.z - 1.0, z1: lion.z + 1.0, y0: lion.y - 0.3, y1: 2.6 });
   }
   const lamp = (x, z) => { if (!inMass(x, z, 0.3)) plan.lamps.push({ x, z }); };
   for (let zz = B.z0 + 16; zz < B.z1 - 6; zz += 26) lamp(1.7, zz + (Math.abs(zz - F.cz) < 3 ? 6 : 0));
@@ -1095,7 +1098,12 @@ function inWell(plan, x, z, y) {
 export function streetY(plan, x, z) {
   const S = plan.street; if (!S || x >= S.x + S.reach) return 0;
   if (x <= S.x) return S.y;
-  for (const w of S.ways) if (z > w.z0 && z < w.z1) return x < S.x + w.run ? S.y * (1 - (x - S.x) / w.run) : 0;
+  for (const w of S.ways) if (z > w.z0 && z < w.z1) {
+    const d = x - S.x; if (d >= w.run) return 0;
+    if (!w.land) return S.y * (1 - d / w.run);
+    const [a, b] = w.land;                               // half way up, a landing
+    return S.y * (d < a ? 1 - 0.5 * d / a : d < b ? 0.5 : 0.5 - 0.5 * (d - b) / (w.run - b));
+  }
   return 0;
 }
 

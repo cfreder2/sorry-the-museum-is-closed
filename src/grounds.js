@@ -27,7 +27,7 @@ export function buildGrounds(museum, plan) {
 
   // ------------------------------------------------------ the Michigan Avenue front
   {
-    const wall = new Geo(), tr = new Geo(), bs = new Geo(), dark = new Geo(), glow = new Geo(), roof = new Geo();
+    const blind = new Geo(), wall = new Geo(), tr = new Geo(), bs = new Geo(), dark = new Geo(), glow = new Geo(), roof = new Geo();
     const W = [-1, 0, 0];
     // A stretch of wall on a plane x = X, facing west.
     const face = (X, z0, z1, y0, y1, g = wall, s = 2.6) => g.quad([X, y0, z1], [X, y0, z0], [X, y1, z0], [X, y1, z1], W, [[z1 / s, y0 / s], [z0 / s, y0 / s], [z0 / s, y1 / s], [z1 / s, y1 / s]]);
@@ -58,8 +58,10 @@ export function buildGrounds(museum, plan) {
       tr.box(FX - 0.42, FX, 9.0, 9.28, a, b);
       face(FX, a, b, 9.28, WH);
       const n = Math.max(3, Math.round((b - a) / 5.4)), step = (b - a) / n;
-      for (let i = 0; i < n; i++) { const zc = a + step * (i + 0.5); arch(dark, FX, zc, 3.1, 5.2, 6.5); surround(FX, zc, 3.1, 5.2, 6.5); }
-      for (let i = 0; i < n; i++) { const zc = a + step * (i + 0.5); arch(dark, FX, zc, 1.5, 1.5, 3.1); }       // small ground-floor windows
+      // A blind arcade: tall round-headed panels of plain stone between pilasters. Square windows below.
+      for (let i = 0; i < n; i++) { const zc = a + step * (i + 0.5); arch(blind, FX, zc, 3.3, 5.0, 6.6); surround(FX, zc, 3.3, 5.0, 6.6); tr.box(FX - 0.1, FX, 5.0, 5.14, zc - 1.65, zc + 1.65); }
+      for (let i = 0; i <= n; i++) { const z = a + step * i; tr.box(FX - 0.2, FX, 4.8, 8.4, z - 0.36, z + 0.36); tr.box(FX - 0.26, FX, 8.1, 8.4, z - 0.44, z + 0.44); }
+      for (let i = 0; i < n; i++) { const zc = a + step * (i + 0.5), x = FX - 0.03; dark.quad([x, 1.45, zc + 1.0], [x, 1.45, zc - 1.0], [x, 3.6, zc - 1.0], [x, 3.6, zc + 1.0], W); tr.box(FX - 0.1, FX, 3.6, 3.78, zc - 1.15, zc + 1.15); tr.box(FX - 0.1, FX, 1.3, 1.45, zc - 1.15, zc + 1.15); }
       // The end of the wing, round the corner.
       const end = a === F.z0 ? a : b, nz = a === F.z0 ? -1 : 1;
       // It goes back as far as the rooms do: stop short and you can see in round the corner.
@@ -128,6 +130,7 @@ export function buildGrounds(museum, plan) {
       }
       arch(dark, PX, zc, 2.5, 7.7, 9.1); surround(PX, zc, 2.5, 7.7, 9.1);
     }
+    add(blind.mesh(new THREE.MeshStandardMaterial({ color: 0xb5b0a4, roughness: 0.9, emissive: 0x6c6c7c, emissiveIntensity: 0.62 })));
     add(wall.mesh(stone), tr.mesh(trim), bs.mesh(base), dark.mesh(night), glow.mesh(warm));
     if (t) {
       add(tun.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.58, 0.27), side: THREE.DoubleSide })));
@@ -151,6 +154,15 @@ export function buildGrounds(museum, plan) {
     // The name, where it is on the building: across the top of the pavilion.
     const name = new THREE.Mesh(new THREE.PlaneGeometry(21, 0.78), new THREE.MeshBasicMaterial({ map: TX.carved('THE  ART  INSTITUTE  OF  CHICAGO', 2048, 76, 56, '#f1dfae'), transparent: true, depthWrite: false, color: new THREE.Color(1.35, 1.2, 0.85), fog: false }));
     name.position.set(PX - 0.16, 11.15, cz); name.rotation.y = -Math.PI / 2; add(name);
+    // The show's banners, hung in the three upper windows. (Painted here: nobody's picture.)
+    for (const k of [-1, 0, 1]) {
+      const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176; const c = cv.getContext('2d'), r = TX.rng(31 + k * 7);
+      const g = c.createLinearGradient(0, 0, 128, 176); g.addColorStop(0, '#2b5f8e'); g.addColorStop(0.55, '#4f8a86'); g.addColorStop(1, '#27506e'); c.fillStyle = g; c.fillRect(0, 0, 128, 176);
+      for (let i = 0; i < 26; i++) { c.fillStyle = ['#d9b48a', '#c99a6e', '#3d7a52', '#e6d2a8', '#1f4468'][i % 5]; c.globalAlpha = 0.75; c.beginPath(); c.ellipse(r() * 128, 40 + r() * 130, 8 + r() * 22, 5 + r() * 12, r() * 3, 0, 7); c.fill(); }
+      c.globalAlpha = 1;
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.5), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.6, 0.6, 0.66) })); m.position.set(PX - 0.07, 9.0, cz + k * 7.6); m.rotation.y = -Math.PI / 2; add(m);
+    }
     // Banners between the arches.
     const cloth = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, emissive: c, emissiveIntensity: 0.45, side: THREE.DoubleSide });
     for (const [k, c] of [[-3.8, 0xb3242b], [3.8, 0x1f4f8a]]) {
@@ -176,7 +188,7 @@ export function buildGrounds(museum, plan) {
 
   // ------------------------------------------------------------------- the streets
   {
-    const road = new Geo(), paint = new Geo(), walk = new Geo(), kerb = new Geo(), drift = new Geo(), stepG = new Geo(), nosing = new Geo(), cheek = new Geo(), cope = new Geo(), balus = new Geo();
+    const urns = [], cheek2 = new Geo(), road = new Geo(), paint = new Geo(), walk = new Geo(), kerb = new Geo(), drift = new Geo(), stepG = new Geo(), nosing = new Geo(), cheek = new Geo(), cope = new Geo(), balus = new Geo();
     const flat = (g, x0, x1, z0, z1, y, s = 4) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
     const M = G.michigan, S = plan.street, SX = S.x, SY = S.y, way = id => S.ways.find(w => w.id === id);
     // A stretch that climbs east from the avenue's level to the museum's.
@@ -202,9 +214,15 @@ export function buildGrounds(museum, plan) {
     kerb.box(M.x1 - 0.12, M.x1 + 0.12, SY, SY + 0.07, B.z0, B.z1);
 
     // The steps. Eight of them, the width of the pavilion, between the lions' blocks.
-    { const w = way('steps'), n = 8, tread = w.run / n, rise = -SY / n;
-      for (let i = 0; i < n; i++) { const x0 = SX + i * tread, top = SY + (i + 1) * rise; stepG.box(x0, SX + w.run + 0.02, top - rise, top, w.z0, w.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, w.z0, w.z1); }
-      for (const id of ['north', 'south']) { const g = way(id); for (let i = 0; i < n; i++) { const x0 = SX + i * tread, top = SY + (i + 1) * rise; stepG.box(x0, SX + g.run + 0.02, top - rise, top, g.z0, g.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, g.z0, g.z1); }
+    { const w = way('steps'), n = 8, tread = 0.45, rise = -SY / n, x9 = SX + w.run + 0.02;
+      for (let i = 0; i < n; i++) { const x0 = SX + (i < 4 ? i * tread : w.land[1] + (i - 4) * tread), top = SY + (i + 1) * rise; stepG.box(x0, x9, top - rise, top, w.z0, w.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, w.z0, w.z1); }
+      // Its stone cheeks, stepping up with it, each carrying an urn of flowers on the landing and at the head.
+      for (const sg of [-1, 1]) { const z0 = F.cz + sg * 11.1 - (sg < 0 ? 1.0 : 0), z1 = z0 + 1.0;
+        cheek2.box(SX - 0.1, SX + 2.6, SY, SY / 2 + 0.55, z0, z1); cheek2.box(SX + 2.6, SX + 5.9, SY, 0.6, z0, z1);
+        cope.box(SX - 0.16, SX + 2.66, SY / 2 + 0.55, SY / 2 + 0.67, z0 - 0.06, z1 + 0.06); cope.box(SX + 2.56, SX + 5.96, 0.6, 0.72, z0 - 0.06, z1 + 0.06);
+        urns.push([SX + 1.3, SY / 2 + 0.67, (z0 + z1) / 2], [SX + 4.3, 0.72, (z0 + z1) / 2]); }
+      const tr2 = way('north').run / n;
+      for (const id of ['north', 'south']) { const g = way(id); for (let i = 0; i < n; i++) { const x0 = SX + i * tr2, top = SY + (i + 1) * rise; stepG.box(x0, SX + g.run + 0.02, top - rise, top, g.z0, g.z1); nosing.box(x0 - 0.03, x0 + 0.05, top - 0.035, top + 0.004, g.z0, g.z1); }
         for (const zz of [g.z0, g.z1]) { cheek.box(SX - 0.15, SX + g.run + 0.3, SY, 0.5, zz - 0.22, zz + 0.22); cope.box(SX - 0.2, SX + g.run + 0.35, 0.5, 0.6, zz - 0.28, zz + 0.28); } } }
     // The wall that holds the terrace up, with its coping; and along the museum's own front a balustrade on top of it.
     for (const [a, b2] of S.walls) {
@@ -228,7 +246,10 @@ export function buildGrounds(museum, plan) {
     add(kerb.mesh(base));
     const steps = new THREE.MeshStandardMaterial({ color: 0xbdb9b0, roughness: 0.85, emissive: 0x5a6078, emissiveIntensity: 0.62 });
     add(stepG.mesh(steps), cheek.mesh(stone), cope.mesh(trim), balus.mesh(trim));
-    add(nosing.mesh(snow));
+    add(nosing.mesh(snow), cheek2.mesh(steps));
+    { const bowl = new THREE.CylinderGeometry(0.5, 0.26, 0.55, 12), leaf = new THREE.SphereGeometry(0.46, 10, 8), fl = new THREE.SphereGeometry(0.5, 10, 6);
+      const green = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.9, emissive: 0x0e1c12, emissiveIntensity: 0.6 }), red = new THREE.MeshStandardMaterial({ color: 0xb3202a, roughness: 0.8, emissive: 0x6a0d14, emissiveIntensity: 0.8 });
+      for (const [x, y, z] of urns) { const u = new THREE.Mesh(bowl, trim), l = new THREE.Mesh(leaf, green), f = new THREE.Mesh(fl, red); u.position.set(x, y + 0.28, z); f.position.set(x, y + 0.6, z); f.scale.set(1.15, 0.32, 1.15); l.position.set(x, y + 0.82, z); l.scale.y = 0.7; add(u, f, l); } }
     const dm = snow.clone(); dm.polygonOffset = true; dm.polygonOffsetFactor = -1; dm.polygonOffsetUnits = -1; add(drift.mesh(dm));
   }
 
