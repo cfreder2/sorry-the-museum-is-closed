@@ -33,6 +33,8 @@
 //   k.tint(roomId)        light a room differently: .set(color, secs), .off(secs)   (see the end of this file)
 //   k.course(gates, opts) a timed run through gates in order: .start(), .update(dt), .fail(why)   (ditto)
 
+import { confine } from './plan.js';
+
 export const features = [];
 export function feature(f) { features.push(f); return f; }
 
@@ -126,7 +128,7 @@ class Timer {
 class Body {
   constructor(k, mesh, o = {}) {
     this.k = k; this.mesh = mesh; this.o = { r: 0.15, h: 0.5, tip: false, hit: 0.5, drag: 2.5, ...o };
-    this.home = mesh.position.clone(); this.q0 = mesh.quaternion.clone(); this.vx = this.vz = 0; this.tipped = false; this.fall = 0; this.axis = new k.THREE.Vector3(); this._q = new k.THREE.Quaternion();
+    this.home = mesh.position.clone(); this.q0 = mesh.quaternion.clone(); this.vx = this.vz = 0; this._x = this.home.x; this._z = this.home.z; this.tipped = false; this.fall = 0; this.axis = new k.THREE.Vector3(); this._q = new k.THREE.Quaternion();
   }
   step(dt) {
     const v = this.k.v, p = v.pos, m = this.mesh.position, o = this.o;
@@ -141,9 +143,15 @@ class Body {
       if (!this.tipped || !o.tip) { m.x = p.x + nx * reach; m.z = p.z + nz * reach; }
     }
     if (this.vx || this.vz) { m.x += this.vx * dt; m.z += this.vz * dt; const f = Math.exp(-o.drag * dt); this.vx *= f; this.vz *= f; if (Math.abs(this.vx) + Math.abs(this.vz) < 0.01) this.vx = this.vz = 0; }
+    // Not through a wall, nor into anything fixed down: it stops against it, and comes off with a little of its speed.
+    if (m.x !== this._x || m.z !== this._z) {
+      const out = this._o || (this._o = { x: 0, y: 0, z: 0 });
+      if (confine(this.k.plan, m, o.r, false, out)) { const l = Math.hypot(out.x, out.z); if (l > 1e-6) { const nx = out.x / l, nz = out.z / l, into = this.vx * nx + this.vz * nz; if (into < 0) { this.vx -= nx * into * 1.4; this.vz -= nz * into * 1.4; } } }
+      this._x = m.x; this._z = m.z;
+    }
     if (this.tipped && o.tip && this.fall < 1) { this.fall = Math.min(1, this.fall + dt / 0.35); this.mesh.quaternion.copy(this._q.setFromAxisAngle(this.axis, (Math.PI / 2) * this.fall * this.fall)).multiply(this.q0); }
   }
-  reset() { this.mesh.position.copy(this.home); this.mesh.quaternion.copy(this.q0); this.vx = this.vz = 0; this.tipped = false; this.fall = 0; }
+  reset() { this.mesh.position.copy(this.home); this.mesh.quaternion.copy(this.q0); this.vx = this.vz = 0; this._x = this.home.x; this._z = this.home.z; this.tipped = false; this.fall = 0; }
 }
 
 // ---------------------------------------------------------------- the hook main.js calls
