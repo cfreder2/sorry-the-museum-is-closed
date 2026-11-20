@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { T, HW, SPRING, VAULT_R, SLAB, LIFT, wallPoint, hang, heightOf, roomAt, ceilingAt, carve, streetY } from './plan.js';
+import { T, HW, SPRING, VAULT_R, SLAB, LIFT, wallPoint, hang, heightOf, roomAt, ceilingAt, carve, streetY, groundOpenings } from './plan.js';
 import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
@@ -503,15 +503,7 @@ export class Museum {
     // The snow lies over everything at street level, under the building too, where the floors hide it. Wherever the way
     // goes down below the street (a flight to the lower level, a lift, the clear ice over the fishing hole) it is left
     // open, or you would see snow through the hole instead of the stair going down.
-    const openings = (() => {
-      const out = [], grow = (q, g) => ({ x0: q.x0 - g, x1: q.x1 + g, z0: q.z0 - g, z1: q.z1 + g });
-      for (const q of plan.ramps) if (Math.min(q.y0, q.y1) < -0.3 && Math.max(q.y0, q.y1) > -0.6) out.push(grow(q, 0.05));
-      for (const l of plan.lifts) if (l.stops[0] < -0.3 && l.stops.some(y => Math.abs(y) < 0.6)) out.push(grow(l, 0.05));
-      if (plan.lakefront && plan.lakefront.window) out.push({ ...plan.lakefront.window });
-      // overlapping holes do not triangulate: run any that touch into one
-      for (let again = true; again;) { again = false; for (let i = 0; i < out.length && !again; i++) for (let j = i + 1; j < out.length; j++) { const p = out[i], q = out[j]; if (p.x0 < q.x1 && p.x1 > q.x0 && p.z0 < q.z1 && p.z1 > q.z0) { out[i] = { x0: Math.min(p.x0, q.x0), x1: Math.max(p.x1, q.x1), z0: Math.min(p.z0, q.z0), z1: Math.max(p.z1, q.z1) }; out.splice(j, 1); again = true; break; } } }
-      return out;
-    })();
+    const openings = groundOpenings(plan);
     // A sheet of snow w by h centred on (gx, gz), with those openings that fall inside it left open.
     const sheetGeo = (w, h, gx, gz) => {
       const inside = openings.filter(o => o.x0 > gx - w / 2 + 0.1 && o.x1 < gx + w / 2 - 0.1 && o.z0 > gz - h / 2 + 0.1 && o.z1 < gz + h / 2 - 0.1);

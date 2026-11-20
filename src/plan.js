@@ -545,6 +545,30 @@ export function ceilingAt(plan, x, z, y) {
 // doorway, or outdoors clear of every building. Returns true when it had to
 // move the point, and writes the push direction to `out`.
 const _o = { x: 0, y: 0, z: 0 };
+// Everywhere the ground drops away below the street, as rectangles: the railway cutting's open stretches, a stair
+// or a lift that goes down through street level, a ramp down to the lower level, a room two storeys deep, the clear
+// ice over the fishing hole. The snow lies over everything at street level (under the building too, where floors
+// hide it), and every sheet of it is cut from this one list (museum.js); tools/check_layout.mjs checks that nothing
+// below the street is left under snow. Anything new that goes below the street must be findable from here.
+export function groundOpenings(plan) {
+  const out = [], grow = (q, g) => ({ x0: q.x0 - g, x1: q.x1 + g, z0: q.z0 - g, z1: q.z1 + g });
+  const C = plan.cut; if (C) for (const s of C.open) out.push({ x0: C.x0, x1: C.x1, z0: s.z0, z1: s.z1 });
+  for (const k of plan.wells || []) if (Math.abs(k.y) < 0.2) out.push(grow(k, 0.04));
+  for (const k of plan.lifts || []) if (k.stops[0] < -0.5 && k.stops[k.stops.length - 1] > -0.5) out.push(grow(k, 0.04));
+  for (const k of plan.ramps || []) if (Math.min(k.y0, k.y1) < -0.1 && Math.max(k.y0, k.y1) > -0.1) out.push(grow(k, 0.04));
+  for (const k of plan.rooms) if (k.y < -0.5 && k.y + (k.ceil || k.h) > 0.1) out.push(grow(k, 0.04));
+  if (plan.lakefront && plan.lakefront.window) out.push({ ...plan.lakefront.window });
+  // overlapping holes do not triangulate: run any that touch into one
+  for (let again = true; again;) {
+    again = false;
+    for (let i = 0; i < out.length && !again; i++) for (let j = i + 1; j < out.length; j++) {
+      const p = out[i], q = out[j];
+      if (p.x0 < q.x1 + 0.05 && p.x1 > q.x0 - 0.05 && p.z0 < q.z1 + 0.05 && p.z1 > q.z0 - 0.05) { out[i] = { x0: Math.min(p.x0, q.x0), x1: Math.max(p.x1, q.x1), z0: Math.min(p.z0, q.z0), z1: Math.max(p.z1, q.z1) }; out.splice(j, 1); again = true; break; }
+    }
+  }
+  return out;
+}
+
 export function confine(plan, p, r, flying, out, noFurniture) {
   let best = Infinity, bx = p.x, by = p.y, bz = p.z;
   // (Up on a roof a car is outdoors, and the rooms below are nothing to do with it: it is above their volumes.)

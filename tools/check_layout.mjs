@@ -134,5 +134,21 @@ if (front) {
   console.log(`  decks: ${decks.filter(d => indoors.has(D(d))).length} of ${decks.length} reached`);
   if (across.length) console.log(`  reached only by going out across the snow: ${across.join(', ')}`);
 }
+// ---- the snow ----
+// The snow is a sheet at street level, cut open only where plan.js groundOpenings() says the ground drops away. Any
+// ground below the street that is not in that list would sit under snow, seen as solid ground you then fall through
+// (the railway cutting, a stair to the lower level, a lift shaft). Only for the game's own layout, which buildPlan reads.
+if (!process.argv[2]) {
+  const { buildPlan, groundAt, groundOpenings, streetY } = await import(new URL('../src/plan.js', import.meta.url));
+  const P = buildPlan(), O = groundOpenings(P), B = P.bounds, lids = new Map();
+  for (let x = B.x0; x <= B.x1; x += 1) for (let z = B.z0; z <= B.z1; z += 1) {
+    // the snow's own height: Michigan Avenue and the streets climbing from it on the low side; the terrace level (0) beyond
+    const ref = P.street && x < P.street.x + 12 ? streetY(P, x, z) : 0, g = groundAt(P, x, z, ref + 0.5);
+    if (g < ref - 0.25 && !O.some(o => x > o.x0 - 0.3 && x < o.x1 + 0.3 && z > o.z0 - 0.3 && z < o.z1 + 0.3)) { const k = `${Math.round(x / 10) * 10},${Math.round(z / 10) * 10}`; lids.set(k, (lids.get(k) || 0) + 1); }
+  }
+  if (lids.size) problems.push(`ground below the street left under snow near (x,z): ${[...lids.keys()].slice(0, 12).join('  ')}. Add it to groundOpenings() in src/plan.js.`);
+  else console.log('  snow: open over every way below the street');
+}
+
 if (problems.length) { console.log(`\nNOT SOUND: ${problems.length} problem${problems.length > 1 ? 's' : ''}`); for (const p of problems) console.log('  ' + p); process.exit(1); }
 console.log('\nSound: every room and every deck can be driven to from the front door.');
