@@ -1,8 +1,8 @@
 // Ice fishing on Monroe Harbor (features.js). A hole augered through clear black ice, with the harbour under it:
 // weed, stones, and yellow perch and smelt swimming in the dark water, seen through the ice as you drive over it.
-// FISH stands over the hole with a little ice rod: drag to lower the jig, raise it and sweep it from side to side,
-// tap to jiggle it. A fish that likes the look of it comes up to it, noses it, and takes it: the rod tip dips.
-// Yank then, and the fight is on: hold to reel, and ease off while it runs or the line goes. Three is the secret.
+// FISH stands over the hole with a little ice rod. It plays like the best-loved fishing in games: put the jig where a
+// fish is (the sonar shows the depths), jiggle to tempt it, and it comes, nibbles once or twice, then takes it with a big
+// tug and a "!". Yank then and it is yours: up it comes. Too soon, on a nibble, and it is off. Three is the secret.
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -265,32 +265,47 @@ feature({
   _rest() { const R = this.rod; R.position.set(-0.55, 0.24, 0.15); R.rotation.set(0, -0.6, 0.35); },
   _dom() {
     const el = this.el = document.createElement('div'); el.hidden = true;
-    el.style.cssText = 'position:fixed;inset:0;z-index:40;touch-action:none;user-select:none;-webkit-user-select:none';
-    const btn = 'position:absolute;bottom:calc(env(safe-area-inset-bottom) + 22px);padding:14px 22px;border-radius:14px;border:1px solid rgba(240,236,226,.5);background:rgba(8,12,20,.6);color:#f3efe2;font:600 16px/1 system-ui,sans-serif;letter-spacing:.06em';
-    el.innerHTML = '<div data-t style="position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 18px);transform:translateX(-50%);padding:7px 14px;border-radius:10px;background:rgba(8,12,20,.6);color:#f3efe2;font:600 15px/1.35 system-ui,sans-serif;text-align:center;max-width:80vw"></div>'
-      + '<div data-bar hidden style="position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 62px);transform:translateX(-50%);width:min(60vw,320px);height:10px;border-radius:5px;background:rgba(8,12,20,.6);border:1px solid rgba(240,236,226,.4);overflow:hidden"><i style="display:block;height:100%;width:0;background:#7ad08a;transition:background .2s"></i></div>'
-      + `<button data-jig style="${btn};left:max(16px,env(safe-area-inset-left))">JIGGLE</button>`
-      + `<button data-yank style="${btn};right:max(16px,env(safe-area-inset-right))">YANK</button>`
-      + '<button data-leave style="position:absolute;right:max(16px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 16px);padding:8px 16px;border-radius:10px;border:0;background:rgba(240,236,226,.92);color:#16202c;font:600 15px system-ui,sans-serif">Leave</button>';
+    el.style.cssText = 'position:fixed;inset:0;z-index:40;touch-action:none;user-select:none;-webkit-user-select:none;color:#f3efe2;font:600 15px/1.35 system-ui,sans-serif';
+    const fine = matchMedia('(pointer: fine)').matches, key = k => fine ? `<small style="display:block;font-weight:500;font-size:12px;opacity:.75;margin-top:4px;letter-spacing:0">${k}</small>` : '';
+    const panel = 'background:rgba(8,12,20,.66);border:1px solid rgba(240,236,226,.25);border-radius:12px';
+    const btn = `position:absolute;bottom:calc(env(safe-area-inset-bottom) + 20px);min-width:116px;padding:12px 18px;${panel};color:inherit;font:700 16px/1 system-ui,sans-serif;letter-spacing:.06em;text-align:center`;
+    const arrow = `display:block;width:52px;height:40px;${panel};color:inherit;font:700 18px/1 system-ui,sans-serif`;
+    el.innerHTML = ''
+      // what to do, step by step; the step you are on is lit
+      + `<div data-steps style="position:absolute;left:max(16px,env(safe-area-inset-left));top:calc(env(safe-area-inset-top) + 16px);padding:10px 14px;${panel};max-width:min(62vw,330px)">`
+      + `<div data-count style="font-size:13px;letter-spacing:.08em;opacity:.85;margin-bottom:6px"></div>`
+      + `<div data-s="1">1 · Lower the jig to a fish${fine ? ' <small style="opacity:.7">(W / S)</small>' : ' <small style="opacity:.7">(▲ ▼)</small>'}</div>`
+      + `<div data-s="2">2 · Jiggle to tempt it${fine ? ' <small style="opacity:.7">(Space)</small>' : ''}</div>`
+      + `<div data-s="3">3 · Big tug and a <b>!</b> means YANK${fine ? ' <small style="opacity:.7">(E)</small>' : ''}</div></div>`
+      + '<div data-t style="position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 92px);transform:translateX(-50%);padding:7px 14px;border-radius:10px;background:rgba(8,12,20,.6);text-align:center;max-width:80vw"></div>'
+      + '<div data-bang hidden style="position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);font:900 96px/1 system-ui,sans-serif;color:#ffd23a;text-shadow:0 0 18px rgba(0,0,0,.6),0 4px 0 #a2410e">!</div>'
+      // the fish finder: depth down the side, the jig and every fish on it
+      + `<div style="position:absolute;right:max(16px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 64px);padding:8px;${panel};text-align:center">`
+      + '<div style="font-size:11px;letter-spacing:.14em;opacity:.8;margin-bottom:4px">SONAR</div><canvas data-sonar width="96" height="220" style="display:block;width:96px;height:220px;border-radius:6px"></canvas>'
+      + `<div style="display:flex;gap:6px;justify-content:center;margin-top:6px"><button data-up style="${arrow}">▲</button><button data-down style="${arrow}">▼</button></div></div>`
+      + `<button data-jig style="${btn};left:max(16px,env(safe-area-inset-left))">JIGGLE${key('Space')}</button>`
+      + `<button data-yank style="${btn};right:max(16px,env(safe-area-inset-right))">YANK${key('E')}</button>`
+      + `<button data-leave style="position:absolute;right:max(16px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 16px);padding:7px 14px;border-radius:10px;border:0;background:rgba(240,236,226,.92);color:#16202c;font:600 14px system-ui,sans-serif">Leave${fine ? ' · Esc' : ''}</button>`;
     document.body.append(el);
-    this.txt = el.querySelector('[data-t]'); this.bar = el.querySelector('[data-bar]'); this.barFill = this.bar.firstElementChild;
-    this.keys = new Set(); this.pull = false;
+    this.txt = el.querySelector('[data-t]'); this.bang = el.querySelector('[data-bang]'); this.count = el.querySelector('[data-count]');
+    this.stepEls = [...el.querySelectorAll('[data-s]')]; this.sonar = el.querySelector('[data-sonar]').getContext('2d'); this.yankBtn = el.querySelector('[data-yank]');
+    this.keys = new Set(); this.hold = 0;
     let drag = null;
     el.addEventListener('pointerdown', e => {
       e.preventDefault();
       if (e.target.closest('[data-leave]')) return this.close();
       if (e.target.closest('[data-jig]')) return this.jiggle();
-      if (e.target.closest('[data-yank]')) { this.pull = true; this.yank(); const up = () => { this.pull = false; removeEventListener('pointerup', up); removeEventListener('pointercancel', up); }; addEventListener('pointerup', up); addEventListener('pointercancel', up); return; }
+      if (e.target.closest('[data-yank]')) return this.yank();
+      const ud = e.target.closest('[data-up]') ? -1 : e.target.closest('[data-down]') ? 1 : 0;
+      if (ud) { this.hold = ud; const up = () => { this.hold = 0; removeEventListener('pointerup', up); removeEventListener('pointercancel', up); }; addEventListener('pointerup', up); addEventListener('pointercancel', up); return; }
       drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, d0: this.depth, s0: this.sweep }; el.setPointerCapture(e.pointerId);
     });
     el.addEventListener('pointermove', e => {
       if (!drag || e.pointerId !== drag.id) return;
-      const dx = e.clientX - drag.x, dy = e.clientY - drag.y, H = innerHeight; drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
-      this.depth = Math.max(0.15, Math.min(this.DEEP - 0.15, drag.d0 + dy / H * 3.2)); this.sweep = Math.max(-1, Math.min(1, drag.s0 + dx / innerWidth * 2.4));
-      // a quick flick upwards is a yank
-      const dt = performance.now() - drag.t; if (dy < -H * 0.12 && dt < 260 && !drag.yanked) { drag.yanked = true; this.depth = drag.d0; this.yank(); }
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+      if (this.phase === 'fish') { this.depth = Math.max(0.15, Math.min(this.DEEP - 0.15, drag.d0 + dy / innerHeight * 3.2)); this.sweep = Math.max(-1, Math.min(1, drag.s0 + dx / innerWidth * 2.4)); }
     });
-    const end = e => { if (!drag || e.pointerId !== drag.id) return; if (drag.moved < 8 && performance.now() - drag.t < 350) this.jiggle(); drag = null; };
+    const end = e => { if (!drag || e.pointerId !== drag.id) return; if (drag.moved < 8 && performance.now() - drag.t < 350) (this.fishes.some(q => q.state === 'bite') ? this.yank() : this.jiggle()); drag = null; };
     el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
     addEventListener('keydown', e => {
       if (!this.on) return;
@@ -299,9 +314,36 @@ feature({
       if (e.repeat) return;
       this.keys.add(c);
       if (c === 'Space') this.jiggle();
-      if (c === 'KeyE' || c === 'Enter') { this.pull = true; this.yank(); }
+      if (c === 'KeyE' || c === 'Enter') this.yank();
     }, true);
-    addEventListener('keyup', e => { if (!this.on) return; this.keys.delete(e.code); if (e.code === 'KeyE' || e.code === 'Enter') this.pull = false; }, true);
+    addEventListener('keyup', e => { if (this.on) this.keys.delete(e.code); }, true);
+  },
+  // Which of the three steps you are on, and the tally.
+  _steps() {
+    const biting = this.fishes.some(q => q.state === 'bite'), keen = this.fishes.some(q => q.state === 'come' || q.state === 'nose'), near = this.fishes.some(q => Math.abs(q.p.y - this.jigAt.y) < 0.35);
+    const on = biting || this.phase === 'reel' ? 3 : keen || near ? 2 : 1;
+    this.stepEls.forEach((d, i) => { d.style.opacity = i + 1 === on ? '1' : '.45'; d.style.color = i + 1 === on ? '#ffd98a' : ''; });
+    this.count.textContent = this.caught >= 3 ? `FISH ${this.caught} · SECRET FOUND` : `FISH ${this.caught} OF 3`;
+    this.bang.hidden = !biting; this.yankBtn.style.background = biting ? 'rgba(210,140,20,.92)' : 'rgba(8,12,20,.66)';
+  },
+  // The fish finder: a column of water, the ice at the top, the bottom at the foot; the jig in orange, fish as green arcs,
+  // brighter the nearer they are to it. A fish level with the jig lights up.
+  _drawSonar() {
+    const c = this.sonar, w = 96, h = 220, top = 8, bot = h - 10, Y = d => top + (d / this.DEEP) * (bot - top);
+    c.fillStyle = '#04140f'; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#9fc7d8'; c.fillRect(0, 0, w, top - 2);
+    c.fillStyle = '#3a3324'; c.fillRect(0, bot, w, h - bot);
+    c.font = '9px system-ui,sans-serif'; c.fillStyle = 'rgba(160,220,190,.6)'; c.strokeStyle = 'rgba(160,220,190,.15)';
+    for (let m = 0.5; m < this.DEEP; m += 0.5) { const y = Y(m); c.beginPath(); c.moveTo(18, y); c.lineTo(w, y); c.stroke(); c.fillText(m.toFixed(1), 1, y + 3); }
+    const jd = -this.jigAt.y;
+    for (const f of this.fishes) {
+      if (f.state === 'landed') continue;
+      const d = -f.p.y, horiz = Math.hypot(f.p.x - this.jigAt.x, f.p.z - this.jigAt.z), level = Math.abs(d - jd) < 0.3;
+      const x = 24 + Math.min(1, horiz / 4) * 60, a = Math.max(0.35, 1 - horiz / 5), y = Y(d);
+      c.strokeStyle = level ? `rgba(255,220,90,${a})` : `rgba(90,230,130,${a})`; c.lineWidth = level ? 3 : 2.2;
+      c.beginPath(); c.arc(x, y + 4, 7, Math.PI * 1.15, Math.PI * 1.85); c.stroke();
+    }
+    const y = Y(jd); c.fillStyle = '#ff8a2a'; c.fillRect(18, y - 1.5, w - 18, 3); c.beginPath(); c.arc(22, y, 4, 0, 7); c.fill();
   },
   near(v, k) {
     if (this.on || !this.at || !k.close(this.at, 1.4, 1)) return null;
@@ -312,12 +354,12 @@ feature({
     this.hid = k.G.vehicle.group.visible; k.G.vehicle.group.visible = false; if (k.G.car.shadow) k.G.car.shadow.visible = false;
     // Over the hole, a little to one side, looking down through the ice into the water.
     k.stage.enter({ x: this.at.x, y: -0.7, z: this.at.z + 0.45, nx: 0, ny: 0.8, nz: -0.6, w: 3.0, h: 2.6, up: [0, 0, 1] }, { fill: 0.95 });
-    this.phase = 'fish'; this.depth = 0.6; this.sweep = 0; this.tension = 0; this.hooked = null;
-    this.say(this.caught >= 3 ? 'Three in the bucket. Fish on if you like.' : 'Drag to move the jig. Tap to jiggle it.');
+    this.phase = 'fish'; this.depth = 0.6; this.sweep = 0; this.tension = 0; this.hooked = null; this.hold = 0;
+    this.say(this.caught >= 3 ? 'Three in the bucket. Fish on if you like.' : 'Watch the sonar: take the orange jig down to a green fish.');
     this.last = performance.now(); const loop = t => { if (!this.on) return; this.tick(Math.min(0.05, (t - this.last) / 1000), true); this.last = t; requestAnimationFrame(loop); }; requestAnimationFrame(loop);
   },
   close() {
-    if (!this.on) return; const k = this.k; this.on = false; this.el.hidden = true; this.bar.hidden = true;
+    if (!this.on) return; const k = this.k; this.on = false; this.el.hidden = true;
     if (this.hooked) { this.hooked.state = 'flee'; this.hooked = null; }
     this.phase = 'idle'; this.depth = 0.6; this.sweep = 0; this._rest();
     k.G.vehicle.group.visible = this.hid !== false; if (k.G.vehicle === k.G.car) k.G.car.shadow.visible = true; k.resume();
@@ -327,18 +369,19 @@ feature({
     if (this.phase !== 'fish') return;
     this.hopV = 0.55; this.k.synth.note(1400 + Math.random() * 300, 0.04, { type: 'triangle', vol: 0.015 });
     // Fish nearby notice; a fish too close and jiggled at too often grows wary.
-    for (const f of this.fishes) { const d = f.p.distanceTo(this.jigAt); if (d < 1.9 && f.state === 'cruise' && f.wary < 1) { f.state = 'come'; f.t = 0; } if (d < 0.25) f.wary += 0.18; }
+    for (const f of this.fishes) { const d = f.p.distanceTo(this.jigAt); if (d < 2.6 && f.state === 'cruise' && f.wary < 1) { f.state = 'come'; f.t = 0; } }
   },
   yank() {
     if (this.phase !== 'fish') return;
     const f = this.fishes.find(q => q.state === 'bite');
     this.rodKick = 1; this.k.synth.noise(0.12, { vol: 0.05, lp: 1800 });
-    if (f) { for (const q of this.fishes) if (q !== f && (q.state === 'nose' || q.state === 'bite' || q.state === 'come')) { q.state = 'flee'; q.t = 0; }
-      f.state = 'hooked'; this.hooked = f; this.phase = 'fight'; this.tension = 0.3; this.run = 0; this.restFor = 1.5; this.bar.hidden = false; this.say('Hooked! Hold YANK to reel. Ease off when it runs.'); this.k.synth.chime([523, 784], { gap: 0.06, dur: 0.3, vol: 0.04 }); }
-    else {
-      // Yanked at nothing: whatever was nosing the jig is off.
-      let scared = false; for (const q of this.fishes) if ((q.state === 'nose' || q.state === 'come') && q.p.distanceTo(this.jigAt) < 0.6) { q.state = 'flee'; q.t = 0; q.wary = 1.2; scared = true; }
-      this.say(scared ? 'Too soon. It shot off.' : 'Nothing on. Wait for the tip to dip.');
+    if (f) {
+      for (const q of this.fishes) if (q !== f && (q.state === 'nose' || q.state === 'bite' || q.state === 'come')) { q.state = 'flee'; q.t = 0; }
+      f.state = 'hooked'; this.hooked = f; this.phase = 'reel'; this.say('Got it! Reeling in…'); this.k.synth.chime([523, 784], { gap: 0.06, dur: 0.3, vol: 0.04 });
+    } else {
+      // Yanked on a nibble: that one is off. (On nothing at all, no harm done.)
+      let scared = false; for (const q of this.fishes) if (q.state === 'nose') { q.state = 'flee'; q.t = 0; q.wary = 1.2; scared = true; }
+      this.say(scared ? 'Too soon: that was a nibble. Wait for the big tug and the !' : 'Nothing on yet. Wait for the !');
     }
   },
   active(k) { this.k = k; return !!this.at && (this.on || k.close(this.at, 40, 6)); },
@@ -349,12 +392,12 @@ feature({
     // ---- the rod and the jig
     if (playing) {
       const kx = (this.keys.has('ArrowRight') || this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('ArrowLeft') || this.keys.has('KeyA') ? 1 : 0);
-      const ky = (this.keys.has('ArrowDown') || this.keys.has('KeyS') ? 1 : 0) - (this.keys.has('ArrowUp') || this.keys.has('KeyW') ? 1 : 0);
-      this.sweep = Math.max(-1, Math.min(1, this.sweep + kx * dt * 1.2)); if (this.phase !== 'fight') this.depth = Math.max(0.15, Math.min(this.DEEP - 0.15, this.depth + ky * dt * 0.9));
+      const ky = (this.keys.has('ArrowDown') || this.keys.has('KeyS') ? 1 : 0) - (this.keys.has('ArrowUp') || this.keys.has('KeyW') ? 1 : 0) + this.hold;
+      this.sweep = Math.max(-1, Math.min(1, this.sweep + kx * dt * 1.2)); if (this.phase === 'fish') this.depth = Math.max(0.15, Math.min(this.DEEP - 0.15, this.depth + ky * dt * 0.9));
     }
     this.hop += this.hopV * dt; this.hopV -= dt * 4.2; if (this.hop < 0) { this.hop = 0; this.hopV = 0; }
     this.rodKick = Math.max(0, (this.rodKick || 0) - dt * 3);
-    const held = playing, sw = this.sweep, bend = Math.min(1, this.tug + this.tension * 0.8);
+    const held = playing, sw = this.sweep, bend = Math.min(1, this.tug);
     // Held, the rod points out over the hole from the near side; the tip dips with what is on the line.
     if (held) { const R = this.rod; R.position.set(-0.05 + sw * 0.05, 0.42 + this.rodKick * 0.12, -0.42); R.rotation.set(0, -Math.PI / 2 + sw * 0.6, -0.35 + bend * 0.45 - this.rodKick * 0.35); }
     this.rod.updateMatrixWorld(); this.tipAt.set(0.5, 0, 0).applyMatrix4(this.rod.matrix);
@@ -370,31 +413,31 @@ feature({
     for (const f of this.fishes) {
       f.t += dt; f.wary = Math.max(0, f.wary - dt * 0.05);
       let want = f.to, speed = 0.18 + f.mood * 0.12, swim = 1;
-      if (f.state === 'cruise') { if (f.p.distanceTo(f.to) < 0.3 || f.t > 12) this._pick(f); if (held && this.phase === 'fish' && f.wary < 0.8 && f.p.distanceTo(this.jigAt) < 1.0 && r() < dt * 0.12) { f.state = 'come'; f.t = 0; } }
-      else if (f.state === 'come') {
-        want = this._v1 || (this._v1 = new THREE.Vector3()); want.copy(this.jigAt); want.x += Math.cos(f.yaw) * 0.12; want.z -= Math.sin(f.yaw) * 0.12; speed = 0.22;
-        if (!held || this.phase !== 'fish' || f.t > 9 || Math.abs(f.p.y - this.jigAt.y) > 1.6) { f.state = 'cruise'; this._pick(f); }
-        else if (f.p.distanceTo(this.jigAt) < 0.16) { f.state = 'nose'; f.t = 0; f.biteAt = 0.8 + r() * 2.2 - (this.hop > 0 ? 0.4 : 0); }
+      if (f.state === 'cruise') {
+        if (f.p.distanceTo(f.to) < 0.3 || f.t > 12) this._pick(f);
+        // a fish at the jig's depth, not far off, comes to look at it by itself sooner or later
+        if (held && this.phase === 'fish' && f.wary < 0.8 && Math.abs(f.p.y - this.jigAt.y) < 0.45 && f.p.distanceTo(this.jigAt) < 2.2 && r() < dt * 0.35) { f.state = 'come'; f.t = 0; }
+      } else if (f.state === 'come') {
+        want = this._v1 || (this._v1 = new THREE.Vector3()); want.copy(this.jigAt); want.x += Math.cos(f.yaw) * 0.12; want.z -= Math.sin(f.yaw) * 0.12; speed = 0.26;
+        if (!held || this.phase !== 'fish' || f.t > 14 || this.fishes.some(q => q !== f && (q.state === 'nose' || q.state === 'bite'))) { f.state = 'cruise'; this._pick(f); }
+        else if (f.p.distanceTo(this.jigAt) < 0.17) { f.state = 'nose'; f.t = 0; f.nibbles = 1 + Math.floor(r() * 3); f.next = 0.6 + r() * 0.6; }
       } else if (f.state === 'nose') {
+        // one, two or three little nibbles (the tip twitches, a tick), then it takes it
         want = this.jigAt; speed = 0.08; swim = 0.5;
-        if (f.t > 0.3 && Math.sin(f.t * 9) > 0.96) this.tug = Math.max(this.tug, 0.25);      // nibbles
-        if (f.t > f.biteAt) { f.state = 'bite'; f.t = 0; this.tug = 1; this.k.synth.noise(0.1, { vol: 0.04, lp: 700 }); if (playing) this.say('It has it! YANK!'); }
+        if (f.t > f.next) {
+          if (f.nibbles > 0) { f.nibbles--; f.next = f.t + 0.7 + r() * 0.9; this.tug = Math.max(this.tug, 0.35); this.k.synth.note(900, 0.05, { type: 'triangle', vol: 0.03 }); if (playing) this.say('Nibble… not yet.'); }
+          else { f.state = 'bite'; f.t = 0; this.tug = 1; this.k.synth.noise(0.22, { vol: 0.08, lp: 900 }); this.k.synth.note(220, 0.18, { type: 'sine', vol: 0.06 }); if (playing) this.say('YANK!'); }
+        }
         if (!held || f.wary > 1 || this.phase !== 'fish') { f.state = 'flee'; f.t = 0; }
       } else if (f.state === 'bite') {
         want = this.jigAt; speed = 0.05; this.tug = Math.max(this.tug, 0.85 + Math.sin(f.t * 30) * 0.15);
-        if (f.t > 0.75 || this.phase !== 'fish') { f.state = 'flee'; f.t = 0; f.wary = 0.9; if (playing && this.phase === 'fish') this.say('Spat it out. Next time, quicker.'); }
+        if (f.t > 1.25 || this.phase !== 'fish') { f.state = 'flee'; f.t = 0; f.wary = 0.6; if (playing && this.phase === 'fish') this.say('Missed it. Yank as soon as the ! shows.'); }
       } else if (f.state === 'hooked') {
-        // The fight: now and again it runs for the bottom; reel while it rests.
-        this.run -= dt; if (this.run < -this.restFor) { this.run = 0.45 + r() * 0.6; this.restFor = 1.4 + r() * 1.6; }
-        const running = this.run > 0, pulling = this.pull;
-        this.tension += dt * (pulling ? (running ? 1.4 : 0.06) : -0.7) + (running ? dt * 0.2 : 0);
-        this.tension = Math.max(0, this.tension);
-        this.depth = Math.max(0, Math.min(this.DEEP - 0.1, this.depth + dt * (running ? 0.24 : 0) - (pulling ? dt * (running ? 0.1 : 0.62) : 0)));
+        // Hooked: up it comes, kicking all the way.
+        this.depth = Math.max(0, this.depth - dt * 1.1); this.tug = 0.7 + Math.sin(T * 20) * 0.2;
         f.p.copy(this.jigAt); f.p.x += Math.sin(T * 7) * 0.05; f.yaw = Math.PI / 2 + Math.sin(T * 9) * 0.6; f.pitch = 1.1;
-        f.u.uAmp.value = running ? 0.3 : 0.18; f.u.uT.value += dt * (running ? 26 : 16);
-        this.barFill.style.width = Math.min(100, this.tension * 100) + '%'; this.barFill.style.background = this.tension > 0.8 ? '#e0533a' : this.tension > 0.55 ? '#e3b23c' : '#7ad08a';
-        if (this.tension >= 1) { f.state = 'flee'; f.t = 0; f.wary = 1.5; this.hooked = null; this.phase = 'fish'; this.bar.hidden = true; this.depth = Math.min(this.depth, 0.8); this.say('Snap! The line went. Tie on and try again.'); this.k.synth.noise(0.2, { vol: 0.06, lp: 3000 }); }
-        else if (this.depth < 0.12) this._land(f);
+        f.u.uAmp.value = 0.28; f.u.uT.value += dt * 24;
+        if (this.depth < 0.12) this._land(f);
         this._place(f);
         continue;
       } else if (f.state === 'flee') { want = this._v2 || (this._v2 = new THREE.Vector3()); want.set(f.p.x * 3, -this.DEEP + 0.4, f.p.z * 3); speed = 0.8; swim = 2.2; if (f.t > 2.5) { f.state = 'cruise'; this._pick(f); } }
@@ -410,13 +453,15 @@ feature({
       this._place(f);
     }
     // ---- the hole's water stirs whenever the line moves in it
-    const rp = this.ripple; if ((this.hopV > 0.4 || this.tug > 0.6 || this.phase === 'fight') && rp.material.opacity < 0.1) { rp.scale.setScalar(1); rp.material.opacity = 0.7; }
+    const rp = this.ripple; if ((this.hopV > 0.4 || this.tug > 0.6 || this.phase === 'reel') && rp.material.opacity < 0.1) { rp.scale.setScalar(1); rp.material.opacity = 0.7; }
     rp.scale.multiplyScalar(1 + dt * 1.8); if (rp.scale.x > 4) rp.material.opacity = 0; rp.material.opacity = Math.max(0, rp.material.opacity - dt * 0.8);
+
+    if (playing) { this._steps(); this._drawSonar(); }
   },
   _place(f) { f.g.position.copy(f.p); f.g.rotation.set(0, f.yaw, 0); f.g.rotateZ(f.pitch); },
   // Out through the hole, onto the ice, and a few flaps before it goes in the bucket.
   _land(f) {
-    const k = this.k; f.state = 'landed'; f.t = 0; this.hooked = null; this.phase = 'fish'; this.bar.hidden = true; this.depth = 0.6;
+    const k = this.k; f.state = 'landed'; f.t = 0; this.hooked = null; this.phase = 'fish'; this.depth = 0.6;
     f.u.uAmp.value = 0.35; f.land = { from: new THREE.Vector3(0, 0.05, 0), to: new THREE.Vector3(0.25 + this.r() * 0.15, 0.03, -0.15 - this.r() * 0.1) };
     this.caught++; k.chips(10); k.synth.noise(0.25, { vol: 0.06, lp: 2600 }); k.synth.chime([660, 880, 1046], { gap: 0.08, dur: 0.6 });
     const name = f.kind === 'perch' ? 'A yellow perch' : 'A smelt', cm = Math.round(f.len * 100);
@@ -431,7 +476,7 @@ feature({
       // into the bucket, and a new fish takes its place in the water
       const i = this.fishes.indexOf(f); if (i >= 0) this.fishes.splice(i, 1);
       this.g.remove(f.g); this.bucket.add(f.g); const n = this.bucketed.length; this.bucketed.push(f);
-      f.g.position.set(Math.cos(n * 2.1) * 0.035, 0.15, Math.sin(n * 2.1) * 0.035); f.g.rotation.set(0, n * 1.4, Math.PI / 2 - 0.2); f.u.uAmp.value = 0.02;
+      f.g.position.set(Math.cos(n * 2.1) * 0.035, 0.15, Math.sin(n * 2.1) * 0.035); f.g.rotation.set(0, n * 1.4, Math.PI / 2 - 0.2); f.g.scale.multiplyScalar(0.7); f.u.uAmp.value = 0.02;
       const nf = new Fish(this.kit, this.r() < 0.7 ? 'perch' : 'smelt', this.r); nf.p.set(this.W.x0 - this.at.x + 1, -this.DEEP + 0.4, this.W.z0 - this.at.z + 1); this._pick(nf); this.g.add(nf.g); this.fishes.push(nf);
       return;
     }
