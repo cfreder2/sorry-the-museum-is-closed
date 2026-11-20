@@ -56,6 +56,7 @@ import './parkplay.js';
 import './wingplay.js';
 import './icefish.js';
 import './reading.js';
+import './guards.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -101,7 +102,7 @@ input.onGesture = () => sound.unlock();
 
 // Settings, kept between visits. Reduced motion starts on if the system asks for it.
 const SETTINGS = 'after-hours.settings';
-const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true,
+const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true,
   autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
 
@@ -468,7 +469,7 @@ function hasGame() { return G.museum && (G.museum.seenIds.size > 0 || G.museum.v
 let lastSave = 0;
 function keep() {
   const v = G.vehicle;
-  if (G.mode !== 'explore' || G.state !== 'play' || G.t - lastSave < 3 || v.air || v.rail) return;
+  if (G.mode !== 'explore' || G.state !== 'play' || G.t - lastSave < 3 || v.air || v.rail || G.held) return;
   lastSave = G.t;
   try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind, plan: G.plan.made })); } catch { /* fine */ }
 }
@@ -1174,9 +1175,9 @@ function play(dt, real) {
     if (inp.coast && !G.testInput) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
     if (set.assist && !(G.auto && racing)) steerHelp(v, inp, dt);
   }
-  if (racing && (R.locked || R.finished)) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };
+  if ((racing && (R.locked || R.finished)) || G.held) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };      // (G.held: a security robot has the toy, src/guards.js)
   stepLifts(G.plan, dt, [v.pos]);
-  v.update(dt, inp);
+  if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else v.update(dt, inp);      // (held: src/guards.js moves the toy itself)
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
   if (!racing) score.update(G.museum, v, dt, G.roomId, slow.live);       // Stunt Looks: a work in view while the car is in the air
@@ -1272,7 +1273,7 @@ function play(dt, real) {
   hints(v, room);
 
   if (!racing) {
-    const calm = Math.hypot(v.vel.x, v.vel.z) < 5 && !v.air && !v.rail;
+    const calm = Math.hypot(v.vel.x, v.vel.z) < 5 && !v.air && !v.rail && !G.held;
     const art = calm ? G.museum.facing(v.pos, v.yaw, G.roomId) : null;
     if (art !== G.facing) {
       G.facing = art;

@@ -290,3 +290,15 @@ the previous one was still being worked on; those are marked.
 ## 69
 
 > The race itself had the course going through walls, the bots just drove right through the walls, no collision detection. It wasn't clear when I finished a lap, or if I had another one, or what position I was in.
+
+## 70
+
+> Investigate having 'robo security guards' that roam the halls. If they get close to you they electrocute you and then take you outside and you wake up in a dumpster.
+
+## 71 (sent during the build)
+
+> the guards have electric shock bolts that reach about 5 feet
+
+## 72 (sent during the build)
+
+> You should be faster than them, but they just sort of roam about on patrol, and then will chase you until you lose them.

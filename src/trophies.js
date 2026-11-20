@@ -61,6 +61,8 @@ export const TROPHIES = [
   { id: 'paint12', tier: 'silver', hidden: true, name: 'Twelve Coats', desc: 'Own twelve cans of spray paint from the vending machines.', goal: 12, count: s => Math.min(12, s.flags.paints || 0), test: s => (s.flags.paints || 0) >= 12 },
   { id: 'boards', tier: 'bronze', hidden: true, name: 'Read the Room', desc: 'Read five of the whiteboards the staff have left written on.', test: s => s.flags.boards },
   { id: 'vault', tier: 'gold', hidden: true, name: 'Need to Know', desc: 'Find what is kept under the building.', test: s => s.flags.vault },
+  { id: 'binned', tier: 'bronze', hidden: true, name: 'Thrown Out', desc: 'Get caught by a security robot and wake up in the dumpster.', test: s => s.flags.binned },
+  { id: 'slippery', tier: 'silver', hidden: true, name: 'Slippery', desc: 'Shake off a security robot 5 times.', goal: 5, count: s => Math.min(5, s.flags.evaded || 0), test: s => (s.flags.evaded || 0) >= 5 },
   { id: 'ufo', tier: 'gold', hidden: true, name: 'Not From Round Here', desc: 'Take the thing on the pedestal.', test: s => s.flags.ufo },
   // ---- gold ----
   { id: 'w250', tier: 'gold', name: 'Connoisseur', desc: 'Look closely at 250 different works.', ...works(250) },
