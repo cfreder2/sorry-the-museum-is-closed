@@ -69,13 +69,7 @@ export function buildLakefront(museum, plan) {
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.6), color: new THREE.Color(0.12, 0.6, 0.3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     halo.position.set(t.x, 0.2, t.z); halo.rotation.x = -Math.PI / 2; add(lamp, halo); }
 
-  // ---- cars nobody came back for
-  for (const c of L.cars) {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.75, 4.4), new THREE.MeshStandardMaterial({ color: c.c, roughness: 0.5, metalness: 0.3, emissive: c.c, emissiveIntensity: 0.25 })); body.position.set(c.x, 0.62, c.z);
-    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.55, 2.3), new THREE.MeshStandardMaterial({ color: 0x10141c, roughness: 0.3 })); cab.position.set(c.x, 1.27, c.z - 0.2); add(body, cab);
-    snow.box(c.x - 0.8, c.x + 0.8, 1.54, 1.68, c.z - 1.35, c.z + 0.95); snow.box(c.x - 0.9, c.x + 0.9, 0.99, 1.1, c.z + 0.95, c.z + 2.2); snow.box(c.x - 0.9, c.x + 0.9, 0.99, 1.08, c.z - 2.2, c.z - 1.35);
-    for (const sx of [-0.82, 0.82]) for (const sz of [-1.4, 1.4]) dark.box(c.x + sx - 0.14, c.x + sx + 0.14, 0, 0.6, c.z + sz - 0.32, c.z + sz + 0.32);
-  }
+  // (The cars on the Drive are traffic.js's, and they move.)
 
   // ---- buoys: a line of them where the ice gives out, and the empty moorings beyond
   {

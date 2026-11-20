@@ -35,6 +35,7 @@ import { Lights } from './lights.js';
 import { Repair } from './repair.js';
 import { Whiteboards } from './whiteboards.js';
 import { Secret } from './secret.js';
+import { Traffic } from './traffic.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -200,6 +201,7 @@ async function boot() {
     routeTo: () => { const spots = [['simon', G.simon && G.simon.at, 'a pedestal under a coloured roof'], ['easel', G.paint && G.paint.studioSpot, 'an easel in a studio'], ['stall', G.shop && G.shop.front && { ...G.shop.front, y: G.shop.at.y }, 'a stall on a roof']];
       for (const [id, at, name] of spots) if (at && !secrets.has(id) && G.nav && G.nav.goTo({ x: at.x, y: at.y, z: at.z, label: name })) return name; return null; } });
   secrets.add('presents', 'The parcels under the tree');
+  G.traffic = new Traffic(G.museum, plan);                 // cars, a bus, and the lights they stop at (src/traffic.js)
   if (plan.lakefront) secrets.add('harbour', 'The light at the end of the breakwater');
   G.boards = new Whiteboards(G.museum, plan);              // the whiteboards the staff have left written on (src/whiteboards.js)
   G.secret = new Secret(G, { say, callout, endStudy, trophies, boards: G.boards, canvas });      // and what one of them is about (src/secret.js)
@@ -1332,7 +1334,8 @@ function tick(now) {
   input.endFrame();
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
   if (G.shop && G.state !== 'results') G.shop.update(dt);
-  if (G.museum && G.museum.trains && G.state !== 'paused') G.museum.trains.update(dt, G, sound, secrets);      // the railway (railway.js)
+  if (G.museum && G.museum.trains && G.state !== 'paused') G.museum.trains.update(dt, G, sound, secrets);
+  if (G.traffic && G.state !== 'paused') G.traffic.update(dt, G, sound, secrets);                             // the streets (traffic.js)      // the railway (railway.js)
   if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
   if (G.presents) G.presents.update(dt);
   if (G.paint && G.paint.on) G.paint.update();
