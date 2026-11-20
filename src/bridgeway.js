@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { Geo } from './geo.js';
+import { frostHedges, hedgeMaterial } from './frost.js';
 
 const tex = (w, h, draw, rx = 1, ry = 1) => {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h);
@@ -307,12 +308,19 @@ export function buildBridgeway(museum, plan) {
       nm.position.set((wx0 + wx1) / 2, wh * 0.56, wz - 0.3); nm.rotation.y = Math.PI; add(nm);
       O.push({ x0: wx0, x1: wx1, z0: wz - 0.3, z1: wz + 0.3, y0: 0, y1: wh });
     }
-    // The hedge, in lengths, wherever the ground is free.
+    // The hedge: unbroken wherever the ground is free, clipped round only where something stands in its way.
     const zN = Math.min(...mod.map(q => q.z0)), east = mod.filter(m => m.x0 > h.x1 + 8 && m.z0 < zN + 1.5);
     if (east.length) {
-      const ex0 = Math.min(...east.map(m => m.x0)) + 1, ex1 = Math.max(...east.map(m => m.x1)) - 1, hz = zN - 8.6, hedge = new Geo(), cap = new Geo();
-      for (let x = ex0; x < ex1 - 3; x += 8.6) { const xb = Math.min(ex1, x + 7.4); if (!clear(x, xb, hz - 0.55, hz + 0.55)) continue; hedge.box(x, xb, 0, 1.05, hz - 0.5, hz + 0.5); cap.box(x - 0.03, xb + 0.03, 1.05, 1.13, hz - 0.53, hz + 0.53); O.push({ x0: x, x1: xb, z0: hz - 0.5, z1: hz + 0.5, y0: 0, y1: 1.1 }); }
-      if (!hedge.empty) add(hedge.mesh(new THREE.MeshStandardMaterial({ color: 0x1f3a26, roughness: 0.95, emissive: 0x0c1a10, emissiveIntensity: 0.7 })), cap.mesh(new THREE.MeshStandardMaterial({ color: 0xe8eef6, roughness: 0.95, emissive: 0x6a7388, emissiveIntensity: 0.6 })));
+      const ex0 = Math.min(...east.map(m => m.x0)) + 1, ex1 = Math.max(...east.map(m => m.x1)) - 1, hz = zN - 8.6, hedge = new Geo(), step = 0.5, runs = [];
+      let start = null;
+      for (let x = ex0; x < ex1 + 1e-6; x += step) {
+        const xb = Math.min(ex1, x + step), ok = xb - x > 1e-6 && clear(x, xb, hz - 0.55, hz + 0.55);
+        if (ok && start === null) start = x;
+        if ((!ok || xb >= ex1) && start !== null) { const end = ok ? xb : x; if (end - start >= 2) runs.push({ x0: start, x1: end, z0: hz - 0.5, z1: hz + 0.5 }); start = null; }
+      }
+      for (const q of runs) O.push({ ...q, y0: 0, y1: 1.1 });
+      frostHedges(hedge, runs, 0, 1.05);
+      if (!hedge.empty) add(hedge.mesh(hedgeMaterial()));
     }
   }
   add(stone.mesh(lime), fascia.mesh(white));

@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Geo } from './geo.js';
 import { streetY } from './plan.js';
-import { frostHedge, hedgeMaterial } from './frost.js';
+import { frostHedges, hedgeMaterial } from './frost.js';
 
 const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
@@ -113,10 +113,13 @@ export function buildStreets(museum, plan) {
   const median = (along, a, b, c, hw, y) => {
     const KH = 0.2, box = (q, p0, p1, y0, y1, w) => along === 'z' ? q.box(c - w, c + w, y0, y1, p0, p1) : q.box(p0, p1, y0, y1, c - w, c + w);
     box(g.stone, a, b, y, y + KH, hw); box(g.snow, a + 0.12, b - 0.12, y + KH, y + KH + 0.05, hw - 0.12);
-    for (let p = a + 1.4, i = 0; p < b - 1.2; p += 2.6, i++) {
-      if (i % 4 === 3) { along === 'z' ? treeAt(c, y + KH, p, 1) : treeAt(p, y + KH, c, 1); continue; }
-      along === 'z' ? frostHedge(frost, c - hw + 0.28, c + hw - 0.28, p - 0.8, p + 0.8, y + KH + 0.03, 0.55) : frostHedge(frost, p - 0.8, p + 0.8, c - hw + 0.28, c + hw - 0.28, y + KH + 0.03, 0.55);
-    }
+    // One clipped hedge the length of the planter, broken only by a pit of open soil round each tree.
+    const pits = [];
+    for (let p = a + 1.4, i = 0; p < b - 1.2; p += 2.6, i++) if (i % 4 === 3) { along === 'z' ? treeAt(c, y + KH, p, 1) : treeAt(p, y + KH, c, 1); pits.push(p); }
+    const runs = []; let p0 = a + 0.6;
+    for (const p of pits) { runs.push([p0, p - 0.9]); p0 = p + 0.9; }
+    runs.push([p0, b - 0.6]);
+    frostHedges(frost, runs.filter(([u, v]) => v - u > 0.8).map(([u, v]) => along === 'z' ? { x0: c - hw + 0.28, x1: c + hw - 0.28, z0: u, z1: v } : { x0: u, x1: v, z0: c - hw + 0.28, z1: c + hw - 0.28 }), y + KH + 0.03, 0.55);
     along === 'z' ? ob(c - hw, c + hw, a, b, y, y + KH + 0.6) : ob(a, b, c - hw, c + hw, y, y + KH + 0.6);
   };
   const gaps = (a, b, holes) => { const out = []; let p = a; for (const [h0, h1] of holes.sort((u, v) => u[0] - v[0])) { if (h0 - p > 3) out.push([p, h0]); p = Math.max(p, h1); } if (b - p > 3) out.push([p, b]); return out; };
@@ -211,9 +214,12 @@ export function buildStreets(museum, plan) {
   { const z0 = 139, x = px + 0.2; g.steel.box(x - 0.9, x - 0.6, AV, AV + 0.1, z0 - 0.3, z0 + 8.3);
     for (let i = 0; i < 8; i++) { const z = z0 + i * 1.05 + 0.4; g.steel.box(x - 0.86, x - 0.66, AV + 0.1, AV + 0.95, z - 0.1, z + 0.1); if (i !== 2 && i !== 5) bikeRow.push([x - 0.1, AV, z]); }
     g.steel.box(x - 0.95, x - 0.6, AV, AV + 1.9, z0 - 0.75, z0 - 0.35); g.glow.box(x - 0.59, x - 0.58, AV + 1.2, AV + 1.7, z0 - 0.7, z0 - 0.4); ob(x - 0.95, x - 0.6, z0 - 0.75, z0 + 8.3, AV, AV + 0.95); }
-  // Hedges in kerbed beds at the foot of the terrace wall, either side of the steps and along the gardens.
-  const bed = (z0, z1) => { const x0 = SX - 0.82, x1 = SX - 0.06; g.stone.box(x0 - 0.08, x1, AV, AV + 0.16, z0, z1); frostHedge(frost, x0 + 0.04, x1 - 0.04, z0 + 0.1, z1 - 0.1, AV + 0.16, 0.64); if (0) g.snow.box(x0 + 0.08, x1 - 0.08, AV + 0.74, AV + 0.8, z0 + 0.14, z1 - 0.14); ob(x0 - 0.08, x1, z0, z1, AV, AV + 0.8); };
-  { const holes = [...S.ways.map(w => [w.z0 - (w.id === 'steps' ? 4.6 : 2.2), w.z1 + (w.id === 'steps' ? 4.6 : 2.2)])]; for (const [a, b] of gaps(MO.z1 + 5, JA.z0 - 5, holes)) for (let z = a; z < b - 2; z += 9.5) bed(z, Math.min(b, z + 8.3)); }
+  // Hedges in kerbed beds at the foot of the terrace wall, either side of the steps and along the gardens:
+  // one bed and one unbroken hedge from each way up the terrace to the next.
+  const beds = [];
+  const bed = (z0, z1) => { const x0 = SX - 0.82, x1 = SX - 0.06; g.stone.box(x0 - 0.08, x1, AV, AV + 0.16, z0, z1); beds.push({ x0: x0 + 0.04, x1: x1 - 0.04, z0: z0 + 0.1, z1: z1 - 0.1 }); ob(x0 - 0.08, x1, z0, z1, AV, AV + 0.8); };
+  { const holes = [...S.ways.map(w => [w.z0 - (w.id === 'steps' ? 4.6 : 2.2), w.z1 + (w.id === 'steps' ? 4.6 : 2.2)])]; for (const [a, b] of gaps(MO.z1 + 5, JA.z0 - 5, holes)) bed(a, b); }
+  frostHedges(frost, beds, AV + 0.16, 0.64);
 
   // ---- Michigan Avenue, the far side: cars snowed in along the kerb, pay boxes, signs
   [[-22.95, 12, g.car1], [-22.95, 58, g.car2], [-22.95, 64.5, g.car1], [-22.95, 141, g.car1], [-22.95, 176, g.car2], [-22.95, 214, g.car1]].forEach(([x, z, q]) => parked(x, z, 'z', q));
