@@ -7,7 +7,7 @@
 
 const KEYS = {
   look: ['KeyE', 'Enter', 'KeyF'], info: ['KeyI'], camera: ['KeyC'], swap: ['KeyV'], pause: ['Escape', 'KeyP'],
-  reset: ['KeyR'], mute: ['KeyM'], notebook: ['KeyN'], lights: ['KeyL'], map: ['KeyG'],
+  reset: ['KeyR'], notebook: ['KeyN'], lights: ['KeyL'], map: ['KeyM', 'Tab', 'KeyG'],      // (music is in Settings, not on a key)
 };
 
 export class Input {
@@ -33,7 +33,7 @@ export class Input {
     this._pad = {};
 
     addEventListener('keydown', e => {
-      const ours = this.capture && (e.code.startsWith('Arrow') || e.code === 'Space');
+      const ours = this.capture && (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab');      // (Tab opens the map, not the next button)
       if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;      // a slider or tick box has the keys
       if (e.repeat) { if (ours) e.preventDefault(); return; }
       this.down.add(e.code);
