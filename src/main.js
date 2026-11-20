@@ -98,7 +98,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.45';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.46';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -597,6 +597,7 @@ function act(a) {
     case 'newgame': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { newGame(); G.toy = pick.toy; start('explore', true); } break;      // no questions: asked for, done
     case 'pause': if (G.state === 'play' || G.state === 'study') pause(); break;
     case 'resume': G.state = G.study ? 'study' : 'play'; show(null); break;
+    case 'way': if (G.wayOffer && G.nav) { const ok = G.nav.goTo(G.wayOffer); say(ok ? `The way to the ${G.wayOffer.label} is lit on the floor and the map.` : `No way found to the ${G.wayOffer.label}.`, 0, 6); G.wayOffer = null; $('bWay').hidden = true; endStudy(); } break;
     case 'restart': case 'again': start('race'); break;
     case 'wander': start('explore'); break;
     case 'quit': quit(); break;
@@ -879,6 +880,7 @@ function setLabel(on) {
 
 function endStudy() {
   if (!G.study) return;
+  G.wayOffer = null; $('bWay').hidden = true;
   G.study.art.focus = false;
   G.study = null;
   G.vehicle.group.visible = true; G.car.shadow.visible = G.vehicle.kind === 'car'; G.drone.shadow.visible = G.vehicle.kind === 'drone'; G.museum.kit.visible = true; G.props.group.visible = true;
@@ -1213,7 +1215,7 @@ function play(dt, real) {
     if (paintNear) { once('easel', 'An easel, and paint. Whatever you make here hangs in the lobby. E to paint.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PAINT'; if (paintTap) G.paint.open(); }
     if (frameNear) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK';
-      if (paintTap) { lookAtEasel(G.paint.art); const to = !G.paint.done && G.paint.studioSpot; if (to && G.nav) G.nav.goTo({ ...to, paint: true }); }      // an empty frame lights the way to the studio
+      if (paintTap) { lookAtEasel(G.paint.art); const to = !G.paint.done && G.paint.studioSpot; G.wayOffer = to && G.nav ? { ...to, paint: true } : null; $('bWay').hidden = !G.wayOffer; if (G.wayOffer) $('bWayText').textContent = to.label; }      // an empty frame offers the way to the studio: a map button naming the room, and the path only if it is pressed
     }
     if (setNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (setTap) lookAtEasel(setNear); }
     if (easelNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (easelTap) { secrets.find('dogs'); lookAtEasel(G.poker.easel); } }
