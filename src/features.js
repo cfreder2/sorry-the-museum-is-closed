@@ -14,6 +14,7 @@
 //     onLook(art, k) { if (/Rainy Day/.test(art.work.t)) ... },   // the player has just stepped up to look at a work
 //     spots() { return [{ kind: 'secret', id: 'rain201', name: 'Rain indoors', x, y, z }] },   // for the ?secrets debug map
 //     reset(k) { ... },                                 // a new night: put things back
+//     fresh(k) { ... },                                 // a new game (not just a new start): forget what was kept between visits
 //   });
 //
 // The kit `k` handed to every call:
@@ -299,6 +300,7 @@ function kitFor(o) {
     look(art) { for (const f of features) if (!f._broken && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
     spots() { return features.flatMap(f => { try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },
+    fresh() { for (const f of features) if (f.fresh) try { f.fresh(k); } catch (e) { console.error('feature ' + f.id, e); } },
   };
   return { start, api };
 }

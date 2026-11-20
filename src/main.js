@@ -47,6 +47,7 @@ import './thorne.js';
 import './galleries1.js';
 import './lostfound.js';
 import './mice.js';
+import './nests.js';
 import './notes.js';
 import './music.js';
 import './latergalleries.js';
@@ -482,6 +483,7 @@ function newGame() {
   G.arcade.reset(); G.secret.reset(); G.boards.reset();
   secrets.reset();
   G.presents.reset();
+  if (G.features) G.features.fresh();
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.

@@ -249,7 +249,103 @@ export function buildPlan() {
   // The roof of Gallery 211, at the top of the scaffold, is kept clear: there is a card game up there.
   { const tm = massOf.G211 || masses.find(m => m.room && m.room.sky && m.room.kind === 'gallery'); if (tm) plan.terrace = { room: tm.room.id, x: (tm.x0 + tm.x1) / 2 + 0.6, z: (tm.z0 + tm.z1) / 2, top: tm.top }; }
   addRoofs(plan);
+  addNests(plan);
   return plan;
+}
+
+// ------------------------------------------------------------- the mice's nests --
+//
+// One mouse lives in each wing (src/mice.js), and each has its home behind a little grille low on a wall: an outside wall,
+// whose metre of thickness is hollow behind the plaster (the stone face is on the far side of it), or a wall of the lower
+// level, where there is only earth behind. Through the grille, once it is open (src/nests.js), the toy goes into a run inside
+// the wall to the nest at its end. None of it is in the layout and none of it is a room: it is a few volumes to be in, the
+// floor under them, the hole in the plaster, and a grille that is solid until it is opened. Nothing of it reaches the street:
+// a run in an outside wall stays inside the wall, and one in the earth stays well below the ground.
+export const MOUSE_WINGS = [
+  { id: 'north', name: 'the old building, north', test: r => r.building === 'main' && r.floor === '1' && r.x1 < 108 && r.z1 < 104 },
+  { id: 'south', name: 'the old building, south', test: r => r.building === 'main' && r.floor === '1' && r.x1 < 108 && r.z0 > 112 },
+  { id: 'rice', name: 'the Rice building', test: r => r.building === 'main' && r.floor === '1' && r.x0 > 140 && r.z0 > 140 },
+  { id: 'modern', name: 'the Modern Wing', test: r => r.building === 'modern' && r.floor === '1' },
+  { id: 'lower', name: 'the lower level', test: r => r.floor === 'LL' && r.building !== 'modern' },
+];
+export const NEST = { VW: 0.8, VH: 0.5, CH: 0.8 };      // the grille's width and height; the height of the run and the nest behind it
+function addNests(plan) {
+  const { VW, VH, CH } = NEST, O = groundOpenings(plan), out = plan.nests = [];
+  const lapR = (q, p, m = 0) => q.x0 < p.x1 + m && q.x1 > p.x0 - m && q.z0 < p.z1 + m && q.z1 > p.z0 - m;
+  // Is a rectangle at floor height y, CH tall, clear of every room, every volume, everything built, and hidden from the street?
+  // (Only what is near the wall being tried is looked at: `L` is that, from near(), once a wall.)
+  const near = q => { const f = list => list.filter(o => lapR(q, o, 4)); return { rooms: f(plan.rooms), boxes: f(plan.boxes), surfaces: f(plan.surfaces).filter(s => !s.hill), lifts: f(plan.lifts), wells: f(plan.wells), masses: f(plan.masses), obstacles: f(plan.obstacles), ramps: f(plan.ramps || []) }; };
+  const clear = (q, y, host, L) => {
+    for (const r of L.rooms) if (r !== host && lapR(q, r, 0.06) && y < r.y + (r.ceil || r.h) + 0.6 && y + CH + 0.6 > r.y) return false;
+    for (const b of L.boxes) if (lapR(q, b, 0.08) && y < b.y1 + 0.3 && y + CH + 0.3 > b.y0 && !(host && b.x0 === host.x0 && b.x1 === host.x1 && b.z0 === host.z0 && b.z1 === host.z1)) return false;
+    for (const s of L.surfaces) if (lapR(q, s, 0.1) && Math.max(s.h0 || 0, s.h1 || 0) > y - 0.5 && (s.base || 0) < y + CH + 0.5) return false;
+    for (const l of L.lifts) if (lapR(q, l, 0.3)) return false;
+    for (const w of L.wells) if (lapR(q, w, 0.3)) return false;
+    if (y > -0.5) {
+      // inside the stone: every corner within a block that stands well over it
+      for (const [x, z] of [[q.x0, q.z0], [q.x1, q.z0], [q.x0, q.z1], [q.x1, q.z1], [(q.x0 + q.x1) / 2, (q.z0 + q.z1) / 2]])
+        if (!L.masses.some(m => x > m.x0 + 0.04 && x < m.x1 - 0.04 && z > m.z0 + 0.04 && z < m.z1 - 0.04 && m.top > y + CH + 1)) return false;
+    } else {
+      if (y + CH > -1) return false;
+      for (const o of O) if (lapR(q, o, 1)) return false;
+      if (plan.cut && q.x1 > plan.cut.x0 - 2 && q.x0 < plan.cut.x1 + 2) return false;
+    }
+    return true;
+  };
+  for (const w of MOUSE_WINGS) {
+    let best = null;
+    for (const r of plan.rooms) {
+      if (r.secret || r.kind === 'hall' || !w.test(r) || /stair|lift/.test(r.use || '') || r.x1 - r.x0 < 4 || r.z1 - r.z0 < 4) continue;
+      const low = r.y < -0.5, L = near({ x0: r.x0 - 2.6, x1: r.x1 + 2.6, z0: r.z0 - 2.6, z1: r.z1 + 2.6 });
+      for (const side of ['n', 's', 'w', 'e']) {
+        if (side === r.glass) continue;
+        const horiz = side === 'n' || side === 's', lo = horiz ? r.x0 : r.z0, hi = horiz ? r.x1 : r.z1;
+        const at = side === 'n' ? r.z0 : side === 's' ? r.z1 : side === 'w' ? r.x0 : r.x1, sg = side === 'n' || side === 'w' ? -1 : 1;      // sg: outwards
+        const doors = plan.doorsOf(r.id).filter(d => (horiz ? d.along === 'z' : d.along === 'x') && Math.abs((horiz ? (d.z0 + d.z1) / 2 : (d.x0 + d.x1) / 2) - at) < 1.2).map(d => horiz ? [d.x0, d.x1] : [d.z0, d.z1]);
+        // In an outside wall: a run 0.9 m deep along inside it, the grille at one end. In the earth: a short duct straight in and a nest across its end.
+        const a = low ? 0.7 : 0, D = low ? 1.5 : 0.9, shapes = low ? [[1.4, 1.4]] : [[0.55, 2.7], [2.7, 0.55]];
+        const rect = (u0, u1, d0, d1) => horiz ? { x0: u0, x1: u1, z0: Math.min(at + sg * d0, at + sg * d1), z1: Math.max(at + sg * d0, at + sg * d1) } : { x0: Math.min(at + sg * d0, at + sg * d1), x1: Math.max(at + sg * d0, at + sg * d1), z0: u0, z1: u1 };
+        for (let u = lo + 1.6; u <= hi - 1.6; u += 0.5) {
+          if (doors.some(([p, q]) => u + VW / 2 > p - 1.8 && u - VW / 2 < q + 1.8)) continue;
+          // the floor in front of it, a stride deep, kept clear of anything standing there
+          const keep = rect(u - 0.8, u + 0.8, -1.4, 0);
+          if (L.obstacles.some(o => lapR(keep, o) && o.y1 > r.y + 0.03 && o.y0 < r.y + 1.2) || L.surfaces.some(s => lapR(keep, s, 0.2) && Math.max(s.h0 || 0, s.h1 || 0) > r.y + 0.03 && (s.base || 0) < r.y + 1.2)) continue;
+          if (L.wells.some(q => lapR(keep, q, 0.5)) || L.lifts.some(q => lapR(keep, q, 0.5)) || L.ramps.some(q => lapR(keep, q, 0.5))) continue;
+          for (const [l0, l1] of shapes) {
+            const duct = a ? rect(u - VW / 2, u + VW / 2, 0, a + 0.02) : null, cham = rect(u - l0, u + l1, a, a + D);
+            if ((duct && !clear(duct, r.y, r, L)) || !clear(cham, r.y, r, L)) continue;
+            const along = Math.min(u - lo, hi - u), score = (r.kind === 'gallery' ? 8 : r.kind === 'corridor' ? 3 : 0) + Math.min(along, 8) * 0.4 + plan.doorsOf(r.id).length * 0.6 + (l1 > l0 ? 0.05 : 0);
+            if (!best || score > best.score + 1e-9) best = { score, r, side, horiz, at, sg, u, a, D, l0, l1, duct, cham, keep };
+            break;
+          }
+        }
+      }
+    }
+    if (!best) continue;
+    const { r, side, horiz, at, sg, u, a, D, l0, l1, duct, cham, keep } = best, y = r.y, nx = horiz ? 0 : -sg, nz = horiz ? -sg : 0;      // n: into the room
+    const rect = (u0, u1, d0, d1) => horiz ? { x0: u0, x1: u1, z0: Math.min(at + sg * d0, at + sg * d1), z1: Math.max(at + sg * d0, at + sg * d1) } : { x0: Math.min(at + sg * d0, at + sg * d1), x1: Math.max(at + sg * d0, at + sg * d1), z0: u0, z1: u1 };
+    const mouth = rect(u - VW / 2, u + VW / 2, -0.7, a + 0.6);
+    // The grille, shut: a solid leaf in the opening until src/nests.js swings it open.
+    const g = rect(u - VW / 2 - 0.05, u + VW / 2 + 0.05, -0.05, 0.05), gate = { off: false };
+    const shut = { ...g, y0: y, y1: y + VH + 0.05, gate, nest: true };
+    // the far end of the nest, where the mice keep what they have collected
+    const far = l1 > l0 ? u + l1 - 0.7 : u - l0 + 0.7, deep = a + D / 2, back = horiz ? { x: far, z: at + sg * deep } : { x: at + sg * deep, z: far };
+    const n = { id: 'nest-' + w.id, wing: w.id, name: w.name, room: r.id, side, horiz, at, sg, u, y, nx, nz, a, D, l0, l1, VW, VH, CH, duct, cham, mouth, keep, gate, shut,
+      vent: { x: horiz ? u : at, z: horiz ? at : u }, back };
+    plan.boxes.push({ ...mouth, y0: y, y1: y + VH, nest: n.id });
+    if (duct) plan.boxes.push({ ...duct, y0: y, y1: y + VH + 0.1, nest: n.id });
+    plan.boxes.push({ ...cham, y0: y, y1: y + CH, nest: n.id });
+    plan.floors.push({ ...mouth, y }, ...(duct ? [{ ...duct, y }] : []), { ...cham, y });
+    plan.obstacles.push(shut);
+    // The hole in the plaster, and the wall either side of it is still wall to hang a picture on.
+    const wall = plan.walls.find(q => q.room === r && q.side === side);
+    if (wall) {
+      const lo = u - VW / 2, hi = u + VW / 2;
+      wall.openings.push({ lo, hi, h: VH, y: 0, door: { id: n.id, vent: true, nest: true } }); wall.openings.sort((p, q) => p.lo - q.lo);
+      wall.segs = wall.segs.flatMap(sg2 => (hi <= sg2.lo || lo >= sg2.hi ? [sg2] : [{ lo: sg2.lo, hi: Math.min(sg2.hi, lo) }, { lo: Math.max(sg2.lo, hi), hi: sg2.hi }].filter(q => q.hi - q.lo > 0.01)));
+    }
+    out.push(n);
+  }
 }
 
 // ------------------------------------------------------------- the levels --
@@ -1648,7 +1744,7 @@ function stand(plan, collection, hung) {
       const into = 3.4, w = 0.5;
       if (d.along === 'z') { const south = d.z0 >= r.z1 - 0.01; return { x0: d.x0 - w, x1: d.x1 + w, z0: south ? r.z1 - into : r.z0, z1: south ? r.z1 : r.z0 + into }; }
       const east = d.x0 >= r.x1 - 0.01; return { x0: east ? r.x1 - into : r.x0, x1: east ? r.x1 : r.x0 + into, z0: d.z0 - w, z1: d.z1 + w };
-    });
+    }).concat((plan.nests || []).filter(n => n.room === r.id).map(n => n.keep));      // and none in front of a mouse's grille
     const mine = hung.filter(p => p.room === r.id);
     const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, spots = [];
     // Along the walls, wherever nothing hangs.
