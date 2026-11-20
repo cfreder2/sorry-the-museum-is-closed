@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { confine, groundAt, GRAVITY } from './plan.js';
+import { confine, groundAt, keepClear, solidsNear, GRAVITY } from './plan.js';
 
 export class Props {
   constructor(plan) {
@@ -150,13 +150,19 @@ export class Props {
         const k = Math.exp(-3.2 * dt); p.vel.x *= k; p.vel.z *= k; p.av *= Math.exp(-2.5 * dt);
         if (Math.hypot(p.vel.x, p.vel.z) < 0.08 && p.vel.y === 0) { p.vel.set(0, 0, 0); p.av = 0; p.tip = p.tipTo; p.rest = true; }
       }
-      if (confine(this.plan, p.pos, p.r, false, out, true)) {
+      // The walls (it may go out through a doorway), then whatever is fixed down near it: a column, a bench, a rail.
+      const bounce = () => {
         const l = Math.hypot(out.x, out.z);
         if (l > 1e-6) {
           const nx = out.x / l, nz = out.z / l, into = p.vel.x * nx + p.vel.z * nz;
           if (into < 0) { p.vel.x -= nx * into * 1.5; p.vel.z -= nz * into * 1.5; if (into < -1.5 && this.onHit) this.onHit(p, -into); }
         }
+      };
+      if (confine(this.plan, p.pos, p.r, false, out, true)) bounce();
+      if (!p.near || Math.abs(p.pos.x - p.near.x) > 3 || Math.abs(p.pos.z - p.near.z) > 3 || Math.abs(p.pos.y - p.near.y) > 1) {
+        const R = 4; p.near = { x: p.pos.x, y: p.pos.y, z: p.pos.z }; p.solids = solidsNear(this.plan, { x0: p.pos.x - R, x1: p.pos.x + R, z0: p.pos.z - R, z1: p.pos.z + R, y: p.pos.y }, p.h + 0.1, 0);
       }
+      if (keepClear(p.pos, p.pos.y, Math.abs(p.tip) > 0.8 ? p.r * 2 : p.h, 0, 0, p.r, null, p.solids, out)) bounce();
       this._place(p);
     }
   }

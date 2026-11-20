@@ -12,23 +12,23 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { groundAt, GRAVITY } from './plan.js';
+import { groundAt, keepClear, solidsNear, GRAVITY } from './plan.js';
 
 // (A table has a `foot`: something low enough goes under the top and meets only that.)
-// r: how big round it is; h: how tall; m: how heavy (a toy car is about 1); lie: how far off the floor its
-// middle is when it is on its side; tip: how hard it must be hit to go over.
+// r: how big round it is standing; w: how wide (half) it is lying down; h: how tall; m: how heavy (a toy car is about 1);
+// lie: how far off the floor its middle is when it is on its side; tip: how hard it must be hit to go over.
 const TYPES = {
-  chair: { r: 0.27, h: 0.9, m: 1.0, lie: 0.21, tip: 2.4 },
-  stool: { r: 0.2, h: 0.62, m: 0.8, lie: 0.17, tip: 1.8 },
-  highchair: { r: 0.27, h: 1.3, m: 1.1, lie: 0.21, tip: 2.0 },
-  barstool: { r: 0.2, h: 0.75, m: 0.9, lie: 0.17, tip: 1.6 },
-  lowstool: { r: 0.2, h: 0.5, m: 0.8, lie: 0.17, tip: 2.0 },
-  bin: { r: 0.17, h: 0.5, m: 0.6, lie: 0.15, tip: 1.6 },
-  post: { r: 0.17, h: 0.95, m: 1.3, lie: 0.05, tip: 2.0 },
-  wetfloor: { r: 0.2, h: 0.64, m: 0.4, lie: 0.04, tip: 1.0 },
-  round: { r: 0.44, h: 0.76, m: 4, lie: 0.4, tip: 5.2, foot: 0.27 },
-  square: { r: 0.46, h: 0.76, m: 4.5, lie: 0.4, tip: 5.4, foot: 0.27 },
-  round4: { r: 0.62, h: 0.76, m: 6.5, lie: 0.58, tip: 6.4, foot: 0.36 },
+  chair: { r: 0.27, w: 0.22, h: 0.9, m: 1.0, lie: 0.21, tip: 2.4 },
+  stool: { r: 0.2, w: 0.2, h: 0.62, m: 0.8, lie: 0.17, tip: 1.8 },
+  highchair: { r: 0.27, w: 0.22, h: 1.3, m: 1.1, lie: 0.21, tip: 2.0 },
+  barstool: { r: 0.2, w: 0.2, h: 0.75, m: 0.9, lie: 0.17, tip: 1.6 },
+  lowstool: { r: 0.2, w: 0.2, h: 0.5, m: 0.8, lie: 0.17, tip: 2.0 },
+  bin: { r: 0.17, w: 0.165, h: 0.5, m: 0.6, lie: 0.15, tip: 1.6 },
+  post: { r: 0.17, w: 0.17, h: 0.95, m: 1.3, lie: 0.05, tip: 2.0 },
+  wetfloor: { r: 0.2, w: 0.16, h: 0.64, m: 0.4, lie: 0.04, tip: 1.0 },
+  round: { r: 0.44, w: 0.42, h: 0.76, m: 4, lie: 0.4, tip: 5.2, foot: 0.27 },
+  square: { r: 0.46, w: 0.42, h: 0.76, m: 4.5, lie: 0.4, tip: 5.4, foot: 0.27 },
+  round4: { r: 0.62, w: 0.6, h: 0.76, m: 6.5, lie: 0.58, tip: 6.4, foot: 0.36 },
 };
 
 const DARK = [0.12, 0.125, 0.135], WHITE = [1, 1, 1], STEEL = [0.5, 0.52, 0.56];
@@ -85,14 +85,14 @@ export class Loose {
     }
     this.count = this.bodies.length; this.awake = 0; this.knocked = 0;
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._q2 = new THREE.Quaternion(); this._p = new THREE.Vector3(); this._s = new THREE.Vector3(1, 1, 1); this._a = new THREE.Vector3(); this._up = new THREE.Vector3(0, 1, 0);
-    this.fixed = null;
+    this._S = {}; this._SO = {}; this._pt = { x: 0, z: 0 }; this._out = { x: 0, z: 0, t: 0 }; this._ss = { dx: 0, dz: 0 };
     this.reset();
   }
 
   /** A new night: everything back where the fit-out put it. */
   reset() {
     for (const b of this.bodies) {
-      const d = b.def; b.x = d.x; b.y = d.y; b.z = d.z; b.vx = b.vy = b.vz = 0; b.yaw = d.yaw || 0; b.av = 0; b.rest = true;
+      const d = b.def; b.x = d.x; b.y = d.y; b.z = d.z; b.vx = b.vy = b.vz = 0; b.yaw = d.yaw || 0; b.av = 0; b.rest = true; b.lean = null;
       b.tip = b.to = d.tip ? Math.PI / 2 : 0; b.ax = Math.cos(b.yaw); b.az = -Math.sin(b.yaw);
       this._place(b);
     }
@@ -107,15 +107,43 @@ export class Loose {
     b.mesh.setMatrixAt(b.i, this._m.compose(this._p, this._q, this._s)); b.mesh.instanceMatrix.needsUpdate = true;
   }
 
-  // What does not move, in and round the rooms these are in: found once, the first time it is wanted.
-  _fixed(r) {
-    const out = [];
-    for (const o of this.plan.obstacles) if (o.x1 > r.x0 && o.x0 < r.x1 && o.z1 > r.z0 && o.z0 < r.z1 && o.y1 > r.y + 0.05 && o.y0 < r.y + 0.6) out.push(o);
-    return out;
+  // Where it is on the floor: a capsule along the way it has fallen (a disc, standing up), from its foot `a` to `e` metres
+  // out along (dx, dz), radius rad; h is how high it stands, for what it can go under. Partly over, it is partly each.
+  _shape(b, S) {
+    const T = b.T, s = Math.sin(Math.min(Math.PI / 2, Math.abs(b.tip))), rad = T.r + (T.w - T.r) * s;
+    let a = rad - T.r * (1 - s), e = T.r * (1 - s) + T.h * s - rad; if (e < a) a = e = (a + e) / 2;
+    S.dx = -b.az; S.dz = b.ax; S.rad = rad; S.a = a; S.e = e;
+    S.ax = b.x + S.dx * a; S.az = b.z + S.dz * a; S.ex = S.dx * (e - a); S.ez = S.dz * (e - a);
+    S.h = T.h * 0.6 * (1 - s) + 2 * T.w * s;       // (a chair standing goes in under a desk as far as its seat)
+    S.reach = Math.max(Math.abs(a), Math.abs(e)) + rad;
+    return S;
+  }
+  // Out of the walls of its room and whatever is fixed down there, by its whole footprint (S: its shape, which may have
+  // been taken before it last moved: only the shape is used, not where it was). The push is left in this._out.
+  _clear(b, S = this._shape(b, this._S)) {
+    const st = b.set; if (!st.fixed) st.fixed = solidsNear(this.plan, st.R);
+    const q = this._pt; q.x = b.x + S.dx * S.a; q.z = b.z + S.dz * S.a;
+    if (!keepClear(q, b.y, S.h, S.ex, S.ez, S.rad, st.R, st.fixed, this._out)) return false;
+    b.x += this._out.x; b.z += this._out.z; return true;
+  }
+  // What a wall or a column does to it when it runs into one: it comes off with a little of its speed, and, struck
+  // off its middle (a chair lying on its side, hitting the wall with one end), swings round.
+  _bounce(b, S, knock) {
+    const o = this._out, l = Math.hypot(o.x, o.z); if (l < 1e-6) return;
+    const nx = o.x / l, nz = o.z / l, L = S.e - S.a, rl = (o.t - 0.5) * L, rx = S.dx * rl, rz = S.dz * rl;
+    const I = L > 0.05 ? 12 / ((L + 2 * S.rad) ** 2) : 0, rn = rz * nx - rx * nz;         // (one over its moment of inertia, for a mass of one)
+    const vn = (b.vx + b.av * rz) * nx + (b.vz - b.av * rx) * nz;
+    if (vn < 0) {
+      const j = -1.4 * vn / (1 + rn * rn * I);
+      b.vx += nx * j; b.vz += nz * j; b.av = Math.max(-14, Math.min(14, b.av + j * rn * I));
+      if (vn < -1.5) knock(-vn, b.T.m > 2);
+    }
+    // Going over, and the top meets the wall first: it stops there and leans on it.
+    if (b.tip < b.to - 0.05 && o.t > 0.6 && o.x * S.dx + o.z * S.dz < 0) { b.to = b.tip; b.lean = b.lean || { x: 0, z: 0 }; b.lean.x = nx; b.lean.z = nz; }
   }
   _wake(b) {
     if (!b.rest) return; b.rest = false; this.awake++; b.set.awake++;
-    if (b.def.up != null || b.y > groundAt(this.plan, b.x, b.z, b.y + 0.15, 0.2) + 0.02 || true) for (const o of b.set.list) if (o !== b && o.rest && Math.abs(o.x - b.x) < 0.12 && Math.abs(o.z - b.z) < 0.12 && o.y > b.y) this._wake(o);      // what was stacked on it comes down too
+    for (const o of b.set.list) if (o !== b && o.rest && Math.abs(o.x - b.x) < 0.12 && Math.abs(o.z - b.z) < 0.12 && o.y > b.y) this._wake(o);      // what was stacked on it comes down too
   }
 
   /** movers: [{ x, y, z, vx, vz, r }], the first of them the toy being driven (`vehicle`), which a table can stop. */
@@ -129,30 +157,41 @@ export class Loose {
     for (const k in this.meshes) { const m = this.meshes[k]; m.visible = Math.abs(v.pos.y - m.userData.level) < 9; }
     { const s = here[0], st = s && this.museum.rooms[s.R.id], k = st && st.lum ? st.lum.value : s && !this.museum.rooms[s.R.id] ? 0.6 : this._lum || 0; this._lum = k; this.mat.emissiveIntensity = 0.05 + 0.3 * k; }
     if (!near && !this.awake) return;
-    for (const s of here) if (!s.fixed) s.fixed = this._fixed(s.R);
     dt = Math.min(dt, 0.05);
-    const now = performance.now(), knock = (f, heavy) => { if (this.sound && now - (this._kt || 0) > 70) { this._kt = now; this.sound.knock(f, heavy); } };
+    const knock = this._knock || (this._knock = (f, heavy) => { const t = performance.now(); if (this.sound && t - (this._kt || 0) > 70) { this._kt = t; this.sound.knock(f, heavy); } });
+    const S = this._S, O = this._SO;
     // 1. whatever has been run into
     if (near) for (let k = 0; k < movers.length; k++) {
       const m = movers[k];
       for (const s of here) for (const b of s.list) {
-        const dx = b.x - m.x, dz = b.z - m.z, rr = (b.T.foot && Math.abs(b.tip) < 0.3 && m.y + 0.36 < b.y + 0.68 ? b.T.foot : b.T.r) + m.r;
+        const T = b.T, far = T.h + T.r + m.r;
+        if (b.x - m.x > far || m.x - b.x > far || b.z - m.z > far || m.z - b.z > far) continue;
+        this._shape(b, S);
+        // the nearest point of it to the mover
+        const L2 = S.ex * S.ex + S.ez * S.ez; let t = L2 > 1e-8 ? ((m.x - S.ax) * S.ex + (m.z - S.az) * S.ez) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const dx = S.ax + S.ex * t - m.x, dz = S.az + S.ez * t - m.z, rr = (T.foot && Math.abs(b.tip) < 0.3 && m.y + 0.36 < b.y + 0.68 ? T.foot : S.rad) + m.r;
         if (dx > rr || dx < -rr || dz > rr || dz < -rr) continue;
         const d2 = dx * dx + dz * dz; if (d2 > rr * rr) continue;
-        const top = b.y + (Math.abs(b.tip) > 0.8 ? b.T.r * 0.9 : b.T.h); if (m.y > top || m.y + 0.32 < b.y) continue;
-        const d = Math.sqrt(d2) || 0.01, nx = dx / d, nz = dz / d, into = m.vx * nx + m.vz * nz, M = b.T.m, heavy = M > 2;
+        const top = b.y + (Math.abs(b.tip) > 0.8 ? T.w * 1.8 : T.h); if (m.y > top || m.y + 0.32 < b.y) continue;
+        const d = Math.sqrt(d2) || 0.01, nx = dx / d, nz = dz / d, into = m.vx * nx + m.vz * nz, M = T.m, heavy = M > 2;
         if (heavy && into < 1.6) {
           // Too slow to shift it: it is the toy that stops. (And a nudge, so a car leaning on a table does creep it along.)
           if (k === 0 && v) { v.pos.x -= nx * (rr - d); v.pos.z -= nz * (rr - d); if (into > 0) { v.vel.x -= nx * into; v.vel.z -= nz * into; } }
           if (into > 0.5) { b.vx += nx * into * 0.25; b.vz += nz * into * 0.25; this._wake(b); }
           continue;
         }
-        b.x = m.x + nx * (rr + 0.005); b.z = m.z + nz * (rr + 0.005);
+        b.x += nx * (rr - d + 0.005); b.z += nz * (rr - d + 0.005);
+        // Shoved against a wall or a column, it goes no further, and nor does whatever is shoving it.
+        if (this._clear(b, S)) {
+          const back = -(this._out.x * nx + this._out.z * nz);
+          if (back > 1e-3 && k === 0 && v) { v.pos.x -= nx * back; v.pos.z -= nz * back; if (into > 0) { v.vel.x -= nx * into; v.vel.z -= nz * into; } }
+        }
         if (into < 0.15) { if (b.rest) this._place(b); continue; }
         const give = 1.25 / (0.35 + M);
         b.vx = nx * into * give + m.vx * 0.3 / M; b.vz = nz * into * give + m.vz * 0.3 / M;
         b.av += (nx * m.vz - nz * m.vx) * 2.2 / M + (Math.random() - 0.5) * (heavy ? 1 : 5);
-        const hard = into > b.T.tip * (Math.abs(b.tip) > 0.8 ? 0.5 : 1);
+        { const L = S.e - S.a; if (L > 0.05) { const rl = ((S.a + t * L) - (S.a + S.e) / 2), I = 12 / ((L + 2 * S.rad) ** 2); b.av += into * give * (S.dz * rl * nx - S.dx * rl * nz) * I * 0.6; } }      // (hit at one end, a thing lying down swings round)
+        const hard = into > T.tip * (Math.abs(b.tip) > 0.8 ? 0.5 : 1);
         if (into > 1.2 && !heavy) b.vy = Math.max(b.vy, Math.min(2.6, 0.5 + into * 0.3) / M);
         if (hard && Math.abs(b.to) < 0.1) { b.to = Math.PI / 2; b.ax = nz; b.az = -nx; if (heavy) b.vy = 1.1; }
         if (k === 0 && v) { const drag = Math.min(0.75, 0.1 + 0.11 * M); v.vel.x -= nx * into * drag; v.vel.z -= nz * into * drag; }
@@ -163,26 +202,45 @@ export class Loose {
     }
     if (!this.awake) return;
     // 2. whatever is on the move
-    for (const s of this.setList) { if (!s.awake) continue; if (!s.fixed) s.fixed = this._fixed(s.R);
+    for (const s of this.setList) { if (!s.awake) continue;
     for (const b of s.list) {
       if (b.rest) continue;
       const T = b.T, M = T.m;
-      b.vy -= GRAVITY * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.yaw += b.av * dt;
+      b.vy -= GRAVITY * dt; b.y += b.vy * dt;
+      if (b.av) {
+        // Turning: about its middle, which for a thing on its side is halfway along it (so its foot swings round too).
+        const da = b.av * dt; b.yaw += da;
+        if (b.tip) { this._shape(b, S); const mm = (S.a + S.e) / 2, cx = b.x + S.dx * mm, cz = b.z + S.dz * mm, c = Math.cos(da), sn = Math.sin(da), ax = b.ax * c + b.az * sn, az = b.az * c - b.ax * sn; b.ax = ax; b.az = az; b.x = cx + az * mm; b.z = cz - ax * mm; }
+      }
+      if (b.lean && b.vx * b.lean.x + b.vz * b.lean.z > 0.15) { b.lean = null; b.to = Math.PI / 2; }      // drawn away from what it leant on, it goes on over
       b.tip += (b.to - b.tip) * Math.min(1, dt * 8);
+      // Along the floor, in steps no longer than it is wide, so that it cannot jump a thin rail or a table leg.
+      const n = Math.min(4, 1 + Math.floor((Math.abs(b.vx) + Math.abs(b.vz)) * dt / (T.r * 0.7)));
+      for (let i = 0; i < n; i++) { b.x += b.vx * dt / n; b.z += b.vz * dt / n; if (this._clear(b, this._shape(b, S))) this._bounce(b, S, knock); }
       const g = groundAt(this.plan, b.x, b.z, b.y + 0.15, 0.2);
       if (b.y <= g) {
         b.y = g;
         if (b.vy < -1.4) { b.vy *= -0.3; knock(-b.vy * 2, M > 2); } else b.vy = 0;
         const f = Math.exp(-(M > 2 ? 6.5 : Math.abs(b.tip) > 0.8 ? 4.2 : 3.2) * dt); b.vx *= f; b.vz *= f; b.av *= Math.exp(-3 * dt);
       }
-      // other furniture: a chair sent into a chair sends that one on
+      // other furniture: a chair sent into a chair sends that one on. Each by its footprint, as with the walls.
+      this._shape(b, S);
+      let pushed = false;
       for (const o of s.list) {
         if (o === b) continue;
-        const dx = o.x - b.x, dz = o.z - b.z, rr = (T.r + o.T.r) * 0.86;
-        if (dx > rr || dx < -rr || dz > rr || dz < -rr || Math.abs(o.y - b.y) > 0.7) continue;
+        const far = S.reach + o.T.h + o.T.r;
+        if (o.x - b.x > far || b.x - o.x > far || o.z - b.z > far || b.z - o.z > far || Math.abs(o.y - b.y) > 0.7) continue;
+        this._shape(o, O);
+        const rr = (S.rad + O.rad) * 0.86;
+        segSeg(S.ax, S.az, S.ex, S.ez, O.ax, O.az, O.ex, O.ez, this._ss);
+        let dx = this._ss.dx, dz = this._ss.dz;
+        if (dx > rr || dx < -rr || dz > rr || dz < -rr) continue;
         const d2 = dx * dx + dz * dz; if (d2 > rr * rr) continue;
-        const d = Math.sqrt(d2) || 0.01, nx = dx / d, nz = dz / d, rel = (b.vx - o.vx) * nx + (b.vz - o.vz) * nz, share = M / (M + o.T.m), over = rr - d;
-        b.x -= nx * over * (1 - share); b.z -= nz * over * (1 - share); o.x += nx * over * share; o.z += nz * over * share;
+        if (d2 < 1e-8) { dx = o.x - b.x || 0.01; dz = o.z - b.z; }
+        const d = Math.sqrt(dx * dx + dz * dz) || 0.01, nx = dx / d, nz = dz / d, rel = (b.vx - o.vx) * nx + (b.vz - o.vz) * nz, share = M / (M + o.T.m), over = rr - Math.sqrt(d2);
+        b.x -= nx * over * (1 - share); b.z -= nz * over * (1 - share); o.x += nx * over * share; o.z += nz * over * share; pushed = true;
+        // (and if that one is up against a wall, it is this one that gives)
+        if (this._clear(o, O)) { const back = -(this._out.x * nx + this._out.z * nz); if (back > 0) { b.x -= nx * back; b.z -= nz * back; } }
         if (rel > 0.25) {
           o.vx += nx * rel * share * 1.3; o.vz += nz * rel * share * 1.3; b.vx -= nx * rel * (1 - share) * 1.3; b.vz -= nz * rel * (1 - share) * 1.3;
           o.av += (Math.random() - 0.5) * 3 / o.T.m;
@@ -191,24 +249,28 @@ export class Loose {
           this._wake(o);
           if (rel > 1) knock(rel, false);
         } else if (o.rest) this._place(o);
+        this._shape(b, S);
       }
-      // the walls of its room, and what is fixed down in it
-      const r = s.R, R = T.r * 0.9;
-      if (r) {
-        if (b.x < r.x0 + R) { b.x = r.x0 + R; if (b.vx < 0) b.vx *= -0.4; } else if (b.x > r.x1 - R) { b.x = r.x1 - R; if (b.vx > 0) b.vx *= -0.4; }
-        if (b.z < r.z0 + R) { b.z = r.z0 + R; if (b.vz < 0) b.vz *= -0.4; } else if (b.z > r.z1 - R) { b.z = r.z1 - R; if (b.vz > 0) b.vz *= -0.4; }
-      }
-      for (const o of s.fixed) {
-        if (b.x < o.x0 - R || b.x > o.x1 + R || b.z < o.z0 - R || b.z > o.z1 + R || b.y > o.y1 || b.y + T.h * 0.6 < o.y0) continue;
-        const cx = b.x < o.x0 ? o.x0 : b.x > o.x1 ? o.x1 : b.x, cz = b.z < o.z0 ? o.z0 : b.z > o.z1 ? o.z1 : b.z;
-        let dx = b.x - cx, dz = b.z - cz; const d2 = dx * dx + dz * dz;
-        if (d2 >= R * R) continue;
-        if (d2 < 1e-8) { const l = b.x - o.x0, rgt = o.x1 - b.x, n = b.z - o.z0, s2 = o.z1 - b.z, k = Math.min(l, rgt, n, s2); if (k === l) { b.x = o.x0 - R; dx = -1; dz = 0; } else if (k === rgt) { b.x = o.x1 + R; dx = 1; dz = 0; } else if (k === n) { b.z = o.z0 - R; dx = 0; dz = -1; } else { b.z = o.z1 + R; dx = 0; dz = 1; } }
-        else { const d = Math.sqrt(d2); dx /= d; dz /= d; b.x = cx + dx * R; b.z = cz + dz * R; }
-        const into = b.vx * dx + b.vz * dz; if (into < 0) { b.vx -= dx * into * 1.4; b.vz -= dz * into * 1.4; if (into < -1.5) knock(-into, M > 2); }
-      }
+      if (pushed && this._clear(b, S)) this._bounce(b, S, knock);
       if (b.y <= g + 1e-4 && b.vy === 0 && Math.hypot(b.vx, b.vz) < 0.07 && Math.abs(b.to - b.tip) < 0.03) { b.vx = b.vz = 0; b.av = 0; b.tip = b.to; b.rest = true; this.awake--; s.awake--; }
       this._place(b);
     } }
   }
+}
+
+// The nearest points of two segments on the floor, a + s u and b + t v (s, t in [0, 1]): o.dx, o.dz from the first to the second.
+function segSeg(ax, az, ux, uz, bx, bz, vx, vz, o) {
+  const cl = x => (x < 0 ? 0 : x > 1 ? 1 : x), rx = ax - bx, rz = az - bz, a = ux * ux + uz * uz, e = vx * vx + vz * vz, f = vx * rx + vz * rz;
+  let s = 0, t = 0;
+  if (a < 1e-8) t = e < 1e-8 ? 0 : cl(f / e);
+  else {
+    const c = ux * rx + uz * rz;
+    if (e < 1e-8) s = cl(-c / a);
+    else {
+      const bb = ux * vx + uz * vz, den = a * e - bb * bb;
+      s = den > 1e-8 ? cl((bb * f - c * e) / den) : 0; t = (bb * s + f) / e;
+      if (t < 0) { t = 0; s = cl(-c / a); } else if (t > 1) { t = 1; s = cl((bb - c) / a); }
+    }
+  }
+  o.dx = bx + vx * t - (ax + ux * s); o.dz = bz + vz * t - (az + uz * s);
 }

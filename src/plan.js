@@ -537,6 +537,77 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   return hit;
 }
 
+// ---------------------------------------------------------- loose things --
+//
+// Chairs, stools, cones: things the toy shoves about the floor. Each is kept inside the room it stands in and out of
+// whatever is fixed down there, by its real footprint, so that it comes to rest flush against a wall or a column and
+// never half inside one. These two are shared by everything loose (src/loose.js, src/props.js, k.pushable).
+
+// What something loose on the floor of `r` (a room, or any box with a floor height y) can run into: whatever is fixed
+// down in and round it and comes lower than `top` over that floor (plan.obstacles: furniture, columns, rails), and any
+// flat solid block built on that floor too tall to be climbed. It is the slow part: find it once for a room and keep it.
+export function solidsNear(plan, r, top = 1.3, pad = 0.8) {
+  const y = r.y || 0, out = [];
+  const lap = q => q.x1 > r.x0 - pad && q.x0 < r.x1 + pad && q.z1 > r.z0 - pad && q.z0 < r.z1 + pad;
+  for (const o of plan.obstacles) if (o.y1 > y + 0.05 && o.y0 < y + top && lap(o)) out.push(o);
+  for (const s of plan.surfaces) {
+    if (s.axis || s.hill || s.roof || !lap(s)) continue;                 // (slopes are climbed: src/loose.js follows the ground up them)
+    const y0 = s.thick ? s.h0 - s.thick : s.base || 0;
+    if (s.h0 > y + 0.2 && y0 < y + top) out.push({ x0: s.x0, x1: s.x1, z0: s.z0, z1: s.z1, y0, y1: s.h0, climb: 0.2 });
+  }
+  return out;
+}
+
+// Keep a footprint clear of the walls of `room` (a box it must stay inside, or null) and of `solids` (from solidsNear).
+// The footprint is a capsule on the floor: from (p.x, p.z) to (p.x + ex, p.z + ez), radius rad (ex = ez = 0: a disc),
+// standing from y to y + h. p is moved out of whatever it is in, the room's walls having the last word. `out` gets how
+// far it was moved (x, z) and where along the capsule the deepest contact was (t: 0 at p, 1 at the far end).
+// Returns true if it had to be moved.
+export function keepClear(p, y, h, ex, ez, rad, room, solids, out) {
+  let sx = 0, sz = 0, deep = 0, tt = 0.5;
+  const len = Math.hypot(ex, ez), n = len > 1e-3 ? Math.ceil(len / (rad * 0.75)) : 0;
+  const lx = Math.min(0, ex) - rad, hx = Math.max(0, ex) + rad, lz = Math.min(0, ez) - rad, hz = Math.max(0, ez) + rad;
+  if (solids) for (let pass = 0; pass < 2; pass++) {
+    let moved = false;
+    for (let k = 0; k < solids.length; k++) {
+      const o = solids[k];
+      if (o.y1 <= y + (o.climb || 0.02) || o.y0 >= y + h || (o.gate && o.gate.off)) continue;
+      const px = p.x + sx, pz = p.z + sz;
+      if (px + hx <= o.x0 || px + lx >= o.x1 || pz + hz <= o.z0 || pz + lz >= o.z1) continue;
+      for (let i = 0; i <= n; i++) {
+        const t = n ? i / n : 0, qx = p.x + sx + ex * t, qz = p.z + sz + ez * t;
+        const cx = qx < o.x0 ? o.x0 : qx > o.x1 ? o.x1 : qx, cz = qz < o.z0 ? o.z0 : qz > o.z1 ? o.z1 : qz;
+        let dx = qx - cx, dz = qz - cz, d2 = dx * dx + dz * dz, d;
+        if (d2 >= rad * rad) continue;
+        if (d2 < 1e-12) {             // its middle is inside: out by the nearest side
+          const l = qx - o.x0, r = o.x1 - qx, f = qz - o.z0, b = o.z1 - qz, m = Math.min(l, r, f, b);
+          if (m === l) { dx = -(l + rad); dz = 0; } else if (m === r) { dx = r + rad; dz = 0; } else if (m === f) { dx = 0; dz = -(f + rad); } else { dx = 0; dz = b + rad; }
+          d = m + rad;
+        } else { const dd = Math.sqrt(d2), s = (rad - dd) / dd; dx *= s; dz *= s; d = rad - dd; }
+        sx += dx; sz += dz; moved = true;
+        if (d > deep) { deep = d; tt = t; }
+      }
+    }
+    if (!moved) break;
+  }
+  if (room) {
+    const end = e => (e < -1e-3 ? 1 : e > 1e-3 ? 0 : 0.5);      // which end of it is lowest along an axis
+    const fit = (lo, hi, a0, a1, e) => {                          // the shift along one axis that puts [lo, hi] inside [a0, a1]
+      const dl = a0 - lo, dh = hi - a1;
+      if (dl > 0 && dh > 0) return (dl - dh) / 2;
+      if (dl > 0) { if (dl > deep) { deep = dl; tt = end(e); } return dl; }
+      if (dh > 0) { if (dh > deep) { deep = dh; tt = 1 - end(e); } return -dh; }
+      return 0;
+    };
+    const x = p.x + sx, z = p.z + sz;
+    sx += fit(x + lx, x + hx, room.x0, room.x1, ex); sz += fit(z + lz, z + hz, room.z0, room.z1, ez);
+  }
+  if (out) { out.x = sx; out.z = sz; out.t = tt; }
+  if (sx === 0 && sz === 0) return false;
+  p.x += sx; p.z += sz;
+  return true;
+}
+
 // ------------------------------------------------------------- the grounds --
 //
 // What stands round the building, placed from the map: Michigan Avenue and the other three streets
