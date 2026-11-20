@@ -84,8 +84,9 @@ function patchShared(mat, tex, lift) {
 }
 
 export class Lights {
-  constructor(museum, plan, sound) {
-    this.museum = museum; this.plan = plan; this.sound = sound;
+  // `hung`: anything else on a wall that a plate must keep off, shaped like a hung work ({ room, x, y, z, nx, nz, w, h }).
+  constructor(museum, plan, sound, hung = []) {
+    this.museum = museum; this.plan = plan; this.sound = sound; this.extra = hung;
     this.active = true; this.onCount = null;               // (rooms switched off, back rooms switched on)
     this.saved = {}; this.offs = new Set(); this.ons = new Set();
     try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.plan === plan.made) { Object.assign(this.saved, s.rooms || {}); for (const id of s.off || []) this.offs.add(id); for (const id of s.on || []) this.ons.add(id); } } catch { /* no storage */ }
@@ -227,9 +228,9 @@ export class Lights {
       const hungOn = w => {
         if (hungBy.has(w)) return hungBy.get(w);
         const tu = w.horiz ? Math.cos(w.rot) : -Math.sin(w.rot);      // which way along the wall is the viewer's right
-        const out = st.arts.filter(a => !a.obj && a.nx === w.nx && a.nz === w.nz && Math.abs((w.horiz ? a.z : a.x) - w.fixed) < 0.3).map(a => {
-          const u = w.horiz ? a.x : a.z, e = a.w / 2 + a.frame * 1.45 + 0.08;
-          return { lo: Math.min(u - e, u + tu * (a.w / 2 + a.frame + 0.36)), hi: Math.max(u + e, u + tu * (a.w / 2 + a.frame + 0.36)), y0: (a.fy || 0), y1: a.y + a.h / 2 + 1 };
+        const out = [...st.arts, ...this.extra.filter(a => a.room === r.id)].filter(a => !a.obj && a.nx === w.nx && a.nz === w.nz && Math.abs((w.horiz ? a.z : a.x) - w.fixed) < 0.3).map(a => {
+          const u = w.horiz ? a.x : a.z, fr = a.frame || 0.12, e = a.w / 2 + fr * 1.45 + 0.08;
+          return { lo: Math.min(u - e, u + tu * (a.w / 2 + fr + 0.36)), hi: Math.max(u + e, u + tu * (a.w / 2 + fr + 0.36)), y0: (a.fy || 0), y1: a.y + a.h / 2 + 1 };
         });
         hungBy.set(w, out);
         return out;

@@ -23,7 +23,8 @@ export const EXIT = 44;          // the hood at the far end: a blemish that gets
 export const TEACH = 10;         // seconds of easy start
 export const NEED = 10;          // blemishes resolved before anybody looks at your accuracy
 export const KINDS = ['scratch', 'flake', 'tear', 'speck', 'stain', 'varnish'];
-const RADIUS = { scratch: 20, flake: 17, tear: 21, speck: 14, stain: 23, varnish: 24 };
+const RADIUS = { scratch: 26, flake: 22, tear: 27, speck: 18, stain: 29, varnish: 30 };
+export const APART = 74;       // blemishes on one painting are at least this far apart, middle to middle
 
 /** Belt speed, units a second, after n repairs: 70 to start, most of the way to 310 by fifty, and never quite level. */
 export function speedAt(n) { return 70 + 240 * (1 - Math.exp(-n / 45)) + 0.6 * n; }
@@ -71,12 +72,12 @@ export class RepairGame {
     // How many: one, then two, while the idea is being picked up; after that, by how much has been repaired.
     const want = blemishesAt(this.repaired);
     let n = first ? 1 : this.teaching ? Math.min(2, Math.round(want)) : Math.floor(want) + (r() < want % 1 ? 1 : 0);
-    n = Math.max(1, Math.min(n, Math.floor(cw * ch / 7000)));
+    n = Math.max(1, Math.min(n, Math.floor(cw * ch / 9000)));
     for (let i = 0; i < n; i++) {
       const kind = KINDS[Math.floor(r() * KINDS.length) % KINDS.length], rad = RADIUS[kind], m = FRAME + rad + 4;
       for (let k = 0; k < 40; k++) {
         const dx = m + r() * (w - 2 * m), dy = m + r() * (h - 2 * m);
-        if (p.blemishes.some(b => Math.hypot(b.dx - dx, b.dy - dy) < 62)) continue;
+        if (p.blemishes.some(b => Math.hypot(b.dx - dx, b.dy - dy) < APART)) continue;
         p.blemishes.push({ id: p.id + ':' + i, kind, dx, dy, r: rad, seed: Math.floor(r() * 1e6), fixed: false, missed: false, at: -9 });
         break;
       }

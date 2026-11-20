@@ -1,10 +1,13 @@
 // The conservation line.
 //
-// In one conservation studio there is a low conveyor bench with a few canvases on it and a lamp
-// over them (src/furnish.js sets it down; this file hangs the sign and the pool of lamplight). Pull
-// up in front and the action button reads REPAIR.
+// In one conservation studio there is a long low inspection table with a belt running across the
+// top of it, a lamp at one end and a sign over it (src/furnish.js sets the table down; this file
+// makes its top). Pull up in front and the action button reads REPAIR.
 //
-// The game covers the screen and the world waits, as it does for the monitors with games on them.
+// It is played on the table itself, the way the monitors and the easel are (src/stage.js): the
+// camera goes and stands over the bench looking straight down, the belt is the bench's top, and an
+// invisible pane of the page lies exactly over it to take the taps. Only the score, the accuracy
+// meter, LEAVE and the notice at the end are on the page. The world waits while you work.
 // Paintings come along the belt in gilded frames; each has blemishes; touch a blemish and it is
 // repaired. The rules (how fast, how many, what counts against you, when you are sent home) are in
 // src/repairgame.js, which knows nothing about pages or pictures. This file draws them, listens for
@@ -24,14 +27,18 @@ import * as TX from './textures.js';
 import { imageUrl } from './collection.js';
 import { RepairGame, H, CY, EXIT, NEED, speedAt } from './repairgame.js';
 
+// The belt is this long, in the rules' units (and 540 across); the table top is the same shape, 2.4 m by 1.08 m.
+const BELT = 1200, PX = 1.25, TOP_W = 2.4, TOP_H = TOP_W * H / BELT, TOP_Y = 0.297, TOP_OUT = 0.67;
+
 const KEY = 'after-hours.repair';
 const $ = id => document.getElementById(id);
 
 const CSS = `
-#repair { position: fixed; inset: 0; z-index: 30; background: #14110d; color: #e9e2d0; font-family: var(--mono, ui-monospace, Menlo, Consolas, monospace); user-select: none; -webkit-user-select: none; overflow: hidden; }
+#repair { position: fixed; inset: 0; z-index: 30; background: none; pointer-events: none; color: #e9e2d0; font-family: var(--mono, ui-monospace, Menlo, Consolas, monospace); user-select: none; -webkit-user-select: none; overflow: hidden; }
 #repair[hidden] { display: none; }
-#repCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; cursor: crosshair; }
-#repair .bar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 18px; padding: max(6px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left)); background: linear-gradient(rgba(20,17,13,.92), rgba(20,17,13,.6)); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+#repCanvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; cursor: crosshair; opacity: 0; pointer-events: auto; }
+#repair .bar, #repEnd { pointer-events: auto; }
+#repair .bar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 18px; padding: max(6px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left)); background: rgba(20,17,13,.78); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
 #repName { color: var(--gilt, #e2cd94); font-weight: 700; font-size: 14px; letter-spacing: .16em; margin-right: auto; white-space: nowrap; }
 #repair .sc { white-space: nowrap; } #repair .sc b { color: #fff; font-size: 15px; }
 #repair .acc { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
@@ -44,7 +51,7 @@ const CSS = `
 #repair .acc small { font-size: 10px; color: #b7ad96; letter-spacing: .06em; }
 #repair button { border: 2px solid rgba(226,205,148,.55); background: rgba(30,25,18,.9); color: #e9e2d0; font: 700 13px var(--mono, monospace); letter-spacing: .1em; border-radius: 10px; min-width: 88px; height: 44px; padding: 0 14px; touch-action: none; }
 #repair button:active { background: rgba(226,205,148,.3); }
-#repHelp { position: absolute; left: 0; right: 0; bottom: max(6px, env(safe-area-inset-bottom)); text-align: center; font-size: 12px; letter-spacing: .03em; color: #cfc6ae; pointer-events: none; padding: 0 12px; text-shadow: 0 1px 2px #000; }
+#repHelp { position: absolute; left: 0; right: 0; bottom: max(6px, env(safe-area-inset-bottom)); text-align: center; font-size: 12px; letter-spacing: .03em; color: #e4dcc6; pointer-events: none; padding: 0 12px; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
 #repEnd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.72); padding: 12px; }
 #repEnd[hidden] { display: none; }
 #repEnd .memo { width: min(560px, 100%); max-height: 100%; overflow: auto; background: #f1ead8; color: #26221b; border-radius: 3px; padding: 22px 26px 18px; box-shadow: 0 14px 50px rgba(0,0,0,.6); font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 16px; line-height: 1.45; user-select: text; -webkit-user-select: text; }
@@ -65,16 +72,16 @@ function rng(seed) { let a = (seed >>> 0) || 1; return () => { a = (a + 0x6D2B79
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + 's'}`;
 
 export class Repair {
-  constructor(museum, plan, sound, collection) {
-    this.plan = plan; this.sound = sound; this.on = false; this.game = null; this.best = 0; this.shifts = 0;
+  constructor(museum, plan, sound, collection, stage) {
+    this.plan = plan; this.sound = sound; this.stage = stage || null; this.on = false; this.game = null; this.best = 0; this.shifts = 0;
     try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); this.best = +s.best || 0; this.shifts = +s.shifts || 0; } catch { /* no storage */ }
     // Only what is in the public domain may be put on the belt.
     const seen = new Set();
     this.works = museum.arts.filter(a => !a.obj && !a.mini && a.work && a.work.img && !a.work.c && !seen.has(a.work.id) && seen.add(a.work.id)).map(a => a.work);
     this.pics = new Map();           // work id -> { soft: canvas, img: Image | null, tone: css colour }
     this.fx = []; this.keys = false; this.shake = 0; this.flash = 0; this.t = 0;
-    this._station(museum, plan);
     this._dom();
+    this._station(museum, plan);
   }
 
   // ---------------------------------------------------------------- the room --
@@ -90,11 +97,21 @@ export class Repair {
     const a = this.at = plan.repair || null;
     if (a) {
       board(['The Conservation Line', 'steady hands wanted'], 1.6, 0.56, a, 1.42, 0.02);
+      // The top of the table: the belt, drawn here and lit from within, like the screens. It is what the game is played on.
+      const cv = $('repCanvas');
+      const tex = this.tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
+      const top = new THREE.Mesh(new THREE.PlaneGeometry(TOP_W, TOP_H), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.86, 0.86, 0.86) }));
+      const up = new THREE.Vector3(-a.fx, 0, -a.fz), n = new THREE.Vector3(0, 1, 0), right = new THREE.Vector3().crossVectors(up, n);
+      top.matrix.makeBasis(right, up, n).setPosition(a.x + a.fx * TOP_OUT, a.y + TOP_Y, a.z + a.fz * TOP_OUT); top.matrixAutoUpdate = false;
+      g.add(top);
+      this.surface = { x: a.x + a.fx * TOP_OUT, y: a.y + TOP_Y, z: a.z + a.fz * TOP_OUT, nx: 0, ny: 1, nz: 0, w: TOP_W, h: TOP_H, up: [-a.fx, 0, -a.fz] };
       // The lamp's light on the floor in front: the one warm thing in the room.
-      const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.6), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.5, 0.36, 0.17), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-      pool.rotation.x = -Math.PI / 2; pool.position.set(a.x + a.fx * 1.15, a.y + 0.014, a.z + a.fz * 1.15); pool.renderOrder = 4; pool.matrixAutoUpdate = false; pool.updateMatrix();
+      const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.4), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.42, 0.3, 0.14), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+      pool.rotation.x = -Math.PI / 2; pool.position.set(a.x + a.fx * 1.9, a.y + 0.014, a.z + a.fz * 1.9); pool.renderOrder = 4; pool.matrixAutoUpdate = false; pool.updateMatrix();
       g.add(pool);
-      a.sx = a.x + a.fx * 1.45; a.sz = a.z + a.fz * 1.45;
+      a.sx = a.x + a.fx * 2.05; a.sz = a.z + a.fz * 2.05;
+      this._idle();
+      setTimeout(() => { if (!this.on) this._idle(); }, 2500);          // again once the previews have decoded
     }
     for (const n of plan.repairNotes || []) board(['The conservation line', 'is in the other studio', 'of this name'], 0.56, 0.4, n, 0.44, 0.275);
   }
@@ -106,7 +123,7 @@ export class Repair {
     const dy = v.pos.y - a.y;
     if (dy < -0.3 || dy > 2.4) return null;
     const dx = v.pos.x - a.sx, dz = v.pos.z - a.sz;
-    if (dx * dx + dz * dz > 1.7 * 1.7 || (v.pos.x - a.x) * a.fx + (v.pos.z - a.z) * a.fz < 0.7 || Math.hypot(v.vel.x, v.vel.z) > 3) return null;
+    if (dx * dx + dz * dz > 1.7 * 1.7 || (v.pos.x - a.x) * a.fx + (v.pos.z - a.z) * a.fz < 1.38 || Math.hypot(v.vel.x, v.vel.z) > 3) return null;
     return a;
   }
 
@@ -149,15 +166,22 @@ export class Repair {
     $('repHelp').textContent = document.body.classList.contains('touch')
       ? 'Tap each blemish before its painting leaves the belt. A tap on a good bit counts against you.'
       : 'Click each blemish before its painting leaves the belt. Keys: ← → choose, Space repairs. R starts again, Esc leaves.';
-    this._size();
+    if (this.stage && this.surface) this.stage.enter(this.surface, { el: $('repCanvas'), fill: 0.84 });
     this._new();
     $('repCanvas').focus({ preventScroll: true });
+  }
+  // What the table shows when nobody is at it: the belt stopped, a few paintings waiting.
+  _idle() {
+    const order = this.works, r = rng(77);
+    const g = new RepairGame({ width: BELT, seed: 5, source: i => { const work = order.length ? order[(i * 37 + 11) % order.length] : null; if (!work) return { aspect: 0.7 + r() * 0.8, work: null }; const pic = this._pic(work); return { aspect: pic.aspect, work, pic }; } });
+    g.t = 99; g.repaired = 30; for (let k = 0; k < 3; k++) { const p = g._spawn(false); p.x = 150 + k * 330; } g.paintings.shift(); g.repaired = 0;
+    const was = this.game; this.game = g; this._draw(true, true); this.game = was;
   }
   _new() {
     // Tonight's works, shuffled afresh for each shift.
     const r = rng((Date.now() ^ (this.shifts * 7919)) >>> 0), order = this.works.slice();
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-    this.game = new RepairGame({ width: this.W, minHit: this.minHit, seed: Math.floor(r() * 4294967296), source: i => { const work = order.length ? order[i % order.length] : null; if (!work) return { aspect: 0.7 + r() * 0.8, work: null }; const pic = this._pic(work); return { aspect: pic.aspect, work, pic }; } });
+    this.game = new RepairGame({ width: BELT, minHit: this._reach(), seed: Math.floor(r() * 4294967296), source: i => { const work = order.length ? order[i % order.length] : null; if (!work) return { aspect: 0.7 + r() * 0.8, work: null }; const pic = this._pic(work); return { aspect: pic.aspect, work, pic }; } });
     for (let i = 1; i < Math.min(5, order.length); i++) this._pic(order[i]);        // have the next few ready
     this.fx.length = 0; this.shake = 0; this.flash = 0; this.told = false; this.fresh = false;
     $('repEnd').hidden = true; $('repHelp').hidden = false;
@@ -169,7 +193,10 @@ export class Repair {
     if (!this.on) return;
     if (this.game && !this.told) { this._record(); this._tell('end', this.game.over); }
     this.on = false; this.game = null;
+    if (this.stage && this.stage.on) this.stage.leave();
     $('repair').hidden = true;
+    this.fx.length = 0; this.shake = 0; this.flash = 0;
+    this._idle();
   }
   press(k) { if (!this.on) return; if (k === 'leave') this.leave(); else if (k === 'again') { if (this.game && !this.told) { this._record(); this._tell('end', this.game.over); } this._new(); $('repCanvas').focus({ preventScroll: true }); } }
   _record() { const g = this.game; if (!g || !(g.score > this.best)) return false; this.best = g.score; this._save(); return true; }
@@ -205,11 +232,15 @@ export class Repair {
     setTimeout(() => { if (this.on && this.told) $('repAgain').focus({ preventScroll: true }); }, 30);
   }
 
-  // A touch or a click at a place on the screen.
+  // How near a touch must land, in the belt's units: never a smaller target than a fingertip (52 px across at the least),
+  // however small the table is on the screen.
+  _reach() { const r = $('repCanvas').getBoundingClientRect(); return 26 * BELT / Math.max(200, r.width || innerWidth * 0.84); }
+  // A touch or a click at a place on the screen: the pane lies exactly over the table top, so where on the pane is where on the belt.
   _tapAt(cx, cy) {
     const g = this.game; if (!g || g.over) return;
     const r = $('repCanvas').getBoundingClientRect();
-    g.tap((cx - r.left - this.ox) / this.scale, (cy - r.top - this.oy) / this.scale);
+    g.minHit = this._reach();
+    g.tap((cx - r.left) / r.width * BELT, (cy - r.top) / r.height * H);
   }
   key(e) {
     if (!this.on) return false;
@@ -241,30 +272,19 @@ export class Repair {
     this.shake = Math.max(0, this.shake - dt); this.flash = Math.max(0, this.flash - dt * 1.6);
     if (g.repaired + g.missed * 1000 + g.stray * 1e6 !== this.shown || Math.floor(this.t * 4) !== this._q) { this._q = Math.floor(this.t * 4); this._hud(); }
     if (g.over && !this.told) this._end();
+    g.minHit = this._reach();
     this._draw(calm);
   }
 
   // ------------------------------------------------------------------ drawing --
 
-  _size() {
-    const cv = $('repCanvas'), w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
-    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
-    this.dpr = dpr; this.cw = w; this.ch = h;
-    this.scale = Math.min(h / H, w / 760);
-    this.W = Math.min(1500, w / this.scale);
-    this.ox = (w - this.W * this.scale) / 2; this.oy = (h - H * this.scale) / 2;
-    this.minHit = 26 / this.scale;                         // never a smaller target than a fingertip: 52 px across at the least
-    if (this.game) { this.game.W = this.W; this.game.minHit = this.minHit; }
-  }
-
-  _draw(calm) {
-    const cv = $('repCanvas');
-    if ((cv.clientWidth || innerWidth) !== this.cw || (cv.clientHeight || innerHeight) !== this.ch) this._size();
-    const c = this.ctx, g = this.game, W = this.W, s = this.scale * this.dpr;
+  _draw(calm, idle) {
+    const cv = $('repCanvas'), c = this.ctx, g = this.game, W = BELT, s = PX;
+    this.W = W; this.scale = 1;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.fillStyle = '#14110d'; c.fillRect(0, 0, cv.width, cv.height);
     const sx = this.shake > 0 ? Math.sin(this.t * 90) * 5 * (this.shake / 0.22) : 0;
-    c.setTransform(s, 0, 0, s, (this.ox + sx * this.scale) * this.dpr, this.oy * this.dpr);
+    c.setTransform(s, 0, 0, s, sx * s, 0);
     const top = 104, bot = 432;
     // The studio wall, and the bench.
     let gr = c.createLinearGradient(0, -200, 0, top); gr.addColorStop(0, '#191612'); gr.addColorStop(1, '#2b251c');
@@ -284,7 +304,7 @@ export class Repair {
     gr = c.createRadialGradient(W / 2, CY - 40, 40, W / 2, CY, Math.max(420, W * 0.62)); gr.addColorStop(0, 'rgba(255,236,190,.20)'); gr.addColorStop(0.5, 'rgba(255,225,170,.07)'); gr.addColorStop(1, 'rgba(0,0,0,.42)');
     c.fillStyle = gr; c.fillRect(-400, top, W + 800, bot - top);
 
-    const sel = this.keys && !g.over ? g.selected() : null;
+    const sel = this.keys && !g.over && !idle ? g.selected() : null;
     for (const p of g.paintings) this._painting(c, p, g);
     if (sel) { c.strokeStyle = '#fff'; c.lineWidth = 3; c.setLineDash([7, 5]); c.lineDashOffset = -this.t * 30 * (calm ? 0 : 1); c.beginPath(); c.arc(sel.x, sel.y, g.reach(sel.b) + 4, 0, 7); c.stroke(); c.setLineDash([]); c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 1.5; c.beginPath(); c.arc(sel.x, sel.y, g.reach(sel.b) + 7, 0, 7); c.stroke(); }
 
@@ -301,12 +321,14 @@ export class Repair {
     // What has just happened.
     for (const f of this.fx) this._effect(c, f, calm);
     // The first few seconds: what to do.
-    if (g.teaching && !g.over && g.repaired < 3) {
+    if (g.teaching && !g.over && g.repaired < 3 && !idle) {
       const t0 = g.targets()[0];
       if (t0) { const k = calm ? 0.5 : 0.5 + 0.5 * Math.sin(this.t * 5); c.strokeStyle = `rgba(255,255,255,${0.35 + 0.5 * k})`; c.lineWidth = 3; c.beginPath(); c.arc(t0.x, t0.y, g.reach(t0.b) + 6 + (calm ? 0 : k * 6), 0, 7); c.stroke(); }
     }
     // A wrong one: the edge of the screen goes red for a moment.
-    if (this.flash > 0) { c.setTransform(1, 0, 0, 1, 0, 0); const v = c.createRadialGradient(cv.width / 2, cv.height / 2, Math.min(cv.width, cv.height) * 0.42, cv.width / 2, cv.height / 2, Math.max(cv.width, cv.height) * 0.72); v.addColorStop(0, 'rgba(200,50,30,0)'); v.addColorStop(1, `rgba(200,50,30,${0.5 * this.flash})`); c.fillStyle = v; c.fillRect(0, 0, cv.width, cv.height); }
+    if (idle) { c.fillStyle = 'rgba(8,6,4,.34)'; c.fillRect(-10, -10, W + 20, H + 20); c.fillStyle = '#ffe9b8'; c.font = '700 30px ui-monospace, Menlo, Consolas, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(this.best ? `BEST SHIFT  ${this.best}` : 'STAFF WANTED', W / 2, 474); }
+    if (this.tex) this.tex.needsUpdate = true;
+    if (this.flash > 0 && !idle) { c.setTransform(1, 0, 0, 1, 0, 0); const v = c.createRadialGradient(cv.width / 2, cv.height / 2, Math.min(cv.width, cv.height) * 0.42, cv.width / 2, cv.height / 2, Math.max(cv.width, cv.height) * 0.72); v.addColorStop(0, 'rgba(200,50,30,0)'); v.addColorStop(1, `rgba(200,50,30,${0.5 * this.flash})`); c.fillStyle = v; c.fillRect(0, 0, cv.width, cv.height); }
   }
 
   _painting(c, p, g) {
@@ -332,10 +354,10 @@ export class Repair {
     // Its label, in small type on the belt underneath.
     const work = p.src && p.src.work;
     if (work) {
-      const px = Math.max(12, 11 / this.scale), max = Math.max(w + 70, 190);
+      const px = 19, max = Math.max(w + 90, 240);
       c.textAlign = 'center'; c.textBaseline = 'top';
       c.font = `italic 600 ${px}px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`; c.fillStyle = '#efe7d2';
-      c.fillText(clip(c, work.t || 'Untitled', max), x + w / 2, y + h + 9);
+      c.fillText(clip(c, work.t || 'Untitled', max), x + w / 2, y + h + 7);
       c.font = `${px * 0.88}px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`; c.fillStyle = '#b9ae95';
       c.fillText(clip(c, work.a || 'Artist unknown', max), x + w / 2, y + h + 11 + px * 1.12);
     }
@@ -370,7 +392,7 @@ export class Repair {
     const st = document.createElement('style'); st.textContent = CSS; document.head.append(st);
     const root = document.createElement('div');
     root.id = 'repair'; root.hidden = true; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-labelledby', 'repName');
-    root.innerHTML = `<canvas id="repCanvas" tabindex="-1" aria-label="The conveyor belt. Paintings with blemishes travel from left to right."></canvas>
+    root.innerHTML = `<canvas id="repCanvas" width="${BELT * PX}" height="${H * PX}" tabindex="-1" aria-label="The conveyor belt. Paintings with blemishes travel from left to right."></canvas>
 <div class="bar"><span id="repName">The Conservation Line</span><span class="sc">Repaired <b id="repScore">0</b></span><span class="sc">Best <b id="repBest">0</b></span>
 <span class="acc">Accuracy <b id="repAcc">100%</b><span class="meter" id="repMeter" role="meter" aria-label="Accuracy. The line marks 90 percent." aria-valuemin="50" aria-valuemax="100" aria-valuenow="100"><i class="fill"></i><i class="mark"></i></span><small id="repNote"></small></span>
 <button data-act="repairLeave" id="repLeave">LEAVE</button></div>
@@ -382,13 +404,10 @@ export class Repair {
     const cv = $('repCanvas');
     this.ctx = cv.getContext('2d');
     addEventListener('keydown', e => { if (this.on && this.key(e)) e.preventDefault(); });
-    addEventListener('resize', () => { if (this.on) this._size(); });
     // Every finger is its own touch: two thumbs can work the belt at once.
     cv.addEventListener('pointerdown', e => { if (!this.on) return; e.preventDefault(); if (e.pointerType === 'mouse' && e.button !== 0) return; if (e.pointerType !== 'touch') this.keys = false; this._tapAt(e.clientX, e.clientY); });
     cv.addEventListener('contextmenu', e => e.preventDefault());
     for (const ev of ['touchstart', 'touchmove']) cv.addEventListener(ev, e => { if (this.on) e.preventDefault(); }, { passive: false });      // no scrolling, no zooming, no loupe
-    // A mouse on the bar's and the notice's own buttons is a click, which the game's page already turns into an act; nothing more is needed here.
-    for (const el of root.querySelectorAll('.bar, #repEnd')) el.addEventListener('pointerdown', e => e.stopPropagation());
   }
 }
 

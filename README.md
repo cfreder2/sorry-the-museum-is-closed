@@ -88,6 +88,46 @@ against one; it stands down on stairs, ramps and lifts. Both are switches
 under Settings, Driving: with "Drive for me" off the stick is the throttle as
 well. On a keyboard or a gamepad both start off.
 
+## Secrets
+
+Everything in the building that is not a room or a picture is a secret: the
+card game, the toy stall, the picture on its easel, the hockey pond, the big
+red button, the easel in the studio, every monitor somebody left switched on,
+and a pedestal with four lit pads under the coloured roof of Griffin Court.
+Nothing says where they are. The screen counts them, "secrets 3 / 17", and
+each one found is announced.
+
+The pedestal plays a pattern of colours and you play it back; it adds one each
+time. Get five right and the roof lets go: confetti in the colours of all 126
+panes comes down the length of the court.
+
+## Playing on the thing itself
+
+A game on a monitor, the pads on the pedestal and the canvas on the easel are
+played where they are. The camera goes and stands square in front of the
+thing, as it does for a painting, with the building still round it, and what
+you touch on the glass is the monitor's screen, the pad or the canvas. Only
+the controls that have nowhere else to be (a direction pad, LEAVE, the paint
+pots) stay on the page.
+
+## Your own picture
+
+One big gilt frame hangs in the Michigan Avenue lobby, where everybody comes
+in, and it is empty: ARTWORK IN PROGRESS, it says, in a studio of the Ryan
+Learning Center. Look at it and the way to the studio lights up. At the easel
+there the button says PAINT, and you get a paint program of the old sort:
+twenty colours, four brushes, a bucket, a rubber and undo. Give it a title,
+press Hang it, and it hangs in the lobby frame. It is kept on your device and
+goes nowhere else; a new game leaves it up.
+
+## The toy stall
+
+On the roof beside the card game somebody has set up a stall under a striped
+awning. Two toys turn on their stands: a Supercar and a chrome flying wing
+called the Manta. Each costs 2,000 chips, and the only chips there are are the
+ones on the card table, where you sit down with 1,000. Pull up at the counter
+and the button says SHOP. Nothing else unlocks them.
+
 ## The outside
 
 The outside follows photographs of the building (Wikimedia Commons) and the
@@ -424,6 +464,50 @@ kind of room, add a line to the list.
   the plinth, and back, without coming near a beam, and a pattern that fails
   is dealt again.
 
+## Light switches
+
+Beside every doorway, inside the room, there is a light switch: a plate at
+the height a person wants it, and under it, at skirting height, a big rocker
+with an amber pilot lamp for people 46 cm long. Pull up to either (or hover
+there) and the action button reads LIGHTS (E on a keyboard).
+
+A gallery still wakes by itself the first time you go in; after that its
+switch puts it out, picture lamps and all, and brings it back. Every other
+room (offices, stores, plant, corridors, Griffin Court) is dark until its
+switch is thrown, and then properly lit: cooler and whiter than a gallery,
+the ceiling fittings glowing. Which rooms you left on or off is kept between
+visits; a new game forgets it. In a race the switches are dead.
+
+No lights are added to do this. Every surface in the building already glows
+a little in its own colour, and a room's working light is one more term of
+that glow, scaled by the room's level. A room's own walls, trim and boards
+take it as a uniform; the merged floors, the door surrounds and all the
+furniture carry the number of the room each vertex stands in and look the
+level up in a 512 x 1 texture. The plates and ceiling panels are instanced
+boxes, one mesh to a 32 m patch, drawn only near the camera. It is all in
+`src/lights.js`. A switch plate keeps within half a metre of its door jamb
+and never sits over a picture, a label, another doorway or furniture.
+
+## The conservation line
+
+In a conservation studio there is a long low table with a belt across the
+top. Pull up to it and the button reads REPAIR. Like the other games it is
+played on the thing itself: the camera stands over the table, paintings come
+along the belt in gilded frames, and you tap their blemishes (a scratch, a
+flake, a tear, fly specks, a water stain, yellowed varnish) before they reach
+the far end. A missed blemish and a tap on a good bit both count against you.
+Every repair makes the belt faster and the paintings busier; once ten
+blemishes have been resolved, the moment your accuracy is under 90% the shift
+is over and Human Resources asks you to return tomorrow for remedial
+training. The score is blemishes repaired in one shift. Keys work too: the
+arrows choose a blemish, Space repairs it.
+
+The paintings are real works from tonight's hang, public domain only, drawn
+from the tiny preview in the collection data and replaced by a 400 px image
+if one loads. The rules are in `src/repairgame.js` (no page, no three.js;
+they run in node) and the rest in `src/repair.js`. It is a secret, and it
+announces itself with a `museum:repair` event (`start`, `end`).
+
 ## Settings and access
 
 Settings are on the title screen and the pause menu, and are remembered.
@@ -579,6 +663,9 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/props.js              loose cones and signs, and snowmen
     src/arcade.js             the monitors with games on them: the screens in the rooms, and playing one
     src/arcadegames.js        the ten games (no three.js, no DOM)
+    src/lights.js             a light switch by every door, and each room's working lights
+    src/repair.js             the conservation line: the table in the studio, and playing it
+    src/repairgame.js         its rules (no three.js, no DOM)
     src/heist.js              the heist: the button, the beams, the clock
     src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised

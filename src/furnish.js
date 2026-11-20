@@ -1618,18 +1618,16 @@ function extra(R, kind) {
 // before the room's own recipe, with the floor kept clear from it to the aisle.
 const LINE_ROOM = /^Paintings conservation studio( \d+)?$/i;
 EXTRAS.repair = (g, r) => {
-  for (const u of [-1.2, 0, 1.2]) for (const d of [0.14, 0.56]) g.b(u - 0.025, u + 0.025, 0, 0.24, d - 0.025, d + 0.025, C.steelD, 'metal');
-  g.b(-1.28, 1.28, 0.24, 0.28, 0.08, 0.62, C.steelD, 'metal', true);                                    // the bed
-  g.b(-1.24, 1.24, 0.28, 0.294, 0.13, 0.57, C.rubber, 'matte', true);                                   // the belt
-  for (let u = -1.1; u < 1.15; u += 0.22) g.b(u - 0.012, u + 0.012, 0.294, 0.297, 0.14, 0.56, C.grey);
-  for (const u of [-1.26, 1.26]) g.c(u, 0.262, 0.35, 0.036, 0.46, 'd', C.steelL, 'metal', 8);           // a roller at each end
-  g.b(-1.28, 1.28, 0.28, 0.33, 0.08, 0.1, C.yellow); g.b(-1.28, 1.28, 0.28, 0.315, 0.6, 0.62, C.yellow);
-  picture(g, 'd', -0.86, -0.4, 0.297, 0.62, 0.33, 0.03, r); picture(g, 'd', -0.22, 0.3, 0.297, 0.7, 0.33, 0.03, r); picture(g, 'd', 0.5, 0.92, 0.297, 0.6, 0.33, 0.03, r);
-  lampArm(g, 0.05, 0.11, 0.28, 0.42, 1);
-  g.b(1.02, 1.26, 0.3, 0.5, 0.1, 0.2, C.greyL, 'metal', true); g.b(1.06, 1.1, 0.42, 0.46, 0.2, 0.203, C.led, 'glow'); g.b(1.16, 1.2, 0.42, 0.46, 0.2, 0.203, C.ledA, 'glow');      // the motor's box
-  g.b(-1.25, -0.99, 0.3, 0.42, 0.42, 0.6, C.pine, 'matte', true); for (let k = 0; k < 4; k++) g.c(-1.2 + k * 0.055, 0.46, 0.5, 0.012, 0.1, 'y', pick(r, PAINT), 'matte', 5);      // a box of brushes
-  stool(g, -1.0, 0.98, 0.3);
-  g.s(-1.3, 1.3, 0, 0.88, 0.06, 0.64);
+  for (const u of [-1.2, 0, 1.2]) for (const d of [0.14, 1.2]) g.b(u - 0.025, u + 0.025, 0, 0.24, d - 0.025, d + 0.025, C.steelD, 'metal');
+  g.b(-1.28, 1.28, 0.24, 0.292, 0.08, 1.26, C.steelD, 'metal', true);                                   // the bed; its top is the belt, which src/repair.js draws
+  for (const u of [-1.27, 1.27]) g.c(u, 0.262, 0.67, 0.036, 1.14, 'd', C.steelL, 'metal', 8);           // a roller at each end
+  g.b(-1.28, 1.28, 0.292, 0.33, 0.08, 0.11, C.yellow); g.b(-1.28, 1.28, 0.292, 0.315, 1.235, 1.26, C.yellow);
+  picture(g, 'd', -0.95, -0.45, 0.48, 0.86, 0, 0.03, r); picture(g, 'd', -0.25, 0.3, 0.46, 0.92, 0, 0.03, r); picture(g, 'd', 0.5, 0.92, 0.5, 0.84, 0, 0.03, r);      // waiting their turn, on the wall behind
+  g.b(1.29, 1.4, 0, 0.3, 0.08, 0.2, C.steelD, 'metal', true); lampArm(g, 1.345, 0.14, 0.3, 0.42, 1);                                                                 // the lamp, at the end so it is not over the belt
+  g.b(-1.4, -1.29, 0, 0.42, 0.3, 0.62, C.greyL, 'metal', true); g.b(-1.38, -1.34, 0.3, 0.34, 0.62, 0.623, C.led, 'glow'); g.b(-1.33, -1.29, 0.3, 0.34, 0.62, 0.623, C.ledA, 'glow');      // the motor's box
+  for (let k = 0; k < 3; k++) g.c(-1.37 + k * 0.03, 0.47, 0.4, 0.01, 0.1, 'y', pick(r, PAINT), 'matte', 5);                                                           // brushes in a pot on it
+  stool(g, 1.12, 1.52, 0.3);
+  g.s(-1.4, 1.4, 0, 0.36, 0.06, 1.28);
 };
 EXTRAS.repairNote = g => {
   g.b(-0.26, 0.26, 0, 0.03, 0.1, 0.44, C.steelD, 'metal', true); g.b(-0.025, 0.025, 0.03, 0.22, 0.22, 0.27, C.steelD, 'metal');

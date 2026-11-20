@@ -9,6 +9,11 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
+import { Shop } from './shop.js';
+import { Paint } from './paint.js';
+import { Secrets } from './secrets.js';
+import { Simon } from './simon.js';
+import { Stage } from './stage.js';
 import { Museum } from './museum.js';
 import { FloorMirror } from './reflect.js';
 import { Car, Drone } from './vehicles.js';
@@ -98,6 +103,10 @@ const score = G.score = new Score({
   onCall: (c, big) => stuntCall(c, big),
 });
 const trophies = G.trophies = new Trophies();
+// Standing in front of a thing to use it: the camera goes to it as it does to a painting (src/stage.js).
+const stage = G.stage = new Stage(camera, on => { if (G.vehicle) { G.vehicle.group.visible = !on; G.car.shadow.visible = !on && G.vehicle.kind === 'car'; G.drone.shadow.visible = !on && G.vehicle.kind === 'drone'; } });
+// Secrets: everything in the building that is not a room or a picture. Each one found is counted (src/secrets.js).
+const secrets = G.secrets = new Secrets({ onFind: f => { toast({ head: `Secret ${f.count} of ${f.total}`, name: f.name, sound: () => sound.lap() }); tm.event('secret', f.id); } });
 const garage = G.garage = new Garage();
 trophies.onEarn = t => { toast({ tier: t.tier, head: t.tier === 'platinum' ? 'Platinum trophy earned' : 'Trophy earned', name: t.name, sound: () => (t.tier === 'platinum' ? sound.finish() : sound.perfect()), hold: t.tier === 'platinum' ? 6500 : 4200 }); tm.event('trophy', t.id, { tier: t.tier }); };
 garage.onUnlock = v => { toast({ head: 'Vehicle unlocked', name: v.name, sound: () => sound.lap() }); tm.event('unlock', v.id); };
@@ -156,16 +165,29 @@ async function boot() {
   G.props = new Props(plan);
   scene.add(G.props.group);
   G.poker = new Poker(G.museum, plan, sound);
+  // The colour pedestal in Griffin Court: five patterns right and the roof lets go (src/simon.js).
+  G.simon = new Simon(G, { museum: G.museum, plan, sound, stage, resume: () => act('resume'), calm: () => set.reduce, onWin: () => { callout('THE ROOF LETS GO'); tm.event('simon'); } });
+  // Your own picture: an easel in a studio, and the frame in the lobby it hangs in (src/paint.js).
+  G.paint = new Paint(G, { museum: G.museum, plan, stage, resume: () => act('resume'), say, onHang: () => { tm.event('paint'); if (G.nav && G.nav.target && G.nav.target.paint) G.nav.clear(); } });
+  // The stall beside the card table: two toys for sale, for chips won at it (src/shop.js).
+  G.shop = new Shop(G, { museum: G.museum, plan, garage, poker: G.poker, sound, resume: () => act('resume'), thumb: id => garage.thumbs[id],
+    onBuy: v => { garage.sel[v.kind] = v.id; garage.shown = v.id; garage.save(); garage.apply(G.car, G.drone); tm.event('buy', v.id); } });
   G.hockey = new Hockey(G.museum, plan, sound);
   G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.arcade = new Arcade(G.museum, plan, sound);            // the monitors with games on them (src/arcade.js)
   G.heist = new Heist(G, { say, callout });                // the button in the security control room (src/heist.js)
+  // What counts as a secret. (Anything added later, by anything, raises the total.)
+  secrets.add('poker', 'The card game on the roof').add('dogs', 'A Friend in Need, on its easel').add('stall', 'The toy stall').add('hockey', 'The hockey pond')
+    .add('heist', 'The big red button').add('easel', 'The easel in the studio').add('simon', 'The colour pedestal');
+  for (const it of G.arcade.list) { secrets.add('arcade:' + it.id, `A monitor left on: ${it.Game.title || it.id}`); if (G.arcade.found.has(it.id)) secrets.found.add('arcade:' + it.id); }
+  addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'found') secrets.find('arcade:' + d.id); });
   // The side games earn trophies too.
   addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'played' || d.event === 'score') trophies.flag('arcade'); if (G.arcade && G.arcade.found && G.arcade.found.size >= G.arcade.total) trophies.flag('arcadeAll'); });
   // A light switch by every door (src/lights.js), and the conservation line in one of the studios (src/repair.js).
-  G.lights = new Lights(G.museum, plan, sound);
+  G.lights = new Lights(G.museum, plan, sound, [G.paint && G.paint.art].filter(Boolean));      // (the frame in the lobby is on a wall too)
   G.lights.onCount = (off, on) => { const f = trophies.flags; if (off > (f.lightsOff || 0) || on > (f.lightsOn || 0)) { f.lightsOff = Math.max(f.lightsOff || 0, off); f.lightsOn = Math.max(f.lightsOn || 0, on); trophies.save(); } };
-  G.repair = new Repair(G.museum, plan, sound, collection);
+  G.repair = new Repair(G.museum, plan, sound, collection, stage);
+  if (G.repair.at) secrets.add('repair', 'The conservation line');
   addEventListener('museum:repair', e => { const d = e.detail || {}; if (d.event !== 'end') return; tm.event('repair', null, { repaired: d.repaired, accuracy: Math.round(d.accuracy * 100), sent: !!d.sent }); if (d.repaired >= 50) trophies.flag('steady'); if (d.sent && d.repaired < 15) trophies.flag('remedial'); });
   addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (!d.trips) trophies.flag('ghost'); } });
   G.props.onHit = (p, sp) => {
@@ -331,6 +353,7 @@ function newGame() {
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
   G.arcade.reset();
   G.lights.reset();
+  secrets.reset();
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
@@ -726,6 +749,24 @@ function beginStudy(art) {
   sound.bell(293.66, 0, 0.05, 3.5);
 }
 
+// The dogs at their poker, on the roof: looked at like any other picture, but it is not one of the
+// museum's, so nothing about it is counted, kept in the notebook or sent anywhere.
+function lookAtEasel(art) {
+  endFlyby();
+  const brief = input.usedTouch || innerHeight <= 520, w = art.work;
+  G.study = { art, t: 0, from: camera.position.clone(), look: camLook.clone(), fov: camera.fov, label: true, wide: innerWidth > 720 ? 0.72 : 1, brief, hideAt: brief ? 6 : Infinity };
+  setLabel(true);
+  G.lamp.intensity = G.lampOn ? 14 : 0;
+  toastUntil = 0; toasts.length = 0;
+  G.state = 'study';
+  G.vehicle.group.visible = false; G.car.shadow.visible = G.drone.shadow.visible = false; G.museum.kit.visible = false; G.props.group.visible = false;
+  const el = $('label'), put = (q, text) => { const n = el.querySelector(q); if (n) n.textContent = text; };
+  put('.v', ''); put('.t', w.t); put('.a', `${w.a}, ${w.d}`); put('.m', w.m); put('.alt', w.alt); put('.g', w.g); put('.c', w.note);
+  el.querySelector('a').href = w.url || '#'; el.querySelector('a').textContent = w.url ? 'Read about it \u2197' : ''; put('.a', [w.a, w.d].filter(Boolean).join(', '));
+  el.hidden = false; $('placard').hidden = true; $('hud').classList.add('studying');
+  sound.bell(293.66, 0, 0.05, 3.5);
+}
+
 function setLabel(on) {
   const s = G.study;
   if (!s) return;
@@ -743,6 +784,7 @@ function endStudy() {
   G.lamp.intensity = G.lampOn ? 70 : 0;
   G.state = 'play';
   $('label').hidden = true;
+  $('label').querySelector('a').textContent = 'See it at artic.edu \u2197';
   $('hud').classList.remove('studying');
 }
 
@@ -812,7 +854,7 @@ function hud() {
       $('tally').innerHTML = `<span class="art">ART SEEN <b>${m.seenCount}</b> / ${m.arts.length}</span><span class="pts">ART SCORE <b>${score.score.toLocaleString()}</b></span><br>`
         + (here && here.arts.length ? `THIS ROOM <b>${here.seen}</b> / ${here.arts.length}` : 'OUTSIDE') + ` \u00b7 ROOMS <b>${rooms.filter(r => r.done).length}</b> / ${rooms.length}<br>`
         + `<span class="minor">hoops ${m.hoopsDone} / ${m.hoops.length} \u00b7 high places ${G.perched.size} / ${G.perchTotal} \u00b7 snowmen ${G.props.busted} / ${G.props.snowmen}</span>`;
-      $('tally').lastElementChild.append(` \u00b7 arcades ${G.arcade.found.size} / ${G.arcade.total}`);
+      $('tally').lastElementChild.append(` \u00b7 secrets ${secrets.count} / ${secrets.total}`);
     } else {
       const R = G.race;
       $('rLap').textContent = `LAP ${Math.min(R.lap, LAPS)}/${LAPS}`;
@@ -993,6 +1035,20 @@ function play(dt, real) {
       }
     }
     // On the roof, by the card table, the same button sits you down at it.
+    // On the roof: the toy stall, and the picture on the easel. Asked for before anything else can take the press.
+    const stallNear = !!G.shop && G.mode === 'explore' && !G.poker.near(v) && G.shop.near(v);
+    const easelNear = !stallNear && G.mode === 'explore' && !G.poker.near(v) && G.poker.facingEasel(v);
+    const shopTap = stallNear && input.took('look'), easelTap = easelNear && input.took('look');
+    // Indoors: the easel you paint at, and the frame your picture hangs in.
+    const paintNear = !!G.paint && G.mode === 'explore' && G.paint.near(v), frameNear = !!G.paint && !paintNear && G.mode === 'explore' && !G.facing && G.paint.facing(v);
+    const paintTap = (paintNear || frameNear) && input.took('look');
+    const simonNear = !!G.simon && G.mode === 'explore' && G.simon.near(v), simonTap = simonNear && input.took('look');
+    // The conservation line's bench, and the light switches (src/repair.js, src/lights.js). A switch is the last thing to have the button:
+    // after anything you have pulled up to, and after a picture to look at, unless the toy's nose is plainly at the plate.
+    G.repairNear = G.mode === 'explore' && !stallNear && !easelNear && !paintNear && !simonNear && !G.poker.near(v) ? G.repair.near(v) : null;
+    G.switchNear = calm && !(stallNear || easelNear || paintNear || frameNear || simonNear || G.repairNear || G.poker.near(v) || G.arcade.near(v) || G.heist.near(v)) ? G.lights.near(v, G.roomId) : null;
+    if (G.switchNear && G.facing && !G.switchNear.facing) G.switchNear = null;
+    const repairTap = !!G.repairNear && input.took('look'), switchTap = !!G.switchNear && input.took('look');
     G.pokerNear = G.poker.near(v);
     if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
     // A monitor with a game on it, or the button in the security control room, takes the same button.
@@ -1000,19 +1056,37 @@ function play(dt, real) {
     G.heistNear = G.pokerNear || G.arcadeNear ? null : G.heist.near(v);
     if (G.arcade.justFound) { const a = G.arcade.justFound; G.arcade.justFound = null; callout(`ARCADE ${G.arcade.found.size} / ${G.arcade.total}`); sound.lap(); say(`Somebody has left ${a.Game.title} running on an old monitor. ${input.usedTouch ? 'PLAY' : 'E'} to have a go.`, 0.3, 7); }
     if (G.heistNear) once('heist', `A big red button, and a sign: IN CASE OF HEIST. ${input.usedTouch ? 'HEIST' : 'E'} to press it.`, 7);
-    // The conservation line's bench and the light switches take the same button too. A switch has it when nothing else wants it, or when the toy's nose is plainly towards the plate.
-    const taken = G.pokerNear || G.arcadeNear || G.heistNear;
-    G.repairNear = taken ? null : G.repair.near(v);
-    G.switchNear = taken || G.repairNear || !calm ? null : G.lights.near(v, G.roomId);
-    if (G.switchNear && G.facing && !G.switchNear.facing) G.switchNear = null;
-    if (G.repairNear) once('repair', `A conveyor belt, a lamp, and a queue of paintings that need seeing to. ${input.usedTouch ? 'REPAIR' : 'E'} to clock on.`, 7);
-    if (G.switchNear) once('switch', `A light switch, with a second one at skirting height for people your size. ${input.usedTouch ? 'LIGHTS' : 'E'} works it.`, 7);
-    if ((G.repairNear || G.switchNear) && input.took('look')) { if (G.repairNear) beginRepair(); else { const on = G.lights.toggle(G.switchNear); say(on ? 'Lights on.' : 'Lights off.', 0, 1.6); } }
     $('bLook').hidden = !(G.facing || G.pokerNear || G.arcadeNear || G.heistNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : 'LOOK';
-    if (G.repairNear || G.switchNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = G.repairNear ? 'REPAIR' : 'LIGHTS'; }
-    if (G.repairNear) actPrompt('The Conservation Line', 'Paintings come down the belt. Mend what you can.', 'clock on'); else if (G.switchNear) { const on = G.lights.isOn(G.switchNear.room); actPrompt('Light switch', `${roomTitle(G.plan.byId[G.switchNear.room])} \u00b7 the lights are ${on ? 'on' : 'off'}`, on ? 'lights off' : 'lights on'); } else actPrompt();
     if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.facing) beginStudy(G.facing); }
     G.heist.update(dt, v);
+    // The toy stall on the roof.
+    if (stallNear) {
+      once('stall', 'A toy stall, up here of all places. Two for sale, 2,000 chips each. E to look.', 7);
+      $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
+      if (shopTap) G.shop.open();
+    }
+    if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
+    // Secrets are found by coming across them.
+    if (G.mode === 'explore') {
+      if (G.pokerNear) secrets.find('poker'); if (stallNear) secrets.find('stall'); if (G.heistNear) secrets.find('heist'); if (paintNear) secrets.find('easel'); if (simonNear) secrets.find('simon');
+      const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 16) secrets.find('hockey');
+    }
+    if (paintNear) { once('easel', 'An easel, and paint. Whatever you make here hangs in the lobby. E to paint.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PAINT'; if (paintTap) G.paint.open(); }
+    if (frameNear) {
+      $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK';
+      if (paintTap) { lookAtEasel(G.paint.art); const to = !G.paint.done && G.paint.studioSpot; if (to && G.nav) G.nav.goTo({ ...to, paint: true }); }      // an empty frame lights the way to the studio
+    }
+    if (easelNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (easelTap) { secrets.find('dogs'); lookAtEasel(G.poker.easel); } }
+    if (G.repairNear) {
+      secrets.find('repair'); once('repair', `A conveyor belt, a lamp, and a queue of paintings that need seeing to. ${input.usedTouch ? 'REPAIR' : 'E'} to clock on.`, 7);
+      $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'REPAIR'; actPrompt('The Conservation Line', 'Paintings come down the belt. Mend what you can.', 'clock on');
+      if (repairTap) beginRepair();
+    } else if (G.switchNear) {
+      once('switch', `A light switch, with a second one at skirting height for people your size. ${input.usedTouch ? 'LIGHTS' : 'E'} works it.`, 7);
+      if (switchTap) say(G.lights.toggle(G.switchNear) ? 'Lights on.' : 'Lights off.', 0, 1.6);
+      const lit = G.lights.isOn(G.switchNear.room);
+      $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LIGHTS'; actPrompt('Light switch', `${roomTitle(G.plan.byId[G.switchNear.room])} \u00b7 the lights are ${lit ? 'on' : 'off'}`, lit ? 'lights off' : 'lights on');
+    } else actPrompt();
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -1029,8 +1103,8 @@ function play(dt, real) {
 }
 
 // A go on one of the monitors: the world waits while you play (src/arcade.js runs the game).
-function beginArcade(a) { endFlyby(); G.state = 'arcade'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.arcade.open(a); tm.event('arcade', a.id); }
-function endArcade() { G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
+function beginArcade(a) { endFlyby(); G.state = 'arcade'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.arcade.open(a); stage.enter(G.arcade.surface(a), { el: $('arcScreen'), fill: 0.74 }); $('arcade').classList.add('inworld'); tm.event('arcade', a.id); }
+function endArcade() { stage.leave(); $('arcade').classList.remove('inworld'); G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
 // While the action button belongs to a light switch or to the conservation line, the card at the foot of the screen says so
 // (it is what a keyboard player reads to know what E will do); afterwards it goes back to the work in front of you, if there is one.
 const roomTitle = r => (r.kind === 'hall' ? 'Griffin Court' : r.kind === 'corridor' ? 'Gallery 11' : String(r.gallery || 'This room').replace(/^Galleries /, 'Gallery '));
@@ -1045,7 +1119,8 @@ function actPrompt(title, sub, verb) {
   el.querySelector('.hint span').textContent = title ? verb : 'look closer';
 }
 // A shift on the conservation line: the world waits here too (src/repair.js runs it).
-function beginRepair() { endFlyby(); actPrompt(); G.state = 'repair'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.repair.open(); }
+// Like the monitors, it is played on the thing itself: the camera stands over the bench and the belt is the bench's top.
+function beginRepair() { endFlyby(); actPrompt(); G.state = 'repair'; $('hud').classList.add('studying', 'atcards'); $('placard').hidden = true; G.repair.open(); tm.event('repairline'); }
 function endRepair() { G.state = 'play'; $('hud').classList.remove('studying', 'atcards'); canvas.focus({ preventScroll: true }); }
 // The button in the security control room: the world waits while the job is explained (src/heist.js).
 function beginHeist(c) { endFlyby(); if (G.heist.brief(c)) { G.state = 'heist'; $('placard').hidden = true; } }
@@ -1143,7 +1218,7 @@ function tick(now) {
     }
     sound.update(G.vehicle, false);
   } else if (G.state === 'arcade') {
-    if (!G.arcade.on) endArcade(); else G.arcade.frame(dt);
+    if (!G.arcade.on) endArcade(); else { G.arcade.frame(dt); G.arcade.show(); }
     sound.update(G.vehicle, false);
   } else if (G.state === 'repair') {
     if (!G.repair.on) endRepair(); else G.repair.frame(dt);
@@ -1157,10 +1232,14 @@ function tick(now) {
   }
   input.endFrame();
   if (G.poker && G.state !== 'paused' && G.state !== 'results') G.poker.update(dt, G.t, set.reduce);
+  if (G.shop && G.state !== 'results') G.shop.update(dt);
+  if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
+  if (G.paint && G.paint.on) G.paint.update();
   // Jingle Bells from the courtyard tree, louder as you come nearer.
   if (G.plan && G.state !== 'paused' && G.state !== 'results') { const tr = G.plan.grounds.tree, lp = G.state === 'title' ? camera.position : G.vehicle.pos; sound.carol(G.mode === 'race' && G.state !== 'title' ? 999 : Math.hypot(lp.x - tr.x, lp.z - tr.z) + Math.max(0, lp.y - 12)); }
-  if (G.state === 'repair') return;                      // and so does the conservation line
-  if (G.state === 'arcade') return;                      // the game on the monitor covers the screen: nothing behind it needs drawing
+  // A game being played on something in the building: the camera stands in front of it, and the building is drawn round it.
+  if (stage.on && (G.state === 'arcade' || G.state === 'repair' || G.state === 'paused')) { stage.update(dt); composer.render(); return; }
+  if (G.state === 'arcade' || G.state === 'repair') return;
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);

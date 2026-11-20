@@ -9,9 +9,33 @@ import { buildCar, buildDrone } from './vehicles.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
 const paintOf = c => std(c, { roughness: 0.3, emissive: c, emissiveIntensity: 0.12 });
+// Polished chrome. A mirror needs something to reflect, so it is given a night to look at: a dark
+// sky, a band of city lights, the warm lamps of the galleries and the colours of Griffin Court's
+// roof, painted once onto a panorama. It is not the room you are in, but it moves the way one would.
+let _night = null;
+function night() {
+  if (_night || typeof document === 'undefined') return _night;
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512;
+  const c = cv.getContext('2d'), sky = c.createLinearGradient(0, 0, 0, 512);
+  sky.addColorStop(0, '#1a1050'); sky.addColorStop(0.2, '#3a2a9a'); sky.addColorStop(0.4, '#c040b0'); sky.addColorStop(0.5, '#ffb060'); sky.addColorStop(0.53, '#6a3a20'); sky.addColorStop(0.75, '#2a2440'); sky.addColorStop(1, '#101020');
+  c.fillStyle = sky; c.fillRect(0, 0, 1024, 512);
+  let k = 11; const rnd = () => ((k = (k * 1103515245 + 12345) >>> 0) / 4294967296);
+  const lamp = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); };
+  // Broad bands of the roof's colours right round the sky, so that every curve picks one up.
+  const GEL = ['#ffe14a', '#ff9a2d', '#ff4a3c', '#ff40c8', '#a050ff', '#4a5aff', '#30b0ff', '#40f0e0', '#70e060', '#fff0c0'];
+  for (let i = 0; i < 20; i++) lamp(26 + i * 51.2, 70 + (i % 4) * 44, 78, GEL[i % GEL.length]);
+  for (let i = 0; i < 12; i++) lamp(40 + i * 86, 330 + (i % 3) * 46, 90, GEL[(i * 3 + 2) % GEL.length]);                    // and their light off the floor
+  for (let i = 0; i < 320; i++) { c.fillStyle = `rgba(255,255,255,${0.5 + rnd() * 0.5})`; c.fillRect(rnd() * 1024, rnd() * 200, 2, 2); }                          // stars
+  for (let i = 0; i < 900; i++) { c.fillStyle = ['#ffe9a0', '#ffffff', '#a8dcff', '#ffc27a', '#ff8ad8'][i % 5]; c.fillRect(rnd() * 1024, 226 + rnd() * 44, 3, 3 + rnd() * 4); }   // the city
+  lamp(512, 64, 110, 'rgba(255,255,255,1)'); lamp(512, 64, 40, 'rgba(255,255,255,1)');   // the moon, and a hard white glint
+  lamp(120, 250, 60, 'rgba(255,255,255,.9)'); lamp(860, 250, 60, 'rgba(255,255,255,.9)');
+  const t = new THREE.CanvasTexture(cv); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  return (_night = t);
+}
+const mirror = () => new THREE.MeshStandardMaterial({ color: 0xf4f7ff, metalness: 1, roughness: 0.02, envMap: night(), envMapIntensity: 2.6 });
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-const cyl = (r0, r1, h, n = 12) => new THREE.CylinderGeometry(r0, r1, h, n);
+const cyl = (r0, r1, h, n = 12, hs = 1, open = false) => new THREE.CylinderGeometry(r0, r1, h, n, hs, open);
 const ball = (r, w = 10, h = 8) => new THREE.SphereGeometry(r, w, h);
 function part(geo, mat, x, y, z, parent) {
   const m = new THREE.Mesh(geo, mat);
@@ -28,10 +52,12 @@ export const VEHICLES = [
   { id: 'rally', kind: 'car', name: 'Rally Hatch', hint: 'Turns in sharply and holds a line on marble.', need: 40, spec: { top: 1.04, grip: 1.3, steer: 1.1 } },
   { id: 'racer', kind: 'car', name: 'Grand Prix', hint: 'Low, quick and nervous. Hops a little lower.', need: 100, spec: { top: 1.1, accel: 1.12, grip: 1.1, steer: 1.05, jump: 0.94 } },
   { id: 'van', kind: 'car', name: 'Art Van', hint: 'The art handlers’ van. Steady, and in no hurry.', trophy: 'dock', how: 'Find the loading dock', spec: { top: 0.96, accel: 0.95, grip: 1.1, steer: 0.95, jump: 1.05 } },
+  { id: 'super', kind: 'car', name: 'Supercar', hint: 'Low, wide and far too fast for a museum.', shop: 2000, how: 'For sale at the stall by the card game', spec: { top: 1.16, accel: 1.2, grip: 1.25, steer: 1.08, jump: 0.96 } },
   { id: 'quad', kind: 'drone', name: 'RC Drone', hint: 'Goes up to the glass. Meets a painting eye to eye.', need: 0, spec: {} },
   { id: 'hex', kind: 'drone', name: 'Hexacopter', hint: 'Six rotors. Climbs hard, turns steadily.', need: 25, spec: { accel: 0.95, climb: 1.2, yaw: 0.95 } },
   { id: 'airship', kind: 'drone', name: 'Airship', hint: 'Drifts. Good for standing off from a large canvas.', need: 60, spec: { accel: 0.82, climb: 0.85, yaw: 0.85 } },
   { id: 'fpv', kind: 'drone', name: 'Racing Quad', hint: 'Small and sharp. Quicker in every direction.', trophy: 'bullet', how: 'Land a Stunt Look in slow motion', spec: { accel: 1.15, climb: 1.12, yaw: 1.2 } },
+  { id: 'manta', kind: 'drone', name: 'Manta', hint: 'A ray in polished chrome. Everything round it slides across it.', shop: 2000, how: 'For sale at the stall by the card game', spec: { accel: 1.12, climb: 1.1, yaw: 1.12 } },
 ];
 const BY_ID = Object.fromEntries(VEHICLES.map(v => [v.id, v]));
 
@@ -134,6 +160,34 @@ const CARS = {
     const aerial = aerialOn(body, 0, 0.17, -0.07, 0.14, glow(1.3, 0.9, 0.1));
     return { group: g, body, wheels, aerial };
   },
+  // The supercar: a low wedge, wide at the hips, a wing, and a strip of light underneath.
+  super() {
+    const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
+    g.add(body);
+    const paint = std(0xff5a12, { roughness: 0.18, metalness: 0.55, emissive: 0xff3a00, emissiveIntensity: 0.16 }), carbon = std(0x0b0b0d, { roughness: 0.45, metalness: 0.3 }), glass = std(0x0a1622, { roughness: 0.06, metalness: 0.9 }), rim = std(0xd8dade, { metalness: 0.9, roughness: 0.2 });
+    part(box(0.2, 0.012, 0.45), carbon, 0, 0.03, 0, body);                                // the floor and splitter
+    part(box(0.19, 0.034, 0.3), paint, 0, 0.056, -0.03, body);                            // the tub
+    const nose = part(box(0.17, 0.026, 0.15), paint, 0, 0.05, 0.155, body); nose.rotation.x = 0.16;          // a nose that falls away
+    for (const s of [-1, 1]) { const f = part(box(0.05, 0.03, 0.13), paint, s * 0.085, 0.066, 0.13, body); f.rotation.x = 0.1; }      // front wings over the wheels
+    for (const s of [-1, 1]) part(box(0.062, 0.05, 0.16), paint, s * 0.092, 0.078, -0.13, body);            // the hips
+    for (const s of [-1, 1]) part(box(0.012, 0.03, 0.07), carbon, s * 0.124, 0.07, -0.045, body);           // side intakes
+    const screen = part(box(0.14, 0.006, 0.1), glass, 0, 0.098, 0.045, body); screen.rotation.x = 0.42;      // a windscreen laid right back
+    part(box(0.132, 0.03, 0.1), glass, 0, 0.098, -0.035, body);                           // the canopy
+    part(box(0.12, 0.008, 0.09), paint, 0, 0.116, -0.04, body);                           // its roof
+    const deck = part(box(0.13, 0.006, 0.12), glass, 0, 0.1, -0.135, body); deck.rotation.x = -0.2;          // glass over the engine
+    for (let i = 0; i < 4; i++) { const l = part(box(0.11, 0.004, 0.01), carbon, 0, 0.106 - i * 0.005, -0.1 - i * 0.022, body); l.rotation.x = -0.2; }   // louvres
+    for (const s of [-1, 1]) part(box(0.008, 0.05, 0.04), carbon, s * 0.085, 0.125, -0.2, body);            // wing posts
+    part(box(0.23, 0.007, 0.06), carbon, 0, 0.152, -0.205, body);                         // the wing
+    for (const s of [-1, 1]) part(box(0.006, 0.026, 0.065), paint, s * 0.116, 0.148, -0.205, body);         // its end plates
+    part(box(0.19, 0.03, 0.02), carbon, 0, 0.05, -0.222, body);                           // the diffuser
+    for (const x of [-0.045, -0.015, 0.015, 0.045]) { const e = part(cyl(0.008, 0.008, 0.02, 8), rim, x, 0.06, -0.232, body); e.rotation.x = Math.PI / 2; }   // four exhausts
+    part(box(0.17, 0.008, 0.006), glow(3.2, 0.12, 0.08), 0, 0.082, -0.226, body);         // a tail light bar right across
+    for (const s of [-1, 1]) { const h = part(box(0.04, 0.006, 0.02), glow(4, 3.8, 3.2), s * 0.07, 0.066, 0.222, body); h.rotation.y = -s * 0.3; }      // slit headlamps
+    part(box(0.16, 0.004, 0.36), glow(0.1, 1.8, 2.6), 0, 0.02, 0, body);                  // the glow underneath
+    for (const [x, z, r, w, f] of [[-0.098, 0.135, 0.046, 0.04, true], [0.098, 0.135, 0.046, 0.04, true], [-0.1, -0.135, 0.052, 0.052, false], [0.1, -0.135, 0.052, 0.052, false]]) wheel(g, wheels, x, z, r, w, f, rim, 10);
+    const aerial = aerialOn(body, 0.05, 0.12, -0.07, 0.1, glow(0.1, 1.8, 2.6));
+    return { group: g, body, wheels, aerial };
+  },
   // The art handlers' van: a white box, a stripe, a beacon on the roof.
   van() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
@@ -206,6 +260,34 @@ const DRONES = {
     part(ball(0.008, 6, 5), glow(3, 3, 3), 0, -0.07, -0.2, body);
     return { group: g, body, props };
   },
+  // The Manta: a ray in polished chrome. Everything on it is curved, so that everything round it
+  // slides over it as it turns: four fans buried in the wings, a whip of a tail, and a line of
+  // light under each leading edge.
+  manta() {
+    const g = new THREE.Group(), body = new THREE.Group(), props = [];
+    g.add(body);
+    const chrome = mirror(), dark = std(0x050608, { roughness: 0.5 }), edge = glow(0.15, 2.4, 3.4), glass = std(0x02060c, { roughness: 0.02, metalness: 1, envMap: chrome.envMap, envMapIntensity: 1.2 });
+    const blob = (sx, sy, sz, x, y, z, m = chrome) => { const k = part(ball(1, 28, 18), m, x, y, z, body); k.scale.set(sx, sy, sz); return k; };
+    blob(0.062, 0.024, 0.2, 0, 0, 0.012);                                                 // the spine, nose to tail
+    blob(0.03, 0.016, 0.06, 0, 0.018, 0.085, glass);                                      // a black glass canopy
+    for (const s of [-1, 1]) {
+      const wing = blob(0.165, 0.009, 0.1, s * 0.105, 0.002, -0.012); wing.rotation.y = s * 0.36; wing.rotation.z = -s * 0.07;      // the wing: a flattened drop, swept back, with a little droop
+      const tip = blob(0.05, 0.006, 0.05, s * 0.232, 0.014, -0.07); tip.rotation.y = s * 0.7; tip.rotation.z = s * 0.5;             // and a tip that curls up
+      const horn = blob(0.012, 0.01, 0.045, s * 0.034, 0.002, 0.196); horn.rotation.y = -s * 0.25;                                  // the two lobes either side of the mouth
+      const le = part(box(0.2, 0.0025, 0.004), edge, s * 0.11, -0.006, 0.058, body); le.rotation.y = s * 0.36;                       // light under the leading edge
+      part(ball(0.006, 8, 6), s > 0 ? glow(0.2, 3, 0.4) : glow(3, 0.15, 0.1), s * 0.262, 0.03, -0.092, body);                       // a lamp on each tip
+    }
+    const tail = part(cyl(0.006, 0.0012, 0.2, 8), chrome, 0, 0.004, -0.27, body); tail.rotation.x = Math.PI / 2 + 0.06;              // the whip
+    part(ball(0.006, 8, 6), glow(3.2, 0.2, 0.3), 0, 0.016, -0.37, body);
+    part(ball(0.011), glass, 0, -0.014, 0.17, body);                                      // the eye underneath
+    for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+      const x = sx * (sz > 0 ? 0.088 : 0.135), z = sz > 0 ? 0.03 : -0.055, r = sz > 0 ? 0.04 : 0.036;
+      const lip = part(new THREE.TorusGeometry(r + 0.004, 0.005, 8, 24), chrome, x, 0.01, z, body); lip.rotation.x = Math.PI / 2;    // a polished lip round each fan
+      const well = part(cyl(r, r, 0.012, 20, 1, true), dark, x, 0.004, z, body); well.material.side = THREE.DoubleSide;
+      rotor(body, props, x, 0.008, z, r - 0.003, sx * sz, dark, 0x58d8ff);
+    }
+    return { group: g, body, props };
+  },
   // A racing quad: a bare frame, a canopy, a camera tipped up.
   fpv() {
     const g = new THREE.Group(), body = new THREE.Group(), props = [];
@@ -267,10 +349,12 @@ export class Garage {
   save() { try { localStorage.setItem(KEY, JSON.stringify({ open: [...this.open], sel: this.sel, kind: this.kind })); } catch { /* fine */ } }
 
   get(id) { return BY_ID[id]; }
+  /** Bought at the stall. */
+  buy(id) { const v = BY_ID[id]; if (!v || this.open.has(id)) return false; this.open.add(id); this.save(); if (this.onUnlock) this.onUnlock(v); return true; }
   isOpen(id) { return this.open.has(id); }
   /** What still has to be done for a locked one. */
   lockText(v) {
-    if (v.trophy) return v.how;
+    if (v.trophy || v.shop) return v.how;
     const n = Math.max(1, v.need - this.seen);
     return `See ${n} more work${n === 1 ? '' : 's'}`;
   }
@@ -281,7 +365,7 @@ export class Garage {
     this.seen = seen; this.trophies = trophies || this.trophies;
     let any = false;
     for (const v of VEHICLES) {
-      if (this.open.has(v.id) || !(v.trophy ? this.trophies.has(v.trophy) : seen >= v.need)) continue;
+      if (this.open.has(v.id) || v.shop || !(v.trophy ? this.trophies.has(v.trophy) : seen >= v.need)) continue;      // what is for sale is only ever bought
       this.open.add(v.id); any = true;
       if (!quiet && this.onUnlock) this.onUnlock(v);
     }
