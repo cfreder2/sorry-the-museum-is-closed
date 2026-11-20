@@ -9,6 +9,31 @@ import { buildCar, buildDrone } from './vehicles.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
 const paintOf = c => std(c, { roughness: 0.3, emissive: c, emissiveIntensity: 0.12 });
+const P = m => { m.name = 'paint'; return m; };       // the one a can of spray paint goes on (see PAINTS, below)
+
+// Spray paint, by the can, from the vending machines (src/vending.js). A colour bought is kept for good and can
+// be put on the body of any toy: the main panels only, the trim and the glass stay as they were made.
+export const PAINTS = [
+  ['signal', 'Signal Red', 0xd2261c], ['tangerine', 'Tangerine', 0xf07a14], ['taxi', 'Taxi Yellow', 0xf2c21b], ['lime', 'Lime', 0x9ad82e], ['racing', 'Racing Green', 0x12683a], ['teal', 'Teal', 0x13908c],
+  ['sky', 'Sky Blue', 0x4aa8e8], ['cobalt', 'Cobalt', 0x1e4fc8], ['midnight', 'Midnight', 0x18204a], ['violet', 'Violet', 0x7a3ad0], ['magenta', 'Magenta', 0xd81e8a], ['rose', 'Rose', 0xf08aa8],
+  ['cream', 'Gallery Cream', 0xefe6cf], ['white', 'Plaster White', 0xf4f4f0], ['silver', 'Silver', 0xb4bcc6], ['graphite', 'Graphite', 0x3a3e46], ['black', 'Piano Black', 0x101114], ['chocolate', 'Chocolate', 0x5a341c],
+  ['gold', 'Gilt Frame', 0xd8a838], ['bronze', 'Lion Bronze', 0x4fa596], ['brick', 'Brick', 0x9a3e2a], ['olive', 'Olive', 0x6a7030], ['mint', 'Mint', 0x9fe0c0], ['lilac', 'Lilac', 0xb9a4e6],
+  ['coral', 'Coral', 0xff6f5a], ['mustard', 'Mustard', 0xc89a1c], ['ultramarine', 'Ultramarine', 0x2a2ad8], ['forest', 'Forest', 0x1f4a2a], ['plum', 'Plum', 0x5a1e4a], ['ice', 'Ice', 0xcfeaf6],
+].map(([id, name, hex]) => ({ id, name, hex }));
+const PAINT_OF = Object.fromEntries(PAINTS.map(p => [p.id, p]));
+/** Put a colour on a toy's body, or (null) give it back its own. */
+export function repaint(body, hex) {
+  if (!body) return false;
+  let m = body.userData.paintMat;
+  if (m === undefined) { m = null; body.traverse(o => { if (!m && o.isMesh && o.material && o.material.name === 'paint') m = o.material; }); body.userData.paintMat = m; if (m) m.userData.base = { color: m.color.clone(), emissive: m.emissive ? m.emissive.clone() : null }; }
+  if (!m) return false;
+  const b = m.userData.base;
+  if (hex == null) { m.color.copy(b.color); if (b.emissive) m.emissive.copy(b.emissive); return true; }
+  m.color.set(hex);
+  if (m.userData.chrome) m.color.lerp(new THREE.Color(1, 1, 1), 0.2);                       // still a mirror, tinted
+  else if (b.emissive && (b.emissive.r + b.emissive.g + b.emissive.b) > 0.01) m.emissive.set(hex);
+  return true;
+}
 // Polished chrome. A mirror needs something to reflect, so it is given a night to look at: a dark
 // sky, a band of city lights, the warm lamps of the galleries and the colours of Griffin Court's
 // roof, painted once onto a panorama. It is not the room you are in, but it moves the way one would.
@@ -98,7 +123,7 @@ const CARS = {
   truck() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = paintOf(0x1e63c8), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xcfd4da, { metalness: 0.85, roughness: 0.25 }), flame = paintOf(0xf2a116);
+    const paint = P(paintOf(0x1e63c8)), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xcfd4da, { metalness: 0.85, roughness: 0.25 }), flame = paintOf(0xf2a116);
     part(box(0.16, 0.03, 0.4), black, 0, 0.15, 0, body);                                  // frame, high off the floor
     for (const z of [0.14, -0.14]) part(box(0.3, 0.02, 0.025), chrome, 0, 0.095, z, body); // axles
     for (const s of [-1, 1]) for (const z of [0.14, -0.14]) { const sh = part(cyl(0.008, 0.008, 0.09, 6), flame, s * 0.07, 0.125, z, body); sh.rotation.z = s * 0.5; }
@@ -122,7 +147,7 @@ const CARS = {
   rally() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = paintOf(0xf1f1ee), blue = paintOf(0x1746a8), red = paintOf(0xd3202a), black = std(0x0c0c0e, { roughness: 0.7 }), white = std(0xf4f4f4, { roughness: 0.4 });
+    const paint = P(paintOf(0xf1f1ee)), blue = paintOf(0x1746a8), red = paintOf(0xd3202a), black = std(0x0c0c0e, { roughness: 0.7 }), white = std(0xf4f4f4, { roughness: 0.4 });
     part(box(0.2, 0.02, 0.42), black, 0, 0.055, 0, body);
     part(box(0.205, 0.06, 0.41), paint, 0, 0.095, 0, body);                               // tub
     const hood = part(box(0.19, 0.02, 0.13), paint, 0, 0.13, 0.135, body); hood.rotation.x = 0.12;
@@ -144,7 +169,7 @@ const CARS = {
   racer() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = paintOf(0x0f6b3a), black = std(0x0c0c0e, { roughness: 0.7 }), gold = paintOf(0xe7b43a), white = std(0xf4f4f4, { roughness: 0.4 });
+    const paint = P(paintOf(0x0f6b3a)), black = std(0x0c0c0e, { roughness: 0.7 }), gold = paintOf(0xe7b43a), white = std(0xf4f4f4, { roughness: 0.4 });
     part(box(0.085, 0.045, 0.3), paint, 0, 0.075, -0.03, body);                           // the tub
     const nose = part(box(0.05, 0.03, 0.17), paint, 0, 0.065, 0.165, body); nose.rotation.x = 0.1;
     part(box(0.27, 0.008, 0.055), gold, 0, 0.035, 0.225, body);                           // front wing
@@ -169,7 +194,7 @@ const CARS = {
   xmas() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const red = paintOf(0xc4161c), white = std(0xf6f4ee, { roughness: 0.6, emissive: 0xf6f4ee, emissiveIntensity: 0.12 }), green = paintOf(0x1c7a3a), gold = std(0xe2be5a, { roughness: 0.4, metalness: 0.5, emissive: 0x6a5216, emissiveIntensity: 0.6 }), dark = std(0x0c0c0e, { roughness: 0.7 });
+    const red = P(paintOf(0xc4161c)), white = std(0xf6f4ee, { roughness: 0.6, emissive: 0xf6f4ee, emissiveIntensity: 0.12 }), green = paintOf(0x1c7a3a), gold = std(0xe2be5a, { roughness: 0.4, metalness: 0.5, emissive: 0x6a5216, emissiveIntensity: 0.6 }), dark = std(0x0c0c0e, { roughness: 0.7 });
     part(box(0.2, 0.05, 0.4), red, 0, 0.085, 0, body);                                    // the chassis
     part(box(0.19, 0.06, 0.14), red, 0, 0.14, 0.02, body);                                // the cab
     part(box(0.2, 0.012, 0.15), white, 0, 0.176, 0.02, body);                             // snow on its roof
@@ -205,7 +230,7 @@ const CARS = {
   super() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = std(0xff5a12, { roughness: 0.18, metalness: 0.55, emissive: 0xff3a00, emissiveIntensity: 0.16 }), carbon = std(0x0b0b0d, { roughness: 0.45, metalness: 0.3 }), glass = std(0x0a1622, { roughness: 0.06, metalness: 0.9 }), rim = std(0xd8dade, { metalness: 0.9, roughness: 0.2 });
+    const paint = P(std(0xff5a12, { roughness: 0.18, metalness: 0.55, emissive: 0xff3a00, emissiveIntensity: 0.16 })), carbon = std(0x0b0b0d, { roughness: 0.45, metalness: 0.3 }), glass = std(0x0a1622, { roughness: 0.06, metalness: 0.9 }), rim = std(0xd8dade, { metalness: 0.9, roughness: 0.2 });
     part(box(0.2, 0.012, 0.45), carbon, 0, 0.03, 0, body);                                // the floor and splitter
     part(box(0.19, 0.034, 0.3), paint, 0, 0.056, -0.03, body);                            // the tub
     const nose = part(box(0.17, 0.026, 0.15), paint, 0, 0.05, 0.155, body); nose.rotation.x = 0.16;          // a nose that falls away
@@ -233,7 +258,7 @@ const CARS = {
   van() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = paintOf(0xf2efe6), black = std(0x0c0c0e, { roughness: 0.7 }), stripe = paintOf(0xd9622b), grey = std(0x8d9299, { roughness: 0.5, metalness: 0.4 });
+    const paint = P(paintOf(0xf2efe6)), black = std(0x0c0c0e, { roughness: 0.7 }), stripe = paintOf(0xd9622b), grey = std(0x8d9299, { roughness: 0.5, metalness: 0.4 });
     part(box(0.2, 0.02, 0.42), black, 0, 0.06, 0, body);
     part(box(0.21, 0.175, 0.3), paint, 0, 0.16, -0.055, body);                            // the box
     part(box(0.205, 0.09, 0.115), paint, 0, 0.117, 0.15, body);                           // the cab
@@ -267,7 +292,7 @@ const DRONES = {
   hex() {
     const g = new THREE.Group(), body = new THREE.Group(), props = [];
     g.add(body);
-    const shell = paintOf(0xe2701c), dark = std(0x121316, { roughness: 0.6 });
+    const shell = P(paintOf(0xe2701c)), dark = std(0x121316, { roughness: 0.6 });
     part(cyl(0.062, 0.07, 0.036, 6), shell, 0, 0, 0, body);
     part(cyl(0.035, 0.05, 0.022, 6), dark, 0, 0.028, 0, body);
     part(ball(0.022), std(0x05070a, { roughness: 0.1, metalness: 0.8 }), 0, -0.03, 0.04, body);            // the camera
@@ -285,7 +310,7 @@ const DRONES = {
   airship() {
     const g = new THREE.Group(), body = new THREE.Group(), props = [];
     g.add(body);
-    const skin = paintOf(0xefe7d2), red = paintOf(0xc22a23), dark = std(0x121316, { roughness: 0.6 });
+    const skin = P(paintOf(0xefe7d2)), red = paintOf(0xc22a23), dark = std(0x121316, { roughness: 0.6 });
     const env = part(ball(1, 18, 12), skin, 0, 0.03, 0, body); env.scale.set(0.105, 0.098, 0.235);
     const band = part(ball(1, 18, 12), red, 0, 0.03, 0.005, body); band.scale.set(0.107, 0.1, 0.05);          // a band round the middle
     const nose = part(ball(1, 12, 10), red, 0, 0.03, 0.19, body); nose.scale.set(0.045, 0.043, 0.05);
@@ -307,7 +332,7 @@ const DRONES = {
   manta() {
     const g = new THREE.Group(), body = new THREE.Group(), props = [];
     g.add(body);
-    const chrome = mirror(), dark = std(0x050608, { roughness: 0.5 }), edge = glow(0.15, 2.4, 3.4), glass = std(0x02060c, { roughness: 0.02, metalness: 1, envMap: chrome.envMap, envMapIntensity: 1.2 });
+    const chrome = P(mirror()), dark = std(0x050608, { roughness: 0.5 }), edge = glow(0.15, 2.4, 3.4), glass = std(0x02060c, { roughness: 0.02, metalness: 1, envMap: chrome.envMap, envMapIntensity: 1.2 });
     const blob = (sx, sy, sz, x, y, z, m = chrome) => { const k = part(ball(1, 28, 18), m, x, y, z, body); k.scale.set(sx, sy, sz); return k; };
     blob(0.062, 0.024, 0.2, 0, 0, 0.012);                                                 // the spine, nose to tail
     blob(0.03, 0.016, 0.06, 0, 0.018, 0.085, glass);                                      // a black glass canopy
@@ -333,7 +358,7 @@ const DRONES = {
   fpv() {
     const g = new THREE.Group(), body = new THREE.Group(), props = [];
     g.add(body);
-    const lime = paintOf(0xa6e22e), dark = std(0x121316, { roughness: 0.6 }), pink = paintOf(0xff3d8b);
+    const lime = P(paintOf(0xa6e22e)), dark = std(0x121316, { roughness: 0.6 }), pink = paintOf(0xff3d8b);
     for (const s of [-1, 1]) { const arm = part(box(0.3, 0.008, 0.03), dark, 0, 0, 0, body); arm.rotation.y = s * Math.PI / 4; }      // an X of carbon
     part(box(0.05, 0.012, 0.13), dark, 0, 0.008, 0, body);
     const pod = part(box(0.044, 0.03, 0.09), lime, 0, 0.03, 0.005, body); pod.rotation.x = -0.18;            // canopy
@@ -357,7 +382,7 @@ const DRONES = {
 export function buildSaucer() {
   const g = new THREE.Group(), body = new THREE.Group(), props = [];
   g.add(body);
-  const metal = std(0xb9c2c8, { roughness: 0.22, metalness: 0.85, emissive: 0x39424a, emissiveIntensity: 0.55 }), dark = std(0x23282e, { roughness: 0.5, metalness: 0.6 });
+  const metal = P(std(0xb9c2c8, { roughness: 0.22, metalness: 0.85, emissive: 0x39424a, emissiveIntensity: 0.55 })), dark = std(0x23282e, { roughness: 0.5, metalness: 0.6 });
   const top = part(ball(0.17, 20, 10), metal, 0, 0, 0, body); top.scale.set(1, 0.2, 1);
   part(cyl(0.172, 0.172, 0.012, 24), dark, 0, 0, 0, body);                                        // the rim
   const under = part(cyl(0.07, 0.13, 0.03, 20), metal, 0, -0.03, 0, body);
@@ -412,17 +437,21 @@ export class Garage {
     this.thumbs = {};
     this.on = { car: null, drone: null };             // which body each toy is wearing
     this.onUnlock = null;                             // (vehicle) when one unlocks
+    this.paints = new Set(); this.coat = {};          // cans of paint owned, and which is on which toy
+    this.toys = { car: null, drone: null };
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (s) {
         for (const id of s.open || []) if (BY_ID[id]) this.open.add(id);
         for (const k of ['car', 'drone']) if (s.sel && BY_ID[s.sel[k]] && BY_ID[s.sel[k]].kind === k && this.open.has(s.sel[k])) this.sel[k] = s.sel[k];
         if (s.kind === 'drone') this.kind = 'drone';
+        for (const id of s.paints || []) if (PAINT_OF[id]) this.paints.add(id);
+        for (const [v, c] of Object.entries(s.coat || {})) if (BY_ID[v] && this.paints.has(c)) this.coat[v] = c;
       }
     } catch { /* no storage */ }
     this.shown = this.sel[this.kind];
   }
-  save() { try { localStorage.setItem(KEY, JSON.stringify({ open: [...this.open], sel: this.sel, kind: this.kind })); } catch { /* fine */ } }
+  save() { try { localStorage.setItem(KEY, JSON.stringify({ open: [...this.open], sel: this.sel, kind: this.kind, paints: [...this.paints], coat: this.coat })); } catch { /* fine */ } }
 
   get(id) { return BY_ID[id]; }
   /** Bought at the stall. */
@@ -477,7 +506,15 @@ export class Garage {
       toy.reskin(buildVehicle(id), BY_ID[id].spec);
       this.on[kind] = id;
     }
+    this.toys = { car: car || this.toys.car, drone: drone || this.toys.drone };
+    this.recoat();
   }
+  /** A can bought. True if it is new. */
+  ownPaint(id) { if (!PAINT_OF[id] || this.paints.has(id)) return false; this.paints.add(id); this.save(); return true; }
+  /** Which colour a toy wears (null: its own), and putting one on it. */
+  coatOf(vehicle) { const c = this.coat[vehicle]; return c && this.paints.has(c) ? PAINT_OF[c] : null; }
+  setCoat(vehicle, id) { if (id && this.paints.has(id)) this.coat[vehicle] = id; else delete this.coat[vehicle]; this.save(); this.recoat(); this.show(); }
+  recoat() { for (const kind of ['car', 'drone']) { const toy = this.toys[kind], id = this.on[kind] || (kind === 'car' ? 'buggy' : 'quad'); if (toy && id) { const c = this.coatOf(id); repaint(toy.body, c ? c.hex : null); } } }
 
   /** A small picture of each toy for the title screen, drawn once with the game's own renderer. */
   portraits(renderer) {
@@ -530,6 +567,15 @@ export class Garage {
     $('gNote').textContent = open ? (this.statText(v) || 'Balanced.') : this.lockText(v);
     const i = VEHICLES.indexOf(v);
     $('gCount').textContent = `${i + 1} / ${VEHICLES.length} · ${this.open.size} unlocked`;
+    // The cans you own, as a row of swatches under the picture: tap one to put it on this toy. (None until one is bought.)
+    let row = $('gPaint');
+    if (!row) { row = document.createElement('div'); row.id = 'gPaint'; row.setAttribute('role', 'group'); row.setAttribute('aria-label', 'Body colour'); el.insertAdjacentElement('afterend', row);
+      const st = document.createElement('style'); st.textContent = '#gPaint { display: flex; flex-wrap: wrap; gap: 6px; margin: -8px 0 12px; max-width: 30em; } #gPaint[hidden] { display: none; } #gPaint button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(226,205,148,.35); padding: 0; cursor: pointer; } #gPaint button.on { border-color: #fff3c8; box-shadow: 0 0 0 2px rgba(226,205,148,.7); } #gPaint button.own { background: conic-gradient(#d2261c, #f2c21b, #12683a, #1e4fc8, #d2261c); } @media (max-height: 460px) { #gPaint { margin: 0 0 6px; gap: 5px; max-width: 300px; } #gPaint button { width: 22px; height: 22px; } }'; document.head.append(st);
+      row.addEventListener('click', e => { const b = e.target.closest('button'); if (b) this.setCoat(this.shown, b.dataset.paint || null); }); }
+    row.hidden = !open || !this.paints.size || v.id === 'ufo';
+    if (!row.hidden) { const cur = this.coatOf(v.id); row.textContent = '';
+      const mk = (id, name, hex) => { const b = document.createElement('button'); b.type = 'button'; b.title = name; b.setAttribute('aria-label', name); b.setAttribute('aria-pressed', String((cur ? cur.id : '') === id)); if (id) { b.dataset.paint = id; b.style.background = '#' + hex.toString(16).padStart(6, '0'); } else b.className = 'own'; if ((cur ? cur.id : '') === id) b.classList.add('on'); row.append(b); };
+      mk('', 'Its own paint'); for (const p of PAINTS) if (this.paints.has(p.id)) mk(p.id, p.name, p.hex); }
     for (const b of document.querySelectorAll('#title [data-act="start"], #title [data-act="newgame"]')) b.classList.toggle('nogo', !open), b.setAttribute('aria-disabled', !open);
   }
 }

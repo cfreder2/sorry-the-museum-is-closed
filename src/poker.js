@@ -143,6 +143,15 @@ export class Poker {
     this.game = null;
     return true;
   }
+  /** Chips come by some other way (change picked up off the café floor). */
+  earn(n) {
+    if (this.game && this.game.p && this.game.p[0]) { this.game.p[0].stack += n; this._save(); return true; }
+    let sv = null; try { sv = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* fine */ }
+    if (!sv || !Array.isArray(sv.stacks) || sv.stacks.length !== WHO.length) sv = { stacks: WHO.map(() => STAKE), button: 0 };
+    sv.stacks[0] = this.chips() + n;
+    try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch { return false; }
+    return true;
+  }
   leave() { this.on = false; $('poker').hidden = true; this._save(); }
   reset() { try { localStorage.removeItem(KEY); } catch { /* fine */ } this.game = null; if (this.T) this._table(); }
   _save() { if (!this.game) return; try { localStorage.setItem(KEY, JSON.stringify({ stacks: this.game.p.map(q => q.stack + q.total), button: this.game.button })); } catch { /* fine */ } }
