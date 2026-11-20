@@ -672,6 +672,14 @@ cannot be reached. Add `--images` to also save every image to `data/img/`
 game is run from localhost and that folder has images, it uses them instead of
 the museum's server.
 
+`node tools/books.mjs` refreshes `data/books.json`: real books on the makers
+the game hangs and on the periods and places their works come from, found on
+Open Library (a User-Agent naming the game, one request at a time, every answer
+kept in `tools/.cache/`, not in git, so a rerun asks nothing twice). The
+reading room's display and the "Further reading" line on a label read it; the
+covers come live from covers.openlibrary.org, only when a book is in front of
+you, and a book with no cover is a cloth binding with its title in gilt.
+
 URL switches, for testing: `?saved` skips the live API, `?remote` ignores the
 offline images, `?mode=explore|race&toy=car|drone` skips the title (`toy` may also be any id
 in `src/garage.js`, such as `truck`, which opens that one), `?auto`
@@ -686,6 +694,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     tools/check_layout.mjs    proves the plan can be driven all the way round
     src/plan.js               levels, collision, stunt kit, hanging, cases, race route (no three.js)
     src/collection.js         API calls and sorting works into rooms
+    src/books.js, reading.js  books from Open Library: the reading room's display, further reading on labels (tools/books.mjs)
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
     src/winter.js             paths, the courtyard tree, glitter, tyre tracks

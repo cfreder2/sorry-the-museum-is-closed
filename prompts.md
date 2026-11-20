@@ -282,3 +282,7 @@ the previous one was still being worked on; those are marked.
 ## 67
 
 > add telemtry
+
+## 68
+
+> We could use the Open Library API to find art history books relevant to the works that are in the catalog. So then in the library, and other places, we could display them, link to them, or however we can best utilize those assets IN GAME.

@@ -2,5 +2,8 @@
 data/img/
 .DS_Store
 
+# answers kept by tools/books.mjs so a rerun does not ask Open Library again
+tools/.cache/
+
 # scratch copies of the code used while work is in progress
 .claude/worktrees/
