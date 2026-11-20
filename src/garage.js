@@ -73,7 +73,7 @@ function part(geo, mat, x, y, z, parent) {
 // multiples of the first toy's (see CAR_SPEC and DRONE_SPEC in vehicles.js).
 export const VEHICLES = [
   { id: 'buggy', kind: 'car', name: 'RC Car', hint: 'Fits under the benches. Leaves the floor if you find a ramp.', need: 0, spec: {} },
-  { id: 'truck', kind: 'car', name: 'Monster Truck', hint: 'Big soft tyres. Hops higher, holds on better, not as quick.', need: 15, spec: { top: 0.93, accel: 0.95, grip: 1.15, jump: 1.12 } },
+  { id: 'truck', kind: 'car', name: 'Monster Truck', hint: 'Big studded tyres. Hops higher, holds on ice, not as quick.', need: 15, spec: { top: 0.93, accel: 0.95, grip: 1.15, jump: 1.12, ice: 0.7 } },
   { id: 'rally', kind: 'car', name: 'Rally Hatch', hint: 'Turns in sharply and holds a line on marble.', need: 40, spec: { top: 1.04, grip: 1.3, steer: 1.1 } },
   { id: 'racer', kind: 'car', name: 'Grand Prix', hint: 'Low, quick and nervous. Hops a little lower.', need: 100, spec: { top: 1.1, accel: 1.12, grip: 1.1, steer: 1.05, jump: 0.94 } },
   { id: 'van', kind: 'car', name: 'Art Van', hint: 'The art handlers’ van. Steady, and in no hurry.', trophy: 'dock', how: 'Find the loading dock', spec: { top: 0.96, accel: 0.95, grip: 1.1, steer: 0.95, jump: 1.05 } },

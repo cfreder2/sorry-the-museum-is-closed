@@ -84,7 +84,7 @@ export function buildCar(colour = 0xd2261c) {
 }
 
 // How a car handles, as multiples of the first one's. Every body in the garage starts from these.
-export const CAR_SPEC = { top: 1, accel: 1, grip: 1, steer: 1, jump: 1 };
+export const CAR_SPEC = { top: 1, accel: 1, grip: 1, steer: 1, jump: 1, ice: 0 };      // ice: 0, slides like anything else; 1, as if it were snow
 export const DRONE_SPEC = { accel: 1, climb: 1, yaw: 1 };
 
 export class Car {
@@ -159,7 +159,8 @@ export class Car {
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
       const icy = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.some(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1);
-      if (icy) { grip = 0.15; bite *= 0.8; vf -= (vf - this._vf0) * 0.8; }
+      // (Big studded tyres, S.ice, bite into it: less wheelspin, more steering, and the slide is caught sooner.)
+      if (icy) { const ice = S.ice || 0; grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
       rate = this.steer * bite * 3.6 * S.steer / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);
