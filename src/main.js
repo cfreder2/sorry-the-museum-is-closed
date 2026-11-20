@@ -55,6 +55,7 @@ import './feature-upstairs.js';
 import './parkplay.js';
 import './wingplay.js';
 import './icefish.js';
+import './reading.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
