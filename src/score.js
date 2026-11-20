@@ -24,7 +24,8 @@ export const POINTS = {
   perfect: 1.5,      //   a perfect landing
   crash: 0.5,        //   wrong way up
 };
-const BIG_AIR = 1.1, AGAIN = 90, GAP = 0.6;      // seconds: big air; before one work can score again; between two works in one air
+const BIG_AIR = 1.1, GAP = 0.6;      // seconds: big air; between two works in one air
+const CAUGHT = 'after-hours.caught';      // works a Stunt Look has caught: each scores once a game, not again on every pass
 const KIND = { jump: 'JUMP', air: 'BIG AIR', trick: 'TRICK', hoop: 'HOOP' };
 
 export class Score {
@@ -36,7 +37,8 @@ export class Score {
     this.s = { score: 0, looks: 0, stunts: 0, bullet: 0, combo: 0, best: 0 };
     this.all = null; this.allAt = 0; this._asking = null;      // everybody's counts, when they can be had
     this.run = null;                                 // the air the car is in now
-    this.cool = new Map();                           // work id -> when it may score again
+    this.caught = new Set();                         // work ids a Stunt Look has already scored this game
+    this.looked1 = new Set();                        // work ids whose closer look has scored this game
     this.clock = 0;
     try {
       const v = localStorage.getItem(VIEWS);
@@ -47,6 +49,7 @@ export class Score {
         if (Object.keys(this.views).length) localStorage.setItem(VIEWS, JSON.stringify(this.views));
       }
       Object.assign(this.s, JSON.parse(localStorage.getItem(SCORE) || '{}'));
+      const c = JSON.parse(localStorage.getItem(CAUGHT) || '{}'); this.caught = new Set(c.stunt || []); this.looked1 = new Set(c.look || []);
       const a = JSON.parse(localStorage.getItem(ALL) || 'null');
       if (a && a.at && Date.now() - a.at < 3600e3 && a.n) { this.all = new Map(Object.entries(a.n).map(([k, n]) => [+k, n])); this.allAt = a.at; }
     } catch { /* no storage */ }
@@ -55,10 +58,10 @@ export class Score {
 
   _save() {
     clearTimeout(this._t);
-    this._t = setTimeout(() => { try { localStorage.setItem(VIEWS, JSON.stringify(this.views)); localStorage.setItem(SCORE, JSON.stringify(this.s)); } catch { /* fine */ } }, 400);
+    this._t = setTimeout(() => { try { localStorage.setItem(VIEWS, JSON.stringify(this.views)); localStorage.setItem(SCORE, JSON.stringify(this.s)); localStorage.setItem(CAUGHT, JSON.stringify({ stunt: [...this.caught], look: [...this.looked1] })); } catch { /* fine */ } }, 400);
   }
   /** A new game: the score and its tallies go; how often you have looked at each work is kept. */
-  reset() { this.s = { score: 0, looks: 0, stunts: 0, bullet: 0, combo: 0, best: 0 }; this.run = null; this.cool.clear(); this._save(); }
+  reset() { this.s = { score: 0, looks: 0, stunts: 0, bullet: 0, combo: 0, best: 0 }; this.run = null; this.caught.clear(); this.looked1.clear(); this._save(); }
 
   get score() { return this.s.score; }
   add(n) { this.s.score += Math.round(n); this._save(); }
@@ -76,7 +79,8 @@ export class Score {
     if (p) p.then(n => { if (Number.isFinite(n) && n > 0) { if (!this.all) this.all = new Map(); this.all.set(work.id, n); } });
   }
   /** Looking closer at a work. */
-  look(art) { const first = !this.views[art.work.id]; this._view(art.work, false); this.s.looks++; this.add(POINTS.look + (first ? POINTS.fresh : 0)); }      // the first look at a work is worth more; driving past one is worth nothing
+  // Each look is counted (how often you, and everybody, have looked at it), but it scores once a game: looking again is not more credit.
+  look(art) { const id = art.work.id, first = !this.views[id]; this._view(art.work, false); if (this.looked1.has(id)) return; this.looked1.add(id); this._save(); this.s.looks++; this.add(POINTS.look + (first ? POINTS.fresh : 0)); }      // the first look at a work is worth more; driving past one is worth nothing
   /** A work seen for the first time, by any means. */
   fresh() { this.add(POINTS.fresh); }
 
@@ -120,10 +124,10 @@ export class Score {
     return best;
   }
 
-  _free(a) { return (this.cool.get(a.work.id) || 0) <= this.clock && !(this.run && this.run.got.some(g => g.art === a)); }
+  _free(a) { return !this.caught.has(a.work.id) && !(this.run && this.run.got.some(g => g.art === a)); }
   _catch(a, bullet) {
     const fresh = !a.seen;
-    this.cool.set(a.work.id, this.clock + AGAIN);
+    this.caught.add(a.work.id); this._save();
     this.onCatch(a, fresh);                              // a Stunt Look scores, but only a deliberate look is counted as a view
     return { art: a, bullet, fresh };
   }

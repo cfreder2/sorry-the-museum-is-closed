@@ -308,10 +308,13 @@ export class Museum {
         // (A doorway that has not been found is a wall, and a wall keeps its mouldings: see src/secret.js for the piece that slides.)
         if (!lower) for (const o of w.openings) if (o.door.hidden) { const at = wallPoint(w, (o.lo + o.hi) / 2, 0), half = (o.hi - o.lo) / 2; trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.34, r.h, 0, 0.14); trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.46, r.h - 0.34, 0, 0.06); }
         if (!lower) for (const sg of w.segs) {
-          const at = wallPoint(w, (sg.lo + sg.hi) / 2, 0), half = (sg.hi - sg.lo) / 2;
-          trim.wallBox(at, w.nx, w.nz, -half, half, 0, 0.24, 0, 0.035);
-          trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.34, r.h, 0, 0.14);
-          trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.46, r.h - 0.34, 0, 0.06);
+          // Each moulding stops a centimetre inside the stone surround of a doorway it runs up to (0.3 m of jamb, 0.38 m of
+          // lintel either side): ending on the surround's own face, the two flickered against each other.
+          const by = (u, top) => { let n = 0; for (const o of w.openings) if (!o.door.hidden && (Math.abs(o.lo - u) < 0.03 || Math.abs(o.hi - u) < 0.03) && (top == null || o.y + o.h + 0.37 > top)) n = Math.max(n, top == null ? 0.29 : 0.37); return n; };
+          const run = (y0, y1, dep, top) => { const a = sg.lo + by(sg.lo, top), b = sg.hi - by(sg.hi, top); if (b - a < 0.02) return; trim.wallBox(wallPoint(w, (a + b) / 2, 0), w.nx, w.nz, -(b - a) / 2, (b - a) / 2, y0, y1, 0, dep); };
+          run(0, 0.24, 0.035, null);
+          run(r.h - 0.34, r.h, 0.14, r.h - 0.46);
+          run(r.h - 0.46, r.h - 0.34, 0.06, r.h - 0.46);
         }
       }
       // The ceiling takes the room's own paint and glows with it, faintly. It has a hole where a skylight
