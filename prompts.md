@@ -282,3 +282,7 @@ the previous one was still being worked on; those are marked.
 ## 67
 
 > add telemtry
+
+## 68
+
+> The race itself had the course going through walls, the bots just drove right through the walls, no collision detection. It wasn't clear when I finished a lap, or if I had another one, or what position I was in.

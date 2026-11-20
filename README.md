@@ -314,11 +314,19 @@ What is not true:
   the toy and stand in front of it like a person.
 - **Race.** Two laps of the real ring of galleries round the Grand Staircase,
   on the second floor, against three other toys. The circuit keeps to that one
-  level. The track is painted on the floor with arrows
-  running the way to go, and the rest of the stunt kit is cleared away, leaving
-  only the five jumps on the track. Leave the track and the arrow turns gold
-  and points the way back; stay off it for 4.5 seconds and you are put back
-  where you left it.
+  level. The course (`src/course.js`) is laid on a grid of where a toy can
+  really go: square through the middle of each doorway, round every wall,
+  column, case, bench, stair and lift shaft, eased into curves, and straight
+  over a jump on the line or not at all. It is painted on the floor with arrows
+  running the way to go, as wide as the room allows, and the rest of the stunt
+  kit is cleared away. The rivals are real cars (or drones) driven by a simple
+  driver: each keeps a lane, slows for bends, queues in a doorway, backs off
+  when it is nose-in to something, and is put back on the line if it is stuck
+  for five seconds. The display shows place (`2nd of 4`), lap and lap time;
+  crossing the line says `LAP 2 — FINAL LAP` or `FINISH — 2nd` with the split,
+  and a place won or lost flashes `↑ 2nd` / `↓ 3rd`. Leave the track and the
+  arrow turns gold and points the way back; stay off it for 4.5 seconds and you
+  are put back where you left it.
 - **Rooms stay open.** Stunt pieces and cases together cover a few per cent of
   a room's floor. Each piece either stands hard against a wall or leaves 1.7 m
   of clear floor, a clear lane is kept between every pair of doors, and doors
@@ -696,6 +704,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/textures.js           every surface, painted on a canvas at start-up
     src/reflect.js            polished-floor reflections, on the level you are on
     src/vehicles.js           the car and the drone
+    src/course.js             the race course, laid round what is really there, and its check (no three.js)
     src/race.js               gates, laps, rivals
     src/props.js              loose cones and signs, and snowmen
     src/arcade.js             the monitors with games on them: the screens in the rooms, and playing one
