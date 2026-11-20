@@ -318,15 +318,9 @@ function addLevels(plan) {
     const [u0, u1] = span(side, q);
     run(side, q, u0, u1, q.y0, q.y1);
   }
-  // A lift has a gate at every stop, all round the shaft, shut whenever the platform is somewhere else:
-  // nobody drives into an empty shaft, or under a platform on its way down.
-  for (const l of plan.lifts) {
-    l.gates = l.stops.map(y => {
-      const g = { y, off: false, bars: [] }, add = (x0, x1, z0, z1) => { const o = { x0, x1, z0, z1, y0: y + 0.03, y1: y + 0.5, rail: true, gate: g }; O.push(o); g.bars.push(o); };
-      add(l.x0, l.x1, l.z0 - TH, l.z0); add(l.x0, l.x1, l.z1, l.z1 + TH); add(l.x0 - TH, l.x0, l.z0, l.z1); add(l.x1, l.x1 + TH, l.z0, l.z1);
-      return g;
-    });
-  }
+  // A lift is a car in a shaft, walled all round from the pit to over the top stop, with one doorway at each stop and
+  // a gate across it whenever the car is somewhere else: nobody drives into an empty shaft, or under a car on its way down.
+  for (const l of plan.lifts) liftShaft(plan, l);
   // Round a well: along both sides of the stair and across its low end, at the level of the floor it is cut in.
   for (const w of wells) {
     const q = w.ramp, r = { x0: w.x0 - TH, x1: w.x1 + TH, z0: w.z0 - TH, z1: w.z1 + TH }, room = rooms.find(o => same(o.y, w.y) && lap2(o, w));
@@ -340,6 +334,73 @@ function addLevels(plan) {
 }
 const lap2 = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
 
+// A lift's shaft, as built: museum.js draws exactly this. `J` is the steel either side of a doorway (the car's front
+// returns line up with it), `DOOR` how tall a doorway is, `CAB` how tall the car is inside, `W` how thick a shaft wall is
+// (it stands just outside the car's footprint, as the gates always did). The doorway is J short of each corner: 2 m
+// clear in a 2.6 m shaft, room for a car to turn in.
+export const LIFT = { J: 0.3, DOOR: 2.3, CAB: 2.4, W: 0.06 };
+// Where the doorway is chosen by hand. Regenstein Hall lies north of its lift: up there it opens onto the hall, not
+// onto the street door 4 m behind it.
+const LIFT_ENTRY = { 'F1-regenstein-lift': { 0: 'n' } };
+const LIFT_SIDES = ['n', 's', 'w', 'e'];
+function liftShaft(plan, l) {
+  const { J, DOOR, CAB, W } = LIFT, O = plan.obstacles;
+  const span = s => (s === 'n' || s === 's' ? [l.x0, l.x1] : [l.z0, l.z1]);
+  const outAt = (s, u, d) => (s === 'n' ? [u, l.z0 - d] : s === 's' ? [u, l.z1 + d] : s === 'w' ? [l.x0 - d, u] : [l.x1 + d, u]);
+  const inside = (q, x, z) => x > q.x0 && x < q.x1 && z > q.z0 && z < q.z1;
+  // Somewhere a car could stand at height y, with nothing built on it: a room's floor or a deck, not a well, a stair or another lift.
+  const roomOf = (x, z, y) => plan.rooms.find(r => same(r.y, y) && inside(r, x, z));
+  const clear = (x, z, y) => (plan.decks.some(k => same(k.y, y) && inside(k, x, z)) || (roomOf(x, z, y) && !plan.wells.some(w => same(w.y, y) && inside(w, x, z))))
+    && !plan.ramps.some(q => inside(q, x, z) && Math.max(q.y0, q.y1) > y - 0.1 && Math.min(q.y0, q.y1) < y + 2)
+    && !plan.lifts.some(o => o !== l && inside(o, x, z) && o.stops[0] < y + 2 && o.stops[o.stops.length - 1] > y - 0.1);
+  // How much floor lies in front of each side at each stop, up to 2.4 m; the doorway goes on the side with most, and
+  // of sides with as much, the one nearest a doorway into the room.
+  const depth = (s, y) => { const [a, b] = span(s); let d = 0; for (let k = 0.2; k < 2.41; k += 0.2) { if (![0.2, 0.5, 0.8].every(t => clear(...outAt(s, a + (b - a) * t, k), y))) break; d = k; } return d; };
+  const doorDist = (s, y) => {
+    const [a, b] = span(s), [x, z] = outAt(s, (a + b) / 2, 1), r = roomOf(x, z, y);
+    let best = 99;
+    for (const d of plan.doors) if (same(d.y, y) && (!r || d.a === r.id || d.b === r.id)) best = Math.min(best, Math.hypot((d.x0 + d.x1) / 2 - x, (d.z0 + d.z1) / 2 - z));
+    return best;
+  };
+  l.doors = l.stops.map(y => {
+    const pick = LIFT_ENTRY[l.id] && LIFT_ENTRY[l.id][y];
+    if (pick) return pick;
+    let best = 'w', score = -Infinity;
+    for (const s of LIFT_SIDES) { const v = depth(s, y) * 100 - doorDist(s, y); if (v > score) { score = v; best = s; } }
+    return best;
+  });
+  // The shaft. A side with a room's own wall against it at every stop needs no wall of its own.
+  const lo = l.stops[0] - 0.3, top = l.stops[l.stops.length - 1] + CAB + 0.3;
+  const sides = {};
+  for (const s of LIFT_SIDES) {
+    const [a, b] = span(s);
+    const walled = l.stops.every(y => !roomOf(...outAt(s, (a + b) / 2, 0.15), y) && !plan.decks.some(k => same(k.y, y) && inside(k, ...outAt(s, (a + b) / 2, 0.15))));
+    const doorsHere = l.stops.filter((y, i) => l.doors[i] === s);
+    sides[s] = { walled, doors: doorsHere, a, b };
+    if (walled && !doorsHere.length) continue;
+    // A strip of wall along this side from u0 to u1 (it reaches round the corners), from y0 to y1.
+    const strip = (u0, u1, y0, y1) => O.push(s === 'n' ? { x0: u0, x1: u1, z0: l.z0 - W, z1: l.z0, y0, y1, lift: l, shaft: true }
+      : s === 's' ? { x0: u0, x1: u1, z0: l.z1, z1: l.z1 + W, y0, y1, lift: l, shaft: true }
+      : s === 'w' ? { x0: l.x0 - W, x1: l.x0, z0: u0, z1: u1, y0, y1, lift: l, shaft: true }
+      : { x0: l.x1, x1: l.x1 + W, z0: u0, z1: u1, y0, y1, lift: l, shaft: true });
+    if (!doorsHere.length) { strip(a - W, b + W, lo, top); continue; }
+    strip(a - W, a + J, lo, top); strip(b - J, b + W, lo, top);
+    // Between the jambs: solid but for a doorway at each stop it opens at.
+    let y = lo;
+    for (const d of doorsHere) { if (d - 0.15 > y) strip(a + J, b - J, y, d - 0.15); y = d + DOOR; }
+    if (top > y) strip(a + J, b - J, y, top);
+  }
+  l.shaft = { lo: l.stops[0], top, sides };
+  l.gates = l.stops.map((y, i) => {
+    const s = l.doors[i], [a, b] = span(s), g = { y, side: s, off: false, bars: [] };
+    const o = s === 'n' ? { x0: a + J, x1: b - J, z0: l.z0 - W, z1: l.z0 } : s === 's' ? { x0: a + J, x1: b - J, z0: l.z1, z1: l.z1 + W }
+      : s === 'w' ? { x0: l.x0 - W, x1: l.x0, z0: a + J, z1: b - J } : { x0: l.x1, x1: l.x1 + W, z0: a + J, z1: b - J };
+    Object.assign(o, { y0: y - 0.2, y1: y + 1.0, rail: true, gate: g });
+    O.push(o); g.bars.push(o);
+    return g;
+  });
+}
+
 // The lifts. Each waits at a stop, goes to the next, waits again, up through its stops and back
 // down. Drive on and it does not keep you waiting long; wait at its gate on another floor and it
 // comes for you next.
@@ -350,8 +411,10 @@ export function stepLifts(plan, dt, riders = []) {
     const aboard = riders.some(p => over(p, 0) && Math.abs(p.y - l.y) < 0.4);
     l.vy = 0;
     if (l.wait > 0) {
+      // (Somebody who has just ridden here is given the whole wait to drive off: the lift hurries only for somebody getting on.)
+      if (!aboard) l.rode = false;
       const call = aboard ? -1 : l.stops.findIndex((y, i) => i !== l.at && riders.some(p => over(p, 1.6) && Math.abs(p.y - y) < 0.4));
-      if ((aboard || call >= 0) && l.wait > 1.2) l.wait = 1.2;
+      if (((aboard && !l.rode) || call >= 0) && l.wait > 1.2) l.wait = 1.2;
       l.wait -= dt;
       if (l.wait <= 0) {
         if (call >= 0) { l.to = call; l.dir = Math.sign(call - l.at); }
@@ -360,7 +423,7 @@ export function stepLifts(plan, dt, riders = []) {
     } else {
       const want = l.stops[l.to], d = want - l.y, stepY = Math.sign(d) * Math.min(Math.abs(d), LIFT_V * dt);
       l.y += stepY; l.vy = dt > 0 ? stepY / dt : 0;
-      if (Math.abs(want - l.y) < 1e-4) { l.y = want; l.at = l.to; l.wait = 4.5; }
+      if (Math.abs(want - l.y) < 1e-4) { l.y = want; l.at = l.to; l.wait = 4.5; l.rode = aboard; }
     }
     s.h0 = s.h1 = l.y; s.base = l.y - s.thick;
     for (const g of l.gates) g.off = Math.abs(l.y - g.y) < 0.06;

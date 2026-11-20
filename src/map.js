@@ -65,7 +65,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     }
     for (const l of p.lifts) {
       const cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2, stops = [];
-      for (const y of l.stops) for (const [x, z] of [[l.x0 - 0.5, cz], [l.x1 + 0.5, cz], [cx, l.z0 - 0.5], [cx, l.z1 + 0.5]]) { const place = placeAt(x, z, y); if (place) { stops.push({ x, y, z, place }); break; } }
+      // In by the doorway at each stop (plan.js picks the side): the other sides are shaft wall.
+      const side = { w: [l.x0 - 0.5, cz], e: [l.x1 + 0.5, cz], n: [cx, l.z0 - 0.5], s: [cx, l.z1 + 0.5] };
+      l.stops.forEach((y, i) => { for (const [x, z] of [...(l.doors ? [side[l.doors[i]]] : []), side.w, side.e, side.n, side.s]) { const place = placeAt(x, z, y); if (place) { stops.push({ x, y, z, place }); break; } } });
       for (let i = 1; i < stops.length; i++) way(stops[i - 1], stops[i], 9, 'lift');
     }
     for (let i = 0; i < p.decks.length; i++) for (let j = i + 1; j < p.decks.length; j++) {
