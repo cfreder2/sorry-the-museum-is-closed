@@ -479,11 +479,11 @@ export function ashlar() {
   for (let j = 0; j < 8; j++) {
     const off = j % 2 ? 64 : 0;
     for (let i = -1; i < 4; i++) {
-      const l = 64 + r() * 9;
-      g.fillStyle = `hsl(${40 + r() * 8}, ${9 + r() * 5}%, ${l}%)`;
+      const l = 67.5 + r() * 3;                        // dressed limestone is very even: more than this between blocks and it reads as toy bricks
+      g.fillStyle = `hsl(${40 + r() * 4}, ${8 + r() * 3}%, ${l}%)`;
       g.fillRect(i * 128 + off + 2, j * 64 + 2, 124, 60);
     }
-    g.fillStyle = 'rgba(40,36,30,.55)'; g.fillRect(0, j * 64, 512, 2);
+    g.fillStyle = 'rgba(40,36,30,.3)'; g.fillRect(0, j * 64, 512, 2);
   }
   for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(${r() > 0.5 ? '255,250,240' : '30,26,20'},${r() * 0.07})`; g.fillRect(r() * 512, r() * 512, 1 + r() * 4, 1 + r() * 3); }
   return tex(c, { repeat: true });

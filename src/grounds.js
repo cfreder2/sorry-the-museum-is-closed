@@ -38,7 +38,7 @@ export function buildGrounds(museum, plan) {
     const face = (X, z0, z1, y0, y1, g = wall, s = 2.6) => g.quad([X, y0, z1], [X, y0, z0], [X, y1, z0], [X, y1, z1], W, [[z1 / s, y0 / s], [z0 / s, y0 / s], [z0 / s, y1 / s], [z1 / s, y1 / s]]);
     // An arch-headed opening, drawn as a panel just proud of the wall.
     const arch = (g, X, zc, w, y0, spring) => {
-      const x = X - 0.03, r = w / 2, n = 10;
+      const x = X - 0.03, r = w / 2, n = 28;
       g.quad([x, y0, zc + r], [x, y0, zc - r], [x, spring, zc - r], [x, spring, zc + r], W);
       for (let i = 0; i < n; i++) {
         const a0 = Math.PI * i / n, a1 = Math.PI * (i + 1) / n;
@@ -47,9 +47,21 @@ export function buildGrounds(museum, plan) {
     };
     // The stone ring round an arch.
     const surround = (X, zc, w, y0, spring) => {
-      const r = w / 2 + 0.28, n = 10;
-      tr.box(X - 0.12, X, y0, spring, zc - r, zc - w / 2 - 0.012); tr.box(X - 0.12, X, y0, spring, zc + w / 2 + 0.012, zc + r);
-      for (let i = 0; i < n; i++) { const a = Math.PI * (i + 0.5) / n, y = spring + (r - 0.14) * Math.sin(a), z = zc + (r - 0.14) * Math.cos(a); tr.box(X - 0.12, X, y - 0.2, y + 0.2, z - 0.2, z + 0.2); }
+      // A smooth moulded ring: a flat face standing proud of the wall, its outer edge, and the reveal inside it. (Built of
+      // square blocks it looked like a toy.) A second, finer moulding runs round outside it, and a keystone sits at the crown.
+      const ri = w / 2, n = 28, x = X - 0.12;
+      const ring = (ra, rb, xf) => {
+        tr.box(xf, X, y0, spring, zc - rb, zc - ra); tr.box(xf, X, y0, spring, zc + ra, zc + rb);
+        for (let i = 0; i < n; i++) {
+          const a0 = Math.PI * i / n, a1 = Math.PI * (i + 1) / n, c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+          const P = (r, c, sn, xx) => [xx, spring + r * sn, zc + r * c];
+          tr.quad(P(ra, c0, s0, xf), P(rb, c0, s0, xf), P(rb, c1, s1, xf), P(ra, c1, s1, xf), W);                                   // the face
+          tr.quad(P(rb, c0, s0, xf), P(rb, c0, s0, X), P(rb, c1, s1, X), P(rb, c1, s1, xf), [0, (s0 + s1) / 2, (c0 + c1) / 2]);       // its outer edge
+          tr.quad(P(ra, c0, s0, X), P(ra, c0, s0, xf), P(ra, c1, s1, xf), P(ra, c1, s1, X), [0, -(s0 + s1) / 2, -(c0 + c1) / 2]);     // the reveal
+        }
+      };
+      ring(ri + 0.012, ri + 0.3, x); ring(ri + 0.3, ri + 0.42, X - 0.06);
+      if (w > 2) { const k = 0.2 + w * 0.03; tr.box(X - 0.2, X, spring + ri - 0.06, spring + ri + 0.62, zc - k, zc + k); }
     };
     const { FX, PX, cz } = F, p0 = cz - F.half, p1 = cz + F.half, WH = F.wing, PH = F.pav;
 
@@ -88,8 +100,8 @@ export function buildGrounds(museum, plan) {
     bs.box(PX - 0.14, PX, 0, 0.9, zz, p1);
     if (v) bs.box(PX - 0.14, PX, v.h + 0.07, 0.9, v.z0, v.z1);
     face(PX, p0, d.z0, 0.9, 6.8, wall, 1.3); face(PX, d.z1, p1, 0.9, 6.8, wall, 1.3); face(PX, d.z0, d.z1, fanTop, 6.8, wall, 1.3);
-    for (let i = 0; i < 12; i++) {                       // the stone between the square of the opening and the round head of the arch
-      const a0 = Math.PI * i / 12, a1 = Math.PI * (i + 1) / 12, zA = cz + dw * Math.cos(a0), zB = cz + dw * Math.cos(a1);
+    for (let i = 0; i < 28; i++) {                       // the stone between the square of the opening and the round head of the arch
+      const a0 = Math.PI * i / 28, a1 = Math.PI * (i + 1) / 28, zA = cz + dw * Math.cos(a0), zB = cz + dw * Math.cos(a1);
       wall.quad([PX, d.h + dw * Math.sin(a0), zA], [PX, d.h + dw * Math.sin(a1), zB], [PX, fanTop, zB], [PX, fanTop, zA], W);
     }
     tr.box(PX - 0.25, PX, 6.8, 7.15, p0, p1);
@@ -116,7 +128,7 @@ export function buildGrounds(museum, plan) {
       const zc = cz + k * 7.6;
       surround(PX, zc, dw * 2, 0, d.h);
       // Above each door, a fanlight with the lobby lights left on behind it.
-      const x = PX - 0.03, n = 10;
+      const x = PX - 0.03, n = 28;
       if (k || !t) for (let i = 0; i < n; i++) { const a0 = Math.PI * i / n, a1 = Math.PI * (i + 1) / n; glow.quad([x, d.h, zc], [x, d.h + dw * Math.sin(a0), zc + dw * Math.cos(a0)], [x, d.h + dw * Math.sin(a1), zc + dw * Math.cos(a1)], [x, d.h, zc], W); }
       else {
         // The middle fanlight stands open: a lit way through, over the locked doors, for anything that flies.
