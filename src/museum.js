@@ -421,9 +421,13 @@ export class Museum {
         portals.box(d.x1, d.x1 + j, Y, Y + d.h, d.z0 - p, d.z1 + p);
         portals.box(d.x0 - j - 0.08, d.x1 + j + 0.08, Y + d.h, Y + d.h + 0.36, d.z0 - p - 0.03, d.z1 + p + 0.03);
       } else {
-        portals.box(d.x0 - p, d.x1 + p, Y, Y + d.h, d.z0 - j, d.z0);
-        portals.box(d.x0 - p, d.x1 + p, Y, Y + d.h, d.z1, d.z1 + j);
-        portals.box(d.x0 - p - 0.03, d.x1 + p + 0.03, Y + d.h, Y + d.h + 0.36, d.z0 - j - 0.08, d.z1 + j + 0.08);
+        // Through the stone front (plan.facade), the front's own arch is the surround: this one starts behind its face, or its dark
+        // jambs and lintel stand out over the stonework either side of the arch.
+        const fac = d.out && plan.masses.some(m => m.facade && d.x0 > m.x0 - 0.05 && d.x0 < m.x1 && d.z0 < m.z1 && d.z1 > m.z0);
+        const xa = fac ? d.x0 + 0.05 : d.x0 - p, xl = fac ? d.x0 + 0.05 : d.x0 - p - 0.03;
+        portals.box(xa, d.x1 + p, Y, Y + d.h, d.z0 - j, d.z0);
+        portals.box(xa, d.x1 + p, Y, Y + d.h, d.z1, d.z1 + j);
+        portals.box(xl, d.x1 + p + 0.03, Y + d.h, Y + d.h + 0.36, d.z0 - j - 0.08, d.z1 + j + 0.08);
       }
       const low = [d.a, d.b].some(id => plan.byId[id] && (plan.byId[id].floor === 'LL' || plan.byId[id].floor === 'X' || plan.byId[id].kind === 'corridor'));
       fq(low ? slate : stone, d.x0, d.x1, d.z0, d.z1, low ? 1.6 : 1.3, Y);
