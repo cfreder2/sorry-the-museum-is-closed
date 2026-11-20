@@ -7,6 +7,7 @@ import { T, HW, SPRING, VAULT_R, SLAB, wallPoint, hang, heightOf, roomAt, ceilin
 import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
 import { buildGrounds } from './grounds.js';
+import { buildRoofscape } from './roofscape.js';
 import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
 import { furnish, MATERIALS } from './furnish.js';
@@ -508,6 +509,7 @@ export class Museum {
     // The Michigan Avenue front, the streets, the railway and the gardens.
     buildGrounds(this, plan);
     this.winter = buildWinter(this, plan);
+    this.roofscape = buildRoofscape(this, plan);
     buildStatues(this, plan);
 
     // ---- closed ----
