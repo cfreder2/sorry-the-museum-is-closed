@@ -527,7 +527,7 @@ export class Garage {
     const img = $('gImg'); if (this.thumbs[v.id]) { img.src = this.thumbs[v.id]; img.hidden = false; } else img.hidden = true;
     img.alt = open ? v.name : 'A locked vehicle, in silhouette';
     $('gName').textContent = name;
-    $('gNote').textContent = open ? (this.statText(v) || (v.kind === 'car' ? 'The one you started with.' : 'The one you started with.')) : this.lockText(v);
+    $('gNote').textContent = open ? (this.statText(v) || 'Balanced.') : this.lockText(v);
     const i = VEHICLES.indexOf(v);
     $('gCount').textContent = `${i + 1} / ${VEHICLES.length} · ${this.open.size} unlocked`;
     for (const b of document.querySelectorAll('#title [data-act="start"], #title [data-act="newgame"]')) b.classList.toggle('nogo', !open), b.setAttribute('aria-disabled', !open);
