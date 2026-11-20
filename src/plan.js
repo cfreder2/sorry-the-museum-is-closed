@@ -898,13 +898,15 @@ function addStunts(plan) {
     quarter(F, u, -1, R, r2, deck, w); quarter(F, u, 1, R, r2, deck, w);
     return true;
   };
-  // A spine: two skate ramps back to back. Up one side, over the top, down the other.
+  // A tabletop: a straight ramp up, a flat deck to land on or roll across, a straight ramp down. (It was a spine, two
+  // skate ramps back to back meeting in a ridge; a ridge is no place to land a toy car.)
   const spine = (F, u, v, R = 2.2, run = 1.9, w = 2.6) => {
-    const lipH = R - Math.sqrt(R * R - run * run);
-    if (!free(F, u - run, u + run, v - w / 2, v + w / 2)) return false;
-    ramp(F, u - run, u, v - w / 2, v + w / 2, 0, lipH, { curve: R, spine: true });
-    ramp(F, u, u + run, v - w / 2, v + w / 2, lipH, 0, { curve: R, spine: true });
-    hoop(F, u, v, lipH + 1.5, 'u', 0.95);
+    const H = R - Math.sqrt(R * R - run * run), top = 1.8, a = u - top / 2, b = u + top / 2;
+    if (!free(F, a - run, b + run, v - w / 2, v + w / 2)) return false;
+    ramp(F, a - run, a, v - w / 2, v + w / 2, 0, H);
+    ramp(F, a, b, v - w / 2, v + w / 2, H, H);
+    ramp(F, b, b + run, v - w / 2, v + w / 2, H, 0);
+    hoop(F, u, v, H + 1.5, 'u', 0.95);
     return true;
   };
   const hopHoops = (F, v) => { for (const u of [-F.L / 4, 0, F.L / 4]) hoop(F, u, v, 0.8, 'u', 0.55); return true; };
