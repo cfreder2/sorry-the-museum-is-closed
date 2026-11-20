@@ -69,7 +69,7 @@ export function buildStreets(museum, plan) {
     shop.wrapS = THREE.RepeatWrapping; const len = B.z1 - B.z0 + 60, H = 30; shop.repeat.set(len / 24, 1);
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshBasicMaterial({ map: shop, color: new THREE.Color(0.3, 0.3, 0.34) }));
     wall.rotation.y = Math.PI / 2; wall.position.set(M.x0 - 7, AV + H / 2, (B.z0 + B.z1) / 2); extra.push(wall);
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(len, 24), mat.dark); top.rotation.x = -Math.PI / 2; top.position.set(M.x0 - 19, AV + H, (B.z0 + B.z1) / 2); extra.push(top);
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(len, 24), mat.dark); top.rotation.set(-Math.PI / 2, 0, Math.PI / 2);      // (its length along the avenue, not across it and over the museum) top.position.set(M.x0 - 19, AV + H, (B.z0 + B.z1) / 2); extra.push(top);
   }
   // Monroe and Jackson, level stretch: a pavement each side with its kerb, as far as the Drive.
   // (Not across the open railway cutting, where there is only the balustrade.)

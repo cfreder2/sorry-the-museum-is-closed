@@ -151,7 +151,9 @@ export function startFeatures(o) {
   const { G, THREE, secrets, say, once, callout, sound, stage } = o;
   const group = new THREE.Group(); group.name = 'features'; G.museum.group.add(group);
   const k = {
-    G, plan: G.plan, museum: G.museum, sound, stage, THREE, group, say, once, callout,
+    G, plan: G.plan, museum: G.museum, sound, stage, THREE, group, once, callout,
+    // k.say(text, hold) as documented; k.say(text, delay, hold) as main.js's say. (Two arguments used to be read as a delay.)
+    say: (text, a, b) => (b === undefined ? say(text, 0, a === undefined ? 5 : a) : say(text, a, b)),
     find: id => secrets.find(id),
     get v() { return G.vehicle; }, get pos() { return G.vehicle.pos; }, get room() { return G.roomId ? G.plan.byId[G.roomId] : null; },
     inRoom(ids, around = 0) {
