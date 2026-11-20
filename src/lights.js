@@ -348,8 +348,9 @@ export class Lights {
     this.active = mode !== 'race';
     this.anims.clear();
     this.lum.fill(0); this.tex.needsUpdate = true;
-    // Every room starts dark, the galleries too: nothing lights itself, you find the switch. (In a race the building is lit as it always was.)
-    for (const st of Object.values(m.rooms)) { st.sw = this.active ? false : undefined; st.work = 0; if (st.lum) st.lum.value = 0; }
+    // A gallery lights itself the first time you drive in, lamp by lamp, with its chime: that is the best thing in the building and no switch stands in its way.
+    // The back rooms are the ones that start dark and want their switch.
+    for (const st of Object.values(m.rooms)) { st.sw = undefined; st.work = 0; if (st.lum) st.lum.value = 0; }
     if (this.active) for (const [id, v] of Object.entries(this.saved)) {
       const st = m.rooms[id]; if (!st) continue;
       st.sw = !!v;
