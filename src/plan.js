@@ -518,9 +518,10 @@ function addGrounds(plan) {
     for (const [a, b] of [...cuts, [B.z1, B.z1]]) { if (a - z > 0.05) { plan.street.walls.push([z, a]); O.push({ x0: SX, x1: SX + 0.3, z0: z, z1: a, y0: SY - 0.3, y1: -0.04 }); } z = Math.max(z, b); }
     // and the sides of the two streets that climb beside it
     for (const w of plan.street.ways) if (w.road) { const zz = w.z0 < 0 ? w.z1 : w.z0; O.push({ x0: SX, x1: SX + w.run, z0: zz - 0.15, z1: zz + 0.15, y0: SY - 0.3, y1: -0.04 }); }
-    for (const w of plan.street.ways) if (!w.road && w.id !== 'steps') for (const zz of [w.z0, w.z1]) O.push({ x0: SX, x1: SX + w.run, z0: zz - 0.15, z1: zz + 0.15, y0: SY - 0.3, y1: 0.5 });
+    
     // the stone cheeks of the great steps
-    for (const sg of [-1, 1]) O.push({ x0: SX, x1: SX + 5.9, z0: F.cz + sg * 11.1 - (sg < 0 ? 1.0 : 0), z1: F.cz + sg * 11.1 + (sg > 0 ? 1.0 : 0), y0: SY - 0.3, y1: 0.7 }); }
+    // (grounds.js makes them, and the other low walls out here, things that can be jumped up onto) 
+  }
   const G = plan.grounds = {
     michigan: { x0: -24, x1: 1 }, walk: { x0: 1, x1: F.FX }, monroe: { z0: -38, z1: -27 }, jackson: { z0: 247, z1: 258 }, columbus: { x0: 276, x1: 294 },
     rail: { x0: 113, x1: 123 }, north: { x0: 8, x1: 63, z0: -16, z1: 53 }, south: { x0: 11, x1: 62, z0: 168, z1: 240 },

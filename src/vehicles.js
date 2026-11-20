@@ -186,8 +186,10 @@ export class Car {
     this.cool -= dt;
     if (inp.jump && !this.air && this.cool <= 0) {
       this.hopped = this.vy < 0.8;             // a hop off the flat, as opposed to extra off a ramp
-      this.vy = Math.max(0, this.vy) + 3.7 * S.jump; this.cool = 0.2; this.jumped = true;
+      this.vy = Math.max(0, this.vy) + 3.0 * S.jump; this.cool = 0.2; this.jumped = true; this.boost = 0.26;
     }
+    // Keep the button down and it goes on pushing for a quarter of a second: a tap is a hop, a hold clears a wall.
+    if (this.boost > 0) { if (inp.trick && this.vy > 0) { this.vy += 15.5 * S.jump * dt; this.boost -= dt; } else this.boost = 0; }
 
     const ox = this.pos.x, oz = this.pos.z;
     // On a slope, speed is shared between along and up: a steep lip sends you

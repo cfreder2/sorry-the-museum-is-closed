@@ -221,6 +221,10 @@ export function buildGrounds(museum, plan) {
     kerb.box(M.x1 - 0.12, M.x1 + 0.12, SY, SY + 0.07, B.z0, B.z1);
 
     // The steps. Eight of them, the width of the pavilion, between the lions' blocks.
+    // A low wall you can jump up onto: solid from the side, and a top to drive along. (Anything that flies is stopped by it too.)
+    const ledge = (x0, x1, z0, z1, top, base = SY) => { plan.surfaces.push({ skin: 'wall', fixed: true, x0, x1, z0, z1, axis: null, h0: top, h1: top, base }); plan.obstacles.push({ x0, x1, z0, z1, y0: base - 0.3, y1: top - 0.07 }); };
+    for (const sg of [-1, 1]) { const z0 = F.cz + sg * 11.1 - (sg < 0 ? 1.0 : 0); ledge(SX - 0.16, SX + 2.6, z0 - 0.06, z0 + 1.06, SY / 2 + 0.67); ledge(SX + 2.6, SX + 5.96, z0 - 0.06, z0 + 1.06, 0.72); }
+    for (const id of ['north', 'south']) { const g = way(id); for (const zz of [g.z0, g.z1]) ledge(SX - 0.2, SX + g.run + 0.35, zz - 0.28, zz + 0.28, 0.6); }
     { const w = way('steps'), n = 8, tread = 0.45, rise = -SY / n, x9 = SX + w.run + 0.02;
       // The stretches of z a flight keeps for its steps, between its ramps.
       const between = g => { const out = []; let z = g.z0; for (const [ra, rb] of [...(g.ramps || [])].sort((p, q) => p[0] - q[0])) { if (ra - z > 0.05) out.push([z, ra]); z = rb; } if (g.z1 - z > 0.05) out.push([z, g.z1]); return out; };
@@ -252,11 +256,11 @@ export function buildGrounds(museum, plan) {
         cope.box(SX - 0.02, SX + 0.3, 0.1, 0.2, lo, hi); cope.box(SX - 0.06, SX + 0.34, 0.82, 0.96, lo, hi);
         for (let z = lo + 0.2; z < hi - 0.1; z += 0.36) balus.box(SX + 0.07, SX + 0.21, 0.2, 0.82, z - 0.07, z + 0.07);
         for (let z = lo; z <= hi + 0.01; z += Math.max(3.6, (hi - lo) / Math.max(1, Math.round((hi - lo) / 5.4)))) cope.box(SX - 0.08, SX + 0.36, 0.1, 1.04, z - 0.2, z + 0.2);
-        plan.obstacles.push({ x0: SX, x1: SX + 0.3, z0: lo, z1: hi, y0: -0.05, y1: 1.0 });
+        ledge(SX - 0.06, SX + 0.34, lo, hi, 0.96);
       }
     }
     // The walls beside the two streets as they climb.
-    for (const w of S.ways) if (w.road) { const zz = w.z0 < 0 ? w.z1 : w.z0, d = w.z0 < 0 ? 1 : -1; cheek.quad([SX, SY, zz], [SX + 12, SY, zz], [SX + 12, 0.02, zz], [SX, 0.02, zz], [0, 0, -d]); cheek.quad([SX + 12, SY, zz], [SX, SY, zz], [SX, 0.02, zz], [SX + 12, 0.02, zz], [0, 0, d]); cope.box(SX, SX + 12, -0.04, 0.1, zz - 0.17, zz + 0.17); }
+    for (const w of S.ways) if (w.road) { const zz = w.z0 < 0 ? w.z1 : w.z0, d = w.z0 < 0 ? 1 : -1; plan.surfaces.push({ skin: 'wall', fixed: true, x0: SX, x1: SX + 12, z0: zz - 0.17, z1: zz + 0.17, axis: null, h0: 0.1, h1: 0.1, base: SY }); cheek.quad([SX, SY, zz], [SX + 12, SY, zz], [SX + 12, 0.02, zz], [SX, 0.02, zz], [0, 0, -d]); cheek.quad([SX + 12, SY, zz], [SX, SY, zz], [SX, 0.02, zz], [SX + 12, 0.02, zz], [0, 0, d]); cope.box(SX, SX + 12, -0.04, 0.1, zz - 0.17, zz + 0.17); }
     const at = TX.asphalt();
     add(road.mesh(new THREE.MeshStandardMaterial({ map: at, roughness: 0.55, emissiveMap: at, emissive: new THREE.Color(0.4, 0.45, 0.6), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })));
     add(paint.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.6, 0.5), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));

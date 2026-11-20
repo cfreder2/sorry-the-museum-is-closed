@@ -107,9 +107,9 @@ export function buildRailway(museum, plan) {
       const q = (g, a, b, y0, y1, d = 0) => { const zz = z + nz * d; g.quad(nz > 0 ? [a, y0, zz] : [b, y0, zz], nz > 0 ? [b, y0, zz] : [a, y0, zz], nz > 0 ? [b, y1, zz] : [a, y1, zz], nz > 0 ? [a, y1, zz] : [b, y1, zz], [0, 0, nz], [[a / 3, y0 / 3], [b / 3, y0 / 3], [b / 3, y1 / 3], [a / 3, y1 / 3]]); };
       q(wallC, x0, x1, Y, 0.02);
       const atRamp = z === s.top;                          // the ramp's landing is against this end: only two mouths here
-      R.tracks.forEach((x, i) => { if (i === 2 && atRamp) return; q(mouth, x - 1.35, x + 1.35, Y + 0.02, Y + 3.7, 0.02); });
-      for (const x of [x0, (R.tracks[0] + R.tracks[1]) / 2, (R.tracks[1] + R.tracks[2]) / 2, x1]) { const a = Math.max(x0, x - 0.2), b = Math.min(x1, x + 0.2); gant.box(a, b, Y, Y + 3.8, Math.min(z, z + nz * 0.45), Math.max(z, z + nz * 0.45)); }
-      wallC.box(x0, x1, Y + 3.8, -0.02, Math.min(z, z + nz * 0.5), Math.max(z, z + nz * 0.5));        // the edge beam
+      R.tracks.forEach((x, i) => { if (i === 2 && atRamp) return; q(mouth, x - 1.6, x + 1.6, Y + 0.02, Y + 4.28, 0.02); });
+      for (const x of [x0, (R.tracks[0] + R.tracks[1]) / 2, (R.tracks[1] + R.tracks[2]) / 2, x1]) { const a = Math.max(x0, x - 0.2), b = Math.min(x1, x + 0.2); gant.box(a, b, Y, Y + 4.3, Math.min(z, z + nz * 0.45), Math.max(z, z + nz * 0.45)); }
+      wallC.box(x0, x1, Y + 4.3, -0.02, Math.min(z, z + nz * 0.5), Math.max(z, z + nz * 0.5));        // the edge beam
       balustrade('x', R.x0, R.x1, z - nz * 0.15);
     }
     // Balustrades along the top of both walls: the east one stands open at the head of the ramp.
@@ -229,8 +229,8 @@ export function buildRailway(museum, plan) {
 // there is no room, the train stops short and leans on the horn until the way is clear.
 
 const LIVERY = {
-  metra: { name: 'Metra Electric', H: 4.75, cars: 4, len: 19.5, base: '#aeb4bb', stripe: '#1f4fa8', stripe2: null, rows: [[30, 20], [72, 20]], sy: 54, sh: 8 },
-  shore: { name: 'South Shore', H: 3.95, cars: 3, len: 19.5, base: '#b9bcc0', stripe: '#7a1f2a', stripe2: '#e07a1a', rows: [[40, 30]], sy: 80, sh: 9 },
+  metra: { name: 'Metra Electric', H: 4.0, cars: 4, len: 19.5, base: '#aeb4bb', stripe: '#1f4fa8', stripe2: null, rows: [[30, 20], [72, 20]], sy: 54, sh: 8 },
+  shore: { name: 'South Shore', H: 3.55, cars: 3, len: 19.5, base: '#b9bcc0', stripe: '#7a1f2a', stripe2: '#e07a1a', rows: [[40, 30]], sy: 80, sh: 9 },
 };
 
 function sideTex(L) {
@@ -264,7 +264,7 @@ export class Trains {
       under.box(-0.12, 0.12, 0.82, 0.98, a - gap / 2, a); under.box(-0.12, 0.12, 0.82, 0.98, b, b + gap / 2);
       for (const z of [a - 0.012, b]) lit.box(-0.38, 0.38, 1.45, 3.1, z, z + 0.012);
       // The pantograph: a base, two arms making a knee, the bow under the wire.
-      { const y = L.H, top = 5.75, z = b - 4.2; panto.box(-0.5, 0.5, y, y + 0.1, z - 0.9, z + 0.9);
+      { const y = L.H, top = L.H + 0.2, z = b - 4.2;       // folded right down: the wire is low through here panto.box(-0.5, 0.5, y, y + 0.1, z - 0.9, z + 0.9);
         for (let i = 0; i < 6; i++) { const t0 = i / 6, t1 = (i + 1) / 6, m = (top + y) / 2; for (const sx of [-0.3, 0.3]) { panto.box(sx - 0.03, sx + 0.03, y + (m - y) * t0, y + (m - y) * t1 + 0.04, z - 0.7 + 1.1 * t0, z - 0.7 + 1.1 * t1); panto.box(sx - 0.03, sx + 0.03, m + (top - m) * t0, m + (top - m) * t1 + 0.04, z + 0.4 - 0.5 * t1 - 0.08, z + 0.4 - 0.5 * t0); } }
         panto.box(-0.85, 0.85, top, top + 0.05, z - 0.18, z - 0.1); panto.box(-0.85, 0.85, top, top + 0.05, z + 0.02, z + 0.1); }
       const parts = [sides.mesh(skin), body.mesh(roofM), under.mesh(dark), lit.mesh(warm)], pm = panto.mesh(dark);
