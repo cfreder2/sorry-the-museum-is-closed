@@ -253,11 +253,13 @@ export function sign(title, sub) {
   g.clearRect(0, 0, 1024, 192);
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = '#e9d7a8';
-  g.font = '600 74px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
+  // Every word on the board: a long name is set smaller rather than run off the ends.
+  const SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif', fit = (style, px, text) => { g.font = `${style} ${px}px ${SERIF}`; const w = g.measureText(text).width; if (w > 984) g.font = `${style} ${Math.max(20, Math.floor(px * 984 / w))}px ${SERIF}`; };
   const spaced = title.toUpperCase().split('').join('  ');
+  fit('600', 74, spaced);
   g.fillText(spaced, 512, sub ? 66 : 96);
   if (sub) {
-    g.font = 'italic 44px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
+    fit('italic', 44, sub);
     g.fillStyle = '#c9b88c';
     g.fillText(sub, 512, 146);
   }

@@ -465,7 +465,7 @@ export class Museum {
       const r = plan.byId[id], set = this.collection.rooms[id];
       if (!r) return ['Way out', ''];
       if (r.kind === 'corridor') return ['Miniature Rooms', 'Gallery 11'];
-      return [r.gallery.replace(/^Galleries /, 'Gallery ').slice(0, 24), set && set.names.length ? set.names.join('  ·  ') : ''];
+      return [r.gallery.replace(/^Galleries /, 'Gallery ').replace(/\s*\(.*$/, '').slice(0, 34), set && set.names.length ? set.names.join('  ·  ') : ''];      // (a name's bracketed note is for the map, not the sign)
     };
     const signs = new THREE.Group();
     const hang1 = (d, into, from) => {
@@ -501,13 +501,24 @@ export class Museum {
     const { plan } = this, B = plan.bounds, cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2;
     // Snow on the ground, as far as you are allowed to go.
     const gt = this.snowTex.clone(); gt.needsUpdate = true; gt.repeat.set((B.x1 - B.x0) / 6, (B.z1 - B.z0) / 6);
-    // A sheet of snow w by h centred on (gx, gz), with the fishing window (plan.lakefront.window) left open in it.
+    // The snow lies over everything at street level, under the building too, where the floors hide it. Wherever the way
+    // goes down below the street (a flight to the lower level, a lift, the clear ice over the fishing hole) it is left
+    // open, or you would see snow through the hole instead of the stair going down.
+    const openings = (() => {
+      const out = [], grow = (q, g) => ({ x0: q.x0 - g, x1: q.x1 + g, z0: q.z0 - g, z1: q.z1 + g });
+      for (const q of plan.ramps) if (Math.min(q.y0, q.y1) < -0.3 && Math.max(q.y0, q.y1) > -0.6) out.push(grow(q, 0.05));
+      for (const l of plan.lifts) if (l.stops[0] < -0.3 && l.stops.some(y => Math.abs(y) < 0.6)) out.push(grow(l, 0.05));
+      if (plan.lakefront && plan.lakefront.window) out.push({ ...plan.lakefront.window });
+      // overlapping holes do not triangulate: run any that touch into one
+      for (let again = true; again;) { again = false; for (let i = 0; i < out.length && !again; i++) for (let j = i + 1; j < out.length; j++) { const p = out[i], q = out[j]; if (p.x0 < q.x1 && p.x1 > q.x0 && p.z0 < q.z1 && p.z1 > q.z0) { out[i] = { x0: Math.min(p.x0, q.x0), x1: Math.max(p.x1, q.x1), z0: Math.min(p.z0, q.z0), z1: Math.max(p.z1, q.z1) }; out.splice(j, 1); again = true; break; } } }
+      return out;
+    })();
+    // A sheet of snow w by h centred on (gx, gz), with those openings that fall inside it left open.
     const sheetGeo = (w, h, gx, gz) => {
-      const win = plan.lakefront && plan.lakefront.window;
-      if (!win || win.x0 < gx - w / 2 || win.x1 > gx + w / 2) return new THREE.PlaneGeometry(w, h);
-      const sh = new THREE.Shape([new THREE.Vector2(-w / 2, -h / 2), new THREE.Vector2(w / 2, -h / 2), new THREE.Vector2(w / 2, h / 2), new THREE.Vector2(-w / 2, h / 2)]);
-      const u0 = win.x0 - gx, u1 = win.x1 - gx, v0 = gz - win.z1, v1 = gz - win.z0;      // (turned flat, the sheet's y runs to -z)
-      sh.holes.push(new THREE.Path([new THREE.Vector2(u0, v0), new THREE.Vector2(u0, v1), new THREE.Vector2(u1, v1), new THREE.Vector2(u1, v0)]));
+      const inside = openings.filter(o => o.x0 > gx - w / 2 + 0.1 && o.x1 < gx + w / 2 - 0.1 && o.z0 > gz - h / 2 + 0.1 && o.z1 < gz + h / 2 - 0.1);
+      if (!inside.length) return new THREE.PlaneGeometry(w, h);
+      const V = (x, y) => new THREE.Vector2(x, y), sh = new THREE.Shape([V(-w / 2, -h / 2), V(w / 2, -h / 2), V(w / 2, h / 2), V(-w / 2, h / 2)]);
+      for (const o of inside) { const u0 = o.x0 - gx, u1 = o.x1 - gx, v0 = gz - o.z1, v1 = gz - o.z0; sh.holes.push(new THREE.Path([V(u0, v0), V(u0, v1), V(u1, v1), V(u1, v0)])); }      // (turned flat, the sheet's y runs to -z)
       const g = new THREE.ShapeGeometry(sh), P = g.attributes.position, U = g.attributes.uv;
       for (let i = 0; i < P.count; i++) U.setXY(i, P.getX(i) / w + 0.5, P.getY(i) / h + 0.5);
       return g;
@@ -528,7 +539,7 @@ export class Museum {
       let zz = zA; for (const w of ways) { fill(S.x, S.x + EDGE, zz, w.z0); fill(S.x + w.run, S.x + EDGE, w.z0, w.z1); zz = w.z1; } fill(S.x, S.x + EDGE, zz, zB);
       const sm = strip.mesh(ground.material.clone()); { const st = this.snowTex.clone(); st.needsUpdate = true; st.repeat.set(1, 1); sm.material.map = sm.material.emissiveMap = st; } sm.matrixAutoUpdate = false; sm.updateMatrix(); this.group.add(sm);
       const lt = this.snowTex.clone(); lt.needsUpdate = true; lt.repeat.set(wW / 6, (B.z1 - B.z0 + 400) / 6);
-      const low = new THREE.Mesh(new THREE.PlaneGeometry(wW, B.z1 - B.z0 + 400), ground.material.clone()); low.material.map = low.material.emissiveMap = lt;
+      const low = new THREE.Mesh(sheetGeo(wW, B.z1 - B.z0 + 400, x0 + wW / 2, cz), ground.material.clone()); low.material.map = low.material.emissiveMap = lt;
       low.rotation.x = -Math.PI / 2; low.position.set(x0 + wW / 2, S.y - 0.03, cz); low.updateMatrix(); low.matrixAutoUpdate = false; this.group.add(low);
     }
     // The city all round, and one moon.

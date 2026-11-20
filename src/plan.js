@@ -104,6 +104,15 @@ export function buildPlan() {
   // And for a car there are other ways in, for anyone who goes looking: low openings through an
   // outside wall, each a different kind of thing left open. They are at street level, so each must
   // lead into a room whose floor is at street level; the first on its list that will do is used.
+  // The bridges across the north end of Griffin Court open at both ends: onto the west galleries (the layout gives that
+  // doorway) and onto the balcony that runs down the east side on each floor, so that they can be walked across.
+  for (const [lv, east] of [['hall-bridge-2', 'G288'], ['hall-bridge-3', 'G389']]) {
+    const k = (LAYOUT.decks || []).find(q => q.id === lv), e = byId[east], h = byId.hall;
+    if (!k || !e || !h || !same(e.y, k.y) || doors.some(d => (d.a === 'hall' && d.b === east || d.b === 'hall' && d.a === east) && same(d.y, k.y) && d.z0 < k.z1 && d.z1 > k.z0)) continue;      // (one at the stairhead, further along, is another door)
+    const z0 = Math.max(k.z0, e.z0) + 0.1, z1 = Math.min(k.z1, e.z1) - 0.1;
+    if (z1 - z0 < 1.2) continue;
+    doors.push({ id: lv + '-east', a: 'hall', b: east, along: 'x', x0: h.x1, x1: e.x0, z0, z1, y: k.y, h: Math.min(4.2, e.h - 0.7) });
+  }
   const holes = [];
   // (Open ground: clear of every room above the street on any level, since each is a block down to the ground.)
   const solid = (x, z) => rooms.some(r => r.top > 0.5 && x > r.x0 - T - 0.3 && x < r.x1 + T + 0.3 && z > r.z0 - T - 0.3 && z < r.z1 + T + 0.3);
