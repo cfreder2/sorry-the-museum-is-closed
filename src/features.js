@@ -171,6 +171,19 @@ export function startFeatures(o) {
         stop,
       };
     },
+    // A set of things to collect across the building (the lions, mice, lost property...), remembered between visits.
+    //   const lions = k.collect('lions', 12); lions.add('L3') -> the new count the first time, 0 if already had;
+    //   lions.has(id), lions.count, lions.total, lions.done, lions.clear()
+    collect(name, total) {
+      const key = 'feature-set-' + name;
+      let got = []; try { got = JSON.parse(localStorage.getItem(key) || '[]'); } catch { got = []; }
+      const save = () => { try { localStorage.setItem(key, JSON.stringify(got)); } catch { /* private window: it lasts the visit */ } };
+      return {
+        total, has: id => got.includes(id), get count() { return got.length; }, get done() { return got.length >= total; },
+        add(id) { if (got.includes(id)) return 0; got.push(id); save(); return got.length; },
+        clear() { got = []; save(); },
+      };
+    },
   };
   k.carry = new Carry(k);
   for (const f of features) {
