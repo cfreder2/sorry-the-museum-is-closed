@@ -41,6 +41,9 @@ import { Secret } from './secret.js';
 import { Traffic } from './traffic.js';
 import { Loose } from './loose.js';
 import { Vending } from './vending.js';
+import { startFeatures } from './features.js';
+// Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
+import './feature-example.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -98,7 +101,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.49';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.50';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -248,6 +251,9 @@ async function boot() {
     callout(n === all ? 'EVERY SNOWMAN' : `SNOWMAN ${n} / ${all}`);
   };
 
+  // Every registered feature (features.js) is started here, with the shared kit.
+  G.features = startFeatures({ G, THREE, secrets, say, once, callout, sound, stage });
+
   setVehicle('car');
   G.car.place(plan.spawn.x + 3, plan.spawn.z, plan.spawn.yaw);
   G.drone.group.visible = false; G.drone.shadow.visible = false;
@@ -303,7 +309,7 @@ function start(mode, fresh = false) {
   G.allLit = false;
   G.resultsAt = 0;
   endFlyby();
-  G.props.reset(); if (G.loose) G.loose.reset(); if (G.vending) G.vending.reset();
+  G.props.reset(); if (G.loose) G.loose.reset(); if (G.vending) G.vending.reset(); if (G.features) G.features.reset();
   G.museum.winter.clear();
   G.museum.showHoops(mode !== 'race');
   prev.set(0, -99, 0);
@@ -814,6 +820,7 @@ function flight(v, real, racing) {
 
 // Leave the toy where it is and stand in front of the work like a person.
 function beginStudy(art) {
+  if (G.features) G.features.look(art);
   tm.event('look', art.work.id, { t: String(art.work.t || '').slice(0, 80), room: art.room });
   endFlyby();
   // On a phone the label would sit on the work, so it says its piece and fades; INFO brings it back.
@@ -957,6 +964,7 @@ G.spots = () => {
   if (G.cinema && G.cinema.screens[0]) { const c = G.cinema.screens[0]; put('secret', 'cinema', 'The late showing (any screen)', c.x, c.room.y, c.z); }
   put('secret', 'traffic', 'Stop the traffic', -11, (P.street || {}).y || 0, P.facade.cz);
   if (P.cut) put('secret', 'train', 'Watch a train from the footbridge', (P.grounds.rail.x0 + P.grounds.rail.x1) / 2, 0, P.cut.open[0] ? P.cut.open[0].z1 + 2 : 18);
+  if (G.features) out.push(...G.features.spots());
   void lv; return out;
 };
 if (params.has('secrets')) setTimeout(function mark() { if (!G.museum || !G.plan || !G.poker || !G.boards || !G.arcade || G.state === 'title' && !G.vehicle) return setTimeout(mark, 500); try { G.mapMarks = G.spots().map(q => ({ x: q.x, y: q.y, z: q.z, colour: q.kind === 'secret' ? '#ff4d6d' : '#4dd2ff', ring: q.kind === 'secret' })); } catch (e) { console.error(e); } }, 500);
@@ -1191,7 +1199,9 @@ function play(dt, real) {
     // Indoors: the easel you paint at, and the frame your picture hangs in.
     const paintNear = !!G.paint && G.mode === 'explore' && G.paint.near(v), frameNear = !!G.paint && !paintNear && G.mode === 'explore' && !G.facing && G.paint.facing(v);
     const paintTap = (paintNear || frameNear) && input.took('look');
-    const simonNear = !!G.simon && G.mode === 'explore' && G.simon.near(v), simonTap = simonNear && input.took('look');
+    // The features (features.js) come first: each is a particular spot, so whichever is near takes the button.
+    const featNear = G.features && G.mode === 'explore' ? G.features.near(v) : null, featTap = !!featNear && input.took('look');
+    const simonNear = !featNear && !!G.simon && G.mode === 'explore' && G.simon.near(v), simonTap = simonNear && input.took('look');
     const pianoNear = G.piano && G.mode === 'explore' && !simonNear ? G.piano.near(v) : null, pianoTap = !!pianoNear && input.took('look');       // (taken here, before anything else can use the press up)
     const filmNear = !!G.cinema && G.mode === 'explore' && !G.facing && !pianoNear && G.cinema.near(v), filmTap = filmNear && input.took('look');      // the screen in an auditorium (cinema.js)
     const vendNear = G.vending && G.mode === 'explore' ? G.vending.near(v) : null, vendTap = !!vendNear && input.took('look');      // a vending machine (vending.js)
@@ -1258,6 +1268,8 @@ function play(dt, real) {
       const lit = G.lights.isOn(G.switchNear.room);
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LIGHTS'; actPrompt('Light switch', `${roomTitle(G.plan.byId[G.switchNear.room])} \u00b7 the lights are ${lit ? 'on' : 'off'}`, lit ? 'lights off' : 'lights on');
     } else actPrompt();
+    // A feature's verb is set last, so that nothing else nearby relabels the button it has taken.
+    if (featNear) { if (featNear.hint) once('feat:' + featNear.verb + featNear.hint, featNear.hint, 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = featNear.verb || 'LOOK'; if (featTap) featNear.act(); }
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -1417,6 +1429,7 @@ function tick(now) {
   if (G.traffic && G.state !== 'paused') G.traffic.update(dt, G, sound, secrets);                             // the streets (traffic.js)      // the railway (railway.js)
   if (G.simon && G.state !== 'results') G.simon.update(dt, G.t);
   if (G.cinema) G.cinema.update(dt, G, sound);
+  if (G.features && (G.state === 'play' || G.state === 'study')) G.features.update(dt);
   if (G.piano) G.piano.update(dt);
   if (G.vending && G.state !== 'results') G.vending.update(dt, G.t);
   if (G.presents) G.presents.update(dt);
