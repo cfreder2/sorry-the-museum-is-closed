@@ -479,6 +479,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
     // (or, coming down from above, set it on the roof).
     const B = plan.bounds;
     _o.x = Math.max(B.x0 + r, Math.min(B.x1 - r, p.x)); _o.z = Math.max(B.z0 + r, Math.min(B.z1 - r, p.z)); _o.y = Math.min(p.y, SKY);
+    for (const q of plan.allow || []) if (p.x > q.x0 && p.x < q.x1 && p.z > q.z0 && p.z < q.z1) { _o.x = p.x; _o.z = p.z; }      // strips of ground beyond the bounds that may be driven (the foot of the bridgeway)
     let ok = true;
     for (let pass = 0; pass < 3; pass++) {
       let moved = false;
