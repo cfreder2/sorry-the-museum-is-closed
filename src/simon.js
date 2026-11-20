@@ -84,14 +84,14 @@ export class Simon {
     const el = this.el = document.createElement('section'); el.id = 'simon'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'The colour pedestal');
     el.innerHTML = `<div class="head"><h2>Follow the colours</h2><div class="say" role="status"></div></div>
       <div class="pads">${PADS.map((p, i) => `<button data-pad="${i}" style="background:${p.css};color:${p.css}" aria-label="${p.name}"></button>`).join('')}</div>
-      <div class="row"><button data-act="again">Again</button><button data-act="leave">Leave</button></div>`;
+      <div class="row"><button data-simon="again">Again</button><button data-simon="leave">Leave</button></div>`;
     document.body.append(el);
     el.addEventListener('pointerdown', e => {
       const b = e.target.closest('button'); if (!b) return;
       e.preventDefault();
       if (b.dataset.pad) this._press(+b.dataset.pad);
-      else if (b.dataset.act === 'again') this._start();
-      else if (b.dataset.act === 'leave') this.close();
+      else if (b.dataset.simon === 'again') this._start();
+      else if (b.dataset.simon === 'leave') this.close();
     });
     addEventListener('keydown', e => {
       if (!this.on) return;

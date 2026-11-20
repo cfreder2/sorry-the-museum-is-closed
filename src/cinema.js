@@ -390,13 +390,13 @@ export class Cinema {
   _dom() {
     const st = document.createElement('style'); st.textContent = STYLE; document.head.append(st);
     const el = this.el = document.createElement('section'); el.id = 'cinema'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'The late showing');
-    el.innerHTML = '<div class="what" role="status"></div><div class="bar"><button data-act="next">Next film</button><button data-act="sound" hidden>Sound</button><button data-act="leave">Leave</button></div>';
+    el.innerHTML = '<div class="what" role="status"></div><div class="bar"><button data-film="next">Next film</button><button data-film="sound" hidden>Sound</button><button data-film="leave">Leave</button></div>';
     document.body.append(el);
-    const press = e => { const b = e.target.closest('button'); if (!b) return; e.preventDefault(); if (b.dataset.act === 'leave') this.close(); else if (b.dataset.act === 'next') this.next(); else if (b.dataset.act === 'sound' && this.video) { this.video.muted = !this.video.muted; b.textContent = this.video.muted ? 'Sound' : 'Sound off'; } };
+    const press = e => { const b = e.target.closest('button'); if (!b) return; e.preventDefault(); if (b.dataset.film === 'leave') this.close(); else if (b.dataset.film === 'next') this.next(); else if (b.dataset.film === 'sound' && this.video) { this.video.muted = !this.video.muted; b.textContent = this.video.muted ? 'Sound' : 'Sound off'; } };
     el.addEventListener('click', press);
     addEventListener('keydown', e => { if (!this.on) return; if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); this.close(); } else if (e.code === 'ArrowRight' || e.code === 'KeyN') { e.preventDefault(); this.next(); } }, true);
   }
-  _label() { if (!this.programme) return; const f = this.programme[this.index]; this.el.querySelector('.what').textContent = `${this.index + 1} / ${this.programme.length}  ·  ${f.title.toUpperCase()}`; this.el.querySelector('[data-act=sound]').hidden = !f.clip; }
+  _label() { if (!this.programme) return; const f = this.programme[this.index]; this.el.querySelector('.what').textContent = `${this.index + 1} / ${this.programme.length}  ·  ${f.title.toUpperCase()}`; this.el.querySelector('[data-film=sound]').hidden = !f.clip; }
   open() {
     const s = this.now; if (this.on || !s) return;
     this.on = true; this.G.state = 'paused'; this.el.hidden = false; this._label();
