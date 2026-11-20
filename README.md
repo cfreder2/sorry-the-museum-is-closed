@@ -94,8 +94,9 @@ Everything in the building that is not a room or a picture is a secret: the
 card game, the toy stall, the picture on its easel, the hockey pond, the big
 red button, the easel in the studio, every monitor somebody left switched on,
 and a pedestal with four lit pads under the coloured roof of Griffin Court.
-Nothing says where they are. The screen counts them, "secrets 3 / 17", and
-each one found is announced.
+Nothing says where they are. The screen counts them, "secrets 3 / 21", and
+each one found is announced. (The whiteboards count as one between them, and
+three of the twenty-one this file is not going to describe.)
 
 The pedestal plays a pattern of colours and you play it back; it adds one each
 time. Get five right and the roof lets go: confetti in the colours of all 126
@@ -290,6 +291,10 @@ What is not true:
   the walls by importance and size; sculpture, armour and vessels stand in
   glass cases on the floor. In the Grand Staircase everything is on the
   first-floor level, under the gallery; nothing is hung on the gallery itself.
+- **What is under the building is invented**, all of it: nothing below the
+  lower level comes from any drawing or survey, and the survey in `survey/`
+  does not have it. Neither does the real building have the one small extra
+  tower that goes with it. It is there for the fun of finding it.
 - **The polish on the floors** mirrors only on the level you are on. Floors
   seen on another level (down a stair well, across a tall hall) are matt.
 
@@ -386,7 +391,8 @@ tap: the two choices, Continue, New game, Settings and Trophies.
 - **The garage.** Five cars and four drones. The Vehicle choice on the title
   screen goes through all of them; a locked one is shown as a silhouette with
   what it needs ("See 12 more works"). They unlock at 15, 25, 40, 60 and 100
-  works seen, and two for trophies. Each is a different body and handles a
+  works seen, and two for trophies. (There is one more place in the selector,
+  shown only as "???". It is not for sale.) Each is a different body and handles a
   little differently (top speed, grip, steering, hop; for a drone, pull, climb
   and turn); none climbs worse than the first. SWAP still goes between car and
   drone: the last one chosen of each. They are `VEHICLES` in `src/garage.js`.
@@ -515,6 +521,20 @@ from the tiny preview in the collection data and replaced by a 400 px image
 if one loads. The rules are in `src/repairgame.js` (no page, no three.js;
 they run in node) and the rest in `src/repair.js`. It is a secret, and it
 announces itself with a `museum:repair` event (`start`, `end`).
+## Whiteboards, and something under the building
+
+- **The staff have left their whiteboards written on.** Twenty-three of them, in
+  the offices, the conservation studios and laboratories, the security rooms,
+  the canteen, the school's studios and elsewhere, on every level: rotas, lists,
+  a conservation checklist, the lost-property tally, and a good deal of
+  grumbling about tyre marks and plywood. They hang low, where a toy can read
+  them. Pull up in front of one and press `E` (READ on a phone) and you are stood
+  square in front of it, with its words on the page as text for a screen reader. They are worth reading: the staff have noticed more about what
+  goes on in here at night than they let on, and one or two of them know
+  something they should not have written down. What each says is in
+  `src/boardtext.js`.
+- **There is something under the building.** It is not on the map. That is all
+  this file has to say about it.
 
 ## Settings and access
 
@@ -598,6 +618,11 @@ better plan is a better file. What is in it:
   end, `y1` at the high, `stairs`). One that goes down through a floor cuts
   its own well in it.
 - `lifts`: a platform (`x0..z1`, `stops`).
+- A room or a doorway may be marked `secret`, and one doorway `hidden`: what
+  section 8 of `tools/build_layout.mjs` adds after everything else, without
+  moving anything that was there. `tools/check_layout.mjs` checks that such
+  rooms are reached through the hidden doorway and through nothing else, and
+  that nothing else is reached through them.
 
 ## The museum's API
 
@@ -675,6 +700,9 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/repair.js             the conservation line: the table in the studio, and playing it
     src/repairgame.js         its rules (no three.js, no DOM)
     src/heist.js              the heist: the button, the beams, the clock
+    src/whiteboards.js        the whiteboards: the writing on them, and reading one
+    src/boardtext.js          what each of them says (no three.js, no DOM)
+    src/secret.js, secretclue.js, secretfit.js   what the whiteboards are not telling you
     src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop

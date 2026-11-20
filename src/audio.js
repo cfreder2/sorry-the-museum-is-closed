@@ -130,6 +130,12 @@ export class Sound {
       m.o1.frequency.setTargetAtTime(f, now, 0.04); m.o2.frequency.setTargetAtTime(f * 2.02, now, 0.04);
       m.f.frequency.setTargetAtTime(500 + 2600 * v + 500 * load, now, 0.05);
       m.g.gain.setTargetAtTime(0.003 + 0.02 * v + 0.014 * load * (0.4 + v), now, 0.05);
+    } else if (vehicle.spec && vehicle.spec.hum === 'ufo') {
+      // A saucer has no rotors: a low note that throbs, and rises a little as it moves off.
+      const th = vehicle.landed ? 0 : vehicle.thrust, f = 58 + 46 * th + 5 * Math.sin(now * 11);
+      m.o1.frequency.setTargetAtTime(f, now, 0.05); m.o2.frequency.setTargetAtTime(f * 2.5 + 3 * Math.sin(now * 3.1), now, 0.05);
+      m.f.frequency.setTargetAtTime(420 + 900 * th, now, 0.08);
+      m.g.gain.setTargetAtTime((vehicle.landed ? 0.006 : 0.016 + 0.016 * th) * (0.8 + 0.2 * Math.sin(now * 11)), now, 0.04);
     } else {
       const th = vehicle.landed ? 0.12 : vehicle.thrust, f = 150 + 150 * th;
       m.o1.frequency.setTargetAtTime(f, now, 0.06); m.o2.frequency.setTargetAtTime(f * 1.503, now, 0.06);
@@ -228,6 +234,20 @@ export class Sound {
   }
 
   gate() { this.bell(midi(86), 0, 0.05, 0.7, 0.6); }
+  // Stone sliding on stone: a wall that turns out to be a door (src/secret.js). `dur` seconds of it, and a thud when it stops.
+  grind(dur = 1.8) {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const t = c.currentTime, s = c.createBufferSource(); s.buffer = this.noise; s.loop = true;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(140, t); f.frequency.linearRampToValueAtTime(260, t + dur);
+    const e = c.createGain(); e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(0.5, t + 0.15); e.gain.setValueAtTime(0.5, t + dur - 0.1); e.gain.linearRampToValueAtTime(0, t + dur);
+    s.connect(f); f.connect(e); e.connect(this.dry); e.connect(this.send); s.start(t); s.stop(t + dur + 0.05);
+    const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(70, t + dur); o.frequency.exponentialRampToValueAtTime(34, t + dur + 0.3);
+    g.gain.setValueAtTime(0, t); g.gain.setValueAtTime(0.4, t + dur); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.45);
+    o.connect(g); g.connect(this.dry); g.connect(this.send); o.start(t + dur); o.stop(t + dur + 0.5);
+  }
+  // A picture frame giving a little under a finger: nothing there.
+  creak() { this.tick(0.05, 520, 0.09); this.beep(96, 0.07, 0.025); }
   // One soft note for each work seen.
   seen() { this.bell(midi(81 + PENTA[Math.floor(Math.random() * 5)]), 0, 0.03 * this.vol.music, 1.1, 0.7); }
 

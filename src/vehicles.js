@@ -506,6 +506,7 @@ export class Drone {
   reskin(model, spec = {}) {
     this.group.remove(this.body);
     this.body = model.body; this.props = model.props;
+    this.anim = model.anim || null;                   // a body that moves by itself (a saucer's lights) says how
     this.group.add(this.body);
     this.spec = { ...DRONE_SPEC, ...spec };
     this.sync(0);
@@ -519,9 +520,9 @@ export class Drone {
     const S = this.spec, A = 22 * S.accel;
     this.vel.x += (fx * inp.pitch + rx * inp.roll) * A * dt;
     this.vel.z += (fz * inp.pitch + rz * inp.roll) * A * dt;
-    const drag = Math.exp(-1.7 * dt);
+    const drag = Math.exp(-1.7 * (S.drag || 1) * dt);
     this.vel.x *= drag; this.vel.z *= drag;
-    this.vel.y += (inp.climb * 5.2 * S.climb - this.vel.y) * Math.min(1, dt * 5);
+    this.vel.y += (inp.climb * 5.2 * S.climb - this.vel.y) * Math.min(1, dt * 5 * (S.drag || 1));
     this.yaw -= inp.yaw * 2.5 * S.yaw * dt;
     const ox = this.pos.x, oz = this.pos.z;
     this.pos.addScaledVector(this.vel, dt);
@@ -566,6 +567,7 @@ export class Drone {
     this.body.rotation.z = this.roll;
     this.spin += dt * (this.landed ? 12 : 70);
     for (const p of this.props) { p.blade.rotation.y = this.spin * p.dir; p.disc.material.opacity = this.landed ? 0.04 : 0.16; }
+    if (this.anim) this.anim(this, dt);
     const g = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y, 0.02), h = this.pos.y - g;
     this.shadow.position.set(this.pos.x, g + 0.006, this.pos.z);
     const k = Math.max(0, 1 - h / 5);

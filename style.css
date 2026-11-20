@@ -435,3 +435,9 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 #arcade.inworld .tube { padding: 0; background: none; box-shadow: none; border: 0; }
 #arcade.inworld .scan { display: none; }
 #arcade.inworld #arcScreen { opacity: 0; border-radius: 0; box-shadow: none; }
+/* A whiteboard being read (src/whiteboards.js): the camera is in front of the board itself; the page holds only the way back, and the words for a screen reader. */
+#boardCard { position: fixed; left: 0; right: 0; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 30; display: flex; justify-content: flex-end; padding: 0 max(14px, env(safe-area-inset-right)); pointer-events: none; }
+#boardCard[hidden] { display: none; }
+#boardCard h2, #boardCard p { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: pre-line; }
+#boardCard button { pointer-events: auto; min-width: 96px; height: 46px; padding: 0 18px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.8); font: 700 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gilt); cursor: pointer; }
+#boardCard button:focus-visible { outline: 2px solid var(--gilt); outline-offset: 2px; }

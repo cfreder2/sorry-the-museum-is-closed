@@ -59,6 +59,9 @@ export const VEHICLES = [
   { id: 'airship', kind: 'drone', name: 'Airship', hint: 'Drifts. Good for standing off from a large canvas.', need: 60, spec: { accel: 0.82, climb: 0.85, yaw: 0.85 } },
   { id: 'fpv', kind: 'drone', name: 'Racing Quad', hint: 'Small and sharp. Quicker in every direction.', trophy: 'bullet', how: 'Land a Stunt Look in slow motion', spec: { accel: 1.15, climb: 1.12, yaw: 1.2 } },
   { id: 'manta', kind: 'drone', name: 'Manta', hint: 'A ray in polished chrome. Everything round it slides across it.', shop: 2000, how: 'For sale at the stall by the card game', spec: { accel: 1.12, climb: 1.1, yaw: 1.12 } },
+  // Not from the toy shop. `secret`: until it is unlocked the selector will not even say what it is.
+  // `drag` is how hard it stops when the stick is let go (it hangs dead still); `hum` is its own note (src/audio.js).
+  { id: 'ufo', kind: 'drone', name: 'UFO', hint: 'No rotors. Stops dead, turns on the spot, goes like nothing on Earth.', trophy: 'ufo', how: '???', secret: true, spec: { accel: 2.3, climb: 1.3, yaw: 1.4, drag: 2.5, hum: 'ufo' } },
 ];
 const BY_ID = Object.fromEntries(VEHICLES.map(v => [v.id, v]));
 
@@ -348,6 +351,40 @@ const DRONES = {
   },
 };
 
+// A flying saucer, the classic kind: a lens of bright metal, a glass dome with something small in it,
+// lights chasing round the rim, and a faint cone of light underneath. It is used twice: as a toy to
+// fly, and (bigger) as the thing on the pedestal it is copied from (src/secret.js).
+export function buildSaucer() {
+  const g = new THREE.Group(), body = new THREE.Group(), props = [];
+  g.add(body);
+  const metal = std(0xb9c2c8, { roughness: 0.22, metalness: 0.85, emissive: 0x39424a, emissiveIntensity: 0.55 }), dark = std(0x23282e, { roughness: 0.5, metalness: 0.6 });
+  const top = part(ball(0.17, 20, 10), metal, 0, 0, 0, body); top.scale.set(1, 0.2, 1);
+  part(cyl(0.172, 0.172, 0.012, 24), dark, 0, 0, 0, body);                                        // the rim
+  const under = part(cyl(0.07, 0.13, 0.03, 20), metal, 0, -0.03, 0, body);
+  part(cyl(0.05, 0.05, 0.008, 16), glow(0.5, 2.6, 1.6), 0, -0.047, 0, body);                      // the port the beam comes from
+  const dome = part(new THREE.SphereGeometry(0.075, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9fe8ff, roughness: 0.08, metalness: 0.2, transparent: true, opacity: 0.45, emissive: 0x3fb6d8, emissiveIntensity: 0.7 }), 0, 0.022, 0, body);
+  dome.renderOrder = 3;
+  part(ball(0.026, 10, 8), std(0x8fa08a, { roughness: 0.6, emissive: 0x3a4a36, emissiveIntensity: 0.5 }), 0, 0.045, 0, body);      // the pilot: a grey head
+  for (const s of [-1, 1]) part(ball(0.008, 6, 5), std(0x050505, { roughness: 0.2 }), s * 0.011, 0.048, 0.021, body);
+  const ring = new THREE.Group(); body.add(ring);
+  const lamps = [];
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, m = glow(0.4, 2.8, 1.2); lamps.push(m); part(ball(0.011, 8, 6), m, Math.sin(a) * 0.15, -0.006, Math.cos(a) * 0.15, ring); }
+  const beam = part(new THREE.ConeGeometry(0.16, 0.42, 20, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 1.2, 0.7), transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }), 0, -0.26, 0, body);
+  beam.renderOrder = 5;
+  let t = 0;
+  // The lights chase round, the hull rocks a little as it hangs there, and the beam breathes.
+  const anim = (toy, dt) => {
+    t += dt;
+    ring.rotation.y = t * 1.3;
+    lamps.forEach((m, i) => { const k = 0.5 + 0.5 * Math.sin(t * 7 - i * Math.PI * 0.4); m.color.setRGB(0.3 + 2.2 * k, 2.6 - 1.2 * k, 0.9 + 1.6 * (1 - k)); });
+    const still = toy ? Math.max(0, 1 - Math.hypot(toy.vel.x, toy.vel.z) / 4) : 1, rx = Math.sin(t * 2.3) * 0.045 * still, rz = Math.cos(t * 1.9) * 0.045 * still;
+    if (toy) { body.rotation.x += rx; body.rotation.z += rz; } else { body.rotation.x = rx; body.rotation.z = rz; }      // (a toy's own tilt is set afresh every frame; this rides on it)
+    beam.material.opacity = toy && toy.landed ? 0 : 0.1 + 0.05 * Math.sin(t * 5);
+    under.rotation.y = -t * 2;
+  };
+  return { group: g, body, props, anim };
+}
+
 /** A fresh model of any toy in the garage: { group, body, wheels, aerial } or { group, body, props }. */
 export function buildVehicle(id) {
   const v = BY_ID[id] || VEHICLES[0];
@@ -355,6 +392,7 @@ export function buildVehicle(id) {
     if (CARS[id]) return CARS[id]();
     const m = buildCar(); m.group.remove(m.lamp, m.lamp.target); return m;
   }
+  if (id === 'ufo') return buildSaucer();
   if (DRONES[id]) return DRONES[id]();
   const m = buildDrone(); m.group.remove(m.lamp, m.lamp.target); return m;
 }
@@ -481,13 +519,14 @@ export class Garage {
   show() {
     const $ = id => document.getElementById(id), v = BY_ID[this.shown], open = this.open.has(v.id);
     const val = $('toyVal'); if (!val) return;
-    val.textContent = v.name; val.classList.toggle('long', v.name.length > 9);
-    $('toyHint').textContent = open ? v.hint : `Locked. ${this.lockText(v)}.`;
+    const name = v.secret && !open ? '???' : v.name;                 // what it is, is the secret
+    val.textContent = name; val.classList.toggle('long', name.length > 9);
+    $('toyHint').textContent = open ? v.hint : v.secret ? 'Locked. ???' : `Locked. ${this.lockText(v)}.`;
     const el = $('garage'); if (!el) return;
     el.classList.toggle('locked', !open);
     const img = $('gImg'); if (this.thumbs[v.id]) { img.src = this.thumbs[v.id]; img.hidden = false; } else img.hidden = true;
     img.alt = open ? v.name : 'A locked vehicle, in silhouette';
-    $('gName').textContent = v.name;
+    $('gName').textContent = name;
     $('gNote').textContent = open ? (this.statText(v) || (v.kind === 'car' ? 'The one you started with.' : 'The one you started with.')) : this.lockText(v);
     const i = VEHICLES.indexOf(v);
     $('gCount').textContent = `${i + 1} / ${VEHICLES.length} · ${this.open.size} unlocked`;

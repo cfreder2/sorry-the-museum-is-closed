@@ -53,6 +53,9 @@ export const TROPHIES = [
   { id: 'steady', tier: 'silver', hidden: true, name: 'Steady Hand', desc: 'Repair 50 blemishes in one shift on the conservation line.', test: s => s.flags.steady },
   { id: 'remedial', tier: 'bronze', hidden: true, name: 'Remedial Training', desc: 'Be sent home from the conservation line with fewer than 15 repaired.', test: s => s.flags.remedial },
   { id: 'ghost', tier: 'gold', hidden: true, name: 'A Ghost', desc: 'Pull off a heist without tripping a single alarm.', test: s => s.flags.ghost },
+  { id: 'boards', tier: 'bronze', hidden: true, name: 'Read the Room', desc: 'Read five of the whiteboards the staff have left written on.', test: s => s.flags.boards },
+  { id: 'vault', tier: 'gold', hidden: true, name: 'Need to Know', desc: 'Find what is kept under the building.', test: s => s.flags.vault },
+  { id: 'ufo', tier: 'gold', hidden: true, name: 'Not From Round Here', desc: 'Take the thing on the pedestal.', test: s => s.flags.ufo },
   // ---- gold ----
   { id: 'w250', tier: 'gold', name: 'Connoisseur', desc: 'See 250 different works.', ...works(250) },
   { id: 'w500', tier: 'gold', name: 'Curator', desc: 'See 500 different works.', ...works(500) },

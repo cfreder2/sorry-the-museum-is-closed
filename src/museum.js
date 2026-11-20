@@ -281,7 +281,7 @@ export class Museum {
     const lift = (m, y) => { m.position.y = y; m.updateMatrix(); return m; };
     plan.rooms.forEach(r => {
       const walls = new Geo(), trim = new Geo();
-      const lower = r.floor === 'LL' || r.kind === 'corridor';
+      const lower = r.floor === 'LL' || r.floor === 'X' || r.kind === 'corridor';
       for (const w of plan.walls.filter(w => w.room === r)) {
         if (w.side === r.glass) continue;                  // one end of Griffin Court is all window
         const q = (u0, u1, y0, y1) => { if (u1 - u0 > 0.005 && y1 - y0 > 0.005) walls.quad(
@@ -301,6 +301,8 @@ export class Museum {
           for (const o of holes.filter(o => o.lo < mid && o.hi > mid).sort((p, n) => p.y0 - n.y0)) { q(a, b, y, o.y0); y = Math.max(y, o.y1); }
           q(a, b, y, r.h);
         }
+        // (A doorway that has not been found is a wall, and a wall keeps its mouldings: see src/secret.js for the piece that slides.)
+        if (!lower) for (const o of w.openings) if (o.door.hidden) { const at = wallPoint(w, (o.lo + o.hi) / 2, 0), half = (o.hi - o.lo) / 2; trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.34, r.h, 0, 0.14); trim.wallBox(at, w.nx, w.nz, -half, half, r.h - 0.46, r.h - 0.34, 0, 0.06); }
         if (!lower) for (const sg of w.segs) {
           const at = wallPoint(w, (sg.lo + sg.hi) / 2, 0), half = (sg.hi - sg.lo) / 2;
           trim.wallBox(at, w.nx, w.nz, -half, half, 0, 0.24, 0, 0.035);
@@ -390,6 +392,7 @@ export class Museum {
     for (const d of plan.doors) {
       const j = 0.3, p = 0.07, Y = d.y;
       if (d.vent) continue;                           // the vent has its own frame, below
+      if (d.hidden) { fq(stone, d.x0, d.x1, d.z0, d.z1, 1.3, Y); continue; }      // no surround: nothing says there is a doorway here
       if (d.along === 'z') {
         portals.box(d.x0 - j, d.x0, Y, Y + d.h, d.z0 - p, d.z1 + p);
         portals.box(d.x1, d.x1 + j, Y, Y + d.h, d.z0 - p, d.z1 + p);
@@ -399,7 +402,7 @@ export class Museum {
         portals.box(d.x0 - p, d.x1 + p, Y, Y + d.h, d.z1, d.z1 + j);
         portals.box(d.x0 - p - 0.03, d.x1 + p + 0.03, Y + d.h, Y + d.h + 0.36, d.z0 - j - 0.08, d.z1 + j + 0.08);
       }
-      const low = [d.a, d.b].some(id => plan.byId[id] && (plan.byId[id].floor === 'LL' || plan.byId[id].kind === 'corridor'));
+      const low = [d.a, d.b].some(id => plan.byId[id] && (plan.byId[id].floor === 'LL' || plan.byId[id].floor === 'X' || plan.byId[id].kind === 'corridor'));
       fq(low ? slate : stone, d.x0, d.x1, d.z0, d.z1, low ? 1.6 : 1.3, Y);
     }
     // Faintly self-lit, so a doorway always reads as a doorway in the dark.
@@ -450,7 +453,7 @@ export class Museum {
       signs.add(m);
     };
     for (const d of plan.doors) {
-      if (d.vent) continue;
+      if (d.vent || d.hidden) continue;
       if (d.out) { if (d !== plan.front) hang1(d, d.a, null); hang1(d, null, d.a); }
       else { hang1(d, d.b, d.a); hang1(d, d.a, d.b); }
     }
@@ -1355,7 +1358,7 @@ export class Museum {
       const k = s.room.kind;
       const target = k === 'gallery' ? (s.lit && s.sw !== false ? 1 : 0) : 0;
       s.wake += (target - s.wake) * Math.min(1, dt * 1.1);
-      const base = k === 'hall' ? 0.05 : k === 'corridor' ? 0.012 : 0.022;
+      const base = s.room.glow != null ? s.room.glow : k === 'hall' ? 0.05 : k === 'corridor' ? 0.012 : 0.022;      // (glow: a room that is lit whether or not anybody has woken it)
       s.wallMat.emissiveIntensity = base + 0.34 * s.wake;
       s.trimMat.emissiveIntensity = 0.02 + 0.2 * s.wake;
       if (s.floorMat) s.floorMat.emissiveIntensity = 0.02 + 0.26 * s.wake;

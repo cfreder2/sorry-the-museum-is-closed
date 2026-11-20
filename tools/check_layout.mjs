@@ -10,6 +10,11 @@
 // door a storey up a wall with no deck in front of it; a door into a room whose floor is at another
 // height with no ramp to it), if a ramp or a lift does not arrive at a floor, or if a ramp is steeper
 // than about one in three.
+//
+// Rooms marked `secret` are on no drawing and are reached only through the doorway marked `hidden`,
+// which is shut until it is found. So the walk is made twice. With that doorway shut, everything
+// that is not secret must still be reached and nothing secret may be: a secret room is never the
+// way to anything else. With it open, the secret rooms must be reached too.
 
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
@@ -24,6 +29,8 @@ const problems = [], notes = [];
 const R = r => 'room ' + r.id, D = d => 'deck ' + d.id, T = i => 'doorway ' + i, OUT = 'outdoors';
 const edges = new Map();
 const link = (a, b, how) => { if (!a || !b || a === b) return; for (const [p, q] of [[a, b], [b, a]]) { if (!edges.has(p)) edges.set(p, []); edges.get(p).push([q, how]); } };
+const secretRooms = new Set(rooms.filter(r => r.secret).map(r => r.id));
+const isSecret = p => (p.startsWith('room ') && secretRooms.has(p.slice(5))) || (p.startsWith('deck ') && secretRooms.has((decks.find(d => D(d) === p) || {}).room));
 // What is there to stand on at (x, z, y)? A deck there at that height, the floor of a room there at that height, or a doorway's threshold.
 function standAt(x, z, y) {
   for (const [i, d] of doors.entries()) if (same(d.y, y) && x >= d.x0 - 0.01 && x <= d.x1 + 0.01 && z >= d.z0 - 0.01 && z <= d.z1 + 0.01) return T(i);
@@ -37,7 +44,7 @@ const insideRoom = (o, r) => o.x0 >= r.x0 - 0.01 && o.x1 <= r.x1 + 0.01 && o.z0 
 if (!L.levels) problems.push('no `levels` table');
 for (const r of rooms) {
   if (typeof r.y !== 'number' || !(r.h > 0)) problems.push(`${r.id}: needs a floor height y and a clear height h`);
-  if (!['LL', '1', '2', '3'].includes(r.floor)) problems.push(`${r.id}: floor is ${r.floor}`);
+  if (!['LL', '1', '2', '3'].includes(r.floor) && !(r.secret && r.floor === 'X')) problems.push(`${r.id}: floor is ${r.floor}`);
   if (!(r.x1 > r.x0 && r.z1 > r.z0)) problems.push(`${r.id}: no size`);
 }
 // Two rooms may lie one over the other, but not one inside the other.
@@ -56,7 +63,7 @@ for (const [i, d] of doors.entries()) {
     if (id === 'out') { if (!same(d.y, 0)) problems.push(`${name}: a way outdoors at ${d.y} m, not at the street`); link(T(i), OUT, 'door'); continue; }
     const r = byId[id];
     if (!r) { problems.push(`${name}: no room ${id}`); continue; }
-    if (same(d.y, r.y)) { link(T(i), R(r), 'door'); continue; }
+    if (same(d.y, r.y)) { link(T(i), R(r), d.hidden ? 'hidden' : 'door'); continue; }
     // A storey up a tall room: a deck at the sill, against the wall the door is in.
     const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2, px = d.along === 'x' ? (cx < (r.x0 + r.x1) / 2 ? r.x0 + 0.3 : r.x1 - 0.3) : cx, pz = d.along === 'z' ? (cz < (r.z0 + r.z1) / 2 ? r.z0 + 0.3 : r.z1 - 0.3) : cz;
     const k = decks.find(k => k.room === id && same(k.y, d.y) && px >= k.x0 && px <= k.x1 && pz >= k.z0 && pz <= k.z1);
@@ -103,19 +110,27 @@ for (const [i, name, r] of unmet) if (!(edges.get(T(i)) || []).some(([p, how]) =
 // ---- walk it ----
 const front = doors.filter(d => d.b === 'out' && d.along === 'x' && byId[d.a] && byId[d.a].x0 >= d.x1 - 0.01).sort((a, b) => a.x0 - b.x0)[0];
 if (!front) problems.push('no front door: no doorway to outdoors that opens west');
-function walk(start, outdoors) {
+function walk(start, outdoors, found = false) {
   const seen = new Set([start]), q = [start];
-  while (q.length) for (const [n] of edges.get(q.shift()) || []) if (!seen.has(n) && (outdoors || n !== OUT)) { seen.add(n); q.push(n); }
+  while (q.length) for (const [n, how] of edges.get(q.shift()) || []) if (!seen.has(n) && (outdoors || n !== OUT) && (found || how !== 'hidden')) { seen.add(n); q.push(n); }
   return seen;
 }
 if (front) {
   const start = R(byId[front.a]), indoors = walk(start, false), all = walk(start, true);
   const places = [...rooms.map(R), ...decks.map(D)];
-  const lost = places.filter(p => !all.has(p)), across = places.filter(p => all.has(p) && !indoors.has(p));
+  const lost = places.filter(p => !isSecret(p) && !all.has(p)), across = places.filter(p => all.has(p) && !indoors.has(p));
   for (const p of lost) problems.push(`${p}: cannot be reached from the front door`);
+  // What is secret: shut away until its doorway is found, all of it reached once it is, and that doorway the only way.
+  const hidden = doors.filter(d => d.hidden), opened = walk(start, true, true), secrets = places.filter(isSecret);
+  for (const p of secrets) { if (all.has(p)) problems.push(`${p}: is secret, but can be reached without finding the hidden doorway`); if (!opened.has(p)) problems.push(`${p}: cannot be reached even with the hidden doorway open`); }
+  if (secrets.length && hidden.length !== 1) problems.push(`${hidden.length} hidden doorways: there should be exactly one`);
+  for (const d of hidden) if (secretRooms.has(d.a) === secretRooms.has(d.b)) problems.push(`the hidden doorway (${d.a} to ${d.b}) should join one secret room to one that is not`);
+  for (const [i, d] of doors.entries()) if (!d.hidden && d.b !== 'out' && secretRooms.has(d.a) !== secretRooms.has(d.b)) problems.push(`door ${i} (${d.a} to ${d.b}): joins a secret room to one that is not, and is not the hidden doorway`);
+  for (const d of doors) if ((secretRooms.has(d.a) || secretRooms.has(d.b)) && !d.secret) problems.push(`a doorway of a secret room (${d.a} to ${d.b}) is not marked secret`);
+  if (secrets.length) notes.push(`  secret: ${secretRooms.size} rooms and ${secrets.length - secretRooms.size} decks behind the hidden doorway (${hidden.map(d => d.b).join()}); none reached with it shut, all reached with it open`);
   console.log(`${rooms.length} rooms, ${doors.length} doorways, ${decks.length} decks, ${ramps.length} ramps, ${lifts.length} lifts; levels ${JSON.stringify(L.levels)}`);
   console.log(notes.join('\n'));
-  for (const f of ['LL', '1', '2', '3']) { const here = rooms.filter(r => r.floor === f); console.log(`  level ${f.padEnd(2)}: ${here.length} rooms, ${here.filter(r => indoors.has(R(r))).length} reached from the front door without going outdoors, ${here.filter(r => all.has(R(r))).length} reached in all`); }
+  for (const f of ['LL', '1', '2', '3', 'X']) { const here = rooms.filter(r => r.floor === f); console.log(`  level ${f.padEnd(2)}: ${here.length} rooms, ${here.filter(r => indoors.has(R(r))).length} reached from the front door without going outdoors, ${here.filter(r => all.has(R(r))).length} reached in all`); }
   console.log(`  decks: ${decks.filter(d => indoors.has(D(d))).length} of ${decks.length} reached`);
   if (across.length) console.log(`  reached only by going out across the snow: ${across.join(', ')}`);
 }

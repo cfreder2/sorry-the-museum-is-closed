@@ -22,6 +22,9 @@
 // No three.js in here. furnish(plan) returns plain arrays (one batch of triangles per material, per
 // level, per patch of the building) and src/museum.js turns each batch into one mesh.
 
+import { installSecretFit } from './secretfit.js';
+import { assignBoards } from './boardtext.js';
+
 // --------------------------------------------------------------- the map --
 //
 // First match wins. The pattern is tried against the room's name; `use:` entries at the bottom catch
@@ -741,9 +744,14 @@ def('coatstand', 0.5, 0.5, (g, w, r) => {
   if (r() < 0.7) g.q(0.08, 0.3, 0.14, 0.3, 0.8, 1.7, pick(r, COATS)); if (r() < 0.4) g.q(-0.09, 0.2, 0.12, 0.26, 1.0, 1.7, pick(r, COATS));
   g.s(-0.16, 0.16, 0, 1.8, 0.09, 0.45);
 });
-def('whiteboard', 1.8, 0.08, (g, w, r) => {
-  const e = w / 2; g.b(-e, e, 0.9, 2.1, 0, 0.03, C.steelL, 'metal'); g.b(-e + 0.03, e - 0.03, 0.93, 2.07, 0.03, 0.035, C.white); g.b(-e, e, 0.88, 0.9, 0, 0.08, C.steelL, 'metal', true);
-  for (let i = 0; i < 5; i++) { const u = -e + 0.15 + r() * (w - 0.9), y = 1.1 + r() * 0.8; g.b(u, u + 0.2 + r() * 0.5, y, y + 0.012, 0.035, 0.037, pick(r, [C.blue, C.red, C.black, C.green])); }
+// A whiteboard. It is hung low, where a toy on the floor can read it, and it says where it is: the
+// ones that have something written on them get their writing from src/whiteboards.js, which lays it
+// over the board (the few strokes drawn here are what shows on a board nobody has written on).
+def('whiteboard', 1.8, 0.08, (g, w, r, o = {}) => {
+  const e = w / 2, y0 = 0.42, y1 = y0 + (w - 0.06) * 2 / 3 + 0.06;
+  g.b(-e, e, y0, y1, 0, 0.03, C.steelL, 'metal'); g.b(-e + 0.03, e - 0.03, y0 + 0.03, y1 - 0.03, 0.03, 0.035, C.white); g.b(-e, e, y0 - 0.02, y0, 0, 0.08, C.steelL, 'metal', true);
+  if (!o.text) for (let i = 0; i < 5; i++) { const u = -e + 0.15 + r() * (w - 0.9), y = y0 + 0.2 + r() * 0.8; g.b(u, u + 0.2 + r() * 0.5, y, y + 0.012, 0.035, 0.037, pick(r, [C.blue, C.red, C.black, C.green])); }
+  g.mark('board', 0, 0.04, (y0 + y1) / 2, { w: w - 0.06, h: y1 - y0 - 0.06, ...(o.text ? { text: o.text } : {}) });
 });
 def('noticeboard', 1.2, 0.05, (g, w, r) => {
   const e = w / 2; g.b(-e, e, 1.0, 1.9, 0, 0.03, C.wood); g.b(-e + 0.04, e - 0.04, 1.04, 1.86, 0.03, 0.034, 0x6a5038);
@@ -1333,6 +1341,9 @@ class Pen {
   constructor(R, ox, oz, fx, fz, d) { this.R = R; this.ox = ox; this.oz = oz; this.fx = fx; this.fz = fz; this.y = R.y; this.H = R.H; this.d = d; }
   X(u, d) { return this.ox + u * this.fz + d * this.fx; }
   Z(u, d) { return this.oz - u * this.fx + d * this.fz; }
+  // Leave a note of a spot in the world for whoever dresses it further (writing on a whiteboard, glass
+  // round a jar): the kind of thing, where (u across, d out, y up, in the item's frame) and anything else worth saying.
+  mark(kind, u, d, y, more) { this.R.out.marks.push({ kind, room: this.R.room.id, x: this.X(u, d), y: this.y + y, z: this.Z(u, d), fx: this.fx, fz: this.fz, ...more }); }
   b(u0, u1, y0, y1, d0, d1, hex, mat = 'matte', under = false) {
     const H = this.H - 0.01; if (y1 > H) y1 = H; if (y0 < 0) y0 = 0; if (y1 <= y0) return;
     const xa = this.X(u0, d0), xb = this.X(u1, d1), za = this.Z(u0, d0), zb = this.Z(u1, d1);
@@ -1388,6 +1399,7 @@ class Room {
     const keep = (q, m, way) => { this.clear.push({ x0: q.x0 - m, x1: q.x1 + m, z0: q.z0 - m, z1: q.z1 + m }); if (way) { const [ea, eb] = this.ab(Math.max(r.x0 + 0.75, Math.min(r.x1 - 0.75, (q.x0 + q.x1) / 2)), Math.max(r.z0 + 0.75, Math.min(r.z1 - 0.75, (q.z0 + q.z1) / 2))); entries.push([ea, eb]); } };
     for (const s of plan.surfaces || []) {
       if (s.hill || !lap(s, 1.5)) continue;
+      { const o = s.deck || s.ramp, of = o && plan.byId[o.room]; if (of && of.secret && of !== r) continue; }      // a stair nobody knows is there, the other side of the wall, moves nobody's furniture
       const lo = s.lift ? s.lift.stops[0] : Math.min(s.h0, s.h1) - (s.thick || 0), hi = s.lift ? s.lift.stops[s.lift.stops.length - 1] : Math.max(s.h0, s.h1);
       if (hi < y0 || lo > y1) continue;
       keep(s, s.deck ? 0.3 : s.fixed ? 1.5 : 0.6, !!(s.ramp || s.lift));
@@ -1427,6 +1439,14 @@ class Room {
     this.taken.push(q); this.placed++;
     it.draw(new Pen(this, ox, oz, fx, fz, d), w, this.rnd, extra ? { ...(o || {}), ...extra } : o);
     return true;
+  }
+  // Set it down by its middle whether or not the floor there was being kept clear (for the one thing a room is built round).
+  // `keep`: how far from its middle nothing else may stand.
+  force(spec, a, b, face, keep = 0, extra) {
+    const [name, w0, o] = typeof spec === 'string' ? [spec] : spec, it = ITEMS[name], f = typeof face === 'string' ? FACES[face] : face, w = w0 || it.w;
+    const [fx, fz] = this.dir(f), [ox, oz] = this.xz(a - f[0] * it.d / 2, b - f[1] * it.d / 2), m = Math.max(keep, Math.max(w, it.d) / 2), [cx, cz] = this.xz(a, b);
+    this.taken.push({ x0: cx - m, x1: cx + m, z0: cz - m, z1: cz + m }); this.placed++;
+    it.draw(new Pen(this, ox, oz, fx, fz, it.d), w, this.rnd, extra ? { ...(o || {}), ...extra } : o);
   }
   // The same, by its middle.
   putC(spec, a, b, face, gap, extra) { const it = ITEMS[typeof spec === 'string' ? spec : spec[0]], f = typeof face === 'string' ? FACES[face] : face; return this.put(spec, a - f[0] * it.d / 2, b - f[1] * it.d / 2, f, gap, extra); }
@@ -1650,6 +1670,20 @@ function extraWide(R, kind, width) {
   }
   return null;
 }
+// What stands in the rooms that are on no drawing has its own file (src/secretfit.js): it adds its
+// items and recipes to the ones above.
+installSecretFit({ def, RECIPES, FITOUT, OPTS, C, pick, LIT });
+
+// Hang a whiteboard that says `id` (src/boardtext.js) on a wall of room R: as near the middle of a wall as there is room. It takes none of the room's dice.
+function writtenBoard(R, id) {
+  const { L, W } = R, w = 1.8, k = hash(R.room.id + ':board');
+  const walls = [[L, t => [t, 0], 'b+'], [L, t => [t, W], 'b-'], [W, t => [0, t], 'a+'], [W, t => [L, t], 'a-']];
+  for (let i = 0; i < 4; i++) {
+    const [len, at, face] = walls[(i + k) % 4];
+    for (let off = 0; off <= len / 2 - w / 2 - 0.1; off += 0.35) for (const sgn of off ? [1, -1] : [1]) { const [a, b] = at(len / 2 + sgn * off); if (R.put(['whiteboard', w, { text: id }], a, b, face, 0.3)) return true; }
+  }
+  return false;
+}
 
 // ------------------------------------------------------------ the builder --
 
@@ -1657,9 +1691,10 @@ function extraWide(R, kind, width) {
 // triangles: { batches: [{ mat, floor, position, normal, color, index, bounds }], rooms, items, solids }.
 // Normals are signed bytes and colours unsigned bytes (linear), both to be read as normalised.
 export function furnish(plan) {
-  const out = { batches: {}, solids: [] }, rooms = {}, arcades = [], consoles = [];
+  const out = { batches: {}, solids: [], marks: [] }, rooms = {}, arcades = [], consoles = [];
   let items = 0;
   const lineRooms = plan.rooms.filter(r => LINE_ROOM.test(String(r.gallery || ''))).sort((p, q) => (q.x1 - q.x0) * (q.z1 - q.z0) - (p.x1 - p.x0) * (p.z1 - p.z0)); plan.repair = null; plan.repairNotes = [];      // where the conservation line goes (src/repair.js)
+  const boards = assignBoards(plan.rooms, r => !!fitoutOf(r));       // which rooms have a whiteboard with something written on it (src/boardtext.js)
   for (const room of plan.rooms) {
     const recipe = fitoutOf(room);
     if (!recipe) continue;
@@ -1668,13 +1703,25 @@ export function furnish(plan) {
     if (slot >= 0) { const at = extra(R, 'arcade'); if (at) arcades.push({ slot, ...at }); }
     if (recipe === 'securityControl') { const at = extra(R, 'heist'); if (at) consoles.push(at); }
     if (lineRooms.includes(room)) { const first = !plan.repair && room === lineRooms.find(r => fitoutOf(r)), at = extraWide(R, first ? 'repair' : 'repairNote', first ? 2.8 : 1.0); if (at) { if (first) plan.repair = at; else plan.repairNotes.push(at); } }
+    if (recipe === 'xBrief') { const at = extra(R, 'arcade'); if (at) plan.bonusArcade = at; }           // one more monitor, where nobody was meant to find it
+    // A whiteboard with something written on it goes up before the furniture, in the middle of whichever wall has room, so that it is not behind a bookcase.
+    if (!room.secret) for (const id of boards[room.id] || []) writtenBoard(R, id);
     RECIPES[recipe](R);
+    // A room somebody has left a whiteboard written on gets a board to carry it, if the recipe has not hung one (or enough) already.
+    for (const id of boards[room.id] || []) {
+      if (out.marks.some(m => m.kind === 'board' && m.text === id)) continue;
+      const blank = () => out.marks.find(m => m.kind === 'board' && m.room === room.id && !m.text);
+      let m = blank();
+      if (!m) { for (const gap of [0.1, 0]) if (!m && R.walls([['whiteboard', gap ? 1.8 : 1.5]], { once: true, gap })) m = blank(); }
+      if (m) m.text = id;
+    }
     rooms[room.id] = { recipe, items: R.placed, clear: R.clear, entries: R.entries.map(([a, b]) => R.xz(a, b)), aisle: [R.xz(R.spine[0], R.mid), R.xz(R.spine[1], R.mid)] };
     items += R.placed;
     rooms[room.id].taken = R.taken;                       // every footprint, solid or not: src/lights.js keeps its switch plates off them
   }
   for (const s of out.solids) plan.obstacles.push(s);
   plan.fitout = rooms;
+  plan.marks = out.marks;                                 // spots the fit-out leaves for others to dress: whiteboards (src/whiteboards.js), and what is under the building (src/secret.js)
   plan.arcades = arcades.sort((p, q) => p.slot - q.slot); plan.heistConsoles = consoles;      // where src/arcade.js and src/heist.js will find their things
   const batches = Object.values(out.batches).filter(b => b.i.length).map(b => ({
     mat: b.mat, floor: b.floor, boxes: b.boxes,

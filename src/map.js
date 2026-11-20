@@ -17,6 +17,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   const levelOf = y => { let best = null; for (const l of levels()) if (!best || Math.abs(l.y - y) < Math.abs(best.y - y)) best = l; return best; };
   const onLevel = (r, ly) => Math.abs(r.y - ly) < 0.7 || (r.y < ly && r.top > ly + 2.5);    // its floor is here, or it is a tall room rising through
 
+  // What is on no drawing is on no map either, until it has been found (src/secret.js).
+  const found = () => !!G.plan.secretOpen;
+  const shown = r => !r || !r.secret || found();
+
   // ---- places, and the ways between them ----------------------------------
   // A place is somewhere you can stand: the floor of a room, a deck, or outdoors. A way joins two
   // places: a doorway, a flight of stairs, a lift. The route is the shortest chain of them.
@@ -33,6 +37,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const link = (a, b, cost, how) => { adj[a].push([b, cost, how]); adj[b].push([a, cost, how]); };
     const way = (A, B, cost, how) => { if (A.place && B.place && A.place !== B.place) link(node(A.x, A.y, A.z, A.place), node(B.x, B.y, B.z, B.place), cost, how); };
     for (const d of p.doors) {
+      if (d.secret && !found()) continue;                 // no way through a wall that has not opened
       const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
       const side = id => {
         if (id === 'out') return 'OUT';
@@ -45,6 +50,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       way(P(side(d.a)), P(side(d.b)), d.vent ? 3 : 0.5, 'door');
     }
     for (const q of p.ramps) {
+      if (!shown(p.byId[q.room])) continue;
       // Up one side of a wide flight, not the middle: the middle of the Grand Staircase's landing has a kicker on it.
       const wide = q.axis === 'x' ? q.z1 - q.z0 : q.x1 - q.x0, c = (q.axis === 'x' ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2) + (wide > 4.5 ? wide * 0.28 : 0), len = q.axis === 'x' ? q.x1 - q.x0 : q.z1 - q.z0;
       const lo = q.axis === 'x' ? { x: q.x0 - 0.4, z: c } : { x: c, z: q.z0 - 0.4 }, hi = q.axis === 'x' ? { x: q.x1 + 0.4, z: c } : { x: c, z: q.z1 + 0.4 };
@@ -202,7 +208,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const p = G.plan;
     for (const st of Object.values(G.museum.rooms)) {
       const r = st.room;
-      if (!onLevel(r, ly)) continue;
+      if (!onLevel(r, ly) || !shown(r)) continue;
       const been = G.museum.visited.has(r.id), n = st.arts.length, f = n ? st.seen / n : 0, done = n ? st.done : been;
       const w = r.x1 - r.x0, h = r.z1 - r.z0;
       c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : r.assumed || r.passage ? 'rgba(20,23,32,.92)' : 'rgba(30,34,48,.94)';
@@ -211,22 +217,23 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       c.lineWidth = px * 1.2;
       c.strokeStyle = done ? 'rgba(255,235,170,1)' : been ? 'rgba(226,205,148,.8)' : 'rgba(150,150,170,.45)';
       c.strokeRect(r.x0, r.z0, w, h);
+      if (r.secret) { c.strokeStyle = 'rgba(255,90,77,.95)'; c.lineWidth = px * 2; c.setLineDash([px * 5, px * 3]); c.strokeRect(r.x0 + px * 2, r.z0 + px * 2, w - px * 4, h - px * 4); c.setLineDash([]); }
       if (label && Math.min(w, h) > 9 * px && w > 26 * px) {
-        const name = r.kind === 'hall' ? 'Griffin Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '');
+        const name = r.secret ? (w > 12 ? 'TOP SECRET' : '?') : r.kind === 'hall' ? 'Griffin Court' : r.kind === 'corridor' ? '11' : r.gallery.replace(/^Galler(y|ies) /, '');
         const size = Math.max(9 * px, Math.min(13 * px, w / Math.max(3, name.length) * 1.5, h * 0.5));
         c.font = `600 ${size}px ui-monospace, Menlo, monospace`;
-        c.fillStyle = done ? 'rgba(30,22,6,.95)' : been ? 'rgba(240,225,185,.95)' : 'rgba(170,170,185,.8)';
+        c.fillStyle = r.secret ? 'rgba(255,120,105,.95)' : done ? 'rgba(30,22,6,.95)' : been ? 'rgba(240,225,185,.95)' : 'rgba(170,170,185,.8)';
         const fits = c.measureText(name).width < w - 2 * px;
         if (fits) c.fillText(name, r.x0 + w / 2, r.z0 + h / 2);
         else if (/^\d/.test(name)) c.fillText(name.slice(0, 4), r.x0 + w / 2, r.z0 + h / 2);
       }
     }
     c.fillStyle = 'rgba(226,205,148,.95)';
-    for (const d of p.doors) if (Math.abs(d.y - ly) < 1.6) c.fillRect(d.x0 - px, d.z0 - px, Math.max(2 * px, d.x1 - d.x0 + 2 * px), Math.max(2 * px, d.z1 - d.z0 + 2 * px));
+    for (const d of p.doors) if (Math.abs(d.y - ly) < 1.6 && (!d.secret || found())) c.fillRect(d.x0 - px, d.z0 - px, Math.max(2 * px, d.x1 - d.x0 + 2 * px), Math.max(2 * px, d.z1 - d.z0 + 2 * px));
     // Ways up and down from here: stairs hatched, lifts solid.
     c.strokeStyle = 'rgba(127,233,245,.9)'; c.fillStyle = 'rgba(127,233,245,.85)'; c.lineWidth = px;
     for (const q of p.ramps) {
-      if (Math.min(q.y0, q.y1) > ly + 1.6 || Math.max(q.y0, q.y1) < ly - 1.6) continue;
+      if (Math.min(q.y0, q.y1) > ly + 1.6 || Math.max(q.y0, q.y1) < ly - 1.6 || !shown(p.byId[q.room])) continue;
       c.strokeRect(q.x0, q.z0, q.x1 - q.x0, q.z1 - q.z0);
       c.beginPath();
       if (q.axis === 'x') for (let x = q.x0 + 1; x < q.x1; x += 1) { c.moveTo(x, q.z0); c.lineTo(x, q.z1); } else for (let z = q.z0 + 1; z < q.z1; z += 1) { c.moveTo(q.x0, z); c.lineTo(q.x1, z); }
@@ -352,7 +359,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   }
   function tabs() {
     const el = document.getElementById('bmLevels'); el.textContent = '';
-    const names = { LL: 'Lower', 1: 'First', 2: 'Second', 3: 'Third' };
+    const names = { LL: 'Lower', 1: 'First', 2: 'Second', 3: 'Third', X: 'Sub-level 9' };
     for (const l of levels().slice().reverse()) {
       const b = document.createElement('button'); b.textContent = names[l.name] || l.name; b.dataset.level = l.name;
       b.setAttribute('aria-pressed', l.name === state.level.name);
@@ -402,10 +409,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const x = ((ev.clientX - r.left) * dpr - ox) / s, z = ((ev.clientY - r.top) * dpr - oz) / s, ly = state.level.y, p = G.plan;
     const inside = q => x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1;
     // The room whose floor is on this level; failing that a deck here in a tall room; failing that, outdoors.
-    let room = p.rooms.find(q => near(q.y, ly) && inside(q)), target = null;
+    let room = p.rooms.find(q => near(q.y, ly) && inside(q) && shown(q)), target = null;
     if (room) target = { x, y: room.y, z, place: 'R' + room.id, label: room.kind === 'hall' ? 'Griffin Court' : room.gallery };
     else {
-      const d = p.decks.find(q => near(q.y, ly) && inside(q));
+      const d = p.decks.find(q => near(q.y, ly) && inside(q) && shown(p.byId[q.room]));
       if (d) { room = p.byId[d.room]; target = { x, y: d.y, z, place: 'D' + d.id, label: room.kind === 'hall' ? 'Griffin Court' : room.gallery }; }
       else if (near(ly, 0) && !p.rooms.some(q => q.y < 1 && q.top > 0.5 && inside(q))) target = { x, y: 0, z, place: 'OUT', label: 'that spot outdoors' };
     }
