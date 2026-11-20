@@ -53,6 +53,7 @@ export const VEHICLES = [
   { id: 'racer', kind: 'car', name: 'Grand Prix', hint: 'Low, quick and nervous. Hops a little lower.', need: 100, spec: { top: 1.1, accel: 1.12, grip: 1.1, steer: 1.05, jump: 0.94 } },
   { id: 'van', kind: 'car', name: 'Art Van', hint: 'The art handlers’ van. Steady, and in no hurry.', trophy: 'dock', how: 'Find the loading dock', spec: { top: 0.96, accel: 0.95, grip: 1.1, steer: 0.95, jump: 1.05 } },
   { id: 'super', kind: 'car', name: 'Supercar', hint: 'Low, wide and far too fast for a museum.', shop: 2000, how: 'For sale at the stall by the card game', spec: { top: 1.16, accel: 1.2, grip: 1.25, steer: 1.08, jump: 0.96 } },
+  { id: 'xmas', kind: 'car', name: 'Candy Cane Express', hint: 'Red, white and lit up like the tree it came from under.', gift: true, how: 'Somebody left it under a tree', spec: { top: 1.03, grip: 1.12, jump: 1.1 } },
   { id: 'quad', kind: 'drone', name: 'RC Drone', hint: 'Goes up to the glass. Meets a painting eye to eye.', need: 0, spec: {} },
   { id: 'hex', kind: 'drone', name: 'Hexacopter', hint: 'Six rotors. Climbs hard, turns steadily.', need: 25, spec: { accel: 0.95, climb: 1.2, yaw: 0.95 } },
   { id: 'airship', kind: 'drone', name: 'Airship', hint: 'Drifts. Good for standing off from a large canvas.', need: 60, spec: { accel: 0.82, climb: 0.85, yaw: 0.85 } },
@@ -158,6 +159,43 @@ const CARS = {
     part(ball(0.012), glow(4, 3.6, 2.6), 0, 0.066, 0.25, body);
     for (const [x, z, r, w, f] of [[-0.13, 0.135, 0.05, 0.045, true], [0.13, 0.135, 0.05, 0.045, true], [-0.133, -0.14, 0.064, 0.072, false], [0.133, -0.14, 0.064, 0.072, false]]) wheel(g, wheels, x, z, r, w, f, gold, 10);
     const aerial = aerialOn(body, 0, 0.17, -0.07, 0.14, glow(1.3, 0.9, 0.1));
+    return { group: g, body, wheels, aerial };
+  },
+  // The Christmas car: a red pickup trimmed in white, candy-cane bars front and back, a string of
+  // coloured bulbs down each side, a wreath on the grille and a little lit tree in the bed.
+  xmas() {
+    const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
+    g.add(body);
+    const red = paintOf(0xc4161c), white = std(0xf6f4ee, { roughness: 0.6, emissive: 0xf6f4ee, emissiveIntensity: 0.12 }), green = paintOf(0x1c7a3a), gold = std(0xe2be5a, { roughness: 0.4, metalness: 0.5, emissive: 0x6a5216, emissiveIntensity: 0.6 }), dark = std(0x0c0c0e, { roughness: 0.7 });
+    part(box(0.2, 0.05, 0.4), red, 0, 0.085, 0, body);                                    // the chassis
+    part(box(0.19, 0.06, 0.14), red, 0, 0.14, 0.02, body);                                // the cab
+    part(box(0.2, 0.012, 0.15), white, 0, 0.176, 0.02, body);                             // snow on its roof
+    part(box(0.17, 0.035, 0.006), std(0x9fd0e8, { roughness: 0.1, metalness: 0.5 }), 0, 0.142, 0.092, body);   // windscreen
+    part(box(0.205, 0.014, 0.41), white, 0, 0.062, 0, body);                              // a white stripe right round
+    for (const s of [-1, 1]) part(box(0.012, 0.045, 0.16), green, s * 0.094, 0.125, -0.12, body);            // the sides of the bed
+    part(box(0.2, 0.045, 0.012), green, 0, 0.125, -0.198, body);
+    // Candy canes: a hoop over the cab and a bar at each end, striped red and white.
+    const cane = (x0, y0, z0, x1, y1, z1, n = 8) => { for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, m = part(box(Math.abs(x1 - x0) / n + 0.014, Math.abs(y1 - y0) / n + 0.014, Math.abs(z1 - z0) / n + 0.014), i % 2 ? white : red, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t, body); m.scale.set(1, 1, 1); } };
+    for (const s of [-1, 1]) cane(s * 0.092, 0.11, -0.05, s * 0.092, 0.24, -0.05, 6);     // two posts behind the cab
+    cane(-0.092, 0.24, -0.05, 0.092, 0.24, -0.05, 8);                                     // and the bar across them
+    for (const s of [-1, 1]) { const hook = part(new THREE.TorusGeometry(0.022, 0.007, 6, 10, Math.PI), red, s * 0.092, 0.24, -0.028, body); hook.rotation.y = Math.PI / 2; }      // each post ends in a crook
+    cane(-0.1, 0.07, 0.212, 0.1, 0.07, 0.212, 8); cane(-0.1, 0.07, -0.212, 0.1, 0.07, -0.212, 8);        // bumpers
+    // A string of bulbs down each side and over the bar.
+    const BULB = [[3.4, 0.3, 0.2], [0.3, 3.0, 0.5], [3.2, 2.4, 0.3], [0.3, 1.4, 3.4], [3.2, 0.4, 2.6]];
+    for (const s of [-1, 1]) for (let i = 0; i < 9; i++) part(ball(0.0085, 6, 5), glow(...BULB[(i + (s > 0 ? 2 : 0)) % 5]), s * 0.105, 0.108 + Math.sin(i / 8 * Math.PI) * -0.012, -0.18 + i * 0.045, body);
+    for (let i = 0; i < 7; i++) part(ball(0.0085, 6, 5), glow(...BULB[i % 5]), -0.075 + i * 0.025, 0.256, -0.05, body);
+    // A wreath on the grille, with a bow.
+    const wreath = part(new THREE.TorusGeometry(0.03, 0.011, 6, 14), green, 0, 0.1, 0.206, body); wreath.rotation.set(0, 0, 0);
+    part(box(0.022, 0.012, 0.008), red, 0, 0.072, 0.214, body);
+    for (const s of [-1, 1]) part(ball(0.013), glow(4, 3.6, 2.6), s * 0.07, 0.1, 0.203, body);                                     // headlamps
+    for (const s of [-1, 1]) part(box(0.03, 0.014, 0.01), glow(2.2, 0.1, 0.08), s * 0.07, 0.095, -0.205, body);
+    // The tree in the bed: three green tiers, a star, and a few lights.
+    for (const [r, y, h] of [[0.06, 0.16, 0.07], [0.045, 0.21, 0.06], [0.03, 0.255, 0.05]]) part(new THREE.ConeGeometry(r, h, 8), green, 0, y, -0.13, body);
+    part(ball(0.012, 6, 5), glow(3.6, 3.0, 0.9), 0, 0.29, -0.13, body);
+    for (let i = 0; i < 6; i++) { const a = i * 1.05; part(ball(0.006, 5, 4), glow(...BULB[i % 5]), Math.cos(a) * (0.05 - i * 0.004), 0.15 + i * 0.018, -0.13 + Math.sin(a) * (0.05 - i * 0.004), body); }
+    for (const [x, z] of [[-0.05, -0.17], [0.045, -0.165]]) { part(box(0.045, 0.035, 0.045), x < 0 ? gold : white, x, 0.128, z, body); part(box(0.047, 0.037, 0.01), red, x, 0.128, z, body); }   // two parcels beside it
+    for (const [x, z, f] of [[-0.118, 0.13, true], [0.118, 0.13, true], [-0.118, -0.13, false], [0.118, -0.13, false]]) wheel(g, wheels, x, z, 0.055, 0.05, f, white, 8);
+    const aerial = aerialOn(body, 0.07, 0.17, 0.0, 0.16, glow(3.4, 0.3, 0.2));
     return { group: g, body, wheels, aerial };
   },
   // The supercar: a low wedge, wide at the hips, a wing, and a strip of light underneath.
@@ -354,7 +392,7 @@ export class Garage {
   isOpen(id) { return this.open.has(id); }
   /** What still has to be done for a locked one. */
   lockText(v) {
-    if (v.trophy || v.shop) return v.how;
+    if (v.trophy || v.shop || v.gift) return v.how;
     const n = Math.max(1, v.need - this.seen);
     return `See ${n} more work${n === 1 ? '' : 's'}`;
   }
@@ -365,7 +403,7 @@ export class Garage {
     this.seen = seen; this.trophies = trophies || this.trophies;
     let any = false;
     for (const v of VEHICLES) {
-      if (this.open.has(v.id) || v.shop || !(v.trophy ? this.trophies.has(v.trophy) : seen >= v.need)) continue;      // what is for sale is only ever bought
+      if (this.open.has(v.id) || v.shop || v.gift || !(v.trophy ? this.trophies.has(v.trophy) : seen >= v.need)) continue;      // what is for sale is only ever bought
       this.open.add(v.id); any = true;
       if (!quiet && this.onUnlock) this.onUnlock(v);
     }

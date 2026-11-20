@@ -110,6 +110,14 @@ you touch on the glass is the monitor's screen, the pad or the canvas. Only
 the controls that have nowhere else to be (a direction pad, LEAVE, the paint
 pots) stay on the page.
 
+## The parcels under the tree
+
+The five parcels under the tree in the yard can be opened: pull up to one and
+the button says OPEN. The wrapping comes off and the box stands open. One has
+a car in it, the Candy Cane Express: red trimmed in white, candy-cane bars,
+a string of coloured bulbs down each side, a wreath on the grille and a small
+lit tree in the bed. The others hold what parcels hold.
+
 ## Your own picture
 
 One big gilt frame hangs in the Michigan Avenue lobby, where everybody comes

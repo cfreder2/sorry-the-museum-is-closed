@@ -106,7 +106,8 @@ export function buildWinter(museum, plan) {
     const gold = std({ color: 0xe2be5a, roughness: 0.5, emissive: 0x6a5216, emissiveIntensity: 0.7 });
     for (const b of G.parcels) {
       const paper = std({ color: b.c, roughness: 0.7, emissive: b.c, emissiveIntensity: 0.4 });
-      add(put(new THREE.Group(), box, paper, b.x, b.h / 2, b.z, b.w, b.h, b.w), put(new THREE.Group(), box, gold, b.x, b.h / 2, b.z, b.w * 0.18, b.h + 0.012, b.w + 0.012), put(new THREE.Group(), box, gold, b.x, b.h / 2, b.z, b.w + 0.012, b.h + 0.012, b.w * 0.18));
+      b.parts = [put(new THREE.Group(), box, paper, b.x, b.h / 2, b.z, b.w, b.h, b.w), put(new THREE.Group(), box, gold, b.x, b.h / 2, b.z, b.w * 0.18, b.h + 0.012, b.w + 0.012), put(new THREE.Group(), box, gold, b.x, b.h / 2, b.z, b.w + 0.012, b.h + 0.012, b.w * 0.18)];
+      add(...b.parts);       // kept, so that a parcel can be opened (src/presents.js)
     }
   }
 
