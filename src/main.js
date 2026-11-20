@@ -97,7 +97,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.23';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20.24';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -412,7 +412,8 @@ function newGame() {
 function titleButtons() {
   const game = hasGame() && pick.mode === 'explore', m = G.museum;
   $('startLabel').textContent = game ? 'Continue' : 'Start';
-  $('startSub').textContent = game ? `${m.seenCount} of ${m.arts.length} works seen` : '';
+  // Your own tally lives here and nowhere else on this screen: looked at closely, and found, out of all on view.
+  $('startSub').textContent = game ? `${short(score.looked)} looked at \u00b7 ${short(m.seenCount)} of ${m.arts.length.toLocaleString()} found` : `${m.arts.length.toLocaleString()} works on view tonight`;
   $('bNew').hidden = !game;
 }
 
@@ -429,8 +430,7 @@ export function short(n) {
 function admired() {
   const m = G.museum; if (!m) return;
   const b = n => `<b>${short(n)}</b>`;
-  $('adYou').innerHTML = `${b(score.looked)} looked at \u00b7 ${b(m.seenCount)} found \u00b7 ${b(m.arts.length)} on view`;
-  $('admired').hidden = false;
+  titleButtons();
   if (admired.asked && Date.now() - admired.asked < 600e3) return;
   admired.asked = Date.now();
   const ask = tm.totals ? tm.totals() : null;
