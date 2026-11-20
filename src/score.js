@@ -63,6 +63,8 @@ export class Score {
   get score() { return this.s.score; }
   add(n) { this.s.score += Math.round(n); this._save(); }
   viewsOf(id) { return this.views[id] || 0; }
+  /** How many different works you have looked at closely. Driving past one does not count. */
+  get looked() { let n = 0; for (const k in this.views) if (this.views[k] > 0 && k !== '0') n++; return n; }
   get totalViews() { let n = 0; for (const k in this.views) n += this.views[k]; return n; }
 
   // ---- views ----

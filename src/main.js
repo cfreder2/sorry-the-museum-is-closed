@@ -91,7 +91,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.19';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.20';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
 Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
@@ -125,7 +125,7 @@ function stuntCall(c, big) {
 function progress(quiet) {
   if (!G.museum || !G.vehicle) return;
   if (!quiet) trophies.check(trophies.snap(G, score));
-  garage.check(G.museum.seenCount, trophies.ids, quiet);
+  garage.check(score.looked, trophies.ids, quiet);      // toys unlock by works looked at closely, not by works driven past
 }
 // While the trophies are up the keys are theirs: nothing reaches the menu or the game underneath, and Esc shuts them.
 addEventListener('keydown', e => { if (!trophies.isOpen) return; e.stopImmediatePropagation(); if (e.code === 'Escape') { e.preventDefault(); trophies.close(); } }, true);

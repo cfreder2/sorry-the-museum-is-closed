@@ -432,7 +432,7 @@ export class Garage {
   lockText(v) {
     if (v.trophy || v.shop || v.gift) return v.how;
     const n = Math.max(1, v.need - this.seen);
-    return `See ${n} more work${n === 1 ? '' : 's'}`;
+    return `Look closely at ${n} more work${n === 1 ? '' : 's'}`;
   }
   statText(v) { const s = v.spec; return [pct(s.top, 'speed'), pct(s.accel, 'pull'), pct(s.grip, 'grip'), pct(s.steer, 'steering'), pct(s.jump, 'hop'), pct(s.climb, 'climb'), pct(s.yaw, 'turn')].filter(Boolean).join(' · '); }
 

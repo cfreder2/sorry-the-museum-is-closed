@@ -390,8 +390,8 @@ tap: the two choices, Continue, New game, Settings and Trophies.
   in `src/trophies.js`.
 - **The garage.** Five cars and four drones. The Vehicle choice on the title
   screen goes through all of them; a locked one is shown as a silhouette with
-  what it needs ("See 12 more works"). They unlock at 15, 25, 40, 60 and 100
-  works seen, and two for trophies. (There is one more place in the selector,
+  what it needs ("Look closely at 12 more works"). They unlock at 15, 25, 40, 60 and 100
+  works looked at closely (driving past does not count), and two for trophies. (There is one more place in the selector,
   shown only as "???". It is not for sale.) Each is a different body and handles a
   little differently (top speed, grip, steering, hop; for a drone, pull, climb
   and turn); none climbs worse than the first. SWAP still goes between car and
