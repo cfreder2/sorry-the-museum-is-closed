@@ -148,7 +148,7 @@ export function buildStatues(museum, plan) {
     const tp = [[0, 1.5, -1.08], [0, 1.22, -1.46], [0, 0.82, -1.62], [0.03, 0.56, -1.56], [0.08, 0.5, -1.4]];
     for (let i = 0; i < tp.length - 1; i++) c.limb(tp[i], tp[i + 1], 0.075 - i * 0.008, 0.067 - i * 0.008, { k: 0.04 });
     c.blob([0.1, 0.5, -1.33], [0.09, 0.1, 0.14], { k: 0.04 });
-    return c.mesh({ ...VERD, snow: 0.8, reach: 0.3 });
+    return c.mesh({ ...VERD, snow: 0.42, reach: 0.3 });       // a dusting on the back, the mane, the head and the top of every limb
   };
   const block = std({ color: 0xbdb3a0, roughness: 0.9, emissive: 0x5c5040, emissiveIntensity: 0.6 });       // the same limestone as the front
   const fir = std({ color: 0x1f5a30, roughness: 0.9, emissive: 0x0e2a16, emissiveIntensity: 0.9, flatShading: true }), bow = std({ color: 0xc8261c, roughness: 0.7, emissive: 0x6a100a, emissiveIntensity: 0.8 });

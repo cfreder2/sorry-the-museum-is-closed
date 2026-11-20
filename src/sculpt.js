@@ -137,8 +137,8 @@ export class Clay {
       const open = Math.max(0, 1 - occ * 0.55), lam = Math.max(0, (gx * sun[0] + gy * sun[1] + gz * sun[2]) / sl), lit = (0.5 + 0.5 * lam) * (0.35 + 0.65 * open), t = Math.pow(open, 1.5) * (0.55 + 0.45 * lam);
       let r = (L[0] + (H[0] - L[0]) * t) * lit, g = (L[1] + (H[1] - L[1]) * t) * lit, b = (L[2] + (H[2] - L[2]) * t) * lit;
       if (snow && gy > snow && open > 0.5) {
-        const k = Math.min(1, (gy - snow) / (1 - snow) * 2.2) * Math.min(1, (open - 0.5) * 4), w = 0.55 + 0.3 * lam;
-        r += (w * 0.9 - r) * k; g += (w * 0.94 - g) * k; b += (w * 1.05 - b) * k;
+        const k = Math.min(1, (gy - snow) / (1 - snow) * 2.2) * Math.min(1, (open - 0.5) * 4), w = 1.15 + 0.5 * lam;       // bright: it has to read as snow on a dark bronze at night
+        r += (w * 0.95 - r) * k; g += (w * 0.97 - g) * k; b += (w * 1.06 - b) * k;
       }
       C[v * 3] = r; C[v * 3 + 1] = g; C[v * 3 + 2] = b;
     }
