@@ -483,16 +483,19 @@ export class Museum {
     }
     // The city all round, and one moon.
     const city = panorama();                             // the Loop to the west and north, the lake to the east (skyline.js)
-    const R = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2 + 150;
-    const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, SPAN, 64, 1, true), new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, color: new THREE.Color(1.35, 1.35, 1.35), fog: false }));
-    sky.position.set(cx, SPAN / 2 - BELOW, cz);
-    const moonAt = new THREE.Vector3(cx + R * 0.9, 100, cz - R * 0.36);        // low in the east, over the lake
-    const moon = new THREE.Mesh(new THREE.SphereGeometry(13, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 2.8), fog: false }));
+    // The backdrop is centred on the museum, not on the whole of the ground out to the lake, so that the towers
+    // stand in their true directions from its door; and it grows with the world, keeping its proportions.
+    const bx1 = B.cx1 == null ? B.x1 : B.cx1, sx = (B.x0 + bx1) / 2;
+    const R = Math.max(Math.hypot(bx1 - B.x0, B.z1 - B.z0) / 2 + 150, B.x1 - sx + 120), SK = R / 373;
+    const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, SPAN * SK, 64, 1, true), new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, color: new THREE.Color(1.35, 1.35, 1.35), fog: false }));
+    sky.position.set(sx, (SPAN / 2 - BELOW) * SK, cz);
+    const moonAt = new THREE.Vector3(sx + R * 0.9, 100 * SK, cz - R * 0.36);        // low in the east, over the lake
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(13 * SK, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 2.8), fog: false }));
     moon.position.copy(moonAt);
-    const halo = new THREE.Mesh(new THREE.PlaneGeometry(190, 190), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.4), color: new THREE.Color(0.3, 0.38, 0.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(190 * SK, 190 * SK), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.4), color: new THREE.Color(0.3, 0.38, 0.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     halo.position.copy(moonAt); halo.lookAt(cx, 20, cz);
     this.group.add(sky, moon, halo);
-    this.group.add(lake(B.x1 + 95, cx + R + 60, cz - R - 60, cz + R + 60, { x: B.x1 + 95, z: cz }, { x: moonAt.x, z: moonAt.z }));
+    { const wx = plan.lakefront ? plan.lakefront.buoys : B.x1 + 95; this.group.add(lake(wx, sx + R + 60, cz - R - 60, cz + R + 60, { x: wx, z: cz }, { x: moonAt.x, z: moonAt.z }, !!plan.lakefront)); }
 
     // A lamp either side of every way in.
     const posts = new Geo(), n = Math.max(1, plan.lamps.length);

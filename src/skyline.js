@@ -90,7 +90,7 @@ export function panorama() {
 }
 
 /** The lake: a sheet of dark water east of the park, with the moon's road across it. */
-export function lake(x0, x1, z0, z1, from, moon) {
+export function lake(x0, x1, z0, z1, from, moon, bare = false) {
   const cw = 512, ch = 1024, cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
   const g = cv.getContext('2d'), r = rng(77);
   const gr = g.createLinearGradient(0, 0, cw, 0); gr.addColorStop(0, '#0a1222'); gr.addColorStop(1, '#1a2540'); g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
@@ -104,6 +104,7 @@ export function lake(x0, x1, z0, z1, from, moon) {
   m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, 0.12, (z0 + z1) / 2);
   // A line of lamps along the drive on the shore, and the dark of the park's trees before it.
   const shore = new THREE.Group(); shore.add(m);
+  if (bare) return shore;                              // the shore itself is built: lakefront.js
   const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.35, 6, 4), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.8, 1.0), fog: false }), 40), M = new THREE.Matrix4();
   for (let i = 0; i < 40; i++) dots.setMatrixAt(i, M.makeTranslation(x0 - 6, 5, z0 + (z1 - z0) * (i + 0.5) / 40));
   dots.frustumCulled = false; shore.add(dots);

@@ -145,7 +145,9 @@ export function buildPlan() {
   const facade = { FX, PX, z0: cuts[0], z1: cuts[cuts.length - 1], cz: fz, half: 13, wing: WING, pav: PAV };
   // The city block: Michigan Avenue to the west, Monroe to the north, Columbus to the east, Jackson to the south.
   const up = rooms.filter(r => r.top > 0.5), xs = up.flatMap(r => [r.x0, r.x1]), zs = up.flatMap(r => [r.z0, r.z1]);
-  const bounds = { x0: -28, x1: Math.max(298, Math.max(...xs) + 12), z0: Math.min(-42, Math.min(...zs) - 12), z1: Math.max(262, Math.max(...zs) + 8) };
+  // (East of Columbus Drive the world goes on across the park to the lake: `cx1` is where the block itself ends.)
+  const cx1 = Math.max(298, Math.max(...xs) + 12);
+  const bounds = { x0: -28, x1: 620, cx1, z0: Math.min(-42, Math.min(...zs) - 12), z1: Math.max(262, Math.max(...zs) + 8) };
 
   const plan = { rooms, doors, byId, boxes: [], masses, massOf, bounds, obstacles: [], surfaces: [], hall, made: LAYOUT.made, levels: { ...(LAYOUT.levels || {}) },
     // What is on no drawing (see src/secret.js): which room it is behind, and whether its doorway has been found. Until it has, that doorway is a wall.
@@ -177,6 +179,7 @@ export function buildPlan() {
   plan.front = front;
   plan.spawn = { x: PX - 2.7, z: fz, yaw: Math.PI / 2 };
   addGrounds(plan);
+  addLakefront(plan);
   addStunts(plan);
   addLand(plan);
   // The roof of Gallery 211, at the top of the scaffold, is kept clear: there is a card game up there.
@@ -664,6 +667,50 @@ function addGrounds(plan) {
   }
 }
 
+// East of Columbus Drive: Butler Field under snow with the band shell in its corner, Lake Shore
+// Drive, the promenade, and Monroe Harbor frozen out as far as the mooring buoys. The park is
+// about 190 m deep here where the real one is nearer 330: the order of things is kept, not the size.
+function addLakefront(plan) {
+  const B = plan.bounds, G = plan.grounds, O = plan.obstacles, C = G.columbus, S = plan.surfaces;
+  const z0 = G.monroe.z1, z1 = G.jackson.z0;
+  const L = plan.lakefront = {
+    field: { x0: C.x1, x1: 480, z0, z1 }, lsd: { x0: 480, x1: 514, med: [494.5, 499.5] }, prom: { x0: 514, x1: 528 },
+    shore: 530, buoys: 575, slip: [104, 116], shell: { x0: 304, x1: 328, z0: 220, z1: 232, h: 1.1 },
+    breakwater: { x0: 600, x1: 605, z0: 44, z1: 200 }, light: { x: 602.5, z: 46 },
+    paths: [], cars: [], hills: [[352, 48, 17, 4.5, 14], [436, 178, 21, 6.5, 17]],
+  };
+  // Paths shovelled across the field, and the roads and the promenade.
+  const PW = 1.5, path = q => { L.paths.push(q); plan.paved.push(q); };
+  path({ x0: C.x1, x1: L.lsd.x0, z0: 110 - PW, z1: 110 + PW }); path({ x0: 387 - PW, x1: 387 + PW, z0, z1 });
+  path({ x0: 328, x1: 387 - PW, z0: 214 - PW, z1: 214 + PW });                         // from the cross path to the band shell
+  plan.paved.push({ x0: L.lsd.x0, x1: L.lsd.med[0], z0: B.z0, z1: B.z1 }, { x0: L.lsd.med[1], x1: L.lsd.x1, z0: B.z0, z1: B.z1 }, { x0: L.prom.x0, x1: L.shore, z0: B.z0, z1: B.z1 });
+  plan.paved.push({ x0: L.buoys, x1: B.x1 + 400, z0: B.z0 - 400, z1: B.z1 + 400 });   // open water: nothing glitters or takes a tyre track there
+  plan.ice.push({ x0: L.shore, x1: L.buoys, z0: B.z0, z1: B.z1 });                    // the harbour, frozen as far as the buoys
+  // The revetment along the water, with the slipway through it; the line of buoys where the ice gives out; the breakwater.
+  O.push({ x0: L.prom.x1, x1: L.shore, z0: B.z0, z1: L.slip[0], y0: -0.3, y1: 0.5 }, { x0: L.prom.x1, x1: L.shore, z0: L.slip[1], z1: B.z1, y0: -0.3, y1: 0.5 });
+  O.push({ x0: L.buoys, x1: L.buoys + 0.5, z0: B.z0, z1: B.z1, y0: -0.3, y1: 0.7 });
+  O.push({ ...L.breakwater, y0: -0.3, y1: 1.3 });
+  // The band shell: a stone stage facing north across the lawn, a ramp of somebody's plywood up its west end, and a kicker on its lip.
+  const sh = L.shell;
+  S.push({ skin: 'stone', x0: sh.x0, x1: sh.x1, z0: sh.z0, z1: sh.z1, axis: null, h0: sh.h, h1: sh.h });
+  S.push({ skin: 'ply', x0: sh.x0 - 8, x1: sh.x0 + 0.4, z0: sh.z0 + 0.4, z1: sh.z0 + 5.6, axis: 'x', h0: 0, h1: sh.h + 0.08, thick: 0.1, posts: true });
+  S.push({ skin: 'ply', x0: 312, x1: 320, z0: sh.z0, z1: sh.z0 + 3.4, axis: 'z', h0: sh.h + 0.75, h1: sh.h, base: sh.h });
+  O.push({ x0: sh.x0 - 1.2, x1: sh.x1 + 1.2, z0: sh.z1, z1: sh.z1 + 1.2, y0: 0, y1: 8 });
+  for (const x of [sh.x0 - 0.9, sh.x1 + 0.3]) O.push({ x0: x, x1: x + 0.6, z0: sh.z0 + 6, z1: sh.z1, y0: sh.h, y1: 8 });
+  plan.paved.push({ x0: sh.x0 - 9, x1: sh.x1 + 2, z0: sh.z0 - 1, z1: sh.z1 + 2 });
+  // Elms along the field's edges.
+  const clearOf = (x, z) => !L.paths.some(q => x > q.x0 - 2.5 && x < q.x1 + 2.5 && z > q.z0 - 2.5 && z < q.z1 + 2.5) && !(x > sh.x0 - 12 && x < sh.x1 + 6 && z > sh.z0 - 8);
+  const elm = (x, z) => { if (!clearOf(x, z)) return; G.trees.push({ x, z, kind: 'elm', s: 1.15 + ((x * 13 + z * 7) % 10) / 28, yaw: (x * 3 + z * 5) % 6.28 }); O.push({ x0: x - 0.18, x1: x + 0.18, z0: z - 0.18, z1: z + 0.18, y0: 0, y1: 5 }); };
+  for (let x = 304; x <= 472; x += 14) { elm(x, z0 + 5); elm(x, z1 - 5); }
+  for (let z = z0 + 19; z <= z1 - 19; z += 14) { elm(473, z); elm(301, z); }
+  for (let z = B.z0 + 14; z < B.z1 - 6; z += 22) elm((L.lsd.med[0] + L.lsd.med[1]) / 2, z);
+  // Lamps down the middle of the Drive and along the promenade.
+  for (let z = B.z0 + 25; z < B.z1 - 6; z += 44) { plan.lamps.push({ x: 497, z }, { x: 521, z: z + 22 > B.z1 - 4 ? z - 22 : z + 22 }); }
+  // A few cars nobody came back for, snowed in at the kerb.
+  for (const [x, z, c] of [[481.5, 62, 0x7a2222], [481.5, 148, 0x26486e], [512.5, 196, 0x555a60], [512.5, 20, 0x2f5a3c]]) { L.cars.push({ x, z, c }); O.push({ x0: x - 0.95, x1: x + 0.95, z0: z - 2.3, z1: z + 2.3, y0: 0, y1: 1.6 }); }
+  plan.reserved.push({ x0: C.x1, x1: B.x1, z0: B.z0, z1: B.z1 });
+}
+
 // ------------------------------------------------------------ the stunt kit --
 //
 // Somebody has been in here before you with plywood and a staple gun. Every
@@ -900,9 +947,9 @@ function addStunts(plan) {
   const clearOutside = (x0, x1, z0, z1) => [...plan.masses, ...plan.reserved].every(m => x1 < m.x0 - 1 || x0 > m.x1 + 1 || z1 < m.z0 - 1 || z0 > m.z1 + 1);
   let park = null;
   // The nearest clear rectangle to the middle of the grounds.
-  const B = plan.bounds, mx = (B.x0 + B.x1) / 2, mz = (B.z0 + B.z1) / 2;
+  const B = plan.bounds, mx = (B.x0 + B.cx1) / 2, mz = (B.z0 + B.z1) / 2;
   let bestD = Infinity;
-  for (let z = B.z0 + 4; z <= B.z1 - 24; z += 2) for (let x = B.x0 + 4; x <= B.x1 - 48; x += 2) {
+  for (let z = B.z0 + 4; z <= B.z1 - 24; z += 2) for (let x = B.x0 + 4; x <= B.cx1 - 48; x += 2) {
     const d = Math.hypot(x + 22 - mx, z + 10 - mz);
     if (d < bestD && clearOutside(x - 2, x + 46, z - 2, z + 22)) { bestD = d; park = { x, z }; }
   }
@@ -1017,6 +1064,7 @@ function addLand(plan) {
   }
   // Two big ones...
   hill(88, 38, 15, 6.5, 13); hill(240, 224, 20, 8.5, 17);
+  for (const h of (plan.lakefront && plan.lakefront.hills) || []) hill(...h);        // out on Butler Field
   // ...and swells wherever there is room.
   for (const [x, z, r, H] of [[150, -10, 10, 1.5], [128, 42, 6.5, 1.0], [150, 2, 5, 0.8], [215, 42, 8, 1.3], [264, 62, 8, 1.2], [265, 190, 8, 1.2], [268, 120, 5, 0.9], [100, 242, 9, 1.4], [84, -24, 0, 0], [70, 20, 4, 0.7], [104, 10, 5, 0.9], [262, -8, 7, 1.1], [205, 232, 7, 1.0], [130, 150, 5, 0.9], [150, 136, 5, 0.8]]) if (r) hill(x, z, r, H);
 }
