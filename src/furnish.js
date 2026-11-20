@@ -871,7 +871,8 @@ def('coatstand', 0.5, 0.5, (g, w, r) => {
 // ones that have something written on them get their writing from src/whiteboards.js, which lays it
 // over the board (the few strokes drawn here are what shows on a board nobody has written on).
 def('whiteboard', 1.8, 0.08, (g, w, r, o = {}) => {
-  const e = w / 2, y0 = 0.42, y1 = y0 + (w - 0.06) * 2 / 3 + 0.06;
+  // (Hung clear of the painted lower wall and its rail, which stand a little proud and would cover the bottom of it.)
+  const e = w / 2, y0 = 1.12, y1 = y0 + (w - 0.06) * 2 / 3 + 0.06;
   g.b(-e, e, y0, y1, 0, 0.03, C.steelL, 'metal'); g.b(-e + 0.03, e - 0.03, y0 + 0.03, y1 - 0.03, 0.03, 0.035, C.white); g.b(-e, e, y0 - 0.02, y0, 0, 0.08, C.steelL, 'metal', true);
   if (!o.text) for (let i = 0; i < 5; i++) { const u = -e + 0.15 + r() * (w - 0.9), y = y0 + 0.2 + r() * 0.8; g.b(u, u + 0.2 + r() * 0.5, y, y + 0.012, 0.035, 0.037, pick(r, [C.blue, C.red, C.black, C.green])); }
   g.mark('board', 0, 0.04, (y0 + y1) / 2, { w: w - 0.06, h: y1 - y0 - 0.06, ...(o.text ? { text: o.text } : {}) });
@@ -1882,7 +1883,10 @@ function writtenBoard(R, id) {
   const walls = [[L, t => [t, 0], 'b+'], [L, t => [t, W], 'b-'], [W, t => [0, t], 'a+'], [W, t => [L, t], 'a-']];
   for (let i = 0; i < 4; i++) {
     const [len, at, face] = walls[(i + k) % 4];
-    for (let off = 0; off <= len / 2 - w / 2 - 0.1; off += 0.35) for (const sgn of off ? [1, -1] : [1]) { const [a, b] = at(len / 2 + sgn * off); if (R.put(['whiteboard', w, { text: id }], a, b, face, 0.3)) return true; }
+    for (let off = 0; off <= len / 2 - w / 2 - 0.1; off += 0.35) for (const sgn of off ? [1, -1] : [1]) { const [a, b] = at(len / 2 + sgn * off); if (R.put(['whiteboard', w, { text: id }], a, b, face, 0.3)) {
+      // Nothing is to stand in front of it: the floor before the board, a good stride deep, is kept clear of furniture.
+      const D = 1.9, h = w / 2 + 0.15; R.clear.push(face === 'b+' ? R.rect(a - h, a + h, 0, D) : face === 'b-' ? R.rect(a - h, a + h, W - D, W) : face === 'a+' ? R.rect(0, D, b - h, b + h) : R.rect(L - D, L, b - h, b + h));
+      return true; } }
   }
   return false;
 }
