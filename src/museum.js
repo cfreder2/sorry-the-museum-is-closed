@@ -352,7 +352,9 @@ export class Museum {
       const m = plan.massOf[r.id];
       if (!m) return;
       const top = r.kind === 'hall' ? SPRING + 0.4 : m.top;
-      const outs = plan.doors.filter(dd => dd.a === r.id || dd.b === r.id);      // every doorway pierces the outside wall it passes through
+      // Every doorway pierces the outside wall it passes through. And so does a way in cut for a room above or below this one:
+      // stacked rooms are each a block from the street up, their walls in the same plane, and one of them would wall the hole up.
+      const outs = plan.doors.filter(dd => dd.a === r.id || dd.b === r.id || (dd.out && dd.y < 0.1 && (q => q && q !== r && q.x0 < r.x1 && q.x1 > r.x0 && q.z0 < r.z1 && q.z1 > r.z0)(plan.byId[dd.a])));
       const sides = [
         { name: 'w', at: m.x0, lo: m.z0, hi: m.z1, n: [-1, 0, 0], beyond: o => o.x0 < m.x0 - 0.01 && o.x1 > m.x0 - 0.01, span: o => [o.z0, o.z1], P: (u, y) => [m.x0, y, u], door: dd => dd.along === 'x' && dd.x1 <= r.x0 + 0.01 && [dd.z0, dd.z1] },
         { name: 'e', at: m.x1, lo: m.z0, hi: m.z1, n: [1, 0, 0], beyond: o => o.x0 < m.x1 + 0.01 && o.x1 > m.x1 + 0.01, span: o => [o.z0, o.z1], P: (u, y) => [m.x1, y, u], door: dd => dd.along === 'x' && dd.x0 >= r.x1 - 0.01 && [dd.z0, dd.z1] },

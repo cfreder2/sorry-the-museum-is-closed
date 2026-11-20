@@ -215,8 +215,9 @@ function buildCourt(museum, plan, { add, trim, snow, hedgeM }) {
     const bx = (g, a, b, y0, y1, d0, d1) => east ? g.box(E - d1, E - d0, y0, y1, a, b) : g.box(a, b, y0, y1, S - d1, S - d0);
     const pt = (u, y, d) => east ? [E - d, y, u] : [u, y, S - d], n = east ? [-1, 0, 0] : [0, 0, -1];
     const top = upper ? 9.3 : 5.5, nb = Math.max(2, Math.round((u1 - u0) / 4.3)), bay = (u1 - u0) / nb, w = 2.3, spring = 2.55, r = w / 2;
-    bx(wallG, u0, u1, 0, top, 0, 0.07);
-    bx(trimG, u0, u1, 0, 0.3, 0.07, 0.16); bx(trimG, u0, u1, 4.25, 4.5, 0.07, 0.3); bx(trimG, u0, u1, top - 0.28, top, 0.07, 0.26);
+    // (Left open round any way in that has been cut through this wall: a dressing laid over it would wall it up.)
+    const cuts = (plan.holes || []).filter(q => east ? Math.abs((q.x0 + q.x1) / 2 - E) < 1.2 && q.z1 > u0 && q.z0 < u1 : Math.abs((q.z0 + q.z1) / 2 - S) < 1.2 && q.x1 > u0 && q.x0 < u1).map(q => east ? [q.z0 - 0.12, q.z1 + 0.12, q.h + 0.12] : [q.x0 - 0.12, q.x1 + 0.12, q.h + 0.12]).sort((p, q) => p[0] - q[0]);
+    { let u = u0; for (const [a, b, hh] of cuts) { bx(wallG, u, a, 0, top, 0, 0.07); bx(trimG, u, a, 0, 0.3, 0.07, 0.16); bx(wallG, a, b, hh, top, 0, 0.07); u = b; } bx(wallG, u, u1, 0, top, 0, 0.07); bx(trimG, u, u1, 0, 0.3, 0.07, 0.16); } bx(trimG, u0, u1, 4.25, 4.5, 0.07, 0.3); bx(trimG, u0, u1, top - 0.28, top, 0.07, 0.26);
     for (let i = 0; i <= nb; i++) { const u = u0 + i * bay; bx(trimG, u - 0.3, u + 0.3, 0.3, 4.25, 0.07, 0.2); bx(trimG, u - 0.36, u + 0.36, 3.95, 4.25, 0.07, 0.26); }
     for (let i = 0; i < nb; i++) {
       const c = u0 + (i + 0.5) * bay, d = 0.09;
