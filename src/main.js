@@ -574,7 +574,7 @@ function act(a) {
   }
 }
 
-function pause() { G.state = 'paused'; show('pause'); }
+function pause() { G.state = 'paused'; $('pauseStats').innerHTML = $('tally').innerHTML; show('pause'); }      // the counts are kept off the screen while you drive, and read here
 
 function openNotebook() {
   const grid = $('nbGrid');
@@ -909,7 +909,7 @@ function hud() {
       $('fpv').querySelector('.stamp').innerHTML = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }).toUpperCase()
         + '<br>' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
     }
-    if (frame % 2 === 0) nav.radar();
+    nav.radar();                                       // every frame: it only turns a picture it already has
   }
   if (G.mode === 'race') {
     const R = G.race, b = R.bearing();

@@ -453,3 +453,12 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 /* the headlamp button: the lamp-and-beams sign from a dashboard, so it is not mistaken for a room's light switch */
 #pads #bLights svg { width: 30px; height: 20px; display: block; margin: 0 auto; }
 #pads #bLights[aria-pressed="false"] svg path:last-child { opacity: .25; }
+
+/* while you drive the screen is left to the building: the counts are read on the pause screen instead */
+#hud #tally { display: none; }
+#pauseStats { font: 12px/1.6 var(--mono); color: var(--gilt-dim); letter-spacing: .05em; margin: 2px 0 12px; }
+#pauseStats b { color: var(--gilt); font-weight: 600; }
+#pauseStats .art, #pauseStats .pts { display: block; font-size: 14px; color: var(--cream); letter-spacing: .08em; }
+#pauseStats .art b, #pauseStats .pts b { font-size: 17px; }
+#pauseStats .minor { display: block; font-size: 11px; margin-top: 2px; }
+@media (max-height: 460px) { #pauseStats { font-size: 10.5px; line-height: 1.4; margin-bottom: 6px; } #pauseStats .art, #pauseStats .pts { display: inline; font-size: 12px; margin-right: 12px; } #pauseStats .art b, #pauseStats .pts b { font-size: 13px; } }

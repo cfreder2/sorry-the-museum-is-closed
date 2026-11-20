@@ -284,11 +284,26 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   }
 
   // ---- the radar ---------------------------------------------------------------
+  // The plan of a level is drawn once onto a picture of its own, and the radar only turns and slides
+  // that picture each frame: drawing several hundred rooms afresh every frame is what made it jerk.
+  // The picture is redrawn when something on it changes (a room visited, a work seen), at most twice a second.
+  let pic = null;
+  function levelPicture(ly) {
+    const m = G.museum, key = `${Math.round(ly * 10)}|${m.visited.size}|${m.seenCount}|${G.plan.rooms.length}|${G.secret && G.secret.open ? 1 : 0}`, now = performance.now();
+    if (pic && (pic.key === key || now - pic.at < 500) && pic.ly === Math.round(ly * 10)) return pic;
+    const B = G.plan.rooms.reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
+    const pad = 4, ppm = 4, cv = (pic && pic.canvas) || document.createElement('canvas');
+    cv.width = Math.ceil((B.x1 - B.x0 + 2 * pad) * ppm); cv.height = Math.ceil((B.z1 - B.z0 + 2 * pad) * ppm);
+    const k = cv.getContext('2d');
+    k.setTransform(ppm, 0, 0, ppm, -(B.x0 - pad) * ppm, -(B.z0 - pad) * ppm);
+    k.textAlign = 'center'; k.textBaseline = 'middle';
+    drawLevel(k, ly, 1 / ppm, false);
+    return (pic = { key, ly: Math.round(ly * 10), at: now, canvas: cv, x0: B.x0 - pad, z0: B.z0 - pad, ppm });
+  }
   function radar() {
     const v = G.vehicle, c = rc, W = radarEl.width, R = W / 2, s = W / 62;             // 62 m across
     const t = performance.now() / 1000;
-    // Keep the route fresh: you rarely follow it exactly.
-    if (state.target && t - state.at > 1.2) { state.at = t; refresh(); }
+    // The route is drawn once, when it is asked for, and stays as drawn until you arrive or rub it out.
     if (ribbon && ribbon.visible) ribbon.material.map.offset.x = -(t * 1.6) % 1;
     const ly = G.roomId ? v.pos.y : 0;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, W);
@@ -297,7 +312,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     c.fillStyle = 'rgba(8,10,16,.72)'; c.fillRect(0, 0, W, W);
     c.translate(R, R); c.rotate(v.yaw - Math.PI); c.scale(s, s); c.translate(-v.pos.x, -v.pos.z);
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    drawLevel(c, ly, 1 / s, false);
+    { const k = levelPicture(ly); c.imageSmoothingEnabled = true; c.drawImage(k.canvas, k.x0, k.z0, k.canvas.width / k.ppm, k.canvas.height / k.ppm); }
     c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5 / s;
     for (const L of G.plan.loops) { c.beginPath(); c.arc(L.x, L.z, 5.5 / s, 0, TAU); c.stroke(); }
     if (G.mode === 'race' && G.race && G.race.active) {
@@ -317,7 +332,12 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       const k = (R - 9) / d;
       c.fillStyle = colour; c.strokeStyle = '#000'; c.lineWidth = 2; c.beginPath(); c.arc(R + rx * k, R + ry * k, 7, 0, TAU); c.fill(); c.stroke();
     };
-    if (state.path) { const far = state.path.pts.find((p, i) => i > 0 && Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > (R - 12) / s) || state.target; rim(far.x, far.z, '#7fe9f5'); }
+    if (state.path) {
+      // The part of the route still ahead: from the point of it nearest you, the first that is off the edge of the radar.
+      const pts = state.path.pts; let near = 0, nd = Infinity;
+      pts.forEach((p, i) => { const d = Math.hypot(p.x - v.pos.x, p.z - v.pos.z) + Math.abs(p.y - v.pos.y) * 3; if (d < nd) { nd = d; near = i; } });
+      const far = pts.slice(near).find(p => Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > (R - 12) / s) || state.target; rim(far.x, far.z, '#7fe9f5');
+    }
     if (G.mode === 'race' && G.race && G.race.active) { const g = G.race.gates[G.race.next]; if (g) rim(g.x, g.z, '#7fe9f5'); }
     for (const m of G.mapMarks || []) rim(m.x, m.z, m.colour || '#ff5a4d');
     // North, on the rim.
