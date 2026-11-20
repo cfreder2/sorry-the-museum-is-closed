@@ -147,6 +147,30 @@ export function startFeatures(o) {
     },
     tint: id => tint(k, id),
     course: (gates, opts) => new Course(k, gates, opts),
+    // The work the player is standing looking at just now (a museum art: .work, .x/.y/.z, .nx/.nz, .w/.h, .rot), or null.
+    get looking() { return G.state === 'study' && G.study ? G.study.art : null; },
+    // A sound that goes on until it is turned down: rain, wind, a fountain (noise), or a hum ('sine', 'triangle'...).
+    // const l = k.loop({ lp: 2600, hp: 500 }); l.set(0.05) each frame you want it; l.set(0) lets it fade and stop.
+    loop({ type = 'noise', freq = 110, lp = 0, hp = 0 } = {}) {
+      let src = null, g = null, idle = 0;
+      const make = () => {
+        const c = sound && sound.ctx; if (!c || c.state !== 'running' || !sound.master) return false;
+        g = c.createGain(); g.gain.value = 0;
+        if (type === 'noise') { const n = c.sampleRate * 2, b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; src = c.createBufferSource(); src.buffer = b; src.loop = true; }
+        else { src = c.createOscillator(); src.type = type; src.frequency.value = freq; }
+        let node = src;
+        for (const [kind, f] of [['lowpass', lp], ['highpass', hp]]) if (f) { const q = c.createBiquadFilter(); q.type = kind; q.frequency.value = f; node.connect(q); node = q; }
+        node.connect(g); g.connect(sound.master); src.start(); return true;
+      };
+      const stop = () => { if (!src) return; try { src.stop(); } catch { /* stopped */ } src.disconnect(); g.disconnect(); src = g = null; };
+      return {
+        set(vol, tau = 0.25) {
+          if (vol <= 0.0005) { if (g && (idle += 1) > 240) stop(); else if (g) g.gain.setTargetAtTime(0, sound.ctx.currentTime, tau); return; }
+          idle = 0; if (!g && !make()) return; g.gain.setTargetAtTime(vol, sound.ctx.currentTime, tau);
+        },
+        stop,
+      };
+    },
   };
   k.carry = new Carry(k);
   for (const f of features) {
