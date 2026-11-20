@@ -127,6 +127,7 @@ export function buildStreets(museum, plan) {
   const blades = {}; const bladeMat = n => blades[n] || (blades[n] = new THREE.MeshBasicMaterial({ map: blade(n), side: THREE.DoubleSide, color: new THREE.Color(0.85, 0.85, 0.85) }));
   // A head: a black box with three lamps, one lit. Faces along `ax` ('x' or 'z') in direction `dir`.
   const head = (x, y, z, ax, dir, lit) => {
+    if (lit !== 'A') return;                             // where the traffic runs, its own working heads hang here (traffic.js); only the caution light at the Adams crossing is ours
     const t = 0.13, w = 0.17;
     ax === 'z' ? g.black.box(x - w, x + w, y, y + 0.96, z - t, z + t) : g.black.box(x - t, x + t, y, y + 0.96, z - w, z + w);
     ['R', 'A', 'G'].forEach((c, i) => { const q = c === lit ? g['lamp' + c] : c === 'A' ? g.lampA : g.dark, yy = y + 0.96 - 0.17 - i * 0.31, f = dir * (t + 0.015);
@@ -145,7 +146,7 @@ export function buildStreets(museum, plan) {
   };
   // Michigan Avenue: at each crossing, one pole on the museum's kerb (arm out over the northbound lanes, facing south)
   // and one on the far kerb (arm over the southbound, facing north).
-  [[MO.z1 + 5.2, MO.z0 - 1.6, 'Monroe St', 'G'], [cz + 5.2, cz - 5.2, 'Adams St', 'R'], [JA.z1 + 1.6, JA.z0 - 5.2, 'Jackson Dr', 'G']].forEach(([zn, zs, name, lit]) => {
+  [[MO.z1 + 5.2, MO.z0 - 1.6, 'Monroe St', 'G'], [cz + 5.2, cz - 5.2, 'Adams St', 'A'], [JA.z1 + 1.6, JA.z0 - 5.2, 'Jackson Dr', 'G']].forEach(([zn, zs, name, lit]) => {
     signal(M.x1 + 0.6, zn, 'x', -7.5, 'z', 1, lit, ['Michigan Av', name]);
     signal(M.x0 - 0.6, zs, 'x', 7.5, 'z', -1, lit, ['Michigan Av', name]);
   });

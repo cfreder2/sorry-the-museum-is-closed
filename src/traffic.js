@@ -170,11 +170,12 @@ export class Traffic {
     this.ZN = bz0 - EXT; this.ZS = bz1 + EXT;
     const mid = (M.x0 + M.x1) / 2 - 0.1;
     this.NS = {
-      mich: { x0: M.x0, x1: M.x1, z0: this.ZN, z1: this.ZS, thru: true, lanes: { 1: [M.x0 + 2.5, mid - 3.2], [-1]: [M.x1 - 4, mid + 3.1] } },
+      mich: { x0: M.x0, x1: M.x1, z0: this.ZN, z1: this.ZS, thru: true, lanes: { 1: [M.x0 + 4.6, mid - 3.2],       // clear of the cars parked along the far kerb (streets.js)
+        [-1]: [M.x1 - 4, mid + 3.1] } },
       col: { x0: G.columbus.x0, x1: G.columbus.x1, z0: G.monroe.z1, z1: G.jackson.z0, lanes: { 1: [G.columbus.x0 + 4.5], [-1]: [G.columbus.x1 - 4.5] } },
     };
     if (L) this.NS.lsd = { x0: L.lsd.x0, x1: L.lsd.x1, z0: this.ZN, z1: this.ZS, thru: true, lanes: { 1: [L.lsd.x0 + 4, L.lsd.med[0] - 4], [-1]: [L.lsd.x1 - 4, L.lsd.med[1] + 3.6] } };
-    const ew = (id, q) => ({ id, z0: q.z0, z1: q.z1, zc: (q.z0 + q.z1) / 2, lanes: { 1: (q.z0 + q.z1) / 2 + (q.z1 - q.z0) / 4, [-1]: (q.z0 + q.z1) / 2 - (q.z1 - q.z0) / 4 } });
+    const ew = (id, q) => ({ id, z0: q.z0, z1: q.z1, zc: (q.z0 + q.z1) / 2, lanes: { 1: (q.z0 + q.z1) / 2 + 2.0, [-1]: (q.z0 + q.z1) / 2 - 2.0 } });      // two metres either side of the centre line: the kerbs have cars parked at them
     this.EW = [ew('monroe', G.monroe), ew('jackson', G.jackson)];
     for (const k in this.NS) { this.NS[k].id = k; this.NS[k].xc = (this.NS[k].x0 + this.NS[k].x1) / 2; }
 

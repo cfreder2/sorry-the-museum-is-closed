@@ -600,7 +600,7 @@ function addGrounds(plan) {
     if (Math.hypot(x - G.fountain.x, z - G.fountain.z) < 9) continue;
     tree(x, z, 'hawthorn');
   }
-  for (let z = B.z0 + 10; z < B.z1 - 6; z += 13) if (Math.abs(z - F.cz) > 21) tree(3.4, z, 'locust');
+  for (let z = B.z0 + 10; z < B.z1 - 6; z += 13) if (Math.abs(z - F.cz) > 21 && !(z > G.monroe.z0 - 2 && z < G.monroe.z1 + 2) && !(z > G.jackson.z0 - 2 && z < G.jackson.z1 + 2)) tree(3.4, z, 'locust');       // not in the mouths of the side streets
   // And a row along Columbus Drive, on the pavement's edge.
   for (let z = G.monroe.z1 + 8; z < G.jackson.z0 - 6; z += 12.5) if (Math.abs(z + 14) > 4.2 && Math.abs(z - 110) > 6) tree(G.columbus.x0 - 1.4, z, 'locust');      // not across the arch, nor the east door
   // Street trees in grates along the block's side of Monroe Street and Jackson Drive (streets.js draws the grates).
