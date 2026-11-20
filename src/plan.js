@@ -180,7 +180,7 @@ export function buildPlan() {
 
   const plan = { rooms, doors, byId, boxes: [], masses, massOf, bounds, obstacles: [], surfaces: [], hall, made: LAYOUT.made, levels: { ...(LAYOUT.levels || {}) },
     // What is on no drawing (see src/secret.js): which room it is behind, and whether its doorway has been found. Until it has, that doorway is a wall.
-    secret: LAYOUT.secret || null, secretOpen: false, pits: rooms.filter(r => r.secret && r.y < -0.5 && r.top > 0.5), vent, transom, skylight, skylights, holes, locked: true, facade };
+    secret: LAYOUT.secret || null, secretOpen: false, pits: rooms.filter(r => r.y < -0.5 && r.top > 0.5)        /* any room that rises from below through street level (a stair tower, a shaft, the secret stair): the street is not a floor inside it */, vent, transom, skylight, skylights, holes, locked: true, facade };
   plan.walls = rooms.flatMap(r => wallsOf(plan, r));
   plan.doorsOf = id => doors.filter(d => d.a === id || d.b === id);
   addLevels(plan);

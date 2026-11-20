@@ -71,7 +71,14 @@ export class Cinema {
         for (const off of [0, -1, 1, -2, 2, -3, 3, -4, 4]) { const m = W / 2 + off; if (m - w / 2 < 0.25 || m + w / 2 > W - 0.25) continue; if (gaps[e].some(([b0, b1]) => m + w / 2 > b0 - 0.3 && m - w / 2 < b1 + 0.3)) continue; end = e; mid = m; found = true; break; }
         if (found) break;
       }
-      if (!found) { end = quiet; mid = W / 2; bottom = 2.35; w = size(bottom); }
+      // No room for a full-width screen clear of the doors at either end: hang a smaller one in the widest stretch of wall
+      // beside a doorway. (It used to go up over the door, and overlapped the top of it.)
+      if (!found) {
+        let best = null;
+        for (const e of [quiet, 1 - quiet]) { let p = 0.25; for (const [b0, b1] of [...gaps[e]].sort((u, v) => u[0] - v[0]).concat([[W - 0.25 + 0.3, W]])) { const q = b0 - 0.3; if (q - p > (best ? best.len : 1.5)) best = { e, lo: p, len: q - p }; p = Math.max(p, b1 + 0.3); } }
+        if (!best) continue;
+        end = best.e; w = Math.min(size(bottom), best.len); mid = best.lo + best.len / 2;
+      }
       const s = end ? -1 : 1, h = w * 9 / 16;      // s: which way the screen faces along the room
       if (w < 1.4) continue;
       const a = end ? L - 0.16 : 0.16, cx = longX ? r.x0 + a : r.x0 + mid, cz = longX ? r.z0 + mid : r.z0 + a, nx = longX ? s : 0, nz = longX ? 0 : s;
