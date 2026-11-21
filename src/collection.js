@@ -47,12 +47,15 @@ export const AGENT = 'Sorry, the Museum is Closed (hobby browser game' + (CONTAC
 // A GET with the query in `params`. No referrer: artic.edu refuses requests
 // that name a page it does not know. Seven requests open the building, and the
 // answer is kept for twelve hours, well inside the 60-a-minute anonymous limit.
+// In a browser the AIC-User-Agent header costs a CORS preflight per request (artic.edu sends max-age 0), and the
+// museum counts those against the same 60-a-minute limit: 35 pages and 35 preflights was more than a minute's
+// worth, and a reload or two meant every request was refused. So it goes on the first page of each question only.
 async function page(must, n, signal) {
   const q = { query: { bool: { must } }, fields: FIELDS, limit: 100, page: n };
   const res = await fetch(API + '?params=' + encodeURIComponent(JSON.stringify(q)), {
-    signal, referrerPolicy: 'no-referrer', headers: NODE ? { 'User-Agent': AGENT, 'AIC-User-Agent': AGENT } : { 'AIC-User-Agent': AGENT },
+    signal, referrerPolicy: 'no-referrer', headers: NODE ? { 'User-Agent': AGENT, 'AIC-User-Agent': AGENT } : n === 1 ? { 'AIC-User-Agent': AGENT } : {},
   });
-  if (!res.ok) throw new Error('artic.edu answered ' + res.status);
+  if (!res.ok) throw new Error(res.status === 429 ? 'too many requests (429)' : 'artic.edu answered ' + res.status);
   return res.json();
 }
 
@@ -158,7 +161,7 @@ export function curate(raw) {
   const spare = raw.works.filter(w => w.k === 'Painting' && !used.has(w.id) && w.w && w.h && w.h >= 120 && w.h <= 600 && w.w <= 900)
     .sort((a, b) => (b.b - a.b) * 2e4 + (area(b) - area(a))).slice(0, 26);
   rooms.hall = { gallery: 'Griffin Court', names: [], wall: spare, objects: [] };
-  return { fetched: raw.fetched, live: !!raw.live, rooms };
+  return { fetched: raw.fetched, live: !!raw.live, stale: !!raw.stale, why: raw.why || '', rooms };
 }
 
 function lastName(artist) {
@@ -185,13 +188,15 @@ export function trim(raw) {
 
 const CACHE = 'after-hours.hang.v4.c';
 
-// Live if the API answers quickly, the cached answer if it did so today, and
-// the saved copy otherwise.
-export async function loadCollection({ timeout = 7000 } = {}) {
+// Live if the API answers, the cached answer if it did so in the last twelve hours, an older cached answer if the
+// API cannot be reached now, and the saved copy only when this browser has never had a live answer. `why` says what
+// went wrong when it was not live, for the About screen.
+export async function loadCollection({ timeout = 12000 } = {}) {
+  let cached = null;
   try {
-    const cached = JSON.parse(localStorage.getItem(CACHE) || 'null');
+    cached = JSON.parse(localStorage.getItem(CACHE) || 'null');
     if (cached && Date.now() - Date.parse(cached.fetched) < 12 * 3600e3) return curate({ ...cached, live: true });
-  } catch { /* no storage, or a bad entry */ }
+  } catch { cached = null; /* no storage, or a bad entry */ }
   try {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), timeout);
@@ -201,9 +206,11 @@ export async function loadCollection({ timeout = 7000 } = {}) {
     try { localStorage.setItem(CACHE, JSON.stringify(raw)); } catch { /* full or blocked */ }
     return curate({ ...raw, live: true });
   } catch (err) {
-    console.warn('Live collection unavailable, using the saved copy:', err.message);
+    const why = err.name === 'AbortError' ? 'it did not answer in time' : /Failed to fetch|NetworkError|Load failed/i.test(err.message) ? 'it could not be reached' : err.message;
+    if (cached && Array.isArray(cached.works) && cached.works.length >= 100) { console.warn('Live collection unavailable (' + why + '), using the last live answer'); return curate({ ...cached, live: true, stale: true, why }); }
+    console.warn('Live collection unavailable, using the saved copy:', why);
     const res = await fetch(new URL('../data/collection.json', import.meta.url));
-    return curate({ ...(await res.json()), live: false });
+    return curate({ ...(await res.json()), live: false, why });
   }
 }
 

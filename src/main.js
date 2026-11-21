@@ -336,9 +336,12 @@ async function boot() {
   // still has the most to do (the guard's notes and the mice find their places, the last few shaders), and is best
   // done while the bar is still seen to move.
   await loading(98, null, 99.5);
-  $('source').innerHTML = (collection.live
+  const day = when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }), why = collection.why ? ` (the museum's API ${/^(it|too)/.test(collection.why) ? collection.why.replace(/^it /, '') : 'said: ' + collection.why})` : '';
+  $('source').innerHTML = (collection.live && !collection.stale
     ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
-    : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${params.has('saved') ? '' : ', because the live API could not be reached'}.`)
+    : collection.live
+      ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API listed them on ${day}; it could not be asked again just now${why}.`
+      : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${day}${params.has('saved') ? '' : `, because the live API could not be used${why}`}.`)
     + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed. The outside and grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
