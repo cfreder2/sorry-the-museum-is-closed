@@ -196,7 +196,7 @@ feature({
         if (n === this.rings.length) { k.synth.chime([587, 740, 880, 1175]); k.callout('ALL FIVE RINGS'); }
         else k.say(`${n} of ${this.rings.length} rings.`, 1.5);
       }
-      r.side = Math.abs(d) < 3 && off < r.r + 1.5 ? side : 0;
+      r.side = Math.abs(d) < 3 && off < r.r + 1.5 ? side || r.side : 0;      // (exactly in the plane counts as still on the side it came from)
     }
   },
   spots() {

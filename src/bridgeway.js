@@ -402,7 +402,9 @@ export function buildBridgeway(museum, plan) {
     const edgeG = [-1, 1].map(s => loft(z => { const W = outer(z); return s > 0 ? [[W, -0.1], [W, ly(z, s)]] : [[-W, ly(z, s)], [-W, -0.1]]; }));
     const ledgeG = [-1, 1].map(s => loft(z => { const W = outer(z); return s > 0 ? [[w, ly(z, s)], [W, ly(z, s)]] : [[-W, ly(z, s)], [-w, ly(z, s)]]; }));
     const lipG = [-1, 1].map(s => loft(z => s > 0 ? [[w, Math.min(0, ly(z, s))], [w, ly(z, s)]] : [[-w, ly(z, s)], [-w, 0]], 1, s > 0 ? eastEnd : null));
-    put([hullG, ...edgeG, ...ledgeG, ...lipG], white);
+    // (the plate underneath lit less from within than the rest, so its curve shows in the shading)
+    put([hullG], new THREE.MeshStandardMaterial({ color: 0xf2f4f8, roughness: 0.42, metalness: 0.15, emissive: 0x4a5164, emissiveIntensity: 0.55 }));
+    put([...edgeG, ...ledgeG, ...lipG], white);
     // The ends: the prow in the park, and the girder's end under the landing.
     {
       const cap = new Geo();
@@ -422,6 +424,7 @@ export function buildBridgeway(museum, plan) {
     const RH = 1.07, lean = 0.13, ePost = 1.8;
     const railLoft = (s, f, vs) => loft(f, vs, s > 0 ? eastEnd : null);      // (the east one stops where the landing opens off the deck)
     const meshTex = tex(32, 32, (c, W, H) => { c.clearRect(0, 0, W, H); c.strokeStyle = 'rgba(232,238,246,0.9)'; c.lineWidth = 1; for (let i = 0; i <= W; i += 4) { c.beginPath(); c.moveTo(i + 0.5, 0); c.lineTo(i + 0.5, H); c.stroke(); } for (let i = 0; i <= H; i += 4) { c.beginPath(); c.moveTo(0, i + 0.5); c.lineTo(W, i + 0.5); c.stroke(); } });
+    meshTex.repeat.set(3.2, 2.4);      // a fine weave, about 4 cm
     const netG = [], capG = [], woodG = [], ledG = [], snowG = [], poolG = [];
     for (const s of [-1, 1]) {
       const x0 = s * ePost, x1 = s * (ePost + lean);
