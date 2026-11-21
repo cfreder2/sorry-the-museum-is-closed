@@ -59,6 +59,7 @@ import './icefish.js';
 import './reading.js';
 import './guards.js';
 import './lobby.js';
+import './giftshop.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
