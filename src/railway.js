@@ -182,7 +182,7 @@ export function buildRailway(museum, plan) {
       for (const sx of [-1, 1]) blue.quad([X + sx * hw, 3.0, la], [X + sx * hw, 3.0, la + 2.6], [X + sx * hw, 4.3, la + 2.6], [X + sx * hw, 3.0, la], [sx, 0, 0]);
       glass.quad([X - 1.1, 3.25, la + 0.44], [X + 1.1, 3.25, la + 0.44], [X + 1.1, 4.0, la + 1.94], [X - 1.1, 4.0, la + 1.94], [0, 0.89, -0.45]);              // the windscreen
       for (const sx of [-1, 1]) glass.box(X + sx * hw - 0.012, X + sx * hw + 0.012, 3.3, 4.0, la + 2.8, la + 4.2);                                              // cab side windows
-      orange.box(X - hw - 0.012, X + hw + 0.012, 2.1, 2.55, la + 0.3, lb - 0.2); orange.box(X - hw - 0.012, X + hw + 0.012, 1.1, 1.3, la, lb);
+      orange.box(X - hw - 0.012, X + hw + 0.012, 2.1, 2.55, la + 0.3, lb - 0.2); orange.box(X - hw - 0.012, X + hw + 0.012, 1.088, 1.3, la - 0.012, lb + 0.012);      // (proud of the body all round: their faces never coincide)
       body.box(X - hw + 0.1, X + hw - 0.1, 4.3, 4.48, la + 3, lb - 0.3); body.box(X - 0.55, X + 0.55, 4.48, 4.85, la + 8, la + 10.6); cap.box(X - hw + 0.12, X + hw - 0.12, 4.48, 4.53, la + 11, lb - 0.4);
       for (const zz of [la + 5.2, la + 7.4, la + 11.6, la + 13.8]) for (const sx of [-1, 1]) under.box(Math.min(X + sx * hw, X + sx * (hw + 0.015)), Math.max(X + sx * hw, X + sx * (hw + 0.015)), 2.8, 3.9, zz, zz + 1.7);   // louvres
       under.box(X - hw + 0.08, X + hw - 0.08, 0.8, 1.1, la + 0.05, lb - 0.05); under.box(X - 1.3, X + 1.3, 0.25, 0.8, la + 6.4, la + 10.8);                    // frame and fuel tank
