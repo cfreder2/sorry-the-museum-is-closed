@@ -33,8 +33,10 @@
 //                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done
 //   k.tint(roomId)        light a room differently: .set(color, secs), .off(secs)   (see the end of this file)
 //   k.course(gates, opts) a timed run through gates in order: .start(), .update(dt), .fail(why)   (ditto)
+//   k.tune(mel, opts)     a melody in carols.js's notation, played on k.synth (pre-1900 music only)
 
 import { confine } from './plan.js';
+import { parse } from './carols.js';
 
 export const features = [];
 export function feature(f) { features.push(f); return f; }
@@ -262,6 +264,14 @@ function kitFor(o) {
         },
         stop,
       };
+    },
+    // k.tune(mel, { bpm, type, vol, at, oct, onNote }): play a melody written as carols.js writes them ('F4 Bb4:1.5 Bb4:.5 | ...',
+    // C4 is middle C, :beats after a note, R a rest) on k.synth. Returns its length in seconds. onNote(i, note, secs) is called
+    // as each note is scheduled (for a light to keep time). Only music published before 1900, please.
+    tune(mel, { bpm = 100, type = 'triangle', vol = 0.07, at = 0, oct = 0, legato = 0.92, onNote = null } = {}) {
+      const { notes, len } = parse(mel), b = 60 / bpm;
+      notes.forEach((n, i) => { if (!n.m) return; const f = 440 * Math.pow(2, (n.m + 12 * oct - 69) / 12); this.synth.note(f, Math.max(0.12, n.d * b * legato), { type, vol, at: at + n.t * b }); if (onNote) onNote(i, n, at + n.t * b); });
+      return at + len * b;
     },
     // A set of things to collect across the building (the lions, mice, lost property...), remembered between visits.
     //   const lions = k.collect('lions', 12); lions.add('L3') -> the new count the first time, 0 if already had;

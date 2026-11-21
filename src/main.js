@@ -57,6 +57,7 @@ import './feature-upstairs.js';
 import './parkplay.js';
 import './sledhill.js';
 import './wingplay.js';
+import './level3.js';
 import './icefish.js';
 import './reading.js';
 import './guards.js';

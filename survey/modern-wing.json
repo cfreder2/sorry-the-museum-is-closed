@@ -249,7 +249,7 @@
 {"id": "MW3-stairE","name": "East stair tower","level": "3","kind": "stair","x0": 237.9,"x1": 243.4,"z0": 5.2,"z1": 17.1
 },
 
-{"id": "MW3-terrace","name": "Bluhm Family Terrace","level": "3","kind": "terrace","x0": 152.2,"x1": 166.4,"z0": -7.2,"z1": 40.0,"open": true
+{"id": "MW3-terrace","name": "Bluhm Family Terrace","level": "3","kind": "terrace","x0": 152.2,"x1": 166.4,"z0": -7.2,"z1": 40.0,"open": true,"glass": "w"
 },
 
 {"id": "MW3-terzo","name": "Terzo Piano Restaurant","level": "3","kind": "restaurant","x0": 152.2,"x1": 166.4,"z0": 40.0,"z1": 74.0
