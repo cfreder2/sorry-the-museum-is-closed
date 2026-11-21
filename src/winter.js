@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { onSnow, heightOf, carve } from './plan.js';
+import { landAt, STEP as LAND_STEP } from './land.js';
 
 export function buildWinter(museum, plan) {
   const G = plan.grounds, B = plan.bounds, group = museum.group;
@@ -119,7 +120,13 @@ export function buildWinter(museum, plan) {
   const TILE = 44, NG = 9000;
   // The hills, for the glints and the tyre tracks to follow. (One flat one if there are none, so the shader has something to read.)
   const HILLS = plan.hills && plan.hills.length ? plan.hills : [{ cx: 0, cz: 0, rx: 1, rz: 1, H: 0 }];
-  const hillY = (x, z) => { let y = 0; for (const h of HILLS) if (h.H) y = Math.max(y, heightOf(h, x, z)); return y; };
+  const hillY = (x, z) => { let y = landAt(plan.land, x, z); for (const h of HILLS) if (h.H) y = Math.max(y, heightOf(h, x, z)); return y; };      // and the lie of the land (land.js)
+  // The land's heights for the shader: its grid as a texture, 0 to 2 m in the red, read between the points.
+  const LD = plan.land && plan.land.top ? plan.land : null, landTex = (() => {
+    const W = LD ? LD.nx + 1 : 1, H = LD ? LD.nz + 1 : 1, d = new Uint8Array(W * H * 4);
+    if (LD) for (let k = 0; k < W * H; k++) { d[k * 4] = Math.round(Math.min(1, LD.h[k] / 2) * 255); d[k * 4 + 3] = 255; }
+    const t = new THREE.DataTexture(d, W, H, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true; return t;
+  })(), landB = LD ? new THREE.Vector4(LD.X0, LD.Z0, LD.nx + 1, LD.nz + 1) : new THREE.Vector4(0, 0, 1, 1);
   let glints;
   {
     // Where there is snow to glitter: not in buildings, not on the streets, the paths, the ice or the kit.
@@ -138,12 +145,13 @@ export function buildWinter(museum, plan) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
     glints = new THREE.Points(g, new THREE.ShaderMaterial({
-      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE }, uHill: { value: HILLS.map(h => new THREE.Vector4(h.cx, h.cz, h.rx, h.rz)) }, uHillH: { value: HILLS.map(h => h.H) }, uHillB: { value: HILLS.map(h => new THREE.Vector2(h.bump || 0, h.br || 1)) } },
-      vertexShader: `attribute float aSeed; uniform vec4 uHill[${HILLS.length}]; uniform float uHillH[${HILLS.length}]; uniform vec2 uHillB[${HILLS.length}]; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask; uniform vec4 uB; varying float vA;
+      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE }, uHill: { value: HILLS.map(h => new THREE.Vector4(h.cx, h.cz, h.rx, h.rz)) }, uHillH: { value: HILLS.map(h => h.H) }, uHillB: { value: HILLS.map(h => new THREE.Vector2(h.bump || 0, h.br || 1)) }, uLand: { value: landTex }, uLandB: { value: landB } },
+      vertexShader: `attribute float aSeed; uniform vec4 uHill[${HILLS.length}]; uniform float uHillH[${HILLS.length}]; uniform vec2 uHillB[${HILLS.length}]; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask, uLand; uniform vec4 uB, uLandB; varying float vA;
         void main() {
           vec2 w = uCam.xz + mod(position.xz - uCam.xz + uTile * 0.5, uTile) - uTile * 0.5;
           float gy = 0.0;
           for (int i = 0; i < ${HILLS.length}; i++) { float hd = length((w - uHill[i].xy) / uHill[i].zw); if (hd < 1.0) { float hh = uHillH[i] * (cos(hd * 3.14159265) + 1.0) * 0.5, bd = length(w - uHill[i].xy) / uHillB[i].y; if (bd < 1.0) hh += uHillB[i].x * (cos(bd * 3.14159265) + 1.0) * 0.5; gy = max(gy, hh); } }
+          gy = max(gy, texture2D(uLand, ((w - uLandB.xy) / ${LAND_STEP.toFixed(1)} + 0.5) / uLandB.zw).r * 2.0);
           vec4 mv = viewMatrix * vec4(w.x, gy + 0.03, w.y, 1.0); float d = -mv.z;
           float m = texture2D(uMask, (w - uB.xy) * uB.zw).r;
           vec3 to = normalize(uCam - vec3(w.x, 0.0, w.y));

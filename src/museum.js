@@ -6,6 +6,7 @@ import * as TX from './textures.js';
 import { T, HW, SPRING, VAULT_R, SLAB, LIFT, wallPoint, hang, heightOf, roomAt, ceilingAt, carve, streetY, groundOpenings } from './plan.js';
 import { imageUrl } from './collection.js';
 import { Geo } from './geo.js';
+import { STEP as STEP_LAND, landAt } from './land.js';
 import { buildGrounds } from './grounds.js';
 import { buildRoofscape } from './roofscape.js';
 import { panorama, lake, SPAN, BELOW } from './skyline.js';
@@ -790,6 +791,43 @@ export class Museum {
 
   // ---------------------------------------------------------------- outside --
 
+  // The lie of the land (land.js): wherever the open ground rolls, the snow is drawn from the land itself, on a 1 m
+  // mesh over every cell of its grid that rolls at all. It lies over the flat sheet (which runs on under it, out of
+  // sight: the land is never below the street) and wins where the two meet at street level, with the sheet's own
+  // texture at the sheet's own scale, so there is no seam. In blocks of 64 m, so what is off screen is not drawn.
+  _buildLand(ground) {
+    const L = this.plan.land; if (!L || !L.top) return;
+    const geo = ground.geometry; geo.computeBoundingBox();
+    const bb = geo.boundingBox, w = bb.max.x - bb.min.x, h = bb.max.y - bb.min.y, gx = ground.position.x, gz = ground.position.z;     // (the sheet's own mapping: u along x, v up its local y, which is -z)
+    const mat = ground.material.clone(); mat.polygonOffset = true; mat.polygonOffsetFactor = -0.5; mat.polygonOffsetUnits = -0.5;
+    const { X0, Z0, nx, nz, cells } = L, S = STEP_LAND, K = 2, d = S / K, B = 32, Y = -0.03, hAt = (x, z) => landAt(L, x, z);
+    for (let bj = 0; bj < nz; bj += B) for (let bi = 0; bi < nx; bi += B) {
+      const pos = [], nor = [], uv = [], idx = [], at = new Map();
+      const vert = (I, J) => {                        // a point of the fine mesh, K to a cell each way
+        const k = J * (nx * K + 1) + I; let v = at.get(k); if (v !== undefined) return v;
+        v = pos.length / 3; at.set(k, v);
+        const x = X0 + I * d, z = Z0 + J * d, e = 0.25;
+        pos.push(x, hAt(x, z) + Y, z);
+        const dx = (hAt(x + e, z) - hAt(x - e, z)) / (2 * e), dz = (hAt(x, z + e) - hAt(x, z - e)) / (2 * e), l = Math.hypot(dx, 1, dz);
+        nor.push(-dx / l, 1 / l, -dz / l);
+        uv.push((x - gx) / w + 0.5, (gz - z) / h + 0.5);
+        return v;
+      };
+      for (let j = bj; j < Math.min(nz, bj + B); j++) for (let i = bi; i < Math.min(nx, bi + B); i++) {
+        if (!cells[j * nx + i]) continue;
+        for (let b = 0; b < K; b++) for (let a = 0; a < K; a++) {
+          const I = i * K + a, J = j * K + b, p = vert(I, J), q = vert(I + 1, J), r = vert(I, J + 1), t = vert(I + 1, J + 1);
+          idx.push(p, r, q, q, r, t);
+        }
+      }
+      if (!idx.length) continue;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+      g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.name = 'land'; this.group.add(m);
+    }
+  }
+
   _buildOutside() {
     const { plan } = this, B = plan.bounds, cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2;
     // Snow on the ground, as far as you are allowed to go.
@@ -827,6 +865,7 @@ export class Museum {
       const low = new THREE.Mesh(sheetGeo(wW, B.z1 - B.z0 + 400, x0 + wW / 2, cz), ground.material.clone()); low.material.map = low.material.emissiveMap = lt;
       low.rotation.x = -Math.PI / 2; low.position.set(x0 + wW / 2, S.y - 0.03, cz); low.updateMatrix(); low.matrixAutoUpdate = false; this.group.add(low);
     }
+    this._buildLand(ground);
     // The city all round, and one moon.
     const city = panorama();                             // the Loop to the west and north, the lake to the east (skyline.js)
     // The backdrop is centred on the museum, not on the whole of the ground out to the lake, so that the towers
