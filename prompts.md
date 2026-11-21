@@ -283,26 +283,618 @@ the previous one was still being worked on; those are marked.
 
 > add telemtry
 
+Prompts 68 to 128 come from the summary of a session whose full transcript was not kept: their wording may differ a little from what was typed, and a few between 67 and 68 may be missing. The rest are exact.
+
 ## 68
 
-> We could use the Open Library API to find art history books relevant to the works that are in the catalog. So then in the library, and other places, we could display them, link to them, or however we can best utilize those assets IN GAME.
+> I accept all the offers. On live reflections, only if it doesn't ruin the performance
 
 ## 69
 
-> The race itself had the course going through walls, the bots just drove right through the walls, no collision detection. It wasn't clear when I finished a lap, or if I had another one, or what position I was in.
+> We are missing the icon when you pin to home
 
 ## 70
 
-> Investigate having 'robo security guards' that roam the halls. If they get close to you they electrocute you and then take you outside and you wake up in a dumpster.
+> Let's do a X patrons have enjoyed Y art pieces. The layout here of where that goes might need to be moved. In addition, handle formats like 1, 10, 999, 1.5k. Etc
 
-## 71 (sent during the build)
+## 71
 
-> the guards have electric shock bolts that reach about 5 feet
+> We go into the statue. I think snow should be on the ground. Are there not front steps. The elevation looks really bad, does this need to be revisited
 
-## 72 (sent during the build)
+## 72
 
-> You should be faster than them, but they just sort of roam about on patrol, and then will chase you until you lose them.
+> The live stall is not good. The price should hover above the cars. Just the price. And a button that says buy.
 
 ## 73
 
-> The lights on Butler Field are okay, good start, but 10x it. Make it really special. Google holiday lights display. Make it fun to drive in and add music for Christmas.
+> We have a ways to go to get the outside modeled. This Google Maps. We may need open street view too?
+
+## 74
+
+> Just start, we have to do them all
+
+## 75
+
+> More detailed photos for reference.
+
+## 76
+
+> Make sure to get the skyline and lake right.
+
+## 77
+
+> Basically, I think the Michigan ave to the water should be included for the block of campus. This trains are functional? Is that a metro or what?
+
+## 78
+
+> Yes, make buildings around read more clearly, more impressive
+
+## 79
+
+> Push to main
+
+## 80
+
+> Game needs loading bar that says "the museum is closing for the evening"
+
+## 81
+
+> The car clips into the steps. Maybe either make it like a ramp in parts and the steps are steps. A few ramps like Ada stuff
+
+## 82
+
+> The street light have a weird flickering artifact on the side walk when you drive by
+>
+> I the sidewalk should be shoveled, their should be snow otherwise on ground
+>
+> That snow is not leaving tracks
+>
+> You can drive through the open vent, should have collision
+
+## 83
+
+> The street around the outside, you it's like got. A slop and going up hill your under ground? Make sure the streets are accurate. Sidewalks, benches, bushes, parking stuff
+
+## 84
+
+> The moon is like cut off?
+
+## 85
+
+> The train is slightly to tall and clips the tunnels
+>
+> I want to be able to jump up onto the half walls outside. Can the jump get air depending on how long you hold it
+
+## 86
+
+> Texture problems under the arch
+
+## 87
+
+> Some really crappy cars on lake shore drive. If we are adding cars, then they need a make over and need to move around, honk at each other, obey traffic lights, etc
+
+## 88
+
+> Odd ramp location
+
+## 89
+
+> You should be able to play this piano.
+
+## 90
+
+> It's snowing in lecture room 2!
+
+## 91
+
+> Backstage has the ramp but it's like snow ground cover?
+
+## 92
+
+> Walls and ceiling can't be distinguished. Tables Chairs immovable? Seems like they should be able to be knocked around a bit with force. Also, it's very uniform. Vending machines need more detail, need to work and use money. Give you colors you can change your vehiclto
+
+## 93
+
+> The camera clipping through walls letting you see into other rooms, outside is a problem
+>
+> All monitors should be off unless it has something contract with
+
+## 94
+
+> Mini map in lower level service coordor is justbgray
+>
+> Your location on the map is not obvious enough
+>
+> The auditorium's should play videos. Can we get some type of videos about art in the public domain and get them to play? Even short clips, or animations, anything about Chicago art, or the artists or process of running the museum, etc
+
+## 95
+
+> Sometimes it thinks so am outside when insode
+
+## 96 (about: life drawing whiteboard)
+
+> Does this lead to a secret? Is this clue
+
+## 97
+
+> Push to main always
+
+## 98
+
+> The front looks like legos??
+
+## 99
+
+> Fix the still blocky parts.
+
+## 100
+
+> Text issues wit at admired ?? Is that duplicative of 2 patrons?
+
+## 101
+
+> I really don't like the grate that is open over the door. Just the vent is fine. In general, we need more ways into the building with vents and skylights as it's rather hideous to drive around it all.
+
+## 102
+
+> Remove "by remote control" from the title screen
+>
+> _remove every work is real, you are the size of a shoe
+>
+> Remove the drone description and the game mode descriptions. Remov the most admired stuff. Say 2 patrons have enjoyed x art pieces (all time)
+>
+> The flags are correct. If you are going to have a flag it better be correct. Is the stained glass supposed to be square. Or the entire window?
+
+## 103
+
+> Art work in progress should just say. Exbit Coming Soon. See the restoration in the Ryan Learning Center. That's it
+>
+> The flags need to be actual flags on pools that look like cloth and move etc.
+
+## 104 (about: real photo vs game front)
+
+> Do better matching
+
+## 105
+
+> The proportions and scale is wrong
+
+## 106
+
+> The trees outside do not look like trees in the winter. Same with bushes. Covered in glass like snow and ice
+
+## 107
+
+> The traffic lights need to function. I can fly through the buildings roof?
+
+## 108
+
+> I can't jump on the long halfway. The front wall as texture glitches
+
+## 109
+
+> The fountains collisiondedection is like a cylinder. I want to get in it.
+
+## 110
+
+> This entrance has a proble.
+
+## 111
+
+> All chairs need to work like dining room chairs, physics
+>
+> Drive around m, you'll notice floors that should be open, doorways the same, etc
+>
+> The lions need a dusting of snow on top
+
+## 112
+
+> Words don't warped exhibit on its own line follows by coming soon
+
+## 113
+
+> The minimap got really choppy again
+
+## 114 (about: statue)
+
+> Huh.. very minimal effort
+
+## 115 (about: whiteboard blocked)
+
+> ??
+
+## 116
+
+> Painting cut off
+
+## 117
+
+> The bathroom is this big?? Also, no mirrors, looks bad. So many sinks and stalls.
+
+## 118
+
+> Keep going with the not done items
+
+## 119
+
+> 1 the stairs have a gap. 2. Some things like the railings you just drive through? 2. There is flickering in the upper right and left where the doors and buildings overlap 3. Start with the cars lights off
+
+## 120
+
+> The pathways that light up get too close to walls, have sharp turns and need to be continue curves. They can also go over ramps and jumps so long as it's in a direction that you can perform the jump
+
+## 121
+
+> When you view the exhibition coming soon, it should not automatically put down the path, instead offer a map icon, and the room selected. If they click it they get the path
+
+## 122
+
+> Just for me to debug, draw them out and show me where all the secrets are. Basically I'm looking for secret density. When I was driving around, I was having a really hard time finding anything to do.
+
+## 123
+
+> I just need like a JPEG of the map with secrets marked
+
+## 124
+
+> Going down the front stairs using the ramp felt like going down the stairs, bumpy. Can you fix?
+
+## 125
+
+> I always want to be interactive things to do and I want little secrets and stuff throughout the map. Look at the JPEG that you created and identify the spots most ripe for secrets. Then suggest to me some secrets or interactive things that could be in each room. If there was something that we could do that was thematic or themed to some of the non-copyrighted paintings I would be totally open to that. It could be a simple as music from the time. It could be as complex as you know, bringing the painting to life the artwork.
+
+## 126 (after switching the model)
+
+> Keep going with opus
+
+## 127
+
+> Do all of it with subagents
+
+## 128
+
+> Share where you can
+>
+> Use the secrets shared code
+
+## 129 (with a screenshot of a doorway, its black frame showing through the brick)
+
+> The black door frame shows through the tan bricks
+
+## 130
+
+> Fill level 3 and the rooftop.  Art where possible.  The rooftop , you can be more creative
+
+## 131 (with a screenshot of a doorway)
+
+> The tan baseboards flash in doorways same reason as before likely
+
+## 132
+
+> After a stint every time I view art I get credit for it again
+
+## 133 (with a screenshot of another doorway)
+
+> Same problem here.  This feels like an engine problem?
+
+## 134
+
+> Ice fishing needs a make over, make the ice translucent so you can see the fish swimming underneath.  Allow me to move the pole, jiggle it, and try and yank it up.  The fish models need a massive improvement
+
+## 135
+
+> Give the monster truck better ice handling
+
+## 136
+
+> The fishing game is improved!  What is the most popular fishing game?  Make it work like that.  The yank vs jiggle tell you no keys to press.  Unclear how to fish.  Also, pretty hard.   And not clear 1/3 .  Also, hard to judge the depth of the fish and the bobber.
+
+## 137
+
+> Should there be a bar like guitar hero (even if invisible) that tells you when you get the perfect catch.  Too soon and it gets away, risky to wait for the perfect as not much time after, etc?  Or leave as is
+
+## 138
+
+> Leave it
+
+## 139
+
+> Wait, the line and pole looked odd. Unnatural point where the line came off the pole, no bend in the pole, etc
+
+## 140
+
+> OKAY, WE NEED TO CHECK out repo we are on my computer now.  we are in my gamedev folder, so it just goes here
+
+## 141
+
+> rename it
+
+## 142 (with a screenshot of the gallery wall behind the car)
+
+> Make a vent in the wall to get in on the wall behind me here at this location
+
+## 143 (sent during the build, with a screenshot of the catwalks)
+
+> why can't I get on these catwalks?
+
+## 144 (sent during the build, with a screenshot of a sign with its words cut off)
+
+> Words are cut off
+
+## 145 (sent during the build, with a screenshot of the railway cutting from above)
+
+> WHen going under ground, you still see the ground, not the hole.
+
+## 146 (sent during the build)
+
+> when doing a student and you "look" it shouldn't stop you cars momentum, it should just make the camera sort of try and track your car but swivel to stay on the art
+
+## 147 (sent during the build, with a screenshot of the passenger lift)
+
+> The passanger lift is really hard to understand.  it needs to have some thickness.  It needs to be clear you are entering the lift, like maybe a guardrail with an opening, and the floor of the lift should be a different color than, etc.
+
+## 148 (sent during the build, with a screenshot of a radioactive mouse)
+
+> I found this mouse, but I dn't know what to do with it, they are hard to see!  They move fast.  following a mouse would be a challenge unless they left some kind of light blur or something.
+
+## 149 (sent during the build)
+
+> radio active mouse!
+
+## 150 (sent during the build)
+
+> how do I get to the ufo?
+
+## 151 (sent during the build, with a screenshot of a stool pushed into a wall)
+
+> You can knock objects into the walls
+
+## 152 (sent during the build, with a screenshot of the map)
+
+> Room names are impossible to see.  If you click on a room can you get an info card? on mobile, would that work?
+
+## 153 (sent during the build)
+
+> does the map open to the floor you are on?
+
+## 154 (sent during the build)
+
+> Why are two room Ryan Learning Center, studio?
+
+## 155 (sent during the build)
+
+> Also, does it show you what floor I am on?  when looking at them map there is no indicator
+
+## 156 (sent during the build)
+
+> I need a "* You are Here"
+
+## 157 (sent during the build, with a screenshot of the hedges)
+
+> The bushes have gaps.
+
+## 158 (sent during the build)
+
+> can m an tab be the map?  music needs no key.  just in the settings
+
+## 159 (sent during the build, with a screenshot of the tabletop jump)
+
+> These should probably have be more like:  Where the ramp goes up and then there is a flat part, then it goes down.
+>    _______
+> /                  \
+
+## 160 (sent during the build)
+
+> sometimes the drone is like stuck going down? and I can't make it go back up?
+
+## 161 (sent during the build, with a screenshot of a grey shape seen from above)
+
+> THere is some grey polygon you can only see from above?
+
+## 162 (sent during the build)
+
+> In a sub agent, we could use teh open library api to find art history books relevent to the works that are in the catalog.  So then in the library, and other places we could display them, link to them, or however we can best utalize those assets IN GAME. https://openlibrary.org/dev/docs/api/search
+
+## 163 (sent during the build)
+
+> in a sub agent, there is a noticeable lag when the game gets to turning on th elights towards the end, the bar stops moving, making me think it crashed.  can you make this not happen, so people dont' quit
+
+## 164
+
+> anything I mentioned you didn't fix?
+
+## 165
+
+> Once when I was playing simon says, it started the race.  It made me think that somehow those click detectors for simon says were still active (using mouse on mac)
+
+## 166 (sent during the build)
+
+> where is the directors room, i couldn't find it?
+
+## 167 (sent during the build)
+
+> the race itself had the course going through walls, the bots just drove right through the walls, no collision dectction.  It wasn't clear when I finisehd a lap, or if I had another one, or what postiion I was in.
+
+## 168 (sent during the build)
+
+> The bus stop doesn't have any visible class, but there are invisible walsl you hit.  You can't seem to jump on top of the bushes or curb in the center of the road without getting thrown off
+
+## 169
+
+> do you have anyone looking into the books and anyone looking into the movies?
+
+## 170 (with a screenshot of the itch.io page)
+
+> ?
+
+## 171
+
+> I said, Tear through the locked-down halls of The Art Institute of Chicago after dark at the wheel of a rogue RC car, turning priceless galleries into your personal racetrack. What secrets will you uncover?
+
+## 172
+
+> viewport dimensions
+
+## 173
+
+> that description is the short one, must be short description — expected text between 1 and 120 characters, or empty
+
+## 174 (sent during the build)
+
+> Experience that art collection from the Art Institute of Chicago as a rouge RC Car tearing down the museuem halways after hours.
+
+## 175
+
+> setup to deploy to itch.io https://cfreder2.itch.io/sorry-the-library-is-closed
+
+## 176
+
+> Fix those last issues.
+
+## 177 (with a screenshot of the stunt popup)
+
+> after you look, then you unlook (e), even if yoru nto moving it sows your last trick?
+
+## 178 (sent during the build)
+
+> When you re above the train tracks, you jus see the ground, you cna fall thhrough it to actually see.  There is no hole there.  This type of issue seems to be commonplace, fix it and think about why and how to avoid
+
+## 179 (sent during the build)
+
+> in a subagent, investigate having "robo security guards" that roam the halls.  If they get close to you they electrocute you and then take you outside and you wake-up in a dumpster
+
+## 180 (sent during the build)
+
+> they have like elctric shock bolts that reach maybe 5 feet
+
+## 181 (sent during the build)
+
+> you should be faster then them, but they just sort of roam about on patrol, and then will chase you until you lose them.
+
+## 182
+
+> sub agent for the radioatcive mice.   They keep going into vents.  You should be able to press e on the vent they go into, to open it.  Then you can fly in and you find things the mice collected in theri nests.  Things that are, unnatrually alien, radioactive mice due to alien technology.   Each mice gives you a clue as to where to find the UFO.  Top secret files, half chewed up, etc.  a little alien keychain with a key to the directors desk., in the deskwould.  The radio active mice are also sort of hard to see, hiding near the walls, they should be more "brave".  They can roam pretty far, and they leave the trail.
+
+## 183
+
+> should all secrets show on the map?
+
+## 184
+
+> no, i mean, as they are dsicovered
+
+## 185 (with a screenshot of busts with their backdrop still showing)
+
+> in a sub agent, We don't seem to have a good system for removing backround and not the actualy art wok
+
+## 186 (with a screenshot of tyres floating beside a structure)
+
+> tires again not on top of the structure on the ground.
+
+## 187 (sent during the build)
+
+> the lights on butler field are okay, good start, but 10x it.  make it really special. google holiday lights display.  make it fun to drive in and add music for xmas
+
+## 188
+
+> still building the bigger lights?
+
+## 189
+
+> Vehicles: cars that travel on roads; I need an overview of the cars present on the road.
+>
+> Scene 4: The sidewalks and benches look terrible, and the road itself could be improved.
+
+## 190
+
+> make sure we have teh most recent version. pulled.  fix the lake shore drive kerbs
+
+## 191 (sent during the build, with a screenshot of a parked car under snow)
+
+> Not all teh benches use the new and better model.  The cars along the streets that are snow covered and parked are very poorly done, and you can't land on them, collision dedection is not done well.  The large white "slede" hill is simply awful, did we replace this?
+
+## 192 (with a screenshot of the Light Run)
+
+> I don't like the glowing pathway for the lights walk and these black walls with lights in the maze, this is not how they look.  There shoudl be light tunnels, but not moving ground like this.
+
+## 193
+
+> Now the land is very smooth and flat. I wonder if it should have gentle ups and downs, soft valleys, dips, and sine‑wave contours, so the terrain feels more natural.
+>
+> I’m not sure what the big yellow light poles at the baseball stadium are for. The stadium itself is fine, but the field is hard to see, and there’s no wall to mark a home‑run boundary.
+>
+> It would be fun to place a snowman on the mound who pitches snowballs at you. You could step up to the plate and hit them, turning the game into a home‑run derby reminiscent of Original backyard baseball.   I’m wondering if you could put Christmas lights on the fence, like on the wall where the home runs are.  Look at all the signs, such as the Winter Wonderland sign. You can’t actually read it, it’s cut off.  Roads and outdoor features don’t appear on the minimap.
+
+## 194
+
+> One of the main goals is to create an underground facility beneath the football field, as large as the building itself. Inside, a flying saucer will be stored, and the ground will open up like a missile silo, Dr. Evil style/
+>
+> There's going to be a “Close Encounters of the Third Kind.” We play the music with them, the familiar “na na na na”, and the lights respond. The music plays back to you, lighting up various artworks as you activate them, again with the “na na na na” motif.
+>
+> The artworks illuminate, then a tractor beam pulls them into the spaceship. After one more musical cue, the beam pulls you in as well. Inside, you see the UFO from a third‑person view; its hyperspace drive disengages and the craft heads into space.
+>
+> Now you’re inside the UFO, surrounded by windows and floating in the cosmos. The view is stunning: the solar system stretches beyond, and the artwork hangs from the ship’s interior. The music shifts, and you find yourself piloting the vessel. An autopilot button labeled “Destination” lets you set a course for a distant galaxy.
+>
+> We need a satisfying conclusion, something that wraps up the experience nicely.
+>
+> If you activate it correctly, the platform slides out, launching the UFO with you aboard. It will travel all the way to the moon, carrying art, books, and other cultural items that will be taken back to the lunar base, your key to beating the game.
+>
+> You can also bring the RC car up with the saucer; when you land, you’ll be at the new base.
+>
+> Given everything I said before, do it and write a plan.
+
+## 195 (sent during the build)
+
+> I saw that it works from a copy and cannot reach the live API. Are we unable to access the live API?
+
+## 196 (sent during the build)
+
+> What’s the image server?
+
+## 197
+
+> Is the image server not working? I saw a 404.
+
+## 198 (with a screenshot of the About box)
+
+> Why does the About show this?
+
+## 199 (sent during the build)
+
+> Don’t they provide a complete JSON of everything that can be retrieved at once? Should we use it and load it at the start of the game?
+
+## 200
+
+> The car shouldn’t go down the sledding hill while driving. You should get on a sled and control it. I thought we had that, where you can only lean.
+
+## 201
+
+> I probably wouldn't set that up. It would likely cause disconnects even after just one day, so I don't think caching metadata and live images is the right move. I think it's already working fine as it is.I think the key point is that we shouldn't make API calls for images we can't see. If an image is right next to us in the room but not visible, we don't need to load it. We should only load images when it's likely we'll actually encounter them.
+
+## 202 (sent during the build)
+
+> if you need high resolution images of earth, moon, planets, ets, use codex to generate them
+
+## 203
+
+> You need to make it go again?
+
+## 204
+
+> anything you can delete?
+
+## 205
+
+> anything left to do?
+
+## 206
+
+> do them
+
+## 207
+
+> restart lvel3 and roofs
+
+## 208
+
+> go 4 it
