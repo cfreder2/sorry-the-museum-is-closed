@@ -100,11 +100,11 @@ feature({
     // The shards drift to and fro along their own lines from the spot: from there they never move, from anywhere else they swim.
     const uni = { uT: { value: 0 }, uE: { value: E.clone() }, uAmp: { value: 0.12 } };
     const shift = sh => { Object.assign(sh.uniforms, uni); sh.vertexShader = 'uniform float uT; uniform vec3 uE; uniform float uAmp; attribute float phase;\n' + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = uE + (position - uE) * (1.0 + uAmp * sin(uT * 0.7 + phase));'); };
-    const face = new THREE.MeshStandardMaterial({ map: cubistCanvas(), roughness: 0.85, emissive: 0xffffff, emissiveIntensity: 0.18, side: THREE.FrontSide });
+    // Painted on both faces, so from behind they are still shards of a picture (the wrong way round), not grey slabs.
+    const face = new THREE.MeshStandardMaterial({ map: cubistCanvas(), roughness: 0.85, emissive: 0xffffff, emissiveIntensity: 0.2, side: THREE.DoubleSide });
     face.emissiveMap = face.map; face.onBeforeCompile = shift;
-    const back = new THREE.MeshStandardMaterial({ color: 0x9a8f78, roughness: 0.9, side: THREE.BackSide, emissive: 0x2a2620, emissiveIntensity: 0.4 }); back.onBeforeCompile = shift;
-    const m1 = new THREE.Mesh(geo, face), m2 = new THREE.Mesh(geo, back); m1.frustumCulled = m2.frustumCulled = false;
-    k.group.add(m1, m2);
+    const m1 = new THREE.Mesh(geo, face); m1.frustumCulled = false;
+    k.group.add(m1);
     // The mark on the floor: an eye in a chalk ring.
     const mark = new THREE.Mesh(new THREE.CircleGeometry(0.26, 32), new THREE.MeshBasicMaterial({ map: canvasTex(128, 128, (g) => { g.strokeStyle = 'rgba(240,235,220,.9)'; g.lineWidth = 5; g.beginPath(); g.arc(64, 64, 58, 0, TAU); g.stroke(); g.beginPath(); g.moveTo(22, 64); g.quadraticCurveTo(64, 26, 106, 64); g.quadraticCurveTo(64, 102, 22, 64); g.stroke(); g.fillStyle = 'rgba(240,235,220,.9)'; g.beginPath(); g.arc(64, 64, 13, 0, TAU); g.fill(); }), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
     mark.rotation.x = -Math.PI / 2; mark.rotation.z = Math.PI / 2; mark.position.set(E.x, y + 0.012, E.z); k.group.add(mark);
@@ -182,7 +182,8 @@ feature({
     once(k, 'kandinsky', 'Shapes that hum. Touch all seven.', 4);
     const p = k.pos;
     for (const s of this.shapes) {
-      s.mesh.rotation.y += s.spin * dt * (1 + s.flash * 6);
+      s.turn = (s.turn || 0) + s.spin * dt * (1 + s.flash * 8);      // face the toy, swaying, so none is ever seen edge on
+      s.mesh.rotation.y = Math.atan2(p.x - s.x, p.z - s.z) + Math.sin(s.turn) * 0.6 + (s.flash > 0 ? s.flash * TAU : 0);
       s.mesh.position.y = s.y + Math.sin(this.t * 1.3 + s.ph) * 0.03 + (this.song > 0 ? Math.sin(this.t * 6 + s.ph) * 0.05 : 0);
       s.halo.position.y = s.mesh.position.y;
       s.flash = Math.max(0, s.flash - dt * 1.5);
@@ -416,7 +417,7 @@ feature({
       const nx = Math.sin(yaw), nz = Math.cos(yaw), ux = Math.cos(yaw), uz = -Math.sin(yaw);
       for (const sgn of [-1, 1]) { const cx = s.x + ux * sgn * (d.W / 2 + 0.04), cz = s.z + uz * sgn * (d.W / 2 + 0.04); block(k, cx, cz, Math.abs(ux) * 0.05 + Math.abs(nx) * 0.09, Math.abs(uz) * 0.05 + Math.abs(nz) * 0.09, r.y, r.y + d.H + 0.15); }
       // the open leaf, standing out behind the hinge side
-      { const hx = s.x + ux * d.W / 2 - nx * 0.06, hz = s.z + uz * d.W / 2 - nz * 0.06, a2 = -1.95, lxl = -d.W / 2, lx = hx + (Math.cos(a2) * lxl) * ux + (-Math.sin(a2) * lxl) * nx, lz = hz + (Math.cos(a2) * lxl) * uz + (-Math.sin(a2) * lxl) * nz; block(k, lx, lz, 0.22, 0.22, r.y, r.y + d.H); }
+      { const hx = s.x + ux * d.W / 2 - nx * 0.06, hz = s.z + uz * d.W / 2 - nz * 0.06, th = -1.95; for (const f of [0.2, 0.5, 0.8]) { const a = -f * d.W * Math.cos(th), b = f * d.W * Math.sin(th); block(k, hx + ux * a + nx * b, hz + uz * a + nz * b, 0.1, 0.1, r.y, r.y + d.H); } }
       return { ...d, x: s.x, z: s.z, nx, nz, ux, uz, side: 0 };
     });
     Object.assign(this, { y: r.y, cool: 0, at: { x: a.x, y: r.y, z: a.z } });
