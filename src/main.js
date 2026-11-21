@@ -57,6 +57,7 @@ import './feature-upstairs.js';
 import './parkplay.js';
 import './sledhill.js';
 import './wingplay.js';
+import './rooftops.js';      // the roofs: snowman, vents, the snow wave, skylights, the run, chimneys, vane, telescope, stars, pigeons, kite, rink, bees, solar
 import './icefish.js';
 import './reading.js';
 import './guards.js';
