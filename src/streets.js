@@ -203,6 +203,13 @@ export function buildStreets(museum, plan) {
       line(paintY, 'z', a, b, c1 - dirn * 0.3, 0.12, y);
     }
     for (const x of [...TL.ns.lsd[1], ...TL.ns.lsd[-1]]) tracks('z', a, b, x, y);
+    // Its kerbs, granite like every other street's: the field side, open where Monroe and Jackson come in; both edges
+    // of the median; the promenade side. (They were plain boxes, with nothing on top for a wheel, and across both mouths.)
+    { const k0 = B.z0, k1 = B.z1, mouths = [[MO.z0, MO.z1], [JA.z0, JA.z1]];
+      for (const [s0, s1] of without(k0, k1, mouths)) K.run({ axis: 'z', at: LSD.x0, a: s0, b: s1, side: -1, y, drains: drainsAlong(s0, s1, [], 41) });
+      K.run({ axis: 'z', at: LSD.med[0], a: k0, b: k1, side: 1, y, gutter: true, drains: drainsAlong(k0, k1, [], 43) });
+      K.run({ axis: 'z', at: LSD.med[1], a: k0, b: k1, side: -1, y, gutter: true, drains: drainsAlong(k0, k1, [], 47) });
+      K.run({ axis: 'z', at: LSD.x1, a: k0, b: k1, side: 1, y, drains: drainsAlong(k0, k1, [], 53) }); }
     wear('z', a, b, [...TL.ns.lsd[1]].sort((u, v) => u - v), [LSD.x0 + 7.25], y, 7, skip); wear('z', a, b, [...TL.ns.lsd[-1]].sort((u, v) => u - v), [LSD.x1 - 7.25], y, 8, skip);
   }
 

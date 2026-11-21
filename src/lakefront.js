@@ -44,7 +44,7 @@ export function buildLakefront(museum, plan) {
     flat(road, a, b, z0, z1, 0.004);
     // (its lanes are painted in streets.js, laid to the traffic's)
   }
-  for (const x of [lsd.x0, lsd.med[0], lsd.med[1], lsd.x1]) stone.box(x - 0.12, x + 0.12, 0, 0.07, z0, z1);
+  // (its kerbs are streets.js's, granite like every other street's)
   for (const st of [plan.grounds.monroe, plan.grounds.jackson]) for (let z = st.z0 + 0.6; z < st.z1 - 0.4; z += 0.9) flat(paint, lsd.x0 - 3.2, lsd.x0 - 0.6, z, z + 0.45, 0.008);       // where the cross streets meet it
 
   // ---- the promenade, the cycle path, the revetment and the slipway
