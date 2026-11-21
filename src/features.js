@@ -33,10 +33,36 @@
 //                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done
 //   k.tint(roomId)        light a room differently: .set(color, secs), .off(secs)   (see the end of this file)
 //   k.course(gates, opts) a timed run through gates in order: .start(), .update(dt), .fail(why)   (ditto)
+//   k.roofAt(x, z), k.roofSolid(piece, mat), k.parts()   up on the roofs, and drawing many small things cheaply (see "added for the roofs")
 
 import { confine } from './plan.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const features = [];
+const SKY_TOP = 40;          // k.roofAt looks no higher than this
+
+// ---------------------------------------------------------------- one mesh per material (k.parts)
+class Parts {
+  constructor(THREE) { this.T = THREE; this.by = new Map(); this.m = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.v = new THREE.Vector3(); this.s = new THREE.Vector3(); }
+  add(geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) {
+    let g = geo.index ? geo.toNonIndexed() : geo.clone();
+    for (const n of Object.keys(g.attributes)) if (n !== 'position' && n !== 'normal' && n !== 'uv') g.deleteAttribute(n);
+    if (!g.attributes.uv) g.setAttribute('uv', new this.T.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    if (x && x.isMatrix4) g.applyMatrix4(x);
+    else g.applyMatrix4(this.m.compose(this.v.set(x, y, z), this.q.setFromEuler(this.e.set(rx, ry, rz)), this.s.set(sx, sy, sz)));
+    if (!this.by.has(mat)) this.by.set(mat, []);
+    this.by.get(mat).push(g); return this;
+  }
+  done(parent) {
+    const out = [];
+    for (const [mat, list] of this.by) {
+      const m = new this.T.Mesh(mergeGeometries(list), mat); m.matrixAutoUpdate = false; m.updateMatrix(); m.receiveShadow = true;
+      for (const g of list) g.dispose();
+      if (parent) parent.add(m); out.push(m);
+    }
+    this.by.clear(); return out;
+  }
+}
 export function feature(f) { features.push(f); return f; }
 // Tonight's numbers, for the summary at the end of the finale (voyage.js): a little record kept until New game.
 // tonight() reads it; tonight(n => { n.x = ... }) changes it.
@@ -91,6 +117,47 @@ function synth(sound) {
       s.connect(f); f.connect(g); g.connect(out()); s.start(t);
     },
   };
+}
+
+// ---------------------------------------------------------------- specks (k.puffs)
+let _speck = null;
+function speckTex(THREE) {
+  if (_speck) return _speck;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, '#fff'); r.addColorStop(0.35, 'rgba(255,255,255,0.55)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  return (_speck = new THREE.CanvasTexture(c));
+}
+class Puffs {
+  constructor(k, max, { color = 0xffffff, size = 0.14 } = {}) {
+    const T = k.THREE; this.max = max; this.live = 0; this.c0 = new T.Color(color); this.tc = new T.Color();
+    this.p = new Float32Array(max * 3).fill(-999); this.c = new Float32Array(max * 3); this.v = new Float32Array(max * 3); this.age = new Float32Array(max); this.life = new Float32Array(max); this.col = new Float32Array(max * 3); this.i = 0;
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(this.p, 3)); g.setAttribute('color', new T.BufferAttribute(this.c, 3));
+    this.points = new T.Points(g, new T.PointsMaterial({ size, map: speckTex(T), vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false }));
+    this.points.frustumCulled = false; this.points.visible = false; k.group.add(this.points);
+  }
+  emit(x, y, z, n = 8, { spread = 0.2, up = 0.6, life = 1.2, color = null, out = 0.5 } = {}) {
+    const col = color == null ? this.c0 : this.tc.set(color);
+    for (let q = 0; q < n; q++) {
+      const i = this.i = (this.i + 1) % this.max, j = i * 3, a = Math.random() * 6.283, s = Math.random();
+      this.p[j] = x + Math.cos(a) * spread * s; this.p[j + 1] = y + (Math.random() - 0.5) * spread * 0.5; this.p[j + 2] = z + Math.sin(a) * spread * s;
+      this.v[j] = Math.cos(a) * out * (0.4 + s); this.v[j + 1] = up * (0.6 + Math.random() * 0.8); this.v[j + 2] = Math.sin(a) * out * (0.4 + s);
+      this.age[i] = 0; this.life[i] = life * (0.7 + Math.random() * 0.6); this.col[j] = col.r; this.col[j + 1] = col.g; this.col[j + 2] = col.b;
+    }
+    this.live = Math.max(this.live, 1); this.points.visible = true;
+  }
+  update(dt) {
+    if (!this.live) return;
+    let alive = 0;
+    for (let i = 0; i < this.max; i++) {
+      const j = i * 3; if (this.age[i] >= this.life[i]) { if (this.c[j] || this.c[j + 1] || this.c[j + 2]) { this.c[j] = this.c[j + 1] = this.c[j + 2] = 0; this.p[j + 1] = -999; } continue; }
+      alive++; this.age[i] += dt; const f = Math.max(0, 1 - this.age[i] / this.life[i]), d = Math.exp(-1.6 * dt);
+      this.v[j] *= d; this.v[j + 2] *= d; this.v[j + 1] = this.v[j + 1] * d - 0.25 * dt;
+      this.p[j] += this.v[j] * dt; this.p[j + 1] += this.v[j + 1] * dt; this.p[j + 2] += this.v[j + 2] * dt;
+      const b = f * f; this.c[j] = this.col[j] * b; this.c[j + 1] = this.col[j + 1] * b; this.c[j + 2] = this.col[j + 2] * b;
+    }
+    this.points.geometry.attributes.position.needsUpdate = true; this.points.geometry.attributes.color.needsUpdate = true;
+    if (!alive) { this.live = 0; this.points.visible = false; }
+  }
 }
 
 // ---------------------------------------------------------------- shared helpers (k.solid, k.timer, k.pushable)
@@ -297,6 +364,26 @@ function kitFor(o) {
     // k.pushable(mesh, { r, h, tip?, hit?, drag?, onHit?, onTip? }): something light the toy shoves about (a board,
     // a tile). With tip it falls over when hit harder than `hit` m/s. Call .step(dt) every frame; .reset() puts it back.
     pushable(mesh, o) { return new Body(k, mesh, o); },
+    // ---- added for the roofs (src/rooftops.js); general, use them too
+    // k.roofAt(x, z): the height of the roof (or whatever drivable top) under (x, z), from up in the air; -Infinity off the buildings.
+    roofAt(x, z) { let g = -Infinity; for (const list of [G.plan.roofs || [], G.plan.surfaces]) for (const s of list) if (!s.hill && !s.axis && x >= s.x0 && x <= s.x1 && z >= s.z0 && z <= s.z1 && s.h0 > g && s.h0 < SKY_TOP) g = s.h0; return g; },
+    // k.roofSolid(piece, material?): as k.solid, but kept with the roofs (plan.roofs), out of plan.surfaces, so it can never
+    // stand in the way of a picture being hung. Only felt above 2 m, as the roofs are. Without a material nothing is drawn.
+    roofSolid(s, mat) { (G.plan.roofs || G.plan.surfaces).push({ roof: true, ...s }); const m = mat ? blockMesh(THREE, s, mat) : null; if (m) group.add(m); return m; },
+    // k.parts(): a bag of shapes drawn as one mesh per material, for few draw calls (phones).
+    //   const P = k.parts(); P.add(geo, mat, x, y, z, rx, ry, rz, sx, sy, sz) (or P.add(geo, mat, matrix4)); P.done(parent) -> the meshes
+    // Each geometry is copied when added, so one can be used over and over.
+    parts() { return new Parts(THREE); },
+    // k.puffs(max, { color, size }): a little cloud of glowing specks, for steam, soot, snow thrown up, sparks.
+    //   const p = k.puffs(80); p.emit(x, y, z, n, { spread, up, life, color }); p.update(dt) every frame (nothing to do when none are alive)
+    puffs(max = 80, o = {}) { return new Puffs(k, max, o); },
+    // k.hold(fn?): keep the toy still (a telescope, a look through a skylight); fn(dt, inp) gets the controls meanwhile.
+    // k.hold(null) lets it go again (only if this hold is still the one in force). Returns the hold.
+    hold(fn) {
+      if (!fn && fn !== undefined) { if (G.ride && G.ride._k === k && G.ride._own === this._held) G.ride = null; this._held = null; return null; }
+      const own = {}, ride = (dt, inp) => { const v = G.vehicle; v.vel.set(0, 0, 0); if (fn) fn(dt, inp); };
+      ride._k = k; ride._own = own; this._held = own; G.ride = ride; return ride;
+    },
   };
   k.carry = new Carry(k);
   const start = f => {

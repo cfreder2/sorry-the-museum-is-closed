@@ -46,7 +46,7 @@ export function buildRoofscape(museum, plan) {
   };
   const kerb = (x0, x1, z0, z1, y, hgt = 0.14, w = 0.16) => { G.frame.box(x0 - w, x1 + w, y, y + hgt, z0 - w, z0); G.frame.box(x0 - w, x1 + w, y, y + hgt, z1, z1 + w); G.frame.box(x0 - w, x0, y, y + hgt, z0, z1); G.frame.box(x1, x1 + w, y, y + hgt, z0, z1); };
 
-  const done = [];
+  const done = [], solarArrays = [];
   for (const m of plan.masses) {
     const r = m.room; if (!r || r.kind === 'hall') continue;
     const top = m.top, w = m.x1 - m.x0, d = m.z1 - m.z0;
@@ -69,6 +69,7 @@ export function buildRoofscape(museum, plan) {
     if (east && r.kind === 'room' && long > 28 && short > 7 && short < 12) {
       const x0 = m.x0 + 1.4, x1 = m.x1 - 1.4, z0 = m.z0 + 1.1, z1 = m.z1 - 1.1, y = top + 0.05;
       G.solar.quad([x0, y, z0], [x0, y, z1], [x1, y, z1], [x1, y, z0], [0, 1, 0], [[0, 0], [0, (z1 - z0) / 1.6], [(x1 - x0) / 1.6, (z1 - z0) / 1.6], [(x1 - x0) / 1.6, 0]]);
+      solarArrays.push({ x0, x1, z0, z1, y });                                 // (for the snow on them: src/rooftops-east.js)
       done.push(m); continue;
     }
     // 4. A long glass monitor down the middle of a long narrow roof: the old building's top-lit corridors.
@@ -100,5 +101,5 @@ export function buildRoofscape(museum, plan) {
   }
   const mats = { glass, solar, metal, frame, dark };
   for (const k in G) if (!G[k].empty) { const mesh = G[k].mesh(mats[k]); mesh.matrixAutoUpdate = false; mesh.updateMatrix(); group.add(mesh); }
-  return { count: done.length };
+  return { count: done.length, solar: solarArrays };
 }
