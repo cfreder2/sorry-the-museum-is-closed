@@ -88,7 +88,10 @@ feature({
     chk.wrapS = chk.wrapT = THREE.RepeatWrapping;
     {
       const pts = [[P.hx, P.hz], ...arc(0, 0, Math.PI / 2, 60, P.hx, P.hz, a => this.wallR(a) - 3.2)];
-      const q = flat(pts, 0.01, 1); const uv = q.attributes.uv, pos = q.attributes.position;
+      // The silo's square in centre field (plan.grounds.silo, finaleplan.js) is left out: its doors are drawn there, and
+      // when they open, the shaft is open to the sky. (Every opening below the street is in groundOpenings().)
+      const sq = k.plan.grounds && k.plan.grounds.silo;
+      const q = flat(pts, 0.01, 1, sq ? [[[sq.x0, sq.z0], [sq.x1, sq.z0], [sq.x1, sq.z1], [sq.x0, sq.z1]]] : []); const uv = q.attributes.uv, pos = q.attributes.position;
       for (let i = 0; i < uv.count; i++) { const dx = pos.getX(i) - P.hx, dz = pos.getZ(i) - P.hz; uv.setXY(i, (dx * S2 + dz * S2) / 9, (dx * S2 - dz * S2) / 9); }
       const m = new THREE.Mesh(q, decal(chk, { emissiveIntensity: 0.62, color: 0xeef3fa })); m.receiveShadow = true; g.add(m);
     }
@@ -140,7 +143,7 @@ feature({
     for (const [d, size, col] of [[30, 110, [0.26, 0.26, 0.25]]]) {
       const q = new THREE.PlaneGeometry(size, size); q.rotateX(-Math.PI / 2); q.rotateY(Math.PI / 4); const o = H.clone().addScaledVector(c, d); q.translate(o.x, 0.004, o.z);
       const m = new THREE.Mesh(q, new THREE.MeshBasicMaterial({ map: pool, color: new THREE.Color(...col), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
-      m.renderOrder = 4; g.add(m);
+      m.renderOrder = 4; g.add(m); this.pool = m;
     }
   },
 
@@ -567,6 +570,7 @@ feature({
     if (!this.P) return false;
     const p = k.pos, d = Math.hypot(p.x - (this.P.hx + 22), p.z - (this.P.hz + 22));
     this.g.visible = d < 330;
+    if (this.pool) { const F = k.plan.finale; this.pool.visible = !(F && F.doorsK > 0); }      // no glow hanging over the open silo
     return this.on || this.phase !== 'off' || d < 150 || this.powder.live || this.sparks.live;
   },
   update(dt, k) {

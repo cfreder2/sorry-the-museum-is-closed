@@ -1020,7 +1020,7 @@ function addLakefront(plan) {
   // running south (+z), the third-base line east (+x), and the outfield wall `line` metres out down the lines and
   // `centre` metres out in centre field, `wall` high. Centre field keeps a flat, clear 32 m square (G.silo) with
   // nothing standing on it, inside the wall: the outfield is to split open there one day.
-  L.ballpark = { hx: 402, hz: 146, line: 40, centre: 68, wall: 1.4 };
+  L.ballpark = { hx: 402, hz: 146, line: 40, centre: 70, wall: 1.4 };
   G.silo = { x0: 416, x1: 448, z0: 160, z1: 192 };      // straight over the hangar of the base below (finaleplan.js), 42 m out along the centre-field line
   // Clear ice over the fishing hole (icefish.js): the harbour ice and the snow under it are left open here, and the
   // water, the weed and the fish are drawn below.
