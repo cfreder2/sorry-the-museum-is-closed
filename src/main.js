@@ -125,7 +125,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.21.27';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.28';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -348,7 +348,7 @@ async function boot() {
     : collection.live
       ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API listed them on ${day}; it could not be asked again just now${why}.`
       : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${day}${params.has('saved') ? '' : `, because the live API could not be used${why}`}.`)
-    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed. The outside and grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
+    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. The grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
   trophies.setup(G.museum);

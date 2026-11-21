@@ -209,6 +209,8 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 .ctl dt { font: 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--gilt-dim); padding-top: 3px; white-space: nowrap; }
 .ctl dd { margin: 0; color: var(--cream); }
 .about { font-size: 14.5px; line-height: 1.6; text-align: left; color: #d8d1c0; margin: 0 0 18px; }
+.about.lead { font-size: 17px; margin-bottom: 10px; color: var(--gilt, #e6d3a3); }
+.about.fine { font-size: 12.5px; line-height: 1.5; color: #a9a291; margin-bottom: 12px; }
 #controls, #about { justify-content: center; background: rgba(4,5,9,.8); backdrop-filter: blur(5px); }
 #controls .panel, #about .panel { margin: auto; max-width: 460px; }
 .quiet:hover { color: #fff; border-color: #fff; }
