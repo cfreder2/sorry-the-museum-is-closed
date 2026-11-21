@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { feature } from './features.js';
 import { heightOf } from './plan.js';
 import { TAU, C, Bulbs, Wire, canvasTex, lit, signBoard, mergeAll } from './glowkit.js';
+import { ParkFurniture } from './streetscape.js';
 
 // ---------------------------------------------------------------- the feature
 feature({
@@ -19,8 +20,10 @@ feature({
     this.bulbs = new Bulbs(); this.wire = new Wire(); this.glow = [];
     const snowM = this.snowM = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, map: k.museum.snowTex, roughness: 0.95, emissiveMap: k.museum.snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 });
     this._jumpPark(k, snowM);
+    this.PF = new ParkFurniture(k.plan);              // the benches and bins: the same as the streets' (streetscape.js)
     this._diamonds(k);
     this._paths(k);
+    for (const m of this.PF.meshes(snowM)) g.add(m);
     this._glows(g);
     this.bulbs.build(g);
     const wm = this.wire.mesh(); if (wm) g.add(wm);
@@ -99,11 +102,11 @@ feature({
   // Four diamonds in the south-east quarter, home plates in the corners, foul lines along the field's own lines.
   _diamonds(k) {
     const O = k.plan.obstacles, g = this.g, B = this.bulbs;
-    const BL = 12, posts = [], panels = [], fenceGeo = [], benchGeo = [];
+    const BL = 12, posts = [], panels = [], fenceGeo = [];
     const chain = canvasTex(64, 64, (c, w, h) => { c.clearRect(0, 0, w, h); c.strokeStyle = 'rgba(200,210,220,.95)'; c.lineWidth = 2; for (let i = -64; i < 128; i += 16) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i + 64, 64); c.stroke(); c.beginPath(); c.moveTo(i + 64, 0); c.lineTo(i, 64); c.stroke(); } });
     chain.wrapS = chain.wrapT = THREE.RepeatWrapping;
     const meshM = new THREE.MeshStandardMaterial({ map: chain, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, metalness: 0.6, roughness: 0.4, emissive: 0x3a4250, emissiveMap: chain, emissiveIntensity: 0.6 });
-    const steel = lit(0x8c949c, { metalness: 0.7, roughness: 0.35 }), plank = lit(0x6b4a2a), snowy = lit(0xe8eef6, { roughness: 0.9 }), yellow = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.9, 0.3) });
+    const steel = lit(0x8c949c, { metalness: 0.7, roughness: 0.35 }), snowy = lit(0xe8eef6, { roughness: 0.9 }), yellow = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.9, 0.3) });
     const panel = (ax, az, bx, bz, h, y0 = 0) => {          // a chain-link panel between two points, with posts and a top rail
       const l = Math.hypot(bx - ax, bz - az), q = new THREE.PlaneGeometry(l, h); const uv = q.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * l / 0.6, uv.getY(i) * h / 0.6);
       q.rotateY(-Math.atan2(bz - az, bx - ax)); q.translate((ax + bx) / 2, y0 + h / 2, (az + bz) / 2); panels.push(q);
@@ -119,15 +122,12 @@ feature({
       const ux = -fx * Math.SQRT1_2, uz = -tz * Math.SQRT1_2, R = 4.5, base = Math.atan2(uz, ux);
       let px = null, pz = null;
       for (let i = 0; i <= 6; i++) { const a = base - 1.25 + 2.5 * i / 6, x = hx + Math.cos(a) * R, z = hz + Math.sin(a) * R; if (px !== null) { panel(px, pz, x, z, 3.4); O.push({ x0: Math.min(px, x) - 0.06, x1: Math.max(px, x) + 0.06, z0: Math.min(pz, z) - 0.06, z1: Math.max(pz, z) + 0.06, y0: 0, y1: 3.5 }); } px = x; pz = z; }
-      // short fence wings along each line, a little outside it, and a team bench behind each
+      // short fence wings along each line, a little outside it, and a team bench behind each (two backless benches end to end, facing the field)
       const wing = (ax, az, bx, bz) => { panel(ax, az, bx, bz, 1.2); O.push({ x0: Math.min(ax, bx) - 0.06, x1: Math.max(ax, bx) + 0.06, z0: Math.min(az, bz) - 0.06, z1: Math.max(az, bz) + 0.06, y0: 0, y1: 1.25 }); };
       wing(hx + fx * 2.5, hz - tz * 3, hx + fx * 12, hz - tz * 3);            // behind the first-base line
       wing(hx - fx * 3, hz + tz * 2.5, hx - fx * 3, hz + tz * 12);            // behind the third-base line
       for (const [bx, bz, along] of [[hx + fx * 7, hz - tz * 4.2, 'x'], [hx - fx * 4.2, hz + tz * 7, 'z']]) {
-        const seat = along === 'x' ? new THREE.BoxGeometry(4, 0.08, 0.4) : new THREE.BoxGeometry(0.4, 0.08, 4); seat.translate(bx, 0.45, bz); benchGeo.push(seat);
-        for (const d of [-1.6, 0, 1.6]) { const leg = new THREE.BoxGeometry(0.06, 0.45, 0.35); if (along === 'z') leg.rotateY(Math.PI / 2); leg.translate(bx + (along === 'x' ? d : 0), 0.22, bz + (along === 'z' ? d : 0)); benchGeo.push(leg); }
-        const cap = along === 'x' ? new THREE.BoxGeometry(4.05, 0.06, 0.44) : new THREE.BoxGeometry(0.44, 0.06, 4.05); cap.translate(bx, 0.52, bz); fenceGeo.push(cap);
-        O.push(along === 'x' ? { x0: bx - 2, x1: bx + 2, z0: bz - 0.2, z1: bz + 0.2, y0: 0, y1: 0.5 } : { x0: bx - 0.2, x1: bx + 0.2, z0: bz - 2, z1: bz + 2, y0: 0, y1: 0.5 });
+        for (const d of [-0.93, 0.93]) along === 'x' ? this.PF.bench(bx + d, 0, bz, 0, tz, 'backless') : this.PF.bench(bx, 0, bz + d, fx, 0, 'backless');
       }
       // bases poking out of the snow, the plate, the pitcher's plate, the foul poles far down the lines
       for (const b of [first, second, third]) { const q = new THREE.BoxGeometry(0.38, 0.08, 0.38); q.rotateY(Math.PI / 4); q.translate(b.x, 0.04, b.z); fenceGeo.push(q); B.add(b.x, 0.12, b.z, C.white, Math.random(), 2, 0.03); }
@@ -138,7 +138,7 @@ feature({
       { const t = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#123a24'; c.fillRect(0, 0, w, h); c.strokeStyle = '#f2e8c8'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12); c.fillStyle = '#f2e8c8'; c.font = '700 64px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('F' + n, w / 2, h / 2 + 4); });
         const s = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.1, 1.1, 1.1), side: THREE.DoubleSide })); s.position.set(hx + ux * (R + 0.05), 2.4, hz + uz * (R + 0.05)); s.rotation.y = Math.atan2(ux, uz); g.add(s); }
     }
-    g.add(new THREE.Mesh(mergeAll(panels), meshM), new THREE.Mesh(mergeAll(posts), steel), new THREE.Mesh(mergeAll(benchGeo), plank), new THREE.Mesh(mergeAll(fenceGeo), snowy));
+    g.add(new THREE.Mesh(mergeAll(panels), meshM), new THREE.Mesh(mergeAll(posts), steel), new THREE.Mesh(mergeAll(fenceGeo), snowy));
     // snowmen standing about the diamonds like fielders: knock all six down
     this.snowmen = []; this.downed = 0;
     const smM = lit(0xf4f7fb, { roughness: 0.85 }), coal = lit(0x18181a), carrot = lit(0xe2702a), scarfM = lit(0xc0392b);
@@ -181,23 +181,15 @@ feature({
     });
     for (const m of [posts, globes, pools]) m.frustumCulled = false; pools.renderOrder = 4;
     g.add(posts, globes, pools);
-    // benches and bins between the lamps
-    const wood = [], iron = [], bins = [];
+    // benches and bins between the lamps, facing the path
     lamps.forEach(([x, z], i) => {
       if (i % 2) return;
       const alongZ = Math.abs(x - 387) < 4, bx = alongZ ? x + (x < 387 ? -0.9 : 0.9) : x + 6, bz = alongZ ? z + 6 : z + (z < 110 ? -0.9 : 0.9);
       if (bx > 300 && bx < 384 && bz < 106 && bz > -20) return;        // not in the light show
       if (bx > 298 && bx < 332 && bz > 99 && bz < 118) return;           // nor in front of its way in
-      for (let s = 0; s < 3; s++) { const q = alongZ ? new THREE.BoxGeometry(0.12, 0.04, 1.8) : new THREE.BoxGeometry(1.8, 0.04, 0.12); q.translate(bx + (alongZ ? (s - 1) * 0.14 : 0), 0.46, bz + (alongZ ? 0 : (s - 1) * 0.14)); wood.push(q); }
-      for (let s = 0; s < 2; s++) { const q = alongZ ? new THREE.BoxGeometry(0.04, 0.4, 1.8) : new THREE.BoxGeometry(1.8, 0.4, 0.04); q.translate(bx + (alongZ ? (x < 387 ? -0.25 : 0.25) : 0), 0.75 + s * 0.0, bz + (alongZ ? 0 : (z < 110 ? -0.25 : 0.25))); wood.push(q); break; }
-      for (const d of [-0.75, 0.75]) { const q = new THREE.BoxGeometry(0.05, 0.46, 0.4); if (!alongZ) q.rotateY(Math.PI / 2); q.translate(bx + (alongZ ? 0 : d), 0.23, bz + (alongZ ? d : 0)); iron.push(q); }
-      O.push(alongZ ? { x0: bx - 0.3, x1: bx + 0.3, z0: bz - 0.9, z1: bz + 0.9, y0: 0, y1: 0.5 } : { x0: bx - 0.9, x1: bx + 0.9, z0: bz - 0.3, z1: bz + 0.3, y0: 0, y1: 0.5 });
-      const cx = alongZ ? bx : bx + 1.4, cz = alongZ ? bz + 1.4 : bz; const b = new THREE.CylinderGeometry(0.24, 0.22, 0.85, 12, 1, true); b.translate(cx, 0.43, cz); bins.push(b); const lid = new THREE.CylinderGeometry(0.26, 0.26, 0.05, 12); lid.translate(cx, 0.86, cz); bins.push(lid);
-      O.push({ x0: cx - 0.25, x1: cx + 0.25, z0: cz - 0.25, z1: cz + 0.25, y0: 0, y1: 0.9 });
+      if (alongZ) this.PF.bench(bx, 0, bz, x < 387 ? 1 : -1, 0); else this.PF.bench(bx, 0, bz, 0, z < 110 ? 1 : -1);
+      this.PF.bin(alongZ ? bx : bx + 1.4, 0, alongZ ? bz + 1.4 : bz);
     });
-    if (wood.length) g.add(new THREE.Mesh(mergeAll(wood), lit(0x6b4a2a)));
-    if (iron.length) g.add(new THREE.Mesh(mergeAll(iron), lit(0x1f2a24, { metalness: 0.5 })));
-    if (bins.length) g.add(new THREE.Mesh(mergeAll(bins), lit(0x2a4a34, { metalness: 0.3, side: THREE.DoubleSide })));
     // the field's own sign, where the paths cross
     { const s = signBoard(2.6, 0.9, [['BUTLER FIELD', 92, '#f4ecd0', 0.42], ['GRANT PARK', 40, '#b9d9b0', 0.76]], '#12301e'); s.position.set(391.5, 1.5, 106); s.rotation.y = Math.PI / 4; g.add(s);
       for (const d of [-1.1, 1.1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2, 6), lit(0x1c2126)); p.position.set(391.5 + d * 0.707, 1.0, 106 - d * 0.707); g.add(p); } O.push({ x0: 390.5, x1: 392.5, z0: 105, z1: 107, y0: 0, y1: 2 }); }

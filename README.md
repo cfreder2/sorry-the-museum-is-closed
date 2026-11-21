@@ -158,8 +158,20 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   sealed cracks and patches; ladder crosswalks, double yellow lines and worn
   lane dashes laid to the lanes the traffic drives in; wet tyre tracks through
   the slush, snow ploughed into the gutters, salt, footprints, manhole covers,
-  storm drains and iron tree grates. The benches are cast iron and slats with
-  the night's snow on them.
+  storm drains and iron tree grates. Every bench out of doors (the streets,
+  Butler Field, the lakefront) is the same cast iron and slats with the
+  night's snow on them, backless by the softball diamonds; a car fits under
+  the seat between the ends, and a held hop puts it on the seat. The litter
+  bins are the parks' green steel drums with a liner and a domed lid, snow
+  heaped on it, and the lid is a top to land on.
+- **Parked cars, snowed in** (`src/parked.js`), along the far side of
+  Michigan Avenue and the kerbs of Monroe and Jackson: the traffic's own
+  saloons, hatchbacks, SUVs and pickups under a thick rounded blanket of snow,
+  drifted to one side, with the plough's heap half over the wheels, a
+  windscreen or two scraped clear and a ticket under the wiper. They are solid
+  as drawn: the body stops a car at the paint (and the heap at the heap), and
+  the snow on top is a way to drive. Hop onto the bonnet, climb the
+  windscreen, cross the roof, run down onto the boot and off.
 - **The railway** runs north to south in its cutting and under the galleries
   that bridge it (240 to 249), with a commuter train stopped for the night.
 - **The gardens.** The North Garden with its rows of trees and Calder's red

@@ -1,7 +1,7 @@
 // What the streets are made of, seen from 40 cm up: Chicago concrete in scored slabs with tooled joints and a broom
 // finish, granite kerbs with a rounded nose and a concrete gutter pan, asphalt with its aggregate, tar seams and patched
 // cracks, worn and fresh paint, wet tyre tracks through the slush, salt, packed snow, footprints, manhole covers, storm
-// drains, tree grates, tactile pads at the kerb ramps, and a cast-iron-and-wood park bench.
+// drains, tree grates, tactile pads at the kerb ramps; and the benches and litter bins every outdoor place puts out.
 //
 // Every texture is painted on a canvas once, at start-up, with a normal map (and a roughness map where wet and dry
 // sit side by side) baked from the same height field, and shared by every street that uses it. Nothing here runs per
@@ -9,8 +9,9 @@
 // metalwork (-3) and then, transparent and drawn first among the transparent things, road marks (-3), paint (-4) and
 // tracks and slush (-5); each also stands a millimetre or two proud of the one under it.
 //
-// How the pieces are used: streets.js lays the pavements, kerbs, paint, tracks and benches; grounds.js, traffic.js,
-// lakefront.js and eastside.js take the shared materials for what they draw themselves.
+// How the pieces are used: streets.js lays the pavements, kerbs, paint and tracks; streets.js, butlerfield.js and
+// lakefront.js put out benches and bins (ParkFurniture); grounds.js, traffic.js, lakefront.js and eastside.js take the
+// shared materials for what they draw themselves.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -549,32 +550,40 @@ class GeoLite {
 }
 export { GeoLite };
 
-// ------------------------------------------------------------------------------------------------ bench --
+// ------------------------------------------------------------------------------------------ park furniture --
+// Every bench and litter bin out of doors is one of these (streets.js, butlerfield.js, lakefront.js): ParkFurniture
+// puts them where they go, merged into a handful of meshes for all of them, and makes each solid as it is drawn.
+const TAU = Math.PI * 2;
+const bare = g => { g = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); return g; };
+const merged = a => mergeGeometries(a.map(bare));
+
 // The park bench Chicago puts out by the hundred: two cast-iron ends and a middle standard, each a front leg, a back
 // leg, a seat rail and a back that leans away, scrolled arms at the ends; six slats in the seat, four in the back;
 // 1.8 m long, the seat 0.45 m up. The night's snow lies along every slat, the arms and the top rail, except where
-// somebody brushed a place clear to sit. Built once, front to +z, length along x, standing on y = 0.
-export function benchParts() {
-  return once('bench', () => {
-    const iron = [], wood = [], snow = [];
+// somebody brushed a place clear to sit. 'backless' is the same ends without the back standards or the arms (the team
+// benches by the diamonds). Built once each, front to +z, length along x, standing on y = 0.
+export const BENCH = { L: 1.8, D: 0.64, SEAT: 0.468 };        // long, deep over all, and the top of the snow on the seat
+export function benchParts(variant = 'park') {
+  return once('bench-' + variant, () => {
+    const back = variant !== 'backless', iron = [], wood = [], snow = [];
     const stroke = (pts, w) => {                       // a bar of iron along a polyline (z, y), w thick
       const L = [], R = [];
       for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dz = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dz, dy) || 1, nz = -dy / l, ny = dz / l; L.push([pts[i][0] + nz * w / 2, pts[i][1] + ny * w / 2]); R.push([pts[i][0] - nz * w / 2, pts[i][1] - ny * w / 2]); }
       const s = new THREE.Shape(); [...L, ...R.reverse()].forEach(([z, y], i) => (i ? s.lineTo(z, y) : s.moveTo(z, y))); s.closePath(); return s;
     };
     const frame = (x, arms) => {
-      const bars = [[[[0.25, 0.0], [0.235, 0.2], [0.225, 0.41]], 0.045], [[[-0.25, 0.0], [-0.215, 0.2], [-0.185, 0.4]], 0.045],
-        [[[0.285, 0.418], [0.12, 0.414], [-0.08, 0.402], [-0.2, 0.392]], 0.034], [[[-0.205, 0.38], [-0.225, 0.52], [-0.265, 0.68], [-0.305, 0.86]], 0.04]];
+      const bars = [[[[0.25, 0.0], [0.235, 0.2], [0.225, 0.41]], 0.045], [[[-0.25, 0.0], [-0.215, 0.2], [-0.185, 0.4]], 0.045], [[[0.285, 0.418], [0.12, 0.414], [-0.08, 0.402], [-0.2, 0.392]], 0.034]];
+      if (back) bars.push([[[-0.205, 0.38], [-0.225, 0.52], [-0.265, 0.68], [-0.305, 0.86]], 0.04]);
       if (arms) bars.push([[[-0.25, 0.62], [-0.05, 0.638], [0.16, 0.648], [0.27, 0.642], [0.3, 0.615], [0.285, 0.59]], 0.034], [[[0.222, 0.4], [0.232, 0.52], [0.24, 0.64]], 0.03]);
-      const t = arms ? 0.038 : 0.03;
+      const t = arms || (!back && x !== 0) ? 0.038 : 0.03;
       for (const [pts, w] of bars) { const g = new THREE.ExtrudeGeometry(stroke(pts, w), { depth: t, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1, curveSegments: 4 }); g.rotateY(-Math.PI / 2); g.translate(x + t / 2, 0, 0); iron.push(g); }
       for (const z of [0.25, -0.25]) { const f = new THREE.BoxGeometry(t + 0.02, 0.018, 0.08); f.translate(x, 0.009, z); iron.push(f); }
       if (arms) { const c = new THREE.BoxGeometry(t + 0.01, 0.012, 0.54); c.translate(x, 0.672, 0.02); snow.push(c); }      // snow along the arm
     };
-    frame(-0.86, true); frame(0.86, true); frame(0, false);
+    frame(-0.86, back); frame(0.86, back); frame(0, false);
     const railY = z => z > 0.12 ? 0.418 + (0.414 - 0.418) * (0.285 - z) / 0.165 : z > -0.08 ? 0.414 + (0.402 - 0.414) * (0.12 - z) / 0.2 : 0.402 + (0.392 - 0.402) * (-0.08 - z) / 0.12;
     // Seat slats, front (rolled a little lower) to back, and the snow on each.
-    const seat = [0.255, 0.185, 0.115, 0.045, -0.025, -0.095, -0.165], r = rng(4040);
+    const seat = [0.255, 0.185, 0.115, 0.045, -0.025, -0.095, -0.165], r = rng(back ? 4040 : 4041);
     seat.forEach((z, i) => {
       const y = railY(z) + 0.017 + 0.014 - (i === 0 ? 0.006 : 0), s = new THREE.BoxGeometry(1.8, 0.028, 0.06); s.rotateX(i === 0 ? 0.25 : 0.03); s.translate(0, y, z); wood.push(s);
       // snow: the length of the slat but for a place brushed clear in the middle of the seat
@@ -584,11 +593,79 @@ export function benchParts() {
       if (clear) { const sn = new THREE.BoxGeometry(clear[1] - clear[0], 0.003, 0.05); sn.translate((clear[0] + clear[1]) / 2, top + 0.0015, z); snow.push(sn); }
     });
     // Back slats, on the lean of the back standards.
-    const backZ = y => -0.225 - (y - 0.52) / (0.86 - 0.52) * 0.08;
-    const lean = Math.atan2(0.305 - 0.225, 0.86 - 0.52);
-    [0.5, 0.6, 0.7, 0.8].forEach((y, i) => { const z = backZ(y) + 0.032, s = new THREE.BoxGeometry(1.8, 0.075, 0.024); s.rotateX(-lean); s.translate(0, y, z); wood.push(s);
-      if (i === 3) { const sn = new THREE.BoxGeometry(1.72, 0.014, 0.03); sn.translate(0, y + 0.044, z - 0.008); snow.push(sn); } });
-    const m = a => mergeGeometries(a.map(g => (g.index ? g.toNonIndexed() : g)).map(g => { for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); return g; }));
-    return { iron: m(iron), wood: m(wood), snow: m(snow), L: 1.8, D: 0.64 };
+    if (back) {
+      const backZ = y => -0.225 - (y - 0.52) / (0.86 - 0.52) * 0.08, lean = Math.atan2(0.305 - 0.225, 0.86 - 0.52);
+      [0.5, 0.6, 0.7, 0.8].forEach((y, i) => { const z = backZ(y) + 0.032, s = new THREE.BoxGeometry(1.8, 0.075, 0.024); s.rotateX(-lean); s.translate(0, y, z); wood.push(s);
+        if (i === 3) { const sn = new THREE.BoxGeometry(1.72, 0.014, 0.03); sn.translate(0, y + 0.044, z - 0.008); snow.push(sn); } });
+    }
+    return { iron: merged(iron), wood: merged(wood), snow: merged(snow), L: BENCH.L, D: back ? BENCH.D : 0.58 };
   });
+}
+
+// The litter basket in Chicago's parks: a dark green steel drum of upright flat bars between three hoops, on a black
+// foot; a black liner inside with its rolled rim showing over the top hoop; a low black domed lid standing proud of the
+// rim on three short posts (the gap is where the litter goes in), and the night's snow heaped on the dome. 0.6 m across
+// and a metre high. Built once, standing on y = 0.
+export const BIN = { R: 0.29, TOP: 1.05 };
+export function binParts() {
+  return once('bin', () => {
+    const green = [], iron = [], liner = [], snow = [], R = 0.27, r = rng(5150);
+    const at = (g, y) => { g.translate(0, y, 0); return g; };
+    iron.push(at(new THREE.CylinderGeometry(0.25, 0.27, 0.07, 22), 0.035));                                   // the foot
+    for (let i = 0, N = 22; i < N; i++) { const b = new THREE.BoxGeometry(0.034, 0.76, 0.012); b.translate(0, 0.07 + 0.38, R); b.rotateY(i / N * TAU); green.push(b); }
+    for (const y of [0.1, 0.47, 0.8]) { green.push(at(new THREE.CylinderGeometry(R + 0.009, R + 0.009, 0.05, 28, 1, true), y)); green.push(at(new THREE.CylinderGeometry(R + 0.009, R + 0.009, 0.004, 28), y + 0.025)); }
+    liner.push(at(new THREE.CylinderGeometry(0.248, 0.238, 0.78, 22, 1, true), 0.46));                         // the liner, seen between the bars
+    { const t = new THREE.TorusGeometry(0.262, 0.017, 6, 26); t.rotateX(Math.PI / 2); liner.push(at(t, 0.842)); }      // its rim, rolled over the hoop
+    { const d = new THREE.CircleGeometry(0.245, 22); d.rotateX(-Math.PI / 2); liner.push(at(d, 0.62)); }         // and what is in it, a long way down in the dark
+    for (let i = 0; i < 3; i++) { const p = new THREE.BoxGeometry(0.03, 0.09, 0.03); p.translate(0, 0.875, 0.235); p.rotateY(i / 3 * TAU + 0.5); iron.push(p); }
+    iron.push(at(new THREE.CylinderGeometry(0.305, 0.305, 0.03, 28), 0.935));                                 // the lid's rim
+    { const d = new THREE.SphereGeometry(0.3, 24, 6, 0, TAU, 0, Math.PI / 2); d.scale(1, 0.3, 1); iron.push(at(d, 0.95)); }
+    // The snow on the dome: a cap a little in from its rim, heaped and lumpy, a little more on one side.
+    { const s = new THREE.SphereGeometry(0.272, 20, 7, 0, TAU, 0, Math.PI / 2), p = s.attributes.position;
+      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), up = y / 0.272, k = 1 + (r() - 0.5) * 0.12 * up; p.setXYZ(i, x * (1 + up * 0.04), y * 0.36 * k * (1 + x * 0.5), z * (1 + up * 0.04)); }
+      s.computeVertexNormals(); snow.push(at(s, 0.958)); }
+    return { green: merged(green), iron: merged(iron), liner: merged(liner), snow: merged(snow) };
+  });
+}
+export function binMaterial() { return once('binGreen', () => std({ color: 0x1f4630, roughness: 0.5, metalness: 0.4, emissive: 0x0d2216, emissiveIntensity: 0.75 })); }
+export function linerMaterial() { return once('binLiner', () => std({ color: 0x0b0c0d, roughness: 0.55, metalness: 0.1, emissive: 0x040506, emissiveIntensity: 0.6, side: THREE.DoubleSide })); }
+
+// Benches and bins put out: drawn from the parts above and made solid as drawn. A bench's legs, its seat, its back and
+// its arms are each in the way only where they stand, so a toy car goes under the seat between the ends (as it does
+// under the gallery benches), and with a hop gets up onto the seat, snow and all. A bin is a drum, and its snowy lid a
+// top to land on. Each goes into plan.parkFurniture, which says where they all are.
+export class ParkFurniture {
+  constructor(plan) { this.plan = plan; this.geo = { iron: [], wood: [], green: [], liner: [], snow: [] }; if (!plan.parkFurniture) plan.parkFurniture = []; }
+  _put(parts, M) { for (const k in this.geo) if (parts[k]) this.geo[k].push(parts[k].clone().applyMatrix4(M)); }
+  // A rectangle in a thing's own frame (x along it, z out of its front), turned a quarter at a time to stand at (x, z).
+  static rect(x, z, c, s, lx0, lx1, lz0, lz1) {
+    const xa = x + lx0 * c + lz0 * s, xb = x + lx1 * c + lz1 * s, za = z - lx0 * s + lz0 * c, zb = z - lx1 * s + lz1 * c;
+    return { x0: Math.min(xa, xb), x1: Math.max(xa, xb), z0: Math.min(za, zb), z1: Math.max(za, zb) };
+  }
+  // A bench standing at (x, y, z), its front facing (fx, fz) (one of the four ways).
+  bench(x, y, z, fx, fz, variant = 'park') {
+    const th = Math.atan2(fx, fz), c = Math.round(Math.cos(th)), s = Math.round(Math.sin(th)), P = this.plan, O = P.obstacles, R = (...a) => ParkFurniture.rect(x, z, c, s, ...a);
+    this._put(benchParts(variant), new THREE.Matrix4().makeRotationY(Math.atan2(s, c)).setPosition(x, y, z));
+    const h = BENCH.L / 2, back = variant !== 'backless';
+    for (const e of [-0.86, 0, 0.86]) for (const [a, b] of [[0.2, 0.29], [-0.29, -0.16]]) O.push({ ...R(e - 0.035, e + 0.035, a, b), y0: y, y1: y + 0.42 });      // the legs
+    const seat = R(-h, h, -0.2, 0.29);
+    O.push({ ...seat, y0: y + 0.385, y1: y + BENCH.SEAT - 0.012, bench: true });                                    // the seat, and its top
+    P.surfaces.push({ skin: 'wall', fixed: true, ...seat, axis: null, h0: y + BENCH.SEAT, h1: y + BENCH.SEAT, thick: 0.085, base: y });
+    if (back) { O.push({ ...R(-h, h, -0.34, -0.18), y0: y + 0.48, y1: y + 0.9 }); for (const e of [-0.86, 0.86]) O.push({ ...R(e - 0.03, e + 0.03, -0.25, 0.3), y0: y + 0.47, y1: y + 0.67 }); }      // the back, the arms
+    P.parkFurniture.push({ kind: 'bench', variant, x, y, z, fx, fz });
+  }
+  // A litter bin standing at (x, y, z).
+  bin(x, y, z) {
+    const P = this.plan, Rb = BIN.R;
+    this._put(binParts(), new THREE.Matrix4().makeRotationY(hash(x, z, 5) * TAU).setPosition(x, y, z));
+    P.obstacles.push({ x0: x - Rb, x1: x + Rb, z0: z - Rb, z1: z + Rb, y0: y, y1: y + BIN.TOP - 0.08 });
+    P.surfaces.push({ skin: 'wall', fixed: true, x0: x - 0.19, x1: x + 0.19, z0: z - 0.19, z1: z + 0.19, axis: null, h0: y + BIN.TOP, h1: y + BIN.TOP, base: y });
+    P.parkFurniture.push({ kind: 'bin', x, y, z });
+  }
+  // Everything put out, a mesh a material. `snow` is the caller's snow.
+  meshes(snow) {
+    const out = [], mk = (k, m) => { if (!this.geo[k].length) return; const me = new THREE.Mesh(mergeGeometries(this.geo[k]), m); me.matrixAutoUpdate = false; me.updateMatrix(); out.push(me); };
+    mk('iron', ironMaterial()); mk('wood', slatMaterial()); mk('green', binMaterial()); mk('liner', linerMaterial()); mk('snow', snow);
+    return out;
+  }
 }
