@@ -15,7 +15,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   let nav = null;
 
   // ---- which level is which --------------------------------------------------
-  const levels = () => Object.entries(G.plan.levels || { 1: 0 }).map(([name, y]) => ({ name, y })).sort((a, b) => a.y - b.y);
+  // The hidden level (X) is not on the map at all until you have been down there: nothing but the clues mentions it before.
+  const secretLevel = () => (G.secrets && G.secrets.has('vault')) || (G.vehicle && G.vehicle.pos.y < -8);
+  const levels = () => Object.entries(G.plan.levels || { 1: 0 }).filter(([name]) => name !== 'X' || secretLevel()).map(([name, y]) => ({ name, y })).sort((a, b) => a.y - b.y);
   const levelOf = y => { let best = null; for (const l of levels()) if (!best || Math.abs(l.y - y) < Math.abs(best.y - y)) best = l; return best; };
   const onLevel = (r, ly) => Math.abs(r.y - ly) < 0.7 || (r.y < ly && r.top > ly + 2.5);    // its floor is here, or it is a tall room rising through
   // The floor you are on: the room's own, or the highest deck in it under you (a bridge over Griffin Court is upstairs),
@@ -648,7 +650,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     drawYou(c, R, R, Math.PI, 1.15);
     c.strokeStyle = 'rgba(226,205,148,.85)'; c.lineWidth = 3; c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.stroke();
     // Which level you are on: a gold tag on the rim at the bottom, big enough to read on the smallest radar (a phone's is a third the size).
-    { const lv = levelOf(ly), text = lv.name === 'LL' ? 'LL' : lv.name === 'X' ? 'SL9' : 'L' + lv.name, font = `700 ${Math.round(W * 0.11)}px ${MONO}`;
+    { const lv = levelOf(ly), text = lv.name === 'LL' ? 'SL1' : lv.name === 'X' ? 'SL9' : 'L' + lv.name, font = `700 ${Math.round(W * 0.11)}px ${MONO}`;
       c.font = font; const tw = c.measureText(text).width, ph = W * 0.15, pw = Math.max(ph * 1.5, tw + W * 0.08), px = R - pw / 2, py = W - ph - W * 0.035;
       c.fillStyle = 'rgba(226,205,148,.97)'; c.strokeStyle = 'rgba(8,10,16,.9)'; c.lineWidth = 3;
       c.beginPath(); if (c.roundRect) c.roundRect(px, py, pw, ph, ph / 2); else c.rect(px, py, pw, ph); c.fill(); c.stroke();
@@ -694,7 +696,8 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     if (here) drawHere(c, v.pos.x, v.pos.z);
     requestAnimationFrame(drawBig);
   }
-  const NAMES = { LL: 'Lower', 1: 'First', 2: 'Second', 3: 'Third', X: 'Sub-level 9' };
+  const NAMES = { LL: 'Sub-level 1', 1: 'First', 2: 'Second', 3: 'Third', X: 'Sub-level 9' };
+  const levelText = n => { const t = NAMES[n] || n; return /^Sub/.test(t) ? t.toLowerCase() : `the ${t.toLowerCase()} level`; };
   function tabs() {
     const el = document.getElementById('bmLevels'); el.textContent = '';
     const you = levelOf(youY()), tg = state.target && levelOf(state.target.y);
@@ -709,9 +712,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     // Looking at another level: say where you are, and take you back with a tap.
     const off = document.getElementById('bmYou');
     off.hidden = you.name === state.level.name;
-    if (!off.hidden) { off.innerHTML = '<b>★</b>'; off.append(`You are on the ${(NAMES[you.name] || you.name).toLowerCase()} level`); }
+    if (!off.hidden) { off.innerHTML = '<b>★</b>'; off.append(`You are on ${levelText(you.name)}`); }
     document.getElementById('bmNote').textContent = state.target
-      ? (state.path ? `To ${state.target.label}${tg.name !== you.name ? ` (${(NAMES[tg.name] || tg.name).toLowerCase()} level)` : ''}: about ${Math.round(state.path.length)} m.${state.path.jumpIn != null ? ' There is a jump on the way.' : ''}` : `No way found to ${state.target.label}.`)
+      ? (state.path ? `To ${state.target.label}${tg.name !== you.name ? ` (${levelText(tg.name)})` : ''}: about ${Math.round(state.path.length)} m.${state.path.jumpIn != null ? ' There is a jump on the way.' : ''}` : `No way found to ${state.target.label}.`)
       : 'Tap a room for its card.';
     document.getElementById('bmClear').hidden = !state.target;
     if (state.card && state.card.room && !onLevel(state.card.room, state.level.y)) card(null);

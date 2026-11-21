@@ -20,7 +20,7 @@ import { confine, groundAt } from './plan.js';
 import { BOT, ROOM, patrols, beat, cellAt, lineClear, sight, reach, path } from './guardplan.js';
 
 const PHONE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-const COUNT = PHONE ? 8 : 16;
+const COUNT = 16;                     // the same on a phone: the far ones barely cost anything (they tick slowly and are not drawn)
 const HALF = 0.5;                       // the searchlight's half-angle, radians
 const SEE = { dark: 6, lit: 9.5 };      // how far it sees you, headlamp off and on
 const FAN = 20;                         // rays in the pool of light on the floor
