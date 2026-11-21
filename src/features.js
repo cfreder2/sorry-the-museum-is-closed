@@ -43,7 +43,9 @@ export function feature(f) { features.push(f); return f; }
 // One thing-on-the-car system for everything that is picked up and taken somewhere (lost property, the lance,
 // the mask, a key...). An item: { id, mesh (THREE.Object3D, carried on the car's roof), onDrop? }.
 class Carry {
-  constructor(k) { this.k = k; this.list = []; this.max = 3; }
+  constructor(k) { this.k = k; this.list = []; }
+  // Three things, or as many as the toy in use is built to carry (a long one, more: garage spec.carry).
+  get max() { const v = this.k.G.vehicle; return (v && v.spec && v.spec.carry) || 3; }
   has(id) { return this.list.some(i => i.id === id); }
   take(item) {
     if (this.has(item.id)) return true;
@@ -54,7 +56,8 @@ class Carry {
   clear() { for (const it of [...this.list]) this.drop(it.id); }
   _mount() {
     const g = this.k.G.vehicle && this.k.G.vehicle.group; if (!g) return;
-    this.list.forEach((it, n) => { if (!it.mesh) return; if (it.mesh.parent !== g) g.add(it.mesh); it.mesh.position.set((n - (this.list.length - 1) / 2) * 0.09, 0.2 + (it.lift || 0), -0.03); });
+    const long = this.max > 3;                     // (a long toy carries them nose to tail, down its roof and bed)
+    this.list.forEach((it, n) => { if (!it.mesh) return; if (it.mesh.parent !== g) g.add(it.mesh); if (long) it.mesh.position.set(0, 0.22 + (it.lift || 0), 0.14 - n * 0.11); else it.mesh.position.set((n - (this.list.length - 1) / 2) * 0.09, 0.2 + (it.lift || 0), -0.03); });
   }
 }
 

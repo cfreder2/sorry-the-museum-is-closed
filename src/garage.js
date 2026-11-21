@@ -78,6 +78,11 @@ export const VEHICLES = [
   { id: 'racer', kind: 'car', name: 'Grand Prix', hint: 'Low, quick and nervous. Hops a little lower.', need: 100, spec: { top: 1.1, accel: 1.12, grip: 1.1, steer: 1.05, jump: 0.94 } },
   { id: 'van', kind: 'car', name: 'Art Van', hint: 'The art handlers’ van. Steady, and in no hurry.', trophy: 'dock', how: 'Find the loading dock', spec: { top: 0.96, accel: 0.95, grip: 1.1, steer: 0.95, jump: 1.05 } },
   { id: 'super', kind: 'car', name: 'Supercar', hint: 'Low, wide and far too fast for a museum.', shop: 2000, how: 'For sale at the stall by the card game', spec: { top: 1.16, accel: 1.2, grip: 1.25, steer: 1.08, jump: 0.96 } },
+  // In the Museum Shop's showroom (shop: chips; showroom: the shop lists these).
+  { id: 'kart', kind: 'car', name: 'Go-Kart', hint: 'Low, light and twitchy. Slides through the turns.', shop: 600, showroom: true, how: 'For sale in the Museum Shop', spec: { top: 1.12, accel: 1.3, grip: 0.62, steer: 1.35, jump: 0.9 } },
+  { id: 'stretch', kind: 'car', name: 'Stretch Pickup', hint: 'Far too long. Turns like a bus, carries five lost things.', shop: 1200, showroom: true, how: 'For sale in the Museum Shop', spec: { top: 0.95, accel: 0.85, grip: 1.25, steer: 0.62, jump: 0.85, carry: 5 } },
+  { id: 'plow', kind: 'car', name: 'Snowplow', hint: 'Clears a path through the snow and shoves things aside.', shop: 1500, showroom: true, how: 'For sale in the Museum Shop', spec: { top: 0.8, accel: 0.9, grip: 1.3, steer: 0.85, jump: 0.9, ice: 0.85 } },
+  { id: 'semi', kind: 'car', name: 'Semi Truck', hint: 'Hauls a trailer. Mind it in the turns, and never back up in a hurry.', shop: 3000, showroom: true, how: 'For sale in the Museum Shop', spec: { top: 0.86, accel: 0.7, grip: 1.3, steer: 0.75, jump: 0.6 } },
   { id: 'xmas', kind: 'car', name: 'Candy Cane Express', hint: 'Red, white and lit up like the tree it came from under.', gift: true, how: 'Somebody left it under a tree', spec: { top: 1.03, grip: 1.12, jump: 1.1 } },
   { id: 'quad', kind: 'drone', name: 'RC Drone', hint: 'Goes up to the glass. Meets a painting eye to eye.', need: 0, spec: {} },
   { id: 'hex', kind: 'drone', name: 'Hexacopter', hint: 'Six rotors. Climbs hard, turns steadily.', need: 25, spec: { accel: 0.95, climb: 1.2, yaw: 0.95 } },
@@ -275,6 +280,163 @@ const CARS = {
     for (const [x, z, f] of [[-0.105, 0.13, true], [0.105, 0.13, true], [-0.105, -0.13, false], [0.105, -0.13, false]]) wheel(g, wheels, x, z, 0.052, 0.05, f, grey, 12);
     const aerial = aerialOn(body, -0.08, 0.248, -0.16, 0.22, glow(3.2, 1.6, 0.1));
     return { group: g, body, wheels, aerial };
+  },
+  // ---- for sale in the Museum Shop (VEHICLES' showroom entries) ----
+  // A pickup stretched far past any sense: a crew cab with three rows of doors, a long chrome-edged bed, the wheels a
+  // whole toy-length apart. It turns like a bus and carries a great deal (spec.carry), and it does not fall over.
+  stretch() {
+    const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
+    g.add(body);
+    const paint = P(paintOf(0x5a1e8a)), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xd8dce2, { metalness: 0.85, roughness: 0.22 }), glass = std(0x10151c, { roughness: 0.12, metalness: 0.55 }), pin = paintOf(0xe9c46a);
+    part(box(0.15, 0.03, 0.7), black, 0, 0.07, 0, body);                                                 // the frame, the whole length
+    part(box(0.2, 0.055, 0.68), paint, 0, 0.115, 0.0, body);                                             // the body sill
+    const hood = part(box(0.19, 0.03, 0.15), paint, 0, 0.158, 0.26, body); hood.rotation.x = 0.07;        // a long bonnet
+    part(box(0.17, 0.035, 0.012), chrome, 0, 0.12, 0.345, body);                                         // the grille
+    for (let i = 0; i < 5; i++) part(box(0.15, 0.003, 0.004), black, 0, 0.106 + i * 0.006, 0.352, body);
+    part(box(0.215, 0.026, 0.022), chrome, 0, 0.088, 0.352, body);                                       // bumper
+    // the stretched cab: three windows a side, a long roof, pillars between
+    part(box(0.186, 0.07, 0.3), glass, 0, 0.18, 0.04, body);
+    part(box(0.19, 0.012, 0.31), paint, 0, 0.221, 0.04, body);
+    for (const s of [-1, 1]) for (const z of [0.19, 0.09, -0.01, -0.11]) part(box(0.006, 0.07, 0.016), paint, s * 0.094, 0.18, z, body);
+    const ws = part(box(0.18, 0.06, 0.008), glass, 0, 0.18, 0.2, body); ws.rotation.x = -0.35;           // the windscreen, raked
+    for (const s of [-1, 1]) part(box(0.004, 0.006, 0.66), pin, s * 0.101, 0.138, 0, body);              // a pinstripe nose to tail
+    // the bed: sides, tailgate, a chrome rail along each side
+    for (const s of [-1, 1]) { part(box(0.012, 0.045, 0.22), paint, s * 0.094, 0.165, -0.225, body); part(box(0.012, 0.006, 0.22), chrome, s * 0.094, 0.19, -0.225, body); }
+    part(box(0.2, 0.045, 0.012), paint, 0, 0.165, -0.338, body);
+    part(box(0.176, 0.004, 0.21), black, 0, 0.145, -0.225, body);                                        // the bed floor
+    for (const s of [-1, 1]) part(box(0.03, 0.008, 0.36), chrome, s * 0.113, 0.085, 0.03, body);         // running boards
+    for (const s of [-1, 1]) { part(cyl(0.007, 0.008, 0.11, 8), chrome, s * 0.098, 0.25, -0.115, body); part(cyl(0.009, 0.007, 0.012, 8), black, s * 0.098, 0.31, -0.115, body); }   // stacks behind the cab
+    for (const s of [-1.5, -0.5, 0.5, 1.5]) part(ball(0.011), glow(4, 3.8, 3), s * 0.036, 0.233, 0.17, body);            // roof lamps
+    for (const s of [-1, 1]) part(box(0.024, 0.012, 0.008), glow(3.4, 1.6, 0.1), s * 0.07, 0.233, 0.19, body);          // amber markers
+    lights(body, 0.075, 0.13, 0.348, -0.346);
+    for (const [x, z, f] of [[-0.118, 0.255, true], [0.118, 0.255, true], [-0.118, -0.255, false], [0.118, -0.255, false]]) wheel(g, wheels, x, z, 0.062, 0.055, f, chrome, 10);
+    const aerial = aerialOn(body, -0.08, 0.227, -0.09, 0.26, glow(1.6, 0.6, 2.2));
+    return { group: g, body, wheels, aerial, radius: 0.18, probes: [[0.24, 0.11], [-0.24, 0.11]], view: 0.78 };
+  },
+  // A go-kart: a tube frame a hand off the floor, fat little tyres, a bucket seat with a helmeted driver hunched at the
+  // wheel, side pods, an engine bolted on at the back. Quick, light on its feet, and happy to go sideways.
+  kart() {
+    const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
+    g.add(body);
+    const paint = P(paintOf(0x8ad81e)), black = std(0x0c0c0e, { roughness: 0.7 }), steel = std(0xb8bec6, { metalness: 0.8, roughness: 0.3 }), red = paintOf(0xd8261c), white = std(0xf2f2ee, { roughness: 0.4 });
+    const Yax = new THREE.Vector3(0, 1, 0);
+    const rod = (a, b, r, m) => { const d = new THREE.Vector3().subVectors(b, a), L = d.length(), t = part(cyl(r, r, L, 7), m, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, body); t.quaternion.setFromUnitVectors(Yax, d.normalize()); return t; };
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+    // the frame: two rails, cross members, a nerf bar each side and a bumper loop at the front
+    for (const s of [-1, 1]) { rod(V(s * 0.055, 0.04, 0.15), V(s * 0.06, 0.04, -0.13), 0.006, steel); rod(V(s * 0.06, 0.04, 0.06), V(s * 0.11, 0.045, 0.02), 0.005, steel); rod(V(s * 0.11, 0.045, 0.02), V(s * 0.11, 0.045, -0.06), 0.005, steel); rod(V(s * 0.11, 0.045, -0.06), V(s * 0.06, 0.04, -0.09), 0.005, steel); }
+    for (const z of [0.13, 0.0, -0.11]) rod(V(-0.06, 0.04, z), V(0.06, 0.04, z), 0.005, steel);
+    rod(V(-0.05, 0.035, 0.19), V(0.05, 0.035, 0.19), 0.006, steel); for (const s of [-1, 1]) rod(V(s * 0.05, 0.035, 0.19), V(s * 0.055, 0.04, 0.15), 0.006, steel);
+    part(box(0.11, 0.004, 0.24), black, 0, 0.037, 0.02, body);                                           // the floor pan
+    const nose = part(box(0.13, 0.03, 0.07), paint, 0, 0.055, 0.17, body); nose.rotation.x = -0.25;      // nose cone
+    part(box(0.07, 0.022, 0.045), paint, 0, 0.07, 0.11, body);                                          // the front panel the number goes on
+    part(cyl(0.016, 0.016, 0.003, 14), white, 0, 0.083, 0.112, body).rotation.x = 0.4;
+    for (const s of [-1, 1]) part(box(0.035, 0.03, 0.12), paint, s * 0.11, 0.06, -0.02, body);           // side pods
+    // the seat, the driver, the wheel
+    part(box(0.07, 0.012, 0.07), black, 0, 0.055, -0.04, body); const back = part(box(0.07, 0.07, 0.012), black, 0, 0.09, -0.078, body); back.rotation.x = -0.25;
+    part(box(0.05, 0.05, 0.04), red, 0, 0.09, -0.035, body);                                            // the driver's suit
+    for (const s of [-1, 1]) { rod(V(s * 0.022, 0.1, -0.03), V(s * 0.02, 0.085, 0.035), 0.008, red); rod(V(s * 0.018, 0.065, -0.01), V(s * 0.02, 0.05, 0.08), 0.009, red); }   // arms to the wheel, legs to the pedals
+    part(ball(0.026, 14, 12), white, 0, 0.14, -0.03, body);                                             // helmet
+    part(box(0.034, 0.012, 0.012), std(0x151a22, { roughness: 0.1, metalness: 0.6 }), 0, 0.142, -0.006, body);    // visor
+    part(box(0.004, 0.01, 0.05), paint, 0, 0.165, -0.03, body);                                          // a stripe over it
+    rod(V(0, 0.05, 0.1), V(0, 0.095, 0.045), 0.004, steel);                                              // steering column
+    const sw = part(new THREE.TorusGeometry(0.018, 0.0035, 6, 14), black, 0, 0.097, 0.042, body); sw.rotation.x = -0.75;
+    // the engine, its exhaust
+    part(box(0.04, 0.045, 0.045), std(0x5a5e66, { metalness: 0.6, roughness: 0.4 }), 0.075, 0.07, -0.1, body);
+    part(cyl(0.012, 0.012, 0.012, 10), black, 0.075, 0.1, -0.1, body);
+    rod(V(0.075, 0.08, -0.12), V(0.07, 0.085, -0.17), 0.006, steel); part(cyl(0.01, 0.01, 0.04, 8), steel, 0.07, 0.085, -0.18, body).rotation.x = Math.PI / 2;
+    part(box(0.2, 0.025, 0.02), paint, 0, 0.05, -0.155, body);                                           // rear bumper
+    for (const s of [-1, 1]) part(box(0.022, 0.01, 0.006), glow(2.2, 0.1, 0.08), s * 0.05, 0.05, -0.166, body);
+    for (const [x, z, r, w, f] of [[-0.095, 0.13, 0.036, 0.034, true], [0.095, 0.13, 0.036, 0.034, true], [-0.1, -0.11, 0.043, 0.05, false], [0.1, -0.11, 0.043, 0.05, false]]) wheel(g, wheels, x, z, r, w, f, paint, 6);
+    rod(V(-0.1, 0.043, -0.11), V(0.1, 0.043, -0.11), 0.005, steel);                                       // the rear axle, live
+    const aerial = aerialOn(body, -0.06, 0.06, -0.12, 0.2, glow(0.8, 2.4, 0.3));
+    return { group: g, body, wheels, aerial, radius: 0.15, view: 1.15 };
+  },
+  // A long-nose tractor unit with a sleeper, twin stacks and a chrome grille, hauling a box trailer on a fifth wheel.
+  // The trailer is its own thing (model.trailer): it is towed, not carried. Car.reskin takes it, and Car._tow moves it.
+  semi() {
+    const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
+    g.add(body);
+    const paint = P(paintOf(0x1a6a8c)), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xdde1e6, { metalness: 0.9, roughness: 0.2 }), glass = std(0x10151c, { roughness: 0.12, metalness: 0.55 }), cream = paintOf(0xefe6cf), grey = std(0x3a3e46, { roughness: 0.6 });
+    part(box(0.12, 0.025, 0.36), black, 0, 0.06, -0.01, body);                                           // frame rails
+    // the long bonnet, to a tall chrome grille
+    part(box(0.17, 0.07, 0.13), paint, 0, 0.12, 0.105, body); const hd = part(box(0.165, 0.02, 0.13), paint, 0, 0.16, 0.105, body); hd.rotation.x = 0.06;
+    part(box(0.12, 0.08, 0.01), chrome, 0, 0.12, 0.172, body); for (let i = 0; i < 6; i++) part(box(0.105, 0.003, 0.004), black, 0, 0.09 + i * 0.011, 0.178, body);
+    part(box(0.21, 0.03, 0.026), chrome, 0, 0.065, 0.18, body);                                          // the bumper
+    for (const s of [-1, 1]) { const f = part(box(0.04, 0.05, 0.1), paint, s * 0.1, 0.1, 0.12, body); f.rotation.x = -0.1; }       // fenders over the steer axle
+    // the cab and the sleeper behind it
+    part(box(0.19, 0.12, 0.1), paint, 0, 0.2, 0, body);
+    const sc = part(box(0.17, 0.05, 0.008), glass, 0, 0.215, 0.052, body); sc.rotation.x = -0.25;
+    for (const s of [-1, 1]) part(box(0.006, 0.045, 0.06), glass, s * 0.096, 0.215, 0.01, body);
+    part(box(0.19, 0.14, 0.08), paint, 0, 0.21, -0.088, body);                                           // sleeper
+    part(box(0.18, 0.03, 0.15), paint, 0, 0.29, -0.04, body); const fair = part(box(0.18, 0.04, 0.05), paint, 0, 0.3, 0.02, body); fair.rotation.x = 0.5;   // roof fairing
+    for (const s of [-1, 1]) part(box(0.004, 0.012, 0.18), cream, s * 0.096, 0.17, -0.04, body);         // a stripe down each side
+    for (const s of [-1, 1]) { part(cyl(0.009, 0.009, 0.22, 10), chrome, s * 0.103, 0.24, -0.132, body); part(cyl(0.011, 0.009, 0.015, 10), black, s * 0.103, 0.355, -0.132, body); }   // twin stacks
+    for (const s of [-1, 1]) { part(cyl(0.02, 0.02, 0.06, 12), chrome, s * 0.1, 0.075, -0.05, body).rotation.x = Math.PI / 2; part(box(0.012, 0.012, 0.03), black, s * 0.112, 0.21, 0.06, body); part(box(0.008, 0.035, 0.022), chrome, s * 0.122, 0.21, 0.07, body); }   // fuel tanks, mirrors
+    for (const s of [-1.5, -0.5, 0.5, 1.5]) part(box(0.012, 0.008, 0.008), glow(3.4, 1.6, 0.1), s * 0.03, 0.312, 0.035, body);       // cab-top markers
+    part(cyl(0.05, 0.05, 0.012, 16), grey, 0, 0.088, -0.12, body);                                       // the fifth wheel
+    lights(body, 0.075, 0.115, 0.176, -0.17);
+    for (const [x, z, f] of [[-0.1, 0.11, true], [0.1, 0.11, true], [-0.1, -0.085, false], [0.1, -0.085, false], [-0.1, -0.165, false], [0.1, -0.165, false]]) wheel(g, wheels, x, z, 0.048, 0.042, f, chrome, 10);
+    const aerial = aerialOn(body, 0.08, 0.31, -0.08, 0.2, glow(2.6, 0.4, 0.2));
+    // ---- the trailer: built about its kingpin (0, 0, 0 at the fifth wheel, at ground level), running back along -z
+    const T = new THREE.Group(), tb = new THREE.Group(); T.add(tb);
+    const side = P(paintOf(0xefece4)), rib = std(0xc9ccd2, { metalness: 0.6, roughness: 0.35 });
+    const tw = [], LEN = 0.43;
+    part(box(0.21, 0.2, 0.56), side, 0, 0.21, -0.25, tb);                                                // the box
+    for (let i = 0; i < 9; i++) for (const s of [-1, 1]) part(box(0.004, 0.2, 0.008), rib, s * 0.106, 0.21, 0.02 - i * 0.068, tb);      // ribs
+    part(box(0.214, 0.008, 0.564), rib, 0, 0.312, -0.25, tb); part(box(0.214, 0.012, 0.564), rib, 0, 0.11, -0.25, tb);                  // top and bottom rails
+    part(box(0.004, 0.18, 0.004), black, 0, 0.21, -0.532, tb);                                           // between the back doors
+    for (const s of [-1, 1]) for (const y of [0.15, 0.27]) part(box(0.01, 0.012, 0.006), rib, s * 0.03, y, -0.533, tb);                 // their hinges and bars
+    for (const s of [-1, 1]) part(box(0.004, 0.035, 0.3), grey, s * 0.098, 0.085, -0.2, tb);             // side skirts
+    for (const s of [-1, 1]) for (const z of [0.0, -0.24, -0.5]) part(box(0.004, 0.008, 0.012), glow(3.4, 1.6, 0.1), s * 0.108, 0.115, z, tb);   // side markers
+    for (const s of [-1, 1]) part(box(0.03, 0.014, 0.008), glow(2.2, 0.1, 0.08), s * 0.075, 0.12, -0.533, tb);
+    part(box(0.2, 0.02, 0.012), grey, 0, 0.075, -0.53, tb);                                              // the under-ride bar
+    for (const s of [-1, 1]) { part(box(0.008, 0.09, 0.008), grey, s * 0.07, 0.06, -0.08, tb); part(box(0.03, 0.006, 0.02), grey, s * 0.07, 0.016, -0.08, tb); }   // landing legs, wound up
+    part(cyl(0.012, 0.012, 0.03, 8), grey, 0, 0.09, 0, tb);                                              // the kingpin plate
+    // tandem axles, dual wheels, near the back
+    for (const z of [-0.39, -0.47]) for (const s of [-1, 1]) {
+      const p = new THREE.Group(); p.position.set(s * 0.085, 0.045, z); const spin = new THREE.Group(); p.add(spin);
+      for (const o of [-0.016, 0.016]) { const t = new THREE.Mesh(cyl(0.045, 0.045, 0.03, 14), std(0x08080a, { roughness: 0.9 })); t.rotation.z = Math.PI / 2; t.position.x = o; spin.add(t); }
+      const hub = new THREE.Mesh(cyl(0.024, 0.024, 0.066, 8), chrome); hub.rotation.z = Math.PI / 2; spin.add(hub);
+      tb.add(p); tw.push({ spin, r: 0.045 });
+    }
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.6), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+    shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.006, -0.25); T.add(shadow);
+    // In a picture (and until it is first towed) it stands straight out behind.
+    T.position.set(0, 0, -0.12); g.add(T);
+    return { group: g, body, wheels, aerial, radius: 0.17, probes: [[0.12, 0.1]], view: 0.66, trailer: { group: T, wheels: tw, hitch: -0.12, len: LEN, rear: 0.53, width: 0.11 } };
+  },
+  // A snowplough: a short orange cab-forward truck, a curved steel blade on arms out front, a hopper of grit on the back,
+  // amber beacons. On snow it clears a path a blade wide (winter.js), and the blade shoves loose things aside.
+  plow() {
+    const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
+    g.add(body);
+    const paint = P(paintOf(0xf07a14)), black = std(0x0c0c0e, { roughness: 0.7 }), steel = std(0x9aa2ac, { metalness: 0.7, roughness: 0.35 }), glass = std(0x10151c, { roughness: 0.12, metalness: 0.55 }), yellow = paintOf(0xf2c21b), grit = std(0x6a5a48, { roughness: 1 });
+    part(box(0.14, 0.03, 0.38), black, 0, 0.075, -0.01, body);                                           // frame
+    part(box(0.2, 0.13, 0.12), paint, 0, 0.17, 0.1, body);                                               // the cab, flat-fronted
+    part(box(0.18, 0.06, 0.008), glass, 0, 0.2, 0.162, body); for (const s of [-1, 1]) part(box(0.006, 0.05, 0.08), glass, s * 0.101, 0.2, 0.1, body);
+    part(box(0.205, 0.012, 0.125), paint, 0, 0.24, 0.1, body);
+    part(box(0.16, 0.03, 0.01), black, 0, 0.115, 0.163, body);                                           // grille
+    for (const s of [-1, 1]) part(cyl(0.012, 0.012, 0.022, 10), glow(3.4, 1.6, 0.1), s * 0.07, 0.258, 0.11, body);                 // beacons
+    part(box(0.15, 0.01, 0.01), black, 0, 0.27, 0.13, body); for (const s of [-1, 1]) part(ball(0.013), glow(4, 3.8, 3), s * 0.06, 0.28, 0.135, body);   // plough lamps on a bar over the cab
+    for (const s of [-1, 1]) part(box(0.006, 0.05, 0.006), black, s * 0.06, 0.255, 0.13, body);
+    // the hopper on the back, heaped with grit, a spinner under its tail
+    part(box(0.19, 0.1, 0.2), paint, 0, 0.17, -0.1, body);
+    for (const s of [-1, 1]) { const w = part(box(0.008, 0.1, 0.2), yellow, s * 0.098, 0.172, -0.1, body); w.rotation.z = s * 0.08; }
+    part(box(0.17, 0.02, 0.18), grit, 0, 0.225, -0.1, body);
+    part(cyl(0.025, 0.025, 0.008, 12), steel, 0, 0.08, -0.215, body); for (let i = 0; i < 4; i++) { const f = part(box(0.045, 0.008, 0.006), steel, 0, 0.088, -0.215, body); f.rotation.y = i * Math.PI / 4; }
+    for (const s of [-1, 1]) part(box(0.014, 0.08, 0.004), yellow, s * 0.088, 0.17, -0.202, body);       // stripes on the tail
+    part(box(0.17, 0.01, 0.004), black, 0, 0.17, -0.2015, body);
+    // the blade: a curved mouldboard of steel slats, angled, with a cutting edge and markers on its ends
+    const blade = new THREE.Group(); blade.position.set(0, 0, 0.255); blade.rotation.y = 0.12; body.add(blade);
+    for (let i = 0; i < 7; i++) { const a = -0.5 + i * 0.22, y = 0.035 + i * 0.016, z = 0.05 - Math.cos(a) * 0.035; const sl = part(box(0.36, 0.018, 0.008), i % 2 ? yellow : steel, 0, y, z, blade); sl.rotation.x = a; }
+    part(box(0.365, 0.008, 0.012), black, 0, 0.026, 0.045, blade);                                       // cutting edge
+    for (const s of [-1, 1]) { part(box(0.006, 0.1, 0.006), black, s * 0.178, 0.12, 0.02, blade); part(ball(0.008, 6, 5), glow(3.4, 0.4, 0.1), s * 0.178, 0.172, 0.02, blade); }    // end markers
+    for (const s of [-1, 1]) { const arm = part(box(0.012, 0.012, 0.11), steel, s * 0.05, 0.08, 0.2, body); arm.rotation.x = 0.25; }       // push arms
+    part(cyl(0.008, 0.008, 0.06, 8), steel, 0, 0.11, 0.195, body).rotation.x = 1.1;                       // the lift ram
+    lights(body, 0.07, 0.13, 0.163, -0.212);
+    for (const [x, z, f] of [[-0.115, 0.1, true], [0.115, 0.1, true], [-0.115, -0.12, false], [0.115, -0.12, false]]) wheel(g, wheels, x, z, 0.06, 0.055, f, yellow, 8);
+    const aerial = aerialOn(body, -0.08, 0.246, 0.07, 0.24, glow(3.4, 1.6, 0.1));
+    return { group: g, body, wheels, aerial, radius: 0.18, probes: [[0.27, 0.15]], blade: { z: 0.3, hw: 0.19 }, view: 0.95 };
   },
 };
 
@@ -533,6 +695,7 @@ export class Garage {
         const m = buildVehicle(v.id);
         m.group.rotation.set(0, v.kind === 'car' ? -2.25 : -2.45, 0);
         m.group.position.set(0, v.kind === 'car' ? -0.12 : 0, 0);
+        m.group.scale.setScalar(m.view || 1);                // (a long one is drawn smaller, to fit)
         scene.add(m.group);
         cam.position.set(0, v.kind === 'car' ? 0.3 : 0.34, 1.12); cam.lookAt(0, v.kind === 'car' ? 0.0 : 0.0, 0);
         renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, cam);

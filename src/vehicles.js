@@ -116,6 +116,11 @@ export class Car {
     this.body = model.body; this.wheels = model.wheels; this.aerial = model.aerial;
     this.group.add(this.body); for (const w of this.wheels) this.group.add(w.pivot);
     this.spec = { ...CAR_SPEC, ...spec };
+    // A long body keeps its ends out of the walls with extra circles along it ([offset forward, radius]); a plough has a
+    // blade (winter.js clears the snow it passes over); a semi has a trailer, towed behind on its own (see _tow).
+    this.radius = model.radius || 0.19; this.probes = model.probes || null; this.blade = model.blade || null;
+    if (this.trailer) { this.group.remove(this.trailer.group); this.trailer = null; }
+    if (model.trailer) { const t = this.trailer = { ...model.trailer, ax: 0, az: 0, y: 0, yaw: this.yaw }; this.group.add(t.group); this._hitchReset(); }
     this.sync(0);
   }
 
@@ -123,7 +128,68 @@ export class Car {
     this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw;
     this.vy = 0; this.air = false; this.rail = null; this.tilt = 0; this.speed = 0; this.flip = this.spin = 0;
     this.pos.y = groundAt(this.plan, x, z, y + 0.3);
+    this._hitchReset();
     this.sync(0);
+  }
+
+  // ---- the trailer (a semi's). Its kingpin rides on the tractor's fifth wheel; its axles, `len` behind the kingpin, roll
+  // where they are pulled and never sideways: each frame the axle moves straight towards wherever the kingpin has gone.
+  // That is all it takes for it to cut corners going forward, swing wide backing up, and fold up (jack-knife) if
+  // reversed carelessly. Walls push it round about the kingpin.
+  _hitch(out) { const t = this.trailer; return out.set(this.pos.x + Math.sin(this.yaw) * t.hitch, this.pos.y, this.pos.z + Math.cos(this.yaw) * t.hitch); }
+  _hitchReset() {
+    const t = this.trailer; if (!t) return;
+    const H = this._hitch(this._hv || (this._hv = new THREE.Vector3()));
+    t.yaw = this.yaw; t.ax = H.x - Math.sin(this.yaw) * t.len; t.az = H.z - Math.cos(this.yaw) * t.len; t.y = this.pos.y; t.v = 0; t.folded = 0;
+  }
+  _tow(dt) {
+    const t = this.trailer; if (!t) return;
+    const H = this._hitch(this._hv || (this._hv = new THREE.Vector3()));
+    let dx = H.x - t.ax, dz = H.z - t.az, d = Math.hypot(dx, dz);
+    if (d > t.len * 3 || !(d > 1e-6)) { this._hitchReset(); return; }                     // put back behind (after a teleport)
+    const px = t.ax, pz = t.az;
+    t.ax = H.x - dx / d * t.len; t.az = H.z - dz / d * t.len;
+    // Folded too far round, the trailer's nose meets the back of the cab: it can go no further.
+    const lim = 1.4;
+    const fold = () => { let k = Math.atan2(H.x - t.ax, H.z - t.az) - this.yaw; k = Math.atan2(Math.sin(k), Math.cos(k)); return k; };
+    let k = fold();
+    t.folded = Math.max(0, (t.folded || 0) - dt);
+    if (Math.abs(k) > lim) { const a = this.yaw + Math.sign(k) * lim; t.ax = H.x - Math.sin(a) * t.len; t.az = H.z - Math.cos(a) * t.len; t.folded = 0.6; k = Math.sign(k) * lim; }
+    // Walls: points down the trailer's length, each kept clear of walls and fixed things; what moves them swings the trailer.
+    const q = this._tq || (this._tq = { x: 0, y: 0, z: 0 }), push = this._tp || (this._tp = { x: 0, y: 0, z: 0 });
+    for (let pass = 0; pass < 2; pass++) for (const s of [0.18, t.len, t.rear - 0.04]) {
+      dx = t.ax - H.x; dz = t.az - H.z; d = Math.hypot(dx, dz) || 1e-6;
+      q.x = H.x + dx / d * s; q.y = t.y; q.z = H.z + dz / d * s;
+      const ox = q.x, oz = q.z;
+      if (confine(this.plan, q, t.width, false, push)) {
+        const f = t.len / s;                                                                // a nudge at s turns the line about the kingpin as much as f times it at the axle
+        t.ax += (q.x - ox) * f; t.az += (q.z - oz) * f;
+        dx = t.ax - H.x; dz = t.az - H.z; d = Math.hypot(dx, dz) || 1e-6; t.ax = H.x + dx / d * t.len; t.az = H.z + dz / d * t.len;
+      }
+    }
+    t.yaw = Math.atan2(H.x - t.ax, H.z - t.az);
+    t.v = dt > 0 ? ((t.ax - px) * Math.sin(t.yaw) + (t.az - pz) * Math.cos(t.yaw)) / dt : 0;
+    // Up and down: the axles on the ground under them (stepping up a kerb the way the car does), the kingpin on the tractor.
+    const g = groundAt(this.plan, t.ax, t.az, Math.max(t.y, this.pos.y) + 0.25);
+    t.y = this.air ? Math.max(g, Math.min(t.y, this.pos.y)) : g;
+    if (Math.abs(t.y - this.pos.y) > 1.2) t.y = this.pos.y;                                 // never hanging off a balcony
+  }
+  _drawTrailer(dt) {
+    const t = this.trailer; if (!t) return;
+    const W = this._tw || (this._tw = new THREE.Matrix4()), E = this._te || (this._te = new THREE.Euler(0, 0, 0, 'YXZ')), Qt = this._tqq || (this._tqq = new THREE.Quaternion()), one = this._t1 || (this._t1 = new THREE.Vector3(1, 1, 1)), H = this._hitch(this._hv2 || (this._hv2 = new THREE.Vector3()));
+    E.set(Math.atan2(t.y - H.y, t.len), t.yaw, 0); Qt.setFromEuler(E);
+    W.compose(H, Qt, one);
+    this.group.updateMatrix();
+    const inv = this._ti || (this._ti = new THREE.Matrix4()); inv.copy(this.group.matrix).invert();
+    W.premultiply(inv); W.decompose(t.group.position, t.group.quaternion, t.group.scale);
+    for (const w of t.wheels) w.spin.rotation.x += (t.v / w.r) * dt;
+  }
+  // Besides the toy itself, what else of it runs into things (loose.js, props.js): a plough's blade, a trailer.
+  extraMovers(out) {
+    const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
+    if (this.blade) out.push({ x: this.pos.x + fx * this.blade.z, y: this.pos.y, z: this.pos.z + fz * this.blade.z, vx: this.vel.x * 1.15, vz: this.vel.z * 1.15, r: this.blade.hw });
+    const t = this.trailer;
+    if (t) { const sx = Math.sin(t.yaw), sz = Math.cos(t.yaw), H = this._hitch(this._hv3 || (this._hv3 = new THREE.Vector3())); for (const s of [0.2, 0.42]) out.push({ x: H.x - sx * s, y: t.y, z: H.z - sz * s, vx: sx * t.v, vz: sz * t.v, r: t.width + 0.02 }); }
   }
 
   update(dt, inp) {
@@ -260,6 +326,17 @@ export class Car {
           this.vel.multiplyScalar(0.82);
           this.bump = Math.max(this.bump, -into);
         }
+      }
+    }
+    // A long body: its nose and its tail kept out of the walls too, each a circle of its own, and the car moved with them.
+    if (this.probes) for (const [o, r] of this.probes) {
+      const fx2 = Math.sin(this.yaw), fz2 = Math.cos(this.yaw), q = this._pq || (this._pq = { x: 0, y: 0, z: 0 }), pp = this._pp || (this._pp = { x: 0, y: 0, z: 0 });
+      q.x = this.pos.x + fx2 * o; q.y = this.pos.y; q.z = this.pos.z + fz2 * o;
+      const ox = q.x, oz = q.z;
+      if (confine(this.plan, q, r, false, pp)) {
+        const mx = q.x - ox, mz = q.z - oz, l = Math.hypot(mx, mz);
+        this.pos.x += mx; this.pos.z += mz;
+        if (l > 1e-6) { const into = (this.vel.x * mx + this.vel.z * mz) / l; if (into < 0) { this.vel.x -= mx / l * into * 1.2; this.vel.z -= mz / l * into * 1.2; this.bump = Math.max(this.bump, -into); } }
       }
     }
 
@@ -415,6 +492,7 @@ export class Car {
     this.aerialV.y += ((tz - this.aerialP.y) * 90 - this.aerialV.y * 5) * dt;
     this.aerialP.addScaledVector(this.aerialV, dt);
     this.under = under;
+    this._tow(dt);
     this.sync(dt);
   }
 
@@ -467,6 +545,7 @@ export class Car {
     this.shadow.rotation.y = this.yaw;
     this.shadow.material.opacity = 0.55 * Math.max(0.15, 1 - h / 2.5);
     this.shadow.scale.setScalar(1 + h * 0.35);
+    this._drawTrailer(dt);
   }
 
   get height() { return 0.12; }
