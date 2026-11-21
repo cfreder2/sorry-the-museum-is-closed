@@ -187,7 +187,11 @@ feature({
       const N = 70, P = new Float32Array(N * 3), V = new Float32Array(N * 3), rs = rng(100 + i);
       for (let j = 0; j < N; j++) { const a = rs() * 6.28, d = Math.sqrt(rs()) * 0.15; P[j * 3] = Math.cos(a) * d; P[j * 3 + 1] = snowAt(d); P[j * 3 + 2] = Math.sin(a) * d; }
       const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(P, 3));
-      const snow = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 0.008, map: radial(), alphaTest: 0.05, transparent: true, opacity: 0.95, depthWrite: false })); snow.renderOrder = 2; ball.add(snow);
+      const sm = new THREE.PointsMaterial({ color: 0xffffff, size: 0.008, map: radial(), alphaTest: 0.05, transparent: true, opacity: 0.95, depthWrite: false });
+      // A flake is only ever drawn inside the glass: whatever the motion does, one outside it (in the ball's own frame) is not drawn at all.
+      sm.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  float globeOut = step(0.175, length(position));').replace('gl_PointSize = size;', 'gl_PointSize = size * (1.0 - globeOut);'); };
+      sm.customProgramCacheKey = () => 'globe-snow';
+      const snow = new THREE.Points(sg, sm); snow.renderOrder = 2; ball.add(snow);
       // the card on the pedestal's front
       const card = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.11), new THREE.MeshBasicMaterial({ map: tex(256, 78, (c, w, h) => { c.fillStyle = '#f4efe2'; c.fillRect(0, 0, w, h); c.fillStyle = '#16120c'; c.textAlign = 'center'; c.font = '700 26px Georgia, serif'; c.fillText(def.name, w / 2, 34); c.font = 'italic 19px Georgia, serif'; c.fillStyle = '#5a5040'; c.fillText(def.where, w / 2, 62); }) }));
       card.position.set(x, 0.17, z - 0.245); card.rotation.y = Math.PI; g.add(card);

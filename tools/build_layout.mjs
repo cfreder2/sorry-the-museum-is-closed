@@ -496,7 +496,7 @@ const SITES = {
     const sec = r => Object.assign(r, { secret: true, floor: 'X' });
     const pass = sec(add({ id: 'X-pass', gallery: 'Unlisted passage', kind: 'room', use: 'corridor', passage: true, building: 'main', floor: 'X', x0: g.x0, x1: r2(g.x0 + 2.5), z0: r2(g.z0 - 6.3), z1: r2(g.z0 - 0.4), y: g.y, h: 3.4 }));
     const T0 = { x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 5.4), z0: r2(pass.z0 - 12.4), z1: r2(pass.z0 - 0.4) };
-    const stair = sec(stairwell('X-stair', 'Stair to sub-level 9', T0, [DEEP, 0, g.y], 'main'));
+    const stair = sec(stairwell('X-stair', 'Service stair', T0, [DEEP, 0, g.y], 'main'));
     const cx = r2((stair.x0 + stair.x1) / 2);
     const vault = sec(add({ id: 'X-vault', gallery: 'Sub-level 9 storage', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: cx - 12, x1: cx + 12, z0: r2(stair.z0 - 20.4), z1: r2(stair.z0 - 0.4), y: DEEP, h: VAULT_H }));
     const lab = sec(add({ id: 'X-lab', gallery: 'Specimen room', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: r2(vault.x0 - 10.4), x1: r2(vault.x0 - 0.4), z0: vault.z0 + 2, z1: vault.z0 + 11, y: DEEP, h: VAULT_H }));

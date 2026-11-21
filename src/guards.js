@@ -6,7 +6,8 @@
 // a metre and a half and its prong glows for half a second (time to swerve or duck behind something),
 // then a bolt: you are zapped, carried out, and wake up in the dumpster round the back. It keeps 50 chips.
 //
-// Your headlamp gives you away: lights off, it sees you at 6 m; lights on, at 9.5 m and faster. Benches
+// Your headlamp gives you away: lights off, it sees you at 8 m; lights on, at 12 m and faster. Rush past close
+// by (5 m) and it hears you and turns to look. Benches
 // and low boxes hide a car crouched close behind them; walls, columns and cases hide anything.
 //
 // Explore only, never in a race, not during a heist; they stand still while you look at a work. Settings
@@ -20,9 +21,10 @@ import { confine, groundAt } from './plan.js';
 import { BOT, ROOM, patrols, beat, cellAt, lineClear, sight, reach, path } from './guardplan.js';
 
 const PHONE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-const COUNT = PHONE ? 3 : 6;
-const HALF = 0.5;                       // the searchlight's half-angle, radians
-const SEE = { dark: 6, lit: 9.5 };      // how far it sees you, headlamp off and on
+const COUNT = 16;                     // the same on a phone: the far ones barely cost anything (they tick slowly and are not drawn)
+const HALF = 0.62;                      // the searchlight's half-angle, radians
+const SEE = { dark: 8, lit: 12 };       // how far it sees you, headlamp off and on
+const HEAR = 5;                         // a toy going fast this close is heard, wherever the robot is looking
 const FAN = 20;                         // rays in the pool of light on the floor
 const LOSE = 3;                         // seconds out of sight and it gives up
 const CHARGE = 0.5;                     // the tell before the bolt
@@ -462,8 +464,11 @@ feature({
       if (!hunting && b.mode !== 'alert') {
         if (b.seen) {
           const d = Math.hypot(p.x - b.x, p.z - b.z), range = lamp ? SEE.lit : SEE.dark, sp = Math.hypot(k.v.vel.x, k.v.vel.z);
-          b.sus += 0.1 * (lamp ? 2.2 : 1.1) * (0.5 + 1.5 * Math.max(0, 1 - d / range)) * (sp > 4 ? 1.25 : 1);
-        } else b.sus = Math.max(0, b.sus - 0.1 * 0.45);
+          b.sus += 0.1 * (lamp ? 2.4 : 1.5) * (0.6 + 1.6 * Math.max(0, 1 - d / range)) * (sp > 4 ? 1.3 : 1);
+          if (b.heard != null) b.sus = Math.max(b.sus, 1);      // it turned at a noise and there you are
+        } else b.sus = Math.max(0, b.sus - 0.1 * 0.35);
+        // Heard: a toy rushing about close by turns its head, and a long look follows.
+        if (watch && !b.seen && b.mode !== 'scan') { const d = Math.hypot(p.x - b.x, p.z - b.z), sp = Math.hypot(k.v.vel.x, k.v.vel.z); if (d < HEAR && sp > 2.5 && Math.abs(p.y - b.fy) < 1.5) { b.mode = 'scan'; b.mt = 0; b.dur = 2.2; b.heard = Math.atan2(p.x - b.x, p.z - b.z); } }
         if (b.sus >= 1) {
           b.mode = 'alert'; b.mt = 0; b.sus = 0; this.sfx.query();
           if (lamp) k.once('guards-lamp', 'Lights off: harder to spot.', 3.5);
@@ -484,7 +489,7 @@ feature({
         break;
       }
       case 'scan':
-        b.v = 0; look(b.yaw + Math.sin(b.mt * 1.25) * 1.35, 3);
+        b.v = 0; if (b.heard != null) { look(b.heard + Math.sin(b.mt * 1.6) * 0.5, 4.5); if (b.mt > b.dur) b.heard = null; } else look(b.yaw + Math.sin(b.mt * 1.25) * 1.35, 3);
         if (b.mt > b.dur) b.mode = 'patrol';
         break;
       case 'alert':

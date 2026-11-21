@@ -439,7 +439,7 @@ export default {"made":"2026-11-20","levels":{"1":0,"2":5.2,"3":11.3,"LL":-4.6},
   {"id":"K1","gallery":"Passage","floor":"2","building":"modern","kind":"room","x0":194.6,"x1":197.6,"z0":18.5,"z1":21.900000000000002,"y":5.2,"h":3,"passage":true,"use":"corridor"},
   {"id":"K2","gallery":"Passage","floor":"3","building":"modern","kind":"room","x0":194.6,"x1":197.6,"z0":18.5,"z1":21.900000000000002,"y":11.3,"h":3,"passage":true,"use":"corridor"},
   {"id":"X-pass","gallery":"Unlisted passage","floor":"X","building":"main","kind":"room","x0":89.5,"x1":92,"z0":100.9,"z1":106.8,"y":5.2,"h":3.4,"passage":true,"use":"corridor","secret":true},
-  {"id":"X-stair","gallery":"Stair to sub-level 9","floor":"X","building":"main","kind":"room","x0":89.9,"x1":94.9,"z0":88.5,"z1":100.5,"y":-12,"h":21.2,"passage":true,"use":"stair","secret":true},
+  {"id":"X-stair","gallery":"Service stair","floor":"X","building":"main","kind":"room","x0":89.9,"x1":94.9,"z0":88.5,"z1":100.5,"y":-12,"h":21.2,"passage":true,"use":"stair","secret":true},
   {"id":"X-vault","gallery":"Sub-level 9 storage","floor":"X","building":"lower","kind":"room","x0":80.4,"x1":104.4,"z0":68.1,"z1":88.1,"y":-12,"h":5,"use":"secret","secret":true},
   {"id":"X-lab","gallery":"Specimen room","floor":"X","building":"lower","kind":"room","x0":70,"x1":80,"z0":70.1,"z1":79.1,"y":-12,"h":5,"use":"secret","secret":true},
   {"id":"X-brief","gallery":"Debriefing room","floor":"X","building":"lower","kind":"room","x0":104.8,"x1":112.8,"z0":70.1,"z1":79.1,"y":-12,"h":5,"use":"secret","secret":true}],"doors":[
