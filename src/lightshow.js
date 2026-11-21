@@ -1,31 +1,32 @@
 // Winter Wonderland: the drive-through light show on Butler Field, the north-west quarter of the field across Columbus
-// Drive from the Modern Wing (butlerfield.js has the rest of the field). One lit way winds through it, and driving it
-// against the clock is the Light Run:
+// Drive from the Modern Wing (butlerfield.js has the rest of the field). One ploughed way winds through it, banked with
+// snow, and driving it against the clock is the Light Run:
 //
-//   the Grand Arch (the clock starts) -> the Comet Tunnel, arches that chase light along with the car -> the first
-//   Candy Cane Curve, a banked hairpin -> the Snowflake Cathedral, pointed arches with snowflakes and icicles hung in
-//   the vault -> the Gift Box Jump -> the second banked curve -> the Nutcracker Guard, who salute as you pass -> the
-//   Light Bridge, with a gap in it to jump -> the third curve -> past the Penguin Slide and the Ice Palace -> the Light
-//   Maze (the lit way is the way through; the dead ends hold ornaments) -> round the Singing Tree, eighteen metres of
-//   lights with a face that sings the tune, and a train going round its foot -> the finish.
+//   the Grand Arch (the clock starts) -> the Tunnel of Lights, arches wrapped in thousands of mini lights, white, then
+//   every colour, then gold, that chase light along with the car -> the first Candy Cane Curve, a banked hairpin -> the
+//   Snowflake Cathedral, pointed arches with snowflakes and icicles hung in the vault -> the Gift Box Jump -> the second
+//   banked curve -> the Nutcracker Guard, who salute as you pass -> the Light Bridge, with a gap in it to jump -> the
+//   third curve -> the Candy Cane Tunnel, past the Ice Palace and the Penguin Slide -> the Kaleidoscope Tunnel, winding
+//   -> round the Singing Tree, eighteen metres of lights with a face that sings the tune, and a train at its foot -> the
+//   finish.
 //
 // Twelve glowing ornaments hang along the way. Over it all a sleigh and four reindeer fly round, and the whole show
-// keeps time with a medley of carols (carols.js), heard only near the field. The lit way under the wheels answers
-// the car: a pool of light under it and rings that run out from it.
+// keeps time with a medley of carols (carols.js), heard only near the field. The ground itself does nothing: it is
+// packed snow, lit by what stands round it, as at a real show.
 //
 // Every bulb in the show is one instance of one mesh, and everything they do (twinkle, chase, keep the beat, follow the
-// car, sing) is worked out in its vertex shader from a handful of numbers set once a frame. Figures are merged wire;
-// what moves is a few dozen groups. Nothing is allocated per frame, and nothing runs while the toy is far away.
+// car, sing) is worked out in its vertex shader from a handful of numbers set once a frame. They are the size of real
+// mini lights, and never drawn smaller than a pixel or so, so a far string still reads as a line of light. Figures are
+// merged wire; what moves is a few dozen groups. Nothing is allocated per frame, and nothing runs while the toy is far away.
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { TAU, C, Wire, canvasTex, circle, ring3, deerBody, deerHead, sleigh, penguin, polarBear, snowman, candyCane, ornament, present, star, snowflake, signBoard, mergeAll } from './glowkit.js';
 import { CarolPlayer } from './carols.js';
 
 // ---------------------------------------------------------------- the course
-const HW = 2.2, HW_MAZE = 1.0;                 // half widths of the lit way
+const HW = 2.2;                                // half width of the ploughed way
 const TURN_R = 10, BANK = 1.7;                 // the banked hairpins: radius of the way round, height of the bank at its crest
 const TURNS = [{ c: [368, 89], u: [1, 0] }, { c: [318, 69], u: [-1, 0] }, { c: [368, 49], u: [1, 0] }];
-const MAZE = { x0: 308, z0: 17, n: 6, cell: 4, wallH: 1.3 };
 const TREE = { x: 352, z: -3, H: 18, R: 6.2 }, RING = 13;
 // the pieces you leave the ground from (k.solid): the Gift Box Jump going west, the Light Bridge going east
 // (each landing starts lower than its take-off, so a car that makes the distance clears the lip of it)
@@ -45,31 +46,12 @@ function bankFn(cx, cz, ux, uz) {
   };
 }
 
-// A maze on a grid of cells, carved from one seed so it is the same every night, with a few walls knocked through.
-function makeMaze(n, seed) {
-  let a = seed >>> 0; const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const E = Array.from({ length: n }, () => Array(n).fill(true)), S = Array.from({ length: n }, () => Array(n).fill(true));   // wall east of / south of cell [c][r]
-  const seen = Array.from({ length: n }, () => Array(n).fill(false)), st = [[n - 1, n - 1]]; seen[n - 1][n - 1] = true;
-  while (st.length) {
-    const [c, r] = st[st.length - 1], nb = [[c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]].filter(([x, y]) => x >= 0 && y >= 0 && x < n && y < n && !seen[x][y]);
-    if (!nb.length) { st.pop(); continue; }
-    const [x, y] = nb[Math.floor(rnd() * nb.length)];
-    if (x !== c) E[Math.min(x, c)][r] = false; else S[c][Math.min(y, r)] = false;
-    seen[x][y] = true; st.push([x, y]);
-  }
-  for (let i = 0; i < 3; i++) { const c = Math.floor(rnd() * (n - 1)), r = Math.floor(rnd() * (n - 1)); if (rnd() < 0.5) E[c][r] = false; else S[c][r] = false; }
-  const open = (c, r, x, y) => x === c ? !S[c][Math.min(r, y)] : !E[Math.min(c, x)][r];
-  const nbrs = (c, r) => [[c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]].filter(([x, y]) => x >= 0 && y >= 0 && x < n && y < n && open(c, r, x, y));
-  const bfs = (from) => { const D = new Map([[from.join(), 0]]), prev = new Map(), q = [from]; while (q.length) { const cur = q.shift(); for (const nb of nbrs(...cur)) { const k = nb.join(); if (D.has(k)) continue; D.set(k, D.get(cur.join()) + 1); prev.set(k, cur); q.push(nb); } } return { D, prev }; };
-  return { E, S, nbrs, bfs };
-}
-
 // ---------------------------------------------------------------- the bulbs
 // One instanced octahedron per bulb. aA = (mode, phase, s, k): what it does, where it is in its pattern, and two numbers
 // the mode reads (distance along the way, height up the tree, a place in the mouth...).
 const BULB_VS = `
 attribute vec3 aCol; attribute vec4 aA;
-uniform float uT, uBeat, uPh, uBarN, uNote, uHue, uCarS, uCalm, uDark, uFlash, uPat, uMouth, uBlink, uLook, uFin;
+uniform float uT, uBeat, uPh, uBarN, uNote, uHue, uCarS, uCalm, uDark, uFlash, uPat, uMouth, uBlink, uLook, uFin, uPix;
 uniform vec3 uCarP; uniform vec3 uPal[3];
 varying vec3 vBulb;
 vec3 hue3(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
@@ -81,30 +63,25 @@ const BULB_MAIN = `
   float m = aA.x, ph = aA.y, s = aA.z, k = aA.w, live = 1.0 - uCalm, beat = uBeat * live, sc = 1.0;
   vec3 wp = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
   vec3 dc = wp - uCarP; float prox = exp(-dot(dc, dc) / 7.0);
+  float tw = pow(0.5 + 0.5 * sin(uT * mix(2.3, 0.5, uCalm) + ph * 6.2831), 3.0);      // every bulb's own slow twinkle
   vec3 c = aCol;
-  if (m < 0.5) c = aCol * (0.45 + 0.75 * pow(0.5 + 0.5 * sin(uT * mix(2.1, 0.5, uCalm) + ph * 6.2831), 4.0) + 0.35 * beat);
-  else if (m < 1.5) c = aCol * (0.2 + 1.3 * pow(max(0.0, sin(uT * mix(4.2, 1.0, uCalm) - ph)), 10.0) + 0.3 * beat);
+  if (m < 0.5) c = aCol * (0.5 + 0.7 * tw + 0.35 * beat);
+  else if (m < 1.5) c = aCol * (0.25 + 1.2 * pow(max(0.0, sin(uT * mix(4.2, 1.0, uCalm) - ph)), 10.0) + 0.3 * beat);
   else if (m < 2.5) c = aCol * (0.85 + 0.15 * sin(uT * 1.3 + ph * 6.2831) + 0.25 * beat);
-  else if (m < 3.5) {                       // the edges of the way: colours running along it, and a light that leaps ahead of the car each beat
-    float x = s * 0.05 - uT * mix(0.5, 0.08, uCalm) + uBarN * 0.333;
-    c = pal(x) * (0.5 + 0.8 * beat);
-    float on = step(-500.0, uCarS);
-    c += vec3(2.6, 2.3, 1.8) * on * live * exp(-pow(s - uCarS - 2.0 - uPh * 22.0, 2.0) / 5.0) * 1.4;
-    c += vec3(2.4, 2.1, 1.7) * prox * 1.5;
-  }
-  else if (m < 4.5) {                       // the Comet Tunnel: s along the way, k round the arch
+  else if (m < 3.5) c = aCol * (0.75 + 0.35 * tw);                                    // the rope light on stakes along the way: it only twinkles
+  else if (m < 4.5) {                       // the Tunnel of Lights: s along the way, k round the arch; colour from the bulb (white, every colour, gold)
     float d = s - uCarS, on = step(-500.0, uCarS);
-    float comet = on * (exp(-d * d / 4.0) * 1.3 + smoothstep(-6.0, 0.0, d) * (1.0 - smoothstep(0.0, 10.0, d)) * 0.3);
-    float wave = on * live * exp(-pow(d - 3.0 - uPh * 24.0, 2.0) / 2.0) * 1.0;
-    float run = pow(max(0.0, sin(s * 0.8 - uT * mix(5.0, 1.0, uCalm))), 6.0);
-    c = pal(s * 0.025 + uBarN * 0.333) * (0.12 + 0.45 * run * (1.0 - 0.5 * on) + 0.3 * beat) + vec3(1.0, 0.9, 0.75) * comet * (0.6 + 0.4 * abs(sin(k * 9.0 + uT * 6.0 * live))) + pal(k + 0.5) * wave * 0.6;
+    float comet = on * (exp(-d * d / 4.0) * 1.6 + smoothstep(-6.0, 0.0, d) * (1.0 - smoothstep(0.0, 10.0, d)) * 0.5);
+    float wave = on * live * exp(-pow(d - 3.0 - uPh * 24.0, 2.0) / 2.0);
+    float run = pow(max(0.0, sin(k * 14.0 - uT * mix(4.0, 0.8, uCalm) + s * 0.7)), 8.0);
+    c = aCol * (0.45 + 0.45 * tw + 0.9 * run + 0.45 * beat + 0.9 * wave) + vec3(2.2, 2.0, 1.7) * comet * (0.6 + 0.4 * tw);
   }
   else if (m < 5.5) {                       // the Singing Tree: s up it (0..1), k round it (0..1); a new pattern every four bars
     float p = mod(uPat, 4.0), b;
-    if (p < 0.5) { float v = fract(k * 3.0 + s * 2.0 - uT * 0.3 * live - uBarN * 0.25); b = smoothstep(0.0, 0.06, v) * (1.0 - smoothstep(0.44, 0.5, v)); c = pal(floor(k * 3.0 + s * 2.0 - uT * 0.3 * live) * 0.333) * (0.15 + 1.4 * b + 0.5 * beat); }
-    else if (p < 1.5) { float lv = 0.08 + 0.92 * clamp(uNote, 0.0, 1.0) * live + uCalm * 0.6; b = step(s, lv); c = pal(s * 0.9 + uBarN * 0.333) * (0.2 + 1.5 * b) + vec3(2.5) * exp(-pow((s - lv) * 30.0, 2.0)); }
-    else if (p < 2.5) { float r = 1.0 - uPh; b = exp(-pow((s - r) * 10.0, 2.0)) * 2.4 * live; c = pal(floor(uBarN * 4.0 + uPh) * 0.25 + 0.1) * (0.3 + b) + aCol * 0.2; }
-    else { float sp = step(0.86 - 0.25 * beat, hash(ph * 91.0 + floor(uT * 9.0 * live))); c = mix(aCol * 0.5, vec3(2.8, 2.7, 2.4), sp) + pal(k) * 0.4 * beat; }
+    if (p < 0.5) { float v = fract(k * 3.0 + s * 2.0 - uT * 0.3 * live - uBarN * 0.25); b = smoothstep(0.0, 0.06, v) * (1.0 - smoothstep(0.44, 0.5, v)); c = pal(floor(k * 3.0 + s * 2.0 - uT * 0.3 * live) * 0.333) * (0.25 + 1.4 * b + 0.5 * beat); }
+    else if (p < 1.5) { float lv = 0.08 + 0.92 * clamp(uNote, 0.0, 1.0) * live + uCalm * 0.6; b = step(s, lv); c = pal(s * 0.9 + uBarN * 0.333) * (0.25 + 1.5 * b) + vec3(2.5) * exp(-pow((s - lv) * 30.0, 2.0)); }
+    else if (p < 2.5) { float r = 1.0 - uPh; b = exp(-pow((s - r) * 10.0, 2.0)) * 2.4 * live; c = pal(floor(uBarN * 4.0 + uPh) * 0.25 + 0.1) * (0.35 + b) + aCol * 0.25; }
+    else { float sp = step(0.86 - 0.25 * beat, hash(ph * 91.0 + floor(uT * 9.0 * live))); c = mix(aCol * 0.6, vec3(2.8, 2.7, 2.4), sp) + pal(k) * 0.4 * beat; }
     c += vec3(2.0, 1.8, 1.2) * uFin * step(0.5, hash(ph * 13.0 + floor(uT * 14.0)));
   }
   else if (m < 6.5) {                       // the mouth: (s, k) in a unit square; the lips are the edge of an ellipse as open as the note
@@ -119,34 +96,46 @@ const BULB_MAIN = `
   else if (m < 8.5) {                       // the vault of the cathedral: a different handful of bulbs on each half beat, more as the tune rises
     float pick = fract(ph * 7.31 + floor(uBarN * 8.0 + uPh * 2.0) * 0.618);
     float lit = step(pick, 0.12 + 0.45 * uNote * live + 0.2 * uCalm);
-    c = mix(aCol * 0.35, mix(aCol, hue3(uHue + ph * 0.25) * 2.4, 0.5) * 1.6, lit);
+    c = mix(aCol * 0.45, mix(aCol, hue3(uHue + ph * 0.25) * 2.4, 0.5) * 1.7, lit);
   }
-  else if (m < 9.5) {                       // icicles: a drop of light running down each one
+  else if (m < 9.5) {                       // icicles and light curtains: a drop of light running down each strand
     float d = fract(uT * mix(0.55, 0.15, uCalm) + ph);
-    c = aCol * (0.15 + exp(-pow((s - d) * 7.0, 2.0)) * 2.3);
+    c = aCol * (0.25 + exp(-pow((s - d) * 7.0, 2.0)) * 2.3);
   }
-  else if (m < 10.5) {                      // the hedges of the maze: each its own colour, waking as the car comes by
-    c = pal(k * 0.33 + uBarN * 0.111) * (0.35 + 0.35 * pow(0.5 + 0.5 * sin(uT * 2.0 + ph * 6.28), 3.0) + 0.5 * beat) + vec3(2.4, 2.2, 1.9) * prox * 2.0;
+  else if (m < 10.5) {                      // the Kaleidoscope Tunnel: colours mirrored about the top of each arch, turning, petals on the beat
+    float a = abs(k - 0.5) * 2.0;
+    vec3 h = hue3(a * 1.2 + s * 0.035 - uT * mix(0.22, 0.04, uCalm) + uBarN * 0.25);
+    float petal = pow(0.5 + 0.5 * cos(a * 16.0 - uT * mix(2.6, 0.4, uCalm) + s * 0.5), 4.0);
+    c = (h * 2.6 + 0.12) * (0.3 + 0.9 * petal + 0.5 * beat + 0.25 * tw);
+    float d = s - uCarS; c += vec3(2.0) * step(-500.0, uCarS) * exp(-d * d / 3.0) * 0.8;
   }
-  else if (m < 11.5) {                      // candy-cane stripes running round the banked curves
-    float x = fract(s * 0.6 - uT * mix(1.2, 0.2, uCalm));
-    c = (x < 0.5 ? vec3(2.9, 0.3, 0.3) : vec3(2.6, 2.6, 2.6)) * (0.6 + 0.6 * beat) + vec3(2.0) * prox;
+  else if (m < 11.5) {                      // candy-cane stripes along the crest of a banked curve: they keep still, and twinkle
+    float x = fract(s * 0.6);
+    c = (x < 0.5 ? vec3(2.9, 0.3, 0.3) : vec3(2.6, 2.6, 2.6)) * (0.6 + 0.35 * tw + 0.3 * beat);
   }
-  else if (m < 12.5) {                      // the Light Bridge: a rainbow along it
-    c = (hue3(s * 0.05 - uT * mix(0.35, 0.05, uCalm)) * 2.4 + 0.15) * (0.55 + 0.7 * beat) + vec3(2.0) * prox;
+  else if (m < 12.5) {                      // the Light Bridge: a rainbow along it, slowly
+    c = (hue3(s * 0.05 - uT * mix(0.12, 0.03, uCalm)) * 2.4 + 0.15) * (0.6 + 0.5 * beat + 0.3 * tw);
   }
-  else {                                    // the start and finish: a chequer that marches while the clock runs
+  else if (m < 13.5) {                      // the start and finish: a chequer that marches while the clock runs
     float ch = mod(floor(k) + floor(s + uT * 2.0 * uFin), 2.0);
     c = mix(vec3(0.15), vec3(2.8), ch);
   }
+  else {                                    // the Candy Cane Tunnel: red and white stripes winding round each arch and along the tunnel
+    float x = fract(k * 5.0 + s * 0.22 - uT * mix(0.5, 0.1, uCalm));
+    c = (x < 0.5 ? vec3(3.0, 0.32, 0.3) : vec3(2.7, 2.7, 2.6)) * (0.55 + 0.4 * tw + 0.45 * beat);
+  }
   c *= mix(1.0, 0.1, uDark * live);
   c += vec3(0.7, 0.65, 0.55) * uFlash * live * (0.3 + 0.7 * hash(ph * 7.0));
-  vBulb = c; transformed *= sc;
+  // never smaller than about a pixel across: a far string of mini lights still reads as a line of light (a little dimmer)
+  float r0 = length(instanceMatrix[0].xyz), dist = -(modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).z, grow = max(1.0, dist * uPix / r0);
+  vBulb = c / sqrt(grow); transformed *= sc * grow;
 }`;
 
+// Bulbs are given at the size the code was first laid out with; MINI is what makes them the size of real mini lights.
+const MINI = 0.38;
 class ShowBulbs {
   constructor() { this.p = []; this.c = []; this.a = []; this.s = []; }
-  add(x, y, z, col, mode, phase = Math.random(), s = 0, k = 0, size = 0.07) { this.p.push(x, y, z); this.c.push(col[0], col[1], col[2]); this.a.push(mode, phase, s, k); this.s.push(size); }
+  add(x, y, z, col, mode, phase = Math.random(), s = 0, k = 0, size = 0.07) { this.p.push(x, y, z); this.c.push(col[0], col[1], col[2]); this.a.push(mode, phase, s, k); this.s.push(size * MINI); }
   get count() { return this.s.length; }
   build(group, U) {
     const n = this.s.length; if (!n) return null;
@@ -170,31 +159,6 @@ class ShowBulbs {
   }
 }
 
-// The lit way: packed snow with the show's colours running along it, a pool of light under the car and rings running out
-// from it. Its own shader on top of the standard one.
-const WAY_PARS = `
-uniform float uT, uBeat, uBarN, uCalm, uDark, uS0, uS1, uFin; uniform vec3 uCarP; uniform vec3 uPal[3]; uniform vec4 uRip[8];
-varying vec3 vW; varying vec2 vS;
-vec3 hue3(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
-vec3 pal(float x) { x = fract(x) * 3.0; float f = fract(x); vec3 a = x < 1.0 ? uPal[0] : x < 2.0 ? uPal[1] : uPal[2]; vec3 b = x < 1.0 ? uPal[1] : x < 2.0 ? uPal[2] : uPal[0]; return mix(a, b, smoothstep(0.7, 1.0, f)); }
-`;
-const WAY_FRAG = `
-{
-  float live = 1.0 - uCalm, across = abs(vS.y);
-  float x = vS.x * 0.7 - across * 0.8 - uT * mix(3.0, 0.4, uCalm);                        // chevrons running the way to go
-  float chev = smoothstep(0.0, 0.06, fract(x)) * (1.0 - smoothstep(0.14, 0.2, fract(x)));
-  vec3 em = pal(floor(x) * 0.25 + uBarN * 0.333) * chev * (0.06 + 0.16 * uBeat * live) * (1.0 - smoothstep(0.7, 0.9, across));
-  em += pal(vS.x * 0.04 - uT * 0.15) * smoothstep(0.9, 0.99, across) * (0.12 + 0.22 * uBeat * live);
-  for (int j = 0; j < 2; j++) { float sl = j == 0 ? uS0 : uS1; float d = abs(vS.x - sl); if (d < 0.5) em += vec3(2.2) * mod(floor((vS.y + 1.0) * 4.0) + floor((vS.x - sl + 0.5) * 2.0), 2.0) * 0.6; }
-  vec2 dc = vW.xz - uCarP.xz; float cd = dot(dc, dc);
-  em += vec3(0.8, 0.65, 0.5) * exp(-cd / 0.3) * step(abs(vW.y - uCarP.y), 0.6);
-  if (cd < 900.0 && live > 0.5) for (int i = 0; i < 8; i++) {           // (the rings are never far from the car)
-    vec4 r = uRip[i]; float age = uT - r.z;
-    if (age > 0.0 && age < 2.2) { float d = distance(vW.xz, r.xy), rad = 0.4 + age * 5.5; em += hue3(fract(r.z * 0.37)) * 0.45 * r.w * exp(-age * 1.8) * exp(-pow((d - rad) * 4.0, 2.0)) * live; }
-  }
-  totalEmissiveRadiance += em * mix(1.0, 0.2, uDark * live);
-}`;
-
 // ---------------------------------------------------------------- the feature
 feature({
   id: 'lightshow',
@@ -208,9 +172,8 @@ feature({
       uT: { value: 0 }, uBeat: { value: 0 }, uPh: { value: 0 }, uBarN: { value: 0 }, uNote: { value: 0 }, uHue: { value: 0 }, uCarS: { value: -1000 }, uCalm: { value: 0 },
       uDark: { value: 0 }, uFlash: { value: 0 }, uPat: { value: 0 }, uMouth: { value: 0.1 }, uBlink: { value: 0 }, uLook: { value: 0 }, uFin: { value: 0 },
       uCarP: { value: new THREE.Vector3(0, -99, 0) }, uPal: { value: [new THREE.Vector3(2.8, 0.3, 0.25), new THREE.Vector3(0.4, 2.5, 0.55), new THREE.Vector3(2.9, 2.0, 0.5)] },
-      uRip: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, -99, 0)) }, uS0: { value: 0 }, uS1: { value: 0 },
+      uPix: { value: 0.0015 },
     };
-    this._rip = 0; this._ripAt = 0;
     // the banked curves first: the way is laid over them
     this.banks = TURNS.map(T => {
       const [cx, cz] = T.c, [ux, uz] = T.u, fn = bankFn(cx, cz, ux, uz), px = -uz, pz = ux;
@@ -218,17 +181,21 @@ feature({
       const s = { skin: 'snow', hill: true, axis: 'hill', fn, x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs), h0: 0, h1: BANK, thick: 0, cx, cz, rx: 15.5, rz: 15.5, H: BANK };
       k.plan.surfaces.push(s); return { ...T, fn, s };
     });
-    this.ground = (x, z) => { let h = 0; for (const b of this.banks) { const v = b.fn(x, z); if (v > h) h = v; } return h; };
+    this.ridge = () => 0;
+    this.ground = (x, z) => { let h = this.ridge(x, z); for (const b of this.banks) { const v = b.fn(x, z); if (v > h) h = v; } return h; };
+    this.snowM = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, map: k.museum.snowTex, roughness: 0.95, emissiveMap: k.museum.snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 });
     this._route();
+    this._snowbanks(k);
     this._way(k);
     this._bankLook(k);
     this._gate(k);
-    this._tunnel();
+    this._arches(this.sTunnel, 0.9, 'lights');
     this._cathedral();
     this._giftJump(k);
     this._nutcrackers();
     this._bridge(k);
-    this._maze();
+    this._arches(this.sCandy, 1.0, 'candy');
+    this._arches(this.sKaleido, 0.7, 'kaleido');
     this._tree();
     this._figures();
     this._ornaments();
@@ -247,70 +214,90 @@ feature({
     pts.push([368, 99]); arc(368, 89, 90, -90); pts.push([368, 79], [364, 79], [350, 79], [336, 79], [322, 79], [318, 79]);
     arc(318, 69, 90, 270); pts.push([318, 59], [322, 59], [336, 59], [350, 59], [364, 59], [368, 59]);
     arc(368, 49, 90, -90); pts.push([368, 39], [360, 39], [348, 39], [337, 39]);
-    // the maze, cell by cell along its way through
-    const Mz = this.maze = makeMaze(MAZE.n, 2026), n = MAZE.n, cen = (c, r) => [MAZE.x0 + MAZE.cell * (c + 0.5), MAZE.z0 + MAZE.cell * (r + 0.5)];
-    this.mIn = [n - 1, n - 1]; this.mOut = [2, 0];
-    const { D: dOut, prev } = Mz.bfs(this.mOut);
-    let cur = this.mIn; const sol = [cur]; while (cur.join() !== this.mOut.join()) { cur = prev.get(cur.join()); sol.push(cur); }
-    this.mSol = sol; this.mDist = dOut;
-    for (const [c, r] of sol) pts.push(cen(c, r));
-    pts.push([318, 14.5], [320.5, 11], [327, 9.5], [334, 7.5], [338, 3], [339, -3]);
+    // round in a U through the Kaleidoscope Tunnel, then up to the ring round the tree
+    pts.push([326, 39], [317, 36], [312.5, 29], [314.5, 21.5], [320, 15.5], [327, 11], [334, 8], [338, 3], [339, -3]);
     for (let i = 1; i <= 9; i++) { const a = (180 + i * 30) * Math.PI / 180; pts.push([TREE.x + Math.cos(a) * RING, TREE.z + Math.sin(a) * RING]); }
     const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
     const len = curve.getLength(), N = Math.ceil(len / 0.5), P = [];
-    const inMaze = (x, z) => x > MAZE.x0 - 0.5 && x < MAZE.x0 + MAZE.n * MAZE.cell + 0.5 && z > MAZE.z0 - 0.5 && z < MAZE.z0 + MAZE.n * MAZE.cell + 0.5;
-    for (let i = 0; i <= N; i++) { const p = curve.getPointAt(i / N), t = curve.getTangentAt(i / N); P.push({ x: p.x, z: p.z, tx: t.x, tz: t.z, nx: -t.z, nz: t.x, s: len * i / N, w: inMaze(p.x, p.z) ? HW_MAZE : HW, maze: inMaze(p.x, p.z) }); }
+    for (let i = 0; i <= N; i++) { const p = curve.getPointAt(i / N), t = curve.getTangentAt(i / N); P.push({ x: p.x, z: p.z, tx: t.x, tz: t.z, nx: -t.z, nz: t.x, s: len * i / N, w: HW }); }
     this.P = P; this.len = len; this.step = len / N;
     this.at = s => P[Math.max(0, Math.min(P.length - 1, Math.round(s / this.step)))];
     this.sAt = (x, z, s0 = 0, s1 = len) => { let b = 0, bd = 1e9; for (const p of P) { if (p.s < s0 || p.s > s1) continue; const d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < bd) { bd = d; b = p.s; } } return b; };
     this.sGate = this.sAt(324, 99, 0, 30); this.sEnd = len - 0.3;
-    this.U.uS0.value = this.sGate; this.U.uS1.value = this.sEnd - 1;
     this.sTunnel = [this.sAt(327, 99), this.sAt(362, 99)];
-    this.sMaze = [P.find(p => p.maze).s, P.filter(p => p.maze).pop().s];
+    this.sCandy = [this.sAt(362, 39), this.sAt(341, 39)];
+    this.sKaleido = [this.sAt(333, 39, this.sCandy[1]), this.sAt(322, 13.5, this.sCandy[1])];
   },
   // Is (x, z) over one of the jump pieces (the way is not drawn there: they are lit themselves)?
   _onPiece(x, z, pad = 0.2) {
     const inR = (x0, x1, z0, z1) => x > x0 - pad && x < x1 + pad && z > z0 - pad && z < z1 + pad;
     return inR(GIFT.land[0], GIFT.kick[1], GIFT.z0, GIFT.z1) || inR(BRIDGE.up[0], BRIDGE.land[1], BRIDGE.z0, BRIDGE.z1);
   },
+  // The snow the ploughs left along both sides of the way: a low bank, to drive up and roll back off. One heightfield
+  // (a hill surface with a shape of its own, plan.heightOf), sampled on a grid stamped out from the way.
+  _snowbanks(k) {
+    const G = 0.33, x0 = SHOW.x0, z0 = SHOW.z0, nx = Math.ceil((SHOW.x1 - x0) / G), nz = Math.ceil((SHOW.z1 - z0) / G), D = new Float32Array((nx + 1) * (nz + 1)).fill(99);
+    const R = HW + 1.9;
+    for (const p of this.P) {
+      const i0 = Math.max(0, Math.floor((p.x - R - x0) / G)), i1 = Math.min(nx, Math.ceil((p.x + R - x0) / G)), j0 = Math.max(0, Math.floor((p.z - R - z0) / G)), j1 = Math.min(nz, Math.ceil((p.z + R - z0) / G));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const d = Math.hypot(x0 + i * G - p.x, z0 + j * G - p.z), q = j * (nx + 1) + i; if (d < D[q]) D[q] = d; }
+    }
+    const H = new Float32Array(D.length), TOP = 0.3;
+    const inTurn = (x, z) => this.banks.some(b => { const dx = x - b.c[0], dz = z - b.c[1]; return Math.hypot(dx, dz) < 16.5 && dx * b.u[0] + dz * b.u[1] > -6.5; });
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+      const q = j * (nx + 1) + i, e = D[q] - HW, x = x0 + i * G, z = z0 + j * G;
+      if (e < 0.1 || e > 1.7 || inTurn(x, z) || this._onPiece(x, z, 1.2)) continue;
+      H[q] = TOP * (e < 0.7 ? smooth((e - 0.1) / 0.6) : 1 - smooth((e - 0.7) / 1.0));
+    }
+    this.ridge = (x, z) => {
+      const fx = (x - x0) / G, fz = (z - z0) / G; if (fx < 0 || fz < 0 || fx >= nx || fz >= nz) return 0;
+      const i = fx | 0, j = fz | 0, u = fx - i, v = fz - j, q = j * (nx + 1) + i;
+      return (H[q] * (1 - u) + H[q + 1] * u) * (1 - v) + (H[q + nx + 1] * (1 - u) + H[q + nx + 2] * u) * v;
+    };
+    k.plan.surfaces.push({ skin: 'snow', hill: true, axis: 'hill', fn: this.ridge, x0, x1: x0 + nx * G, z0, z1: z0 + nz * G, h0: 0, h1: TOP, thick: 0, cx: (SHOW.x0 + SHOW.x1) / 2, cz: (SHOW.z0 + SHOW.z1) / 2, rx: 1, rz: 1, H: TOP });
+    // drawn as one sheet over the cells that have any bank in them
+    const pos = [], uv = [], idx = [], map = new Int32Array(D.length).fill(-1), vert = q => { if (map[q] < 0) { const i = q % (nx + 1), j = (q / (nx + 1)) | 0, x = x0 + i * G, z = z0 + j * G; map[q] = pos.length / 3; pos.push(x, H[q] + 0.01, z); uv.push(x / 4, z / 4); } return map[q]; };
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
+      if (Math.max(H[a], H[b], H[c], H[d]) < 0.003) continue;
+      idx.push(vert(a), vert(c), vert(b), vert(b), vert(c), vert(d));
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, this.snowM); m.receiveShadow = true; m.name = 'lightshow-snowbanks'; this.g.add(m);
+  },
+  // The way itself: snow packed down by the ploughs, ruts and all. It does nothing; what lights it is what stands round it.
   _way(k) {
-    const P = this.P, B = this.B, pos = [], aS = [], idx = [], COLS = 5;
+    const P = this.P, B = this.B, pos = [], uv = [], idx = [], COLS = 5;
     let vi = 0;
     for (let i = 0; i < P.length; i++) {
       const p = P[i];
-      for (let j = 0; j < COLS; j++) { const f = -1 + 2 * j / (COLS - 1), x = p.x + p.nx * p.w * f, z = p.z + p.nz * p.w * f; pos.push(x, this.ground(x, z) + 0.025, z); aS.push(p.s, f); }
+      for (let j = 0; j < COLS; j++) { const f = -1 + 2 * j / (COLS - 1), x = p.x + p.nx * p.w * f, z = p.z + p.nz * p.w * f; pos.push(x, this.ground(x, z) + 0.025, z); uv.push(p.s / 4, (f + 1) / 2); }
       if (i) {
         const q = P[i - 1], mid = this._onPiece((p.x + q.x) / 2, (p.z + q.z) / 2);
         if (!mid) for (let j = 0; j < COLS - 1; j++) { const a = vi - COLS + j, b = vi + j; idx.push(a, a + 1, b, a + 1, b + 1, b); }
       }
       vi += COLS;
     }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('aS', new THREE.Float32BufferAttribute(aS, 2)); geo.setIndex(idx); geo.computeVertexNormals();
-    const tex = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#56627a'; c.fillRect(0, 0, w, h); for (let i = 0; i < 300; i++) { c.fillStyle = `rgba(${90 + Math.random() * 60},${100 + Math.random() * 60},${130 + Math.random() * 60},.35)`; c.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 7, 1 + Math.random() * 3); } });
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    const uv = []; for (let i = 0; i < aS.length; i += 2) uv.push(aS[i] / 3, aS[i + 1]); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, metalness: 0.1, emissive: new THREE.Color(0.2, 0.2, 0.3), emissiveMap: tex, emissiveIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-    const U = this.U;
-    mat.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, U);
-      sh.vertexShader = 'attribute vec2 aS; varying vec3 vW; varying vec2 vS;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vS = aS; vW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      sh.fragmentShader = WAY_PARS + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + WAY_FRAG);
-    };
-    mat.customProgramCacheKey = () => 'lightshow-way';
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    const tex = canvasTex(256, 128, (c, w, h) => {
+      c.fillStyle = '#cfd7e3'; c.fillRect(0, 0, w, h);
+      for (let i = 0; i < 900; i++) { const g = 170 + Math.random() * 60; c.fillStyle = `rgba(${g - 10},${g},${g + 18},.35)`; c.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 4, 1 + Math.random() * 2); }
+      for (const y of [0.3, 0.38, 0.62, 0.7]) { c.fillStyle = 'rgba(120,132,152,.28)'; for (let x = 0; x < w; x += 2) c.fillRect(x, h * y + Math.sin(x * 0.05) * 1.5, 2, 3 + Math.random() * 2); }      // the ploughs' and the tyres' ruts
+      const e = c.createLinearGradient(0, 0, 0, h); e.addColorStop(0, 'rgba(255,255,255,.5)'); e.addColorStop(0.1, 'rgba(255,255,255,0)'); e.addColorStop(0.9, 'rgba(255,255,255,0)'); e.addColorStop(1, 'rgba(255,255,255,.5)'); c.fillStyle = e; c.fillRect(0, 0, w, h);
+    });
+    tex.wrapS = THREE.RepeatWrapping;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, emissive: new THREE.Color(0.22, 0.25, 0.36), emissiveMap: tex, emissiveIntensity: 0.45, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.name = 'lightshow-way'; this.g.add(m);
-    // bulbs along both edges, on short stakes, running the show's colours (and leaping ahead of the car)
-    for (let s = 0; s < this.len; s += 0.6) {
-      const p = this.at(s); if (p.maze) continue;
-      for (const sd of [-1, 1]) { const x = p.x + p.nx * (p.w + 0.22) * sd, z = p.z + p.nz * (p.w + 0.22) * sd; if (this._onPiece(x, z, 0.4)) continue; B.add(x, this.ground(x, z) + 0.2, z, C.warm, 3, Math.random(), s, sd, 0.065); }
+    // a rope light of warm mini lights on short stakes along both sides, just inside the snowbank
+    for (let s = 0; s < this.len; s += 0.2) {
+      const p = this.at(s);
+      for (const sd of [-1, 1]) { const x = p.x + p.nx * (p.w + 0.2) * sd, z = p.z + p.nz * (p.w + 0.2) * sd; if (this._onPiece(x, z, 0.4)) continue; B.add(x, this.ground(x, z) + 0.12, z, C.warm, 3, Math.random(), s, sd, 0.05); }
     }
-    for (let s = 0, i = 0; s < this.len; s += 8, i++) { const p = this.at(s); if (!p.maze) this.glow.push([p.x, p.z, 3.6, [C.red, C.gold, C.green, C.blue][i % 4], 0.09]); }
+    for (let s = 0; s < this.len; s += 10) { const p = this.at(s); this.glow.push([p.x, p.z, 3.4, C.warm, 0.05]); }
   },
-  // The banked curves: snow striped like a candy cane, stripes of bulbs running round the crest, giant canes round the foot.
+  // The banked curves: snow banked up by the ploughs, red and white mini lights along the crest, giant canes round the foot.
   _bankLook(k) {
-    const tex = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#f4f2f2'; c.fillRect(0, 0, w, h); c.fillStyle = '#d4222c'; for (let i = -2; i < 4; i++) { c.beginPath(); c.moveTo(i * 48, 0); c.lineTo(i * 48 + 22, 0); c.lineTo(i * 48 + 22 + 64, h); c.lineTo(i * 48 + 64, h); c.fill(); } });
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.35, side: THREE.DoubleSide });
-    const B = this.B, W = this.W;
+    const mat = this.snowM, B = this.B, W = this.W;
     for (const bk of this.banks) {
       const s = bk.s, step = 0.5, nx = Math.ceil((s.x1 - s.x0) / step), nz = Math.ceil((s.z1 - s.z0) / step), pos = [], uv = [], idx = [], hs = [];
       for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
@@ -325,10 +312,10 @@ feature({
       const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; this.g.add(m);
       // the crest and the inner foot in bulbs, the canes outside
       const [cx, cz] = bk.c, [ux, uz] = bk.u, a0 = Math.atan2(uz, ux);
-      for (let a = -Math.PI / 2 - 0.25; a <= Math.PI / 2 + 0.25; a += 0.5 / 13.5) {
-        const x = cx + Math.cos(a0 + a) * 13.5, z = cz + Math.sin(a0 + a) * 13.5; B.add(x, bk.fn(x, z) + 0.12, z, C.red, 11, 0, (a + 2) * 13.5, 0, 0.08);
+      for (let a = -Math.PI / 2 - 0.25; a <= Math.PI / 2 + 0.25; a += 0.15 / 13.5) {
+        const x = cx + Math.cos(a0 + a) * 13.5, z = cz + Math.sin(a0 + a) * 13.5; B.add(x, bk.fn(x, z) + 0.1, z, C.red, 11, Math.random(), (a + 2) * 13.5, 0, 0.06);
       }
-      for (let a = -Math.PI / 2; a <= Math.PI / 2; a += 0.2) { const x = cx + Math.cos(a0 + a) * 7.3, z = cz + Math.sin(a0 + a) * 7.3; B.add(x, 0.15, z, C.gold, 1, a * 3, 0, 0, 0.07); }
+      for (let a = -Math.PI / 2; a <= Math.PI / 2; a += 0.025) { const x = cx + Math.cos(a0 + a) * 7.3, z = cz + Math.sin(a0 + a) * 7.3; B.add(x, 0.12, z, C.gold, 0, Math.random(), 0, 0, 0.05); }
       for (let a = -Math.PI / 2; a <= Math.PI / 2 + 1e-6; a += Math.PI / 12) {
         const x = cx + Math.cos(a0 + a) * 16.2, z = cz + Math.sin(a0 + a) * 16.2; if (!this._clear(x, z, 0.9)) continue;
         const yaw = -(a0 + a) + Math.PI / 2, M = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(2.4, 2.4, 2.4));
@@ -373,16 +360,25 @@ feature({
     this.finishAt = q;
   },
 
-  // ============================================================ the Comet Tunnel
-  _tunnel() {
-    const B = this.B, W = this.W, [s0, s1] = this.sTunnel;
+  // ============================================================ the tunnels: of Lights, Candy Cane, Kaleidoscope
+  // A tunnel of arches over the way from s0 to s1, every `gap` metres, each wrapped in strands of mini lights a hand's
+  // breadth apart: 'lights' (white, then every colour, then gold, as the long tunnels at the zoos go), 'candy' (red and
+  // white winding round) or 'kaleido' (colours mirrored about the top of the arch).
+  _arches([s0, s1], gap, kind) {
+    const B = this.B, W = this.W, K = { lights: { hw: 2.75, H: 3.4, strands: 3, mode: 4 }, candy: { hw: 2.6, H: 3.2, strands: 2, mode: 14 }, kaleido: { hw: 2.7, H: 3.3, strands: 2, mode: 10 } }[kind];
+    const lo = Math.min(s0, s1), hi = Math.max(s0, s1), per = Math.round(Math.PI * Math.sqrt((K.hw * K.hw + K.H * K.H) / 2) / 0.11);
     let j = 0;
-    for (let s = s0; s <= s1; s += 1.25, j++) {
-      const p = this.at(s), n = 22, hw = 2.75, H = 3.4;
-      for (let r = 0; r < 2; r++) for (let i = 0; i <= n; i++) { const a = Math.PI * i / n, ox = Math.cos(a) * (hw + r * 0.14), oy = Math.sin(a) * (H + r * 0.14); B.add(p.x + p.nx * ox, oy + 0.05, p.z + p.nz * ox, C.white, 4, Math.random(), s, i / n, 0.06); }
-      W.stroke(Array.from({ length: 13 }, (_, i) => { const a = Math.PI * i / 12, ox = Math.cos(a) * hw; return [p.x + p.nx * ox, Math.sin(a) * H, p.z + p.nz * ox]; }), [0.16, 0.18, 0.22], null, 0.02);
-      if (j % 3 === 0) this.glow.push([p.x, p.z, 3.6, C.gold, 0.13]);
-      for (const sd of [-1, 1]) this.O.push({ x0: p.x + p.nx * hw * sd - 0.06, x1: p.x + p.nx * hw * sd + 0.06, z0: p.z + p.nz * hw * sd - 0.06, z1: p.z + p.nz * hw * sd + 0.06, y0: 0, y1: 3 });
+    for (let s = lo; s <= hi; s += gap, j++) {
+      const p = this.at(s), f = (s - lo) / (hi - lo);
+      let col = C.white;
+      if (kind === 'lights') { const hue = (j * 0.09) % 1, rb = [Math.max(0, Math.min(1, Math.abs(hue * 6 - 3) - 1)), Math.max(0, Math.min(1, 2 - Math.abs(hue * 6 - 2))), Math.max(0, Math.min(1, 2 - Math.abs(hue * 6 - 4)))].map(v => v * 2.8 + 0.2); col = f < 0.3 ? [2.0, 1.8, 1.45] : f < 0.7 ? rb : [2.6, 1.7, 0.55]; }
+      for (let r = 0; r < K.strands; r++) {
+        const off = (r - (K.strands - 1) / 2) * 0.09;
+        for (let i = 0; i <= per; i++) { const a = Math.PI * i / per, ox = Math.cos(a) * K.hw, oy = Math.sin(a) * K.H; B.add(p.x + p.nx * ox + p.tx * off, oy + 0.05, p.z + p.nz * ox + p.tz * off, col, K.mode, Math.random(), s, i / per, 0.05); }
+      }
+      W.stroke(Array.from({ length: 13 }, (_, i) => { const a = Math.PI * i / 12, ox = Math.cos(a) * K.hw; return [p.x + p.nx * ox, Math.sin(a) * K.H, p.z + p.nz * ox]; }), [0.13, 0.15, 0.18], null, 0.015);
+      if (j % 4 === 0) this.glow.push([p.x, p.z, 3.4, kind === 'lights' ? col : C.warm, 0.045]);
+      for (const sd of [-1, 1]) this.O.push({ x0: p.x + p.nx * K.hw * sd - 0.05, x1: p.x + p.nx * K.hw * sd + 0.05, z0: p.z + p.nz * K.hw * sd - 0.05, z1: p.z + p.nz * K.hw * sd + 0.05, y0: 0, y1: 3 });
     }
   },
 
@@ -401,24 +397,24 @@ feature({
     const rib = [0.5, 0.36, 0.64, 0.22, 0.78];
     for (let s = s0; s <= s1 + 0.01; s += 2.5) {
       const p = this.at(s);
-      for (let i = 0; i <= 40; i++) { const [ox, oy] = profile(i / 40); B.add(p.x + p.nx * ox, oy, p.z + p.nz * ox, i % 4 ? C.ice : C.white, 1, i * 0.18 + s * 0.3, s, i / 40, 0.075); }
+      for (const off of [-0.07, 0.07]) for (let i = 0; i <= 150; i++) { const [ox, oy] = profile(i / 150); B.add(p.x + p.nx * ox + p.tx * off, oy, p.z + p.nz * ox + p.tz * off, i % 5 ? C.ice : C.white, 1, i * 0.05 + s * 0.3, s, i / 150, 0.05); }
       W.stroke(Array.from({ length: 25 }, (_, i) => { const [ox, oy] = profile(i / 24); return [p.x + p.nx * ox, oy, p.z + p.nz * ox]; }), [0.2, 0.24, 0.3], null, 0.03);
       for (const sd of [-1, 1]) this.O.push({ x0: p.x + p.nx * hw * sd - 0.08, x1: p.x + p.nx * hw * sd + 0.08, z0: p.z + p.nz * hw * sd - 0.08, z1: p.z + p.nz * hw * sd + 0.08, y0: 0, y1: 6 });
       this.glow.push([p.x, p.z, 4, C.ice, 0.1]);
     }
-    for (let s = s0; s <= s1; s += 0.35) {
+    for (let s = s0; s <= s1; s += 0.12) {
       const p = this.at(s);
-      for (const t of rib) { const [ox, oy] = profile(t); B.add(p.x + p.nx * ox, oy, p.z + p.nz * ox, C.white, 0, Math.random(), s, t, 0.05); }
+      for (const t of rib) { const [ox, oy] = profile(t); B.add(p.x + p.nx * ox, oy, p.z + p.nz * ox, C.white, 0, Math.random(), s, t, 0.045); }
     }
     // the canopy: bulbs scattered under the vault
-    for (let i = 0; i < 520; i++) {
+    for (let i = 0; i < 2400; i++) {
       const s = s0 + Math.random() * (s1 - s0), p = this.at(s), t = 0.25 + Math.random() * 0.5, [ox, oy] = profile(t), drop = 0.15 + Math.random() * 0.6;
-      B.add(p.x + p.nx * ox * 0.97, oy - drop, p.z + p.nz * ox * 0.97, [C.ice, C.white, C.blue, C.purple][i % 4], 8, Math.random(), s, t, 0.045);
+      B.add(p.x + p.nx * ox * 0.97, oy - drop, p.z + p.nz * ox * 0.97, [C.ice, C.white, C.blue, C.purple][i % 4], 8, Math.random(), s, t, 0.04);
     }
     // icicles hanging from the ribs
     for (let s = s0 + 1.2; s < s1; s += 1.25) {
       const p = this.at(s);
-      for (const t of [0.22, 0.78, 0.36, 0.64]) { const [ox, oy] = profile(t), ph = Math.random(), L = 0.8 + Math.random() * 0.9; for (let i = 0; i < 8; i++) B.add(p.x + p.nx * ox, oy - 0.1 - i * L / 8, p.z + p.nz * ox, C.ice, 9, ph, i / 7, 0, 0.04); }
+      for (const t of [0.22, 0.78, 0.36, 0.64]) { const [ox, oy] = profile(t), ph = Math.random(), L = 0.8 + Math.random() * 0.9; for (let i = 0; i < 16; i++) B.add(p.x + p.nx * ox, oy - 0.1 - i * L / 16, p.z + p.nz * ox, C.ice, 9, ph, i / 15, 0, 0.04); }
     }
     // the snowflakes, turning
     let n = 0;
@@ -441,9 +437,9 @@ feature({
     // the ribbon: gold lights down the middle and across, and round every edge
     const hK = x => x < G.kick[0] ? G.kick[2] : G.kick[2] * (G.kick[1] - x) / (G.kick[1] - G.kick[0]);
     const hL = x => G.land[2] * (x - G.land[0]) / (G.land[1] - G.land[0]);
-    for (let x = G.deck[0]; x <= G.kick[1]; x += 0.25) { B.add(x, hK(x) + 0.05, zc, C.gold, 1, x * 0.8, 0, 0, 0.07); for (const z of [z0, z1]) B.add(x, hK(x) + 0.03, z, C.white, 2, x, 0, 0, 0.05); }
-    for (let x = G.land[0]; x <= G.land[1]; x += 0.25) { B.add(x, hL(x) + 0.05, zc, C.gold, 1, -x * 0.8, 0, 0, 0.07); for (const z of [z0, z1]) B.add(x, hL(x) + 0.03, z, C.white, 2, x, 0, 0, 0.05); }
-    for (let z = z0; z <= z1; z += 0.25) { B.add(G.deck[0], G.kick[2] + 0.05, z, C.gold, 1, z, 0, 0, 0.07); B.add(G.land[1], G.land[2] + 0.05, z, C.gold, 1, z, 0, 0, 0.07); for (let y = 0.2; y < G.kick[2]; y += 0.3) { B.add(G.deck[0] - 0.02, y, z, C.red, 2, y, 0, 0, 0.04); if (y < G.land[2]) B.add(G.land[1] + 0.02, y, z, C.green, 2, y, 0, 0, 0.04); } }
+    for (let x = G.deck[0]; x <= G.kick[1]; x += 0.12) { B.add(x, hK(x) + 0.05, zc, C.gold, 0, Math.random(), 0, 0, 0.06); for (const z of [z0, z1]) B.add(x, hK(x) + 0.03, z, C.white, 2, x, 0, 0, 0.05); }
+    for (let x = G.land[0]; x <= G.land[1]; x += 0.12) { B.add(x, hL(x) + 0.05, zc, C.gold, 0, Math.random(), 0, 0, 0.06); for (const z of [z0, z1]) B.add(x, hL(x) + 0.03, z, C.white, 2, x, 0, 0, 0.05); }
+    for (let z = z0; z <= z1; z += 0.12) { B.add(G.deck[0], G.kick[2] + 0.05, z, C.gold, 1, z, 0, 0, 0.07); B.add(G.land[1], G.land[2] + 0.05, z, C.gold, 1, z, 0, 0, 0.07); for (let y = 0.15; y < G.kick[2]; y += 0.15) { B.add(G.deck[0] - 0.02, y, z, C.red, 0, Math.random(), 0, 0, 0.04); if (y < G.land[2]) B.add(G.land[1] + 0.02, y, z, C.green, 0, Math.random(), 0, 0, 0.04); } }
     // bows on the sides, off the way
     for (const [x, z, col] of [[G.deck[0] + 0.6, z1 + 0.05, C.gold], [G.deck[0] + 0.6, z0 - 0.05, C.gold], [G.land[1] - 0.6, z1 + 0.05, C.red], [G.land[1] - 0.6, z0 - 0.05, C.red]]) {
       const M = new THREE.Matrix4().makeTranslation(x, 1.5, z); W.frame([{ pts: circle(-0.32, 0, 0.3, 14, 0, TAU, 0.34), col, d: 0 }, { pts: circle(0.32, 0, 0.3, 14, 0, TAU, 0.34), col, d: 0 }, { pts: circle(0, 0, 0.09, 8), col, d: 0 }], 0, M);
@@ -486,62 +482,25 @@ feature({
     k.solid({ skin: 'snow', x0: R.land[0], x1: R.land[1], z0, z1, axis: 'x', h0: R.land[2], h1: 0, thick: 0 }, glass);
     this.bridgeGap = { x0: R.deck[1], x1: R.land[0], z0, z1 };
     const h = x => x < R.up[0] ? 0 : x < R.up[1] ? R.up[2] * (x - R.up[0]) / (R.up[1] - R.up[0]) : x <= R.deck[1] ? R.up[2] : x < R.land[0] ? -1 : x <= R.land[1] ? R.land[2] * (R.land[1] - x) / (R.land[1] - R.land[0]) : 0;
-    for (let x = R.up[0]; x <= R.land[1]; x += 0.22) {
+    for (let x = R.up[0]; x <= R.land[1]; x += 0.11) {
       const y = h(x); if (y < 0) continue;
-      for (const z of [z0 + 0.05, z1 - 0.05]) { B.add(x, y + 0.06, z, C.white, 12, 0, x, 0, 0.07); for (let yy = y - 0.3; yy > 0.1; yy -= 0.35) B.add(x, yy, z + (z < zc ? -0.03 : 0.03), C.white, 12, 0, x + yy * 4, 0, 0.045); }
+      for (const z of [z0 + 0.05, z1 - 0.05]) { B.add(x, y + 0.06, z, C.white, 12, 0, x, 0, 0.07); for (let yy = y - 0.15; yy > 0.08; yy -= 0.16) B.add(x, yy, z + (z < zc ? -0.03 : 0.03), C.white, 12, 0, x + yy * 4, 0, 0.045); }
     }
     // hoops of light over the bridge, and over the gap the brightest of all
     for (const x of [R.up[0] + 1, R.up[0] + 3.5, R.deck[0] + 0.8, (R.deck[1] + R.land[0]) / 2, R.land[0] + 1, R.land[0] + 4, R.land[1] - 1.2]) {
       const y0 = Math.max(0, h(x)), gap = x > R.deck[1] && x < R.land[0];
-      for (let i = 0; i <= 26; i++) { const a = Math.PI * i / 26; B.add(x, y0 + 0.1 + Math.sin(a) * (gap ? 4.8 : 3.0), zc + Math.cos(a) * 2.7, C.white, 12, 0, x + i * 0.6, 0, gap ? 0.09 : 0.07); }
+      for (const dx of [-0.07, 0.07]) for (let i = 0; i <= 90; i++) { const a = Math.PI * i / 90; B.add(x + dx, y0 + 0.1 + Math.sin(a) * (gap ? 4.8 : 3.0), zc + Math.cos(a) * 2.7, C.white, 12, 0, x + i * 0.18, 0, 0.05); }
     }
     for (const x of [R.up[0] + 1, R.up[0] + 3.5, R.deck[0] + 0.8, R.land[0] + 1, R.land[0] + 4, R.land[1] - 1.2]) for (const z of [zc - 2.7, zc + 2.7]) this.O.push({ x0: x - 0.06, x1: x + 0.06, z0: z - 0.06, z1: z + 0.06, y0: 0, y1: 5 });
     { const x = (R.deck[1] + R.land[0]) / 2; for (const z of [zc - 2.7, zc + 2.7]) this.O.push({ x0: x - 0.06, x1: x + 0.06, z0: z - 0.06, z1: z + 0.06, y0: 0, y1: 5 }); }
     this.glow.push([(R.up[0] + R.land[1]) / 2, zc, 10, C.blue, 0.12]);
   },
 
-  // ============================================================ the Light Maze
-  _maze() {
-    const Mz = this.maze, n = MAZE.n, s = MAZE.cell, x0 = MAZE.x0, z0 = MAZE.z0, H = MAZE.wallH, T = 0.35, B = this.B, boxes = [];
-    const walls = [];
-    for (let c = 0; c < n; c++) for (let r = 0; r < n; r++) {
-      if (c < n - 1 && Mz.E[c][r]) walls.push([x0 + s * (c + 1), z0 + s * r, x0 + s * (c + 1), z0 + s * (r + 1)]);
-      if (r < n - 1 && Mz.S[c][r]) walls.push([x0 + s * c, z0 + s * (r + 1), x0 + s * (c + 1), z0 + s * (r + 1)]);
-    }
-    const [ic, ir] = this.mIn, [oc, or] = this.mOut;
-    for (let i = 0; i < n; i++) {
-      if (i !== oc) walls.push([x0 + s * i, z0, x0 + s * (i + 1), z0]);                            // north, but for the way out
-      walls.push([x0 + s * i, z0 + s * n, x0 + s * (i + 1), z0 + s * n]);                         // south
-      walls.push([x0, z0 + s * i, x0, z0 + s * (i + 1)]);                                         // west
-      if (i !== ir) walls.push([x0 + s * n, z0 + s * i, x0 + s * n, z0 + s * (i + 1)]);           // east, but for the way in
-    }
-    walls.forEach(([ax, az, bx, bz], wi) => {
-      const lx = Math.min(ax, bx) - T / 2, hx = Math.max(ax, bx) + T / 2, lz = Math.min(az, bz) - T / 2, hz = Math.max(az, bz) + T / 2;
-      const g = new THREE.BoxGeometry(hx - lx, H, hz - lz); g.translate((lx + hx) / 2, H / 2, (lz + hz) / 2); boxes.push(g);
-      this.O.push({ x0: lx, x1: hx, z0: lz, z1: hz, y0: 0, y1: H });
-      const alongX = az === bz, L = alongX ? hx - lx : hz - lz, grp = (wi * 7) % 3;
-      for (let d = 0.15; d < L; d += 0.32) for (const sd of [-1, 1]) for (const y of [0.35, 0.75, 1.15]) {
-        const x = alongX ? lx + d : (ax + sd * (T / 2 + 0.02)), z = alongX ? (az + sd * (T / 2 + 0.02)) : lz + d;
-        B.add(x, y, z, C.green, 10, Math.random(), 0, grp, 0.05);
-      }
-      for (let d = 0.1; d < L; d += 0.3) B.add(alongX ? lx + d : ax, H + 0.04, alongX ? az : lz + d, C.white, 0, Math.random(), 0, 0, 0.05);
-    });
-    const hedge = new THREE.Mesh(mergeAll(boxes), new THREE.MeshStandardMaterial({ color: 0x0e2a16, roughness: 0.9, emissive: 0x0b3a18, emissiveIntensity: 0.6 }));
-    hedge.name = 'lightshow-maze'; this.g.add(hedge);
-    // the two dead ends furthest from the way through hold ornaments
-    const onSol = new Set(this.mSol.map(c => c.join())), dead = [];
-    for (let c = 0; c < n; c++) for (let r = 0; r < n; r++) if (Mz.nbrs(c, r).length === 1 && !onSol.has(c + ',' + r)) dead.push([c, r]);
-    const fromSol = cell => { let best = 99; for (const q of this.mSol) best = Math.min(best, Math.abs(q[0] - cell[0]) + Math.abs(q[1] - cell[1])); return best; };
-    dead.sort((a, b) => fromSol(b) - fromSol(a));
-    this.mazeDead = dead.slice(0, 2).map(([c, r]) => [x0 + s * (c + 0.5), z0 + s * (r + 0.5)]);
-    this.glow.push([x0 + s * n / 2, z0 + s * n / 2, 15, C.green, 0.07]);
-  },
-
   // ============================================================ the Singing Tree
   // Forty-eight strands of lights from a star eighteen metres up to a ring on the snow, and on its south face eyes
   // and a mouth, in bulbs, that sing the tune. A little train goes round its foot.
   _tree() {
-    const B = this.B, W = this.W, { x: tx, z: tz, H, R } = TREE, strands = 48, per = 58;
+    const B = this.B, W = this.W, { x: tx, z: tz, H, R } = TREE, strands = 72, per = 100;
     const face = Math.PI / 2;                                     // it faces south (+z), where the way comes round to the finish
     const cone = (a, y, out = 0.12) => { const r = R * (1 - (y - 0.4) / (H - 0.4)) + out; return [tx + Math.cos(a) * r, y, tz + Math.sin(a) * r]; };
     for (let j = 0; j < strands; j++) {
@@ -550,23 +509,23 @@ feature({
       for (let i = 0; i < per; i++) {
         const t = i / (per - 1), y = 0.4 + t * (H - 0.4), [x, , z] = cone(a, y);
         const inFace = Math.abs(da) < 0.62 && y > 3.6 && y < 9.6;
-        if (inFace) B.add(x, y, z, [0.12, 0.45, 0.18], 2, Math.random(), t, j / strands, 0.075);
-        else B.add(x, y, z, [C.green, C.gold, C.red, C.white][(i + j) % 4], 5, Math.random(), t, j / strands, 0.095);
+        if (inFace) B.add(x, y, z, [0.12, 0.45, 0.18], 2, Math.random(), t, j / strands, 0.05);
+        else B.add(x, y, z, [C.green, C.gold, C.red, C.white][(i + j) % 4], 5, Math.random(), t, j / strands, 0.065);
       }
       W.stroke([cone(a, 0.4, 0.05), cone(a, H, 0.05)], [0.12, 0.6, 0.22], null, 0.03);
     }
     // the face, laid on the cone a little proud of it
     const onCone = (du, y, out = 0.32) => { const r = R * (1 - (y - 0.4) / (H - 0.4)) + out, a = face + du / r; return [tx + Math.cos(a) * r, y, tz + Math.sin(a) * r]; };
-    for (const ex of [-1.05, 1.05]) for (let gx = -4; gx <= 4; gx++) for (let gy = -4; gy <= 4; gy++) { const u = gx / 4, v = gy / 4; if (u * u + v * v > 1.05) continue; const [x, y, z] = onCone(ex + gx * 0.12, 8.1 + gy * 0.12); B.add(x, y, z, C.white, 7, 0, u, v, 0.07); }
-    for (let gx = -8; gx <= 8; gx++) for (let gy = -5; gy <= 5; gy++) { const u = gx / 8, v = gy / 5; if (u * u + v * v > 1.1) continue; const [x, y, z] = onCone(gx * 0.15, 5.4 + gy * 0.17); B.add(x, y, z, C.red, 6, 0, u, v, 0.075); }
-    { const [x, y, z] = onCone(0, 6.9, 0.4); B.add(x, y, z, C.gold, 2, 0, 0, 0, 0.16); }
+    for (const ex of [-1.05, 1.05]) for (let gx = -4; gx <= 4; gx++) for (let gy = -4; gy <= 4; gy++) { const u = gx / 4, v = gy / 4; if (u * u + v * v > 1.05) continue; const [x, y, z] = onCone(ex + gx * 0.12, 8.1 + gy * 0.12); B.add(x, y, z, C.white, 7, 0, u, v, 0.15); }
+    for (let gx = -8; gx <= 8; gx++) for (let gy = -5; gy <= 5; gy++) { const u = gx / 8, v = gy / 5; if (u * u + v * v > 1.1) continue; const [x, y, z] = onCone(gx * 0.15, 5.4 + gy * 0.17); B.add(x, y, z, C.red, 6, 0, u, v, 0.17); }
+    { const [x, y, z] = onCone(0, 6.9, 0.4); B.add(x, y, z, C.gold, 2, 0, 0, 0, 0.36); }
     // cheeks
-    for (const ex of [-2.0, 2.0]) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU, [x, y, z] = onCone(ex + Math.cos(a) * 0.22, 6.2 + Math.sin(a) * 0.22, 0.28); B.add(x, y, z, C.pink, 2, i, 0, 0, 0.06); }
+    for (const ex of [-2.0, 2.0]) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU, [x, y, z] = onCone(ex + Math.cos(a) * 0.22, 6.2 + Math.sin(a) * 0.22, 0.28); B.add(x, y, z, C.pink, 2, i, 0, 0, 0.13); }
     const st = this._own(star(1.7, C.gold), 0, tx, H + 1.4, tz, 0); this.anim.push({ kind: 'spin', grp: st, rate: 0.5 });
-    for (let i = 0; i < 40; i++) { const a = i / 40 * TAU; B.add(tx + Math.cos(a) * (R + 0.9), 0.15, tz + Math.sin(a) * (R + 0.9), C.warm, 1, i * 0.5, 0, 0, 0.08); }
+    for (let i = 0; i < 300; i++) { const a = i / 300 * TAU; B.add(tx + Math.cos(a) * (R + 0.9), 0.15, tz + Math.sin(a) * (R + 0.9), C.warm, 0, Math.random(), 0, 0, 0.05); }
     // the train's track (two rails of light) and the train
     const TR = 8.6; this.trainR = TR;
-    for (let i = 0; i < 160; i++) { const a = i / 160 * TAU; for (const d of [-0.28, 0.28]) B.add(tx + Math.cos(a) * (TR + d), 0.06, tz + Math.sin(a) * (TR + d), C.gold, 2, i * 0.3, 0, 0, 0.045); }
+    for (let i = 0; i < 440; i++) { const a = i / 440 * TAU; for (const d of [-0.28, 0.28]) B.add(tx + Math.cos(a) * (TR + d), 0.06, tz + Math.sin(a) * (TR + d), C.gold, 2, i * 0.3, 0, 0, 0.04); }
     this.train = [engine(), wagon(C.red, C.gold), wagon(C.blue, C.white), wagon(C.green, C.red), wagon(C.purple, C.gold)].map(strokes => this._own(strokes, 0.22, tx, 0, tz, 0, 1.2));
     this.trainA = 0;
     for (const [dx, dz, c1, c2, w] of [[-4.6, 4.9, C.red, C.gold, 1.2], [4.3, 5.2, C.blue, C.white, 1.0], [0.4, 6.6, C.green, C.red, 0.9], [-6.5, 0.5, C.gold, C.green, 1.1], [6.6, -0.6, C.pink, C.white, 1.0]]) {
@@ -599,13 +558,13 @@ feature({
       for (const [x, z, r, h] of towers) {
         for (let y = 0; y <= h; y += h / 4) W.stroke(ring3(x, y, z, r, 'y', 18), C.ice, null, 0.03);
         for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; W.stroke([[x + Math.cos(a) * r, 0, z + Math.sin(a) * r], [x + Math.cos(a) * r, h, z + Math.sin(a) * r], [x, h + r * 1.6, z]], i % 2 ? C.white : C.ice, null, 0.03); }
-        for (let i = 0; i < 24; i++) { const a = i / 24 * TAU; B.add(x + Math.cos(a) * r, h + 0.05, z + Math.sin(a) * r, C.ice, 1, i * 0.4 + x, 0, 0, 0.07); }
+        for (let i = 0; i < 90; i++) { const a = i / 90 * TAU; B.add(x + Math.cos(a) * r, h + 0.05, z + Math.sin(a) * r, C.ice, 1, i * 0.1 + x, 0, 0, 0.05); }
         B.add(x, h + r * 1.6 + 0.2, z, C.white, 2, 0, 0, 0, 0.18);
-        for (let y = 0.4; y < h; y += 0.45) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + y; B.add(x + Math.cos(a) * r, y, z + Math.sin(a) * r, C.ice, 9, (x * 0.1 + i * 0.25) % 1, 1 - y / h, 0, 0.05); }
+        for (let y = 0.2; y < h; y += 0.15) for (let i = 0; i < 6; i++) { const a = i / 4 * TAU + y; B.add(x + Math.cos(a) * r, y, z + Math.sin(a) * r, C.ice, 9, (x * 0.1 + i * 0.25) % 1, 1 - y / h, 0, 0.05); }
         this.O.push({ x0: x - r, x1: x + r, z0: z - r, z1: z + r, y0: 0, y1: h });
         this.glow.push([x, z, r * 2.8, C.ice, 0.14]);
       }
-      for (let x = 339.3; x < 363; x += 0.3) { const y = 2.2 + (Math.floor((x - 339.3) / 0.9) % 2) * 0.35; B.add(x, y, 50.5, C.white, 0, Math.random(), 0, 0, 0.045); }
+      for (let x = 339.3; x < 363; x += 0.12) { const y = 2.2 + (Math.floor((x - 339.3) / 0.9) % 2) * 0.35; B.add(x, y, 50.5, C.white, 0, Math.random(), 0, 0, 0.045); }
       W.stroke([[338, 0, 50.5], [338, 2.2, 50.5], [364, 2.2, 50.5], [364, 0, 50.5]], C.ice, null, 0.03); this.O.push({ x0: 338, x1: 364, z0: 50.3, z1: 50.7, y0: 0, y1: 2.2 });
       for (const [x, z, yaw, sc] of [[333, 52.5, 0.3, 1.6], [368.5, 45, Math.PI + 0.4, 1.3]]) { const M = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(sc, sc, sc)); W.frame(polarBear(), 0, M); this.O.push({ x0: x - 1, x1: x + 1, z0: z - 1, z1: z + 1, y0: 0, y1: 1.1 }); }
     }
@@ -655,7 +614,8 @@ feature({
     P.push(side(this.sAt(330, 59), -1.6));                                                      // 6 among the nutcrackers
     P.push([(this.bridgeGap.x0 + this.bridgeGap.x1) / 2, BRIDGE.up[2] + 0.4, (BRIDGE.z0 + BRIDGE.z1) / 2]);  // 7 over the bridge's gap
     P.push(bankHigh(this.banks[2]));                                                                       // 8
-    for (const [x, z] of this.mazeDead) P.push([x, 0.55, z]);                                              // 9, 10 in the maze's dead ends
+    P.push(side((this.sCandy[0] + this.sCandy[1]) / 2, 1.5));                                               // 9 in the Candy Cane Tunnel, off the line
+    P.push(side(this.sKaleido[0] * 0.4 + this.sKaleido[1] * 0.6, -1.5));                                   // 10 in the Kaleidoscope Tunnel
     P.push(null);                                                                                          // 11 rides on the train
     { const a = (270 + 18) * Math.PI / 180, r = RING + 1.7; P.push([TREE.x + Math.cos(a) * r, 0.55, TREE.z + Math.sin(a) * r]); }   // 12 the outside of the ring
     this.orbs = P.map((p, i) => ({ p: p ? new THREE.Vector3(...p) : new THREE.Vector3(), train: !p, got: false, i }));
@@ -707,8 +667,9 @@ feature({
     const bl = (T % 4.3) / 4.3; U.uBlink.value = bl > 0.965 ? 1 : 0;
     for (let i = 0; i < 3; i++) { const c = S.pal[i], u = U.uPal.value[i]; u.x += (c[0] - u.x) * Math.min(1, dt * 2); u.y += (c[1] - u.y) * Math.min(1, dt * 2); u.z += (c[2] - u.z) * Math.min(1, dt * 2); }
     if (this._fin > 0) { this._fin = Math.max(0, this._fin - dt * 0.4); } U.uFin.value = this.run ? 1 : (this._fin || 0);
-    const pulse = calm ? 1 : 0.8 + 0.4 * S.kick, dim = 1 - U.uDark.value * 0.8 * (1 - calm);
-    if (this.glowMat) this.glowMat.color.setScalar(pulse * dim);
+    const dim = 1 - U.uDark.value * 0.8 * (1 - calm);
+    if (this.glowMat) this.glowMat.color.setScalar(1 - U.uDark.value * 0.5 * (1 - calm));      // the light on the snow follows the displays down in the count-in, and that is all
+    U.uPix.value = 1.25 / Math.max(240, innerHeight);
     if (this._wm) this._wm.color.setScalar((calm ? 1 : 0.85 + 0.3 * S.kick) * dim);
     if (this.wireMat && this.wireMat !== this._wm) this.wireMat.color.setScalar((calm ? 1 : 0.85 + 0.3 * S.kick) * dim);
     // --- the car on the way
@@ -716,11 +677,6 @@ feature({
     const i = this._track(p), q = this.P[i], onWay = this.td < q.w + 1.2 && p.y < 6;
     U.uCarS.value = onWay ? q.s : -1000;
     U.uLook.value = Math.max(-1, Math.min(1, (TREE.x - p.x) / 12));        // (+u on the face is to the west)
-    const sp = Math.hypot(v.vel.x, v.vel.z);
-    if (onWay && !calm && v.kind === 'car') {
-      if (v.landed) this._ripple(p, 1.6);
-      else if (!v.air && sp > 1.5 && T - this._ripAt > 0.3) this._ripple(p, Math.min(1, sp / 9));
-    }
     // --- what moves
     for (const a of this.anim) {
       if (a.kind === 'spin') a.grp.rotation.y += a.rate * dt * (calm ? 0.3 : 1);
@@ -765,7 +721,6 @@ feature({
     if (best > 25) for (let i = 0; i < P.length; i += 3) { const d = (P[i].x - p.x) ** 2 + (P[i].z - p.z) ** 2; if (d < best) { best = d; bi = i; } }
     this.ti = bi; this.td = Math.sqrt(best); return bi;
   },
-  _ripple(p, strength) { const r = this.U.uRip.value[this._rip = (this._rip + 1) % 8]; r.set(p.x, p.z, this.t, strength); this._ripAt = this.t; },
   _orbs(dt, k) {
     const p = k.pos, M = this._m4, Q = this._q, V = this._v, Sc = this._sc, T = this.t;
     for (const o of this.orbs) {
@@ -782,7 +737,6 @@ feature({
     o.got = true; this.got++;
     const f = 523.25 * Math.pow(2, [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26][(this.got - 1) % 12] / 12);
     k.synth.chime([f, f * 1.5, f * 2], { gap: 0.06, dur: 0.9, vol: 0.05 });
-    this._ripple(k.pos, 2.0);
     if (this.run) { this.run.orbs++; if (this.run.orbs === this.orbs.length && k.find('ornaments')) k.callout('EVERY ORNAMENT'); }
   },
   _hud(text, hold) {
@@ -808,7 +762,7 @@ feature({
     for (let j = Math.max(0, Math.floor((R.prog - 4) / this.step)), hi = Math.min(this.P.length - 1, Math.ceil((R.prog + 22) / this.step)); j <= hi; j++) {
       const q = this.P[j], d = (q.x - p.x) ** 2 + (q.z - p.z) ** 2; if (d < best) { best = d; bs = q.s; }
     }
-    const lim = this.P[Math.min(this.P.length - 1, Math.round(bs / this.step))].maze ? 2.2 : 6;
+    const lim = 6;
     if (best < lim * lim) { R.prog = Math.max(R.prog, bs); R.off = 0; } else if (best > 900) R.off += dt;
     if (R.off > 5 || R.t > 300) { this._endRun(k, 'Off the course.'); return; }
     if (R.prog >= this.sEnd - 1.2) { this._finish(k); return; }

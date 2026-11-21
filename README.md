@@ -313,14 +313,18 @@ What is not true:
 Across Columbus Drive from the Modern Wing, the north-west quarter of Butler
 Field is a drive-through Christmas light show, made after the big ones
 (Chicago's ZooLights, the botanic gardens' light walks, the drive-through
-shows with a tunnel, a singing tree and a radio station of carols). One lit
-way winds through it, and driving it against the clock is the **Light Run**:
+shows with a tunnel, a singing tree and a radio station of carols). One
+ploughed way winds through it, packed snow with the snow banked up either side
+and a rope light on stakes along it, and driving it against the clock is the
+**Light Run**. The ground does nothing; what lights it is what stands round it:
 
 - the **Grand Arch**, where the clock starts;
-- the **Comet Tunnel**, thirty-odd arches over the way, whose light runs along
-  with the car and leaps ahead of it on every beat;
-- three **Candy Cane Curves**, banked hairpins striped red and white, with a
-  crest of lights to ride high on and giant canes round the outside;
+- the **Tunnel of Lights**, forty arches over the way, each wrapped in three
+  strands of mini lights a hand's breadth apart: white, then every colour, then
+  gold, as the long tunnels at the zoos go. Light chases round the arches and
+  runs along with the car;
+- three **Candy Cane Curves**, banked hairpins, with red and white lights along
+  the crest to ride high on and giant canes round the outside;
 - the **Snowflake Cathedral**, pointed arches six and a half metres high, a
   vault of lights that sparkle with the tune, icicles dripping light and
   snowflakes turning under the roof;
@@ -329,18 +333,18 @@ way winds through it, and driving it against the clock is the **Light Run**:
 - the **Nutcracker Guard**, six soldiers five metres tall, who salute as you
   pass;
 - the **Light Bridge**, with a gap in the middle to jump;
-- past the **Ice Palace** and the **Penguin Slide** (the penguins slide down
-  it and waddle back up), to the **Light Maze**, hedges of lights: the lit way
-  is the way through, and the dead ends hold ornaments;
+- the **Candy Cane Tunnel**, red and white winding round its arches, past the
+  **Ice Palace** and the **Penguin Slide** (the penguins slide down it and
+  waddle back up), and round a hairpin through the **Kaleidoscope Tunnel**,
+  whose colours turn mirrored about the top of each arch;
 - round the **Singing Tree**, eighteen metres of lights with a face on it that
   sings the tune and looks at you, and a train going round its foot, to the
   finish.
 
 Twelve glowing ornaments hang along the way (high on the curves, over the
-gaps, in the maze, on the train): the screen counts them during a run. A
+gaps, in the tunnels, on the train): the screen counts them during a run. A
 sleigh and four reindeer fly round over it all, and reindeer graze in the
-middle. The lit way itself answers the car: a pool of light under the wheels
-and rings running out behind. Two secrets: finish the run, and take every
+middle. Two secrets: finish the run, and take every
 ornament in one run. The best time is kept, for the car and for the drone.
 
 The show plays a medley of carols, every one published before 1900, made in
@@ -356,12 +360,13 @@ reed lead, glockenspiel, plucked bass, off-beat chords, a soft kick, sleigh
 bells and a tubular bell) is laid on from those. Each tune counts in with a
 bar of sleigh bells in the dark, and the lights come up together on its
 first downbeat. Every light in the show keeps time with it: the tree's
-patterns change every four bars, the tunnel and the edges of the way pulse
-on the beat, the vault sparkles more as the tune climbs. With *Reduce motion
+patterns change every four bars, the tunnels pulse on the beat, the vault
+sparkles more as the tune climbs. With *Reduce motion
 and flashing* on, nothing flashes and everything moves slowly.
 
-All of it is drawn by one instanced mesh of fourteen thousand bulbs and a
-few merged meshes of wire; each bulb's behaviour is worked out in its vertex
+All of it is drawn by one instanced mesh of fifty thousand bulbs, each the
+size of a real mini light (and never drawn smaller than about a pixel, so a far
+string still reads as a line of light), and a few merged meshes of wire; each bulb's behaviour is worked out in its vertex
 shader from a handful of numbers set once a frame (the beat, the bar, the
 note, where the car is). Nothing is rebuilt or allocated per frame, and
 none of it runs when you are not near.
