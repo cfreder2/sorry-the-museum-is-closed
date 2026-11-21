@@ -1923,19 +1923,37 @@ export class Museum {
   // 0 is the API's own tiny placeholder, 1 a 400 px image, 2 the 843 px image
   // the museum recommends, 3 a 1686 px image for the work being studied.
 
+  // Which pictures to fetch, and at what size. Only what can be seen from here, or is about to be: a picture in this
+  // room facing you; one in another room that the line from the eye to it reaches through doorways (up to three);
+  // the next room's, through a doorway you are close to. Not the rooms all round behind their walls, which used to be
+  // fetched just for being near. Nothing already fetched is let go for being out of sight, only for being far off.
   _stream(pos, cam, roomId) {
     this._streamT = (this._streamT || 0) + 1;
     if (this._streamT % 12) return;
-    const queue = [];
+    const plan = this.plan, queue = [], here = roomId ? plan.byId[roomId] : null;
+    // the rooms one doorway away whose doorway is close by: their pictures are the next ones you will see
+    // (a doorway within 5 m that the toy is heading for: the camera trails the toy, so camera to toy is the way it goes)
+    const soon = new Map(), hx = pos.x - cam.x, hz = pos.z - cam.z;
+    if (here) for (const d of plan.doorsOf(here.id)) {
+      if (d.hidden && !plan.secretOpen) continue; const o = d.a === here.id ? d.b : d.a; if (o === 'out' || !plan.byId[o]) continue;
+      const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
+      if (Math.hypot(cx - pos.x, cz - pos.z) < 5 && Math.abs(d.y - (pos.y || 0)) < 2.5 && (cx - pos.x) * hx + (cz - pos.z) * hz > 0) soon.set(o, { x: cx, z: cz });
+    }
     for (const a of this.arts) {
       const d = Math.hypot(a.x - cam.x, a.z - cam.z) + Math.abs(a.y - cam.y) * 2.5;      // a floor up or down is a long way off
-      // From outdoors almost nothing indoors can be seen: only what is close to a door is worth fetching.
-      let want = d < (roomId ? 55 : 26) ? 1 : (a.tier >= 1 && d < (roomId ? 80 : 45) ? 1 : 0);
-      const near = a.mini || a.obj ? 5 : 13;
-      if (d < near || (a.room === roomId && !a.mini && !a.obj && a.room !== 'hall')) want = 2;
-      else if (a.tier === 2 && d < near + 9) want = 2;
-      if (a.obj && want > 1) want = 1;                  // a cut-out is made at one size: a bigger photograph adds nothing
+      const keep = d < (roomId ? 80 : 45);                                                     // already fetched and not far: kept
+      let want = 0;
       if (a.focus) want = 3;
+      else if (d < (roomId ? 55 : 26)) {
+        const faces = a.obj || a.mini || a.nx == null || (cam.x - a.x) * a.nx + (cam.z - a.z) * a.nz > -0.2;
+        if (a.room === roomId) want = faces ? (!a.mini && !a.obj && a.room !== 'hall' ? 2 : 1) : 0;
+        else if (faces && this._seen(cam, a, here)) want = 1;
+        else if (soon.has(a.room) && d < 25 && (a.obj || a.nx == null || (soon.get(a.room).x - a.x) * a.nx + (soon.get(a.room).z - a.z) * a.nz > 0)) want = 1;      // and only what faces that doorway
+        const near = a.mini || a.obj ? 5 : 13;
+        if (want && d < near && !a.obj) want = 2;
+      }
+      if (a.obj && want > 1 && !a.focus) want = 1;      // a cut-out is made at one size: a bigger photograph adds nothing
+      if (!want && a.tier > 0 && keep) want = Math.min(a.tier, 1);
       a.want = want;
       if (want > a.tier && !a.busy) queue.push([d - want * 4, a]);
       else if (want < a.tier && !a.busy) this._drop(a, want);
@@ -1963,6 +1981,33 @@ export class Museum {
     a.busy = false; this.loading--;
   }
 
+  // Does the straight line from the eye to this picture get to its room through doorways (at most three), never
+  // through a wall? From outdoors, through a way in. On the plan's own boxes, so it costs a few comparisons a door.
+  _seen(cam, a, here) {
+    const plan = this.plan, x0 = cam.x, z0 = cam.z, dx = a.x - x0, dz = a.z - z0, y = a.y;
+    const hits = q => {           // the segment against a doorway's box (a little grown), in plan
+      const g = 0.15, bx0 = q.x0 - g, bx1 = q.x1 + g, bz0 = q.z0 - g, bz1 = q.z1 + g; let t0 = 0, t1 = 1;
+      for (const [p, dp, lo, hi] of [[x0, dx, bx0, bx1], [z0, dz, bz0, bz1]]) {
+        if (Math.abs(dp) < 1e-9) { if (p < lo || p > hi) return false; continue; }
+        let u = (lo - p) / dp, v = (hi - p) / dp; if (u > v) [u, v] = [v, u]; t0 = Math.max(t0, u); t1 = Math.min(t1, v); if (t0 > t1) return false;
+      }
+      return true;
+    };
+    let cur = here ? here.id : 'out', last = null;
+    for (let hop = 0; hop < 4; hop++) {
+      if (cur === a.room) return true;
+      let next = null;
+      for (const d of cur === 'out' ? plan.doors.filter(q => q.out) : plan.doorsOf(cur)) {
+        if (d === last || (d.hidden && !plan.secretOpen) || d.vent) continue;
+        if (y < d.y - 0.5 || y > d.y + Math.max(d.h, 3) + 4) continue;        // a doorway on another floor
+        if (!hits(d)) continue;
+        next = d; break;
+      }
+      if (!next) return false;
+      last = next; cur = next.a === cur ? next.b : next.a;
+    }
+    return cur === a.room;
+  }
   _drop(a, tier) {
     // Stepping down re-requests the smaller image; the browser has it cached.
     if (tier === 0) {

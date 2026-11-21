@@ -120,7 +120,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.21.18';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.19';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -217,7 +217,7 @@ async function boot() {
   await loading(8, 'Seeing the last visitors out');
   // ?saved skips the live API; ?remote ignores any offline image copy, which is only looked for when run locally.
   const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || params.has('local');
-  const [collection] = await Promise.all([loadCollection({ timeout: params.has('saved') ? 1 : 7000 }), local && !params.has('remote') ? loadLocalImages() : null]);
+  const [collection] = await Promise.all([loadCollection({ timeout: params.has('saved') ? 1 : 12000 }), local && !params.has('remote') ? loadLocalImages() : null]);
   await loading(30, 'Walking the galleries', 40);
   const plan = G.plan = buildPlan();
   await loading(42, 'Pulling down the blinds', 46);
