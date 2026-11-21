@@ -154,6 +154,12 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #pause .panel, #results .panel, #notebook .panel { margin: auto; }
 .panel.small { max-width: 380px; width: 100%; text-align: center; }
 .panel.wide { max-width: 900px; width: 100%; text-align: center; max-height: 100%; }
+/* the small Moon beside the title, once the finale is done (main.js, voyageFinished()) */
+#titleMoon { display: inline-block; width: .5em; height: .5em; margin-left: .3em; vertical-align: .55em; border-radius: 50%;
+  background: radial-gradient(circle at 34% 38%, rgba(0,0,0,.18) 0 9%, transparent 10%), radial-gradient(circle at 62% 64%, rgba(0,0,0,.14) 0 13%, transparent 14%),
+    radial-gradient(circle at 66% 30%, rgba(0,0,0,.12) 0 6%, transparent 7%), radial-gradient(circle at 38% 34%, #f4f1e6, #c9c4b4 60%, #8f8a7c);
+  box-shadow: 0 0 .35em rgba(244,236,210,.45); }
+#titleMoon[hidden] { display: none; }
 .over { font: 12px var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--gilt-dim); }
 h1 span { white-space: nowrap; display: block; }
 h1 { font-weight: 400; font-size: clamp(24px, 3vw, 38px); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt); margin: .12em 0 .16em; line-height: .98; text-shadow: 0 0 50px rgba(226,205,148,.25); }

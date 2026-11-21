@@ -14,7 +14,7 @@
 // Everything is merged or instanced. Nothing runs, and nothing new is drawn, while the toy is far away; nothing is
 // allocated frame to frame.
 import * as THREE from 'three';
-import { feature } from './features.js';
+import { feature, tonight } from './features.js';
 import { heightOf, landable } from './plan.js';
 import { TAU, Wire, canvasTex, lit, mergeAll } from './glowkit.js';
 
@@ -744,7 +744,7 @@ feature({
   },
   // Over the wall: the lights go off along it from where the ball went over, the fans go up, the fireworks too.
   _homer(k, th) {
-    this.hr++; this.result = 'HOME RUN'; this._hud(); this._board();
+    this.hr++; this.result = 'HOME RUN'; tonight(n => { n.homeRuns = (n.homeRuns || 0) + 1; n.bestRound = Math.max(n.bestRound || 0, this.hr); }); this._hud(); this._board();
     const u = this.bu; u.uB.value = 1; u.uA.value = 0; u.uS.value = th / (Math.PI / 2);
     this.cheer = 1;
     const first = k.find('derbyhr');

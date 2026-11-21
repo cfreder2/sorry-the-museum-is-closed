@@ -3,7 +3,7 @@
 The ending of *Sorry, the Museum is Closed*: a hidden base under Butler Field, a flying saucer, a launch out of
 the ballfield, a flight to the Moon carrying the museum's art, and a museum on the Moon that finally opens.
 
-Status: planned 2026-11-21; phase 1 (the base) built. Built in phases by separate helpers, each merged and tested before the next depends on it.
+Status: planned 2026-11-21; all four phases built and merged the same day (build 2026.11.21.25). Built in phases by separate helpers, each merged and tested before the next depends on it.
 
 ## The story, in one breath
 
@@ -135,6 +135,42 @@ card flips from *Sorry, the Museum is Closed* to *The Museum is Open*.
   in `plan.finale.pieces` and moves with `setPlatform` / `setCraft`.
 - **For phase 3:** `G.finale` (documented at the top of `src/finale.js`): `state`, `hangar` (saucer, platform, doors,
   ramp, beamOrigin, easels, rim lights), `console` (position, near, five pads, screen, `onUse`), `open()`.
+
+## Phase 2, as built
+
+- **`startVoyage(G, { cargo, toy, stage })`** in `src/voyage.js` takes over from the city: two scenes of its own (the
+  far sky and the near world), so the city is simply not drawn. `stage` is `space`, `landed` or `opened`; `?voyage`,
+  `?voyage=landed` or `?voyage=opened` starts there to test. Saved in `after-hours.voyage`; `after-hours.moon` is set
+  for good when the museum opens (`voyageFinished()`).
+- **The Moon** (`src/moon.js`) is a plan of its own that the toy borrows, with one-sixth gravity (`vehicles.js` reads
+  `this.gravity`). Fly home gives Earth's plan and gravity back.
+- **The motif** (`src/motif.js`): D G B A E, the last note held; colours and pads shared by the console, the rim and
+  the music.
+- **Pictures:** ten textures in `assets/space/`, made with Codex, loaded only when the voyage starts; the painted
+  ones stay as a fallback.
+
+## Phase 3, as built
+
+- **`src/finalelaunch.js`** sets `G.finale.console.onUse`. Three phrases (3, 4, 5 notes), each answered by the
+  craft, the hangar lights and three, then four, then five easels lighting (twelve in all). A miss is a sour chord and the
+  phrase again. Keys 1–5, the 3D pads or five big buttons; Esc or LEAVE steps away.
+- **The beam** lifts the twelve pictures with their frames, eight books chosen to match them, and the lost property
+  handed in; then the toy, from the hangar floor. Skippable.
+- **The launch** (about 27 s, skippable): sirens and amber, the silo doors open, snow down the shaft, the rise out
+  of centre field, the craft over the lake, the streak up, then `startVoyage`. The hangar is put back while away.
+- **Saves:** `played` resumes at the beam; `launched` resumes the voyage (cargo kept in `after-hours.launch` until
+  the voyage's own save).
+- **`G.cineEye`** (`main.js`): a feature can hold the camera exactly, like `testEye`.
+
+## Phase 4, as built
+
+- **Stages saved:** `found`, `played`, `launched` (the voyage's own `space`, `landed`, `opened`, `home`).
+- **Fly home** lands the toy beside the silo, facing it; the doors stand open and slide shut over the craft.
+- **Tonight's numbers:** `tonight()` in `src/features.js` keeps the ornaments (best in one Light Run) and the Home Run
+  Derby's home runs (total and best round) in `after-hours.night` until New game, for the summary.
+- **The title** shows a small Moon once `voyageFinished()`.
+- **Where the silo is:** the ballpark was moved (home plate at 402, 146; 70 m to centre) so that centre field lies
+  over the hangar; its outfield leaves the silo square open, and its light pool hides while the doors are open.
 
 ## Open choices (decided for now; easy to change)
 

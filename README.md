@@ -755,7 +755,8 @@ announces itself with a `museum:repair` event (`start`, `end`).
   something they should not have written down. What each says is in
   `src/boardtext.js`.
 - **There is something under the building.** It is not on the map. That is all
-  this file has to say about it.
+  this file has to say about it. (If you would rather be told: docs/FINALE.md.)
+  Finish what is down there and a small Moon appears beside the title.
 
 ## Settings and access
 
@@ -946,7 +947,12 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/whiteboards.js        the whiteboards: the writing on them, and reading one
     src/boardtext.js          what each of them says (no three.js, no DOM)
     src/secret.js, secretclue.js, secretfit.js   what the whiteboards are not telling you
-    src/finale.js, finaleplan.js, finalefit.js   and what is further on than that (docs/FINALE.md, phase 1); G.finale is the hook for what comes after
+    src/finale.js, finaleplan.js, finalefit.js   and what is further on than that: the base, its rooms and its craft (docs/FINALE.md)
+    src/finalelaunch.js       the five notes at the console, the beam, and the launch out of the ballfield
+    src/motif.js              the craft's five-note call (original; no three.js, no DOM)
+    src/voyage.js             the voyage: the cabin, the Destination button, the landing, the opening, the credits, Fly home
+    src/craft.js, moon.js     the saucer you ride in, and the Moon: its ground, its museum, its visitors
+    src/cosmos.js, spacetex.js, cosmicmusic.js   the sky, the planets and the galaxy; their pictures (assets/space); the music out there
     src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
@@ -963,6 +969,9 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
 [prompts.md](prompts.md) lists the prompts that built it, verbatim.
 
 ## Credit
+
+The pictures of the Earth, the Moon, the planets, the galaxy and the lunar ground in `assets/space/` were
+generated for this game with OpenAI's Codex image generation. Everything else in space is drawn in code.
 
 Artwork images and data: the Art Institute of Chicago, <https://api.artic.edu>.
 Positions of streets, gardens and the railway: © OpenStreetMap contributors.

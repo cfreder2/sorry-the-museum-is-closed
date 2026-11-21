@@ -19,7 +19,7 @@
 // mini lights, and never drawn smaller than a pixel or so, so a far string still reads as a line of light. Figures are
 // merged wire; what moves is a few dozen groups. Nothing is allocated per frame, and nothing runs while the toy is far away.
 import * as THREE from 'three';
-import { feature } from './features.js';
+import { feature, tonight } from './features.js';
 import { TAU, C, Wire, canvasTex, circle, ring3, deerBody, deerHead, sleigh, penguin, polarBear, snowman, candyCane, ornament, present, star, snowflake, signBoard, mergeAll } from './glowkit.js';
 import { CarolPlayer } from './carols.js';
 
@@ -738,6 +738,8 @@ feature({
     const f = 523.25 * Math.pow(2, [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26][(this.got - 1) % 12] / 12);
     k.synth.chime([f, f * 1.5, f * 2], { gap: 0.06, dur: 0.9, vol: 0.05 });
     if (this.run) { this.run.orbs++; if (this.run.orbs === this.orbs.length && k.find('ornaments')) k.callout('EVERY ORNAMENT'); }
+    const run = this.run ? this.run.orbs : 0, of = this.orbs.length;
+    tonight(n => { n.ornaments = (n.ornaments || 0) + 1; n.ornamentsBest = Math.max(n.ornamentsBest || 0, run); n.ornamentsOf = of; });
   },
   _hud(text, hold) {
     if (!this.hud) { const d = this.hud = document.createElement('div'); d.id = 'lightRun'; d.setAttribute('aria-live', 'polite'); d.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);padding:4px 12px;border-radius:10px;background:rgba(10,14,22,.62);color:#f3efe2;font:600 17px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.04em;pointer-events:none;z-index:30;text-align:center;white-space:nowrap'; document.body.append(d); }

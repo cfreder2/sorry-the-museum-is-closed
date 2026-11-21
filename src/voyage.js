@@ -29,6 +29,7 @@ import { moonPlan, buildMoon, moonH, Visitors, Dust, DOME, SAUCER, MOON_G, HATCH
 import { makeStarfield, makeSun, makeEarth, makeMoonBall, makePlanet, makeGalaxy, Streaks, dirAE, disposeAll } from './cosmos.js';
 import { loadSpaceTextures, applySpaceTextures } from './spacetex.js';
 import { CosmicMusic } from './cosmicmusic.js';
+import { tonight } from './features.js';
 import { MOTIF, motifVoice } from './motif.js';
 
 const SAVE = 'after-hours.voyage', DONE = 'after-hours.moon';
@@ -546,8 +547,10 @@ class Voyage {
     const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
     const secs = Math.round((G.tm && G.tm.play) || G.t || 0), time = secs >= 3600 ? `${Math.floor(secs / 3600)} h ${Math.floor(secs % 3600 / 60)} min` : `${Math.floor(secs / 60)} min ${secs % 60} s`;
     const has = id => sc && sc.has && sc.has(id);
-    const orn = F.ornaments != null ? String(F.ornaments) : has('ornaments') ? 'every one, in one run' : has('wonderland') ? 'the Light Run done' : 'none yet';
-    const hr = F.homeRuns != null ? String(F.homeRuns) : has('homerun') ? 'yes' : 'none yet';
+    // Tonight's ornaments and home runs (kept by lightshow.js and ballpark.js in features.js tonight()).
+    const N = tonight();
+    const orn = F.ornaments != null ? String(F.ornaments) : N.ornaments ? (N.ornamentsBest ? `${N.ornamentsBest} of ${N.ornamentsOf || 12} in one Light Run` : String(N.ornaments)) : has('ornaments') ? 'every one, in one run' : 'none yet';
+    const hr = F.homeRuns != null ? String(F.homeRuns) : N.homeRuns ? `${N.homeRuns} (best round ${N.bestRound || N.homeRuns})` : has('derbyhr') || has('homerun') ? 'yes' : 'none yet';
     const a = this.cargo.arts.length, b = this.cargo.books.length, it = this.cargo.items.length;
     const box = this.$('.vsum .vbox');
     box.innerHTML = `<div class="over">The Lunar Museum of Art</div><h2>Your night</h2><dl>
@@ -590,7 +593,8 @@ class Voyage {
     if (G.shell && G.shell.setVehicle) G.shell.setVehicle(v.kind);
     const L = G.plan.lakefront, S = G.plan.grounds && G.plan.grounds.silo;
     const at = S ? { x: (S.x0 + S.x1) / 2 - 22, z: (S.z0 + S.z1) / 2 } : L ? { x: 381, z: 110 } : G.plan.spawn;
-    if (v.kind === 'drone') v.place(at.x, at.z, -Math.PI / 2, 1.2); else v.place(at.x, at.z, -Math.PI / 2, 0);
+    const yaw = S ? Math.PI / 2 : -Math.PI / 2;      // facing the silo, to watch it close
+    if (v.kind === 'drone') v.place(at.x, at.z, yaw, 1.2); else v.place(at.x, at.z, yaw, 0);
     G.camYaw = v.yaw;
     if (G.shell && G.shell.chase) G.shell.chase();
     // the voyage's scenes go
@@ -598,7 +602,11 @@ class Voyage {
     for (const a of this.cargo.arts) if (a.tex) a.tex.dispose();
     this.el.remove();
     if (fresh && G.shell && G.shell.newGame) { clearVoyage(); G.shell.newGame(); }
-    else if (G.features && G.features.kit && G.features.kit.say) G.features.kit.say('Back on Butler Field. The night carries on.', 0.5, 6);
+    else {
+      // The craft is home below: the silo stands open beside you, and closes over it (src/finale.js hangar.doors).
+      try { const h = G.finale && G.finale.hangar; if (h && h.doors) { h.doors.set(1); setTimeout(() => h.doors.close(6), 1200); } } catch (e) { console.warn('silo doors', e); }
+      if (G.features && G.features.kit && G.features.kit.say) G.features.kit.say('Back on Butler Field. Below you, the silo closes.', 0.5, 6);
+    }
   }
 
   // ------------------------------------------------------------- per frame --

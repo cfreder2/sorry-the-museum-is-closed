@@ -38,6 +38,14 @@ import { confine } from './plan.js';
 
 export const features = [];
 export function feature(f) { features.push(f); return f; }
+// Tonight's numbers, for the summary at the end of the finale (voyage.js): a little record kept until New game.
+// tonight() reads it; tonight(n => { n.x = ... }) changes it.
+export const NIGHT = 'after-hours.night';
+export function tonight(change) {
+  let n = {}; try { n = JSON.parse(localStorage.getItem(NIGHT) || '{}') || {}; } catch { n = {}; }
+  if (change) { change(n); try { localStorage.setItem(NIGHT, JSON.stringify(n)); } catch { /* private window */ } }
+  return n;
+}
 
 // ---------------------------------------------------------------- carrying
 // One thing-on-the-car system for everything that is picked up and taken somewhere (lost property, the lance,

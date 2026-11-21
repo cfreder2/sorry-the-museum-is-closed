@@ -42,7 +42,7 @@ import { Traffic } from './traffic.js';
 import { Loose } from './loose.js';
 import { Vending } from './vending.js';
 import { startFeaturesInTurn } from './features.js';
-import { startVoyage, testCargo, resumeVoyage, clearVoyage } from './voyage.js';      // the finale's flight to the Moon (docs/FINALE.md)
+import { startVoyage, testCargo, resumeVoyage, clearVoyage, voyageFinished } from './voyage.js';      // the finale's flight to the Moon (docs/FINALE.md)
 // Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
 import './thorne.js';
 import './galleries1.js';
@@ -123,7 +123,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.21.24';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.25';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -502,7 +502,7 @@ function newGame() {
   secrets.reset();
   G.presents.reset();
   if (G.features) G.features.fresh();
-  try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air', 'after-hours.voyage']) localStorage.removeItem(k); } catch { /* fine */ }
+  try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air', 'after-hours.voyage', 'after-hours.night']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
 function titleButtons() {
@@ -566,6 +566,7 @@ let shown = 'title';
 function show(name) {
   for (const id of ['title', 'pause', 'results', 'notebook', 'settings', 'controls', 'about', 'bigmap']) $(id).hidden = id !== name;
   shown = name;
+  if (name === 'title') $('titleMoon').hidden = !voyageFinished();      // a small Moon by the title once the museum on the Moon has opened
   // Keyboard and switch users land on the first control of whatever just opened.
   if (name) { const first = $(name).querySelector('[data-first]:not([disabled])') || $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }
   else canvas.focus({ preventScroll: true });
