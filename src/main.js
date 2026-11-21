@@ -1184,12 +1184,12 @@ function play(dt, real) {
   if (G.auto && racing) inp = autopilot(v, R, dt);
   if (G.testInput) inp = G.testInput;
   if (v.kind === 'car') {
-    if (inp.coast && !G.testInput) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
-    if (set.assist && !(G.auto && racing)) steerHelp(v, inp, dt);
+    if (inp.coast && !G.testInput && !G.ride) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
+    if (set.assist && !(G.auto && racing) && !G.ride) steerHelp(v, inp, dt);
   }
   if ((racing && (R.locked || R.finished)) || G.held) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };      // (G.held: a security robot has the toy, src/guards.js)
   stepLifts(G.plan, dt, [v.pos]);
-  if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else v.update(dt, inp);      // (held: src/guards.js moves the toy itself)
+  if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else if (G.ride) G.ride(dt, inp); else v.update(dt, inp);      // (held: src/guards.js moves the toy itself; G.ride: something else carries it, a sled say, src/sledhill.js)
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
   if (!racing) score.update(G.museum, v, dt, G.roomId, slow.live);       // Stunt Looks: a work in view while the car is in the air
@@ -1204,7 +1204,7 @@ function play(dt, real) {
   if (!racing && G.loose) G.loose.update(dt, movers, v);
   if (!racing) { G.hockey.update(dt, v); const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 18) once('pond', 'A pond, frozen hard, with a goal at each end and a puck in the middle. Somebody is waiting for a game.', 7); }
   // Outdoors: tyre tracks, and a word about whatever sculpture you have just come up to.
-  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && (v.on ? v.on.hill : Math.abs(v.pos.y) < 0.03) ? v : null, set.reduce);
+  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && !G.ride && (v.on ? v.on.hill : Math.abs(v.pos.y) < 0.03) ? v : null, set.reduce);
   if (!racing && !G.roomId) for (const a of G.plan.outdoorArt) if ((v.pos.x - a.x) ** 2 + (v.pos.z - a.z) ** 2 < a.r * a.r) once('out:' + a.text, a.text, 6);
 
   // Hoops.
