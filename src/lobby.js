@@ -63,11 +63,14 @@ feature({
     }
     box(0.36, 0.025, z1 - z0, walnut, X + 0.25, top + 0.32, (z0 + z1) / 2);
     for (let i = 0; i < 6; i++) { const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.1, 14), coatMats[(i * 3) % coatMats.length]); hat.position.set(X + 0.25, top + 0.39, z0 + 0.5 + i * 0.7); g.add(hat); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.01, 16), hat.material); brim.position.set(hat.position.x, top + 0.34, hat.position.z); g.add(brim); }
-    // The sign, hung over the counter on two rods: COAT CHECK, and under it LOST & FOUND.
+    // The sign, hung over the counter on two rods: LOST & FOUND, and under it Coat Check.
     const signT = canvasTex(512, 200, (c, w, h) => {
       c.fillStyle = '#16120d'; c.fillRect(0, 0, w, h); c.strokeStyle = '#c79a3c'; c.lineWidth = 6; c.strokeRect(8, 8, w - 16, h - 16);
-      c.fillStyle = '#f2e6c8'; c.textAlign = 'center'; c.font = '600 78px Georgia, serif'; c.fillText('COAT CHECK', w / 2, 102);
-      c.fillStyle = '#e0b85a'; c.font = 'italic 44px Georgia, serif'; c.fillText('Lost & Found', w / 2, 160);
+      // each line set as large as it will go and still sit well inside the gilt border
+      const fit = (text, font, px, maxW) => { c.font = `${font} ${px}px Georgia, serif`; const m = c.measureText(text).width; if (m > maxW) { px = Math.floor(px * maxW / m); c.font = `${font} ${px}px Georgia, serif`; } };
+      c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+      c.fillStyle = '#f2e6c8'; fit('LOST & FOUND', '600', 74, w - 96); c.fillText('LOST & FOUND', w / 2, 106);
+      c.fillStyle = '#e0b85a'; fit('Coat Check', 'italic', 40, w - 140); c.fillText('Coat Check', w / 2, 158);
     });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.59), new THREE.MeshBasicMaterial({ map: signT, color: new THREE.Color(1.1, 1.1, 1.1) }));
     sign.position.set(cx + D + 0.05, y + 2.55, (z0 + z1) / 2); sign.rotation.y = Math.PI / 2; g.add(sign);
