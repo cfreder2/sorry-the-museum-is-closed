@@ -158,7 +158,7 @@ feature({
   update(dt, k) {
     const p = k.pos, v = k.v, sp = Math.abs(v.speed || 0);
     let best = -1, bd = 9;
-    HIVES.forEach(([hx, hz], i) => { const d = near2(p, hx, hz + 0.45); if (d < bd) { bd = d; best = i; } });
+    for (let i = 0; i < HIVES.length; i++) { const d = near2(p, HIVES[i][0], HIVES[i][1] + 0.45); if (d < bd) { bd = d; best = i; } }
     if (bd < 6 * 6) k.once('roofbees', 'The museum’s beehives, wrapped for winter. Stop and listen.', 5);
     const close = bd < 1.0 && Math.abs(p.y - this.top) < 1.4;
     if (close && sp > 2.2 && this.angry <= 0) { this.angry = 3; k.say('Too hard. Gently.', 2.5); }

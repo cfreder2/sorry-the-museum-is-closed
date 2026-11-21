@@ -183,14 +183,15 @@ feature({
   update(dt, k) {
     const p = k.pos;
     if (near2(p, this.at.x, this.at.z) < 8 * 8) k.once('roofjingle', 'Five vents, five notes. Follow the glow.', 5);
-    this.pads.forEach((d, i) => {
+    for (let i = 0; i < this.pads.length; i++) {
+      const d = this.pads[i];
       const dd = near2(p, d.x, d.z), up = p.y - d.y;
       if (!d.on && dd < 0.5 * 0.5 && up < 0.7 && up > -0.3) { d.on = true; this.hit(k, i); }
       else if (d.on && (dd > 0.62 * 0.62 || up > 0.9)) d.on = false;
       d.flash = Math.max(0, d.flash - dt * 2.5);
       const hint = !this.show && i === TUNE[this.n] ? 0.55 + 0.45 * Math.sin(performance.now() / 180) : 0;
       d.ringM.color.copy(d.col).multiplyScalar(0.3 + 1.6 * Math.max(d.flash, hint));
-    });
+    }
     if (this.show) {
       this.t += dt;
       while (this.show.length && this.show[0][0] <= this.t) { const [, i] = this.show.shift(), d = this.pads[i]; d.flash = 1; this.puff.emit(d.x, d.top, d.pz, 5, { spread: 0.06, up: 1.3, out: 0.15 }); }
@@ -372,7 +373,7 @@ feature({
   update(dt, k) {
     if (k.close(this.start, 3.5, 1.5)) k.once('roofrun', 'A run over the roofs starts here. Follow the flags.', 5);
     this.timer.update(dt);
-    const t = performance.now() / 1000; this.flags.forEach((f, i) => { f.rotation.y = Math.sin(t * 2.3 + i) * 0.35 - 0.4; });
+    const t = performance.now() / 1000; for (let i = 0; i < this.flags.length; i++) this.flags[i].rotation.y = Math.sin(t * 2.3 + i) * 0.35 - 0.4;
   },
   reset() { if (this.timer) this.timer.cancel(); },
   spots() { return this.start ? [{ kind: 'secret', id: 'roofrun', name: `Over the rooftops (scaffold to the banner in ${RUN_TARGET} s)`, ...this.start }] : []; },
@@ -443,7 +444,7 @@ feature({
   },
   update(dt, k) {
     if (!this.stacks) return;
-    const p = k.pos, v = k.v, carrying = k.carry.list.find(i => /^parcel\d$/.test(i.id));
+    const p = k.pos, v = k.v, carrying = this.carrying(k);
     // A little smoke from the lit pot of each, when anyone is near enough to see it.
     if ((this.st -= dt) < 0) { this.st = 0.35; for (const s of this.stacks) if (near2(p, s.x, s.z) < 45 * 45) this.smoke.emit(s.pot.x, s.pot.y + 0.05, s.pot.z, 1, { spread: 0.05, up: 0.55, out: 0.12, life: 3 }); }
     if (carrying) for (const s of this.stacks) {
@@ -463,6 +464,7 @@ feature({
     if (this.drop.t >= 0) { this.drop.t += dt; const m = this.drop.mesh; m.position.y -= dt * 1.2; m.rotation.y += dt * 6; if (this.drop.t > 0.6) { this.drop.t = -1; k.group.remove(m); this.drop.mesh = null; } }
     this.smoke.update(dt); this.puff.update(dt);
   },
+  carrying(k) { for (const i of k.carry.list) if (i.id.startsWith('parcel')) return i; return null; },
   reset() { if (!this.inSack) return; this.taken = [false, false, false]; this.inSack.forEach(m => { m.visible = true; }); },
   spots() { return (this.stacks || []).map(s => ({ kind: 'secret', id: 'roofchimney', name: 'Chimney (' + s.id + ') for a parcel from the sack by the card game', x: s.x, y: s.y, z: s.z })); },
 });

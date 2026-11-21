@@ -177,6 +177,7 @@ feature({
     this.pos = f.pts.map(([sx, sy]) => new THREE.Vector3(103 + sx * 7.4, this.top + 4.6 + sy * 2.4 + sx * 0.35, 110 + sy * 3.2));
     this.stars.forEach((s, i) => { const q = this.pos[i]; s.visible = !!q && this.pos.findIndex(o => o.equals(q)) === i; if (q) s.position.copy(q); s.material.color.setRGB(0.8, 0.85, 1); });
     this.links.forEach(l => { l.visible = false; });
+    this.idx = this.pos.map(q => this.pos.findIndex(o => o.equals(q)));        // (a figure that closes on itself comes back to a star it has had)
     this.next = 0; this.done = false;
   },
   link(i) {
@@ -189,8 +190,8 @@ feature({
     const p = k.pos, t = performance.now() / 1000;
     if (near2(p, this.at.x, this.at.z) < 30 * 30) k.once('roofstars', k.v.kind === 'drone' ? 'Stars, low over the roof. Fly through them in order.' : 'Stars, low over the roof. Only a drone can reach them.', 5);
     if (this.wait > 0) { this.wait -= dt; if (this.wait <= 0) { this.fig = (this.fig + 1) % FIGURES.length; this.lay(); } this.sparks.update(dt); return; }
-    const n = this.pos.length, g = this.pos[this.next], ni = g ? this.pos.findIndex(q => q.equals(g)) : -1;
-    this.stars.forEach((s, i) => { if (!s.visible) return; s.scale.setScalar(i === ni ? 1.1 + 0.35 * Math.sin(t * 5) : i < this.next || this.done ? 1.25 : 0.8 + 0.1 * Math.sin(t * 2 + i)); });
+    const n = this.pos.length, g = this.pos[this.next], ni = g ? this.idx[this.next] : -1;
+    for (let i = 0; i < this.stars.length; i++) { const s = this.stars[i]; if (!s.visible) continue; s.scale.setScalar(i === ni ? 1.1 + 0.35 * Math.sin(t * 5) : i < this.next || this.done ? 1.25 : 0.8 + 0.1 * Math.sin(t * 2 + i)); }
     if (g && p.distanceToSquared(g) < 0.85 * 0.85) {
       this.stars[ni].material.color.setRGB(1.4, 1.25, 0.9);
       k.synth.note(523.25 * Math.pow(2, [0, 2, 4, 7, 9, 12, 14, 12][this.next] / 12), 0.9, { type: 'sine', vol: 0.06 });
@@ -210,9 +211,9 @@ feature({
 });
 
 // ---------------------------------------------------------------- pigeons
-// Three flocks: on the bridge's parapet, on the edge of the Rice Building, and on the conservation wing. They go up
+// Four flocks: on the bridge's parapet, on the edge of the Rice Building, on the conservation wing, and over Columbus Drive. They go up
 // when anything comes near, wheel round, and come back down when it has gone.
-const FLOCKS = [{ id: 'bridge', a: [113, 100.25], b: [123, 100.25], face: Math.PI }, { id: 'rice', a: [151.5, 137], b: [151.5, 146], face: -Math.PI / 2 }, { id: 'north', a: [89.2, 28], b: [89.2, 37], face: Math.PI / 2 }];
+const FLOCKS = [{ id: 'bridge', a: [113, 100.25], b: [123, 100.25], face: Math.PI }, { id: 'rice', a: [151.5, 137], b: [151.5, 146], face: -Math.PI / 2 }, { id: 'north', a: [89.2, 28], b: [89.2, 37], face: Math.PI / 2 }, { id: 'columbus', a: [228, 92.8], b: [237, 92.8], face: Math.PI }];
 feature({
   id: 'roofpigeons',
   secrets: [['roofpigeons', 'Every pigeon up']],
