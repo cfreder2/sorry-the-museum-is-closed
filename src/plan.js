@@ -1009,7 +1009,7 @@ function addLakefront(plan) {
     field: { x0: C.x1, x1: 480, z0, z1 }, lsd: { x0: 480, x1: 514, med: [494.5, 499.5] }, prom: { x0: 514, x1: 528 },
     shore: 530, buoys: 575, slip: [104, 116], shell: { x0: 304, x1: 328, z0: 220, z1: 232, h: 1.1 },
     breakwater: { x0: 600, x1: 605, z0: 44, z1: 200 }, light: { x: 602.5, z: 46 },
-    paths: [], cars: [], hills: [[352, 48, 17, 4.5, 14], [436, 178, 21, 6.5, 17]],
+    paths: [], cars: [], hills: [[436, 178, 21, 6.5, 17]],      // (the north-west quarter is the light show, and the jump park has its own snow mountain: butlerfield.js)
   };
   // Clear ice over the fishing hole (icefish.js): the harbour ice and the snow under it are left open here, and the
   // water, the weed and the fish are drawn below.
