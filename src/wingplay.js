@@ -129,10 +129,11 @@ feature({
     const faceOf = [z0, z0, z1], outOf = [-1, -1, 1];      // which face each stop's door is in, and which way is out
     this.gates = S.map((s, i) => { const z = faceOf[i], lo = i ? s - 0.3 : -0.3, hi = s + DH, o = { x0: a0, x1: a1, z0: z - 0.09, z1: z + 0.06, y0: lo, y1: hi, lo, hi }; if (outOf[i] > 0) { o.z0 = z - 0.06; o.z1 = z + 0.09; } O.push(o); return o; });
 
-    // A step across from the car to the roof, railed both sides over the gap to the terrace.
+    // A step across from the car to the roof, railed both sides over the gap to the terrace. It stops just over the
+    // roof's edge, a centimetre proud of it, so the two tops never lie in one plane.
     const deck = mat(0xd8dadb), steel = mat(0x8d969e, { metalness: 0.7, roughness: 0.3 });
-    k.solid({ skin: 'deck', x0: a0 - 0.1, x1: a1 + 0.1, z0: z1 - 0.1, z1: wz + 0.7, axis: null, h0: roof, h1: roof, thick: 0.2 }, deck);
-    for (const x of [a0 - 0.1, a1 + 0.1]) { O.push({ x0: x - 0.03, x1: x + 0.03, z0: z1 + 0.1, z1: wz + 0.05, y0: roof - 0.2, y1: roof + 0.6 }); k.group.add(box(0.05, 0.6, wz + 0.05 - z1 - 0.1, steel, x, roof + 0.3, (z1 + 0.1 + wz + 0.05) / 2)); }
+    k.solid({ skin: 'deck', x0: a0 - 0.1, x1: a1 + 0.1, z0: z1 - 0.1, z1: wz + 0.08, axis: null, h0: roof + 0.012, h1: roof + 0.012, thick: 0.2 }, deck);
+    for (const x of [a0 - 0.1, a1 + 0.1]) { O.push({ x0: x - 0.03, x1: x + 0.03, z0: z1 + 0.1, z1: wz + 0.05, y0: roof - 0.2, y1: roof + 0.6 }); const L = wz + 0.05 - z1 - 0.1, mz = (z1 + 0.1 + wz + 0.05) / 2; k.group.add(box(0.05, 0.05, L, steel, x, roof + 0.58, mz), box(0.03, 0.03, L, steel, x, roof + 0.3, mz)); for (const z of [z1 + 0.12, wz + 0.03]) k.group.add(box(0.05, 0.6, 0.05, steel, x, roof + 0.3, z)); }
 
     // ---- drawn: the shaft. Steel corner posts, mullions at the door jambs and down the middle of each side, a
     // transom at every sill and head and between; glass in every panel but the doorways.
@@ -142,7 +143,7 @@ feature({
     for (const x of [x0, x1]) frame.box(x - F, x + F, 0, T, zm - F, zm + F);
     const lv = [0, S[0] + DH, S[1], S[1] + DH, S[2], S[2] + DH, T].sort((p, q) => p - q), rows = [];
     for (let i = 0; i < lv.length - 1; i++) { const n = Math.max(1, Math.round((lv[i + 1] - lv[i]) / 2.8)); for (let j = 0; j < n; j++) rows.push([lv[i] + (lv[i + 1] - lv[i]) * j / n, lv[i] + (lv[i + 1] - lv[i]) * (j + 1) / n]); }
-    for (const [y] of rows.concat([[T]])) { for (const z of [z0, z1]) frame.box(x0, x1, y - 0.055, y + 0.005, z - F, z + F); for (const x of [x0, x1]) frame.box(x - F, x + F, y - 0.055, y + 0.005, z0, z1); }      // (a sill no higher than the floor it is under)
+    for (const [y] of rows.concat([[T]])) { for (const z of [z0, z1]) frame.box(x0, x1, y - 0.05, y + 0.012, z - F, z + F); for (const x of [x0, x1]) frame.box(x - F, x + F, y - 0.05, y + 0.012, z0, z1); }      // (a sill a centimetre proud of the landing it meets)
     const doorRow = (face, y0) => S.some((s, i) => faceOf[i] === face && y0 > (i ? s : 0) - 0.01 && y0 < s + DH - 0.01);
     for (const [y0, y1] of rows) {
       for (const z of [z0, z1]) for (const [p, q] of [[x0, a0], [a0, a1], [a1, x1]]) { if (p === a0 && doorRow(z, y0)) continue; const n = z === z0 ? -1 : 1; glassG.quad([p, y0, z], [q, y0, z], [q, y1, z], [p, y1, z], [0, 0, n]); }
