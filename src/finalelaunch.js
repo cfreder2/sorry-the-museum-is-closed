@@ -146,6 +146,7 @@ feature({
   // Whatever is pressed at the console.
   use() {
     const k = this.k, st = this.fin.save.state;
+    if (this.run === 'cue') { k.say('Down to the hangar floor, into the beam.', 4); return; }
     if (this.run) return;
     if (!this.fin.built) this.fin._build();
     if (!this.hooked) this._hook(k);
@@ -497,6 +498,7 @@ feature({
       this.q.length = 0; this.tw.length = 0; this.flights.length = 0;
       if (!this.beamArts) this._cargoArts();
       const h = this.hangar; h.craft.set(LIFT);
+      if (h.ramp.down) h.ramp.raise(); this._hum(1);      // (skipped before the ramp came up and the hum began)
       for (const e of this.beamArts || []) { e.art.mesh.visible = false; if (e.fly) { this.fin.baseG.attach(e.art.mesh); e.art.mesh.visible = false; e.fly.parent && e.fly.parent.remove(e.fly); } }
       if (this.hangar.frames) this.hangar.frames.visible = false;
       this._clearThings();
@@ -546,7 +548,7 @@ feature({
     if (!this.aim) this.aim = { p: this.hangar.beamOrigin.clone().add(V(0, -3, 0)), to: V(), rate: 2 };
     this._aimAt(V(394, this.fin.F.fl + 0.8, 176));
   },
-  _beamOff() { this.beam = false; if (this.beamG) this.beamG.visible = false; this._hum(0); },
+  _beamOff() { this.beam = false; if (this.beamG) this.beamG.visible = false; },      // (the hum carries on into the launch: _reset stops it)
   _aimAt(p, rate = 2) { if (!this.aim) this.aim = { p: p.clone(), to: p.clone(), rate }; this.aim.to.copy(p); this.aim.rate = 1 / Math.max(0.05, rate); },
   _beamTick(dt) {
     const o = this.hangar.beamOrigin, a = this.aim;
