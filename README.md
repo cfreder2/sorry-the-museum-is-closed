@@ -371,6 +371,50 @@ shader from a handful of numbers set once a frame (the beat, the bar, the
 note, where the car is). Nothing is rebuilt or allocated per frame, and
 none of it runs when you are not near.
 
+### The ballpark and the Home Run Derby
+
+The south-east quarter of Butler Field has four softball diamonds under the
+snow. The north-west one is a ballpark, ploughed and lit for a night game
+(`src/ballpark.js`):
+
+- **Lit.** Six light towers, steel masts eighteen metres high with a bank of
+  fifteen floodlights on each, aimed at the field, with a haze round each bank
+  and a faint beam down through the falling snow. The light is drawn into the
+  field's own ground, and a soft pool of it lies on the snow round about.
+- **Ploughed.** The infield is cleared to frozen clay: the bases, the plate,
+  a raised mound with its pitcher's plate, the batter's and catcher's boxes,
+  the circle round the mound and the foul lines in chalk. The outfield snow
+  is rolled in a checker, as a groundsman mows grass, out to a clay warning
+  track.
+- **Walled.** The outfield wall stands 40 m down the lines and 68 m out in
+  centre field, 1.4 m high (a fantasy distance for a 46 cm toy: the derby's
+  snowballs fly as far as they need to). It is padded, with the yellow
+  home-run line along its top, the distances in feet on it, a yellow foul
+  pole at each end and a string of twinkling mini lights all along it. It is
+  solid; a car with a good jump can clear it.
+- **Dugouts** down both lines (roofed: drive in under, or land on top), a
+  backstop behind the plate, a bleacher of three tiers down the first-base
+  line with ten snowman fans on it, and a lit scoreboard out past the wall.
+- **The centre field square.** A flat, clear 32 m square in centre field,
+  inside the wall, is kept free of everything (`plan.grounds.silo`, set in
+  `plan.js` with the rest of the ballpark's place, `lakefront.ballpark`).
+
+**The derby.** A snowman stands on the mound with a cap, a mitt and a ball.
+Pull into the batter's box beside the plate and press `E` (BAT on a phone):
+he pitches ten snowballs, underhand, windmill style. Some come straight,
+some are slow lobs and some are snow-curves that swing out and come back.
+Swing with the jump (`Space`, SWING on a phone, a bumper on a pad): the car
+hops and whips round, and its tail bats the ball. What decides the hit is
+how far the ball is from the plate when the tail comes round: right on it
+and it goes out of the park; a little off, a fly ball; more, a line drive,
+then a grounder; too far, and it is a strike. Early pulls it towards third,
+late pushes it towards first, and far enough off either way it is foul.
+Snowballs burst into powder where they land. A home run sets the lights on
+the wall racing out from where it went over, the fans jump, the crowd
+cheers, the organ plays and fireworks go up. The screen keeps it short:
+PITCH 4/10 · HR 2. The scoreboard keeps the best round and the length of
+the last homer. Two secrets: the first home run, and five in a round.
+
 ## What is in it
 
 - **Explore.** The building starts dark. Lamps come on as you reach them, each
@@ -821,6 +865,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/winter.js             paths, the courtyard tree, glitter, tyre tracks
     src/statues.js            the lions, the fountains and the sculpture outdoors
     src/butlerfield.js        Butler Field: the plough-pile jump park, the softball diamonds, lamps, the warming hut
+    src/ballpark.js           the lit ballpark on Butler Field and its Home Run Derby against a snowman
     src/lightshow.js          the Winter Wonderland light show on Butler Field and its Light Run
     src/carols.js             the carols it plays: scores, chord charts, the band, the player (no three.js, no DOM)
     src/glowkit.js            lights out of doors: instanced bulbs, figures drawn in glowing wire

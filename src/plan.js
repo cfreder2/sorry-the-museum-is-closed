@@ -1009,8 +1009,14 @@ function addLakefront(plan) {
     field: { x0: C.x1, x1: 480, z0, z1 }, lsd: { x0: 480, x1: 514, med: [494.5, 499.5] }, prom: { x0: 514, x1: 528 },
     shore: 530, buoys: 575, slip: [104, 116], shell: { x0: 304, x1: 328, z0: 220, z1: 232, h: 1.1 },
     breakwater: { x0: 600, x1: 605, z0: 44, z1: 200 }, light: { x: 602.5, z: 46 },
-    paths: [], cars: [], hills: [[436, 178, 21, 6.5, 17]],      // (the north-west quarter is the light show, and the jump park has its own snow mountain: butlerfield.js)
+    paths: [], cars: [], hills: [[440, 76, 21, 6.5, 17]],      // (between the jump park and the cross path; the north-west quarter is the light show, and the jump park has its own snow mountain: butlerfield.js)
   };
+  // The ballpark on the north-west diamond of the south-east quarter (ballpark.js): home plate, the first-base line
+  // running south (+z), the third-base line east (+x), and the outfield wall `line` metres out down the lines and
+  // `centre` metres out in centre field, `wall` high. Centre field keeps a flat, clear 32 m square (G.silo) with
+  // nothing standing on it, inside the wall: the outfield is to split open there one day.
+  L.ballpark = { hx: 395, hz: 116, line: 40, centre: 68, wall: 1.4 };
+  G.silo = { x0: 409, x1: 441, z0: 130, z1: 162 };
   // Clear ice over the fishing hole (icefish.js): the harbour ice and the snow under it are left open here, and the
   // water, the weed and the fish are drawn below.
   { const fx = (L.shore + L.buoys) / 2 - 2.5, fz = 122; L.fish = { x: fx, z: fz }; L.window = { x0: fx - 4, x1: fx + 4, z0: fz - 4, z1: fz + 4 }; }

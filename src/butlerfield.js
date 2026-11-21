@@ -1,12 +1,13 @@
 // Butler Field, the block of Grant Park between Columbus Drive and Lake Shore Drive (features.js).
 // The north-west quarter, facing the Modern Wing across Columbus Drive, is the Winter Wonderland light show and its
 // Light Run (lightshow.js). The north-east is a jump park made of the ploughs' snow piles. The south-east has the field's
-// softball diamonds, under snow, with their backstops and benches. Lamps, benches and bins along the paths, a warming hut
-// and a scoreboard lit up for the night. Everything is merged or instanced; the lights twinkle in a shader.
+// softball diamonds, under snow, with their backstops and benches; the first of them is the ballpark (ballpark.js), lit
+// and walled, with its own scoreboard. Lamps, benches and bins along the paths, and a warming hut. Everything is merged or instanced; the lights twinkle in a shader.
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { heightOf } from './plan.js';
 import { TAU, C, Bulbs, Wire, canvasTex, lit, signBoard, mergeAll } from './glowkit.js';
+import './ballpark.js';           // the north-west diamond is a lit ballpark with a wall and a Home Run Derby (ballpark.js)
 
 // ---------------------------------------------------------------- the feature
 feature({
@@ -96,7 +97,8 @@ feature({
   },
 
   // ============================================================ the softball diamonds
-  // Four diamonds in the south-east quarter, home plates in the corners, foul lines along the field's own lines.
+  // Four diamonds in the south-east quarter, home plates in the corners, foul lines along the field's own lines. The
+  // north-west one is the ballpark, drawn in ballpark.js: only its bases are kept here, for running round them.
   _diamonds(k) {
     const O = k.plan.obstacles, g = this.g, B = this.bulbs;
     const BL = 12, posts = [], panels = [], fenceGeo = [], benchGeo = [];
@@ -114,6 +116,7 @@ feature({
     // home plate, and which way the first-base line and the third-base line run (unit vectors along x and z)
     for (const [hx, hz, fx, tz, n] of [[395, 116, 1, 1, 1], [466, 116, -1, 1, 2], [395, 236, 1, -1, 3], [466, 236, -1, -1, 4]]) {
       const home = { x: hx, z: hz }, first = { x: hx + fx * BL, z: hz }, second = { x: hx + fx * BL, z: hz + tz * BL }, third = { x: hx, z: hz + tz * BL };
+      if (n === 1) { this.diamonds.push({ n, bases: [home, third, second, first], step: 0, t: 0 }); continue; }      // (the ballpark's first base is down the +z line, on the right as you face the pitcher)
       this.diamonds.push({ n, bases: [home, first, second, third], step: 0, t: 0 });
       // the backstop: an arc of tall panels behind home plate
       const ux = -fx * Math.SQRT1_2, uz = -tz * Math.SQRT1_2, R = 4.5, base = Math.atan2(uz, ux);
@@ -130,10 +133,12 @@ feature({
         O.push(along === 'x' ? { x0: bx - 2, x1: bx + 2, z0: bz - 0.2, z1: bz + 0.2, y0: 0, y1: 0.5 } : { x0: bx - 0.2, x1: bx + 0.2, z0: bz - 2, z1: bz + 2, y0: 0, y1: 0.5 });
       }
       // bases poking out of the snow, the plate, the pitcher's plate, the foul poles far down the lines
-      for (const b of [first, second, third]) { const q = new THREE.BoxGeometry(0.38, 0.08, 0.38); q.rotateY(Math.PI / 4); q.translate(b.x, 0.04, b.z); fenceGeo.push(q); B.add(b.x, 0.12, b.z, C.white, Math.random(), 2, 0.03); }
+      for (const b of [first, second, third]) { const q = new THREE.BoxGeometry(0.38, 0.03, 0.38); q.rotateY(Math.PI / 4); q.translate(b.x, 0.015, b.z); fenceGeo.push(q); B.add(b.x, 0.12, b.z, C.white, Math.random(), 2, 0.03); }
       { const sh = new THREE.Shape([[-0.22, 0], [0.22, 0], [0.22, 0.22], [0, 0.44], [-0.22, 0.22]].map(([x, y]) => new THREE.Vector2(x, y))); const q = new THREE.ExtrudeGeometry(sh, { depth: 0.04, bevelEnabled: false }); q.rotateX(-Math.PI / 2); q.rotateY(Math.atan2(fx, tz) + Math.PI); q.translate(hx, 0.0, hz); fenceGeo.push(q); }
-      { const q = new THREE.BoxGeometry(0.6, 0.05, 0.15); q.translate(hx + fx * BL * 0.5, 0.15, hz + tz * BL * 0.5); fenceGeo.push(q); const m = new THREE.SphereGeometry(1.6, 16, 6, 0, TAU, 0, 0.5); m.scale(1, 0.2, 1); m.translate(hx + fx * BL * 0.5, -0.05, hz + tz * BL * 0.5); fenceGeo.push(m); }
-      for (const [x, z] of [[hx + fx * 26, hz], [hx, hz + tz * 26]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 7, 8), yellow); p.position.set(x, 3.5, z); g.add(p); O.push({ x0: x - 0.1, x1: x + 0.1, z0: z - 0.1, z1: z + 0.1, y0: 0, y1: 7 }); }
+      // (the mound a low cap of snow on the ground, no more than 3 cm up, and the pitcher's plate on it)
+      { const q = new THREE.BoxGeometry(0.6, 0.02, 0.15); q.translate(hx + fx * BL * 0.5, 0.03, hz + tz * BL * 0.5); fenceGeo.push(q); const m = new THREE.SphereGeometry(1.6, 16, 6, 0, TAU, 0, 0.5); m.scale(1, 0.15, 1); m.translate(hx + fx * BL * 0.5, -1.6 * Math.cos(0.5) * 0.15 + 0.002, hz + tz * BL * 0.5); fenceGeo.push(m); }
+      // short yellow markers where the foul lines run out (the tall poles and the lights are at the ballpark)
+      for (const [x, z] of [[hx + fx * 26, hz], [hx, hz + tz * 26]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.2, 8), yellow); p.position.set(x, 0.6, z); g.add(p); O.push({ x0: x - 0.07, x1: x + 0.07, z0: z - 0.07, z1: z + 0.07, y0: 0, y1: 1.2 }); }
       // a number on the backstop
       { const t = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#123a24'; c.fillRect(0, 0, w, h); c.strokeStyle = '#f2e8c8'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12); c.fillStyle = '#f2e8c8'; c.font = '700 64px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('F' + n, w / 2, h / 2 + 4); });
         const s = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.1, 1.1, 1.1), side: THREE.DoubleSide })); s.position.set(hx + ux * (R + 0.05), 2.4, hz + uz * (R + 0.05)); s.rotation.y = Math.atan2(ux, uz); g.add(s); }
@@ -142,7 +147,7 @@ feature({
     // snowmen standing about the diamonds like fielders: knock all six down
     this.snowmen = []; this.downed = 0;
     const smM = lit(0xf4f7fb, { roughness: 0.85 }), coal = lit(0x18181a), carrot = lit(0xe2702a), scarfM = lit(0xc0392b);
-    for (const [x, z] of [[401, 122], [404, 129], [459, 125], [401, 228], [458, 229], [428, 140]]) {
+    for (const [x, z] of [[452, 214], [412, 219], [459, 125], [401, 228], [458, 229], [421, 205]]) {      // (none in the ballpark, nor on the clear square in its centre field)
       const grp = new THREE.Group(); grp.position.set(x, 0, z);
       [[0.42, 0.42], [0.3, 1.04], [0.21, 1.5]].forEach(([r, y]) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), smM); m.position.y = y; grp.add(m); });
       const nose = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.22, 8), carrot); nose.rotation.x = Math.PI / 2; nose.position.set(0, 1.5, 0.28); grp.add(nose);
@@ -161,7 +166,7 @@ feature({
   },
 
   // ============================================================ along the paths
-  // Park lamps down both sides of the paths, benches and bins between them, the field's sign, a warming hut and a scoreboard.
+  // Park lamps down both sides of the paths, benches and bins between them, the field's sign and a warming hut.
   _paths(k) {
     const O = k.plan.obstacles, g = this.g, B = this.bulbs, F = this.F;
     const lamps = [];
@@ -216,21 +221,6 @@ feature({
       for (let i = 0; i <= 26; i++) { const t = i / 26, x = hx - 2.8 + t * 5.6, sag = Math.sin(t * Math.PI * 4) * 0.06; B.add(x, 2.55 - Math.abs(sag), hz - 1.95, [C.red, C.green, C.gold, C.blue][i % 4], i * 0.4, 0, 0.06); }
       const sign = signBoard(2.2, 0.55, [['WARMING HUT', 70, '#ffe7b8', 0.55]], '#2a1408'); sign.position.set(hx, 2.95, hz - 1.97); sign.rotation.y = Math.PI; g.add(sign);
       O.push({ x0: hx - 2.5, x1: hx + 2.5, z0: hz - 1.7, z1: hz + 1.7, y0: 0, y1: 3.6 });
-    }
-    // the scoreboard between the two northern diamonds, facing south, lit
-    {
-      const sx = 430.5, sz = 114.5;
-      const t = canvasTex(512, 256, (c, w, h) => {
-        c.fillStyle = '#0d1f16'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e8d9a8'; c.lineWidth = 8; c.strokeRect(8, 8, w - 16, h - 16);
-        c.fillStyle = '#e8d9a8'; c.font = '700 34px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('BUTLER FIELD', w / 2, 52);
-        c.font = '600 26px system-ui,sans-serif'; c.fillText('HOME', w * 0.28, 104); c.fillText('GUEST', w * 0.72, 104);
-        c.fillStyle = '#ffb02e'; c.font = '700 84px monospace'; c.fillText('0', w * 0.28, 190); c.fillText('0', w * 0.72, 190);
-        c.fillStyle = '#e8d9a8'; c.font = '600 22px system-ui,sans-serif'; c.fillText('INNING  9   ·   SNOW DELAY', w / 2, 236);
-      });
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.1), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.3, 1.3, 1.3), side: THREE.DoubleSide })); board.position.set(sx, 3.4, sz); g.add(board);
-      const back = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.3, 0.15), lit(0x14261c)); back.position.set(sx, 3.4, sz - 0.1); g.add(back);
-      for (const d of [-1.6, 1.6]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.3, 8), lit(0x1c2126)); p.position.set(sx + d, 1.15, sz - 0.1); g.add(p); O.push({ x0: sx + d - 0.1, x1: sx + d + 0.1, z0: sz - 0.2, z1: sz, y0: 0, y1: 4.6 }); }
-      for (let i = 0; i < 14; i++) B.add(sx - 2.1 + i * 0.32, 4.6, sz + 0.05, C.warm, i * 0.5, 1, 0.05);
     }
   },
 
