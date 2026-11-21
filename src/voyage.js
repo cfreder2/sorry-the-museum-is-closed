@@ -50,7 +50,11 @@ export function voyageSaved() { try { const s = JSON.parse(localStorage.getItem(
 export function voyageFinished() { try { return localStorage.getItem(DONE) === '1'; } catch { return false; } }
 export function clearVoyage() { try { localStorage.removeItem(SAVE); } catch { /* fine */ } }
 function save(stage, v) {
-  try { localStorage.setItem(SAVE, JSON.stringify({ stage, toy: v.toy, cargo: { arts: v.cargo.arts.map(a => a.id), books: v.cargo.books.map(b => b.k), items: v.cargo.items.map(i => i.kind) }, at: Date.now() })); } catch { /* fine */ }
+  // A work hung in the museum tonight is saved as its id; any other (the base's archive, src/finalelaunch.js) as the little
+  // the voyage needs of its record, since a reload could not find it by id.
+  const hung = new Set((v.G.museum ? v.G.museum.arts : []).map(a => a.work && a.work.id));
+  const art = a => hung.has(a.id) ? a.id : { id: a.id, t: a.work.t, a: a.work.a, d: a.work.d, img: a.work.img, w: a.work.w, h: a.work.h, iw: a.work.iw, ih: a.work.ih, k: a.work.k, c: '' };
+  try { localStorage.setItem(SAVE, JSON.stringify({ stage, toy: v.toy, cargo: { arts: v.cargo.arts.map(art), books: v.cargo.books.map(b => b.k), items: v.cargo.items.map(i => i.kind) }, at: Date.now() })); } catch { /* fine */ }
 }
 
 /** Pick the voyage back up after a reload, if one is under way. Returns true if it did. */

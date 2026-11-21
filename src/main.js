@@ -65,6 +65,7 @@ import './giftshop.js';
 import './butlerfield.js';
 import './lightshow.js';
 import './finale.js';
+import './finalelaunch.js';      // the five notes, the tractor beam and the launch (docs/FINALE.md, phase 3)
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -1563,6 +1564,7 @@ function tick(now) {
   if (G.state === 'arcade' || G.state === 'repair') return;
   if (G.state === 'paused' || G.state === 'results') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
+  else if (G.cineEye && G.state === 'play') { const e = G.cineEye; camera.position.copy(e.at); camera.up.set(0, 1, 0); camera.lookAt(e.look); if (e.fov && Math.abs(camera.fov - e.fov) > 0.01) { camera.fov = e.fov; camera.updateProjectionMatrix(); } }      // a feature's cinematic camera, held exactly ({ at, look: Vector3, fov }: src/finalelaunch.js)
   // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
   fitNear();

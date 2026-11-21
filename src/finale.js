@@ -32,11 +32,13 @@
 //                             public-domain works from data/collection.json; light(k) 0..1 brings one up.
 //     rim: { lamps (InstancedMesh), colour(fn) }   the craft's rim lights; colour(i => THREE.Color|null) overrides the chase.
 //     centre                  THREE.Vector3: the middle of the platform's top.   shaft: { x0, x1, z0, z1, top, bottom }
+//     frames                  the merged gilt frames behind the easels' pictures (once the pictures are in).
 //     archive, hangarRoom, controlRoom: plan rooms. }
 //   G.finale.console          (building the base) { position (THREE.Vector3, where the toy stands to use it), near(v),
 //                             pads: [{ colour, mesh, light(k) }] (five, left to right), screen (a canvas texture's
 //                             context and texture: { ctx, tex, w, h }), onUse: null }. Set onUse to a function and the
 //                             USE button at the console calls it; until then it only says the pads are dark.
+//                             (Phase 3, src/finalelaunch.js, sets it: the five notes, the beam, the launch.)
 //   G.finale.plan             plan.finale (src/finaleplan.js): silo, doors, shaft, pieces, setDoors/setPlatform/setCraft/setRamp.
 
 import * as THREE from 'three';
@@ -48,10 +50,11 @@ import { beat } from './guardplan.js';
 import { Geo } from './geo.js';
 import * as TX from './textures.js';
 import { imageUrl } from './collection.js';
+import { MOTIF_COLOURS } from './motif.js';
 
 const KEY = 'after-hours.finale';
 export const STATES = ['locked', 'found', 'played', 'launched', 'landed', 'opened'];
-const PAD_COLOURS = ['#ff4d6d', '#ffa23a', '#ffe14d', '#4dd6ff', '#a27bff'];
+const PAD_COLOURS = MOTIF_COLOURS;          // the call's own colours, a pad to a note (src/motif.js), so the console, the rim and the music agree
 const ease = t => t * t * (3 - 2 * t);
 const TAU = Math.PI * 2;
 const self = (hex, k = 0.28, o = {}) => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.7, metalness: 0.15, emissive: hex, emissiveIntensity: k, ...o });
@@ -527,7 +530,7 @@ feature({
 
   // ---- the archive: easels, and the pictures on them
   _archive(k) {
-    const F = this.F, g = this.baseG, list = F.easels || [];
+    const F = this.F, g = this.baseG, list = F.easels || [], me = this;
     if (!list.length) return;
     const legs = new Geo();
     for (const e of list) {
@@ -569,7 +572,7 @@ feature({
         // and the picture itself, fetched and handed over the way the museum's are (src/museum.js: a worker, one a frame)
         try { k.museum._load(a, 1); } catch { /* the small one will do */ }
       });
-      g.add(frames.mesh(self(0xa8843a, 0.35, { metalness: 0.6, roughness: 0.4 })));
+      g.add(me.hangar.frames = frames.mesh(self(0xa8843a, 0.35, { metalness: 0.6, roughness: 0.4 })));      // (hangar.frames: the beam takes them with their pictures, src/finalelaunch.js)
     }).catch(() => { /* no pictures: the easels stand empty */ });
   },
 
