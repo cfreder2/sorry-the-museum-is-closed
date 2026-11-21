@@ -108,6 +108,7 @@ export class Car {
     this._from = { x: 0, z: 0 };
     this._push = { x: 0, y: 0, z: 0 };
     this.spec = { ...CAR_SPEC };
+    this.gravity = GRAVITY;      // Earth's; the Moon's while it is there (src/voyage.js)
   }
 
   // Another body on the same toy (see garage.js): new bodywork, wheels and aerial, and how it handles.
@@ -193,6 +194,7 @@ export class Car {
   }
 
   update(dt, inp) {
+    const GRAVITY = this.gravity;          // (everything below falls at this toy's own gravity)
     this.launched = 0; this.landed = null; this.bump = 0;
     this.clock = (this.clock || 0) + dt;
     if (this.rail) return this._loop(dt, inp);
@@ -499,6 +501,7 @@ export class Car {
   // On the loop the car runs on a rail: one number, how far round it is.
   // Speed is traded for height honestly, so too slow and it drops off the top.
   _loop(dt, inp) {
+    const GRAVITY = this.gravity;
     const s = this.rail, L = s.L, r = L.r;
     this.throttle = inp.throttle; this.steer = 0;
     s.v += (-GRAVITY * Math.sin(s.th) + Math.max(0, inp.throttle) * 6.5 - s.v * 0.12) * dt;
