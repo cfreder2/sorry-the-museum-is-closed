@@ -296,7 +296,7 @@ export function patrols(plan, want, seed = 'guards') {
       d += ch.length * 3;
       if (d > bd) { bd = d; best = ch; }
     }
-    if (!best || (taken.length && bd < 30)) break;
+    if (!best || (taken.length && bd < 22)) break;
     taken.push(best); for (const id of best) used.add(id);
     // (and not in a room next to one taken: two robots' beats never touch)
     for (const id of best) for (const q of L.get(id) || []) used.add(q.to);
