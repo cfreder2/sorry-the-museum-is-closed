@@ -118,10 +118,24 @@ export function buildBridgeway(museum, plan) {
     add(m);
   };
 
+  // The west pavilion, the stair tower against its north end, and beside the tower the glass lift (wingplay.js): its
+  // shaft stands clear of the north face, which is drawn round it.
+  const wp = mod.filter(m => m.room.use === 'terrace').sort((a, b) => b.top - a.top)[0] || mod.slice().sort((a, b) => a.x0 - b.x0)[0];
+  const tw = { x0: (wp.x0 + wp.x1) / 2 - 3.4, x1: (wp.x0 + wp.x1) / 2 + 3.4, z0: wp.z0 - 5.4, z1: wp.z0 - 0.05, top: wp.top + 0.8 }, L3 = 11.3;
+  const lift = (() => {
+    const x0 = tw.x1 + 0.6, x1 = tw.x1 + 2.4, here = mod.filter(m => m.x1 > x0 && m.x0 < x1 && m.z0 < wp.z0 + 1);
+    const face = Math.min(wp.z0, ...here.map(m => m.z0)) - 0.07, z1 = face - 0.15;      // 15 cm off the glass of the face
+    return { x0, x1, z0: z1 - 1.8, z1, face };
+  })();
+  // A stretch [a, b] with the shaft (and a hand's breadth either side) taken out of it.
+  const cx0 = lift.x0 - 0.12, cx1 = lift.x1 + 0.12;
+  const besideLift = (a, b) => (b <= cx0 || a >= cx1) ? [[a, b]] : [[a, Math.min(b, cx0)], [Math.max(a, cx1), b]].filter(([p, q]) => q - p > 0.05);
+
   // ------------------------------------------------------------ the north face
   // Read off the plan: along the wing's north side, which block stands furthest north at each
   // metre, and how tall. Each stretch gets glass from the ground to the eaves, storey by storey,
-  // between limestone piers.
+  // between limestone piers. Where the lift runs up it the glass carries on behind the shaft, but
+  // the fins, the floor edges and the piers stop either side of it.
   const stone = new Geo(), fascia = new Geo();
   {
     const X0 = Math.min(...mod.map(m => m.x0)), X1 = Math.max(...mod.map(m => m.x1)), zN = Math.min(...mod.map(m => m.z0));
@@ -141,27 +155,29 @@ export function buildBridgeway(museum, plan) {
       // The ground floor: clear glass, and the lights on inside.
       const g1 = tall ? 4.85 : r.top - 0.45;
       warm.quad([r.x1, 0.14, z], [r.x0, 0.14, z], [r.x0, g1, z], [r.x1, g1, z], n, [[0, 0], [w / 9, 0], [w / 9, 1], [0, 1]]);
-      fascia.box(r.x0, r.x1, 0, 0.14, z - 0.1, z + 0.02);
-      for (let x = r.x0 + 2; x < r.x1 - 1; x += 2) fascia.box(x - 0.03, x + 0.03, 0.14, g1, z - 0.06, z);
+      const parts = besideLift(r.x0, r.x1);
+      for (const [a, b] of parts) fascia.box(a, b, 0, 0.14, z - 0.1, z + 0.02);
+      for (let x = r.x0 + 2; x < r.x1 - 1; x += 2) if (x + 0.03 <= cx0 || x - 0.03 >= cx1) fascia.box(x - 0.03, x + 0.03, 0.14, g1, z - 0.06, z);
       if (tall) {
         // Above it, two tall tiers of glass glowing softly behind a screen of thin white fins, with a rail between.
         const yA = 5.3, yB = r.top - 0.45, mid = (yA + yB) / 2, zf = z - 0.34;
         glow.quad([r.x1, yA, z], [r.x0, yA, z], [r.x0, yB, z], [r.x1, yB, z], n, [[0, 0], [w / 7, 0], [w / 7, 1], [0, 1]]);
-        fins.quad([r.x1, yA - 0.15, zf], [r.x0, yA - 0.15, zf], [r.x0, yB + 0.9, zf], [r.x1, yB + 0.9, zf], n, [[0, 0], [w / 1.9, 0], [w / 1.9, 1], [0, 1]]);
-        fascia.box(r.x0, r.x1, 4.85, yA, z - 0.42, z + 0.02);                 // the edge of the first floor, and the foot of the screen
-        fascia.box(r.x0, r.x1, mid - 0.1, mid + 0.1, zf - 0.05, z);
-        fascia.box(r.x0, r.x1, yB, yB + 0.12, zf - 0.05, z);
+        for (const [a, b] of parts) {
+          fins.quad([b, yA - 0.15, zf], [a, yA - 0.15, zf], [a, yB + 0.9, zf], [b, yB + 0.9, zf], n, [[(a - r.x0) / 1.9, 0], [(b - r.x0) / 1.9, 0], [(b - r.x0) / 1.9, 1], [(a - r.x0) / 1.9, 1]]);
+          fascia.box(a, b, 4.85, yA, z - 0.42, z + 0.02);                 // the edge of the first floor, and the foot of the screen
+          fascia.box(a, b, mid - 0.1, mid + 0.1, zf - 0.05, z);
+          fascia.box(a, b, yB, yB + 0.12, zf - 0.05, z);
+        }
       }
-      fascia.box(r.x0 - 0.1, r.x1 + 0.1, r.top - 0.45, r.top + 0.25, z - 0.18, z + 0.02);
-      // Piers: broad slabs of limestone, one at each end of the stretch and one every bay between.
-      for (let i = 0; i <= bays; i++) { const x = r.x0 + (w * i) / bays, hw = tall ? 1.25 : 0.5; stone.box(Math.max(r.x0 - 0.5, x - hw), Math.min(r.x1 + 0.5, x + hw), 0, r.top + 0.35, z - 0.5, z + 0.04, 3.2); }
+      for (const [a, b] of besideLift(r.x0 - 0.1, r.x1 + 0.1)) fascia.box(a, b, r.top - 0.45, r.top + 0.25, z - 0.18, z + 0.02);
+      // Piers: broad slabs of limestone, one at each end of the stretch and one every bay between (none in the lift's way).
+      for (let i = 0; i <= bays; i++) { const x = r.x0 + (w * i) / bays, hw = tall ? 1.25 : 0.5, a = Math.max(r.x0 - 0.5, x - hw), b = Math.min(r.x1 + 0.5, x + hw); if (b <= cx0 || a >= cx1) stone.box(a, b, 0, r.top + 0.35, z - 0.5, z + 0.04, 3.2); }
     });
   }
 
   // ------------------------------------------------------------ the west pavilion
   // Its north end carries the terrace: glass boxes stacked on the railway side, and on the roof
   // a screen of pink glass.
-  const wp = mod.filter(m => m.room.use === 'terrace').sort((a, b) => b.top - a.top)[0] || mod.slice().sort((a, b) => a.x0 - b.x0)[0];
   {
     const boxGlass = new THREE.MeshBasicMaterial({ map: curtain(77, 0.4), color: new THREE.Color(0.85, 0.92, 1) });
     const frame = new Geo();
@@ -187,7 +203,14 @@ export function buildBridgeway(museum, plan) {
     for (const [a, b] of [[[px0, pz0], [px1, pz0]], [[px1, pz0], [px1, pz1]], [[px1, pz1], [px0, pz1]], [[px0, pz1], [px0, pz0]]]) {
       const nn = a[1] === b[1] ? [0, 0, a[1] === pz0 ? -1 : 1] : [a[0] === px0 ? -1 : 1, 0, 0], street = (a[1] === pz0 && b[1] === pz0) || (a[0] === px0 && b[0] === px0);
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]), o = 0.12;
-      if (street) {
+      if (street && a[1] === pz0 && b[1] === pz0) {
+        // The north side, with a doorway in it where the lift's step comes across from the shaft (wingplay.js).
+        for (const [p, q] of besideLift(Math.min(a[0], b[0]), Math.max(a[0], b[0]))) {
+          pink.quad([p, py - 0.5, pz0], [q, py - 0.5, pz0], [q, py + ph + 0.4, pz0], [p, py + ph + 0.4, pz0], nn);
+          fins.quad([p, py - 0.6, pz0 - o], [q, py - 0.6, pz0 - o], [q, py + ph + 1.1, pz0 - o], [p, py + ph + 1.1, pz0 - o], nn, [[0, 0], [(q - p) / 1.9, 0], [(q - p) / 1.9, 1], [0, 1]]);
+        }
+        if (cx0 > a[0] && cx1 < b[0]) for (const x of [cx0, cx1]) fascia.box(x - 0.05, x + 0.05, py - 0.6, py + ph + 1.1, pz0 - o - 0.05, pz0 + 0.05);      // the doorway's jambs
+      } else if (street) {
         pink.quad([a[0], py - 0.5, a[1]], [b[0], py - 0.5, b[1]], [b[0], py + ph + 0.4, b[1]], [a[0], py + ph + 0.4, a[1]], nn);
         // the fins of the screen below run on up past it
         fins.quad([a[0] + nn[0] * o, py - 0.6, a[1] + nn[2] * o], [b[0] + nn[0] * o, py - 0.6, b[1] + nn[2] * o], [b[0] + nn[0] * o, py + ph + 1.1, b[1] + nn[2] * o], [a[0] + nn[0] * o, py + ph + 1.1, a[1] + nn[2] * o], nn, [[0, 0], [len / 1.9, 0], [len / 1.9, 1], [0, 1]]);
@@ -260,7 +283,6 @@ export function buildBridgeway(museum, plan) {
   // ------------------------------------------------------------ the stair tower
   // Where the bridge lands: a tall box of glass between two limestone piers, against the north
   // end of the west pavilion, with the bridge going in at the third floor.
-  const tw = { x0: (wp.x0 + wp.x1) / 2 - 3.4, x1: (wp.x0 + wp.x1) / 2 + 3.4, z0: wp.z0 - 5.4, z1: wp.z0 - 0.05, top: wp.top + 0.8 }, L3 = 11.3;
   {
     const g = new Geo(), n = Math.round(tw.top / 4.5);
     g.quad([tw.x1, 0.15, tw.z0], [tw.x0, 0.15, tw.z0], [tw.x0, tw.top, tw.z0], [tw.x1, tw.top, tw.z0], [0, 0, -1], [[0, 0], [1, 0], [1, n], [0, n]]);
@@ -336,7 +358,7 @@ export function buildBridgeway(museum, plan) {
   {
     const A = new THREE.Vector3((tw.x0 + tw.x1) / 2, L3, tw.z0 - 0.1), E = new THREE.Vector3(A.x - 13, 0.5, B.z0 - 72);
     const len = A.distanceTo(E), HW = 1.9, g = new THREE.Group();
-    museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW });      // for the things to do round the wing (wingplay.js)
+    museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW, lift });      // for the things to do round the wing (wingplay.js)
     g.position.copy(A); g.lookAt(E);                     // local +z runs down the bridge
     const deck = new Geo(), rails = new Geo(), mesh = new Geo();
     deck.box(-HW, HW, -0.12, 0, 0, len);                 // the walking surface

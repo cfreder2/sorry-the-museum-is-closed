@@ -577,7 +577,7 @@ export class Museum {
 
     // Each room is built from its own floor up, as if that were the ground, and then lifted to its level.
     const lift = (m, y) => { m.position.y = y; m.updateMatrix(); return m; };
-    plan.rooms.forEach(r => {
+    plan.rooms.forEach((r, ri) => {
       const walls = new Geo(), trim = new Geo();
       const lower = r.floor === 'LL' || r.floor === 'X' || r.kind === 'corridor';
       for (const w of plan.walls.filter(w => w.room === r)) {
@@ -689,10 +689,26 @@ export class Museum {
             if (base && !holes.some(([h0]) => h0 < SK.base[1])) band(p, qq, 0, SK.base[1], SK.base[0]);
           }
         };
-        for (const [a, bb] of minus(sd.lo, sd.hi, cuts)) {
-          column(a, bb, 0, true);
-          band(a, bb, top - SK.cap[1], top, SK.cap[0]);            // flush with the roof: a cap standing proud of it looked like a kerb to be got over
-        }
+        // A room stacked over (or beside) another whose wall is in this same plane: that wall is drawn from the street up too, and
+        // two walls in one plane flicker through each other when they are in different stone (the steel over the railway against
+        // the limestone either side of it). Up to the lower one's roof, the wall is the lower room's: this one starts above it.
+        const at = q => sd.name === 'w' ? q.x0 : sd.name === 'e' ? q.x1 : sd.name === 'n' ? q.z0 : q.z1;
+        const below = plan.rooms.flatMap((q, qi) => {
+          const mq = plan.massOf[q.id]; if (!mq || mq === m || q.glass === sd.name || Math.abs(at(mq) - sd.at) > 0.01) return [];
+          const tq = q.kind === 'hall' ? SPRING + 0.4 : mq.top, [u0, u1] = sd.span(mq);
+          return u1 > sd.lo && u0 < sd.hi && (tq < top - 0.01 || (Math.abs(tq - top) <= 0.01 && qi < ri)) ? [[u0, u1, tq]] : [];
+        });
+        // A stretch of wall from y0 up (base: with its footing), less whatever a lower room's wall in this plane already covers.
+        const rise = (lo, hi, y0, base) => {
+          const us = [...new Set([lo, hi, ...below.flatMap(s => [s[0], s[1]]).filter(u => u > lo + 0.02 && u < hi - 0.02)])].sort((p, q) => p - q);
+          for (let i = 0; i < us.length - 1; i++) {
+            const p = us[i], qq = us[i + 1], mid = (p + qq) / 2, y = Math.max(y0, ...below.filter(s => s[0] < mid && s[1] > mid).map(s => s[2]));
+            if (qq - p < 0.02 || y > top - 0.02) continue;
+            column(p, qq, y, base && y === y0);
+            if (base) band(p, qq, top - SK.cap[1], top, SK.cap[0]);      // flush with the roof: a cap standing proud of it looked like a kerb to be got over
+          }
+        };
+        for (const [a, bb] of minus(sd.lo, sd.hi, cuts)) rise(a, bb, 0, true);
         // Where this room stands taller than whatever is against it, its wall shows above that roof. Blocks
         // overlap now that rooms are stacked, so along each stretch it is the tallest neighbour that counts.
         const ends = [...new Set(next.flatMap(o => sd.span(o)).map(u => Math.max(sd.lo, Math.min(sd.hi, u))))].sort((p, q) => p - q);
@@ -701,7 +717,7 @@ export class Museum {
           if (!by.length || hi - lo < 0.02) continue;
           const cover = Math.max(...by.map(o => o.top));
           if (top <= cover + 0.05) continue;
-          column(lo, hi, cover, false);
+          rise(lo, hi, cover, false);
         }
       }
       // Its roof, where there is one: not under a taller block, and not where a skylight stands open.

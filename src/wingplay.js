@@ -4,6 +4,8 @@
 // own collection is touched.
 import * as THREE from 'three';
 import { feature } from './features.js';
+import { Geo } from './geo.js';
+import { fitText, twoFaced, SANS } from './textures.js';
 
 // Lit a little from within, as everything out of doors is here, so it reads at night.
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.7, emissive: new THREE.Color(color).multiplyScalar(0.4), ...o });
@@ -31,15 +33,15 @@ feature({
     const fx = cxAt(E.z);
     k.solid({ skin: 'deck', x0: fx - w, x1: fx + w, z0: E.z - 1.6, z1: E.z, axis: 'z', h0: 0, h1: E.y }, white);
     // The landing at the top, and a walk round the east side of the tower to the lift.
-    const lx0 = tw.x1 + 0.6, lx1 = tw.x1 + 2.4;
+    const lx0 = tw.x1 + 0.6, lx1 = tw.x1 + 2.4, lz = mw.lift ? mw.lift.z0 : tw.z1 - 1.85;      // (lz: up to the lift's door)
     this.landing = [
       k.solid({ skin: 'deck', x0: A.x - w, x1: lx1, z0: top, z1: tw.z0 + 0.05, axis: null, h0: L3, h1: L3, thick: 0.3 }, white),
       k.solid({ skin: 'deck', x0: cxAt(tw.z0 - 2.6) + w - 0.05, x1: lx1, z0: tw.z0 - 2.6, z1: top, axis: 'z', h0: hAt(tw.z0 - 2.6), h1: L3, thick: 0.3 }, white),      // level with the deck beside it
-      k.solid({ skin: 'deck', x0: tw.x1 + 0.55, x1: lx1, z0: tw.z0 + 0.05, z1: tw.z1 - 1.85, axis: null, h0: L3, h1: L3, thick: 0.3 }, white),
+      k.solid({ skin: 'deck', x0: tw.x1 + 0.55, x1: lx1, z0: tw.z0 + 0.05, z1: lz, axis: null, h0: L3, h1: L3, thick: 0.3 }, white),
     ];
-    O.push({ x0: lx1, x1: lx1 + 0.08, z0: tw.z0 - 2.6, z1: tw.z1 - 1.85, y0: L3 - 0.3, y1: L3 + 1.1 }, { x0: A.x + w, x1: lx1, z0: tw.z0 - 2.7, z1: tw.z0 - 2.6, y0: L3 - 0.3, y1: L3 + 1.1 });
+    O.push({ x0: lx1, x1: lx1 + 0.08, z0: tw.z0 - 2.6, z1: lz, y0: L3 - 0.3, y1: L3 + 1.1 }, { x0: A.x + w, x1: lx1, z0: tw.z0 - 2.7, z1: tw.z0 - 2.6, y0: L3 - 0.3, y1: L3 + 1.1 });
     const rail = mat(0x9aa3ab, { metalness: 0.6, roughness: 0.35 });
-    k.group.add(box(0.05, 1.1, tw.z1 - 1.85 - tw.z0 + 2.6, rail, lx1 + 0.04, L3 + 0.55, (tw.z0 - 2.6 + tw.z1 - 1.85) / 2), box(lx1 - A.x - w, 1.1, 0.05, rail, (A.x + w + lx1) / 2, L3 + 0.55, tw.z0 - 2.65));
+    k.group.add(box(0.05, 1.1, lz - tw.z0 + 2.6, rail, lx1 + 0.04, L3 + 0.55, (tw.z0 - 2.6 + lz) / 2), box(lx1 - A.x - w, 1.1, 0.05, rail, (A.x + w + lx1) / 2, L3 + 0.55, tw.z0 - 2.65));
     // The strip of park under the bridge, fenced.
     const ax0 = Math.min(E.x, A.x) - 8, ax1 = Math.max(E.x, A.x) + 8, az0 = E.z - 8, az1 = B.z0 + 0.5;
     (P.allow = P.allow || []).push({ x0: ax0, x1: ax1, z0: az0, z1: az1 });
@@ -70,15 +72,40 @@ feature({
 });
 
 // ---------------------------------------------------------------- the glass lift
-// A glass car on the north face of the west pavilion, beside the stair tower: from the pavement, to the bridge
-// landing, to the roof. Stand in it and RIDE; from a landing, CALL it.
+// A glass car in a glass shaft on the north face of the west pavilion, beside the stair tower: from the pavement, to
+// the bridge landing, to the roof. Stand in it and RIDE; from a landing, CALL it. The shaft is placed (bridgeway.js,
+// mw.lift) a hand's breadth off the face, and the face is drawn round it, so nothing of the building runs through it.
+// Each landing has a two-leaf door that slides aside when the car is there, a call button with the car's floor over
+// it, and a LIFT sign; the car has a tread-plate floor and the same floor display inside.
+const canvasTex = (w, h, draw, repeat) => {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+};
+// A pane: a cool tint, a bright edge all round, and a pale streak of reflection across it, so it reads by night from
+// either side.
+const paneTex = () => canvasTex(64, 128, (g, w, h) => {
+  g.fillStyle = 'rgba(120,186,214,0.14)'; g.fillRect(0, 0, w, h);
+  const s = g.createLinearGradient(0, h, w, 0); s.addColorStop(0.28, 'rgba(255,255,255,0)'); s.addColorStop(0.4, 'rgba(235,248,255,0.22)'); s.addColorStop(0.47, 'rgba(255,255,255,0)'); s.addColorStop(0.58, 'rgba(235,248,255,0.12)'); s.addColorStop(0.64, 'rgba(255,255,255,0)');
+  g.fillStyle = s; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(222,244,255,0.75)'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, w - 3, h - 3);
+});
+// Diamond tread plate, and the yellow-and-black edge of a threshold.
+const treadTex = () => canvasTex(32, 32, (g, w, h) => {
+  g.fillStyle = '#5d646c'; g.fillRect(0, 0, w, h);
+  for (const [x, y, a] of [[8, 8, 0.6], [24, 24, 0.6], [24, 8, -0.6], [8, 24, -0.6]]) { g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = '#9aa2ab'; g.fillRect(-5, -1.3, 10, 2.6); g.fillStyle = '#3c4249'; g.fillRect(-5, 1.3, 10, 0.9); g.restore(); }
+}, true);
+const hazardTex = () => canvasTex(64, 8, (g, w, h) => { g.fillStyle = '#16181b'; g.fillRect(0, 0, w, h); g.fillStyle = '#f2c230'; for (let x = -8; x < w; x += 16) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 8, 0); g.lineTo(x + 16, 0); g.lineTo(x + 8, h); g.fill(); } }, true);
+const STOP_NAMES = ['1', '3', 'R'];
+
 feature({
   id: 'goingup',
   secrets: [['goingup', 'Going up']],
   init(k) {
-    const mw = k.museum.mw; if (!mw || !mw.tw) return;
+    const mw = k.museum.mw; if (!mw || !mw.tw || !mw.lift) return;
     const { tw, L3 } = mw, P = k.plan, O = P.obstacles, wz = tw.z1 + 0.05;
-    const x0 = tw.x1 + 0.6, x1 = tw.x1 + 2.4, z0 = tw.z1 - 1.85, z1 = wz - 0.1;
+    const { x0, x1, z0, z1 } = mw.lift;
     // The roof: what is underfoot just inside the wall, there.
     let roof = tw.top - 0.8;
     const probe = { x: (x0 + x1) / 2, z: wz + 0.8 };
@@ -87,36 +114,121 @@ feature({
     this.box = { x0, x1, z0, z1 };
     this.pad = { skin: 'glass', x0: x0 + 0.08, x1: x1 - 0.08, z0: z0 + 0.08, z1: z1 - 0.08, axis: null, h0: 0.06, h1: 0.06, thick: 0.1, lift: true };
     P.surfaces.push(this.pad);
-    this.y = 0.06; this.goal = null; this.at = 0;
-    // A step across from the car to the roof.
-    k.solid({ skin: 'deck', x0: x0 + 0.1, x1: x1 - 0.1, z0: z1 - 0.1, z1: wz + 0.7, axis: null, h0: roof, h1: roof, thick: 0.2 }, mat(0xd8dadb));
-    // The shaft: solid sides, open only at each stop on the side that has a way off.
-    const T = roof + 2.6, g = 0.08;
-    O.push({ x0: x1 - g, x1: x1 + 0.02, z0, z1, y0: -0.3, y1: T }, { x0: x0 - 0.02, x1: x0 + g, z0, z1, y0: -0.3, y1: T });
-    O.push({ x0, x1, z0: z0 - 0.02, z1: z0 + g, y0: 0.55, y1: L3 - 0.2 }, { x0, x1, z0: z0 - 0.02, z1: z0 + g, y0: L3 + 0.7, y1: T });
-    O.push({ x0, x1, z0: z1 - g, z1: z1 + 0.02, y0: -0.3, y1: roof - 0.2 });
-    // And a gate at each way off, shut unless the car is standing there: nobody drives into an empty shaft.
-    this.gates = [[z0 - 0.02, z0 + g, -0.3, 0.55], [z0 - 0.02, z0 + g, L3 - 0.2, L3 + 0.7], [z1 - g, z1 + 0.02, roof - 0.2, T]].map(([a, b, lo, hi]) => { const o = { x0, x1, z0: a, z1: b, y0: lo, y1: hi, lo, hi }; O.push(o); return o; });
-    // Drawn: a glass car on two steel guides, running up the face.
-    const steel = mat(0x8d969e, { metalness: 0.7, roughness: 0.3 }), glass = new THREE.MeshStandardMaterial({ color: 0xbfd8e6, transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide });
-    for (const x of [x0 + 0.05, x1 - 0.05]) k.group.add(box(0.09, T, 0.09, steel, x, T / 2, z1 + 0.02));
-    const car = this.car = new THREE.Group(); car.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); k.group.add(car);
-    const W = x1 - x0, D = z1 - z0, Hh = 2.3;
-    car.add(box(W, 0.1, D, steel, 0, 0.0, 0), box(W, 0.08, D, steel, 0, Hh, 0));
+    this.y = 0.06; this.goal = null; this.from = 0;
+
+    // Each face of the shaft, along it: a narrow fixed pane on the west (the call button's), a door 1 m wide, and a
+    // wider fixed pane on the east that the two leaves slide over when it opens.
+    const T = roof + 3, DH = 2.3, a0 = x0 + 0.25, a1 = a0 + 1.0;
+    this.DH = DH;
+    // What stops you: the sides and the fixed panes the full height; the doorways shut between the stops, and a
+    // gate in each that opens only when the car stands there and its door has slid back.
+    O.push({ x0: x0 - 0.05, x1: x0 + 0.08, z0: z0 - 0.05, z1: z1 + 0.05, y0: -0.3, y1: T }, { x0: x1 - 0.08, x1: x1 + 0.05, z0: z0 - 0.05, z1: z1 + 0.05, y0: -0.3, y1: T });
+    for (const z of [z0, z1]) O.push({ x0, x1: a0, z0: z - 0.06, z1: z + 0.06, y0: -0.3, y1: T }, { x0: a1, x1, z0: z - 0.06, z1: z + 0.06, y0: -0.3, y1: T });
+    const S = this.stops, wall = (z, y0, y1) => O.push({ x0: a0, x1: a1, z0: z - 0.06, z1: z + 0.06, y0, y1 });
+    wall(z0, S[0] + DH, S[1] - 0.3); wall(z0, S[1] + DH, T); wall(z1, -0.3, S[2] - 0.3); wall(z1, S[2] + DH, T);
+    const faceOf = [z0, z0, z1], outOf = [-1, -1, 1];      // which face each stop's door is in, and which way is out
+    this.gates = S.map((s, i) => { const z = faceOf[i], lo = i ? s - 0.3 : -0.3, hi = s + DH, o = { x0: a0, x1: a1, z0: z - 0.09, z1: z + 0.06, y0: lo, y1: hi, lo, hi }; if (outOf[i] > 0) { o.z0 = z - 0.06; o.z1 = z + 0.09; } O.push(o); return o; });
+
+    // A step across from the car to the roof, railed both sides over the gap to the terrace. It stops just over the
+    // roof's edge, a centimetre proud of it, so the two tops never lie in one plane.
+    const deck = mat(0xd8dadb), steel = mat(0x8d969e, { metalness: 0.7, roughness: 0.3 });
+    k.solid({ skin: 'deck', x0: a0 - 0.1, x1: a1 + 0.1, z0: z1 - 0.1, z1: wz + 0.08, axis: null, h0: roof + 0.012, h1: roof + 0.012, thick: 0.2 }, deck);
+    for (const x of [a0 - 0.1, a1 + 0.1]) { O.push({ x0: x - 0.03, x1: x + 0.03, z0: z1 + 0.1, z1: wz + 0.05, y0: roof - 0.2, y1: roof + 0.6 }); const L = wz + 0.05 - z1 - 0.1, mz = (z1 + 0.1 + wz + 0.05) / 2; k.group.add(box(0.05, 0.05, L, steel, x, roof + 0.58, mz), box(0.03, 0.03, L, steel, x, roof + 0.3, mz)); for (const z of [z1 + 0.12, wz + 0.03]) k.group.add(box(0.05, 0.6, 0.05, steel, x, roof + 0.3, z)); }
+
+    // ---- drawn: the shaft. Steel corner posts, mullions at the door jambs and down the middle of each side, a
+    // transom at every sill and head and between; glass in every panel but the doorways.
+    const frame = new Geo(), glassG = new Geo(), zm = (z0 + z1) / 2, F = 0.025;
+    for (const x of [x0, x1]) for (const z of [z0, z1]) frame.box(x - 0.04, x + 0.04, 0, T + 0.05, z - 0.04, z + 0.04);
+    for (const z of [z0, z1]) for (const x of [a0, a1]) frame.box(x - F, x + F, 0, T, z - F, z + F);
+    for (const x of [x0, x1]) frame.box(x - F, x + F, 0, T, zm - F, zm + F);
+    const lv = [0, S[0] + DH, S[1], S[1] + DH, S[2], S[2] + DH, T].sort((p, q) => p - q), rows = [];
+    for (let i = 0; i < lv.length - 1; i++) { const n = Math.max(1, Math.round((lv[i + 1] - lv[i]) / 2.8)); for (let j = 0; j < n; j++) rows.push([lv[i] + (lv[i + 1] - lv[i]) * j / n, lv[i] + (lv[i + 1] - lv[i]) * (j + 1) / n]); }
+    for (const [y] of rows.concat([[T]])) { for (const z of [z0, z1]) frame.box(x0, x1, y - 0.05, y + 0.012, z - F, z + F); for (const x of [x0, x1]) frame.box(x - F, x + F, y - 0.05, y + 0.012, z0, z1); }      // (a sill a centimetre proud of the landing it meets)
+    const doorRow = (face, y0) => S.some((s, i) => faceOf[i] === face && y0 > (i ? s : 0) - 0.01 && y0 < s + DH - 0.01);
+    for (const [y0, y1] of rows) {
+      for (const z of [z0, z1]) for (const [p, q] of [[x0, a0], [a0, a1], [a1, x1]]) { if (p === a0 && doorRow(z, y0)) continue; const n = z === z0 ? -1 : 1; glassG.quad([p, y0, z], [q, y0, z], [q, y1, z], [p, y1, z], [0, 0, n]); }
+      for (const x of [x0, x1]) for (const [p, q] of [[z0, zm], [zm, z1]]) glassG.quad([x, y0, p], [x, y0, q], [x, y1, q], [x, y1, p], [x === x0 ? -1 : 1, 0, 0]);
+    }
+    // The head of the shaft: a steel cap with the winding gear in it, lit along its edge.
+    frame.box(x0 - 0.07, x1 + 0.07, T, T + 0.32, z0 - 0.07, z1 + 0.07);
+    // Two guide rails up the middle of the sides, inside, that the car runs on.
+    for (const x of [x0 + 0.04, x1 - 0.04]) frame.box(x - 0.02, x + 0.02, 0, T, zm - 0.05, zm + 0.05);
+    const glass = new THREE.MeshBasicMaterial({ map: paneTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide, color: 0xe6f4ff });
+    k.group.add(frame.mesh(steel));
+    const gm = glassG.mesh(glass); gm.renderOrder = 2; k.group.add(gm);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 + 0.16, 0.06, z1 - z0 + 0.16), new THREE.MeshBasicMaterial({ color: 0xbfe6ff })); band.position.set((x0 + x1) / 2, T + 0.08, zm); k.group.add(band);
+
+    // ---- the floor display: one small screen, shared by the car and every landing, redrawn when the car's floor or
+    // its direction changes.
+    const dc = document.createElement('canvas'); dc.width = 64; dc.height = 64;
+    this.dispC = dc; this.disp = new THREE.CanvasTexture(dc); this.disp.colorSpace = THREE.SRGBColorSpace; this.dispKey = '';
+    const dispMat = new THREE.MeshBasicMaterial({ map: this.disp });
+
+    // ---- each landing: a two-leaf door, a call panel on the narrow pane, a LIFT sign over the door.
+    const leafW = (a1 - a0) / 2, leafGlass = glass.clone(); leafGlass.color = new THREE.Color(0xd8ecff);
+    const signMat = new THREE.MeshBasicMaterial({ map: canvasTex(320, 96, (g, w, h) => {
+      g.fillStyle = '#122030'; g.fillRect(0, 0, w, h); g.strokeStyle = '#9fd8ff'; g.lineWidth = 4; g.strokeRect(4, 4, w - 8, h - 8);
+      g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(40, 22); g.lineTo(58, 44); g.lineTo(22, 44); g.fill(); g.beginPath(); g.moveTo(40, 74); g.lineTo(58, 52); g.lineTo(22, 52); g.fill();
+      fitText(g, 'LIFT', { x: 182, y: h / 2, w: 210, h: 66, px: 66, weight: '700', family: SANS });
+    }) });
+    this.doors = []; this.buttons = [];
+    { const big = twoFaced(new THREE.PlaneGeometry(1.5, 0.45), signMat, 0.006); big.position.set((x0 + x1) / 2, T - 0.4, z0 - 0.06); k.group.add(big); }      // and one up at the head, seen from the street
+    S.forEach((s, i) => {
+      const z = faceOf[i], o = outOf[i];
+      const leaf = (d) => { const g = new THREE.Group(), pane = new THREE.Mesh(new THREE.PlaneGeometry(leafW - 0.04, DH - 0.04), leafGlass); pane.renderOrder = 2; g.add(pane); for (const [w, h, x, y] of [[leafW, 0.03, 0, DH / 2 - 0.015], [leafW, 0.03, 0, -DH / 2 + 0.015], [0.03, DH, -leafW / 2 + 0.015, 0], [0.03, DH, leafW / 2 - 0.015, 0]]) g.add(box(w, h, 0.01, steel, x, y, 0)); g.position.set(0, s + DH / 2, z + o * d); k.group.add(g); return g; };
+      // The leaf that crosses the doorway is outermost; the near one inside it. Open, both stand over the east pane.
+      const far = leaf(0.085), near = leaf(0.06);
+      this.doors.push({ far, near, u: 0, shut0: [a0 + leafW / 2, a0 + leafW * 1.5], open: [a1 + leafW / 2 - 0.01, a1 + leafW / 2 - 0.01] });
+      // The call panel: a steel plate with the floor display and a round button that lights when the car is called.
+      const px = (x0 + a0) / 2, pz = z + o * 0.05, pg = new THREE.Group(); pg.position.set(px, s + 0.95, pz); if (o > 0) pg.rotation.y = Math.PI; k.group.add(pg);
+      pg.add(box(0.16, 0.34, 0.012, steel, 0, 0, 0));
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.11), dispMat); scr.position.set(0, 0.08, -0.008); scr.rotation.y = Math.PI; pg.add(scr);
+      const bm = new THREE.MeshBasicMaterial({ color: 0x7fd8a0 }), btn = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.014, 16), bm); btn.rotation.x = Math.PI / 2; btn.position.set(0, -0.07, -0.01); pg.add(btn);
+      this.buttons.push(bm);
+      // The sign, over the door, reading from inside and out.
+      const sign = twoFaced(new THREE.PlaneGeometry(0.96, 0.29), signMat, 0.006); sign.position.set((a0 + a1) / 2, s + DH + 0.3, z + o * 0.06); k.group.add(sign);
+    });
+
+    // ---- the car: a steel floor and roof on four posts, glass both sides, open at both ends (the shaft's doors are
+    // its doors); a tread-plate floor with a hazard edge at each threshold; a light in the roof; the floor display.
+    const car = this.car = new THREE.Group(); car.position.set((x0 + x1) / 2, 0, zm); k.group.add(car);
+    const W = x1 - x0 - 0.16, D = z1 - z0 - 0.16, Hh = 2.3;
+    car.add(box(W, 0.08, D, steel, 0, -0.01, 0), box(W, 0.08, D, steel, 0, Hh, 0));
+    const tt = treadTex(); tt.repeat.set(W / 0.25, D / 0.25);
+    const tread = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.02, D - 0.22), new THREE.MeshStandardMaterial({ map: tt, roughness: 0.5, metalness: 0.5, emissiveMap: tt, emissive: 0x9aa4b0, emissiveIntensity: 0.55 })); tread.rotation.x = -Math.PI / 2; tread.position.y = 0.04; car.add(tread);
+    const ht = hazardTex(); ht.repeat.set(W / 0.3, 1);
+    for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.02, 0.1), new THREE.MeshBasicMaterial({ map: ht, color: 0xcccccc })); e.rotation.x = -Math.PI / 2; e.position.set(0, 0.04, s * (D / 2 - 0.06)); car.add(e); }
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) car.add(box(0.06, Hh, 0.06, steel, sx * (W / 2 - 0.03), Hh / 2, sz * (D / 2 - 0.03)));
-    for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(D, Hh), glass); p.rotation.y = Math.PI / 2; p.position.set(s * W / 2, Hh / 2, 0); car.add(p); }
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(W, Hh), glass); back.position.set(0, Hh / 2, D / 2); car.add(back);
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.8, D * 0.8), new THREE.MeshBasicMaterial({ color: 0xfff1cf, transparent: true, opacity: 0.7 })); glow.rotation.x = Math.PI / 2; glow.position.y = Hh - 0.05; car.add(glow);
-    this._sync();
+    for (const s of [-1, 1]) {
+      car.add(box(0.05, 0.05, D - 0.2, steel, s * (W / 2 - 0.08), 1.0, 0));      // a handrail
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(D - 0.06, Hh - 0.06), glass); p.rotation.y = Math.PI / 2; p.position.set(s * (W / 2 - 0.03), Hh / 2, 0); p.renderOrder = 2; car.add(p);
+    }
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.8, D * 0.8), new THREE.MeshBasicMaterial({ color: 0xfff1cf, transparent: true, opacity: 0.85 })); glow.rotation.x = Math.PI / 2; glow.position.y = Hh - 0.05; car.add(glow);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), dispMat); scr.rotation.y = Math.PI / 2; scr.position.set(-W / 2 + 0.075, 1.45, -D / 2 + 0.3); car.add(scr);
+    car.add(box(0.012, 0.22, 0.22, steel, -W / 2 + 0.058, 1.45, -D / 2 + 0.3));
+    this.doors[0].u = 1;
+    this._sync(); this._display();
   },
   _sync() {
     this.pad.h0 = this.pad.h1 = this.y; this.car.position.y = this.y - 0.05;
     const at = this.goal == null ? this._stopAt() : -1;
-    this.gates.forEach((o, i) => { const open = i === at; o.y0 = open ? -60 : o.lo; o.y1 = open ? -59 : o.hi; });
+    this.gates.forEach((o, i) => { const open = i === at && this.doors[i].u > 0.75; o.y0 = open ? -60 : o.lo; o.y1 = open ? -59 : o.hi; });
+    for (const d of this.doors) { const e = d.u * d.u * (3 - 2 * d.u); d.far.position.x = d.shut0[0] + (d.open[0] - d.shut0[0]) * e; d.near.position.x = d.shut0[1] + (d.open[1] - d.shut0[1]) * e; }
+    this.buttons.forEach((m, i) => m.color.setHex(this.goal === i ? 0xffb43a : 0x7fd8a0));
+  },
+  _display() {
+    const S = this.stops; let n = 0; for (let i = 1; i < S.length; i++) if (this.y > (S[i - 1] + S[i]) / 2) n = i;
+    const dir = this.goal == null ? 0 : Math.sign(S[this.goal] - this.y), key = n + ':' + dir;
+    if (key === this.dispKey) return; this.dispKey = key;
+    const g = this.dispC.getContext('2d');
+    g.fillStyle = '#07090c'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#ffb040'; g.shadowColor = '#ff9a20'; g.shadowBlur = 6;
+    fitText(g, STOP_NAMES[n], { x: dir ? 40 : 32, y: 33, w: 34, h: 44, px: 44, weight: '700', family: SANS });
+    if (dir) { g.beginPath(); if (dir > 0) { g.moveTo(14, 18); g.lineTo(24, 32); g.lineTo(4, 32); } else { g.moveTo(14, 46); g.lineTo(24, 32); g.lineTo(4, 32); } g.fill(); }
+    g.shadowBlur = 0; this.disp.needsUpdate = true;
   },
   _stopAt() { return this.stops.findIndex(s => Math.abs(this.y - s) < 0.02); },
   inCar(k) { const p = k.pos, b = this.box; return p.x > b.x0 && p.x < b.x1 && p.z > b.z0 && p.z < b.z1 && Math.abs(p.y - this.y) < 0.35; },
-  go(k, i) { this.goal = i; this._sync(); k.synth.chime([523, 659], { gap: 0.12, dur: 0.7, vol: 0.05 }); },
+  go(k, i) { this.goal = i; this._sync(); this._display(); k.synth.chime([523, 659], { gap: 0.12, dur: 0.7, vol: 0.05 }); },
   near(v, k) {
     if (!this.box || this.goal != null) return null;
     const b = this.box, p = k.pos;
@@ -131,20 +243,25 @@ feature({
     if (mine >= 0 && mine !== here && p.x > b.x0 - 2 && p.x < b.x1 + 2 && p.z > b.z0 - 2.6 && p.z < b.z1 + 1.2) return { verb: 'CALL', hint: 'A glass lift up the face of the wing. E to call it.', act: () => this.go(k, mine) };
     return null;
   },
-  active(k) { const b = this.box; return !!b && (this.goal != null || k.close({ x: (b.x0 + b.x1) / 2, y: k.pos.y, z: (b.z0 + b.z1) / 2 }, 14, 99)); },
+  active(k) { const b = this.box; return !!b && (this.goal != null || this.doors.some(d => d.u > 0 && d.u < 1) || k.close({ x: (b.x0 + b.x1) / 2, y: k.pos.y, z: (b.z0 + b.z1) / 2 }, 14, 99)); },
   update(dt, k) {
-    if (this.goal == null) return;
+    // The doors: open at the stop the car stands at, shut everywhere else. The car waits for its door to shut.
+    const at = this.goal == null ? this._stopAt() : -1;
+    this.doors.forEach((d, i) => { const want = i === at ? 1 : 0, was = d.u; d.u = want > d.u ? Math.min(1, d.u + dt / 0.7) : want < d.u ? Math.max(0, d.u - dt / 0.5) : d.u; if ((was === 0 && d.u > 0) || (was === 1 && d.u < 1)) k.synth.noise(0.3, { vol: 0.012, lp: 900 }); });
+    if (this.goal == null) { this._sync(); return; }
+    const here = this._stopAt();
+    if (here >= 0 && this.doors[here].u > 0) { this._sync(); return; }
     const want = this.stops[this.goal], d = want - this.y, riding = this.inCar(k);
     const step = Math.sign(d) * Math.min(Math.abs(d), dt * Math.min(1.8, 0.4 + Math.abs(d) * 0.8));
-    this.y += step; this._sync();
+    this.y += step; this._sync(); this._display();
     if (riding) { const v = k.v; if (step > 0 && v.pos.y < this.y) v.pos.y = this.y; v.vel.x *= 0.9; v.vel.z *= 0.9; }
     if (Math.abs(want - this.y) < 0.002) {
-      this.y = want; this.goal = null; this._sync(); k.synth.note(1047, 0.6, { type: 'sine', vol: 0.05 });
+      this.y = want; this.goal = null; this._sync(); this._display(); k.synth.chime([1319, 1047], { gap: 0.3, dur: 1.1, vol: 0.05 });      // ding-dong
       if (riding && want === this.stops[this.stops.length - 1]) { if (k.find('goingup')) k.callout('GOING UP'); else k.say('The roof of the west pavilion.', 2.5); }
     }
   },
   spots() { const b = this.box; return b ? [{ kind: 'secret', id: 'goingup', name: 'Going up (the glass lift to the roof)', x: (b.x0 + b.x1) / 2, y: 0, z: (b.z0 + b.z1) / 2 }] : []; },
-  reset(k) { if (!this.box) return; this.y = this.stops[0]; this.goal = null; this._sync(); },
+  reset(k) { if (!this.box) return; this.y = this.stops[0]; this.goal = null; this.doors.forEach((d, i) => { d.u = i === 0 ? 1 : 0; }); this._sync(); this._display(); },
 });
 
 // ---------------------------------------------------------------- rings under the sunshade
