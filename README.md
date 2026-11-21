@@ -247,6 +247,18 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   hill has a kicker of packed snow on its summit: go over the top with speed
   and you fly, and come down rolling on the far side. Tyre tracks and the
   glitter follow the slopes.
+- **The lie of the land.** Between the paths the lawns are not levelled: the
+  open ground of the block, the North Garden's lawn panels and the open
+  lawn of Butler Field roll in long low swells and soft hollows, up to about
+  a metre, never steeper than one in five. It is flat on and near anything
+  that needs flat ground (streets, pavements, paths, plazas, the building,
+  the railway, the ice, the kit, the hills, the lamps, the formal South
+  Garden, the Modern Wing's forecourt, and the light show, the jump park, the
+  sled hill and the ball field on Butler Field), and rises out of it over six
+  metres. One height field (`src/land.js`) is what the wheels and the drone's
+  floor follow and what the snow, the glitter and the tyre tracks are drawn
+  on; trees stand on it. Anything new laid out flat on open ground at start-up
+  goes in its `FLAT` list.
 - **The ski jump.** A long bank of snow runs up against the north wall of the
   galleries over the railway and stands higher than their roof. Take it flat
   out and you land on the roof.
@@ -818,6 +830,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/books.js, reading.js  books from Open Library: the reading room's display, further reading on labels (tools/books.mjs)
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
+    src/land.js               the lie of the land: the one height field the open lawns roll on (no three.js)
     src/winter.js             paths, the courtyard tree, glitter, tyre tracks
     src/statues.js            the lions, the fountains and the sculpture outdoors
     src/butlerfield.js        Butler Field: the plough-pile jump park, the softball diamonds, lamps, the warming hut
