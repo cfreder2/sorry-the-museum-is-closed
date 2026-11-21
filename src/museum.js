@@ -123,60 +123,354 @@ function buildFrame(g, p, style) {
 
 // ------------------------------------------------------------- cut-outs ---
 //
-// The museum photographs its sculpture against a plain backdrop. To stand a
-// figure in a case, the backdrop is taken away: starting from the edges of the
-// photograph, everything that carries on looking like the edge is made clear.
+// The museum photographs its sculpture against a studio backdrop: a smooth sweep
+// of grey, white or black, often with a shadow or a pool of light on the floor.
+// To stand a piece in its case, the backdrop is taken away. The rule is that the
+// piece is never cut into: what the backdrop cannot reach from the edge of the
+// photograph without crossing the piece's outline stays, so a pale cheek or the
+// highlight on a plaster head is never punched through. If no plain backdrop can
+// be found, the photograph is shown whole on a card instead.
 // When a real model of the piece exists, this is the function it replaces.
 // Works on the pixels alone and touches nothing outside itself, because it is also run in a worker.
 function cutPixels(px, w, h) {
-  const n = w * h, seen = new Uint8Array(n), stack = new Int32Array(n);
-  let top = 0, cleared = 0;
-  const lum = i => px[i * 4] + px[i * 4 + 1] + px[i * 4 + 2];
-  const sat = i => Math.max(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]) - Math.min(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
-  const seed = i => { if (!seen[i] && sat(i) < 46) { seen[i] = 1; stack[top++] = i; } };
-  for (let x = 0; x < w; x++) { seed(x); seed((h - 1) * w + x); }
-  for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
-  while (top) {
-    const i = stack[--top], x = i % w, l = lum(i);
-    cleared++;
-    // Carry on into a neighbour if it is nearly the same shade and nearly as grey.
-    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
-      if (j < 0 || j >= n || seen[j]) continue;
-      if (Math.abs(lum(j) - l) < 14 && sat(j) < 46) { seen[j] = 1; stack[top++] = j; }
-    }
-  }
-  // If almost nothing or almost everything went, the backdrop was not plain: keep the photograph whole.
-  if (cleared < n * 0.08 || cleared > n * 0.93) return false;
+  const n = w * h, N4 = [-1, 1, -w, w];
+  const inside = (i, k) => (k === 0 ? i % w > 0 : k === 1 ? i % w < w - 1 : k === 2 ? i >= w : i < n - w);
 
-  // Pockets. Backdrop shut in by the piece itself (between an arm and a body, through a handle)
-  // cannot be reached from the edge. Learn what the backdrop looks like in each part of the
-  // photograph from what has gone already, and clear anything inside that matches it closely.
-  const GX = 8, GY = 8, acc = new Float64Array(GX * GY * 4), all = new Float64Array(4);
-  const cell = i => Math.min(GY - 1, Math.floor(Math.floor(i / w) / h * GY)) * GX + Math.min(GX - 1, Math.floor((i % w) / w * GX));
-  for (let i = 0; i < n; i++) if (seen[i]) {
-    const k = cell(i) * 4;
-    acc[k] += px[i * 4]; acc[k + 1] += px[i * 4 + 1]; acc[k + 2] += px[i * 4 + 2]; acc[k + 3]++;
-    all[0] += px[i * 4]; all[1] += px[i * 4 + 1]; all[2] += px[i * 4 + 2]; all[3]++;
+  // 1. Colour as the eye sees it (CIE Lab), lightly blurred so that JPEG grain is not taken for detail.
+  const lin = new Float32Array(256);
+  for (let i = 0; i < 256; i++) { const c = i / 255; lin[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  const f = t => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 0.137931);
+  let L = new Float32Array(n), A = new Float32Array(n), B = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = lin[px[i * 4]], g = lin[px[i * 4 + 1]], b = lin[px[i * 4 + 2]];
+    const fx = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), fy = f(0.2126 * r + 0.7152 * g + 0.0722 * b), fz = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+    L[i] = 116 * fy - 16; A[i] = 500 * (fx - fy); B[i] = 200 * (fy - fz);
   }
-  const like = i => {
-    const k = cell(i) * 4, m = acc[k + 3] > 40 ? acc : all, o = m === acc ? k : 0, cnt = m[o + 3];
-    return Math.abs(px[i * 4] - m[o] / cnt) + Math.abs(px[i * 4 + 1] - m[o + 1] / cnt) + Math.abs(px[i * 4 + 2] - m[o + 2] / cnt) < 27 && sat(i) < 40;
+  const tmp = new Float32Array(n);
+  // Grow (any = true) or shrink a 0/1 mask by r pixels with a square, edges carried on outward.
+  // Counts in a sliding window, so its cost does not depend on r.
+  const grow = (src, dst, r, any) => {
+    const need = any ? 1 : 2 * r + 1;
+    for (let y = 0, o = 0; y < h; y++, o += w) {
+      let c = 0;
+      for (let d = -r; d <= r; d++) c += src[o + Math.min(w - 1, Math.max(0, d))];
+      for (let x = 0; x < w; x++) {
+        tmp[o + x] = c;
+        c += src[o + Math.min(w - 1, x + r + 1)] - src[o + Math.max(0, x - r)];
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let c = 0;
+      for (let d = -r; d <= r; d++) c += tmp[Math.min(h - 1, Math.max(0, d)) * w + x] >= need ? 1 : 0;
+      for (let y = 0; y < h; y++) {
+        dst[y * w + x] = c >= need ? 1 : 0;
+        c += (tmp[Math.min(h - 1, y + r + 1) * w + x] >= need ? 1 : 0) - (tmp[Math.max(0, y - r) * w + x] >= need ? 1 : 0);
+      }
+    }
   };
-  for (let i = 0; i < n; i++) if (!seen[i] && like(i)) { seen[i] = 1; stack[top++] = i; }
-  while (top) {
-    const i = stack[--top], x = i % w, l = lum(i);
-    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
-      if (j < 0 || j >= n || seen[j]) continue;
-      if (Math.abs(lum(j) - l) < 10 && like(j)) { seen[j] = 1; stack[top++] = j; }
+  const blur = s => {
+    for (let y = 0; y < h; y++) for (let x = 0, o = y * w; x < w; x++) tmp[o + x] = (s[o + Math.max(0, x - 1)] + s[o + x] + s[o + Math.min(w - 1, x + 1)]) / 3;
+    for (let y = 0; y < h; y++) for (let x = 0, o = y * w; x < w; x++) s[o + x] = (tmp[Math.max(0, y - 1) * w + x] + tmp[o + x] + tmp[Math.min(h - 1, y + 1) * w + x]) / 3;
+  };
+  // Some photographs have a thin rule round them (a white line, a black one). Paint it over with
+  // what lies just inside, so that it is taken for neither backdrop nor piece.
+  {
+    const at = (side, t, u) => (side === 0 ? t * w + u : side === 1 ? (h - 1 - t) * w + u : side === 2 ? u * w + t : u * w + w - 1 - t);
+    const line = (side, t) => {
+      const len = side < 2 ? w : h; let sL = 0, sA = 0, sB = 0, sq = 0;
+      for (let u = 0; u < len; u++) { const i = at(side, t, u); sL += L[i]; sA += A[i]; sB += B[i]; sq += L[i] * L[i]; }
+      const mL = sL / len; return [mL, sA / len, sB / len, Math.sqrt(Math.max(0, sq / len - mL * mL))];
+    };
+    const apart = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+    for (let side = 0; side < 4; side++) {
+      const l0 = line(side, 0);
+      if (l0[3] > 6) continue;
+      let k = 1;
+      while (k < 8) { const lt = line(side, k); if (lt[3] < 6 && apart(lt, l0) < 6) k++; else break; }
+      if (k >= 8 || apart(line(side, k + 1), l0) < 12) continue;
+      const len = side < 2 ? w : h;
+      for (let t = 0; t <= k; t++) for (let u = 0; u < len; u++) { const i = at(side, t, u), j = at(side, k + 1, u); L[i] = L[j]; A[i] = A[j]; B[i] = B[j]; }
     }
   }
-  // Lone specks cleared inside the piece are put back: a pocket is a patch, not a pixel.
-  for (let i = w + 1; i < n - w - 1; i++) if (seen[i] && !seen[i - 1] && !seen[i + 1] && !seen[i - w] && !seen[i + w]) seen[i] = 0;
-  // And one pixel is taken off the outline all round, where backdrop and piece were blurred together.
-  const edge = [];
-  for (let i = w; i < n - w; i++) if (!seen[i] && (seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w])) edge.push(i);
-  for (const i of edge) seen[i] = 1;
-  for (let i = 0; i < n; i++) if (seen[i]) px[i * 4 + 3] = 0;
+  blur(L); blur(A); blur(B);
+  // How sharply the colour changes at each pixel: the outline of the piece is where it changes most.
+  const G = new Float32Array(n);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, l = x > 0 ? i - 1 : i, r = x < w - 1 ? i + 1 : i, u = y > 0 ? i - w : i, d = y < h - 1 ? i + w : i;
+    const gx = (L[r] - L[l]) ** 2 + (A[r] - A[l]) ** 2 + (B[r] - B[l]) ** 2, gy = (L[d] - L[u]) ** 2 + (A[d] - A[u]) ** 2 + (B[d] - B[u]) ** 2;
+    G[i] = Math.sqrt(gx + gy) / 2;
+  }
+
+  // 2. The backdrop is a smooth studio sweep: fit a low-order surface to it in each of L, a and b,
+  // first from the margins of the photograph, then again from all of the backdrop found from them.
+  const basis = (i, k, out) => {
+    const u = (i % w) / (w - 1) * 2 - 1, v = Math.floor(i / w) / (h - 1) * 2 - 1;
+    out[0] = 1; out[1] = u; out[2] = v; out[3] = u * u; out[4] = u * v; out[5] = v * v;
+    if (k > 6) { out[6] = u * u * u; out[7] = u * u * v; out[8] = u * v * v; out[9] = v * v * v; }
+  };
+  const phi = new Float64Array(10), coef = new Float64Array(30);
+  const fit = (idx, keep, k) => {
+    const M = new Float64Array(k * k), R = new Float64Array(k * 3);
+    for (let s = 0; s < idx.length; s++) {
+      if (!keep[s]) continue;
+      const i = idx[s]; basis(i, k, phi);
+      for (let a = 0; a < k; a++) { for (let b = 0; b < k; b++) M[a * k + b] += phi[a] * phi[b]; R[a * 3] += phi[a] * L[i]; R[a * 3 + 1] += phi[a] * A[i]; R[a * 3 + 2] += phi[a] * B[i]; }
+    }
+    for (let a = 0; a < k; a++) M[a * k + a] += 1e-3;
+    for (let c = 0; c < k; c++) {         // Gaussian elimination with partial pivoting
+      let p = c; for (let r = c + 1; r < k; r++) if (Math.abs(M[r * k + c]) > Math.abs(M[p * k + c])) p = r;
+      if (p !== c) { for (let b = 0; b < k; b++) { const t = M[c * k + b]; M[c * k + b] = M[p * k + b]; M[p * k + b] = t; } for (let b = 0; b < 3; b++) { const t = R[c * 3 + b]; R[c * 3 + b] = R[p * 3 + b]; R[p * 3 + b] = t; } }
+      const d = M[c * k + c] || 1e-9;
+      for (let r = 0; r < k; r++) if (r !== c) { const m = M[r * k + c] / d; if (!m) continue; for (let b = c; b < k; b++) M[r * k + b] -= m * M[c * k + b]; for (let b = 0; b < 3; b++) R[r * 3 + b] -= m * R[c * 3 + b]; }
+    }
+    coef.fill(0);
+    for (let a = 0; a < k; a++) for (let b = 0; b < 3; b++) coef[b * 10 + a] = R[a * 3 + b] / (M[a * k + a] || 1e-9);
+  };
+  const D = new Float32Array(n), P = new Float32Array(n * 3);     // how far each pixel is from the backdrop expected there, and that backdrop
+  const predict = k => {
+    for (let i = 0; i < n; i++) {
+      basis(i, k, phi);
+      let l = 0, a = 0, b = 0;
+      for (let t = 0; t < k; t++) { l += coef[t] * phi[t]; a += coef[10 + t] * phi[t]; b += coef[20 + t] * phi[t]; }
+      l = Math.max(0, Math.min(100, l)); a = Math.max(-100, Math.min(100, a)); b = Math.max(-100, Math.min(100, b));     // a surface fitted to part of the photograph can run wild beyond it
+      P[i * 3] = l; P[i * 3 + 1] = a; P[i * 3 + 2] = b;
+      D[i] = Math.sqrt((L[i] - l) ** 2 + (A[i] - a) ** 2 + (B[i] - b) ** 2);
+    }
+  };
+  const median = (arr, m) => { const s = Float32Array.from(arr.subarray(0, m)).sort(); return s[m >> 1] || 0; };
+  const resid = (idx, k, res) => {
+    for (let s = 0; s < idx.length; s++) {
+      const i = idx[s]; basis(i, k, phi);
+      let l = 0, a = 0, b = 0;
+      for (let t = 0; t < k; t++) { l += coef[t] * phi[t]; a += coef[10 + t] * phi[t]; b += coef[20 + t] * phi[t]; }
+      res[s] = Math.sqrt((L[i] - l) ** 2 + (A[i] - a) ** 2 + (B[i] - b) ** 2);
+    }
+  };
+  // Fit robustly: whatever of the piece reaches the margins is set aside, a few times over.
+  const robust = (idx, k, keep) => {
+    const res = new Float32Array(idx.length);
+    let scale = 0;
+    for (let it = 0; it < 4; it++) {
+      fit(idx, keep, k); resid(idx, k, res);
+      let m = 0; for (let s = 0; s < idx.length; s++) if (keep[s]) tmp[m++] = res[s];
+      scale = Math.max(0.6, median(tmp, m));
+      for (let s = 0; s < idx.length; s++) keep[s] = res[s] < Math.max(3.5, 3 * scale) ? 1 : 0;
+    }
+    let kept = 0; for (let s = 0; s < idx.length; s++) kept += keep[s];
+    return { scale, share: kept / idx.length };
+  };
+  const band = Math.max(2, Math.round(Math.min(w, h) * 0.015)), rim = [], side = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (x < band || y < band || x >= w - band || y >= h - band) { rim.push(y * w + x); side.push(y < band ? 0 : y >= h - band ? 3 : y < h / 2 ? 1 : 2); }
+  // The piece may run off the photograph at the bottom (a plinth), or at a side, or the top. So
+  // try the backdrop as seen along different parts of the margin, and go with the one most of
+  // the margin agrees with.
+  let first = null, best = -1;
+  const res0 = new Float32Array(rim.length);
+  for (const use of [[0, 1, 2, 3], [0, 1], [0, 1, 2], [1, 2, 3], [1, 2]]) {
+    const keep = new Uint8Array(side.length); for (let s = 0; s < side.length; s++) keep[s] = use.indexOf(side[s]) >= 0 ? 1 : 0;
+    fit(rim, keep, 6); resid(rim, 6, res0);
+    let agree = 0; for (let s = 0; s < rim.length; s++) if (res0[s] < 5) agree++;
+    if (agree > best) { best = agree; first = Uint8Array.from(res0, r => (r < 5 ? 1 : 0)); }
+  }
+  const rimFit = robust(rim, 6, first);
+  { let m = 0; for (let s = 0; s < rim.length; s += 2) if (first[s]) tmp[m++] = G[rim[s]]; rimFit.grain = median(tmp, m); }
+
+  // Something to show if the backdrop cannot be found: the photograph on a card with rounded corners.
+  const card = rad => {
+    const r = Math.max(2, Math.min(w, h) * rad);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = Math.max(0, r - x - 0.5, x + 0.5 - (w - r)), dy = Math.max(0, r - y - 0.5, y + 0.5 - (h - r));
+      const e = Math.min(x + 0.5, y + 0.5, w - x - 0.5, h - y - 0.5), out = dx > 0 && dy > 0 ? Math.hypot(dx, dy) - r + 1 : 1 - e;
+      px[(y * w + x) * 4 + 3] = Math.round(255 * Math.max(0, Math.min(1, 0.5 - out)));
+    }
+    return true;
+  };
+  // No plain backdrop round most of the edge (a photograph taken in a room, a piece cropped on every side).
+  if (rimFit.share < 0.4 || rimFit.scale > 2 && rimFit.grain > 0.4) return card(0.04);
+
+  // 3. Grow the backdrop in from the edge, only through pixels that look like it and lie on no edge.
+  // An edge is thickened by a pixel first, so the backdrop cannot slip through a one-pixel gap in it.
+  const G3 = new Float32Array(n);
+  for (let y = 0, o = 0; y < h; y++, o += w) for (let x = 0; x < w; x++) tmp[o + x] = Math.max(G[o + (x > 0 ? x - 1 : x)], G[o + x], G[o + (x < w - 1 ? x + 1 : x)]);
+  for (let y = 0, o = 0; y < h; y++, o += w) for (let x = 0; x < w; x++) G3[o + x] = Math.max(tmp[(y > 0 ? o - w : o) + x], tmp[o + x], tmp[(y < h - 1 ? o + w : o) + x]);
+  const lab = new Uint8Array(n), stack = new Int32Array(n);       // 1 backdrop, 2 the piece
+  let T = 0, Gt = 0;
+  const fromEdge = (ok, mark) => {      // flood from the edge of the photograph through pixels ok(i), marking them; returns how many
+    let top = 0, count = 0;
+    const seed = i => { if (lab[i] !== mark && ok(i)) { lab[i] = mark; stack[top++] = i; } };
+    for (let x = 0; x < w; x++) { seed(x); seed(n - w + x); }
+    for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
+    while (top) { const i = stack[--top], x = i % w; count++; if (x > 0) seed(i - 1); if (x < w - 1) seed(i + 1); if (i >= w) seed(i - w); if (i < n - w) seed(i + w); }
+    return count;
+  };
+  const flood = () => { lab.fill(0); return fromEdge(i => D[i] < T && G3[i] < Gt, 1); };
+  const gauge = sc => {
+    T = Math.min(12, Math.max(4.5, 2.5 * sc + 2.5));
+    let m = 0; for (let s = 0; s < rim.length; s += 3) if (D[rim[s]] < T) tmp[m++] = G[rim[s]];
+    Gt = Math.min(6, Math.max(1.6, 3 * median(tmp, m) + 1));
+  };
+  predict(6); gauge(rimFit.scale);
+  let got = flood();
+  // Refit on everything found, with a cubic once there is enough of it to hold one steady.
+  if (got > n * 0.05) {
+    const idx = [], step = Math.max(1, Math.round(Math.sqrt(got / 6000)));
+    for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) if (lab[y * w + x]) idx.push(y * w + x);
+    const k = got > n * 0.2 ? 10 : 6, fit2 = robust(idx, k, new Uint8Array(idx.length).fill(1));
+    if (fit2.scale > 2.6) return card(0.04);      // what was found is not a plain backdrop either
+    predict(k); gauge(fit2.scale);
+    got = flood();
+  }
+  // How each pixel differs from the backdrop expected there: in lightness, and in hue. A shadow, or
+  // light spilling across the floor, changes the first and hardly the second.
+  const DL = new Float32Array(n), DC = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const pl = P[i * 3], pa = P[i * 3 + 1], pb = P[i * 3 + 2], r = Math.max(0, Math.min(1.5, L[i] / Math.max(1, pl)));
+    DL[i] = L[i] - pl;
+    DC[i] = Math.sqrt(Math.min((A[i] - pa) ** 2 + (B[i] - pb) ** 2, (A[i] - pa * r) ** 2 + (B[i] - pb * r) ** 2));
+  }
+  // So the backdrop may also run on from the edge through smooth ground that differs from it only
+  // in how brightly it is lit (the bright floor of a sweep, a soft shadow), never across an edge.
+  lab.fill(0);
+  fromEdge(i => G3[i] < Gt && (D[i] < T || DC[i] < (DL[i] < 0 && L[i] > P[i * 3] * 0.45 ? Math.max(5.5, T * 1.1) : Math.max(3, T * 0.6))), 1);
+  // That flood is only a seed for the backdrop, so it is kept well clear of the piece: drawn in
+  // by three pixels, and whatever that cuts off from the edge (where it slipped in through a gap
+  // in the outline) is given up. Likewise what lies more than three pixels beyond it is taken
+  // as a seed of the piece, even where it is as pale as the backdrop (white porcelain on white).
+  const far = new Uint8Array(n);
+  {
+    const m = new Uint8Array(n);
+    grow(lab, far, 3, true);
+    for (let i = 0; i < n; i++) far[i] ^= 1;
+    grow(lab, m, 3, false);
+    lab.fill(0); fromEdge(i => m[i] === 1, 1);
+  }
+
+  // 4. Seeds of the piece: whatever is plainly unlike the backdrop, except what is only a shadow
+  // on it (darker, but the same hue, and not too dark). Then backdrop and piece are flooded outward
+  // together in order of edge strength (a watershed), so that they meet on the strongest edge
+  // between them. The backdrop pays extra to enter anything unlike it, so where the outline is
+  // faint it is the backdrop that gives way, not the piece; a shadow costs it only its change of hue.
+  const To = Math.max(T * 2, T + 7);
+  const cost = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const dl = DL[i], dc = DC[i];
+    // (In the lower part of the photograph, light thrown on the floor is treated the same way.)
+    const shade = dc < Math.max(4, T * 0.7) && (dl < 0 ? L[i] > P[i * 3] * 0.45 : i > n * 0.6);
+    if (!lab[i] && (D[i] > To || far[i]) && !shade) lab[i] = 2;
+    cost[i] = 0.6 * Math.max(0, (shade ? dc + 0.15 * Math.abs(dl) : D[i]) - T);
+  }
+  const NB = 1024, head = new Int32Array(NB).fill(-1), next = new Int32Array(n);
+  let cur = 0;
+  const push = (i, b) => { if (b < cur) b = cur; if (b >= NB) b = NB - 1; next[i] = head[b]; head[b] = i; };
+  for (let i = 0; i < n; i++) if (lab[i]) push(i, 0);
+  for (;;) {
+    while (cur < NB && head[cur] < 0) cur++;
+    if (cur >= NB) break;
+    const i = head[cur]; head[cur] = next[i];
+    const li = lab[i];
+    for (let k = 0; k < 4; k++) {
+      if (!inside(i, k)) continue;
+      const j = i + N4[k];
+      if (lab[j]) continue;
+      lab[j] = li;
+      push(j, Math.round(8 * (G[j] + (li === 1 ? cost[j] : 0))));
+    }
+  }
+
+  // 5. Backdrop is only what joins up with the edge of the photograph. Anything shut inside the
+  // piece (a pale cheek, the top of a plaster head) is the piece, so there are no holes.
+  const obj = new Uint8Array(n).fill(1);
+  {
+    let top = 0;
+    const seed = i => { if (lab[i] === 1 && obj[i]) { obj[i] = 0; stack[top++] = i; } };
+    for (let x = 0; x < w; x++) { seed(x); seed(n - w + x); }
+    for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
+    while (top) { const i = stack[--top]; for (let k = 0; k < 4; k++) if (inside(i, k)) seed(i + N4[k]); }
+  }
+  // Keep the piece itself, and any other part of it of real size (a lid set beside its jar); drop specks.
+  const comp = new Int32Array(n), sizes = [0];
+  for (let i0 = 0; i0 < n; i0++) {
+    if (!obj[i0] || comp[i0]) continue;
+    const c = sizes.length; let top = 0, sz = 0;
+    comp[i0] = c; stack[top++] = i0;
+    while (top) { const i = stack[--top]; sz++; for (let k = 0; k < 4; k++) { if (!inside(i, k)) continue; const j = i + N4[k]; if (obj[j] && !comp[j]) { comp[j] = c; stack[top++] = j; } } }
+    sizes.push(sz);
+  }
+  const big = Math.max(...sizes), floor = Math.max(big * 0.15, n * 0.003);
+  let area = 0;
+  for (let i = 0; i < n; i++) { obj[i] = obj[i] && sizes[comp[i]] >= floor ? 1 : 0; area += obj[i]; }
+
+  // Too little left, or too little taken: not a cut-out worth showing.
+  if (area < n * 0.04) return card(0.06);
+  if (area > n * 0.96) return card(0.03);
+
+  // 6. Close small nicks in the outline (2 px), fill again whatever that shuts in, then take one
+  // pixel off all round, where piece and backdrop were blurred together, and soften the edge by one.
+  const m2 = new Uint8Array(n);
+  grow(obj, m2, 2, true); grow(m2, obj, 2, false);
+  {
+    m2.fill(1);
+    let top = 0;
+    const seed = i => { if (!obj[i] && m2[i]) { m2[i] = 0; stack[top++] = i; } };
+    for (let x = 0; x < w; x++) { seed(x); seed(n - w + x); }
+    for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
+    while (top) { const i = stack[--top]; for (let k = 0; k < 4; k++) if (inside(i, k)) seed(i + N4[k]); }
+  }
+  // Real openings in the piece (through a handle, between an arm and the body) are carved out
+  // after all, but only where the opening is plainly backdrop and the piece's outline runs strongly
+  // all the way round it. A pale patch on the piece fades into it, and so stays.
+  {
+    const seen = new Uint8Array(n), ring = new Int32Array(n);
+    const open = i => m2[i] && D[i] < T * 0.8 && G3[i] < Gt;
+    for (let i0 = 0; i0 < n; i0++) {
+      if (seen[i0] || !open(i0)) continue;
+      const list = []; let top = 0, sumD = 0, edge = 0, strong = 0;
+      seen[i0] = 1; stack[top++] = i0;
+      while (top) {
+        const i = stack[--top]; list.push(i); sumD += D[i];
+        for (let k = 0; k < 4; k++) {
+          if (!inside(i, k)) continue;
+          const j = i + N4[k];
+          if (seen[j]) continue;
+          if (open(j)) { seen[j] = 1; stack[top++] = j; } else if (ring[j] !== i0 + 1) { ring[j] = i0 + 1; edge++; const j2 = inside(j, k) ? j + N4[k] : j; if (Math.max(G3[j], G3[j2]) > Gt * 2.5) strong++; }
+        }
+      }
+      if (list.length >= Math.max(30, n * 0.0015) && (sumD / list.length < T * 0.5 && strong >= edge * 0.75 || sumD / list.length < T * 0.15 && strong >= edge * 0.5 && list.length > n * 0.01)) {
+        // and its rim of blurred backdrop with it, out to the outline.
+        let edgeList = list;
+        for (const i of list) m2[i] = 0;
+        for (let pass = 0; pass < 2; pass++) {
+          const more = [];
+          for (const i of edgeList) for (let k = 0; k < 4; k++) { if (!inside(i, k)) continue; const j = i + N4[k]; if (m2[j] && D[j] < T) { m2[j] = 0; more.push(j); } }
+          edgeList = more;
+        }
+      }
+    }
+  }
+  grow(m2, obj, 1, false);
+  for (let y = 0, o = 0; y < h; y++, o += w) for (let x = 0; x < w; x++) tmp[o + x] = obj[o + (x > 0 ? x - 1 : x)] + obj[o + x] + obj[o + (x < w - 1 ? x + 1 : x)];
+  for (let y = 0, o = 0; y < h; y++, o += w) for (let x = 0; x < w; x++) px[(o + x) * 4 + 3] = Math.round((tmp[(y > 0 ? o - w : o) + x] + tmp[o + x] + tmp[(y < h - 1 ? o + w : o) + x]) * 255 / 9);
+  // The clear pixels take the colour of the piece beside them, out to three pixels, so no grey
+  // fringe of backdrop shows where the graphics card blends a pixel of the piece with one beyond it.
+  {
+    const done = m2;      // 1 where the colour is the piece's own, or has been carried out to (2 briefly: queued)
+    for (let i = 0; i < n; i++) done[i] = px[i * 4 + 3] >= 128 ? 1 : 0;
+    let front = [];
+    for (let i = 0; i < n; i++) if (!done[i]) { const x = i % w; if ((x > 0 && done[i - 1]) || (x < w - 1 && done[i + 1]) || (i >= w && done[i - w]) || (i < n - w && done[i + w])) front.push(i); }
+    for (let pass = 0; pass < 3 && front.length; pass++) {
+      const paint = [];
+      for (const i of front) {
+        let r = 0, g = 0, b = 0, c = 0;
+        for (let k = 0; k < 4; k++) { if (!inside(i, k)) continue; const j = i + N4[k]; if (done[j]) { r += px[j * 4]; g += px[j * 4 + 1]; b += px[j * 4 + 2]; c++; } }
+        if (c) paint.push(i, r / c, g / c, b / c);
+      }
+      for (let s = 0; s < paint.length; s += 4) { const i = paint[s]; px[i * 4] = paint[s + 1]; px[i * 4 + 1] = paint[s + 2]; px[i * 4 + 2] = paint[s + 3]; done[i] = 1; }
+      const next = [];
+      for (let s = 0; s < paint.length; s += 4) { const i = paint[s]; for (let k = 0; k < 4; k++) { if (!inside(i, k)) continue; const j = i + N4[k]; if (!done[j]) { done[j] = 2; next.push(j); } } }
+      for (const j of next) done[j] = 0;
+      front = next;
+    }
+  }
   return true;
 }
 

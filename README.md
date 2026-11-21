@@ -332,9 +332,17 @@ What is not true:
   of clear floor, a clear lane is kept between every pair of doors, and doors
   are 4 m wide.
 - **Sculpture in cases.** The museum photographs objects against a plain
-  backdrop; `cutOut` in `src/museum.js` removes the backdrop so the piece
-  stands in its case as a cut-out that turns to face you. That function is the
-  one to replace when real 3D models exist.
+  backdrop; `cutPixels` in `src/museum.js` removes the backdrop so the piece
+  stands in its case as a cut-out that turns to face you. It fits a smooth
+  surface to the backdrop from the margins of the photograph (in Lab colour),
+  grows the backdrop in from the edge only where a pixel matches it and lies on
+  no edge, and settles the outline with a watershed on edge strength. Anything
+  the backdrop cannot reach is the piece, so a pale cheek or the highlight on a
+  plaster head is never punched through; an opening such as a jug's handle is
+  cut out only where it is plainly backdrop with a strong outline all round.
+  Soft shadows and light on the floor go with the backdrop. Where no plain
+  backdrop can be found the photograph is shown whole on a rounded card. That
+  function is the one to replace when real 3D models exist.
 - **A stunt kit.** The car has real gravity (9.8 m/s²) and `Space` makes it
   hop; hold `Space` in the air and steer to flip and spin. Pieces are placed to
   suit each room and never in front of a doorway or on the racing line:
