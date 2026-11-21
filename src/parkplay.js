@@ -1,86 +1,14 @@
-// Things to do out in the park (features.js): a sledding run by the band shell,
-// a row of snowball targets on Butler Field, and a skater going round the rink who will let you follow her.
+// Things to do out in the park (features.js): a row of snowball targets on Butler Field, and a skater going round the rink who will let you follow her.
 import * as THREE from 'three';
 import { feature } from './features.js';
+import { fitText, twoFaced } from './textures.js';
 
 // Lit a little from within, as everything out of doors is here, so it reads at night.
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, emissive: new THREE.Color(color).multiplyScalar(0.4), ...o });
 const box = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); return b; };
 const inBox = (q, p) => p.x > q.x0 && p.x < q.x1 && p.z > q.z0 && p.z < q.z1;
 
-// ---------------------------------------------------------------- the sledding run
-// Packed snow, built up off the field east of the band shell's path: a ramp up from the west, a start at the top, then
-// four long runs down with a banked turn between each, back down to the snow. Packed snow is fast; under 20 s is good.
-feature({
-  id: 'sledding',
-  secrets: [['sledding', 'Sledding']],
-  init(k) {
-    const snow = mat(0xdbe5ef, { roughness: 0.55 }), kerbM = mat(0xf3f7fb, { roughness: 0.7 }), H = 6;
-    const P = this.pieces = {
-      ramp: { skin: 'snow', x0: 318, x1: 336, z0: 131, z1: 137, axis: 'x', h0: 0, h1: H },
-      start: { skin: 'snow', x0: 336, x1: 342, z0: 131, z1: 137, axis: null, h0: H, h1: H },
-      s1: { skin: 'snow', x0: 342, x1: 368, z0: 131, z1: 137, axis: 'x', h0: H, h1: 4.5 },
-      c1: { skin: 'snow', x0: 368, x1: 374, z0: 131, z1: 143, axis: null, h0: 4.5, h1: 4.5 },
-      s2: { skin: 'snow', x0: 368, x1: 374, z0: 143, z1: 165, axis: 'z', h0: 4.5, h1: 3 },
-      c2: { skin: 'snow', x0: 362, x1: 374, z0: 165, z1: 171, axis: null, h0: 3, h1: 3 },
-      s3: { skin: 'snow', x0: 342, x1: 362, z0: 165, z1: 171, axis: 'x', h0: 1.5, h1: 3 },
-      c3: { skin: 'snow', x0: 336, x1: 342, z0: 165, z1: 177, axis: null, h0: 1.5, h1: 1.5 },
-      s4: { skin: 'snow', x0: 336, x1: 342, z0: 177, z1: 197, axis: 'z', h0: 1.5, h1: 0 },
-    };
-    for (const s of Object.values(P)) k.solid(s, snow);
-    this.slopes = [P.s1, P.s2, P.s3, P.s4];
-    // Kerbs along every edge nothing joins on to, higher round the turns where the run banks.
-    const W = 0.3, kerb = (s, side, from, to, up = 0.35) => {
-      const q = { skin: 'snow', axis: s.axis, h0: s.h0 + up, h1: s.h1 + up };
-      if (side === 'n') Object.assign(q, { x0: from, x1: to, z0: s.z1 - W, z1: s.z1 }); else if (side === 's') Object.assign(q, { x0: from, x1: to, z0: s.z0, z1: s.z0 + W });
-      else if (side === 'e') Object.assign(q, { x0: s.x1 - W, x1: s.x1, z0: from, z1: to }); else Object.assign(q, { x0: s.x0, x1: s.x0 + W, z0: from, z1: to });
-      if (q.axis === 'x' && (side === 'e' || side === 'w')) q.h0 = q.h1 = (side === 'e' ? s.h1 : s.h0) + up;
-      if (q.axis === 'z' && (side === 'n' || side === 's')) q.h0 = q.h1 = (side === 'n' ? s.h1 : s.h0) + up;
-      if (q.axis !== s.axis) q.axis = q.h0 === q.h1 ? null : s.axis;
-      k.solid(q, kerbM);
-    };
-    kerb(P.ramp, 'n', 318, 336); kerb(P.ramp, 's', 318, 336); kerb(P.start, 'n', 336, 342); kerb(P.start, 's', 336, 342);
-    kerb(P.s1, 'n', 342, 368); kerb(P.s1, 's', 342, 368);
-    kerb(P.c1, 'e', 131, 143, 0.7); kerb(P.c1, 's', 368, 374, 0.7); kerb(P.c1, 'w', 137, 143, 0.5);
-    kerb(P.s2, 'w', 143, 165); kerb(P.s2, 'e', 143, 165);
-    kerb(P.c2, 'e', 165, 171, 0.7); kerb(P.c2, 'n', 362, 374, 0.7); kerb(P.c2, 's', 362, 368, 0.5);
-    kerb(P.s3, 's', 342, 362); kerb(P.s3, 'n', 342, 362);
-    kerb(P.c3, 'w', 165, 177, 0.7); kerb(P.c3, 's', 336, 342, 0.7); kerb(P.c3, 'e', 171, 177, 0.5);
-    kerb(P.s4, 'w', 177, 197); kerb(P.s4, 'e', 177, 197);
-    // A board at the top and two flags at the bottom.
-    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const c = cv.getContext('2d');
-    c.fillStyle = '#7a4b2a'; c.fillRect(0, 0, 256, 96); c.fillStyle = '#f4ead8'; c.font = '700 40px Georgia, serif'; c.textAlign = 'center'; c.fillText('SLED RUN', 128, 46); c.font = '20px Georgia, serif'; c.fillText('beat 20 seconds', 128, 78);
-    const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.45), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.9 }));
-    sign.position.set(339, H + 1.1, 130.95); sign.rotation.y = Math.PI; k.group.add(sign, box(0.06, 1.2, 0.06, mat(0x5a3a22), 338.4, H + 0.6, 131.0), box(0.06, 1.2, 0.06, mat(0x5a3a22), 339.6, H + 0.6, 131.0));
-    const flagM = mat(0xc0392b);
-    for (const x of [336.4, 341.6]) { k.group.add(box(0.05, 1.6, 0.05, mat(0x333333), x, 0.8, 197.5)); const f = box(0.02, 0.35, 0.5, flagM, x, 1.4, 197.8); k.group.add(f); }
-    this.at = { x: 339, y: H, z: 134 };
-    const course = [P.start, P.s1, P.c1, P.s2, P.c2, P.s3, P.c3, P.s4, { x0: 335, x1: 343, z0: 196, z1: 205 }];
-    this.timer = k.timer({
-      id: 'sledding', name: 'SLED RUN', limit: 60, min: 4,
-      start: { x0: 336, x1: 342, z0: 131, z1: 137, y0: H - 0.5 },
-      finish: { x0: 335, x1: 343, z0: 197.2, z1: 205 },
-      inside: p => course.some(q => p.x > q.x0 - 0.6 && p.x < q.x1 + 0.6 && p.z > q.z0 - 0.6 && p.z < q.z1 + 0.6),
-      onStart: () => k.synth.chime([523, 784], { gap: 0.1, dur: 0.5 }),
-      onFinish: t => { if (t < 20) { if (k.find('sledding')) k.callout('SLEDDING'); k.synth.chime([523, 659, 784, 1047]); } else k.say(`${t.toFixed(1)} s. Under 20 and the run is yours.`, 3.5); },
-    });
-  },
-  active(k) { return k.pos.x > 300 && k.pos.x < 392 && k.pos.z > 112 && k.pos.z < 215; },
-  update(dt, k) {
-    const v = k.v;
-    if (k.close(this.at, 4, 1.2)) k.once('sled-start', 'The top of the sled run. Go when you like: the clock starts as you leave.', 5);
-    this.timer.update(dt);
-    // Packed snow is quick going down: a push along the way you are going on the slopes.
-    if (v.kind === 'car' && !v.air && this.slopes.includes(v.on)) {
-      const s = v.on, dn = s.h1 < s.h0 ? 1 : -1, along = s.axis === 'x' ? v.vel.x * dn : v.vel.z * dn, sp = Math.hypot(v.vel.x, v.vel.z);
-      if (along > 0.3 && sp < 13) { const f = 1 + 3.2 * dt / Math.max(sp, 0.5); v.vel.x *= f; v.vel.z *= f; }
-    }
-  },
-  spots() { return this.at ? [{ kind: 'secret', id: 'sledding', name: 'Sledding (under 20 s)', ...this.at }] : []; },
-  reset() { if (this.timer) this.timer.cancel(); },
-});
-
+// (The sledding hill, with its run, is sledhill.js.)
 // (Ice fishing on the harbour is icefish.js.)
 
 

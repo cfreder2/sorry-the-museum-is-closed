@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { landable } from './plan.js';
-import { asphaltMaterial, walkMaterial, paintMaterial } from './streetscape.js';
+import { asphaltMaterial, walkMaterial, paintMaterial, ParkFurniture } from './streetscape.js';
 
 export function buildLakefront(museum, plan) {
   const L = plan.lakefront; if (!L) return;
@@ -57,8 +57,9 @@ export function buildLakefront(museum, plan) {
   flat(walk, prom.x1, shore + 4, slip[0], slip[1], 0.012, 2.5);
   for (const z of slip) { stone.box(prom.x1 - 0.2, shore + 2.4, 0, 0.62, z - 0.25, z + 0.25); dark.box(prom.x1 + 0.9, prom.x1 + 1.1, 0.62, 1.5, z - 0.08, z + 0.08);
     landable(plan, prom.x1 - 0.2, shore + 2.4, z - 0.25, z + 0.25, 0.62); plan.obstacles.push({ x0: prom.x1 + 0.9, x1: prom.x1 + 1.1, z0: z - 0.08, z1: z + 0.08, y0: 0.5, y1: 1.5 }); }      // the slipway's walls, solid, with tops to drive along
-  // Benches facing the water, and their snow.
-  for (let z = z0 + 30; z < z1 - 10; z += 34) if (z < slip[0] - 4 || z > slip[1] + 4) { dark.box(prom.x1 - 1.9, prom.x1 - 1.3, 0, 0.42, z - 1, z + 1); snow.box(prom.x1 - 1.9, prom.x1 - 1.3, 0.42, 0.5, z - 1, z + 1); plan.obstacles.push({ x0: prom.x1 - 1.9, x1: prom.x1 - 1.3, z0: z - 1, z1: z + 1, y0: 0, y1: 0.5 }); }
+  // Benches facing the water (the streets' cast iron and slats, streetscape.js), and their snow.
+  const PF = new ParkFurniture(plan);
+  for (let z = z0 + 30; z < z1 - 10; z += 34) if (z < slip[0] - 4 || z > slip[1] + 4) PF.bench(prom.x1 - 1.6, 0, z, 1, 0);
 
   // ---- the harbour ice, out to the buoys
   { const w = L.window, X0 = shore, X1 = buoys + 0.6, Z0 = z0 - 200, Z1 = z1 + 200;
@@ -96,6 +97,6 @@ export function buildLakefront(museum, plan) {
   add(stone.mesh(new THREE.MeshStandardMaterial({ color: 0xa9a59b, roughness: 0.9, emissive: 0x41465a, emissiveIntensity: 0.55 })));
   add(dark.mesh(new THREE.MeshStandardMaterial({ color: 0x23262d, roughness: 0.7, emissive: 0x0e1016, emissiveIntensity: 0.6 })));
   add(white.mesh(new THREE.MeshStandardMaterial({ color: 0xd9dbe0, roughness: 0.6, metalness: 0.15, emissive: 0x565c70, emissiveIntensity: 0.6, side: THREE.DoubleSide })));
-  add(snow.mesh(new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 })));
+  { const m = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 }); add(snow.mesh(m), ...PF.meshes(m)); }
   add(ice.mesh(new THREE.MeshStandardMaterial({ map: iceT, roughness: 0.18, metalness: 0.1, emissiveMap: iceT, emissive: new THREE.Color(0.2, 0.26, 0.4), emissiveIntensity: 0.55, ...off(-1) })));
 }

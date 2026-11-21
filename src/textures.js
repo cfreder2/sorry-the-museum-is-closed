@@ -17,6 +17,52 @@ function tex(c, { repeat = false, srgb = true } = {}) {
   return t;
 }
 
+// ---------------------------------------------------------------- lettering ---
+
+export const SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
+export const SANS = 'Helvetica, Arial, sans-serif';
+
+// Every word of every sign goes through here. `text` is set as large as it will go, up to `px`, in the box `w` by `h`
+// centred on (x, y): smaller rather than past an edge, and broken onto a second line (up to `lines`) before it would
+// shrink below `wrapAt` of its size. Nothing is ever clipped or squeezed. `sep` is what words are joined by (a sign
+// set with spaced letters joins its words with a wider gap). `paint(line, x, y)` draws a line (default: fill it, in
+// whatever fillStyle is set). Returns the size it used and the lines, so a caller can set what follows to match.
+export function fitText(g, text, { x, y, w, h, px, weight = '600', family = SERIF, lines = 1, wrapAt = 0.72, lead = 1.12, sep = ' ', minPx = 6, paint } = {}) {
+  const set = s => { g.font = `${weight} ${s}px ${family}`; };
+  const words = lines > 1 ? String(text).split(sep).filter(s => s !== '') : [String(text)];      // (one line: the text exactly as given, its spacing and all)
+  set(100);
+  const width = s => g.measureText(s).width / 100;                   // per pixel of size
+  // The best break into n lines: the one whose longest line is shortest.
+  const split = n => {
+    if (n <= 1 || words.length < 2) return [words.join(sep)];
+    let best = null;
+    const go = (from, left, acc) => {
+      if (left === 1) { const l = [...acc, words.slice(from).join(sep)], m = Math.max(...l.map(width)); if (!best || m < best.m) best = { l, m }; return; }
+      for (let i = from + 1; i <= words.length - (left - 1); i++) go(i, left - 1, [...acc, words.slice(from, i).join(sep)]);
+    };
+    go(0, Math.min(n, words.length), []);
+    return best.l;
+  };
+  const size = l => Math.min(px, w / Math.max(...l.map(width)), h / (l.length === 1 ? 1 : 1 + (l.length - 1) * lead));
+  let out = split(1), s = size(out);
+  for (let n = 2; n <= lines && s < px * wrapAt && n <= words.length; n++) { const l = split(n), sn = size(l); if (sn > s * 1.08) { out = l; s = sn; } }
+  s = Math.max(minPx, Math.floor(s * 10) / 10);
+  set(s);
+  const ta = g.textAlign, tb = g.textBaseline; g.textAlign = 'center'; g.textBaseline = 'middle';
+  out.forEach((l, i) => { const ly = y + (i - (out.length - 1) / 2) * s * lead; if (paint) paint(l, x, ly); else g.fillText(l, x, ly); });
+  g.textAlign = ta; g.textBaseline = tb;
+  return { px: s, lines: out };
+}
+
+// A painted board seen from both sides: two single-sided faces back to back, so its lettering reads the right way
+// round from either (a DoubleSide plane shows its back mirrored). `geo` is the face, `mat` the material.
+export function twoFaced(geo, mat, gap = 0.004) {
+  const front = new THREE.Mesh(geo, mat), back = new THREE.Mesh(geo, mat);
+  front.position.z = gap / 2; back.position.z = -gap / 2; back.rotation.y = Math.PI;
+  const g = new THREE.Group(); g.add(front, back);
+  return g;
+}
+
 // Seeded, so the building is the same every night.
 export function rng(seed) {
   let s = seed >>> 0;
@@ -253,28 +299,30 @@ export function sign(title, sub) {
   g.clearRect(0, 0, 1024, 192);
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = '#e9d7a8';
-  // Every word on the board: a long name is set smaller rather than run off the ends.
-  const SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif', fit = (style, px, text) => { g.font = `${style} ${px}px ${SERIF}`; const w = g.measureText(text).width; if (w > 984) g.font = `${style} ${Math.max(20, Math.floor(px * 984 / w))}px ${SERIF}`; };
-  const spaced = title.toUpperCase().split('').join('  ');
-  fit('600', 74, spaced);
-  g.fillText(spaced, 512, sub ? 66 : 96);
+  // Every word on the board: a long name is set smaller rather than run off the ends, and with nothing under it,
+  // goes onto two lines before it gets small.
+  const gap = '     ', spaced = title.toUpperCase().split(/\s+/).map(w => w.split('').join('  ')).join(gap);
+  fitText(g, spaced, { x: 512, y: sub ? 64 : 96, w: 944, h: sub ? 100 : 172, px: 74, sep: gap, lines: sub ? 1 : 2, wrapAt: 0.62 });
   if (sub) {
-    fit('italic', 44, sub);
     g.fillStyle = '#c9b88c';
-    g.fillText(sub, 512, 146);
+    fitText(g, sub, { x: 512, y: 146, w: 944, h: 56, px: 44, weight: 'italic' });
   }
   const t = tex(c);
   return t;
 }
 
+// The wet-floor board: drawn at the panel's own shape (0.3 m by 0.62), so nothing on it is stretched.
 export function caution() {
-  const [c, g] = canvas(256, 384);
-  g.fillStyle = '#f2c21a'; g.fillRect(0, 0, 256, 384);
-  g.fillStyle = '#111'; g.textAlign = 'center';
-  g.font = '900 44px Helvetica, Arial, sans-serif'; g.fillText('CAUTION', 128, 70);
-  g.beginPath(); g.moveTo(128, 100); g.lineTo(206, 236); g.lineTo(50, 236); g.closePath(); g.fill();
-  g.fillStyle = '#f2c21a'; g.font = '900 100px Helvetica, Arial, sans-serif'; g.fillText('!', 128, 222);
-  g.fillStyle = '#111'; g.font = '900 38px Helvetica, Arial, sans-serif'; g.fillText('WET', 128, 292); g.fillText('FLOOR', 128, 336);
+  const [c, g] = canvas(256, 528);
+  g.fillStyle = '#f2c21a'; g.fillRect(0, 0, 256, 528);
+  g.fillStyle = '#111';
+  fitText(g, 'CAUTION', { x: 128, y: 74, w: 224, h: 52, px: 50, weight: '900', family: SANS });
+  g.beginPath(); g.moveTo(128, 122); g.lineTo(220, 282); g.lineTo(36, 282); g.closePath(); g.fill();
+  g.fillStyle = '#f2c21a'; fitText(g, '!', { x: 128, y: 230, w: 60, h: 96, px: 100, weight: '900', family: SANS });
+  g.fillStyle = '#111';
+  fitText(g, 'WET', { x: 128, y: 352, w: 224, h: 56, px: 54, weight: '900', family: SANS });
+  fitText(g, 'FLOOR', { x: 128, y: 412, w: 224, h: 56, px: 54, weight: '900', family: SANS });
+  g.fillRect(16, 470, 224, 10);
   return tex(c);
 }
 
@@ -482,7 +530,8 @@ export function notice(lines, bg = '#efe6cf', fg = '#1d3a2c') {
   g.fillStyle = bg; g.fillRect(0, 0, 512, 256);
   g.strokeStyle = fg; g.lineWidth = 8; g.strokeRect(12, 12, 488, 232);
   g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
-  lines.forEach((l, i) => { g.font = `${i === 0 ? '600 ' : 'italic '}${i === 0 ? 62 : 44}px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`; g.fillText(l, 256, 128 + (i - (lines.length - 1) / 2) * 68); });
+  const step = Math.min(68, 200 / lines.length);
+  lines.forEach((l, i) => fitText(g, l, { x: 256, y: 128 + (i - (lines.length - 1) / 2) * step, w: 440, h: step - 6, px: i === 0 ? 62 : 44, weight: i === 0 ? '600' : 'italic' }));
   return tex(c);
 }
 
@@ -616,9 +665,8 @@ export function carved(text, w = 2048, h = 96, size = 60, colour = '#3b382f') {
   const [c, g] = canvas(w, h);
   g.clearRect(0, 0, w, h);
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = `600 ${size}px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`;
-  g.fillStyle = 'rgba(255,250,235,.35)'; g.fillText(text, w / 2 + 2, h / 2 + 3);
-  g.fillStyle = colour; g.fillText(text, w / 2, h / 2);
+  // (as big as asked, but never past the ends of the stone: a long inscription is cut smaller)
+  fitText(g, text, { x: w / 2, y: h / 2, w: w * 0.96 - 4, h: h * 0.86, px: size, paint: (l, x, y) => { g.fillStyle = 'rgba(255,250,235,.35)'; g.fillText(l, x + 2, y + 3); g.fillStyle = colour; g.fillText(l, x, y); } });
   return tex(c);
 }
 

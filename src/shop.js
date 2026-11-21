@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { VEHICLES, buildVehicle } from './garage.js';
+import { fitText } from './textures.js';
 
 const STYLE = `
 #shop { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4,5,9,.86); font-family: var(--serif, Georgia, serif); color: var(--cream, #f1ead8); padding: 14px; box-sizing: border-box; }
@@ -81,8 +82,8 @@ export class Shop {
     for (let i = 0; i < stripes; i++) { const s = add(new THREE.BoxGeometry(W / stripes, 0.03, D + 0.5), mat(i % 2 ? 0xf1e7cf : 0xb3242b), -W / 2 + (i + 0.5) * W / stripes, 1.86, 0.12); s.rotation.x = 0.16; }
     // A sign, and a string of bulbs along the front.
     const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96;
-    const c = cv.getContext('2d'); c.fillStyle = '#16120c'; c.fillRect(0, 0, 512, 96); c.fillStyle = '#f1dca0'; c.font = '700 44px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('TOYS · 2,000 CHIPS', 256, 50);
-    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const c = cv.getContext('2d'); c.fillStyle = '#16120c'; c.fillRect(0, 0, 512, 96); c.fillStyle = '#f1dca0'; fitText(c, 'TOYS · 2,000 CHIPS', { x: 256, y: 50, w: 470, h: 70, px: 44, weight: '700', family: 'Georgia, serif' });
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
     add(new THREE.PlaneGeometry(1.9, 0.36), new THREE.MeshBasicMaterial({ map: tex }), 0, 1.58, D / 2 + 0.33).rotation.x = -0.08;
     for (let i = 0; i <= 10; i++) add(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: [0xffd27a, 0xff6a5a, 0x7fe9f5, 0xb6ff8a][i % 4] }), -W / 2 + i * W / 10, 1.74 - Math.sin(i / 10 * Math.PI) * 0.08, D / 2 + 0.36);
     // The two toys, each on a little turntable.
@@ -97,8 +98,8 @@ export class Shop {
       this.turn.push(holder);
       // A price ticket.
       const tv = document.createElement('canvas'); tv.width = 256; tv.height = 96; const t = tv.getContext('2d');
-      t.fillStyle = '#f4efe2'; t.fillRect(0, 0, 256, 96); t.fillStyle = '#14120c'; t.textAlign = 'center'; t.font = '700 30px Georgia, serif'; t.fillText(v.name.toUpperCase(), 128, 38); t.font = '600 26px ui-monospace, monospace'; t.fillText('2,000', 128, 76);
-      const tt = new THREE.CanvasTexture(tv); tt.colorSpace = THREE.SRGBColorSpace;
+      t.fillStyle = '#f4efe2'; t.fillRect(0, 0, 256, 96); t.fillStyle = '#14120c'; fitText(t, v.name.toUpperCase(), { x: 128, y: 30, w: 232, h: 36, px: 30, weight: '700', family: 'Georgia, serif' }); fitText(t, '2,000', { x: 128, y: 70, w: 232, h: 30, px: 26, weight: '600', family: 'ui-monospace, monospace' });
+      const tt = new THREE.CanvasTexture(tv); tt.colorSpace = THREE.SRGBColorSpace; tt.anisotropy = 8;
       add(new THREE.PlaneGeometry(0.42, 0.16), new THREE.MeshBasicMaterial({ map: tt }), x, 0.22, D / 2 + 0.01);
     });
     // Solid to a car and a drone: the counter and the posts.

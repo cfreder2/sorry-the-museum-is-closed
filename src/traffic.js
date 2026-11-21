@@ -21,6 +21,7 @@ const EXT = 100;                                       // how far past the edge 
 // ------------------------------------------------------------------ bodies --
 
 const GLASS = [0.07, 0.10, 0.15], DARK = [0.035, 0.037, 0.045], TRIM = [0.16, 0.17, 0.19], SNOW = [0.62, 0.68, 0.82], HUB = [0.42, 0.44, 0.48];
+const LENS = [0.17, 0.18, 0.21], OFF = [0.2, 0.025, 0.02];        // a parked car's lamps, unlit
 const HEAD = [2.6, 2.4, 1.9], TAIL = [0.5, 0.03, 0.02], STOP = [2.6, 0.12, 0.08], AMBER = [2.6, 1.3, 0.08], PLATE = [0.7, 0.7, 0.62];
 
 // A solid with one outline (z along the car, y up) and a width that may change with height.
@@ -38,7 +39,7 @@ function prism(side, skin, prof, wAt) {
 }
 
 // Two wheels on one axle, to be spun together. Light and dark wedges on the hub, so that the turning shows.
-function axle(r, hw) {
+export function axle(r, hw) {
   const g = new Geo(), n = 12, w = 0.24;
   for (const sx of [-1, 1]) {
     const xo = sx * (hw + 0.02), xi = sx * (hw + 0.02 - w);
@@ -54,7 +55,7 @@ function axle(r, hw) {
 }
 
 // What each kind is: its size, its outline, and its voice.
-const KINDS = {
+export const KINDS = {
   saloon: { len: 4.6, hw: 0.9, h: 1.43, r: 0.33, wb: [-1.42, 1.42], horn: [440, 554], acc: 2.0,
     body: [[-2.3, 0.3], [2.26, 0.3], [2.3, 0.56], [2.2, 0.76], [0.95, 0.93], [-1.35, 0.96], [-2.2, 0.9], [-2.3, 0.62]],
     cab: [[-1.75, 0.94], [1.0, 0.92], [0.3, 1.43], [-0.95, 1.43]], paints: [0x8b1e24, 0x1e3f6e, 0x4b5258, 0xb9bdc2, 0x1d1f24, 0x2f5a3c, 0x6d4a2a, 0xd8d8d2] },
@@ -74,7 +75,8 @@ const KINDS = {
 for (const k in KINDS) if (KINDS[k].like) KINDS[k] = { ...KINDS[KINDS[k].like], ...KINDS[k] };
 
 // The geometry of one kind: what is painted, everything else (glass, tyres, lamps, snow), and the lamps that come and go.
-function build(K) {
+// `parked`: one standing in the street for the night (parked.js), lamps out, and no snow: it is under a blanket of its own.
+export function build(K, { parked = false } = {}) {
   const paint = new Geo(), rest = new Geo(), stop = new Geo(), indL = new Geo(), indR = new Geo();
   const hw = K.hw, top = Math.max(...K.body.map(p => p[1])), zf = K.len / 2, zr = -K.len / 2;
   const wBody = y => hw - (y > top - 0.22 ? (y - top + 0.22) * 0.25 : 0) - (y < 0.45 ? 0.03 : 0);
@@ -87,8 +89,8 @@ function build(K) {
   const ly = K.bus ? 0.95 : Math.min(top - 0.16, 0.8);
   for (const sx of [-1, 1]) {
     const x0 = sx * (hw - 0.36), x1 = sx * (hw - 0.07), a = Math.min(x0, x1), b = Math.max(x0, x1);
-    rest.col = HEAD; rest.box(a, b, ly - 0.07, ly + 0.07, zf + 0.012, zf + 0.05);
-    rest.col = TAIL; rest.box(a, b, ly - 0.03, ly + 0.11, zr - 0.05, zr - 0.012);
+    rest.col = parked ? LENS : HEAD; rest.box(a, b, ly - 0.07, ly + 0.07, zf + 0.012, zf + 0.05);
+    rest.col = parked ? OFF : TAIL; rest.box(a, b, ly - 0.03, ly + 0.11, zr - 0.05, zr - 0.012);
     stop.col = STOP; stop.box(a, b, ly - 0.03, ly + 0.11, zr - 0.062, zr - 0.05);
     const ind = sx > 0 ? indL : indR; ind.col = AMBER;
     const ia = Math.min(sx * (hw - 0.07), sx * (hw + 0.012)), ib = Math.max(sx * (hw - 0.07), sx * (hw + 0.012));
@@ -119,7 +121,7 @@ function build(K) {
     const cy0 = K.cab[0][1], cy1 = K.cab[2][1], wCab = y => hw - 0.08 - (y - cy0) / (cy1 - cy0) * 0.14;
     rest.col = GLASS; prism(rest, i => (i === 2 ? paint : i === 0 ? null : rest), K.cab, wCab);
     const zt0 = K.cab[3][0], zt1 = K.cab[2][0], wt = wCab(cy1);
-    rest.col = SNOW; rest.box(-wt + 0.07, wt - 0.07, cy1, cy1 + 0.05, zt0 + 0.08, zt1 - 0.08);
+    if (!parked) { rest.col = SNOW; rest.box(-wt + 0.07, wt - 0.07, cy1, cy1 + 0.05, zt0 + 0.08, zt1 - 0.08); }
     for (const sx of [-1, 1]) {                           // pillars: front, middle and back, leaning as the glass does
       const post = (za, zb, t) => paint.quad([sx * (wCab(cy0) + 0.006), cy0, za - t], [sx * (wCab(cy0) + 0.006), cy0, za + t], [sx * (wt + 0.006), cy1, zb + t], [sx * (wt + 0.006), cy1, zb - t], [sx, 0.2, 0]);
       post(K.cab[1][0] - 0.03, zt1 - 0.02, 0.05); post(K.cab[0][0] + 0.03, zt0 + 0.02, 0.06); post((K.cab[0][0] + K.cab[1][0]) / 2, (zt0 + zt1) / 2, 0.045);
@@ -130,8 +132,8 @@ function build(K) {
       const ma = Math.min(sx * (hw - 0.06), sx * (hw + 0.16)), mb = Math.max(sx * (hw - 0.06), sx * (hw + 0.16)); paint.box(ma, mb, cy0, cy0 + 0.11, K.cab[1][0] - 0.2, K.cab[1][0] - 0.08);
     }
     // Snow that has stayed on the bonnet and the boot.
-    rest.col = SNOW; rest.box(-hw + 0.2, hw - 0.2, K.body[4][1] - 0.03, K.body[4][1] + 0.025, K.cab[1][0] + 0.25, K.cab[1][0] + 0.9);
-    if (K.bed) { rest.col = DARK; rest.box(-hw + 0.1, hw - 0.1, top - 0.02, top + 0.008, K.bed[0], K.bed[1]); rest.col = SNOW; rest.box(-hw + 0.16, hw - 0.16, top + 0.008, top + 0.07, K.bed[0] + 0.1, K.bed[1] - 0.2); paint.box(-hw, hw, top, top + 0.1, zr, zr + 0.06); for (const sx of [-1, 1]) paint.box(Math.min(sx * hw, sx * (hw - 0.07)), Math.max(sx * hw, sx * (hw - 0.07)), top, top + 0.1, zr, K.bed[1]); }
+    if (!parked) { rest.col = SNOW; rest.box(-hw + 0.2, hw - 0.2, K.body[4][1] - 0.03, K.body[4][1] + 0.025, K.cab[1][0] + 0.25, K.cab[1][0] + 0.9); }
+    if (K.bed) { rest.col = DARK; rest.box(-hw + 0.1, hw - 0.1, top - 0.02, top + 0.008, K.bed[0], K.bed[1]); if (!parked) { rest.col = SNOW; rest.box(-hw + 0.16, hw - 0.16, top + 0.008, top + 0.07, K.bed[0] + 0.1, K.bed[1] - 0.2); } paint.box(-hw, hw, top, top + 0.1, zr, zr + 0.06); for (const sx of [-1, 1]) paint.box(Math.min(sx * hw, sx * (hw - 0.07)), Math.max(sx * hw, sx * (hw - 0.07)), top, top + 0.1, zr, K.bed[1]); }
     if (K.sign) { rest.col = [2.2, 1.7, 0.3]; rest.box(-0.24, 0.24, cy1 + 0.05, cy1 + 0.19, (zt0 + zt1) / 2 - 0.09, (zt0 + zt1) / 2 + 0.09); rest.col = DARK; for (const sx of [-1, 1]) for (let z = -1.2; z < 0.9; z += 0.3) rest.quad([sx * (hw + 0.006), 0.62, z], [sx * (hw + 0.006), 0.62, z + 0.15], [sx * (hw + 0.006), 0.74, z + 0.15], [sx * (hw + 0.006), 0.74, z], [sx, 0, 0]); }
   }
   return { paint: paint.build(), rest: rest.build(), stop: stop.build(), indL: indL.build(), indR: indR.build(), axle: axle(K.r, hw - 0.02) };

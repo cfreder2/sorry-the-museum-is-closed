@@ -5,6 +5,7 @@
 //   * the museum map: a lit directory board on a stand, turned to the front doors. Drive up to it and MAP opens the big
 //     map (src/map.js), the one the radar opens.
 import * as THREE from 'three';
+import { fitText } from './textures.js';
 import { feature } from './features.js';
 
 const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
@@ -67,10 +68,8 @@ feature({
     const signT = canvasTex(512, 200, (c, w, h) => {
       c.fillStyle = '#16120d'; c.fillRect(0, 0, w, h); c.strokeStyle = '#c79a3c'; c.lineWidth = 6; c.strokeRect(8, 8, w - 16, h - 16);
       // each line set as large as it will go and still sit well inside the gilt border
-      const fit = (text, font, px, maxW) => { c.font = `${font} ${px}px Georgia, serif`; const m = c.measureText(text).width; if (m > maxW) { px = Math.floor(px * maxW / m); c.font = `${font} ${px}px Georgia, serif`; } };
-      c.textAlign = 'center'; c.textBaseline = 'alphabetic';
-      c.fillStyle = '#f2e6c8'; fit('LOST & FOUND', '600', 74, w - 96); c.fillText('LOST & FOUND', w / 2, 106);
-      c.fillStyle = '#e0b85a'; fit('Coat Check', 'italic', 40, w - 140); c.fillText('Coat Check', w / 2, 158);
+      c.fillStyle = '#f2e6c8'; fitText(c, 'LOST & FOUND', { x: w / 2, y: 82, w: w - 96, h: 80, px: 74, family: 'Georgia, serif' });
+      c.fillStyle = '#e0b85a'; fitText(c, 'Coat Check', { x: w / 2, y: 145, w: w - 140, h: 44, px: 40, weight: 'italic', family: 'Georgia, serif' });
     });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.59), new THREE.MeshBasicMaterial({ map: signT, color: new THREE.Color(1.1, 1.1, 1.1) }));
     sign.position.set(cx + D + 0.05, y + 2.55, (z0 + z1) / 2); sign.rotation.y = Math.PI / 2; g.add(sign);

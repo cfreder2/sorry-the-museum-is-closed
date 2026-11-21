@@ -158,8 +158,20 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   sealed cracks and patches; ladder crosswalks, double yellow lines and worn
   lane dashes laid to the lanes the traffic drives in; wet tyre tracks through
   the slush, snow ploughed into the gutters, salt, footprints, manhole covers,
-  storm drains and iron tree grates. The benches are cast iron and slats with
-  the night's snow on them.
+  storm drains and iron tree grates. Every bench out of doors (the streets,
+  Butler Field, the lakefront) is the same cast iron and slats with the
+  night's snow on them, backless by the softball diamonds; a car fits under
+  the seat between the ends, and a held hop puts it on the seat. The litter
+  bins are the parks' green steel drums with a liner and a domed lid, snow
+  heaped on it, and the lid is a top to land on.
+- **Parked cars, snowed in** (`src/parked.js`), along the far side of
+  Michigan Avenue and the kerbs of Monroe and Jackson: the traffic's own
+  saloons, hatchbacks, SUVs and pickups under a thick rounded blanket of snow,
+  drifted to one side, with the plough's heap half over the wheels, a
+  windscreen or two scraped clear and a ticket under the wiper. They are solid
+  as drawn: the body stops a car at the paint (and the heap at the heap), and
+  the snow on top is a way to drive. Hop onto the bonnet, climb the
+  windscreen, cross the roof, run down onto the boot and off.
 - **The railway** runs north to south in its cutting and under the galleries
   that bridge it (240 to 249), with a commuter train stopped for the night.
 - **The gardens.** The North Garden with its rows of trees and Calder's red
@@ -247,6 +259,18 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   hill has a kicker of packed snow on its summit: go over the top with speed
   and you fly, and come down rolling on the far side. Tyre tracks and the
   glitter follow the slopes.
+- **The lie of the land.** Between the paths the lawns are not levelled: the
+  open ground of the block, the North Garden's lawn panels and the open
+  lawn of Butler Field roll in long low swells and soft hollows, up to about
+  a metre, never steeper than one in five. It is flat on and near anything
+  that needs flat ground (streets, pavements, paths, plazas, the building,
+  the railway, the ice, the kit, the hills, the lamps, the formal South
+  Garden, the Modern Wing's forecourt, and the light show, the jump park, the
+  sled hill and the ball field on Butler Field), and rises out of it over six
+  metres. One height field (`src/land.js`) is what the wheels and the drone's
+  floor follow and what the snow, the glitter and the tyre tracks are drawn
+  on; trees stand on it. Anything new laid out flat on open ground at start-up
+  goes in its `FLAT` list.
 - **The ski jump.** A long bank of snow runs up against the north wall of the
   galleries over the railway and stands higher than their roof. Take it flat
   out and you land on the roof.
@@ -307,6 +331,35 @@ What is not true:
   tower that goes with it. It is there for the fun of finding it.
 - **The polish on the floors** mirrors only on the level you are on. Floors
   seen on another level (down a stair well, across a tall hall) are matt.
+
+## The sledding hill
+
+The south-west quarter of Butler Field, between the cross path and the band
+shell, is a sledding hill of the kind every Chicago park piles up: seven and a
+half metres of snow with a flat top, a warming hut and a string of lights round
+it, timber steps up the steep north face for people, a packed path up the west
+flank for anything on wheels (lanterns along it), bare trees and buried bushes
+on its sides, drifts the wind has laid on it, sled tracks down every face, and
+toboggans and saucers left lying about. Down its south-east face winds a sled
+run: a gate at the top, a drop, a banked hairpin, a kicker, a second hairpin,
+a tunnel through a big drift (which can be driven over too), a banked turn, a
+second kicker and the finish, with a snow fence across the run-out.
+
+The run is ridden on a sled, not driven. A toy's toboggan waits at the gate:
+pull up and press `E` (SLED on a phone) and the car, or the drone, sits in it.
+The engine does nothing now. Gravity takes the sled down; packed snow lets it
+run, the banks hold it round the turns, a crest throws it in the air, and a
+stake or the fence knocks it about. Steering is leaning, left and right, a
+little late and gentler the slower it goes; leaning back drags a heel; stopped
+dead, a push forward shoves off. Over the line (or off the run) the toy hops off
+and drives again, the sled left where it stopped and a fresh one at the gate.
+The clock starts as the sled leaves the gate, and the best time is kept.
+
+The hill is one heightfield (`src/sledland.js`): the run and the path are laid
+in as ribbons with their own cross-sections, banks included, and a membrane is
+stretched over them for the shoulders. The car drives on a smooth surface
+through the same points the mesh is drawn from, so the two never part by more
+than a centimetre or so on anything that is driven.
 
 ## Winter Wonderland on Butler Field
 
@@ -862,11 +915,14 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/books.js, reading.js  books from Open Library: the reading room's display, further reading on labels (tools/books.mjs)
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
+    src/land.js               the lie of the land: the one height field the open lawns roll on (no three.js)
     src/winter.js             paths, the courtyard tree, glitter, tyre tracks
     src/statues.js            the lions, the fountains and the sculpture outdoors
     src/butlerfield.js        Butler Field: the plough-pile jump park, the softball diamonds, lamps, the warming hut
     src/ballpark.js           the lit ballpark on Butler Field and its Home Run Derby against a snowman
     src/lightshow.js          the Winter Wonderland light show on Butler Field and its Light Run
+    src/sledhill.js           the sledding hill on Butler Field: its run, tunnel, hut, steps, trees, and the sled you ride down it
+    src/sledland.js           the hill's ground: one heightfield the car drives on and the mesh is drawn from (no three.js)
     src/carols.js             the carols it plays: scores, chord charts, the band, the player (no three.js, no DOM)
     src/glowkit.js            lights out of doors: instanced bulbs, figures drawn in glowing wire
     src/sculpt.js             clay: lumps blended on a grid and skinned into a mesh

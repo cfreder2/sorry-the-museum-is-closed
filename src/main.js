@@ -54,6 +54,7 @@ import './latergalleries.js';
 import './l2-galleries.js';
 import './feature-upstairs.js';
 import './parkplay.js';
+import './sledhill.js';
 import './wingplay.js';
 import './icefish.js';
 import './reading.js';
@@ -119,7 +120,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.21.17';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.21';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -216,7 +217,7 @@ async function boot() {
   await loading(8, 'Seeing the last visitors out');
   // ?saved skips the live API; ?remote ignores any offline image copy, which is only looked for when run locally.
   const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || params.has('local');
-  const [collection] = await Promise.all([loadCollection({ timeout: params.has('saved') ? 1 : 7000 }), local && !params.has('remote') ? loadLocalImages() : null]);
+  const [collection] = await Promise.all([loadCollection({ timeout: params.has('saved') ? 1 : 12000 }), local && !params.has('remote') ? loadLocalImages() : null]);
   await loading(30, 'Walking the galleries', 40);
   const plan = G.plan = buildPlan();
   await loading(42, 'Pulling down the blinds', 46);
@@ -336,9 +337,12 @@ async function boot() {
   // still has the most to do (the guard's notes and the mice find their places, the last few shaders), and is best
   // done while the bar is still seen to move.
   await loading(98, null, 99.5);
-  $('source').innerHTML = (collection.live
+  const day = when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }), why = collection.why ? ` (the museum's API ${/^(it|too)/.test(collection.why) ? collection.why.replace(/^it /, '') : 'said: ' + collection.why})` : '';
+  $('source').innerHTML = (collection.live && !collection.stale
     ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
-    : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${params.has('saved') ? '' : ', because the live API could not be reached'}.`)
+    : collection.live
+      ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API listed them on ${day}; it could not be asked again just now${why}.`
+      : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${day}${params.has('saved') ? '' : `, because the live API could not be used${why}`}.`)
     + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. Rooms stand where the museum's galleries really are, though the building is unfolded onto one level and their shapes are guessed. The outside and grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
@@ -1180,12 +1184,12 @@ function play(dt, real) {
   if (G.auto && racing) inp = autopilot(v, R, dt);
   if (G.testInput) inp = G.testInput;
   if (v.kind === 'car') {
-    if (inp.coast && !G.testInput) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
-    if (set.assist && !(G.auto && racing)) steerHelp(v, inp, dt);
+    if (inp.coast && !G.testInput && !G.ride) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
+    if (set.assist && !(G.auto && racing) && !G.ride) steerHelp(v, inp, dt);
   }
   if ((racing && (R.locked || R.finished)) || G.held) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };      // (G.held: a security robot has the toy, src/guards.js)
   stepLifts(G.plan, dt, [v.pos]);
-  if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else v.update(dt, inp);      // (held: src/guards.js moves the toy itself)
+  if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else if (G.ride) G.ride(dt, inp); else v.update(dt, inp);      // (held: src/guards.js moves the toy itself; G.ride: something else carries it, a sled say, src/sledhill.js)
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
   if (!racing) score.update(G.museum, v, dt, G.roomId, slow.live);       // Stunt Looks: a work in view while the car is in the air
@@ -1200,7 +1204,7 @@ function play(dt, real) {
   if (!racing && G.loose) G.loose.update(dt, movers, v);
   if (!racing) { G.hockey.update(dt, v); const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 18) once('pond', 'A pond, frozen hard, with a goal at each end and a puck in the middle. Somebody is waiting for a game.', 7); }
   // Outdoors: tyre tracks, and a word about whatever sculpture you have just come up to.
-  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && (v.on ? v.on.hill : Math.abs(v.pos.y) < 0.03) ? v : null, set.reduce);
+  G.museum.winter.update(dt, G.t, camera.position, v.kind === 'car' && !v.air && !v.rail && !G.ride && (v.on ? v.on.hill : Math.abs(v.pos.y) < 0.03) ? v : null, set.reduce);
   if (!racing && !G.roomId) for (const a of G.plan.outdoorArt) if ((v.pos.x - a.x) ** 2 + (v.pos.z - a.z) ** 2 < a.r * a.r) once('out:' + a.text, a.text, 6);
 
   // Hoops.

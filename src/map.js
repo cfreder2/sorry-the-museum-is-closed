@@ -4,6 +4,7 @@
 // and on the radar, across stairs and lifts if it is on another level.
 
 import { heightOf, GRAVITY } from './plan.js';
+import { features } from './features.js';
 
 const TAU = Math.PI * 2;
 const near = (a, b, e = 0.7) => Math.abs(a - b) < e;
@@ -394,26 +395,173 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     ribbon.visible = pos.length > 0;
   }
 
+  // ---- out of doors ------------------------------------------------------------
+  // Everything at street level that is not a room: the snow, the gardens and Butler Field, the pavements and paths, the
+  // four streets and the Drive with their kerbs and lines, the railway in its cutting, the harbour, and the things to
+  // find out there (the tree, the fountains, the rink, the skate park, the hills, the sled run, the light show's way,
+  // the diamonds, the band shell). None of it changes, so it is drawn once, in metres, onto a picture of its own, and
+  // both maps lay that picture under the street level's plan. (It is drawn again once, when the park's features have
+  // started: the light show, the diamonds and the sled run are theirs.)
+  const OUT = {
+    snow: '#1a202d', lawn: '#18261f', hill: 'rgba(120,140,170,.10)', hillRing: 'rgba(170,190,220,.16)',
+    pave: '#30353f', path: '#3a404c', road: '#0f1115', kerb: 'rgba(196,202,212,.6)', lane: 'rgba(226,230,238,.42)', yellow: 'rgba(240,196,84,.85)', median: '#272c35',
+    ice: '#3f5c80', water: '#0b1a31', shore: 'rgba(170,196,226,.7)', rail: '#0a0b0e', track: 'rgba(160,150,132,.75)',
+    snowkit: 'rgba(214,226,240,.5)', gold: 'rgba(255,206,110,.95)', label: 'rgba(226,205,148,.9)',
+  };
+  const featureById = id => features.find(f => f.id === id);
+  // The streets: [name, axis of travel, kerb to kerb across, along, medians (strips down the middle)].
+  function streetsOf() {
+    const p = G.plan, Gd = p.grounds, B = p.bounds, L = p.lakefront; if (!Gd || !Gd.michigan) return [];
+    const M = Gd.michigan, MO = Gd.monroe, JA = Gd.jackson, C = Gd.columbus, east = L ? L.lsd.x0 : B.x1;
+    const out = [
+      { name: 'MICHIGAN AVE', ax: 'z', a0: M.x0, a1: M.x1, b0: B.z0, b1: B.z1, med: [[-13, -12.2]] },
+      { name: 'COLUMBUS DR', ax: 'z', a0: C.x0, a1: C.x1, b0: B.z0, b1: B.z1, med: [[(C.x0 + C.x1) / 2 - 0.4, (C.x0 + C.x1) / 2 + 0.4]] },
+      { name: 'MONROE ST', ax: 'x', a0: MO.z0, a1: MO.z1, b0: M.x0, b1: east, med: [] },
+      { name: 'JACKSON DR', ax: 'x', a0: JA.z0, a1: JA.z1, b0: M.x0, b1: east, med: [] },
+    ];
+    if (L) out.push({ name: 'LAKE SHORE DR', ax: 'z', a0: L.lsd.x0, a1: L.lsd.x1, b0: B.z0, b1: B.z1, med: [[L.lsd.med[0], L.lsd.med[1]]] });
+    return out;
+  }
+  function drawOutdoors(c, px) {
+    const p = G.plan, B = p.bounds, Gd = p.grounds || {}, L = p.lakefront;
+    const rect = (q, col) => { c.fillStyle = col; c.fillRect(q.x0, q.z0, q.x1 - q.x0, q.z1 - q.z0); };
+    const line = (x0, z0, x1, z1, col, w, dash) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(dash || []); c.beginPath(); c.moveTo(x0, z0); c.lineTo(x1, z1); c.stroke(); c.setLineDash([]); };
+    const ell = (x, z, rx, rz, fill, stroke, w) => { c.beginPath(); c.ellipse(x, z, rx, rz, 0, 0, TAU); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = w || px; c.stroke(); } };
+    rect(B, OUT.snow);
+    // Lawns under the snow: the two gardens, Butler Field.
+    for (const q of [Gd.north, Gd.south, L && L.field]) if (q) rect(q, OUT.lawn);
+    // The hills: a few rings, as contours.
+    for (const h of p.hills || []) for (let k = 1; k <= 3; k++) ell(h.cx, h.cz, h.rx * k / 3, h.rz * k / 3, OUT.hill, OUT.hillRing, px * 1.2);
+    // The lake: the shelf of ice from the shore to the buoys, open water beyond, the breakwater and its light.
+    if (L) {
+      rect({ x0: L.shore, x1: L.buoys, z0: B.z0, z1: B.z1 }, OUT.ice); rect({ x0: L.buoys, x1: B.x1, z0: B.z0, z1: B.z1 }, OUT.water);
+      line(L.shore, B.z0, L.shore, B.z1, OUT.shore, px * 2.5);
+      for (let z = B.z0 + 4; z < B.z1; z += 9) ell(L.buoys, z, 0.9, 0.9, 'rgba(255,120,80,.8)');
+      rect(L.breakwater, '#5b616c'); ell(L.light.x, L.light.z, 2.2, 2.2, 'rgba(120,255,170,1)');
+      if (L.window) { rect(L.window, '#1c2c44'); ell((L.window.x0 + L.window.x1) / 2, (L.window.z0 + L.window.z1) / 2, 1.2, 1.2, '#06101e', OUT.shore, px * 1.5); }
+    }
+    // Pavements, the promenade and the paths through the gardens and the field.
+    for (const q of p.paved || []) if (!L || q.x0 < L.buoys - 1) rect(q, OUT.pave);       // (plan.paved also marks the open water, where nothing glitters)
+    if (L) rect({ x0: L.prom.x0, x1: L.shore, z0: B.z0, z1: B.z1 }, OUT.pave);
+    for (const q of [...(Gd.paths || []), ...((L && L.paths) || [])]) rect(q, OUT.path);
+    for (const q of Gd.plazas || []) ell(q.x, q.z, q.r, q.r, OUT.path);
+    // The streets: asphalt, a kerb line down each side, lanes dashed, a median or a double yellow line down the middle.
+    // The avenues go on first; the cross streets over them, so a junction is plain asphalt.
+    const S = streetsOf(), avenues = S.filter(s => s.ax === 'z'), cross = S.filter(s => s.ax === 'x');
+    const along = (s, a, b0, b1, col, w, dash) => (s.ax === 'z' ? line(a, b0, a, b1, col, w, dash) : line(b0, a, b1, a, col, w, dash));
+    const spans = s => { if (s.ax === 'z') { let out = [[s.b0, s.b1]]; for (const x of cross) out = out.flatMap(([u, v]) => (x.a1 <= u || x.a0 >= v ? [[u, v]] : [[u, x.a0], [x.a1, v]].filter(([m, n]) => n - m > 0.5))); return out; }
+      let out = [[s.b0, s.b1]]; for (const a of avenues) out = out.flatMap(([u, v]) => (a.a1 <= u || a.a0 >= v ? [[u, v]] : [[u, a.a0], [a.a1, v]].filter(([m, n]) => n - m > 0.5))); return out; };
+    const paint = s => {
+      if (s.ax === 'z') rect({ x0: s.a0, x1: s.a1, z0: s.b0, z1: s.b1 }, OUT.road); else rect({ x0: s.b0, x1: s.b1, z0: s.a0, z1: s.a1 }, OUT.road);
+      for (const [u, v] of spans(s)) {
+        along(s, s.a0, u, v, OUT.kerb, px * 1.4); along(s, s.a1, u, v, OUT.kerb, px * 1.4);
+        // the carriageways either side of the middle, each split into lanes about 3.4 m wide
+        const mid = s.med.length ? s.med : [[(s.a0 + s.a1) / 2, (s.a0 + s.a1) / 2]];
+        for (const [m0, m1] of mid) {
+          if (m1 > m0) { if (s.ax === 'z') rect({ x0: m0, x1: m1, z0: u, z1: v }, OUT.median); else rect({ x0: u, x1: v, z0: m0, z1: m1 }, OUT.median); }
+          else { along(s, m0 - 0.2, u, v, OUT.yellow, Math.max(px, 0.14)); along(s, m0 + 0.2, u, v, OUT.yellow, Math.max(px, 0.14)); }
+          for (const [k0, k1] of [[s.a0, m0], [m1, s.a1]]) { const n = Math.max(1, Math.round((k1 - k0) / 3.4)); for (let i = 1; i < n; i++) along(s, k0 + (k1 - k0) * i / n, u, v, OUT.lane, Math.max(px * 0.8, 0.12), [3, 9]); }
+        }
+      }
+    };
+    avenues.forEach(paint); cross.forEach(paint);
+    // The railway in its cutting, where it is open to the sky (not under the streets' bridges or the galleries), its tracks down it.
+    const R = Gd.rail, cut = p.cut || (R && R.cut);
+    if (R && cut) for (const o of cut.open || [{ z0: B.z0, z1: B.z1 }]) {
+      const z0 = Math.max(B.z0, o.z0), z1 = Math.min(B.z1, o.z1);
+      rect({ x0: cut.x0, x1: cut.x1, z0, z1 }, OUT.rail);
+      for (const x of R.tracks || []) for (const d of [-0.72, 0.72]) line(x + d, z0, x + d, z1, OUT.track, Math.max(px * 0.9, 0.12));
+    }
+    // Ice: the frozen pool, the fountains' basins, the rink (an ellipse, with its goals).
+    for (const q of p.ice || []) { if (L && q.x0 >= L.shore - 1) continue; rect(q, OUT.ice); }
+    if (p.rink) { const k = p.rink; ell(k.x, k.z, k.rx, k.rz, '#5d82ad', '#cfe2f6', px * 1.6); for (const sg of [-1, 1]) line(k.x + sg * k.gx, k.z - k.gw, k.x + sg * k.gx, k.z + k.gw, '#ff6a5a', px * 2.4); line(k.x, k.z - k.rz, k.x, k.z + k.rz, 'rgba(255,106,90,.6)', px * 1.2); }
+    for (const f of Gd.fountains || []) ell(f.x, f.z, f.r, f.r, '#4f6f96', '#c9d8ea', px * 1.6);
+    if (Gd.fountain) ell(Gd.fountain.x, Gd.fountain.z, 3.2, 3.2, '#4f6f96', '#c9d8ea', px * 1.6);
+    // The skate park's empty pool, and the snow kit about the grounds (the sled run, the jump park, the light show's jumps).
+    if (p.pool) { rect(p.pool, '#2d5d93'); c.strokeStyle = '#a9c8ea'; c.lineWidth = px * 1.4; c.strokeRect(p.pool.x0, p.pool.z0, p.pool.x1 - p.pool.x0, p.pool.z1 - p.pool.z0); }
+    for (const q of p.surfaces || []) if ((q.skin === 'snow' || q.skin === 'ply') && !q.hill && Math.max(q.h0, q.h1) < 9 && (q.base || 0) < 0.5 && !p.rooms.some(r => r.y < 1 && q.x0 >= r.x0 && q.x1 <= r.x1 && q.z0 >= r.z0 && q.z1 <= r.z1)) rect(q, OUT.snowkit);
+    // The light show's way: packed snow between two strings of lights.
+    const show = featureById('lightshow');
+    if (show && show.P && show.P.length > 1) {
+      const P = show.P, w = (P[0].w || 2.2) * 2, trace = () => { c.beginPath(); P.forEach((q, i) => (i ? c.lineTo(q.x, q.z) : c.moveTo(q.x, q.z))); };
+      c.lineJoin = 'round'; c.lineCap = 'round';
+      trace(); c.strokeStyle = 'rgba(255,196,96,.55)'; c.lineWidth = w + px * 3; c.stroke();
+      trace(); c.strokeStyle = '#d9dde6'; c.lineWidth = w; c.stroke();
+      trace(); c.strokeStyle = 'rgba(255,120,90,.9)'; c.lineWidth = Math.max(px * 1.6, 0.4); c.setLineDash([1.2, 2.4]); c.stroke(); c.setLineDash([]);
+      if (show.gateAt) { const g = show.gateAt; line(g.x - g.nx * 4, g.z - g.nz * 4, g.x + g.nx * 4, g.z + g.nz * 4, OUT.gold, 1.2); }
+    }
+    // The softball diamonds: a diamond of bases and the backstop's arc.
+    const bf = featureById('butlerfield');
+    for (const d of (bf && bf.diamonds) || []) {
+      const [h, f1, f2, f3] = d.bases; c.beginPath(); c.moveTo(h.x, h.z); c.lineTo(f1.x, f1.z); c.lineTo(f2.x, f2.z); c.lineTo(f3.x, f3.z); c.closePath();
+      c.fillStyle = 'rgba(150,112,70,.55)'; c.fill(); c.strokeStyle = 'rgba(240,232,210,.8)'; c.lineWidth = px * 1.4; c.stroke();
+      for (const q of d.bases) ell(q.x, q.z, 0.7, 0.7, '#f4f0e6');
+      const ux = h.x - (f1.x + f3.x) / 2, uz = h.z - (f1.z + f3.z) / 2, a = Math.atan2(uz, ux); c.beginPath(); c.arc(h.x, h.z, 4.5, a - 1.25, a + 1.25); c.strokeStyle = 'rgba(190,200,212,.9)'; c.lineWidth = Math.max(px * 1.6, 0.35); c.stroke();
+    }
+    // The band shell; the tree in the courtyard, with its star.
+    if (L && L.shell) rect({ x0: L.shell.x0, x1: L.shell.x1, z0: L.shell.z0, z1: L.shell.z1 + 1.2 }, '#c7c8ce');
+    if (Gd.tree) { const t = Gd.tree; c.beginPath(); c.moveTo(t.x, t.z - 4.2); c.lineTo(t.x + 3.6, t.z + 3); c.lineTo(t.x - 3.6, t.z + 3); c.closePath(); c.fillStyle = '#2f8a4c'; c.fill(); c.strokeStyle = '#ffd25e'; c.lineWidth = px * 1.4; c.stroke(); ell(t.x, t.z - 4.2, 1.1, 1.1, '#ffd25e'); }
+    if (show && show.P && show.P.length) { const q = show.P[show.P.length - 1]; ell(q.x, q.z, 4.5, 4.5, null, OUT.gold, 1); }        // the Singing Tree at the finish
+  }
+  let outPic = null;
+  function outdoorPicture() {
+    const full = !!G.features;
+    if (outPic && (outPic.full || !full)) return outPic;
+    const B = G.plan.bounds, ppm = 4, cv = (outPic && outPic.canvas) || document.createElement('canvas');
+    cv.width = Math.ceil((B.x1 - B.x0) * ppm); cv.height = Math.ceil((B.z1 - B.z0) * ppm);
+    const k = cv.getContext('2d');
+    k.setTransform(ppm, 0, 0, ppm, -B.x0 * ppm, -B.z0 * ppm);
+    drawOutdoors(k, 1 / ppm);
+    return (outPic = { canvas: cv, x0: B.x0, z0: B.z0, ppm, full });
+  }
+  const layOutdoors = c => { const k = outdoorPicture(); c.imageSmoothingEnabled = true; c.drawImage(k.canvas, k.x0, k.z0, k.canvas.width / k.ppm, k.canvas.height / k.ppm); };
+  // The names out of doors: each street's, along it, and the big places'. Upright on the screen, at a size for it.
+  function outdoorNames() {
+    const p = G.plan, L = p.lakefront, B = p.bounds, out = streetsOf().map(s => ({ ...s, street: true }));
+    if (L) out.push({ name: 'BUTLER FIELD', x: (L.field.x0 + L.field.x1) / 2 + 40, z: 150 }, { name: 'MONROE HARBOR', x: (L.buoys + B.x1) / 2, z: 120 }, { name: 'WINTER WONDERLAND', x: 342, z: 40 });
+    return out;
+  }
+  // On the big map: each name written along its street (a street's name every so often), in screen pixels.
+  function drawOutdoorNames(c, px) {
+    c.font = `600 ${px * 11}px ${MONO}`; c.fillStyle = OUT.label; c.strokeStyle = 'rgba(5,6,10,.85)'; c.lineWidth = px * 3; c.lineJoin = 'round'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    const say = (t, x, z, rot) => { c.save(); c.translate(x, z); if (rot) c.rotate(rot); c.strokeText(t, 0, 0); c.fillText(t, 0, 0); c.restore(); };
+    for (const n of outdoorNames()) {
+      if (!n.street) { say(n.name, n.x, n.z); continue; }
+      const mid = (n.a0 + n.a1) / 2, step = Math.max(60, px * 420);
+      for (let b = n.b0 + step / 2; b < n.b1; b += step) n.ax === 'z' ? say(n.name, mid, b, Math.PI / 2) : say(n.name, b, mid, 0);
+    }
+  }
+  // On the radar: the name of each street near you, at the point of it nearest you, upright whichever way you face.
+  function radarNames(c, v, R, s) {
+    const a = v.yaw - Math.PI, ca = Math.cos(a), sa = Math.sin(a), reach = (R - 22) / s;
+    c.font = `700 ${Math.round(R * 0.085)}px ${MONO}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = 3;
+    const put = [];
+    for (const n of outdoorNames()) {
+      let x, z;
+      if (n.street) { const mid = (n.a0 + n.a1) / 2, b = Math.max(n.b0, Math.min(n.b1, n.ax === 'z' ? v.pos.z : v.pos.x)); if (n.ax === 'z') { x = mid; z = b; } else { x = b; z = mid; } }
+      else { x = n.x; z = n.z; }
+      const dx = x - v.pos.x, dz = z - v.pos.z; if (Math.hypot(dx, dz) > reach) continue;
+      // (a little way along the street from you, not on top of the arrow)
+      let rx = (dx * ca - dz * sa) * s, ry = (dx * sa + dz * ca) * s;
+      // Where it can go: there, or (if that is on top of you, or of another name) a way along the street ahead, or behind.
+      const tw = c.measureText(n.name).width + 6, th = R * 0.1, tries = [];
+      if (!n.street || Math.hypot(rx, ry) >= R * 0.3) tries.push([rx, ry]);
+      if (n.street) { const ex = n.ax === 'z' ? 0 : 1, ez = 1 - ex; let ux = ex * ca - ez * sa, uy = ex * sa + ez * ca; if (uy > 0) { ux = -ux; uy = -uy; } for (const k of [0.42, -0.42, 0.62]) tries.push([rx + ux * R * k, ry + uy * R * k]); }
+      const spot = tries.find(([qx, qy]) => Math.hypot(qx, qy) < R - 18 - tw * 0.3 && !(Math.abs(qx) < tw / 2 + 14 && Math.abs(qy) < th / 2 + 14) && !put.some(o => Math.abs(o[0] - qx) < (o[2] + tw) / 2 && Math.abs(o[1] - qy) < th));
+      if (!spot) continue;
+      put.push([spot[0], spot[1], tw]);
+      c.strokeStyle = 'rgba(5,6,10,.9)'; c.fillStyle = OUT.label; c.strokeText(n.name, R + spot[0], R + spot[1]); c.fillText(n.name, R + spot[0], R + spot[1]);
+    }
+  }
+
   // ---- drawing a level -------------------------------------------------------
   // Everything is drawn in metres; the caller has already set the transform. `px` is how many
   // metres one screen pixel is, so that lines keep their weight whatever the scale.
   const ZMIN = 0.42;                                   // far enough out to see from the avenue to the water
   function drawLevel(c, ly, px, label) {
     const p = G.plan;
-    // Out of doors, on the big map: the park, the Drive and the harbour, as far as the buoys. (Zoom out to see them.)
-    if (label && p.lakefront && Math.abs(ly) < 1) {
-      const L = p.lakefront, B = p.bounds, z0 = B.z0, h = B.z1 - B.z0;
-      c.fillStyle = 'rgba(40,48,66,.55)'; c.fillRect(L.field.x0, L.field.z0, L.field.x1 - L.field.x0, L.field.z1 - L.field.z0);
-      c.fillStyle = 'rgba(16,18,26,.9)'; c.fillRect(L.lsd.x0, z0, L.lsd.x1 - L.lsd.x0, h);
-      c.fillStyle = 'rgba(70,76,92,.7)'; c.fillRect(L.prom.x0, z0, L.shore - L.prom.x0, h); for (const q of L.paths) c.fillRect(q.x0, q.z0, q.x1 - q.x0, q.z1 - q.z0);
-      c.fillStyle = 'rgba(150,180,215,.45)'; c.fillRect(L.shore, z0, L.buoys - L.shore, h);
-      c.fillStyle = 'rgba(22,38,70,.9)'; c.fillRect(L.buoys, z0, B.x1 - L.buoys, h);
-      c.fillStyle = 'rgba(200,200,205,.8)'; c.fillRect(L.shell.x0, L.shell.z0, L.shell.x1 - L.shell.x0, L.shell.z1 - L.shell.z0 + 1.2); c.fillRect(L.breakwater.x0, L.breakwater.z0, L.breakwater.x1 - L.breakwater.x0, L.breakwater.z1 - L.breakwater.z0);
-      c.fillStyle = 'rgba(120,255,170,1)'; c.beginPath(); c.arc(L.light.x, L.light.z, Math.max(1.6, px * 3), 0, TAU); c.fill();
-      c.fillStyle = 'rgba(226,205,148,.75)'; c.font = `${Math.max(5, px * 11)}px ui-monospace, monospace`;
-      c.fillText('BUTLER FIELD', (L.field.x0 + L.field.x1) / 2, 150); c.fillText('MONROE HARBOR', (L.buoys + B.x1) / 2 - 4, 120);
-      c.save(); c.translate((L.lsd.x0 + L.lsd.x1) / 2, 110); c.rotate(Math.PI / 2); c.fillText('LAKE SHORE DRIVE', 0, 0); c.restore();
-    }
+    // Out of doors, on the big map: the streets, the gardens, the park, the Drive and the harbour (outdoorPicture). Zoom out to see them all.
+    if (label && Math.abs(ly) < 1) { layOutdoors(c); drawOutdoorNames(c, px); }
     for (const st of Object.values(G.museum.rooms)) {
       const r = st.room;
       if (!onLevel(r, ly) || !shown(r)) continue;
@@ -614,9 +762,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, W);
     c.save();
     c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.clip();
-    c.fillStyle = 'rgba(8,10,16,.72)'; c.fillRect(0, 0, W, W);
+    c.fillStyle = Math.abs(ly) < 1 && !G.roomId ? 'rgba(10,12,18,.93)' : 'rgba(8,10,16,.72)'; c.fillRect(0, 0, W, W);      // (out of doors the ground is drawn: past its edge, the city, dark)
     c.translate(R, R); c.rotate(v.yaw - Math.PI); c.scale(s, s); c.translate(-v.pos.x, -v.pos.z);
     c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (Math.abs(ly) < 1) layOutdoors(c);                // the streets and the grounds, under the street level's rooms
     { const k = levelPicture(ly); c.imageSmoothingEnabled = true; c.drawImage(k.canvas, k.x0, k.z0, k.canvas.width / k.ppm, k.canvas.height / k.ppm); }
     c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5 / s;
     for (const L of G.plan.loops) { c.beginPath(); c.arc(L.x, L.z, 5.5 / s, 0, TAU); c.stroke(); }
@@ -630,6 +779,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     drawPath(c, ly, 1 / s, t);
     drawMarks(c, ly, 1 / s, t);
     c.restore();
+    if (!G.roomId && Math.abs(ly) < 1) { c.save(); c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.clip(); radarNames(c, v, R, s); c.restore(); }      // out of doors, the streets' names
     // Whatever is off the edge is pinned to the rim: the next turn of the route, the race's next gate.
     const rim = (x, z, colour) => {
       const dx = x - v.pos.x, dz = z - v.pos.z, a = v.yaw - Math.PI, rx = (dx * Math.cos(a) - dz * Math.sin(a)) * s, ry = (dx * Math.sin(a) + dz * Math.cos(a)) * s, d = Math.hypot(rx, ry);

@@ -7,6 +7,7 @@
 // with k.carry, handed in with near(), counted with k.tally.
 
 import * as THREE from 'three';
+import { fitText } from './textures.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { freeFloor, wallSpots, sameFloor, rng, claimed, claim, placingNow } from './placing.js';
@@ -96,7 +97,7 @@ feature({
       add(new THREE.BoxGeometry(0.34, 0.06, 0.05), new THREE.MeshBasicMaterial({ color: 0x0a0806 }), 0, 0.88, 0.1);
       const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d');
       c.fillStyle = '#f3ecd8'; c.fillRect(0, 0, 256, 128); c.strokeStyle = '#7a5432'; c.lineWidth = 6; c.strokeRect(3, 3, 250, 122);
-      c.fillStyle = '#2a1e12'; c.textAlign = 'center'; c.font = '700 34px Georgia, serif'; c.fillText('LOST', 128, 50); c.fillText('PROPERTY', 128, 88); c.font = 'italic 17px Georgia, serif'; c.fillText('hand it in here', 128, 115);
+      c.fillStyle = '#2a1e12'; for (const [t, y, px, wt] of [['LOST', 38, 34, '700'], ['PROPERTY', 76, 34, '700'], ['hand it in here', 108, 17, 'italic']]) fitText(c, t, { x: 128, y, w: 220, h: px * 1.1, px, weight: wt, family: 'Georgia, serif' });
       const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
       add(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.85, 0.85, 0.85) }), 0, 0.5, 0.252);
       bg.position.set(b.x, b.y, b.z); bg.rotation.y = Math.atan2(b.nx, b.nz); group.add(bg);

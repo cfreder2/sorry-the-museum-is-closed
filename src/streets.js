@@ -1,7 +1,7 @@
 // The four streets round the block, dressed as they are: Michigan Avenue with its planted median,
 // bus stop and the wall of shopfronts across it; Monroe Street and Jackson Drive with their
 // pavements; Columbus Drive with its median. Crossings and stop lines at the corners, signals on
-// black mast arms with the green street-name blades, parked cars under snow, pay boxes, bins,
+// black mast arms with the green street-name blades, parked cars under snow (parked.js), pay boxes, bins,
 // hydrants, newspaper boxes, bike racks, bollards before the steps, hedges at the foot of the terrace.
 //
 // All made here by hand, of boxes and painted canvases. Everything that stands up is solid. The ground itself (concrete
@@ -10,9 +10,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Geo } from './geo.js';
+import { fitText, twoFaced, SANS } from './textures.js';
 import { streetY, landable } from './plan.js';
 import { frostHedges, hedgeMaterial } from './frost.js';
-import { trafficLanes, STOP_BACK, TRACK_W, GeoLite, Kerbs, slabs, strip, fixture, FIX, hash, benchParts, slabMaterial, walkMarkMaterial, roadMarkMaterial, paintMaterial, trackMaterial, fixtureMaterial, ironMaterial, slatMaterial } from './streetscape.js';
+import { trafficLanes, STOP_BACK, TRACK_W, GeoLite, Kerbs, slabs, strip, fixture, FIX, hash, ParkFurniture, slabMaterial, walkMarkMaterial, roadMarkMaterial, paintMaterial, trackMaterial, fixtureMaterial } from './streetscape.js';
+import { ParkedCars } from './parked.js';
 
 const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
@@ -31,8 +33,6 @@ export function buildStreets(museum, plan) {
     wood: std({ color: 0x5b4127, roughness: 0.8, emissive: 0x241a10, emissiveIntensity: 0.6 }),
     red: std({ color: 0xb3261f, roughness: 0.6, emissive: 0x5a120e, emissiveIntensity: 0.7 }),
     blue: std({ color: 0x1f5fa8, roughness: 0.6, emissive: 0x0f2f55, emissiveIntensity: 0.7 }),
-    car1: std({ color: 0x3a4250, roughness: 0.5, metalness: 0.3, emissive: 0x161a22, emissiveIntensity: 0.6 }),
-    car2: std({ color: 0x6a2420, roughness: 0.5, metalness: 0.3, emissive: 0x2a0e0c, emissiveIntensity: 0.6 }),
     dark: new THREE.MeshBasicMaterial({ color: new THREE.Color(0.03, 0.04, 0.06) }),
     glass: std({ color: 0x9ab8c8, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.3, emissive: 0x6f93ab, emissiveIntensity: 0.32, depthWrite: false, side: THREE.DoubleSide }),
     frit: new THREE.MeshBasicMaterial({ map: canvasTex(32, 32, (c, w, h) => { c.clearRect(0, 0, w, h); c.fillStyle = 'rgba(235,242,250,0.95)'; for (const [x, y] of [[8, 9], [24, 23]]) { c.beginPath(); c.arc(x, y, 5.5, 0, 7); c.fill(); } }), color: new THREE.Color(0.75, 0.8, 0.86), transparent: true, depthWrite: false, side: THREE.DoubleSide }),
@@ -257,8 +257,8 @@ export function buildStreets(museum, plan) {
   for (const [a, b] of gaps(MO.z1, JA.z0, [[MO.z1, MO.z1 + 6], [103, 117], [JA.z0 - 6, JA.z0]])) median('z', a, b, cmid, 0.8, 0);
 
   // ------------------------------------------------------------------ signals and street names
-  const blade = name => canvasTex(256, 48, (c, w, h) => { c.fillStyle = '#0d6b3a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e9efe9'; c.lineWidth = 3; c.strokeRect(2, 2, w - 4, h - 4); c.fillStyle = '#f2f5f0'; c.font = '600 30px Helvetica, Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(name, w / 2, h / 2 + 2); });
-  const blades = {}; const bladeMat = n => blades[n] || (blades[n] = new THREE.MeshBasicMaterial({ map: blade(n), side: THREE.DoubleSide, color: new THREE.Color(0.85, 0.85, 0.85) }));
+  const blade = name => canvasTex(256, 48, (c, w, h) => { c.fillStyle = '#0d6b3a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e9efe9'; c.lineWidth = 3; c.strokeRect(2, 2, w - 4, h - 4); c.fillStyle = '#f2f5f0'; fitText(c, name, { x: w / 2, y: h / 2 + 1, w: w - 20, h: h - 14, px: 30, weight: '600', family: SANS }); });
+  const blades = {}; const bladeMat = n => blades[n] || (blades[n] = new THREE.MeshBasicMaterial({ map: blade(n), color: new THREE.Color(0.85, 0.85, 0.85) }));
   // A head: a black box with three lamps, one lit. Faces along `ax` ('x' or 'z') in direction `dir`.
   const head = (x, y, z, ax, dir, lit) => {
     return;                                              // the working heads are traffic.js's; these poles carry the street names only
@@ -275,7 +275,7 @@ export function buildStreets(museum, plan) {
     void a0; void a1;                                    // no mast arm: nothing hangs from it
     for (const f of [0.55, 0.95]) { const hx = armAx === 'x' ? x + reach * f : x, hz = armAx === 'z' ? z + reach * f : z; head(hx, y + HT - 1.2, hz, faceAx, faceDir, lit); }
     head(x + (faceAx === 'x' ? faceDir * 0.24 : 0), y + 2.6, z + (faceAx === 'z' ? faceDir * 0.24 : 0), faceAx, faceDir, lit);
-    names.forEach((n, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.24), bladeMat(n)); m.position.set(x + (i ? 0 : 0.72), y + 4.0 + i * 0.3, z + (i ? 0.72 : 0)); if (i) m.rotation.y = Math.PI / 2; extra.push(m); });
+    names.forEach((n, i) => { const m = twoFaced(new THREE.PlaneGeometry(1.25, 0.24), bladeMat(n)); m.position.set(x + (i ? 0 : 0.72), y + 4.0 + i * 0.3, z + (i ? 0.72 : 0)); if (i) m.rotation.y = Math.PI / 2; extra.push(m); });
     ob(x - 0.1, x + 0.1, z - 0.1, z + 0.1, y, y + HT);
   };
   // Michigan Avenue: at each crossing, one pole on the museum's kerb (arm out over the northbound lanes, facing south)
@@ -289,26 +289,21 @@ export function buildStreets(museum, plan) {
   signal(C.x0 - 0.7, JA.z0 - 4.4, 'x', 6.5, 'z', -1, 'G', ['Columbus Dr', 'Jackson Dr']);
 
   // ------------------------------------------------------------------ small furniture
-  const bin = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.24, x + 0.24, y, y + 0.86, z - 0.24, z + 0.24); g.steel.box(x - 0.27, x + 0.27, y + 0.86, y + 0.92, z - 0.27, z + 0.27); g.snow.box(x - 0.2, x + 0.2, y + 0.92, y + 0.97, z - 0.2, z + 0.2); ob(x - 0.25, x + 0.25, z - 0.25, z + 0.25, y, y + 0.95); };
+  // Benches and bins are streetscape.js's (the same in the parks), solid as drawn.
+  const PF = new ParkFurniture(plan);
+  const bin = (x, z) => PF.bin(x, streetY(plan, x, z), z);
   const hydrant = (x, z) => { const y = streetY(plan, x, z); g.red.box(x - 0.11, x + 0.11, y, y + 0.55, z - 0.11, z + 0.11); g.red.box(x - 0.15, x + 0.15, y + 0.55, y + 0.62, z - 0.15, z + 0.15); g.red.box(x - 0.07, x + 0.07, y + 0.62, y + 0.72, z - 0.07, z + 0.07); g.red.box(x - 0.2, x + 0.2, y + 0.32, y + 0.44, z - 0.06, z + 0.06); g.snow.box(x - 0.08, x + 0.08, y + 0.72, y + 0.76, z - 0.08, z + 0.08); ob(x - 0.15, x + 0.15, z - 0.15, z + 0.15, y, y + 0.75); };
   const bollard = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.09, x + 0.09, y, y + 0.9, z - 0.09, z + 0.09); g.black.box(x - 0.12, x + 0.12, y + 0.78, y + 0.84, z - 0.12, z + 0.12); g.snow.box(x - 0.08, x + 0.08, y + 0.9, y + 0.94, z - 0.08, z + 0.08); ob(x - 0.1, x + 0.1, z - 0.1, z + 0.1, y, y + 0.92); };
   const paybox = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.05, x + 0.05, y, y + 1.0, z - 0.05, z + 0.05); g.steel.box(x - 0.17, x + 0.17, y + 1.0, y + 1.55, z - 0.13, z + 0.13); g.glow.box(x - 0.1, x + 0.1, y + 1.3, y + 1.45, z + 0.13, z + 0.14); g.glow.box(x - 0.1, x + 0.1, y + 1.3, y + 1.45, z - 0.14, z - 0.13); g.snow.box(x - 0.17, x + 0.17, y + 1.55, y + 1.6, z - 0.13, z + 0.13); ob(x - 0.17, x + 0.17, z - 0.13, z + 0.13, y, y + 1.6); };
   const newsbox = (x, z, q) => { const y = streetY(plan, x, z); q.box(x - 0.22, x + 0.22, y + 0.12, y + 1.05, z - 0.2, z + 0.2); g.black.box(x - 0.18, x + 0.18, y, y + 0.12, z - 0.16, z + 0.16); g.dark.box(x - 0.23, x - 0.221, y + 0.6, y + 0.95, z - 0.15, z + 0.15); g.snow.box(x - 0.22, x + 0.22, y + 1.05, y + 1.1, z - 0.2, z + 0.2); ob(x - 0.22, x + 0.22, z - 0.2, z + 0.2, y, y + 1.1); };
-  // A bench (streetscape.js's cast iron and slats, snow on it), its front facing (fx, fz). It is solid, as it was: a
-  // car goes round it, not under.
-  const BP = benchParts(), benchAt = { iron: [], wood: [], snow: [] }, M4 = new THREE.Matrix4();
-  const bench = (x, z, fx, fz) => { const y = streetY(plan, x, z); M4.makeRotationY(Math.atan2(fx, fz)).setPosition(x, y, z); for (const k of ['iron', 'wood', 'snow']) benchAt[k].push(BP[k].clone().applyMatrix4(M4));
-    const hl = BP.L / 2 + 0.04, hd = BP.D / 2; fz === 0 ? ob(x - hd, x + hd, z - hl, z + hl, y, y + 0.9) : ob(x - hl, x + hl, z - hd, z + hd, y, y + 0.9); };
+  // A bench, its front facing (fx, fz). A toy car goes under its seat, between its ends, or hops up onto it.
+  const bench = (x, z, fx, fz) => PF.bench(x, streetY(plan, x, z), z, fx, fz);
   // A sign on a post: white plate, a word or two.
-  const plateTex = {}; const plate = (lines, col) => plateTex[lines.join()] || (plateTex[lines.join()] = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: new THREE.Color(0.8, 0.8, 0.8), map: canvasTex(128, 160, (c, w, h) => { c.fillStyle = '#f1efe8'; c.fillRect(0, 0, w, h); c.strokeStyle = col; c.lineWidth = 6; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = col; c.font = '700 26px Helvetica, Arial, sans-serif'; c.textAlign = 'center'; lines.forEach((t, i) => c.fillText(t, w / 2, 44 + i * 32)); }) }));
-  const sign = (x, z, lines, col, facing) => { const y = streetY(plan, x, z); g.steel.box(x - 0.03, x + 0.03, y, y + 2.5, z - 0.03, z + 0.03); const m = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.58), plate(lines, col)); m.position.set(x + (facing === 'x' ? 0.04 : 0), y + 2.2, z + (facing === 'z' ? 0.04 : 0)); if (facing === 'x') m.rotation.y = Math.PI / 2; extra.push(m); ob(x - 0.04, x + 0.04, z - 0.04, z + 0.04, y, y + 2.5); };
-  // A parked car with the night's snow on it. `ax` is the way it points.
-  const parked = (x, z, ax, q) => { const y = streetY(plan, x, z), Lh = 2.15, Wh = 0.88; const bx = (qq, l0, l1, y0, y1, w) => ax === 'z' ? qq.box(x - w, x + w, y0, y1, z + l0, z + l1) : qq.box(x + l0, x + l1, y0, y1, z - w, z + w);
-    bx(q, -Lh, Lh, y + 0.28, y + 0.82, Wh); bx(g.dark, -Lh * 0.5, Lh * 0.42, y + 0.82, y + 1.28, Wh - 0.08); bx(q, -Lh * 0.46, Lh * 0.38, y + 1.28, y + 1.33, Wh - 0.06);
-    for (const l of [-Lh + 0.75, Lh - 0.75]) bx(g.dark, l - 0.33, l + 0.33, y, y + 0.62, Wh + 0.01);
-    bx(g.snow, -Lh + 0.1, -Lh * 0.5, y + 0.82, y + 0.92, Wh - 0.06); bx(g.snow, Lh * 0.42, Lh - 0.1, y + 0.82, y + 0.9, Wh - 0.06); bx(g.snow, -Lh * 0.46, Lh * 0.38, y + 1.33, y + 1.46, Wh - 0.1);
-    bx(g.snow, -Lh - 0.25, Lh + 0.25, y, y + 0.14, Wh + 0.3);                                            // ploughed in
-    ax === 'z' ? ob(x - Wh, x + Wh, z - Lh, z + Lh, y, y + 1.45) : ob(x - Lh, x + Lh, z - Wh, z + Wh, y, y + 1.45); };
+  const plateTex = {}; const plate = (lines, col) => plateTex[lines.join()] || (plateTex[lines.join()] = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.8, 0.8, 0.8), map: canvasTex(128, 160, (c, w, h) => { c.fillStyle = '#f1efe8'; c.fillRect(0, 0, w, h); c.strokeStyle = col; c.lineWidth = 6; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = col; const step = Math.min(32, 132 / lines.length); lines.forEach((t, i) => fitText(c, t, { x: w / 2, y: h / 2 + (i - (lines.length - 1) / 2) * step, w: w - 26, h: step - 4, px: 26, weight: '700', family: SANS })); }) }));
+  const sign = (x, z, lines, col, facing) => { const y = streetY(plan, x, z); g.steel.box(x - 0.03, x + 0.03, y, y + 2.5, z - 0.03, z + 0.03); const m = twoFaced(new THREE.PlaneGeometry(0.46, 0.58), plate(lines, col)); m.position.set(x + (facing === 'x' ? 0.04 : 0), y + 2.2, z + (facing === 'z' ? 0.04 : 0)); if (facing === 'x') m.rotation.y = Math.PI / 2; extra.push(m); ob(x - 0.04, x + 0.04, z - 0.04, z + 0.04, y, y + 2.5); };
+  // A parked car under the night's snow (parked.js), pointing (fx, fz) with the kerb on its right.
+  const PK = new ParkedCars(plan);
+  const parked = (x, z, fx, fz, opts) => PK.add(x, streetY(plan, x, z), z, fx, fz, opts);
   // A rack of hoops, and bikes.
   const wheel = []; const bike = (x, y, z, q) => { for (const d of [-0.52, 0.52]) { const t = new THREE.TorusGeometry(0.31, 0.022, 5, 14); t.rotateY(Math.PI / 2); t.translate(x, y + 0.33, z + d); wheel.push(t); } q.box(x - 0.025, x + 0.025, y + 0.5, y + 0.58, z - 0.5, z + 0.5); q.box(x - 0.025, x + 0.025, y + 0.33, y + 0.9, z - 0.16, z - 0.1); q.box(x - 0.025, x + 0.025, y + 0.33, y + 1.0, z + 0.44, z + 0.5); g.black.box(x - 0.22, x + 0.22, y + 0.98, y + 1.02, z + 0.44, z + 0.5); g.black.box(x - 0.07, x + 0.07, y + 0.9, y + 0.95, z - 0.26, z - 0.02); };
 
@@ -318,7 +313,7 @@ export function buildStreets(museum, plan) {
   // exactly where it stands, and nothing else is. The glass is drawn so it reads at night: a pale tint, the frame round
   // it, a frosted band at eye height, a glint along its edges and a streak of reflection across each pane. The roof is
   // a top to land on.
-  const posters = {}, posterMat = k => posters[k] || (posters[k] = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.92, 0.92, 0.92), side: THREE.DoubleSide, map: canvasTex(256, 352, (c, w, h) => {
+  const posters = {}, posterMat = k => posters[k] || (posters[k] = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.92, 0.92, 0.92), side: THREE.DoubleSide, map: canvasTex(256, k === 'map' ? 352 : 402, (c, w, h) => {
     const text = (t, y, px, col = '#f6f1e4', wt = 800) => { c.fillStyle = col; c.font = `${wt} ${px}px Helvetica, Arial, sans-serif`; c.textAlign = 'center'; c.fillText(t, w / 2, y); };
     if (k === 'map') {                                                // the route map: streets, the lake, the lines, you are here
       c.fillStyle = '#eef0ea'; c.fillRect(0, 0, w, h); c.fillStyle = '#1f4f9a'; c.fillRect(0, 0, w, 46); text('ROUTE MAP', 31, 24);
@@ -330,7 +325,7 @@ export function buildStreets(museum, plan) {
       c.fillStyle = '#222'; c.font = '700 15px Helvetica, Arial, sans-serif'; c.textAlign = 'left'; c.fillText('YOU ARE HERE', 122, 249);
       return;
     }
-    const bg = ['#14213f', '#9c2a22', '#0f5257', '#3b2457'][k % 4], gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, bg); gr.addColorStop(1, '#07090f'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    const bg = ['#14213f', '#9c2a22', '#0f5257', '#3b2457'][k % 4], gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, bg); gr.addColorStop(1, '#07090f'); c.fillStyle = gr; c.fillRect(0, 0, w, h); c.translate(0, (h - 352) / 2);
     if (k % 4 === 0) { c.fillStyle = '#f08a2a'; c.beginPath(); c.arc(w / 2, 150, 70, 0, 7); c.fill(); c.fillStyle = '#07090f'; for (let x = 0, i = 0; x < w; x += 22, i++) c.fillRect(x, 170 - (i * 37 % 60), 18, 200); text('LAKEFRONT', 268, 34); text('LIGHTS', 304, 34); text('every night till March', 334, 15, '#f0c27a', 600); }
     else if (k % 4 === 1) { c.strokeStyle = '#fff'; c.lineWidth = 7; c.lineCap = 'round'; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; c.beginPath(); c.moveTo(w / 2, 140); c.lineTo(w / 2 + Math.cos(a) * 72, 140 + Math.sin(a) * 72); c.stroke(); } text('STAY', 268, 40); text('WARM', 306, 40); text('cocoa · soup · State St', 334, 15, '#ffd2c8', 600); }
     else if (k % 4 === 2) { c.strokeStyle = '#d8f3f0'; c.lineWidth = 5; for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(w / 2, 150, 90 - i * 18, 40 - i * 8, -0.3, 0, 7); c.stroke(); } text('SKATE', 268, 40); text('THE PARK', 306, 34); text('open daily · skates for hire', 334, 14, '#a8e3dc', 600); }
@@ -415,7 +410,7 @@ export function buildStreets(museum, plan) {
   for (const q of frostHedges(frost, beds, AV + 0.16, 0.64)) landable(plan, q.x0, q.x1, q.z0, q.z1, AV + 0.82, AV, 0.05);      // and the hedge in it has a top, as drawn
 
   // ---- Michigan Avenue, the far side: cars snowed in along the kerb, pay boxes, signs
-  [[-22.95, 12, g.car1], [-22.95, 58, g.car2], [-22.95, 64.5, g.car1], [-22.95, 141, g.car1], [-22.95, 176, g.car2], [-22.95, 214, g.car1]].forEach(([x, z, q]) => parked(x, z, 'z', q));
+  [[-22.95, 12], [-22.95, 58, { kind: 'pickup' }], [-22.95, 64.5, { kind: 'saloon', scraped: true, ticket: true }], [-22.95, 141], [-22.95, 176, { kind: 'suv' }], [-22.95, 214]].forEach(([x, z, o]) => parked(x, z, 0, 1, o));
   for (const z of [18, 61, 146, 180, 218]) paybox(M.x0 - 0.9, z);
   for (const z of [30, 96, 160, 226]) sign(M.x0 - 0.7, z, ['SNOW', 'ROUTE', 'NO PARKING', '2 INCHES'], '#b3261f', 'z');
   for (const z of [44, 120, 200]) bin(M.x0 - 1.0, z); hydrant(M.x0 - 0.9, 80); hydrant(M.x0 - 0.9, 190);
@@ -425,7 +420,7 @@ export function buildStreets(museum, plan) {
   for (const [zp, zc, sgn] of [[MO.z1 + 1.3, MO.z1 - 1.0, 1], [JA.z0 - 1.3, JA.z0 + 1.0, -1]]) {
     let i = 0;
     for (let x = 34; x < C.x0 - 14; x += 23, i++) { if (!clearX(x + 6, zp)) continue; if (i % 3 === 0) bench(x + 6, zp + sgn * 0.5, 0, -sgn); else if (i % 3 === 1) bin(x + 6, zp + sgn * 0.3); else hydrant(x + 6, zp - sgn * 0.7); }
-    for (const x of [52, 76, 158, 222]) { if (!clearX(x, zc)) continue; parked(x, zc, 'x', (x / 2 | 0) % 2 ? g.car1 : g.car2); if (clearX(x + 3.2, zp - sgn * 0.75)) paybox(x + 3.2, zp - sgn * 0.75); }
+    for (const x of [52, 76, 158, 222]) { if (!clearX(x, zc)) continue; parked(x, zc, sgn, 0); if (clearX(x + 3.2, zp - sgn * 0.75)) paybox(x + 3.2, zp - sgn * 0.75); }
     for (const x of [44, 190]) if (clearX(x, zp - sgn * 0.8)) sign(x, zp - sgn * 0.8, ['2 HOUR', 'PARKING', 'PAY BOX'], '#1f6b3a', 'x');
   }
   // ---- Columbus Drive: a bus stop on the block's side, and bins
@@ -451,5 +446,6 @@ export function buildStreets(museum, plan) {
   lay(roadMk, roadMarkMaterial(), -4); lay(paintW, paintMaterial(false), -3); lay(paintY, paintMaterial(true), -3);
   const wet = lay(trackG, trackMaterial(museum.mirror), -2); if (wet) museum.floors.push(wet);      // (kept out of its own reflection)
   lay(walkMk, walkMarkMaterial(), -2);
-  if (benchAt.iron.length) { add(new THREE.Mesh(mergeGeometries(benchAt.iron), ironMaterial())); add(new THREE.Mesh(mergeGeometries(benchAt.wood), slatMaterial())); add(new THREE.Mesh(mergeGeometries(benchAt.snow), mat.snow)); }
+  for (const m of PF.meshes(mat.snow)) add(m);
+  for (const m of PK.meshes(mat.snow)) add(m);
 }

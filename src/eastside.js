@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { frostHedges, hedgeMaterial } from './frost.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
-import { landable } from './plan.js';
+import { landable, streetY } from './plan.js';
 import { walkMaterial } from './streetscape.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -29,6 +29,18 @@ export function buildEastSide(museum, plan) {
   const lawn = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 1, emissiveMap: snowTex, emissive: new THREE.Color(0.3, 0.36, 0.5), emissiveIntensity: 0.62, ...off });
   const hedgeM = hedgeMaterial();
   const flat = (g, x0, x1, z0, z1, y, s = 3) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
+
+  // The same, laid over the lie of the land (land.js) where it rolls: in half-metre squares that follow it.
+  const drape = (g, x0, x1, z0, z1, y, s = 3) => {
+    const L = plan.land, R = L && L.rolls;
+    if (!R || !L.top || x1 <= R.x0 || x0 >= R.x1 || z1 <= R.z0 || z0 >= R.z1) return flat(g, x0, x1, z0, z1, y, s);
+    const nx = Math.max(1, Math.ceil((x1 - x0) / 0.5)), nz = Math.max(1, Math.ceil((z1 - z0) / 0.5)), Y = (x, z) => streetY(plan, x, z) + y;
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const a = x0 + (x1 - x0) * i / nx, b = x0 + (x1 - x0) * (i + 1) / nx, c = z0 + (z1 - z0) * j / nz, d = z0 + (z1 - z0) * (j + 1) / nz;
+      const ya = Y(a, c), yb = Y(b, c), yc = Y(b, d), yd = Y(a, d), gx = (yb + yc - ya - yd) / (2 * (b - a)), gz = (yc + yd - ya - yb) / (2 * (d - c)), l = Math.hypot(gx, 1, gz);
+      g.quad([a, ya, c], [b, yb, c], [b, yc, d], [a, yd, d], [-gx / l, 1 / l, -gz / l], [[a / s, c / s], [b / s, c / s], [b / s, d / s], [a / s, d / s]]);
+    }
+  };
 
   // Is this patch of ground free of everything that already stands on it, runs over it or is played on?
   const hit = (q, x0, x1, z0, z1, m = 0) => x1 > q.x0 - m && x0 < q.x1 + m && z1 > q.z0 - m && z0 < q.z1 + m;
@@ -49,7 +61,7 @@ export function buildEastSide(museum, plan) {
   // A panel of lawn: a lighter sheet of snow inside a stone kerb a wheel rides over.
   const panel = (x0, x1, z0, z1) => {
     if (x1 - x0 < 2 || z1 - z0 < 2) return;
-    flat(grass, x0, x1, z0, z1, 0.004, 4.5);
+    drape(grass, x0, x1, z0, z1, 0.004, 4.5);
     const w = 0.16, h = 0.06;
     kerb.box(x0 - w, x1 + w, 0, h, z0 - w, z0); kerb.box(x0 - w, x1 + w, 0, h, z1, z1 + w); kerb.box(x0 - w, x0, 0, h, z0, z1); kerb.box(x1, x1 + w, 0, h, z0, z1);
   };
@@ -76,7 +88,7 @@ export function buildEastSide(museum, plan) {
         for (const sg of [-1, 1]) { const pz = zc + sg * (hw + 0.2); cn.box(fx + reach - 0.4, fx + reach - 0.24, 0, 3.45, pz - 0.08, pz + 0.08); O.push({ x0: fx + reach - 0.42, x1: fx + reach - 0.22, z0: pz - 0.1, z1: pz + 0.1, y0: 0, y1: 3.6 }); }
         add(cn.mesh(new THREE.MeshStandardMaterial({ color: 0xd4d6da, roughness: 0.5, emissive: 0x565c6c, emissiveIntensity: 0.6 })));
         const top = new Geo(); flat(top, fx, fx + reach, zc - hw - 0.6, zc + hw + 0.6, 3.63, 3); add(top.mesh(snow));
-        const name = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.42), new THREE.MeshBasicMaterial({ map: TX.carved('THE  ART  INSTITUTE  OF  CHICAGO', 2048, 96, 64, '#f1dfae'), transparent: true, depthWrite: false, color: new THREE.Color(1.2, 1.1, 0.85), fog: false }));
+        const name = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.42), new THREE.MeshBasicMaterial({ map: TX.carved('THE  ART  INSTITUTE  OF  CHICAGO', 2048, Math.round(2048 * 0.42 / 6.4), 88, '#f1dfae'), transparent: true, depthWrite: false, color: new THREE.Color(1.2, 1.1, 0.85), fog: false }));
         name.position.set(fx + reach + 0.02, 3.53, zc); name.rotation.y = Math.PI / 2; add(name);
         const spill = new THREE.Mesh(new THREE.PlaneGeometry(7, 5), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.5, 0.36, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, ...off }));
         spill.rotation.x = -Math.PI / 2; spill.position.set(fx + 2.6, 0.02, zc); spill.renderOrder = 4; add(spill);

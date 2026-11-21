@@ -15,6 +15,7 @@
 // (x, y, z) does. Nothing here looks a height up from a floor's name; it is always the room's own y.
 
 import LAYOUT from './layout.js';
+import { buildLand, landAt, FLAT as LIE_FLAT } from './land.js';
 
 export const T = 1;            // wall thickness, for the outside of a building
 export const HW = HALL_HW();    // Griffin Court's half-width
@@ -250,6 +251,7 @@ export function buildPlan() {
   { const tm = massOf.G211 || masses.find(m => m.room && m.room.sky && m.room.kind === 'gallery'); if (tm) plan.terrace = { room: tm.room.id, x: (tm.x0 + tm.x1) / 2 + 0.6, z: (tm.z0 + tm.z1) / 2, top: tm.top }; }
   addRoofs(plan);
   addNests(plan);
+  addLie(plan);            // last: the land rolls only where nothing above needs it flat
   return plan;
 }
 
@@ -1009,7 +1011,7 @@ function addLakefront(plan) {
     field: { x0: C.x1, x1: 480, z0, z1 }, lsd: { x0: 480, x1: 514, med: [494.5, 499.5] }, prom: { x0: 514, x1: 528 },
     shore: 530, buoys: 575, slip: [104, 116], shell: { x0: 304, x1: 328, z0: 220, z1: 232, h: 1.1 },
     breakwater: { x0: 600, x1: 605, z0: 44, z1: 200 }, light: { x: 602.5, z: 46 },
-    paths: [], cars: [], hills: [[440, 76, 21, 6.5, 17]],      // (between the jump park and the cross path; the north-west quarter is the light show, and the jump park has its own snow mountain: butlerfield.js)
+    paths: [], cars: [], hills: [],      // (the snow hill that stood here made way for the ballpark's centre field; the jump park has its own snow mountain: butlerfield.js)
   };
   // The ballpark on the north-west diamond of the south-east quarter (ballpark.js): home plate, the first-base line
   // running south (+z), the third-base line east (+x), and the outfield wall `line` metres out down the lines and
@@ -1415,6 +1417,41 @@ function addLand(plan) {
   for (const [x, z, r, H] of [[150, -10, 10, 1.5], [128, 42, 6.5, 1.0], [150, 2, 5, 0.8], [215, 42, 8, 1.3], [264, 62, 8, 1.2], [265, 190, 8, 1.2], [268, 120, 5, 0.9], [100, 242, 9, 1.4], [84, -24, 0, 0], [70, 20, 4, 0.7], [104, 10, 5, 0.9], [262, -8, 7, 1.1], [205, 232, 7, 1.0], [130, 150, 5, 0.9], [150, 136, 5, 0.8]]) if (r) hill(x, z, r, H);
 }
 
+// --------------------------------------------------------------- the lie of the land --
+//
+// The open lawns of the block and the park east of Columbus Drive roll a little (land.js): flat on and near
+// everything that needs flat ground, gently up and down between. Made last, when everything that stands on the
+// ground in the plan is known.
+function addLie(plan) {
+  const G = plan.grounds, L = plan.lakefront, B = plan.bounds, T1 = 1;
+  const open = [[18, G.columbus.x0 - 5.2, G.monroe.z1 + 2.2, G.jackson.z0 - 2.2]];        // the block, inside its pavements (streets.js lays those later)
+  if (L) open.push([G.columbus.x1 + 2.6, L.field.x1 - 2, L.field.z0 + 2.2, L.field.z1 - 2.2]);     // Butler Field
+  const flat = [], rect = (q, m = 0) => { if (q && q.x0 != null) flat.push({ x0: q.x0 - m, x1: q.x1 + m, z0: q.z0 - m, z1: q.z1 + m }); }, disc = (x, z, r) => flat.push({ x, z, r });
+  const each = (list, r, m = 0) => { for (const q of list || []) { if (q.x0 != null) rect(q, m); else if (q.x != null) disc(q.x, q.z, (typeof r === 'function' ? r(q) : r)); } };
+  for (const m of plan.masses) rect(m);
+  for (const r of plan.rooms) rect(r, T1);                                              // and the rooms under the ground, which the snow lies over
+  each(plan.paved); each(plan.ice, 0, 0.4); each(G.plazas, c => c.r); each(groundOpenings(plan), 0, 1.5);
+  rect({ x0: G.rail.x0 - 2, x1: G.rail.x1 + 2, z0: B.z0, z1: B.z1 }); rect(plan.cut && { x0: plan.cut.x0, x1: plan.cut.x1, z0: B.z0, z1: B.z1 });
+  for (const s of plan.surfaces) rect(s, 0.3);                                            // the kit, the hills, the hedges' tops, the planters
+  const trunk = new Set(G.trees.map(t => Math.round(t.x * 10) + ',' + Math.round(t.z * 10)));    // trees ride the land
+  for (const o of plan.obstacles) if (o.y0 < 0.6 && !trunk.has(Math.round((o.x0 + o.x1) * 5) + ',' + Math.round((o.z0 + o.z1) * 5))) rect(o, 0.3);
+  for (const t of G.trees) if (t.kind === 'hawthorn') rect({ x0: t.x - 1, x1: t.x + 1, z0: t.z - 1, z1: t.z + 1 });      // the South Garden's hawthorns stand in stone planters (eastside.js)
+  each(G.snowmen, 1.5); each(G.fountains, f => f.r + 2); each(G.parcels, 1.2); each(G.hedges, 0, 0.3);
+  for (const c of G.sculpt) if (c.half) rect({ x0: c.x - 1, x1: c.x + 1, z0: c.z - c.half, z1: c.z + c.half }, 1); else disc(c.x, c.z, 3);
+  if (G.tree) disc(G.tree.x, G.tree.z, 6); if (G.calder) disc(G.calder.x, G.calder.z, 3); if (G.fountain) disc(G.fountain.x, G.fountain.z, 6);
+  each(plan.decals, 0, 0.3); each(plan.props, 1.2); each(plan.benches, 1.5); each(plan.puddles, q => q.r + 0.5); each(plan.loops, 7); each(plan.lions, 3);
+  each(plan.lamps, 6);                                                                   // a lamp's pool of light is a flat disc on the ground
+  each((plan.hoops || []).filter(h => !plan.rooms.some(r => h.x > r.x0 && h.x < r.x1 && h.z > r.z0 && h.z < r.z1)), 2.5);
+  rect(plan.rink, 1); rect(plan.pool, 1); if (plan.park) disc(plan.park.x, plan.park.z, 12);
+  if (plan.spawn) disc(plan.spawn.x, plan.spawn.z, 4);
+  if (L) { each(L.paths, 0, 6); rect(L.shell, 6); }                                      // the park's paths, with their lamps, benches and bins (butlerfield.js) either side
+  { const mw = plan.masses.filter(m => m.room && m.room.building === 'modern');           // the Modern Wing's forecourt to Monroe Street, its sunshade's columns, the bridge's legs (bridgeway.js)
+    if (mw.length) rect({ x0: Math.min(...mw.map(m => m.x0)) - 9, x1: Math.max(...mw.map(m => m.x1)) + 9, z0: G.monroe.z1, z1: Math.max(...mw.map(m => m.z1)) + 9 }); }
+  for (const q of LIE_FLAT) rect({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] });
+  { const s = G.silo; if (s) { if (s.x0 != null) rect(s, 2); else if (s.x != null) { const h = (s.half || (s.size || s.w || 32) / 2) + 2; rect({ x0: s.x - h, x1: s.x + h, z0: s.z - h, z1: s.z + h }); } } }     // a silo in the ball field's centre field, if there is one
+  plan.land = buildLand(B, open, flat);
+}
+
 // ------------------------------------------------------------------ the roofs --
 //
 // Every roof is a floor, for anything that can get up there: a drone can land on one, and for a
@@ -1525,7 +1562,7 @@ export function streetY(plan, x, z) {
     const d = (z - s.land) * s.up;                       // on the service ramp: level at the top, then down
     return d <= 0 ? ((z - s.top) * s.up >= 0 ? 0 : C.y) : d >= C.run ? C.y : C.y * d / C.run;
   } }
-  const S = plan.street; if (!S || x >= S.x + S.reach) return 0;
+  const S = plan.street; if (!S || x >= S.x + S.reach) return landAt(plan.land, x, z);      // the lie of the land (land.js): zero wherever it is flat
   if (x <= S.x) return S.y;
   for (const w of S.ways) if (z > w.z0 && z < w.z1) {
     const d = x - S.x; if (d >= w.run) return 0;
@@ -1554,7 +1591,8 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
   let g = -Infinity, under = null;
   for (const f of plan.floors) if (f.y > g && f.y <= y + step && x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1 && !inWell(plan, x, z, f.y)) g = f.y;
   const sy = streetY(plan, x, z);
-  if (g < sy && y + step >= sy && !inWell(plan, x, z, 0) && !inPit(plan, x, z)) g = sy;      // the street, and the snow
+  const lie = sy > 0 ? plan.land : null;                // rolling ground: like a hill, it is ground at any height above the cellars, and it is what is under the wheels
+  if (g < sy && (y + step >= sy || (lie && y > -1)) && !inWell(plan, x, z, 0) && !inPit(plan, x, z)) { g = sy; under = lie; }      // the street, and the snow
   for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
     if (plan.racing && !s.line && s.skin !== 'bench' && !s.roof && !s.fixed) continue;        // in a race, only what is on the track is there
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;

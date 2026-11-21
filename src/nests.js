@@ -318,7 +318,7 @@ feature({
     const plate = new THREE.Mesh(new THREE.CircleGeometry(0.014, 12), brass); plate.position.set(0, 0.632, 0.0122); drawer.add(plate); hole.position.z = 0.0128;
     // the folder in it, a green clip on it
     const tex = new THREE.CanvasTexture(card(DESK)); tex.colorSpace = THREE.SRGBColorSpace;
-    const folder = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.34), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.85, 0.85, 0.8) }));
+    const folder = new THREE.Mesh(new THREE.PlaneGeometry(0.34 * 520 / 560, 0.34), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.85, 0.85, 0.8) }));
     folder.rotation.x = -Math.PI / 2; folder.position.set(0, 0.625, -0.22); drawer.add(folder);
     const clip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.006, 0.07), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 1.7, 0.7), toneMapped: false })); clip.position.set(0.14, 0.63, -0.36); drawer.add(clip);
     this.k.group.add(G);
