@@ -125,7 +125,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.21.28';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.29';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -335,19 +335,12 @@ async function boot() {
   await loading(95, 'Turning on the lights', 99);
   await prepare(95, 99, 'Turning on the lights');
 
-  const when = new Date(collection.fetched);
-  const n = G.museum.arts.length;
   $('status').textContent = '';
   // The bar's last stretch: the screen goes once the first frame has been drawn behind it (tick), since that frame
   // still has the most to do (the guard's notes and the mice find their places, the last few shaders), and is best
   // done while the bar is still seen to move.
   await loading(98, null, 99.5);
-  const day = when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }), why = collection.why ? ` (the museum's API ${/^(it|too)/.test(collection.why) ? collection.why.replace(/^it /, '') : 'said: ' + collection.why})` : '';
-  $('source').innerHTML = (collection.live && !collection.stale
-    ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API lists them on view today.`
-    : collection.live
-      ? `Tonight's hang: ${n} works, as the Art Institute of Chicago's open collection API listed them on ${day}; it could not be asked again just now${why}.`
-      : `Tonight's hang: ${n} works from a copy of the Art Institute of Chicago's open collection data saved on ${day}${params.has('saved') ? '' : `, because the live API could not be used${why}`}.`)
+  $('source').innerHTML = (collection.live && !collection.stale ? 'Sourced from the live API.' : 'Sourced from a saved cache.')
     + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. The grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
