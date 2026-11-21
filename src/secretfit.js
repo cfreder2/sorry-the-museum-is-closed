@@ -9,6 +9,8 @@
 //
 // No three.js and no DOM in here.
 
+import { installFinaleFit } from './finalefit.js';
+
 // Lettering, by number: what src/secret.js paints into one small sheet and sticks on at each 'label' mark.
 // kind: 'stencil' is sprayed straight onto a crate; 'sign' is a yellow warning plate; 'plate' a small engraved one.
 export const LABELS = [
@@ -177,4 +179,5 @@ export function installSecretFit({ def, RECIPES, FITOUT, OPTS, C, pick }) {
   };
   OPTS.xBrief = { side: true };
   FITOUT.unshift([/^Sub-level 9/i, 'xVault'], [/^Specimen room/i, 'xLab'], [/^Debriefing room/i, 'xBrief']);
+  installFinaleFit({ def, RECIPES, FITOUT, OPTS, C, pick });      // and further on, the base under Butler Field (src/finalefit.js)
 }

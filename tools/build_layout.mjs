@@ -507,9 +507,54 @@ const SITES = {
     door({ a: 'X-vault', b: 'X-stair', along: 'z', x0: r2(cx - 0.9), x1: r2(cx + 0.9), z0: vault.z1, z1: stair.z0, y: DEEP, h: 3.2 });
     door({ a: 'X-lab', b: 'X-vault', along: 'x', x0: lab.x1, x1: vault.x0, z0: r2(lab.z0 + 3.6), z1: r2(lab.z0 + 5.4), y: DEEP, h: 3.2 });
     door({ a: 'X-vault', b: 'X-brief', along: 'x', x0: vault.x1, x1: brief.x0, z0: r2(brief.z0 + 3.6), z1: r2(brief.z0 + 5.4), y: DEEP, h: 3.2 });
-    return [pass, stair, vault, lab, brief];
+    return [pass, stair, vault, lab, brief, ...BASE(brief, sec, door)];
   },
 };
+// ---- 8a. and further: Project Green Cheese (docs/FINALE.md) ----
+// A blast door in the east wall of the Debriefing room, a tunnel east under the railway cutting and Columbus Drive,
+// and a base under Butler Field in two storeys: the upper at the depth of Sub-level 9, the lower six metres under it,
+// where the hangar is, a storey and a half tall, under the silo in the ballfield's centre field (src/finaleplan.js
+// has the silo, its doors and the saucer, which are not rooms). The base's rooms are `B-`, so that the map can keep
+// them off it until the blast door has been opened (src/map.js). All of it is `secret`, behind the same hidden doorway.
+const LOWER = DEEP - 6;
+function BASE(brief, sec, door) {
+  const room = (id, gallery, x0, x1, z0, z1, o = {}) => sec(add({ id, gallery, kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0, x1, z0, z1, y: DEEP, h: 5, ...o }));
+  const way = { use: 'corridor', passage: true };
+  const zm = r2((brief.z0 + brief.z1) / 2);
+  const tunnel = room('B-tunnel', 'Tunnel', r2(brief.x1 + 0.4), 299.6, r2(zm - 2.2), r2(zm + 2.2), { ...way, h: 4.6 });
+  const check = room('B-check', 'Security checkpoint', 300, 318, 62, 88);
+  const conc = room('B-conc', 'Concourse', 318.4, 438, 71.6, 78.6, way);
+  const north = [['B-labA', 'Laboratory', 322, 346], ['B-labB', 'Crystal laboratory', 346.4, 372], ['B-crew', 'Crew quarters', 372.4, 396], ['B-mess', 'Mess hall', 396.4, 416], ['B-power', 'Generator hall', 416.4, 438, { h: 6 }]]
+    .map(([id, name, x0, x1, o]) => room(id, name, x0, x1, 48, 71.2, o));
+  const south = [['B-bay', 'Robot bay', 322, 352], ['B-records', 'Records room', 352.4, 384], ['B-stores', 'Stores', 384.4, 421.6]].map(([id, name, x0, x1]) => room(id, name, x0, x1, 79, 112));
+  const sway = room('B-way', 'Service way', 422, 429, 79, 144.6, way);
+  const office = room('B-office', 'Office of the Director, special projects', 429.4, 452, 79, 95.6);
+  const sit = room('B-sit', 'Situation room', 429.4, 452, 96, 144.6);
+  const ctrl = room('B-ctrl', 'Control room', 418, 446, 145, 155.6);
+  const hangar = room('B-hangar', 'Hangar', 410, 454, 156, 196, { y: LOWER, h: 12 });
+  const archive = room('B-archive', 'Archive', 366, 409.6, 160, 192, { y: LOWER, h: 5.5 });
+  const mid = (r, w) => [r2((r.x0 + r.x1) / 2 - w / 2), r2((r.x0 + r.x1) / 2 + w / 2)];
+  const midz = (r, w) => [r2((r.z0 + r.z1) / 2 - w / 2), r2((r.z0 + r.z1) / 2 + w / 2)];
+  // The blast door: shut, and opened with a card (src/finale.js).
+  door({ a: brief.id, b: tunnel.id, along: 'x', x0: brief.x1, x1: tunnel.x0, z0: r2(zm - 1.2), z1: r2(zm + 1.2), y: DEEP, h: 3.2, blast: true });
+  door({ a: tunnel.id, b: check.id, along: 'x', x0: tunnel.x1, x1: check.x0, z0: r2(zm - 1.2), z1: r2(zm + 1.2), y: DEEP, h: 3.2 });
+  door({ a: check.id, b: conc.id, along: 'x', x0: check.x1, x1: conc.x0, z0: 74, z1: 76.2, y: DEEP, h: 3.2 });
+  for (const r of north) { const [x0, x1] = mid(r, 2.2); door({ a: r.id, b: conc.id, along: 'z', x0, x1, z0: r.z1, z1: conc.z0, y: DEEP, h: 3.2 }); }
+  for (const r of south) { const [x0, x1] = mid(r, 2.2); door({ a: conc.id, b: r.id, along: 'z', x0, x1, z0: conc.z1, z1: r.z0, y: DEEP, h: 3.2 }); }
+  door({ a: conc.id, b: sway.id, along: 'z', x0: 424.6, x1: 426.4, z0: conc.z1, z1: sway.z0, y: DEEP, h: 3.2 });
+  door({ a: sway.id, b: office.id, along: 'x', x0: sway.x1, x1: office.x0, z0: 86.4, z1: 88.2, y: DEEP, h: 3 });
+  door({ a: sway.id, b: sit.id, along: 'x', x0: sway.x1, x1: sit.x0, z0: 126, z1: 128.2, y: DEEP, h: 3.2 });
+  door({ a: sway.id, b: ctrl.id, along: 'z', x0: 424.6, x1: 426.4, z0: sway.z1, z1: ctrl.z0, y: DEEP, h: 3.2 });
+  // From the control room into the hangar, a storey up its north wall: a long window (glazed, src/finaleplan.js) and a door
+  // beside it, both onto the gantry that runs along that wall; a stair down the east wall to the hangar floor.
+  door({ a: ctrl.id, b: hangar.id, along: 'z', x0: 421, x1: 437, z0: ctrl.z1, z1: hangar.z0, y: DEEP, h: 2.6, window: true });
+  door({ a: ctrl.id, b: hangar.id, along: 'z', x0: 439, x1: 440.8, z0: ctrl.z1, z1: hangar.z0, y: DEEP, h: 2.6 });
+  deck('B-gantry', hangar.id, { x0: hangar.x0, x1: hangar.x1, z0: hangar.z0, z1: hangar.z0 + 3 }, DEEP, ['s']);
+  ramp('B-hangar-stair', hangar.id, hangar.x1 - 3.2, hangar.x1, hangar.z0 + 3, hangar.z0 + 21.2, 'z', DEEP, LOWER);
+  // And from the hangar floor, wide open, into the archive beside it.
+  { const [z0, z1] = midz(archive, 20); door({ a: archive.id, b: hangar.id, along: 'x', x0: archive.x1, x1: hangar.x0, z0, z1, y: LOWER, h: 5 }); }
+  return [tunnel, check, conc, ...north, ...south, sway, office, sit, ctrl, hangar, archive];
+}
 let secret = null;
 {
   const before = { rooms: rooms.length, doors: doors.length, decks: decks.length, ramps: ramps.length };
