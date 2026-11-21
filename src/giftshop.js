@@ -7,12 +7,15 @@
 //     with a shop price), each turning on its plinth.
 // Everything is built here (furnish.js leaves this room empty). Purchases are kept in localStorage.
 import * as THREE from 'three';
+import { fitText } from './textures.js';
 import { feature } from './features.js';
 import { VEHICLES, buildVehicle } from './garage.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const ROOM = 'F1-shop', STORE = 'after-hours.giftshop';
 const rng = s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+// A line of lettering at its baseline y, in the font already set, but never wider than the card (fitText).
+const fitAt = (c, t, w, y) => { const m = c.font.match(/^(.*?)\s*([\d.]+)px\s+(.*)$/), px = +m[2]; const f = c.font; fitText(c, t, { x: w / 2, y: y - px * 0.34, w: w - 26, h: px * 1.2, px, weight: m[1] || '400', family: m[3] }); c.font = f; };
 const tex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
 // ---------------------------------------------------------------- merged, vertex-coloured geometry
@@ -193,7 +196,7 @@ feature({
       sm.customProgramCacheKey = () => 'globe-snow';
       const snow = new THREE.Points(sg, sm); snow.renderOrder = 2; ball.add(snow);
       // the card on the pedestal's front
-      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.11), new THREE.MeshBasicMaterial({ map: tex(256, 78, (c, w, h) => { c.fillStyle = '#f4efe2'; c.fillRect(0, 0, w, h); c.fillStyle = '#16120c'; c.textAlign = 'center'; c.font = '700 26px Georgia, serif'; c.fillText(def.name, w / 2, 34); c.font = 'italic 19px Georgia, serif'; c.fillStyle = '#5a5040'; c.fillText(def.where, w / 2, 62); }) }));
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.11), new THREE.MeshBasicMaterial({ map: tex(256, 78, (c, w, h) => { c.fillStyle = '#f4efe2'; c.fillRect(0, 0, w, h); c.fillStyle = '#16120c'; c.textAlign = 'center'; c.font = '700 26px Georgia, serif'; fitAt(c, def.name, w, 34); c.font = 'italic 19px Georgia, serif'; c.fillStyle = '#5a5040'; fitAt(c, def.where, w, 62); }) }));
       card.position.set(x, 0.17, z - 0.245); card.rotation.y = Math.PI; g.add(card);
       this.globes.push({ def, x, z, holder, ball, world, step, snow, P, V, N, live: 0, wob: 0, t: i * 3.1 });
     });
@@ -271,10 +274,10 @@ feature({
     }
     // ---- hanging banners down the room, of our own design
     const banner = (x, z, draw) => { const t = tex(180, 360, draw); for (const ry of [Math.PI / 2, -Math.PI / 2]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.8), new THREE.MeshBasicMaterial({ map: t })); m.position.set(x + (ry > 0 ? 0.002 : -0.002), r.h - 1.2, z); m.rotation.y = ry; g.add(m); } kit.span(x - 0.01, x + 0.01, r.h - 0.29, r.h - 0.27, z - 0.48, z + 0.48, BRASS); };
-    banner(X0 + 1.6, Z0 + 10, (c, w, h) => { c.fillStyle = '#8a1e22'; c.fillRect(0, 0, w, h); c.fillStyle = '#f2c450'; lion(c, w * 0.5, h * 0.4, 40); c.font = '700 26px Georgia, serif'; c.textAlign = 'center'; c.fillText('GIFTS', w / 2, h * 0.68); c.fillText('BOOKS', w / 2, h * 0.77); c.fillText('PRINTS', w / 2, h * 0.86); });
-    banner(X1 - 1.6, Z0 + 10, (c, w, h) => { c.fillStyle = '#16335a'; c.fillRect(0, 0, w, h); c.save(); c.translate(w / 2, h * 0.36); flake(c, 0, 0, 52); c.restore(); c.fillStyle = '#f2e6c4'; c.font = '700 24px Georgia, serif'; c.textAlign = 'center'; c.fillText('WINTER', w / 2, h * 0.7); c.fillText('NIGHTS', w / 2, h * 0.79); });
-    banner(X0 + 1.6, Z0 + 16, (c, w, h) => { c.fillStyle = '#1d4a40'; c.fillRect(0, 0, w, h); c.fillStyle = '#c99a5b'; c.beginPath(); c.ellipse(w / 2, h * 0.36, 58, 46, 0, 0, 7); c.fill(); ['#d8232a', '#f2c450', '#2c5fb0', '#f4f4f0'].forEach((col, i) => { c.fillStyle = col; c.beginPath(); c.arc(w / 2 - 34 + i * 22, h * 0.32, 9, 0, 7); c.fill(); }); c.fillStyle = '#f2e6c4'; c.font = '700 24px Georgia, serif'; c.textAlign = 'center'; c.fillText('MAKE', w / 2, h * 0.7); c.fillText('SOMETHING', w / 2, h * 0.79); });
-    banner(X1 - 1.6, Z0 + 16, (c, w, h) => { c.fillStyle = '#2a2420'; c.fillRect(0, 0, w, h); c.fillStyle = '#c9a24a'; c.font = '700 120px Georgia, serif'; c.textAlign = 'center'; c.fillText('★', w / 2, h * 0.46); c.font = '700 24px Georgia, serif'; c.fillStyle = '#f2e6c4'; c.fillText('THE', w / 2, h * 0.66); c.fillText('SHOWROOM', w / 2, h * 0.75); c.fillText('→', w / 2, h * 0.86); });
+    banner(X0 + 1.6, Z0 + 10, (c, w, h) => { c.fillStyle = '#8a1e22'; c.fillRect(0, 0, w, h); c.fillStyle = '#f2c450'; lion(c, w * 0.5, h * 0.4, 40); c.font = '700 26px Georgia, serif'; c.textAlign = 'center'; fitAt(c, 'GIFTS', w, h * 0.68); fitAt(c, 'BOOKS', w, h * 0.77); fitAt(c, 'PRINTS', w, h * 0.86); });
+    banner(X1 - 1.6, Z0 + 10, (c, w, h) => { c.fillStyle = '#16335a'; c.fillRect(0, 0, w, h); c.save(); c.translate(w / 2, h * 0.36); flake(c, 0, 0, 52); c.restore(); c.fillStyle = '#f2e6c4'; c.font = '700 24px Georgia, serif'; c.textAlign = 'center'; fitAt(c, 'WINTER', w, h * 0.7); fitAt(c, 'NIGHTS', w, h * 0.79); });
+    banner(X0 + 1.6, Z0 + 16, (c, w, h) => { c.fillStyle = '#1d4a40'; c.fillRect(0, 0, w, h); c.fillStyle = '#c99a5b'; c.beginPath(); c.ellipse(w / 2, h * 0.36, 58, 46, 0, 0, 7); c.fill(); ['#d8232a', '#f2c450', '#2c5fb0', '#f4f4f0'].forEach((col, i) => { c.fillStyle = col; c.beginPath(); c.arc(w / 2 - 34 + i * 22, h * 0.32, 9, 0, 7); c.fill(); }); c.fillStyle = '#f2e6c4'; c.font = '700 24px Georgia, serif'; c.textAlign = 'center'; fitAt(c, 'MAKE', w, h * 0.7); fitAt(c, 'SOMETHING', w, h * 0.79); });
+    banner(X1 - 1.6, Z0 + 16, (c, w, h) => { c.fillStyle = '#2a2420'; c.fillRect(0, 0, w, h); c.fillStyle = '#c9a24a'; c.font = '700 120px Georgia, serif'; c.textAlign = 'center'; fitAt(c, '★', w, h * 0.46); c.font = '700 24px Georgia, serif'; c.fillStyle = '#f2e6c4'; fitAt(c, 'THE', w, h * 0.66); fitAt(c, 'SHOWROOM', w, h * 0.75); fitAt(c, '→', w, h * 0.86); });
     // ---- a welcome mat and a sign over the door from the lobby
     { const d = DOORS.find(q => q.a === 'lobby' || q.b === 'lobby'); if (d) { const dx = (d.x0 + d.x1) / 2; kit.span(dx - 1.1, dx + 1.1, 0.002, 0.01, Z0 + 0.1, Z0 + 1.3, 0x5a1a1e);
       const s = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.42), new THREE.MeshBasicMaterial({ map: tex(600, 105, (c, w, h) => { c.fillStyle = '#16120c'; c.fillRect(0, 0, w, h); c.fillStyle = '#f2dca0'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 50px Georgia, serif'; c.fillText('THE MUSEUM SHOP', w / 2, h / 2 + 3); }) }));
@@ -295,7 +298,7 @@ feature({
 
   _priceTex(v) {
     const owned = this.k.G.shop && this.k.G.shop.garage && this.k.G.shop.garage.isOpen(v.id);
-    return tex(256, 122, (c, w, h) => { c.fillStyle = '#0c0d12'; c.fillRect(0, 0, w, h); c.strokeStyle = '#c9a24a'; c.lineWidth = 3; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = '#f2e6c4'; c.textAlign = 'center'; c.font = '700 28px Georgia, serif'; c.fillText(v.name, w / 2, 48); c.font = '700 30px ui-monospace, monospace'; c.fillStyle = owned ? '#9fe0b0' : '#f2c450'; c.fillText(owned ? 'YOURS' : `${(v.shop || 0).toLocaleString()} CHIPS`, w / 2, 92); });
+    return tex(256, 122, (c, w, h) => { c.fillStyle = '#0c0d12'; c.fillRect(0, 0, w, h); c.strokeStyle = '#c9a24a'; c.lineWidth = 3; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = '#f2e6c4'; c.textAlign = 'center'; c.font = '700 28px Georgia, serif'; fitAt(c, v.name, w, 48); c.font = '700 30px ui-monospace, monospace'; c.fillStyle = owned ? '#9fe0b0' : '#f2c450'; fitAt(c, owned ? 'YOURS' : `${(v.shop || 0).toLocaleString()} CHIPS`, w, 92); });
   },
 
   // The collectibles you own, each in its place on your shelf.

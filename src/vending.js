@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PAINTS } from './garage.js';
+import { fitText } from './textures.js';
 
 const PRICE = 25, POP = 10, COIN = 5, FIZZ = 30;
 const COLS = [-0.32, -0.12, 0.08], ROWS = [0.97, 1.34], LOW = 0.6;          // where the cans stand in the case: across it, and the two shelves (and the bottom one)
@@ -41,11 +42,12 @@ const STYLE = `
 `;
 
 function label(text, sub, bg, fg) {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const g = cv.getContext('2d');
-  g.fillStyle = bg; g.fillRect(0, 0, 512, 96);
-  g.fillStyle = fg; g.font = '700 54px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 42);
-  g.font = '600 17px ui-monospace, monospace'; g.fillText(sub, 256, 80);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  // (the shape of the strip it is on, 0.58 by 0.12, so the letters are not squeezed)
+  const W = 464, cv = document.createElement('canvas'); cv.width = W; cv.height = 96; const g = cv.getContext('2d');
+  g.fillStyle = bg; g.fillRect(0, 0, W, 96);
+  g.fillStyle = fg; fitText(g, text, { x: W / 2, y: 40, w: W - 30, h: 56, px: 54, weight: '700', family: 'Georgia, serif' });
+  fitText(g, sub, { x: W / 2, y: 80, w: W - 30, h: 18, px: 17, weight: '600', family: 'ui-monospace, monospace' });
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
 export class Vending {

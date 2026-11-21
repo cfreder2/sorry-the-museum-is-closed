@@ -2,6 +2,7 @@
 // a row of snowball targets on Butler Field, and a skater going round the rink who will let you follow her.
 import * as THREE from 'three';
 import { feature } from './features.js';
+import { fitText, twoFaced } from './textures.js';
 
 // Lit a little from within, as everything out of doors is here, so it reads at night.
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, emissive: new THREE.Color(color).multiplyScalar(0.4), ...o });
@@ -49,9 +50,10 @@ feature({
     kerb(P.s4, 'w', 177, 197); kerb(P.s4, 'e', 177, 197);
     // A board at the top and two flags at the bottom.
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const c = cv.getContext('2d');
-    c.fillStyle = '#7a4b2a'; c.fillRect(0, 0, 256, 96); c.fillStyle = '#f4ead8'; c.font = '700 40px Georgia, serif'; c.textAlign = 'center'; c.fillText('SLED RUN', 128, 46); c.font = '20px Georgia, serif'; c.fillText('beat 20 seconds', 128, 78);
-    const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.45), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.9 }));
+    c.fillStyle = '#7a4b2a'; c.fillRect(0, 0, 256, 96); c.fillStyle = '#f4ead8'; fitText(c, 'SLED RUN', { x: 128, y: 34, w: 228, h: 42, px: 40, weight: '700', family: 'Georgia, serif' }); fitText(c, 'beat 20 seconds', { x: 128, y: 72, w: 228, h: 22, px: 20, weight: '400', family: 'Georgia, serif' });
+    const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 8;
+    // (lit from within, as the field's other signs are, or it is a black board at night; and two faces, so it reads from the top of the run too)
+    const sign = twoFaced(new THREE.PlaneGeometry(1.2, 0.45), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.9, emissiveMap: tx, emissive: 0xffffff, emissiveIntensity: 0.75 }));
     sign.position.set(339, H + 1.1, 130.95); sign.rotation.y = Math.PI; k.group.add(sign, box(0.06, 1.2, 0.06, mat(0x5a3a22), 338.4, H + 0.6, 131.0), box(0.06, 1.2, 0.06, mat(0x5a3a22), 339.6, H + 0.6, 131.0));
     const flagM = mat(0xc0392b);
     for (const x of [336.4, 341.6]) { k.group.add(box(0.05, 1.6, 0.05, mat(0x333333), x, 0.8, 197.5)); const f = box(0.02, 0.35, 0.5, flagM, x, 1.4, 197.8); k.group.add(f); }

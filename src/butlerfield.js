@@ -136,7 +136,7 @@ feature({
       for (const [x, z] of [[hx + fx * 26, hz], [hx, hz + tz * 26]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 7, 8), yellow); p.position.set(x, 3.5, z); g.add(p); O.push({ x0: x - 0.1, x1: x + 0.1, z0: z - 0.1, z1: z + 0.1, y0: 0, y1: 7 }); }
       // a number on the backstop
       { const t = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#123a24'; c.fillRect(0, 0, w, h); c.strokeStyle = '#f2e8c8'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12); c.fillStyle = '#f2e8c8'; c.font = '700 64px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('F' + n, w / 2, h / 2 + 4); });
-        const s = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.1, 1.1, 1.1), side: THREE.DoubleSide })); s.position.set(hx + ux * (R + 0.05), 2.4, hz + uz * (R + 0.05)); s.rotation.y = Math.atan2(ux, uz); g.add(s); }
+        const s = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.1, 1.1, 1.1) })); { const bk = new THREE.Mesh(s.geometry, s.material); bk.rotation.y = Math.PI; s.add(bk); } s.position.set(hx + ux * (R + 0.05), 2.4, hz + uz * (R + 0.05)); s.rotation.y = Math.atan2(ux, uz); g.add(s); }      // two faces: it reads from either side of the fence (a DoubleSide plane is mirrored from behind)
     }
     g.add(new THREE.Mesh(mergeAll(panels), meshM), new THREE.Mesh(mergeAll(posts), steel), new THREE.Mesh(mergeAll(benchGeo), plank), new THREE.Mesh(mergeAll(fenceGeo), snowy));
     // snowmen standing about the diamonds like fielders: knock all six down
