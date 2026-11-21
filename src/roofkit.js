@@ -1,6 +1,7 @@
 // What the things on the roofs are made of (src/rooftops.js and its two companions): snow, brick, galvanised
 // steel, weathered timber, gilt. Lit a little from within, as everything out of doors is here, so it reads at night.
 import * as THREE from 'three';
+import * as TX from './textures.js';
 
 export const lit = (color, { glow = 0.38, ...o } = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, emissive: new THREE.Color(color).multiplyScalar(glow), ...o });
 
@@ -15,14 +16,14 @@ let M = null;
 export function mats() {
   if (M) return M;
   const rnd = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(9);
-  const snowT = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#eef2f8'; g.fillRect(0, 0, w, h); for (let i = 0; i < 500; i++) { g.fillStyle = rnd() > 0.5 ? `rgba(255,255,255,${rnd() * 0.6})` : `rgba(130,150,190,${rnd() * 0.14})`; g.beginPath(); g.ellipse(rnd() * w, rnd() * h, 1 + rnd() * 3, 1 + rnd() * 2, rnd() * 3, 0, 7); g.fill(); } });
+  const snowT = TX.snow();                     // the same snow as on the roofs themselves (museum.js)
   const brickT = canvasTex(128, 128, (g, w, h) => {
     g.fillStyle = '#5a3a30'; g.fillRect(0, 0, w, h);
     for (let r = 0; r < 8; r++) for (let c = -1; c < 4; c++) { const x = c * 32 + (r % 2) * 16, y = r * 16, v = 0.75 + rnd() * 0.35; g.fillStyle = `rgb(${Math.round(150 * v)},${Math.round(72 * v)},${Math.round(52 * v)})`; g.fillRect(x + 1.5, y + 1.5, 29, 13); }
   });
   const woodT = canvasTex(64, 128, (g, w, h) => { g.fillStyle = '#7a5a3a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(${rnd() > 0.5 ? '40,25,12' : '150,115,80'},${0.2 + rnd() * 0.3})`; g.lineWidth = 1 + rnd() * 2; const x = rnd() * w; g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + 4, h / 3, x - 4, h * 2 / 3, x + rnd() * 4, h); g.stroke(); } });
   M = {
-    snow: new THREE.MeshStandardMaterial({ color: 0xf4f7fc, map: snowT, roughness: 0.9, emissive: 0x4a5670, emissiveIntensity: 0.55 }),
+    snow: new THREE.MeshStandardMaterial({ map: snowT, roughness: 0.95, emissiveMap: snowT, emissive: new THREE.Color(0.3, 0.36, 0.52), emissiveIntensity: 0.6 }),
     brick: new THREE.MeshStandardMaterial({ map: brickT, roughness: 0.9, emissive: 0x3a2018, emissiveIntensity: 0.6, emissiveMap: brickT }),
     stone: lit(0xc9c3b4, { roughness: 0.85 }),
     clay: lit(0xb0603a, { roughness: 0.8 }),

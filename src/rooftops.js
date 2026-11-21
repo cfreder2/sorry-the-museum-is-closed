@@ -12,6 +12,7 @@ import { mats, lit, snowCap, canvasTex } from './roofkit.js';
 import './rooftops-high.js';
 import './rooftops-east.js';
 
+const waveS = t => 0.72 + 0.28 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t))), 0.6);      // the snow wave's size along its length
 const near2 = (p, x, z) => (p.x - x) ** 2 + (p.z - z) ** 2;
 const inBox = (p, b, m = 0) => p.x > b.x0 - m && p.x < b.x1 + m && p.z > b.z0 - m && p.z < b.z1 + m;
 const _q = new THREE.Quaternion(), _ax = new THREE.Vector3();
@@ -24,11 +25,11 @@ feature({
   id: 'roofsnowman',
   secrets: [['roofsnowman', 'A snowman on the roof']],
   init(k) {
-    const box = { x0: 38.2, x1: 54.5, z0: 149.3, z1: 159.4 }, top = k.roofAt(46, 154);
+    const box = { x0: 38.2, x1: 54.5, z0: 145.6, z1: 158.6 }, top = k.roofAt(46, 152);
     if (!(top > 12 && top < 13.5)) return;
     this.box = box; this.top = top;
     const M = mats(), ballG = new THREE.SphereGeometry(1, 22, 16);
-    this.balls = [[0.42, 41.6, 153.4], [0.3, 51.4, 157.6], [0.2, 48.2, 150.7]].map(([r, x, z]) => {
+    this.balls = [[0.42, 46.4, 152.2], [0.3, 51.2, 150.2], [0.2, 41.6, 149.8]].map(([r, x, z]) => {
       const mesh = new THREE.Mesh(ballG, M.snow); mesh.scale.setScalar(r); mesh.position.set(x, top + r * 0.92, z); mesh.rotation.set(Math.random() * 6, Math.random() * 6, 0); k.group.add(mesh);
       return { r, hx: x, hz: z, x, z, y: top, hw: r * 0.72, hd: r * 0.72, vx: 0, vz: 0, mesh, px: x, pz: z, on: false, hop: -1, grow: 1 };
     });
@@ -50,7 +51,9 @@ feature({
     this.deco = new THREE.Group(); P.done(this.deco); this.deco.visible = false; k.group.add(this.deco);
     this.ob = { x0: 0, x1: 0, z0: 0, z1: 0, y0: -999, y1: -998 }; k.plan.obstacles.push(this.ob);
     this.puff = k.puffs(60, { color: 0xeef4ff, size: 0.16 });
-    this.done = false; this.pop = 0;
+    this.done = false; this.pop = 0; this.k = k;
+    this.fixed = k.plan.obstacles.filter(o => o.y1 > top && o.y0 < top + 1 && o.x1 > box.x0 - 1 && o.x0 < box.x1 + 1 && o.z1 > box.z0 - 1 && o.z0 < box.z1 + 1);
+    this.fixed.push(this.ob);
   },
   active(k) { const p = k.pos; return !!this.box && inBox(p, this.box, 8) && p.y > this.top - 1 && p.y < this.top + 8; },
   update(dt, k) {
@@ -65,14 +68,13 @@ feature({
       }
       if (s.grow < 1) { s.grow = Math.min(1, s.grow + dt * 2); s.mesh.scale.setScalar(s.r * s.grow); }
       if (s.on || (s === b && m.on)) continue;
-      const others = this.balls.filter(o => o !== s && !o.on);
-      if (k.push(s, dt, { room: this.box, others, r: (v.radius || 0.15) + 0.02, friction: 2.4 })) {
+      if (this.roll(s, dt, v)) {
         const dx = s.x - s.px, dz = s.z - s.pz, d = Math.hypot(dx, dz);
         if (d > 1e-5) { _ax.set(dz / d, 0, -dx / d); s.mesh.quaternion.premultiply(_q.setFromAxisAngle(_ax, d / s.r)); }
         s.mesh.position.set(s.x, s.y + s.r * 0.92, s.z); s.px = s.x; s.pz = s.z;
       }
       // Rolled up against the big one: up it goes.
-      if (s !== b && !s.on && ((s === m) || m.on) && Math.hypot(s.x - b.x, s.z - b.z) < (b.r + s.r) * 0.98) {
+      if (s !== b && !s.on && ((s === m) || m.on) && Math.hypot(s.x - b.x, s.z - b.z) < (b.r + s.r) * 1.3) {
         s.on = true; s.hop = 0; s.fx = s.mesh.position.x; s.fy = s.mesh.position.y; s.fz = s.mesh.position.z;
         if (s === m) Object.assign(this.ob, { x0: b.x - b.r * 0.8, x1: b.x + b.r * 0.8, z0: b.z - b.r * 0.8, z1: b.z + b.r * 0.8, y0: this.top, y1: this.yh + h.r });
       }
@@ -81,6 +83,26 @@ feature({
     // Knocked down.
     if (this.done && near2(p, b.x, b.z) < (b.r + (v.radius || 0.15) + 0.12) ** 2 && p.y < this.yh && Math.abs(v.speed || 0) > 3) this.knock(k);
     this.puff.update(dt);
+  },
+  // A ball shoved by the toy: pushed straight away from where it was struck (it is round), rolling to a stop,
+  // stopped by the edges of this patch of roof, by anything fixed down, and by the other balls.
+  roll(s, dt, v) {
+    const p = v.pos, R = s.r * 0.9 + (v.radius || 0.15), dx = s.x - p.x, dz = s.z - p.z, d = Math.hypot(dx, dz), x0 = s.x, z0 = s.z;
+    if (d < R && d > 1e-4 && p.y - s.y < s.r * 1.4) {
+      const nx = dx / d, nz = dz / d, into = Math.max(0, v.vel.x * nx + v.vel.z * nz);
+      s.x = p.x + nx * R; s.z = p.z + nz * R; s.vx = nx * into * 1.05; s.vz = nz * into * 1.05;
+    }
+    if (Math.abs(s.vx) + Math.abs(s.vz) > 0.01) { s.x += s.vx * dt; s.z += s.vz * dt; const f = Math.exp(-2.2 * dt); s.vx *= f; s.vz *= f; } else s.vx = s.vz = 0;
+    const B = this.box, m = s.r * 0.8;
+    if (s.x < B.x0 + m || s.x > B.x1 - m) { s.x = Math.max(B.x0 + m, Math.min(B.x1 - m, s.x)); s.vx *= -0.3; }
+    if (s.z < B.z0 + m || s.z > B.z1 - m) { s.z = Math.max(B.z0 + m, Math.min(B.z1 - m, s.z)); s.vz *= -0.3; }
+    for (const o of this.balls) {
+      if (o === s || o.on) continue;
+      const ex = s.x - o.x, ez = s.z - o.z, e = Math.hypot(ex, ez), need = (s.r + o.r) * 0.92;
+      if (e < need && e > 1e-4 && !(o === this.balls[0] && s !== o && (s === this.balls[1] || this.balls[1].on))) { s.x = o.x + ex / e * need; s.z = o.z + ez / e * need; s.vx *= 0.3; s.vz *= 0.3; }
+    }
+    for (const o of this.fixed) if (o.y1 > s.y + 0.05 && o.y0 < s.y + s.r && s.x + m > o.x0 && s.x - m < o.x1 && s.z + m > o.z0 && s.z - m < o.z1 && o !== this.ob) { s.x = x0; s.z = z0; s.vx *= -0.3; s.vz *= -0.3; break; }
+    return s.x !== x0 || s.z !== z0;
   },
   finish(k) {
     const b = this.balls[0], p = k.pos;
@@ -98,7 +120,7 @@ feature({
     for (const s of this.balls) { s.x = s.px = s.hx; s.z = s.pz = s.hz; s.vx = s.vz = 0; s.on = false; s.hop = -1; s.grow = 0.01; s.mesh.scale.setScalar(0.01); s.mesh.position.set(s.x, s.y + s.r * 0.92, s.z); }
     this.done = false; this.deco.visible = false; Object.assign(this.ob, { y0: -999, y1: -998 });
   },
-  spots() { return this.box ? [{ kind: 'secret', id: 'roofsnowman', name: 'Snowman on the roof (stack three snowballs)', x: 46, y: this.top, z: 154 }] : []; },
+  spots() { return this.box ? [{ kind: 'secret', id: 'roofsnowman', name: 'Snowman on the roof (stack three snowballs)', x: 46.4, y: this.top, z: 152.2 }] : []; },
 });
 
 // ---------------------------------------------------------------- the vents that play
@@ -116,8 +138,8 @@ feature({
     const top = k.roofAt(37, 65);
     if (!(top > 12 && top < 13.5)) return;
     this.top = top; const M = mats(), P = k.parts();
-    const grate = canvasTex(128, 128, (g, w) => { g.fillStyle = '#2c3036'; g.beginPath(); g.arc(64, 64, 63, 0, 7); g.fill(); g.strokeStyle = '#0c0d10'; g.lineWidth = 5; for (let r = 14; r < 60; r += 12) { g.beginPath(); g.arc(64, 64, r, 0, 7); g.stroke(); } for (let a = 0; a < 12; a++) { g.save(); g.translate(64, 64); g.rotate(a * Math.PI / 6); g.fillStyle = '#3c4048'; g.fillRect(-2, 8, 4, 54); g.restore(); } }, 1, 1);
-    const grateM = new THREE.MeshStandardMaterial({ map: grate, roughness: 0.6, metalness: 0.4, emissive: 0x1a1d22, emissiveIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const grate = canvasTex(128, 128, (g, w) => { g.fillStyle = '#8a9098'; g.beginPath(); g.arc(64, 64, 63, 0, 7); g.fill(); g.strokeStyle = '#23262b'; g.lineWidth = 5; for (let r = 14; r < 60; r += 12) { g.beginPath(); g.arc(64, 64, r, 0, 7); g.stroke(); } for (let a = 0; a < 12; a++) { g.save(); g.translate(64, 64); g.rotate(a * Math.PI / 6); g.fillStyle = '#9aa0a8'; g.fillRect(-2, 8, 4, 54); g.restore(); } }, 1, 1);
+    const grateM = new THREE.MeshStandardMaterial({ map: grate, roughness: 0.55, metalness: 0.35, emissiveMap: grate, emissive: 0x6a7080, emissiveIntensity: 0.6, transparent: true, alphaTest: 0.3, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const COL = [0xff5a4a, 0xffb02e, 0xffe14a, 0x5ee07a, 0x4ab8ff];
     this.pads = NOTE.map((f, i) => {
       const x = 33.0 + i * 1.8, z = 65.0, y = k.roofAt(x, z), pz = 67.5, H = 1.5 - i * 0.14;
@@ -126,11 +148,11 @@ feature({
       const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.57, 32), ringM); ring.rotation.x = -Math.PI / 2; ring.position.set(x, y + 0.014, z); k.group.add(ring);
       // the stack behind: a galvanised pipe on a flashing, with a cowl on three stays
       P.add(new THREE.CylinderGeometry(0.24, 0.3, 0.12, 16), M.steel, x, y + 0.06, pz);
-      P.add(new THREE.CylinderGeometry(0.12, 0.12, H, 16), M.steel, x, y + H / 2, pz);
+      P.add(new THREE.CylinderGeometry(0.15, 0.15, H, 18), M.steel, x, y + H / 2, pz);
+      for (const yy of [0.35, H - 0.2]) P.add(new THREE.TorusGeometry(0.155, 0.018, 6, 18), M.dark, x, y + yy, pz, Math.PI / 2, 0, 0);
       P.add(new THREE.ConeGeometry(0.24, 0.16, 16), M.steel, x, y + H + 0.2, pz);
       for (let s = 0; s < 3; s++) P.add(new THREE.BoxGeometry(0.015, 0.14, 0.015), M.dark, x + Math.cos(s * 2.1) * 0.1, y + H + 0.07, pz + Math.sin(s * 2.1) * 0.1);
       P.add(snowCap(0.48, 0.48, 0.05), M.snow, x, y + H + 0.26, pz);
-      P.add(new THREE.BoxGeometry(0.06, 0.06, 2.0), M.dark, x, y + 0.03, pz - 1.0);         // the duct it is the end of, on the roof
       k.plan.obstacles.push({ x0: x - 0.3, x1: x + 0.3, z0: pz - 0.3, z1: pz + 0.3, y0: y, y1: y + H + 0.3 });
       return { x, z, y, pz, top: y + H + 0.3, f, on: false, flash: 0, ringM, col: new THREE.Color(COL[i]) };
     });
@@ -197,14 +219,14 @@ feature({
     // Bigger in the middle than at the ends, as a wave peels; the lip thrown furthest where it is biggest.
     const pos = geo.attributes.position, col = [];
     for (let i = 0; i < pos.count; i++) {
-      const t = pos.getZ(i) / L, s = 0.88 + 0.12 * Math.sin(Math.PI * t), x = pos.getX(i), y = pos.getY(i);
-      pos.setXYZ(i, x * s * (1 + (x < -3.6 ? 0.05 * Math.sin(Math.PI * t) : 0)), y * s, pos.getZ(i));
+      const t = pos.getZ(i) / L, s = waveS(t), x = pos.getX(i), y = pos.getY(i);
+      pos.setXYZ(i, x * s * (1 + (x < -3.6 ? 0.06 * Math.sin(Math.PI * t) : 0)), y * s, pos.getZ(i));
     }
     geo.computeVertexNormals();
     const nrm = geo.attributes.normal, deep = new THREE.Color(0x3f74b4), pale = new THREE.Color(0xd8ebf8), white = new THREE.Color(0xf6f9fd), c = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i), nx = nrm.getX(i), ny = nrm.getY(i);
-      if (nx < -0.25 || ny < -0.3) c.copy(deep).lerp(pale, Math.min(1, y / 2.5) ** 1.4); else c.copy(white).lerp(pale, Math.max(0, 0.4 - y * 0.15));
+      const y = pos.getY(i), u = -pos.getX(i) / waveS(pos.getZ(i) / L), nx = nrm.getX(i), ny = nrm.getY(i);
+      if (ny < -0.25 || (nx < -0.2 && u < 3.1)) c.copy(deep).lerp(pale, Math.min(1, y / 2.6) ** 1.6); else c.copy(white).lerp(pale, Math.max(0, 0.5 - y * 0.25));
       col.push(c.r, c.g, c.b);
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -213,20 +235,18 @@ feature({
     // Claws of spray along the lip.
     const P = k.parts(), M = mats(), claw = new THREE.ConeGeometry(0.07, 0.34, 6);
     for (let z = zA + 0.3; z < zB - 0.2; z += 0.42) {
-      const t = (z - zA) / L, s = 0.88 + 0.12 * Math.sin(Math.PI * t), j = Math.sin(z * 7.3) * 0.08;
-      P.add(claw, M.snow, X - 4.2 * s * (1 + 0.05 * Math.sin(Math.PI * t)) + 0.05, top + 1.2 * s - 0.1 + j, z, 0, 0, -2.6 + j * 2);
+      const t = (z - zA) / L, s = waveS(t), j = Math.sin(z * 7.3) * 0.08;
+      P.add(claw, M.snow, X - 4.2 * s * (1 + 0.06 * Math.sin(Math.PI * t)) + 0.05, top + 1.2 * s - 0.1 + j, z, 0, 0, -2.6 + j * 2);
       P.add(claw, M.snow, X - 4.05 * s, top + 1.35 * s - 0.05, z + 0.2, 0, 0, -2.2 - j * 3, 0.8);
     }
-    // And a drift up against the back, so it sits in the roof's snow.
-    P.add(new THREE.CylinderGeometry(0.5, 0.5, L, 10, 1, false, 0, Math.PI), M.snow, X - 0.05, top, (zA + zB) / 2, Math.PI / 2, 0, -Math.PI / 2, 1, 1, 1);
     P.done(k.group);
     // Solid as drawn: the back and the crest, and the lip overhead (a car goes under it; a drone flying high hits it).
-    k.plan.obstacles.push({ x0: X - 2.2, x1: X + 0.1, z0: zA, z1: zB, y0: top, y1: top + 3.0 }, { x0: X - 4.3, x1: X - 2.2, z0: zA, z1: zB, y0: top + 1.12, y1: top + 3.1 });
+    k.plan.obstacles.push({ x0: X - 2.2, x1: X + 0.1, z0: zA, z1: zB, y0: top, y1: top + 3.0 }, { x0: X - 4.3, x1: X - 2.2, z0: zA, z1: zB, y0: top + 0.92, y1: top + 3.1 });
     this.puff = k.puffs(90, { color: 0xffffff, size: 0.12 }); this.spray = 0; this.from = 0;
     this.at = { x: X - 3.3, y: top, z: (zA + zB) / 2 };
   },
   active(k) { const p = k.pos; return !!this.at && near2(p, this.at.x, this.at.z) < 26 * 26 && p.y > this.top - 1; },
-  inside(p) { return p.x > this.X - 4.25 && p.x < this.X - 2.4 && p.z > this.zA - 0.6 && p.z < this.zB + 0.6 && p.y < this.top + 1.15 && p.y > this.top - 0.3; },
+  inside(p) { return p.x > this.X - 4.25 && p.x < this.X - 2.0 && p.z > this.zA - 0.6 && p.z < this.zB + 0.6 && p.y < this.top + 0.95 && p.y > this.top - 0.3; },
   update(dt, k) {
     const p = k.pos;
     if (near2(p, this.at.x, this.at.z) < 12 * 12) k.once('roofwave', 'A wave of snow, breaking. Go through it.', 5);
@@ -269,8 +289,8 @@ feature({
     const a = L.art, r = L.room, mu = k.museum, st = mu.rooms && mu.rooms[r.id];
     if (st && !st.lit) { st.lit = true; for (const q of st.arts) if (q.wakeAt < 0) { q.wakeAt = mu.time + 0.3 + Math.random() * 0.6; if (mu._waking) mu._waking.add(q); } }
     a.focus = true;
-    const reach = Math.abs(a.nx) > 0.5 ? r.x1 - r.x0 : r.z1 - r.z0, d = Math.min(5.5, reach * 0.62), ceil = r.y + (r.h || 7) - 0.45;
-    this.on = { L, t: 0, at: { x: a.x + a.nx * d, y: Math.max(a.y + 0.6, ceil), z: a.z + a.nz * d }, look: { x: a.x, y: a.y, z: a.z } };
+    const reach = Math.abs(a.nx) > 0.5 ? r.x1 - r.x0 : r.z1 - r.z0, d = Math.min(4.4, reach * 0.55), ceil = r.y + (r.h || 7) - 0.45;
+    this.on = { L, t: 0, at: { x: a.x + a.nx * d, y: Math.max(a.y + 0.6, Math.min(ceil, a.y + 3.4)), z: a.z + a.nz * d }, look: { x: a.x, y: a.y, z: a.z } };
     k.hold();
     k.say(`${a.work.t.length > 54 ? a.work.t.slice(0, 52) + '…' : a.work.t}. ${a.work.a}`, 1.2, 5);
     if (this.tally.add(r.id) && this.tally.done && k.find('roofpeek')) k.callout('THROUGH THE GLASS');
@@ -420,11 +440,12 @@ feature({
       if (dd > 9) continue;
       if (v.kind !== 'drone') { k.once('roofchimney-car', 'Only something that flies can reach the pots.', 4); continue; }
       if (dd < 0.34 * 0.34 && p.y > s.pot.y - 0.1 && p.y < s.pot.y + 0.55) {
+        if (this.tally.has(s.id)) { k.once('roofchimney-had-' + s.id, 'That one has had its parcel. Another chimney.', 3); break; }
         const it = k.carry.drop(carrying.id); if (this.drop.mesh) k.group.remove(this.drop.mesh);
         const dm = this.drop.mesh = it.mesh; k.group.add(dm); dm.position.set(s.pot.x, p.y - 0.1, s.pot.z); dm.scale.setScalar(1.6); this.drop.t = 0;
         k.synth.chime([784, 659, 523, 392], { gap: 0.07, dur: 0.6 }); this.puff.emit(s.pot.x, s.pot.y, s.pot.z, 16, { spread: 0.1, up: 1.4, out: 0.4 }); this.smoke.emit(s.pot.x, s.pot.y, s.pot.z, 10, { spread: 0.1, up: 0.8, out: 0.3, life: 2.5 });
-        if (this.tally.add(s.id)) { s.wreath.visible = true; if (this.tally.done) { if (k.find('roofchimney')) k.callout('DOWN THE CHIMNEYS'); } else k.say(`${this.tally.count} of ${this.tally.total} chimneys.`, 3); }
-        else k.say('That one has had its parcel. Another chimney.', 3);
+        this.tally.add(s.id); s.wreath.visible = true;
+        if (this.tally.done) { if (k.find('roofchimney')) k.callout('DOWN THE CHIMNEYS'); } else k.say(`${this.tally.count} of ${this.tally.total} chimneys.`, 3);
         break;
       }
     }

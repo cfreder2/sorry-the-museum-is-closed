@@ -80,7 +80,7 @@ feature({
     pool.rotation.x = -Math.PI / 2; pool.position.set(RK.cx, y + 0.012, RK.cz); pool.visible = false; k.group.add(pool); this.pool = pool;
     rink.onPower = () => { for (const f of this.flood) { f.lens.material.color.setRGB(2.2, 2.0, 1.6); f.beam.visible = true; f.beam.material.opacity = 0.07; } this.pool.visible = true; };
     if (rink.power) rink.onPower();
-    // Love of Winter, on a board on two posts by the north side, facing the ice.
+    // Love of Winter, on a board on two posts by the south side, facing the ice.
     const works = (k.G.collection && (k.G.collection.works || k.G.collection)) || [], work = Array.isArray(works) ? works.find(w => w.id === 109780 || /^Love of Winter$/.test(w.t || '')) : null;
     if (work && !work.c) {
       const PW = 2.6, PHh = PW * (work.ih && work.iw ? work.ih / work.iw : 0.79), bx = RK.cx, bz = RK.z1 + 1.1, by = y + 0.7 + PHh / 2;
@@ -192,7 +192,7 @@ feature({
     g.fillStyle = '#f2f5fa'; g.fillRect(0, 0, W, H);
     for (let i = 0; i < W * H / 6; i++) { g.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,.6)' : 'rgba(150,165,195,.18)'; g.fillRect(Math.random() * W, Math.random() * H, 1 + Math.random() * 2, 1); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(A.x1 - A.x0 + 0.1, A.z1 - A.z0 + 0.1), new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.9, emissive: 0x4a5670, emissiveIntensity: 0.6, emissiveMap: t, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(A.x1 - A.x0 + 0.1, A.z1 - A.z0 + 0.1), new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, roughness: 0.95, emissive: new THREE.Color(0.3, 0.36, 0.52), emissiveIntensity: 0.6, emissiveMap: t, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
     m.rotation.x = -Math.PI / 2; m.position.set((A.x0 + A.x1) / 2, A.y + 0.012, (A.z0 + A.z1) / 2); k.group.add(m);
     Object.assign(this, { A, PX, W, H, g, t, mesh: m, grid: new Uint8Array(W * H).fill(1), left: W * H, total: W * H, dirty: false, done: false });
     this.blow = k.puffs(60, { color: 0xffffff, size: 0.12 });

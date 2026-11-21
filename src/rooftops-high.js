@@ -55,13 +55,13 @@ feature({
     // Struck by something flying through it: spun the way it was going.
     if (v.kind === 'drone' && Math.abs(p.y - this.hub) < 0.4 && r2 < 0.95 * 0.95 && r2 > 0.01) {
       const sx = Math.sin(this.th), sz = Math.cos(this.th), off = Math.abs(dx * sz - dz * sx);
-      if (off < 0.28) { const want = (v.vel.x * dz - v.vel.z * dx) / Math.max(r2, 0.2); this.w += (want - this.w) * 0.35; if (Math.abs(want) > 1.5 && (this.creak -= dt) < 0) { this.creak = 0.3; k.synth.noise(0.12, { vol: 0.05, lp: 2200 }); } }
+      if (off < 0.3) { const want = 1.6 * (v.vel.x * dz - v.vel.z * dx) / Math.max(r2, 0.12); if (Math.abs(want) > Math.abs(this.w) || Math.sign(want) !== Math.sign(this.w)) this.w += (want - this.w) * 0.5; if (Math.abs(want) > 1.5 && (this.creak -= dt) < 0) { this.creak = 0.3; k.synth.noise(0.12, { vol: 0.05, lp: 2200 }); } }
     }
     this.w = Math.max(-28, Math.min(28, this.w));
     const was = this.th; this.th += this.w * dt;
     if (Math.floor(was / Math.PI) !== Math.floor(this.th / Math.PI) && Math.abs(this.w) > 2) k.synth.note(1900, 0.05, { type: 'square', vol: 0.012 });
     this.vane.rotation.y = this.th;
-    if (Math.abs(this.w) > 5) this.spun += Math.abs(this.w) * dt; else this.spun = Math.max(0, this.spun - dt * 3);
+    if (Math.abs(this.w) > 4) this.spun += Math.abs(this.w) * dt; else this.spun = Math.max(0, this.spun - dt * 3);
     if (this.spun > 3 * TAU) { this.spun = 0; k.synth.chime([523, 784, 1047]); if (k.find('roofvane')) k.callout('SPUN THE VANE'); }
     if (r2 < 6 * 6 && Math.abs(p.y - this.at.y) < 6) k.once('roofvane', v.kind === 'drone' ? 'A weather vane. Fly through it.' : 'A weather vane, out of reach of wheels.', 4);
   },
