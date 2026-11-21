@@ -936,7 +936,7 @@ export class Museum {
     {
       const f2 = plan.front, cz2 = (f2.z0 + f2.z1) / 2, hang = new THREE.Group();
       // Painted, not lit: headlamps on it must not wash the words out.
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.25), new THREE.MeshBasicMaterial({ map: TX.closedSign(), color: new THREE.Color(0.62, 0.6, 0.55), side: THREE.DoubleSide }));
+      const board = TX.twoFaced(new THREE.PlaneGeometry(2.5, 1.25), new THREE.MeshBasicMaterial({ map: TX.closedSign(), color: new THREE.Color(0.62, 0.6, 0.55) }));      // (two faces: it reads the right way round from inside too)
       board.position.y = -(f2.h - 2.0); board.rotation.y = -Math.PI / 2;
       hang.add(board);
       const chain = new THREE.MeshStandardMaterial({ color: 0x8a8478, metalness: 0.6, roughness: 0.4 });

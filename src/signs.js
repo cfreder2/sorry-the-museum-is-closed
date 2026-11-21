@@ -2,6 +2,7 @@
 // (src/furnish.js) leaves a note where each goes; this draws them.
 
 import * as THREE from 'three';
+import { fitText, SANS } from './textures.js';
 
 const INK = '#f3f1ea';
 function person(c, x, y, s, skirt) {
@@ -26,19 +27,19 @@ const ICON = {
 
 export function buildSigns(museum, plan) {
   const marks = (plan.marks || []).filter(m => m.kind === 'wcsign'), group = new THREE.Group(), mats = {}; group.name = 'signs';
-  const mat = (text, icon) => {
-    const key = icon + '|' + text; if (mats[key]) return mats[key];
-    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128; const c = cv.getContext('2d');
-    c.fillStyle = icon === 'FIRSTAID' ? '#1f6b3f' : icon === 'STAFF' || icon === 'CLEANER' ? '#3a3f47' : '#20324a'; c.fillRect(0, 0, 512, 128);
-    c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 4; c.strokeRect(6, 6, 500, 116);
+  // (the canvas is the plaque's own shape, 128 high, so the letters are not stretched)
+  const mat = (text, icon, W = 512) => {
+    const key = icon + '|' + text + '|' + W; if (mats[key]) return mats[key];
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = 128; const c = cv.getContext('2d');
+    c.fillStyle = icon === 'FIRSTAID' ? '#1f6b3f' : icon === 'STAFF' || icon === 'CLEANER' ? '#3a3f47' : '#20324a'; c.fillRect(0, 0, W, 128);
+    c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 4; c.strokeRect(6, 6, W - 12, 116);
     c.save(); c.translate(10, 14); c.fillStyle = INK; (ICON[icon] || ICON.STAFF)(c); c.restore();
-    c.fillStyle = INK; c.textBaseline = 'middle'; let px = 58; do { c.font = `600 ${px}px Helvetica, Arial, sans-serif`; px -= 2; } while (c.measureText(text).width > 380 && px > 20);
-    c.fillText(text, 116, 68);
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    c.fillStyle = INK; fitText(c, text, { x: (116 + W - 18) / 2, y: 66, w: W - 18 - 116, h: 96, px: 58, family: SANS, lines: 2 });
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     return (mats[key] = new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.72, 0.72, 0.72) }));
   };
   for (const m of marks) {
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(m.w || 1, m.h || 0.3), mat(m.text, m.icon));
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(m.w || 1, m.h || 0.3), mat(m.text, m.icon, Math.round(128 * (m.w || 1) / (m.h || 0.3))));
     mesh.position.set(m.x + m.fx * 0.004, m.y, m.z + m.fz * 0.004); mesh.rotation.y = Math.atan2(m.fx, m.fz); mesh.matrixAutoUpdate = false; mesh.updateMatrix(); group.add(mesh);
   }
   museum.group.add(group);

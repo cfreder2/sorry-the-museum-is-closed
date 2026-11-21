@@ -50,7 +50,8 @@ const tapestry = () => tex(256, 160, (c, w, h) => { c.fillStyle = '#4a5a3a'; c.f
 const lancet = seed => tex(64, 192, (c, w, h) => { const r = TX.rng(seed); c.fillStyle = '#10141e'; c.fillRect(0, 0, w, h);
   for (let y = 0; y < h; y += 12) for (let x = 0; x < w; x += 10) { c.fillStyle = ['#2a4aa8', '#b8262c', '#d8a82a', '#2a8a4a', '#6a2a8a'][Math.floor(r() * 5)]; c.fillRect(x + 1, y + 1, 9, 11); }
   c.fillStyle = '#f0e6c8'; c.beginPath(); c.ellipse(w / 2, h * 0.38, 10, 22, 0, 0, 7); c.fill(); c.fillStyle = '#d8a82a'; c.beginPath(); c.arc(w / 2, h * 0.24, 8, 0, 7); c.fill(); });
-const plaque = (code, title) => tex(512, 64, (c, w, h) => { c.fillStyle = '#16120c'; c.fillRect(0, 0, w, h); c.fillStyle = '#d9c38a'; c.font = '600 22px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(`${code} · ${title}`, w / 2, h / 2, w - 20); });
+// (drawn at the plate's own shape, 1.5 m by 0.12, and a long title set smaller or on two lines, never squeezed)
+const plaque = (code, title) => tex(1024, 82, (c, w, h) => { c.fillStyle = '#16120c'; c.fillRect(0, 0, w, h); c.fillStyle = '#d9c38a'; TX.fitText(c, `${code} · ${title}`, { x: w / 2, y: h / 2, w: w - 48, h: h - 14, px: 44, weight: '600', family: 'Georgia, serif', lines: 2, wrapAt: 0.8 }); });
 
 // ------------------------------------------------------------------ one room
 // A room is built in its own frame: u along the front glass (0 to W), d in from the glass (0 to D), y up from the floor.

@@ -1,6 +1,7 @@
 // The drawing kit for lights out of doors (butlerfield.js, lightshow.js): bulbs in one instanced mesh, figures drawn in
 // glowing wire, and the strokes of the figures themselves. Colours above 1 glow under the bloom.
 import * as THREE from 'three';
+import { fitText } from './textures.js';
 export const TAU = Math.PI * 2;
 export const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 export const lit = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, emissive: new THREE.Color(color).multiplyScalar(0.3), ...o });
@@ -206,14 +207,21 @@ export function snowflake(R = 0.6) {
 }
 // A banner with words on it, glowing (the sign over the way in).
 export function signBoard(w, h, lines, bg = '#0c1a2c', ink = '#fff3cf') {
+  // Each line [text, size, colour, y]: `size` is as big as it may be (in a board 1024 across), `y` where its middle sits,
+  // as a fraction of the height. A line too long for the board is set smaller (fitText), never cut off at the frame.
   const t = canvasTex(1024, Math.round(1024 * h / w), (c, W, H) => {
     c.fillStyle = bg; c.fillRect(0, 0, W, H);
     c.strokeStyle = '#d9b45a'; c.lineWidth = 10; c.strokeRect(14, 14, W - 28, H - 28);
     for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.5})`; c.beginPath(); c.arc(30 + Math.random() * (W - 60), 30 + Math.random() * (H - 60), 1 + Math.random() * 2.5, 0, TAU); c.fill(); }
-    c.textAlign = 'center'; c.textBaseline = 'middle';
-    lines.forEach(([txt, size, col, y]) => { c.fillStyle = col || ink; c.font = `700 ${size}px Georgia, 'Times New Roman', serif`; c.shadowColor = col || ink; c.shadowBlur = 18; c.fillText(txt, W / 2, H * y); });
+    const ys = lines.map(l => l[3]), room = i => { const above = i ? (ys[i] - ys[i - 1]) / 2 : ys[i] - 30 / H, below = i < ys.length - 1 ? (ys[i + 1] - ys[i]) / 2 : 1 - 30 / H - ys[i]; return 2 * Math.min(above, below) * H; };
+    lines.forEach(([txt, size, col], i) => { c.fillStyle = col || ink; c.shadowColor = col || ink; c.shadowBlur = 18; fitText(c, txt, { x: W / 2, y: H * ys[i], w: W - 120, h: Math.max(10, room(i) - 6), px: size, weight: '700', family: "Georgia, 'Times New Roman', serif" }); });
   });
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.5, 1.5, 1.5), side: THREE.DoubleSide }));
+  t.anisotropy = 8;
+  // Two faces back to back, so it reads the right way round from either side (a DoubleSide plane shows its back mirrored).
+  const mat = new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.5, 1.5, 1.5) }), geo = new THREE.PlaneGeometry(w, h);
+  const board = new THREE.Mesh(geo, mat), back = new THREE.Mesh(geo, mat);
+  back.rotation.y = Math.PI; back.position.z = -0.004; board.add(back);
+  return board;
 }
 
 export function mergeAll(geos) {

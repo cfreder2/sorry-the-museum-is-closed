@@ -88,7 +88,7 @@ export function buildEastSide(museum, plan) {
         for (const sg of [-1, 1]) { const pz = zc + sg * (hw + 0.2); cn.box(fx + reach - 0.4, fx + reach - 0.24, 0, 3.45, pz - 0.08, pz + 0.08); O.push({ x0: fx + reach - 0.42, x1: fx + reach - 0.22, z0: pz - 0.1, z1: pz + 0.1, y0: 0, y1: 3.6 }); }
         add(cn.mesh(new THREE.MeshStandardMaterial({ color: 0xd4d6da, roughness: 0.5, emissive: 0x565c6c, emissiveIntensity: 0.6 })));
         const top = new Geo(); flat(top, fx, fx + reach, zc - hw - 0.6, zc + hw + 0.6, 3.63, 3); add(top.mesh(snow));
-        const name = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.42), new THREE.MeshBasicMaterial({ map: TX.carved('THE  ART  INSTITUTE  OF  CHICAGO', 2048, 96, 64, '#f1dfae'), transparent: true, depthWrite: false, color: new THREE.Color(1.2, 1.1, 0.85), fog: false }));
+        const name = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.42), new THREE.MeshBasicMaterial({ map: TX.carved('THE  ART  INSTITUTE  OF  CHICAGO', 2048, Math.round(2048 * 0.42 / 6.4), 88, '#f1dfae'), transparent: true, depthWrite: false, color: new THREE.Color(1.2, 1.1, 0.85), fog: false }));
         name.position.set(fx + reach + 0.02, 3.53, zc); name.rotation.y = Math.PI / 2; add(name);
         const spill = new THREE.Mesh(new THREE.PlaneGeometry(7, 5), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.5, 0.36, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, ...off }));
         spill.rotation.x = -Math.PI / 2; spill.position.set(fx + 2.6, 0.02, zc); spill.renderOrder = 4; add(spill);

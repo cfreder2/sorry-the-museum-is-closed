@@ -417,8 +417,9 @@ function notice(lines, aspect) {
   const c = cv.getContext('2d'), W = cv.width, serif = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
   c.fillStyle = '#efe6cf'; c.fillRect(0, 0, W, 256); c.strokeStyle = '#1d3a2c'; c.lineWidth = 8; c.strokeRect(12, 12, W - 24, 232);
   c.fillStyle = '#1d3a2c'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  lines.forEach((l, i) => { let px = i === 0 ? 64 : 44; c.font = `${i === 0 ? '600 ' : 'italic '}${px}px ${serif}`; const w = c.measureText(l).width; if (w > W - 56) { px = Math.floor(px * (W - 56) / w); c.font = `${i === 0 ? '600 ' : 'italic '}${px}px ${serif}`; } c.fillText(l, W / 2, 128 + (i - (lines.length - 1) / 2) * 70); });
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const step = Math.min(70, 200 / lines.length);
+  lines.forEach((l, i) => TX.fitText(c, l, { x: W / 2, y: 128 + (i - (lines.length - 1) / 2) * step, w: W - 64, h: step - 6, px: i === 0 ? 64 : 44, weight: i === 0 ? '600' : 'italic', family: serif }));
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }
 

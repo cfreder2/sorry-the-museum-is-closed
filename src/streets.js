@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Geo } from './geo.js';
+import { fitText, twoFaced, SANS } from './textures.js';
 import { streetY, landable } from './plan.js';
 import { frostHedges, hedgeMaterial } from './frost.js';
 import { trafficLanes, STOP_BACK, TRACK_W, GeoLite, Kerbs, slabs, strip, fixture, FIX, hash, benchParts, slabMaterial, walkMarkMaterial, roadMarkMaterial, paintMaterial, trackMaterial, fixtureMaterial, ironMaterial, slatMaterial } from './streetscape.js';
@@ -257,8 +258,8 @@ export function buildStreets(museum, plan) {
   for (const [a, b] of gaps(MO.z1, JA.z0, [[MO.z1, MO.z1 + 6], [103, 117], [JA.z0 - 6, JA.z0]])) median('z', a, b, cmid, 0.8, 0);
 
   // ------------------------------------------------------------------ signals and street names
-  const blade = name => canvasTex(256, 48, (c, w, h) => { c.fillStyle = '#0d6b3a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e9efe9'; c.lineWidth = 3; c.strokeRect(2, 2, w - 4, h - 4); c.fillStyle = '#f2f5f0'; c.font = '600 30px Helvetica, Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(name, w / 2, h / 2 + 2); });
-  const blades = {}; const bladeMat = n => blades[n] || (blades[n] = new THREE.MeshBasicMaterial({ map: blade(n), side: THREE.DoubleSide, color: new THREE.Color(0.85, 0.85, 0.85) }));
+  const blade = name => canvasTex(256, 48, (c, w, h) => { c.fillStyle = '#0d6b3a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e9efe9'; c.lineWidth = 3; c.strokeRect(2, 2, w - 4, h - 4); c.fillStyle = '#f2f5f0'; fitText(c, name, { x: w / 2, y: h / 2 + 1, w: w - 20, h: h - 14, px: 30, weight: '600', family: SANS }); });
+  const blades = {}; const bladeMat = n => blades[n] || (blades[n] = new THREE.MeshBasicMaterial({ map: blade(n), color: new THREE.Color(0.85, 0.85, 0.85) }));
   // A head: a black box with three lamps, one lit. Faces along `ax` ('x' or 'z') in direction `dir`.
   const head = (x, y, z, ax, dir, lit) => {
     return;                                              // the working heads are traffic.js's; these poles carry the street names only
@@ -275,7 +276,7 @@ export function buildStreets(museum, plan) {
     void a0; void a1;                                    // no mast arm: nothing hangs from it
     for (const f of [0.55, 0.95]) { const hx = armAx === 'x' ? x + reach * f : x, hz = armAx === 'z' ? z + reach * f : z; head(hx, y + HT - 1.2, hz, faceAx, faceDir, lit); }
     head(x + (faceAx === 'x' ? faceDir * 0.24 : 0), y + 2.6, z + (faceAx === 'z' ? faceDir * 0.24 : 0), faceAx, faceDir, lit);
-    names.forEach((n, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.24), bladeMat(n)); m.position.set(x + (i ? 0 : 0.72), y + 4.0 + i * 0.3, z + (i ? 0.72 : 0)); if (i) m.rotation.y = Math.PI / 2; extra.push(m); });
+    names.forEach((n, i) => { const m = twoFaced(new THREE.PlaneGeometry(1.25, 0.24), bladeMat(n)); m.position.set(x + (i ? 0 : 0.72), y + 4.0 + i * 0.3, z + (i ? 0.72 : 0)); if (i) m.rotation.y = Math.PI / 2; extra.push(m); });
     ob(x - 0.1, x + 0.1, z - 0.1, z + 0.1, y, y + HT);
   };
   // Michigan Avenue: at each crossing, one pole on the museum's kerb (arm out over the northbound lanes, facing south)
@@ -300,8 +301,8 @@ export function buildStreets(museum, plan) {
   const bench = (x, z, fx, fz) => { const y = streetY(plan, x, z); M4.makeRotationY(Math.atan2(fx, fz)).setPosition(x, y, z); for (const k of ['iron', 'wood', 'snow']) benchAt[k].push(BP[k].clone().applyMatrix4(M4));
     const hl = BP.L / 2 + 0.04, hd = BP.D / 2; fz === 0 ? ob(x - hd, x + hd, z - hl, z + hl, y, y + 0.9) : ob(x - hl, x + hl, z - hd, z + hd, y, y + 0.9); };
   // A sign on a post: white plate, a word or two.
-  const plateTex = {}; const plate = (lines, col) => plateTex[lines.join()] || (plateTex[lines.join()] = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: new THREE.Color(0.8, 0.8, 0.8), map: canvasTex(128, 160, (c, w, h) => { c.fillStyle = '#f1efe8'; c.fillRect(0, 0, w, h); c.strokeStyle = col; c.lineWidth = 6; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = col; c.font = '700 26px Helvetica, Arial, sans-serif'; c.textAlign = 'center'; lines.forEach((t, i) => c.fillText(t, w / 2, 44 + i * 32)); }) }));
-  const sign = (x, z, lines, col, facing) => { const y = streetY(plan, x, z); g.steel.box(x - 0.03, x + 0.03, y, y + 2.5, z - 0.03, z + 0.03); const m = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.58), plate(lines, col)); m.position.set(x + (facing === 'x' ? 0.04 : 0), y + 2.2, z + (facing === 'z' ? 0.04 : 0)); if (facing === 'x') m.rotation.y = Math.PI / 2; extra.push(m); ob(x - 0.04, x + 0.04, z - 0.04, z + 0.04, y, y + 2.5); };
+  const plateTex = {}; const plate = (lines, col) => plateTex[lines.join()] || (plateTex[lines.join()] = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.8, 0.8, 0.8), map: canvasTex(128, 160, (c, w, h) => { c.fillStyle = '#f1efe8'; c.fillRect(0, 0, w, h); c.strokeStyle = col; c.lineWidth = 6; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = col; const step = Math.min(32, 132 / lines.length); lines.forEach((t, i) => fitText(c, t, { x: w / 2, y: h / 2 + (i - (lines.length - 1) / 2) * step, w: w - 26, h: step - 4, px: 26, weight: '700', family: SANS })); }) }));
+  const sign = (x, z, lines, col, facing) => { const y = streetY(plan, x, z); g.steel.box(x - 0.03, x + 0.03, y, y + 2.5, z - 0.03, z + 0.03); const m = twoFaced(new THREE.PlaneGeometry(0.46, 0.58), plate(lines, col)); m.position.set(x + (facing === 'x' ? 0.04 : 0), y + 2.2, z + (facing === 'z' ? 0.04 : 0)); if (facing === 'x') m.rotation.y = Math.PI / 2; extra.push(m); ob(x - 0.04, x + 0.04, z - 0.04, z + 0.04, y, y + 2.5); };
   // A parked car with the night's snow on it. `ax` is the way it points.
   const parked = (x, z, ax, q) => { const y = streetY(plan, x, z), Lh = 2.15, Wh = 0.88; const bx = (qq, l0, l1, y0, y1, w) => ax === 'z' ? qq.box(x - w, x + w, y0, y1, z + l0, z + l1) : qq.box(x + l0, x + l1, y0, y1, z - w, z + w);
     bx(q, -Lh, Lh, y + 0.28, y + 0.82, Wh); bx(g.dark, -Lh * 0.5, Lh * 0.42, y + 0.82, y + 1.28, Wh - 0.08); bx(q, -Lh * 0.46, Lh * 0.38, y + 1.28, y + 1.33, Wh - 0.06);
@@ -318,7 +319,7 @@ export function buildStreets(museum, plan) {
   // exactly where it stands, and nothing else is. The glass is drawn so it reads at night: a pale tint, the frame round
   // it, a frosted band at eye height, a glint along its edges and a streak of reflection across each pane. The roof is
   // a top to land on.
-  const posters = {}, posterMat = k => posters[k] || (posters[k] = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.92, 0.92, 0.92), side: THREE.DoubleSide, map: canvasTex(256, 352, (c, w, h) => {
+  const posters = {}, posterMat = k => posters[k] || (posters[k] = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.92, 0.92, 0.92), side: THREE.DoubleSide, map: canvasTex(256, k === 'map' ? 352 : 402, (c, w, h) => {
     const text = (t, y, px, col = '#f6f1e4', wt = 800) => { c.fillStyle = col; c.font = `${wt} ${px}px Helvetica, Arial, sans-serif`; c.textAlign = 'center'; c.fillText(t, w / 2, y); };
     if (k === 'map') {                                                // the route map: streets, the lake, the lines, you are here
       c.fillStyle = '#eef0ea'; c.fillRect(0, 0, w, h); c.fillStyle = '#1f4f9a'; c.fillRect(0, 0, w, 46); text('ROUTE MAP', 31, 24);
@@ -330,7 +331,7 @@ export function buildStreets(museum, plan) {
       c.fillStyle = '#222'; c.font = '700 15px Helvetica, Arial, sans-serif'; c.textAlign = 'left'; c.fillText('YOU ARE HERE', 122, 249);
       return;
     }
-    const bg = ['#14213f', '#9c2a22', '#0f5257', '#3b2457'][k % 4], gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, bg); gr.addColorStop(1, '#07090f'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    const bg = ['#14213f', '#9c2a22', '#0f5257', '#3b2457'][k % 4], gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, bg); gr.addColorStop(1, '#07090f'); c.fillStyle = gr; c.fillRect(0, 0, w, h); c.translate(0, (h - 352) / 2);
     if (k % 4 === 0) { c.fillStyle = '#f08a2a'; c.beginPath(); c.arc(w / 2, 150, 70, 0, 7); c.fill(); c.fillStyle = '#07090f'; for (let x = 0, i = 0; x < w; x += 22, i++) c.fillRect(x, 170 - (i * 37 % 60), 18, 200); text('LAKEFRONT', 268, 34); text('LIGHTS', 304, 34); text('every night till March', 334, 15, '#f0c27a', 600); }
     else if (k % 4 === 1) { c.strokeStyle = '#fff'; c.lineWidth = 7; c.lineCap = 'round'; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; c.beginPath(); c.moveTo(w / 2, 140); c.lineTo(w / 2 + Math.cos(a) * 72, 140 + Math.sin(a) * 72); c.stroke(); } text('STAY', 268, 40); text('WARM', 306, 40); text('cocoa · soup · State St', 334, 15, '#ffd2c8', 600); }
     else if (k % 4 === 2) { c.strokeStyle = '#d8f3f0'; c.lineWidth = 5; for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(w / 2, 150, 90 - i * 18, 40 - i * 8, -0.3, 0, 7); c.stroke(); } text('SKATE', 268, 40); text('THE PARK', 306, 34); text('open daily · skates for hire', 334, 14, '#a8e3dc', 600); }

@@ -1,6 +1,7 @@
 // Things to do out in the park (features.js): a row of snowball targets on Butler Field, and a skater going round the rink who will let you follow her.
 import * as THREE from 'three';
 import { feature } from './features.js';
+import { fitText, twoFaced } from './textures.js';
 
 // Lit a little from within, as everything out of doors is here, so it reads at night.
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, emissive: new THREE.Color(color).multiplyScalar(0.4), ...o });

@@ -96,7 +96,7 @@ export function buildStatues(museum, plan) {
   const board = (x, z, yaw) => {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = yaw;
     put(g, box, std({ color: 0x3a2a1c, roughness: 0.9, emissive: 0x16100a, emissiveIntensity: 0.6 }), 0, 0.33, -0.02, 0.035, 0.66, 0.035);
-    put(g, new THREE.PlaneGeometry(0.72, 0.36), new THREE.MeshBasicMaterial({ map: TX.notice(['Fountain off', 'for the winter']), color: new THREE.Color(0.6, 0.58, 0.54), side: THREE.DoubleSide }), 0, 0.72, 0);
+    { const b = TX.twoFaced(new THREE.PlaneGeometry(0.72, 0.36), new THREE.MeshBasicMaterial({ map: TX.notice(['Fountain off', 'for the winter']), color: new THREE.Color(0.6, 0.58, 0.54) })); b.position.set(0, 0.72, 0); g.add(b); }      // reads from both sides, the right way round
     group.add(g);
   };
 
