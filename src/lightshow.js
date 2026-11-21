@@ -640,12 +640,47 @@ feature({
   },
 
   // ============================================================ play
+  // What moves round the show on its own: the train round the tree, the penguins down their slide, the sleigh overhead.
+  // Run from update, and also while the show can be seen but is asleep (active), so nothing stands frozen where it was
+  // built (the sleigh was built at the origin, which is on Michigan Avenue).
+  _movers(dt, T, calm) {
+    {
+      const A = this.trainA += dt * (calm ? 0.12 : 0.3), TR = this.trainR;
+      this.train.forEach((grp, j) => { const a = A - j * 2.3 / TR; grp.position.set(TREE.x + Math.cos(a) * TR, 0, TREE.z + Math.sin(a) * TR); grp.rotation.y = -a - Math.PI / 2; });
+    }
+    {
+      const L = this.slide;
+      for (const pg of this.penguins) {
+        const c = (T / 12 + pg.ph) % 1, grp = pg.grp;
+        if (c < 0.22) { const u = c / 0.22, x = L.sx0 + (L.sx1 - L.sx0) * u * u; grp.position.set(x, L.hS(x) + 0.15, L.sz); grp.rotation.set(0, -Math.PI / 2, -1.25); }
+        else if (c < 0.3) { const u = (c - 0.22) / 0.08, x = L.sx1 - 4 * Math.sin(u * Math.PI / 2); grp.position.set(x, 0.05, L.sz); grp.rotation.set(0, -Math.PI / 2, -1.4); }
+        else if (c < 0.36) { const u = (c - 0.3) / 0.06; grp.position.set(L.sx1 - 4, 0, L.sz - 3.2 * u); grp.rotation.set(0, Math.PI, 0); }
+        else if (c < 0.92) { const u = (c - 0.36) / 0.56, x = L.sx1 - 4 + (L.sx0 + 1 - (L.sx1 - 4)) * u; grp.position.set(x, Math.abs(Math.sin(T * 9 + pg.ph * 5)) * 0.06, L.back); grp.rotation.set(0, Math.PI / 2, Math.sin(T * 9 + pg.ph * 5) * 0.12); }
+        else { const u = (c - 0.92) / 0.08; grp.position.set(L.sx0 + 1 - u, L.hS(L.sx0) * u, L.back + 3.2 * u); grp.rotation.set(0, 0, 0); }
+      }
+    }
+    {
+      const Sl = this.sleigh, a = Sl.a += dt * (calm ? 0.03 : 0.085), cx = 342, cz = 45, rx = 38, rz = 52;
+      Sl.grp.position.set(cx + Math.cos(a) * rx, 13 + Math.sin(T * 0.7) * 1.2, cz + Math.sin(a) * rz);
+      Sl.grp.rotation.y = Math.atan2(-Math.cos(a) * rz, -Math.sin(a) * rx);      // its +x along the way it is flying
+      const fr = Math.floor(T * 2.4) % 2;
+      for (const d of Sl.deer) { const f = (fr + d.i) % 2; d.a.visible = f === 0; d.b.visible = f === 1; d.d.position.y = d.y0 + (f === 0 ? 0.18 : 0); }
+    }
+  },
   active(k) {
     if (!this.g) return false;
     const p = k.pos, dx = Math.max(SHOW.x0 - p.x, 0, p.x - SHOW.x1), dz = Math.max(SHOW.z0 - p.z, 0, p.z - SHOW.z1), far = Math.hypot(dx, dz);
     this.g.visible = far < 300;
     this.far = far;
-    if (far > 140) { if (this._on) this._sleep(k); return false; }
+    if (far > 140) {
+      if (this._on) this._sleep(k);
+      if (this.g.visible && this.sleigh) {                     // seen from afar: the sleigh, the train and the penguins keep moving
+        const now = performance.now() / 1000, dt = Math.min(0.1, now - (this._idleT || now)); this._idleT = now;
+        this.t += dt; this._movers(dt, this.t, k.G.set.reduce ? 1 : 0);
+      }
+      return false;
+    }
+    this._idleT = 0;
     return true;
   },
   // Gone out of range: the music fades (its clock goes on), the clock stops, the pads come back.
@@ -688,28 +723,7 @@ feature({
       n.t += (want - n.t) * Math.min(1, dt * (want ? 5 : 2));
       n.up.rotation.z = n.t * 2.35; n.fore.rotation.z = n.t * 1.75;
     }
-    {
-      const A = this.trainA += dt * (calm ? 0.12 : 0.3), TR = this.trainR;
-      this.train.forEach((grp, j) => { const a = A - j * 2.3 / TR; grp.position.set(TREE.x + Math.cos(a) * TR, 0, TREE.z + Math.sin(a) * TR); grp.rotation.y = -a - Math.PI / 2; });
-    }
-    {
-      const L = this.slide;
-      for (const pg of this.penguins) {
-        const c = (T / 12 + pg.ph) % 1, grp = pg.grp;
-        if (c < 0.22) { const u = c / 0.22, x = L.sx0 + (L.sx1 - L.sx0) * u * u; grp.position.set(x, L.hS(x) + 0.15, L.sz); grp.rotation.set(0, -Math.PI / 2, -1.25); }
-        else if (c < 0.3) { const u = (c - 0.22) / 0.08, x = L.sx1 - 4 * Math.sin(u * Math.PI / 2); grp.position.set(x, 0.05, L.sz); grp.rotation.set(0, -Math.PI / 2, -1.4); }
-        else if (c < 0.36) { const u = (c - 0.3) / 0.06; grp.position.set(L.sx1 - 4, 0, L.sz - 3.2 * u); grp.rotation.set(0, Math.PI, 0); }
-        else if (c < 0.92) { const u = (c - 0.36) / 0.56, x = L.sx1 - 4 + (L.sx0 + 1 - (L.sx1 - 4)) * u; grp.position.set(x, Math.abs(Math.sin(T * 9 + pg.ph * 5)) * 0.06, L.back); grp.rotation.set(0, Math.PI / 2, Math.sin(T * 9 + pg.ph * 5) * 0.12); }
-        else { const u = (c - 0.92) / 0.08; grp.position.set(L.sx0 + 1 - u, L.hS(L.sx0) * u, L.back + 3.2 * u); grp.rotation.set(0, 0, 0); }
-      }
-    }
-    {
-      const Sl = this.sleigh, a = Sl.a += dt * (calm ? 0.03 : 0.085), cx = 342, cz = 45, rx = 38, rz = 52;
-      Sl.grp.position.set(cx + Math.cos(a) * rx, 13 + Math.sin(T * 0.7) * 1.2, cz + Math.sin(a) * rz);
-      Sl.grp.rotation.y = Math.atan2(-Math.cos(a) * rz, -Math.sin(a) * rx);      // its +x along the way it is flying
-      const fr = Math.floor(T * 2.4) % 2;
-      for (const d of Sl.deer) { const f = (fr + d.i) % 2; d.a.visible = f === 0; d.b.visible = f === 1; d.d.position.y = d.y0 + (f === 0 ? 0.18 : 0); }
-    }
+    this._movers(dt, T, calm);
     this._orbs(dt, k);
     this._runStep(dt, k, i, onWay);
     this.prevS = onWay ? q.s : -1;
