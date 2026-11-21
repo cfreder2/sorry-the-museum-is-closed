@@ -25,7 +25,7 @@ const rod = (r, len, x, y, z, hex, rx = 0, rz = 0, ry = 0) => { const g = new TH
 const ring = (r, t, x, y, z, hex, rx = Math.PI / 2) => { const g = new THREE.TorusGeometry(r, t, 6, 16); g.rotateX(rx); g.translate(x, y, z); return paint(g, hex); };
 const strip = (n, w, d, h, hexes) => { const parts = []; for (let i = 0; i < n; i++) parts.push(box(w / n + 0.001, h, d, -w / 2 + (i + 0.5) * w / n, h / 2, 0, hexes[i % hexes.length])); return parts; };
 
-const KINDS = [
+export const KINDS = [      // (exported for the Moon museum's cabinet, src/voyage.js)
   { id: 'mitten', name: 'a blue knitted mitten', make: () => [ball(0.06, 0, 0.022, 0, 0x2f5fa8, 1, 0.35, 1.6), ball(0.026, 0.06, 0.02, 0.02, 0x2f5fa8, 1, 0.7, 1.6), box(0.11, 0.035, 0.05, 0, 0.018, -0.105, 0xe9e2d0)] },
   { id: 'glove', name: 'a red leather glove', make: () => [box(0.1, 0.025, 0.11, 0, 0.013, 0, 0xa82424), ...[-0.036, -0.012, 0.012, 0.036].map((x, i) => rod(0.011, 0.07 - (i === 0 ? 0.015 : 0), x, 0.014, 0.085, 0xa82424, Math.PI / 2)), rod(0.012, 0.06, 0.065, 0.014, 0.02, 0xa82424, Math.PI / 2, 0, -0.7), box(0.1, 0.026, 0.05, 0, 0.013, -0.075, 0x7a1616)] },
   { id: 'scarf', name: 'a striped scarf', make: () => { const p = strip(9, 0.9, 0.17, 0.018, [0xb3242b, 0xe8dcc0, 0x1f3b6a]); const q = strip(4, 0.4, 0.17, 0.019, [0xb3242b, 0xe8dcc0, 0x1f3b6a]).map(g => { g.rotateY(1.2); g.translate(0.48, 0.003, 0.18); return g; }); return [...p, ...q]; } },

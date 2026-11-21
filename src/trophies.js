@@ -63,6 +63,7 @@ export const TROPHIES = [
   { id: 'vault', tier: 'gold', hidden: true, name: 'Need to Know', desc: 'Find what is kept under the building.', test: s => s.flags.vault },
   { id: 'binned', tier: 'bronze', hidden: true, name: 'Thrown Out', desc: 'Get caught by a security robot and wake up in the dumpster.', test: s => s.flags.binned },
   { id: 'slippery', tier: 'silver', hidden: true, name: 'Slippery', desc: 'Shake off a security robot 5 times.', goal: 5, count: s => Math.min(5, s.flags.evaded || 0), test: s => (s.flags.evaded || 0) >= 5 },
+  { id: 'moonopen', tier: 'gold', hidden: true, name: 'The Museum is Open', desc: 'Take the art to the Moon, and open its museum.', test: s => s.flags.moonOpen },
   { id: 'ufo', tier: 'gold', hidden: true, name: 'Not From Round Here', desc: 'Take the thing on the pedestal.', test: s => s.flags.ufo },
   // ---- gold ----
   { id: 'w250', tier: 'gold', name: 'Connoisseur', desc: 'Look closely at 250 different works.', ...works(250) },

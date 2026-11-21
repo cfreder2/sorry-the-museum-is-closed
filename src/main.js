@@ -42,6 +42,7 @@ import { Traffic } from './traffic.js';
 import { Loose } from './loose.js';
 import { Vending } from './vending.js';
 import { startFeaturesInTurn } from './features.js';
+import { startVoyage, testCargo, resumeVoyage, clearVoyage } from './voyage.js';      // the finale's flight to the Moon (docs/FINALE.md)
 // Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
 import './thorne.js';
 import './galleries1.js';
@@ -357,6 +358,12 @@ async function boot() {
   admired();
   if (shown === 'title' && !params.get('mode')) show('title');       // puts focus on Start, so Enter begins
   if (params.get('mode')) { G.toy = garage.fromParam(params.get('toy') || 'car', pick); start(params.get('mode')); }
+  // ?voyage: straight to the voyage with a test cargo, or the one under way (=fresh starts it afresh; =landed or =opened, afresh at that stage)
+  if (params.has('voyage')) {
+    const how = params.get('voyage'); if (how) clearVoyage();
+    G.toy = garage.fromParam(params.get('toy') || 'car', pick); if (G.state !== 'play') start('explore');
+    if (!G.voyage) testCargo(G).then(cargo => startVoyage(G, { cargo, toy: G.toy, stage: how === 'landed' || how === 'opened' ? how : 'space' }));
+  }
 }
 
 function setVehicle(kind) {
@@ -433,6 +440,7 @@ function start(mode, fresh = false) {
   $('bSwap').hidden = mode === 'race';
   $('pRestart').hidden = mode !== 'race';
   canvas.focus();
+  if (mode === 'explore' && !fresh) resumeVoyage(G);       // a voyage under way when the page was left picks up where it was
 }
 
 // ---- closed ----
@@ -493,7 +501,7 @@ function newGame() {
   secrets.reset();
   G.presents.reset();
   if (G.features) G.features.fresh();
-  try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air']) localStorage.removeItem(k); } catch { /* fine */ }
+  try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air', 'after-hours.voyage']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
 function titleButtons() {
@@ -1483,6 +1491,7 @@ function tick(now) {
   govern(dt);
 
   input.capture = G.state === 'play' || G.state === 'study';
+  if (G.state === 'voyage' && G.voyage) { G.voyage.frame(dt); input.endFrame(); return; }      // the voyage draws its own frame (src/voyage.js)
   // What the telemetry will say next time it reports: brought up to date once a second.
   if (G.state === 'play' || G.state === 'study' || G.state === 'poker' || G.state === 'arcade') tm.play += dt;
   if (frame % 30 === 0 && (G.state === 'play' || G.state === 'study' || G.state === 'poker' || G.state === 'arcade')) progress();
@@ -1583,6 +1592,9 @@ if (params.has('probe')) setTimeout(() => {
   for (const a of G.museum.arts) { t[a.tier]++; if (a.url && a.url.includes('artic.edu')) remote++; }
   fetch('/report', { method: 'POST', referrerPolicy: 'origin', body: JSON.stringify({ live: G.collection.live, works: G.museum.arts.length, tiers: t, fromMuseum: remote, fps: Math.round(G.fps), quality: quality.step, state: G.state, room: G.roomId, lit: G.museum.litCount, seen: G.museum.seenCount, rooms: G.plan.rooms.length }) }).catch(() => {});
 }, 14000);
+
+// What the voyage needs of this file, to hand the game back when it is over.
+G.shell = { setVehicle, chase: () => chase(0, true), newGame: () => { quit(); newGame(); G.toy = pick.toy; start('explore', true); } };
 
 boot().then(() => requestAnimationFrame(tick)).catch(err => {
   console.error(err);
