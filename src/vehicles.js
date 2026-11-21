@@ -469,12 +469,16 @@ export class Car {
 
     // Onto the loop? Squarely, and with enough behind you to be worth trying.
     // It can be taken from either end: in by one lane and out by the other.
-    if (!this.air && Math.abs(this.pos.y) < 0.05 && !this.plan.racing) for (const L of this.plan.loops) {
+    // A loop runs along x on the ground unless it says otherwise: `axis: 'z'` runs it along z, and `y` stands it on a
+    // deck at that height (the one on the Nichols Bridgeway, bridgeplay.js).
+    if (!this.air && !this.plan.racing) for (const L of this.plan.loops) {
+      if (Math.abs(this.pos.y - (L.y || 0)) >= 0.05) continue;
+      const zx = L.axis === 'z', u0 = zx ? oz : ox, u1 = zx ? this.pos.z : this.pos.x, U = zx ? L.z : L.x, f = zx ? fz : fx;
       for (const way of [1, -1]) {
-        const lane = way === L.dir ? L.z : L.z + L.shift;
-        if ((ox - L.x) * way < 0 && (this.pos.x - L.x) * way >= 0 && Math.abs(this.pos.z - lane) < 0.36 && fx * way > 0.88 && vf > 4) {
+        const lane = (zx ? L.x : L.z) + (way === L.dir ? 0 : L.shift);
+        if ((u0 - U) * way < 0 && (u1 - U) * way >= 0 && Math.abs((zx ? this.pos.x : this.pos.z) - lane) < 0.36 && f * way > 0.88 && vf > 4) {
           this.rail = { L, th: 0, v: vf, top: false, way, rev: way !== L.dir };
-          this.yaw = way > 0 ? Math.PI / 2 : -Math.PI / 2;
+          this.yaw = zx ? (way > 0 ? 0 : Math.PI) : (way > 0 ? Math.PI / 2 : -Math.PI / 2);
         }
       }
     }
@@ -509,19 +513,21 @@ export class Car {
     const c = Math.cos(s.th);
     if (s.th > Math.PI * 0.5 && s.th < Math.PI * 1.5) s.top = true;
     const fell = s.v < 0.4 || (c < 0 && s.v * s.v < -GRAVITY * r * c * 0.7);
-    const turn = Math.min(1, s.th / (Math.PI * 2));
-    this.pos.set(L.x + s.way * r * Math.sin(s.th), r - r * c, L.z + L.shift * (s.rev ? 1 - turn : turn));
+    const turn = Math.min(1, s.th / (Math.PI * 2)), zx = L.axis === 'z', y0 = L.y || 0, along = s.way * r * Math.sin(s.th), side = L.shift * (s.rev ? 1 - turn : turn);
+    if (zx) this.pos.set(L.x + side, y0 + r - r * c, L.z + along); else this.pos.set(L.x + along, y0 + r - r * c, L.z + side);
     this.speed = s.v;
     this.airT = 0;
     if (fell) {
       // Not enough speed: let go of the track and fall like a dropped toy.
-      this.vel.set(s.way * s.v * c, 0, 0); this.vy = s.v * Math.sin(s.th);
+      if (zx) this.vel.set(0, 0, s.way * s.v * c); else this.vel.set(s.way * s.v * c, 0, 0);
+      this.vy = s.v * Math.sin(s.th);
       this.tilt = -s.th; this.rail = null; this.air = true; this._from.x = this.pos.x; this._from.z = this.pos.z;
       this.flip = this.spin = 0; this.fromHop = false; this.on = null;
       this.fellOff = true;
     } else if (s.th >= Math.PI * 2) {
-      this.pos.set(L.x + s.way * 0.02, 0, L.z + (s.rev ? 0 : L.shift));
-      this.vel.set(s.way * s.v, 0, 0); this.vy = 0; this.tilt = 0; this.rail = null;
+      if (zx) { this.pos.set(L.x + (s.rev ? 0 : L.shift), y0, L.z + s.way * 0.02); this.vel.set(0, 0, s.way * s.v); }
+      else { this.pos.set(L.x + s.way * 0.02, y0, L.z + (s.rev ? 0 : L.shift)); this.vel.set(s.way * s.v, 0, 0); }
+      this.vy = 0; this.tilt = 0; this.rail = null;
       this.looped = true;
     } else this.tilt = -s.th;
     this.roll = 0; this.pitch = 0;
