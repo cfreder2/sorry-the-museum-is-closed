@@ -214,6 +214,7 @@ for (const s of rest) {
   if (!public_) r.use = s.kind;
   if (PASSAGES.has(s.kind)) r.passage = true;
   if (s.assumed || s.kind === 'backofhouse') r.assumed = true;
+  if (s.glass) r.glass = s.glass;                               // a side open to the air (drawn as glass, still a wall to drive into)
   // Trim it clear of everything already placed that it would run into, leaving a wall between: the
   // Modern Wing's partitions are thin, the old buildings' walls are masonry.
   let q = rect(r), ok = true;

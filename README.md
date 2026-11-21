@@ -953,6 +953,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/voyage.js             the voyage: the cabin, the Destination button, the landing, the opening, the credits, Fly home
     src/craft.js, moon.js     the saucer you ride in, and the Moon: its ground, its museum, its visitors
     src/cosmos.js, spacetex.js, cosmicmusic.js   the sky, the planets and the galaxy; their pictures (assets/space); the music out there
+    src/level3.js, level3-terrace.js, level3-back.js, level3kit.js   Level 3: a set-piece in each Modern Wing gallery, the snowy terrace and Terzo Piano, the conservation offices' clues
     src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
