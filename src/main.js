@@ -59,6 +59,7 @@ import './sledhill.js';
 import './wingplay.js';
 import './rooftops.js';      // the roofs: snowman, vents, the snow wave, skylights, the run, chimneys, vane, telescope, stars, pigeons, kite, rink, bees, solar
 import './level3.js';
+import './bridgeplay.js';      // the toy trick line down the Nichols Bridgeway: kickers, a loop, a launch off it, rings
 import './icefish.js';
 import './reading.js';
 import './guards.js';

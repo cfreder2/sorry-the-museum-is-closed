@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { Geo } from './geo.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { landable } from './plan.js';
 import { frostHedges, hedgeMaterial } from './frost.js';
 
@@ -353,40 +354,153 @@ export function buildBridgeway(museum, plan) {
   if (!clearGlass.empty) { const m = clearGlass.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 0.8, 0.95), transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })); m.renderOrder = 2; add(m); }
 
   // ------------------------------------------------------------ the bridgeway
-  // From the tower's third floor it runs north and a little west, falling all the way, over
-  // Monroe Street and on into the park: far longer than it is wide, and thin as a blade.
+  // From the tower's third floor it runs north and a little west, falling all the way, over Monroe Street and on into
+  // the park. Drawn from what is written of the real one (Renzo Piano, 2009; 620 ft long, 15 ft wide, a 5 per cent
+  // grade): a steel box girder shaped like a racing yacht's hull, painted white, its bottom flange a broad curved plate
+  // seen from below; deepest over the street (4 ft 6 in) and thinner elsewhere (2 ft 2 in), with prow-shaped ends; an
+  // aluminium plank deck, heated so the snow melts off it; railings 42 in high of steel posts over stainless mesh, a
+  // wide wooden handrail, and LEDs along the handrails at night. Here it is shorter and steeper, to fit the grounds.
+  //
+  // The walking line is the one wingplay.js lays its drivable slabs on (a straight slope from E to the top landing);
+  // the deck is drawn on exactly that line, and everything under and beside it follows from it.
   {
     const A = new THREE.Vector3((tw.x0 + tw.x1) / 2, L3, tw.z0 - 0.1), E = new THREE.Vector3(A.x - 13, 0.5, B.z0 - 72);
-    const len = A.distanceTo(E), HW = 1.9, g = new THREE.Group();
-    museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW, lift });      // for the things to do round the wing (wingplay.js)
-    g.position.copy(A); g.lookAt(E);                     // local +z runs down the bridge
-    const deck = new Geo(), rails = new Geo(), mesh = new Geo();
-    deck.box(-HW, HW, -0.12, 0, 0, len);                 // the walking surface
-    // The hull under it: a shallow V down to a keel, which is what makes it read as a blade from below.
-    deck.quad([-HW, -0.12, 0], [0, -0.85, 0], [0, -0.85, len], [-HW, -0.12, len], [-0.35, -0.94, 0]);
-    deck.quad([HW, -0.12, 0], [0, -0.85, 0], [0, -0.85, len], [HW, -0.12, len], [0.35, -0.94, 0]);
-    deck.quad([-HW, -0.12, len], [HW, -0.12, len], [0, -0.85, len], [0, -0.85, len], [0, 0, 1]);
-    for (const s of [-1, 1]) {
-      const x = s * (HW - 0.05);
-      rails.box(x - 0.035, x + 0.035, 1.08, 1.15, 0, len);
-      for (let z = 0; z <= len; z += 2.4) rails.box(x - 0.025, x + 0.025, 0, 1.08, z - 0.025, z + 0.025);
-      mesh.quad([x, 0.05, 0], [x, 0.05, len], [x, 1.05, len], [x, 1.05, 0], [s, 0, 0], [[0, 0], [len / 0.5, 0], [len / 0.5, 1], [0, 1]]);
-    }
-    const net = tex(32, 32, (c) => { c.clearRect(0, 0, 32, 32); c.strokeStyle = 'rgba(225,230,238,0.75)'; c.lineWidth = 1; for (let i = 0; i <= 32; i += 8) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, 32); c.stroke(); c.beginPath(); c.moveTo(0, i); c.lineTo(32, i); c.stroke(); } });
-    const dm = deck.mesh(white), rm = rails.mesh(steel), nm = mesh.mesh(new THREE.MeshBasicMaterial({ map: net, transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.75, 0.8, 0.9) }));
-    g.add(dm, rm, nm); g.updateMatrixWorld(true);
-    for (const m of [dm, rm, nm]) m.updateMatrix();
-    g.matrixAutoUpdate = false; g.updateMatrix(); group.add(g);
-    // Legs: pairs of thin steel columns, splayed, wherever the ground is clear of the street and the tracks.
-    const at = t => A.clone().lerp(E, t), M = plan.grounds.monroe;
-    for (let z = A.z - 9; z > E.z + 10; z -= 21) {
-      let zz = z; if (zz > M.z0 - 2.5 && zz < M.z1 + 2.5) zz = zz > (M.z0 + M.z1) / 2 ? M.z1 + 3 : M.z0 - 3;      // not in the road
-      const t = (A.z - zz) / (A.z - E.z), p = at(t), top = p.y - 0.6;
-      if (top < 1.2) continue;
-      for (const s of [-1, 1]) {
-        strut([p.x + s * 1.7, 0, zz], [p.x + s * 0.5, top, zz], 0.1, steel);
-        if (zz > B.z0 - 1) O.push({ x0: p.x + s * 1.1 - (s > 0 ? 0.6 : 0.7), x1: p.x + s * 1.1 + (s > 0 ? 0.7 : 0.6), z0: zz - 0.14, z1: zz + 0.14, y0: 0, y1: Math.min(top, 1.6) });
+    const HW = 1.9, top = A.z - 0.6, w = HW - 0.15, M = plan.grounds.monroe, zM = (M.z0 + M.z1) / 2;
+    const cxAt = z => E.x + (A.x - E.x) * (z - E.z) / (A.z - E.z);
+    const hAt = z => E.y + (L3 - E.y) * (Math.min(top, z) - E.z) / (top - E.z);
+    const sm = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+    // The girder's depth under the deck, and its width: deepest and widest over the street, thinning to a prow at the park end.
+    const depth = z => { const p = sm((z - E.z) / 3.4); return 0.34 + (0.62 + 0.4 * Math.exp(-(((z - zM) / 22) ** 2)) - 0.34) * p; };
+    const outer = z => { const p = sm((z - E.z) / 3.4); return w + 0.03 + (0.25 + 0.12 * Math.exp(-(((z - zM) / 26) ** 2))) * p; };
+    // The curved bottom plate: from the blade edge (s = 0) to the keel (s = 1), falling fast at the edge and flat beneath.
+    const hull = (z, s) => { const D = depth(z); return -0.1 - (D - 0.1) * (1 - (1 - s) ** 2.2); };
+    const zEnd = tw.z0 - 0.42;
+    const eastEnd = tw.z0 - 2.6;                                          // where the landing opens off the deck's east side (wingplay.js)                                            // the girder runs on under the landing to the tower's piers
+    museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW, lift, deck: { z0: E.z, z1: top, w, cx: cxAt, h: hAt, depth, outer, hull } });      // for the things to do on and round it (wingplay.js, bridgeplay.js)
+
+    const stations = []; for (let z = E.z; z < zEnd - 0.01; z += 1) stations.push(z); stations.push(zEnd);
+    // A strip lofted along the bridge: prof(z) gives its section as [x offset from the centre line, y above the deck].
+    const loft = (prof, vScale = 1, zMax = null) => {
+      const pos = [], uv = [], idx = [], st = zMax == null ? stations : [...stations.filter(z => z < zMax - 0.01), zMax]; let n = 0;
+      for (let i = 0; i < st.length; i++) {
+        const z = st[i], cx = cxAt(z), h = hAt(z), P = prof(z); n = P.length;
+        let u = 0; P.forEach(([x, y], j) => { if (j) u += Math.hypot(x - P[j - 1][0], y - P[j - 1][1]); pos.push(cx + x, h + y, z); uv.push(u, (z - E.z) / vScale); });
+        if (i) for (let j = 0; j < n - 1; j++) { const a = (i - 1) * n + j, b = a + 1, c = i * n + j, d = c + 1; idx.push(a, b, d, a, d, c); }
       }
+      const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); gg.setIndex(idx); gg.computeVertexNormals();
+      return gg;
+    };
+    const both = f => z => { const P = f(z), L = P.map(([x, y]) => [-x, y]).reverse(); return L.concat(P); };
+    const put = (geos, mat, order) => { const m = new THREE.Mesh(geos.length > 1 ? mergeGeometries(geos) : geos[0], mat); if (order) m.renderOrder = order; add(m); return m; };
+    const K = 7, curve = z => { const W = outer(z), P = []; for (let k = K; k >= 0; k--) { const s = 1 - k / K; P.push([W * (1 - s), hull(z, s)]); } return P; };      // keel first, out to the edge
+
+    // The girder: the curved plate under the deck, the thin blade of its edge, and the ledge outside the railing.
+    // Each face lofted on its own, so the edges stay crisp.
+    const hullG = loft(z => { const P = curve(z), L = P.map(([x, y]) => [-x, y]).reverse(); return L.concat(P.slice(1)); }, 4);
+    // (East of the deck at the top the landing is laid level with it, so there the ledge sinks to just under the landing.)
+    const ly = (z, s) => (s > 0 && z > eastEnd ? -0.012 : 0.05);
+    const edgeG = [-1, 1].map(s => loft(z => { const W = outer(z); return s > 0 ? [[W, -0.1], [W, ly(z, s)]] : [[-W, ly(z, s)], [-W, -0.1]]; }));
+    const ledgeG = [-1, 1].map(s => loft(z => { const W = outer(z); return s > 0 ? [[w, ly(z, s)], [W, ly(z, s)]] : [[-W, ly(z, s)], [-w, ly(z, s)]]; }));
+    const lipG = [-1, 1].map(s => loft(z => s > 0 ? [[w, Math.min(0, ly(z, s))], [w, ly(z, s)]] : [[-w, ly(z, s)], [-w, 0]], 1, s > 0 ? eastEnd : null));
+    put([hullG, ...edgeG, ...ledgeG, ...lipG], white);
+    // The ends: the prow in the park, and the girder's end under the landing.
+    {
+      const cap = new Geo();
+      for (const [z, n] of [[E.z, -1], [zEnd, 1]]) {
+        const t = n > 0 ? -0.012 : 0.05, P = [...curve(z)].reverse().concat([[outer(z), t], [0, t]]), cx = cxAt(z), hh = hAt(z);
+        for (const s of [-1, 1]) for (let j = 0; j < P.length - 2; j++) { const a = P[j], b = P[j + 1]; cap.quad([cx + s * a[0], hh + a[1], z], [cx + s * b[0], hh + b[1], z], [cx, hh + t, z], [cx, hh + t, z], [0, 0, n]); }
+      }
+      add(cap.mesh(white));
+    }
+    // The deck: aluminium planks laid across, a fine joint between each.
+    const plank = tex(64, 64, (c, W, H) => { c.fillStyle = '#9ea7b2'; c.fillRect(0, 0, W, H); for (let y = 0; y < H; y += 8) { c.fillStyle = 'rgba(40,46,58,0.55)'; c.fillRect(0, y, W, 1); c.fillStyle = 'rgba(220,226,236,0.25)'; c.fillRect(0, y + 1, W, 1); } for (let i = 0; i < 90; i++) { c.fillStyle = `rgba(255,255,255,${0.04 + Math.random() * 0.06})`; c.fillRect(Math.random() * W, Math.random() * H, 3, 1); } });
+    put([loft(z => [[-w, 0.002], [w, 0.002]], 0.5, top)], new THREE.MeshStandardMaterial({ map: plank, roughness: 0.55, metalness: 0.35, emissiveMap: plank, emissive: new THREE.Color(0.42, 0.45, 0.52), emissiveIntensity: 0.55 }));
+
+    // The railings: steel posts leaning a little outwards, stainless mesh between them, a cap rail, the broad wooden
+    // handrail on top with its LED strip tucked under the inner edge, and snow on the ledge and on the handrail.
+    // (Collision is wingplay.js's: a wall at the deck's edge, 1.1 m high. The east railing stops where the landing opens off it.)
+    const RH = 1.07, lean = 0.13, ePost = 1.8;
+    const railLoft = (s, f, vs) => loft(f, vs, s > 0 ? eastEnd : null);      // (the east one stops where the landing opens off the deck)
+    const meshTex = tex(32, 32, (c, W, H) => { c.clearRect(0, 0, W, H); c.strokeStyle = 'rgba(232,238,246,0.9)'; c.lineWidth = 1; for (let i = 0; i <= W; i += 4) { c.beginPath(); c.moveTo(i + 0.5, 0); c.lineTo(i + 0.5, H); c.stroke(); } for (let i = 0; i <= H; i += 4) { c.beginPath(); c.moveTo(0, i + 0.5); c.lineTo(W, i + 0.5); c.stroke(); } });
+    const netG = [], capG = [], woodG = [], ledG = [], snowG = [], poolG = [];
+    for (const s of [-1, 1]) {
+      const x0 = s * ePost, x1 = s * (ePost + lean);
+      netG.push(railLoft(s, () => s > 0 ? [[x0, 0.04], [x1, RH - 0.06]] : [[x1, RH - 0.06], [x0, 0.04]], 0.5));
+      capG.push(railLoft(s, () => s > 0 ? [[x1 - 0.02, RH - 0.06], [x1 - 0.02, RH - 0.02], [x1 + 0.02, RH - 0.02]] : [[x1 - 0.02, RH - 0.02], [x1 + 0.02, RH - 0.02], [x1 + 0.02, RH - 0.06]]));
+      // the handrail, 10 in wide, its inner edge over the posts
+      const a = x1 - s * 0.06, b = x1 + s * 0.19, lo = Math.min(a, b), hi = Math.max(a, b);
+      woodG.push(railLoft(s, () => [[lo, RH - 0.02], [lo, RH + 0.02], [hi, RH + 0.02], [hi, RH - 0.02]], 0.5));
+      ledG.push(railLoft(s, () => s > 0 ? [[a - 0.004, RH - 0.035], [a + 0.03, RH - 0.03]] : [[a - 0.03, RH - 0.03], [a + 0.004, RH - 0.035]]));
+      snowG.push(railLoft(s, () => [[lo + 0.03, RH + 0.02], [lo + 0.05, RH + 0.045], [hi - 0.05, RH + 0.045], [hi - 0.03, RH + 0.02]], 2));
+      // the snow that lies on the ledge outside the railing, banked against the mesh
+      snowG.push(loft(z => { const W = outer(z) - 0.02, xa = x0 + s * 0.03; return s > 0 ? [[xa, 0.04], [xa + 0.03, 0.11], [(xa + W) / 2, 0.1], [W, 0.06]] : [[-W, 0.06], [(xa - W) / 2, 0.1], [xa - 0.03, 0.11], [xa, 0.04]]; }, 2, s > 0 ? eastEnd : null));
+      // and the pool of light the LEDs throw on the planks
+      poolG.push(railLoft(s, () => s > 0 ? [[0.75, 0.006], [w, 0.006]] : [[-w, 0.006], [-0.75, 0.006]], 1));
+    }
+    put(netG, new THREE.MeshBasicMaterial({ map: meshTex, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.72, 0.78, 0.88) }), 2);
+    put(capG, steel);
+    put(woodG, new THREE.MeshStandardMaterial({ color: 0x6e3c3a, roughness: 0.6, emissive: 0x3a1c1a, emissiveIntensity: 0.7 }));
+    put(ledG, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.7, 1.45, 1.05), side: THREE.DoubleSide }));
+    const snowMap = museum.snowTex ? museum.snowTex.clone() : null; if (snowMap) { snowMap.needsUpdate = true; snowMap.repeat.set(1, 1); }
+    put(snowG, new THREE.MeshStandardMaterial({ map: snowMap, color: 0xf4f7fc, roughness: 0.95, emissiveMap: snowMap, emissive: new THREE.Color(0.34, 0.38, 0.52), emissiveIntensity: 0.62 }));
+    const poolTex = tex(64, 8, (c, W, H) => { const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,1)'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
+    poolTex.wrapS = THREE.ClampToEdgeWrapping;
+    // (u runs from the inner edge outwards on the east side, so the west strip's texture is turned round)
+    const pm = put(poolG, new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(0.34, 0.27, 0.16), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 3);
+    { const g0 = pm.geometry, uvA = g0.attributes.uv, P = g0.attributes.position; for (let i = 0; i < uvA.count; i++) uvA.setX(i, Math.abs(P.getX(i) - cxAt(P.getZ(i))) <= 0.76 ? 0 : 1); uvA.needsUpdate = true; }
+    // The posts, one every 1.4 m, as one instanced mesh.
+    {
+      const at = [];
+      for (const s of [-1, 1]) for (let z = E.z + 0.3; z < top; z += 1.4) if (!(s > 0 && z > eastEnd)) at.push([s, z]);
+      if (at.length) {
+        const im = new THREE.InstancedMesh(new THREE.BoxGeometry(0.03, RH - 0.04, 0.06), steel, at.length), M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), Z = new THREE.Vector3(0, 0, 1);
+        at.forEach(([s, z], i) => { Q.setFromAxisAngle(Z, -s * Math.atan2(lean, RH)); V.set(cxAt(z) + s * (ePost + lean / 2), hAt(z) + (RH - 0.04) / 2 + 0.02, z); im.setMatrixAt(i, M4.compose(V, Q, S1)); });
+        im.frustumCulled = false; add(im);
+      }
+    }
+
+    // The park end: the prow comes down onto a low limestone abutment, paved round, with two lamps to find it by.
+    // (The deck there is too low to drive under, and the abutment is what stands in the way.)
+    {
+      const ab = new Geo(), z0 = E.z, z1 = E.z + 3.3;
+      for (let z = z0; z < z1 - 0.01; z += 1.1) { const za = z, zb = Math.min(z1, z + 1.1), cx = cxAt((za + zb) / 2), yb = Math.min(hAt(za) + hull(za, 1), hAt(zb) + hull(zb, 1)) + 0.04; ab.box(cx - w, cx + w, 0, yb, za, zb, 3.2); O.push({ x0: cx - w, x1: cx + w, z0: za, z1: zb, y0: 0, y1: yb - 0.05 }); }
+      add(ab.mesh(lime));
+      const fx = cxAt(E.z), pz0 = E.z - 7.2, pz1 = E.z + 4;
+      const pv = new Geo(), st = slabTex();
+      pv.box(fx - 4.2, fx + 4.2, 0, 0.06, pz0, pz1, 2.4);
+      add(pv.mesh(new THREE.MeshStandardMaterial({ map: st, roughness: 0.85, emissiveMap: st, emissive: new THREE.Color(0.5, 0.46, 0.4), emissiveIntensity: 0.6 })));
+      plan.surfaces.push({ skin: 'stone', fixed: true, x0: fx - 4.2, x1: fx + 4.2, z0: pz0, z1: pz1, axis: null, h0: 0.06, h1: 0.06, base: 0 });
+      (plan.paved = plan.paved || []).push({ x0: fx - 4.2, x1: fx + 4.2, z0: pz0, z1: pz1 });
+      const lamp = new Geo(), glowL = new Geo();
+      for (const s of [-1, 1]) { const x = fx + s * 3.4, z = E.z - 1.2; lamp.box(x - 0.07, x + 0.07, 0.06, 0.95, z - 0.07, z + 0.07); glowL.box(x - 0.075, x + 0.075, 0.75, 0.92, z - 0.075, z + 0.075); O.push({ x0: x - 0.09, x1: x + 0.09, z0: z - 0.09, z1: z + 0.09, y0: 0, y1: 0.95 }); }
+      add(lamp.mesh(steel), glowL.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.35, 0.95) })));
+    }
+    // The terrace end: the girder sits on a white steel bearing on the tower's piers, under the landing.
+    {
+      const be = new Geo(), cx = cxAt(zEnd), y = L3 - 0.3;
+      be.box(cx - 1.2, cx + 1.2, y - 0.85, y - 0.05, zEnd - 0.05, tw.z0 - 0.4);
+      add(be.mesh(white));
+    }
+    // Piers: four forked white columns in the park, none in the street. The main span leaps Monroe Street whole.
+    {
+      const piers = [], zA = M.z0 - 9, zB = E.z + 11;
+      for (let i = 0; i < 4; i++) piers.push(zA + (zB - zA) * i / 3);
+      museum.mw.piers = piers;
+      for (const z of piers) {
+        const cx = cxAt(z), h = hAt(z), yb = h + hull(z, 1), yf = yb * 0.62, arm = 0.8, ya = h + hull(z, 1 - arm / outer(z));
+        const taper = (a, b, r0, r1) => { const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]), len = d.length(); const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 10), white); m.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); add(m); };
+        taper([cx, 0.1, z], [cx, yf, z], 0.17, 0.13);
+        for (const s of [-1, 1]) taper([cx, yf - 0.05, z], [cx + s * arm, ya + 0.02, z], 0.12, 0.07);
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.7), lime); foot.position.set(cx, 0.05, z); add(foot);
+        O.push({ x0: cx - 0.35, x1: cx + 0.35, z0: z - 0.35, z1: z + 0.35, y0: 0, y1: 0.1 }, { x0: cx - 0.17, x1: cx + 0.17, z0: z - 0.17, z1: z + 0.17, y0: 0, y1: yf });
+      }
+    }
+    // Where the girder is deeper than the drivable slab under the deck (over the street), something flying under it meets the steel.
+    for (let z = E.z; z < top - 1; z += 1) {
+      const D = depth(z + 0.5), lo = 0.1 + (D - 0.1) * (1 - 0.5 ** 2.2);
+      if (lo < 0.62) continue;
+      const cx = cxAt(z + 0.5), hh = Math.min(hAt(z), hAt(z + 1));
+      O.push({ x0: cx - outer(z) * 0.5, x1: cx + outer(z) * 0.5, z0: z, z1: z + 1, y0: hh - lo + 0.03, y1: hh - 0.6 });
     }
   }
 
