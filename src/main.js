@@ -1189,6 +1189,7 @@ function play(dt, real) {
   // Loose things, and whatever is ploughing into them.
   movers.length = 0;
   movers.push({ x: v.pos.x, y: v.pos.y - (v.kind === 'drone' ? 0.1 : 0), z: v.pos.z, vx: v.vel.x, vz: v.vel.z, r: v.radius });
+  if (v.extraMovers) v.extraMovers(movers);                  // a plough's blade, a trailer (vehicles.js)
   if (racing) for (const b of R.bots) movers.push({ x: b.x, y: b.y || 0, z: b.z, vx: (b.x - (b.px ?? b.x)) / Math.max(dt, 1e-3), vz: (b.z - (b.pz ?? b.z)) / Math.max(dt, 1e-3), r: 0.19 });
   if (racing) for (const b of R.bots) { b.px = b.x; b.pz = b.z; }
   if (!racing) G.props.update(dt, movers);
