@@ -308,6 +308,26 @@ What is not true:
 - **The polish on the floors** mirrors only on the level you are on. Floors
   seen on another level (down a stair well, across a tall hall) are matt.
 
+## The sledding hill
+
+The south-west quarter of Butler Field, between the cross path and the band
+shell, is a sledding hill of the kind every Chicago park piles up: seven and a
+half metres of snow with a flat top, a warming hut and a string of lights round
+it, timber steps up the steep north face for people, a packed path up the west
+flank for anything on wheels (lanterns along it), bare trees and buried bushes
+on its sides, drifts the wind has laid on it, sled tracks down every face, and
+toboggans and saucers left lying about. Down its south-east face winds a sled
+run: a gate at the top, a drop, a banked hairpin, a kicker, a second hairpin,
+a tunnel through a big drift (which can be driven over too), a banked turn, a
+second kicker and the finish, with a snow fence across the run-out. The clock
+starts at the gate, and the best time is kept.
+
+The hill is one heightfield (`src/sledland.js`): the run and the path are laid
+in as ribbons with their own cross-sections, banks included, and a membrane is
+stretched over them for the shoulders. The car drives on a smooth surface
+through the same points the mesh is drawn from, so the two never part by more
+than a centimetre or so on anything that is driven.
+
 ## Winter Wonderland on Butler Field
 
 Across Columbus Drive from the Modern Wing, the north-west quarter of Butler
@@ -817,6 +837,8 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/statues.js            the lions, the fountains and the sculpture outdoors
     src/butlerfield.js        Butler Field: the plough-pile jump park, the softball diamonds, lamps, the warming hut
     src/lightshow.js          the Winter Wonderland light show on Butler Field and its Light Run
+    src/sledhill.js           the sledding hill on Butler Field: its run, tunnel, hut, steps, trees and sleds
+    src/sledland.js           the hill's ground: one heightfield the car drives on and the mesh is drawn from (no three.js)
     src/carols.js             the carols it plays: scores, chord charts, the band, the player (no three.js, no DOM)
     src/glowkit.js            lights out of doors: instanced bulbs, figures drawn in glowing wire
     src/sculpt.js             clay: lumps blended on a grid and skinned into a mesh

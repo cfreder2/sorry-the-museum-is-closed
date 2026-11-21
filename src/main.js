@@ -54,6 +54,7 @@ import './latergalleries.js';
 import './l2-galleries.js';
 import './feature-upstairs.js';
 import './parkplay.js';
+import './sledhill.js';
 import './wingplay.js';
 import './icefish.js';
 import './reading.js';
