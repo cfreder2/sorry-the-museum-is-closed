@@ -58,7 +58,7 @@ export function buildEastSide(museum, plan) {
     const C = G.columbus, x1 = C.x0, x0 = x1 - 5.2, zA = G.monroe.z1, zB = G.jackson.z0;
     // The pavement: wide, shovelled, with a kerb at the road. (The trees along it are in the plan, with the others.)
     flat(walk, x0, x1, zA, zB, 0.007, 2.5);
-    kerb.box(x1 - 0.12, x1 + 0.12, 0, 0.07, zA, zB);
+    kerb.box(x1 - 0.12, x1 + 0.12, 0, 0.07, zA, zB); landable(plan, x1 - 0.12, x1 + 0.12, zA, zB, 0.07);
     // Squares of open earth round each street tree, under snow.
     for (const t of G.trees) if (t.x > x0 && t.x < x1) flat(grass, t.x - 0.75, t.x + 0.75, t.z - 0.75, t.z + 0.75, 0.01, 2);
 
@@ -172,7 +172,7 @@ function buildCourt(museum, plan, { add, trim, snow, hedgeM }) {
   // The pool, frozen, inside a low kerb with snow along the top of it.
   const stoneG = new Geo(), capG = new Geo(), iceG = new Geo(), hedgeG = new Geo();
   const P = { x0: f.x - 5.4, x1: f.x + 5.4, z0: f.z - 4.4, z1: f.z + 4.4 }, kw = 0.36, kh = 0.24;
-  iceG.quad([P.x0, 0.07, P.z0], [P.x0, 0.07, P.z1], [P.x1, 0.07, P.z1], [P.x1, 0.07, P.z0], [0, 1, 0]);
+  iceG.quad([P.x0, 0.012, P.z0], [P.x0, 0.012, P.z1], [P.x1, 0.012, P.z1], [P.x1, 0.012, P.z0], [0, 1, 0]);      // the ice at the level the wheels are on (at 7 cm they sank into it)
   for (const [x0, x1, z0, z1] of [[P.x0 - kw, P.x1 + kw, P.z0 - kw, P.z0], [P.x0 - kw, P.x1 + kw, P.z1, P.z1 + kw], [P.x0 - kw, P.x0, P.z0, P.z1], [P.x1, P.x1 + kw, P.z0, P.z1]]) {
     stoneG.box(x0, x1, 0, kh, z0, z1); capG.box(x0 + 0.03, x1 - 0.03, kh, kh + 0.05, z0 + 0.03, z1 - 0.03); landable(plan, x0, x1, z0, z1, kh + 0.05);
   }

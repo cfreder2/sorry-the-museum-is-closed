@@ -57,7 +57,7 @@ export function buildStreets(museum, plan) {
   // ------------------------------------------------------------------ pavements that were missing
   // The far side of the avenue, and the wall of shopfronts that stands along it.
   flat(g.walk, M.x0 - 7, M.x0, B.z0 - 30, B.z1 + 30, AV + 0.008);
-  g.stone.box(M.x0 - 0.12, M.x0 + 0.12, AV, AV + 0.07, B.z0 - 30, B.z1 + 30);
+  g.stone.box(M.x0 - 0.12, M.x0 + 0.12, AV, AV + 0.07, B.z0 - 30, B.z1 + 30); landable(plan, M.x0 - 0.12, M.x0 + 0.12, B.z0 - 30, B.z1 + 30, AV + 0.07, AV);      // (every kerb is a top the wheels ride up onto, not sink into)
   paved({ x0: M.x0 - 8, x1: M.x0, z0: B.z0, z1: B.z1 });
   {
     const shop = canvasTex(512, 512, (c, w, h) => {
@@ -80,11 +80,11 @@ export function buildStreets(museum, plan) {
   const overCut = (z0, z1) => cuts.some(([a, b]) => z1 > a && z0 < b);
   const sidewalk = (z0, z1, kerbZ) => {
     const runs = overCut(z0, z1) ? [[SX + 12, R.x0 - 0.4], [R.x1 + 0.4, east]] : [[SX + 12, east]];
-    for (const [xa, xb] of runs) { flat(g.walk, xa, xb, z0, z1, 0.012); g.stone.box(xa, xb, 0, 0.07, kerbZ - 0.1, kerbZ + 0.1); paved({ x0: xa, x1: xb, z0, z1 }); }
+    for (const [xa, xb] of runs) { flat(g.walk, xa, xb, z0, z1, 0.012); g.stone.box(xa, xb, 0, 0.07, kerbZ - 0.1, kerbZ + 0.1); landable(plan, xa, xb, kerbZ - 0.1, kerbZ + 0.1, 0.07); paved({ x0: xa, x1: xb, z0, z1 }); }
   };
   sidewalk(MO.z0 - 4, MO.z0, MO.z0); sidewalk(MO.z1, MO.z1 + 2.2, MO.z1); sidewalk(JA.z0 - 2.2, JA.z0, JA.z0); sidewalk(JA.z1, JA.z1 + 4, JA.z1);
   // Columbus Drive's far pavement.
-  flat(g.walk, C.x1, C.x1 + 2.6, MO.z1 + 2.2, JA.z0 - 2.2, 0.012); g.stone.box(C.x1 - 0.1, C.x1 + 0.1, 0, 0.07, MO.z1, JA.z0); paved({ x0: C.x1, x1: C.x1 + 2.6, z0: MO.z1, z1: JA.z0 });
+  flat(g.walk, C.x1, C.x1 + 2.6, MO.z1 + 2.2, JA.z0 - 2.2, 0.012); g.stone.box(C.x1 - 0.1, C.x1 + 0.1, 0, 0.07, MO.z1, JA.z0); landable(plan, C.x1 - 0.1, C.x1 + 0.1, MO.z1, JA.z0, 0.07); paved({ x0: C.x1, x1: C.x1 + 2.6, z0: MO.z1, z1: JA.z0 });
 
   // ------------------------------------------------------------------ lane paint
   const dashZ = (x, z0, z1, y, q = g.white) => { for (let z = z0; z < z1 - 3; z += 9) flat(q, x - 0.07, x + 0.07, z, z + 3.6, y); };

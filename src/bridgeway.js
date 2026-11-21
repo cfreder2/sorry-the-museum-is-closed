@@ -297,6 +297,7 @@ export function buildBridgeway(museum, plan) {
     // A paved apron, a step proud of the snow.
     const apron = new Geo(), st = slabTex();
     apron.box(c0, c1, 0, 0.07, cz0 - 1.5, hm.z0, 2.4);
+    landable(plan, c0, c1, cz0 - 1.5, hm.z0, 0.07);      // drawn a step proud of the snow, so the wheels go up onto it rather than into it
     add(apron.mesh(new THREE.MeshStandardMaterial({ map: st, roughness: 0.85, emissiveMap: st, emissive: new THREE.Color(0.5, 0.46, 0.4), emissiveIntensity: 0.6 })));
 
     // The wall with the name on it, before the west pavilion.

@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
-import { T, streetY } from './plan.js';
+import { T, streetY, landable } from './plan.js';
 import { winterTree, frostHedges, hedgeMaterial } from './frost.js';
 import { buildBridgeway } from './bridgeway.js';
 import { buildEastSide } from './eastside.js';
@@ -325,7 +325,7 @@ export function buildGrounds(museum, plan) {
     for (const w of S.ways) if (w.road) { const st = w.id === 'monroe' ? G.monroe : G.jackson; for (const [a, b2] of [[w.z0, st.z0], [st.z1, w.z1]]) if (b2 - a > 0.2) { slope(walk, SX, SX + 12, a, b2, 0.008, 2.5); } }
     // The terrace before the door: snow, with a way shovelled from the head of the steps to the doors.
     flat(walk, SX + 5.6, F.PX, F.cz - 3.4, F.cz + 3.4, 0.006, 2.5); flat(walk, F.PX - 2.4, F.PX, F.cz - F.half, F.cz + F.half, 0.006, 2.5);
-    kerb.box(M.x1 - 0.12, M.x1 + 0.12, SY, SY + 0.07, B.z0, B.z1);
+    kerb.box(M.x1 - 0.12, M.x1 + 0.12, SY, SY + 0.07, B.z0, B.z1); landable(plan, M.x1 - 0.12, M.x1 + 0.12, B.z0, B.z1, SY + 0.07, SY);
 
     // The steps. Eight of them, the width of the pavilion, between the lions' blocks.
     // A low wall you can jump up onto: solid from the side, and a top to drive along. (Anything that flies is stopped by it too.)
@@ -405,8 +405,7 @@ export function buildGrounds(museum, plan) {
 
     // The South Garden's long pool, frozen, in its stone rim.
     const p = G.pool, rim = new Geo();
-    rim.box(p.x0 - 0.4, p.x1 + 0.4, 0, 0.07, p.z0 - 0.4, p.z0); rim.box(p.x0 - 0.4, p.x1 + 0.4, 0, 0.07, p.z1, p.z1 + 0.4);
-    rim.box(p.x0 - 0.4, p.x0, 0, 0.07, p.z0, p.z1); rim.box(p.x1, p.x1 + 0.4, 0, 0.07, p.z0, p.z1);
+    for (const [a, b, c, d] of [[p.x0 - 0.4, p.x1 + 0.4, p.z0 - 0.4, p.z0], [p.x0 - 0.4, p.x1 + 0.4, p.z1, p.z1 + 0.4], [p.x0 - 0.4, p.x0, p.z0, p.z1], [p.x1, p.x1 + 0.4, p.z0, p.z1]]) { rim.box(a, b, 0, 0.07, c, d); landable(plan, a, b, c, d, 0.07); }
     add(rim.mesh(trim));
     const ice = new THREE.Mesh(new THREE.PlaneGeometry(p.x1 - p.x0, p.z1 - p.z0), museum.mirror.patch(new THREE.MeshStandardMaterial({ color: 0x1a2a3c, roughness: 0.08, emissive: 0x0a1626, emissiveIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [0.35, 0.5]));
     ice.rotation.x = -Math.PI / 2; ice.position.set((p.x0 + p.x1) / 2, 0.01, (p.z0 + p.z1) / 2); add(ice); museum.floors.push(ice);

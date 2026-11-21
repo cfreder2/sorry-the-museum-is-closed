@@ -90,7 +90,7 @@ export function buildStatues(museum, plan) {
     const r = Math.max(rx, rz), w = 0.34;
     const prof = [[r + 0.1, 0], [r + 0.1, 0.1], [r + 0.02, 0.16], [r, h - 0.14], [r + 0.07, h - 0.09], [r + 0.07, h - 0.02], [r + 0.03, h], [r - w + 0.02, h], [r - w - 0.03, h - 0.03], [r - w - 0.03, h - 0.1], [r - w, h - 0.15], [r - w, 0.1]].map(([a, b]) => new THREE.Vector2(a, b));
     const wall = put(g, new THREE.LatheGeometry(prof, 48), stone, cx, 0, cz); wall.scale.set(rx / r, 1, rz / r);
-    put(g, cyl, snow, cx, 0.12, cz, (r - w) * rx / r, 0.24, (r - w) * rz / r);
+    put(g, cyl, snow, cx, 0.02, cz, (r - w) * rx / r, 0.04, (r - w) * rz / r);      // a skin of snow on the ice, at the basin floor the car drives on (24 cm of it, the wheels sank in)
     for (let i = 0; i < 14; i++) { const a = i * 0.449 + 0.3; put(g, ball, white, cx + Math.cos(a) * (rx - w / 2), h + 0.005, cz + Math.sin(a) * (rz - w / 2), 0.13 + (i % 3) * 0.05, 0.045, 0.12 + (i % 2) * 0.06); }      // snow lying along the rim
   };
   const board = (x, z, yaw) => {
