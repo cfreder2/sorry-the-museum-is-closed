@@ -68,6 +68,9 @@ function flake(c, x, y, r) { c.strokeStyle = '#f4f8ff'; c.lineWidth = r * 0.14; 
 function star6(c, x, y, r) { c.beginPath(); for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + i * Math.PI / 6, rr = i % 2 ? r * 0.45 : r; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); c.fill(); }
 const flagTex = f => tex(128, 84, (c, w, h) => f.draw(c, w, h));
 
+// The height of the snowy ground inside a globe, r from its middle (a low mound, 0.1 below the ball's centre).
+const snowAt = r => -0.1 + 0.0208 * Math.sqrt(Math.max(0, 1 - (r / 0.1735) ** 2)) + 0.003;
+
 // ---------------------------------------------------------------- the snow globes' little worlds
 // Each builds into `g` (inside a globe of radius ~0.2, its floor at y = -0.1) and returns step(t, live): live is
 // 0 at rest and 1 just after a shake. `to` is the id of the place it shows, as the features list it (spots()).
@@ -167,17 +170,24 @@ feature({
       kit.span(x - 0.24, x + 0.24, 0, top - 0.03, z - 0.24, z + 0.24, 0x1c1e26); kit.span(x - 0.27, x + 0.27, top - 0.03, top, z - 0.27, z + 0.27, BRASS);
       O(x - 0.27, x + 0.27, z - 0.27, z + 0.27, top + 0.5);
       const holder = new THREE.Group(); holder.position.set(x, top, z); g.add(holder);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 0.08, 28), new THREE.MeshStandardMaterial({ color: 0x3a2418, roughness: 0.4, emissive: 0x1a0e08, emissiveIntensity: 0.6 })); base.position.y = 0.04; holder.add(base);
-      const band = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.008, 6, 28), new THREE.MeshStandardMaterial({ color: BRASS, metalness: 0.8, roughness: 0.3, emissive: 0x4a3410, emissiveIntensity: 0.6 })); band.rotation.x = Math.PI / 2; band.position.y = 0.08; holder.add(band);
-      const ball = new THREE.Group(); ball.position.y = 0.08 + 0.2; holder.add(ball);
+      // The base: turned walnut, a moulded foot and a collar the glass sits down into, so only the dome above the
+      // snowy ground inside shows (the floor of each little world is 0.1 below the ball's centre). A brass ring at the joint.
+      const prof = [[0.0, 0], [0.222, 0], [0.226, 0.01], [0.214, 0.026], [0.196, 0.04], [0.184, 0.075], [0.188, 0.098], [0.181, 0.108], [0.181, 0.12], [0.0, 0.12]].map(([px, py]) => new THREE.Vector2(px, py));
+      const base = new THREE.Mesh(new THREE.LatheGeometry(prof, 36), new THREE.MeshStandardMaterial({ color: 0x5a3420, roughness: 0.35, metalness: 0.05, emissive: 0x24140a, emissiveIntensity: 0.6 })); holder.add(base);
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.179, 0.006, 8, 40), new THREE.MeshStandardMaterial({ color: BRASS, metalness: 0.85, roughness: 0.25, emissive: 0x4a3410, emissiveIntensity: 0.6 })); band.rotation.x = Math.PI / 2; band.position.y = 0.12; holder.add(band);
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.035), new THREE.MeshStandardMaterial({ color: BRASS, metalness: 0.8, roughness: 0.3, emissive: 0x4a3410, emissiveIntensity: 0.7 })); plate.position.set(0, 0.06, -0.19); plate.rotation.set(-0.08, Math.PI, 0); holder.add(plate);
+      const ball = new THREE.Group(); ball.position.y = 0.12 + 0.1; holder.add(ball);
+      // the snowy ground every little world stands on, filling the glass edge to edge
+      const ground = new THREE.Mesh(new THREE.SphereGeometry(0.1735, 32, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xf2f6fb, roughness: 0.9, emissive: 0x8a96a8, emissiveIntensity: 0.35 }));
+      ground.scale.y = 0.12; ground.position.y = -0.1; ball.add(ground);
       const world = new THREE.Group(); world.rotation.y = Math.PI; ball.add(world); const step = def.build(world);      // (built facing +z; the customer stands to its -z)
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.25, 0.3, 0.4), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); lamp.position.y = -0.04; ball.add(lamp);
-      const shell = new THREE.Mesh(new THREE.SphereGeometry(0.205, 32, 20), new THREE.MeshStandardMaterial({ color: 0xdfefff, transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0.2, emissive: 0x405870, emissiveIntensity: 0.25, depthWrite: false })); shell.renderOrder = 3; ball.add(shell);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.08, 0.1, 0.14), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); lamp.position.y = -0.04; ball.add(lamp);
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(0.205, 32, 20), new THREE.MeshStandardMaterial({ color: 0xeaf4ff, transparent: true, opacity: 0.1, roughness: 0.02, metalness: 0.3, emissive: 0x405870, emissiveIntensity: 0.1, depthWrite: false })); shell.renderOrder = 3; ball.add(shell);
       // snow: resting in a drift on the floor of it until it is shaken
       const N = 70, P = new Float32Array(N * 3), V = new Float32Array(N * 3), rs = rng(100 + i);
-      for (let j = 0; j < N; j++) { const a = rs() * 6.28, d = Math.sqrt(rs()) * 0.15; P[j * 3] = Math.cos(a) * d; P[j * 3 + 1] = -0.095; P[j * 3 + 2] = Math.sin(a) * d; }
+      for (let j = 0; j < N; j++) { const a = rs() * 6.28, d = Math.sqrt(rs()) * 0.15; P[j * 3] = Math.cos(a) * d; P[j * 3 + 1] = snowAt(d); P[j * 3 + 2] = Math.sin(a) * d; }
       const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(P, 3));
-      const snow = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 0.006, transparent: true, opacity: 0.95, depthWrite: false })); snow.renderOrder = 2; ball.add(snow);
+      const snow = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 0.008, map: radial(), alphaTest: 0.05, transparent: true, opacity: 0.95, depthWrite: false })); snow.renderOrder = 2; ball.add(snow);
       // the card on the pedestal's front
       const card = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.11), new THREE.MeshBasicMaterial({ map: tex(256, 78, (c, w, h) => { c.fillStyle = '#f4efe2'; c.fillRect(0, 0, w, h); c.fillStyle = '#16120c'; c.textAlign = 'center'; c.font = '700 26px Georgia, serif'; c.fillText(def.name, w / 2, 34); c.font = 'italic 19px Georgia, serif'; c.fillStyle = '#5a5040'; c.fillText(def.where, w / 2, 62); }) }));
       card.position.set(x, 0.17, z - 0.245); card.rotation.y = Math.PI; g.add(card);
@@ -243,7 +253,11 @@ feature({
         const hold = new THREE.Group(); hold.position.y = v.kind === 'car' ? 0.02 : 0.25; turn.add(hold);
         if (model) { hold.add(model.group); if (model.group.scale && v.kind === 'car') model.group.scale.setScalar(1.6); else if (model.group.scale) model.group.scale.setScalar(1.6); }
         // a beam of light down on it
-        const beam = new THREE.Mesh(new THREE.ConeGeometry(R * 0.9, r.h - 0.2, 24, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 0.2, 0.16), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        // (a faint shaft that fades out towards the floor, so the car under it is not washed out)
+        const bg = new THREE.ConeGeometry(R * 0.85, r.h - 0.2, 24, 4, true), bp = bg.attributes.position, bc = [];
+        for (let q = 0; q < bp.count; q++) { const t = (bp.getY(q) + (r.h - 0.2) / 2) / (r.h - 0.2), a = 0.02 + 0.13 * t * t; bc.push(a * 1.0, a * 0.92, a * 0.75); }
+        bg.setAttribute('color', new THREE.Float32BufferAttribute(bc, 3));
+        const beam = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
         beam.position.set(cx, (r.h - 0.2) / 2, cz); g.add(beam);
         // the price card on a stand in front of it
         const card = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.2), new THREE.MeshBasicMaterial({ map: this._priceTex(v) })); card.position.set(cx, 0.32, cz - R - 0.12); card.rotation.set(-0.3, Math.PI, 0); g.add(card);
@@ -338,8 +352,8 @@ feature({
           V[i] += -z * 0.6 * dt * gb.live; V[i + 2] += x * 0.6 * dt * gb.live; V[i + 1] -= 0.25 * dt;
           V[i] *= 1 - dt * 1.5; V[i + 1] = Math.max(V[i + 1] * (1 - dt * 1.5), -0.03); V[i + 2] *= 1 - dt * 1.5;
           x += V[i] * dt; y += V[i + 1] * dt; z += V[i + 2] * dt;
-          const d = Math.hypot(x, y, z); if (d > 0.19) { x *= 0.19 / d; y *= 0.19 / d; z *= 0.19 / d; }
-          if (y < -0.096) { y = -0.096; V[i] = V[i + 1] = V[i + 2] = 0; }
+          const d = Math.hypot(x, y, z); if (d > 0.168) { x *= 0.168 / d; y *= 0.168 / d; z *= 0.168 / d; V[i] *= -0.3; V[i + 1] *= -0.3; V[i + 2] *= -0.3; }      // kept inside the glass
+          const fl = snowAt(Math.hypot(x, z)); if (y < fl) { y = fl; V[i] = V[i + 1] = V[i + 2] = 0; }      // and settles on the snow
           P[i] = x; P[i + 1] = y; P[i + 2] = z;
         }
         gb.snow.geometry.attributes.position.needsUpdate = true;
