@@ -58,6 +58,9 @@ import './wingplay.js';
 import './icefish.js';
 import './reading.js';
 import './guards.js';
+import './lobby.js';
+import './giftshop.js';
+import './butlerfield.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -115,7 +118,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.20.85';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.8';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -1189,6 +1192,7 @@ function play(dt, real) {
   // Loose things, and whatever is ploughing into them.
   movers.length = 0;
   movers.push({ x: v.pos.x, y: v.pos.y - (v.kind === 'drone' ? 0.1 : 0), z: v.pos.z, vx: v.vel.x, vz: v.vel.z, r: v.radius });
+  if (v.extraMovers) v.extraMovers(movers);                  // a plough's blade, a trailer (vehicles.js)
   if (racing) for (const b of R.bots) movers.push({ x: b.x, y: b.y || 0, z: b.z, vx: (b.x - (b.px ?? b.x)) / Math.max(dt, 1e-3), vz: (b.z - (b.pz ?? b.z)) / Math.max(dt, 1e-3), r: 0.19 });
   if (racing) for (const b of R.bots) { b.px = b.x; b.pz = b.z; }
   if (!racing) G.props.update(dt, movers);

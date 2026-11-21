@@ -695,6 +695,7 @@ const RECIPES = {
     R.services('lights');
   },
   shop(R) {
+    if (R.room.id === 'F1-shop') return;                               // the main shop is fitted out by src/giftshop.js
     R.grid('displayTable', { da: 3, db: 2.6, face: 'a+', rows: 2 });
     R.walls([['shopShelf', 1.2, { k: 'books' }], ['shopShelf', 1.2, { k: 'merch' }], ['shopShelf', 1.2, { k: 'books' }], 'posterBin', ['shopShelf', 1.2, { k: 'merch' }], 'cardSpinner'], { gap: 0.05 });
     R.end(['counter', 3, { till: true }], R.quietEnd(), 1.6);

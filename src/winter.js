@@ -186,6 +186,37 @@ export function buildWinter(museum, plan) {
     L.x = x; L.z = z; L.y = y1; L.d += d; L.nx = nx; L.nz = nz; L.fresh = false;
   };
 
+  // ------------------------------------------------------------------ ploughed
+  // A snowplough's blade (vehicles.js, car.blade) leaves a strip of packed snow a blade wide, a low white bank along each
+  // side of it where the snow was pushed. The same kind of ribbon as the tyre tracks, wider, and one of them.
+  const PQ = 2500, pp = new Float32Array(PQ * 12), pu = new Float32Array(PQ * 8), pi = new Uint16Array(PQ * 6);
+  for (let q = 0; q < PQ; q++) pi.set([q * 4, q * 4 + 1, q * 4 + 2, q * 4, q * 4 + 2, q * 4 + 3], q * 6);
+  const pg = new THREE.BufferGeometry(), ppa = new THREE.BufferAttribute(pp, 3), pua = new THREE.BufferAttribute(pu, 2);
+  ppa.setUsage(THREE.DynamicDrawUsage); pua.setUsage(THREE.DynamicDrawUsage);
+  pg.setAttribute('position', ppa); pg.setAttribute('uv', pua); pg.setIndex(new THREE.BufferAttribute(pi, 1));
+  const plowT = (() => { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const c = cv.getContext('2d'), gr = c.createLinearGradient(0, 0, 64, 0);
+    gr.addColorStop(0, 'rgba(250,252,255,0)'); gr.addColorStop(0.06, 'rgba(250,252,255,.95)'); gr.addColorStop(0.16, 'rgba(232,240,252,.85)'); gr.addColorStop(0.22, 'rgba(120,138,168,.62)');
+    gr.addColorStop(0.78, 'rgba(120,138,168,.62)'); gr.addColorStop(0.84, 'rgba(232,240,252,.85)'); gr.addColorStop(0.94, 'rgba(250,252,255,.95)'); gr.addColorStop(1, 'rgba(250,252,255,0)');
+    c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(90,105,135,${0.08 + Math.random() * 0.1})`; c.fillRect(16 + Math.random() * 32, Math.random() * 64, 1 + Math.random() * 3, 6 + Math.random() * 14); }      // the blade's scrape
+    const t = new THREE.CanvasTexture(cv); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const ploughed = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: plowT, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+  ploughed.frustumCulled = false; ploughed.renderOrder = 2; group.add(ploughed);
+  let phead = 0, plast = null;
+  const plough = (x, z, hw) => {
+    const L = plast, hy = hillY(x, z), y1 = hy > 0.001 ? hy + 0.016 : TY * 0.6;
+    if (!L) { plast = { x, z, y: y1, d: 0, nx: 0, nz: 0, fresh: true }; return; }
+    const dx = x - L.x, dz = z - L.z, d = Math.hypot(dx, dz);
+    if (d < 0.08) return;
+    if (d > 1.2) { plast = { x, z, y: y1, d: 0, nx: 0, nz: 0, fresh: true }; return; }
+    const nx = -dz / d * hw, nz = dx / d * hw, ax = L.fresh ? nx : L.nx, az = L.fresh ? nz : L.nz, o = phead * 12, u = phead * 8, v0 = L.d / 0.6, v1 = (L.d + d) / 0.6;
+    pp.set([L.x - ax, L.y, L.z - az, L.x + ax, L.y, L.z + az, x + nx, y1, z + nz, x - nx, y1, z - nz], o);
+    pu.set([0, v0, 1, v0, 1, v1, 0, v1], u);
+    ppa.addUpdateRange(o, 12); pua.addUpdateRange(u, 8); ppa.needsUpdate = pua.needsUpdate = true;
+    phead = (phead + 1) % PQ;
+    L.x = x; L.z = z; L.y = y1; L.d += d; L.nx = nx; L.nz = nz; L.fresh = false;
+  };
+
   // ------------------------------------------------------------------ snow thrown up
   const NS = 220, sp = new Float32Array(NS * 3).fill(-99), sv = new Float32Array(NS * 3), sl = new Float32Array(NS), sa = new Float32Array(NS);
   const sg = new THREE.BufferGeometry(), spa = new THREE.BufferAttribute(sp, 3), saa = new THREE.BufferAttribute(sa, 1);
@@ -204,7 +235,7 @@ export function buildWinter(museum, plan) {
     // A puff of snow, as when a snowman comes apart.
     burst(x, y, z, n = 40, power = 3) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, s = Math.random() * power; fling(x + (Math.random() - 0.5) * 0.4, y + Math.random() * 0.8, z + (Math.random() - 0.5) * 0.4, Math.cos(a) * s, 1 + Math.random() * power, Math.sin(a) * s, 0.5 + Math.random() * 0.6); } },
     // Rub out the tracks: a new night.
-    clear() { tp.fill(0); tpa.clearUpdateRanges(); tpa.needsUpdate = true; head = 0; last[0] = last[1] = null; },
+    clear() { tp.fill(0); tpa.clearUpdateRanges(); tpa.needsUpdate = true; head = 0; last[0] = last[1] = null; pp.fill(0); ppa.clearUpdateRanges(); ppa.needsUpdate = true; phead = 0; plast = null; },
     // `car` is the car when it is the toy in use and its wheels are on the ground, else null.
     update(dt, t, cam, car, calm) {
       const out = glints.visible = bulbs.visible = cam.y < 60;
@@ -214,6 +245,13 @@ export function buildWinter(museum, plan) {
         const s = Math.sin(car.yaw), c = Math.cos(car.yaw), bx = car.pos.x - s * 0.14, bz = car.pos.z - c * 0.14;
         lay(0, bx - c * 0.135, bz + s * 0.135); lay(1, bx + c * 0.135, bz - s * 0.135);
         laid = true;
+        // A plough: the strip its blade has cleared, and the snow coming off the end of the blade (it is angled: off the right).
+        const B = car.blade;
+        if (B) {
+          plough(car.pos.x + s * (B.z - 0.06), car.pos.z + c * (B.z - 0.06), B.hw);
+          const v = Math.hypot(car.vel.x, car.vel.z);
+          if (v > 0.6 && !calm) for (let k = 0; k < 2; k++) { const ex = car.pos.x + s * B.z - c * B.hw, ez = car.pos.z + c * B.z + s * B.hw; fling(ex, car.pos.y + 0.06, ez, -c * (0.8 + v * 0.35) + (Math.random() - 0.5) * 0.4, 0.5 + Math.random() * (0.4 + v * 0.15), s * (0.8 + v * 0.35) + (Math.random() - 0.5) * 0.4, 0.6 + Math.random() * 0.5); }
+        } else plast = null;
         // Snow off the back wheels when it is moving, more of it when the wheels are slipping.
         const v = Math.hypot(car.vel.x, car.vel.z), slip = Math.abs(car.vel.x * c - car.vel.z * s);
         if (v > 1.5 && !calm) for (let k = 0; k < (slip > 1.2 ? 3 : 1); k++) {
@@ -221,7 +259,7 @@ export function buildWinter(museum, plan) {
           fling(bx + side * c * 0.135, car.pos.y + 0.03, bz - side * s * 0.135, -car.vel.x * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.5 + Math.random() * (0.6 + v * 0.12), -car.vel.z * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.3 + Math.random() * 0.3);
         }
       }
-      if (!laid) last[0] = last[1] = null;
+      if (!laid) { last[0] = last[1] = null; plast = null; }
       if (live > 0) {
         live -= dt;
         for (let i = 0; i < NS; i++) {

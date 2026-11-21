@@ -33,7 +33,8 @@ export class Poker {
     const wood = std({ color: 0x6a4526, roughness: 0.55, emissive: 0x4a2e18, emissiveIntensity: 0.55 }), dark = std({ color: 0x14161a, roughness: 0.5, emissive: 0x08090b, emissiveIntensity: 0.5 });
     // A deck of boards laid on the roof.
     const ply = TX.plywood(); ply.repeat.set(5, 4);
-    put(new THREE.BoxGeometry(10, 0.04, 8), std({ map: ply, roughness: 0.8, emissiveMap: ply, emissive: 0x8a7a66, emissiveIntensity: 0.3 }), -0.6, 0.02, 0);
+    // (set into the roof, its top a few millimetres proud: the toy drives on the roof's own level, and wheels sank into a thicker deck)
+    put(new THREE.BoxGeometry(10, 0.04, 8), std({ map: ply, roughness: 0.8, emissiveMap: ply, emissive: 0x8a7a66, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), -0.6, -0.014, 0);
     // The table: green baize, a padded rail, one leg.
     const TH = 0.2;
     put(new THREE.CylinderGeometry(0.86, 0.86, 0.04, 40), std({ color: 0x1c6a3e, roughness: 0.95, emissive: 0x0e3a20, emissiveIntensity: 0.9 }), 0, TH, 0);

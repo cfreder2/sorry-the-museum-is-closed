@@ -17,7 +17,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import * as TX from './textures.js';
 import { confine, groundAt } from './plan.js';
-import { BOT, ROOM, patrols, cellAt, lineClear, sight, reach, path } from './guardplan.js';
+import { BOT, ROOM, patrols, beat, cellAt, lineClear, sight, reach, path } from './guardplan.js';
 
 const PHONE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 const COUNT = PHONE ? 3 : 6;
@@ -302,8 +302,14 @@ feature({
     this.lensMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 2.3, 2.1) });
     this.lensGeo = new THREE.CircleGeometry(0.062, 18); this.lensGeo.translate(0, 0, 0.301); this.lensGeo.translate(0, BOT.lens, 0);
     this.marks = { '?': glyph('?', '#ffc23a'), '!': glyph('!', '#ff4636') };
-    const halo = TX.radial(0, 1.5);
-    this.bots = P.map((p, i) => {
+    this.bots = P.map((p, i) => this._makeBot(p, i));
+    this.bolt = new Bolt(this.root); this.sparks = new Sparks(this.root);
+    this._dumpster();
+  },
+
+  // One robot on beat p: its body, head, glow, searchlight pool and mark.
+  _makeBot(p, i) {
+    const halo = this.halo || (this.halo = TX.radial(0, 1.5));
       const g = new THREE.Group(), head = new THREE.Group();
       const body = new THREE.Mesh(this.bodyGeo, this.mat), hm = new THREE.Mesh(this.headGeo, this.mat);
       const glowMat = new THREE.MeshBasicMaterial({ color: MOOD.calm.clone() }), glow = new THREE.Mesh(this.glowGeo, glowMat), lens = new THREE.Mesh(this.lensGeo, this.lensMat);
@@ -321,9 +327,6 @@ feature({
       };
       this._home(b, Math.floor((i * 0.37 % 1) * p.n));
       return b;
-    });
-    this.bolt = new Bolt(this.root); this.sparks = new Sparks(this.root);
-    this._dumpster();
   },
 
   // Put a robot back on its beat, at point i.
@@ -396,6 +399,14 @@ feature({
       return;
     }
     this.wasOn = true;
+    // The lobby's own robot: one beat up and down the Michigan Avenue lobby, past the front doors, the first one most people meet.
+    // Built on the first frame rather than at the start, so the coat-check counter (src/lobby.js) is on its plan as somewhere to hide.
+    if (!this.lobbyTried) {
+      this.lobbyTried = true;
+      const L = k.plan.byId[k.plan.front && k.plan.front.a];
+      const p = L && beat(k.plan, [L.id], 'bot-lobby');
+      if (p) { const b = this._makeBot(p, this.bots.length); b.lobby = true; this._home(b, 0); this.bots.push(b); this.lobbyBot = b; }
+    }
     const v = k.v, p = v.pos, now = G.t, cam = G.camera ? G.camera.position : p;
     // Back from something else (a look, a game, the pause menu): a moment before anybody can see you.
     if (G.state !== this.prevState) { if (G.state === 'play') this.grace = Math.max(this.grace, now + 1.5); this.prevState = G.state; }
@@ -426,6 +437,10 @@ feature({
     }
     // A tick from the beacon of one nearby, so you hear it round a corner before you see it.
     if (!frozen && nearest < 12 && (this.blipT -= dt) <= 0) { this.blipT = 1.25; this.sfx.blip(); }
+    if (!frozen && this.lobbyBot && this.lobbyBot.near && !G.told.has('guards-lobby')) {
+      const b = this.lobbyBot;
+      if ((p.x - b.x) ** 2 + (p.z - b.z) ** 2 < 15 * 15 && sight(b.g, b.x, b.z, p.x, p.z, false)) { G.told.add('guards'); k.once('guards-lobby', 'A security robot! Duck behind the coat check till it passes.', 6); }
+    }
     if (!frozen && nearest < 14 && !G.told.has('guards')) {
       const b = this.bots.find(q => q.near && (p.x - q.x) ** 2 + (p.z - q.z) ** 2 < 196);
       if (b && sight(b.g, b.x, b.z, p.x, p.z, false)) k.once('guards', 'A security robot. Keep out of its light.', 4);

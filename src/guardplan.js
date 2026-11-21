@@ -306,6 +306,9 @@ export function patrols(plan, want, seed = 'guards') {
   return out;
 }
 
+// One beat over rooms you name (src/lobby.js puts one through the Michigan Avenue lobby, the first robot most people meet).
+export function beat(plan, rooms, id) { const p = build(plan, links(plan), rooms, 0); if (p) p.id = id; return p; }
+
 function build(plan, L, chain, n) {
   const fy = plan.byId[chain[0]].y;
   const area = new Set(chain);
