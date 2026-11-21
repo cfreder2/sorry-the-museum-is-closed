@@ -110,8 +110,11 @@ export function buildRailway(museum, plan) {
       ramp.quad([L, 0.01, lo], [x1, 0.01, lo], [x1, 0.01, hi], [L, 0.01, hi], up, [[0, lo / 3], [0.7, lo / 3], [0.7, hi / 3], [0, hi / 3]]);
       const A = s.up > 0 ? [[L, 0.01, a], [x1, 0.01, a], [x1, Y + 0.01, b], [L, Y + 0.01, b]] : [[L, Y + 0.01, b], [x1, Y + 0.01, b], [x1, 0.01, a], [L, 0.01, a]];
       ramp.quad(A[0], A[1], A[2], A[3], up, [[0, a / 3], [0.7, a / 3], [0.7, b / 3], [0, b / 3]]);
-      // its side: the landing's, then the wedge's, facing the tracks
-      const Wd = (za, zb, ya, yb) => { const p = za < zb ? [[L, Y, zb], [L, Y, za], [L, ya, za], [L, yb, zb]] : [[L, Y, za], [L, Y, zb], [L, yb, zb], [L, ya, za]]; ramp.quad(p[0], p[1], p[2], p[3], [-1, 0, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]); };
+      // its side: the landing's, then the wedge's, facing the tracks. (Corners from the bed at za, up, along and down to the bed at
+      // zb. The wedge is a triangle: its fourth corner is its third. Started from that corner, the quad's first two edges were one
+      // point and Geo could not tell which way it faced, so on the two ramps that climb to the north it faced away from the tracks
+      // and was not drawn, and from the cutting you looked straight up under the kerb.)
+      const Wd = (za, zb, ya, yb) => ramp.quad([L, Y, za], [L, ya, za], [L, yb, zb], [L, Y, zb], [-1, 0, 0], [[za / 3, Y / 3], [za / 3, ya / 3], [zb / 3, yb / 3], [zb / 3, Y / 3]]);
       Wd(lo, hi, 0, 0); Wd(a, b, 0, Y);
       for (let i = 0; i < n; i++) { const za = a + (b - a) * i / n, zb = a + (b - a) * (i + 1) / n, top = Y * i / n + 0.3; cope.box(L - 0.12, L, Math.min(top - 0.75, Y * (i + 1) / n), top, Math.min(za, zb), Math.max(za, zb)); }
       cope.box(L - 0.12, L, 0, 0.95, lo, hi);
@@ -165,7 +168,7 @@ export function buildRailway(museum, plan) {
       const coach = (a, b, last) => {
         const len = b - a;
         for (const [x, nx] of [[X - hw, -1], [X + hw, 1]]) sides.quad([x, 1.05, a], [x, 1.05, b], [x, 4.6, b], [x, 4.6, a], [nx, 0, 0], [[0, 0], [len / 9.5, 0], [len / 9.5, 1], [0, 1]]);
-        body.box(X - hw, X + hw, 1.05, 4.6, a, a + 0.03); body.box(X - hw, X + hw, 1.05, 4.6, b - 0.03, b);
+        body.box(X - hw - 0.01, X + hw + 0.01, 1.05, 4.6, a, a + 0.03); body.box(X - hw - 0.01, X + hw + 0.01, 1.05, 4.6, b - 0.03, b);      // the end plates, standing a centimetre proud of the sides: flush, they flickered through them
         body.box(X - hw + 0.12, X + hw - 0.12, 4.6, 4.82, a + 0.1, b - 0.1); body.box(X - hw + 0.4, X + hw - 0.4, 4.82, 4.95, a + 0.3, b - 0.3);       // the roof, stepped in
         cap.box(X - hw + 0.42, X + hw - 0.42, 4.95, 5.0, a + 0.32, b - 0.32);
         under.box(X - hw + 0.08, X + hw - 0.08, 0.8, 1.05, a + 0.05, b - 0.05);                                              // the frame
@@ -246,14 +249,14 @@ export class Trains {
       // One carriage, tail at 0 and head at len, made once and used for each.
       const sides = new Geo(), body = new Geo(), under = new Geo(), lit = new Geo(), panto = new Geo(), a = 0, b = L.len;
       for (const [sx, nx] of [[-hw, -1], [hw, 1]]) sides.quad([sx, 1.0, a], [sx, 1.0, b], [sx, L.H - 0.35, b], [sx, L.H - 0.35, a], [nx, 0, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
-      body.box(-hw, hw, 1.0, L.H - 0.35, a, a + 0.04); body.box(-hw, hw, 1.0, L.H - 0.35, b - 0.04, b);
+      body.box(-hw - 0.01, hw + 0.01, 1.0, L.H - 0.35, a, a + 0.04); body.box(-hw - 0.01, hw + 0.01, 1.0, L.H - 0.35, b - 0.04, b);      // end plates a centimetre proud of the sides, not flush with them
       body.box(-hw + 0.1, hw - 0.1, L.H - 0.35, L.H - 0.15, a + 0.1, b - 0.1); body.box(-hw + 0.4, hw - 0.4, L.H - 0.15, L.H, a + 0.3, b - 0.3);
       under.box(-hw + 0.08, hw - 0.08, 0.75, 1.0, a + 0.05, b - 0.05); under.box(-1.25, 1.25, 0.28, 0.75, a + b * 0.36, a + b * 0.64);
       for (const z of [a + 2.7, b - 2.7]) { under.box(-1.08, 1.08, 0.38, 0.78, z - 1.5, z + 1.5); for (const dz of [-0.95, 0.95]) under.box(-0.8, 0.8, 0.14, 1.06, z + dz - 0.42, z + dz + 0.42); }
       under.box(-0.12, 0.12, 0.82, 0.98, a - gap / 2, a); under.box(-0.12, 0.12, 0.82, 0.98, b, b + gap / 2);
       for (const z of [a - 0.012, b]) lit.box(-0.38, 0.38, 1.45, 3.1, z, z + 0.012);
       // The pantograph: a base, two arms making a knee, the bow under the wire.
-      { const y = L.H, top = L.H + 0.2, z = b - 4.2;       // folded right down: the wire is low through here panto.box(-0.5, 0.5, y, y + 0.1, z - 0.9, z + 0.9);
+      { const y = L.H, top = L.H + 0.2, z = b - 4.2; panto.box(-0.5, 0.5, y, y + 0.1, z - 0.9, z + 0.9);       // folded right down: the wire is low through here
         for (let i = 0; i < 6; i++) { const t0 = i / 6, t1 = (i + 1) / 6, m = (top + y) / 2; for (const sx of [-0.3, 0.3]) { panto.box(sx - 0.03, sx + 0.03, y + (m - y) * t0, y + (m - y) * t1 + 0.04, z - 0.7 + 1.1 * t0, z - 0.7 + 1.1 * t1); panto.box(sx - 0.03, sx + 0.03, m + (top - m) * t0, m + (top - m) * t1 + 0.04, z + 0.4 - 0.5 * t1 - 0.08, z + 0.4 - 0.5 * t0); } }
         panto.box(-0.85, 0.85, top, top + 0.05, z - 0.18, z - 0.1); panto.box(-0.85, 0.85, top, top + 0.05, z + 0.02, z + 0.1); }
       const parts = [sides.mesh(skin), body.mesh(roofM), under.mesh(dark), lit.mesh(warm)], pm = panto.mesh(dark);
