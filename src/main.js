@@ -58,6 +58,7 @@ import './wingplay.js';
 import './icefish.js';
 import './reading.js';
 import './guards.js';
+import './lobby.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');

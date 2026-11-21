@@ -1,6 +1,7 @@
 // Lost property. Visitors leave things behind: a glove, a mitten, a ticket, a teddy bear. They lie where
 // they were dropped, on the floors of the quieter galleries. Drive into one and it rides on the toy (three
-// at a time); take them down to the Lost & Found box in the staff canteen and each is worth 20 chips.
+// at a time); hand them in at the coat check in the lobby (src/lobby.js), or the Lost & Found box in the staff canteen.
+// Each pays by how far it was from the lobby (40 to 150 chips), with a bonus for all of one kind, and for all thirty.
 //
 // This is the worked example of a feature (features.js): placed once, drawn with instancing, picked up
 // with k.carry, handed in with near(), counted with k.tally.
@@ -10,7 +11,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { freeFloor, wallSpots, sameFloor, rng, claimed, claim, placingNow } from './placing.js';
 
-const N = 30, REWARD = 20;
+const N = 30, KIND_BONUS = 100, ALL_BONUS = 500;
+// What a thing is worth: the further from the lobby (and the more stairs between), the more.
+const worth = (it, L) => { const d = Math.hypot(it.x - L.x, it.z - L.z) + Math.abs(it.y - L.y) * 12; return Math.round(Math.min(150, 40 + 7.5 * Math.sqrt(d)) / 5) * 5; };      // 25 m: 75, 100 m: 115, 200 m and on: 150
 
 // ------------------------------------------------------------------ the things --
 // Each a few simple shapes in their own colours, lying flat as dropped. Sizes are real: a toy car is 46 cm long.
@@ -39,7 +42,7 @@ const KINDS = [
 feature({
   id: 'lostfound',
   secrets: [['lostfirst', 'Somebody dropped this'], ['lostfound', 'Lost and found']],
-  init(k) { this.k = k; this.items = []; this.box = null; this.tally = k.tally('lostfound', N); },
+  init(k) { this.k = k; this.items = []; this.box = null; this.boxes = []; this.tally = k.tally('lostfound', N); },
 
   // Where: anywhere a visitor goes, the emptiest places first (furthest from anything there is to find already).
   place() {
@@ -67,6 +70,10 @@ feature({
       const w = wallSpots(P, k.museum, canteen, { depth: 0.9, width: 0.5, height: 1.1, clear: 1.2 }).sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0];
       if (w) { this.box = { x: w.x + w.nx * 0.33, y: canteen.y, z: w.z + w.nz * 0.33, nx: w.nx, nz: w.nz, room: canteen.id }; P.obstacles.push({ x0: this.box.x - 0.32, x1: this.box.x + 0.32, z0: this.box.z - 0.32, z1: this.box.z + 0.32, y0: canteen.y, y1: canteen.y + 0.95 }); claim(this.box); }
     }
+    // and the coat check in the lobby, the one most people pass
+    this.boxes = [this.box, P.coatCheck].filter(Boolean);
+    const L = P.byId[P.front && P.front.a], lob = L ? { x: (L.x0 + L.x1) / 2, y: L.y, z: (L.z0 + L.z1) / 2 } : { x: 0, y: 0, z: 0 };
+    for (const it of this.items) it.pay = worth(it, lob);
     this._build(); this.placed = true;
   },
 
@@ -112,28 +119,37 @@ feature({
       const mesh = new THREE.Mesh(this.geos[it.kind.id], this.mat); mesh.scale.setScalar(Math.min(1, 0.2 / size)); mesh.rotation.y = 0.6;
       if (!k.carry.take({ id: it.id, mesh, lost: true })) break;
       it.state = 'carried'; this._matrices(); k.synth.note(1500, 0.08, { type: 'square', vol: 0.03 });
-      k.say(k.find('lostfirst') ? `Picked up ${it.kind.name}. Somebody will want that back: the Lost & Found box is in the staff canteen, on the lower level.` : `Picked up ${it.kind.name}. Carrying ${k.carry.list.length} of ${k.carry.max}.`, 6);
-      if (k.carry.list.length >= k.carry.max) k.say('That is all the toy can carry. Take it to the Lost & Found in the staff canteen.', 5);
+      k.say(k.find('lostfirst') ? `Picked up ${it.kind.name}. Somebody will want that back: hand it in at the coat check in the lobby (${it.pay} chips).` : `Picked up ${it.kind.name} (${it.pay} chips at the coat check). Carrying ${k.carry.list.length} of ${k.carry.max}.`, 6);
+      if (k.carry.list.length >= k.carry.max) k.say('That is all the toy can carry. Take it to the coat check in the lobby.', 5);
       break;
     }
   },
-  // At the box, with lost things on the toy: hand them in.
+  // At the coat check or the canteen box, with lost things on the toy: hand them in.
   near(v, k) {
-    if (!this.box || !k.close(this.box, 1.4, 0.8)) return null;
-    const mine = k.carry.list.filter(i => i.lost); if (!mine.length) return null;
-    return { verb: 'HAND IN', hint: `The Lost & Found box. E to hand in ${mine.length === 1 ? 'what you found' : `all ${mine.length}`}.`, act: () => {
-      for (const c of mine) { k.carry.drop(c.id); const it = this.items.find(i => i.id === c.id); if (it) it.state = 'home'; this.tally.add(c.id); }
-      this._matrices(); k.chips(mine.length * REWARD); k.synth.chime([880, 1320], { vol: 0.05 });
-      k.callout(`HANDED IN · +${mine.length * REWARD} CHIPS`);
+    const at = (this.boxes || []).find(b => k.close(b, b.r || 1.4, 0.8)); if (!at) return null;
+    const mine = k.carry.list.filter(i => i.lost);
+    if (!mine.length) { k.once('coatcheck', `Lost & Found. Bring back what visitors dropped: ${this.items.filter(i => i.state === 'home').length} of ${this.items.length} returned.`, 5); return null; }
+    const pay = mine.reduce((n, c) => n + ((this.items.find(i => i.id === c.id) || {}).pay || 40), 0);
+    return { verb: 'HAND IN', hint: `Lost & Found: hand in ${mine.length === 1 ? 'what you found' : `all ${mine.length}`} for ${pay} chips.`, act: () => {
+      let total = 0; const kinds = new Set();
+      for (const c of mine) { k.carry.drop(c.id); const it = this.items.find(i => i.id === c.id); if (it) { it.state = 'home'; total += it.pay || 40; kinds.add(it.kind); } this.tally.add(c.id); }
+      // a whole kind back (every glove, every phone...) is worth a bonus; all thirty, a big one
+      const sets = [...kinds].filter(kd => this.items.filter(i => i.kind === kd).every(i => i.state === 'home'));
+      total += sets.length * KIND_BONUS;
       const left = this.items.filter(i => i.state !== 'home').length;
-      k.say(left ? `Thank you. ${this.items.length - left} of ${this.items.length} lost things returned.` : 'Every lost thing in the building has been handed in.', 5);
+      if (!left) total += ALL_BONUS;
+      this._matrices(); k.chips(total); k.synth.chime([880, 1320, 1760], { vol: 0.05 });
+      k.callout(`RETURNED · +${total} CHIPS`);
+      const thanks = ['Oh, thank you! Somebody will be so pleased.', 'Wonderful. I will put a note on it.', 'That will make somebody’s morning.', 'Thank you, dear. Into the drawer it goes.'][this.tally.count % 4];
+      const set = sets.length ? ` Every ${sets[0].name.replace(/^(a|an|somebody’s|a pair of) /, '')} is back: +${KIND_BONUS}.` : '';
+      k.say(left ? `${thanks}${set} Returned ${this.items.length - left} of ${this.items.length}.` : `Every lost thing in the building is home. +${ALL_BONUS}!`, 6);
       if (!left) k.find('lostfound');
     } };
   },
   spots(k) {
     if (!this.placed && !placingNow()) { this.k = this.k || k; if (this.k) this.place(); }
     const out = (this.items || []).filter(i => i.state !== 'home').map(i => ({ kind: 'todo', id: i.id, name: 'Lost: ' + i.kind.name, x: i.x, y: i.y, z: i.z }));
-    if (this.box) out.push({ kind: 'secret', id: 'lostfound', name: 'Lost & Found box', x: this.box.x, y: this.box.y, z: this.box.z });
+    for (const b of this.boxes || []) out.push({ kind: 'secret', id: 'lostfound', name: b === this.box ? 'Lost & Found box' : 'Coat check (Lost & Found)', x: b.x, y: b.y, z: b.z });
     return out;
   },
   // A new night: whatever was being carried and not handed in is back where it was dropped.
