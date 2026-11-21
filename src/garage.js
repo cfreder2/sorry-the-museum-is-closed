@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import { buildCar, buildDrone } from './vehicles.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
 const paintOf = c => std(c, { roughness: 0.3, emissive: c, emissiveIntensity: 0.12 });
@@ -121,6 +122,65 @@ function lights(body, x, y, zf, zr) {
     part(ball(0.017), glow(4, 3.6, 2.6), s * x, y, zf, body);
     part(box(0.03, 0.014, 0.01), glow(2.2, 0.1, 0.08), s * x, y, zr, body);
   }
+}
+
+// ---- for the showroom toys (kart, stretch, plow, semi): a side profile pushed out across the toy, bevelled; a kit that
+// gathers parts by material, so a toy with a great deal on it is still only a handful of meshes; and a better wheel.
+// Profiles are [z, y] points (front at +z), or a function that draws a THREE.Shape in those terms.
+function extrude(draw, w, bevel = 0.004) {
+  const sh = new THREE.Shape();
+  if (Array.isArray(draw)) { sh.moveTo(draw[0][0], draw[0][1]); for (const [z, y] of draw.slice(1)) sh.lineTo(z, y); sh.closePath(); } else draw(sh);
+  const d = Math.max(0.001, w - 2 * bevel);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel * 0.8, bevelOffset: -bevel * 0.8, bevelSegments: 1, curveSegments: 5 });
+  g.translate(0, 0, -d / 2); g.rotateY(-Math.PI / 2);
+  return g;
+}
+// A band round a wheel arch: from radius ri to ro about (zc, yc), between the heights where it meets y0.
+function archBand(zc, yc, ri, ro, y0, w) {
+  return extrude(sh => {
+    const ao = Math.asin(Math.max(-1, Math.min(1, (y0 - yc) / ro))), ai = Math.asin(Math.max(-1, Math.min(1, (y0 - yc) / ri)));
+    sh.absarc(zc, yc, ro, Math.PI - ao, ao, true); sh.absarc(zc, yc, ri, ai, Math.PI - ai, false); sh.closePath();
+  }, w, 0.002);
+}
+const _ka = new THREE.Vector3(), _kq = new THREE.Quaternion(), _ke = new THREE.Euler(), _km = new THREE.Matrix4(), _ky = new THREE.Vector3(0, 1, 0), _k1 = new THREE.Vector3(1, 1, 1);
+class Kit {
+  constructor(parent) { this.parent = parent; this.by = new Map(); }
+  add(geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+    const g = geo.index ? geo.toNonIndexed() : geo.clone(); g.clearGroups();
+    _kq.setFromEuler(_ke.set(rx, ry, rz)); g.applyMatrix4(_km.compose(_ka.set(x, y, z), _kq, _k1));
+    if (!this.by.has(mat)) this.by.set(mat, []); this.by.get(mat).push(g);
+    return this;
+  }
+  // a round bar from a to b ([x, y, z])
+  rod(a, b, r, mat, n = 6) {
+    const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]), L = d.length(); if (L < 1e-5) return this;
+    const g = cyl(r, r, L, n, 1, true); g.applyQuaternion(_kq.setFromUnitVectors(_ky, d.normalize())); g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+    return this.add(g, mat);
+  }
+  done() { for (const [mat, list] of this.by) this.parent.add(new THREE.Mesh(mergeGeometries(list, false), mat)); this.by.clear(); return this.parent; }
+}
+let _tyre = null, _rimDark = null;
+// A wheel with a tyre, a rim, a dark well and a hub with spokes, and (tread) lugs round it. Spins like wheel()'s.
+function wheel2(g, wheels, x, z, r, w, front, hubMat, o = {}) {
+  const pivot = new THREE.Group(); pivot.position.set(x, r, z);
+  const spin = new THREE.Group(); pivot.add(spin);
+  const tyre = _tyre || (_tyre = std(0x0d0d0f, { roughness: 0.92 })), dark = _rimDark || (_rimDark = std(0x1c1e22, { roughness: 0.6, metalness: 0.3 }));
+  const K = new Kit(spin), Z = Math.PI / 2;
+  K.add(cyl(r, r, w, 16, 1, true), tyre, 0, 0, 0, 0, 0, Z);
+  K.add(cyl(r * 0.9, r * 0.9, w + 0.003, 14), tyre, 0, 0, 0, 0, 0, Z);                    // the sidewall's shoulder
+  K.add(cyl(r * 0.64, r * 0.64, w + 0.005, 12, 1, true), hubMat, 0, 0, 0, 0, 0, Z);         // the rim
+  K.add(cyl(r * 0.5, r * 0.5, w + 0.007, 10), dark, 0, 0, 0, 0, 0, Z);                      // its well
+  K.add(cyl(r * 0.2, r * 0.2, w + 0.011, 8), hubMat, 0, 0, 0, 0, 0, Z);                     // the hub
+  const n = o.spokes || 4; for (let i = 0; i < n; i++) K.add(box(w + 0.009, r * 0.09, r * 0.92), hubMat, 0, 0, 0, i * Math.PI / n, 0, 0);
+  if (o.tread) for (let i = 0; i < o.tread; i++) { const a = i * Math.PI * 2 / o.tread; K.add(box(w * 0.86, r * 0.1, r * 0.16), tyre, 0, Math.cos(a) * r, Math.sin(a) * r, a, 0, 0); }
+  if (o.dual) { K.add(cyl(r, r, w, 16), tyre, -Math.sign(x) * (w + 0.003), 0, 0, 0, 0, Z); }
+  K.done(); g.add(pivot);
+  wheels.push({ pivot, spin, r, front });
+}
+// A little painted plate (a race number, a name board), as a texture.
+function plate(w, h, draw) {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
 const CARS = {
@@ -282,73 +342,126 @@ const CARS = {
     return { group: g, body, wheels, aerial };
   },
   // ---- for sale in the Museum Shop (VEHICLES' showroom entries) ----
-  // A pickup stretched far past any sense: a crew cab with three rows of doors, a long chrome-edged bed, the wheels a
-  // whole toy-length apart. It turns like a bus and carries a great deal (spec.carry), and it does not fall over.
+  // Every part here sits on, or is bolted to, the part that holds it up: built with the helpers above (extrude, Kit,
+  // wheel2), each toy is a few merged meshes.
+
+  // A pickup stretched far past any sense: a crew cab with three rows of doors, a long bed, the wheels a whole toy-length
+  // apart. It turns like a bus and carries a great deal (spec.carry), and it does not fall over.
   stretch() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = P(paintOf(0x5a1e8a)), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xd8dce2, { metalness: 0.85, roughness: 0.22 }), glass = std(0x10151c, { roughness: 0.12, metalness: 0.55 }), pin = paintOf(0xe9c46a);
-    part(box(0.15, 0.03, 0.7), black, 0, 0.07, 0, body);                                                 // the frame, the whole length
-    part(box(0.2, 0.055, 0.68), paint, 0, 0.115, 0.0, body);                                             // the body sill
-    const hood = part(box(0.19, 0.03, 0.15), paint, 0, 0.158, 0.26, body); hood.rotation.x = 0.07;        // a long bonnet
-    part(box(0.17, 0.035, 0.012), chrome, 0, 0.12, 0.345, body);                                         // the grille
-    for (let i = 0; i < 5; i++) part(box(0.15, 0.003, 0.004), black, 0, 0.106 + i * 0.006, 0.352, body);
-    part(box(0.215, 0.026, 0.022), chrome, 0, 0.088, 0.352, body);                                       // bumper
-    // the stretched cab: three windows a side, a long roof, pillars between
-    part(box(0.186, 0.07, 0.3), glass, 0, 0.18, 0.04, body);
-    part(box(0.19, 0.012, 0.31), paint, 0, 0.221, 0.04, body);
-    for (const s of [-1, 1]) for (const z of [0.19, 0.09, -0.01, -0.11]) part(box(0.006, 0.07, 0.016), paint, s * 0.094, 0.18, z, body);
-    const ws = part(box(0.18, 0.06, 0.008), glass, 0, 0.18, 0.2, body); ws.rotation.x = -0.35;           // the windscreen, raked
-    for (const s of [-1, 1]) part(box(0.004, 0.006, 0.66), pin, s * 0.101, 0.138, 0, body);              // a pinstripe nose to tail
-    // the bed: sides, tailgate, a chrome rail along each side
-    for (const s of [-1, 1]) { part(box(0.012, 0.045, 0.22), paint, s * 0.094, 0.165, -0.225, body); part(box(0.012, 0.006, 0.22), chrome, s * 0.094, 0.19, -0.225, body); }
-    part(box(0.2, 0.045, 0.012), paint, 0, 0.165, -0.338, body);
-    part(box(0.176, 0.004, 0.21), black, 0, 0.145, -0.225, body);                                        // the bed floor
-    for (const s of [-1, 1]) part(box(0.03, 0.008, 0.36), chrome, s * 0.113, 0.085, 0.03, body);         // running boards
-    for (const s of [-1, 1]) { part(cyl(0.007, 0.008, 0.11, 8), chrome, s * 0.098, 0.25, -0.115, body); part(cyl(0.009, 0.007, 0.012, 8), black, s * 0.098, 0.31, -0.115, body); }   // stacks behind the cab
-    for (const s of [-1.5, -0.5, 0.5, 1.5]) part(ball(0.011), glow(4, 3.8, 3), s * 0.036, 0.233, 0.17, body);            // roof lamps
-    for (const s of [-1, 1]) part(box(0.024, 0.012, 0.008), glow(3.4, 1.6, 0.1), s * 0.07, 0.233, 0.19, body);          // amber markers
-    lights(body, 0.075, 0.13, 0.348, -0.346);
-    for (const [x, z, f] of [[-0.118, 0.255, true], [0.118, 0.255, true], [-0.118, -0.255, false], [0.118, -0.255, false]]) wheel(g, wheels, x, z, 0.062, 0.055, f, chrome, 10);
-    const aerial = aerialOn(body, -0.08, 0.227, -0.09, 0.26, glow(1.6, 0.6, 2.2));
+    const paint = P(paintOf(0x5a1e8a)), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xd8dce2, { metalness: 0.85, roughness: 0.22 }), glass = std(0x0e141c, { roughness: 0.06, metalness: 0.7 }), pin = paintOf(0xe9c46a), liner = std(0x18191c, { roughness: 0.95 }), rubber = std(0x151517, { roughness: 0.85 });
+    const K = new Kit(body);
+    // chassis: two rails, cross members, axles right out to the hubs, leaf springs between, a diff on the back axle
+    for (const s of [-1, 1]) K.add(box(0.024, 0.022, 0.66), black, s * 0.055, 0.075, 0);
+    for (const z of [0.31, 0.15, -0.05, -0.2, -0.32]) K.add(box(0.11, 0.014, 0.016), black, 0, 0.075, z);
+    for (const z of [0.255, -0.255]) { K.add(cyl(0.008, 0.008, 0.2, 8), black, 0, 0.062, z, 0, 0, Math.PI / 2); for (const s of [-1, 1]) K.add(box(0.014, 0.008, 0.11), black, s * 0.055, 0.067, z); }
+    K.add(ball(0.019, 10, 8), black, 0, 0.062, -0.255);
+    // the body, one profile nose to tail with arches cut over the wheels; the cab; a flat deck where the bed goes
+    const R = 0.074, yc = 0.062, y0 = 0.09, dz = Math.sqrt(R * R - (y0 - yc) ** 2), aa = Math.asin((y0 - yc) / R);
+    K.add(extrude(sh => {
+      sh.moveTo(-0.345, y0);
+      for (const c of [-0.255, 0.255]) { sh.lineTo(c - dz, y0); sh.absarc(c, yc, R, Math.PI - aa, aa, true); }
+      sh.lineTo(0.348, y0); sh.lineTo(0.357, 0.118); sh.lineTo(0.354, 0.15); sh.lineTo(0.32, 0.161); sh.lineTo(0.2, 0.17);
+      sh.lineTo(0.152, 0.236); sh.lineTo(0.14, 0.242); sh.lineTo(-0.1, 0.244); sh.lineTo(-0.116, 0.236); sh.lineTo(-0.12, 0.15); sh.lineTo(-0.345, 0.15); sh.closePath();
+    }, 0.2, 0.006), paint);
+    // glass: the windscreen laid on the rake, three windows a side (pillars of paint between), the back light
+    K.add(extrude([[0.2015, 0.172], [0.1525, 0.2375], [0.147, 0.2355], [0.196, 0.169]], 0.178, 0.001), glass);
+    for (const w of [[[0.186, 0.178], [0.148, 0.231], [0.097, 0.231], [0.097, 0.178]], [[0.086, 0.178], [0.086, 0.231], [-0.004, 0.231], [-0.004, 0.178]], [[-0.014, 0.178], [-0.014, 0.231], [-0.104, 0.231], [-0.104, 0.178]]]) K.add(extrude(w, 0.207, 0.001), glass);
+    K.add(box(0.15, 0.046, 0.004), glass, 0, 0.205, -0.1215);
+    // doors: their seams, handles, a pinstripe nose to tail, running boards on brackets, flares round the arches
+    for (const z of [0.092, -0.009, -0.109]) K.add(box(0.204, 0.13, 0.0025), black, 0, 0.165, z);
+    for (const s of [-1, 1]) for (const z of [0.1, 0.0, -0.1]) K.add(box(0.006, 0.006, 0.02), chrome, s * 0.103, 0.168, z);
+    K.add(box(0.203, 0.004, 0.68), pin, 0, 0.143, 0.0);
+    for (const s of [-1, 1]) { K.add(box(0.03, 0.007, 0.36), chrome, s * 0.116, 0.084, 0); for (const z of [-0.12, 0, 0.12]) K.add(box(0.05, 0.006, 0.012), black, s * 0.09, 0.082, z); }
+    for (const s of [-1, 1]) for (const c of [-0.255, 0.255]) K.add(archBand(c, yc, 0.075, 0.084, y0, 0.012), rubber, s * 0.098, 0, 0);
+    // the front: a chrome-framed grille, square lamps, indicators, a chrome bumper with a rubber strip, fog lamps
+    K.add(box(0.17, 0.044, 0.008), chrome, 0, 0.128, 0.356).add(box(0.154, 0.032, 0.008), black, 0, 0.128, 0.358);
+    for (const y of [0.119, 0.128, 0.137]) K.add(box(0.15, 0.003, 0.004), chrome, 0, y, 0.363);
+    K.add(box(0.216, 0.024, 0.024), chrome, 0, 0.092, 0.36).add(box(0.2, 0.006, 0.006), rubber, 0, 0.092, 0.373);
+    K.add(box(0.2, 0.004, 0.13), paint, 0, 0.166, 0.265, 0.07, 0, 0);                                   // a bulge down the bonnet
+    // the bed: sides on the deck with chrome caps, a tailgate, a ribbed liner
+    for (const s of [-1, 1]) { K.add(box(0.012, 0.045, 0.225), paint, s * 0.094, 0.1725, -0.2325); K.add(box(0.016, 0.005, 0.226), chrome, s * 0.094, 0.1975, -0.2325); }
+    K.add(box(0.2, 0.045, 0.012), paint, 0, 0.1725, -0.339).add(box(0.2, 0.005, 0.014), chrome, 0, 0.1975, -0.339);
+    K.add(box(0.176, 0.003, 0.214), liner, 0, 0.1515, -0.232); for (const x of [-0.06, -0.02, 0.02, 0.06]) K.add(box(0.008, 0.004, 0.21), liner, x, 0.154, -0.232);
+    // stacks on the back of the cab, each on the deck with two brackets to the cab
+    for (const s of [-1, 1]) { K.add(cyl(0.008, 0.008, 0.16, 10), chrome, s * 0.083, 0.23, -0.13); K.add(cyl(0.0095, 0.008, 0.012, 10), black, s * 0.083, 0.316, -0.13); for (const y of [0.19, 0.27]) K.add(box(0.008, 0.006, 0.012), chrome, s * 0.083, y, -0.124); }
+    // mirrors on arms, a roof light bar on its base, amber markers on the cab
+    for (const s of [-1, 1]) { K.rod([s * 0.099, 0.19, 0.172], [s * 0.128, 0.2, 0.172], 0.003, black); K.add(box(0.008, 0.026, 0.034), black, s * 0.132, 0.2, 0.172); K.add(box(0.002, 0.022, 0.03), chrome, s * 0.137, 0.2, 0.172); }
+    K.add(box(0.13, 0.008, 0.024), black, 0, 0.248, 0.12);
+    for (const s of [-1, 1]) K.add(box(0.026, 0.01, 0.008), glow(3.4, 1.6, 0.1), s * 0.07, 0.247, 0.142);
+    // the back: tail lamps up the bed corners, a chrome bumper, a plate, mud flaps behind the wheels
+    K.add(box(0.21, 0.022, 0.02), chrome, 0, 0.09, -0.352).add(box(0.05, 0.022, 0.003), std(0xf2f0e6, { roughness: 0.5 }), 0, 0.12, -0.3465);
+    for (const s of [-1, 1]) K.add(box(0.04, 0.045, 0.004), rubber, s * 0.118, 0.068, -0.335);
+    K.done();
+    for (const s of [-1.5, -0.5, 0.5, 1.5]) part(ball(0.009, 8, 6), glow(4, 3.8, 3), s * 0.03, 0.257, 0.12, body);                 // the light bar's lamps
+    for (const s of [-1, 1]) { part(box(0.03, 0.016, 0.004), glow(4, 3.6, 2.6), s * 0.072, 0.133, 0.3605, body); part(box(0.022, 0.008, 0.004), glow(3.4, 1.6, 0.1), s * 0.072, 0.108, 0.3605, body); part(cyl(0.008, 0.008, 0.004, 10), glow(4, 3.6, 2.6), s * 0.075, 0.092, 0.373, body).rotation.x = Math.PI / 2; }
+    for (const s of [-1, 1]) part(box(0.016, 0.036, 0.004), glow(2.4, 0.1, 0.08), s * 0.092, 0.172, -0.346, body);                 // tail lamps
+    for (const [x, z, f] of [[-0.118, 0.255, true], [0.118, 0.255, true], [-0.118, -0.255, false], [0.118, -0.255, false]]) wheel2(g, wheels, x, z, 0.062, 0.055, f, chrome, { tread: 8 });
+    const aerial = aerialOn(body, -0.094, 0.2, -0.33, 0.26, glow(1.6, 0.6, 2.2));
     return { group: g, body, wheels, aerial, radius: 0.18, probes: [[0.24, 0.11], [-0.24, 0.11]], view: 0.78 };
   },
-  // A go-kart: a tube frame a hand off the floor, fat little tyres, a bucket seat with a helmeted driver hunched at the
-  // wheel, side pods, an engine bolted on at the back. Quick, light on its feet, and happy to go sideways.
+  // A go-kart: a tube frame a hand off the floor, fat little slicks, a bucket seat with a helmeted driver at the wheel,
+  // side pods on the nerf bars, an engine on its plate behind the seat chained to the back axle. Quick, light, and happy
+  // to go sideways.
   kart() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = P(paintOf(0x8ad81e)), black = std(0x0c0c0e, { roughness: 0.7 }), steel = std(0xb8bec6, { metalness: 0.8, roughness: 0.3 }), red = paintOf(0xd8261c), white = std(0xf2f2ee, { roughness: 0.4 });
-    const Yax = new THREE.Vector3(0, 1, 0);
-    const rod = (a, b, r, m) => { const d = new THREE.Vector3().subVectors(b, a), L = d.length(), t = part(cyl(r, r, L, 7), m, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, body); t.quaternion.setFromUnitVectors(Yax, d.normalize()); return t; };
-    const V = (x, y, z) => new THREE.Vector3(x, y, z);
-    // the frame: two rails, cross members, a nerf bar each side and a bumper loop at the front
-    for (const s of [-1, 1]) { rod(V(s * 0.055, 0.04, 0.15), V(s * 0.06, 0.04, -0.13), 0.006, steel); rod(V(s * 0.06, 0.04, 0.06), V(s * 0.11, 0.045, 0.02), 0.005, steel); rod(V(s * 0.11, 0.045, 0.02), V(s * 0.11, 0.045, -0.06), 0.005, steel); rod(V(s * 0.11, 0.045, -0.06), V(s * 0.06, 0.04, -0.09), 0.005, steel); }
-    for (const z of [0.13, 0.0, -0.11]) rod(V(-0.06, 0.04, z), V(0.06, 0.04, z), 0.005, steel);
-    rod(V(-0.05, 0.035, 0.19), V(0.05, 0.035, 0.19), 0.006, steel); for (const s of [-1, 1]) rod(V(s * 0.05, 0.035, 0.19), V(s * 0.055, 0.04, 0.15), 0.006, steel);
-    part(box(0.11, 0.004, 0.24), black, 0, 0.037, 0.02, body);                                           // the floor pan
-    const nose = part(box(0.13, 0.03, 0.07), paint, 0, 0.055, 0.17, body); nose.rotation.x = -0.25;      // nose cone
-    part(box(0.07, 0.022, 0.045), paint, 0, 0.07, 0.11, body);                                          // the front panel the number goes on
-    part(cyl(0.016, 0.016, 0.003, 14), white, 0, 0.083, 0.112, body).rotation.x = 0.4;
-    for (const s of [-1, 1]) part(box(0.035, 0.03, 0.12), paint, s * 0.11, 0.06, -0.02, body);           // side pods
-    // the seat, the driver, the wheel
-    part(box(0.07, 0.012, 0.07), black, 0, 0.055, -0.04, body); const back = part(box(0.07, 0.07, 0.012), black, 0, 0.09, -0.078, body); back.rotation.x = -0.25;
-    part(box(0.05, 0.05, 0.04), red, 0, 0.09, -0.035, body);                                            // the driver's suit
-    for (const s of [-1, 1]) { rod(V(s * 0.022, 0.1, -0.03), V(s * 0.02, 0.085, 0.035), 0.008, red); rod(V(s * 0.018, 0.065, -0.01), V(s * 0.02, 0.05, 0.08), 0.009, red); }   // arms to the wheel, legs to the pedals
-    part(ball(0.026, 14, 12), white, 0, 0.14, -0.03, body);                                             // helmet
-    part(box(0.034, 0.012, 0.012), std(0x151a22, { roughness: 0.1, metalness: 0.6 }), 0, 0.142, -0.006, body);    // visor
-    part(box(0.004, 0.01, 0.05), paint, 0, 0.165, -0.03, body);                                          // a stripe over it
-    rod(V(0, 0.05, 0.1), V(0, 0.095, 0.045), 0.004, steel);                                              // steering column
-    const sw = part(new THREE.TorusGeometry(0.018, 0.0035, 6, 14), black, 0, 0.097, 0.042, body); sw.rotation.x = -0.75;
-    // the engine, its exhaust
-    part(box(0.04, 0.045, 0.045), std(0x5a5e66, { metalness: 0.6, roughness: 0.4 }), 0.075, 0.07, -0.1, body);
-    part(cyl(0.012, 0.012, 0.012, 10), black, 0.075, 0.1, -0.1, body);
-    rod(V(0.075, 0.08, -0.12), V(0.07, 0.085, -0.17), 0.006, steel); part(cyl(0.01, 0.01, 0.04, 8), steel, 0.07, 0.085, -0.18, body).rotation.x = Math.PI / 2;
-    part(box(0.2, 0.025, 0.02), paint, 0, 0.05, -0.155, body);                                           // rear bumper
-    for (const s of [-1, 1]) part(box(0.022, 0.01, 0.006), glow(2.2, 0.1, 0.08), s * 0.05, 0.05, -0.166, body);
-    for (const [x, z, r, w, f] of [[-0.095, 0.13, 0.036, 0.034, true], [0.095, 0.13, 0.036, 0.034, true], [-0.1, -0.11, 0.043, 0.05, false], [0.1, -0.11, 0.043, 0.05, false]]) wheel(g, wheels, x, z, r, w, f, paint, 6);
-    rod(V(-0.1, 0.043, -0.11), V(0.1, 0.043, -0.11), 0.005, steel);                                       // the rear axle, live
-    const aerial = aerialOn(body, -0.06, 0.06, -0.12, 0.2, glow(0.8, 2.4, 0.3));
+    const paint = P(paintOf(0x8ad81e)), black = std(0x0c0c0e, { roughness: 0.7 }), steel = std(0xb8bec6, { metalness: 0.8, roughness: 0.3 }), red = paintOf(0xd8261c), white = std(0xf2f2ee, { roughness: 0.35 }), alu = std(0x8a9098, { metalness: 0.7, roughness: 0.35 }), visor = std(0x151a22, { roughness: 0.05, metalness: 0.8 }), seatM = std(0x1a1c20, { roughness: 0.5 });
+    const K = new Kit(body);
+    // the frame: rails, cross members, a bumper loop at the front, nerf bars each side, a rear bumper on stays
+    for (const s of [-1, 1]) {
+      K.rod([s * 0.05, 0.035, 0.19], [s * 0.055, 0.04, 0.15], 0.006, steel).rod([s * 0.055, 0.04, 0.15], [s * 0.06, 0.04, -0.13], 0.006, steel);
+      K.rod([s * 0.06, 0.04, 0.06], [s * 0.112, 0.045, 0.03], 0.005, steel).rod([s * 0.112, 0.045, 0.03], [s * 0.112, 0.045, -0.055], 0.005, steel).rod([s * 0.112, 0.045, -0.055], [s * 0.06, 0.04, -0.085], 0.005, steel);
+      K.rod([s * 0.06, 0.04, -0.13], [s * 0.085, 0.05, -0.155], 0.005, steel);
+    }
+    for (const z of [0.13, 0.0, -0.11]) K.rod([-0.06, 0.04, z], [0.06, 0.04, z], 0.005, steel);
+    K.rod([-0.05, 0.035, 0.19], [0.05, 0.035, 0.19], 0.006, steel).rod([-0.09, 0.05, -0.155], [0.09, 0.05, -0.155], 0.006, steel);
+    K.add(box(0.11, 0.004, 0.24), alu, 0, 0.037, 0.02);                                                  // the floor pan
+    // the front axle: kingpin uprights at the ends of the front cross member, stub axles into the hubs, a track rod
+    for (const s of [-1, 1]) { K.rod([s * 0.06, 0.04, 0.13], [s * 0.076, 0.04, 0.13], 0.005, steel).rod([s * 0.076, 0.022, 0.13], [s * 0.076, 0.056, 0.13], 0.0045, steel).rod([s * 0.076, 0.036, 0.13], [s * 0.092, 0.036, 0.13], 0.004, steel); K.rod([s * 0.076, 0.045, 0.118], [0, 0.045, 0.112], 0.0025, steel); }
+    K.rod([-0.1, 0.043, -0.11], [0.1, 0.043, -0.11], 0.006, steel);                                      // the rear axle, live, hub to hub
+    // bodywork: a nose cone on the bumper loop, the number board on it, side pods on the nerf bars with brackets, a rear fairing
+    K.add(extrude([[0.11, 0.032], [0.212, 0.03], [0.226, 0.044], [0.214, 0.064], [0.17, 0.074], [0.118, 0.07], [0.106, 0.05]], 0.13, 0.005), paint);
+    K.add(box(0.07, 0.046, 0.006), paint, 0, 0.09, 0.106, -0.45, 0, 0);
+    for (const s of [-1, 1]) { K.add(extrude([[0.05, 0.034], [0.04, 0.062], [0.005, 0.073], [-0.04, 0.071], [-0.056, 0.058], [-0.056, 0.034]], 0.034, 0.004), paint, s * 0.112, 0, 0); for (const z of [0.012, -0.04]) K.add(box(0.05, 0.006, 0.008), steel, s * 0.087, 0.041, z); }
+    K.add(extrude([[-0.143, 0.042], [-0.162, 0.042], [-0.167, 0.058], [-0.158, 0.068], [-0.143, 0.066]], 0.2, 0.004), paint);
+    // the seat: a moulded bucket on the floor, stayed back to the frame
+    K.add(extrude([[0.004, 0.039], [-0.03, 0.039], [-0.072, 0.056], [-0.098, 0.128], [-0.086, 0.131], [-0.062, 0.067], [-0.03, 0.054], [0.004, 0.056]], 0.074, 0.006), seatM);
+    for (const s of [-1, 1]) K.rod([s * 0.03, 0.11, -0.09], [s * 0.05, 0.042, -0.12], 0.003, steel);
+    // the driver: suit, gloves on the wheel, boots on the pedals, a helmet with a visor and a stripe
+    K.add(new THREE.CapsuleGeometry(0.021, 0.034, 3, 8), red, 0, 0.096, -0.05, -0.32, 0, 0);
+    K.add(cyl(0.008, 0.009, 0.014, 8), red, 0, 0.128, -0.045);
+    for (const s of [-1, 1]) {
+      K.rod([s * 0.025, 0.112, -0.046], [s * 0.034, 0.093, -0.005], 0.0075, red).rod([s * 0.034, 0.093, -0.005], [s * 0.017, 0.103, 0.032], 0.0065, red);
+      K.add(ball(0.0068, 8, 6), black, s * 0.017, 0.103, 0.034);
+      K.rod([s * 0.014, 0.066, -0.035], [s * 0.022, 0.083, 0.03], 0.0095, red).rod([s * 0.022, 0.083, 0.03], [s * 0.02, 0.053, 0.088], 0.008, red);
+      K.add(box(0.014, 0.012, 0.024), black, s * 0.02, 0.05, 0.098);
+      K.add(box(0.012, 0.003, 0.016), alu, s * 0.02, 0.043, 0.112, -0.5, 0, 0);
+    }
+    K.add(ball(0.025, 12, 10), white, 0, 0.15, -0.043);
+    K.add(new THREE.SphereGeometry(0.0256, 14, 6, Math.PI / 2 - 0.75, 1.5, 0.95, 0.55), visor, 0, 0.15, -0.043);
+    K.add(box(0.006, 0.006, 0.052), paint, 0, 0.175, -0.045, 0.1, 0, 0);
+    // steering: a column from the floor to the wheel, the wheel with three spokes
+    K.rod([0, 0.04, 0.112], [0, 0.101, 0.04], 0.0035, steel);
+    K.add(new THREE.TorusGeometry(0.018, 0.0034, 6, 16), black, 0, 0.103, 0.036, -0.75, 0, 0);
+    K.add(box(0.034, 0.004, 0.003), black, 0, 0.103, 0.036, -0.75, 0, 0).add(box(0.004, 0.017, 0.003), black, 0, 0.097, 0.04, -0.75, 0, 0);
+    // the engine: on a plate across the back of the frame, finned head, red air filter, a pull-start cover, the chain
+    // guard down to the axle's sprocket, a header pipe back to the silencer
+    K.add(box(0.06, 0.008, 0.045), alu, 0.042, 0.05, -0.13);
+    K.add(box(0.04, 0.042, 0.04), alu, 0.042, 0.075, -0.13);
+    for (let i = 0; i < 4; i++) K.add(box(0.046, 0.003, 0.044), alu, 0.042, 0.099 + i * 0.006, -0.13);
+    K.add(cyl(0.012, 0.012, 0.02, 12), red, 0.042, 0.088, -0.103, Math.PI / 2, 0, 0);
+    K.add(cyl(0.017, 0.017, 0.008, 14), black, 0.018, 0.075, -0.13, 0, 0, Math.PI / 2);
+    K.add(box(0.006, 0.034, 0.05), black, 0.066, 0.058, -0.12);
+    K.rod([0.042, 0.105, -0.148], [0.04, 0.1, -0.165], 0.004, steel); K.add(cyl(0.011, 0.011, 0.045, 10), steel, 0.04, 0.1, -0.185, Math.PI / 2, 0, 0);
+    K.done();
+    // the race number on the board, lamps in the rear fairing
+    const num = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.034), new THREE.MeshBasicMaterial({ map: plate(128, 88, (c, w, h) => { c.fillStyle = '#f4f2ea'; c.beginPath(); c.ellipse(w / 2, h / 2, w / 2 - 2, h / 2 - 2, 0, 0, 7); c.fill(); c.fillStyle = '#16120c'; c.font = '900 70px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('7', w / 2, h / 2 + 4); }), transparent: true }));
+    num.position.set(0, 0.0905, 0.1104); num.rotation.x = -0.45; body.add(num);
+    for (const s of [-1, 1]) part(box(0.022, 0.008, 0.004), glow(2.2, 0.1, 0.08), s * 0.05, 0.056, -0.168, body);
+    for (const [x, z, r, w, f] of [[-0.095, 0.13, 0.036, 0.034, true], [0.095, 0.13, 0.036, 0.034, true], [-0.1, -0.11, 0.043, 0.05, false], [0.1, -0.11, 0.043, 0.05, false]]) wheel2(g, wheels, x, z, r, w, f, paint, { spokes: 3 });
+    const aerial = aerialOn(body, -0.075, 0.056, -0.155, 0.2, glow(0.8, 2.4, 0.3));
     return { group: g, body, wheels, aerial, radius: 0.15, view: 1.15 };
   },
   // A long-nose tractor unit with a sleeper, twin stacks and a chrome grille, hauling a box trailer on a fifth wheel.
@@ -356,86 +469,154 @@ const CARS = {
   semi() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = P(paintOf(0x1a6a8c)), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xdde1e6, { metalness: 0.9, roughness: 0.2 }), glass = std(0x10151c, { roughness: 0.12, metalness: 0.55 }), cream = paintOf(0xefe6cf), grey = std(0x3a3e46, { roughness: 0.6 });
-    part(box(0.12, 0.025, 0.36), black, 0, 0.06, -0.01, body);                                           // frame rails
-    // the long bonnet, to a tall chrome grille
-    part(box(0.17, 0.07, 0.13), paint, 0, 0.12, 0.105, body); const hd = part(box(0.165, 0.02, 0.13), paint, 0, 0.16, 0.105, body); hd.rotation.x = 0.06;
-    part(box(0.12, 0.08, 0.01), chrome, 0, 0.12, 0.172, body); for (let i = 0; i < 6; i++) part(box(0.105, 0.003, 0.004), black, 0, 0.09 + i * 0.011, 0.178, body);
-    part(box(0.21, 0.03, 0.026), chrome, 0, 0.065, 0.18, body);                                          // the bumper
-    for (const s of [-1, 1]) { const f = part(box(0.04, 0.05, 0.1), paint, s * 0.1, 0.1, 0.12, body); f.rotation.x = -0.1; }       // fenders over the steer axle
-    // the cab and the sleeper behind it
-    part(box(0.19, 0.12, 0.1), paint, 0, 0.2, 0, body);
-    const sc = part(box(0.17, 0.05, 0.008), glass, 0, 0.215, 0.052, body); sc.rotation.x = -0.25;
-    for (const s of [-1, 1]) part(box(0.006, 0.045, 0.06), glass, s * 0.096, 0.215, 0.01, body);
-    part(box(0.19, 0.14, 0.08), paint, 0, 0.21, -0.088, body);                                           // sleeper
-    part(box(0.18, 0.03, 0.15), paint, 0, 0.29, -0.04, body); const fair = part(box(0.18, 0.04, 0.05), paint, 0, 0.3, 0.02, body); fair.rotation.x = 0.5;   // roof fairing
-    for (const s of [-1, 1]) part(box(0.004, 0.012, 0.18), cream, s * 0.096, 0.17, -0.04, body);         // a stripe down each side
-    for (const s of [-1, 1]) { part(cyl(0.009, 0.009, 0.22, 10), chrome, s * 0.103, 0.24, -0.132, body); part(cyl(0.011, 0.009, 0.015, 10), black, s * 0.103, 0.355, -0.132, body); }   // twin stacks
-    for (const s of [-1, 1]) { part(cyl(0.02, 0.02, 0.06, 12), chrome, s * 0.1, 0.075, -0.05, body).rotation.x = Math.PI / 2; part(box(0.012, 0.012, 0.03), black, s * 0.112, 0.21, 0.06, body); part(box(0.008, 0.035, 0.022), chrome, s * 0.122, 0.21, 0.07, body); }   // fuel tanks, mirrors
-    for (const s of [-1.5, -0.5, 0.5, 1.5]) part(box(0.012, 0.008, 0.008), glow(3.4, 1.6, 0.1), s * 0.03, 0.312, 0.035, body);       // cab-top markers
-    part(cyl(0.05, 0.05, 0.012, 16), grey, 0, 0.088, -0.12, body);                                       // the fifth wheel
-    lights(body, 0.075, 0.115, 0.176, -0.17);
-    for (const [x, z, f] of [[-0.1, 0.11, true], [0.1, 0.11, true], [-0.1, -0.085, false], [0.1, -0.085, false], [-0.1, -0.165, false], [0.1, -0.165, false]]) wheel(g, wheels, x, z, 0.048, 0.042, f, chrome, 10);
-    const aerial = aerialOn(body, 0.08, 0.31, -0.08, 0.2, glow(2.6, 0.4, 0.2));
+    const paint = P(paintOf(0x1a6a8c)), black = std(0x0c0c0e, { roughness: 0.7 }), chrome = std(0xdde1e6, { metalness: 0.9, roughness: 0.18 }), glass = std(0x0e141c, { roughness: 0.06, metalness: 0.7 }), cream = paintOf(0xefe6cf), grey = std(0x3a3e46, { roughness: 0.6 }), rubber = std(0x151517, { roughness: 0.85 });
+    const K = new Kit(body);
+    // chassis: rails nose to tail, cross members, the steer axle and two drive axles out to the hubs, diffs, air bags
+    for (const s of [-1, 1]) K.add(box(0.022, 0.025, 0.4), black, s * 0.05, 0.0625, -0.015);
+    for (const z of [0.15, 0.03, -0.12, -0.2]) K.add(box(0.1, 0.014, 0.014), black, 0, 0.06, z);
+    for (const z of [0.11, -0.085, -0.165]) { K.add(cyl(0.007, 0.007, 0.2, 8), black, 0, 0.048, z, 0, 0, Math.PI / 2); for (const s of [-1, 1]) K.add(box(0.014, 0.008, 0.06), black, s * 0.05, 0.052, z); }
+    for (const z of [-0.085, -0.165]) { K.add(ball(0.016, 10, 8), black, 0, 0.048, z); for (const s of [-1, 1]) K.add(cyl(0.011, 0.011, 0.014, 10), rubber, s * 0.05, 0.068, z - 0.022); }
+    // the long bonnet between the front wheels, fenders round them, a tall chrome grille, a chrome bumper
+    K.add(extrude([[0.183, 0.075], [0.187, 0.15], [0.178, 0.164], [0.07, 0.169], [0.066, 0.075]], 0.15, 0.006), paint);
+    for (const s of [-1, 1]) { K.add(archBand(0.11, 0.048, 0.054, 0.064, 0.062, 0.05), paint, s * 0.1, 0, 0); K.add(extrude([[0.18, 0.064], [0.18, 0.1], [0.165, 0.112], [0.15, 0.1], [0.15, 0.064]], 0.05, 0.003), paint, s * 0.1, 0, 0); K.add(extrude([[0.072, 0.064], [0.072, 0.1], [0.058, 0.112], [0.058, 0.064]], 0.05, 0.003), paint, s * 0.1, 0, 0); }
+    K.add(box(0.11, 0.082, 0.008), chrome, 0, 0.116, 0.188); for (let i = 0; i < 6; i++) K.add(box(0.096, 0.004, 0.004), black, 0, 0.086 + i * 0.012, 0.193);
+    K.add(box(0.012, 0.09, 0.012), chrome, 0, 0.165, 0.18, 0.3, 0, 0);                                    // a bar down the nose (an ornament of no particular make)
+    K.add(box(0.224, 0.028, 0.026), chrome, 0, 0.06, 0.192);
+    // the cab: a day cab with a raked screen, door windows, a visor; the sleeper behind with its own small window; a
+    // fairing over both up to the trailer's height
+    K.add(extrude([[0.066, 0.075], [0.069, 0.17], [0.059, 0.262], [0.046, 0.272], [0.0, 0.272], [0.0, 0.075]], 0.19, 0.006), paint);
+    K.add(extrude([[0.0, 0.075], [0.0, 0.272], [-0.012, 0.29], [-0.084, 0.29], [-0.09, 0.28], [-0.09, 0.075]], 0.19, 0.006), paint);
+    K.add(extrude([[0.046, 0.272], [0.012, 0.275], [-0.084, 0.29], [-0.084, 0.31], [-0.02, 0.31], [0.022, 0.29]], 0.176, 0.005), paint);
+    for (const s of [-1, 1]) K.add(box(0.078, 0.07, 0.004), glass, s * 0.044, 0.216, 0.0655, -0.11, 0, 0);
+    K.add(box(0.008, 0.074, 0.006), paint, 0, 0.216, 0.066, -0.11, 0, 0);
+    K.add(extrude([[0.061, 0.182], [0.054, 0.255], [0.012, 0.255], [0.012, 0.182]], 0.196, 0.001), glass);
+    K.add(extrude([[-0.03, 0.2], [-0.03, 0.238], [-0.064, 0.238], [-0.064, 0.2]], 0.196, 0.001), glass);
+    K.add(box(0.19, 0.006, 0.022), paint, 0, 0.262, 0.074, 0.25, 0, 0);
+    K.add(box(0.194, 0.0025, 0.12), black, 0, 0.17, 0.004);                                              // door seams
+    K.add(box(0.194, 0.012, 0.156), cream, 0, 0.142, -0.012);                                            // a stripe down each side
+    for (const s of [-1, 1]) K.add(box(0.006, 0.006, 0.02), chrome, s * 0.097, 0.18, 0.02);              // door handles
+    // steps under the doors, fuel tanks strapped to the frame, stacks up the back corners of the cab on brackets
+    for (const s of [-1, 1]) {
+      K.add(box(0.032, 0.006, 0.05), chrome, s * 0.1, 0.098, 0.03);
+      K.add(cyl(0.022, 0.022, 0.07, 14), chrome, s * 0.103, 0.07, 0.0, Math.PI / 2, 0, 0); for (const z of [-0.022, 0.022]) K.add(box(0.03, 0.05, 0.004), black, s * 0.09, 0.07, z);
+      K.add(cyl(0.008, 0.008, 0.25, 10), chrome, s * 0.104, 0.22, -0.006); K.add(cyl(0.0105, 0.0105, 0.07, 10), grey, s * 0.104, 0.17, -0.006);
+      K.add(cyl(0.0095, 0.008, 0.012, 10), black, s * 0.104, 0.351, -0.006); for (const y of [0.13, 0.3]) K.add(box(0.012, 0.006, 0.008), chrome, s * 0.099, y, -0.006);
+    }
+    // mirrors on their arms, air horns on the roof, marker lamps along the visor
+    for (const s of [-1, 1]) { K.rod([s * 0.095, 0.2, 0.056], [s * 0.128, 0.205, 0.058], 0.003, chrome).rod([s * 0.095, 0.24, 0.056], [s * 0.128, 0.235, 0.058], 0.003, chrome); K.add(box(0.008, 0.044, 0.022), black, s * 0.132, 0.22, 0.058); K.add(box(0.002, 0.04, 0.019), chrome, s * 0.137, 0.22, 0.058); }
+    for (const s of [-1, 1]) K.add(cyl(0.004, 0.008, 0.05, 8), chrome, s * 0.03, 0.28, 0.025, Math.PI / 2, 0, 0);
+    // the fifth wheel on its brackets across the rails, its jaws open to the back; mud flaps behind the drive wheels
+    K.add(cyl(0.045, 0.045, 0.01, 18), grey, 0, 0.085, -0.12).add(box(0.012, 0.012, 0.03), black, 0, 0.091, -0.15);
+    for (const s of [-1, 1]) K.add(box(0.02, 0.012, 0.05), grey, s * 0.04, 0.078, -0.12);
+    for (const s of [-1, 1]) { K.add(box(0.046, 0.05, 0.004), rubber, s * 0.1, 0.055, -0.222); K.rod([s * 0.06, 0.075, -0.205], [s * 0.09, 0.075, -0.22], 0.003, black); }
+    K.done();
+    for (const s of [-1.5, -0.5, 0.5, 1.5]) part(box(0.012, 0.007, 0.007), glow(3.4, 1.6, 0.1), s * 0.03, 0.268, 0.085, body);
+    for (const s of [-1, 1]) { part(box(0.03, 0.018, 0.006), glow(4, 3.6, 2.6), s * 0.1, 0.098, 0.181, body); part(box(0.012, 0.012, 0.006), glow(3.4, 1.6, 0.1), s * 0.1, 0.098, 0.153, body); part(box(0.016, 0.02, 0.004), glow(2.2, 0.1, 0.08), s * 0.07, 0.07, -0.213, body); }
+    for (const [x, z, f] of [[-0.1, 0.11, true], [0.1, 0.11, true]]) wheel2(g, wheels, x, z, 0.048, 0.042, f, chrome, { spokes: 5 });
+    for (const [x, z] of [[-0.1, -0.085], [0.1, -0.085], [-0.1, -0.165], [0.1, -0.165]]) wheel2(g, wheels, x, z, 0.048, 0.032, false, chrome, { spokes: 5, dual: true });
+    const aerial = aerialOn(body, 0.06, 0.31, -0.06, 0.2, glow(2.6, 0.4, 0.2));
     // ---- the trailer: built about its kingpin (0, 0, 0 at the fifth wheel, at ground level), running back along -z
     const T = new THREE.Group(), tb = new THREE.Group(); T.add(tb);
-    const side = P(paintOf(0xefece4)), rib = std(0xc9ccd2, { metalness: 0.6, roughness: 0.35 });
-    const tw = [], LEN = 0.43;
-    part(box(0.21, 0.2, 0.56), side, 0, 0.21, -0.25, tb);                                                // the box
-    for (let i = 0; i < 9; i++) for (const s of [-1, 1]) part(box(0.004, 0.2, 0.008), rib, s * 0.106, 0.21, 0.02 - i * 0.068, tb);      // ribs
-    part(box(0.214, 0.008, 0.564), rib, 0, 0.312, -0.25, tb); part(box(0.214, 0.012, 0.564), rib, 0, 0.11, -0.25, tb);                  // top and bottom rails
-    part(box(0.004, 0.18, 0.004), black, 0, 0.21, -0.532, tb);                                           // between the back doors
-    for (const s of [-1, 1]) for (const y of [0.15, 0.27]) part(box(0.01, 0.012, 0.006), rib, s * 0.03, y, -0.533, tb);                 // their hinges and bars
-    for (const s of [-1, 1]) part(box(0.004, 0.035, 0.3), grey, s * 0.098, 0.085, -0.2, tb);             // side skirts
-    for (const s of [-1, 1]) for (const z of [0.0, -0.24, -0.5]) part(box(0.004, 0.008, 0.012), glow(3.4, 1.6, 0.1), s * 0.108, 0.115, z, tb);   // side markers
-    for (const s of [-1, 1]) part(box(0.03, 0.014, 0.008), glow(2.2, 0.1, 0.08), s * 0.075, 0.12, -0.533, tb);
-    part(box(0.2, 0.02, 0.012), grey, 0, 0.075, -0.53, tb);                                              // the under-ride bar
-    for (const s of [-1, 1]) { part(box(0.008, 0.09, 0.008), grey, s * 0.07, 0.06, -0.08, tb); part(box(0.03, 0.006, 0.02), grey, s * 0.07, 0.016, -0.08, tb); }   // landing legs, wound up
-    part(cyl(0.012, 0.012, 0.03, 8), grey, 0, 0.09, 0, tb);                                              // the kingpin plate
-    // tandem axles, dual wheels, near the back
+    const side = std(0xefece4, { roughness: 0.45, emissive: 0xefece4, emissiveIntensity: 0.1 }), rib = std(0xc9ccd2, { metalness: 0.6, roughness: 0.35 }), tw = [], LEN = 0.43;
+    const KT = new Kit(tb), F = -0.025, B = -0.535, Lb = F - B, Zc = (F + B) / 2;
+    KT.add(box(0.21, 0.2, Lb), side, 0, 0.211, Zc);                                                       // the box
+    for (let i = 0; i <= 10; i++) for (const s of [-1, 1]) KT.add(box(0.004, 0.2, 0.007), rib, s * 0.106, 0.211, F - 0.004 - i * (Lb - 0.008) / 10);      // posts
+    KT.add(box(0.216, 0.008, Lb + 0.004), rib, 0, 0.313, Zc).add(box(0.216, 0.014, Lb + 0.004), rib, 0, 0.108, Zc);                     // top and bottom rails
+    for (const s of [-1, 1]) KT.add(box(0.008, 0.2, 0.008), rib, s * 0.104, 0.211, F);                                                // front corner posts
+    KT.add(box(0.15, 0.065, 0.022), grey, 0, 0.26, F + 0.011);                                            // a refrigeration unit on the nose
+    for (let i = 0; i < 5; i++) KT.add(box(0.13, 0.004, 0.003), black, 0, 0.237 + i * 0.011, F + 0.023);
+    KT.add(box(0.15, 0.01, 0.12), grey, 0, 0.096, -0.04).add(cyl(0.007, 0.007, 0.012, 8), grey, 0, 0.088, 0);         // the upper coupler and its kingpin
+    // the landing gear: two legs from the floor to their feet, a cross shaft, the crank
+    for (const s of [-1, 1]) { KT.add(box(0.012, 0.085, 0.012), grey, s * 0.075, 0.062, -0.115); KT.add(box(0.026, 0.006, 0.026), grey, s * 0.075, 0.017, -0.115); }
+    KT.rod([-0.075, 0.08, -0.115], [0.075, 0.08, -0.115], 0.003, grey).rod([0.075, 0.08, -0.115], [0.1, 0.08, -0.115], 0.003, grey).rod([0.1, 0.08, -0.115], [0.1, 0.06, -0.115], 0.003, grey);
+    // side skirts on brackets, reflective tape, side markers
+    for (const s of [-1, 1]) { KT.add(box(0.004, 0.038, 0.2), grey, s * 0.103, 0.083, -0.235); for (const z of [-0.15, -0.235, -0.32]) KT.add(box(0.02, 0.004, 0.006), grey, s * 0.094, 0.101, z); }
+    { const tapeW = std(0xf4f4f0, { roughness: 0.3 }), tapeR = std(0xc81e1e, { roughness: 0.3 }); for (let i = 0; i < 8; i++) for (const s of [-1, 1]) KT.add(box(0.002, 0.006, 0.05), i % 2 ? tapeW : tapeR, s * 0.1065, 0.122, F - 0.04 - i * 0.06); }
+    // tandem axles: hangers down from the floor, axles out to the hubs; mud flaps behind
+    for (const z of [-0.39, -0.47]) { KT.add(cyl(0.007, 0.007, 0.2, 8), black, 0, 0.045, z, 0, 0, Math.PI / 2); for (const s of [-1, 1]) KT.add(box(0.012, 0.06, 0.016), black, s * 0.05, 0.072, z); }
+    for (const s of [-1, 1]) KT.add(box(0.05, 0.05, 0.004), rubber, s * 0.085, 0.06, -0.52);
+    // the back: the doors' seam, hinges, lock rods, the under-ride bar on its legs, lamps
+    KT.add(box(0.004, 0.19, 0.003), black, 0, 0.211, B - 0.0015);
+    for (const s of [-1, 1]) { for (const y of [0.13, 0.18, 0.24, 0.29]) KT.add(box(0.012, 0.01, 0.004), rib, s * 0.1, y, B - 0.002); for (const x of [0.03, 0.06]) KT.add(cyl(0.0025, 0.0025, 0.19, 6), rib, s * x, 0.211, B - 0.004); }
+    KT.add(box(0.2, 0.016, 0.012), grey, 0, 0.06, B - 0.006); for (const s of [-1, 1]) KT.add(box(0.012, 0.04, 0.01), grey, s * 0.07, 0.085, B + 0.002);
+    KT.done();
+    for (const s of [-1, 1]) for (const z of [F - 0.01, -0.28, B + 0.01]) part(box(0.004, 0.008, 0.012), glow(3.4, 1.6, 0.1), s * 0.109, 0.3, z, tb);
+    for (const s of [-1, 1]) { part(box(0.03, 0.016, 0.006), glow(2.4, 0.1, 0.08), s * 0.075, 0.13, B - 0.003, tb); part(box(0.008, 0.008, 0.004), glow(2.4, 0.1, 0.08), s * 0.04, 0.306, B - 0.003, tb); }
+    // dual wheels on the tandem
+    const tyreM = std(0x0d0d0f, { roughness: 0.92 });
     for (const z of [-0.39, -0.47]) for (const s of [-1, 1]) {
       const p = new THREE.Group(); p.position.set(s * 0.085, 0.045, z); const spin = new THREE.Group(); p.add(spin);
-      for (const o of [-0.016, 0.016]) { const t = new THREE.Mesh(cyl(0.045, 0.045, 0.03, 14), std(0x08080a, { roughness: 0.9 })); t.rotation.z = Math.PI / 2; t.position.x = o; spin.add(t); }
-      const hub = new THREE.Mesh(cyl(0.024, 0.024, 0.066, 8), chrome); hub.rotation.z = Math.PI / 2; spin.add(hub);
-      tb.add(p); tw.push({ spin, r: 0.045 });
+      const KW = new Kit(spin);
+      for (const o of [-0.016, 0.016]) { KW.add(cyl(0.045, 0.045, 0.03, 14, 1, true), tyreM, o, 0, 0, 0, 0, Math.PI / 2); KW.add(cyl(0.04, 0.04, 0.033, 14), tyreM, o, 0, 0, 0, 0, Math.PI / 2); }
+      KW.add(cyl(0.028, 0.028, 0.068, 12), chrome, 0, 0, 0, 0, 0, Math.PI / 2).add(cyl(0.012, 0.012, 0.072, 8), black, 0, 0, 0, 0, 0, Math.PI / 2);
+      KW.done(); tb.add(p); tw.push({ spin, r: 0.045 });
     }
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.6), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-    shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.006, -0.25); T.add(shadow);
+    shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.006, -0.28); T.add(shadow);
     // In a picture (and until it is first towed) it stands straight out behind.
     T.position.set(0, 0, -0.12); g.add(T);
     return { group: g, body, wheels, aerial, radius: 0.17, probes: [[0.12, 0.1]], view: 0.66, trailer: { group: T, wheels: tw, hitch: -0.12, len: LEN, rear: 0.53, width: 0.11 } };
   },
-  // A snowplough: a short orange cab-forward truck, a curved steel blade on arms out front, a hopper of grit on the back,
-  // amber beacons. On snow it clears a path a blade wide (winter.js), and the blade shoves loose things aside.
+  // A snowplough: a short cab-forward truck, a curved mouldboard on a push frame out front, lifted by a ram, a hopper of
+  // grit on the back with a spinner under its tail, amber beacons. On snow it clears a path a blade wide (winter.js), and
+  // the blade shoves loose things aside.
   plow() {
     const g = new THREE.Group(), body = new THREE.Group(), wheels = [];
     g.add(body);
-    const paint = P(paintOf(0xf07a14)), black = std(0x0c0c0e, { roughness: 0.7 }), steel = std(0x9aa2ac, { metalness: 0.7, roughness: 0.35 }), glass = std(0x10151c, { roughness: 0.12, metalness: 0.55 }), yellow = paintOf(0xf2c21b), grit = std(0x6a5a48, { roughness: 1 });
-    part(box(0.14, 0.03, 0.38), black, 0, 0.075, -0.01, body);                                           // frame
-    part(box(0.2, 0.13, 0.12), paint, 0, 0.17, 0.1, body);                                               // the cab, flat-fronted
-    part(box(0.18, 0.06, 0.008), glass, 0, 0.2, 0.162, body); for (const s of [-1, 1]) part(box(0.006, 0.05, 0.08), glass, s * 0.101, 0.2, 0.1, body);
-    part(box(0.205, 0.012, 0.125), paint, 0, 0.24, 0.1, body);
-    part(box(0.16, 0.03, 0.01), black, 0, 0.115, 0.163, body);                                           // grille
-    for (const s of [-1, 1]) part(cyl(0.012, 0.012, 0.022, 10), glow(3.4, 1.6, 0.1), s * 0.07, 0.258, 0.11, body);                 // beacons
-    part(box(0.15, 0.01, 0.01), black, 0, 0.27, 0.13, body); for (const s of [-1, 1]) part(ball(0.013), glow(4, 3.8, 3), s * 0.06, 0.28, 0.135, body);   // plough lamps on a bar over the cab
-    for (const s of [-1, 1]) part(box(0.006, 0.05, 0.006), black, s * 0.06, 0.255, 0.13, body);
-    // the hopper on the back, heaped with grit, a spinner under its tail
-    part(box(0.19, 0.1, 0.2), paint, 0, 0.17, -0.1, body);
-    for (const s of [-1, 1]) { const w = part(box(0.008, 0.1, 0.2), yellow, s * 0.098, 0.172, -0.1, body); w.rotation.z = s * 0.08; }
-    part(box(0.17, 0.02, 0.18), grit, 0, 0.225, -0.1, body);
-    part(cyl(0.025, 0.025, 0.008, 12), steel, 0, 0.08, -0.215, body); for (let i = 0; i < 4; i++) { const f = part(box(0.045, 0.008, 0.006), steel, 0, 0.088, -0.215, body); f.rotation.y = i * Math.PI / 4; }
-    for (const s of [-1, 1]) part(box(0.014, 0.08, 0.004), yellow, s * 0.088, 0.17, -0.202, body);       // stripes on the tail
-    part(box(0.17, 0.01, 0.004), black, 0, 0.17, -0.2015, body);
-    // the blade: a curved mouldboard of steel slats, angled, with a cutting edge and markers on its ends
-    const blade = new THREE.Group(); blade.position.set(0, 0, 0.255); blade.rotation.y = 0.12; body.add(blade);
-    for (let i = 0; i < 7; i++) { const a = -0.5 + i * 0.22, y = 0.035 + i * 0.016, z = 0.05 - Math.cos(a) * 0.035; const sl = part(box(0.36, 0.018, 0.008), i % 2 ? yellow : steel, 0, y, z, blade); sl.rotation.x = a; }
-    part(box(0.365, 0.008, 0.012), black, 0, 0.026, 0.045, blade);                                       // cutting edge
-    for (const s of [-1, 1]) { part(box(0.006, 0.1, 0.006), black, s * 0.178, 0.12, 0.02, blade); part(ball(0.008, 6, 5), glow(3.4, 0.4, 0.1), s * 0.178, 0.172, 0.02, blade); }    // end markers
-    for (const s of [-1, 1]) { const arm = part(box(0.012, 0.012, 0.11), steel, s * 0.05, 0.08, 0.2, body); arm.rotation.x = 0.25; }       // push arms
-    part(cyl(0.008, 0.008, 0.06, 8), steel, 0, 0.11, 0.195, body).rotation.x = 1.1;                       // the lift ram
-    lights(body, 0.07, 0.13, 0.163, -0.212);
-    for (const [x, z, f] of [[-0.115, 0.1, true], [0.115, 0.1, true], [-0.115, -0.12, false], [0.115, -0.12, false]]) wheel(g, wheels, x, z, 0.06, 0.055, f, yellow, 8);
-    const aerial = aerialOn(body, -0.08, 0.246, 0.07, 0.24, glow(3.4, 1.6, 0.1));
+    const paint = P(paintOf(0xf07a14)), black = std(0x0c0c0e, { roughness: 0.7 }), steel = std(0x9aa2ac, { metalness: 0.7, roughness: 0.35 }), glass = std(0x0e141c, { roughness: 0.06, metalness: 0.7 }), yellow = paintOf(0xf2c21b), grit = std(0x6a5a48, { roughness: 1 }), chrome = std(0xd8dce2, { metalness: 0.85, roughness: 0.22 }), rubber = std(0x151517, { roughness: 0.85 });
+    const K = new Kit(body);
+    // chassis: rails, cross members, both axles out to the hubs on springs, a step box under the cab
+    for (const s of [-1, 1]) K.add(box(0.025, 0.028, 0.39), black, s * 0.05, 0.076, -0.01);
+    for (const z of [0.16, 0.0, -0.18]) K.add(box(0.1, 0.014, 0.014), black, 0, 0.072, z);
+    for (const z of [0.1, -0.12]) { K.add(cyl(0.009, 0.009, 0.2, 8), black, 0, 0.06, z, 0, 0, Math.PI / 2); for (const s of [-1, 1]) K.add(box(0.016, 0.01, 0.09), black, s * 0.05, 0.066, z); }
+    K.add(ball(0.018, 10, 8), black, 0, 0.06, -0.12);
+    K.add(box(0.168, 0.036, 0.125), black, 0, 0.108, 0.102);
+    // the cab: flat-fronted, sitting on the step box between the front fenders; glass all round
+    K.add(extrude([[0.166, 0.125], [0.169, 0.152], [0.163, 0.236], [0.15, 0.247], [0.052, 0.247], [0.04, 0.236], [0.04, 0.125]], 0.2, 0.006), paint);
+    K.add(box(0.172, 0.064, 0.004), glass, 0, 0.199, 0.1685, -0.07, 0, 0);
+    K.add(extrude([[0.158, 0.172], [0.154, 0.232], [0.1, 0.232], [0.1, 0.172]], 0.206, 0.001), glass);
+    K.add(extrude([[0.09, 0.172], [0.09, 0.232], [0.052, 0.232], [0.052, 0.172]], 0.206, 0.001), glass);
+    K.add(box(0.15, 0.044, 0.004), glass, 0, 0.2, 0.038);
+    K.add(box(0.204, 0.105, 0.0025), black, 0, 0.18, 0.095);                                             // door seams
+    for (const s of [-1, 1]) K.add(box(0.006, 0.006, 0.018), chrome, s * 0.103, 0.165, 0.085);
+    // fenders over the front wheels, joined to the cab's sides; the grille, bumper, lamps
+    for (const s of [-1, 1]) K.add(archBand(0.1, 0.06, 0.071, 0.082, 0.09, 0.062), paint, s * 0.115, 0, 0);
+    K.add(box(0.15, 0.034, 0.004), black, 0, 0.142, 0.17); for (const y of [0.132, 0.142, 0.152]) K.add(box(0.14, 0.003, 0.004), chrome, 0, y, 0.173);
+    K.add(box(0.212, 0.026, 0.026), steel, 0, 0.1, 0.176);
+    // on the roof: two amber beacons on their bases, a light bar on posts, mirrors on arms, the stack up the back corner
+    for (const s of [-1, 1]) K.add(cyl(0.014, 0.016, 0.006, 12), black, s * 0.07, 0.25, 0.1);
+    for (const s of [-1, 1]) K.add(box(0.006, 0.034, 0.006), black, s * 0.06, 0.264, 0.14);
+    K.add(box(0.15, 0.009, 0.012), black, 0, 0.284, 0.14);
+    for (const s of [-1, 1]) { K.rod([s * 0.099, 0.19, 0.15], [s * 0.128, 0.2, 0.152], 0.003, black); K.add(box(0.008, 0.032, 0.022), black, s * 0.132, 0.2, 0.152); K.add(box(0.002, 0.028, 0.019), chrome, s * 0.137, 0.2, 0.152); }
+    K.add(cyl(0.007, 0.007, 0.19, 10), chrome, 0.108, 0.2, 0.034); K.add(cyl(0.0085, 0.007, 0.012, 10), black, 0.108, 0.3, 0.034); for (const y of [0.15, 0.24]) K.add(box(0.012, 0.006, 0.008), chrome, 0.102, y, 0.034);
+    // the hopper on its subframe, heaped with grit; hazard stripes on its tail; the chute and spinner under it
+    K.add(box(0.15, 0.03, 0.21), black, 0, 0.105, -0.1);
+    K.add(extrude([[0.004, 0.12], [-0.19, 0.12], [-0.205, 0.226], [0.008, 0.226]], 0.19, 0.005), paint);
+    K.add(extrude([[0.0, 0.225], [-0.198, 0.225], [-0.172, 0.243], [-0.1, 0.254], [-0.028, 0.244]], 0.172, 0.004), grit);
+    for (const s of [-1, 1]) K.add(box(0.008, 0.01, 0.214), yellow, s * 0.097, 0.229, -0.1).add(box(0.198, 0.01, 0.008), yellow, 0, 0.229, -0.1 + s * 0.103);
+    for (let i = 0; i < 7; i++) K.add(box(0.024, 0.07, 0.003), i % 2 ? black : yellow, -0.072 + i * 0.024, 0.17, -0.2005);
+    K.add(box(0.04, 0.03, 0.03), steel, 0, 0.105, -0.205).add(cyl(0.025, 0.025, 0.006, 14), steel, 0, 0.087, -0.215);
+    for (let i = 0; i < 4; i++) K.add(box(0.044, 0.008, 0.005), steel, 0, 0.093, -0.215, 0, i * Math.PI / 4, 0);
+    // fenders over the back wheels on brackets from the hopper, mud flaps behind them
+    for (const s of [-1, 1]) { K.add(archBand(-0.12, 0.06, 0.068, 0.076, 0.1, 0.06), black, s * 0.115, 0, 0); K.add(box(0.03, 0.006, 0.02), black, s * 0.095, 0.13, -0.12); K.add(box(0.05, 0.05, 0.004), rubber, s * 0.115, 0.068, -0.19); }
+    // the blade: a curved mouldboard, ribbed behind, a cutting edge, a hazard-striped top lip, end plates and markers
+    K.add(extrude(sh => { sh.moveTo(0.313, 0.02); sh.quadraticCurveTo(0.272, 0.082, 0.319, 0.148); sh.lineTo(0.31, 0.152); sh.quadraticCurveTo(0.263, 0.082, 0.304, 0.02); sh.closePath(); }, 0.38, 0.003), paint);
+    for (const x of [-0.14, -0.06, 0.06, 0.14]) K.add(box(0.008, 0.11, 0.014), steel, x, 0.084, 0.277);
+    K.add(box(0.386, 0.012, 0.012), black, 0, 0.026, 0.308);
+    for (let i = 0; i < 10; i++) K.add(box(0.0385, 0.008, 0.014), i % 2 ? black : yellow, -0.173 + i * 0.0385, 0.152, 0.315);
+    for (const s of [-1, 1]) { K.add(box(0.006, 0.124, 0.048), steel, s * 0.193, 0.085, 0.293); K.rod([s * 0.193, 0.147, 0.292], [s * 0.193, 0.21, 0.292], 0.003, black); }
+    // the push frame: a lift plate against the ribs, two arms back to the ends of the rails, a cross tube, the lift ram
+    // off the bumper, and an angle ram each side
+    K.add(box(0.2, 0.08, 0.008), steel, 0, 0.082, 0.268);
+    for (const s of [-1, 1]) K.rod([s * 0.05, 0.076, 0.175], [s * 0.07, 0.062, 0.265], 0.0065, steel);
+    K.rod([-0.058, 0.07, 0.215], [0.058, 0.07, 0.215], 0.005, steel);
+    K.rod([0, 0.1, 0.189], [0, 0.108, 0.226], 0.009, black).rod([0, 0.108, 0.226], [0, 0.116, 0.265], 0.005, chrome);
+    for (const s of [-1, 1]) K.rod([s * 0.055, 0.072, 0.2], [s * 0.095, 0.075, 0.264], 0.005, black);
+    K.done();
+    for (const s of [-1, 1]) { part(cyl(0.011, 0.011, 0.022, 12), glow(3.4, 1.6, 0.1), s * 0.07, 0.264, 0.1, body); part(ball(0.011, 8, 6), glow(4, 3.8, 3), s * 0.055, 0.296, 0.143, body); part(ball(0.007, 6, 5), glow(3.4, 0.4, 0.1), s * 0.193, 0.213, 0.292, body); }
+    for (const s of [-1, 1]) { part(box(0.03, 0.016, 0.004), glow(4, 3.6, 2.6), s * 0.075, 0.172 - 0.04, 0.17, body); part(box(0.018, 0.026, 0.004), glow(2.2, 0.1, 0.08), s * 0.08, 0.14, -0.2035, body); }
+    for (const [x, z, f] of [[-0.115, 0.1, true], [0.115, 0.1, true], [-0.115, -0.12, false], [0.115, -0.12, false]]) wheel2(g, wheels, x, z, 0.06, 0.055, f, yellow, { tread: 8, spokes: 4 });
+    const aerial = aerialOn(body, -0.085, 0.23, -0.19, 0.24, glow(3.4, 1.6, 0.1));
     return { group: g, body, wheels, aerial, radius: 0.18, probes: [[0.27, 0.15]], blade: { z: 0.3, hw: 0.19 }, view: 0.95 };
   },
 };
