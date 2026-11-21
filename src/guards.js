@@ -17,7 +17,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import * as TX from './textures.js';
-import { confine, groundAt } from './plan.js';
+import { confine, groundAt, roomAt } from './plan.js';
 import { BOT, ROOM, patrols, beat, cellAt, lineClear, sight, reach, path } from './guardplan.js';
 
 const PHONE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
@@ -27,7 +27,8 @@ const SEE = { dark: 8, lit: 12 };       // how far it sees you, headlamp off and
 const HEAR = 5;                         // a toy going fast this close is heard, wherever the robot is looking
 const FAN = 20;                         // rays in the pool of light on the floor
 const LOSE = 3;                         // seconds out of sight and it gives up
-const CHARGE = 0.5;                     // the tell before the bolt
+const CHARGE = 1.5;                     // the tell before the bolt: "Warning, warning", time enough to get away
+const ALERT = 1.4;                      // how long it stares, saying nothing yet, before it gives chase
 const EVADE = 5;                        // chases shaken off, for the trophy
 const FINE = 50;                        // chips it keeps
 const TAU = Math.PI * 2;
@@ -285,6 +286,13 @@ function voices(k) {
     thump() { sy.note(80, 0.18, { type: 'sine', vol: 0.1 }); sy.noise(0.1, { vol: 0.05, lp: 500 }); },
     clang() { sy.note(220, 0.4, { type: 'triangle', vol: 0.06 }); sy.note(331, 0.35, { type: 'triangle', vol: 0.04 }); sy.noise(0.12, { vol: 0.07, lp: 2500 }); },
     boing() { osc('sine', 260, 520, 0.22, 0.05); },
+    // A robot's voice: the browser's own speech, low and clipped. Silent when the game's sound is off.
+    speak(text) {
+      try {
+        const sp = typeof speechSynthesis !== 'undefined' && speechSynthesis; if (!sp || !S || S.muted || !(S.vol && S.vol.master > 0)) return;
+        sp.cancel(); const u = new SpeechSynthesisUtterance(text); u.pitch = 0.2; u.rate = 1.1; u.volume = Math.min(1, S.vol.master * 0.9); sp.speak(u);
+      } catch { /* no voice: the words are on the screen anyway */ }
+    },
   };
 }
 
@@ -414,13 +422,17 @@ feature({
     if (G.state !== this.prevState) { if (G.state === 'play') this.grace = Math.max(this.grace, now + 1.5); this.prevState = G.state; }
     if (this.seq) this._sequence(dt, k);
     const frozen = G.state !== 'play';          // looking at a work: they stand where they are
-    const watch = !frozen && !G.held && now > this.grace && !(G.heist && G.heist.active);
+    // Looking at a work: they pass by, and any after you give up; a moment's grace after you look away.
+    if (!!G.study !== !!this.prevStudy) { if (!G.study) this.grace = Math.max(this.grace, now + 2); this.prevStudy = !!G.study; }
+    if (G.study) for (const b of this.bots || []) if (b.mode === 'chase' || b.mode === 'charge' || b.mode === 'alert') { b.sus = 0; this._return(b); }
+    const watch = !frozen && !G.held && !G.study && now > this.grace && !(G.heist && G.heist.active);
     const lamp = !!G.lampOn, drone = v.kind === 'drone';
     let nearest = 1e9;
     for (const b of this.bots) {
       const dx = p.x - b.x, dz = p.z - b.z, d2 = dx * dx + dz * dz, dy = p.y - b.fy;
       const sameLevel = dy > -1.5 && dy < 4;
       b.near = sameLevel && d2 < 45 * 45; b.far = !sameLevel || d2 > 60 * 60;
+      if ((b.rt = (b.rt || 0) - dt) <= 0) { b.rt = 0.3; const r = roomAt(k.plan, b.x, b.z, b.fy + 0.5); b.room = r ? r.id : null; }
       if (!frozen) {
         if (b.far) { b.slow += dt; if (b.slow >= 0.25) { this._step(b, Math.min(b.slow, 0.5), k, false, lamp, drone, now); b.slow = 0; } }
         else this._step(b, dt, k, watch, lamp, drone, now);
@@ -437,8 +449,13 @@ feature({
         if (d < r && d > 1e-4) { const nx = dx / d, nz = dz / d, into = v.vel.x * nx + v.vel.z * nz; p.x = b.x + nx * r; p.z = b.z + nz * r; if (into < 0) { v.vel.x -= nx * into * 1.3; v.vel.z -= nz * into * 1.3; } confine(k.plan, p, v.radius || 0.19, drone); }
       }
     }
+    // Never two in one room: one that has left its beat (after you, or looking about) turns back from a room another is in.
+    for (const b of this.bots) {
+      if (!b.room || !(b.mode === 'chase' || b.mode === 'search' || b.mode === 'alert')) continue;
+      if (this.bots.some(q => q !== b && q.room === b.room)) { b.sus = 0; this._return(b); }
+    }
     // A tick from the beacon of one nearby, so you hear it round a corner before you see it.
-    if (!frozen && nearest < 12 && (this.blipT -= dt) <= 0) { this.blipT = 1.25; this.sfx.blip(); }
+    if (!frozen && nearest < 20 && (this.blipT -= dt) <= 0) { this.blipT = nearest < 10 ? 0.8 : 1.25; this.sfx.blip(); }
     if (!frozen && this.lobbyBot && this.lobbyBot.near && !G.told.has('guards-lobby')) {
       const b = this.lobbyBot;
       if ((p.x - b.x) ** 2 + (p.z - b.z) ** 2 < 15 * 15 && sight(b.g, b.x, b.z, p.x, p.z, false)) { G.told.add('guards'); k.once('guards-lobby', 'A security robot! Duck behind the coat check till it passes.', 6); }
@@ -494,9 +511,13 @@ feature({
         break;
       case 'alert':
         b.v = Math.max(0, b.v - dt * 6); if (b.seen) look(atToy(), 5);
-        if (b.mt > 0.9) {
-          if (now - b.seenAt < 0.35) { b.mode = 'chase'; b.mt = 0; b.lost = 0; b.chaseT = 0; b.replan = 0; b.pn = 0; this.sfx.spotted(); }
-          else this._search(b);
+        if (b.mt > ALERT) {
+          // Only one gives chase at a time: the rest leave it to that one.
+          const other = this.bots.some(q => q !== b && (q.mode === 'chase' || q.mode === 'charge' || q.mode === 'hold'));
+          if (now - b.seenAt < 0.35 && !other) {
+            b.mode = 'chase'; b.mt = 0; b.lost = 0; b.chaseT = 0; b.replan = 0; b.pn = 0; this.sfx.spotted();
+            k.callout('INTRUDER ALERT'); this.sfx.speak('Intruder! Intruder alert!');
+          } else this._search(b);
         }
         break;
       case 'chase': {
@@ -506,7 +527,7 @@ feature({
         if ((b.replan -= dt) <= 0) { b.replan = 0.3; this._plan(b, b.lx, b.lz); if (!b.pn) b.lost += 0.3; }
         if (b.pn) this._follow(b, BOT.run, dt);
         if (b.seen) look(atToy(), 8); else look(b.yaw, 4);
-        if (b.seen && b.cool <= 0 && this._dist3(b, p) < BOT.reach) { b.mode = 'charge'; b.mt = 0; this.sfx.charge(); }
+        if (b.seen && b.cool <= 0 && this._dist3(b, p) < BOT.reach) { b.mode = 'charge'; b.mt = 0; this.sfx.charge(); k.callout('WARNING! WARNING!'); this.sfx.speak('Warning! Warning!'); }
         else if (b.lost > LOSE) {
           this.sfx.giveUp();
           if (b.chaseT > 2.5) { this._evaded(k); k.callout('SHAKEN OFF'); }
@@ -591,7 +612,7 @@ feature({
   _fire(b, k, lamp, drone) {
     const p = k.v.pos, e = this._emitter(b, this.v3);
     const seen = this._sees(b, p, lamp, drone) || (Math.hypot(p.x - b.x, p.z - b.z) < 2 && sight(b.g, b.x, b.z, p.x, p.z, false));
-    const hit = seen && this._dist3(b, p) <= BOT.reach + 0.3 && !k.G.held;
+    const hit = seen && this._dist3(b, p) <= BOT.reach + 0.3 && !k.G.held && !k.G.study;      // (never anyone looking at a work)
     b.cool = 1.1; b.mode = 'chase'; b.mt = 0;
     if (hit) { b.mode = 'hold'; b.v = 0; b.pn = 0; this._capture(b, k); return; }      // ('hold': it stands over you while it is done)
     // Missed: it strikes the floor where you were going to be, a reach away.

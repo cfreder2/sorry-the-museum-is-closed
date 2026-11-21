@@ -684,8 +684,13 @@ and ramps) and never wait in a doorway.
   It is a good deal slower than the car (5.6 m/s against 9.5) but turns
   quicker. Out of its sight for three seconds and it gives up, goes to look
   where it saw you last, and goes back to its beat.
-- **The bolt reaches 1.5 m.** Within that, its prong glows for half a second
-  before it fires: time to swerve, or get something between you. Caught, you
+- **It warns you.** When it gives chase it calls out "Intruder! Intruder
+  alert!" (on the screen too, and spoken when the sound is on). Only one robot
+  chases at a time, and none follows you into a room another is already in.
+- **The bolt reaches 1.5 m.** Within that, it says "Warning! Warning!" and its
+  prong glows for a second and a half before it fires: time to get away, or
+  get something between you. Nobody looking at a work is ever zapped: robots
+  just pass by, and give you a moment after you look away. Caught, you
   are zapped, carried out, and wake up in the dumpster by a back door, which
   throws you out over its lid. It keeps 50 chips. Nothing else is lost.
 - Two trophies: one for the dumpster, one for shaking a robot off five times.
