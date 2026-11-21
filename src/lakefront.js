@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { landable } from './plan.js';
+import { asphaltMaterial, walkMaterial, paintMaterial } from './streetscape.js';
 
 export function buildLakefront(museum, plan) {
   const L = plan.lakefront; if (!L) return;
@@ -41,9 +42,7 @@ export function buildLakefront(museum, plan) {
   // ---- Lake Shore Drive: two carriageways of four lanes, a snowed-up median between kerbs
   for (const [a, b] of [[lsd.x0, lsd.med[0]], [lsd.med[1], lsd.x1]]) {
     flat(road, a, b, z0, z1, 0.004);
-    const w = (b - a) / 4;
-    for (let k = 1; k < 4; k++) for (let z = z0; z < z1; z += 9) flat(paint, a + k * w - 0.07, a + k * w + 0.07, z, z + 3.4, 0.008);
-    for (const x of [a + 0.35, b - 0.35]) flat(paint, x - 0.06, x + 0.06, z0, z1, 0.008);
+    // (its lanes are painted in streets.js, laid to the traffic's)
   }
   for (const x of [lsd.x0, lsd.med[0], lsd.med[1], lsd.x1]) stone.box(x - 0.12, x + 0.12, 0, 0.07, z0, z1);
   for (const st of [plan.grounds.monroe, plan.grounds.jackson]) for (let z = st.z0 + 0.6; z < st.z1 - 0.4; z += 0.9) flat(paint, lsd.x0 - 3.2, lsd.x0 - 0.6, z, z + 0.45, 0.008);       // where the cross streets meet it
@@ -87,14 +86,12 @@ export function buildLakefront(museum, plan) {
   }
 
   // ---- materials
-  const at = TX.asphalt();
   const iceT = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 256; const c = cv.getContext('2d'), r = TX.rng(88); c.fillStyle = '#b9cbe0'; c.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 60; i++) { c.fillStyle = `rgba(${225 + r() * 30},${235 + r() * 20},255,${0.1 + r() * 0.2})`; c.beginPath(); c.ellipse(r() * 256, r() * 256, 10 + r() * 40, 6 + r() * 22, r() * 3, 0, 7); c.fill(); }
     c.strokeStyle = 'rgba(70,95,140,0.5)'; c.lineWidth = 1; for (let i = 0; i < 9; i++) { let x = r() * 256, y = r() * 256; c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 70; y += (r() - 0.5) * 70; c.lineTo(x, y); } c.stroke(); }
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
-  add(road.mesh(new THREE.MeshStandardMaterial({ map: at, roughness: 0.55, emissiveMap: at, emissive: new THREE.Color(0.4, 0.45, 0.6), emissiveIntensity: 0.5, ...off(-1) })));
-  add(paint.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.6, 0.5), ...off(-3) })));
-  add(walk.mesh(new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: 0.85, emissive: 0x3a3f4f, emissiveIntensity: 0.5, ...off(-1) })));
+  add(road.mesh(asphaltMaterial()), walk.mesh(walkMaterial()));
+  { const pm = paint.mesh(paintMaterial(false)); pm.renderOrder = -3; for (let i = 0, uv = pm.geometry.attributes.uv; i < uv.count; i++) uv.setXY(i, 0.25, uv.getY(i) + uv.getX(i)); add(pm); }      // (the middle of the fresh half of the paint)
   add(bike.mesh(new THREE.MeshStandardMaterial({ color: 0x4a5a52, roughness: 0.8, emissive: 0x1c2622, emissiveIntensity: 0.6, ...off(-2) })));
   add(stone.mesh(new THREE.MeshStandardMaterial({ color: 0xa9a59b, roughness: 0.9, emissive: 0x41465a, emissiveIntensity: 0.55 })));
   add(dark.mesh(new THREE.MeshStandardMaterial({ color: 0x23262d, roughness: 0.7, emissive: 0x0e1016, emissiveIntensity: 0.6 })));

@@ -15,6 +15,7 @@ import { frostHedges, hedgeMaterial } from './frost.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { landable } from './plan.js';
+import { walkMaterial } from './streetscape.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export function buildEastSide(museum, plan) {
@@ -22,7 +23,7 @@ export function buildEastSide(museum, plan) {
   const add = (...m) => { for (const x of m) { x.matrixAutoUpdate = false; x.updateMatrix(); group.add(x); } };
   const off = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 };
   const trim = new THREE.MeshStandardMaterial({ color: 0xbdb6a6, roughness: 0.85, emissive: 0x4a4d5c, emissiveIntensity: 0.55 });
-  const paving = new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: 0.85, emissive: 0x3a3f4f, emissiveIntensity: 0.5, ...off });
+  const paving = walkMaterial();                                    // the streets' concrete (streetscape.js)
   const snowTex = museum.snowTex;
   const snow = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 });
   const lawn = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 1, emissiveMap: snowTex, emissive: new THREE.Color(0.3, 0.36, 0.5), emissiveIntensity: 0.62, ...off });
@@ -58,9 +59,7 @@ export function buildEastSide(museum, plan) {
     const C = G.columbus, x1 = C.x0, x0 = x1 - 5.2, zA = G.monroe.z1, zB = G.jackson.z0;
     // The pavement: wide, shovelled, with a kerb at the road. (The trees along it are in the plan, with the others.)
     flat(walk, x0, x1, zA, zB, 0.007, 2.5);
-    kerb.box(x1 - 0.12, x1 + 0.12, 0, 0.07, zA, zB); landable(plan, x1 - 0.12, x1 + 0.12, zA, zB, 0.07);
-    // Squares of open earth round each street tree, under snow.
-    for (const t of G.trees) if (t.x > x0 && t.x < x1) flat(grass, t.x - 0.75, t.x + 0.75, t.z - 0.75, t.z + 0.75, 0.01, 2);
+    // (Its kerb, with ramps at the corners, and the iron grates round the street trees are streets.js's.)
 
     // The east entrance: glass doors with the lights left on, under a thin flat canopy on two posts, and a paved way in from the pavement.
     const face = plan.masses.filter(q => q.top > 8 && q.x1 > 240 && q.z1 > 100 && q.z0 < 120).sort((a, b) => b.x1 - a.x1)[0];

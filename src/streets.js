@@ -4,13 +4,15 @@
 // black mast arms with the green street-name blades, parked cars under snow, pay boxes, bins,
 // hydrants, newspaper boxes, bike racks, bollards before the steps, hedges at the foot of the terrace.
 //
-// All made here by hand, of boxes and painted canvases. Everything that stands up is solid.
+// All made here by hand, of boxes and painted canvases. Everything that stands up is solid. The ground itself (concrete
+// slabs, granite kerbs and their ramps, asphalt, paint, tracks, salt, ironwork) is made of streetscape.js's pieces.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Geo } from './geo.js';
 import { streetY, landable } from './plan.js';
 import { frostHedges, hedgeMaterial } from './frost.js';
+import { trafficLanes, STOP_BACK, TRACK_W, GeoLite, Kerbs, slabs, strip, fixture, FIX, hash, benchParts, slabMaterial, walkMarkMaterial, roadMarkMaterial, paintMaterial, trackMaterial, fixtureMaterial, ironMaterial, slatMaterial } from './streetscape.js';
 
 const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
@@ -21,10 +23,7 @@ export function buildStreets(museum, plan) {
   const east = L ? L.lsd.x0 : B.x1;
   const std = o => new THREE.MeshStandardMaterial(o);
   const mat = {
-    walk: std({ color: 0x9a968e, roughness: 0.85, emissive: 0x3a3f4f, emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
     stone: std({ color: 0x8a867e, roughness: 0.8, emissive: 0x3c404e, emissiveIntensity: 0.55 }),
-    white: new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.6, 0.55), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
-    yellow: new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.5, 0.16), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
     black: std({ color: 0x15171b, roughness: 0.5, metalness: 0.5, emissive: 0x0b0c10, emissiveIntensity: 0.6 }),
     steel: std({ color: 0x9aa2ad, roughness: 0.4, metalness: 0.6, emissive: 0x3a4048, emissiveIntensity: 0.6 }),
     green: std({ color: 0x1f3d27, roughness: 0.95, emissive: 0x0d1c12, emissiveIntensity: 0.7 }),
@@ -48,17 +47,166 @@ export function buildStreets(museum, plan) {
   const g = {}; for (const k in mat) g[k] = new Geo();
   const frost = new Geo();                               // clipped evergreens under the night's snow (frost.js)
   const ob = (x0, x1, z0, z1, y0, y1) => O.push({ x0, x1, z0, z1, y0, y1 });
-  const flat = (q, x0, x1, z0, z1, y, s = 2.5) => q.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
   const paved = q => plan.paved.push(q);
   const bikeRow = [];
   const extra = [];                                                   // loose meshes: signs, blades
   const AV = SY;                                                      // the avenue's level
 
-  // ------------------------------------------------------------------ pavements that were missing
-  // The far side of the avenue, and the wall of shopfronts that stands along it.
-  flat(g.walk, M.x0 - 7, M.x0, B.z0 - 30, B.z1 + 30, AV + 0.008);
-  g.stone.box(M.x0 - 0.12, M.x0 + 0.12, AV, AV + 0.07, B.z0 - 30, B.z1 + 30); landable(plan, M.x0 - 0.12, M.x0 + 0.12, B.z0 - 30, B.z1 + 30, AV + 0.07, AV);      // (every kerb is a top the wheels ride up onto, not sink into)
-  paved({ x0: M.x0 - 8, x1: M.x0, z0: B.z0, z1: B.z1 });
+  // ------------------------------------------------------------------ the ground: pavements, kerbs, the road's paint and wear
+  // (streetscape.js has the materials and the builders; this is where everything is put.)
+  const slabG = new GeoLite(true), walkMk = new GeoLite(), roadMk = new GeoLite(), paintW = new GeoLite(), paintY = new GeoLite(), trackG = new GeoLite(), fixG = new GeoLite();
+  const K = new Kerbs(plan, museum.snowTex, roadMk);
+  const LSD = L ? L.lsd : null, TL = trafficLanes(plan);
+  const lvl = y => () => y;                                           // flat ground at y
+  const yOn = zc => x => streetY(plan, x, zc);                        // along a cross street, as it climbs from the avenue
+  const KINKS = [SX, SX + 12];                                        // where the cross streets change slope
+  // Points along a..b no more than `step` apart, and at every kink, so whatever is laid follows the ground.
+  const breaks = (a, b, step = 6) => { const s = new Set([a, b]); for (let p = Math.ceil(a / step) * step; p < b; p += step) s.add(p); for (const k of KINKS) if (k > a && k < b) s.add(k); return [...s].sort((u, v) => u - v); };
+  const without = (a, b, holes) => { const out = []; let p = a; for (const [h0, h1] of [...holes].sort((u, v) => u[0] - v[0])) { if (h1 <= p || h0 >= b) continue; if (h0 - p > 0.05) out.push([p, h0]); p = Math.max(p, h1); } if (b - p > 0.05) out.push([p, b]); return out; };
+  // Paint: a line `w` wide along a run at `c` across, over a..b, following y(p). Fresh (`crisp`) or worn.
+  const line = (q, axis, a, b, c, w, y, crisp = false, lift = 0.006) => { const pts = breaks(a, b), u0 = crisp ? 0.01 : 0.51, u1 = crisp ? 0.49 : 0.99; for (let i = 0; i < pts.length - 1; i++) { const p0 = pts[i], p1 = pts[i + 1], v0 = p0 / 8, v1 = p1 / 8; const A = (pp, cc, yy) => (axis === 'z' ? [cc, yy, pp] : [pp, yy, cc]); q.quad(A(p0, c - w / 2, y(p0) + lift), A(p1, c - w / 2, y(p1) + lift), A(p1, c + w / 2, y(p1) + lift), A(p0, c + w / 2, y(p0) + lift), [0, 1, 0], [[u0, v0], [u0, v1], [u1, v1], [u1, v0]]); } };
+  // US dashes: 3 m of line, 9 m of gap, kept out of the given stretches.
+  const dashes = (q, axis, a, b, c, y, skip = []) => { for (const [s0, s1] of without(a, b, skip)) for (let p = Math.ceil(s0 / 12) * 12; p < s1 - 0.5; p += 12) line(q, axis, p, Math.min(s1, p + 3), c, 0.11, y); };
+  // A Chicago "ladder" crosswalk, fresh thermoplastic: a bar along each edge and rungs between, in line with the traffic.
+  // `axis` is the way people walk across it; [a, b] its length across the street, [c0, c1] its width.
+  const ladder = (axis, a, b, c0, c1, y) => { line(paintW, axis, a, b, c0 + 0.15, 0.3, y, true); line(paintW, axis, a, b, c1 - 0.15, 0.3, y, true); for (let p = a + 0.35; p < b - 0.5; p += 1.5) { const pe = Math.min(b - 0.3, p + 0.6); line(paintW, axis === 'z' ? 'x' : 'z', c0 + 0.3, c1 - 0.3, (p + pe) / 2, pe - p, () => y(p), true, 0.0062); } };
+  // A stop bar across a..b at c.
+  const bar = (axis, a, b, c, y) => line(paintW, axis, a, b, c, 0.45, y, true);
+  // Wet tracks down a lane.
+  const tracks = (axis, a, b, c, y) => strip(trackG, axis, a, b, c - TRACK_W / 2, c + TRACK_W / 2, y, 0.0055, 0, 8, 0, 1, [0, 1], breaks);
+  // Manholes, seams, sealed cracks and patches down a carriageway: `lanes` the lane centres, `gapsAt` where a cover can lie clear of the tracks.
+  const wear = (axis, a, b, lanes, gapsAt, y, seed, skip = []) => {
+    for (const [s0, s1] of without(a, b, skip)) {
+      // covers, in the gaps between the tracks and clear of the dashes
+      for (let p = s0 + 8 + hash(seed, s0) * 20; p < s1 - 6; p += 34 + hash(p, seed) * 26) { const c = gapsAt[(hash(seed, p, 2) * gapsAt.length) | 0], pp = Math.floor(p / 12) * 12 + 7.5; if (pp > s0 + 2 && pp < s1 - 2) fixture(fixG, axis, pp, c, 0.78, 0.78, y(pp) + 0.007, FIX.manhole); }
+      // sealed cracks across a lane or two
+      for (let p = s0 + hash(s0, seed, 4) * 9; p < s1 - 2; p += 7 + hash(p, seed, 5) * 16) { const i = (hash(p, seed, 6) * lanes.length) | 0, span = 1.4 + hash(seed, p, 7) * 2.2, c = lanes[i] + (hash(p, p, 8) - 0.5) * 1.2; strip(roadMk, axis === 'z' ? 'x' : 'z', c - span, c + span, p - 0.35, p + 0.35, () => y(p), 0.005, 1, 5, hash(p, 1, 9)); }
+      // a seam where two passes of the paver met, beside the lane lines, in lengths
+      for (const c of lanes.slice(0, -1).map((l, i) => (l + lanes[i + 1]) / 2 + 0.4)) for (let p = s0; p < s1 - 4; p += 30 + hash(p, c, 10) * 40) strip(roadMk, axis, p, Math.min(s1, p + 14 + hash(c, p, 11) * 30), c - 0.25, c + 0.25, y, 0.0048, 0, 6, 0, 4, [0, 1], breaks);
+      // patches where the road was dug up
+      for (let p = s0 + 15 + hash(seed, s0, 12) * 25; p < s1 - 4; p += 45 + hash(p, seed, 13) * 50) { const c = lanes[(hash(p, seed, 14) * lanes.length) | 0] + (hash(seed, p, 15) - 0.5) * 2, l = 1.6 + hash(p, 2, 16) * 2.6, w = 0.9 + hash(p, 3, 17) * 1.1; strip(roadMk, axis, p, Math.min(s1, p + l), c - w / 2, c + w / 2, y, 0.0046, 3, l, 0, 4, [0, 1], breaks); }
+    }
+  };
+  // Marks on a pavement: slush and salt along the kerb, packed snow along the outer edge, trails of footprints, salt.
+  const walkMarks = (axis, a, b, kerbC, outerC, y, seed, outerSnow = true) => {
+    const dir = Math.sign(outerC - kerbC), W = Math.abs(outerC - kerbC);
+    // (each column of the atlas is 256 px across and 1024 along: `len` keeps a print or a ring its own shape)
+    strip(walkMk, axis, a, b, kerbC, kerbC + dir * 0.75, y, 0.011, 0, 3.2, hash(seed, 1), 4, [0, 1], breaks);
+    if (outerSnow && W > 2) { const w = Math.min(1.0, W * 0.25); strip(walkMk, axis, a, b, outerC - dir * w, outerC, y, 0.0105, 1, w * 4.5, hash(seed, 2), 4, [0, 1], breaks); }
+    for (let p = a + hash(seed, a) * 6; p < b - 3; p += 5 + hash(p, seed) * 12) { const l = 4 + hash(seed, p, 3) * 16, c = kerbC + dir * (0.9 + hash(p, seed, 4) * Math.max(0.2, W - 1.8)); strip(walkMk, axis, p, Math.min(b, p + l), c - 0.24, c + 0.24, y, 0.0115, 2, 1.9, hash(p, 5), 4, [0, 1], breaks); }
+    for (let p = a + hash(seed, a, 6) * 20; p < b - 2; p += 14 + hash(p, seed, 7) * 30) { const c = kerbC + dir * (0.6 + hash(p, seed, 8) * Math.max(0.2, W - 1.5)); strip(walkMk, axis, p, Math.min(b, p + 1.2), c - 0.6, c + 0.6, y, 0.0112, 3, 4.8, hash(p, 9), 4, [0, 1], breaks); }
+  };
+  // A pad of yellow domes behind a kerb ramp, squares of 0.6 m along the kerb from c0 to c1, at c across.
+  const pads = (axis, c0, c1, c, y) => { const n = Math.max(1, Math.round((c1 - c0) / 0.6)), w = (c1 - c0) / n; for (let i = 0; i < n; i++) fixture(fixG, axis, c0 + w * (i + 0.5), c, w, 0.6, y(c0 + w * (i + 0.5)) + 0.0125, FIX.tactile); };
+  const grate = (x, z, y) => fixture(fixG, 'z', z, x, 1.2, 1.2, y + 0.012, FIX.tree);
+  const drainsAlong = (a, b, avoid, every = 28) => { const out = []; for (let p = a + 9; p < b - 4; p += every) if (!avoid.some(([c0, c1]) => p > c0 - 2 && p < c1 + 2)) out.push(p); return out; };
+  const rampsOf = xs => xs.map(([u, v]) => { const m = (u + v) / 2, h = Math.min(1.6, (v - u) / 2 - 0.2); return [m - h, m + h]; });
+
+  // ---- Michigan Avenue. Its crossings: at Monroe (both legs), Adams (the museum's door) and Jackson (both legs).
+  const XW = [[MO.z0 - 4.0, MO.z0 - 0.8], [MO.z1 + 0.8, MO.z1 + 4.0], [cz - 2.8, cz + 2.8], [JA.z0 - 4.0, JA.z0 - 0.8], [JA.z1 + 0.8, JA.z1 + 4.0]];
+  const MR = rampsOf(XW), busStop = [56, 76];
+  // The far side: a wide pavement in front of the shops, its kerb, and its ramps.
+  { const a = B.z0 - 30, b = B.z1 + 30;
+    slabs(slabG, 'z', a, b, M.x0 - 0.12, M.x0 - 7, lvl(AV));
+    K.run({ axis: 'z', at: M.x0, a, b, side: -1, y: lvl(AV), cuts: MR, drains: drainsAlong(a, b, MR) });
+    for (const [r0, r1] of MR) pads('z', r0, r1, M.x0 - 0.12 - 0.32, lvl(AV));
+    walkMarks('z', a, b, M.x0 - 0.12, M.x0 - 7, lvl(AV), 31);
+    paved({ x0: M.x0 - 8, x1: M.x0, z0: B.z0, z1: B.z1 }); }
+  // The museum's side: from the kerb to the foot of the terrace, broken by the mouths of the two side streets.
+  { for (const [a, b] of [[B.z0, MO.z0], [MO.z1, JA.z0], [JA.z1, B.z1]]) {
+      slabs(slabG, 'z', a, b, M.x1 + 0.12, SX, lvl(AV));
+      const cuts = MR.filter(([u, v]) => u > a && v < b);
+      K.run({ axis: 'z', at: M.x1, a: a === B.z0 ? a : a - 0.12, b: b === B.z1 ? b : b + 0.12, side: 1, y: lvl(AV), cuts, drains: drainsAlong(a, b, [...cuts, busStop]), clear: [busStop] });
+      for (const [r0, r1] of cuts) pads('z', r0, r1, M.x1 + 0.12 + 0.32, lvl(AV));
+      walkMarks('z', a, b, M.x1 + 0.12, SX - 0.9, lvl(AV), 41 + a, false);
+    }
+    for (const t of G.trees) if (t.x > M.x1 && t.x < SX) grate(t.x, t.z, AV);
+    // The kerbs round the mouths of Monroe and Jackson, climbing with them to the museum's level, ramped for the crosswalk over each.
+    for (const st of [MO, JA]) for (const [zk, side] of [[st.z0, -1], [st.z1, 1]]) {
+      const cut = [[M.x1 + 1.4, M.x1 + 3.8]], y = yOn(zk + side * 0.5);
+      K.run({ axis: 'x', at: zk, a: M.x1 + 0.12, b: SX + 12, side, y, cuts: cut, drains: [SX + 9] });
+      pads('x', cut[0][0], cut[0][1], zk + side * 0.44, y);
+    }
+  }
+  // The avenue's lane lines. Southbound (west of the median) two lanes with a parking lane along the far kerb; northbound
+  // two lanes to the museum's kerb, the kerb lane the buses'. Laid to traffic.js's lanes: a dash midway between each pair.
+  { const a = B.z0 - 120, b = B.z1 + 120, y = lvl(AV), sb = TL.ns.mich[1], nb = TL.ns.mich[-1], MEDIAN = -12.6;
+    const skip = [[MO.z0 - STOP_BACK - 0.4, MO.z1 + STOP_BACK + 0.4], [cz - 4.8, cz + 4.8], [JA.z0 - STOP_BACK - 0.4, JA.z1 + STOP_BACK + 0.4]];
+    dashes(paintW, 'z', a, b, (sb[0] + sb[1]) / 2, y, skip); dashes(paintW, 'z', a, b, (nb[0] + nb[1]) / 2, y, skip);
+    for (const [s0, s1] of without(a, b, skip)) line(paintW, 'z', s0, s1, M.x0 + 2.2, 0.1, y);                       // the parking lane's edge
+    for (const [s0, s1] of without(a, b, [[B.z0, B.z1], ...skip])) for (const d of [-0.15, 0.15]) line(paintY, 'z', s0, s1, MEDIAN + d, 0.1, y);      // past the planted median, a double yellow
+    for (const [z0, z1] of XW) ladder('x', M.x0 + 0.3, M.x1 - 0.3, z0, z1, y);
+    bar('x', -11.6, M.x1 - 0.3, cz + 4.4, y); bar('x', M.x0 + 2.3, -13.6, cz - 4.4, y);                              // stop bars at Adams (the rest are traffic.js's)
+    for (const zz of [busStop[0] + 1, busStop[1] - 1]) line(paintW, 'x', (nb[0] + nb[1]) / 2 + 0.2, M.x1 - 0.5, zz, 0.15, y);     // the bus stop's box
+    for (const x of [...sb, ...nb]) tracks('z', a, b, x, y);
+    const xing = [[MO.z0 - 1, MO.z1 + 5], [cz - 3, cz + 3], [JA.z0 - 5, JA.z1 + 1]];
+    wear('z', a, b, [...sb].sort((u, v) => u - v), [(sb[0] + sb[1]) / 2 + 0.15], y, 1, xing);
+    wear('z', a, b, [...nb].sort((u, v) => u - v), [(nb[0] + nb[1]) / 2 - 0.15], y, 2, xing);
+    for (const d of [-1, 1]) strip(roadMk, 'z', a, b, MEDIAN + d * 0.8, MEDIAN + d * 1.7, y, 0.0045, 2, 9, 0.3, 4, [0, 0.7], breaks);     // salt along the median's kerbs
+  }
+
+  // ---- Monroe Street and Jackson Drive: a pavement each side as far as the Drive (not across the open railway cutting,
+  // where there is only the balustrade, nor across the mouth of Columbus Drive), a double yellow down the middle.
+  const cutOpen = plan.cut ? plan.cut.open.map(s => [s.z0, s.z1]) : [];
+  const overCut = (z0, z1) => cutOpen.some(([a, b]) => z1 > a && z0 < b);
+  const crossX = [[C.x0 - 4.2, C.x0 - 1.0], [C.x1 + 1.0, C.x1 + 4.2], ...(LSD ? [[LSD.x0 - 3.2, LSD.x0 - 0.6]] : [])];
+  const XR = rampsOf(crossX);
+  const sidewalk = (z0, z1, kerbZ, inner) => {
+    const side = Math.sign((z0 + z1) / 2 - kerbZ), outer = side > 0 ? z1 : z0;
+    let runs = overCut(z0, z1) ? [[SX + 12, R.x0 - 0.4], [R.x1 + 0.4, east]] : [[SX + 12, east]];
+    if (inner) runs = runs.flatMap(([a, b]) => without(a, b, [[C.x0 - 5.2, C.x1]]));          // Columbus's own pavements turn the corner
+    for (const [xa, xb] of runs) {
+      slabs(slabG, 'x', xa, xb, kerbZ + side * 0.12, outer, lvl(0));
+      const rc = XR.filter(([u, v]) => u > xa && v < xb);
+      K.run({ axis: 'x', at: kerbZ, a: xa, b: xb, side, y: lvl(0), cuts: rc, drains: drainsAlong(xa, xb, rc, 31) });
+      for (const [r0, r1] of rc) pads('x', r0, r1, kerbZ + side * 0.44, lvl(0));
+      walkMarks('x', xa, xb, kerbZ + side * 0.12, outer, lvl(0), 51 + kerbZ, !inner);
+      paved({ x0: xa, x1: xb, z0, z1 });
+    }
+  };
+  sidewalk(MO.z0 - 4, MO.z0, MO.z0, false); sidewalk(MO.z1, MO.z1 + 2.2, MO.z1, true); sidewalk(JA.z0 - 2.2, JA.z0, JA.z0, true); sidewalk(JA.z1, JA.z1 + 4, JA.z1, false);
+  for (const st of [MO, JA]) {
+    const zc = (st.z0 + st.z1) / 2, y = yOn(zc), x0 = M.x1 + STOP_BACK + 0.6, x1 = LSD ? LSD.x0 : east;
+    const skip = [[C.x0 - STOP_BACK - 0.4, C.x1 + STOP_BACK + 0.4], [x1 - STOP_BACK - 0.4, x1]];
+    for (const [s0, s1] of without(x0, x1, skip)) for (const d of [-0.15, 0.15]) line(paintY, 'x', s0, s1, zc + d, 0.1, y);
+    for (const [a, b] of crossX) ladder('z', st.z0 + 0.3, st.z1 - 0.3, a, b, () => 0);
+    ladder('z', st.z0 + 0.3, st.z1 - 0.3, M.x1 + 1.0, M.x1 + 4.2, () => AV);
+    for (const d of [-1, 1]) tracks('x', M.x1, x1, zc + d * TL.ew, y);
+    wear('x', M.x1 + 6, x1 - 2, [zc - TL.ew, zc + TL.ew], [zc - 4.3, zc + 4.3], y, 3 + zc, [[C.x0 - 5, C.x1 + 5]]);
+  }
+  // Columbus Drive: its pavements, a kerb each side ramped at the corners, a bike lane each side, one lane each way.
+  { const zA = MO.z1, zB = JA.z0, XC = [[MO.z1 + 0.6, MO.z1 + 3.8], [JA.z0 - 3.8, JA.z0 - 0.6]], CR = rampsOf(XC), y = lvl(0);
+    slabs(slabG, 'z', MO.z1 + 2.2, JA.z0 - 2.2, C.x1 + 0.12, C.x1 + 2.6, y); paved({ x0: C.x1, x1: C.x1 + 2.6, z0: MO.z1, z1: JA.z0 });
+    walkMarks('z', MO.z1 + 2.2, JA.z0 - 2.2, C.x1 + 0.12, C.x1 + 2.6, y, 61, false);
+    for (const [x, side] of [[C.x0, -1], [C.x1, 1]]) {
+      K.run({ axis: 'z', at: x, a: side < 0 ? zA - 0.12 : zA, b: side < 0 ? zB + 0.12 : zB, side, y, cuts: CR, drains: drainsAlong(zA, zB, CR, 33) });
+      for (const [r0, r1] of CR) pads('z', r0, r1, x + side * 0.44, y);
+    }
+    walkMarks('z', zA, zB, C.x0 - 0.12, C.x0 - 5.2, y, 71, false);
+    // the west pavement's corners, where it meets Monroe's and Jackson's, ramped for the crosswalk over each
+    for (const [zk, side] of [[MO.z1, 1], [JA.z0, -1]]) { const cut = rampsOf([[C.x0 - 4.2, C.x0 - 1.0]]); K.run({ axis: 'x', at: zk, a: C.x0 - 5.2, b: C.x0 - 0.12, side, y, cuts: cut }); pads('x', cut[0][0], cut[0][1], zk + side * 0.44, y); }
+    for (const t of G.trees) if (Math.abs(t.x - (C.x0 - 1.4)) < 0.3) grate(t.x, t.z, 0);
+    for (const t of G.trees) if (Math.abs(t.z - (MO.z1 + 1.3)) < 0.2 || Math.abs(t.z - (JA.z0 - 1.3)) < 0.2) grate(t.x, t.z, 0);
+    const c1 = TL.ns.col[1][0], c2 = TL.ns.col[-1][0];
+    for (const x of [C.x0 + 2.0, C.x1 - 2.0]) line(paintW, 'z', zA + STOP_BACK + 0.4, zB - STOP_BACK - 0.4, x, 0.12, y);       // the bike lanes' lines
+    for (const d of [-0.15, 0.15]) line(paintY, 'z', 103, 117, (C.x0 + C.x1) / 2 + d, 0.1, y);                                 // through the median's gap at the east door
+    for (const [z0, z1] of XC) ladder('x', C.x0 + 0.3, C.x1 - 0.3, z0, z1, y);
+    for (const x of [c1, c2]) tracks('z', zA, zB, x, y);
+    wear('z', zA + 2, zB - 2, [c1], [c1 + 2.7], y, 5); wear('z', zA + 2, zB - 2, [c2], [c2 - 2.7], y, 6);
+  }
+  // Lake Shore Drive: four 3.5 m lanes a side, a white edge line at the kerb, yellow at the median, and the traffic's tracks.
+  if (LSD) { const a = B.z0 - 120, b = B.z1 + 120, y = lvl(0), skip = [[MO.z0 - 1, MO.z1 + 1], [JA.z0 - 1, JA.z1 + 1]];
+    for (const [c0, c1, dirn] of [[LSD.x0, LSD.med[0], 1], [LSD.x1, LSD.med[1], -1]]) {
+      const lane = k => c0 + dirn * (0.25 + 3.5 * k);
+      for (let k = 1; k < 4; k++) dashes(paintW, 'z', a, b, lane(k), y, skip);
+      for (const [s0, s1] of without(a, b, dirn > 0 ? skip : [])) line(paintW, 'z', s0, s1, lane(0), 0.12, y);
+      line(paintY, 'z', a, b, c1 - dirn * 0.3, 0.12, y);
+    }
+    for (const x of [...TL.ns.lsd[1], ...TL.ns.lsd[-1]]) tracks('z', a, b, x, y);
+    wear('z', a, b, [...TL.ns.lsd[1]].sort((u, v) => u - v), [LSD.x0 + 7.25], y, 7, skip); wear('z', a, b, [...TL.ns.lsd[-1]].sort((u, v) => u - v), [LSD.x1 - 7.25], y, 8, skip);
+  }
+
+  // The wall of shopfronts along the far side of the avenue.
   {
     const shop = canvasTex(512, 512, (c, w, h) => {
       c.fillStyle = '#0c0f16'; c.fillRect(0, 0, w, h);
@@ -74,42 +222,6 @@ export function buildStreets(museum, plan) {
     wall.rotation.y = Math.PI / 2; wall.position.set(M.x0 - 7, AV + H / 2, (B.z0 + B.z1) / 2); extra.push(wall);
     const top = new THREE.Mesh(new THREE.PlaneGeometry(len, 24), mat.dark); top.rotation.set(-Math.PI / 2, 0, Math.PI / 2);      // (its length along the avenue, not across it and over the museum) top.position.set(M.x0 - 19, AV + H, (B.z0 + B.z1) / 2); extra.push(top);
   }
-  // Monroe and Jackson, level stretch: a pavement each side with its kerb, as far as the Drive.
-  // (Not across the open railway cutting, where there is only the balustrade.)
-  const cuts = plan.cut ? plan.cut.open.map(s => [s.z0, s.z1]) : [];
-  const overCut = (z0, z1) => cuts.some(([a, b]) => z1 > a && z0 < b);
-  const sidewalk = (z0, z1, kerbZ) => {
-    const runs = overCut(z0, z1) ? [[SX + 12, R.x0 - 0.4], [R.x1 + 0.4, east]] : [[SX + 12, east]];
-    for (const [xa, xb] of runs) { flat(g.walk, xa, xb, z0, z1, 0.012); g.stone.box(xa, xb, 0, 0.07, kerbZ - 0.1, kerbZ + 0.1); landable(plan, xa, xb, kerbZ - 0.1, kerbZ + 0.1, 0.07); paved({ x0: xa, x1: xb, z0, z1 }); }
-  };
-  sidewalk(MO.z0 - 4, MO.z0, MO.z0); sidewalk(MO.z1, MO.z1 + 2.2, MO.z1); sidewalk(JA.z0 - 2.2, JA.z0, JA.z0); sidewalk(JA.z1, JA.z1 + 4, JA.z1);
-  // Columbus Drive's far pavement.
-  flat(g.walk, C.x1, C.x1 + 2.6, MO.z1 + 2.2, JA.z0 - 2.2, 0.012); g.stone.box(C.x1 - 0.1, C.x1 + 0.1, 0, 0.07, MO.z1, JA.z0); landable(plan, C.x1 - 0.1, C.x1 + 0.1, MO.z1, JA.z0, 0.07); paved({ x0: C.x1, x1: C.x1 + 2.6, z0: MO.z1, z1: JA.z0 });
-
-  // ------------------------------------------------------------------ lane paint
-  const dashZ = (x, z0, z1, y, q = g.white) => { for (let z = z0; z < z1 - 3; z += 9) flat(q, x - 0.07, x + 0.07, z, z + 3.6, y); };
-  const dashX = (z, x0, x1, y, q = g.white) => { for (let x = x0; x < x1 - 3; x += 9) flat(q, x, x + 3.6, z - 0.07, z + 0.07, y); };
-  // The avenue: three lanes each way, a parking lane on the far side and a bus lane on the museum's.
-  dashZ(-16.1, B.z0, B.z1, AV + 0.008); dashZ(-9.2, B.z0, B.z1, AV + 0.008);
-  flat(g.white, -22.0, -21.86, B.z0, B.z1, AV + 0.008); flat(g.white, -3.57, -3.43, B.z0, B.z1, AV + 0.008);
-  // Monroe and Jackson: two lanes each way, a double yellow line between.
-  for (const st of [MO, JA]) { const m = (st.z0 + st.z1) / 2; for (const d of [-0.16, 0.16]) flat(g.yellow, SX + 13, east - 4, m + d - 0.05, m + d + 0.05, 0.011); for (const d of [-2.75, 2.75]) dashX(m + d, SX + 14, east - 4, 0.009); }
-  // Columbus: two lanes each way either side of the median.
-  dashZ(C.x0 + 4.2, MO.z1 + 4, JA.z0 - 2, 0.009); dashZ(C.x1 - 4.2, MO.z1 + 4, JA.z0 - 2, 0.009);
-
-  // A zebra across a street running along z (bars lie along z) or along x, and a stop line.
-  const zebraX = (x0, x1, z0, z1, y) => { for (let z = z0; z < z1 - 0.3; z += 0.9) flat(g.white, x0, x1, z, z + 0.45, y); };   // crosses a z-street: walked along x
-  const zebraZ = (x0, x1, z0, z1, y) => { for (let x = x0; x < x1 - 0.3; x += 0.9) flat(g.white, x, x + 0.45, z0, z1, y); };   // crosses an x-street: walked along z
-  // Michigan at Monroe and at Jackson: across the avenue, and across the side street's mouth.
-  zebraX(M.x0 + 0.5, M.x1 - 0.5, MO.z1 + 0.8, MO.z1 + 3.6, AV + 0.008); zebraX(M.x0 + 0.5, M.x1 - 0.5, JA.z0 - 3.6, JA.z0 - 0.8, AV + 0.008);
-  zebraZ(M.x1 + 1.2, M.x1 + 4.0, MO.z0 + 0.4, MO.z1 - 0.4, AV + 0.009); zebraZ(M.x1 + 1.2, M.x1 + 4.0, JA.z0 + 0.4, JA.z1 - 0.4, AV + 0.009);
-  // Stop lines on the avenue, short of each crossing (northbound on the museum's side, southbound on the far side).
-  for (const z of [MO.z1 + 4.6, cz + 4.4, JA.z1 + 1]) flat(g.white, -11.6, M.x1 - 0.3, z - 0.2, z + 0.2, AV + 0.008);
-  for (const z of [MO.z0 - 1, cz - 4.4, JA.z0 - 4.6]) flat(g.white, M.x0 + 2.2, -13.6, z - 0.2, z + 0.2, AV + 0.008);
-  // Columbus at Monroe and at Jackson.
-  zebraX(C.x0 + 0.4, C.x1 - 0.4, MO.z1 + 0.6, MO.z1 + 3.2, 0.009); zebraX(C.x0 + 0.4, C.x1 - 0.4, JA.z0 - 3.2, JA.z0 - 0.6, 0.009);
-  zebraZ(C.x0 - 3.4, C.x0 - 0.8, MO.z0 + 0.4, MO.z1 - 0.4, 0.009); zebraZ(C.x0 - 3.4, C.x0 - 0.8, JA.z0 + 0.4, JA.z1 - 0.4, 0.009);
-
   // ------------------------------------------------------------------ medians
   // A raised planter down the middle: stone kerb, soil, clipped evergreens, a small bare tree now and then, snow lying on it.
   const twig = []; const treeAt = (x, y, z, s = 1) => { const k = (r0, r1, len, rx, rz, yy) => { const c = new THREE.CylinderGeometry(r1, r0, len, 5); c.translate(0, len / 2, 0); c.rotateX(rx); c.rotateZ(rz); c.scale(s, s, s); c.translate(x, y + yy * s, z); twig.push(c); }; k(0.07, 0.045, 1.5, 0, 0, 0); for (let i = 0; i < 5; i++) { const a = i * 1.26 + x; k(0.035, 0.012, 1.3, Math.cos(a) * 0.7, Math.sin(a) * 0.7, 1.35); } };
@@ -168,8 +280,6 @@ export function buildStreets(museum, plan) {
   // Columbus Drive: northbound held short of Monroe, southbound short of Jackson.
   signal(C.x1 + 0.7, MO.z1 + 4.4, 'x', -6.5, 'z', 1, 'G', ['Columbus Dr', 'Monroe St']);
   signal(C.x0 - 0.7, JA.z0 - 4.4, 'x', 6.5, 'z', -1, 'G', ['Columbus Dr', 'Jackson Dr']);
-  for (const z of [MO.z1 + 4.0]) flat(g.white, cmid + 1, C.x1 - 0.3, z - 0.2, z + 0.2, 0.009);
-  for (const z of [JA.z0 - 4.0]) flat(g.white, C.x0 + 0.3, cmid - 1, z - 0.2, z + 0.2, 0.009);
 
   // ------------------------------------------------------------------ small furniture
   const bin = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.24, x + 0.24, y, y + 0.86, z - 0.24, z + 0.24); g.steel.box(x - 0.27, x + 0.27, y + 0.86, y + 0.92, z - 0.27, z + 0.27); g.snow.box(x - 0.2, x + 0.2, y + 0.92, y + 0.97, z - 0.2, z + 0.2); ob(x - 0.25, x + 0.25, z - 0.25, z + 0.25, y, y + 0.95); };
@@ -177,10 +287,11 @@ export function buildStreets(museum, plan) {
   const bollard = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.09, x + 0.09, y, y + 0.9, z - 0.09, z + 0.09); g.black.box(x - 0.12, x + 0.12, y + 0.78, y + 0.84, z - 0.12, z + 0.12); g.snow.box(x - 0.08, x + 0.08, y + 0.9, y + 0.94, z - 0.08, z + 0.08); ob(x - 0.1, x + 0.1, z - 0.1, z + 0.1, y, y + 0.92); };
   const paybox = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.05, x + 0.05, y, y + 1.0, z - 0.05, z + 0.05); g.steel.box(x - 0.17, x + 0.17, y + 1.0, y + 1.55, z - 0.13, z + 0.13); g.glow.box(x - 0.1, x + 0.1, y + 1.3, y + 1.45, z + 0.13, z + 0.14); g.glow.box(x - 0.1, x + 0.1, y + 1.3, y + 1.45, z - 0.14, z - 0.13); g.snow.box(x - 0.17, x + 0.17, y + 1.55, y + 1.6, z - 0.13, z + 0.13); ob(x - 0.17, x + 0.17, z - 0.13, z + 0.13, y, y + 1.6); };
   const newsbox = (x, z, q) => { const y = streetY(plan, x, z); q.box(x - 0.22, x + 0.22, y + 0.12, y + 1.05, z - 0.2, z + 0.2); g.black.box(x - 0.18, x + 0.18, y, y + 0.12, z - 0.16, z + 0.16); g.dark.box(x - 0.23, x - 0.221, y + 0.6, y + 0.95, z - 0.15, z + 0.15); g.snow.box(x - 0.22, x + 0.22, y + 1.05, y + 1.1, z - 0.2, z + 0.2); ob(x - 0.22, x + 0.22, z - 0.2, z + 0.2, y, y + 1.1); };
-  // A bench: slats on iron ends. `ax` is the way its length runs.
-  const bench = (x, z, ax) => { const y = streetY(plan, x, z), L2 = 0.9, D = 0.26; const bx = (q, l0, l1, y0, y1, d0, d1) => ax === 'z' ? q.box(x + d0, x + d1, y0, y1, z + l0, z + l1) : q.box(x + l0, x + l1, y0, y1, z + d0, z + d1);
-    bx(g.wood, -L2, L2, y + 0.42, y + 0.47, -D, D); bx(g.wood, -L2, L2, y + 0.55, y + 0.9, D - 0.04, D); for (const e of [-L2 + 0.08, L2 - 0.14]) bx(g.black, e, e + 0.06, y, y + 0.9, -D, D); bx(g.snow, -L2 + 0.05, L2 - 0.05, y + 0.47, y + 0.5, -D + 0.03, D - 0.06);
-    ax === 'z' ? ob(x - D, x + D, z - L2, z + L2, y, y + 0.9) : ob(x - L2, x + L2, z - D, z + D, y, y + 0.9); };
+  // A bench (streetscape.js's cast iron and slats, snow on it), its front facing (fx, fz). It is solid, as it was: a
+  // car goes round it, not under.
+  const BP = benchParts(), benchAt = { iron: [], wood: [], snow: [] }, M4 = new THREE.Matrix4();
+  const bench = (x, z, fx, fz) => { const y = streetY(plan, x, z); M4.makeRotationY(Math.atan2(fx, fz)).setPosition(x, y, z); for (const k of ['iron', 'wood', 'snow']) benchAt[k].push(BP[k].clone().applyMatrix4(M4));
+    const hl = BP.L / 2 + 0.04, hd = BP.D / 2; fz === 0 ? ob(x - hd, x + hd, z - hl, z + hl, y, y + 0.9) : ob(x - hl, x + hl, z - hd, z + hd, y, y + 0.9); };
   // A sign on a post: white plate, a word or two.
   const plateTex = {}; const plate = (lines, col) => plateTex[lines.join()] || (plateTex[lines.join()] = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: new THREE.Color(0.8, 0.8, 0.8), map: canvasTex(128, 160, (c, w, h) => { c.fillStyle = '#f1efe8'; c.fillRect(0, 0, w, h); c.strokeStyle = col; c.lineWidth = 6; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = col; c.font = '700 26px Helvetica, Arial, sans-serif'; c.textAlign = 'center'; lines.forEach((t, i) => c.fillText(t, w / 2, 44 + i * 32)); }) }));
   const sign = (x, z, lines, col, facing) => { const y = streetY(plan, x, z); g.steel.box(x - 0.03, x + 0.03, y, y + 2.5, z - 0.03, z + 0.03); const m = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.58), plate(lines, col)); m.position.set(x + (facing === 'x' ? 0.04 : 0), y + 2.2, z + (facing === 'z' ? 0.04 : 0)); if (facing === 'x') m.rotation.y = Math.PI / 2; extra.push(m); ob(x - 0.04, x + 0.04, z - 0.04, z + 0.04, y, y + 2.5); };
@@ -272,9 +383,7 @@ export function buildStreets(museum, plan) {
   // The bus stop: a glass shelter with a bench in it, a pole with the route plate, and the kerb painted.
   { const z0 = 62.8, z1 = 67.6, x0 = M.x1 + 0.9, x1 = x0 + 1.5, y = AV;
     shelter(x0, x1, z0, z1, y, x1, z1, 0);
-    bench(x1 - 0.42, (z0 + z1) / 2, 'z'); sign(x0 - 0.2, z1 + 1.4, ['BUS', 'STOP', '3 · 4 · 6'], '#1f4f9a', 'z');
-    flat(g.yellow, M.x1 - 0.5, M.x1 - 0.25, z0 - 6, z1 + 8, AV + 0.008);
-    for (const [zz, t] of [[z0 - 5, 0], [z1 + 7, 0]]) flat(g.white, -3.4, M.x1 - 0.6, zz - 0.1 + t, zz + 0.1 + t, AV + 0.008); }
+    bench(x1 - 0.42, (z0 + z1) / 2, -1, 0); sign(x0 - 0.2, z1 + 1.4, ['BUS', 'STOP', '3 · 4 · 6'], '#1f4f9a', 'z'); }
   // The rest, kept off the ways up to the terrace, the lions and the trees.
   const clearOfWays = z => !S.ways.some(w => z > w.z0 - 3 && z < w.z1 + 3) && Math.abs(Math.abs(z - cz) - F.lion) > 3.4 && !(z > 58 && z < 72);
   let k = 0;
@@ -285,7 +394,7 @@ export function buildStreets(museum, plan) {
     if (k % 4 === 1) sign(px - 0.2, zz + 4, ['NO', 'PARKING', 'BUS LANE'], '#b3261f', 'z');
   }
   // Benches against the foot of the terrace wall, and hoops for bikes.
-  for (const z of [36, 52, 84, 134, 150, 176, 190]) if (clearOfWays(z)) bench(SX - 1.35, z, 'z');
+  for (const z of [36, 52, 84, 134, 150, 176, 190]) if (clearOfWays(z)) bench(SX - 1.35, z, -1, 0);
   for (const z0 of [40, 160]) for (let i = 0; i < 5; i++) { const z = z0 + i * 1.1, x = px + 0.15; g.steel.box(x - 0.42, x + 0.42, AV + 0.78, AV + 0.83, z - 0.025, z + 0.025); for (const d of [-0.42, 0.4]) g.steel.box(x + d, x + d + 0.04, AV, AV + 0.8, z - 0.025, z + 0.025); ob(x - 0.42, x + 0.44, z - 0.04, z + 0.04, AV, AV + 0.83); }
   // The rental bikes: a dock by the kerb, south of the steps.
   { const z0 = 139, x = px + 0.2; g.steel.box(x - 0.9, x - 0.6, AV, AV + 0.1, z0 - 0.3, z0 + 8.3);
@@ -305,19 +414,17 @@ export function buildStreets(museum, plan) {
   for (const z of [44, 120, 200]) bin(M.x0 - 1.0, z); hydrant(M.x0 - 0.9, 80); hydrant(M.x0 - 0.9, 190);
 
   // ---- Monroe Street and Jackson Drive (their inner pavements, by the block)
-  const grate = (x, z) => { g.black.box(x - 0.6, x + 0.6, 0.012, 0.03, z - 0.6, z + 0.6); };
-  for (const t of G.trees) if (Math.abs(t.z - (MO.z1 + 1.3)) < 0.2 || Math.abs(t.z - (JA.z0 - 1.3)) < 0.2) grate(t.x, t.z);
   const clearX = (x, z) => !(x > R.x0 - 6 && x < R.x1 + 6) && !G.trees.some(t => Math.abs(t.x - x) < 1.6 && Math.abs(t.z - z) < 1.6) && !O.some(o => o.y1 > 0.2 && o.y0 < 1 && x > o.x0 - 0.9 && x < o.x1 + 0.9 && z > o.z0 - 0.9 && z < o.z1 + 0.9);
   for (const [zp, zc, sgn] of [[MO.z1 + 1.3, MO.z1 - 1.0, 1], [JA.z0 - 1.3, JA.z0 + 1.0, -1]]) {
     let i = 0;
-    for (let x = 34; x < C.x0 - 14; x += 23, i++) { if (!clearX(x + 6, zp)) continue; if (i % 3 === 0) bench(x + 6, zp + sgn * 0.5, 'x'); else if (i % 3 === 1) bin(x + 6, zp + sgn * 0.3); else hydrant(x + 6, zp - sgn * 0.7); }
+    for (let x = 34; x < C.x0 - 14; x += 23, i++) { if (!clearX(x + 6, zp)) continue; if (i % 3 === 0) bench(x + 6, zp + sgn * 0.5, 0, -sgn); else if (i % 3 === 1) bin(x + 6, zp + sgn * 0.3); else hydrant(x + 6, zp - sgn * 0.7); }
     for (const x of [52, 76, 158, 222]) { if (!clearX(x, zc)) continue; parked(x, zc, 'x', (x / 2 | 0) % 2 ? g.car1 : g.car2); if (clearX(x + 3.2, zp - sgn * 0.75)) paybox(x + 3.2, zp - sgn * 0.75); }
     for (const x of [44, 190]) if (clearX(x, zp - sgn * 0.8)) sign(x, zp - sgn * 0.8, ['2 HOUR', 'PARKING', 'PAY BOX'], '#1f6b3a', 'x');
   }
   // ---- Columbus Drive: a bus stop on the block's side, and bins
   { const z0 = 58, z1 = 62.4, x1 = C.x0 - 3.0, x0 = x1 - 1.4, y = 0;
     shelter(x0, x1, z0, z1, y, x0, z0, 1);
-    bench(x0 + 0.42, (z0 + z1) / 2, 'z'); sign(x1 + 0.6, z1 + 1.2, ['BUS', 'STOP', '6 · 146'], '#1f4f9a', 'z'); }
+    bench(x0 + 0.42, (z0 + z1) / 2, 1, 0); sign(x1 + 0.6, z1 + 1.2, ['BUS', 'STOP', '6 · 146'], '#1f4f9a', 'z'); }
   for (const z of [30, 92, 150, 205]) if (clearX(C.x0 - 3.4, z)) bin(C.x0 - 3.4, z);
   for (const z of [44, 170]) hydrant(C.x1 + 0.9, z);
 
@@ -329,4 +436,13 @@ export function buildStreets(museum, plan) {
   if (twig.length) add(new THREE.Mesh(mergeGeometries(twig), std({ color: 0x2a221c, roughness: 0.9, emissive: 0x1a1d26, emissiveIntensity: 0.9 })));
   if (wheel.length) add(new THREE.Mesh(mergeGeometries(wheel), mat.black));
   for (const m of extra) add(m);
+  // The ground's layers, each one mesh for all the streets: opaque first, then the transparent marks in the order they lie.
+  const lay = (geo, m, order = 0) => { if (geo.empty) return null; const me = new THREE.Mesh(geo.build(), m); me.renderOrder = order; add(me); return me; };
+  lay(slabG, slabMaterial(-1));
+  for (const m of K.meshes(fixG)) add(m);
+  lay(fixG, fixtureMaterial());
+  lay(roadMk, roadMarkMaterial(), -4); lay(paintW, paintMaterial(false), -3); lay(paintY, paintMaterial(true), -3);
+  const wet = lay(trackG, trackMaterial(museum.mirror), -2); if (wet) museum.floors.push(wet);      // (kept out of its own reflection)
+  lay(walkMk, walkMarkMaterial(), -2);
+  if (benchAt.iron.length) { add(new THREE.Mesh(mergeGeometries(benchAt.iron), ironMaterial())); add(new THREE.Mesh(mergeGeometries(benchAt.wood), slatMaterial())); add(new THREE.Mesh(mergeGeometries(benchAt.snow), mat.snow)); }
 }

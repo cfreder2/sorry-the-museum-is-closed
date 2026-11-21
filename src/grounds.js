@@ -17,6 +17,7 @@ import { buildEastSide } from './eastside.js';
 import { buildRailway } from './railway.js';
 import { buildStreets } from './streets.js';
 import { buildLakefront } from './lakefront.js';
+import { asphaltMaterial, walkMaterial } from './streetscape.js';
 
 export function buildGrounds(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, group = museum.group;
@@ -302,7 +303,7 @@ export function buildGrounds(museum, plan) {
 
   // ------------------------------------------------------------------- the streets
   {
-    const urns = [], rampG = new Geo(), posts = new Geo(), railM = new THREE.MeshStandardMaterial({ color: 0x2a2d34, roughness: 0.4, metalness: 0.6, emissive: 0x15171c, emissiveIntensity: 0.6 }), cheek2 = new Geo(), road = new Geo(), paint = new Geo(), walk = new Geo(), kerb = new Geo(), drift = new Geo(), stepG = new Geo(), nosing = new Geo(), cheek = new Geo(), cope = new Geo(), balus = new Geo();
+    const urns = [], rampG = new Geo(), posts = new Geo(), railM = new THREE.MeshStandardMaterial({ color: 0x2a2d34, roughness: 0.4, metalness: 0.6, emissive: 0x15171c, emissiveIntensity: 0.6 }), cheek2 = new Geo(), road = new Geo(), walk = new Geo(), stepG = new Geo(), nosing = new Geo(), cheek = new Geo(), cope = new Geo(), balus = new Geo();
     const flat = (g, x0, x1, z0, z1, y, s = 4) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
     const M = G.michigan, S = plan.street, SX = S.x, SY = S.y, way = id => S.ways.find(w => w.id === id);
     // A stretch that climbs east from the avenue's level to the museum's.
@@ -310,22 +311,11 @@ export function buildGrounds(museum, plan) {
     flat(road, M.x0, M.x1, B.z0, B.z1, SY + 0.004);
     for (const st of [G.monroe, G.jackson]) { flat(road, M.x1, SX, st.z0, st.z1, SY + 0.004); slope(road, SX, SX + 12, st.z0, st.z1, 0.004); flat(road, SX + 12, plan.lakefront ? plan.lakefront.lsd.x0 : B.x1, st.z0, st.z1, 0.004); }
     flat(road, G.columbus.x0, G.columbus.x1, G.monroe.z1, G.jackson.z0, 0.004);
-    // Lane lines: dashes down the avenue, a double line up the middle.
-    for (let z = B.z0; z < B.z1; z += 9) for (const x of [-19, -6.5]) flat(paint, x - 0.08, x + 0.08, z, z + 3.6, SY + 0.008);
-    for (const x of [-12.9, -12.3]) flat(paint, x - 0.07, x + 0.07, B.z0, B.z1, SY + 0.008);
-    // (Monroe's and Jackson's centre lines are painted in streets.js: a double yellow.)
-    for (let z = G.monroe.z1 + 6; z < G.jackson.z0; z += 9) flat(paint, 284.9, 285.1, z, z + 3.6, 0.008);
-    // The crossing at Adams Street, opposite the door.
-    for (let z = F.cz - 3.2; z < F.cz + 3.2; z += 0.9) flat(paint, M.x0 + 0.5, M.x1 - 0.5, z, z + 0.45, SY + 0.008);
-    // The pavement, down at the avenue's level, under snow, with a strip shovelled along it and across to the steps.
-    // Shovelled, the whole width of it: the city does the avenue's pavement. A ridge of what came off it lies along the kerb.
-    flat(walk, M.x1, SX, B.z0, B.z1, SY + 0.008, 2.5);
-    for (let z = B.z0; z < B.z1; z += 9) if (Math.abs(z + 3.5 - F.cz) > 6) drift.box(M.x1 + 0.15, M.x1 + 0.6, SY, SY + 0.07 + ((z * 7) % 5) * 0.012, z + 0.4, z + 7.2);
+    // (The paint on all of it, the avenue's pavement, its kerbs and their ramps are streets.js's.)
     // The pavements of the two side streets, climbing with them.
     for (const w of S.ways) if (w.road) { const st = w.id === 'monroe' ? G.monroe : G.jackson; for (const [a, b2] of [[w.z0, st.z0], [st.z1, w.z1]]) if (b2 - a > 0.2) { slope(walk, SX, SX + 12, a, b2, 0.008, 2.5); } }
     // The terrace before the door: snow, with a way shovelled from the head of the steps to the doors.
     flat(walk, SX + 5.6, F.PX, F.cz - 3.4, F.cz + 3.4, 0.006, 2.5); flat(walk, F.PX - 2.4, F.PX, F.cz - F.half, F.cz + F.half, 0.006, 2.5);
-    kerb.box(M.x1 - 0.12, M.x1 + 0.12, SY, SY + 0.07, B.z0, B.z1); landable(plan, M.x1 - 0.12, M.x1 + 0.12, B.z0, B.z1, SY + 0.07, SY);
 
     // The steps. Eight of them, the width of the pavilion, between the lions' blocks.
     // A low wall you can jump up onto: solid from the side, and a top to drive along. (Anything that flies is stopped by it too.)
@@ -371,11 +361,7 @@ export function buildGrounds(museum, plan) {
     }
     // The walls beside the two streets as they climb.
     for (const w of S.ways) if (w.road) { const zz = w.z0 < 0 ? w.z1 : w.z0, d = w.z0 < 0 ? 1 : -1; plan.surfaces.push({ skin: 'wall', fixed: true, x0: SX, x1: SX + 12, z0: zz - 0.17, z1: zz + 0.17, axis: null, h0: 0.1, h1: 0.1, base: SY }); cheek.quad([SX, SY, zz], [SX + 12, SY, zz], [SX + 12, 0.02, zz], [SX, 0.02, zz], [0, 0, -d]); cheek.quad([SX + 12, SY, zz], [SX, SY, zz], [SX, 0.02, zz], [SX + 12, 0.02, zz], [0, 0, d]); cope.box(SX, SX + 12, -0.04, 0.1, zz - 0.17, zz + 0.17); }
-    const at = TX.asphalt();
-    add(road.mesh(new THREE.MeshStandardMaterial({ map: at, roughness: 0.55, emissiveMap: at, emissive: new THREE.Color(0.4, 0.45, 0.6), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })));
-    add(paint.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.6, 0.5), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
-    add(walk.mesh(new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: 0.85, emissive: 0x3a3f4f, emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })));
-    add(kerb.mesh(base));
+    add(road.mesh(asphaltMaterial()), walk.mesh(walkMaterial()));
     const steps = new THREE.MeshStandardMaterial({ color: 0xbdb3a0, roughness: 0.9, emissive: 0x5c5040, emissiveIntensity: 0.6 });
     add(stepG.mesh(steps), cheek.mesh(stone), cope.mesh(trim), balus.mesh(trim));
     add(nosing.mesh(snow), cheek2.mesh(steps));
@@ -383,7 +369,6 @@ export function buildGrounds(museum, plan) {
     { const bowl = urnGeo(1.05, 0.62).translate(0, -0.28, 0), fl = new THREE.SphereGeometry(0.5, 16, 8);
       const green = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.9, emissive: 0x0e1c12, emissiveIntensity: 0.6 }), red = new THREE.MeshStandardMaterial({ color: 0xb3202a, roughness: 0.8, emissive: 0x6a0d14, emissiveIntensity: 0.8 });
       for (const [x, y, z] of urns) { const u = new THREE.Mesh(bowl, trim), l = clump(0.44, green, x, y + 0.86, z), f = new THREE.Mesh(fl, red); u.position.set(x, y + 0.28, z); f.position.set(x, y + 0.62, z); f.scale.set(1.1, 0.3, 1.1); add(u, f, l); } }
-    const dm = snow.clone(); dm.polygonOffset = true; dm.polygonOffsetFactor = -1; dm.polygonOffsetUnits = -1; add(drift.mesh(dm));
   }
 
   // ------------------------------------------------------------------- the gardens

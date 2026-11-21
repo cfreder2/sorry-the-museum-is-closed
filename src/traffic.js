@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { Geo } from './geo.js';
 import { streetY } from './plan.js';
 import * as TX from './textures.js';
+import { trafficLanes, STOP_BACK, asphaltMaterial, paintMaterial } from './streetscape.js';
 
 const CAP = 24, WANT = 15, NEAR = 235, FAR = 275;      // most there can be; how many we like; how far off they come and go
 const EXT = 100;                                       // how far past the edge of the world the through roads carry on
@@ -168,14 +169,14 @@ export class Traffic {
     const G = plan.grounds, B = plan.bounds, L = plan.lakefront, M = G.michigan;
     const bz0 = B.z0, bz1 = B.z1;
     this.ZN = bz0 - EXT; this.ZS = bz1 + EXT;
-    const mid = (M.x0 + M.x1) / 2 - 0.1;
+    // The lanes are streetscape.js's, so that the paint (streets.js) is laid where the traffic drives.
+    const TL = trafficLanes(plan);
     this.NS = {
-      mich: { x0: M.x0, x1: M.x1, z0: this.ZN, z1: this.ZS, thru: true, lanes: { 1: [M.x0 + 4.6, mid - 3.2],       // clear of the cars parked along the far kerb (streets.js)
-        [-1]: [M.x1 - 4, mid + 3.1] } },
-      col: { x0: G.columbus.x0, x1: G.columbus.x1, z0: G.monroe.z1, z1: G.jackson.z0, lanes: { 1: [G.columbus.x0 + 4.5], [-1]: [G.columbus.x1 - 4.5] } },
+      mich: { x0: M.x0, x1: M.x1, z0: this.ZN, z1: this.ZS, thru: true, lanes: TL.ns.mich },
+      col: { x0: G.columbus.x0, x1: G.columbus.x1, z0: G.monroe.z1, z1: G.jackson.z0, lanes: TL.ns.col },
     };
-    if (L) this.NS.lsd = { x0: L.lsd.x0, x1: L.lsd.x1, z0: this.ZN, z1: this.ZS, thru: true, lanes: { 1: [L.lsd.x0 + 4, L.lsd.med[0] - 4], [-1]: [L.lsd.x1 - 4, L.lsd.med[1] + 3.6] } };
-    const ew = (id, q) => ({ id, z0: q.z0, z1: q.z1, zc: (q.z0 + q.z1) / 2, lanes: { 1: (q.z0 + q.z1) / 2 + 2.0, [-1]: (q.z0 + q.z1) / 2 - 2.0 } });      // two metres either side of the centre line: the kerbs have cars parked at them
+    if (L) this.NS.lsd = { x0: L.lsd.x0, x1: L.lsd.x1, z0: this.ZN, z1: this.ZS, thru: true, lanes: TL.ns.lsd };
+    const ew = (id, q) => ({ id, z0: q.z0, z1: q.z1, zc: (q.z0 + q.z1) / 2, lanes: { 1: (q.z0 + q.z1) / 2 + TL.ew, [-1]: (q.z0 + q.z1) / 2 - TL.ew } });      // either side of the centre line: the kerbs have cars parked at them
     this.EW = [ew('monroe', G.monroe), ew('jackson', G.jackson)];
     for (const k in this.NS) { this.NS[k].id = k; this.NS[k].xc = (this.NS[k].x0 + this.NS[k].x1) / 2; }
 
@@ -211,16 +212,13 @@ export class Traffic {
       if (!n.thru) continue;
       const y = streetY(P, n.xc, 100);
       for (const [a, b] of [[this.ZN - 20, B.z0], [B.z1, this.ZS + 20]]) {
-        flat(road, n.x0, n.x1, a, b, y + 0.004);
-        for (let z = a; z < b - 3.6; z += 9) for (const d of [1, -1]) { const x = (n.lanes[d][0] + n.lanes[d][1]) / 2; flat(paint, x - 0.08, x + 0.08, z, z + 3.6, y + 0.008); }
-        flat(paint, n.xc - 0.4, n.xc - 0.26, a, b, y + 0.008); flat(paint, n.xc + 0.26, n.xc + 0.4, a, b, y + 0.008);
+        flat(road, n.x0, n.x1, a, b, y + 0.004);          // (its lane lines are streets.js's, which paints them past the edge too)
       }
     }
-    // Stop lines.
-    for (const a of this._approaches()) { const y = streetY(P, a.sx, a.sz) + 0.009; if (a.key === 'ns') flat(paint, a.l0, a.l1, a.sz - 0.2, a.sz + 0.2, y); else flat(paint, a.sx - 0.2, a.sx + 0.2, a.l0, a.l1, y); }
-    const at = TX.asphalt();
-    const rm = road.mesh(new THREE.MeshStandardMaterial({ map: at, roughness: 0.55, emissiveMap: at, emissive: new THREE.Color(0.4, 0.45, 0.6), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
-    const pm = paint.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.6, 0.5), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    // Stop bars, fresh paint (UVs into the crisp half of streetscape.js's paint), short of the crosswalks.
+    const bar = (x0, x1, z0, z1, y) => paint.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[0.05, x0 / 8], [0.05, x1 / 8], [0.45, x1 / 8], [0.45, x0 / 8]]);
+    for (const a of this._approaches()) { const y = streetY(P, a.sx, a.sz) + 0.0062; if (a.key === 'ns') bar(a.l0 + 0.3, a.l1 - 0.3, a.sz - 0.22, a.sz + 0.22, y); else bar(a.sx - 0.22, a.sx + 0.22, a.l0 + 0.3, a.l1 - 0.3, y); }
+    const rm = road.mesh(asphaltMaterial()), pm = paint.mesh(paintMaterial(false)); pm.renderOrder = -3;
     for (const m of [rm, pm]) { m.updateMatrix(); this.group.add(m); }
   }
   // Every way up to every crossing: where its stop line is, which lanes it spans, which way it faces.
@@ -231,12 +229,12 @@ export class Traffic {
       for (const d of [1, -1]) {                             // along the north-south street
         const entry = d > 0 ? w.z0 : w.z1; if ((entry - (d > 0 ? n.z0 : n.z1)) * d <= 1) continue;      // the street does not come from that side
         const xs = n.lanes[d], l0 = Math.min(n.xc, d > 0 ? n.x0 : n.x1), l1 = Math.max(n.xc, d > 0 ? n.x0 : n.x1);
-        out.push({ sig, key: 'ns', d, sx: (xs[0] + xs[xs.length - 1]) / 2, sz: entry - d * 2.5, l0, l1, hx: 0, hz: d, edge: d > 0 ? n.x0 : n.x1 });
+        out.push({ sig, key: 'ns', d, sx: (xs[0] + xs[xs.length - 1]) / 2, sz: entry - d * STOP_BACK, l0, l1, hx: 0, hz: d, edge: d > 0 ? n.x0 : n.x1 });
       }
       for (const e of [1, -1]) {                             // along the cross street, which runs only between Michigan and the Drive
         if ((n.id === 'mich' && e > 0) || (n.id === 'lsd' && e < 0)) continue;
         const entry = e > 0 ? n.x0 : n.x1, l0 = Math.min(w.zc, e > 0 ? w.z1 : w.z0), l1 = Math.max(w.zc, e > 0 ? w.z1 : w.z0);
-        out.push({ sig, key: 'ew', e, sx: entry - e * 2.5, sz: w.lanes[e], l0, l1, hx: e, hz: 0, edge: e > 0 ? w.z1 : w.z0 });
+        out.push({ sig, key: 'ew', e, sx: entry - e * STOP_BACK, sz: w.lanes[e], l0, l1, hx: e, hz: 0, edge: e > 0 ? w.z1 : w.z0 });
       }
     }
     return out;
@@ -307,7 +305,7 @@ export class Traffic {
       for (const w of plan.pass) {
         const entry = d > 0 ? w.z0 : w.z1;
         W.line(x, entry, cls(from), altOf(from, d, li));
-        const st = { s: W.s - 2.5, sig: this.sigs[`${from}-${w.id}`], key: 'ns', rect: null }; W.stops.push(st);
+        const st = { s: W.s - STOP_BACK, sig: this.sigs[`${from}-${w.id}`], key: 'ns', rect: null }; W.stops.push(st);
         if (w !== plan.at) continue;
         const e = plan.e, tz = w.lanes[e], left = e === d;
         if (left && n.thru) st.rect = { x0: Math.min(n.xc, d > 0 ? n.x1 : n.x0), x1: Math.max(n.xc, d > 0 ? n.x1 : n.x0), z0: d > 0 ? w.z0 : w.z0 - 48, z1: d > 0 ? w.z1 + 48 : w.z1 };
@@ -319,7 +317,7 @@ export class Traffic {
           const d2 = q.id === 'col' ? (w.id === 'monroe' ? 1 : -1) : q.id === 'lsd' ? 1 : (R() < 0.5 ? 1 : -1);
           const take = end || (turnsLeft > 0 && R() < 0.4);
           W.line(ent, tz, 1, 0);
-          const s2 = { s: W.s - 2.5, sig: this.sigs[`${q.id}-${w.id}`], key: 'ew', rect: null }; W.stops.push(s2);
+          const s2 = { s: W.s - STOP_BACK, sig: this.sigs[`${q.id}-${w.id}`], key: 'ew', rect: null }; W.stops.push(s2);
           if (!take) continue;
           if (!end) turnsLeft--;
           const left2 = d2 !== e;

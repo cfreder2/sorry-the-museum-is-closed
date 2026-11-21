@@ -151,6 +151,15 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   real one is.
 - **The block.** Michigan Avenue to the west, Monroe to the north, Columbus to
   the east and Jackson to the south, at their mapped positions.
+- **The streets, from 40 cm up** (`src/streetscape.js`). Pavements of
+  Chicago concrete in 1.5 m slabs with tooled joints and a broom finish,
+  granite kerbs with a rounded nose and a concrete gutter, ramped with yellow
+  tactile pads at every crosswalk; asphalt with its aggregate, tar seams,
+  sealed cracks and patches; ladder crosswalks, double yellow lines and worn
+  lane dashes laid to the lanes the traffic drives in; wet tyre tracks through
+  the slush, snow ploughed into the gutters, salt, footprints, manhole covers,
+  storm drains and iron tree grates. The benches are cast iron and slats with
+  the night's snow on them.
 - **The railway** runs north to south in its cutting and under the galleries
   that bridge it (240 to 249), with a commuter train stopped for the night.
 - **The gardens.** The North Garden with its rows of trees and Calder's red
