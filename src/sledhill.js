@@ -11,10 +11,11 @@
 // mesh, the props another, the bulbs one instanced mesh, the wires one more. Nothing moves but the clock and the twinkle.
 import * as THREE from 'three';
 import { feature } from './features.js';
+import { groundAt, confine, GRAVITY } from './plan.js';
 import { buildLand, TOP, RUN_W, RUN_LIP, PATH_W, FINISH_S, TUNNEL, KICKERS, STAIR } from './sledland.js';
 import { Bulbs, Wire, canvasTex, C, TAU } from './glowkit.js';
 
-const GOOD = 14;                                  // seconds, gate to finish
+const GOOD = 19;                                  // seconds, gate to finish
 const AREA = { x0: 298, x1: 388, z0: 108, z1: 218 };
 
 const rng = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
@@ -94,9 +95,129 @@ feature({
       finish: { x0: fin.x - RUN_W - 1.6, x1: fin.x + RUN_W + 1.6, z0: fin.z, z1: fin.z + 5 },
       inside: p => { const n = L.node(p.x, p.z); return n >= 0 && L.along[n] > 0.6; },      // (on the run, or close beside it, and past the gate)
       onStart: () => k.synth.chime([523, 784], { gap: 0.1, dur: 0.5 }),
-      onFinish: t => { if (t < GOOD) { if (k.find('sledding')) k.callout('SLEDDING'); k.synth.chime([523, 659, 784, 1047]); } else k.say(`${t.toFixed(1)} s. Under ${GOOD} and the hill is yours.`, 3.5); },
+      onFinish: t => { this.finished = true; if (t < GOOD) { if (k.find('sledding')) k.callout('SLEDDING'); k.synth.chime([523, 659, 784, 1047]); } else k.say(`${t.toFixed(1)} s. Under ${GOOD} and the hill is yours.`, 3.5); },
     });
+    // The sled waiting at the gate, and the one that is ridden (and left at the bottom until the next go).
+    this.gate = { x: g0.x - 1.6, z: g0.z, yaw: Math.atan2(g0.tx, g0.tz) }; this.gate.y = hAt(this.gate.x, this.gate.z);
+    this.waiting = this._toySled(); this.ridden = this._toySled(); this.ridden.visible = false; g.add(this.waiting, this.ridden);
+    this._poseSled(this.waiting, this.gate.x, this.gate.z, this.gate.yaw, 0);
+    { const gt = this.gate, hx = Math.abs(Math.sin(gt.yaw)) * 0.33 + Math.abs(Math.cos(gt.yaw)) * 0.14, hz = Math.abs(Math.cos(gt.yaw)) * 0.33 + Math.abs(Math.sin(gt.yaw)) * 0.14; this.gateSled = { x0: gt.x - hx, x1: gt.x + hx, z0: gt.z - hz, z1: gt.z + hz, y0: gt.y - 0.5, y1: gt.y + 0.15, gate: { off: false } }; this.O.push(this.gateSled); }      // (the waiting sled is in the way, until it is taken)
+    this.ride = (dt, inp) => this._ride(dt, inp);
     this.built = performance.now() - t0;
+  },
+
+  // ============================================================ the sled
+  // A toy's toboggan: three boards, the front curled up and over, cross bars and a red rope down each side. It is made
+  // to the toy's size (the ones lying about the hill are people's).
+  _toySled() {
+    const P = new Parts(), wood = col(0xa8743e), dark = col(0x7a5030), rope = col(0xc8352a);
+    for (const dx of [-0.075, 0, 0.075]) {
+      P.box(0.068, 0.012, 0.56, wood, M4(dx, 0.012, -0.04));
+      for (let i = 1; i <= 7; i++) { const a = i / 7 * Math.PI * 0.95, R = 0.065; P.box(0.068, 0.012, 0.032, wood, new THREE.Matrix4().makeRotationX(-a).premultiply(new THREE.Matrix4().makeTranslation(dx, 0.012 + R - Math.cos(a) * R, 0.24 + Math.sin(a) * R))); }
+    }
+    for (const z of [-0.28, -0.12, 0.04, 0.2]) P.box(0.24, 0.014, 0.022, dark, M4(0, 0.026, z));
+    for (const sd of [-1, 1]) rod(P, new THREE.Vector3(sd * 0.125, 0.04, -0.3), new THREE.Vector3(sd * 0.125, 0.04, 0.26), 0.005, 0.005, rope, 0, 4);
+    const m = P.mesh(0.3), g = new THREE.Group(); m.matrixAutoUpdate = true; g.add(m); return g;
+  },
+  // Lie a sled on the snow at (x, z) facing yaw, leaning `roll` more than the slope does. Returns the slope's pitch and roll.
+  _poseSled(o, x, z, yaw, roll, y) {
+    const e = 0.25, base = y ?? this.L.heightAt(x, z), h = (a, b) => groundAt(this.k.plan, a, b, base + 0.2, 0.12);
+    const gx = (h(x + e, z) - h(x - e, z)) / (2 * e), gz = (h(x, z + e) - h(x, z - e)) / (2 * e), fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const pitch = -Math.atan(gx * fx + gz * fz), side = -Math.atan(gx * -fz + gz * fx);
+    o.position.set(x, y ?? h(x, z), z); o.rotation.set(pitch, yaw, side + roll, 'YXZ');
+    return { pitch, side };
+  },
+  near(v, k) {
+    if (!this.L || k.G.mode !== 'explore' || k.plan.racing) return null;
+    if (this.riding) return { verb: 'OFF', hint: '', act: () => this._off('') };
+    if (k.close(this.gate, 1.8, 1.2) && (v.kind === 'car' || v.kind === 'drone')) return { verb: 'SLED', hint: 'E to sled.', act: () => this._on() };
+    return null;
+  },
+  // On: the toy sits in the sled at the gate, the engine is nothing to it, and the clock is ready.
+  _on() {
+    const k = this.k, v = k.v, G = k.G, gt = this.gate;
+    this.ridden.visible = true; this.waiting.visible = false; this.gateSled.gate.off = true;
+    this.S = { x: gt.x, z: gt.z, y: gt.y, vx: Math.sin(gt.yaw) * 1.6, vz: Math.cos(gt.yaw) * 1.6, vy: 0, yaw: gt.yaw, lean: 0, air: false, airT: 0, off: 0, knock: 0 };
+    this.riding = v; this.finished = false; this.timer.cancel(); G.ride = this.ride;
+    v.vel.set(0, 0, 0); if (v.kind === 'car') { v.air = false; v.rail = null; v.vy = 0; v.flip = v.spin = 0; }
+    k.synth.note(330, 0.15, { type: 'triangle', vol: 0.05 });
+    k.once('sled-lean', 'Lean to steer. Lean back to brake.', 4);
+  },
+  // Off: beside the sled, on the toy's own wheels (or rotors) again. The sled stays where it stopped; a fresh one is at the gate.
+  _off(why) {
+    const k = this.k, G = k.G, v = this.riding, S = this.S; if (!v) return;
+    this.riding = null; if (G.ride === this.ride) G.ride = null;
+    if (this.timer.state === 'running') this.timer.cancel(why || null); else if (why) k.say(why, 2.5);
+    this.waiting.visible = true; this.gateSled.gate.off = false;
+    const rx = -Math.cos(S.yaw), rz = Math.sin(S.yaw), x = S.x + rx * 0.45, z = S.z + rz * 0.45;
+    if (v === k.v) { if (v.kind === 'drone') v.place(x, z, S.yaw, groundAt(k.plan, x, z, S.y + 0.3) + 0.25); else v.place(x, z, S.yaw, S.y); }
+    this._poseSled(this.ridden, S.x, S.z, S.yaw, 0, S.y);
+  },
+  // The ride. Gravity down the slope, packed snow under the runners (they hold sideways and slide forwards), the air off
+  // a crest, and the rider: a lean turns the sled, a little late and more gently the slower it goes; leaning back drags
+  // a heel; stopped dead, a shove gets it going. The engine does nothing. The ground is the hill's own (groundAt, so the
+  // same surface the car drives on and the mesh is drawn from).
+  tune: { fall: 1.7, snow: 0.12, air: 0.003, heel: 2.4, turn: 1.4 },      // gravity down the slope (a toy's sled is quick), snow, air, a dragged heel, the sharpest turn (rad/s)
+  _ride(dt, inp) {
+    const K = this.tune, k = this.k, v = this.riding, S = this.S, plan = k.plan, gAt = (x, z, y) => groundAt(plan, x, z, y, 0.12);
+    if (!v || v !== k.v || k.G.held) { this._off(''); return; }
+    const drone = v.kind === 'drone', want = Math.max(-1, Math.min(1, drone ? (inp.roll || 0) + (inp.yaw || 0) : inp.steer || 0));
+    const fwd = drone ? inp.pitch || 0 : inp.throttle || 0, back = Math.max(0, -fwd), shove = Math.max(0, fwd);
+    const p = this._p || (this._p = { x: 0, y: 0, z: 0 }), out = this._o || (this._o = { x: 0, y: 0, z: 0 });
+    let bump = 0;
+    for (let n = Math.max(1, Math.ceil(dt * 120)), i = 0; i < n; i++) {
+      const h = dt / n, e = 0.25;
+      S.lean += (want - S.lean) * Math.min(1, h * 5);
+      if (!S.air) {
+        const g0 = gAt(S.x, S.z, S.y + 0.2), gx = (gAt(S.x + e, S.z, g0 + 0.3) - gAt(S.x - e, S.z, g0 + 0.3)) / (2 * e), gz = (gAt(S.x, S.z + e, g0 + 0.3) - gAt(S.x, S.z - e, g0 + 0.3)) / (2 * e), q = 1 + gx * gx + gz * gz;
+        const fx = Math.sin(S.yaw), fz = Math.cos(S.yaw), sp = Math.hypot(S.vx, S.vz);
+        const vf = S.vx * fx + S.vz * fz; let vs = S.vx * -fz + S.vz * fx;
+        // the turn: from the lean, and the sled swinging round to the way it is really going
+        const turn = Math.min(K.turn, 0.3 + 0.105 * sp) * (this.finished ? 0.4 : 1);
+        S.yaw -= (S.lean * turn + 2.4 * Math.atan2(vs, Math.max(1, Math.abs(vf)))) * h;
+        const nfx = Math.sin(S.yaw), nfz = Math.cos(S.yaw);
+        vs *= Math.exp(-3.2 * h);
+        S.vx = nfx * vf - nfz * vs; S.vz = nfz * vf + nfx * vs;
+        // gravity along the slope; snow and air against the way it is going, a heel dragged, a shove from standing
+        S.vx -= K.fall * GRAVITY * gx / q * h; S.vz -= K.fall * GRAVITY * gz / q * h;
+        const s2 = Math.hypot(S.vx, S.vz);
+        if (s2 > 1e-3) { const drag = Math.min(s2, (K.snow / Math.sqrt(q) + K.air * s2 * s2 + back * K.heel + (this.finished ? 6 : 0)) * h); S.vx -= S.vx / s2 * drag; S.vz -= S.vz / s2 * drag; }
+        if (shove > 0.2 && s2 < 2 && !this.finished) { S.vx += nfx * 2.6 * shove * h; S.vz += nfz * 2.6 * shove * h; }
+      } else S.yaw -= S.lean * 0.3 * h;
+      // move, and off anything solid: a stake, the fence, a tree, the walls of the bore. It costs speed.
+      S.x += S.vx * h; S.z += S.vz * h;
+      p.x = S.x; p.y = S.y; p.z = S.z;
+      if (confine(plan, p, 0.2, false, out)) {
+        const l = Math.hypot(out.x, out.z);
+        if (l > 1e-6) { const nx = out.x / l, nz = out.z / l, into = S.vx * nx + S.vz * nz; if (into < 0) { S.vx -= nx * into * 1.3; S.vz -= nz * into * 1.3; S.vx *= 0.65; S.vz *= 0.65; bump = Math.max(bump, -into); S.knock = 0.35; } }
+        S.x = p.x; S.z = p.z;
+      }
+      // up and down: on the snow while it is there; in the air when it falls away faster than gravity would take you
+      const g1 = gAt(S.x, S.z, S.y + 0.2), yb = S.y + S.vy * h - 0.5 * GRAVITY * h * h;
+      if (S.air) {
+        S.vy -= GRAVITY * h; S.y += S.vy * h; S.airT += h;
+        if (S.y <= g1) {
+          const sx = (gAt(S.x + e, S.z, g1 + 0.3) - gAt(S.x - e, S.z, g1 + 0.3)) / (2 * e), sz = (gAt(S.x, S.z + e, g1 + 0.3) - gAt(S.x, S.z - e, g1 + 0.3)) / (2 * e);
+          const along = sx * S.vx + sz * S.vz, impact = along - S.vy;
+          if (impact > 3.5) { const f = Math.max(0.6, 1 - (impact - 3.5) * 0.06); S.vx *= f; S.vz *= f; bump = Math.max(bump, impact * 0.4); }
+          S.y = g1; S.vy = along; S.air = false; this.lastAir = S.airT; this.airs = (this.airs || 0) + 1;
+        }
+      } else if (yb - g1 > 2 * h * h + 0.0002 && Math.hypot(S.vx, S.vz) > 3) { S.air = true; S.airT = 0; S.y = yb; S.vy -= GRAVITY * h; }
+      else { S.vy = (g1 - S.y) / h; S.y = g1; }
+    }
+    S.knock = Math.max(0, S.knock - dt);
+    // off the run (a moment in the air over its edge does not count): bailed
+    const nd = this.L.node(S.x, S.z), on = (nd >= 0 && this.L.along[nd] > 0.3) || Math.hypot(S.x - TOP.x, S.z - TOP.z) < TOP.r + 0.8;
+    S.off = on || S.air ? 0 : S.off + dt;
+    if (S.off > 0.5) { this._off('Off the run, and off the sled.'); return; }
+    // at the bottom, over the line and slowed (or stopped by the fence): off
+    if (this.finished && Math.hypot(S.vx, S.vz) < 1.2) { this._off(''); return; }
+    // the sled, and the toy sitting in it, leaning (and shaken when it hits something)
+    const { pitch, side } = this._poseSled(this.ridden, S.x, S.z, S.yaw, 0, S.y), lean = S.lean * 0.28 + Math.sin(this.t * 40) * S.knock * 0.15;
+    v.pos.set(S.x, S.y + 0.045, S.z); v.vel.set(S.vx, S.vy, S.vz); v.yaw = S.yaw; v.bump = bump; v.on = this.surf;
+    if (drone) { v.pitch = pitch; v.roll = side + lean; v.landed = true; v.pos.y += 0.03; }
+    else { v.air = false; v.tilt = pitch; v.roll = side + lean; v.speed = 0; v.steer = 0; v.throttle = 0; v.launched = 0; v.landed = null; }
+    v.sync(dt);
   },
 
   // ============================================================ the ground
@@ -477,17 +598,9 @@ feature({
   update(dt, k) {
     this.t += dt; if (this.bulbs.u) this.bulbs.u.uT.value = this.t;
     const v = k.v, L = this.L;
-    if (k.close(this.at, 5, 1.5)) k.once('sled-start', 'The top of the sledding hill. The clock starts at the gate.', 5);
-    this.timer.update(dt);
-    // Packed snow is quick: on the run, going down it, a push along the way you are going.
-    if (v.kind === 'car' && !v.air && v.on === this.surf) {
-      const n = L.node(v.pos.x, v.pos.z);
-      if (n >= 0 && (L.kind[n] === 1 || L.kind[n] === 2)) {
-        const tx = L.tan[n * 2], tz = L.tan[n * 2 + 1], along = v.vel.x * tx + v.vel.z * tz, sp = Math.hypot(v.vel.x, v.vel.z);
-        if (along > 0.3 && sp < 12.5) { const f = 1 + 2.6 * dt / Math.max(sp, 0.5); v.vel.x *= f; v.vel.z *= f; }
-      }
-    }
+    if (k.close(this.at, 5, 1.5)) k.once('sled-start', 'The top of the sledding hill. A sled at the gate: the clock starts as you go.', 5);
+    if (this.riding) this.timer.update(dt); else if (this.timer.state !== 'idle') this.timer.cancel();      // (the clock is for sleds)
   },
   spots() { return this.at ? [{ kind: 'secret', id: 'sledding', name: `Sledding (under ${GOOD} s)`, ...this.at }] : []; },
-  reset() { if (this.timer) this.timer.cancel(); },
+  reset() { if (this.riding) this._off(''); if (this.timer) this.timer.cancel(); },
 });
