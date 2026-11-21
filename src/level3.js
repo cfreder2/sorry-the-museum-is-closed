@@ -669,7 +669,7 @@ feature({
   },
   active(k) { return !!this.timer && k.inRoom('G389', 1); },
   update(dt, k) {
-    if (k.close(this.at, 2.5)) once(k, 'sprint', `The whole corridor, flat out. Under ${this.GOAL.toFixed(0)} seconds.`, 4);
+    if (k.close(this.at, 2.5)) once(k, 'sprint', `The whole corridor, flat out. Under ${this.GOAL.toFixed(1)} seconds.`, 4);
     this.timer.update(dt);
     const v = k.v, sp = Math.hypot(v.vel.x, v.vel.z);
     if (this.timer.state === 'running' && sp > 1.5 && (this.emit -= dt) <= 0) {

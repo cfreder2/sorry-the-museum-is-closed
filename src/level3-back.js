@@ -129,7 +129,7 @@ feature({
     const icing = std(0xfbf4ea, { roughness: 0.55 }), pink = std(0xe58aa8, { roughness: 0.5 });
     const cake = new THREE.Mesh(lathe([[0, 0], [0.16, 0], [0.165, 0.01], [0.165, 0.1], [0.16, 0.11], [0.0, 0.11]], 40), icing); cake.position.y = 0.43; g.add(cake);
     const tier = new THREE.Mesh(lathe([[0, 0], [0.1, 0], [0.105, 0.01], [0.105, 0.07], [0.1, 0.075], [0, 0.075]], 36), icing); tier.position.y = 0.54; g.add(tier);
-    for (const [rr, yy, n] of [[0.165, 0.435, 22], [0.105, 0.545, 16]]) for (let i = 0; i < n; i++) { const a = i / n * TAU, b = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 5), pink); b.position.set(Math.cos(a) * rr, yy, Math.sin(a) * rr); g.add(b); }
+    { const beads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.012, 6, 5), pink, 38), M = new THREE.Matrix4(); let n = 0; for (const [rr, yy, c] of [[0.165, 0.435, 22], [0.105, 0.545, 16]]) for (let i = 0; i < c; i++) { const a = i / c * TAU; beads.setMatrixAt(n++, M.makeTranslation(Math.cos(a) * rr, yy, Math.sin(a) * rr)); } g.add(beads); }
     const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.008, 32), std(0xd8d8d8)); plate.position.y = 0.434; g.add(plate);
     this.candles = [];
     for (let i = 0; i < 6; i++) {

@@ -4,6 +4,7 @@
 // snowman, and a coin viewer that looks up the Bridgeway into Millennium Park. Through the doors, Terzo Piano: ring at
 // the kitchen pass and run the plate to the table that is laid for eleven o'clock.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { TAU, std, metal, glowMat, canvasTex, lathe, glow, spot, block, rnd, ease } from './level3kit.js';
 
@@ -46,7 +47,7 @@ feature({
       const near = Math.max(0, 1 - (((o.x0 + o.x1) / 2) - r.x0) / (W * 0.9));
       const g = new THREE.CapsuleGeometry(0.5, 1, 3, 10); g.rotateZ(Math.PI / 2); g.scale((w - 0.04) / 2, 0.012 + 0.03 * near, d - 0.04); g.translate((o.x0 + o.x1) / 2, o.y1 + 0.005, (o.z0 + o.z1) / 2); caps.push(g);
     }
-    for (const g of caps) k.group.add(new THREE.Mesh(g, snowMat()));
+    if (caps.length) k.group.add(new THREE.Mesh(mergeGeometries(caps), snowMat()));
     // The glass along the open side: panes waist high and a little more, a steel rail on top, posts between.
     const glass = new THREE.MeshStandardMaterial({ color: 0xcfe3ee, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, emissive: 0x223844, depthWrite: false, side: THREE.DoubleSide });
     const steel = metal(0xb8bec4, { roughness: 0.3 }), gx = r.x0 + 0.04, gh = 1.15;
@@ -254,7 +255,11 @@ feature({
   },
   start(k) {
     this.view = 9; k.synth.note(1200, 0.05, { type: 'square', vol: 0.03 }); k.synth.noise(0.3, { vol: 0.03, lp: 2500, at: 0.05 });
-    if (!this.mask) { this.mask = document.createElement('div'); this.mask.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:20;background:radial-gradient(circle at 37% 50%, transparent 0 21vmin, rgba(0,0,0,.92) 23vmin) , radial-gradient(circle at 63% 50%, transparent 0 21vmin, rgba(0,0,0,.92) 23vmin);background-blend-mode:darken;transition:opacity .5s;opacity:0'; document.body.append(this.mask); }
+    if (!this.mask) {
+      this.mask = document.createElement('div'); this.mask.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:20;transition:opacity .5s;opacity:0';
+      this.mask.innerHTML = '<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><defs><filter id="l3vb"><feGaussianBlur stdDeviation="0.9"/></filter><mask id="l3vm"><rect width="100" height="100" fill="#fff"/><g filter="url(#l3vb)"><circle cx="39" cy="50" r="17" fill="#000"/><circle cx="61" cy="50" r="17" fill="#000"/></g></mask></defs><rect width="100" height="100" fill="#000" fill-opacity=".95" mask="url(#l3vm)"/></svg>';
+      document.body.append(this.mask);
+    }
     requestAnimationFrame(() => { if (this.mask) this.mask.style.opacity = '1'; });
     if (k.find('l3viewer')) setTimeout(() => k.callout('UP THE BRIDGEWAY'), 1200);
   },
@@ -354,6 +359,39 @@ feature({
   },
   reset(k) { if (!this.timer) return; this.timer.cancel(); this.carrying = false; this.plate.visible = true; this.served.visible = false; },
   spots() { return this.at ? [{ kind: 'secret', id: 'l3service', name: 'Service! (ring at the pass, run the plate)', ...this.at }] : []; },
+});
+
+// ================================================================ Terzo Piano: a bottle on ice
+// A champagne bucket on its stand between the tables. Knock it and it goes over, ice and all.
+feature({
+  id: 'l3bucket',
+  init(k) {
+    const r = k.plan.byId['MW3-terzo']; if (!r) return;
+    const s = spot(k, 'MW3-terzo', 0.5, 0.5, 0.35, 1.2) || spot(k, 'MW3-terzo', 0.3, 0.55, 0.35, 1.2); if (!s) return;
+    const g = new THREE.Group(); g.position.set(s.x, r.y, s.z); k.group.add(g);
+    const steel = metal(0xd0d4d8, { roughness: 0.18 }), inner = new THREE.Group(); g.add(inner);
+    inner.add(new THREE.Mesh(lathe([[0.16, 0], [0.16, 0.02], [0.02, 0.04], [0.016, 0.62], [0.05, 0.64]], 20), steel));
+    const bucket = new THREE.Mesh(lathe([[0, 0.62], [0.09, 0.62], [0.11, 0.64], [0.125, 0.84], [0.135, 0.85], [0.12, 0.85], [0.105, 0.66], [0, 0.66]], 28), steel); inner.add(bucket);
+    for (const sx of [-1, 1]) { const h = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 6, 12, Math.PI), steel); h.position.set(sx * 0.135, 0.8, 0); h.rotation.set(0, sx > 0 ? 0 : Math.PI, -Math.PI / 2); inner.add(h); }
+    const bottle = new THREE.Mesh(lathe([[0.0, 0.66], [0.04, 0.66], [0.042, 0.86], [0.03, 0.92], [0.014, 0.97], [0.014, 1.02], [0.0, 1.02]], 18), std(0x1d3a24, { roughness: 0.2 })); bottle.rotation.z = 0.25; bottle.position.x = -0.03; inner.add(bottle);
+    const foil = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.06, 10), metal(0xd8b040)); foil.position.set(-0.03 - Math.sin(0.25) * 0.99, 0.99 * Math.cos(0.25) + 0.02, 0); foil.rotation.z = 0.25; inner.add(foil);
+    const ice = new THREE.InstancedMesh(new THREE.BoxGeometry(0.03, 0.03, 0.03), new THREE.MeshStandardMaterial({ color: 0xdff4ff, transparent: true, opacity: 0.7, roughness: 0.05, emissive: 0x5a7a8a, emissiveIntensity: 0.4 }), 10);
+    const M = new THREE.Matrix4(), R = rnd(77); this.cubes = []; for (let i = 0; i < 10; i++) { const a = R() * TAU, d = R() * 0.08; this.cubes.push({ x: Math.cos(a) * d, y: 0.83 + R() * 0.02, z: Math.sin(a) * d, vx: 0, vy: 0, vz: 0, s: R() * 3 }); const c = this.cubes[i]; c.x0 = c.x; c.y0 = c.y; c.z0 = c.z; ice.setMatrixAt(i, M.makeTranslation(this.cubes[i].x, this.cubes[i].y, this.cubes[i].z)); }
+    g.add(ice);
+    this.b = k.pushable(g, { r: 0.16, h: 1.0, tip: true, hit: 0.9, drag: 4, onTip: (bb) => { k.synth.note(1800, 0.4, { type: 'sine', vol: 0.04 }); k.synth.note(2600, 0.3, { type: 'sine', vol: 0.03, at: 0.05 }); k.synth.noise(0.5, { vol: 0.05, lp: 5000, at: 0.25 }); this.spill = 0; this.axis = bb.axis.clone(); } });
+    Object.assign(this, { at: { x: s.x, y: r.y, z: s.z }, ice, M, spill: -1, g, inv: new THREE.Matrix4(), w: new THREE.Vector3(), dir: new THREE.Vector3() });
+  },
+  active(k) { return !!this.b && k.inRoom('MW3-terzo', 1) && k.close(this.at, 6); },
+  update(dt) {
+    this.b.step(dt);
+    if (this.spill < 0 || this.spill > 2) return;
+    if (this.spill === 0) { const dir = this.dir.set(0, 0.8, 0).applyAxisAngle(this.axis, Math.PI / 2); for (const c of this.cubes) { c.vx = dir.x * (0.8 + c.s * 0.4) + (Math.random() - 0.5) * 0.6; c.vz = dir.z * (0.8 + c.s * 0.4) + (Math.random() - 0.5) * 0.6; c.vy = 0.4; } }
+    this.spill += dt;
+    const inv = this.inv.copy(this.g.matrixWorld).invert();      // the cubes live in the stand's frame: work them in the world and bring them back
+    this.cubes.forEach((c, i) => { c.vy -= 9.8 * dt; c.x += c.vx * dt; c.z += c.vz * dt; c.y = Math.max(0.015, c.y + c.vy * dt); if (c.y <= 0.015) { c.vx *= 0.9; c.vz *= 0.9; c.vy = 0; } const w = this.w.set(this.g.position.x + c.x, this.g.position.y + c.y, this.g.position.z + c.z).applyMatrix4(inv); this.ice.setMatrixAt(i, this.M.makeTranslation(w.x, w.y, w.z)); });
+    this.ice.instanceMatrix.needsUpdate = true;
+  },
+  reset() { if (!this.b) return; this.b.reset(); this.spill = -1; this.cubes.forEach((c, i) => { c.x = c.x0; c.y = c.y0; c.z = c.z0; this.ice.setMatrixAt(i, this.M.makeTranslation(c.x, c.y, c.z)); }); this.ice.instanceMatrix.needsUpdate = true; },
 });
 
 // ================================================================ the kitchen: pots to knock over
