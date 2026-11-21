@@ -1481,6 +1481,7 @@ export function onSnow(plan, x, z) {
 }
 
 export function heightOf(s, x, z) {
+  if (s.fn) return s.fn(x, z);          // a shape of its own: the banked turns of the light show (lightshow.js)
   // A hill: a smooth mound, highest in the middle and running out flat at its foot.
   // A big one has a kicker of packed snow on the very top, to leave the ground from.
   if (s.hill) {

@@ -302,3 +302,7 @@ the previous one was still being worked on; those are marked.
 ## 72 (sent during the build)
 
 > You should be faster than them, but they just sort of roam about on patrol, and then will chase you until you lose them.
+
+## 73
+
+> The lights on Butler Field are okay, good start, but 10x it. Make it really special. Google holiday lights display. Make it fun to drive in and add music for Christmas.

@@ -299,6 +299,64 @@ What is not true:
 - **The polish on the floors** mirrors only on the level you are on. Floors
   seen on another level (down a stair well, across a tall hall) are matt.
 
+## Winter Wonderland on Butler Field
+
+Across Columbus Drive from the Modern Wing, the north-west quarter of Butler
+Field is a drive-through Christmas light show, made after the big ones
+(Chicago's ZooLights, the botanic gardens' light walks, the drive-through
+shows with a tunnel, a singing tree and a radio station of carols). One lit
+way winds through it, and driving it against the clock is the **Light Run**:
+
+- the **Grand Arch**, where the clock starts;
+- the **Comet Tunnel**, thirty-odd arches over the way, whose light runs along
+  with the car and leaps ahead of it on every beat;
+- three **Candy Cane Curves**, banked hairpins striped red and white, with a
+  crest of lights to ride high on and giant canes round the outside;
+- the **Snowflake Cathedral**, pointed arches six and a half metres high, a
+  vault of lights that sparkle with the tune, icicles dripping light and
+  snowflakes turning under the roof;
+- the **Gift Box Jump**, a red present to take off from and a green one to
+  land on;
+- the **Nutcracker Guard**, six soldiers five metres tall, who salute as you
+  pass;
+- the **Light Bridge**, with a gap in the middle to jump;
+- past the **Ice Palace** and the **Penguin Slide** (the penguins slide down
+  it and waddle back up), to the **Light Maze**, hedges of lights: the lit way
+  is the way through, and the dead ends hold ornaments;
+- round the **Singing Tree**, eighteen metres of lights with a face on it that
+  sings the tune and looks at you, and a train going round its foot, to the
+  finish.
+
+Twelve glowing ornaments hang along the way (high on the curves, over the
+gaps, in the maze, on the train): the screen counts them during a run. A
+sleigh and four reindeer fly round over it all, and reindeer graze in the
+middle. The lit way itself answers the car: a pool of light under the wheels
+and rings running out behind. Two secrets: finish the run, and take every
+ornament in one run. The best time is kept, for the car and for the drone.
+
+The show plays a medley of carols, every one published before 1900, made in
+the game note by note (nothing recorded), heard only near the field and as
+loud as the music slider (Settings, Gallery music, turns it off with the
+rest): *Jingle Bells* (Pierpont, 1857), *Deck the Hall* (Welsh air, these
+words 1862), *We Wish You a Merry Christmas* (West Country carol), *Joy to
+the World* (Watts 1719, Mason 1839), *Hark! The Herald Angels Sing*
+(Mendelssohn 1840, Cummings 1855), *O Christmas Tree* (Anschütz 1824) and
+*Good King Wenceslas* (Neale 1853, to a tune printed in 1582). Each is
+written down as its melody and a chord chart (`src/carols.js`); the band (a
+reed lead, glockenspiel, plucked bass, off-beat chords, a soft kick, sleigh
+bells and a tubular bell) is laid on from those. Each tune counts in with a
+bar of sleigh bells in the dark, and the lights come up together on its
+first downbeat. Every light in the show keeps time with it: the tree's
+patterns change every four bars, the tunnel and the edges of the way pulse
+on the beat, the vault sparkles more as the tune climbs. With *Reduce motion
+and flashing* on, nothing flashes and everything moves slowly.
+
+All of it is drawn by one instanced mesh of fourteen thousand bulbs and a
+few merged meshes of wire; each bulb's behaviour is worked out in its vertex
+shader from a handful of numbers set once a frame (the beat, the bar, the
+note, where the car is). Nothing is rebuilt or allocated per frame, and
+none of it runs when you are not near.
+
 ## What is in it
 
 - **Explore.** The building starts dark. Lamps come on as you reach them, each
@@ -748,6 +806,10 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
     src/winter.js             paths, the courtyard tree, glitter, tyre tracks
     src/statues.js            the lions, the fountains and the sculpture outdoors
+    src/butlerfield.js        Butler Field: the plough-pile jump park, the softball diamonds, lamps, the warming hut
+    src/lightshow.js          the Winter Wonderland light show on Butler Field and its Light Run
+    src/carols.js             the carols it plays: scores, chord charts, the band, the player (no three.js, no DOM)
+    src/glowkit.js            lights out of doors: instanced bulbs, figures drawn in glowing wire
     src/sculpt.js             clay: lumps blended on a grid and skinned into a mesh
     src/furnish.js            what stands in the rooms that are not galleries (assumed, not surveyed)
     src/geo.js                the small mesh builder both use

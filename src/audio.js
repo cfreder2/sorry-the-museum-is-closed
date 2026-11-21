@@ -149,7 +149,8 @@ export class Sound {
   // half remember.
   _music(now) {
     if (!this.musicOn) { this.padGain.gain.setTargetAtTime(0, now, 1.5); return; }
-    this.padGain.gain.setTargetAtTime(this.vol.music, now, 0.6);
+    // (duck: 0..1, set by music of a feature's own that the slow chords would clash with: the light show, lightshow.js)
+    this.padGain.gain.setTargetAtTime(this.vol.music * (1 - (this.duck || 0)), now, 0.6);
     if (now >= this.nextChord) {
       const c = this.ctx, notes = CHORDS[this.chord++ % CHORDS.length];
       const dur = 15;
