@@ -63,6 +63,7 @@ import './lobby.js';
 import './giftshop.js';
 import './butlerfield.js';
 import './lightshow.js';
+import './finale.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');

@@ -16,6 +16,7 @@
 
 import LAYOUT from './layout.js';
 import { buildLand, landAt, FLAT as LIE_FLAT } from './land.js';
+import { addFinale } from './finaleplan.js';
 
 export const T = 1;            // wall thickness, for the outside of a building
 export const HW = HALL_HW();    // Griffin Court's half-width
@@ -245,6 +246,7 @@ export function buildPlan() {
   plan.spawn = { x: PX - 2.7, z: fz, yaw: Math.PI / 2 };
   addGrounds(plan);
   addLakefront(plan);
+  addFinale(plan);                                   // the base under Butler Field, its silo and its craft (src/finaleplan.js): before the snow hills, which keep off the silo
   addStunts(plan);
   addLand(plan);
   // The roof of Gallery 211, at the top of the scaffold, is kept clear: there is a card game up there.
@@ -656,6 +658,7 @@ export function groundOpenings(plan) {
   for (const k of plan.ramps || []) if (Math.min(k.y0, k.y1) < -0.1 && Math.max(k.y0, k.y1) > -0.1) out.push(grow(k, 0.04));
   for (const k of plan.rooms) if (k.y < -0.5 && k.y + (k.ceil || k.h) > 0.1) out.push(grow(k, 0.04));
   if (plan.lakefront && plan.lakefront.window) out.push({ ...plan.lakefront.window });
+  if (plan.grounds && plan.grounds.silo && plan.finale) { const q = plan.grounds.silo; out.push({ x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1 }); }      // the silo in the ballfield: its doors lie over it (src/finaleplan.js)
   // overlapping holes do not triangulate: run any that touch into one
   for (let again = true; again;) {
     again = false;
@@ -692,8 +695,8 @@ export function confine(plan, p, r, flying, out, noFurniture) {
     }
     if (d < best) { best = d; bx = cx; by = cy; bz = cz; if (d === 0) break; }
   }
-  if (best > 1e-10) {
-    // Not indoors. Outdoors, then: push clear of any building it is touching
+  if (best > 1e-10 && p.y > -6.5) {
+    // Not indoors. Outdoors, then (but not deep under the ground, where outdoors is solid earth: there the nearest room or tunnel is where it is put): push clear of any building it is touching
     // (or, coming down from above, set it on the roof).
     const B = plan.bounds;
     _o.x = Math.max(B.x0 + r, Math.min(B.x1 - r, p.x)); _o.z = Math.max(B.z0 + r, Math.min(B.z1 - r, p.z)); _o.y = Math.min(p.y, SKY);
@@ -1017,8 +1020,8 @@ function addLakefront(plan) {
   // running south (+z), the third-base line east (+x), and the outfield wall `line` metres out down the lines and
   // `centre` metres out in centre field, `wall` high. Centre field keeps a flat, clear 32 m square (G.silo) with
   // nothing standing on it, inside the wall: the outfield is to split open there one day.
-  L.ballpark = { hx: 395, hz: 116, line: 40, centre: 68, wall: 1.4 };
-  G.silo = { x0: 409, x1: 441, z0: 130, z1: 162 };
+  L.ballpark = { hx: 402, hz: 146, line: 40, centre: 68, wall: 1.4 };
+  G.silo = { x0: 416, x1: 448, z0: 160, z1: 192 };      // straight over the hangar of the base below (finaleplan.js), 42 m out along the centre-field line
   // Clear ice over the fishing hole (icefish.js): the harbour ice and the snow under it are left open here, and the
   // water, the weed and the fish are drawn below.
   { const fx = (L.shore + L.buoys) / 2 - 2.5, fz = 122; L.fish = { x: fx, z: fz }; L.window = { x0: fx - 4, x1: fx + 4, z0: fz - 4, z1: fz + 4 }; }

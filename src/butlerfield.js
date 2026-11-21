@@ -117,7 +117,7 @@ feature({
     };
     this.diamonds = [];
     // home plate, and which way the first-base line and the third-base line run (unit vectors along x and z)
-    for (const [hx, hz, fx, tz, n] of [[395, 116, 1, 1, 1], [466, 116, -1, 1, 2], [395, 236, 1, -1, 3], [466, 236, -1, -1, 4]]) {
+    for (const [hx, hz, fx, tz, n] of [[402, 146, 1, 1, 1], [466, 116, -1, 1, 2], [395, 236, 1, -1, 3], [466, 236, -1, -1, 4]]) {
       const home = { x: hx, z: hz }, first = { x: hx + fx * BL, z: hz }, second = { x: hx + fx * BL, z: hz + tz * BL }, third = { x: hx, z: hz + tz * BL };
       if (n === 1) { this.diamonds.push({ n, bases: [home, third, second, first], step: 0, t: 0 }); continue; }      // (the ballpark's first base is down the +z line, on the right as you face the pitcher)
       this.diamonds.push({ n, bases: [home, first, second, third], step: 0, t: 0 });

@@ -35,7 +35,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
 
   // What is on no drawing is on no map either, until it has been found (src/secret.js).
   const found = () => !!G.plan.secretOpen;
-  const shown = r => !r || !r.secret || found();
+  // And the base beyond it (src/finale.js, the `B-` rooms) until the blast door has been opened, and most of it until you have been in.
+  const based = r => !/^B-/.test(r.id) || (G.finale && (G.finale.found || (r.id === 'B-tunnel' && G.finale.doorOpen)));
+  const shown = r => !r || !r.secret || (found() && based(r));
 
   // ---- places, and the ways between them ----------------------------------
   // A place is somewhere you can stand: the floor of a room, a deck, or outdoors. A way joins two
@@ -53,7 +55,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const link = (a, b, cost, how) => { adj[a].push([b, cost, how]); adj[b].push([a, cost, how]); };
     const way = (A, B, cost, how) => { if (A.place && B.place && A.place !== B.place) link(node(A.x, A.y, A.z, A.place), node(B.x, B.y, B.z, B.place), cost, how); };
     for (const d of p.doors) {
-      if (d.secret && !found()) continue;                 // no way through a wall that has not opened
+      if (d.secret && !(found() && shown(p.byId[d.a]) && shown(p.byId[d.b]))) continue;                 // no way through a wall that has not opened
       const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
       const side = id => {
         if (id === 'out') return 'OUT';
@@ -584,7 +586,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       for (const id of ids) { const r = p.byId[id]; if (!r || !onLevel(r, ly) || !shown(r)) continue; { const st = G.museum.rooms[id], gold = st && (st.arts.length ? st.done : G.museum.visited.has(id)); c.fillStyle = gold ? 'rgba(70,52,16,.8)' : 'rgba(170,176,196,.7)'; }
         for (const o of p.obstacles) if (o.fit && o.y1 - o.y0 > 1.9 && Math.abs(o.y0 - r.y) < 0.05 && Math.min(o.x1 - o.x0, o.z1 - o.z0) < 0.2 && o.x0 >= r.x0 - 0.01 && o.x1 <= r.x1 + 0.01 && o.z0 >= r.z0 - 0.01 && o.z1 <= r.z1 + 0.01) c.fillRect(o.x0, o.z0, Math.max(o.x1 - o.x0, px * 1.2), Math.max(o.z1 - o.z0, px * 1.2)); } }
     c.fillStyle = 'rgba(226,205,148,.95)';
-    for (const d of p.doors) if (Math.abs(d.y - ly) < 1.6 && (!d.secret || found())) c.fillRect(d.x0 - px, d.z0 - px, Math.max(2 * px, d.x1 - d.x0 + 2 * px), Math.max(2 * px, d.z1 - d.z0 + 2 * px));
+    for (const d of p.doors) if (Math.abs(d.y - ly) < 1.6 && (!d.secret || (found() && shown(p.byId[d.a]) && shown(p.byId[d.b])))) c.fillRect(d.x0 - px, d.z0 - px, Math.max(2 * px, d.x1 - d.x0 + 2 * px), Math.max(2 * px, d.z1 - d.z0 + 2 * px));
     // Ways up and down from here: stairs hatched, lifts solid.
     c.strokeStyle = 'rgba(127,233,245,.9)'; c.fillStyle = 'rgba(127,233,245,.85)'; c.lineWidth = px;
     for (const q of p.ramps) {
@@ -742,9 +744,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   const pics = new Map(); let pic = null;
   function levelPicture(y) {
     const ly = levelOf(y).y; pic = pics.get(ly) || null;
-    const m = G.museum, key = `${Math.round(ly * 10)}|${m.visited.size}|${m.seenCount}|${G.plan.rooms.length}|${G.secret && G.secret.open ? 1 : 0}`, now = performance.now();
+    const m = G.museum, key = `${Math.round(ly * 10)}|${m.visited.size}|${m.seenCount}|${G.plan.rooms.length}|${G.secret && G.secret.open ? 1 : 0}|${G.finale && G.finale.found ? 1 : 0}${G.finale && G.finale.doorOpen ? 1 : 0}`, now = performance.now();
     if (pic && (pic.key === key || now - pic.at < 500) && pic.ly === Math.round(ly * 10)) return pic;
-    const B = G.plan.rooms.reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
+    const B = G.plan.rooms.filter(r => !/^B-/.test(r.id) || shown(r)).reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
     const pad = 4, ppm = 4, cv = (pic && pic.canvas) || document.createElement('canvas');
     cv.width = Math.ceil((B.x1 - B.x0 + 2 * pad) * ppm); cv.height = Math.ceil((B.z1 - B.z0 + 2 * pad) * ppm);
     const k = cv.getContext('2d');
@@ -800,7 +802,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     drawYou(c, R, R, Math.PI, 1.15);
     c.strokeStyle = 'rgba(226,205,148,.85)'; c.lineWidth = 3; c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.stroke();
     // Which level you are on: a gold tag on the rim at the bottom, big enough to read on the smallest radar (a phone's is a third the size).
-    { const lv = levelOf(ly), text = lv.name === 'LL' ? 'SL1' : lv.name === 'X' ? 'SL9' : 'L' + lv.name, font = `700 ${Math.round(W * 0.11)}px ${MONO}`;
+    { const lv = levelOf(ly), text = lv.name === 'LL' ? 'SL1' : lv.name === 'X' ? 'SL9' : lv.name === 'B' ? 'SL10' : 'L' + lv.name, font = `700 ${Math.round(W * 0.11)}px ${MONO}`;
       c.font = font; const tw = c.measureText(text).width, ph = W * 0.15, pw = Math.max(ph * 1.5, tw + W * 0.08), px = R - pw / 2, py = W - ph - W * 0.035;
       c.fillStyle = 'rgba(226,205,148,.97)'; c.strokeStyle = 'rgba(8,10,16,.9)'; c.lineWidth = 3;
       c.beginPath(); if (c.roundRect) c.roundRect(px, py, pw, ph, ph / 2); else c.rect(px, py, pw, ph); c.fill(); c.stroke();
@@ -812,7 +814,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   function fit() {
     const dpr = Math.min(2, window.devicePixelRatio || 1), w = bc.clientWidth, h = bc.clientHeight;
     if (bc.width !== Math.round(w * dpr) || bc.height !== Math.round(h * dpr)) { bc.width = Math.round(w * dpr); bc.height = Math.round(h * dpr); }
-    const B = G.plan.rooms.reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
+    const B = G.plan.rooms.filter(r => !/^B-/.test(r.id) || shown(r)).reduce((b, r) => ({ x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), z0: Math.min(b.z0, r.z0), z1: Math.max(b.z1, r.z1) }), { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 });
     const pad = 6, s0 = Math.min(bc.width / (B.x1 - B.x0 + 2 * pad), bc.height / (B.z1 - B.z0 + 2 * pad));
     if (state.cx == null) { state.cx = (B.x0 + B.x1) / 2; state.cz = (B.z0 + B.z1) / 2; }
     state.zoom = Math.max(ZMIN, Math.min(9, state.zoom));
@@ -846,7 +848,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     if (here) drawHere(c, v.pos.x, v.pos.z);
     requestAnimationFrame(drawBig);
   }
-  const NAMES = { LL: 'Sub-level 1', 1: 'First', 2: 'Second', 3: 'Third', X: 'Sub-level 9' };
+  const NAMES = { LL: 'Sub-level 1', 1: 'First', 2: 'Second', 3: 'Third', X: 'Sub-level 9', B: 'Sub-level 10' };      // (B: the base's lower storey, once it has been found: src/finale.js)
   const levelText = n => { const t = NAMES[n] || n; return /^Sub/.test(t) ? t.toLowerCase() : `the ${t.toLowerCase()} level`; };
   function tabs() {
     const el = document.getElementById('bmLevels'); el.textContent = '';
@@ -873,6 +875,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   function toYou() {
     state.level = levelOf(youY());
     if (state.zoom > 1.05) { state.cx = G.vehicle.pos.x; state.cz = G.vehicle.pos.z; }
+    else state.cx = state.cz = null;          // the whole plan, centred: it grows when the base under the park is found
   }
   function open() {
     gotSpots = G.foundSpots ? G.foundSpots() : [];

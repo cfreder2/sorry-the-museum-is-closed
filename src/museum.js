@@ -614,7 +614,7 @@ export class Museum {
       // The ceiling takes the room's own paint and glows with it, faintly. It has a hole where a skylight
       // stands open, and wherever a stair or a lift comes down through it from the room above.
       const hole = plan.skylights.find(k => k.room === r.id) || null;
-      const through = plan.wells.filter(k => k.y > r.y + 1 && Math.abs(k.y - SLAB - r.top) < 1.3 && over(k, r));
+      const through = [...plan.wells.filter(k => k.y > r.y + 1 && Math.abs(k.y - SLAB - r.top) < 1.3 && over(k, r)), ...(plan.shafts || []).filter(k => k.room === r.id)];      // (a shaft: the silo over the hangar, src/finaleplan.js)
       if (r.kind !== 'hall') for (const c of carve(r, hole ? [hole, ...through] : through)) sheet(walls, c.x0, c.x1, c.z0, c.z1, r.h, [0, -1, 0], () => [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]], null);
       const tint = new THREE.Color(r.tint);
       const wallMat = new THREE.MeshStandardMaterial({

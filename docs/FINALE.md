@@ -3,7 +3,7 @@
 The ending of *Sorry, the Museum is Closed*: a hidden base under Butler Field, a flying saucer, a launch out of
 the ballfield, a flight to the Moon carrying the museum's art, and a museum on the Moon that finally opens.
 
-Status: planned 2026-11-21. Built in phases by separate helpers, each merged and tested before the next depends on it.
+Status: planned 2026-11-21; phase 1 (the base) built. Built in phases by separate helpers, each merged and tested before the next depends on it.
 
 ## The story, in one breath
 
@@ -121,6 +121,20 @@ card flips from *Sorry, the Museum is Closed* to *The Museum is Open*.
 4. **Joining up and polish** (me).
    - The whole sequence end to end, saves at each stage, title-screen Moon, trophy, README.
    - Phone checks, push to main and itch.
+
+## Phase 1, as built
+
+- **Rooms:** `tools/build_layout.mjs` section 8a, all `secret`, ids `B-`: the tunnel (x 113 to 300, z 72 to 77,
+  y −12), the checkpoint, concourse, labs, crew quarters, mess, generator, robot bay, records, stores, an office, the
+  situation room and the control room at y −12; the hangar (x 410 to 454, z 156 to 196, floor y −18, 12 m tall) and
+  the archive beside it at y −18. The map shows the lower storey as Sub-level 10 once the base is found.
+- **Silo:** `plan.grounds.silo` = x 416 to 448, z 160 to 192, straight over the hangar (`src/finaleplan.js` sets it
+  from the hangar; the ballfield should lay centre field round it). It is in `groundOpenings()` and `plan.pits`; the
+  two doors are surfaces; the shaft runs from the hangar's ceiling (y −6) to the doors.
+- **Craft and platform:** on the hangar floor at (432, 176), the ramp facing west to the archive. Their collision is
+  in `plan.finale.pieces` and moves with `setPlatform` / `setCraft`.
+- **For phase 3:** `G.finale` (documented at the top of `src/finale.js`): `state`, `hangar` (saucer, platform, doors,
+  ramp, beamOrigin, easels, rim lights), `console` (position, near, five pads, screen, `onUse`), `open()`.
 
 ## Open choices (decided for now; easy to change)
 

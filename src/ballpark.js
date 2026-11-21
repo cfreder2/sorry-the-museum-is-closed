@@ -40,7 +40,7 @@ feature({
   secrets: [['derbyhr', 'Home Run Derby: one over the wall'], ['derby5', 'Home Run Derby: five in a round']],
   init(k) {
     const L = k.plan.lakefront; if (!L) return;
-    const P = this.P = { hx: 395, hz: 116, line: 40, centre: 68, wall: 1.4, ...(L.ballpark || {}) };
+    const P = this.P = { hx: 402, hz: 146, line: 40, centre: 68, wall: 1.4, ...(L.ballpark || {}) };
     this.k = k; this.t = 0; this.on = false; this.phase = 'off';
     const g = this.g = new THREE.Group(); g.name = 'ballpark'; k.group.add(g);
     // The field's frame: home plate, centre field (c), and the side of the plate the batter's box is on (s, the

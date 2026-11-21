@@ -844,7 +844,8 @@ better plan is a better file. What is in it:
   section 8 of `tools/build_layout.mjs` adds after everything else, without
   moving anything that was there. `tools/check_layout.mjs` checks that such
   rooms are reached through the hidden doorway and through nothing else, and
-  that nothing else is reached through them.
+  that nothing else is reached through them. Rooms whose id starts `B-` (section 8a) are
+  further on still: the map leaves them off until they have been found.
 
 ## The museum's API
 
@@ -945,6 +946,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/whiteboards.js        the whiteboards: the writing on them, and reading one
     src/boardtext.js          what each of them says (no three.js, no DOM)
     src/secret.js, secretclue.js, secretfit.js   what the whiteboards are not telling you
+    src/finale.js, finaleplan.js, finalefit.js   and what is further on than that (docs/FINALE.md, phase 1); G.finale is the hook for what comes after
     src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
