@@ -81,11 +81,14 @@ feature({
     rink.onPower = () => { for (const f of this.flood) { f.lens.material.color.setRGB(2.2, 2.0, 1.6); f.beam.visible = true; f.beam.material.opacity = 0.07; } this.pool.visible = true; };
     if (rink.power) rink.onPower();
     // Love of Winter, on a board on two posts by the south side, facing the ice.
-    const works = (k.G.collection && (k.G.collection.works || k.G.collection)) || [], work = Array.isArray(works) ? works.find(w => w.id === 109780 || /^Love of Winter$/.test(w.t || '')) : null;
+    const isIt = w => w && (w.id === 109780 || /^Love of Winter$/.test(w.t || '')), hung = (k.museum.arts || []).find(a => isIt(a.work));
+    let work = hung ? hung.work : null;
+    if (!work) for (const r of Object.values((k.G.collection && k.G.collection.rooms) || {})) { work = (r.wall || []).find(isIt) || (r.objects || []).find(isIt); if (work) break; }
     if (work && !work.c) {
       const PW = 2.6, PHh = PW * (work.ih && work.iw ? work.ih / work.iw : 0.79), bx = RK.cx, bz = RK.z1 + 1.1, by = y + 0.7 + PHh / 2;
       const pic = new THREE.MeshBasicMaterial({ color: 0x2a2a2e });
-      new THREE.TextureLoader().load(imageUrl(work, 843), t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; pic.map = t; pic.color.setRGB(0.85, 0.82, 0.78); pic.needsUpdate = true; }, undefined, () => {});
+      if (work.lq) new THREE.TextureLoader().load(work.lq, t => { if (pic.map) return; t.colorSpace = THREE.SRGBColorSpace; pic.map = t; pic.color.setRGB(0.85, 0.82, 0.78); pic.needsUpdate = true; });      // the museum's own tiny placeholder first
+      new THREE.TextureLoader().load(imageUrl(work, 843), t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; if (pic.map) pic.map.dispose(); pic.map = t; pic.color.setRGB(0.85, 0.82, 0.78); pic.needsUpdate = true; }, undefined, () => {});
       const face = new THREE.Mesh(new THREE.PlaneGeometry(PW, PHh), pic); face.position.set(bx, by, bz - 0.06); face.rotation.y = Math.PI; k.group.add(face);
       P.add(new THREE.BoxGeometry(PW + 0.24, PHh + 0.24, 0.1), M.gilt, bx, by, bz);
       for (const sx of [-1, 1]) { P.add(new THREE.BoxGeometry(0.1, by - y + 0.2, 0.1), M.dark, bx + sx * (PW / 2 - 0.2), (by + y) / 2 - 0.1, bz + 0.1); O.push({ x0: bx + sx * (PW / 2 - 0.2) - 0.07, x1: bx + sx * (PW / 2 - 0.2) + 0.07, z0: bz + 0.03, z1: bz + 0.17, y0: y, y1: by }); }

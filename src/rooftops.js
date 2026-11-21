@@ -12,7 +12,8 @@ import { mats, lit, snowCap, canvasTex } from './roofkit.js';
 import './rooftops-high.js';
 import './rooftops-east.js';
 
-const waveS = t => 0.72 + 0.28 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t))), 0.6);      // the snow wave's size along its length
+const WAVE_UC = 3.4;                                     // the line under the snow wave's lip, metres in front of its back
+const waveS = t => 0.62 + 0.38 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t))), 0.6);      // the snow wave's size along its length
 const near2 = (p, x, z) => (p.x - x) ** 2 + (p.z - z) ** 2;
 const inBox = (p, b, m = 0) => p.x > b.x0 - m && p.x < b.x1 + m && p.z > b.z0 - m && p.z < b.z1 + m;
 const _q = new THREE.Quaternion(), _ax = new THREE.Vector3();
@@ -212,50 +213,60 @@ feature({
     if (!(top > 12 && top < 13.5)) return;
     this.top = top; this.X = X; this.zA = zA; this.zB = zB;
     // The profile, u west of the back of the wave and v up: over the back and the crest to the lip, and back in under it to the foot of the face.
-    const prof = [[0, 0], [0.5, 0.9], [0.9, 1.8], [1.4, 2.55], [2.0, 2.95], [2.7, 3.05], [3.35, 2.8], [3.85, 2.3], [4.15, 1.7], [4.2, 1.25],
-      [3.95, 1.42], [3.75, 1.95], [3.35, 2.3], [2.8, 2.45], [2.35, 2.25], [2.05, 1.85], [1.95, 1.3], [2.05, 0.7], [2.35, 0.25], [2.7, 0]];
+    const prof = [[0, 0], [0.6, 0.8], [1.1, 1.75], [1.6, 2.6], [2.2, 3.15], [2.9, 3.35], [3.6, 3.2], [4.15, 2.75], [4.5, 2.1], [4.55, 1.5], [4.35, 1.15],
+      [4.2, 1.45], [4.0, 1.95], [3.6, 2.35], [3.0, 2.55], [2.45, 2.35], [2.1, 1.9], [1.98, 1.3], [2.08, 0.7], [2.38, 0.25], [2.75, 0]];
     const shape = new THREE.Shape(prof.map(([u, v]) => new THREE.Vector2(-u, v)));
     const geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false, steps: 30, curveSegments: 4 });
-    // Bigger in the middle than at the ends, as a wave peels; the lip thrown furthest where it is biggest.
-    const pos = geo.attributes.position, col = [];
+    // Bigger in the middle than at the ends, as a wave peels: drawn in about the line under the lip (UC), so the
+    // tube runs straight through; the lip thrown furthest where it is biggest.
+    const UC = WAVE_UC, uOf = (x, s) => UC + (-x - UC) / s, pos = geo.attributes.position, col = [];
     for (let i = 0; i < pos.count; i++) {
-      const t = pos.getZ(i) / L, s = waveS(t), x = pos.getX(i), y = pos.getY(i);
-      pos.setXYZ(i, x * s * (1 + (x < -3.6 ? 0.06 * Math.sin(Math.PI * t) : 0)), y * s, pos.getZ(i));
+      const t = pos.getZ(i) / L, s = waveS(t), u = -pos.getX(i), y = pos.getY(i), ex = u > 3.6 ? 1 + 0.06 * Math.sin(Math.PI * t) : 1;
+      pos.setXYZ(i, -(UC + (u * ex - UC) * s), y * s, pos.getZ(i));
     }
     geo.computeVertexNormals();
     const nrm = geo.attributes.normal, deep = new THREE.Color(0x3f74b4), pale = new THREE.Color(0xd8ebf8), white = new THREE.Color(0xf6f9fd), c = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i), u = -pos.getX(i) / waveS(pos.getZ(i) / L), nx = nrm.getX(i), ny = nrm.getY(i);
-      if (ny < -0.25 || (nx < -0.2 && u < 3.1)) c.copy(deep).lerp(pale, Math.min(1, y / 2.6) ** 1.6); else c.copy(white).lerp(pale, Math.max(0, 0.5 - y * 0.25));
+      const s = waveS(pos.getZ(i) / L), y = pos.getY(i) / s, u = uOf(pos.getX(i), s), nx = nrm.getX(i), ny = nrm.getY(i);
+      if (ny < -0.25 || (nx < -0.2 && u < 3.3)) c.copy(deep).lerp(pale, Math.min(1, y / 2.7) ** 1.5); else c.copy(white).lerp(pale, Math.max(0, 0.45 - y * 0.25));
       col.push(c.r, c.g, c.b);
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    const wave = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05, emissive: 0x2a3a58, emissiveIntensity: 0.55 }));
+    const wm = new THREE.MeshStandardMaterial({ vertexColors: true, map: mats().snowT, roughness: 0.6, metalness: 0.05, emissive: new THREE.Color(0.5, 0.56, 0.7), emissiveIntensity: 0.75 });
+    wm.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= vColor.rgb;'); };      // the glow takes the colours too: blue ice in the hollow, white on the back
+    const wave = new THREE.Mesh(geo, wm);
     wave.position.set(X, top, zA); wave.receiveShadow = true; k.group.add(wave);
     // Claws of spray along the lip.
-    const P = k.parts(), M = mats(), claw = new THREE.ConeGeometry(0.07, 0.34, 6);
+    const P = k.parts(), M = mats(), claw = new THREE.ConeGeometry(0.07, 0.34, 6), xu = (u, s) => X - (UC + (u - UC) * s);
     for (let z = zA + 0.3; z < zB - 0.2; z += 0.42) {
       const t = (z - zA) / L, s = waveS(t), j = Math.sin(z * 7.3) * 0.08;
-      P.add(claw, M.snow, X - 4.2 * s * (1 + 0.06 * Math.sin(Math.PI * t)) + 0.05, top + 1.2 * s - 0.1 + j, z, 0, 0, -2.6 + j * 2);
-      P.add(claw, M.snow, X - 4.05 * s, top + 1.35 * s - 0.05, z + 0.2, 0, 0, -2.2 - j * 3, 0.8);
+      P.add(claw, M.snow, xu(4.35 * (1 + 0.06 * Math.sin(Math.PI * t)), s) + 0.05, top + 1.12 * s - 0.08 + j, z, 0, 0, -2.6 + j * 2);
+      P.add(claw, M.snow, xu(4.25, s), top + 1.3 * s - 0.05, z + 0.2, 0, 0, -2.2 - j * 3, 0.8);
     }
     P.done(k.group);
-    // Solid as drawn: the back and the crest, and the lip overhead (a car goes under it; a drone flying high hits it).
-    k.plan.obstacles.push({ x0: X - 2.2, x1: X + 0.1, z0: zA, z1: zB, y0: top, y1: top + 3.0 }, { x0: X - 4.3, x1: X - 2.2, z0: zA, z1: zB, y0: top + 0.92, y1: top + 3.1 });
+    // Solid as drawn, a length at a time: the back and the crest, and the lip overhead (a car goes under it; a drone flying high hits it).
+    for (let i = 0; i < 10; i++) {
+      const z0 = zA + L * i / 10, z1 = zA + L * (i + 1) / 10, s = Math.min(waveS(i / 10), waveS((i + 1) / 10)), S = Math.max(waveS(i / 10), waveS((i + 1) / 10));
+      k.plan.obstacles.push({ x0: xu(2.15, s), x1: xu(0.15, s), z0, z1, y0: top, y1: top + 3.35 * S }, { x0: xu(4.5, S), x1: xu(2.15, s), z0, z1, y0: top + 1.1 * s, y1: top + 3.35 * S });
+    }
+    this.xu = xu;
     this.puff = k.puffs(90, { color: 0xffffff, size: 0.12 }); this.spray = 0; this.from = 0;
-    this.at = { x: X - 3.3, y: top, z: (zA + zB) / 2 };
+    this.at = { x: X - WAVE_UC, y: top, z: (zA + zB) / 2 };
   },
   active(k) { const p = k.pos; return !!this.at && near2(p, this.at.x, this.at.z) < 26 * 26 && p.y > this.top - 1; },
-  inside(p) { return p.x > this.X - 4.25 && p.x < this.X - 2.0 && p.z > this.zA - 0.6 && p.z < this.zB + 0.6 && p.y < this.top + 0.95 && p.y > this.top - 0.3; },
+  inside(p) {
+    if (p.z < this.zA - 0.6 || p.z > this.zB + 0.6 || p.y < this.top - 0.3) return false;
+    const s = waveS((p.z - this.zA) / (this.zB - this.zA)); return p.x > this.xu(4.3, s) && p.x < this.xu(2.4, s) && p.y < this.top + 1.0 * s;
+  },
   update(dt, k) {
     const p = k.pos;
     if (near2(p, this.at.x, this.at.z) < 12 * 12) k.once('roofwave', 'A wave of snow, breaking. Go through it.', 5);
-    if ((this.spray -= dt) < 0) { this.spray = 0.18; const z = this.zA + Math.random() * (this.zB - this.zA); this.puff.emit(this.X - 2.7, this.top + 3.0, z, 3, { spread: 0.3, up: 0.5, out: 0.9, life: 1.6 }); }
+    if ((this.spray -= dt) < 0) { this.spray = 0.18; const z = this.zA + Math.random() * (this.zB - this.zA); const s = waveS((z - this.zA) / (this.zB - this.zA)); this.puff.emit(this.xu(2.9, s), this.top + 3.3 * s, z, 3, { spread: 0.3, up: 0.5, out: 0.9, life: 1.6 }); }
     if (!this.inside(p)) this.from = 0;
     else if (!this.from) { if (p.z < this.zA + 1.5) this.from = -1; else if (p.z > this.zB - 1.5) this.from = 1; }
     else if ((this.from < 0 && p.z > this.zB - 0.5) || (this.from > 0 && p.z < this.zA + 0.5)) {
       this.from = 0; k.synth.chime([392, 523, 659, 784], { gap: 0.09 });
-      for (let z = this.zA; z < this.zB; z += 1) this.puff.emit(this.X - 3.9, this.top + 1.5, z, 2, { spread: 0.3, up: 0.3, out: 0.8 });
+      for (let z = this.zA; z < this.zB; z += 1) this.puff.emit(this.xu(4.2, 1), this.top + 1.5, z, 2, { spread: 0.3, up: 0.3, out: 0.8 });
       if (k.find('roofwave')) k.callout('IN THE TUBE');
     }
     this.puff.update(dt);
