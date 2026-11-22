@@ -468,6 +468,39 @@ cheers, the organ plays and fireworks go up. The screen keeps it short:
 PITCH 4/10 · HR 2. The scoreboard keeps the best round and the length of
 the last homer. Two secrets: the first home run, and five in a round.
 
+### The band shell and Snow Ball
+
+In the south-west corner of Butler Field stands the band shell
+(`src/bandshell.js`; where it stands and what is solid, `shellPlan` in
+`src/plan.js`). Five arches nested one in front of another open out towards
+the lawn like a horn: acoustic panels inside, washed with colour from cans on
+the deck, a line of light round every rib; painted steel outside, snow on the
+crowns and icicles off the front frame. A deck of dark boards with light along
+its edges, a ramp up the middle of the front with steps either side, a truss
+on two towers with six moving heads, two speaker stacks on the snow with a
+searchlight on each, and a big screen on the back wall. All of it is solid as
+drawn, the arches cut from the same curves they are drawn from.
+
+**Snow Ball.** Drive up the ramp onto the four-panel pad in the middle of the
+stage and press `E`. Left and right choose the song, up and down the level
+(EASY, NORMAL, HARD); `E` again starts it. Arrows rise up the screen and are
+stepped as they reach the line at the top: arrow keys or `WASD`, the stick's
+four ways, a pad's d-pad, or on a phone the four arrows on the glass, two
+under each thumb. The panel lights, the toy hops onto it, and each step is
+PERFECT, GREAT, GOOD or MISS, with a combo, a score and a grade (S to D) at
+the end. `E` or `R` stops. The songs are played on the game's own audio
+context (`src/snowballsongs.js`): Offenbach's Can-can (*Galop infernal*,
+1858) and Johann Strauss II's *Blue Danube* (1867). The steps are the tunes'
+own notes, the strong beats first; the arrow follows the tune, low notes to
+the left, high to the right. Everything is timed on the audio clock. Two
+secrets: a full combo, and an S on HARD.
+
+The light show keeps time with the music and idles when there is none: the
+moving heads sweep (a fan over the lawn, crossing beams, a ring round the toy,
+circles on the snow, a fan up into the sky), the arches and edges chase, pools
+of colour lie on the snow, and every combo milestone bursts. With reduced
+motion it is slow and nothing flashes. None of it runs when you are far off.
+
 ## What is in it
 
 - **Explore.** The building starts dark. Lamps come on as you reach them, each
@@ -928,6 +961,8 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/butlerfield.js        Butler Field: the plough-pile jump park, the softball diamonds, lamps, the warming hut
     src/ballpark.js           the lit ballpark on Butler Field and its Home Run Derby against a snowman
     src/lightshow.js          the Winter Wonderland light show on Butler Field and its Light Run
+    src/bandshell.js          the band shell on Butler Field, its light show, and Snow Ball, the dance game on its stage
+    src/snowballsongs.js      Snow Ball's two dances: scores, the band that plays them, the steps (no three.js, no DOM)
     src/sledhill.js           the sledding hill on Butler Field: its run, tunnel, hut, steps, trees, and the sled you ride down it
     src/sledland.js           the hill's ground: one heightfield the car drives on and the mesh is drawn from (no three.js)
     src/carols.js             the carols it plays: scores, chord charts, the band, the player (no three.js, no DOM)

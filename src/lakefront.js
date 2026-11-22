@@ -1,5 +1,5 @@
 // East of Columbus Drive, as far as the water: Butler Field under snow with the band shell in its
-// corner, Lake Shore Drive, the promenade along the revetment, and Monroe Harbor frozen out to a
+// corner (bandshell.js), Lake Shore Drive, the promenade along the revetment, and Monroe Harbor frozen out to a
 // broken edge, open water beyond it, and the breakwater and its light. Where things are is in plan.js
 // (addLakefront, and harbourplan.js for the edge); this draws them, and harbour.js what floats. All made by hand.
 
@@ -18,28 +18,12 @@ export function buildLakefront(museum, plan) {
   const off = (f = -1) => ({ polygonOffset: true, polygonOffsetFactor: f, polygonOffsetUnits: f });
   const flat = (g, x0, x1, z0, z1, y, s = 4) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
   const road = new Geo(), paint = new Geo(), walk = new Geo(), stone = new Geo(), dark = new Geo(), white = new Geo(), snow = new Geo(), ice = new Geo();
-  const { lsd, prom, shore, slip, shell: sh } = L, z0 = B.z0, z1 = B.z1;
+  const { lsd, prom, shore, slip } = L, z0 = B.z0, z1 = B.z1;
 
   // ---- the field's paths
   for (const q of L.paths) flat(walk, q.x0, q.x1, q.z0, q.z1, 0.006, 2.5);
-  flat(walk, sh.x0 - 9, sh.x1 + 2, sh.z0 - 1, sh.z1 + 2, 0.005, 2.5);
 
-  // ---- the band shell: a back wall, two wings, and a canopy curving up and out over the stage
-  {
-    const x0 = sh.x0 - 1.2, x1 = sh.x1 + 1.2, zb = sh.z1, n = 9, top = 6.2;
-    white.box(x0, x1, 0, top, zb, zb + 1.2);
-    for (const x of [sh.x0 - 0.9, sh.x1 + 0.3]) white.box(x, x + 0.6, sh.h, top, sh.z0 + 6, zb);
-    const P = i => { const a = (i / n) * Math.PI * 0.42; return [top + Math.sin(a) * 3.2, zb + 0.6 - (1 - Math.cos(a)) * 9 - Math.sin(a) * 9]; };
-    for (let i = 0; i < n; i++) {
-      const [ya, za] = P(i), [yb, zb2] = P(i + 1), ny = zb2 - za, nz = -(yb - ya), l = Math.hypot(ny, nz) || 1;
-      white.quad([x0, ya, za], [x1, ya, za], [x1, yb, zb2], [x0, yb, zb2], [0, -ny / l, -nz / l]);               // the underside, which is what you see
-      white.quad([x1, ya + 0.25, za], [x0, ya + 0.25, za], [x0, yb + 0.25, zb2], [x1, yb + 0.25, zb2], [0, ny / l, nz / l]);
-    }
-    const [ye, ze] = P(n); white.box(x0, x1, ye, ye + 0.25, ze - 0.05, ze + 0.05);
-    for (const x of [x0 + 0.2, x1 - 0.2]) { dark.box(x - 0.09, x + 0.09, 0, ye, ze + 0.3, ze + 0.48); plan.obstacles.push({ x0: x - 0.12, x1: x + 0.12, z0: ze + 0.25, z1: ze + 0.5, y0: 0, y1: 9 }); }
-    for (let k = 0; k < 5; k++) dark.box(sh.x0 + 3 + k * 4.5 - 0.2, sh.x0 + 3 + k * 4.5 + 0.2, ye - 0.5, ye - 0.15, ze + 0.5, ze + 0.9);          // the lights, off
-    snow.box(sh.x0, sh.x1, sh.h, sh.h + 0.03, sh.z0 + 3.6, sh.z1 - 0.2);
-  }
+  // (the band shell is bandshell.js's, with the dance game on it)
 
   // ---- Lake Shore Drive: two carriageways of four lanes, a snowed-up median between kerbs
   for (const [a, b] of [[lsd.x0, lsd.med[0]], [lsd.med[1], lsd.x1]]) {
