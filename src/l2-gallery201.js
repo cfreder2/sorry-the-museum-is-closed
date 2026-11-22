@@ -6,7 +6,9 @@
 //
 // A duet with Renoir: a small upright piano stands by the Renoir, Für Elise open on the desk (Beethoven, 1867). It is
 // one more keyboard for the grand pianos' own class (src/piano.js): the same keys, sound and staged camera. Play the
-// opening phrase and the piano answers with the next bars, the lamp on it lights, and so does a lamp in the picture.
+// opening phrase and the piano answers with the next bars, and the lamp on it lights: a warm pool on the wall round the
+// picture (behind it, so the frame and canvas hide that part) and on the floor. Nothing is ever drawn on or over a
+// painting here (the user's rule): light goes beside it, below it, or in the room.
 import * as THREE from 'three';
 import { feature } from './features.js';
 
@@ -186,12 +188,16 @@ feature({
     box(0.06, 0.02, 0.06, lam(0xb8964a, 0.4), wx + sgn * 0.28, y + H + 0.01, zc - CW / 2 + 0.2);
     { const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.12, 10), this.lampM); gl.position.set(wx + sgn * 0.28, y + H + 0.08, zc - CW / 2 + 0.2); G.add(gl); this.lampAt = gl.position; }
     const halo = tex(64, 64, (c, w) => { const gr = c.createRadialGradient(w / 2, w / 2, 1, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,214,130,1)'); gr.addColorStop(0.35, 'rgba(255,190,90,.45)'); gr.addColorStop(1, 'rgba(255,170,60,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, w); });
-    this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })); this.halo.position.copy(this.lampAt); this.halo.scale.set(0.45, 0.45, 1); G.add(this.halo);
-    // And a glow for the lamp in the picture: drawn over it, never into it.
-    if (!A.work.c) {
-      this.glow = new THREE.Mesh(new THREE.PlaneGeometry(A.w, A.h), new THREE.MeshBasicMaterial({ map: halo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
-      this.glow.position.set(A.x + A.nx * 0.014, A.y + A.h * 0.18, A.z + A.nz * 0.014 - A.w * 0.12 * sgn); this.glow.scale.set(0.55, 0.55, 1); this.glow.rotation.y = Math.atan2(A.nx, A.nz); G.add(this.glow);
-    }
+    this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })); this.halo.position.copy(this.lampAt); this.halo.scale.set(0.28, 0.28, 1); G.add(this.halo);
+    // The light it throws: a warm wash on the wall, laid 1.5 cm off it, so the picture and its frame (which hang 4 cm
+    // out) stand in front of it and hide whatever part of it is behind them: it can only ever light the wall round
+    // the picture, never the picture. And a pool on the floor in front of the piano.
+    const pool = (w, h, m) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: halo, color: new THREE.Color(0.9, 0.62, 0.3), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, ...m }));
+    // (The wash is laid over the wall, not added to it: added to a pale wall it would only go white.)
+    const soft = tex(64, 64, (c, w) => { const gr = c.createRadialGradient(w / 2, w / 2, 1, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,190,110,1)'); gr.addColorStop(0.5, 'rgba(255,175,90,.6)'); gr.addColorStop(1, 'rgba(255,160,70,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, w); });
+    this.wash = pool(2.6, 2.1, { map: soft, blending: THREE.NormalBlending, color: new THREE.Color(1, 0.72, 0.45) }); this.wash.position.set(wx + sgn * 0.015, y + H + 0.18, this.lampAt.z); this.wash.rotation.y = sgn * Math.PI / 2; G.add(this.wash);
+    this.floorPool = pool(1.5, 1.1, { polygonOffset: true, polygonOffsetFactor: -2 }); this.floorPool.rotation.x = -Math.PI / 2; this.floorPool.position.set(front + sgn * 0.45, y + 0.006, this.lampAt.z + 0.1); G.add(this.floorPool);
+    this.wash.visible = this.floorPool.visible = false;
     k.plan.obstacles.push({ x0: Math.min(wx, front + sgn * 0.2), x1: Math.max(wx, front + sgn * 0.2), z0: zc - CW / 2, z1: zc + CW / 2, y0: y, y1: y + H + 0.3 });
     // The keyboard, as the grand pianos have it, entered in their list: they play it, stage it and sound it.
     const f = new THREE.Vector3(-sgn, 0, 0), up = new THREE.Vector3(0, 1, 0), rr = new THREE.Vector3().crossVectors(f, up).normalize();
@@ -219,7 +225,7 @@ feature({
       setTimeout(() => { if (Pn.on && Pn.cur === P) Pn.press(note, 'duet', 0.75); }, 300 + t * step);
       setTimeout(() => { if (Pn.cur === P) Pn.release(note, 'duet'); }, 300 + (t + len) * step - 20);
     }
-    setTimeout(() => { this.lighting = true; if (k.find('duet')) k.callout('A DUET WITH RENOIR'); k.say('The piano answers you, and the lamp comes up. In the picture too.', 6); }, 300 + 12 * step);
+    setTimeout(() => { this.lighting = true; if (k.find('duet')) k.callout('A DUET WITH RENOIR'); k.say('The piano answers you, and its lamp comes up.', 6); }, 300 + 12 * step);
   },
   active(k) { return !!this.P && k.inRoom('G201', 3); },
   update(dt) {
@@ -227,8 +233,8 @@ feature({
     this.lit = Math.min(1, this.lit + dt / 2.5);
     const fl = 0.92 + 0.08 * Math.sin(performance.now() / 130) * Math.sin(performance.now() / 47);
     this.lampM.emissive.setRGB(1, 0.78, 0.4).multiplyScalar(this.lit * fl); this.halo.material.opacity = 0.85 * this.lit * fl;
-    if (this.glow) this.glow.material.opacity = 0.5 * this.lit * fl;
+    this.wash.visible = this.floorPool.visible = true; this.wash.material.opacity = 0.75 * this.lit * fl; this.floorPool.material.opacity = 0.75 * this.lit * fl;
   },
   spots() { return this.P ? [{ kind: 'secret', id: 'duet', name: 'A duet with Renoir', x: this.at.x, y: this.at.y, z: this.at.z }] : []; },
-  reset() { if (!this.P) return; this.done = false; this.lighting = false; this.lit = 0; this.lampM.emissive.setRGB(0, 0, 0); this.halo.material.opacity = 0; if (this.glow) this.glow.material.opacity = 0; },
+  reset() { if (!this.P) return; this.done = false; this.lighting = false; this.lit = 0; this.lampM.emissive.setRGB(0, 0, 0); this.halo.material.opacity = 0; this.wash.visible = this.floorPool.visible = false; },
 });

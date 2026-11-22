@@ -1,5 +1,6 @@
 // Sorry, the Museum is Closed. The Art Institute of Chicago, by remote control.
 // (First called After Hours; saved games and the folder still carry that name.)
+// Never draw over a painting: effects go beside, below or in front of a work, in the room, never on the canvas.
 
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -1025,12 +1026,24 @@ function studyCam(dt) {
   // On a wide screen, stand a little to one side so the label does not cover the work,
   // but stay square to the wall.
   const side = (a.w * 0.2 + 0.1) * (1 - wide) / 0.28, tx = Math.cos(a.rot), tz = -Math.sin(a.rot);
-  want.set(a.x + a.nx * dist - tx * side, a.y, a.z + a.nz * dist - tz * side);
+  // A work with something happening on the floor in front of it (a.floorFrame = { y, out, half }: the floor, how far
+  // out from the wall and how far either side; src/l2-grandejatte.js) is framed with that floor below it, from a
+  // person's eye height, looking a little down. (Never by drawing on the work: the floor is the stage.)
+  const fl = a.floorFrame;
+  let eyeY = a.y, lookY = a.y;
+  if (fl) {
+    const ch = fl.y + 1.45, top = a.y + a.h / 2 + 0.12 - ch, low = fl.y - ch, half = Math.max(a.w / 2 + 0.15, fl.half), room = tan * camera.aspect * wide * 0.92;
+    let d = dist;
+    for (; d < 12; d += 0.05) if (Math.atan2(top, d) - Math.atan2(low, d - fl.out) <= fov * Math.PI / 180 * 0.9 && half / (d - fl.out) <= room * 1.4 && half / d <= room) break;
+    dist = d * (1 - 0.07 * Math.min(1, s.t / 30));
+    eyeY = ch; lookY = ch + Math.tan((Math.atan2(top, dist) + Math.atan2(low, dist - fl.out)) / 2) * dist;
+  }
+  want.set(a.x + a.nx * dist - tx * side, eyeY, a.z + a.nz * dist - tz * side);
   confine(G.plan, want, 0.25, true, null, true);
   if (a.obj) want.y = a.y;
   const k = Math.min(1, s.t / 1.7), e = k * k * (3 - 2 * k);
   camera.position.lerpVectors(s.from, want, e);
-  tmp.set(want.x - a.nx * dist, a.y, want.z - a.nz * dist);
+  tmp.set(want.x - a.nx * dist, lookY, want.z - a.nz * dist);
   camLook.lerpVectors(s.look, tmp, e);
   camera.up.set(0, 1, 0);
   camera.lookAt(camLook);
