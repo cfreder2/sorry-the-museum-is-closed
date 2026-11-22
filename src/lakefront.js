@@ -50,16 +50,28 @@ export function buildLakefront(museum, plan) {
   // ---- the promenade, the cycle path, the revetment and the slipway
   flat(walk, prom.x0, prom.x1, z0, z1, 0.006, 2.5);
   // (no cycle path drawn on it: a dark strip with a dashed line read as a second, lesser road beside the Drive)
+  // The revetment: three steps up from the promenade to a snowy top, three down to the ice. The ground over each flight
+  // is the line through its nosings (plan.js), so the snow that has drifted against the bottom step is drawn to it.
+  const RV = L.rev, RW = RV.run * (RV.n + 1);
   for (const [a, b] of [[z0, slip[0]], [slip[1], z1]]) {
-    stone.box(prom.x1, shore, 0, 0.5, a, b, 1.2); snow.box(prom.x1 + 0.1, shore - 0.1, 0.5, 0.56, a, b);
-    stone.box(shore, shore + 1.1, 0, 0.3, a, b, 1.2); stone.box(shore + 1.1, shore + 2.3, 0, 0.13, a, b, 1.2);         // two steps down to the ice
+    stone.box(prom.x1, shore, 0, RV.top - 0.06, a, b, 1.2); snow.box(prom.x1 + 0.04, shore - 0.04, RV.top - 0.06, RV.top, a, b);
+    for (let i = 1; i <= RV.n; i++) {
+      const h = RV.top - i * RV.rise, e0 = shore + (i - 1) * RV.run, w1 = prom.x1 - (i - 1) * RV.run;
+      stone.box(e0, e0 + RV.run, 0, h - 0.025, a, b, 1.2); snow.box(e0, e0 + RV.run - 0.07, h - 0.025, h, a, b);                // down to the ice
+      stone.box(w1 - RV.run, w1, 0, h - 0.025, a, b, 1.2); snow.box(w1 - RV.run + 0.07, w1, h - 0.025, h, a, b);                // up from the promenade
+    }
+    // the drifts against the bottom steps, from the bottom tread's height to nothing a step out
+    const xe = shore + RV.n * RV.run, xw = prom.x1 - RV.n * RV.run, hb = RV.top - RV.n * RV.rise, nx = hb / Math.hypot(hb, RV.run), ny = RV.run / Math.hypot(hb, RV.run);
+    snow.quad([xe, hb, a], [xe, hb, b], [xe + RV.run, 0.004, b], [xe + RV.run, 0.004, a], [nx, ny, 0], [[0, a / 4], [0, b / 4], [0.2, b / 4], [0.2, a / 4]]);
+    snow.quad([xw, hb, b], [xw, hb, a], [xw - RV.run, 0.004, a], [xw - RV.run, 0.004, b], [-nx, ny, 0], [[0, b / 4], [0, a / 4], [0.2, a / 4], [0.2, b / 4]]);
   }
   flat(walk, prom.x1, shore + 4, slip[0], slip[1], 0.012, 2.5);
-  for (const z of slip) { stone.box(prom.x1 - 0.2, shore + 2.4, 0, 0.62, z - 0.25, z + 0.25); dark.box(prom.x1 + 0.9, prom.x1 + 1.1, 0.62, 1.5, z - 0.08, z + 0.08);
-    landable(plan, prom.x1 - 0.2, shore + 2.4, z - 0.25, z + 0.25, 0.62); plan.obstacles.push({ x0: prom.x1 + 0.9, x1: prom.x1 + 1.1, z0: z - 0.08, z1: z + 0.08, y0: 0.5, y1: 1.5 }); }      // the slipway's walls, solid, with tops to drive along
-  // Benches facing the water (the streets' cast iron and slats, streetscape.js), and their snow.
+  for (const z of slip) { const xa = prom.x1 - RW - 0.1, xb = shore + RW + 0.1;
+    stone.box(xa, xb, 0, 0.62, z - 0.25, z + 0.25); dark.box(prom.x1 + 0.9, prom.x1 + 1.1, 0.62, 1.5, z - 0.08, z + 0.08);
+    landable(plan, xa, xb, z - 0.25, z + 0.25, 0.62); plan.obstacles.push({ x0: prom.x1 + 0.9, x1: prom.x1 + 1.1, z0: z - 0.08, z1: z + 0.08, y0: 0.5, y1: 1.5 }); }      // the slipway's walls, solid, with tops to drive along, over the ends of the steps
+  // Benches facing the water (the streets' cast iron and slats, streetscape.js), and their snow, back from the steps.
   const PF = new ParkFurniture(plan);
-  for (let z = z0 + 30; z < z1 - 10; z += 34) if (z < slip[0] - 4 || z > slip[1] + 4) PF.bench(prom.x1 - 1.6, 0, z, 1, 0);
+  for (let z = z0 + 30; z < z1 - 10; z += 34) if (z < slip[0] - 4 || z > slip[1] + 4) PF.bench(prom.x1 - RW - 1.4, 0, z, 1, 0);
 
   // ---- the harbour ice, out to the buoys
   { const w = L.window, X0 = shore, X1 = buoys + 0.6, Z0 = z0 - 200, Z1 = z1 + 200;

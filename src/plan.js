@@ -1031,10 +1031,19 @@ function addLakefront(plan) {
   path({ x0: 328, x1: 387 - PW, z0: 214 - PW, z1: 214 + PW });                         // from the cross path to the band shell
   plan.paved.push({ x0: L.lsd.x0, x1: L.lsd.med[0], z0: B.z0, z1: B.z1 }, { x0: L.lsd.med[1], x1: L.lsd.x1, z0: B.z0, z1: B.z1 }, { x0: L.prom.x0, x1: L.shore, z0: B.z0, z1: B.z1 });
   plan.paved.push({ x0: L.buoys, x1: B.x1 + 400, z0: B.z0 - 400, z1: B.z1 + 400 });   // open water: nothing glitters or takes a tyre track there
-  plan.ice.push({ x0: L.shore, x1: L.buoys, z0: B.z0, z1: B.z1 });                    // the harbour, frozen as far as the buoys
+  plan.ice.push({ x0: L.shore + 3, x1: L.buoys, z0: B.z0, z1: B.z1 });                // the harbour, frozen as far as the buoys (from the foot of the revetment's steps)
   // The revetment along the water, with the slipway through it; the line of buoys where the ice gives out; the breakwater.
   // The revetment and the breakwater are walls with tops: jump up and drive along them (the tops are their snow).
-  landable(plan, L.prom.x1, L.shore, B.z0, L.slip[0], 0.56, -0.3); landable(plan, L.prom.x1, L.shore, L.slip[1], B.z1, 0.56, -0.3);
+  // The revetment is a stepped wall: three steps up from the promenade to its snowy top, three down the other side to the
+  // ice (each 14 cm, 75 cm deep). A toy's wheels ride from nosing to nosing, so each flight is ground along the line
+  // through its treads' front edges, run out to the level a step beyond the last riser, where snow has drifted up
+  // against it (lakefront.js draws the drift to that line). The slipway's walls close off the ends.
+  const RV = L.rev = { top: 0.56, rise: 0.14, run: 0.75, n: 3 }, RW = RV.run * (RV.n + 1);
+  for (const [a, b] of [[B.z0, L.slip[0]], [L.slip[1], B.z1]]) {
+    S.push({ skin: 'wall', fixed: true, x0: L.prom.x1, x1: L.shore, z0: a, z1: b, axis: null, h0: RV.top, h1: RV.top, base: -0.3 });      // (no box under it: the flights cover both its faces)
+    S.push({ skin: 'wall', fixed: true, x0: L.prom.x1 - RW, x1: L.prom.x1, z0: a, z1: b, axis: 'x', h0: 0, h1: RV.top, base: -0.3, stairs: true });
+    S.push({ skin: 'wall', fixed: true, x0: L.shore, x1: L.shore + RW, z0: a, z1: b, axis: 'x', h0: RV.top, h1: 0, base: -0.3, stairs: true });
+  }
   O.push({ x0: L.buoys, x1: L.buoys + 0.5, z0: B.z0, z1: B.z1, y0: -0.3, y1: 0.7 });
   { const b = L.breakwater, t = L.light; landable(plan, b.x0, b.x1, b.z0, b.z0 + 4, 1.2, -0.3); landable(plan, b.x0, b.x1, b.z0 + 4, b.z1, 1.27, -0.3);
     O.push({ x0: t.x - 0.9, x1: t.x + 0.9, z0: t.z - 0.9, z1: t.z + 0.9, y0: 1.1, y1: 6.5 }); }      // the light on it
