@@ -85,7 +85,11 @@ export function mouseRun(plan, n, seed = 1) {
   const W = Math.ceil((X1 - X0) / CELL), H = Math.ceil((Z1 - Z0) / CELL), N = W * H, floor = new Uint8Array(N);
   const fill = (x0, x1, z0, z1, v) => { const i0 = Math.max(0, Math.ceil((x0 - X0) / CELL - 0.5)), i1 = Math.min(W - 1, Math.floor((x1 - X0) / CELL - 0.5)), j0 = Math.max(0, Math.ceil((z0 - Z0) / CELL - 0.5)), j1 = Math.min(H - 1, Math.floor((z1 - Z0) / CELL - 0.5)); for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) floor[j * W + i] = v; };
   for (const r of rooms) fill(r.x0 + 0.15, r.x1 - 0.15, r.z0 + 0.15, r.z1 - 0.15, r.kind === 'gallery' || (r.use !== 'backofhouse' && !r.assumed) ? 2 : 1);      // 2: a public room, where it would rather sit
-  for (const d of doors) d.along === 'z' ? fill(d.x0 + 0.1, d.x1 - 0.1, d.z0 - 0.3, d.z1 + 0.3, 1) : fill(d.x0 - 0.3, d.x1 + 0.3, d.z0 + 0.1, d.z1 - 0.1, 1);
+  // Every room's edge is a wall: two rooms side by side otherwise fill cells right up to each other, and the run went
+  // straight through the wall between them. Only the doorways (next) open it again.
+  { const t = CELL * 0.55;
+    for (const r of rooms) { fill(r.x0 - t, r.x0 + t, r.z0 - t, r.z1 + t, 0); fill(r.x1 - t, r.x1 + t, r.z0 - t, r.z1 + t, 0); fill(r.x0 - t, r.x1 + t, r.z0 - t, r.z0 + t, 0); fill(r.x0 - t, r.x1 + t, r.z1 - t, r.z1 + t, 0); } }
+  for (const d of doors) d.along === 'z' ? fill(d.x0 + 0.05, d.x1 - 0.05, d.z0 - 0.5, d.z1 + 0.5, 1) : fill(d.x0 - 0.5, d.x1 + 0.5, d.z0 + 0.05, d.z1 - 0.05, 1);
   const lap = q => q.x1 > X0 && q.x0 < X1 && q.z1 > Z0 && q.z0 < Z1, e = 0.1;
   for (const o of plan.obstacles) if (lap(o) && o.y0 < y + 0.14 && o.y1 > y + 0.01 && !o.nest) fill(o.x0 - e, o.x1 + e, o.z0 - e, o.z1 + e, 0);
   for (const s of plan.surfaces) if (lap(s) && !s.hill && Math.max(s.h0 || 0, s.h1 || 0) > y + 0.04 && (s.base || 0) < y + 0.14) fill(s.x0 - e, s.x1 + e, s.z0 - e, s.z1 + e, 0);
