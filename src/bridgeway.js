@@ -380,6 +380,8 @@ export function buildBridgeway(museum, plan) {
 
     const stations = []; for (let z = E.z; z < zEnd - 0.01; z += 1) stations.push(z); stations.push(zEnd);
     // A strip lofted along the bridge: prof(z) gives its section as [x offset from the centre line, y above the deck].
+    // Its front is to the right of the way the section runs, looking down the bridge towards the park: a section run
+    // from east to west faces up, one run upwards faces east.
     const loft = (prof, vScale = 1, zMax = null) => {
       const pos = [], uv = [], idx = [], st = zMax == null ? stations : [...stations.filter(z => z < zMax - 0.01), zMax]; let n = 0;
       for (let i = 0; i < st.length; i++) {
@@ -392,18 +394,27 @@ export function buildBridgeway(museum, plan) {
     };
     const both = f => z => { const P = f(z), L = P.map(([x, y]) => [-x, y]).reverse(); return L.concat(P); };
     const put = (geos, mat, order) => { const m = new THREE.Mesh(geos.length > 1 ? mergeGeometries(geos) : geos[0], mat); if (order) m.renderOrder = order; add(m); return m; };
-    const K = 7, curve = z => { const W = outer(z), P = []; for (let k = K; k >= 0; k--) { const s = 1 - k / K; P.push([W * (1 - s), hull(z, s)]); } return P; };      // keel first, out to the edge
+    const K = 7, curve = z => { const W = outer(z), P = []; for (let k = K; k >= 0; k--) { const s = 1 - k / K; P.push([W * (1 - s), hull(z, s)]); } return P; };      // from the east edge in to the keel
 
     // The girder: the curved plate under the deck, the thin blade of its edge, and the ledge outside the railing.
     // Each face lofted on its own, so the edges stay crisp.
-    const hullG = loft(z => { const P = curve(z), L = P.map(([x, y]) => [-x, y]).reverse(); return L.concat(P.slice(1)); }, 4);
+    const hullG = loft(z => { const P = curve(z); return P.map(([x, y]) => [-x, y]).concat(P.slice(0, -1).reverse()); }, 4);      // west edge, keel, east edge: facing down
     // (East of the deck at the top the landing is laid level with it, so there the ledge sinks to just under the landing.)
     const ly = (z, s) => (s > 0 && z > eastEnd ? -0.012 : 0.05);
     const edgeG = [-1, 1].map(s => loft(z => { const W = outer(z); return s > 0 ? [[W, -0.1], [W, ly(z, s)]] : [[-W, ly(z, s)], [-W, -0.1]]; }));
-    const ledgeG = [-1, 1].map(s => loft(z => { const W = outer(z); return s > 0 ? [[w, ly(z, s)], [W, ly(z, s)]] : [[-W, ly(z, s)], [-w, ly(z, s)]]; }));
-    const lipG = [-1, 1].map(s => loft(z => s > 0 ? [[w, Math.min(0, ly(z, s))], [w, ly(z, s)]] : [[-w, ly(z, s)], [-w, 0]], 1, s > 0 ? eastEnd : null));
-    // (the plate underneath lit less from within than the rest, so its curve shows in the shading)
-    put([hullG], new THREE.MeshStandardMaterial({ color: 0xf2f4f8, roughness: 0.42, metalness: 0.15, emissive: 0x4a5164, emissiveIntensity: 0.55 }));
+    const ledgeG = [-1, 1].map(s => loft(z => { const W = outer(z); return s > 0 ? [[W, ly(z, s)], [w, ly(z, s)]] : [[-w, ly(z, s)], [-W, ly(z, s)]]; }));
+    const lipG = [-1, 1].map(s => loft(z => s > 0 ? [[w, ly(z, s)], [w, Math.min(0, ly(z, s))]] : [[-w, 0], [-w, ly(z, s)]], 1, s > 0 ? eastEnd : null));
+    // The plate underneath: white steel, lit from within most at its edges and least along the keel, so its curve
+    // reads from the street as a pale hull shading to grey along the middle.
+    {
+      const P = hullG.attributes.position, col = [];
+      for (let i = 0; i < P.count; i++) { const z = P.getZ(i), f = Math.min(1, Math.abs(P.getX(i) - cxAt(z)) / outer(z)), b = 0.5 + 0.5 * f * f; col.push(b, b, b * 1.02); }
+      hullG.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    }
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0xf2f4f8, vertexColors: true, roughness: 0.45, metalness: 0.1 });
+    hullMat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * vec3(0.42, 0.45, 0.52);'); };
+    hullMat.customProgramCacheKey = () => 'bridgeway-hull';
+    put([hullG], hullMat);
     put([...edgeG, ...ledgeG, ...lipG], white);
     // The ends: the prow in the park, and the girder's end under the landing.
     {
@@ -414,50 +425,83 @@ export function buildBridgeway(museum, plan) {
       }
       add(cap.mesh(white));
     }
-    // The deck: aluminium planks laid across, a fine joint between each.
-    const plank = tex(64, 64, (c, W, H) => { c.fillStyle = '#9ea7b2'; c.fillRect(0, 0, W, H); for (let y = 0; y < H; y += 8) { c.fillStyle = 'rgba(40,46,58,0.55)'; c.fillRect(0, y, W, 1); c.fillStyle = 'rgba(220,226,236,0.25)'; c.fillRect(0, y + 1, W, 1); } for (let i = 0; i < 90; i++) { c.fillStyle = `rgba(255,255,255,${0.04 + Math.random() * 0.06})`; c.fillRect(Math.random() * W, Math.random() * H, 3, 1); } });
-    put([loft(z => [[-w, 0.002], [w, 0.002]], 0.5, top)], new THREE.MeshStandardMaterial({ map: plank, roughness: 0.55, metalness: 0.35, emissiveMap: plank, emissive: new THREE.Color(0.42, 0.45, 0.52), emissiveIntensity: 0.55 }));
+    // The deck: aluminium planks laid across, 15 cm each, a dark joint and a bright arris between them, each plank a
+    // shade off the next and brushed along its length. Mipmapped and filtered at a slant, so the joints run on down
+    // the bridge as fine lines and do not crawl.
+    const DT = 1.2;
+    const plank = tex(256, 256, (c, W, H) => {
+      const r = rng(11), n = 8, ph = H / n;
+      for (let i = 0; i < n; i++) {
+        const t = 150 + Math.round((r() - 0.5) * 18);
+        c.fillStyle = `rgb(${t - 6},${t},${t + 10})`; c.fillRect(0, i * ph, W, ph);
+        for (let k = 0; k < 46; k++) { c.fillStyle = r() < 0.5 ? `rgba(255,255,255,${0.03 + r() * 0.05})` : `rgba(30,36,46,${0.03 + r() * 0.05})`; c.fillRect(r() * W, i * ph + 2 + r() * (ph - 4), 16 + r() * 90, 1); }
+        c.fillStyle = 'rgba(18,22,30,0.9)'; c.fillRect(0, i * ph, W, 2);
+        c.fillStyle = 'rgba(236,240,248,0.32)'; c.fillRect(0, i * ph + 2, W, 1);
+      }
+    });
+    plank.anisotropy = 8; plank.repeat.set(1 / DT, 1);
+    put([loft(z => [[w, 0.002], [-w, 0.002]], DT, top)], new THREE.MeshStandardMaterial({ map: plank, roughness: 0.42, metalness: 0.35, emissiveMap: plank, emissive: new THREE.Color(0.46, 0.49, 0.56), emissiveIntensity: 0.4 }));
 
-    // The railings: steel posts leaning a little outwards, stainless mesh between them, a cap rail, the broad wooden
-    // handrail on top with its LED strip tucked under the inner edge, and snow on the ledge and on the handrail.
+    // The railings, 42 in high: slim white steel posts leaning a little outwards every 1.5 m, a flat bar along their
+    // feet and a steel cap along their heads, a fine stainless mesh between (1 cm squares, mostly air: a silver veil
+    // from further off), the broad wooden handrail on the cap with a warm LED strip under its inner edge, and the light
+    // of the LEDs on the mesh below it and on the planks. Snow lies on the handrail, on the ledge outside, and in a thin
+    // drift along the foot of the mesh inside.
     // (Collision is wingplay.js's: a wall at the deck's edge, 1.1 m high. The east railing stops where the landing opens off it.)
-    const RH = 1.07, lean = 0.13, ePost = 1.8;
+    const RH = 1.07, lean = 0.1, ePost = 1.8, MT = 0.16;
     const railLoft = (s, f, vs) => loft(f, vs, s > 0 ? eastEnd : null);      // (the east one stops where the landing opens off the deck)
-    const meshTex = tex(32, 32, (c, W, H) => { c.clearRect(0, 0, W, H); c.strokeStyle = 'rgba(232,238,246,0.9)'; c.lineWidth = 1; for (let i = 0; i <= W; i += 4) { c.beginPath(); c.moveTo(i + 0.5, 0); c.lineTo(i + 0.5, H); c.stroke(); } for (let i = 0; i <= H; i += 4) { c.beginPath(); c.moveTo(0, i + 0.5); c.lineTo(W, i + 0.5); c.stroke(); } });
-    meshTex.repeat.set(3.2, 2.4);      // a fine weave, about 4 cm
-    const netG = [], capG = [], woodG = [], ledG = [], snowG = [], poolG = [];
+    const meshTex = tex(128, 128, (c, W, H) => { c.clearRect(0, 0, W, H); c.fillStyle = 'rgba(238,243,250,0.95)'; for (let i = 0; i < W; i += 8) c.fillRect(i, 0, 1, H); for (let j = 0; j < H; j += 8) c.fillRect(0, j, W, 1); });
+    meshTex.anisotropy = 8; meshTex.repeat.set(1 / MT, 1);
+    const grain = tex(64, 256, (c, W, H) => { const r = rng(5); c.fillStyle = '#8f5b3a'; c.fillRect(0, 0, W, H); for (let k = 0; k < 70; k++) { c.fillStyle = r() < 0.6 ? `rgba(60,30,14,${0.08 + r() * 0.14})` : `rgba(230,170,120,${0.05 + r() * 0.08})`; c.fillRect(r() * W, 0, 1 + r() * 2, H); } });
+    grain.anisotropy = 8; grain.repeat.set(1 / 0.2, 1);
+    const glowTx = tex(64, 8, (c, W, H) => { const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,1)'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
+    glowTx.wrapS = glowTx.wrapT = THREE.ClampToEdgeWrapping;
+    const netG = [], frameG = [], woodG = [], ledG = [], snowG = [], poolG = [], haloG = [];
+    const lx = (s, y) => s * (ePost + lean * y / RH);      // the line of the posts, leaning out as it climbs
     for (const s of [-1, 1]) {
-      const x0 = s * ePost, x1 = s * (ePost + lean);
-      netG.push(railLoft(s, () => s > 0 ? [[x0, 0.04], [x1, RH - 0.06]] : [[x1, RH - 0.06], [x0, 0.04]], 0.5));
-      capG.push(railLoft(s, () => s > 0 ? [[x1 - 0.02, RH - 0.06], [x1 - 0.02, RH - 0.02], [x1 + 0.02, RH - 0.02]] : [[x1 - 0.02, RH - 0.02], [x1 + 0.02, RH - 0.02], [x1 + 0.02, RH - 0.06]]));
-      // the handrail, 10 in wide, its inner edge over the posts
-      const a = x1 - s * 0.06, b = x1 + s * 0.19, lo = Math.min(a, b), hi = Math.max(a, b);
-      woodG.push(railLoft(s, () => [[lo, RH - 0.02], [lo, RH + 0.02], [hi, RH + 0.02], [hi, RH - 0.02]], 0.5));
-      ledG.push(railLoft(s, () => s > 0 ? [[a - 0.004, RH - 0.035], [a + 0.03, RH - 0.03]] : [[a - 0.03, RH - 0.03], [a + 0.004, RH - 0.035]]));
-      snowG.push(railLoft(s, () => [[lo + 0.03, RH + 0.02], [lo + 0.05, RH + 0.045], [hi - 0.05, RH + 0.045], [hi - 0.03, RH + 0.02]], 2));
-      // the snow that lies on the ledge outside the railing, banked against the mesh
-      snowG.push(loft(z => { const W = outer(z) - 0.02, xa = x0 + s * 0.03; return s > 0 ? [[xa, 0.04], [xa + 0.03, 0.11], [(xa + W) / 2, 0.1], [W, 0.06]] : [[-W, 0.06], [(xa - W) / 2, 0.1], [xa - 0.03, 0.11], [xa, 0.04]]; }, 2, s > 0 ? eastEnd : null));
-      // and the pool of light the LEDs throw on the planks
-      poolG.push(railLoft(s, () => s > 0 ? [[0.75, 0.006], [w, 0.006]] : [[-w, 0.006], [-0.75, 0.006]], 1));
+      const yT = RH - 0.075, xt = lx(s, yT), xb = lx(s, 0.05);
+      const pair = (p, q) => (s > 0 ? [p, q] : [q, p]);
+      netG.push(railLoft(s, () => pair([xb, 0.05], [xt, yT]), MT));
+      // the flat bar at the foot and the cap: thin white steel
+      frameG.push(railLoft(s, () => pair([xb, 0.05], [xb, 0.09])), railLoft(s, () => pair([xt - s * 0.012, yT], [xt - s * 0.012, RH - 0.045])), railLoft(s, () => pair([xt + s * 0.012, RH - 0.045], [xt + s * 0.012, yT])));
+      // the handrail: 8 in of wood, 4 cm thick, eased at its edges, its inner edge well over the deck
+      const a = xt - s * 0.13, b = xt + s * 0.07, y0 = RH - 0.045, y1 = RH - 0.005, e = 0.008;
+      woodG.push(railLoft(s, () => pair([a + s * e, y1], [a, y1 - e]), 1), railLoft(s, () => pair([b - s * e, y1], [a + s * e, y1]), 1), railLoft(s, () => pair([b, y1 - e], [b - s * e, y1]), 1));
+      woodG.push(railLoft(s, () => pair([a, y1 - e], [a, y0]), 1), railLoft(s, () => pair([b, y0], [b, y1 - e]), 1), railLoft(s, () => pair([a, y0], [b, y0]), 1));
+      // the LED strip under the inner edge, and the warm light it throws down the mesh
+      ledG.push(railLoft(s, () => pair([a + s * 0.012, y0 - 0.002], [a + s * 0.03, y0 - 0.002])));
+      haloG.push(railLoft(s, () => pair([lx(s, 0.62) - s * 0.006, 0.62], [lx(s, yT) - s * 0.006, yT]), 1));
+      // snow along the handrail's top, on the ledge outside banked against the mesh, and a thin drift at the foot inside
+      const sa = a + s * 0.03, sb = b - s * 0.03;
+      const ord = P => (s > 0 ? P : P.slice().reverse());
+      snowG.push(railLoft(s, () => ord([[sb, y1 - 0.001], [sb - s * 0.02, y1 + 0.02], [sa + s * 0.02, y1 + 0.018], [sa, y1 - 0.001]]), 2));
+      snowG.push(loft(z => { const W = s * (outer(z) - 0.02), xa = xb + s * 0.012; return ord([[W, 0.06], [(xa + W) / 2, 0.1], [xa + s * 0.03, 0.11], [xa, 0.06]]); }, 2, s > 0 ? eastEnd : null));
+      snowG.push(railLoft(s, () => ord([[xb - s * 0.004, 0.085], [s * w, 0.052], [s * (w - 0.04), 0.022], [s * (w - 0.11), 0.003]]), 2));
+      // and the pool of light on the planks
+      poolG.push(railLoft(s, () => ord([[s * (w - 0.1), 0.006], [s * (w - 0.7), 0.006]]), 1));
     }
-    put(netG, new THREE.MeshBasicMaterial({ map: meshTex, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.72, 0.78, 0.88) }), 2);
-    put(capG, steel);
-    put(woodG, new THREE.MeshStandardMaterial({ color: 0x6e3c3a, roughness: 0.6, emissive: 0x3a1c1a, emissiveIntensity: 0.7 }));
-    put(ledG, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.7, 1.45, 1.05), side: THREE.DoubleSide }));
+    const net = put(netG, new THREE.MeshStandardMaterial({ map: meshTex, color: 0xdfe6ee, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.35, metalness: 0.45, emissiveMap: meshTex, emissive: new THREE.Color(0.5, 0.54, 0.62), emissiveIntensity: 0.55 }), 2);
+    void net;
+    const railWhite = new THREE.MeshStandardMaterial({ color: 0xeef1f5, roughness: 0.45, metalness: 0.2, emissive: 0x6a7184, emissiveIntensity: 0.7, side: THREE.DoubleSide });
+    put(frameG, railWhite);
+    put(woodG, new THREE.MeshStandardMaterial({ map: grain, roughness: 0.5, emissiveMap: grain, emissive: new THREE.Color(0.55, 0.42, 0.34), emissiveIntensity: 0.5 }));
+    put(ledG, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.2, 0.8), side: THREE.DoubleSide }));
+    const hm = put(haloG, new THREE.MeshBasicMaterial({ map: glowTx, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, color: new THREE.Color(0.3, 0.22, 0.12) }), 3);
+    { const g0 = hm.geometry, uvA = g0.attributes.uv, P = g0.attributes.position; for (let i = 0; i < uvA.count; i++) uvA.setX(i, (P.getY(i) - hAt(P.getZ(i)) - 0.62) / (RH - 0.075 - 0.62)); uvA.needsUpdate = true; }
     const snowMap = museum.snowTex ? museum.snowTex.clone() : null; if (snowMap) { snowMap.needsUpdate = true; snowMap.repeat.set(1, 1); }
     put(snowG, new THREE.MeshStandardMaterial({ map: snowMap, color: 0xf4f7fc, roughness: 0.95, emissiveMap: snowMap, emissive: new THREE.Color(0.34, 0.38, 0.52), emissiveIntensity: 0.62 }));
     const poolTex = tex(64, 8, (c, W, H) => { const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,1)'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
     poolTex.wrapS = THREE.ClampToEdgeWrapping;
     // (u runs from the inner edge outwards on the east side, so the west strip's texture is turned round)
-    const pm = put(poolG, new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(0.34, 0.27, 0.16), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 3);
-    { const g0 = pm.geometry, uvA = g0.attributes.uv, P = g0.attributes.position; for (let i = 0; i < uvA.count; i++) uvA.setX(i, Math.abs(P.getX(i) - cxAt(P.getZ(i))) <= 0.76 ? 0 : 1); uvA.needsUpdate = true; }
-    // The posts, one every 1.4 m, as one instanced mesh.
+    const pm = put(poolG, new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(0.4, 0.3, 0.17), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 3);
+    { const g0 = pm.geometry, uvA = g0.attributes.uv, P = g0.attributes.position; for (let i = 0; i < uvA.count; i++) uvA.setX(i, Math.abs(P.getX(i) - cxAt(P.getZ(i))) <= w - 0.4 ? 0 : 1); uvA.needsUpdate = true; }
+    // The posts, one every 1.5 m, as one instanced mesh: flat bars, 2 cm by 5 cm, on the line the mesh leans on.
     {
       const at = [];
-      for (const s of [-1, 1]) for (let z = E.z + 0.3; z < top; z += 1.4) if (!(s > 0 && z > eastEnd)) at.push([s, z]);
+      for (const s of [-1, 1]) for (let z = E.z + 0.4; z < top; z += 1.5) if (!(s > 0 && z > eastEnd)) at.push([s, z]);
       if (at.length) {
-        const im = new THREE.InstancedMesh(new THREE.BoxGeometry(0.03, RH - 0.04, 0.06), steel, at.length), M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), Z = new THREE.Vector3(0, 0, 1);
-        at.forEach(([s, z], i) => { Q.setFromAxisAngle(Z, -s * Math.atan2(lean, RH)); V.set(cxAt(z) + s * (ePost + lean / 2), hAt(z) + (RH - 0.04) / 2 + 0.02, z); im.setMatrixAt(i, M4.compose(V, Q, S1)); });
+        const ph = RH - 0.045 - 0.05, im = new THREE.InstancedMesh(new THREE.BoxGeometry(0.02, ph, 0.05), railWhite, at.length), M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), Z = new THREE.Vector3(0, 0, 1);
+        at.forEach(([s, z], i) => { Q.setFromAxisAngle(Z, -s * Math.atan2(lean, RH)); const ym = 0.05 + ph / 2; V.set(cxAt(z) + lx(s, ym) - s * 0.012, hAt(z) + ym, z); im.setMatrixAt(i, M4.compose(V, Q, S1)); });
         im.frustumCulled = false; add(im);
       }
     }
