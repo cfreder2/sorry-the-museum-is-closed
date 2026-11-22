@@ -13,6 +13,7 @@
 // `played` (Sets of game ids) and `best` ({ id: score }), and each change is announced with
 //   window.dispatchEvent(new CustomEvent('museum:arcade', { detail: { id, event: 'found' | 'played' | 'score', score } }))
 
+import { roomAt } from './plan.js';
 import * as THREE from 'three';
 import * as TX from './textures.js';
 import { GAMES, banner, INK } from './arcadegames.js';
@@ -20,6 +21,27 @@ import { GAMES, banner, INK } from './arcadegames.js';
 const KEY = 'after-hours.arcade';
 const $ = id => document.getElementById(id);
 const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Space: 'a', Enter: 'a', KeyE: 'a', KeyF: 'b', ShiftLeft: 'b', ShiftRight: 'b' };
+
+// What each game sounds like from across the room while its demo plays: (sound, at, volume, state) -> seconds to the next.
+const rnd = Math.random;
+const AMBIENT = {
+  snake: (s, at, v, S) => { s.beep(S.k % 2 ? 330 : 294, 0.03, v * 0.5, at); if (S.k % 14 === 13) { s.beep(660, 0.05, v, at + 0.05); s.beep(990, 0.07, v, at + 0.11); } return 0.2; },      // steps, and a gulp
+  mines: (s, at, v) => { s.tick(v * 1.6, 2600, 0.03, at); if (rnd() < 0.12) s.beep(880, 0.05, v * 0.7, at + 0.1); if (rnd() < 0.03) { s.beep(70, 0.45, v * 1.2, at + 0.2); s.tick(v * 2.2, 500, 0.35, at + 0.2); } return 0.45 + rnd() * 0.8; },      // clicks, a flag, the odd boom
+  paddles: (s, at, v, S) => { s.beep(S.k % 2 ? 490 : 245, 0.04, v, at); if (S.k % 16 === 15) { s.beep(490, 0.08, v, at + 0.25); s.beep(370, 0.08, v, at + 0.38); s.beep(245, 0.16, v, at + 0.51); return 1.6; } return 0.55; },      // bat, wall, a point
+  bricks: (s, at, v, S) => { if (S.k % 2) s.beep(220, 0.04, v, at); else s.beep([523, 587, 659, 784, 880][(S.k >> 1) % 5], 0.05, v, at); return 0.32; },      // bat, then a brick, higher each time
+  blocks: (s, at, v, S) => { if (rnd() < 0.5) s.tick(v * 1.2, 3200, 0.02, at); if (S.k % 3 === 2) s.beep(110, 0.06, v * 1.2, at + 0.1); if (S.k % 24 === 23) [523, 659, 784, 1047].forEach((f, i) => s.beep(f, 0.07, v, at + 0.2 + i * 0.07)); return 0.3; },      // turn, drop, a line
+  starguard: (s, at, v, S) => { s.beep([98, 87, 78, 73][S.k % 4], 0.09, v * 1.3, at); if (rnd() < 0.25) { s.beep(1400, 0.03, v * 0.6, at + 0.2); s.beep(1000, 0.04, v * 0.6, at + 0.23); } if (rnd() < 0.05) s.tick(v * 2.2, 600, 0.25, at + 0.3); return 0.5; },      // the march, shots, a hit
+  twice: (s, at, v, S) => { s.tick(v * 1.4, 1400, 0.06, at); if (rnd() < 0.35) s.beep([262, 330, 392, 523, 659][S.k % 5], 0.06, v * 0.8, at + 0.08); return 0.9 + rnd() * 0.5; },      // tiles slide, two merge
+  lamps: (s, at, v, S) => { s.tick(v * 1.8, 4200, 0.015, at); s.beep(S.k % 2 ? 1046 : 784, 0.03, v * 0.4, at + 0.02); return 0.7 + rnd() * 0.9; },      // switches
+  echo: (s, at, v, S) => {      // the tune it wants you to repeat, a note longer each round
+    const F = [330, 392, 494, 262];
+    if (!S.seq || S.seq.length > 8) { S.seq = [0, 1, 2].map(() => (rnd() * 4) | 0); S.i = 0; }
+    if (S.i < S.seq.length) { s.beep(F[S.seq[S.i++]], 0.28, v * 0.9, at); return 0.42; }
+    S.seq.push((rnd() * 4) | 0); S.i = 0; return 1.6;
+  },
+  noughts: (s, at, v, S) => { s.beep(S.k % 2 ? 523 : 392, 0.05, v * 0.7, at); if (S.k % 9 === 8) { [523, 659, 784].forEach((f, i) => s.beep(f, 0.07, v, at + 0.15 + i * 0.08)); return 1.8; } return 0.8 + rnd() * 0.4; },      // X, O, three in a row
+  outpost: (s, at, v) => { s.beep(1200, 0.025, v * 0.6, at); s.beep(800, 0.03, v * 0.6, at + 0.03); if (rnd() < 0.2) s.tick(v * 2.2, 500, 0.3, at + 0.15); return 0.35 + rnd() * 0.4; },      // the gun, and what it hits
+};
 
 export class Arcade {
   constructor(museum, plan, sound) {
@@ -89,6 +111,22 @@ export class Arcade {
     if (this.since < 0.28) return;
     this.since = 0;
     for (const it of this.list) if (!(this.on && it === this.cur) && Math.abs(cam.y - it.y - 1) < 5 && (cam.x - it.x) ** 2 + (cam.z - it.z) ** 2 < 26 * 26) this._attract(it, calm ? 0 : t);
+    this._ambient(cam);
+  }
+
+  // The sound of each game's demo, heard only in its own room and louder nearer the screen: scheduled a little ahead
+  // on the audio clock, so the rhythms keep time although this runs only a few times a second. Quiet while playing one.
+  _ambient(cam) {
+    const s = this.sound, c = s && s.ctx; if (!c || c.state !== 'running') return;
+    const r = roomAt(this.plan, cam.x, cam.z, cam.y - 0.5), here = r ? r.id : null, now = c.currentTime;
+    for (const it of this.list) {
+      if (it.roomId === undefined) { const q = roomAt(this.plan, it.x, it.z, it.y + 0.3); it.roomId = q ? q.id : null; }
+      const d = Math.hypot(cam.x - it.x, cam.z - it.z), play = AMBIENT[it.Game.id];
+      if (this.on || !play || !here || it.roomId !== here || d > 16 || Math.abs(cam.y - it.y - 1) > 4) { it.snd = null; continue; }
+      const v = 0.034 * Math.max(0.15, 1 - d / 16), S = it.snd || (it.snd = { t: now + 0.15, k: 0 });
+      if (S.t < now) S.t = now + 0.05;
+      while (S.t < now + 0.6) { S.t += play(s, S.t - now, v, S) || 1; S.k++; }
+    }
   }
 
   reset() { this.found.clear(); this.played.clear(); this._save(); }      // a new game forgets what was found, not the best scores

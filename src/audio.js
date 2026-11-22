@@ -203,12 +203,12 @@ export class Sound {
     this.tick(0.05 * k, 3500);
   }
 
-  tick(gain = 0.08, freq = 1800, dur = 0.04) {
+  tick(gain = 0.08, freq = 1800, dur = 0.04, at = 0) {      // (at: seconds from now, to schedule a rhythm a little ahead)
     const c = this.ctx;
     if (!c || c.state !== 'running') return;
     const s = c.createBufferSource(); s.buffer = this.noise;
     const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.2;
-    const e = c.createGain(), t = c.currentTime;
+    const e = c.createGain(), t = c.currentTime + Math.max(0, at);
     e.gain.setValueAtTime(gain, t); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(e); e.connect(this.dry); e.connect(this.send);
     s.start(t, Math.random()); s.stop(t + dur + 0.02);
@@ -225,10 +225,10 @@ export class Sound {
     this.tick(g * 0.7, 900, 0.07);
   }
 
-  beep(freq, dur = 0.14, gain = 0.09) {
+  beep(freq, dur = 0.14, gain = 0.09, at = 0) {
     const c = this.ctx;
     if (!c || c.state !== 'running') return;
-    const t = c.currentTime, o = c.createOscillator(), e = c.createGain();
+    const t = c.currentTime + Math.max(0, at), o = c.createOscillator(), e = c.createGain();
     o.type = 'square'; o.frequency.value = freq;
     e.gain.setValueAtTime(gain, t); e.gain.setValueAtTime(gain, t + dur - 0.02); e.gain.linearRampToValueAtTime(0, t + dur);
     o.connect(e); e.connect(this.dry); e.connect(this.send); o.start(t); o.stop(t + dur + 0.02);
