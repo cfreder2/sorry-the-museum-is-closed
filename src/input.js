@@ -153,6 +153,23 @@ export class Input {
     return p > n ? 1 : n > p ? -1 : 0;
   }
 
+  // The left stick as it lies, for aiming rather than driving (the derby's bat, src/ballpark.js): the arrows or WASD, a
+  // pad's stick, the thumb on glass. No throttle curve, no 'hold my speed', no 'drive for me'. (read() is called every
+  // frame first, and it is what learns which pad axes can be believed.)
+  aim() {
+    let x = this._axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']), y = this._axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']);
+    const dz = v => (Math.abs(v) < 0.14 ? 0 : (v - Math.sign(v) * 0.14) / 0.86);
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const p of pads) {
+      if (!p || !p.connected) continue;
+      const ax = i => (this._live[p.index + ':' + i] ? p.axes[i] || 0 : 0);
+      for (const [gx, gy] of [[dz(ax(0)), -dz(ax(1))], [dz(ax(2)), -dz(ax(3))]]) { if (Math.abs(gx) > Math.abs(x)) x = gx; if (Math.abs(gy) > Math.abs(y)) y = gy; }
+      break;
+    }
+    const t = this.touch.l; if (t) { x = t.x; y = t.y; }
+    return { x, y };
+  }
+
   // Reads everything into the two sticks. `drone` picks the key layout.
   read(drone) {
     let lx = 0, ly = 0, rx = 0, ry = 0, trig = 0, coast = false;

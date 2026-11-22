@@ -811,7 +811,8 @@ function chase(dt, snap) {
     camera.up.set(0, 1, 0);
     camera.lookAt(camLook);
   }
-  const fov = (G.view === 'fpv' ? 84 : 70) + (set.reduce ? 0 : Math.min(14, Math.abs(v.speed) * 1.1));
+  const ccFov = G.features && G.features.kit.camClose && G.features.kit.camClose.fov;      // (a feature standing the camera somewhere can narrow it too)
+  const fov = ccFov || (G.view === 'fpv' ? 84 : 70) + (set.reduce ? 0 : Math.min(14, Math.abs(v.speed) * 1.1));
   camera.fov += (fov - camera.fov) * (snap ? 1 : Math.min(1, dt * 5));
   camera.updateProjectionMatrix();
 }

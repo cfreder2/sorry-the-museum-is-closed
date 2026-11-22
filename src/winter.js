@@ -245,8 +245,10 @@ export function buildWinter(museum, plan) {
     // Rub out the tracks: a new night.
     clear() { tp.fill(0); tpa.clearUpdateRanges(); tpa.needsUpdate = true; head = 0; last[0] = last[1] = null; pp.fill(0); ppa.clearUpdateRanges(); ppa.needsUpdate = true; phead = 0; plast = null; },
     // `car` is the car when it is the toy in use and its wheels are on the ground, else null.
+    // hush: set true to put the glitter out for a while (the Home Run Derby, src/ballpark.js: nothing white flickering by the pitch)
+    hush: false,
     update(dt, t, cam, car, calm) {
-      const out = glints.visible = bulbs.visible = cam.y < 60;
+      const out = bulbs.visible = cam.y < 60; glints.visible = out && !this.hush;
       if (out) { glints.material.uniforms.uCam.value.copy(cam); glints.material.uniforms.uT.value = calm ? 0 : t; bulbs.material.uniforms.uT.value = calm ? 0 : t; }
       let laid = false;
       if (car && onSnow(plan, car.pos.x, car.pos.z)) {

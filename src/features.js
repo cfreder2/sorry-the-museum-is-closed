@@ -29,6 +29,7 @@
 //   k.synth               small synthesised sounds: k.synth.note(freq, dur, opts), k.synth.chime(freqs), k.synth.noise(dur, opts)
 //   k.camClose            set to { at: {x,y,z}, look: {x,y,z} } from update() to stand the chase camera there this frame (inside a small
 //                         enclosure, say, where the usual camera behind the toy would end up in a wall). Cleared before each update round.
+//                         An optional fov (degrees) narrows or widens the view meanwhile.
 //   k.tally(key, total)   a set of things to collect across the building, remembered between visits:
 //                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done
 //   k.tint(roomId)        light a room differently: .set(color, secs), .off(secs)   (see the end of this file)
