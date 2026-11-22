@@ -902,3 +902,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 209
 
 > This is very underwhelming. Can this be a DDR and light show? Improve the way this looks, it's very bland.
+
+## 210
+
+> We need to ensure the storyline has plenty of hooks so that people become invested in the aliens and that it is discovered.

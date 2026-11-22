@@ -793,7 +793,9 @@ announces itself with a `museum:repair` event (`start`, `end`).
   something they should not have written down. What each says is in
   `src/boardtext.js`.
 - **There is something under the building.** It is not on the map. That is all
-  this file has to say about it. (If you would rather be told: docs/FINALE.md.)
+  this file has to say about it, except: listen at the grate in the lobby. What
+  you find goes in the Green Cheese file (pause menu), and a faint `?` on the map
+  says where to look next. (If you would rather be told: docs/FINALE.md.)
   Finish what is down there and a small Moon appears beside the title.
 
 ## Settings and access
