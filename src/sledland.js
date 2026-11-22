@@ -11,10 +11,11 @@
 // heightAt(x, z) interpolates the grid on the same two triangles per cell the mesh is drawn with.
 
 export const LAND = { x0: 303, z0: 114, step: 0.5, nx: 161, nz: 194 };           // 80.5 m by 97 m: the south-west quarter of Butler Field
-export const TOP = { x: 331, z: 143, r: 6 };                                       // the summit, flat
+export const TOP = { x: 331, z: 143, r: 7 };                                       // the summit, flat (room for the shop and its penguins)
 const SPREAD = 0.42;                                                              // the steepest the hill's sides fall away to the field
+const CEIL = 0.12;                                                                // and no part of it stands higher than the ground pinned round it, less this a metre away
 const FOOT = 0.4;                                                                 // how gently the foot meets the field
-const PIN_TOP = 7.9;                                                              // (the summit ends up 7.5 m high once the foot is eased)
+const PIN_TOP = 12.4;                                                             // (the summit ends up 12 m high once the foot is eased)
 
 const smooth = t => { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -61,19 +62,23 @@ function profile(P, keys, win) {
   P.forEach((p, i) => { p.h = out[i]; });
 }
 
-// The sled run: off the summit eastwards, a hairpin right, back west over the first kicker, a hairpin left, east again
-// through the tunnel, a right-hander, and south over the second kicker to the finish.
+// The sled run: off the summit eastwards along the ridge, a banked hairpin right, a quarter left onto the south face,
+// and then the big one: a kicker at the brow throws you out over the steepest face on the hill (it is the landing, so
+// it is safe at any speed: slow, you come down early on it; fast, further down it), seven metres of drop to the foot,
+// a wide banked sweeper left, a straight to get it in hand, the tunnel through the drift and the finish.
 export const RUN_W = 2.3, RUN_LIP = 1.8;
-export const RUN_PARTS = [{ len: 20 }, { arc: Math.PI, r: 8 }, { len: 20 }, { arc: -Math.PI, r: 8 }, { len: 22 }, { arc: Math.PI / 2, r: 8 }, { len: 18 }];
-export const RUN_FROM = { x: 337, z: 143, heading: 0 };
-const RUN_KEYS = [[0, 7.9], [2.5, 7.9], [13, 6.75], [20, 6.3], [45.1, 5.55], [52.6, 5.3], [55, 5.25], [61.5, 4.2], [65.1, 4.05], [90.3, 3.35], [101.3, 2.95], [112.3, 2.5], [124.8, 2.1], [127.3, 2.05], [129.7, 2.0], [135.5, 0.4], [137.5, 0.05], [142.8, 0]];
-export const KICKERS = [{ s: 52.6, len: 2.4, up: 0.42 }, { s: 127.3, len: 2.4, up: 0.42 }];
-export const FINISH_S = 137;
-export const TUNNEL = { s0: 96.3, s1: 101.3, half: 2.5, clear: 2.15, thick: 0.55 };      // along the run; half width of the bore; drift top over the floor
+export const RUN_PARTS = [{ len: 14 }, { arc: Math.PI, r: 7 }, { len: 6 }, { arc: -Math.PI / 2, r: 7 }, { len: 26 }, { arc: -Math.PI / 2, r: 10 }, { len: 27 }];
+export const RUN_FROM = { x: 338, z: 143, heading: 0 };
+// [s, height]: the ridge (gentle), the brow, the face (the jump's landing), its foot, the sweeper, the tunnel and the finish.
+const RUN_KEYS = [[0, 12.4], [2.5, 12.4], [5, 12.25], [14, 11.2], [36, 10.15], [42, 9.9], [53, 9.3], [56, 9.15], [59.6, 8.95], [61, 8.65], [63, 8.05], [66, 6.6], [71, 3.6], [74, 2.6], [78, 2.25], [80.5, 2.2], [85, 2.15], [94.7, 1.95], [98, 1.85], [104.5, 1.72], [109.4, 1.55], [112, 1.33], [115, 0.6], [117.5, 0.06], [121.7, 0]];
+// The big kicker at the brow. `back`: how far its back falls away behind the lip.
+export const KICKERS = [{ s: 56.4, len: 3.2, up: 0.75, back: 1.2, big: true }];
+export const FINISH_S = 114.5;
+export const TUNNEL = { s0: 104, s1: 109, half: 2.5, clear: 2.15, thick: 0.55, spread: 1.35 };      // along the run; half width of the bore; drift top over the floor; how short it is across the run
 // The path up: from the foot of the west side, north up the flank, round onto the summit.
 export const PATH_W = 1.4, PATH_LIP = 0.9;
-const PATH_PTS = [[323, 210.5], [319, 197], [316.5, 181], [317, 165], [320, 153.5], [325.5, 146.2], [328.5, 143.6]];
-const PATH_H = [0, 1.0, 2.5, 4.4, 6.25, 7.85, 7.9];
+const PATH_PTS = [[323, 210.5], [319, 197], [316.5, 181], [316.5, 165], [318.5, 153], [322.5, 146.5], [327.5, 143.4]];
+const PATH_H = [0, 1.7, 4.3, 7.3, 9.9, 12.0, 12.4];
 // The steps: timber stairs straight up the north face from the cross path. A toy rides up them, nosing to nosing (sledhill.js).
 export const STAIR = { x: 334.5, z0: 115.5, z1: 138.2, w: 1.0, lip: 0.6 };
 
@@ -98,7 +103,7 @@ function kick(s) {
   for (const q of KICKERS) {
     const t = (s - q.s) / q.len;
     if (t >= 0 && t <= 1) h += q.up * t * t;
-    else if (t > 1 && s - q.s - q.len < 0.9) h += q.up * (1 + Math.cos(Math.PI * (s - q.s - q.len) / 0.9)) / 2;
+    else if (t > 1 && s - q.s - q.len < q.back) h += q.up * (1 + Math.cos(Math.PI * (s - q.s - q.len) / q.back)) / 2;
   }
   return h;
 }
@@ -109,8 +114,8 @@ export function buildLand() {
   const run = trace(RUN_FROM.x, RUN_FROM.z, RUN_FROM.heading, RUN_PARTS);
   profile(run, RUN_KEYS, 3);
   for (const p of run) p.h += kick(p.s);
-  // banks: how hard the run is turning, eased in and out over a few metres
-  { const raw = run.map(p => Math.abs(p.k) * 9), n = 16; run.forEach((p, i) => { let a = 0, c = 0, kk = 0; for (let j = Math.max(0, i - n); j <= Math.min(run.length - 1, i + n); j++) { a += raw[j]; c++; kk += run[j].k; } p.bank = 1.35 * a / c; p.kk = kk; }); }
+  // banks: how hard the run is turning, eased in and out over a few metres (less up on the ridge, where it is taken slowly)
+  { const raw = run.map(p => Math.abs(p.k) * 9), n = 16; run.forEach((p, i) => { let a = 0, c = 0, kk = 0; for (let j = Math.max(0, i - n); j <= Math.min(run.length - 1, i + n); j++) { a += raw[j]; c++; kk += run[j].k; } p.bank = 1.35 * a / c * (p.s < 56 ? 0.62 : 1); p.kk = kk; }); }
   const pathPts = PATH_PTS.map(p => p.slice()); const path = spline(pathPts);
   profile(path, pathPts.map((p, i) => [p.s, PATH_H[i]]), 4);
   const stair = trace(STAIR.x, STAIR.z0, Math.PI / 2, [{ len: STAIR.z1 - STAIR.z0 }]);
@@ -152,19 +157,24 @@ export function buildLand() {
     if (i === 0 || j === 0 || i === nx || j === nz) { if (!pin[n]) { h[n] = 0; pin[n] = 1; } }
   }
   // Where the hill runs out: as far from everything pinned as its height allows at SPREAD (a chamfer distance, two passes).
-  const E = new Float32Array(N); for (let n = 0; n < N; n++) E[n] = pin[n] && h[n] > 0 ? h[n] : -99;
-  { const a = SPREAD * step, b = a * Math.SQRT2;
+  const envelope = slope => {
+    const E = new Float32Array(N); for (let n = 0; n < N; n++) E[n] = pin[n] && h[n] > 0 ? h[n] : -99;
+    const a = slope * step, b = a * Math.SQRT2;
     for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const n = j * W + i; let e = E[n]; if (i > 0) e = Math.max(e, E[n - 1] - a); if (j > 0) { e = Math.max(e, E[n - W] - a); if (i > 0) e = Math.max(e, E[n - W - 1] - b); if (i < nx) e = Math.max(e, E[n - W + 1] - b); } E[n] = e; }
-    for (let j = nz; j >= 0; j--) for (let i = nx; i >= 0; i--) { const n = j * W + i; let e = E[n]; if (i < nx) e = Math.max(e, E[n + 1] - a); if (j < nz) { e = Math.max(e, E[n + W] - a); if (i < nx) e = Math.max(e, E[n + W + 1] - b); if (i > 0) e = Math.max(e, E[n + W - 1] - b); } E[n] = e; } }
+    for (let j = nz; j >= 0; j--) for (let i = nx; i >= 0; i--) { const n = j * W + i; let e = E[n]; if (i < nx) e = Math.max(e, E[n + 1] - a); if (j < nz) { e = Math.max(e, E[n + W] - a); if (i < nx) e = Math.max(e, E[n + W + 1] - b); if (i > 0) e = Math.max(e, E[n + W - 1] - b); } E[n] = e; }
+    return E;
+  };
+  const E = envelope(SPREAD), ceil = envelope(CEIL);
   for (let n = 0; n < N; n++) if (!pin[n] && E[n] <= 0) { h[n] = 0; pin[n] = 1; }
-  // The sheet over it all: Gauss-Seidel with over-relaxation, from the envelope as a first guess (it settles fast).
-  for (let n = 0; n < N; n++) if (!pin[n]) h[n] = E[n];
-  const src = 0.05 * step * step, w = 1.92;
+  // The sheet over it all: Gauss-Seidel with over-relaxation, from the envelope as a first guess (it settles fast). It is
+  // kept under a ceiling a little lower than the ground pinned round it, so that nothing swells up above the ridge it hangs from.
+  for (let n = 0; n < N; n++) if (!pin[n]) h[n] = Math.min(E[n], ceil[n]);
+  const src = 0.012 * step * step, w = 1.92;
   for (let it = 0; it < 260; it++) {
     for (let j = 1; j < nz; j++) for (let i = 1; i < nx; i++) {
       const n = j * W + i; if (pin[n]) continue;
       const v = (h[n - 1] + h[n + 1] + h[n - W] + h[n + W] + src) * 0.25;
-      h[n] += w * (v - h[n]);
+      h[n] = Math.min(ceil[n], h[n] + w * (v - h[n]));
     }
   }
   // The foot eased into the field.
@@ -198,7 +208,7 @@ export function buildLand() {
     tun.z = z0 + j * step; tun.floorAt = fx; tun.top = Math.max(fx(tun.x0), fx(tun.x1)) + T.clear; }
   const cx = (tun.x0 + tun.x1) / 2, hx = (tun.x1 - tun.x0) / 2, SL = 0.62, RR = 2.2;
   const driftAbs = (x, z) => {
-    const ux = Math.max(0, Math.abs(x - cx) - hx), uz = Math.max(0, Math.abs(z - tun.z) - (T.half + 1)) * 0.75, q = Math.hypot(ux, uz);
+    const ux = Math.max(0, Math.abs(x - cx) - hx), uz = Math.max(0, Math.abs(z - tun.z) - (T.half + 1)) * T.spread, q = Math.hypot(ux, uz);
     return tun.top - (q < RR ? SL * q * q / (2 * RR) : SL * (q - RR / 2));
   };
   tun.bore = (x, z) => Math.abs(z - tun.z) < T.half - 1e-6 && Math.abs(x - cx) < hx + 8;
