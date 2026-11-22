@@ -1,49 +1,39 @@
-// A toy trick line down the Nichols Bridgeway (features.js): somebody has clipped a plastic track set onto the real
-// bridge. Down the east half of the deck, from the top: a start gate, a tabletop jump, a loop-the-loop, and a launch
-// ramp that climbs out over the east railing and throws the car off the bridge onto a landing ramp in the park below.
-// The west half stays clear, so the walk (and the sprint up it, wingplay.js) is never in the way of any of it. Five
-// rings for the drone, over, under and through it all.
+// A toy trick line down the Nichols Bridgeway (features.js): somebody has clipped the museum's orange toy track onto
+// the real bridge. Down the east half of the deck, from the top: a start gate, a triple loop, and a launch ramp that
+// climbs out over the east railing and throws the car off the bridge onto a landing ramp in the park below. The west
+// half stays clear, so the walk (and the sprint up it, wingplay.js) is never in the way of any of it. Five rings for the
+// drone, over, under and through it all.
 //
-// It is one kind of track throughout, an original design: an orange ribbon a little wider than the car, a low rail
-// along each edge, a joint with a connector tab every metre, and where it leaves the deck it stands on slim graphite
-// trestles. Nothing else is coloured. Each length is straight along the bridge, laid at the deck's own height
-// (bridgeway.js, museum.mw.deck) and cut into short plan surfaces, top and rails each, drawn exactly as they are felt.
+// It is the same track as the loop and the track pieces indoors (museum.js): the orange track texture, an orange lip
+// along each edge, cyan light down the edges of a loop, dark steel under it. Each length is straight along the bridge,
+// laid at the deck's own height (bridgeway.js, museum.mw.deck) or level on trestles, and cut into short plan surfaces,
+// top and lips each, drawn exactly as they are felt.
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { Geo } from './geo.js';
 
+import { track as trackTexture } from './textures.js';
+
 const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; };
-// One metre of track, the width of its running surface: orange, a little lighter down the middle, two faint guide ribs,
-// and at the joint a dark seam and the tab that clips one piece to the next.
-const trackTex = () => tex(128, 256, (c, W, H) => {
-  const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#d9561a'); g.addColorStop(0.5, '#f57226'); g.addColorStop(1, '#d9561a');
-  c.fillStyle = g; c.fillRect(0, 0, W, H);
-  for (const f of [0.28, 0.72]) { c.fillStyle = 'rgba(110,30,0,0.22)'; c.fillRect(W * f - 1, 0, 2, H); c.fillStyle = 'rgba(255,205,160,0.22)'; c.fillRect(W * f + 1, 0, 1, H); }
-  c.fillStyle = 'rgba(60,16,0,0.8)'; c.fillRect(0, 0, W, 2);
-  c.fillStyle = 'rgba(255,190,140,0.35)'; c.fillRect(0, 2, W, 1);
-  // the tab: a dovetail of the next piece lying in this one
-  c.fillStyle = '#c24a12'; c.beginPath(); c.moveTo(W / 2 - 11, 3); c.lineTo(W / 2 + 11, 3); c.lineTo(W / 2 + 15, 20); c.lineTo(W / 2 - 15, 20); c.closePath(); c.fill();
-  c.strokeStyle = 'rgba(70,18,0,0.7)'; c.lineWidth = 1.5; c.stroke();
-  c.fillStyle = 'rgba(255,200,150,0.3)'; c.fillRect(W / 2 - 14, 20, 28, 1);
-});
 const checks = () => { const t = tex(64, 16, (c) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 2; j++) { c.fillStyle = (i + j) % 2 ? '#15171b' : '#f2f2ee'; c.fillRect(i * 8, j * 8, 8, 8); } }); t.repeat.set(1, 1); return t; };
 
-const TW = 0.5, RW = 0.022, RH = 0.022, TH = 0.03, FLAT = 0.02;      // running width, rail width and height, plank, how far a piece lying on the deck stands proud
-const ORANGE = new THREE.Color('#ef6820').toArray(), RAIL = new THREE.Color('#ff7f30').toArray(), UNDER = new THREE.Color('#c4501a').toArray(), GRAPHITE = new THREE.Color('#2c3038').toArray();
+const TW = 0.5, RW = 0.02, RH = 0.05, TH = 0.03, FLAT = 0.02;      // running width, lip width and height, plank, how far a piece lying on the deck stands proud
+// (the lip is museum.js's rail colour, the steel its steel, a shade lifted so it reads against the night)
+const ORANGE = new THREE.Color(0xd8581c).toArray(), RAIL = new THREE.Color(0xc8501a).toArray(), UNDER = new THREE.Color(0xa8441a).toArray(), GRAPHITE = new THREE.Color(0x24272c).toArray();
 
 feature({
   id: 'bridgeplay',
-  secrets: [['bridgeloop', 'Loop the loop on the Bridgeway'], ['bridgegap', 'Off the Bridgeway']],
+  secrets: [['bridgeloop', 'Triple loop on the Bridgeway'], ['bridgegap', 'Off the Bridgeway']],
   init(k) {
     const mw = k.museum.mw, D = mw && mw.deck; if (!D) return;
     const P = k.plan, O = P.obstacles, S = P.surfaces, cx = D.cx, h = D.h;
     this.D = D;
-    const tt = trackTex();
-    const track = new THREE.MeshStandardMaterial({ map: tt, roughness: 0.38, emissiveMap: tt, emissive: 0xffffff, emissiveIntensity: 0.26 });
+    const tt = trackTexture();
+    const track = new THREE.MeshStandardMaterial({ map: tt, roughness: 0.45, emissiveMap: tt, emissive: 0xffffff, emissiveIntensity: 0.3 });      // museum.js's track
     const plastic = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4 });
     plastic.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * 0.3;'); };
     plastic.customProgramCacheKey = () => 'bridgeplay-plastic';
-    const topG = new Geo(), bodyG = new Geo();
+    const topG = new Geo(), bodyG = new Geo(), ledG = new Geo();
 
     // A quad with a normal at each corner, so a curve of short flat pieces is shaded as one smooth sweep.
     const quadN = (g, v, n, uv, col) => {
@@ -103,82 +93,80 @@ feature({
       return segs;
     };
     // A trestle under the track at z: two legs at its edges and a crossbar under the plank; one leg in the middle where
-    // the far edge is out over the railing. Felt as it is drawn, up to a hand's breadth under the plank: a wheel on the
-    // climb above reaches a trestle's line before its axle does, and must not be stopped by what holds it up.
+    // the far edge is out over the railing. Felt as it is drawn, up to a foot under the plank: a wheel on the
+    // climb above reaches a trestle's line before its axle does (and a frame or two before the car has risen to
+    // where it is), and must not be stopped by what holds it up.
     const trestle = (xc, z, yTop, o = {}) => {
-      const hw = (o.w || TW) / 2 + RW, y1 = yTop - TH, y0 = o.ground ? 0 : h(z), t = 0.012, legs = o.single ? [xc] : [xc - hw + t, xc + hw - t], cap = Math.max(y0 + 0.01, yTop - 0.13);
+      const hw = (o.w || TW) / 2 + RW, y1 = yTop - TH, y0 = o.ground ? 0 : h(z), t = 0.012, legs = o.single ? [xc] : [xc - hw + t, xc + hw - t], cap = Math.max(y0 + 0.01, yTop - 0.28);
       for (const x of legs) { box(GRAPHITE, x - t, x + t, y0, y1 - 0.02, z - t, z + t); box(GRAPHITE, x - 0.035, x + 0.035, y0, y0 + 0.012, z - 0.035, z + 0.035); O.push({ x0: x - t, x1: x + t, z0: z - t, z1: z + t, y0, y1: Math.min(y1, cap) }); }
       box(GRAPHITE, xc - hw, xc + hw, y1 - 0.02, y1, z - t, z + t); const yb = Math.min(cap, y1 - 0.02); O.push({ x0: xc - hw, x1: xc + hw, z0: z - t, z1: z + t, y0: yb, y1: yb });
     };
     const flat = () => FLAT;
 
-    // ---- the start: a short straight and a little gate over it, a chequered board on two graphite posts
+    // ---- the triple loop: three loops in a row down the bridge, on a level run of track so a car comes out of one onto
+    // the flat and straight into the next. The ways in and out swap lanes from loop to loop (vehicles.js takes a loop
+    // in either lane, either way round), so the three sit in two lanes: in by the east lane, out of the first by the
+    // west, out of the second by the east, out of the last by the west and down a ramp to the deck. The deck falls away
+    // under the level run, so it stands on trestles and the last two loops on dark steel blocks. Each ribbon is the
+    // track taken right round, lipped both sides, cyan light down its edges, its foot clamped to the run.
     {
-      const za = D.z1 - 2.2, zb = za - 2.2, xc = cx((za + zb) / 2) + 0.82;
-      run(xc, za, zb, flat, { n: 1 });
-      const z = za - 0.5, y = h(z) + FLAT, hw = TW / 2 + RW + 0.03, bar = y + 0.4;
-      for (const s of [-1, 1]) { const x = xc + s * hw; box(GRAPHITE, x - 0.014, x + 0.014, h(z), bar + 0.1, z - 0.014, z + 0.014); O.push({ x0: x - 0.016, x1: x + 0.016, z0: z - 0.016, z1: z + 0.016, y0: h(z), y1: bar + 0.1 }); }
-      const ch = new Geo(); ch.box(xc - hw + 0.014, xc + hw - 0.014, bar, bar + 0.09, z - 0.008, z + 0.008);
-      const ct = checks(); ct.repeat.set(1, 1);
-      k.group.add(ch.mesh(new THREE.MeshStandardMaterial({ map: ct, roughness: 0.6, emissive: 0xffffff, emissiveMap: ct, emissiveIntensity: 0.3 })));
-      O.push({ x0: xc - hw, x1: xc + hw, z0: z - 0.01, z1: z + 0.01, y0: bar, y1: bar + 0.09 });
-      this.gate = { x: xc, z, y };
-    }
-
-    // ---- the tabletop: up, along and down on trestles, open underneath. The ramps are steepest at the top, so it is
-    // a kicker whichever way you come at it, and a landing that runs out flat.
-    {
-      const H = 0.3, z0 = D.z1 - 5.4, xc = cx(z0 - 2.4) + 0.88;
-      const lens = [0.5, 1.2, 0.8, 1.4, 0.5], prof = [t => FLAT, t => FLAT + (H - FLAT) * (1 - Math.cos(t * Math.PI / 2)), t => H, t => H - (H - FLAT) * Math.sin(t * Math.PI / 2), t => FLAT];
-      let z = z0, v = 0; const parts = [];
-      lens.forEach((L, i) => { parts.push(run(xc, z, z - L, prof[i], { step: 0.2, v0: v, n: i === 0 || i === 4 ? 1 : 0 })); z -= L; v += L; });
-      const up = parts[1], top = parts[2], down = parts[3];
-      for (const [seg, t] of [[up, 0.62], [top, 0], [top, 1], [down, 0.42]]) { const q = seg.at(t); trestle(xc, q.z, q.y); }
-      this.table = parts.flat();
-    }
-
-    // ---- the loop, on the deck, run along the bridge: in by one lane, out by the other (vehicles.js runs the car round
-    // it). A ribbon of the same track, rails and all, its ends lying on the deck as lengths of straight; held up by two
-    // graphite stands, one either side, each clipped to the ribbon where it stands upright.
-    {
-      const z = D.z0 + 72, y = h(z) + FLAT, r = 1.15, shift = 0.56, wd = TW, x = cx(z) + 0.6;
-      const L = this.loop = { x, z, y, dir: -1, r, shift, w: wd, axis: 'z' };
-      P.loops.push(L);
-      // the way in and the way out, each running on a hand's breadth under the foot of the ribbon, so a car is still on
-      // the track when it crosses the line where the loop takes it (either way round)
-      run(x, z + 2.0, z - 0.12, flat, { n: 1, v0: 0 });
-      run(x + shift, z + 0.12, z - 1.6, flat, { n: 1, v0: 0 });
-      const N = 72, hw = wd / 2, at = th => [L.x + shift * th / (Math.PI * 2), y + r - r * Math.cos(th), L.z + L.dir * r * Math.sin(th)];
-      const inward = th => [0, Math.cos(th), -L.dir * Math.sin(th)];
-      const arc = 2 * Math.PI * r;
-      for (let i = 0; i < N; i++) {
-        const t0 = Math.PI * 2 * i / N, t1 = Math.PI * 2 * (i + 1) / N, a = at(t0), b = at(t1), na = inward(t0), nb = inward(t1);
-        const off = (p, nn, d) => [p[0], p[1] - nn[1] * d, p[2] - nn[2] * d];      // d out from the running face, away from the middle
-        const inN = [na, na, nb, nb], outN = inN.map(q => q.map(v => -v)), v0 = arc * i / N, v1 = arc * (i + 1) / N;
-        quadN(topG, [[a[0] - hw, a[1], a[2]], [a[0] + hw, a[1], a[2]], [b[0] + hw, b[1], b[2]], [b[0] - hw, b[1], b[2]]], inN, [[0, v0], [1, v0], [1, v1], [0, v1]]);
-        const ao = off(a, na, TH), bo = off(b, nb, TH);
-        quadN(bodyG, [[ao[0] - hw - RW, ao[1], ao[2]], [ao[0] + hw + RW, ao[1], ao[2]], [bo[0] + hw + RW, bo[1], bo[2]], [bo[0] - hw - RW, bo[1], bo[2]]], outN, null, UNDER);
-        for (const sg of [-1, 1]) {
-          const ai = off(a, na, -RH), bi = off(b, nb, -RH), xi = sg * hw, xo = sg * (hw + RW), sd = [[sg, 0, 0], [sg, 0, 0], [sg, 0, 0], [sg, 0, 0]], si = sd.map(q => q.map(v => -v));
-          quadN(bodyG, [[a[0] + xi, a[1], a[2]], [b[0] + xi, b[1], b[2]], [bi[0] + xi, bi[1], bi[2]], [ai[0] + xi, ai[1], ai[2]]], si, null, RAIL);
-          quadN(bodyG, [[ai[0] + xi, ai[1], ai[2]], [bi[0] + xi, bi[1], bi[2]], [bi[0] + xo, bi[1], bi[2]], [ai[0] + xo, ai[1], ai[2]]], inN, null, RAIL);
-          quadN(bodyG, [[ao[0] + xo, ao[1], ao[2]], [bo[0] + xo, bo[1], bo[2]], [bi[0] + xo, bi[1], bi[2]], [ai[0] + xo, ai[1], ai[2]]], sd, null, ORANGE);
+      const r = 0.85, wd = 0.42, hw = wd / 2, s = 0.48, gapZ = 2 * r + 0.25, z1 = D.z0 + 90, x0 = cx(z1) + hw + RW + 0.04, y = h(z1) + FLAT;
+      const zs = [z1, z1 - gapZ, z1 - 2 * gapZ], dirs = [1, -1, 1];
+      this.loops = zs.map((z, i) => { const L = { x: x0, z, y, dir: dirs[i], r, shift: s, w: wd, axis: 'z' }; P.loops.push(L); return L; });
+      this.loop = this.loops[1];
+      const level = () => y, o = { w: wd, ground: true };
+      // the way in (east lane, on the deck), the level runs between the loops (west, then east), the way out (west). Each
+      // runs on half a metre under the foot of the loop it meets, so a fast car on a slow frame is still on the track
+      // when it crosses the line where the loop takes it. (Not the first run's head: there the deck stands above the level.)
+      run(x0 + s, z1 + 3, z1 - 0.5, flat, { w: wd, n: 1, v0: 0 });
+      const runs = [];
+      for (let i = 0; i < 2; i++) runs.push(run(i ? x0 + s : x0, zs[i] + (i ? 0.5 : 0.12), zs[i + 1] - 0.5, level, { ...o, n: 1, v0: 0 }));
+      const zo = zs[2] - 0.7, zd = zo - 3.2;
+      runs.push(run(x0, zs[2] + 0.5, zo, level, { ...o, n: 1, v0: 0 }));
+      run(x0, zo, zd, t => { const z = zo + (zd - zo) * t; return y + (h(z) + FLAT - y) * t; }, { ...o, n: 1, v0: 0.82 });      // (straight: a crest part way up would throw a climbing car into the climb ahead)
+      // what holds it up: trestles under the runs, a block under each raised loop's foot
+      for (const seg of runs) for (const t of [0.25, 0.75]) { const z = seg[0].z0 + (seg[0].z1 - seg[0].z0) * t, xc = (seg[0].x0 + seg[0].x1) / 2; if (y - h(z) > 0.07) trestle(xc, z, y, { w: wd }); }
+      { const z = zo - 0.9; if (y - h(z) > 0.07) trestle(x0, z, y + (h(z) + FLAT - y) * 0.9 / 3.2, { w: wd }); }
+      for (const L of this.loops) {
+        const xa = x0 - hw - RW, xb = x0 + s + hw + RW, yb = h(L.z), yt = y - TH, cap = Math.max(yb + 0.01, y - 0.28);
+        box(GRAPHITE, xa, xb, yb, yt, L.z - 0.07, L.z + 0.07);
+        if (yt - yb > 0.02) O.push({ x0: xa, x1: xb, z0: L.z - 0.07, z1: L.z + 0.07, y0: yb, y1: Math.min(yt, cap) });
+      }
+      // the ribbons, as a car going down the bridge rides them
+      const N = 64, arc = 2 * Math.PI * r, led = 0.012;
+      for (const L of this.loops) {
+        const rev = L.dir > 0, at = th => { const f = th / (Math.PI * 2); return [L.x + s * (rev ? 1 - f : f), y + r - r * Math.cos(th), L.z - r * Math.sin(th)]; };
+        const inward = th => [0, Math.cos(th), Math.sin(th)];
+        for (let i = 0; i < N; i++) {
+          const t0 = Math.PI * 2 * i / N, t1 = Math.PI * 2 * (i + 1) / N, a = at(t0), b = at(t1), na = inward(t0), nb = inward(t1);
+          const off = (p, nn, d) => [p[0], p[1] - nn[1] * d, p[2] - nn[2] * d];      // d out from the running face, away from the middle
+          const inN = [na, na, nb, nb], outN = inN.map(q => q.map(v => -v)), v0 = arc * i / N, v1 = arc * (i + 1) / N;
+          quadN(topG, [[a[0] - hw, a[1], a[2]], [a[0] + hw, a[1], a[2]], [b[0] + hw, b[1], b[2]], [b[0] - hw, b[1], b[2]]], inN, [[0, v0], [1, v0], [1, v1], [0, v1]]);
+          const ao = off(a, na, TH), bo = off(b, nb, TH);
+          quadN(bodyG, [[ao[0] - hw - RW, ao[1], ao[2]], [ao[0] + hw + RW, ao[1], ao[2]], [bo[0] + hw + RW, bo[1], bo[2]], [bo[0] - hw - RW, bo[1], bo[2]]], outN, null, UNDER);
+          for (const sg of [-1, 1]) {
+            const ai = off(a, na, -RH), bi = off(b, nb, -RH), xi = sg * hw, xo = sg * (hw + RW), sd = [[sg, 0, 0], [sg, 0, 0], [sg, 0, 0], [sg, 0, 0]], si = sd.map(q => q.map(v => -v));
+            quadN(bodyG, [[a[0] + xi, a[1], a[2]], [b[0] + xi, b[1], b[2]], [bi[0] + xi, bi[1], bi[2]], [ai[0] + xi, ai[1], ai[2]]], si, null, RAIL);
+            quadN(bodyG, [[ai[0] + xi, ai[1], ai[2]], [bi[0] + xi, bi[1], bi[2]], [bi[0] + xo, bi[1], bi[2]], [ai[0] + xo, ai[1], ai[2]]], inN, null, RAIL);
+            quadN(bodyG, [[ao[0] + xo, ao[1], ao[2]], [bo[0] + xo, bo[1], bo[2]], [bi[0] + xo, bi[1], bi[2]], [ai[0] + xo, ai[1], ai[2]]], sd, null, ORANGE);
+            // the cyan light along the lip, on its inner face, as on the loop indoors
+            const la = off(a, na, -RH * 0.55), lb = off(b, nb, -RH * 0.55), lx = xi - sg * 0.002;
+            quadN(ledG, [[ai[0] + lx, ai[1], ai[2]], [bi[0] + lx, bi[1], bi[2]], [lb[0] + lx, lb[1], lb[2]], [la[0] + lx, la[1], la[2]]], si, null);
+          }
         }
       }
-      // The stands: where the ribbon is upright, a quarter of the way round (the west edge) and three quarters (the east),
-      // a post with two splayed feet along the bridge and a clip that takes hold of the ribbon's edge.
-      for (const [th, sg] of [[Math.PI / 2, -1], [Math.PI * 1.5, 1]]) {
-        const p = at(th), ex = p[0] + sg * (hw + RW), px = ex + sg * 0.05, pz = p[2], yb = h(pz), yt = p[1] + 0.1, t = 0.016, F = 0.3, K = 0.42;
-        box(GRAPHITE, px - t, px + t, yb, yt, pz - t, pz + t);
-        O.push({ x0: px - t, x1: px + t, z0: pz - t, z1: pz + t, y0: yb, y1: yt });
-        for (const dz of [-F, F]) {
-          const fy = h(pz + dz);
-          strut(GRAPHITE, [px, fy + 0.01, pz + dz], [px, yb + K, pz], 0.022);
-          box(GRAPHITE, px - 0.03, px + 0.03, fy, fy + 0.012, pz + dz - 0.04, pz + dz + 0.04);
-          for (let i = 0; i < 3; i++) { const f0 = i / 3, f1 = (i + 1) / 3, za = pz + dz * (1 - f0), zb = pz + dz * (1 - f1); O.push({ x0: px - 0.012, x1: px + 0.012, z0: Math.min(za, zb), z1: Math.max(za, zb), y0: Math.min(fy, yb), y1: yb + K * f1 }); }
-        }
-        box(GRAPHITE, Math.min(ex, px) - 0.01, Math.max(ex, px) + 0.01, p[1] - 0.02, p[1] + 0.02, pz - 0.04, pz + 0.04);      // the clip
+      // the start, at the head of the way in: a chequered board across it on two steel posts
+      {
+        const xc = x0 + s, z = z1 + 2.6, yb = h(z), y0 = yb + FLAT, gw = hw + RW + 0.03, bar = y0 + 0.4;
+        for (const sg of [-1, 1]) { const x = xc + sg * gw; box(GRAPHITE, x - 0.014, x + 0.014, yb, bar + 0.1, z - 0.014, z + 0.014); O.push({ x0: x - 0.016, x1: x + 0.016, z0: z - 0.016, z1: z + 0.016, y0: yb, y1: bar + 0.1 }); }
+        const ch = new Geo(); ch.box(xc - gw + 0.014, xc + gw - 0.014, bar, bar + 0.09, z - 0.008, z + 0.008);
+        const ct = checks(); ct.repeat.set(0.75, 1);
+        k.group.add(ch.mesh(new THREE.MeshStandardMaterial({ map: ct, roughness: 0.6, emissive: 0xffffff, emissiveMap: ct, emissiveIntensity: 0.3 })));
+        O.push({ x0: xc - gw, x1: xc + gw, z0: z - 0.01, z1: z + 0.01, y0: bar, y1: bar + 0.09 });
+        this.gate = { x: xc, z, y: y0 };
       }
+      this.tripleAt = { x: x0 + s / 2, z: zs[1], y };
+      void led;
     }
 
     // ---- the launch: a length of track that curves up off the deck into a steady climb and runs out over the east
@@ -206,14 +194,14 @@ feature({
       this.rampAt = { x: xc, z: (lz0 + lz1) / 2, y: 0 };
     }
 
-    k.group.add(topG.mesh(track), bodyG.mesh(plastic));
+    k.group.add(topG.mesh(track), bodyG.mesh(plastic), ledG.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45), side: THREE.DoubleSide })));      // (museum.js's led)
 
-    // ---- rings for the drone: over the jump, under the span over Monroe Street, through the loop, out along the
+    // ---- rings for the drone: over the top of the line, under the span over Monroe Street, through the loop, out along the
     // launch (the car's jump goes through that one too), and low under the deck near the foot.
     {
-      const L = this.loop, zM = (P.grounds.monroe.z0 + P.grounds.monroe.z1) / 2, zs = this.spurAt.z;
+      const L = this.loops[1], zM = (P.grounds.monroe.z0 + P.grounds.monroe.z1) / 2, zs = this.spurAt.z;
       const spec = [
-        { x: cx(D.z1 - 7.5) + 0.88, y: h(D.z1 - 7.5) + 1.6, z: D.z1 - 7.5, axis: 'z', r: 0.6 },
+        { x: cx(D.z1 - 4) + 0.8, y: h(D.z1 - 4) + 1.4, z: D.z1 - 4, axis: 'z', r: 0.5 },
         { x: cx(zM), y: 4.6, z: zM, axis: 'z', r: 1.2 },
         { x: L.x + L.shift / 2, y: L.y + L.r, z: L.z, axis: 'x', r: L.r - 0.18, hidden: true },
         { x: this.spurAt.x, y: h(zs - 10) + 1.9, z: zs - 10, axis: 'z', r: 1.1 },
@@ -230,18 +218,28 @@ feature({
     }
 
     this.zone = { x0: Math.min(cx(D.z0), cx(D.z1)) - 12, x1: Math.max(cx(D.z0), cx(D.z1)) + 12, z0: D.z0 - 10, z1: D.z1 + 3 };
-    this.at = { x: cx(D.z1 - 4), y: h(D.z1 - 4), z: D.z1 - 4 };
-    this.gap = 0; this.onLoop = false; this.lastTh = 0;
+    this.at = { x: this.gate.x, y: this.gate.y, z: this.gate.z + 1.5 };
+    this.gap = 0; this.cur = null; this.lastTh = 0; this.seq = []; this.seqT = 0; this.t = 0;
   },
   active(k) { const p = k.pos, z = this.zone; return !!z && p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1; },
   update(dt, k) {
     const v = k.v, p = k.pos, car = v.kind === 'car';
-    if (car && k.close(this.at, 3, 1.2)) k.once('bridgeplay', 'Toy track down the east side: a jump, a loop, and a ramp off the bridge.', 5);
-    // The loop: all the way round and down on the wheels.
+    if (car && k.close(this.at, 3, 1.2)) k.once('bridgeplay', 'Toy track down the east side: a triple loop, and a ramp off the bridge.', 5);
+    this.t += dt;
+    // The loops: each all the way round and down on the wheels, and the three one after another for the secret.
     if (car) {
-      const mine = !!(v.rail && v.rail.L === this.loop);
-      if (mine) { this.onLoop = true; this.lastTh = v.rail.th; const L = this.loop; k.camClose = { at: { x: L.x - 2.9, y: L.y + 1.6, z: L.z + 1.2 }, look: { x: L.x + L.shift / 2, y: L.y + L.r, z: L.z } }; }
-      else if (this.onLoop) { this.onLoop = false; if (!v.air && this.lastTh > 5) { if (k.find('bridgeloop')) k.callout('LOOP THE LOOP'); k.synth.chime([659, 880, 1175]); } }
+      const L = v.rail && this.loops.includes(v.rail.L) ? v.rail.L : null;
+      if (L) { this.cur = L; this.lastTh = v.rail.th; const M = this.loops[1]; k.camClose = { at: { x: M.x - 3.3, y: M.y + 1.4, z: M.z + 0.6 }, look: { x: M.x + M.shift / 2, y: M.y + M.r * 0.8, z: M.z } }; }
+      else if (this.cur) {
+        const i = this.loops.indexOf(this.cur), q = this.seq;
+        this.cur = null;
+        if (!v.air && this.lastTh > 5) {
+          if (q.length && Math.abs(q[q.length - 1] - i) === 1 && this.t - this.seqT < 2.5) q.push(i); else q.splice(0, q.length, i);
+          this.seqT = this.t;
+          if (q.length === 3) { if (k.find('bridgeloop')) k.callout('TRIPLE LOOP'); k.synth.chime([659, 880, 1175, 1568]); q.length = 0; }
+          else k.synth.chime([523 * (1 + q.length * 0.25)], { dur: 0.5 });
+        } else q.length = 0;
+      }
       // The jump off the bridge: from the launch ramp, through the air, wheels down on the ramp in the park.
       const onSpur = !v.air && v.on && this.spurSet.has(v.on);
       if (onSpur) this.gap = 1;
@@ -268,7 +266,7 @@ feature({
   },
   spots() {
     if (!this.at) return [];
-    return [{ kind: 'secret', id: 'bridgeloop', name: 'Loop the loop on the Bridgeway', x: this.loop.x, y: this.loop.y, z: this.loop.z }, { kind: 'secret', id: 'bridgegap', name: 'Off the Bridgeway (launch ramp to the ramp below)', ...this.spurAt }];
+    return [{ kind: 'secret', id: 'bridgeloop', name: 'Triple loop on the Bridgeway (all three in one go)', ...this.tripleAt }, { kind: 'secret', id: 'bridgegap', name: 'Off the Bridgeway (launch ramp to the ramp below)', ...this.spurAt }];
   },
-  reset() { this.gap = 0; this.onLoop = false; for (const r of this.rings || []) { r.done = false; r.side = 0; if (r.m) r.m.material = this.mOff; } },
+  reset() { this.gap = 0; this.cur = null; if (this.seq) this.seq.length = 0; for (const r of this.rings || []) { r.done = false; r.side = 0; if (r.m) r.m.material = this.mOff; } },
 });

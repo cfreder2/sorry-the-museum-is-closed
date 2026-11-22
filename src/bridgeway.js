@@ -398,7 +398,7 @@ export function buildBridgeway(museum, plan) {
     const eastEnd = tw.z0 - 2.6;                                          // where the landing opens off the deck's east side (wingplay.js)                                            // the girder runs on under the landing to the tower's piers
     museum.mw = Object.assign(museum.mw || {}, { tw, L3, A: A.clone(), E: E.clone(), HW, lift, deck: { z0: E.z, z1: top, w, cx: cxAt, h: hAt, depth, outer, hull } });      // for the things to do on and round it (wingplay.js, bridgeplay.js)
 
-    const stations = []; for (let z = E.z; z < zEnd - 0.01; z += 1) stations.push(z); stations.push(zEnd);
+    const stations = []; for (let z = E.z; z < zEnd - 0.01; z += 1) stations.push(z); stations.push(zEnd, eastEnd, eastEnd + 0.02); stations.sort((a, b) => a - b);
     // A strip lofted along the bridge: prof(z) gives its section as [x offset from the centre line, y above the deck].
     // Its front is to the right of the way the section runs, looking down the bridge towards the park: a section run
     // from east to west faces up, one run upwards faces east.
@@ -460,7 +460,8 @@ export function buildBridgeway(museum, plan) {
       }
     });
     plank.anisotropy = 8; plank.repeat.set(1 / DT, 1);
-    put([loft(z => [[w, 0.002], [-w, 0.002]], DT, top)], new THREE.MeshStandardMaterial({ map: plank, roughness: 0.42, metalness: 0.35, emissiveMap: plank, emissive: new THREE.Color(0.46, 0.49, 0.56), emissiveIntensity: 0.4 }));
+    put([loft(z => [[z > eastEnd + 0.01 ? w - 0.06 : w, 0.002], [-w, 0.002]], DT, top)]      // (stopping short of the landing laid beside it at the top: wingplay.js)
+      , new THREE.MeshStandardMaterial({ map: plank, roughness: 0.42, metalness: 0.35, emissiveMap: plank, emissive: new THREE.Color(0.46, 0.49, 0.56), emissiveIntensity: 0.4 }));
 
     // The railings, 42 in high: slim white steel posts leaning a little outwards every 1.5 m, a flat bar along their
     // feet and a steel cap along their heads, a fine stainless mesh between (1 cm squares, mostly air: a silver veil
