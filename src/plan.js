@@ -1016,7 +1016,7 @@ export function shellPlan(sh) {
   sh.rings = [0, 1, 2, 3, 4].map(i => ({ i, zb: sh.z1 - depth * i, zf: sh.z1 - depth * (i + 1), w: 10.6 + 0.7 * i, H: 6 + 0.75 * i }));
   sh.ramp = { x0: cx - 1.5, x1: cx + 1.5, z0: sh.z0 - 9, z1: sh.z0 };
   sh.steps = { x0: cx - 7, x1: cx + 7, n: 6, tread: 0.6 };
-  sh.pad = { x: cx, z: sh.z0 + 5.6, cell: 1.15 };
+  sh.pad = { x: cx, z: sh.z0 + 5.6, cell: 1.15, y: sh.h + 0.012 };      // (its glass stands a centimetre proud of the boards)
   sh.truss = { x0: cx - 10.2, x1: cx + 10.2, z: sh.z0 + 1.3, y: sh.h + 5.8, s: 0.42 };
   sh.speakers = [{ x0: sh.x0 - 4.4, x1: sh.x0 - 2.0, z0: sh.z0 - 3.6, z1: sh.z0 - 1.6, h: 2.5 }, { x0: sh.x1 + 2.0, x1: sh.x1 + 4.4, z0: sh.z0 - 3.6, z1: sh.z0 - 1.6, h: 2.5 }];
   sh.back = { x0: cx - 10, x1: cx + 10, z0: sh.z1 + 0.3, z1: sh.z1 + 3.6, h: 4.4 };
@@ -1038,6 +1038,7 @@ function shellSolids(plan, sh) {
   // The deck, the ramp up the middle of its front, and the steps either side (each tread a block down to the ground).
   S.push({ skin: 'shell', fixed: true, x0: sh.x0, x1: sh.x1, z0: sh.z0, z1: sh.z1, axis: null, h0: h, h1: h });
   S.push({ skin: 'shell', fixed: true, ...sh.ramp, axis: 'z', h0: 0, h1: h });
+  { const p = sh.pad, e = p.cell * 1.5 + 0.12; S.push({ skin: 'shell', fixed: true, x0: p.x - e, x1: p.x + e, z0: p.z - e, z1: p.z + e, axis: null, h0: p.y, h1: p.y, base: h }); }
   const st = sh.steps;
   for (let j = 0; j < st.n; j++) for (const [x0, x1] of [[st.x0, sh.ramp.x0], [sh.ramp.x1, st.x1]]) S.push({ skin: 'shell', fixed: true, x0, x1, z0: sh.z0 - st.tread * (st.n - j), z1: sh.z0, axis: null, h0: h * (j + 1) / st.n, h1: h * (j + 1) / st.n });
   // The arches: cut into upright strips, each solid from the inside of the arch (or the floor, under its feet) to the

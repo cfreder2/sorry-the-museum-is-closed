@@ -418,7 +418,7 @@ feature({
   // ============================================================ the pad
   // Four arrow panels round a middle one, each a pane of dark glass with its arrow in light under it, in a lit frame.
   _pad(k) {
-    const sh = this.sh, p = sh.pad, c = p.cell, y = sh.h + 0.012, pos = [], uv = [], lane = [], ix = [];
+    const sh = this.sh, p = sh.pad, c = p.cell, y = p.y, pos = [], uv = [], lane = [], ix = [];
     const quad = (x, z, s, l) => { const b = pos.length / 3; pos.push(x + s / 2, y, z - s / 2, x - s / 2, y, z - s / 2, x - s / 2, y, z + s / 2, x + s / 2, y, z + s / 2); uv.push(0, 0, 1, 0, 1, 1, 0, 1); lane.push(l, l, l, l); ix.push(b, b + 1, b + 2, b, b + 2, b + 3); };
     quad(p.x, p.z, c * 3 + 0.24, 5);
     for (let l = 0; l < 4; l++) quad(p.x + DIRS[l][0] * c, p.z + DIRS[l][1] * c, c - 0.06, l);
@@ -567,7 +567,7 @@ feature({
     H.t += dt; this.lastHop += dt;
     if (this.lastHop > 0.65 && !H.back && H.t >= H.d) { Object.assign(H, { t: 0, d: 0.35, x0: H.x1, z0: H.z1, x1: p.x, z1: p.z, hgt: 0, wig: 0, back: true }); }
     const u = Math.min(1, H.t / H.d), e = smooth(u);
-    const x = H.x0 + (H.x1 - H.x0) * e, z = H.z0 + (H.z1 - H.z0) * e, y = (H.y0 != null ? H.y0 + (sh.h - H.y0) * e : sh.h) + Math.sin(u * Math.PI) * H.hgt;
+    const x = H.x0 + (H.x1 - H.x0) * e, z = H.z0 + (H.z1 - H.z0) * e, y = (H.y0 != null ? H.y0 + (p.y - H.y0) * e : p.y) + Math.sin(u * Math.PI) * H.hgt;
     if (u >= 1) H.y0 = null;
     if (H.yaw0 != null) { let d = H.yaw1 - H.yaw0; d = Math.atan2(Math.sin(d), Math.cos(d)); v.yaw = H.yaw0 + d * e; if (u >= 1) H.yaw0 = null; }
     else { if (H.spin) { H.spinT = (H.spinT || 0) + dt; const s = Math.min(1, H.spinT / 0.45); v.yaw = smooth(s) * H.spin; if (s >= 1) { H.spin = 0; v.yaw = 0; } } else v.yaw = Math.sin(H.t * 26) * H.wig * Math.exp(-H.t * 7); }
