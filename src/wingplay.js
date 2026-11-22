@@ -20,7 +20,7 @@ feature({
   secrets: [['bridgeway', 'Bridgeway sprint']],
   init(k) {
     const mw = k.museum.mw; if (!mw || !mw.A) return;
-    const { A, E, HW, L3, tw } = mw, P = k.plan, O = P.obstacles, B = P.bounds, white = mat(0xeef0ee, { roughness: 0.5 });
+    const { A, E, HW, L3, tw } = mw, P = k.plan, O = P.obstacles, B = P.bounds;
     const top = A.z - 0.6, w = HW - 0.15;
     const cxAt = z => E.x + (A.x - E.x) * (z - E.z) / (A.z - E.z), hAt = z => E.y + (L3 - E.y) * (z - E.z) / (top - E.z);
     this.deck = [];
@@ -31,17 +31,20 @@ feature({
     }
     // The foot: a short ramp up onto the deck, 1 in 3.
     const fx = cxAt(E.z);
-    k.solid({ skin: 'deck', x0: fx - w, x1: fx + w, z0: E.z - 1.6, z1: E.z, axis: 'z', h0: 0, h1: E.y }, white);
-    // The landing at the top, and a walk round the east side of the tower to the lift.
-    const lx0 = tw.x1 + 0.6, lx1 = tw.x1 + 2.4, lz = mw.lift ? mw.lift.z0 : tw.z1 - 1.85;      // (lz: up to the lift's door)
+    P.surfaces.push({ skin: 'deck', x0: fx - w, x1: fx + w, z0: E.z - 1.6, z1: E.z, axis: 'z', h0: 0, h1: E.y });      // (drawn with the bridge, bridgeway.js)
+    // The landing at the top, and a walk round the east side of the tower to the lift: drawn with the bridge
+    // (bridgeway.js, mw.landing), felt here. The slope beside the deck's top runs under the deck's edge at the same
+    // height as it, so the two are one plane; the railings stand where they are drawn.
+    const LD = mw.landing || {}, lx1 = LD.x1 || tw.x1 + 2.4, lz = LD.lz || (mw.lift ? mw.lift.z0 : tw.z1 - 1.85), eE = tw.z0 - 2.6;      // (lz: up to the lift's door)
     this.landing = [
-      k.solid({ skin: 'deck', x0: A.x - w, x1: lx1, z0: top, z1: tw.z0 + 0.05, axis: null, h0: L3, h1: L3, thick: 0.3 }, white),
-      k.solid({ skin: 'deck', x0: cxAt(tw.z0 - 2.6) + w - 0.05, x1: lx1, z0: tw.z0 - 2.6, z1: top, axis: 'z', h0: hAt(tw.z0 - 2.6), h1: L3, thick: 0.3 }, white),      // level with the deck beside it
-      k.solid({ skin: 'deck', x0: tw.x1 + 0.55, x1: lx1, z0: tw.z0 + 0.05, z1: lz, axis: null, h0: L3, h1: L3, thick: 0.3 }, white),
+      { skin: 'deck', x0: A.x - w, x1: lx1, z0: top, z1: tw.z0 + 0.05, axis: null, h0: L3, h1: L3, thick: 0.3 },
+      { skin: 'deck', x0: cxAt(eE) + w - 0.3, x1: lx1, z0: eE, z1: top, axis: 'z', h0: hAt(eE), h1: L3, thick: 0.3 },      // level with the deck beside it
+      { skin: 'deck', x0: LD.walkX0 || tw.x1 + 0.55, x1: lx1, z0: tw.z0 + 0.05, z1: lz, axis: null, h0: L3, h1: L3, thick: 0.3 },
     ];
-    O.push({ x0: lx1, x1: lx1 + 0.08, z0: tw.z0 - 2.6, z1: lz, y0: L3 - 0.3, y1: L3 + 1.1 }, { x0: A.x + w, x1: lx1, z0: tw.z0 - 2.7, z1: tw.z0 - 2.6, y0: L3 - 0.3, y1: L3 + 1.1 });
-    const rail = mat(0x9aa3ab, { metalness: 0.6, roughness: 0.35 });
-    k.group.add(box(0.05, 1.1, lz - tw.z0 + 2.6, rail, lx1 + 0.04, L3 + 0.55, (tw.z0 - 2.6 + lz) / 2), box(lx1 - A.x - w, 1.1, 0.05, rail, (A.x + w + lx1) / 2, L3 + 0.55, tw.z0 - 2.65));
+    P.surfaces.push(...this.landing);
+    O.push({ x0: lx1 - 0.02, x1: lx1 + 0.08, z0: eE, z1: lz, y0: hAt(eE) - 0.3, y1: L3 + 1.1 }, { x0: cxAt(eE) + w, x1: lx1, z0: eE - 0.1, z1: eE + 0.02, y0: hAt(eE) - 0.3, y1: hAt(eE) + 1.1 });
+    O.push({ x0: A.x - w - 0.12, x1: A.x - w, z0: top, z1: tw.z0, y0: L3 - 0.3, y1: L3 + 1.1 });      // the west railing run on to the tower
+    if (mw.lift && mw.lift.x0 > tw.x1 + 0.1) O.push({ x0: tw.x1, x1: mw.lift.x0, z0: lz - 0.02, z1: lz + 0.08, y0: L3 - 0.3, y1: L3 + 1.1 });      // and across the gap beside the lift
     // The strip of park under the bridge, fenced.
     const ax0 = Math.min(E.x, A.x) - 8, ax1 = Math.max(E.x, A.x) + 8, az0 = E.z - 8, az1 = B.z0 + 0.5;
     (P.allow = P.allow || []).push({ x0: ax0, x1: ax1, z0: az0, z1: az1 });

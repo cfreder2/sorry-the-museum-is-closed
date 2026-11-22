@@ -460,8 +460,8 @@ export function buildBridgeway(museum, plan) {
       }
     });
     plank.anisotropy = 8; plank.repeat.set(1 / DT, 1);
-    put([loft(z => [[z > eastEnd + 0.01 ? w - 0.06 : w, 0.002], [-w, 0.002]], DT, top)]      // (stopping short of the landing laid beside it at the top: wingplay.js)
-      , new THREE.MeshStandardMaterial({ map: plank, roughness: 0.42, metalness: 0.35, emissiveMap: plank, emissive: new THREE.Color(0.46, 0.49, 0.56), emissiveIntensity: 0.4 }));
+    const deckMat = new THREE.MeshStandardMaterial({ map: plank, roughness: 0.42, metalness: 0.35, emissiveMap: plank, emissive: new THREE.Color(0.46, 0.49, 0.56), emissiveIntensity: 0.4 });
+    put([loft(z => [[w, 0.002], [-w, 0.002]], DT, top)], deckMat);
 
     // The railings, 42 in high: slim white steel posts leaning a little outwards every 1.5 m, a flat bar along their
     // feet and a steel cap along their heads, a fine stainless mesh between (1 cm squares, mostly air: a silver veil
@@ -470,7 +470,7 @@ export function buildBridgeway(museum, plan) {
     // drift along the foot of the mesh inside.
     // (Collision is wingplay.js's: a wall at the deck's edge, 1.1 m high. The east railing stops where the landing opens off it.)
     const RH = 1.07, lean = 0.1, ePost = 1.8, MT = 0.16;
-    const railLoft = (s, f, vs) => loft(f, vs, s > 0 ? eastEnd : null);      // (the east one stops where the landing opens off the deck)
+    const railLoft = (s, f, vs) => loft(f, vs, s > 0 ? eastEnd : tw.z0 - 0.02);      // (the east one stops where the landing opens off the deck; the west runs on to the tower)
     const meshTex = tex(128, 128, (c, W, H) => { c.clearRect(0, 0, W, H); c.fillStyle = 'rgba(238,243,250,0.95)'; for (let i = 0; i < W; i += 8) c.fillRect(i, 0, 1, H); for (let j = 0; j < H; j += 8) c.fillRect(0, j, W, 1); });
     meshTex.anisotropy = 8; meshTex.repeat.set(1 / MT, 1);
     const grain = tex(64, 256, (c, W, H) => { const r = rng(5); c.fillStyle = '#8f5b3a'; c.fillRect(0, 0, W, H); for (let k = 0; k < 70; k++) { c.fillStyle = r() < 0.6 ? `rgba(60,30,14,${0.08 + r() * 0.14})` : `rgba(230,170,120,${0.05 + r() * 0.08})`; c.fillRect(r() * W, 0, 1 + r() * 2, H); } });
@@ -505,12 +505,12 @@ export function buildBridgeway(museum, plan) {
     void net;
     const railWhite = new THREE.MeshStandardMaterial({ color: 0xeef1f5, roughness: 0.45, metalness: 0.2, emissive: 0x6a7184, emissiveIntensity: 0.7, side: THREE.DoubleSide });
     put(frameG, railWhite);
-    put(woodG, new THREE.MeshStandardMaterial({ map: grain, roughness: 0.5, emissiveMap: grain, emissive: new THREE.Color(0.55, 0.42, 0.34), emissiveIntensity: 0.5 }));
-    put(ledG, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.2, 0.8), side: THREE.DoubleSide }));
+    const woodMat = put(woodG, new THREE.MeshStandardMaterial({ map: grain, roughness: 0.5, emissiveMap: grain, emissive: new THREE.Color(0.55, 0.42, 0.34), emissiveIntensity: 0.5 }));
+    const ledMat = put(ledG, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.2, 0.8), side: THREE.DoubleSide })).material;
     const hm = put(haloG, new THREE.MeshBasicMaterial({ map: glowTx, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, color: new THREE.Color(0.2, 0.15, 0.08) }), 3);
     { const g0 = hm.geometry, uvA = g0.attributes.uv, P = g0.attributes.position; for (let i = 0; i < uvA.count; i++) uvA.setX(i, (P.getY(i) - hAt(P.getZ(i)) - 0.62) / (RH - 0.075 - 0.62)); uvA.needsUpdate = true; }
     const snowMap = museum.snowTex ? museum.snowTex.clone() : null; if (snowMap) { snowMap.needsUpdate = true; snowMap.repeat.set(1, 1); }
-    put(snowG, new THREE.MeshStandardMaterial({ map: snowMap, color: 0xf4f7fc, roughness: 0.95, emissiveMap: snowMap, emissive: new THREE.Color(0.34, 0.38, 0.52), emissiveIntensity: 0.62 }));
+    const snowMat = put(snowG, new THREE.MeshStandardMaterial({ map: snowMap, color: 0xf4f7fc, roughness: 0.95, emissiveMap: snowMap, emissive: new THREE.Color(0.34, 0.38, 0.52), emissiveIntensity: 0.62 }));
     const poolTex = tex(64, 8, (c, W, H) => { const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,1)'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
     poolTex.wrapS = THREE.ClampToEdgeWrapping;
     // (u runs from the inner edge outwards on the east side, so the west strip's texture is turned round)
@@ -527,12 +527,102 @@ export function buildBridgeway(museum, plan) {
       }
     }
 
+    // The landing at the top, outside the stair tower's door at the third floor: the deck's planks carried on round the
+    // tower's east side to the glass lift, on a white slab with a white edge, behind the same railing as the bridge, with
+    // snow along its feet, a bench against the tower, a lamp at the corner and a sign to the lift. Where it is felt is
+    // wingplay.js's (museum.mw.landing, laid out here): the slope beside the deck's top is laid level with the deck, so
+    // the two meet in one plane, and the strip at the door at the deck's own top height.
+    {
+      const lx1 = tw.x1 + 2.4, lz = lift ? lift.z0 : tw.z1 - 1.85, xW = A.x - w, zT = tw.z0, eY = hAt(eastEnd), T = 0.3;
+      const edgeAt = z => cxAt(z) + w;
+      museum.mw.landing = { x1: lx1, lz, xW, eastEnd, walkX0: tw.x1 + 0.02 };
+      const floor = new Geo(), slab = new Geo(), rails = new Geo(), netQ = new Geo(), wood = new Geo(), led = new Geo(), snow = new Geo(), steelG = new Geo(), glowG = new Geo();
+      const uv = (x, z) => [x, (z - E.z) / DT];
+      const fq = (p) => floor.quad(p[0], p[1], p[2], p[3], [0, 1, 0], p.map(q => uv(q[0], q[2])));
+      const e2 = 0.002;
+      fq([[edgeAt(eastEnd), eY + e2, eastEnd], [lx1, eY + e2, eastEnd], [lx1, L3 + e2, top], [edgeAt(top), L3 + e2, top]]);       // beside the deck, sloping with it
+      fq([[xW, L3 + e2, top], [lx1, L3 + e2, top], [lx1, L3 + e2, zT], [xW, L3 + e2, zT]]);                                       // at the door
+      fq([[tw.x1, L3 + e2, zT], [lx1, L3 + e2, zT], [lx1, L3 + e2, lz], [tw.x1, L3 + e2, lz]]);                                   // round the tower to the lift
+      // the slab under it: its edges and its soffit, white like the bridge
+      const q = (g, a, b, c, d, n) => g.quad(a, b, c, d, n);
+      q(slab, [edgeAt(eastEnd), eY - T, eastEnd], [lx1, eY - T, eastEnd], [lx1, eY - 0.01, eastEnd], [edgeAt(eastEnd), eY - 0.01, eastEnd], [0, 0, -1]);
+      q(slab, [lx1, eY - T, eastEnd], [lx1, L3 - T, top], [lx1, L3 - 0.01, top], [lx1, eY - 0.01, eastEnd], [1, 0, 0]);
+      q(slab, [lx1, L3 - T, top], [lx1, L3 - T, lz], [lx1, L3 - 0.01, lz], [lx1, L3 - 0.01, top], [1, 0, 0]);
+      q(slab, [tw.x1, L3 - T, lz], [lift ? lift.x0 : lx1, L3 - T, lz], [lift ? lift.x0 : lx1, L3 - 0.01, lz], [tw.x1, L3 - 0.01, lz], [0, 0, 1]);
+      q(slab, [edgeAt(eastEnd), eY - T, eastEnd], [lx1, eY - T, eastEnd], [lx1, L3 - T, top], [edgeAt(top), L3 - T, top], [0, -1, 0]);
+      q(slab, [xW, L3 - T, top], [lx1, L3 - T, top], [lx1, L3 - T, lz], [xW, L3 - T, zT], [0, -1, 0]);
+      add(floor.mesh(deckMat), slab.mesh(white));
+      // A railing like the bridge's along a straight edge from a to b (floor heights ya, yb), its inside towards (nx, nz).
+      const rail = (a, b, ya, yb, nx, nz) => {
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ox = -nx, oz = -nz, ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L;
+        const at = (t, hgt, off = 0) => [a[0] + (b[0] - a[0]) * t + ox * (lean * hgt / RH + off), ya + (yb - ya) * t + hgt, a[1] + (b[1] - a[1]) * t + oz * (lean * hgt / RH + off)];
+        const strip = (g, h0, h1, o0, o1, n, uvq) => g.quad(at(0, h0, o0), at(1, h0, o1 ?? o0), at(1, h1, o1 ?? o0), at(0, h1, o0), n, uvq);
+        const yT = RH - 0.075, y0 = RH - 0.045, y1 = RH - 0.005;
+        strip(netQ, 0.05, yT, 0, 0, [nx, 0, nz], [[0, 0.05 / MT], [L, 0.05 / MT], [L, yT / MT], [0, yT / MT]]);
+        strip(rails, 0.05, 0.09, 0.012, 0.012, [nx, 0, nz]);
+        // the cap and the handrail: a flat bar along the post heads, 8 in of wood on it
+        const hr = (h, o0, o1, n) => wood.quad(at(0, h, o0), at(1, h, o0), at(1, h, o1), at(0, h, o1), n, [[o0, 0], [o0, L], [o1, L], [o1, 0]]);
+        hr(y1, -0.13, 0.07, [0, 1, 0]); hr(y0, -0.13, 0.07, [0, -1, 0]);
+        wood.quad(at(0, y0, -0.13), at(1, y0, -0.13), at(1, y1, -0.13), at(0, y1, -0.13), [nx, 0, nz], [[0, 0], [0, L], [0.04, L], [0.04, 0]]);
+        wood.quad(at(0, y0, 0.07), at(1, y0, 0.07), at(1, y1, 0.07), at(0, y1, 0.07), [ox, 0, oz], [[0, 0], [0, L], [0.04, L], [0.04, 0]]);
+        rails.quad(at(0, yT, 0), at(1, yT, 0), at(1, y0, 0), at(0, y0, 0), [nx, 0, nz]);
+        led.quad(at(0, y0 - 0.002, -0.118), at(1, y0 - 0.002, -0.118), at(1, y0 - 0.002, -0.1), at(0, y0 - 0.002, -0.1), [0, -1, 0]);
+        snow.quad(at(0, y1 + 0.016, -0.1), at(1, y1 + 0.016, -0.1), at(1, y1 + 0.016, 0.04), at(0, y1 + 0.016, 0.04), [0, 1, 0]);
+        // the drift along its foot
+        snow.quad(at(0, 0.003, -0.12), at(1, 0.003, -0.12), at(1, 0.06, -0.005), at(0, 0.06, -0.005), [nx * 0.5, 0.87, nz * 0.5]);
+        const n = Math.max(1, Math.round(L / 1.5));
+        for (let i = 0; i <= n; i++) {
+          const t = i / n, p = at(t, 0.05, -0.012), ph = RH - 0.095, along = Math.abs(ux) > 0.5;
+          rails.box(p[0] - (along ? 0.025 : 0.01), p[0] + (along ? 0.025 : 0.01), p[1], p[1] + ph, p[2] - (along ? 0.01 : 0.025), p[2] + (along ? 0.01 : 0.025));
+        }
+      };
+      rail([edgeAt(eastEnd) + 0.05, eastEnd], [lx1, eastEnd], eY, eY, 0, 1);                 // along the north edge, beside the deck's east railing
+      rail([lx1, eastEnd], [lx1, top], eY, L3, -1, 0);                                        // down the east edge
+      rail([lx1, top], [lx1, lz], L3, L3, -1, 0);
+      if (lift && lift.x0 > tw.x1 + 0.1) rail([tw.x1, lz], [lift.x0, lz], L3, L3, 0, -1);     // across the gap between the tower and the lift
+      const nm = netQ.mesh(net.material); nm.renderOrder = 2;
+      add(rails.mesh(railWhite), nm, wood.mesh(woodMat.material), led.mesh(ledMat), snow.mesh(snowMat.material));
+      // A bench against the tower: three slats on two steel frames, open underneath (a car goes under it).
+      {
+        const bx0 = tw.x1 + 0.08, bx1 = tw.x1 + 0.53, bz0 = (zT + lz) / 2 - 0.75, bz1 = bz0 + 1.5, sy = L3 + 0.45;
+        for (let i = 0; i < 3; i++) { const x0 = bx0 + i * 0.155; wood.quad([x0, sy, bz0], [x0 + 0.13, sy, bz0], [x0 + 0.13, sy, bz1], [x0, sy, bz1], [0, 1, 0], [[0, 0], [0.13, 0], [0.13, 1.5], [0, 1.5]]); steelG.box(x0, x0 + 0.13, sy - 0.035, sy - 0.002, bz0, bz1); }
+        for (const z of [bz0 + 0.12, bz1 - 0.16]) { steelG.box(bx0, bx1, sy - 0.07, sy - 0.035, z, z + 0.04); for (const x of [bx0 + 0.02, bx1 - 0.06]) steelG.box(x, x + 0.04, L3, sy - 0.035, z, z + 0.04); O.push({ x0: bx0, x1: bx1, z0: z, z1: z + 0.04, y0: L3, y1: sy - 0.04 }); }
+        plan.surfaces.push({ skin: 'bench', fixed: true, x0: bx0, x1: bx1, z0: bz0, z1: bz1, axis: null, h0: sy, h1: sy, thick: 0.05 });
+      }
+      // A lamp at the corner: a short steel post with a band of light near its head.
+      {
+        const x = lx1 - 0.3, z = eastEnd + 0.35, y = hAt(z), r = 0.05;
+        steelG.box(x - r, x + r, y, y + 0.66, z - r, z + r); steelG.box(x - r - 0.01, x + r + 0.01, y + 0.8, y + 0.84, z - r - 0.01, z + r + 0.01);
+        glowG.box(x - r + 0.005, x + r - 0.005, y + 0.66, y + 0.8, z - r + 0.005, z + r - 0.005);
+        O.push({ x0: x - r, x1: x + r, z0: z - r, z1: z + r, y0: y, y1: y + 0.84 });
+      }
+      add(steelG.mesh(steel), glowG.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.15, 0.98, 0.7) })));
+      // A sign where the walk turns south round the tower: the lift (and the terrace it goes up to) straight on.
+      {
+        const st = tex(512, 128, (c, W, H) => { c.fillStyle = '#20262e'; c.fillRect(0, 0, W, H); c.strokeStyle = '#c9ced6'; c.lineWidth = 4; c.strokeRect(6, 6, W - 12, H - 12); c.fillStyle = '#f3efe2'; c.font = '600 56px system-ui, sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'center'; c.fillText('\u2191  LIFT \u00b7 TERRACE', W / 2, H / 2 + 2); });
+        st.wrapS = st.wrapT = THREE.ClampToEdgeWrapping;
+        const sx = lx1 - 0.55, sz = top - 0.45, sy = L3 + 0.62, sg = new Geo(), t = 0.012;
+        for (const dx of [-0.4, 0.4]) { sg.box(sx + dx - t, sx + dx + t, hAt(sz), sy + 0.25, sz - t, sz + t); O.push({ x0: sx + dx - t, x1: sx + dx + t, z0: sz - t, z1: sz + t, y0: hAt(sz), y1: sy + 0.25 }); }
+        add(sg.mesh(steel));
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.88, 0.22), new THREE.MeshStandardMaterial({ map: st, roughness: 0.6, emissiveMap: st, emissive: 0xffffff, emissiveIntensity: 0.45, side: THREE.DoubleSide }));
+        m.rotation.y = Math.PI; m.position.set(sx, sy + 0.12, sz - t - 0.003); add(m);
+        O.push({ x0: sx - 0.44, x1: sx + 0.44, z0: sz - 0.02, z1: sz + 0.01, y0: sy, y1: sy + 0.25 });
+      }
+    }
+
     // The park end: the prow comes down onto a low limestone abutment, paved round, with two lamps to find it by.
     // (The deck there is too low to drive under, and the abutment is what stands in the way.)
     {
       const ab = new Geo(), z0 = E.z, z1 = E.z + 3.3;
       for (let z = z0; z < z1 - 0.01; z += 1.1) { const za = z, zb = Math.min(z1, z + 1.1), cx = cxAt((za + zb) / 2), yb = Math.min(hAt(za) + hull(za, 1), hAt(zb) + hull(zb, 1)) + 0.04; ab.box(cx - w, cx + w, 0, yb, za, zb, 3.2); O.push({ x0: cx - w, x1: cx + w, z0: za, z1: zb, y0: 0, y1: yb - 0.05 }); }
       add(ab.mesh(lime));
+      // the ramp up onto the deck at its foot (felt in wingplay.js), in the deck's planks with white cheeks
+      {
+        const fx0 = cxAt(E.z) - w, fx1 = cxAt(E.z) + w, za = E.z - 1.6, rg = new Geo(), cg = new Geo();
+        rg.quad([fx0, 0.002, za], [fx1, 0.002, za], [fx1, E.y + 0.002, E.z], [fx0, E.y + 0.002, E.z], [0, 1, -0.3], [[fx0, (za - E.z) / DT], [fx1, (za - E.z) / DT], [fx1, 0], [fx0, 0]]);
+        for (const [x, n] of [[fx0, -1], [fx1, 1]]) cg.quad([x, 0, za], [x, 0, E.z], [x, E.y, E.z], [x, 0.001, za], [n, 0, 0]);
+        add(rg.mesh(deckMat), cg.mesh(white));
+      }
       const fx = cxAt(E.z), pz0 = E.z - 7.2, pz1 = E.z + 4;
       const pv = new Geo(), st = slabTex();
       pv.box(fx - 4.2, fx + 4.2, 0, 0.06, pz0, pz1, 2.4);
