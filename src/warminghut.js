@@ -264,7 +264,7 @@ feature({
       sign: new THREE.MeshBasicMaterial({ map: signTex(), color: new THREE.Color(1.05, 1.05, 1.05) }),
       menu: warm(new THREE.MeshStandardMaterial({ map: menuTex(), roughness: 0.9 }), { ...INSIDE, base: 0.35 }),
       fire: new THREE.MeshBasicMaterial({ map: fireTex(), color: new THREE.Color(1.5, 1.2, 1.0) }),
-      ember: new THREE.MeshBasicMaterial({ color: new THREE.Color(0.9, 0.3, 0.06) }),
+      ember: new THREE.MeshBasicMaterial({ color: new THREE.Color(1.1, 0.32, 0.05) }),
       lamp: new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.45, 0.75) }),
       bulb: new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.8, 1.0) }),
     };
@@ -336,10 +336,10 @@ feature({
         g.applyMatrix4(M4); out.put(this.M.snow, g);
         this.S.push({ skin: 'snow', fixed: true, base: 0, ...e });
       };
-      const z0 = -D2 + 0.05, z1 = D2 - 0.02, x0 = -W2 + 0.02, x1 = W2 - 0.02;
-      drift(MX(W2, 0, z0), z0, z1, { axis: 'x', x0: HX + W2, x1: HX + W2 + DW, z0: HZ + z0, z1: HZ + z1, h0: DH2, h1: 0 });
-      drift(MX(-W2, 0, z1, 0, Math.PI, 0), z0, z1, { axis: 'x', x0: HX - W2 - DW, x1: HX - W2, z0: HZ + z0, z1: HZ + z1, h0: 0, h1: DH2 });
-      drift(MX(x1, 0, D2, 0, -Math.PI / 2, 0), x0, x1, { axis: 'z', x0: HX + x0, x1: HX + x1, z0: HZ + D2, z1: HZ + D2 + DW, h0: DH2, h1: 0 });
+      const z0 = -D2 + 0.05, z1 = D2 - 0.02, x0 = -W2 + 0.02, x1 = W2 - 0.02, SK = 0.022;      // (from the skirt board's face)
+      drift(MX(W2 + SK, -0.006, z0), z0, z1, { axis: 'x', x0: HX + W2 + SK, x1: HX + W2 + SK + DW, z0: HZ + z0, z1: HZ + z1, h0: DH2, h1: 0 });
+      drift(MX(-W2 - SK, -0.006, z1, 0, Math.PI, 0), z0, z1, { axis: 'x', x0: HX - W2 - SK - DW, x1: HX - W2 - SK, z0: HZ + z0, z1: HZ + z1, h0: 0, h1: DH2 });
+      drift(MX(x1, -0.006, D2 + SK, 0, -Math.PI / 2, 0), x0, x1, { axis: 'z', x0: HX + x0, x1: HX + x1, z0: HZ + D2 + SK, z1: HZ + D2 + SK + DW, h0: DH2, h1: 0 });
     }
     // corner boards
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(out, M.trim, sx > 0 ? W2 - 0.1 : -W2 - 0.025, sx > 0 ? W2 + 0.025 : -W2 + 0.1, 0, EV, sz > 0 ? D2 - 0.1 : -D2 - 0.025, sz > 0 ? D2 + 0.025 : -D2 + 0.1);
@@ -443,7 +443,7 @@ feature({
     // the deck: boards, a step's height, from the wall to beyond the posts
     const z0 = PZ - 0.15, z1 = -D2;
     { const sh = new THREE.Shape([[-W2, -z1], [W2, -z1], [W2, -z0], [-W2, -z0]].map(([a, b]) => new THREE.Vector2(a, b))); const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); g.translate(0, FL, 0); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getY(i), uv.getX(i)); out.put(this.M.deck, g); }
-    box(out, M.ext, -W2 - 0.01, W2 + 0.01, 0, FL - 0.002, z0 - 0.01, z0 + 0.03, 0x5a4029); for (const s of [-1, 1]) box(out, M.ext, s * W2 - 0.01, s * W2 + 0.01, 0, FL - 0.002, z0, z1, 0x5a4029);
+    box(out, M.ext, -W2 - 0.025, W2 + 0.025, -0.01, FL, z0 - 0.025, z0, 0x5a4029); for (const s of [-1, 1]) box(out, M.ext, s > 0 ? W2 : -W2 - 0.025, s > 0 ? W2 + 0.025 : -W2, -0.01, FL, z0, z1, 0x5a4029);
     this.S.push({ skin: 'wall', fixed: true, x0: HX - W2, x1: HX + W2, z0: HZ + z0, z1: HZ + z1, axis: null, h0: FL, h1: FL, base: 0 });
     // posts and a beam across, with brackets, and a gable over it, red like the walls, with the sign and a wreath
     for (const s of [-1, 1]) {
@@ -562,8 +562,8 @@ feature({
       this._ob(x - 0.3, x + 0.2, 0, FL + 1.95, z - 0.2, z + 0.22); }
     // the counter along the east wall, painted green, a butcher-block top; the cocoa urn, mugs, marshmallows, cider
     { const x0 = 1.9, z0 = -1.5, z1 = 1.1, top = FL + 0.92;
-      box(ins, I, x0, IX, FL, FL + 0.1, z0 + 0.02, z1 - 0.02, 0x1d3a28);
-      box(ins, I, x0 + 0.03, IX, FL + 0.1, top - 0.04, z0 + 0.02, z1 - 0.02, 0x2f5a3f);
+      box(ins, I, x0, IX - 0.02, FL, FL + 0.1, z0 + 0.02, z1 - 0.02, 0x1d3a28);
+      box(ins, I, x0 + 0.03, IX - 0.02, FL + 0.1, top - 0.04, z0 + 0.02, z1 - 0.02, 0x2f5a3f);
       for (let z = z0 + 0.1; z < z1 - 0.05; z += 0.1) box(ins, I, x0 + 0.02, x0 + 0.03, FL + 0.12, top - 0.06, z, z + 0.012, 0x24492f);
       box(ins, I, x0 - 0.04, IX, top - 0.04, top, z0 - 0.02, z1 + 0.02, 0x9a6a3a);
       this._land(x0 - 0.04, IX, z0 - 0.02, z1 + 0.02, top, FL);
@@ -613,7 +613,7 @@ feature({
     // the fire door and its window, the ash door and its glowing slots
     box(ins, M.iron, x - 0.15, x + 0.15, y + 0.41, y + 0.65, z - 0.365, z - 0.32);
     { const g = new THREE.PlaneGeometry(0.21, 0.15); g.rotateY(Math.PI); g.translate(x, y + 0.53, z - 0.367); const m = new THREE.Mesh(g, M.fire); this.inner.add(m); this.fireWin = m; }
-    for (let i = 0; i < 4; i++) { const g = new THREE.PlaneGeometry(0.025, 0.05); g.rotateY(Math.PI); g.translate(x - 0.06 + i * 0.04, y + 0.3, z - 0.258); this.inner.add(new THREE.Mesh(g, M.ember)); }
+    { const sl = []; for (let i = 0; i < 3; i++) { const g = new THREE.PlaneGeometry(0.13, 0.011); g.rotateY(Math.PI); g.translate(x, y + 0.278 + i * 0.022, z - 0.258); sl.push(g); } this.inner.add(new THREE.Mesh(mergeGeometries(sl), M.ember)); }
     box(ins, M.iron, x - 0.1, x + 0.1, y + 0.26, y + 0.34, z - 0.255, z - 0.235);
     box(ins, M.iron, x + 0.1, x + 0.14, y + 0.52, y + 0.55, z - 0.4, z - 0.36);
     // the pipe, with a damper, to a collar under the ridge
@@ -657,7 +657,7 @@ feature({
       const m = new THREE.Mesh(mergeGeometries(geos), new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 - o, polygonOffsetUnits: -3 - o, fog: false }));
       m.renderOrder = 5; m.matrixAutoUpdate = false; return m;
     };
-    const win = [0.42, 0.28, 0.13], door = [0.6, 0.4, 0.18], lamp = [0.55, 0.38, 0.17];
+    const win = [0.42, 0.28, 0.13], door = [0.42, 0.28, 0.12], lamp = [0.36, 0.25, 0.11];
     const steady = [
       [-W2 - 1.35, 0.04, 0, 1.5, 1.3, win], [W2 + 1.35, 0.04, -0.9, 1.5, 1.3, win], [W2 + 1.35, 0.04, 1.9, 1.5, 1.3, win],
       [-1.75, FL + 0.01, -D2 - 0.75, 1.3, 1.5, win], [1.75, FL + 0.01, -D2 - 0.75, 1.3, 1.5, win],
@@ -701,8 +701,8 @@ feature({
   },
   // Smoke from the chimney pot: a few soft puffs rising, swelling and drifting off east on the wind.
   _smoke(g) {
-    const tex = radialTex(); this.puffs = [];
-    for (let i = 0; i < 9; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x9aa4b6, transparent: true, opacity: 0, depthWrite: false, fog: false })); s.position.set(this.pot.x, this.pot.y, this.pot.z); g.add(s); this.puffs.push({ s, t: i / 9 * 6 }); }
+    const tex = canvasTex(64, 64, (c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(0.55, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); }); this.puffs = [];
+    for (let i = 0; i < 9; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xc4ccd8, transparent: true, opacity: 0, depthWrite: false, fog: false })); s.position.set(this.pot.x, this.pot.y, this.pot.z); g.add(s); this.puffs.push({ s, t: i / 9 * 6 }); }
   },
 
   // ============================================================ play
@@ -720,21 +720,22 @@ feature({
     if (this.bulbs.u) this.bulbs.u.uT.value = t;
     // the fire: a flicker that never quite repeats
     const fl = 0.86 + 0.07 * Math.sin(t * 9.1) + 0.05 * Math.sin(t * 23.3 + 1.7) + 0.04 * Math.sin(t * 41.9 + 0.3) + (Math.random() - 0.5) * 0.04;
-    U.flick.value = fl; this.M.fire.color.setRGB(1.5 * fl, 1.2 * fl * fl, 1.0 * fl); this.M.ember.color.setRGB(0.9 * fl, 0.3 * fl, 0.06); this.fireGlow.material.color.setScalar(fl * 1.1);
+    U.flick.value = fl; this.M.fire.color.setRGB(1.5 * fl, 1.2 * fl * fl, 1.0 * fl); this.M.ember.color.setRGB(1.1 * fl, 0.32 * fl * fl, 0.05); this.fireGlow.material.color.setScalar(fl * 1.1);
     // smoke, and steam off the kettle
-    for (const q of this.puffs) { q.t += dt; const L = 6, a = (q.t % L) / L, s = q.s; s.position.set(this.pot.x + a * a * 1.6 + Math.sin(q.t * 0.7) * 0.06, this.pot.y + a * 2.2, this.pot.z + a * 0.3); s.scale.setScalar(0.25 + a * 1.1); s.material.opacity = 0.32 * Math.min(1, a * 6) * (1 - a); }
+    for (const q of this.puffs) { q.t += dt; const L = 6, a = (q.t % L) / L, s = q.s; s.position.set(this.pot.x + a * a * 1.6 + Math.sin(q.t * 0.7) * 0.06, this.pot.y + a * 2.2, this.pot.z + a * 0.3); s.scale.setScalar(0.35 + a * 1.3); s.material.opacity = Math.min(1, a * 4) * (1 - a) ** 1.5; }
     if (d < 14 && (this._kt = (this._kt || 0) - dt) < 0) { this._kt = 0.22; this.kettle.emit(this.spout.x, this.spout.y, this.spout.z, 1, { spread: 0.01, up: 0.45, out: 0.05, life: 1.4 }); }
     this.kettle.update(dt); this.steam.update(dt);
     // indoors: no snow falls, the camera stays in the room, and the cat breathes
-    const inside = Math.abs(lx) < IX && Math.abs(lz) < IZ && p.y < 3;
+    const inside = Math.abs(lx) < IX && Math.abs(lz) < IZ && p.y < under(lx);
     if (inside) { k.museum.playerIndoors = true; this._indoors = true; }
     else if (this._indoors) { this._indoors = false; if (!k.G.roomId) k.museum.playerIndoors = false; }
     if (this.inner.visible) this.cat.scale.set(1, 1 + Math.sin(t * 1.9) * 0.035, 1);
     if (inside && k.G.view !== 'fpv') {
       const drone = v.kind === 'drone', yaw = k.G.camYaw, dist = drone ? 1.35 : 1.3, up = drone ? 0.34 : 0.46, m = 0.18;
       const ax = lx - Math.sin(yaw) * dist, az = lz - Math.cos(yaw) * dist, cx = clamp(ax, -IX + m, IX - m), cz = clamp(az, -IZ + m, IZ - m), over = Math.hypot(ax - cx, az - cz);
-      if (over > 0.001) {
-        const cy = Math.min(p.y + up + over * 0.45, under(cx) - 0.3);
+      const ay = p.y + up + over * 0.45, lim = under(cx) - 0.45;
+      if (over > 0.001 || ay > lim) {
+        const cy = Math.max(FL + 0.15, Math.min(ay, lim));
         k.camClose = { at: { x: HX + cx, y: cy, z: HZ + cz }, look: { x: p.x + Math.sin(v.yaw) * 2.2, y: p.y + (drone ? 0 : 0.42) - over * 0.15, z: p.z + Math.cos(v.yaw) * 2.2 } };
       }
     }
