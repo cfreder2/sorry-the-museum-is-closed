@@ -19,7 +19,7 @@ const checks = () => { const t = tex(64, 16, (c) => { for (let i = 0; i < 8; i++
 
 const TW = 0.5, RW = 0.02, RH = 0.05, TH = 0.03, FLAT = 0.02;      // running width, lip width and height, plank, how far a piece lying on the deck stands proud
 // (the lip is museum.js's rail colour, the steel its steel, a shade lifted so it reads against the night)
-const ORANGE = new THREE.Color(0xd8581c).toArray(), RAIL = new THREE.Color(0xc8501a).toArray(), UNDER = new THREE.Color(0xa8441a).toArray(), GRAPHITE = new THREE.Color(0x24272c).toArray();
+const ORANGE = new THREE.Color(0xd8581c).toArray(), RAIL = new THREE.Color(0xc8501a).toArray(), UNDER = new THREE.Color(0xb84a1a).toArray(), GRAPHITE = new THREE.Color(0x24272c).toArray();
 
 feature({
   id: 'bridgeplay',
@@ -107,7 +107,7 @@ feature({
     // the flat and straight into the next. The ways in and out swap lanes from loop to loop (vehicles.js takes a loop
     // in either lane, either way round), so the three sit in two lanes: in by the east lane, out of the first by the
     // west, out of the second by the east, out of the last by the west and down a ramp to the deck. The deck falls away
-    // under the level run, so it stands on trestles and the last two loops on dark steel blocks. Each ribbon is the
+    // under the level run, so it stands on trestles, the last two loops too. Each ribbon is the
     // track taken right round, lipped both sides, cyan light down its edges, its foot clamped to the run.
     {
       const r = 0.85, wd = 0.42, hw = wd / 2, s = 0.48, gapZ = 2 * r + 0.25, z1 = D.z0 + 90, x0 = cx(z1) + hw + RW + 0.04, y = h(z1) + FLAT;
@@ -124,14 +124,10 @@ feature({
       const zo = zs[2] - 0.7, zd = zo - 3.2;
       runs.push(run(x0, zs[2] + 0.5, zo, level, { ...o, n: 1, v0: 0 }));
       run(x0, zo, zd, t => { const z = zo + (zd - zo) * t; return y + (h(z) + FLAT - y) * t; }, { ...o, n: 1, v0: 0.82 });      // (straight: a crest part way up would throw a climbing car into the climb ahead)
-      // what holds it up: trestles under the runs, a block under each raised loop's foot
+      // what holds it up: trestles under the runs and under each raised loop's foot
       for (const seg of runs) for (const t of [0.25, 0.75]) { const z = seg[0].z0 + (seg[0].z1 - seg[0].z0) * t, xc = (seg[0].x0 + seg[0].x1) / 2; if (y - h(z) > 0.07) trestle(xc, z, y, { w: wd }); }
       { const z = zo - 0.9; if (y - h(z) > 0.07) trestle(x0, z, y + (h(z) + FLAT - y) * 0.9 / 3.2, { w: wd }); }
-      for (const L of this.loops) {
-        const xa = x0 - hw - RW, xb = x0 + s + hw + RW, yb = h(L.z), yt = y - TH, cap = Math.max(yb + 0.01, y - 0.28);
-        box(GRAPHITE, xa, xb, yb, yt, L.z - 0.07, L.z + 0.07);
-        if (yt - yb > 0.02) O.push({ x0: xa, x1: xb, z0: L.z - 0.07, z1: L.z + 0.07, y0: yb, y1: Math.min(yt, cap) });
-      }
+      for (const L of this.loops) if (y - h(L.z) > 0.07) trestle(x0 + s / 2, L.z, y, { w: s + wd });      // a wide one under both lanes at a raised loop's foot
       // the ribbons, as a car going down the bridge rides them
       const N = 64, arc = 2 * Math.PI * r, led = 0.012;
       for (const L of this.loops) {
@@ -150,7 +146,7 @@ feature({
             quadN(bodyG, [[ai[0] + xi, ai[1], ai[2]], [bi[0] + xi, bi[1], bi[2]], [bi[0] + xo, bi[1], bi[2]], [ai[0] + xo, ai[1], ai[2]]], inN, null, RAIL);
             quadN(bodyG, [[ao[0] + xo, ao[1], ao[2]], [bo[0] + xo, bo[1], bo[2]], [bi[0] + xo, bi[1], bi[2]], [ai[0] + xo, ai[1], ai[2]]], sd, null, ORANGE);
             // the cyan light along the lip, on its inner face, as on the loop indoors
-            const la = off(a, na, -RH * 0.55), lb = off(b, nb, -RH * 0.55), lx = xi - sg * 0.002;
+            const la = off(a, na, -RH * 0.3), lb = off(b, nb, -RH * 0.3), lx = xi - sg * 0.002;
             quadN(ledG, [[ai[0] + lx, ai[1], ai[2]], [bi[0] + lx, bi[1], bi[2]], [lb[0] + lx, lb[1], lb[2]], [la[0] + lx, la[1], la[2]]], si, null);
           }
         }
