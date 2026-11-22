@@ -465,7 +465,13 @@ feature({
       for (let z = st.z0 + 0.3; z < st.z1; z += 2.2) { const y = (z - st.z0) / len * top; rod(P, new THREE.Vector3(xs, y - 0.2, z), new THREE.Vector3(xs, y + 0.95, z), 0.045, 0.045, rail, 0.7, 6); }
       rod(P, new THREE.Vector3(xs, 0.95, st.z0 + 0.3), new THREE.Vector3(xs, top + 0.95, st.z1), 0.035, 0.035, rail, 0.6, 6);
     }
-    this.O.push({ x0: x - 1.0, x1: x + 1.0, z0: st.z0 - 0.2, z1: st.z1, y0: -1, y1: top + 1.2 });
+    // Drive up them: a toy's wheels ride from nosing to nosing, so the steps are ground along the line through the
+    // treads' front edges (the bottom one a step out from the first riser), then the top tread, level. The handrails
+    // are low walls down both sides.
+    const S = this.k.plan.surfaces;
+    S.push({ skin: 'wood', x0: x - 0.85, x1: x + 0.85, z0: st.z0 - run, z1: st.z1 - run, axis: 'z', h0: 0, h1: top, base: -1, stairs: true });
+    S.push({ skin: 'wood', x0: x - 0.85, x1: x + 0.85, z0: st.z1 - run, z1: st.z1, axis: null, h0: top, h1: top, thick: 0.3 });
+    for (let z = st.z0 - run; z < st.z1; z += 1) { const h = Math.min(top, (Math.min(st.z1, z + 1) - st.z0 + run) / len * top); for (const s2 of [-1, 1]) this.O.push({ x0: x + s2 * 0.88 - 0.05, x1: x + s2 * 0.88 + 0.05, z0: z, z1: Math.min(st.z1, z + 1), y0: -1, y1: h + 1.0 }); }
   },
 
   // ============================================================ the path up, with lanterns

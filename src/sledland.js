@@ -74,7 +74,7 @@ export const TUNNEL = { s0: 96.3, s1: 101.3, half: 2.5, clear: 2.15, thick: 0.55
 export const PATH_W = 1.4, PATH_LIP = 0.9;
 const PATH_PTS = [[323, 210.5], [319, 197], [316.5, 181], [317, 165], [320, 153.5], [325.5, 146.2], [328.5, 143.6]];
 const PATH_H = [0, 1.0, 2.5, 4.4, 6.25, 7.85, 7.9];
-// The steps: timber stairs straight up the north face from the cross path, for people (a car cannot climb steps).
+// The steps: timber stairs straight up the north face from the cross path. A toy rides up them, nosing to nosing (sledhill.js).
 export const STAIR = { x: 334.5, z0: 115.5, z1: 138.2, w: 1.0, lip: 0.6 };
 
 // The ribbon's cross-section: how far above its centre-line height the ground stands at `d` metres to the side
