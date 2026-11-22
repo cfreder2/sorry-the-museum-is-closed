@@ -128,7 +128,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.21.46';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.47';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -293,7 +293,7 @@ async function boot() {
       for (const [id, at, name] of spots) if (at && !secrets.has(id) && G.nav && G.nav.goTo({ x: at.x, y: at.y, z: at.z, label: name })) return name; return null; } });
   secrets.add('presents', 'The parcels under the tree');
   G.traffic = new Traffic(G.museum, plan);                 // cars, a bus, and the lights they stop at (src/traffic.js)
-  if (plan.lakefront) secrets.add('harbour', 'The light at the end of the breakwater');
+  if (plan.lakefront) secrets.add('harbour', 'Fly out to the light at the end of the breakwater');
   G.signs = buildSigns(G.museum, plan);                    // the plaques over the doors of the restroom blocks (src/signs.js)
   G.boards = new Whiteboards(G.museum, plan);              // the whiteboards the staff have left written on (src/whiteboards.js)
   G.secret = new Secret(G, { say, callout, endStudy, trophies, boards: G.boards, canvas });      // and what one of them is about (src/secret.js)
@@ -1365,7 +1365,7 @@ function play(dt, real) {
     if (G.mode === 'explore') {
       if (G.arcadeNear && G.arcadeNear.bonus) secrets.find('outpost');
       if (G.pokerNear) secrets.find('poker'); if (stallNear) secrets.find('stall'); if (G.heistNear) secrets.find('heist'); if (paintNear) secrets.find('easel'); if (simonNear) secrets.find('simon');
-      { const lf = G.plan.lakefront; if (lf && !G.roomId && Math.hypot(v.pos.x - lf.light.x, v.pos.z - lf.light.z) < 12) secrets.find('harbour'); }
+      { const lf = G.plan.lakefront; if (lf && !G.roomId && v.kind === 'drone' && Math.hypot(v.pos.x - lf.light.x, v.pos.z - lf.light.z) < 12) secrets.find('harbour'); }      // (flown out to; a car that gets there across the floes has its own: harbour.js)
       const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 16) secrets.find('hockey');
     }
     if (paintNear) { once('easel', 'An easel, and paint. Whatever you make here hangs in the lobby. E to paint.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PAINT'; if (paintTap) G.paint.open(); }
