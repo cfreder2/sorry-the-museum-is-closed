@@ -452,11 +452,11 @@ export function buildBridgeway(museum, plan) {
     const plank = tex(256, 256, (c, W, H) => {
       const r = rng(11), n = 8, ph = H / n;
       for (let i = 0; i < n; i++) {
-        const t = 150 + Math.round((r() - 0.5) * 18);
+        const t = 158 + Math.round((r() - 0.5) * 10);
         c.fillStyle = `rgb(${t - 6},${t},${t + 10})`; c.fillRect(0, i * ph, W, ph);
         for (let k = 0; k < 46; k++) { c.fillStyle = r() < 0.5 ? `rgba(255,255,255,${0.03 + r() * 0.05})` : `rgba(30,36,46,${0.03 + r() * 0.05})`; c.fillRect(r() * W, i * ph + 2 + r() * (ph - 4), 16 + r() * 90, 1); }
-        c.fillStyle = 'rgba(18,22,30,0.9)'; c.fillRect(0, i * ph, W, 2);
-        c.fillStyle = 'rgba(236,240,248,0.32)'; c.fillRect(0, i * ph + 2, W, 1);
+        c.fillStyle = 'rgba(30,34,44,0.6)'; c.fillRect(0, i * ph, W, 1); c.fillStyle = 'rgba(30,34,44,0.25)'; c.fillRect(0, i * ph + 1, W, 1);
+        c.fillStyle = 'rgba(236,240,248,0.22)'; c.fillRect(0, i * ph + 2, W, 1);
       }
     });
     plank.anisotropy = 8; plank.repeat.set(1 / DT, 1);
@@ -506,14 +506,14 @@ export function buildBridgeway(museum, plan) {
     put(frameG, railWhite);
     put(woodG, new THREE.MeshStandardMaterial({ map: grain, roughness: 0.5, emissiveMap: grain, emissive: new THREE.Color(0.55, 0.42, 0.34), emissiveIntensity: 0.5 }));
     put(ledG, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.2, 0.8), side: THREE.DoubleSide }));
-    const hm = put(haloG, new THREE.MeshBasicMaterial({ map: glowTx, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, color: new THREE.Color(0.3, 0.22, 0.12) }), 3);
+    const hm = put(haloG, new THREE.MeshBasicMaterial({ map: glowTx, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, color: new THREE.Color(0.2, 0.15, 0.08) }), 3);
     { const g0 = hm.geometry, uvA = g0.attributes.uv, P = g0.attributes.position; for (let i = 0; i < uvA.count; i++) uvA.setX(i, (P.getY(i) - hAt(P.getZ(i)) - 0.62) / (RH - 0.075 - 0.62)); uvA.needsUpdate = true; }
     const snowMap = museum.snowTex ? museum.snowTex.clone() : null; if (snowMap) { snowMap.needsUpdate = true; snowMap.repeat.set(1, 1); }
     put(snowG, new THREE.MeshStandardMaterial({ map: snowMap, color: 0xf4f7fc, roughness: 0.95, emissiveMap: snowMap, emissive: new THREE.Color(0.34, 0.38, 0.52), emissiveIntensity: 0.62 }));
     const poolTex = tex(64, 8, (c, W, H) => { const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,1)'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
     poolTex.wrapS = THREE.ClampToEdgeWrapping;
     // (u runs from the inner edge outwards on the east side, so the west strip's texture is turned round)
-    const pm = put(poolG, new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(0.4, 0.3, 0.17), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 3);
+    const pm = put(poolG, new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(0.24, 0.18, 0.1), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 3);
     { const g0 = pm.geometry, uvA = g0.attributes.uv, P = g0.attributes.position; for (let i = 0; i < uvA.count; i++) uvA.setX(i, Math.abs(P.getX(i) - cxAt(P.getZ(i))) <= w - 0.4 ? 0 : 1); uvA.needsUpdate = true; }
     // The posts, one every 1.5 m, as one instanced mesh: flat bars, 2 cm by 5 cm, on the line the mesh leans on.
     {

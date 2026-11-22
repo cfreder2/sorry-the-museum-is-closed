@@ -45,10 +45,19 @@ feature({
     // The strip of park under the bridge, fenced.
     const ax0 = Math.min(E.x, A.x) - 8, ax1 = Math.max(E.x, A.x) + 8, az0 = E.z - 8, az1 = B.z0 + 0.5;
     (P.allow = P.allow || []).push({ x0: ax0, x1: ax1, z0: az0, z1: az1 });
-    const SKY = 46, post = mat(0x6b4a2c), net = mat(0xd9692a, { roughness: 0.9 });
+    const SKY = 46;
     O.push({ x0: ax0 - 0.3, x1: ax0 + 0.1, z0: az0 - 0.3, z1: az1 + 1, y0: -1, y1: SKY + 2 }, { x0: ax1 - 0.1, x1: ax1 + 0.3, z0: az0 - 0.3, z1: az1 + 1, y0: -1, y1: SKY + 2 }, { x0: ax0 - 0.3, x1: ax1 + 0.3, z0: az0 - 0.3, z1: az0 + 0.1, y0: -1, y1: SKY + 2 });
-    const fence = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), m = box(L, 0.5, 0.03, net, (x0 + x1) / 2, 0.55, (z0 + z1) / 2); m.rotation.y = -Math.atan2(z1 - z0, x1 - x0); k.group.add(m); for (let t = 0; t <= L; t += 3) k.group.add(box(0.05, 0.9, 0.05, post, x0 + (x1 - x0) * t / L, 0.45, z0 + (z1 - z0) * t / L)); };
+    // A low park railing of dark steel, as round the lawns of Millennium Park: a post every 2.5 m, a top rail and a
+    // rail low down, all one mesh. (It is dark so that, seen from the bridge, it sinks into the snow.)
+    const fg = new Geo();
+    const fence = (x0, z0, x1, z1) => {
+      const alongX = z0 === z1, a = Math.min(alongX ? x0 : z0, alongX ? x1 : z1), b = Math.max(alongX ? x0 : z0, alongX ? x1 : z1), c = alongX ? z0 : x0;
+      for (const [y0, y1] of [[0.78, 0.82], [0.2, 0.23]]) alongX ? fg.box(a, b, y0, y1, c - 0.015, c + 0.015) : fg.box(c - 0.015, c + 0.015, y0, y1, a, b);
+      const n = Math.max(1, Math.round((b - a) / 2.5));
+      for (let i = 0; i <= n; i++) { const u = a + (b - a) * i / n; alongX ? fg.box(u - 0.025, u + 0.025, 0, 0.86, c - 0.025, c + 0.025) : fg.box(c - 0.025, c + 0.025, 0, 0.86, u - 0.025, u + 0.025); }
+    };
     fence(ax0, B.z0, ax0, az0); fence(ax0, az0, ax1, az0); fence(ax1, az0, ax1, B.z0);
+    k.group.add(fg.mesh(mat(0x2a302e, { roughness: 0.5, metalness: 0.4, emissive: new THREE.Color(0x2a302e).multiplyScalar(0.25) })));
     this.at = { x: fx, y: 0, z: E.z - 3 };
     this.top = { x: A.x, y: L3, z: top };
     const inDeck = p => (p.z > E.z - 2 && p.z < A.z + 1 && Math.abs(p.x - cxAt(Math.min(A.z, Math.max(E.z, p.z)))) < HW + 0.6 && p.y > (p.z > E.z ? hAt(Math.min(top, p.z)) - 1.5 : -1)) || (p.y > L3 - 1 && p.x > A.x - HW && p.x < lx1 + 0.5 && p.z > tw.z0 - 3 && p.z < tw.z1);
@@ -65,7 +74,14 @@ feature({
   active(k) { const p = k.pos, z = this.zone; return !!z && p.x > z.x0 && p.x < z.x1 && p.z > z.z0 && p.z < z.z1; },
   update(dt, k) {
     if (k.close(this.at, 5, 1.2)) k.once('bridge-foot', 'The foot of the Nichols Bridgeway. From here to the top in under 25 s: the clock starts up the ramp.', 6);
-    this.timer.update(dt);
+    // A sprint only goes up. Turn back down the bridge, or stop climbing for a few seconds (to play on the toy track,
+    // say), and the clock is put away quietly: it is not a run any more.
+    const T = this.timer, z = k.pos.z;
+    if (T.state === 'running') {
+      if (this.far == null || z > this.far + 0.3) { this.far = Math.max(this.far ?? z, z); this.still = 0; } else this.still += dt;
+      if (this.still > 3 || z < this.far - 3) { T.cancel(); this.far = null; }
+    } else this.far = null;
+    T.update(dt);
   },
   spots() { return this.at ? [{ kind: 'secret', id: 'bridgeway', name: 'Bridgeway sprint (under 25 s)', ...this.at }] : []; },
   reset() { if (this.timer) this.timer.cancel(); },

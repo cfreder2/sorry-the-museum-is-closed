@@ -29,7 +29,7 @@ const trackTex = () => tex(128, 256, (c, W, H) => {
 const checks = () => { const t = tex(64, 16, (c) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 2; j++) { c.fillStyle = (i + j) % 2 ? '#15171b' : '#f2f2ee'; c.fillRect(i * 8, j * 8, 8, 8); } }); t.repeat.set(1, 1); return t; };
 
 const TW = 0.5, RW = 0.022, RH = 0.022, TH = 0.03, FLAT = 0.02;      // running width, rail width and height, plank, how far a piece lying on the deck stands proud
-const ORANGE = new THREE.Color('#ef6820').toArray(), RAIL = new THREE.Color('#ff7f30').toArray(), UNDER = new THREE.Color('#9c3d10').toArray(), GRAPHITE = new THREE.Color('#2c3038').toArray();
+const ORANGE = new THREE.Color('#ef6820').toArray(), RAIL = new THREE.Color('#ff7f30').toArray(), UNDER = new THREE.Color('#c4501a').toArray(), GRAPHITE = new THREE.Color('#2c3038').toArray();
 
 feature({
   id: 'bridgeplay',
@@ -55,6 +55,17 @@ feature({
       g.idx.push(i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3);
     };
     const box = (col, x0, x1, y0, y1, z0, z1) => { bodyG.col = col; bodyG.box(x0, x1, y0, y1, z0, z1); };
+    // A strut of square section t from a to b, at any slant.
+    const strut = (col, a, b, t) => {
+      const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize(), u = new THREE.Vector3(1, 0, 0).cross(d);
+      if (u.lengthSq() < 1e-6) u.set(0, 0, 1).cross(d);
+      u.normalize().multiplyScalar(t / 2); const v = d.clone().cross(u);
+      const c = [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([i, j]) => [u.x * i + v.x * j, u.y * i + v.y * j, u.z * i + v.z * j]);
+      for (let k = 0; k < 4; k++) {
+        const p = c[k], q = c[(k + 1) % 4], n = new THREE.Vector3(p[0] + q[0], p[1] + q[1], p[2] + q[2]).normalize().toArray(), nn = [n, n, n, n];
+        quadN(bodyG, [[a[0] + p[0], a[1] + p[1], a[2] + p[2]], [a[0] + q[0], a[1] + q[1], a[2] + q[2]], [b[0] + q[0], b[1] + q[1], b[2] + q[2]], [b[0] + p[0], b[1] + p[1], b[2] + p[2]]], nn, null, col);
+      }
+    };
 
     // A straight length of track along z at x = xc, from za to zb (either way), its top `rel(t)` above the deck for t
     // from 0 at za to 1 at zb (or above the ground, `ground: true`). `v0` is how far along the set it starts, so the
@@ -154,13 +165,19 @@ feature({
           quadN(bodyG, [[ao[0] + xo, ao[1], ao[2]], [bo[0] + xo, bo[1], bo[2]], [bi[0] + xo, bi[1], bi[2]], [ai[0] + xo, ai[1], ai[2]]], sd, null, ORANGE);
         }
       }
-      // The stands: where the ribbon is upright, a quarter of the way round (the west edge) and three quarters (the east).
+      // The stands: where the ribbon is upright, a quarter of the way round (the west edge) and three quarters (the east),
+      // a post with two splayed feet along the bridge and a clip that takes hold of the ribbon's edge.
       for (const [th, sg] of [[Math.PI / 2, -1], [Math.PI * 1.5, 1]]) {
-        const p = at(th), ex = p[0] + sg * (hw + RW), px = ex + sg * 0.06, pz = p[2], yb = h(pz), yt = p[1] + 0.14, t = 0.016;
+        const p = at(th), ex = p[0] + sg * (hw + RW), px = ex + sg * 0.05, pz = p[2], yb = h(pz), yt = p[1] + 0.1, t = 0.016, F = 0.3, K = 0.42;
         box(GRAPHITE, px - t, px + t, yb, yt, pz - t, pz + t);
-        box(GRAPHITE, px - 0.05, px + 0.05, yb, yb + 0.014, pz - 0.05, pz + 0.05);
-        box(GRAPHITE, Math.min(ex, px), Math.max(ex, px), p[1] - 0.012, p[1] + 0.012, pz - 0.03, pz + 0.03);      // the clip
         O.push({ x0: px - t, x1: px + t, z0: pz - t, z1: pz + t, y0: yb, y1: yt });
+        for (const dz of [-F, F]) {
+          const fy = h(pz + dz);
+          strut(GRAPHITE, [px, fy + 0.01, pz + dz], [px, yb + K, pz], 0.022);
+          box(GRAPHITE, px - 0.03, px + 0.03, fy, fy + 0.012, pz + dz - 0.04, pz + dz + 0.04);
+          for (let i = 0; i < 3; i++) { const f0 = i / 3, f1 = (i + 1) / 3, za = pz + dz * (1 - f0), zb = pz + dz * (1 - f1); O.push({ x0: px - 0.012, x1: px + 0.012, z0: Math.min(za, zb), z1: Math.max(za, zb), y0: Math.min(fy, yb), y1: yb + K * f1 }); }
+        }
+        box(GRAPHITE, Math.min(ex, px) - 0.01, Math.max(ex, px) + 0.01, p[1] - 0.02, p[1] + 0.02, pz - 0.04, pz + 0.04);      // the clip
       }
     }
 
