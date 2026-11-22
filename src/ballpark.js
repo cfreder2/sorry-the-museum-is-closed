@@ -17,6 +17,7 @@ import * as THREE from 'three';
 import { feature, tonight } from './features.js';
 import { heightOf, landable } from './plan.js';
 import { TAU, Wire, canvasTex, lit, mergeAll } from './glowkit.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const S2 = Math.SQRT1_2, DEG = Math.PI / 180, GRAV = 9.8, BR = 0.07;   // (BR: a snowball's radius)
 const BL = 12;                                                               // the base paths, as butlerfield.js has them
@@ -191,17 +192,60 @@ feature({
     };
     dug(P.hx - 4.0, P.hx - 2.6, P.hz + 3.5, P.hz + 9.5, 'x0');             // first-base side (west of the +z line)
     dug(P.hx + 4.5, P.hx + 10.5, P.hz - 3.8, P.hz - 2.4, 'z0');             // third-base side (north of the +x line)
-    // the bleacher: three tiers stepping up away from the first-base line
-    const tiers = [];
-    for (let i = 0; i < 3; i++) {
-      const x1 = P.hx - 1.8 - i, x0 = x1 - 1, z0 = P.hz + 12.5, z1 = P.hz + 20.5, top = 0.4 * (i + 1);
-      landable(k.plan, x0, x1, z0, z1, top);
-      const q = new THREE.BoxGeometry(1, top, 8); q.translate((x0 + x1) / 2, top / 2, (z0 + z1) / 2); tiers.push(q);
-      const pl = new THREE.BoxGeometry(1.02, 0.03, 8.04); pl.translate((x0 + x1) / 2, top - 0.015 + 0.001, (z0 + z1) / 2); benches.push(pl);
-    }
+    // the bleacher: three tiers stepping up away from the first-base line, each a run of timber seat boards on a steel
+    // frame, ribbed steel risers between the steps and steel ends, and snow lying on the boards wherever nobody stands
     this.bleacher = { x: P.hx - 1.8, z0: P.hz + 12.5, z1: P.hz + 20.5 };
+    this._fanLayout();
+    const boards = [], snowG = [], steel = [], risers = [], rnd1 = this._rng(31);
+    for (let i = 0; i < 3; i++) {
+      const x1 = P.hx - 1.8 - i, x0 = x1 - 1, z0 = P.hz + 12.5, z1 = P.hz + 20.5, top = 0.4 * (i + 1), zm = (z0 + z1) / 2;
+      landable(k.plan, x0, x1, z0, z1, top);
+      // three boards with a gap between, a little proud of the frame at each end
+      for (let j = 0; j < 3; j++) {
+        const bx = x0 + 0.17 + j * 0.33, q = new THREE.BoxGeometry(0.3, 0.035, 8.1); q.translate(bx, top - 0.0175, zm); boards.push(q);
+        // the snow on it: drifts along the board, broken where a fan stands and here and there where it has been knocked off
+        const clear = this.fanSpots.filter(f => f.tier === i).map(f => [f.z - 0.32 * f.s, f.z + 0.32 * f.s]);
+        let z = z0 + 0.05 + rnd1() * 0.3;
+        while (z < z1 - 0.2) {
+          const len = 0.4 + rnd1() * 1.6, za = z, zb = Math.min(z1 - 0.05, z + len);
+          const segs = [[za, zb]];
+          for (const [c0, c1] of clear) for (let s = segs.length - 1; s >= 0; s--) { const [a, b] = segs[s]; if (c1 <= a || c0 >= b) continue; segs.splice(s, 1, ...[[a, c0], [c1, b]].filter(([p, q2]) => q2 - p > 0.15)); }
+          // (each stretch a chain of soft lumps of different widths, so its edge wanders as a drift's does)
+          for (const [a, b] of segs) for (let za2 = a; za2 < b - 0.08;) {
+            const zb2 = Math.min(b, za2 + 0.22 + rnd1() * 0.3), th = 0.012 + rnd1() * 0.016, w = 0.15 + rnd1() * 0.12, sg = new THREE.CapsuleGeometry(th, Math.max(0.01, zb2 - za2), 2, 6);
+            sg.rotateX(Math.PI / 2); sg.scale(w / (2 * th), 1, 1); sg.translate(bx + (rnd1() - 0.5) * 0.06, top + th * 0.3, (za2 + zb2) / 2); snowG.push(sg);
+            za2 = zb2 - 0.04;
+          }
+          z = zb + 0.15 + rnd1() * 0.7;
+        }
+      }
+      // the frame: posts front and back every two metres, a bearer under the boards on each pair
+      for (let zz = z0 + 0.1; zz <= z1 - 0.05; zz += (z1 - z0 - 0.2) / 4) {
+        for (const px of [x0 + 0.05, x1 - 0.05]) { const q = new THREE.BoxGeometry(0.05, top - 0.035, 0.05); q.translate(px, (top - 0.035) / 2, zz); steel.push(q); }
+        const q = new THREE.BoxGeometry(1, 0.05, 0.05); q.translate((x0 + x1) / 2, top - 0.06, zz); steel.push(q);
+      }
+      // the riser in front of the step (the first one down to the ground), the steel ends, the back of the top tier
+      { const h = top - 0.035 - 0.4 * i, q = new THREE.BoxGeometry(0.02, h, 8); q.translate(x1 - 0.01, 0.4 * i + h / 2, zm); risers.push(q); }
+      for (const ez of [z0 + 0.01, z1 - 0.01]) { const q = new THREE.BoxGeometry(1, top - 0.035, 0.02); q.translate((x0 + x1) / 2, (top - 0.035) / 2, ez); risers.push(q); }
+      if (i === 2) { const q = new THREE.BoxGeometry(0.02, top - 0.035, 8); q.translate(x0 + 0.01, (top - 0.035) / 2, zm); risers.push(q); }
+    }
     const g = this.g, wood = lit(0x6b4a2a);
-    g.add(new THREE.Mesh(mergeAll(walls), lit(0x23402e)), new THREE.Mesh(mergeAll(roofs), lit(0xe9eef5, { roughness: 0.9 })), new THREE.Mesh(mergeAll(benches), wood), new THREE.Mesh(mergeAll(tiers), lit(0x8e979f, { metalness: 0.6, roughness: 0.4 })));
+    g.add(new THREE.Mesh(mergeAll(walls), lit(0x23402e)), new THREE.Mesh(mergeAll(roofs), lit(0xe9eef5, { roughness: 0.9 })), new THREE.Mesh(mergeAll(benches), wood));
+    const grain = canvasTex(64, 256, (c, w, h) => {
+      c.fillStyle = '#9a6b3e'; c.fillRect(0, 0, w, h);
+      for (let i = 0; i < 70; i++) { c.strokeStyle = `rgba(${Math.random() < 0.5 ? '70,42,20' : '196,150,100'},${0.15 + Math.random() * 0.3})`; c.lineWidth = 0.5 + Math.random() * 1.5; const x = Math.random() * w; c.beginPath(); c.moveTo(x, 0); c.bezierCurveTo(x + (Math.random() - 0.5) * 6, h / 3, x + (Math.random() - 0.5) * 6, h * 2 / 3, x + (Math.random() - 0.5) * 4, h); c.stroke(); }
+      c.fillStyle = 'rgba(40,24,12,.5)'; c.fillRect(0, 0, 2, h); c.fillRect(w - 2, 0, 2, h);
+    });
+    const ribs = canvasTex(128, 32, (c, w, h) => {
+      const gr = c.createLinearGradient(0, 0, 16, 0); gr.addColorStop(0, '#5d666f'); gr.addColorStop(0.35, '#a9b2ba'); gr.addColorStop(0.6, '#7c858e'); gr.addColorStop(1, '#4e565e');
+      c.fillStyle = gr; for (let x = 0; x < w; x += 16) { c.save(); c.translate(x, 0); c.fillRect(0, 0, 16, h); c.restore(); }
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, h - 3, w, 3);
+    });
+    ribs.wrapS = THREE.RepeatWrapping; ribs.repeat.set(12, 1);
+    g.add(new THREE.Mesh(mergeAll(boards), new THREE.MeshStandardMaterial({ map: grain, roughness: 0.8, emissive: 0xffffff, emissiveMap: grain, emissiveIntensity: 0.32 })));
+    g.add(new THREE.Mesh(mergeAll(risers), new THREE.MeshStandardMaterial({ map: ribs, metalness: 0.5, roughness: 0.45, emissive: 0xffffff, emissiveMap: ribs, emissiveIntensity: 0.36 })));
+    g.add(new THREE.Mesh(mergeAll(steel), lit(0x59616a, { metalness: 0.6, roughness: 0.4 })));
+    if (snowG.length) g.add(new THREE.Mesh(mergeAll(snowG), new THREE.MeshStandardMaterial({ color: 0xe6edf7, roughness: 0.95, emissive: new THREE.Color(0.42, 0.48, 0.64), emissiveIntensity: 0.6 })));
   },
 
   // ============================================================ the wall
@@ -504,28 +548,188 @@ feature({
   },
 
   // ============================================================ the fans
-  // Ten little snowmen on the bleacher in team scarves. On a home run they jump up and down.
-  _fans(k) {
-    const b = this.bleacher, n = 10, bodyG = mergeAll([new THREE.SphereGeometry(0.2, 10, 8).translate(0, 0.2, 0), new THREE.SphereGeometry(0.15, 10, 8).translate(0, 0.5, 0), new THREE.SphereGeometry(0.11, 10, 8).translate(0, 0.73, 0)]);
-    const hatG = mergeAll([new THREE.CylinderGeometry(0.07, 0.07, 0.13, 10).translate(0, 0.9, 0), new THREE.CylinderGeometry(0.12, 0.12, 0.015, 12).translate(0, 0.83, 0), new THREE.ConeGeometry(0.02, 0.1, 6).rotateX(Math.PI / 2).translate(0, 0.73, 0.14)]);
-    const scarfG = new THREE.TorusGeometry(0.12, 0.035, 6, 14).rotateX(Math.PI / 2).translate(0, 0.63, 0);
-    this.fanMesh = [new THREE.InstancedMesh(bodyG, lit(0xf3f6fa, { roughness: 0.85 }), n), new THREE.InstancedMesh(hatG, lit(0x1a1a1c), n), new THREE.InstancedMesh(scarfG, lit(0xffffff), n)];
-    this.fanAt = [];
-    const cols = [0xc0392b, 0x2e86c1, 0x27ae60, 0xf1c40f, 0x8e44ad];
-    for (let i = 0; i < n; i++) {
-      const tier = i % 3, x = b.x - 0.5 - tier, top = 0.4 * (tier + 1), z = b.z0 + 0.8 + (i * 2.37) % (b.z1 - b.z0 - 1.6);
-      this.fanAt.push([x, top, z, Math.random() * TAU]);
-      this.fanMesh[2].setColorAt(i, new THREE.Color(cols[i % cols.length]));
-      k.plan.obstacles.push({ x0: x - 0.22, x1: x + 0.22, z0: z - 0.22, z1: z + 0.22, y0: top, y1: top + 0.95 });
+  // Fourteen snowmen on the bleacher, no two alike: big and small, lumpy, shaded blue where the light does not reach,
+  // with coal eyes and buttons, carrot noses and stick arms, scarves and bobble hats, earmuffs and the odd top hat, a
+  // pennant here, a foam finger there. They sway and look about, and turn their heads to follow the ball. On a home run
+  // they jump, wave their arms and throw their hats in the air.
+  //
+  // Each part is one instanced mesh (a body, a head, the arms, the scarves, each kind of hat, each kind of thing held),
+  // coloured by its vertices, so the whole crowd is a dozen draw calls; the poses are worked out only while the toy is near.
+  _rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; },
+  // Where they stand (before the bleacher is drawn: the snow on its boards is cleared where a fan's feet are).
+  _fanLayout() {
+    const b = this.bleacher, r = this._rng(7), spots = this.fanSpots = [];
+    const HATS = ['bobble', 'bobble', 'muffs', 'top', 'bobble', 'muffs', 'bobble', 'top', 'muffs', 'bobble', 'bobble', 'muffs', 'top', 'bobble'];
+    const PROPS = { 1: 'pennant', 4: 'finger', 6: 'pennant', 9: 'finger', 12: 'pennant' };
+    let n = 0;
+    for (const [tier, count] of [[0, 5], [1, 5], [2, 4]]) {
+      const span = b.z1 - b.z0 - 1.2, step = span / count;
+      for (let j = 0; j < count; j++, n++) {
+        const s = [0.82, 1.0, 1.12, 0.9, 0.78, 1.06, 0.95][n % 7] * (0.97 + r() * 0.06);
+        spots.push({ tier, s, x: b.x - 0.48 - tier + (r() - 0.5) * 0.12, top: 0.4 * (tier + 1), z: b.z0 + 0.6 + step * (j + 0.5) + (r() - 0.5) * step * 0.4,
+          hat: HATS[n % HATS.length], prop: PROPS[n] || null, ph: r() * TAU, rest: 1.65 + r() * 0.45, tilt: (r() - 0.5) * 0.25, toss: HATS[n % HATS.length] !== 'muffs' && r() < 0.8 });
+      }
     }
-    for (const m of this.fanMesh) { m.frustumCulled = false; this.g.add(m); }
-    this.fanM4 = new THREE.Matrix4(); this.fanQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); this.fanS = new THREE.Vector3(1, 1, 1); this.fanP = new THREE.Vector3();
-    this._fanPose(0);
   },
-  _fanPose(amp) {
-    const M = this.fanM4, P = this.fanP;
-    this.fanAt.forEach(([x, top, z, ph], i) => { P.set(x, top + amp * Math.max(0, Math.sin(this.t * 11 + ph)) * 0.3, z); M.compose(P, this.fanQ, this.fanS); for (const m of this.fanMesh) m.setMatrixAt(i, M); });
-    for (const m of this.fanMesh) m.instanceMatrix.needsUpdate = true;
+  // A material for the crowd: lit as usual, but glowing in its own vertex colours (so the shading baked into them shows
+  // at night), with a few specks on the snow that catch the light and twinkle.
+  _fanMat(o = {}) {
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, emissive: new THREE.Color(0.5, 0.54, 0.62), ...o });
+    const u = this.fanU;
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uFT = u.uFT;
+      sh.vertexShader = 'varying vec3 vSp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nvSp = position * 60.0 + instanceMatrix[3].xyz * 7.0;\n#else\nvSp = position * 60.0;\n#endif');
+      sh.fragmentShader = 'uniform float uFT; varying vec3 vSp;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
+          totalEmissiveRadiance *= vColor.rgb;
+          { float h = fract(sin(dot(floor(vSp), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+            float snow = step(0.8, min(vColor.r, min(vColor.g, vColor.b)));
+            totalEmissiveRadiance += snow * step(0.982, h) * pow(max(0.0, sin(uFT * 2.1 + h * 300.0)), 6.0) * vec3(1.5, 1.6, 1.9); }
+        #endif`);
+    };
+    return m;
+  },
+  _fans(k) {
+    const spots = this.fanSpots, n = spots.length;
+    this.fanU = { uFT: { value: 0 } };
+    // ---- the shapes, each in its own frame: a body from the ground, a head from the neck, an arm from the shoulder, a held thing from the hand
+    const prep = (q, col, light = true) => {
+      const g = q.index ? q.toNonIndexed() : q; g.deleteAttribute('uv');
+      const N = g.attributes.normal, c = new Float32Array(N.count * 3);
+      for (let i = 0; i < N.count; i++) {
+        // light from above and in front; snow in shadow goes blue, not grey
+        const l = light ? Math.max(0, Math.min(1, 0.38 + 0.6 * N.getY(i) + 0.35 * N.getZ(i))) : 1;
+        c[i * 3] = col[0] * (0.5 + 0.5 * l); c[i * 3 + 1] = col[1] * (0.58 + 0.42 * l); c[i * 3 + 2] = col[2] * (0.8 + 0.2 * l);
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g;
+    };
+    const lumpy = (r, ws, hs, amp, seed) => {
+      const q = new THREE.SphereGeometry(r, ws, hs), p = q.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i) / r, y = p.getY(i) / r, z = p.getZ(i) / r;
+        const f = 1 + amp * (Math.sin(3.1 * x + seed) * Math.sin(2.7 * y + seed * 1.3) * Math.sin(3.5 * z + seed * 0.7) + 0.45 * Math.sin(7.3 * x + 5.1 * z + seed) * Math.sin(6.1 * y + seed * 2.1));
+        p.setXYZ(i, p.getX(i) * f, p.getY(i) * f, p.getZ(i) * f);
+      }
+      q.computeVertexNormals(); return q;
+    };
+    const SNOW = [1, 1, 1], COAL = [0.06, 0.06, 0.07], STICK = [0.42, 0.27, 0.15], CARROT = [1.0, 0.42, 0.1];
+    const merge = list => mergeGeometries(list);
+    const torso = merge([
+      prep(lumpy(0.21, 18, 12, 0.06, 1.3).scale(1, 0.88, 1).translate(0, 0.19, 0), SNOW),
+      prep(lumpy(0.155, 16, 11, 0.055, 4.1).translate(0, 0.47, 0), SNOW),
+      ...[0.07, 0, -0.07].map(dy => prep(new THREE.SphereGeometry(0.018, 8, 6).translate(0, 0.47 + dy, Math.sqrt(0.155 ** 2 - dy * dy) + 0.004), COAL, false)),
+    ]);
+    const head = merge([
+      prep(lumpy(0.12, 16, 12, 0.05, 2.7).translate(0, 0.11, 0), SNOW),
+      ...[-1, 1].map(sx => prep(new THREE.SphereGeometry(0.017, 8, 6).translate(sx * 0.043, 0.14, 0.106), COAL, false)),
+      ...[-2, -1, 0, 1, 2].map(i => prep(new THREE.SphereGeometry(0.009, 6, 4).translate(i * 0.022, 0.072 + Math.abs(i) * 0.007, 0.112 - Math.abs(i) * 0.008), COAL, false)),
+      prep(new THREE.ConeGeometry(0.021, 0.13, 8).rotateX(Math.PI / 2 + 0.12).translate(0, 0.1, 0.175), CARROT),
+    ]);
+    const arm = merge([
+      prep(new THREE.CylinderGeometry(0.0065, 0.0095, 0.3, 5).translate(0, 0.15, 0), STICK, false),
+      ...[-0.55, 0.5].map(a => prep(new THREE.CylinderGeometry(0.004, 0.006, 0.075, 4).translate(0, 0.0375, 0).rotateZ(a).translate(0, 0.27, 0), STICK, false)),
+    ]);
+    const scarf = merge([
+      prep(new THREE.TorusGeometry(0.104, 0.033, 7, 20).rotateX(Math.PI / 2).translate(0, 0.6, 0), [1, 1, 1]),
+      ...[0, 1, 2].map(i => prep(new THREE.BoxGeometry(0.062, 0.06, 0.026).translate(0.055, 0.535 - i * 0.06, 0.128 - i * 0.004), i % 2 ? [0.62, 0.62, 0.62] : [1, 1, 1])),
+      prep(new THREE.BoxGeometry(0.07, 0.012, 0.03).translate(0.055, 0.44, 0.122), [0.62, 0.62, 0.62]),
+    ]);
+    const hats = {
+      bobble: merge([
+        prep(new THREE.SphereGeometry(0.137, 16, 8, 0, TAU, 0, Math.PI * 0.56).scale(1, 1.2, 1).translate(0, 0.13, 0), [0.8, 0.8, 0.8]),
+        prep(new THREE.TorusGeometry(0.132, 0.028, 6, 20).rotateX(Math.PI / 2).translate(0, 0.14, 0), [1, 1, 1]),
+        prep(lumpy(0.052, 10, 8, 0.15, 3).translate(0, 0.31, 0), [1.3, 1.3, 1.3]),
+      ]).rotateX(-0.14),
+      top: merge([
+        prep(new THREE.CylinderGeometry(0.088, 0.093, 0.2, 16).translate(0, 0.335, 0), [0.18, 0.18, 0.18]),
+        prep(new THREE.CylinderGeometry(0.16, 0.16, 0.014, 20).translate(0, 0.232, 0), [0.18, 0.18, 0.18]),
+        prep(new THREE.CylinderGeometry(0.0945, 0.0945, 0.035, 16).translate(0, 0.256, 0), [1, 1, 1]),
+      ]).rotateZ(0.13),
+      muffs: merge([
+        prep(new THREE.TorusGeometry(0.13, 0.011, 6, 18, Math.PI).translate(0, 0.11, 0), [0.45, 0.45, 0.45]),
+        ...[-1, 1].map(sx => prep(lumpy(0.05, 12, 8, 0.12, sx + 2).scale(0.62, 1, 1).translate(sx * 0.128, 0.1, 0), [1.1, 1.1, 1.1])),
+      ]),
+    };
+    const flag = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.26, -0.055), new THREE.Vector2(0, -0.11)]);
+    const props = {
+      pennant: merge([
+        prep(new THREE.CylinderGeometry(0.006, 0.006, 0.44, 5).translate(0, 0.17, 0), [0.5, 0.4, 0.32], false),
+        prep(new THREE.ShapeGeometry(flag).translate(0, 0.38, 0), [1, 1, 1], false),
+        prep(new THREE.ShapeGeometry(flag).rotateY(Math.PI).translate(0, 0.38, 0), [0.85, 0.85, 0.85], false),
+      ]),
+      finger: merge([
+        prep(new THREE.BoxGeometry(0.1, 0.11, 0.05).translate(0, 0.04, 0), [1, 1, 1]),
+        prep(new THREE.CapsuleGeometry(0.021, 0.12, 3, 8).translate(0.02, 0.17, 0), [1, 1, 1]),
+        prep(new THREE.CapsuleGeometry(0.016, 0.035, 3, 6).rotateZ(1.2).translate(-0.06, 0.05, 0), [1, 1, 1]),
+      ]),
+    };
+    // ---- the meshes
+    const snowM = this._fanMat(), clothM = this._fanMat({ roughness: 0.95, emissive: new THREE.Color(0.42, 0.42, 0.45), side: THREE.DoubleSide });
+    const inst = (geo, mat, count) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, count)); m.count = count; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.g.add(m); return m; };
+    const F = this.fanParts = { torso: inst(torso, snowM, n), head: inst(head, snowM, n), arm: inst(arm, snowM, n * 2), scarf: inst(scarf, clothM, n), hat: {}, prop: {} };
+    const SCARF = [0xd63a2f, 0x2f7fd6, 0x2fae5a, 0xf2c12e, 0x9a4fc2, 0xf07c2a, 0x1fb5b0, 0xe84f9a];
+    const HATC = { bobble: [0xd63a2f, 0x2f7fd6, 0xf2c12e, 0x2fae5a, 0xe84f9a, 0xf07c2a, 0xffffff], top: [0xb02a2a, 0x2a5fb0, 0x2f9a5a], muffs: [0xf26ab0, 0x8fd0ff, 0xffd34a, 0xc6a0ff] };
+    const PROPC = { pennant: [0xd63a2f, 0x2f7fd6, 0xf2c12e], finger: [0x38c45a, 0xffd23a] };
+    const col = new THREE.Color();
+    for (const [kind, geo] of Object.entries(hats)) { const list = spots.filter(f => f.hat === kind); const m = F.hat[kind] = inst(geo, clothM, list.length); list.forEach((f, i) => { f.hatI = i; m.setColorAt(i, col.set(HATC[kind][i % HATC[kind].length])); }); }
+    for (const [kind, geo] of Object.entries(props)) { const list = spots.filter(f => f.prop === kind); const m = F.prop[kind] = inst(geo, clothM, list.length); list.forEach((f, i) => { f.propI = i; m.setColorAt(i, col.set(PROPC[kind][i % PROPC[kind].length])); }); }
+    spots.forEach((f, i) => {
+      F.scarf.setColorAt(i, col.set(SCARF[(i * 3) % SCARF.length]));
+      // facing the game: between the plate and the mound
+      const tx = this.H.x + this.c.x * 4 - f.x, tz = this.H.z + this.c.z * 4 - f.z; f.yaw = Math.atan2(tx, tz) + (f.ph - Math.PI) * 0.06;
+      f.hy = 0; f.hp = 0; f.toss = f.toss ? 1 : 0; f.tossAt = -9;
+      k.plan.obstacles.push({ x0: f.x - 0.22 * f.s, x1: f.x + 0.22 * f.s, z0: f.z - 0.22 * f.s, z1: f.z + 0.22 * f.s, y0: f.top, y1: f.top + 0.95 * f.s });
+    });
+    this.fanM = { body: new THREE.Matrix4(), head: new THREE.Matrix4(), t: new THREE.Matrix4(), t2: new THREE.Matrix4(), q: new THREE.Quaternion(), e: new THREE.Euler(0, 0, 0, 'YXZ'), p: new THREE.Vector3(), s: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1) };
+    this._fanStep(0, true);
+    for (const m of [F.torso, F.head, F.arm, F.scarf, ...Object.values(F.hat), ...Object.values(F.prop)]) { m.computeBoundingSphere(); if (m.boundingSphere) m.boundingSphere.radius += 2.5; }
+  },
+  // Every hat that can be thrown, thrown (a home run).
+  hatsOff() { if (!this.fanSpots) return; for (const f of this.fanSpots) if (f.toss) f.tossAt = this.t + 0.15 + Math.random() * 0.35; },
+  // The crowd's poses: idle sway, heads that follow the ball, and the cheer (this.cheer, 0 to 1).
+  _fanStep(dt, force = false) {
+    const F = this.fanParts; if (!F) return;
+    if (!force && !this.on && !(this.cheer > 0.01) && !(this.k && this.k.close({ x: this.bleacher.x - 1.5, y: 0, z: (this.bleacher.z0 + this.bleacher.z1) / 2 }, 45, 20))) return;
+    const t = this.t || 0, M = this.fanM, ch = this.cheer || 0, a = Math.min(1, ch * 1.6) * (this.calm ? 0.4 : 1);
+    this.fanU.uFT.value = this.calm ? 0 : t;
+    const ball = this.ball && this.ball.visible ? this.ball.position : null;
+    this.fanSpots.forEach((f, i) => {
+      // the body: a gentle sway, a hop when the crowd is up
+      const jump = a * Math.max(0, Math.sin(t * (9 + (i % 3)) + f.ph)) * 0.3 * f.s;
+      const sway = this.calm ? 0 : 1;
+      M.p.set(f.x, f.top + jump, f.z);
+      M.e.set(sway * Math.sin(t * 0.9 + f.ph) * 0.025, f.yaw + sway * Math.sin(t * 0.37 + f.ph) * 0.08, f.tilt * 0.3 + sway * Math.sin(t * 0.7 + f.ph * 2) * 0.035);
+      M.body.compose(M.p, M.q.setFromEuler(M.e), M.s.setScalar(f.s));
+      F.torso.setMatrixAt(i, M.body); F.scarf.setMatrixAt(i, M.body);
+      // the head: watching the ball if there is one in the air, else looking about the field
+      let wy, wp;
+      if (ball) { const dx = ball.x - f.x, dz = ball.z - f.z, dy = ball.y - (f.top + 0.75 * f.s); wy = Math.atan2(dx, dz) - f.yaw; wp = -Math.atan2(dy, Math.hypot(dx, dz)) * 0.7; }
+      else { wy = Math.sin(t * 0.23 + f.ph * 3) * 0.45 + Math.sin(t * 0.61 + f.ph) * 0.15; wp = -0.05 + Math.sin(t * 0.3 + f.ph) * 0.08; }
+      wy = Math.atan2(Math.sin(wy), Math.cos(wy)); wy = Math.max(-1.2, Math.min(1.2, wy)); wp = Math.max(-0.6, Math.min(0.35, wp)) - a * 0.25;
+      const kk = dt ? Math.min(1, dt * (ball ? 7 : 2)) : 1; f.hy += (wy - f.hy) * kk; f.hp += (wp - f.hp) * kk;
+      M.t.compose(M.p.set(0, 0.62, 0), M.q.setFromEuler(M.e.set(f.hp, f.hy, f.tilt)), M.one);
+      M.head.multiplyMatrices(M.body, M.t); F.head.setMatrixAt(i, M.head);
+      // the hat: on the head, or up in the air and back down onto it
+      if (f.hat) {
+        const u = (t - f.tossAt) / 1.15;
+        if (u > 0 && u < 1) {
+          M.t.compose(M.p.set(0, 0.22, 0), M.q.setFromEuler(M.e.set(-TAU * 2 * u, 0, 0.3 * Math.sin(u * 9))), M.one); M.t2.makeTranslation(0, -0.22, 0); M.t.multiply(M.t2);
+          M.t2.makeTranslation(0, 4.2 * u * (1 - u) * f.s, 0); M.t2.multiply(M.head); M.t2.multiply(M.t);
+          F.hat[f.hat].setMatrixAt(f.hatI, M.t2);
+        } else F.hat[f.hat].setMatrixAt(f.hatI, M.head);
+      }
+      // the arms: hanging out from the shoulders, or waving over the head; a pennant or a foam finger held up high
+      for (const side of [-1, 1]) {
+        const holding = side === 1 && f.prop;
+        let ang = holding ? 0.55 + Math.sin(t * 1.3 + f.ph) * (this.calm ? 0 : 0.12) : f.rest + (this.calm ? 0 : Math.sin(t * 0.8 + f.ph + side) * 0.06);
+        const up = 0.25 + (holding ? 0.25 * Math.sin(t * 13 + f.ph) : 0.55 * Math.sin(t * 12 + f.ph + side)) * (this.calm ? 0.3 : 1);
+        ang += (up - ang) * a;
+        M.t.compose(M.p.set(side * 0.13, 0.5, 0.01), M.q.setFromEuler(M.e.set(0.25, 0, -side * ang)), M.one);
+        M.t2.multiplyMatrices(M.body, M.t); F.arm.setMatrixAt(i * 2 + (side + 1) / 2, M.t2);
+        if (holding) { M.t.makeTranslation(0, 0.29, 0); M.t2.multiply(M.t); M.t.makeRotationY(f.prop === 'pennant' ? -0.6 : 0); M.t2.multiply(M.t); F.prop[f.prop].setMatrixAt(f.propI, M.t2); }
+      }
+    });
+    for (const m of [F.torso, F.head, F.arm, F.scarf, ...Object.values(F.hat), ...Object.values(F.prop)]) m.instanceMatrix.needsUpdate = true;
   },
 
   // ============================================================ the derby
@@ -589,7 +793,7 @@ feature({
     // the crowd, the fans, the flash, the fireworks, the powder
     this.cheer = Math.max(0, this.cheer - dt * 0.28);
     if (this.crowd) this.crowd.set(this.on ? 0.012 + this.cheer * 0.13 : this.cheer * 0.13 > 0.002 ? this.cheer * 0.13 : 0, this.cheer > 0.5 ? 0.12 : 0.5);
-    if (this.cheer > 0.02 || this._fansUp) { this._fanPose(Math.min(1, this.cheer * 1.6)); this._fansUp = this.cheer > 0.02; }
+    this._fanStep(dt);
     if (this.flashT > 0) { this.flashT -= dt; this.flash.visible = this.flashT > 0; this.flash.material.opacity = Math.max(0, this.flashT / 0.18); }
     for (let i = this.fw.length - 1; i >= 0; i--) { const f = this.fw[i]; if (t >= f[0]) { this._firework(f[1], f[2], f[3], f[4]); this.fw.splice(i, 1); } }
     this._stepPool(this.powder, dt); this._stepPool(this.sparks, dt);
@@ -671,7 +875,7 @@ feature({
   _trail() {
     const P = this.trailP, i = this.trailHead; P[i * 3] = this.ball.position.x; P[i * 3 + 1] = this.ball.position.y; P[i * 3 + 2] = this.ball.position.z;
     this.trailHead = (i + 1) % this.NT; this.trailN = Math.min(this.NT, this.trailN + 1);
-    const M = this.fanM4, Q = this.tmpQ || (this.tmpQ = new THREE.Quaternion()), Sv = this.tmp2, Pv = this.tmp;
+    const M = this._tm4 || (this._tm4 = new THREE.Matrix4()), Q = this.tmpQ || (this.tmpQ = new THREE.Quaternion()), Sv = this.tmp2, Pv = this.tmp;
     for (let q = 0; q < this.NT; q++) {
       const j = (this.trailHead - 1 - q + this.NT * 2) % this.NT, sc = q < this.trailN ? BR * 0.85 * this.ball.scale.x * (1 - q / this.NT) : 0;
       Pv.set(P[j * 3], P[j * 3 + 1], P[j * 3 + 2]); Sv.setScalar(sc); this.trail.setMatrixAt(q, M.compose(Pv, Q, Sv));
@@ -746,7 +950,7 @@ feature({
   _homer(k, th) {
     this.hr++; this.result = 'HOME RUN'; tonight(n => { n.homeRuns = (n.homeRuns || 0) + 1; n.bestRound = Math.max(n.bestRound || 0, this.hr); }); this._hud(); this._board();
     const u = this.bu; u.uB.value = 1; u.uA.value = 0; u.uS.value = th / (Math.PI / 2);
-    this.cheer = 1;
+    this.cheer = 1; this.hatsOff();
     const first = k.find('derbyhr');
     if (this.hr === 5 && k.find('derby5')) k.callout('FIVE HOMERS'); else k.callout(first ? 'FIRST HOME RUN' : 'HOME RUN');
     // the organ: da-da-da-DAH, da-DAAH
