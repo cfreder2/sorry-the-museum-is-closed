@@ -58,14 +58,14 @@ function waterMaterial() {
         vec2 p = vW.xz;
         vec3 V = cameraPosition - vW; float dist = length(V); V /= dist;
         float near = clamp(1.0 - dist / 140.0, 0.0, 1.0);
-        float rip = noise(p * vec2(0.8, 2.4) + vec2(uT * 0.32, uT * 0.1)) * 0.6 + noise(p * vec2(2.1, 4.7) - vec2(uT * 0.45, -uT * 0.18)) * 0.4;
+        float rip = noise(p * vec2(1.3, 5.5) + vec2(uT * 0.3, uT * 0.1)) * 0.55 + noise(p * vec2(3.4, 9.0) - vec2(uT * 0.42, -uT * 0.2)) * 0.45;
         float fres = pow(1.0 - max(V.y, 0.0), 5.0);
         vec3 col = uDeep + uSky * fres * 0.55;
         vec2 d = normalize(vW.xz - cameraPosition.xz + vec2(1e-4));
         float road = pow(max(dot(d, uMoon), 0.0), 24.0);
-        float glint = smoothstep(0.68, 0.93, rip) * near;
-        col += uShim * glint * (0.12 + 1.5 * road);
-        col += uShim * 0.07 * smoothstep(0.5, 0.95, noise(p * 0.18 + vec2(uT * 0.04, uT * 0.02))) * near;
+        float glint = smoothstep(0.74, 0.95, rip) * near;
+        col += uShim * glint * (0.06 + 1.3 * road);
+        col += vec3(0.02, 0.045, 0.06) * smoothstep(0.5, 0.95, noise(p * vec2(0.35, 0.6) + vec2(uT * 0.06, uT * 0.02)));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -78,7 +78,7 @@ function waterMaterial() {
 function beamMaterial() {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
-    uniforms: { uI: { value: 0.3 }, uC: { value: new THREE.Color(1.0, 0.28, 0.22) } },
+    uniforms: { uI: { value: 0.3 }, uC: { value: new THREE.Color(1.0, 0.42, 0.36) } },
     vertexShader: `varying float vD; void main() { vD = length(position) / 18.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `uniform float uI; uniform vec3 uC; varying float vD; void main() { float a = pow(max(0.0, 1.0 - vD), 2.2) * uI; gl_FragColor = vec4(uC * a, 1.0); }`,
   });
@@ -119,16 +119,28 @@ feature({
       this.lamp = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 0.7, 0.55), fog: false })); this.lamp.position.set(t.x, y, t.z);
       this.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TX.radial(0, 1.6), color: new THREE.Color(1.0, 0.25, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
       this.glow.scale.set(3, 3, 1); this.glow.position.set(t.x, y, t.z);
-      this.halo = new THREE.Mesh(new THREE.PlaneGeometry(22, 22), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.6), color: new THREE.Color(0.5, 0.1, 0.08), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+      this.halo = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.6), color: new THREE.Color(0.22, 0.05, 0.04), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
       this.halo.rotation.x = -Math.PI / 2; this.halo.position.set(t.x, WATER_Y + 0.03, t.z);
-      const cone = new THREE.ConeGeometry(1.5, 18, 20, 1, true).translate(0, -9, 0).rotateZ(Math.PI / 2);
+      const cone = new THREE.ConeGeometry(1.1, 18, 20, 1, true).translate(0, -9, 0).rotateZ(Math.PI / 2);
       this.beamM = beamMaterial();
       this.beam = new THREE.Group(); this.beam.position.set(t.x, y, t.z);
       for (const a of [0, Math.PI]) { const b = new THREE.Mesh(cone, this.beamM); b.rotation.y = a; b.frustumCulled = false; this.beam.add(b); }
       g.add(this.glass, this.lamp, this.glow, this.halo, this.beam); }
-    this.splash = k.puffs(90, { color: 0xd8f0ff, size: 0.16 });
-    this.sparks = k.puffs(80, { color: 0xffd0c0, size: 0.2 });
-    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.42, 32), new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+    // the trail of lanterns (harbourplan.js): poles, and a warm glow at the top of each; the ones on floes ride on them
+    { const pole = new THREE.CylinderGeometry(0.02, 0.025, 0.8, 5).translate(0, 0.4, 0), cage = new THREE.BoxGeometry(0.1, 0.13, 0.1).translate(0, 0.84, 0);
+      const poleM = new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.8, emissive: 0x0c0a08 }), lit = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.5, 0.6) });
+      const n = L.trail.length, gp = new Float32Array(n * 3);
+      this.trail = L.trail.map((q, i) => {
+        const o = new THREE.Group(), p = new THREE.Mesh(pole, poleM), c = new THREE.Mesh(cage, lit); o.add(p, c);
+        if (q.floe && q.floe.mesh) { o.position.set(q.x - q.floe.hx, 0, q.z - q.floe.hz); q.floe.mesh.add(o); } else { o.position.set(q.x, q.y, q.z); g.add(o); }
+        gp.set([q.x, q.y + 0.84, q.z], i * 3); return q;
+      });
+      const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(gp, 3));
+      this.trailGlow = new THREE.Points(gg, new THREE.PointsMaterial({ size: 1.1, map: TX.radial(0, 1.6), color: new THREE.Color(1.0, 0.62, 0.25), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false }));
+      this.trailGlow.frustumCulled = false; g.add(this.trailGlow); }
+    this.splash = k.puffs(90, { color: 0xd8f0ff, size: 0.08 });
+    this.sparks = k.puffs(80, { color: 0xffd0c0, size: 0.14 });
+    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.4, 40), new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
     this.ring.rotation.x = -Math.PI / 2; this.ring.visible = false; g.add(this.ring);
     this.show = 0; this.armed = true; this.seq = null; this.pew = 6;
     this._float(0);
@@ -143,16 +155,20 @@ feature({
     this.water.material.uniforms.uT.value = this.t;
     this._float(dt, v);
     this.splash.update(dt); this.sparks.update(dt);
-    if (this.ring.visible) { const r = this.ring; r.userData.t += dt; const u = r.userData.t / 1.1; r.scale.setScalar(1 + u * 5); r.material.opacity = 0.7 * (1 - u); if (u >= 1) r.visible = false; }
+    if (this.ring.visible) { const r = this.ring; r.userData.t += dt; const u = r.userData.t / 1.1; r.scale.setScalar(1 + u * 5); r.material.opacity = 0.4 * (1 - u) * (1 - u); if (u >= 1) r.visible = false; }
     // the light: turning slowly; flashing and turning fast while it is being visited
     { const on = this.show > 0; this.show = Math.max(0, this.show - dt);
       this.beam.rotation.y += dt * (on ? 2.6 : 0.7);
       const flash = on ? 0.5 + 0.5 * Math.sign(Math.sin(this.t * 14)) : 1;
-      this.beamM.uniforms.uI.value = on ? 0.35 + 0.5 * flash : 0.22;
+      this.beamM.uniforms.uI.value = on ? 0.3 + 0.45 * flash : 0.16;
       this.lamp.material.color.setRGB(3.2 * (on ? 0.4 + flash : 1), 0.7 * (on ? 0.4 + flash : 1), 0.55 * (on ? 0.4 + flash : 1));
       const s = on ? 3 + flash * 2.2 : 3 + Math.sin(this.t * 1.3) * 0.2; this.glow.scale.set(s, s, 1);
-      this.halo.material.color.setRGB(0.5 * (on ? 0.6 + flash : 1), 0.1, 0.08);
+      this.halo.material.color.setRGB(0.22 * (on ? 0.6 + flash * 1.4 : 1), 0.05, 0.04);
       if (on && Math.random() < dt * 14) { const a = Math.random() * 6.283; this.sparks.emit(L.light.x + Math.cos(a) * 0.5, 5.5, L.light.z + Math.sin(a) * 0.5, 2, { spread: 0.2, up: 1.4, life: 1.4, out: 1.2, color: Math.random() < 0.5 ? 0xff5040 : 0xffffff }); } }
+    // A shadow over the water lies on the water, not on the ground level the ice would be at.
+    if (v.shadow && v.shadow.visible && v.shadow.position.y < 0.03 && L.wet(v.pos.x, v.pos.z)) { v.shadow.position.y = WATER_Y + 0.006; v.shadow.updateMatrix && v.shadow.updateMatrix(); }
+    // At the light, a moment's look up at it as it flashes.
+    if (this.show > 4.5 && Math.hypot(v.pos.x - L.light.x, v.pos.z - L.light.z) < 5) { const t = L.light; k.camClose = { at: { x: t.x - 2.6, y: 2.6, z: t.z + 6.2 }, look: { x: t.x, y: 4.4, z: t.z } }; }
     if (this.seq) return this._sequence(dt, k);
     if (v.kind !== 'car' || G.held || G.ride) return;
     // Gone in? On the water (nothing under it but the lake) and down at its level.
@@ -188,9 +204,10 @@ feature({
       floeBox(f);
       N.set(-f.gx, 1, -f.gz).normalize(); Q.setFromUnitVectors(this.UP, N); Qy.setFromAxisAngle(this.UP, f.yaw); Q.multiply(Qy);
       M.compose(P.set(f.x, f.h, f.z), Q, S.set(f.sx, 1, f.sz));
-      if (f.mesh) f.mesh.matrix.copy(M); else f.inst.setMatrixAt(f.ix, M);
+      if (f.mesh) { f.mesh.matrix.copy(M); f.mesh.matrixWorldNeedsUpdate = true; } else f.inst.setMatrixAt(f.ix, M);
     }
     for (const m of this.inst) m.instanceMatrix.needsUpdate = true;
+    if (this.trailGlow) { const a = this.trailGlow.geometry.attributes.position; this.trail.forEach((q, i) => { if (q.floe) a.setY(i, q.floe.h + 0.84 + q.floe.gx * (q.x - q.floe.x) + q.floe.gz * (q.z - q.floe.z)); }); a.needsUpdate = true; this.trailGlow.material.size = 1.0 + 0.08 * Math.sin(t * 9) * Math.sin(t * 5.3); }
     for (const b of this.bits) {
       const y = WATER_Y + 0.05 + 0.02 * Math.sin(1.4 * t + b.ph);
       Qy.setFromAxisAngle(this.UP, b.yaw + 0.05 * Math.sin(0.3 * t + b.ph)); N.set(0.03 * Math.sin(1.1 * t + b.ph), 1, 0.03 * Math.cos(0.9 * t + b.ph)).normalize(); Q.setFromUnitVectors(this.UP, N).multiply(Qy);
@@ -208,7 +225,8 @@ feature({
     if (G.museum.winter && G.museum.winter.burst) G.museum.winter.burst(v.pos.x, WATER_Y + 0.05, v.pos.z, 26, 1.6);
     const r = this.ring; r.position.set(v.pos.x, WATER_Y + 0.02, v.pos.z); r.userData.t = 0; r.visible = true; r.updateMatrix();
     this._splashSound(k);
-    k.say('Brr! Too cold!', 1.8);
+    k.callout('BRR! TOO COLD!');
+    if (v.shadow) v.shadow.visible = false;
   },
   _sequence(dt, k) {
     const S = this.seq, v = k.v, G = k.G, calm = !!(G.set && G.set.reduce);
@@ -223,7 +241,7 @@ feature({
         // the nearest safe place: back on the ice, or up on the breakwater
         let best = null, bd = Infinity; for (const p of this.L.safe) { const d = (p.x - S.x) ** 2 + (p.z - S.z) ** 2; if (d < bd) { bd = d; best = p; } }
         v.group.rotation.x = 0;
-        v.place(best.x, best.z, best.yaw, best.y); G.camYaw = best.yaw;
+        v.place(best.x, best.z, best.yaw, best.y); G.camYaw = best.yaw; if (v.shadow) v.shadow.visible = true;
         S.placed = true; S.t2 = 0;
         if (G.museum.winter && G.museum.winter.burst) G.museum.winter.burst(best.x, best.y + 0.05, best.z, 14, 1.0);
         this._shiver(k);
@@ -246,7 +264,7 @@ feature({
   _arrive(k) {
     this.armed = false; this.show = 8;
     if (k.v.kind === 'car') k.find(SECRET);
-    k.say('You made it to the harbour light!', 3);
+    k.callout('YOU MADE IT!');
     this._horn(k, 0); this._horn(k, 3.2);
   },
 
@@ -287,6 +305,6 @@ feature({
     }
   },
 
-  reset(k) { if (this.seq) { const v = k.v; v.group.rotation.x = v.group.rotation.z = 0; this.seq = null; k.G.held = false; } this._fx && this.fxEl && this._fx(0); this.show = 0; this.armed = true; },
+  reset(k) { if (this.seq) { const v = k.v; v.group.rotation.x = v.group.rotation.z = 0; if (v.shadow) v.shadow.visible = true; this.seq = null; k.G.held = false; } this._fx && this.fxEl && this._fx(0); this.show = 0; this.armed = true; },
   spots() { const L = this.L; return L ? [{ kind: 'secret', id: SECRET, name: 'The harbour light (drive the floes)', x: L.light.x, y: 1.3, z: L.light.z }] : []; },
 });

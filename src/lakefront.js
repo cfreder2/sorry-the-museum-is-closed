@@ -76,7 +76,7 @@ export function buildLakefront(museum, plan) {
   for (let z = z0 + 30; z < z1 - 10; z += 34) if (z < slip[0] - 4 || z > slip[1] + 4) PF.bench(prom.x1 - RW - 1.4, 0, z, 1, 0);
 
   // ---- the harbour ice, out to its broken edge (where it gives out, and what lies there: harbourplan.js)
-  const WY = L.waterY, edge = L.edge, slab = new Geo(), rim = new Geo(), face = new Geo(), crack = new Geo();
+  const WY = L.waterY, edge = L.edge, slab = new Geo(), rim = new Geo(), face = new Geo(), crack = new Geo(), wet = new Geo();
   { const w = L.window, X0 = shore + RV.n * RV.run, X1 = L.edgeMin, Z0 = z0 - 200, Z1 = z1 + 200;
     if (!w) flat(ice, X0, X1, Z0, Z1, 0.01, 22);
     else { flat(ice, X0, X1, Z0, w.z0, 0.01, 22); flat(ice, X0, X1, w.z1, Z1, 0.01, 22); flat(ice, X0, w.x0, w.z0, w.z1, 0.01, 22); flat(ice, w.x1, X1, w.z0, w.z1, 0.01, 22); }      // (clear ice over the fishing hole: icefish.js)
@@ -86,6 +86,7 @@ export function buildLakefront(museum, plan) {
       const [xa, za] = edge[i], [xb, zb] = edge[i + 1], l = Math.hypot(xb - xa, zb - za) || 1, nx = (zb - za) / l, nz = -(xb - xa) / l;
       ice.quad([X1, 0.01, za], [xa, 0.01, za], [xb, 0.01, zb], [X1, 0.01, zb], [0, 1, 0], [u(X1, za), u(xa, za), u(xb, zb), u(X1, zb)]);
       rim.quad([xa - 0.35, 0.013, za], [xa, 0.013, za], [xb, 0.013, zb], [xb - 0.35, 0.013, zb], [0, 1, 0], [[0, za / 3], [0.12, za / 3], [0.12, zb / 3], [0, zb / 3]]);
+      wet.quad([xa - 3.2, 0.011, za], [xa - 0.3, 0.011, za], [xb - 0.3, 0.011, zb], [xb - 3.2, 0.011, zb], [0, 1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);      // the ice grows thinner and darker towards the edge
       face.col = [0.86, 0.95, 1.0]; face.quad([xa, 0.012, za], [xb, 0.012, zb], [xb, -0.05, zb], [xa, -0.05, za], [nx, 0, nz]);
       face.col = [0.32, 0.62, 0.72]; face.quad([xa, -0.05, za], [xb, -0.05, zb], [xb, WY - 0.12, zb], [xa, WY - 0.12, za], [nx, 0, nz]);
     }
@@ -95,13 +96,15 @@ export function buildLakefront(museum, plan) {
   for (const q of L.slabs) {
     const { x0, x1, z0: za, z1: zb } = q;
     if (q.kind === 'block') { slab.col = ICEC; slab.box(x0, x1, -0.02, q.h, za, zb); slab.col = SNOWC; slab.quad([x0 + 0.03, q.h + 0.004, za + 0.03], [x1 - 0.03, q.h + 0.004, za + 0.03], [x1 - 0.03, q.h + 0.004, zb - 0.03], [x0 + 0.03, q.h + 0.004, zb - 0.03], [0, 1, 0]); continue; }
-    const H = (x, z) => q.axis === 'x' ? q.h0 + (q.h1 - q.h0) * (x - x0) / (x1 - x0) : q.h0 + (q.h1 - q.h0) * (z - za) / (zb - za);
-    const P = (x, z, y = H(x, z)) => [x, y, z];
+    // a tipped plate: its top, its underside (where it is out of the ice), its broken edges round about
+    const T = q.T, H = (x, z) => q.axis === 'x' ? q.h0 + (q.h1 - q.h0) * (x - x0) / (x1 - x0) : q.h0 + (q.h1 - q.h0) * (z - za) / (zb - za);
+    const P = (x, z, dy = 0) => [x, H(x, z) + dy, z];
     const d = q.axis === 'x' ? x1 - x0 : zb - za, g = (q.h1 - q.h0) / d, n = q.axis === 'x' ? [-g, 1, 0] : [0, 1, -g];
     slab.col = SNOWC; slab.quad(P(x0, za), P(x1, za), P(x1, zb), P(x0, zb), n);
+    slab.col = [0.36, 0.55, 0.7]; slab.quad(P(x0, za, -T), P(x1, za, -T), P(x1, zb, -T), P(x0, zb, -T), n.map(c => -c));
     slab.col = ICEC;
-    slab.quad(P(x0, za, -0.02), P(x1, za, -0.02), P(x1, za), P(x0, za), [0, 0, -1]); slab.quad(P(x0, zb, -0.02), P(x1, zb, -0.02), P(x1, zb), P(x0, zb), [0, 0, 1]);
-    slab.quad(P(x0, za, -0.02), P(x0, zb, -0.02), P(x0, zb), P(x0, za), [-1, 0, 0]); slab.quad(P(x1, za, -0.02), P(x1, zb, -0.02), P(x1, zb), P(x1, za), [1, 0, 0]);
+    slab.quad(P(x0, za, -T), P(x1, za, -T), P(x1, za), P(x0, za), [0, 0, -1]); slab.quad(P(x0, zb, -T), P(x1, zb, -T), P(x1, zb), P(x0, zb), [0, 0, 1]);
+    slab.quad(P(x0, za, -T), P(x0, zb, -T), P(x0, zb), P(x0, za), [-1, 0, 0]); slab.quad(P(x1, za, -T), P(x1, zb, -T), P(x1, zb), P(x1, za), [1, 0, 0]);
   }
   // The slab of ice shoved up against the breakwater: the way up onto it from the last of the floes.
   { const q = L.ramp, P = (x, z, y) => [x, y, z], g = (q.h1 - q.h0) / (q.x1 - q.x0), H = x => q.h0 + g * (x - q.x0), lo = WY - 0.15;
@@ -113,7 +116,7 @@ export function buildLakefront(museum, plan) {
   }
   // Cracks running back into the ice from the edge.
   for (const pts of L.cracks) for (let i = 0; i + 1 < pts.length; i++) {
-    const [xa, za] = pts[i], [xb, zb] = pts[i + 1], l = Math.hypot(xb - xa, zb - za) || 1, w = 0.035 * (1 - i / pts.length) + 0.012, px = -(zb - za) / l * w, pz = (xb - xa) / l * w;
+    const [xa, za] = pts[i], [xb, zb] = pts[i + 1], l = Math.hypot(xb - xa, zb - za) || 1, w = 0.018 * (1 - i / pts.length) + 0.007, px = -(zb - za) / l * w, pz = (xb - xa) / l * w;
     crack.quad([xa - px, 0.015, za - pz], [xa + px, 0.015, za + pz], [xb + px, 0.015, zb + pz], [xb - px, 0.015, zb - pz], [0, 1, 0]);
   }
 
@@ -165,5 +168,8 @@ export function buildLakefront(museum, plan) {
   { const m = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.9, emissiveMap: snowTex, emissive: new THREE.Color(0.32, 0.38, 0.55), emissiveIntensity: 0.6, ...off(-3) }); add(rim.mesh(m)); }
   add(face.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, emissive: new THREE.Color(0.18, 0.32, 0.42), emissiveIntensity: 1 })));
   add(slab.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, emissive: new THREE.Color(0.2, 0.26, 0.4), emissiveIntensity: 0.7 })));
-  add(crack.mesh(new THREE.MeshBasicMaterial({ color: 0x24324e, ...off(-4) })));
+  add(crack.mesh(new THREE.MeshBasicMaterial({ color: 0x2c3d60, ...off(-4) })));
+  { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 4; const c = cv.getContext('2d'), gr = c.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(20,48,74,0)'); gr.addColorStop(1, 'rgba(20,48,74,0.55)'); c.fillStyle = gr; c.fillRect(0, 0, 64, 4);
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    const m = wet.mesh(new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, ...off(-2) })); m.renderOrder = 1; add(m); }
 }

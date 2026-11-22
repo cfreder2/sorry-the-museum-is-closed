@@ -127,6 +127,12 @@ export function harbourEdge(plan, L) {
     floeBox(f); S.push(f.surf);
   }
   { const q = L.ramp; S.push({ skin: 'wall', fixed: true, x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, axis: 'x', h0: q.h0, h1: q.h1, base: WATER_Y - 0.15 }); }
+  // A trail of little lanterns on poles to show the way: one on the ice where the chain starts, one on each floe of it,
+  // one at the top of the slab. (Solid poles; the lanterns on the floes ride up and down with them: harbour.js.)
+  const lamps = L.trail = [{ x: RX - 1.2, z: 61.4, y: 0 }];
+  floes.filter(f => f.route).forEach(f => { const zb = Math.max(...f.poly.map(p => p[1])); lamps.push({ x: f.hx, z: f.hz + zb - 0.85, y: f.top, floe: f }); });      // (well off the line the hops take)
+  lamps.push({ x: bw.x0 + 0.5, z: L.ramp.z1 + 0.4, y: 1.27 });
+  for (const q of lamps) O.push({ x0: q.x - 0.05, x1: q.x + 0.05, z0: q.z - 0.05, z1: q.z + 0.05, y0: q.y - 0.1, y1: q.y + 0.85 });
 
   // ---- along the edge, on the solid ice: slabs tipped up on end (ramps: drive up them) and blocks shoved up in ridges,
   // never in the chain's corner of the edge, and always leaving open stretches where you can drive right to the water
@@ -135,26 +141,28 @@ export function harbourEdge(plan, L) {
   for (let z = B.z0 + 3 + r() * 4; z < B.z1 - 6;) {
     const span = 3 + r() * 4;
     if (z + span > RZ[0] - 5 && z < RZ[1] + 5) { z = RZ[1] + 5; continue; }
-    const pieces = 2 + Math.floor(r() * 4);
+    const pieces = 3 + Math.floor(r() * 4);
     for (let k = 0; k < pieces * 3 && slabs.filter(s => s.z0 >= z - 0.01 && s.z1 <= z + span + 2).length < pieces; k++) {
       const w = 0.6 + r() * 1.2, za = z + r() * Math.max(0.1, span - w), zb = za + w, e = minEdge(za, zb);
-      const wedge = r() < 0.45, d = wedge ? 0.9 + r() * 0.9 : 0.45 + r() * 0.8, back = r() * (wedge ? 0.8 : 1.4);
+      const wedge = r() < 0.68, d = wedge ? 1.0 + r() * 1.0 : 0.45 + r() * 0.8, back = r() * (wedge ? 0.8 : 1.4);
       const x1 = e - 0.15 - back, x0 = x1 - d;
       const q = { x0, x1, z0: za, z1: zb };
       if (!free(q)) continue;
       taken.push(q);
       if (wedge) {
-        const axis = r() < 0.7 ? 'x' : 'z', up = r() < 0.6 ? 1 : -1, hi = 0.24 + r() * 0.3;
-        slabs.push({ ...q, kind: 'wedge', axis, h0: up > 0 ? 0 : hi, h1: up > 0 ? hi : 0 });
-        S.push({ skin: 'wall', fixed: true, ...q, axis, h0: up > 0 ? 0 : hi, h1: up > 0 ? hi : 0, base: 0 });
+        // a plate of ice 13 cm thick, one end down in the sheet and the other up in the air: drive up it from its low
+        // end, or (where it is high enough) under its raised end
+        const axis = r() < 0.7 ? 'x' : 'z', up = r() < 0.6 ? 1 : -1, hi = 0.26 + r() * 0.46, T = 0.13;
+        slabs.push({ ...q, kind: 'plate', axis, h0: up > 0 ? 0 : hi, h1: up > 0 ? hi : 0, T });
+        S.push({ skin: 'wall', fixed: true, ...q, axis, h0: up > 0 ? 0 : hi, h1: up > 0 ? hi : 0, thick: T });
       } else {
-        const h = 0.12 + r() * 0.26;
+        const h = 0.14 + r() * 0.3;
         slabs.push({ ...q, kind: 'block', h });
         S.push({ skin: 'wall', fixed: true, ...q, axis: null, h0: h, h1: h, base: 0 });
         O.push({ ...q, y0: 0, y1: h - 0.08 });
       }
     }
-    z += span + 4 + r() * 9;
+    z += span + 1.5 + r() * 6;
   }
 
   // ---- cracks running back into the solid ice from the edge (drawn only)
