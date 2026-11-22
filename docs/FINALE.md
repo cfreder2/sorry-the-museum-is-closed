@@ -172,6 +172,56 @@ card flips from *Sorry, the Museum is Closed* to *The Museum is Open*.
 - **Where the silo is:** the ballpark was moved (home plate at 402, 146; 70 m to centre) so that centre field lies
   over the hangar; its outfield leaves the silo square open, and its light pool hides while the doors are open.
 
+## The hooks: the Green Cheese file (added after the finale)
+
+An audit from a new player's side found the chain sound but hard to start and easy to lose:
+
+- **The first word of aliens** was a chewed page inside a mouse nest: a sixty-metre mouse chase, a grille and a crawl in.
+  Before that, only back-of-house whiteboards hinted, in rooms most players never open.
+- **No reason to care.** The craft was a prize, not a presence; the Director signed two notes and was otherwise a name.
+- **Vague pointers.** "The mouse in the south galleries has more", "upstairs, back of house": no map help between steps.
+- **Long dry stretches.** Nothing alien on the way in, between the five nests, or anywhere on the grounds (the silo doors
+  were plain snow). The five-note call was first heard at the console, so it paid nothing off.
+
+What was added (`src/story.js`, in the order a player meets it):
+
+1. **Pawprints** glowing on the front terrace, going in at the air vent ahead of you (seconds in).
+2. **The grate**, in the lobby on the way in: green light through the slats, a hum, and a glowing mouse sitting on it that
+   looks at you and dives through. LISTEN: five notes from far below, the craft's call; a brass tag, "KEEP SHUT. — D."
+   Now and then it calls again by itself. The first page of the file.
+3. **The mice squeak the call** (`src/mice.js`): two notes of it at each stop, the next two at the next; the whole call as
+   one goes in through its grille.
+4. **A light over the lake**, out of doors now and then: a green streak falling towards Butler Field, then the call, far
+   off and thin. It waits until the camera faces that way with no building in the way.
+5. **Rings in the snow** over the silo, five marks round them in the call's colours (one half on each silo door, so the
+   pattern parts at the launch). Drive onto them: the call again, from under the snow.
+6. **The older chain** (nests, desk, painting, Sub-level 9, the base) is noticed by what each module already saves, and
+   each step is a page.
+7. **The Director's last note**, on the floor of the base office under a saucer paperweight: it calls every night; play it
+   back, take it home, and the pictures, "that is what they came for. — D." The reason to care, just before the console.
+8. **At the console**, if any of it was heard: "You know this tune."
+
+Along the way:
+
+- **The file**: each page is a toast with as many notes of the call as pages so far (the tune grows with the mystery),
+  and a pause-menu button, *The Green Cheese file*, once there is a page: pages found, the rest as `? ? ?`, the next one
+  with a one-line hint.
+- **A faint `?` on the map** for the next step: the next mouse (or its vent), the desk, the whiteboard, the picture, the
+  keycard, the blast door, the console; and the rings once the light has been seen. On the big map and the radar, not
+  the radar's rim.
+- **Whiteboards**: the incidents board logs the light over the lake, the engineers' board the humming grate, the
+  volunteers' desk is told the lights are planes.
+- **Saved** in `after-hours.story` (pages, the mouse gone down, the note read); New game clears it.
+
+**The story API** (`import { story } from './story.js'`, also `G.story`): `story.add(id)` (true the first time; toast
+and sting), `story.has(id)`, `story.count`, `story.total`, `story.open()`, `story.enable(id)`, `story.heard`. Page ids:
+`grate`, `lights`, `ring`, `nests`, `desk`, `passage`, `sublevel9`, `alienracer`, `base`.
+
+**For the alien racer** (the race spots): `alienracer` is an optional page, "The green racer's charm". At its init the
+race module calls `story.enable('alienracer')` (until then the file counts 8 pages, after it 9); when the alien racer is
+beaten, `story.add('alienracer')`. Its page says the charm hums when it faces the park, and once it is found the map's
+`?` goes on the rings over the silo.
+
 ## Open choices (decided for now; easy to change)
 
 - **Optional:** the finale doesn't block anything else, so the game can be explored without it.

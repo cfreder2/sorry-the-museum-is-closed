@@ -72,6 +72,7 @@ import './lightshow.js';
 import './bandshell.js';        // the band shell on Butler Field, and Snow Ball, the dance game on its stage
 import './finale.js';
 import './finalelaunch.js';      // the five notes, the tractor beam and the launch (docs/FINALE.md, phase 3)
+import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -701,6 +702,7 @@ function act(a) {
     case 'repairLeave': if (G.repair) G.repair.press('leave'); break;
     case 'abandonHeist': G.heist.abandon(); G.state = G.study ? 'study' : 'play'; show(null); break;
     case 'notebook': openNotebook(); break;
+    case 'greenfile': if (G.story) G.story.open(); break;
     case 'closeNotebook': show(G.state === 'title' ? 'title' : 'pause'); break;
     case 'settings': settingsFrom = G.state === 'title' ? 'title' : 'pause'; applySettings(); show('settings'); break;
     case 'closeSettings': show(settingsFrom); break;
@@ -712,7 +714,7 @@ function act(a) {
   }
 }
 
-function pause() { G.state = 'paused'; $('pauseStats').innerHTML = $('tally').innerHTML; show('pause'); }      // the counts are kept off the screen while you drive, and read here
+function pause() { G.state = 'paused'; $('pauseStats').innerHTML = $('tally').innerHTML; $('pFile').hidden = !(G.story && G.story.count); show('pause'); }      // (the Green Cheese file is offered once it has a page)      // the counts are kept off the screen while you drive, and read here
 
 function openNotebook() {
   const grid = $('nbGrid');

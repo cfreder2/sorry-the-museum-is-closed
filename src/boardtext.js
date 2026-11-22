@@ -22,7 +22,7 @@ export const BOARDS = [
   { id: 'security', room: /^Security control/i, title: 'The security control room\'s whiteboard', doodle: 'button', lines: [
     '#NIGHT SHIFT', '- walk every floor at 1, 3 and 5', '- camera 14 shows a toy car again. Reboot it.', '- the big red button is NOT a drill button', '>it is the HEIST button. It starts a heist.', '!DO NOT PRESS (again)'] },
   { id: 'incidents', room: /^Security control/i, skip: 1, title: 'A whiteboard of incidents', doodle: 'cards', lines: [
-    '#INCIDENTS', '- 02:10 motion upstairs. Nothing there.', '- 03:40 lift called to 3. By nobody.', '- roof: fairy lights ON, sound of cards', '>sent the new one up. He lost $40.', '!somebody keeps leaving plywood on the stairs'] },
+    '#INCIDENTS', '- 02:10 green light over the lake. Again.', '- 03:40 lift called to 3. By nobody.', '- roof: fairy lights ON, sound of cards', '>sent the new one up. He lost $40.', '!somebody keeps leaving plywood on the stairs'] },
   { id: 'lost', room: /^Staff canteen/i, title: 'The canteen\'s whiteboard', doodle: 'tally', lines: [
     '#LOST PROPERTY', '- umbrellas', '- single gloves', '- balloons (on the ceiling)', '- toy cars: 0, but we keep HEARING one', '>fridge is emptied on FRIDAYS. Label it.'] },
   { id: 'registrar', room: /^Registrar$/i, title: 'The Registrar\'s whiteboard', doodle: 'arrow', lines: [
@@ -50,7 +50,7 @@ export const BOARDS = [
   { id: 'exhibitions', room: /^Exhibitions office/i, title: 'The exhibitions office\'s whiteboard', doodle: 'hoop', lines: [
     '#OPENING IN 9 DAYS', '- lighting', '- labels', '- cases: glass on LAST', '- somebody please count the hoops', '>why are there hoops'] },
   { id: 'engineers', room: /^Building engineers/i, title: 'The engineers\' whiteboard', doodle: 'pipe', lines: [
-    '#PLANT', '- boiler 2: service due', '- AHU 4: filter', '- scaffold, south side: STILL UP', '>somebody plays cards up there at night', '!"sub-level 9" is not on OUR drawings'] },
+    '#PLANT', '- boiler 2: service due', '- lobby floor grate HUMS. In a tune??', '- scaffold, south side: STILL UP', '>somebody plays cards up there at night', '!"sub-level 9" is not on OUR drawings'] },
   { id: 'mail', room: /^Mail room/i, title: 'The mail room\'s whiteboard', doodle: 'parcel', lines: [
     '#POST', '- out by 4', '- parcels for "Facilities" (no name):', '>leave them by the lift. They go overnight.', '- do NOT open them', '!one of them hummed'] },
   { id: 'hr', room: /^Human resources/i, title: 'A whiteboard of reminders', lines: [
@@ -58,7 +58,7 @@ export const BOARDS = [
   { id: 'housekeeping', room: /^Housekeeping/i, title: 'Housekeeping\'s whiteboard', doodle: 'snowman', lines: [
     '#FLOORS', '- mop the 2nd floor ring before 6', '- WET FLOOR signs keep getting knocked flat', '>tyre marks. Again.', '- snowmen on the lawn: not ours', '!leave the snowmen ALONE'] },
   { id: 'volunteers', room: /^Volunteers/i, title: 'The volunteers\' whiteboard', doodle: 'lion', lines: [
-    '#AT THE DESK', '- smile', '- the lions are called "the lions"', '- the front doors are LOCKED at night', '>(the air vent beside them is not)', '- if asked: there is NOTHING under the building'] },
+    '#AT THE DESK', '- smile', '- the lions are called "the lions"', '- the front doors are LOCKED at night', '>(the air vent beside them is not)', '- if asked: there is NOTHING under the building', '>and the lights over the lake are PLANES'] },
   { id: 'dye', room: /^Dye laboratory/i, title: 'The dye laboratory\'s whiteboard', doodle: 'flask', lines: [
     '#DYE LOT 31', '- madder: 40 min, not 45', '- indigo vat is ALIVE. Feed it.', '- green sample from Facilities: do not match it', '>it glows. Dyes should not glow.'] },
   // ---- what is on no drawing ----
