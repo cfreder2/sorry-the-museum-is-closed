@@ -235,7 +235,7 @@ feature({
           S.vx -= vn * nx; S.vz -= vn * nz;
           if (impact > 4.5) { const f = Math.max(0.7, 1 - (impact - 4.5) * 0.05); S.vx *= f; S.vz *= f; }
           if (impact > 2.5) bump = Math.max(bump, impact * 0.4);
-          if (impact > 1.5) { this.puffs.emit(S.x, g1 + 0.05, S.z, Math.min(26, 6 + impact * 3), { spread: 0.35, up: 0.5 + impact * 0.12, life: 0.9, out: 0.8 }); k.synth.noise(0.18, { vol: Math.min(0.06, 0.015 + impact * 0.007), lp: 900 }); }
+          if (impact > 1.5) { this.puffs.emit(S.x, g1 + 0.04, S.z, Math.min(16, 4 + impact * 2), { spread: 0.3, up: 0.4 + impact * 0.08, life: 0.7, out: 0.6 }); k.synth.noise(0.18, { vol: Math.min(0.06, 0.015 + impact * 0.007), lp: 900 }); }
           S.y = g1; S.vy = sx * S.vx + sz * S.vz; S.air = false; this.lastAir = S.airT; this.airs = (this.airs || 0) + 1;
           if (S.airT > 0.7) { this.bigAirs = (this.bigAirs || 0) + 1; if (!this.finished) k.once('sled-air', 'Big air.', 1.5); }
         }
@@ -379,6 +379,12 @@ feature({
     const dye = (s, style, wide) => { const p = run[Math.min(run.length - 1, Math.round(s / 0.25))], nx = -p.tz, nz = p.tx; c.lineWidth = wide * ppm; c.strokeStyle = style; c.beginPath(); c.moveTo(px(p.x - nx * (RUN_W + 0.4)), pz(p.z - nz * (RUN_W + 0.4))); c.lineTo(px(p.x + nx * (RUN_W + 0.4)), pz(p.z + nz * (RUN_W + 0.4))); c.stroke(); };
     dye(1.2, 'rgba(204,40,40,0.9)', 0.12); dye(FINISH_S, 'rgba(204,40,40,0.9)', 0.12);
     for (const q of KICKERS) { dye(q.s + q.len - 0.05, 'rgba(40,90,204,0.85)', 0.1); dye(q.s + q.len * 0.4, 'rgba(40,90,204,0.4)', 0.06); }
+    // the big kicker groomed: packed whiter than the run, corduroy across it from the machine, up its face and over the lip
+    { const q = KICKERS.find(k2 => k2.big), across = (s, w) => { const p = run[Math.min(run.length - 1, Math.round(s / 0.25))], nx = -p.tz, nz = p.tx; return [px(p.x - nx * w), pz(p.z - nz * w), px(p.x + nx * w), pz(p.z + nz * w)]; };
+      c.lineCap = 'butt';
+      for (let s = q.s - 1.5; s < q.s + q.len + q.back; s += 0.25) { const [x0, y0, x1, y1] = across(s, RUN_W + 0.3); c.lineWidth = 0.27 * ppm; c.strokeStyle = 'rgba(236,242,255,0.28)'; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+      for (let s = q.s - 1.5; s < q.s + q.len + q.back; s += 0.14) { const [x0, y0, x1, y1] = across(s, RUN_W + 0.1); d.lineWidth = 0.05 * ppm; d.strokeStyle = 'rgba(60,60,60,0.55)'; d.beginPath(); d.moveTo(x0, y0); d.lineTo(x1, y1); d.stroke(); }
+      c.lineCap = 'round'; }
     // packed and a little icy-blue down the run, trodden grey up the path
     const band = (P, wide, style) => { c.lineWidth = wide * ppm; c.strokeStyle = style; c.beginPath(); c.moveTo(px(P[0].x), pz(P[0].z)); for (const p of P) c.lineTo(px(p.x), pz(p.z)); c.stroke(); };
     c.save(); c.globalCompositeOperation = 'multiply'; band(run, RUN_W * 2, 'rgb(208,224,255)'); band(L.path, PATH_W * 2, 'rgb(236,234,236)'); c.restore();
@@ -464,6 +470,10 @@ feature({
     P.box(0.08, DH + 0.05, 0.06, green, at(DX - DW / 2 - 0.04, 0.2 + DH / 2, D / 2 + 0.03)); P.box(0.08, DH + 0.05, 0.06, green, at(DX + DW / 2 + 0.04, 0.2 + DH / 2, D / 2 + 0.03)); P.box(DW + 0.24, 0.1, 0.07, green, at(DX, DH + 0.05, D / 2 + 0.035));
     { const inside = new THREE.Mesh(new THREE.PlaneGeometry(DW + 0.1, DH), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.25, 0.82, 0.42) })); inside.position.set(SX + DX, fy + 0.2 + DH / 2, SZ + D / 2 - 0.55); inside.matrixAutoUpdate = false; inside.updateMatrix(); this.g.add(inside);
     }
+    // the warm light from the window and the door, lying on the snow in front (a soft glow laid just over it)
+    { const pool = canvasTex(256, 128, (c, w, h) => { for (const [cx, r, a] of [[0.36, 0.5, 0.75], [0.6, 0.34, 0.6]]) { const gr = c.createRadialGradient(w * cx, 0, 4, w * cx, 0, w * r); gr.addColorStop(0, `rgba(255,190,110,${a})`); gr.addColorStop(1, 'rgba(255,170,90,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); } });
+      const pm = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 2.2), new THREE.MeshBasicMaterial({ map: pool, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+      pm.rotation.x = -Math.PI / 2; pm.position.set(SX - 0.2, hAt(SX, SZ + D / 2 + 1.2) + 0.012, SZ + D / 2 + 1.12); pm.matrixAutoUpdate = false; pm.updateMatrix(); pm.renderOrder = 2; this.g.add(pm); }
     // the door: red planks, a round window, a wreath, a brass knob; hung on its left post, it swings out (update)
     { const dg = new THREE.Group(), DP = new Parts(), w = DW - 0.02;
       for (let i = 0; i < 5; i++) DP.box(w / 5 - 0.006, DH - 0.02, 0.045, i % 2 ? red : col(0x9a3026), M4(w / 10 + i * w / 5, DH / 2, 0));
@@ -658,11 +668,13 @@ feature({
     const KIND = [{ h: 0.82, r0: 0.014, r1: 0.011, c: col(0xc9a24a) }, { h: 1.3, r0: 0.022, r1: 0.017, c: col(0xd85a1e) }, { h: 1.55, r0: 0.026, r1: 0.02, c: col(0xf2eee4) }];
     this.KIND = KIND; const NS = this.NSEG = 4, n = this.poles.length;
     const seg = new THREE.CylinderGeometry(1, 1, 1, 6, 1, false); seg.translate(0, 0.5, 0);
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.18, 0.18, 0.2) });
+    // (lit a little from within by their own colours, as everything out of doors is here, so that they read at night)
+    const glow = m => { m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('vec3 totalEmissiveRadiance = emissive;', 'vec3 totalEmissiveRadiance = emissive * vColor;'); }; return m; };
+    const mat = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.32, 0.32, 0.34) }));
     const S = this.poleSeg = new THREE.InstancedMesh(seg, mat, n * NS); S.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const capG = new THREE.CylinderGeometry(1, 1, 1, 6); capG.translate(0, 0.5, 0);
     const flag = new THREE.BufferGeometry(); flag.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0, 1, 0.5, 0, 0, 1, 0, 0, 0, 0, 1, 0.5, 0], 3)); flag.computeVertexNormals();
-    const capM = new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.25, 0.25, 0.25) }), flagM = capM.clone(); flagM.side = THREE.DoubleSide;
+    const capM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.4, 0.4, 0.4) })), flagM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.45, 0.45, 0.45), side: THREE.DoubleSide }));
     this.poleCap = new THREE.InstancedMesh(capG, capM, n); this.poleCap.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.poleFlag = new THREE.InstancedMesh(flag, flagM, Math.max(1, this.poles.filter(p => p.kind === 2).length)); this.poleFlag.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const white = new THREE.Color(0xf2eee4), redc = new THREE.Color(0xd8262a), tc = new THREE.Color();
@@ -712,10 +724,10 @@ feature({
         const k = this.k, loud = Math.min(1, sp / 10);
         k.synth.note(150 + Math.random() * 40, 0.12, { type: 'square', vol: 0.012 + 0.02 * loud }); k.synth.noise(0.14, { vol: 0.02 + 0.03 * loud, lp: 2200 });
         this.puffs.emit(p.x, p.y + 0.15, p.z, 8 + Math.round(loud * 10), { spread: 0.18, up: 0.6, life: 0.8, out: 0.5 });
-        if (nudge && d > 1e-4) {
-          const nx = -cx / d, nz = -cz / d, into = -(o.vx * nx + o.vz * nz);       // (n points from the pole to the sled)
-          if (into > 0) { o.vx += nx * into * 0.35; o.vz += nz * into * 0.35; }
-          o.vx *= 0.97; o.vz *= 0.97; o.knock = Math.max(o.knock || 0, 0.12);
+        // the sled: turned a little away from the pole (more the more squarely it was hit), and a few per cent slower
+        if (nudge) {
+          const side = (-o.vz * rx + o.vx * rz) > 0 ? 1 : -1, sq = 1 - Math.min(1, d / r), a = -side * (0.04 + 0.08 * sq), ca = Math.cos(a), sa = Math.sin(a);
+          const vx = o.vx * ca - o.vz * sa, vz = o.vx * sa + o.vz * ca; o.vx = vx * 0.96; o.vz = vz * 0.96; o.knock = Math.max(o.knock || 0, 0.12);
         }
       }
     }
@@ -846,7 +858,7 @@ feature({
     this.pens = []; for (let i = 0; i < N; i++) this.pens.push({ i, state: 'home', lane: i % 2 ? -1.35 : 1.35, x: 0, y: 0, z: 0, yaw: 0, ph: Math.random() * TAU, lie: 0, flap: 0, t: 0 });
     for (const p of this.pens) this._posePen(p);
     for (const m of Object.values(this.pm)) m.instanceMatrix.needsUpdate = true;
-    this.puffs = k.puffs(140, { color: 0xe6eeff, size: 0.11 });
+    this.puffs = k.puffs(140, { color: 0xc8d4ee, size: 0.06 });
     this.smoke = k.puffs(36, { color: 0x6c7484, size: 0.5 }); this.smokeT = 0;
     this.penT = 20;                                // (until one comes out on its own)
     const sh = this.shop, run = this.L.run, at = s => run[Math.min(run.length - 1, Math.max(0, Math.round(s / 0.25)))];
@@ -1025,7 +1037,7 @@ feature({
     const near = Math.hypot(k.pos.x - TOP.x, k.pos.z - TOP.z), active = this.pens.some(p => p.state !== 'home' && p.state !== 'idle');
     this.penT -= dt; this.waitCool = Math.max(0, (this.waitCool || 0) - dt);
     if (!this.riding && !active && !this.waitCool && k.close(this.gate, 9, 2.5)) { this._launch(false); this.penT = 30 + Math.random() * 15; }
-    else if (this.penT <= 0 && !active && !this.riding && near < 45) { const p = this._launch(false); if (p) p.go = true; this.penT = 30 + Math.random() * 15; }
+    else if (this.penT <= 0 && !active && !this.riding) { const p = this._launch(false); if (p) p.go = true; this.penT = 30 + Math.random() * 15; }
     let any = false;
     for (const p of this.pens) { if (p.state === 'home') continue; any = true; this._penStep(p, dt); this._posePen(p); if (p.state === 'home') this._posePen(p); }
     // a penguin waiting at the gate with nobody coming: it goes down on its own after a while
