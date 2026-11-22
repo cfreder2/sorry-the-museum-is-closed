@@ -4,12 +4,14 @@
 // home-run line along its top and a string of mini lights on it. Six light towers light it, dugouts and a little
 // bleacher of snowman fans stand down the lines, a backstop behind the plate and a scoreboard out past the wall.
 //
-// The derby: pull into the batter's box (E, or BAT on a phone) and the snowman on the mound pitches ten snowballs, a
-// straight one, a slow lob or a snow-curve. Swing with the jump (Space, SWING on a phone, a bumper on a pad): the car
-// hops and whips round, and its tail bats the ball. Timing is everything: the nearer the ball is to the plate when
-// the tail comes round, the better the hit (a grounder, a line drive, a fly ball, or out over the wall). Early pulls
-// it down the third-base line, late pushes it to the first-base side. A home run sets the wall's lights going, the
-// fans cheer and fireworks go up.
+// The derby: pull into the batter's box (E, or BAT on a phone) and the snowman on the mound pitches ten snowballs, fast
+// or slow, straight, lobbed or curving, mostly over the plate and now and then high, low, in or away. The car carries a
+// toy bat on its tail. A strike zone stands over the plate with the bat's head in it, an orange ring: steer it with the
+// left stick (the arrows, WASD, the thumb) to where the ball will cross, and swing with the jump (Space, SWING on a
+// phone, a bumper on a pad): the car hops and whips round and the bat meets the ball. Timing sets how far out in front
+// (early) or behind (late) it is met; the ring under the ball pops it up, over it chops it into the ground, on the
+// button drives it; early pulls it to third, late pushes it to first. A home run sets the wall's lights going, the
+// fans cheer and throw their hats, and fireworks go up.
 //
 // Everything is merged or instanced. Nothing runs, and nothing new is drawn, while the toy is far away; nothing is
 // allocated frame to frame.
@@ -47,6 +49,8 @@ const PIV = { y: 0.19, z: -0.2 }, RS = 0.62;
 const EARLY = 1.1, LATE = 0.55, AX = RX + BR + 0.012, AY = RY + BR + 0.007;
 const SPIN = 0.44, COCK = 110 * DEG, UP = 55 * DEG;          // the swing: a whole turn in SPIN seconds, from cocked back COCK with the bat held up UP
 const SW = SPIN * (1 - Math.cbrt(1 - COCK / TAU));            // from the press to the sweet spot coming past the plate
+const clampI = (q, n) => Math.max(0, Math.min(n - 1, q));
+const NOINP = Object.freeze({});                              // (no controls this frame)
 const NAMES = { fly: 'FLY BALL', line: 'LINE DRIVE', ground: 'GROUNDER', pop: 'POP-UP' };
 const COLS = [[2.8, 0.3, 0.25], [0.35, 2.4, 0.5], [0.45, 0.9, 3.0], [2.9, 1.9, 0.35], [2.8, 0.9, 1.7], [2.9, 1.1, 0.2]];
 
@@ -503,7 +507,9 @@ feature({
     const dot = canvasTex(32, 32, (c, w, h) => { const gr = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); });
     // The pitch: a big snowball, cool blue-white, in a blue halo, with a crisp dark shadow under it all the way in and a
     // faint blue streak behind it. Nothing else on the field is that colour, or moves like that.
-    this.ball = new THREE.Mesh(new THREE.SphereGeometry(BR, 20, 14), new THREE.MeshStandardMaterial({ color: 0xf4f8ff, roughness: 0.55, emissive: new THREE.Color(0.62, 0.8, 1.15), emissiveIntensity: 1.05 }));
+    this.ball = new THREE.Mesh(new THREE.SphereGeometry(BR, 20, 14), new THREE.MeshStandardMaterial({ color: 0xeaf3ff, roughness: 0.55, emissive: new THREE.Color(0.5, 0.78, 1.3), emissiveIntensity: 1.05 }));
+    // a thin dark rim round it, so it stands out against the snowman and the snow as well as against the night
+    { const rim = new THREE.Mesh(new THREE.SphereGeometry(BR * 1.13, 20, 14), new THREE.MeshBasicMaterial({ color: 0x0b1d40, side: THREE.BackSide })); this.ball.add(rim); }
     this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: dot, color: new THREE.Color(0.3, 0.55, 1.35), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.halo.scale.setScalar(BR * 5.2); this.halo.renderOrder = 8; this.ball.add(this.halo);
     this.ball.visible = false; g.add(this.ball);
@@ -511,9 +517,9 @@ feature({
     this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(BR * 2.6, BR * 2.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: sh, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
     this.shadow.visible = false; this.shadow.renderOrder = 5; g.add(this.shadow);
     // the streak: a ribbon through the last places the ball has been, turned to the camera, thinning and fading behind
-    const NT = this.NT = 14, tg = new THREE.BufferGeometry(), idx = [], tc = new Float32Array(NT * 6);
+    const NT = this.NT = 16, tg = new THREE.BufferGeometry(), idx = [], tc = new Float32Array(NT * 6);
     for (let q = 0; q < NT - 1; q++) { const a = q * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-    for (let q = 0; q < NT; q++) { const f = (1 - q / (NT - 1)) ** 1.5 * 0.7; for (const j of [0, 1]) tc.set([0.3 * f, 0.55 * f, 1.0 * f], (q * 2 + j) * 3); }
+    for (let q = 0; q < NT; q++) { const f = (1 - q / (NT - 1)) ** 1.3; for (const j of [0, 1]) tc.set([0.32 * f, 0.6 * f, 1.15 * f], (q * 2 + j) * 3); }
     tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NT * 6), 3).setUsage(THREE.DynamicDrawUsage)); tg.setAttribute('color', new THREE.BufferAttribute(tc, 3)); tg.setIndex(idx);
     this.trail = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     this.trail.frustumCulled = false; this.trail.visible = false; this.trail.renderOrder = 7; g.add(this.trail);
@@ -847,7 +853,7 @@ feature({
   },
   // A word on the swing just made, big, for a moment: EARLY, LATE, UNDER IT, ON THE BUTTON!
   _call(text, good = false) {
-    if (!this.callEl) { const d = this.callEl = document.createElement('div'); d.id = 'derbyCall'; d.style.cssText = 'position:fixed;left:50%;top:max(24%, calc(env(safe-area-inset-top) + 104px));transform:translate(-50%,-50%);font:800 clamp(22px,4.4vw,42px)/1 system-ui,sans-serif;letter-spacing:.06em;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 16px rgba(0,0,0,.7);pointer-events:none;z-index:31;white-space:nowrap;opacity:0;transition:opacity .3s'; document.body.append(d); }
+    if (!this.callEl) { const d = this.callEl = document.createElement('div'); d.id = 'derbyCall'; d.style.cssText = 'position:fixed;left:50%;top:max(26%, calc(env(safe-area-inset-top) + 126px));transform:translate(-50%,-50%);font:800 clamp(22px,4.4vw,42px)/1 system-ui,sans-serif;letter-spacing:.06em;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 16px rgba(0,0,0,.7);pointer-events:none;z-index:31;white-space:nowrap;opacity:0;transition:opacity .3s'; document.body.append(d); }
     const d = this.callEl;
     if (text === null) { d.style.opacity = '0'; this.callT = 0; return; }
     d.textContent = text; d.style.color = good ? '#ffd65c' : '#eef3ff'; d.style.opacity = '1'; this.callT = this.t + 1.1;
@@ -915,7 +921,7 @@ feature({
     this.ret.w = Math.max(-RW, Math.min(RW, this.ret.w + x * sp * dt)); this.ret.y = Math.max(RY0, Math.min(RY1, this.ret.y + y * sp * dt));
   },
   _play(dt, k, v) {
-    const t = this.t, inp = this._inp || {}; this._inp = null;
+    const t = this.t, inp = this._inp || NOINP; this._inp = null;
     this._aim(dt, k);
     // the swing: the jump (Space is caught at the key, a frame sooner: the timing is to the key, not the frame)
     const want = this._press || inp.jump; this._press = false;
@@ -939,7 +945,7 @@ feature({
     const aimT = Math.atan2(this.ret.y - (v.pos.y + PIV.y), RS + PIV.z), su = this.swinging ? Math.min(1, (t - this.swingT) / (SW * 0.8)) : 0;
     const tilt = this.freeze > 0 ? this.batTiltHit : this.swinging ? UP + (aimT - UP) * su : UP + (aimT - UP) * 0.25;
     this.batTilt.rotation.x = tilt;
-    { const sw = this.swish, u = this.swinging ? (t - this.swingT) / SPIN : 1; sw.visible = u < 0.75 && !this.calm; if (sw.visible) { sw.material.opacity = 0.14 * (1 - u / 0.75) ** 2; sw.position.y = PIV.y + (RS + PIV.z) * Math.tan(tilt); } }
+    { const sw = this.swish, u = this.swinging ? (t - this.swingT) / SPIN : 1; sw.visible = u < 0.75 && !this.calm; if (sw.visible) { sw.material.opacity = 0.09 * (1 - u / 0.75) ** 2; sw.position.y = PIV.y + (RS + PIV.z) * Math.tan(tilt); } }
     // the reticle, and the mark of where the ball will cross
     this.retG.position.set(this.ret.w, this.ret.y, 0.012);
     let lined = false;
@@ -1029,11 +1035,11 @@ feature({
     const P = this.trailP, NT = this.NT, b = this.ball.position, i = this.trailHead;
     P[i * 3] = b.x; P[i * 3 + 1] = b.y; P[i * 3 + 2] = b.z;
     this.trailHead = (i + 1) % NT; this.trailN = Math.min(NT, this.trailN + 1);
-    const pa = this.trail.geometry.attributes.position, A = pa.array, cam = this.cam.at, w0 = BR * 0.8 * this.ball.scale.x, n = this.trailN;
+    const pa = this.trail.geometry.attributes.position, A = pa.array, cam = this.cam.at, w0 = BR * 1.05 * this.ball.scale.x, n = this.trailN;
     const p = this.tmp2, d = this.tmp3, sd = this._sd || (this._sd = new THREE.Vector3());
-    const at = q => (this.trailHead - 1 - Math.max(0, Math.min(n - 1, q)) + NT * 2) % NT;
+    const hd = this.trailHead - 1 + NT * 2;
     for (let q = 0; q < NT; q++) {
-      const j = at(q), jp = at(q - 1), jn = at(q + 1);
+      const j = (hd - clampI(q, n)) % NT, jp = (hd - clampI(q - 1, n)) % NT, jn = (hd - clampI(q + 1, n)) % NT;
       p.set(P[j * 3], P[j * 3 + 1], P[j * 3 + 2]); d.set(P[jp * 3] - P[jn * 3], P[jp * 3 + 1] - P[jn * 3 + 1], P[jp * 3 + 2] - P[jn * 3 + 2]);
       sd.set(cam.x - p.x, cam.y - p.y, cam.z - p.z).cross(d);
       const l = sd.length(), w = q < n ? w0 * (1 - q / (NT - 1)) : 0;
@@ -1071,9 +1077,9 @@ feature({
     const b = this.ball.position, s = (P.at - this.tRel) / (this.tArr - this.tRel);
     if (s <= 1) this._pathAt(s, b);
     const { tq, te, ax, ay } = P;
-    const pw = (1 - 0.45 * tq * tq) * (1 - 0.75 * Math.abs(ay) ** 1.4) * (1 - 0.3 * ax * ax);
+    const pw = (1 - 0.62 * tq ** 1.4) * (1 - 0.75 * Math.abs(ay) ** 1.4) * (1 - 0.5 * ax * ax);
     const sp = 34 * pw + (Math.random() - 0.5) * 1.2, el = Math.max(-18, Math.min(78, 25 + 50 * ay + (Math.random() - 0.5) * 5));
-    const th = (45 + 52 * te + 22 * ax + (Math.random() - 0.5) * 10) * DEG;
+    const th = (45 + 44 * te + 24 * ax + (Math.random() - 0.5) * 10) * DEG;
     const type = el < 4 ? 'ground' : el < 16 ? 'line' : el < 50 ? 'fly' : 'pop';
     this.hitType = type;
     const h = sp * Math.cos(el * DEG); this.bv.set(h * Math.cos(th), sp * Math.sin(el * DEG), h * Math.sin(th));
@@ -1166,7 +1172,7 @@ feature({
     const lx = H.x + c.x * 6 - s.x * 0.08, ly = -0.1, lz = H.z + c.z * 6 - s.z * 0.08;
     if (follow && this.phase === 'hit') this.look.lerp(b, Math.min(1, dt * 6)); else if (!follow) this.look.set(lx, ly, lz);
     cam.look.x = lx + (this.look.x - lx) * m; cam.look.y = ly + (this.look.y - ly) * m; cam.look.z = lz + (this.look.z - lz) * m;
-    cam.fov = 50 + 14 * m;
+    cam.fov = (innerHeight < 520 ? 42 : 50) + 14 * m;          // (a phone on its side: closer in, so the zone is big enough to aim in)
   },
 
   spots() {
