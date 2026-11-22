@@ -250,7 +250,7 @@ export const mice = feature({
     T.lit = true; T.mesh.geometry.attributes.color.needsUpdate = true;
   },
 
-  active(k) { return k.G.mode !== 'race' && !k.plan.racing; },
+  active(k) { return !k.G.racing; },
   update(dt, k) {
     if (!this.placed) this.place();
     this.time += dt;

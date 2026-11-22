@@ -425,7 +425,7 @@ feature({
     // Looking at a work: they pass by, and any after you give up; a moment's grace after you look away.
     if (!!G.study !== !!this.prevStudy) { if (!G.study) this.grace = Math.max(this.grace, now + 2); this.prevStudy = !!G.study; }
     if (G.study) for (const b of this.bots || []) if (b.mode === 'chase' || b.mode === 'charge' || b.mode === 'alert') { b.sus = 0; this._return(b); }
-    const watch = !frozen && !G.held && !G.study && now > this.grace && !(G.heist && G.heist.active);
+    const watch = !frozen && !G.held && !G.study && !G.racing && now > this.grace && !(G.heist && G.heist.active);      // (and not in a race: src/racespots.js)
     const lamp = !!G.lampOn, drone = v.kind === 'drone';
     let nearest = 1e9;
     for (const b of this.bots) {

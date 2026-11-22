@@ -159,13 +159,6 @@
         <button class="arr" data-step="1" aria-label="Next vehicle">→</button>
         <span class="hint" id="toyHint" hidden></span>
       </div>
-      <div class="sel" role="group" aria-labelledby="modeLab" data-sel="mode">
-        <span class="lab" id="modeLab">Game mode:</span>
-        <button class="arr" data-step="-1" aria-label="Previous game mode">←</button>
-        <button class="val" data-step="1" id="modeVal" aria-live="polite" aria-describedby="modeHint">Explore</button>
-        <button class="arr" data-step="1" aria-label="Next game mode">→</button>
-        <span class="hint" id="modeHint" hidden></span>
-      </div>
     </div>
     <div id="garage" aria-hidden="true">
       <img id="gImg" alt="" hidden>
@@ -194,25 +187,12 @@
     <div id="pauseStats" aria-live="polite"></div>
     <div class="col">
       <button data-act="resume">Carry on</button>
-      <button data-act="restart" id="pRestart">Restart the race</button>
+      <button data-act="leaveRace" id="pLeave" hidden>Leave the race</button>
       <button data-act="abandonHeist" id="pAbandon" hidden>Abandon the heist</button>
       <button data-act="notebook">Field-trip notebook</button>
       <button data-act="trophies">Trophies</button>
       <button data-act="secrets">Secrets</button>
       <button data-act="settings">Settings</button>
-      <button data-act="quit">Back to the front door</button>
-    </div>
-  </div>
-</section>
-
-<section id="results" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="resPlace">
-  <div class="panel small">
-    <div class="over" id="resOver"></div>
-    <h2 id="resPlace"></h2>
-    <div class="times" id="resTimes"></div>
-    <div class="col">
-      <button data-act="again">Race again</button>
-      <button data-act="wander">Stay and explore</button>
       <button data-act="quit">Back to the front door</button>
     </div>
   </div>

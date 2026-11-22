@@ -622,18 +622,6 @@ export function closedSign() {
   return tex(c);
 }
 
-// The race track, painted on the floor: a line down each edge and arrows up the middle.
-// White on black, laid on additively, so it shows on wood and marble alike.
-export function raceLine() {
-  const [c, g] = canvas(128, 256);
-  g.fillStyle = '#000'; g.fillRect(0, 0, 128, 256);
-  g.fillStyle = 'rgba(255,255,255,.16)'; g.fillRect(8, 0, 112, 256);            // a faint wash between the lines
-  g.fillStyle = '#fff'; g.fillRect(4, 0, 9, 256); g.fillRect(115, 0, 9, 256);
-  g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineJoin = 'miter';
-  g.beginPath(); g.moveTo(40, 150); g.lineTo(64, 106); g.lineTo(88, 150); g.stroke();
-  return tex(c, { repeat: true, srgb: false });
-}
-
 // --------------------------------------------------------- the city block ---
 
 export function asphalt() {

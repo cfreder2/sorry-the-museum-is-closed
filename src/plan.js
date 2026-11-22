@@ -727,7 +727,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   // Furniture.
   if (noFurniture) return hit;
   for (const o of plan.obstacles) {
-    if ((o.kit && plan.racing) || (o.gate && o.gate.off)) continue;
+    if (o.gate && o.gate.off) continue;
     const top = flying ? p.y + r * 0.5 : p.y + 0.24, bot = flying ? p.y - r * 0.5 : p.y;
     if (bot > o.y1 || top < o.y0) continue;
     const cx = p.x < o.x0 ? o.x0 : p.x > o.x1 ? o.x1 : p.x;
@@ -1668,7 +1668,6 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
   const lie = sy > 0 ? plan.land : null;                // rolling ground: like a hill, it is ground at any height above the cellars, and it is what is under the wheels
   if (g < sy && (y + step >= sy || (lie && y > -1)) && !inWell(plan, x, z, 0) && !inPit(plan, x, z)) { g = sy; under = lie; }      // the street, and the snow
   for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
-    if (plan.racing && !s.line && s.skin !== 'bench' && !s.roof && !s.fixed) continue;        // in a race, only what is on the track is there
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if ((h <= y + step || (s.hill && y > -1) || (s === sticky && h <= y + 1.6)) && h > g) { g = h; under = s; }      // a hill is ground at any height: there is no under it (short of being in a cellar)
@@ -1683,7 +1682,7 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
 // of something no lower than the floor it stands on.
 export function wallAt(plan, x, z, y, step = STEP, ignore = null) {
   for (const list of y > 2 && plan.roofs ? [plan.surfaces, plan.roofs] : [plan.surfaces]) for (const s of list) {
-    if (s === ignore || s.hill || (plan.racing && !s.line && s.skin !== 'bench' && !s.roof && !s.fixed)) continue;      // and never a wall
+    if (s === ignore || s.hill) continue;      // a hill is never a wall
     if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
     const h = heightOf(s, x, z);
     if (h <= y + step) continue;

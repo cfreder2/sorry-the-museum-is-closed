@@ -435,8 +435,6 @@ export class Traffic {
     const P = this.plan;
     if (!this.reg && secrets) { this.reg = true; secrets.add('traffic', 'Stopped the traffic on Michigan Avenue'); }
     dt = Math.min(dt, 0.1); this.t += dt; this._lights();
-    if (P.racing) { if (this.list.length) this.clear(); this.signalGroup.visible = false; this._hush(sound, 0); return; }
-    this.signalGroup.visible = true;
     const toy = G.vehicle, px = toy ? toy.pos.x : 0, pz = toy ? toy.pos.z : 0, py = toy ? toy.pos.y : 0;
     const live = toy && (G.state === 'play' || G.state === 'study') && !G.roomId;
     // Arrivals.

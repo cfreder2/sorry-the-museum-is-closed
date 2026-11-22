@@ -449,7 +449,7 @@ feature({
 
   // ============================================================ playing
   near(v, k) {
-    if (!this.sh || k.G.mode !== 'explore' || k.plan.racing) return null;
+    if (!this.sh || k.G.racing) return null;
     if (this.mode === 'select') return { verb: 'START', hint: '← → song · ↑ ↓ level', act: () => this._start() };
     if (this.mode === 'play') return { verb: 'STOP', hint: '', act: () => this._stop('') };
     if (this.mode === 'idle' && (v.kind === 'car' || v.kind === 'drone') && this._onPad(v)) return { verb: 'DANCE', hint: 'Snow Ball. E to dance.', act: () => this._select() };
@@ -624,7 +624,7 @@ feature({
     if (!this.g) return false;
     if (this.mode !== 'idle') return true;
     const p = k.pos, sh = this.sh; this.far = Math.hypot(p.x - sh.cx, p.z - (sh.z0 + sh.z1) / 2);
-    return k.G.mode !== 'race' && this.far < 170;
+    return !k.G.racing && this.far < 170;
   },
   update(dt, k) {
     const G = k.G, sh = this.sh, U = this.U, calm = G.set.reduce ? 1 : 0, snd = k.sound;

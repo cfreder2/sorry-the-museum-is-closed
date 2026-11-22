@@ -223,7 +223,7 @@ export class Car {
       grip *= S.grip;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
       this.wet = false;
-      if (!this.plan.racing) for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
+      for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
       const icy = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.some(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1);
@@ -471,7 +471,7 @@ export class Car {
     // It can be taken from either end: in by one lane and out by the other.
     // A loop runs along x on the ground unless it says otherwise: `axis: 'z'` runs it along z, and `y` stands it on a
     // deck at that height (the one on the Nichols Bridgeway, bridgeplay.js).
-    if (!this.air && !this.plan.racing) for (const L of this.plan.loops) {
+    if (!this.air) for (const L of this.plan.loops) {
       if (Math.abs(this.pos.y - (L.y || 0)) >= 0.05) continue;
       const zx = L.axis === 'z', u0 = zx ? oz : ox, u1 = zx ? this.pos.z : this.pos.x, U = zx ? L.z : L.x, f = zx ? fz : fx;
       for (const way of [1, -1]) {

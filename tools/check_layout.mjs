@@ -139,7 +139,7 @@ if (front) {
 // ground below the street that is not in that list would sit under snow, seen as solid ground you then fall through
 // (the railway cutting, a stair to the lower level, a lift shaft). Only for the game's own layout, which buildPlan reads.
 if (!process.argv[2]) {
-  const { buildPlan, groundAt, groundOpenings, streetY } = await import(new URL('../src/plan.js', import.meta.url));
+  const { buildPlan, groundAt, groundOpenings, streetY, confine } = await import(new URL('../src/plan.js', import.meta.url));
   const P = buildPlan(), O = groundOpenings(P), B = P.bounds, lids = new Map();
   for (let x = B.x0; x <= B.x1; x += 1) for (let z = B.z0; z <= B.z1; z += 1) {
     // the snow's own height: Michigan Avenue and the streets climbing from it on the low side; the terrace level (0) beyond
@@ -162,6 +162,31 @@ if (!process.argv[2]) {
     if (!lap(n.mouth, host) || !lap(n.mouth, n.duct || n.cham) || (n.duct && !lap(n.duct, n.cham))) problems.push(`${n.id}: its way in does not join its room to its nest`);
   }
   if (P.nests) console.log(`  nests: ${P.nests.length} (${P.nests.map(n => n.wing + ' ' + n.room).join(', ')}), each in a wall, none in a room`);
+  // The races found about the building (src/racecourses.js): each course laid as the game lays it, against the plan with
+  // the start arches standing in it, then walked every 10 cm with the car's own probes (course.js checkCourse): never
+  // pushed by a wall, a jamb or anything fixed, never a step up or a drop, and indoors always in a room or a doorway. The
+  // rivals must be parked on clear floor and off the line. (Out of doors this is the plan's own ground; what the grounds'
+  // features add there, the ballpark's wall say, the game lays its course round, and the browser test checks.)
+  const { SPOTS, archOf } = await import(new URL('../src/racecourses.js', import.meta.url));
+  const { layCourse, checkCourse } = await import(new URL('../src/course.js', import.meta.url));
+  for (const S of SPOTS) P.obstacles.push(...archOf(S).solids);
+  const laid = [];
+  for (const S of SPOTS) {
+    let c;
+    try { c = layCourse(P, S); } catch (e) { problems.push(`race ${S.id}: ${e.message}`); continue; }
+    const [sx, sz] = S.way[0], inside = P.rooms.some(r => Math.abs(r.y - S.fy) < 0.1 && sx > r.x0 && sx < r.x1 && sz > r.z0 && sz < r.z1);
+    const bad = checkCourse(P, c, { inside });
+    if (bad.length) problems.push(`race ${S.id}: the line leaves the floor or meets something at ${bad.length} points, the first ${JSON.stringify(bad[0])}`);
+    const A = archOf(S);
+    for (const [ax, bk] of S.park) {
+      const x = A.x + A.rx * ax - A.fx * bk, z = A.z + A.rz * ax - A.fz * bk, q = { x, y: S.fy, z };
+      const off = Math.min(...c.pts.map(t => Math.hypot(t.x - x, t.z - z)));
+      if (off < 1.6) problems.push(`race ${S.id}: a rival is parked ${off.toFixed(2)} m from the line`);
+      if (confine(P, q, 0.25, false, { x: 0, y: 0, z: 0 }) && Math.hypot(q.x - x, q.z - z) > 0.005) problems.push(`race ${S.id}: a rival is parked against something at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+    }
+    laid.push(`${S.id} ${Math.round(c.length)} m${inside ? '' : ' outdoors'}`);
+  }
+  console.log(`  races: ${laid.length} of ${SPOTS.length} courses laid and walked clear (${laid.join(', ')}), the rivals parked off the line`);
 }
 
 if (problems.length) { console.log(`\nNOT SOUND: ${problems.length} problem${problems.length > 1 ? 's' : ''}`); for (const p of problems) console.log('  ' + p); process.exit(1); }

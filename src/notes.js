@@ -157,7 +157,7 @@ feature({
     this.card.style.opacity = n ? '1' : '0';
   },
 
-  active(k) { return k.G.mode !== 'race' && !k.plan.racing; },
+  active(k) { return !k.G.racing; },
   update(dt, k) {
     if (!this.placed) this.place();
     const p = k.pos, v = k.v, speed = v && v.vel ? Math.hypot(v.vel.x, v.vel.z) : 0;

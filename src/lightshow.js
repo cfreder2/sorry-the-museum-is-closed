@@ -694,7 +694,7 @@ feature({
     const G = k.G, v = k.v, p = k.pos, U = this.U, S = this.music.S, snd = k.sound;
     this.t += dt; const T = this.t;
     // --- the music, and where it is
-    const want = snd && snd.musicOn && G.set.gallerymusic !== false && !snd.muted && G.mode !== 'race' && (G.state === 'play' || G.state === 'study');
+    const want = snd && snd.musicOn && G.set.gallerymusic !== false && !snd.muted && !G.racing && (G.state === 'play' || G.state === 'study');
     const near = Math.max(0, 1 - this.far / 70), level = want ? near * near * (snd.vol.music || 0) * 0.8 : 0;
     this.music.update(snd, level);
     if (snd) { snd.duck = Math.min(1, near * 1.5) * (want ? 1 : 0); if (want && near > 0 && snd.nextTune !== undefined && snd.ctx) snd.nextTune = Math.max(snd.nextTune, snd.ctx.currentTime + 4); }

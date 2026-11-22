@@ -292,7 +292,7 @@ export class Trains {
     const v = G.vehicle, C = this.C, P = this.plan;
     let near = 1e9, loud = null;
     for (const t of this.list) {
-      if (!t.on) { t.wait -= dt; if (t.wait <= 0 && !P.racing) this.depart(this.list.indexOf(t)); if (!t.on) continue; }
+      if (!t.on) { t.wait -= dt; if (t.wait <= 0) this.depart(this.list.indexOf(t)); if (!t.on) continue; }
       // Slower at the town end, where the platforms are.
       const want = 8 + 4 * Math.max(0, Math.min(1, (t.head - this.zA) / (this.zB - this.zA)));
       t.v += Math.max(-6 * dt, Math.min(1.6 * dt, want - t.v));

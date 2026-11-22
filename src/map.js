@@ -645,6 +645,25 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       c.closePath(); c.fillStyle = '#ffd25e'; c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 2; c.fill(); c.stroke(); c.restore();
     }
   }
+  // The races come across so far (G.raceIcons, src/racespots.js): a little chequered flag on each start line, gold once
+  // its rival is beaten, and on the big map the best time beside it.
+  const lapTime = t => `${Math.floor(t / 60)}:${(t % 60 < 10 ? '0' : '') + (t % 60).toFixed(2)}`;
+  function drawRaces(c, ly, px, big) {
+    for (const r of G.raceIcons ? G.raceIcons() : []) {
+      if (Math.abs(r.y - ly) > 2.4) continue;
+      const gold = r.won ? '#ffd25e' : '#f1ecdf';
+      c.save(); c.translate(r.x, r.z); c.scale(px, px);
+      c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 4; c.beginPath(); c.moveTo(-6, 9); c.lineTo(-6, -12); c.stroke();
+      c.strokeStyle = gold; c.lineWidth = 2; c.beginPath(); c.moveTo(-6, 9); c.lineTo(-6, -12); c.stroke();
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) { c.fillStyle = (i + j) % 2 ? gold : '#111'; c.fillRect(-5 + i * 4, -12 + j * 4, 4, 4); }
+      c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 1; c.strokeRect(-5, -12, 12, 8);
+      if (big) {
+        const text = r.best ? `${r.name} \u00b7 ${lapTime(r.best)}` : r.name;
+        c.font = `700 11px ${MONO}`; c.textAlign = 'left'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.85)'; c.strokeText(text, 10, -8); c.fillStyle = gold; c.fillText(text, 10, -8);
+      }
+      c.restore();
+    }
+  }
   // Marks other parts of the game ask for (G.mapMarks: [{ x, y, z, colour, ring }]).
   function drawMarks(c, ly, px, t) {
     for (const m of G.mapMarks || []) {
@@ -776,7 +795,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     { const k = levelPicture(ly); c.imageSmoothingEnabled = true; c.drawImage(k.canvas, k.x0, k.z0, k.canvas.width / k.ppm, k.canvas.height / k.ppm); }
     c.strokeStyle = 'rgba(255,140,60,.95)'; c.lineWidth = 2.5 / s;
     for (const L of G.plan.loops) { c.beginPath(); c.arc(L.x, L.z, 5.5 / s, 0, TAU); c.stroke(); }
-    if (G.mode === 'race' && G.race && G.race.active) {
+    if (G.racing) {
       const Rc = G.race;
       c.strokeStyle = 'rgba(127,233,245,.6)'; c.lineWidth = 2 / s; c.beginPath();
       Rc.route.pts.forEach((p, i) => (i % 4 === 0) && (i ? c.lineTo(p.x, p.z) : c.moveTo(p.x, p.z)));
@@ -785,6 +804,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     }
     drawPath(c, ly, 1 / s, t);
     drawMarks(c, ly, 1 / s, t);
+    drawRaces(c, ly, 1 / s, false);
     c.restore();
     if (!G.roomId && Math.abs(ly) < 1) { c.save(); c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.clip(); radarNames(c, v, R, s); c.restore(); }      // out of doors, the streets' names
     // Whatever is off the edge is pinned to the rim: the next turn of the route, the race's next gate.
@@ -800,7 +820,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       pts.forEach((p, i) => { const d = Math.hypot(p.x - v.pos.x, p.z - v.pos.z) + Math.abs(p.y - v.pos.y) * 3; if (d < nd) { nd = d; near = i; } });
       const far = !pts.length ? state.target : pts.slice(near).find(p => Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > (R - 12) / s) || state.target; rim(far.x, far.z, '#7fe9f5');
     }
-    if (G.mode === 'race' && G.race && G.race.active) { const g = G.race.gates[G.race.next]; if (g) rim(g.x, g.z, '#7fe9f5'); }
+    if (G.racing) { const g = G.race.gates[G.race.next]; if (g) rim(g.x, g.z, '#7fe9f5'); }
     for (const m of G.mapMarks || []) rim(m.x, m.z, m.colour || '#ff5a4d');
     // North, on the rim.
     { const a = v.yaw - Math.PI, nx = Math.sin(a) * (R - 13), ny = -Math.cos(a) * (R - 13); c.fillStyle = 'rgba(226,205,148,.95)'; c.font = '700 15px ui-monospace, Menlo, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('N', R + nx, R + ny); }
@@ -848,6 +868,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     drawPath(c, ly, 1 / s, t);
     drawMarks(c, ly, 1 / s, t);
     drawFound(c, ly, dpr / s);
+    drawRaces(c, ly, dpr / s, true);
     if (here) drawYou(c, v.pos.x, v.pos.z, v.yaw, dpr / s);
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (here) drawHere(c, v.pos.x, v.pos.z);

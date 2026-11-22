@@ -149,9 +149,9 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 
 /* -------------------------------------------------------------- screens */
 .screen { position: fixed; inset: 0; display: flex; padding: 24px max(24px, 6vw); background: linear-gradient(90deg, rgba(4,5,9,.9) 0%, rgba(4,5,9,.62) 46%, rgba(4,5,9,0) 78%); overflow: auto; }
-#pause, #results, #notebook { justify-content: center; background: rgba(4,5,9,.74); backdrop-filter: blur(5px); }
+#pause, #notebook { justify-content: center; background: rgba(4,5,9,.74); backdrop-filter: blur(5px); }
 .panel { max-width: 580px; margin: auto 0; }
-#pause .panel, #results .panel, #notebook .panel { margin: auto; }
+#pause .panel, #notebook .panel { margin: auto; }
 .panel.small { max-width: 380px; width: 100%; text-align: center; }
 .panel.wide { max-width: 900px; width: 100%; text-align: center; max-height: 100%; }
 /* the small Moon beside the title, once the finale is done (main.js, voyageFinished()) */
@@ -529,3 +529,16 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 
 #paLine .alltime { font-size: .72em; font-style: normal; color: var(--gilt-dim); letter-spacing: .04em; }
 #title .sel .hint[hidden] { display: none; }
+
+/* The card at the end of a race you found in the building (src/racespots.js), and for what a rival leaves behind. */
+#raceCard { position: fixed; top: calc(env(safe-area-inset-top) + 16%); left: 50%; transform: translateX(-50%); min-width: min(320px, 86vw); max-width: 92vw; padding: 12px 20px 14px; border-radius: 10px; background: rgba(8,9,14,.82); border: 1px solid rgba(226,205,148,.55); color: var(--cream, #f1ead8); text-align: center; pointer-events: none; z-index: 31; font-family: var(--mono, ui-monospace, monospace); }
+#raceCard[hidden] { display: none; }
+#raceCard.on { animation: raceCardIn .35s ease-out; }
+#raceCard .o { font-size: 12px; letter-spacing: .16em; color: var(--gilt, #e2cd94); }
+#raceCard .h { font-size: 30px; font-weight: 700; letter-spacing: .06em; margin: 2px 0; }
+#raceCard .t { font-size: 14px; letter-spacing: .06em; color: var(--lcd, #9fe6a0); }
+#raceCard .q { font: italic 15px/1.35 var(--serif, Georgia, serif); margin-top: 6px; color: #d8d2c2; }
+#raceCard .q:empty { display: none; }
+@keyframes raceCardIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.reduce #raceCard.on { animation: none; }
+@media (max-height: 520px) { #raceCard { top: calc(env(safe-area-inset-top) + 10%); padding: 8px 14px 9px; } #raceCard .h { font-size: 22px; } #raceCard .q { font-size: 13px; } }

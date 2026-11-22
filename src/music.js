@@ -46,7 +46,7 @@ feature({
     const G = k.G, s = k.sound;
     if (!s || !s.ctx || s.ctx.state !== 'running' || !s.musicOn || G.set.gallerymusic === false) return null;
     if (G.state !== 'play' && G.state !== 'study') return null;
-    if (G.mode === 'race' || k.plan.racing) return null;
+    if (G.racing) return null;
     const key = themeFor(k.room);
     if (key === 'cancan' && G.musicBusy) return null;               // the room's own can-can is on: let it have the floor
     return key;

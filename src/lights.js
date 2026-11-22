@@ -347,9 +347,9 @@ export class Lights {
   }
 
   // The start of a game, after the museum has been put to sleep: every room as it was left.
-  begin(mode) {
+  begin() {
     const m = this.museum;
-    this.active = mode !== 'race';
+    this.active = true;
     this.anims.clear();
     this.lum.fill(0); this.tex.needsUpdate = true;
     // A gallery lights itself the first time you drive in, lamp by lamp, with its chime: that is the best thing in the building and no switch stands in its way.

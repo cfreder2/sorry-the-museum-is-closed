@@ -88,7 +88,7 @@ export function moonPlan(nArts = 12) {
     made: 'moon', moon: true,
     rooms: [], floors: [], surfaces: [], roofs: null, boxes: [], masses: [], obstacles: [], doors: [], skylights: [], slabs: [],
     wells: [], pits: [{ x0: -1e5, x1: 1e5, z0: -1e5, z1: 1e5 }], paved: [], ice: [], decals: [], puddles: [], loops: [], lifts: [], ramps: [],
-    street: null, cut: null, allow: [], byId: {}, racing: false, under: null, locked: false, secretOpen: true, grounds: {}, outdoorArt: [], lamps: [],
+    street: null, cut: null, allow: [], byId: {}, under: null, locked: false, secretOpen: true, grounds: {}, outdoorArt: [], lamps: [],
     bounds: { x0: -B, x1: B, z0: -B, z1: B },
   };
   // the ground: one hill, everywhere

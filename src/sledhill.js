@@ -157,7 +157,7 @@ feature({
     return { pitch, side };
   },
   near(v, k) {
-    if (!this.L || k.G.mode !== 'explore' || k.plan.racing) return null;
+    if (!this.L || k.G.racing) return null;
     if (this.riding) return { verb: 'OFF', hint: '', act: () => this._off('') };
     if (k.close(this.gate, 1.8, 1.2) && (v.kind === 'car' || v.kind === 'drone')) return { verb: 'SLED', hint: 'E to sled.', act: () => this._on() };
     return null;

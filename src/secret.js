@@ -102,7 +102,7 @@ export class Secret {
     const p = a.mesh.localToWorld(this.v3.set(u - 0.5, 0.5 - v, 0)).project(this.G.camera);
     return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
   }
-  get live() { const G = this.G; return this.enabled && G.state === 'study' && G.mode !== 'race' && G.study && G.study.art === this.clue.art; }
+  get live() { const G = this.G; return this.enabled && G.state === 'study' && !G.racing && G.study && G.study.art === this.clue.art; }
   // True while a finger is down on the picture and has not moved: main.js does not take that for a push on the stick.
   get tapping() { return !!this.tap || this.t < this.tapUntil; }
   _down(e) {
@@ -241,7 +241,7 @@ export class Secret {
   // Is this toy close enough to the pedestal to take what is on it?
   nearUfo(v) {
     const u = this.ufoAt;
-    if (!u || !this.open || this.taken || this.G.mode === 'race') return false;
+    if (!u || !this.open || this.taken || this.G.racing) return false;
     return Math.hypot(v.pos.x - u.x, v.pos.z - u.z) < 2.3 && v.pos.y > this.centre.y - 0.5 && v.pos.y < this.centre.y + 3.2;
   }
   take() {

@@ -1597,7 +1597,6 @@ export class Museum {
     this._kit(this.plan.surfaces.filter(s => !s.line && !s.fixed), this.kit, true);
     this._kit(this.plan.surfaces.filter(s => s.line), this.kitLine, false);
   }
-  setRace(on) { this.kit.visible = !on; }
 
   _kit(surfaces, group, extras) {
     const { plan } = this;

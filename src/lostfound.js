@@ -109,7 +109,7 @@ feature({
     for (const m of this.meshes) m.instanceMatrix.needsUpdate = true;
   },
 
-  active(k) { return k.G.mode !== 'race' && !k.plan.racing; },
+  active(k) { return !k.G.racing; },
   update(dt, k) {
     if (!this.placed) this.place();
     const p = k.pos;

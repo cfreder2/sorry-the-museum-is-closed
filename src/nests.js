@@ -381,7 +381,7 @@ feature({
   },
 
   near(veh, k) {
-    if (k.G.mode === 'race') return null;
+    if (k.G.racing) return null;
     const p = k.pos;
     for (const v of this.list) {
       const n = v.n;
@@ -408,7 +408,7 @@ feature({
     return null;
   },
 
-  active(k) { return k.G.mode !== 'race' && !k.plan.racing; },
+  active(k) { return !k.G.racing; },
   update(dt, k) {
     this.t += dt;
     const p = k.pos, pulse = 0.5 + 0.5 * Math.sin(this.t * 2.2);
