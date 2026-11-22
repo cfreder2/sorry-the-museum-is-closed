@@ -2,13 +2,14 @@
 // The north-west quarter, facing the Modern Wing across Columbus Drive, is the Winter Wonderland light show and its
 // Light Run (lightshow.js). The north-east is a jump park made of the ploughs' snow piles. The south-east has the field's
 // softball diamonds, under snow, with their backstops and benches; the first of them is the ballpark (ballpark.js), lit
-// and walled, with its own scoreboard. Lamps, benches and bins along the paths, and a warming hut. Everything is merged or instanced; the lights twinkle in a shader.
+// and walled, with its own scoreboard. Lamps, benches and bins along the paths, and a warming hut (warminghut.js). Everything is merged or instanced; the lights twinkle in a shader.
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { heightOf } from './plan.js';
 import { TAU, C, Bulbs, Wire, canvasTex, lit, signBoard, mergeAll } from './glowkit.js';
 import { ParkFurniture } from './streetscape.js';
 import './ballpark.js';           // the north-west diamond is a lit ballpark with a wall and a Home Run Derby (ballpark.js)
+import './warminghut.js';         // the warming hut by Jackson Drive, between the two southern diamonds: drive in and warm up (warminghut.js)
 
 // ---------------------------------------------------------------- the feature
 feature({
@@ -166,7 +167,7 @@ feature({
   },
 
   // ============================================================ along the paths
-  // Park lamps down both sides of the paths, benches and bins between them, the field's sign and a warming hut.
+  // Park lamps down both sides of the paths, benches and bins between them, and the field's sign.
   _paths(k) {
     const O = k.plan.obstacles, g = this.g, B = this.bulbs, F = this.F;
     const lamps = [];
@@ -198,22 +199,7 @@ feature({
     // the field's own sign, where the paths cross
     { const s = signBoard(2.6, 0.9, [['BUTLER FIELD', 92, '#f4ecd0', 0.42], ['GRANT PARK', 40, '#b9d9b0', 0.76]], '#12301e'); s.position.set(391.5, 1.5, 106); s.rotation.y = Math.PI / 4; g.add(s);
       for (const d of [-1.1, 1.1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2, 6), lit(0x1c2126)); p.position.set(391.5 + d * 0.707, 1.0, 106 - d * 0.707); g.add(p); } O.push({ x0: 390.5, x1: 392.5, z0: 105, z1: 107, y0: 0, y1: 2 }); }
-    // the warming hut between the two southern diamonds: boards, a lit window, a stovepipe, and lights under its eaves
-    {
-      const hx = 430.5, hz = 238, hut = new THREE.Group(); hut.position.set(hx, 0, hz); g.add(hut);
-      const boards = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#5a3a24'; c.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 16) { c.fillStyle = `rgba(0,0,0,${0.2 + Math.random() * 0.15})`; c.fillRect(x, 0, 2, h); c.fillStyle = `rgba(255,220,180,${Math.random() * 0.08})`; c.fillRect(x + 2, 0, 14, h); } });
-      boards.wrapS = boards.wrapT = THREE.RepeatWrapping; boards.repeat.set(2, 1);
-      const bm = new THREE.MeshStandardMaterial({ map: boards, roughness: 0.85, emissive: 0xffffff, emissiveMap: boards, emissiveIntensity: 0.22 });
-      const body = new THREE.Mesh(new THREE.BoxGeometry(5, 2.6, 3.4), bm); body.position.y = 1.3; hut.add(body);
-      const roofG = new THREE.BufferGeometry().setFromPoints([[-2.8, 2.6, -1.95], [2.8, 2.6, -1.95], [0, 3.6, -1.95], [-2.8, 2.6, 1.95], [2.8, 2.6, 1.95], [0, 3.6, 1.95]].map(p => new THREE.Vector3(...p).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)));
-      roofG.setIndex([0, 2, 1, 3, 4, 5, 0, 3, 5, 0, 5, 2, 1, 2, 5, 1, 5, 4]); roofG.computeVertexNormals(); hut.add(new THREE.Mesh(roofG, lit(0xeef3f8, { side: THREE.DoubleSide })));
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.7), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.6, 0.7) })); win.position.set(0.9, 1.5, -1.71); win.rotation.y = Math.PI; hut.add(win);
-      const door = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.9), lit(0x3a2414)); door.position.set(-1.2, 0.95, -1.71); door.rotation.y = Math.PI; hut.add(door);
-      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 8), lit(0x2a2a2a)); pipe.position.set(1.4, 3.6, 0.6); hut.add(pipe);
-      for (let i = 0; i <= 26; i++) { const t = i / 26, x = hx - 2.8 + t * 5.6, sag = Math.sin(t * Math.PI * 4) * 0.06; B.add(x, 2.55 - Math.abs(sag), hz - 1.95, [C.red, C.green, C.gold, C.blue][i % 4], i * 0.4, 0, 0.06); }
-      const sign = signBoard(2.2, 0.55, [['WARMING HUT', 70, '#ffe7b8', 0.55]], '#2a1408'); sign.position.set(hx, 2.95, hz - 1.97); sign.rotation.y = Math.PI; g.add(sign);
-      O.push({ x0: hx - 2.5, x1: hx + 2.5, z0: hz - 1.7, z1: hz + 1.7, y0: 0, y1: 3.6 });
-    }
+    // (the warming hut between the two southern diamonds is warminghut.js)
   },
 
   // ============================================================ play
