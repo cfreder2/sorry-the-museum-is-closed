@@ -121,7 +121,7 @@ feature({
   // ============================================================ the shell
   _venue(k) {
     const sh = this.sh, h = sh.h, cx = sh.cx, g = this.g, U = this.U, S = 64, r0 = rnd(7);
-    const PANEL = [0.9, 0.92, 0.96], RIB = [0.36, 0.4, 0.5], BACK = [0.16, 0.17, 0.21], PAINT = [0.72, 0.73, 0.74], SNOW = [0.93, 0.96, 1.0], FRAME = [0.26, 0.29, 0.36];
+    const PANEL = [0.9, 0.92, 0.96], RIB = [0.36, 0.4, 0.5], BACK = [0.16, 0.17, 0.21], PAINT = [0.62, 0.64, 0.68], SNOW = [1.0, 1.0, 1.0], FRAME = [0.4, 0.44, 0.52];
     // An arch as a line of points, its feet run down to the ground (inside the deck that is hidden).
     const prof = (r, out) => { const pts = []; for (let j = 0; j <= S; j++) pts.push(shellArch(sh, r, j / S, out)); pts.unshift([pts[0][0], -h]); pts.push([pts[pts.length - 1][0], -h]); return pts; };
     const norms = pts => pts.map((p, j) => { const a = pts[Math.max(0, j - 1)], b = pts[Math.min(pts.length - 1, j + 1)], tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1; return [ty / l, -tx / l]; });      // pointing inwards
@@ -168,7 +168,8 @@ feature({
           float rays = pow(0.5 + 0.5 * cos(ang * 9.0 - uT * mix(0.2, 1.4, live)), 10.0) * (0.25 + 0.75 * live);
           totalEmissiveRadiance += (wa * (up * (0.5 + 0.45 * uKick * live) + rays * 0.9) + vec3(1.2) * uFlash) * diffuseColor.rgb * 0.42; }`);
     };
-    const shellOut = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.1, emissive: 0x3e4558, emissiveIntensity: 0.6 });
+    const shellOut = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.1, emissive: 0x4a5268, emissiveIntensity: 0.75 });
+    shellOut.onBeforeCompile = s => { s.fragmentShader = s.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance *= vColor.rgb * vColor.rgb * 1.35;'); };      // (the snow glows whiter than the paint)
     g.add(inner.mesh(wash), outer.mesh(shellOut));
 
     // ---- snow along the crowns: a rounded lip on each arch's front edge, and icicles off the front frame
@@ -198,7 +199,7 @@ feature({
       Object.assign(s.uniforms, { uT: U.uT, uKick: U.uKick, uLevel: U.uLevel, uPal: U.uPal, uCx: { value: cx }, uZ: { value: sh.z0 } });
       s.vertexShader = 'varying vec3 vWp;\n' + s.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       s.fragmentShader = 'uniform float uT, uKick, uLevel, uCx, uZ; uniform vec3 uPal[3]; varying vec3 vWp;\n' + PAL + s.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        totalEmissiveRadiance += pal(0.5 + (vWp.x - uCx) / 14.0 * 0.45 + uT * 0.012) * (0.035 + 0.05 * clamp((vWp.z - uZ) / 12.0, 0.0, 1.0)) * (1.0 + uKick * uLevel) * (0.4 + diffuseColor.r * 2.0);`);
+        totalEmissiveRadiance += pal(0.5 + (vWp.x - uCx) / 14.0 * 0.45 + uT * 0.012) * (0.02 + 0.03 * clamp((vWp.z - uZ) / 12.0, 0.0, 1.0)) * (1.0 + uKick * uLevel) * (0.4 + diffuseColor.r * 2.0);`);
     };
     const fasT = tex(128, 128, (c, w) => { c.fillStyle = '#20232b'; c.fillRect(0, 0, w, w); for (let x = 0; x < w; x += 16) { c.fillStyle = '#2c3039'; c.fillRect(x + 2, 0, 11, w); c.fillStyle = 'rgba(255,255,255,0.05)'; c.fillRect(x + 2, 0, 2, w); } });
     const fasM = new THREE.MeshStandardMaterial({ map: fasT, roughness: 0.6, metalness: 0.3, emissive: 0x1a1d26, emissiveIntensity: 0.8 });
@@ -221,9 +222,14 @@ feature({
     // ---- the backstage block, the speaker stacks, the truss, the cans
     const dark = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.55, metalness: 0.3, emissive: 0x0b0d12, emissiveIntensity: 1 });
     const metal = new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: 0.35, metalness: 0.8, emissive: 0x3a4250, emissiveIntensity: 0.6 });
-    const brick = new THREE.MeshStandardMaterial({ color: 0x4a4f5c, roughness: 0.9, emissive: 0x1e222c, emissiveIntensity: 0.8 });
+    const brickT = tex(256, 128, (c, w, hh) => { c.fillStyle = '#5a5250'; c.fillRect(0, 0, w, hh); for (let y = 0; y < hh; y += 16) for (let x = (y / 16) % 2 ? -16 : 0; x < w; x += 32) { const v = 70 + Math.floor(r0() * 30); c.fillStyle = `rgb(${v + 22},${v + 6},${v})`; c.fillRect(x + 1, y + 1, 30, 14); } });
+    brickT.repeat.set(8, 3);
+    const brick = new THREE.MeshStandardMaterial({ map: brickT, roughness: 0.9, emissiveMap: brickT, emissive: 0x6a5e5c, emissiveIntensity: 0.6 });
     const Pp = k.parts(), box = (mat, x0, x1, y0, y1, z0, z1) => Pp.add(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-    { const q = sh.back; box(brick, q.x0, q.x1, 0, q.h - 0.08, q.z0, q.z1); box(snowM, q.x0 - 0.05, q.x1 + 0.05, q.h - 0.08, q.h, q.z0 - 0.05, q.z1 + 0.05); box(dark, cx + 5, cx + 6.4, 0, 2.2, q.z1, q.z1 + 0.04); }
+    { const q = sh.back; box(brick, q.x0, q.x1, 0, q.h - 0.08, q.z0, q.z1); box(snowM, q.x0 - 0.05, q.x1 + 0.05, q.h - 0.08, q.h, q.z0 - 0.05, q.z1 + 0.05);
+      box(dark, q.x0 - 0.04, q.x1 + 0.04, q.h - 0.38, q.h - 0.08, q.z0 - 0.04, q.z1 + 0.04);                     // a coping round the top
+      for (const x of [cx - 6, cx + 5.7]) { box(metal, x - 0.75, x + 0.75, 0, 2.3, q.z1, q.z1 + 0.05); box(dark, x - 0.68, x + 0.68, 0, 2.22, q.z1 + 0.05, q.z1 + 0.07); }      // two doors, a frame round each
+      for (const x of [cx - 6, cx + 5.7]) Pp.add(new THREE.SphereGeometry(0.11, 10, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 2.2, 1.2) }), x, 2.62, q.z1 + 0.16); }
     const grilleT = tex(128, 128, (c, w) => { c.fillStyle = '#0c0d10'; c.fillRect(0, 0, w, w); c.fillStyle = '#23262d'; for (let y = 2; y < w; y += 5) for (let x = (y % 10 ? 2 : 4.5); x < w; x += 5) c.fillRect(x, y, 2.2, 2.2); });
     const grille = new THREE.MeshStandardMaterial({ map: grilleT, roughness: 0.8, emissive: 0x0a0b0e, emissiveIntensity: 1 });
     const strips = this.strips = new Strips(); this.cones = [];
@@ -286,7 +292,7 @@ feature({
           else if (g < 2.5) { float run = pow(fract(u * 4.0 - uT * 0.5 * (0.6 + live)), 5.0); c = pal(0.15 + uT * 0.03) * (0.3 + 1.8 * run); }
           else if (g < 3.5) { float run = pow(0.5 + 0.5 * sin(u * 40.0 + uT * sp * 1.5), 6.0); c = pal(u * 0.7 + 0.33) * (0.3 + 0.7 * live + 1.3 * run * live) + vec3(1.0) * uKick * live * 0.5; }
           else if (g < 4.5) { c = vec3(1.0, 1.05, 1.2) * (0.75 + 0.15 * sin(uT * 1.2 + k)); }
-          else { c = pal(k * 0.3 + 0.5) * (0.18 + 1.4 * uKick * (0.15 + 0.85 * live)); }
+          else { c = pal(k * 0.3 + 0.5) * (0.07 + 0.9 * uKick * uKick * live); }
           gl_FragColor = vec4(c + vec3(2.0) * uFlash, 1.0);
         }`,
     });
@@ -590,25 +596,27 @@ feature({
       break;
     }
   },
-  // Arrows on the glass, for a phone held sideways: four buttons in a diamond under the right thumb, and a cross to leave.
+  // Arrows on the glass, for a phone held sideways: four buttons in the order of the lanes, the left two under the left
+  // thumb and the right two under the right (where JUMP was: it is put away meanwhile), and a cross to leave.
   _ui(on) {
     const touch = document.body.classList.contains('touch');
     if (!this.tui && on && touch) {
-      const d = this.tui = document.createElement('div');
-      d.style.cssText = 'position:fixed;right:calc(env(safe-area-inset-right) + 18px);bottom:calc(env(safe-area-inset-bottom) + 18px);width:204px;height:204px;z-index:45;touch-action:none;-webkit-user-select:none;user-select:none';
-      const mk = (txt, x, y, s, fn, col) => {
+      const d = this.tui = document.createElement('div'); d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:45';
+      const mk = (txt, side, off, bottom, s, fn, col) => {
         const b = document.createElement('div'); b.textContent = txt;
-        b.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${s}px;height:${s}px;line-height:${s}px;text-align:center;border-radius:16px;border:2px solid ${col};background:rgba(10,14,24,.55);color:${col};font:700 ${Math.round(s * 0.46)}px system-ui,sans-serif;box-shadow:0 0 14px ${col}55`;
-        b.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); fn(e); b.style.background = 'rgba(255,255,255,.28)'; setTimeout(() => { b.style.background = 'rgba(10,14,24,.55)'; }, 110); }, { passive: false });
+        b.style.cssText = `position:absolute;${side}:calc(max(20px, env(safe-area-inset-${side})) + ${off}px);bottom:calc(max(26px, env(safe-area-inset-bottom)) + ${bottom}px);width:${s}px;height:${s}px;line-height:${s}px;text-align:center;border-radius:16px;border:2px solid ${col};background:rgba(10,14,24,.55);color:${col};font:700 ${Math.round(s * 0.44)}px system-ui,sans-serif;box-shadow:0 0 14px ${col}55;pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none`;
+        b.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); fn(e); b.style.background = 'rgba(255,255,255,.3)'; setTimeout(() => { b.style.background = 'rgba(10,14,24,.55)'; }, 110); }, { passive: false });
         b.addEventListener('mousedown', e => { fn(e); });
         d.append(b);
       };
       const lane = l => e => this._press(l, this._clock(e.timeStamp || performance.now()));
-      mk('▲', 70, 0, 64, lane(2), LANE_CSS[2]); mk('◀', 0, 70, 64, lane(0), LANE_CSS[0]); mk('▶', 140, 70, 64, lane(3), LANE_CSS[3]); mk('▼', 70, 140, 64, lane(1), LANE_CSS[1]);
-      mk('✕', 4, 4, 40, () => { if (this.mode === 'play') this._stop(''); else { this._leave(); this._drawIdle(); } }, '#c8d0e0');
+      mk('\u25C0', 'left', 0, 0, 60, lane(0), LANE_CSS[0]); mk('\u25BC', 'left', 68, 0, 60, lane(1), LANE_CSS[1]);
+      mk('\u25B2', 'right', 68, 0, 60, lane(2), LANE_CSS[2]); mk('\u25B6', 'right', 0, 0, 60, lane(3), LANE_CSS[3]);
+      mk('\u2715', 'left', 0, 78, 42, () => { if (this.mode === 'play') this._stop(''); else { this._leave(); this._drawIdle(); } }, '#c8d0e0');
       document.body.append(d);
     }
     if (this.tui) this.tui.style.display = on && touch ? 'block' : 'none';
+    const jump = document.getElementById('bJump'); if (jump && touch) jump.style.visibility = on ? 'hidden' : '';
   },
 
   // ============================================================ every frame
