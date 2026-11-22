@@ -219,9 +219,13 @@ export function buildBridgeway(museum, plan) {
     }
     // The glass is solid, as drawn: the screen on the street sides, the clear rail on the others, with the lift's doorway
     // left open. (Before, the toy drove straight through it and off the roof.)
-    { const th = 0.08, tall = py + ph + 0.4, low = py + 1.15;
-      for (const [p, q] of besideLift(px0, px1)) O.push({ x0: p, x1: q, z0: pz0 - th, z1: pz0, y0: py - 0.3, y1: tall });
-      O.push({ x0: px0 - th, x1: px0, z0: pz0 - th, z1: pz1 + th, y0: py - 0.3, y1: tall });
+    // The screen is as tall as its fins (they rise past the glass), and its top edge holds a toy that lands on it, as the
+    // clear rails' tops do: nothing up here can be jumped on and fallen through.
+    { const th = 0.08, tall = py + ph + 1.1, low = py + 1.15, RS = plan.roofs || plan.surfaces;
+      const top = (x0, x1, z0, z1, h) => RS.push({ skin: 'glass', x0, x1, z0, z1, axis: null, h0: h, h1: h, thick: h - py + 0.3, roof: true, fixed: true });
+      for (const [p, q] of besideLift(px0, px1)) { O.push({ x0: p, x1: q, z0: pz0 - th, z1: pz0, y0: py - 0.3, y1: tall }); top(p, q, pz0 - th, pz0, tall); }
+      O.push({ x0: px0 - th, x1: px0, z0: pz0 - th, z1: pz1 + th, y0: py - 0.3, y1: tall }); top(px0 - th, px0, pz0 - th, pz1 + th, tall);
+      top(px1, px1 + th, pz0 - th, pz1 + th, low); top(px0 - th, px1 + th, pz1, pz1 + th, low);
       O.push({ x0: px1, x1: px1 + th, z0: pz0 - th, z1: pz1 + th, y0: py - 0.3, y1: low });
       O.push({ x0: px0 - th, x1: px1 + th, z0: pz1, z1: pz1 + th, y0: py - 0.3, y1: low }); }
     for (let x = px0; x <= px1 + 0.01; x += (px1 - px0) / 6) rail.box(x - 0.03, x + 0.03, py, py + 1.2, pz1 - 0.03, pz1 + 0.03);
