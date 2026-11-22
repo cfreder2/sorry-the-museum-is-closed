@@ -157,6 +157,22 @@ export function winterTree() {
   return {
     wood, twigs,
     woodMat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0.035, 0.035, 0.045), emissiveIntensity: 1 }),
-    twigMat: new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.35, side: THREE.DoubleSide, color: new THREE.Color(0.8, 0.84, 0.98) }),
+    twigMat: (() => {
+      const m = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.35, side: THREE.DoubleSide, color: new THREE.Color(0.8, 0.84, 0.98) });
+      // Far off, the texture's smaller copies average the fine twigs away below the alpha test, and all that is left is
+      // a few white flecks hanging in the air where the crown should be. So the alpha is raised as the copy gets
+      // smaller: a distant crown stays a frosty mass of twigs, never a scatter of floating specks.
+      m.onBeforeCompile = sh => {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', `
+        #ifdef USE_MAP
+        { vec2 tc = vMapUv * vec2(1024.0, 512.0); vec2 ddx = dFdx(tc), ddy = dFdy(tc);
+          float lod = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
+          diffuseColor.a *= 1.0 + lod * 0.35; }
+        #endif
+        #include <alphatest_fragment>`);
+      };
+      m.customProgramCacheKey = () => 'twig-coverage';
+      return m;
+    })(),
   };
 }
