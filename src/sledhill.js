@@ -675,8 +675,9 @@ feature({
     const mat = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.32, 0.32, 0.34) }));
     const S = this.poleSeg = new THREE.InstancedMesh(seg, mat, n * NS); S.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const capG = new THREE.CylinderGeometry(1, 1, 1, 6); capG.translate(0, 0.5, 0);
-    const flag = new THREE.BufferGeometry(); flag.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0.5, 0, 0, 1, 0], 3));      // (one face, drawn both sides) flag.computeVertexNormals();
-    const capM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.4, 0.4, 0.4) })), flagM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.45, 0.45, 0.45), side: THREE.DoubleSide }));
+    // a pennant: a thin wedge of cloth
+    const flag = new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(1, 0.5), new THREE.Vector2(0, 1)]), { depth: 0.02, bevelEnabled: false }); flag.translate(0, 0, -0.01); flag.deleteAttribute('uv');
+    const capM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.4, 0.4, 0.4) })), flagM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.45, 0.45, 0.45) }));
     this.poleCap = new THREE.InstancedMesh(capG, capM, n); this.poleCap.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.poleFlag = new THREE.InstancedMesh(flag, flagM, Math.max(1, this.poles.filter(p => p.kind === 2).length)); this.poleFlag.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const white = new THREE.Color(0xf2eee4), redc = new THREE.Color(0xd8262a), tc = new THREE.Color();
@@ -991,7 +992,8 @@ feature({
     if (this.riding && S) { const nd = L.node(S.x, S.z); if (nd >= 0 && L.along[nd] >= 0) { ts = L.along[nd]; const r = lane(ts); to = -(S.x - r.x) * r.tz + (S.z - r.z) * r.tx; tv = Math.hypot(S.vx, S.vz); } }
     // its line: its lane, wobbling, and well clear of the toy when they are side by side
     let want = p.lane + Math.sin(p.t * 1.7 + p.i * 2) * 0.35;
-    if (Math.abs(ts - p.s) < 2.2 && Math.abs(to - want) < 1.1) want = to + (want >= to ? 1.1 : -1.1);
+    // (beside the toy, or behind it where the camera follows it, it keeps out of the toy's line)
+    if (p.s - ts < 2.2 && ts - p.s < 5 && Math.abs(to - want) < 1.3) want = to + (want >= to ? 1.3 : -1.3);
     want = Math.max(-RUN_W + 0.45, Math.min(RUN_W - 0.45, want));
     p.o += (want - p.o) * Math.min(1, dt * 2.2);
     for (let n = Math.max(1, Math.ceil(dt * 120)), i = 0; i < n; i++) {
@@ -1074,7 +1076,12 @@ feature({
       if (this.camYaw == null) this.camYaw = hd;
       let dy = hd - this.camYaw; while (dy > Math.PI) dy -= TAU; while (dy < -Math.PI) dy += TAU; this.camYaw += dy * Math.min(1, dt * 4.5);
       const fx = Math.sin(this.camYaw), fz = Math.cos(this.camYaw), back = 1.75 + Math.min(0.9, sp * 0.06), up = 0.6 + Math.min(0.35, sp * 0.025);
-      const cx = S.x - fx * back, cz = S.z - fz * back, cy = Math.max(S.y + up, this.L.heightAt(cx, cz) + 0.35);
+      const cx = S.x - fx * back, cz = S.z - fz * back;
+      // (clear of the snow all round it, not just under it: beside a banked wall the camera's near plane, 40 cm out,
+      // would cut into the snow and show the dark under the hill; and over a bank between it and the sled)
+      let cy = Math.max(S.y + up, this.L.heightAt(S.x - fx * back * 0.5, S.z - fz * back * 0.5) + 0.3);
+      for (let i = 0; i < 9; i++) { const a = i * TAU / 8, r = i < 8 ? 0.9 : 0; cy = Math.max(cy, this.L.heightAt(cx + Math.cos(a) * r, cz + Math.sin(a) * r) + (i < 8 ? 0.5 : 0.4)); }
+      for (const p of this.pens) if (p.state === 'slide' && Math.hypot(p.x - cx, p.z - cz) < 1.5) cy = Math.max(cy, p.y + 0.95);      // (and over a penguin coming up behind)
       const lead = r => { const h = Math.max(dt, 1e-3); return h / (1 - Math.exp(-r * h)); }, la = lead(6), lb = lead(14);
       k.camClose = { at: { x: cx + S.vx * la, y: cy + S.vy * la, z: cz + S.vz * la }, look: { x: S.x + fx * 2.4 + S.vx * lb, y: S.y + 0.28 + S.vy * lb, z: S.z + fz * 2.4 + S.vz * lb } };
     } else this.camYaw = null;
