@@ -485,11 +485,23 @@ export class Car {
 
     // Attitude: nose along the slope, or along the arc in the air.
     let want = this.air ? -Math.atan2(this.vy, Math.max(3, sp)) * 0.75 : -Math.atan2(this.vy, Math.max(0.6, Math.abs(vf))) * Math.sign(vf || 1);
+    // On the ground, the slope is read off the ground itself under the wheels, front to back and side to side: parked
+    // on a ramp (no climb to measure) the car still sits along it, and across a slope it leans with it instead of
+    // half sinking in. A step or an edge under one wheel (more than 20 cm off) is not a slope and is ignored.
+    let lean = 0;
+    if (!this.air && !this.rail) {
+      const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), Lw = 0.2, Ww = 0.14, x = this.pos.x, z = this.pos.z, y0 = this.pos.y;
+      const h = (dx, dz) => { const g = groundAt(this.plan, x + dx, z + dz, y0 + 0.25, STEP, this.on); return Math.abs(g - y0) < 0.2 ? g : y0; };
+      const hf = h(fx * Lw, fz * Lw), hb = h(-fx * Lw, -fz * Lw), hl = h(fz * Ww, -fx * Ww), hr = h(-fz * Ww, fx * Ww);
+      want = -Math.atan2(hf - hb, 2 * Lw);
+      lean = Math.max(-0.5, Math.min(0.5, Math.atan2(hl - hr, 2 * Ww)));
+    }
     if (this.air && this.vert) { const k = Math.min(1, this.vert.t / this.vert.T), e = k * k * (3 - 2 * k); want = this.vert.tilt0 + ((this.vert.spine ? 0.48 : 0.9) - this.vert.tilt0) * e; }       // nose down, to suit the slope it will meet
     let d = want - this.tilt; d = Math.atan2(Math.sin(d), Math.cos(d));
     if (!(this.air && inp.trick && Math.abs(th) > 0.2)) this.tilt += d * Math.min(1, dt * (this.air ? (this.vert ? 10 : 5) : 16));
     const latAcc = rate * vf;
     this.roll += (Math.max(-0.16, Math.min(0.16, latAcc * 0.012)) - this.roll) * Math.min(1, dt * 8);
+    this.lean = (this.lean || 0) + (lean - (this.lean || 0)) * Math.min(1, dt * 14);      // the whole car, wheels and all, leans with the ground
     this.pitch += (Math.max(-0.07, Math.min(0.07, -th * 0.05)) - this.pitch) * Math.min(1, dt * 6);
     this.squash = this.calm ? 0 : Math.max(0, this.squash - dt * 5);
     const under = this.plan.obstacles.some(o => o.bench && this.pos.y < o.y0 && this.pos.y > o.y0 - 0.6 && this.pos.x > o.x0 - 0.1 && this.pos.x < o.x1 + 0.1 && this.pos.z > o.z0 - 0.1 && this.pos.z < o.z1 + 0.1);
@@ -530,7 +542,7 @@ export class Car {
       this.vy = 0; this.tilt = 0; this.rail = null;
       this.looped = true;
     } else this.tilt = -s.th;
-    this.roll = 0; this.pitch = 0;
+    this.roll = 0; this.pitch = 0; this.lean = 0;
     this.sync(dt);
   }
 
@@ -539,6 +551,7 @@ export class Car {
     this.group.position.y -= this.squash * 0.018;
     this.group.rotation.y = this.yaw;
     this.group.rotation.x = this.tilt;
+    this.group.rotation.z = this.lean || 0;
     this.body.rotation.z = this.roll;
     this.body.rotation.x = this.pitch;
     this.aerial.rotation.z = this.aerialP.x;

@@ -59,6 +59,7 @@ import './sledhill.js';
 import './wingplay.js';
 import './rooftops.js';      // the roofs: snowman, vents, the snow wave, skylights, the run, chimneys, vane, telescope, stars, pigeons, kite, rink, bees, solar
 import './level3.js';
+import './fireworks.js';         // fireworks from the Modern Wing's roof terrace
 import './bridgeplay.js';      // the toy trick line down the Nichols Bridgeway: kickers, a loop, a launch off it, rings
 import './icefish.js';
 import './reading.js';
@@ -126,7 +127,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.21.35';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.21.38';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
@@ -504,8 +505,8 @@ function newGame() {
 function titleButtons() {
   const game = hasGame() && pick.mode === 'explore', m = G.museum;
   $('startLabel').textContent = game ? 'Continue' : 'Start';
-  // Your own tally lives here and nowhere else on this screen: looked at closely, and found, out of all on view.
-  $('startSub').textContent = game ? `${short(score.looked)} looked at \u00b7 ${short(m.seenCount)} of ${m.arts.length.toLocaleString()} found` : `${m.arts.length.toLocaleString()} works on view tonight`;
+  // Your own tally lives here and nowhere else on this screen: how many works you have stopped to look at.
+  $('startSub').textContent = game ? `Art viewed: ${score.looked.toLocaleString()}` : `${m.arts.length.toLocaleString()} works on view tonight`;
   $('bNew').hidden = !game;
 }
 
