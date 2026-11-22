@@ -290,7 +290,7 @@ feature({
         const sx = cx + Math.cos(a) * 0.66, sz = cz + Math.sin(a) * 0.66, sr = a + 0.4;
         sMats.push(M4(sx, py, sz, 0, sr));
         for (const [qx, qz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const lx = sx + (qx * Math.cos(sr) + qz * Math.sin(sr)) * SL, lz = sz + (-qx * Math.sin(sr) + qz * Math.cos(sr)) * SL; O.push({ x0: lx - 0.014, x1: lx + 0.014, z0: lz - 0.014, z1: lz + 0.014, y0: py, y1: py + SH - 0.05 }); }
-        roundTop(sx, sz, 0.177, SH, 0.07, 'bench');
+        roundTop(sx, sz, 0.187, SH, 0.07, 'bench');
         shadows.push([sx, sz, 0.55, 0.55]);
       }
       // on the cloth: two flutes and a candle in a glass, kept to one side; solid, as they stand
@@ -376,13 +376,14 @@ feature({
       const x = X(u), z = Z(w);
       P.add(box(0.3, 0.06, 0.3), colM, x, py + 0.03, z); P.add(box(0.24, 0.86, 0.24), colM, x, py + 0.49, z); P.add(box(0.3, 0.04, 0.3), colM, x, py + 0.94, z);
       P.add(lathe([[0.001, 0], [0.06, 0], [0.065, 0.02], [0.04, 0.05], [0.05, 0.08], [0.11, 0.2], [0.125, 0.25], [0.118, 0.26], [0.001, 0.25]], 24), brass, x, py + 0.96, z);
-      for (let i = 0; i < 34; i++) {
-        const a = rr() * 6.283, el = Math.acos(rr() * 0.9), rad = 0.19 + rr() * 0.05, bx = x + Math.cos(a) * Math.sin(el) * rad, by = py + 1.26 + Math.cos(el) * rad * 0.9, bz = z + Math.sin(a) * Math.sin(el) * rad;
-        blooms.push(M4(bx, by, bz, rr() * 3, rr() * 3, 0, 0.75 + rr() * 0.6)); bc.push(rr() < 0.55 ? 0xf8f6f0 : rr() < 0.6 ? 0xf2a6bc : 0xe87c9c);
+      // a big loose dome of blooms, white roses and pink peonies, over a collar of leaves and a few trailing sprays
+      for (let i = 0; i < 64; i++) {
+        const a = rr() * 6.283, el = Math.acos(0.05 + rr() * 0.95), rad = 0.3 + rr() * 0.05, bx = x + Math.cos(a) * Math.sin(el) * rad, by = py + 1.24 + Math.cos(el) * rad * 0.85, bz = z + Math.sin(a) * Math.sin(el) * rad;
+        blooms.push(M4(bx, by, bz, rr() * 3, rr() * 3, 0, 0.9 + rr() * 0.7)); bc.push(rr() < 0.5 ? 0xf8f6f0 : rr() < 0.6 ? 0xf2a6bc : 0xe0708f);
       }
-      for (let i = 0; i < 22; i++) { const a = rr() * 6.283, rad = 0.2 + rr() * 0.08; leaves.push(M4(x + Math.cos(a) * rad, py + 1.2 + rr() * 0.12, z + Math.sin(a) * rad, rr() - 0.5, -a, rr() * 0.6 - 0.3)); }
+      for (let i = 0; i < 40; i++) { const a = rr() * 6.283, rad = 0.26 + rr() * 0.12, dy = rr() * 0.2; leaves.push(M4(x + Math.cos(a) * rad, py + 1.2 + dy - (rad - 0.26) * 0.8, z + Math.sin(a) * rad, rr() - 0.5, -a, rr() * 0.8 - 0.2, 1 + rr() * 0.6)); }
       post(x - 0.15, x + 0.15, z - 0.15, z + 0.15, 0, 0.96);
-      post(x - 0.29, x + 0.29, z - 0.29, z + 0.29, 1.08, 1.52);
+      post(x - 0.4, x + 0.4, z - 0.4, z + 0.4, 1.08, 1.62);
       shadows.push([x, z, 0.75, 0.75]);
     }
     const bm = inst(bloomG, bloomM, blooms); bc.forEach((c, i) => bm.setColorAt(i, new THREE.Color(c))); bm.instanceColor.needsUpdate = true;

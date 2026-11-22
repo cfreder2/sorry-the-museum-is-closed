@@ -100,7 +100,7 @@ feature({
     const joint = new THREE.Vector3(cx + side * (RW / 2 + 0.08), y + 0.02, cz + RD / 2 + 0.05);
     P.add(new THREE.CylinderGeometry(0.005, 0.005, RD + 0.04, 5).rotateX(Math.PI / 2), fuseM, joint.x, y + 0.1, cz);
     P.add(B(0.05, 0.03, 0.04), red, joint.x, y + 0.025, joint.z);
-    const leadPts = [joint, new THREE.Vector3(joint.x + side * 0.25, y + 0.008, joint.z + 0.25), new THREE.Vector3(dx - side * 0.5, y + 0.008, dz - 0.25), new THREE.Vector3(dx - side * 0.25, y + 0.008, dz + 0.05), new THREE.Vector3(dx - side * 0.09, y + 0.19, dz - 0.04)];
+    const leadPts = [joint, new THREE.Vector3(joint.x + side * 0.25, y + 0.008, joint.z + 0.25), new THREE.Vector3(dx - side * 0.5, y + 0.008, dz - 0.25), new THREE.Vector3(dx - side * 0.24, y + 0.008, dz + 0.02), new THREE.Vector3(dx - side * 0.15, y + 0.03, dz - 0.03), new THREE.Vector3(dx - side * 0.136, y + 0.16, dz - 0.045), new THREE.Vector3(dx - side * 0.1, y + 0.225, dz - 0.05)];
     for (const [off, mat] of [[0.007, red], [-0.007, black]]) P.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(leadPts.map(p => p.clone().add(new THREE.Vector3(0, 0, off)))), 40, 0.006, 5), mat);
     // the warning sign, on a stake at the near corner
     const sx = cx - side * 0.15, sz = cz + RD / 2 + 0.55, st = signTex();
