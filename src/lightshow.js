@@ -572,13 +572,17 @@ feature({
     {
       const sx0 = 374, sx1 = 352, sz = 27, top = 3.4, hS = x => top * Math.pow((x - sx1) / (sx0 - sx1), 1.6);
       for (let x = sx1; x <= sx0; x += 0.25) for (const d of [-0.7, 0.7]) { B.add(x, hS(x) + 0.3, sz + d, C.ice, 1, -x * 0.5, 0, 0, 0.06); if (Math.round(x * 4) % 6 === 0) for (let y = hS(x) - 0.2; y > 0.15; y -= 0.4) B.add(x, y, sz + d, C.blue, 9, x * 0.13 % 1, 1 - y / top, 0, 0.04); }
+      const lip = x => 0.12 * Math.min(1, Math.max(0, (x - sx1) / 1.5));      // the chute's foot runs down to meet the snow
       const pos = [];
-      for (let i = 0; i < 40; i++) { const xa = sx1 + (sx0 - sx1) * i / 40, xb = sx1 + (sx0 - sx1) * (i + 1) / 40; for (const [x, z] of [[xa, sz - 0.65], [xb, sz - 0.65], [xb, sz + 0.65], [xa, sz - 0.65], [xb, sz + 0.65], [xa, sz + 0.65]]) pos.push(x, hS(x) + 0.12, z); }
+      for (let i = 0; i < 40; i++) { const xa = sx1 + (sx0 - sx1) * i / 40, xb = sx1 + (sx0 - sx1) * (i + 1) / 40; for (const [x, z] of [[xa, sz - 0.65], [xb, sz - 0.65], [xb, sz + 0.65], [xa, sz - 0.65], [xb, sz + 0.65], [xa, sz + 0.65]]) pos.push(x, hS(x) + lip(x), z); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.computeVertexNormals();
       const chute = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x9fd0ff, roughness: 0.15, metalness: 0.1, emissive: 0x3a7ac0, emissiveIntensity: 0.6, side: THREE.DoubleSide })); this.g.add(chute);
       W.stroke([[sx0, 0, sz - 0.7], [sx0, top + 0.3, sz - 0.7]], C.ice, null, 0.04); W.stroke([[sx0, 0, sz + 0.7], [sx0, top + 0.3, sz + 0.7]], C.ice, null, 0.04);
       for (let y = 0.3; y < top; y += 0.35) W.stroke([[sx0 + 0.1, y, sz - 0.7], [sx0 + 0.1, y, sz + 0.7]], C.white, null, 0.025);
-      for (let x = sx1; x < sx0; x += 4) this.O.push({ x0: x, x1: x + 4, z0: sz - 0.75, z1: sz + 0.75, y0: 0, y1: hS(x + 4) + 0.2 });
+      // Drive up it: the chute is ground, at exactly the height it is drawn (off the top, a drop by the ladder); its two
+      // rails of ice-blue bulbs are low walls along its sides.
+      this.k.plan.surfaces.push({ skin: 'ice', x0: sx1, x1: sx0, z0: sz - 0.65, z1: sz + 0.65, axis: null, fn: x => { const q = Math.max(sx1, Math.min(sx0, x)); return hS(q) + lip(q); }, h0: 0, h1: top + 0.12, base: 0, slide: true });
+      for (let x = sx1; x < sx0; x += 1) for (const [a, b] of [[sz - 0.75, sz - 0.65], [sz + 0.65, sz + 0.75]]) this.O.push({ x0: x, x1: x + 1, z0: a, z1: b, y0: 0, y1: hS(Math.min(sx0, x + 1)) + 0.34 });
       this.slide = { sx0, sx1, sz, hS, back: sz - 3.2 };
       this.penguins = Array.from({ length: 6 }, (_, i) => ({ grp: this._own(penguin(), 0, sx0, 0, sz, 0, 0.75), ph: i / 6 }));
       this.glow.push([(sx0 + sx1) / 2, sz, 9, C.ice, 0.12]);
