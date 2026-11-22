@@ -65,16 +65,16 @@ function profile(P, keys, win) {
 // The sled run: off the summit eastwards along the ridge, a banked hairpin right, a quarter left onto the south face,
 // and then the big one: a kicker at the brow throws you out over the steepest face on the hill (it is the landing, so
 // it is safe at any speed: slow, you come down early on it; fast, further down it), seven metres of drop to the foot,
-// a wide banked sweeper left, east through the tunnel in the drift, a little kicker and the finish.
+// a wide banked sweeper left, a straight to get it in hand, the tunnel through the drift and the finish.
 export const RUN_W = 2.3, RUN_LIP = 1.8;
 export const RUN_PARTS = [{ len: 14 }, { arc: Math.PI, r: 7 }, { len: 6 }, { arc: -Math.PI / 2, r: 7 }, { len: 26 }, { arc: -Math.PI / 2, r: 10 }, { len: 27 }];
 export const RUN_FROM = { x: 338, z: 143, heading: 0 };
 // [s, height]: the ridge (gentle), the brow, the face (the jump's landing), its foot, the sweeper, the tunnel and the finish.
-const RUN_KEYS = [[0, 12.4], [2.5, 12.4], [5, 12.25], [14, 11.2], [36, 10.15], [42, 9.9], [53, 9.3], [56, 9.15], [59.6, 8.95], [61, 8.65], [63, 8.05], [66, 6.6], [71, 3.6], [74, 2.6], [78, 2.25], [80.5, 2.2], [85, 2.15], [94.7, 1.95], [98, 1.85], [104.5, 1.72], [106.5, 1.66], [109.4, 1.5], [111, 1.4], [113.5, 0.5], [115.5, 0.06], [121.7, 0]];
-// The big kicker at the brow; the little one after the tunnel. `back`: how far its back falls away behind the lip.
-export const KICKERS = [{ s: 56.4, len: 3.2, up: 0.75, back: 1.2, big: true }, { s: 106.8, len: 2.2, up: 0.26, back: 0.9 }];
-export const FINISH_S = 113.5;
-export const TUNNEL = { s0: 98.8, s1: 103.8, half: 2.5, clear: 2.15, thick: 0.55, spread: 1.35 };      // along the run; half width of the bore; drift top over the floor; how short it is across the run
+const RUN_KEYS = [[0, 12.4], [2.5, 12.4], [5, 12.25], [14, 11.2], [36, 10.15], [42, 9.9], [53, 9.3], [56, 9.15], [59.6, 8.95], [61, 8.65], [63, 8.05], [66, 6.6], [71, 3.6], [74, 2.6], [78, 2.25], [80.5, 2.2], [85, 2.15], [94.7, 1.95], [98, 1.85], [104.5, 1.72], [109.4, 1.55], [112, 1.33], [115, 0.6], [117.5, 0.06], [121.7, 0]];
+// The big kicker at the brow. `back`: how far its back falls away behind the lip.
+export const KICKERS = [{ s: 56.4, len: 3.2, up: 0.75, back: 1.2, big: true }];
+export const FINISH_S = 114.5;
+export const TUNNEL = { s0: 104, s1: 109, half: 2.5, clear: 2.15, thick: 0.55, spread: 1.35 };      // along the run; half width of the bore; drift top over the floor; how short it is across the run
 // The path up: from the foot of the west side, north up the flank, round onto the summit.
 export const PATH_W = 1.4, PATH_LIP = 0.9;
 const PATH_PTS = [[323, 210.5], [319, 197], [316.5, 181], [316.5, 165], [318.5, 153], [322.5, 146.5], [327.5, 143.4]];

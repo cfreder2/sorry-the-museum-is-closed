@@ -6,7 +6,7 @@
 //
 // The sled run: a gate at the top, along the ridge, a banked hairpin right, a quarter left onto the south face, and the
 // big jump: a kicker at the brow throws you out over the steepest face on the hill, which is its landing. Then a wide
-// banked sweeper, the tunnel through a big drift, a little kicker and the finish, with a snow fence across the run-out.
+// banked sweeper, the tunnel through a big drift and the finish, with a snow fence across the run-out.
 // Bamboo stakes and marker poles line it: they bend when hit and spring back. The clock starts at the gate; under GOOD
 // seconds is one secret, beating a penguin to the bottom another: as you sit in the sled (and now and then on their
 // own) a penguin comes out of the shop, flops on its belly and races you down, over the jump and all.
@@ -21,6 +21,7 @@ import { Bulbs, Wire, canvasTex, C, TAU } from './glowkit.js';
 import { fitText, twoFaced, SERIF } from './textures.js';
 
 const GOOD = 14;                                // seconds, gate to finish
+const FOOT_MM = 0.008;                            // the hill is drawn where it stands more than this over the field (sledhill-ground)
 const DECK = 0.086;                               // the top of the sled's deck over the snow: the toy sits on it
 const AREA = { x0: 298, x1: 388, z0: 108, z1: 218 };
 
@@ -264,13 +265,14 @@ feature({
     const vert = n => {
       if (map[n] >= 0) return map[n];
       const i = n % W, j = (n - i) / W, x = x0 + i * step, z = z0 + j * step, y = h[n];
-      // (the field's snow is drawn 3 cm under the ground the wheels run on: at its foot the hill comes down to meet it)
-      map[n] = pos.length / 3; pos.push(x, y > 0.0005 ? y + 0.002 - 0.032 * (1 - Math.min(1, y / 0.15)) : -0.06, z); uv.push(x / 6, z / 6); uv1.push(i / nx, j / nz);
+      // (the field's snow is drawn 3 cm under the ground the wheels run on: at its foot the hill comes down to meet it;
+      // the last few millimetres of it are let go under the field's snow, rather than lie a hair's breadth over it)
+      map[n] = pos.length / 3; pos.push(x, y > FOOT_MM ? y + 0.002 - 0.032 * (1 - Math.min(1, y / 0.15)) : -0.06, z); uv.push(x / 6, z / 6); uv1.push(i / nx, j / nz);
       return map[n];
     };
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
       const a = j * W + i, b = a + 1, c = a + W, d = c + 1;
-      if (Math.max(h[a], h[b], h[c], h[d]) <= 0.0005) continue;
+      if (Math.max(h[a], h[b], h[c], h[d]) <= FOOT_MM) continue;
       const A = vert(a), Bv = vert(b), Cv = vert(c), D = vert(d);
       idx.push(A, Cv, Bv, Bv, Cv, D);            // (the same two triangles heightAt interpolates on)
     }
@@ -647,7 +649,7 @@ feature({
     this.poles = [];
     const pole = (x, z, kind, cap, bulb) => { const y = L.heightAt(x, z); this.poles.push({ x, y, z, kind, cap, bulb, th: 0, w: 0, dx: 1, dz: 0, cool: 0 }); };
     for (let s = 5; s < FINISH_S - 2; s += 7) for (const sd of [-1, 1]) {
-      const p = at(s), nx = -p.tz, nz = p.tx, d = (RUN_W + 0.9) * sd, x = p.x + nx * d, z = p.z + nz * d;
+      const p = at(s), nx = -p.tz, nz = p.tx, d = (RUN_W + 0.5) * sd, x = p.x + nx * d, z = p.z + nz * d;      // (at the foot of the lip, where a wide line catches them)
       if (s > TUNNEL.s0 - 6 && s < TUNNEL.s1 + 6) continue;
       if (KICKERS.some(q => s > q.s - 1 && s < q.s + q.len + 1.5)) continue;          // (not beside a kicker's lip: the jump poles are there)
       pole(x, z, 0, col(sd < 0 ? 0xd2482a : 0x2a6ad2), -1);
@@ -673,7 +675,7 @@ feature({
     const mat = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.32, 0.32, 0.34) }));
     const S = this.poleSeg = new THREE.InstancedMesh(seg, mat, n * NS); S.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const capG = new THREE.CylinderGeometry(1, 1, 1, 6); capG.translate(0, 0.5, 0);
-    const flag = new THREE.BufferGeometry(); flag.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0, 1, 0.5, 0, 0, 1, 0, 0, 0, 0, 1, 0.5, 0], 3)); flag.computeVertexNormals();
+    const flag = new THREE.BufferGeometry(); flag.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0.5, 0, 0, 1, 0], 3));      // (one face, drawn both sides) flag.computeVertexNormals();
     const capM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.4, 0.4, 0.4) })), flagM = glow(new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: new THREE.Color(0.45, 0.45, 0.45), side: THREE.DoubleSide }));
     this.poleCap = new THREE.InstancedMesh(capG, capM, n); this.poleCap.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.poleFlag = new THREE.InstancedMesh(flag, flagM, Math.max(1, this.poles.filter(p => p.kind === 2).length)); this.poleFlag.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -985,8 +987,8 @@ feature({
     const posAt = (s, o) => { const r = lane(s); return [r.x - r.tz * o, r.z + r.tx * o]; };
     const gAt = (s, o) => { const [x, z] = posAt(s, o); return hAt(x, z); };
     // where the toy is, along the run (to race it, and to keep out of its way)
-    let ts = -99, to = 0; const S = this.S;
-    if (this.riding && S) { const nd = L.node(S.x, S.z); if (nd >= 0 && L.along[nd] >= 0) { ts = L.along[nd]; const r = lane(ts); to = -(S.x - r.x) * r.tz + (S.z - r.z) * r.tx; } }
+    let ts = -99, to = 0, tv = 0; const S = this.S;
+    if (this.riding && S) { const nd = L.node(S.x, S.z); if (nd >= 0 && L.along[nd] >= 0) { ts = L.along[nd]; const r = lane(ts); to = -(S.x - r.x) * r.tz + (S.z - r.z) * r.tx; tv = Math.hypot(S.vx, S.vz); } }
     // its line: its lane, wobbling, and well clear of the toy when they are side by side
     let want = p.lane + Math.sin(p.t * 1.7 + p.i * 2) * 0.35;
     if (Math.abs(ts - p.s) < 2.2 && Math.abs(to - want) < 1.1) want = to + (want >= to ? 1.1 : -1.1);
@@ -997,7 +999,9 @@ feature({
       if (!p.air) {
         const sl = (gAt(p.s + 0.4, p.o) - gAt(p.s - 0.4, p.o)) / 0.8, q = 1 + sl * sl;
         let a = -K.fall * Gr * sl / q - (0.24 / Math.sqrt(q) + K.air * p.v * p.v) * Math.sign(p.v);
-        if (p.race === 'on' && ts > -50 && p.s < ts - 1.5 && ts < FINISH_S - 20) a += Math.min(2.4, 0.5 * (ts - p.s - 1.5));       // (catching up, all but the last stretch)
+        // (fallen behind the toy it is racing: it pushes on to close up, up to a little faster than the toy, never more;
+        // and not in the last stretch, which is a straight race)
+        if (p.race === 'on' && ts > -50 && p.s < ts - 1.5 && ts < FINISH_S - 20) a += Math.max(0, Math.min(3, (tv + Math.min(2.5, 0.35 * (ts - p.s)) - p.v) * 2));
         if (p.s > FINISH_S) a -= K.stop;
         p.v = Math.max(p.s < 4 ? 1.6 : 0, p.v + a * h);
         const y0 = p.y; p.s = Math.min(end, p.s + p.v * h);
