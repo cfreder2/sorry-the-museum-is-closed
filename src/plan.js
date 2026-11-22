@@ -16,6 +16,7 @@
 
 import LAYOUT from './layout.js';
 import { buildLand, landAt, FLAT as LIE_FLAT } from './land.js';
+import { harbourEdge } from './harbourplan.js';
 import { addFinale } from './finaleplan.js';
 
 export const T = 1;            // wall thickness, for the outside of a building
@@ -658,6 +659,7 @@ export function groundOpenings(plan) {
   for (const k of plan.ramps || []) if (Math.min(k.y0, k.y1) < -0.1 && Math.max(k.y0, k.y1) > -0.1) out.push(grow(k, 0.04));
   for (const k of plan.rooms) if (k.y < -0.5 && k.y + (k.ceil || k.h) > 0.1) out.push(grow(k, 0.04));
   if (plan.lakefront && plan.lakefront.window) out.push({ ...plan.lakefront.window });
+  if (plan.lakefront && plan.lakefront.water) out.push({ ...plan.lakefront.water });      // the open harbour, below the ice (harbourplan.js)
   if (plan.grounds && plan.grounds.silo && plan.finale) { const q = plan.grounds.silo; out.push({ x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1 }); }      // the silo in the ballfield: its doors lie over it (src/finaleplan.js)
   // overlapping holes do not triangulate: run any that touch into one
   for (let again = true; again;) {
@@ -1030,8 +1032,10 @@ function addLakefront(plan) {
   path({ x0: C.x1, x1: L.lsd.x0, z0: 110 - PW, z1: 110 + PW }); path({ x0: 387 - PW, x1: 387 + PW, z0, z1 });
   path({ x0: 328, x1: 387 - PW, z0: 214 - PW, z1: 214 + PW });                         // from the cross path to the band shell
   plan.paved.push({ x0: L.lsd.x0, x1: L.lsd.med[0], z0: B.z0, z1: B.z1 }, { x0: L.lsd.med[1], x1: L.lsd.x1, z0: B.z0, z1: B.z1 }, { x0: L.prom.x0, x1: L.shore, z0: B.z0, z1: B.z1 });
-  plan.paved.push({ x0: L.buoys, x1: B.x1 + 400, z0: B.z0 - 400, z1: B.z1 + 400 });   // open water: nothing glitters or takes a tyre track there
-  plan.ice.push({ x0: L.shore + 3, x1: L.buoys, z0: B.z0, z1: B.z1 });                // the harbour, frozen as far as the buoys (from the foot of the revetment's steps)
+  // Where the ice gives out: its broken edge, the floes, the chain of them out to the breakwater (harbourplan.js).
+  harbourEdge(plan, L);
+  plan.paved.push({ x0: L.edgeMax, x1: B.x1 + 400, z0: B.z0 - 400, z1: B.z1 + 400 });   // open water: nothing glitters or takes a tyre track there
+  plan.ice.push({ x0: L.shore + 3, x1: L.edgeMax, z0: B.z0, z1: B.z1 });                // the harbour, frozen out to its broken edge (from the foot of the revetment's steps)
   // The revetment along the water, with the slipway through it; the line of buoys where the ice gives out; the breakwater.
   // The revetment and the breakwater are walls with tops: jump up and drive along them (the tops are their snow).
   // The revetment is a stepped wall: three steps up from the promenade to its snowy top, three down the other side to the
@@ -1044,9 +1048,11 @@ function addLakefront(plan) {
     S.push({ skin: 'wall', fixed: true, x0: L.prom.x1 - RW, x1: L.prom.x1, z0: a, z1: b, axis: 'x', h0: 0, h1: RV.top, base: -0.3, stairs: true });
     S.push({ skin: 'wall', fixed: true, x0: L.shore, x1: L.shore + RW, z0: a, z1: b, axis: 'x', h0: RV.top, h1: 0, base: -0.3, stairs: true });
   }
-  O.push({ x0: L.buoys, x1: L.buoys + 0.5, z0: B.z0, z1: B.z1, y0: -0.3, y1: 0.7 });
-  { const b = L.breakwater, t = L.light; landable(plan, b.x0, b.x1, b.z0, b.z0 + 4, 1.2, -0.3); landable(plan, b.x0, b.x1, b.z0 + 4, b.z1, 1.27, -0.3);
-    O.push({ x0: t.x - 0.9, x1: t.x + 0.9, z0: t.z - 0.9, z1: t.z + 0.9, y0: 1.1, y1: 6.5 }); }      // the light on it
+  { const b = L.breakwater, t = L.light; landable(plan, b.x0, b.x1, b.z0, b.z0 + 4, 1.2, -0.45); landable(plan, b.x0, b.x1, b.z0 + 4, b.z1, 1.27, -0.45);
+    // The light on it: a plinth to jump up onto, the round tower (an octagon of solids), its gallery up top.
+    landable(plan, t.x - 0.9, t.x + 0.9, t.z - 0.9, t.z + 0.9, 1.7, 1.1);
+    for (const [a, c] of [[0.56, 0.24], [0.24, 0.56], [0.42, 0.42]]) O.push({ x0: t.x - a, x1: t.x + a, z0: t.z - c, z1: t.z + c, y0: 1.6, y1: 5.0 });
+    landable(plan, t.x - 0.78, t.x + 0.78, t.z - 0.78, t.z + 0.78, 5.1, 4.98); O.push({ x0: t.x - 0.4, x1: t.x + 0.4, z0: t.z - 0.4, z1: t.z + 0.4, y0: 5.0, y1: 6.5 }); }
   // The band shell: a stone stage facing north across the lawn, a ramp of somebody's plywood up its west end, and a kicker on its lip.
   const sh = L.shell;
   S.push({ skin: 'stone', x0: sh.x0, x1: sh.x1, z0: sh.z0, z1: sh.z1, axis: null, h0: sh.h, h1: sh.h });

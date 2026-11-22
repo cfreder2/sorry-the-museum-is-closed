@@ -896,7 +896,8 @@ export class Museum {
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(190 * SK, 190 * SK), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.4), color: new THREE.Color(0.3, 0.38, 0.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     halo.position.copy(moonAt); halo.lookAt(cx, 20, cz);
     this.group.add(sky, moon, halo);
-    { const wx = plan.lakefront ? plan.lakefront.buoys : B.x1 + 95; this.group.add(lake(wx, sx + R + 60, cz - R - 60, cz + R + 60, { x: wx, z: cz }, { x: moonAt.x, z: moonAt.z }, !!plan.lakefront)); }
+    { const wx = plan.lakefront ? plan.lakefront.lake || plan.lakefront.buoys : B.x1 + 95;      // (nearer in, the harbour draws its own water: harbour.js)
+      this.group.add(lake(wx, sx + R + 60, cz - R - 60, cz + R + 60, { x: wx, z: cz }, { x: moonAt.x, z: moonAt.z }, !!plan.lakefront)); }
 
     // A lamp either side of every way in.
     const posts = new Geo(), n = Math.max(1, plan.lamps.length);
