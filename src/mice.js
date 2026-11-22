@@ -17,6 +17,7 @@ import { feature } from './features.js';
 import { MOUSE_WINGS } from './plan.js';
 import { claimed, claim, placingNow } from './placing.js';
 import * as TX from './textures.js';
+import { MOTIF, hz } from './motif.js';
 
 const SCALE = 1.35;       // a well-fed mouse, a little bigger than life, so it reads from a toy's height
 // Pace. The car tops out near 9.5 m/s; a mouse runs a little faster than the toy is coming, up to TOP.
@@ -30,7 +31,7 @@ const GREEN = new THREE.Color(0.32, 1, 0.42);
 // The run home: how long (along the floor), and the grid it is found on.
 const CELL = 0.45, WANT = 62, MINRUN = 36, MAXRUN = 95, OPEN = 1.4;
 
-function mouseGeometry() {
+export function mouseGeometry() {
   const parts = [], eyes = [], col = (g, hex) => { g = g.index ? g.toNonIndexed() : g; const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.deleteAttribute('uv'); return g; };
   const ball = (to, r, x, y, z, hex, sx = 1, sy = 1, sz = 1) => { const g = new THREE.SphereGeometry(r, 12, 8); g.scale(sx, sy, sz); g.translate(x, y, z); to.push(col(g, hex)); };
   ball(parts, 0.03, 0, 0.03, 0.005, 0x9ccf94, 1, 0.92, 1.55);          // body
@@ -49,7 +50,7 @@ function mouseGeometry() {
 }
 
 // A paw print with a soft halo round it, toes towards +v.
-function pawTexture() {
+export function pawTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
   g.fillStyle = '#000'; g.fillRect(0, 0, 64, 64);
   const h = g.createRadialGradient(32, 34, 2, 32, 34, 31); h.addColorStop(0, 'rgba(120,120,120,1)'); h.addColorStop(1, 'rgba(0,0,0,1)');
@@ -298,7 +299,7 @@ export const mice = feature({
         // stopped: turn round, sit up, glow and squeak; at a stop, until the toy comes close; fallen behind, until it catches up
         toYaw(Math.atan2(dx, dz), 6); m.pitch += (-0.38 - m.pitch) * Math.min(1, dt * 6); m.spd = 0; wag = 2;
         bob = Math.max(0, Math.sin(m.t * 7)) * 0.003;
-        if ((m.squeak -= dt) <= 0) { m.squeak = 1.7; m.flare = Math.max(m.flare, 0.55); if (d < 30) { k.synth.note(2900, 0.05, { type: 'sine', vol: 0.016 }); k.synth.note(3400, 0.05, { type: 'sine', vol: 0.014, at: 0.09 }); } }
+        if ((m.squeak -= dt) <= 0) { m.squeak = 1.7; m.flare = Math.max(m.flare, 0.55); if (d < 30) this._chirp(k, m); }
         if (m.state === 'sit') { if (d < SCARE || (m.t > m.hold && d < LAG)) { m.state = 'run'; m.t = 0; m.spd = 2.5; } else if (d > LAG) { m.state = 'wait'; m.t = 0; } }
         else if (d < BACK) { m.state = 'run'; m.t = 0; }
         else if (m.t > WAIT) { m.state = 'run'; m.t = 0; m.alone = true; }      // given up waiting: off home on its own
@@ -334,7 +335,7 @@ export const mice = feature({
   },
   _home(m, k, d) {
     m.flare = 1.2; m.followed = d < LAG - 1; m.home = true;
-    k.synth.note(3300, 0.04, { type: 'sine', vol: 0.02 });
+    MOTIF.forEach((n, i) => k.synth.note(hz(n.midi + 36), i === 4 ? 0.16 : 0.05, { type: 'sine', vol: 0.016, at: i * 0.075 }));      // in through the grille: the whole call, in a squeak
     if (!m.followed) { k.once('mouse-lost', 'It got home without you. It will be back.', 4); return; }
     k.synth.noise(0.12, { vol: 0.03, lp: 3000, at: 0.05 });            // the rattle of the grille as it squeezes through
     if (this.tally.add(m.id)) {
@@ -343,6 +344,12 @@ export const mice = feature({
       if (this.tally.done) k.find('mice');
       k.once('mouse-vent', 'It went into the vent. E to open.', 5);
     }
+  },
+  // Its squeak is two notes of the craft's call (src/motif.js), three octaves up, and the next two at the next stop:
+  // follow a mouse across its run and you have heard the whole of it. (The story: src/story.js.)
+  _chirp(k, m) {
+    const i = (m.chirp = ((m.chirp || 0) + 1) % 4), a = MOTIF[i], b = MOTIF[i + 1];
+    k.synth.note(hz(a.midi + 36), 0.05, { type: 'sine', vol: 0.016 }); k.synth.note(hz(b.midi + 36), b.beats > 1 ? 0.12 : 0.05, { type: 'sine', vol: 0.014, at: 0.09 });
   },
   // Has this wing's mouse been seen home? (src/nests.js: its grille can be opened once it has.)
   seenHome(wing) { return !!this.tally && this.tally.has('mouse-' + wing); },

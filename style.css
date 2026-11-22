@@ -375,6 +375,7 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 #trophyToast .h { font: 10.5px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--gilt-dim); }
 #trophyToast .n { font-size: 17px; line-height: 1.2; margin-top: 2px; }
 #trophyToast.bronze .ico, .tr.bronze .ico, .tier.bronze svg { color: #c98a52; } #trophyToast.silver .ico, .tr.silver .ico, .tier.silver svg { color: #cfd6dd; }
+#trophyToast.file .ico { color: #7dff9a; } #trophyToast.file { border-color: rgba(125,255,154,.5); }
 #trophyToast.gold .ico, .tr.gold .ico, .tier.gold svg { color: #f1c84b; } #trophyToast.platinum .ico, .tr.platinum .ico, .tier.platinum svg { color: #a9e4f5; }
 .bigtext #trophyToast { background: #000; } .bigtext #trophyToast .n { font-size: 21px; } .bigtext #trophyToast .h { font-size: 13px; color: #fff; }
 
