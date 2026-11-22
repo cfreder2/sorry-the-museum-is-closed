@@ -41,7 +41,7 @@ export const SPOTS = [
   {
     id: 'ballpark', place: 'The ballpark', fy: 0, laps: 2, arch: 3.6,
     area: { x0: 398, x1: 462, z0: 142, z1: 206 },
-    way: [[418, 149.6], [436, 151, 'via'], [442.4, 153.6], [454.2, 170.5, 'via'], [449, 192.6], [426.5, 198, 'via'], [409.4, 186], [405.5, 168, 'via'], [409.5, 154.5, 'via']],
+    way: [[418, 149.6], [437, 151, 'via'], [444, 154], [456.2, 171.2, 'via'], [450.6, 194.4], [427.3, 200, 'via'], [409.4, 188], [405.5, 168, 'via'], [409.5, 154.5, 'via']],
     park: [[2.8, 1.0], [2.8, 2.4]],
     theme: { style: 'candy', line: 0xe8202a, mark: 0xffffff, cone: 0xe8202a, next: 0x58ff9a, start: 0xffffff, post: 0xffffff, bar: 0xe8202a, text: '#ffffff', glow: 1.25, stripes: true },
     rivals: [

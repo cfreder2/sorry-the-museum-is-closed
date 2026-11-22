@@ -99,6 +99,8 @@ feature({
     this.hum = k.loop({ type: 'triangle', freq: 98, lp: 700 });
     this.hum2 = k.loop({ type: 'sine', freq: 147 });
     this._card();
+    // Esc, in a race, gives it up rather than pausing (P still pauses, and so does the button).
+    addEventListener('keydown', e => { if (e.code === 'Escape' && !e.repeat && G.racing && G.state === 'play') { e.preventDefault(); e.stopImmediatePropagation(); this.quit(); } }, true);
     G.raceSpots = this.api(k);
     G.raceIcons = () => SPOTS.filter(S => this.save.seen.includes(S.id)).map(S => ({ id: S.id, x: S.x, y: S.fy, z: S.z, name: S.rivals[0].name, won: !!this.save.won[S.id], best: this.save.best[S.id] || 0 }));
   },
@@ -115,10 +117,11 @@ feature({
     if (T.stripes) { g.lineWidth = 8; g.strokeStyle = hex(T.bar); g.strokeText(label, 256, 50); }
     g.fillStyle = T.text; g.fillText(label, 256, 50);
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, color: new THREE.Color(1.3, 1.3, 1.3) });
+    const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.3, 1.3, 1.3) });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(2.4, S.arch - 0.4), 0.42), mat);
     m.position.set(S.x, S.fy + 1.1, S.z); m.rotation.y = S.yaw;
-    this.root.add(m); S.banner = mat;
+    const back = m.clone(); back.rotation.y = S.yaw + Math.PI;           // (two faces back to back, so the name reads the right way round from either side)
+    this.root.add(m, back); S.banner = mat;
   },
 
   // The visitor's circle, pressed into the snow: rings and marks, faintly lit. Flat on the ground, so nothing to run into.

@@ -220,7 +220,8 @@ and sting), `story.has(id)`, `story.count`, `story.total`, `story.open()`, `stor
 **For the alien racer** (the race spots): `alienracer` is an optional page, "The green racer's charm". At its init the
 race module calls `story.enable('alienracer')` (until then the file counts 8 pages, after it 9); when the alien racer is
 beaten, `story.add('alienracer')`. Its page says the charm hums when it faces the park, and once it is found the map's
-`?` goes on the rings over the silo.
+`?` goes on the rings over the silo. The racer is Zib, a little green rover waiting in a crop circle in the snow on the
+north-east of Butler Field (src/racecourses.js, `crop`); src/racespots.js makes both calls.
 
 ## Open choices (decided for now; easy to change)
 
