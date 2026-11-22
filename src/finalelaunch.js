@@ -167,7 +167,7 @@ feature({
     this._screen(['CRAFT: LISTENING', `PHRASE ${this.phrase + 1} OF 3`]);
     this._consoleCam();
     this._after(1.0, () => this._call());
-    k.once('finale-tones', 'Five pads. The craft has something to say.', 4);
+    k.once('finale-tones', G.story && G.story.heard ? 'Five pads. You know this tune: the grate, the mice, the snow.' : 'Five pads. The craft has something to say.', 5);      // (src/story.js: heard on the way here)
     void G;
   },
   closeTones(why) {

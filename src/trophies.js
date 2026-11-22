@@ -92,7 +92,7 @@ function next() {
   if (!el || !t) { showing = false; return; }
   showing = true;
   el.className = t.tier || 'vehicle';
-  el.querySelector('.ico').innerHTML = t.tier === 'platinum' ? KEYICON : t.tier ? CUP : WHEEL;
+  el.querySelector('.ico').innerHTML = t.icon || (t.tier === 'platinum' ? KEYICON : t.tier ? CUP : WHEEL);      // (t.icon: an svg of its own, as the Green Cheese file's)
   el.querySelector('.h').textContent = t.head;
   el.querySelector('.n').textContent = t.name;
   el.hidden = false;

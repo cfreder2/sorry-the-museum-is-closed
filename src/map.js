@@ -665,9 +665,11 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     }
   }
   // Marks other parts of the game ask for (G.mapMarks: [{ x, y, z, colour, ring }]).
-  function drawMarks(c, ly, px, t) {
+  function drawMarks(c, ly, px, t, rot = 0) {
     for (const m of G.mapMarks || []) {
       if (m.y != null && Math.abs(m.y - ly) > 2.4) continue;
+      // A glyph instead of a dot (the story's faint "?" where to look next: src/story.js): drawn in screen pixels, upright.
+      if (m.glyph) { c.save(); c.translate(m.x, m.z); c.rotate(-rot); c.scale(px, px); c.globalAlpha = 0.55 + 0.25 * Math.sin(t * 2.4); c.font = `700 ${m.size || 22}px Georgia, serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.8)'; c.strokeText(m.glyph, 0, 0); c.fillStyle = m.colour || '#9dffb0'; c.fillText(m.glyph, 0, 0); c.restore(); continue; }
       c.fillStyle = m.colour || '#ff5a4d'; c.strokeStyle = '#000'; c.lineWidth = px;
       c.beginPath(); c.arc(m.x, m.z, px * 5, 0, TAU); c.fill(); c.stroke();
       if (m.ring) { c.strokeStyle = m.colour || '#ff5a4d'; c.lineWidth = px * 2; c.beginPath(); c.arc(m.x, m.z, px * (9 + (t * 8) % 8), 0, TAU); c.stroke(); }
@@ -803,7 +805,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       for (const b of Rc.bots) { c.fillStyle = '#' + b.colour.toString(16).padStart(6, '0'); c.beginPath(); c.arc(b.x, b.z, 5 / s, 0, TAU); c.fill(); }
     }
     drawPath(c, ly, 1 / s, t);
-    drawMarks(c, ly, 1 / s, t);
+    drawMarks(c, ly, 1 / s, t, v.yaw - Math.PI);
     drawRaces(c, ly, 1 / s, false);
     c.restore();
     if (!G.roomId && Math.abs(ly) < 1) { c.save(); c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.clip(); radarNames(c, v, R, s); c.restore(); }      // out of doors, the streets' names
@@ -821,7 +823,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       const far = !pts.length ? state.target : pts.slice(near).find(p => Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > (R - 12) / s) || state.target; rim(far.x, far.z, '#7fe9f5');
     }
     if (G.racing) { const g = G.race.gates[G.race.next]; if (g) rim(g.x, g.z, '#7fe9f5'); }
-    for (const m of G.mapMarks || []) rim(m.x, m.z, m.colour || '#ff5a4d');
+    for (const m of G.mapMarks || []) if (!m.glyph) rim(m.x, m.z, m.colour || '#ff5a4d');      // (a glyph is a faint hint, kept off the rim)
     // North, on the rim.
     { const a = v.yaw - Math.PI, nx = Math.sin(a) * (R - 13), ny = -Math.cos(a) * (R - 13); c.fillStyle = 'rgba(226,205,148,.95)'; c.font = '700 15px ui-monospace, Menlo, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('N', R + nx, R + ny); }
     drawYou(c, R, R, Math.PI, 1.15);

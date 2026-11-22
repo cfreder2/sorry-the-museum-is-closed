@@ -905,12 +905,16 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 
 ## 210
 
-> The race mode should become a secret you unlock in the game. At various points, you can find another RC car or two hanging out, and you can challenge it to a race. The track is drawn and off you go. This way we can integrate the 'race mode' more naturally into the core game. It also means we can put races in several locations, both indoor and out.
+> We need to ensure the storyline has plenty of hooks so that people become invested in the aliens and that it is discovered.
 
 ## 211
 
-> the race mode on the title screen is forever gone.
+> The race mode should become a secret you unlock in the game. At various points, you can find another RC car or two hanging out, and you can challenge it to a race. The track is drawn and off you go. This way we can integrate the 'race mode' more naturally into the core game. It also means we can put races in several locations, both indoor and out.
 
 ## 212
+
+> the race mode on the title screen is forever gone.
+
+## 213
 
 > like Forza Horizon, you find the race in the game.
