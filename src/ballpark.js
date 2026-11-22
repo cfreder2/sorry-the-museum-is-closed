@@ -19,22 +19,36 @@ import { heightOf, landable } from './plan.js';
 import { TAU, Wire, canvasTex, lit, mergeAll } from './glowkit.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-const S2 = Math.SQRT1_2, DEG = Math.PI / 180, GRAV = 9.8, BR = 0.07;   // (BR: a snowball's radius)
+const S2 = Math.SQRT1_2, DEG = Math.PI / 180, GRAV = 9.8, BR = 0.088;  // (BR: the pitched snowball's radius, a size no flake comes near)
 const BL = 12;                                                               // the base paths, as butlerfield.js has them
 const PITCHES = 10;
 // Pitches: how long the snowman takes over his wind-up, how long the ball is in the air, how high it arcs and how
-// far it swings out sideways on the way (the snow-curve).
+// far it swings out sideways on the way (the snow-curve). The change-up has the fastball's wind-up, and takes its time.
 const KINDS = {
-  straight: { wind: 1.15, T: 0.82, arc: 0.3, curve: 0 },
-  lob: { wind: 1.0, T: 1.55, arc: 2.3, curve: 0 },
-  curve: { wind: 1.3, T: 1.05, arc: 0.55, curve: 1.25 },
+  straight: { wind: 1.15, T: 0.95, arc: 0.35, curve: 0 },
+  fast: { wind: 1.25, T: 0.76, arc: 0.22, curve: 0 },
+  change: { wind: 1.25, T: 1.28, arc: 0.7, curve: 0 },
+  lob: { wind: 1.0, T: 1.6, arc: 2.2, curve: 0 },
+  curve: { wind: 1.3, T: 1.1, arc: 0.55, curve: 1.0 },
 };
-const ORDER = ['straight', 'straight', 'lob', 'curve', 'straight', 'curve', 'lob', 'straight', 'curve', 'straight'];
-// How far the ball is from the sweet spot when the tail comes round (metres): within the first, out of the park.
-const BANDS = [0.42, 0.85, 1.3, 1.85];
-const NAMES = { hr: 'HOME RUN', fly: 'FLY BALL', line: 'LINE DRIVE', ground: 'GROUNDER' };
+const ORDER = ['straight', 'fast', 'lob', 'curve', 'change', 'straight', 'fast', 'curve', 'lob', 'change'];
+// Where each crosses the plate: mostly over the middle of it, now and then high, low, in on the car or away from it.
+const LOCS = ['mid', 'mid', 'mid', 'high', 'low', 'in', 'away', 'high', 'low', 'corner'];
+// The strike zone: a frame standing over the plate, square to the pitch; w across it (+ away from the car, to the
+// first-base side: to the right, as the camera sees it) and y up. The bat's head (the reticle, RX by RY) is steered
+// about in it, a little past its edges.
+const ZW = 0.27, ZY0 = 0.1, ZY1 = 0.52, RX = 0.1, RY = 0.075, RW = ZW + 0.05, RY0 = ZY0 - 0.04, RY1 = ZY1 + 0.05;
+// The bat: its knob in a clamp on the car's tail (PIV, in the car's frame), its sweet spot RS from the car's middle,
+// so that with the tail turned to the plate it is over the plate. The car stands RS beyond the reticle.
+const PIV = { y: 0.19, z: -0.2 }, RS = 0.62;
+// Contact. Timing: how far the ball may be from the plate as the sweet spot comes past it, out in front (early) or
+// behind (late). Aim: how far the ball's middle may be from the reticle's, across and up and down (the ring's half
+// size and the ball's radius: the ball has to touch the ring).
+const EARLY = 1.1, LATE = 0.55, AX = RX + BR + 0.012, AY = RY + BR + 0.007;
+const SPIN = 0.44, COCK = 110 * DEG, UP = 55 * DEG;          // the swing: a whole turn in SPIN seconds, from cocked back COCK with the bat held up UP
+const SW = SPIN * (1 - Math.cbrt(1 - COCK / TAU));            // from the press to the sweet spot coming past the plate
+const NAMES = { fly: 'FLY BALL', line: 'LINE DRIVE', ground: 'GROUNDER', pop: 'POP-UP' };
 const COLS = [[2.8, 0.3, 0.25], [0.35, 2.4, 0.5], [0.45, 0.9, 3.0], [2.9, 1.9, 0.35], [2.8, 0.9, 1.7], [2.9, 1.1, 0.2]];
-const rnd = (a, b) => a + Math.random() * (b - a);
 
 feature({
   id: 'ballpark',
@@ -53,7 +67,7 @@ feature({
     k.plan.surfaces.push(this.mound); if (k.plan.hills) k.plan.hills.push(this.mound);
     this.M.y = heightOf(this.mound, this.M.x, this.M.z);
     this.box = this.H.clone().addScaledVector(this.s, 0.5);                 // where the car stands to bat
-    this.hit = this.H.clone().addScaledVector(this.s, 0.06); this.hit.y = 0.16;       // where its tail meets the ball
+    this.tgt = new THREE.Vector3();                                         // where the pitch in the air will cross the plate
     k.plan.paved.push({ x0: P.hx - 3.6, x1: P.hx + 17, z0: P.hz - 3.6, z1: P.hz + 17 });      // the infield is ploughed: it grips, and takes no tyre tracks
     this.lamps = new THREE.Group(); g.add(this.lamps);
     this._ground(k); this._backstop(k); this._dugouts(k); this._wall(k); this._towers(k); this._scoreboard(k);
@@ -99,7 +113,7 @@ feature({
     // Frozen clay, ploughed clear: the infield, the circle round the plate, the warning track and the mound.
     const clay = canvasTex(256, 256, (c, w, h) => {
       c.fillStyle = '#6c4630'; c.fillRect(0, 0, w, h);
-      for (let i = 0; i < 4000; i++) { const v = Math.random(); c.fillStyle = v < 0.45 ? `rgba(60,34,20,${Math.random() * 0.35})` : v < 0.85 ? `rgba(170,120,85,${Math.random() * 0.3})` : `rgba(240,245,255,${0.3 + Math.random() * 0.5})`; const r = Math.random() * 2.2; c.fillRect(Math.random() * w, Math.random() * h, r, r); }
+      for (let i = 0; i < 4000; i++) { const v = Math.random(); c.fillStyle = v < 0.47 ? `rgba(60,34,20,${Math.random() * 0.35})` : v < 0.95 ? `rgba(170,120,85,${Math.random() * 0.3})` : `rgba(200,206,218,${0.12 + Math.random() * 0.22})`; const r = Math.random() * (v < 0.95 ? 2.2 : 1.3); c.fillRect(Math.random() * w, Math.random() * h, r, r); }
     });
     clay.wrapS = clay.wrapT = THREE.RepeatWrapping;
     const clayM = this.clayM = decal(clay, { emissiveIntensity: 0.62 });
@@ -486,18 +500,25 @@ feature({
   // ============================================================ the snowballs, the powder, the fireworks
   _balls(k) {
     const g = this.g;
-    this.ball = new THREE.Mesh(new THREE.SphereGeometry(BR, 16, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, emissive: new THREE.Color(0.75, 0.8, 0.95), emissiveIntensity: 0.9 }));
+    const dot = canvasTex(32, 32, (c, w, h) => { const gr = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); });
+    // The pitch: a big snowball, cool blue-white, in a blue halo, with a crisp dark shadow under it all the way in and a
+    // faint blue streak behind it. Nothing else on the field is that colour, or moves like that.
+    this.ball = new THREE.Mesh(new THREE.SphereGeometry(BR, 20, 14), new THREE.MeshStandardMaterial({ color: 0xf4f8ff, roughness: 0.55, emissive: new THREE.Color(0.62, 0.8, 1.15), emissiveIntensity: 1.05 }));
+    this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: dot, color: new THREE.Color(0.3, 0.55, 1.35), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.halo.scale.setScalar(BR * 5.2); this.halo.renderOrder = 8; this.ball.add(this.halo);
     this.ball.visible = false; g.add(this.ball);
-    const sh = canvasTex(32, 32, (c, w, h) => { const gr = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(0,0,0,.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); });
-    this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: sh, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
+    const sh = canvasTex(64, 64, (c, w, h) => { c.clearRect(0, 0, w, h); c.strokeStyle = 'rgba(170,205,255,.55)'; c.lineWidth = 3; c.beginPath(); c.arc(w / 2, h / 2, w / 2 - 3, 0, TAU); c.stroke(); c.fillStyle = 'rgba(0,0,0,.92)'; c.beginPath(); c.arc(w / 2, h / 2, w / 2 - 5, 0, TAU); c.fill(); });
+    this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(BR * 2.6, BR * 2.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: sh, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
     this.shadow.visible = false; this.shadow.renderOrder = 5; g.add(this.shadow);
-    // a short trail of powder behind the ball, so it reads against the snow
-    const NT = this.NT = 12;
-    this.trail = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.55, 0.6, 0.7), transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), NT);
-    this.trail.frustumCulled = false; this.trail.visible = false; g.add(this.trail);
+    // the streak: a ribbon through the last places the ball has been, turned to the camera, thinning and fading behind
+    const NT = this.NT = 14, tg = new THREE.BufferGeometry(), idx = [], tc = new Float32Array(NT * 6);
+    for (let q = 0; q < NT - 1; q++) { const a = q * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    for (let q = 0; q < NT; q++) { const f = (1 - q / (NT - 1)) ** 1.5 * 0.7; for (const j of [0, 1]) tc.set([0.3 * f, 0.55 * f, 1.0 * f], (q * 2 + j) * 3); }
+    tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NT * 6), 3).setUsage(THREE.DynamicDrawUsage)); tg.setAttribute('color', new THREE.BufferAttribute(tc, 3)); tg.setIndex(idx);
+    this.trail = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    this.trail.frustumCulled = false; this.trail.visible = false; this.trail.renderOrder = 7; g.add(this.trail);
     this.trailP = new Float32Array(NT * 3); this.trailN = 0; this.trailHead = 0;
     // particles: one pool of powder, one of sparks
-    const dot = canvasTex(32, 32, (c, w, h) => { const gr = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); });
     const pool = (n, size) => {
       const geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3).fill(-999), col = new Float32Array(n * 3);
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
@@ -507,11 +528,52 @@ feature({
     };
     this.powder = pool(260, 0.16); this.sparks = pool(480, 0.9);
     this.fw = [];                                   // fireworks waiting to go up: [time, x, y, z, colour index]
-    // the flash where the tail meets the ball
-    this.flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: dot, color: new THREE.Color(2.5, 2.4, 2.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    this.flash.visible = false; this.flash.scale.setScalar(0.6); g.add(this.flash); this.flashT = 0;
-    this.bv = new THREE.Vector3(); this.P0 = new THREE.Vector3(); this.tmp = new THREE.Vector3(); this.tmp2 = new THREE.Vector3();
-    this.cam = { at: { x: 0, y: 0, z: 0 }, look: { x: 0, y: 0, z: 0 } }; this.look = new THREE.Vector3(); this.camMix = 0;
+    // the flash where the bat meets the ball
+    this.flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: dot, color: new THREE.Color(1.6, 1.45, 1.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.flash.visible = false; this.flash.scale.setScalar(0.5); this.flash.renderOrder = 9; g.add(this.flash); this.flashT = 0;
+    this.bv = new THREE.Vector3(); this.P0 = new THREE.Vector3(); this.tmp = new THREE.Vector3(); this.tmp2 = new THREE.Vector3(); this.tmp3 = new THREE.Vector3();
+    this.cam = { at: { x: 0, y: 0, z: 0 }, look: { x: 0, y: 0, z: 0 }, fov: 50 }; this.look = new THREE.Vector3(); this.camMix = 0;
+    this._zone(); this._bat();
+  },
+  // A point of the zone's plane: w across (+ to the first-base side), y up.
+  zp(w, y, out) { return out.copy(this.H).addScaledVector(this.s, -w).setY(y); },
+  // The strike zone over the plate, the bat's head (an orange ring steered about in it) and the mark that shows, a
+  // moment before the ball arrives, roughly and then exactly where it will cross. Drawn in the field, square to the pitch.
+  _zone() {
+    const z = this.zone = new THREE.Group(); z.position.copy(this.H); z.rotation.y = Math.atan2(-this.c.x, -this.c.z); z.visible = false; this.g.add(z);
+    const frameM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.15, 0.92, 0.55), transparent: true, opacity: 0.6, depthWrite: false, fog: false });
+    const bars = [], bar = (x0, y0, x1, y1) => { const q = new THREE.PlaneGeometry(x1 - x0, y1 - y0); q.translate((x0 + x1) / 2, (y0 + y1) / 2, 0); bars.push(q); };
+    const T = 0.008, C = 0.022, L = 0.075;
+    bar(-ZW, ZY0 - T, ZW, ZY0 + T); bar(-ZW, ZY1 - T, ZW, ZY1 + T); bar(-ZW - T, ZY0, -ZW + T, ZY1); bar(ZW - T, ZY0, ZW + T, ZY1);
+    for (const sx of [-1, 1]) for (const [sy, y] of [[1, ZY0], [-1, ZY1]]) { bar(Math.min(sx * ZW, sx * (ZW - L)), y - (sy < 0 ? C : 0), Math.max(sx * ZW, sx * (ZW - L)), y + (sy > 0 ? C : 0)); bar(sx * ZW - (sx > 0 ? C : 0), Math.min(y, y + sy * L), sx * ZW + (sx < 0 ? C : 0), Math.max(y, y + sy * L)); }
+    const fr = new THREE.Mesh(mergeAll(bars), frameM); fr.renderOrder = 10; z.add(fr);
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(ZW * 2, ZY1 - ZY0).translate(0, (ZY0 + ZY1) / 2, -0.002), new THREE.MeshBasicMaterial({ color: 0x060a14, transparent: true, opacity: 0.22, depthWrite: false, fog: false }));
+    fill.renderOrder = 3; z.add(fill);
+    // the reticle: drawn over everything, so it is never lost behind the car or the bat
+    this.retM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 0.9, 0.25), transparent: true, depthTest: false, depthWrite: false, fog: false });
+    const ret = this.retG = new THREE.Group(); z.add(ret);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48), this.retM); ring.scale.set(RX, RY, 1); ring.renderOrder = 22; ret.add(ring);
+    for (const [x, y, w, h] of [[0, 0, 0.026, 0.006], [0, 0, 0.006, 0.026]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), this.retM); m.position.set(x, y, 0); m.renderOrder = 22; ret.add(m); }
+    // the mark
+    this.markM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.55, 0.85, 1.6), transparent: true, depthTest: false, depthWrite: false, fog: false });
+    const mk = this.mark = new THREE.Mesh(new THREE.RingGeometry(0.84, 1, 40), this.markM); mk.renderOrder = 21; mk.visible = false; z.add(mk);
+  },
+  // The bat: a little wooden one, black tape on the handle, a red band on the barrel, clamped on the car's tail by its
+  // knob. It turns with the car (the swing is the spin) and is tipped up or down to the reticle's height. The car carries
+  // it only while it is at the plate.
+  _bat() {
+    const kit = this.batKit = new THREE.Group(), rig = new THREE.Group(); rig.position.set(0, PIV.y, PIV.z); kit.add(rig);
+    const tilt = this.batTilt = new THREE.Group(); rig.add(tilt);
+    const wood = new THREE.MeshStandardMaterial({ color: 0xe6c48e, roughness: 0.45, emissive: 0x9c7848, emissiveIntensity: 0.62 });
+    const prof = [[0, 0], [0.017, 0], [0.019, 0.008], [0.011, 0.02], [0.011, 0.2], [0.013, 0.25], [0.022, 0.35], [0.027, 0.42], [0.029, 0.56], [0.025, 0.592], [0.013, 0.603], [0, 0.606]];
+    const bat = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 16); bat.rotateX(-Math.PI / 2); bat.translate(0, 0, 0.03);
+    tilt.add(new THREE.Mesh(bat, wood));
+    const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0128, 0.0128, 0.15, 12).rotateX(Math.PI / 2), lit(0x17181c, { roughness: 0.9 })); tape.position.z = -0.065; tilt.add(tape);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0293, 0.0293, 0.025, 16).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xc8352a, roughness: 0.5, emissive: 0xc8352a, emissiveIntensity: 0.35 })); band.position.z = -0.47; tilt.add(band);
+    rig.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.045, 0.05), lit(0x3b4048, { metalness: 0.6, roughness: 0.4 })));
+    // the swish: a faint fan of air behind the bat as it goes round (in the car's frame, round its middle)
+    const sw = this.swish = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.8, 28, 1, -10 * DEG, 100 * DEG).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.9, 0.85, 0.75), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    sw.renderOrder = 8; sw.visible = false; kit.add(sw);
   },
   _emit(P, x, y, z, n, speed, col, life, grav, up = 0) {
     for (let q = 0; q < n; q++) {
@@ -735,7 +797,7 @@ feature({
   // ============================================================ the derby
   near(v, k) {
     if (!this.P) return null;
-    if (this.on) return { verb: 'LEAVE', hint: 'Swing as the ball reaches the plate: Space, or SWING.', act: () => this._stop(k, true) };
+    if (this.on) return { verb: 'LEAVE', hint: 'Aim the bat with the stick, swing as the ball arrives: Space, or SWING.', act: () => this._stop(k, true) };
     const b = this.box, p = v.pos;
     if ((p.x - b.x) ** 2 + (p.z - b.z) ** 2 > 1.1 * 1.1 || Math.abs(p.y) > 0.4) return null;
     if (v.kind !== 'car') return { verb: 'BAT', hint: 'The snowman pitches to cars: the drone can only watch.', act: () => k.say('The snowman pitches to cars. Come back in one.', 3) };
@@ -744,22 +806,36 @@ feature({
   _start(k) {
     const v = k.v; if (!v || v.kind !== 'car') return;
     this.on = true; this.pitchN = 0; this.hr = 0; this.last = 0; this.phase = 'ready'; this.tNext = this.t + 1.8; this.result = '';
-    this.order = ORDER.slice(); for (let i = this.order.length - 1; i > 1; i--) { const j = 1 + Math.floor(Math.random() * i); [this.order[i], this.order[j]] = [this.order[j], this.order[i]]; }
-    this.swingT = -9; this.contactAt = -1; this._press = false; this._cool = v.cool;
+    const mix = a => { for (let i = a.length - 1; i > 1; i--) { const j = 1 + Math.floor(Math.random() * i); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    this.order = mix(ORDER.slice()); this.locs = mix(LOCS.slice());      // (the first pitch is always a straight one down the middle)
+    this.swingT = -9; this.pending = null; this._press = false; this.freeze = 0; this.hopY = 0; this.hopV = 0; this.swinging = false;
+    this.ret = { w: 0, y: 0.3 }; this.carW = 0; this.retHold = 0; this.log = [];
     // where the car's tail points when it is waiting, cocked back towards the catcher (see _yawFor)
-    this.psiC = Math.atan2(-this.s.z, -this.s.x); this.psi = this.psiC + 70 * DEG;
-    v.place(this.box.x, this.box.z, this._yawFor(this.psi));
+    this.psiC = Math.atan2(-this.s.z, -this.s.x); this.psi = this.psiC + COCK;
+    const at = this.zp(-RS, 0, this.tmp);
+    v.place(at.x, at.z, this._yawFor(this.psi)); this.groundY = v.pos.y;
+    v.group.add(this.batKit); this.zone.visible = true;
+    k.hold((dt, inp) => { this._inp = inp; });                 // the toy is ours while it bats: the sticks aim, the jump swings
     const jb = document.getElementById('bJump'); if (jb) { this._jumpLabel = jb.textContent; jb.textContent = 'SWING'; jb.setAttribute('aria-label', 'Swing'); }
-    k.say(matchMedia('(pointer: coarse)').matches ? 'Ten pitches. Tap SWING as the ball reaches the plate.' : 'Ten pitches. Space to swing as the ball reaches the plate.', 4);
+    this._labels = [];
+    for (const [id, txt] of [['stickL', 'aim'], ['stickR', 'space: swing']]) { const el = document.getElementById(id); const sp = el && el.lastElementChild; if (sp) { this._labels.push([sp, sp.textContent]); sp.textContent = txt; } }
+    if (k.museum && k.museum.winter) k.museum.winter.hush = true;
+    const touch = k.G.input && k.G.input.usedTouch;
+    k.say(touch ? 'Ten pitches. Left thumb aims the bat. SWING as the ball arrives.' : 'Ten pitches. Arrows or WASD aim the bat. Space swings.', 4);
     this._hud(); this._board();
     k.synth.chime([392, 523, 659], { gap: 0.12, dur: 0.5, vol: 0.04 });
   },
   _stop(k, quit = false) {
     if (!this.on && this.phase === 'off') return;
-    this.on = false; this.phase = 'off'; this.ball.visible = false; this.shadow.visible = false; this.trail.visible = false;
+    this.on = false; this.phase = 'off'; this.ball.visible = false; this.shadow.visible = false; this.trail.visible = false; this.mark.visible = false;
+    this.zone.visible = false; if (this.batKit.parent) this.batKit.parent.remove(this.batKit);
+    k.hold(null);
+    const v = k.v; if (v && this.groundY !== undefined && this.hopY > 0) { v.pos.y = this.groundY; v.sync(0); } this.hopY = this.hopV = 0;
     const jb = document.getElementById('bJump'); if (jb && this._jumpLabel) { jb.textContent = this._jumpLabel; jb.setAttribute('aria-label', 'Jump'); }
+    for (const [sp, txt] of this._labels || []) sp.textContent = txt; this._labels = null;
+    if (k.museum && k.museum.winter) k.museum.winter.hush = false;
     if (!quit && this.hr > this.best) { this.best = this.hr; try { localStorage.setItem('after-hours.derby.best', String(this.best)); } catch { /* private window */ } }
-    this._hud(null); this._pose(0, 0); this._board();
+    this._hud(null); this._call(null); this._pose(0, 0); this._board();
   },
   // the car's yaw that points its tail along angle psi (on the ground, x = cos, z = sin): the tail is -(sin yaw, cos yaw)
   _yawFor(psi) { return Math.atan2(-Math.cos(psi), -Math.sin(psi)); },
@@ -768,6 +844,13 @@ feature({
     if (text === null) { this.hudEl.hidden = true; this._hudKey = null; return; }
     const s = `PITCH ${Math.max(1, Math.min(PITCHES, this.pitchN || 1))}/${PITCHES} · HR ${this.hr}${this.result ? ' · ' + this.result : ''}`;
     if (s !== this._hudKey) { this.hudEl.textContent = s; this._hudKey = s; } this.hudEl.hidden = false;
+  },
+  // A word on the swing just made, big, for a moment: EARLY, LATE, UNDER IT, ON THE BUTTON!
+  _call(text, good = false) {
+    if (!this.callEl) { const d = this.callEl = document.createElement('div'); d.id = 'derbyCall'; d.style.cssText = 'position:fixed;left:50%;top:max(24%, calc(env(safe-area-inset-top) + 104px));transform:translate(-50%,-50%);font:800 clamp(22px,4.4vw,42px)/1 system-ui,sans-serif;letter-spacing:.06em;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 16px rgba(0,0,0,.7);pointer-events:none;z-index:31;white-space:nowrap;opacity:0;transition:opacity .3s'; document.body.append(d); }
+    const d = this.callEl;
+    if (text === null) { d.style.opacity = '0'; this.callT = 0; return; }
+    d.textContent = text; d.style.color = good ? '#ffd65c' : '#eef3ff'; d.style.opacity = '1'; this.callT = this.t + 1.1;
   },
 
   active(k) {
@@ -783,20 +866,36 @@ feature({
     if (this.bu) { this.bu.uT.value = t; this.bu.uC.value = this.calm ? 1 : 0; if (this.bu.uB.value > 0) { this.bu.uB.value = Math.max(0, this.bu.uB.value - dt / 3.2); this.bu.uA.value += dt; } }
     const v = k.v;
     if (this.on && (!v || v.kind !== 'car' || Math.hypot(v.pos.x - this.box.x, v.pos.z - this.box.z) > 2)) this._stop(k, true);   // carried off, or a new night
-    if (this.on) this._play(dt, k, v);
+    if (this.on) { this._play(dt, k, v); this._hush(k); }
     else if (this.phase === 'end') { if (t > this.tNext) this.phase = 'off'; }
     else {
       // waiting on the mound: he bounces the ball in his hand, now and then
       const b = Math.max(0, Math.sin(t * 1.3)) * 0.25; this._pose(0.35 + b, 0.5, 0); this.pHead.rotation.y = Math.sin(t * 0.4) * 0.3;
       if (k.close(this.H, 7, 1.2) && !this.on) k.once('derby-intro', 'A snowman on the mound, a ball in his hand. Pull into the batter’s box beside the plate.', 6);
     }
+    if (this.callT && t > this.callT) this._call(null);
     // the crowd, the fans, the flash, the fireworks, the powder
     this.cheer = Math.max(0, this.cheer - dt * 0.28);
     if (this.crowd) this.crowd.set(this.on ? 0.012 + this.cheer * 0.13 : this.cheer * 0.13 > 0.002 ? this.cheer * 0.13 : 0, this.cheer > 0.5 ? 0.12 : 0.5);
     this._fanStep(dt);
-    if (this.flashT > 0) { this.flashT -= dt; this.flash.visible = this.flashT > 0; this.flash.material.opacity = Math.max(0, this.flashT / 0.18); }
+    if (this.flashT > 0) { this.flashT -= dt; this.flash.visible = this.flashT > 0; this.flash.material.opacity = Math.max(0, this.flashT / 0.2); }
     for (let i = this.fw.length - 1; i >= 0; i--) { const f = this.fw[i]; if (t >= f[0]) { this._firework(f[1], f[2], f[3], f[4]); this.fw.splice(i, 1); } }
     this._stepPool(this.powder, dt); this._stepPool(this.sparks, dt);
+  },
+  // While the toy bats, the falling snow is thinned to a third, and none falls in the line of the pitch or near the
+  // camera: the ball is the only white thing coming at you. (museum.js lays the flakes out afresh every frame, before
+  // this runs, so they are all back as soon as the derby is over.)
+  _hush(k) {
+    const fl = k.museum && k.museum.flakes; if (!fl || !fl.visible) return;
+    const a = fl.geometry.attributes.position, A = a.array, cam = this.cam.at, M = this.M;
+    const dx = M.x - cam.x, dz = M.z - cam.z, L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L;
+    for (let i = 0; i < a.count; i++) {
+      if (i % 3) { A[i * 3 + 1] = -500; continue; }
+      const x = A[i * 3] - cam.x, y = A[i * 3 + 1] - cam.y, z = A[i * 3 + 2] - cam.z, along = x * ux + z * uz;
+      if (along > -2.5 && along < 45 && Math.abs(x * uz - z * ux) < 1.6 + along * 0.18 && y > -2.5 && y < 2.2 + along * 0.18) A[i * 3 + 1] = -500;
+      else if (x * x + y * y + z * z < 16) A[i * 3 + 1] = -500;
+    }
+    a.needsUpdate = true;
   },
   _firework(x, y, z, ci) {
     const col = COLS[ci % COLS.length], k = this.k;
@@ -805,28 +904,66 @@ feature({
     k.synth.noise(0.7, { vol: 0.11, lp: 420 }); for (let i = 0; i < 6; i++) k.synth.noise(0.04, { vol: 0.03, lp: 7000, at: 0.25 + i * 0.07 + Math.random() * 0.05 });
   },
 
+  // The left stick (the arrows, WASD, a pad's stick, the thumb on glass) steers the bat's head about the zone: slowly
+  // at first, for small corrections, then faster.
+  _aim(dt, k) {
+    const T = k.G.testInput, I = k.G.input;
+    let x = 0, y = 0;
+    if (T) { x = T.aimX || 0; y = T.aimY || 0; } else if (I && I.aim) { const a = I.aim(); x = a.x; y = a.y; }
+    this.retHold = Math.hypot(x, y) > 0.1 ? this.retHold + dt : 0;
+    const sp = 1.3 * (0.35 + 0.65 * Math.min(1, this.retHold / 0.2));
+    this.ret.w = Math.max(-RW, Math.min(RW, this.ret.w + x * sp * dt)); this.ret.y = Math.max(RY0, Math.min(RY1, this.ret.y + y * sp * dt));
+  },
   _play(dt, k, v) {
-    const t = this.t;
-    // the car stays in the box; only its own hop moves it, and the swing turns it
-    if (!this.swinging && this.phase !== 'off') {
-      const swung = this._press || v.cool > this._cool + 1e-6;     // (a jump sets the cool-down back up: Space, the button, a pad)
-      this._press = false;
-      if (swung && t - this.swingT > 0.4) this._swing(k);
-    } else this._press = false;
-    this._cool = v.cool;
-    if (this.swinging) {
-      const u = Math.min(1, (t - this.swingT) / 0.42); this.psi = this.psiC + 70 * DEG - TAU * (1 - (1 - u) ** 3);
-      if (u >= 1) { this.swinging = false; this.psi = this.psiC + 70 * DEG; }
+    const t = this.t, inp = this._inp || {}; this._inp = null;
+    this._aim(dt, k);
+    // the swing: the jump (Space is caught at the key, a frame sooner: the timing is to the key, not the frame)
+    const want = this._press || inp.jump; this._press = false;
+    if (want && !this.swinging && this.freeze <= 0 && t - this.swingT > 0.45) this._swing(k);
+    if (this.pending && t >= this.pending.at) { const P = this.pending; this.pending = null; if (P.miss) this._whiff(k, P); else this._contact(k, P); }
+    // the hop
+    if (this.hopY > 0 || this.hopV > 0) { this.hopV -= GRAV * dt; this.hopY += this.hopV * dt; if (this.hopY <= 0) { this.hopY = 0; this.hopV = 0; } }
+    // the spin: a whole turn, fast and then slowing; held still for a moment where the bat meets the ball
+    if (this.freeze > 0) {
+      this.freeze -= dt;
+      if (this.freeze <= 0) { const X = (((this.psiC + COCK - this.psi) % TAU) + TAU) % TAU; this.swingT = t - SPIN * (1 - Math.cbrt(Math.max(0, 1 - X / TAU))); }
+    } else if (this.swinging) {
+      const u = Math.min(1, (t - this.swingT) / SPIN); this.psi = this.psiC + COCK - TAU * (1 - (1 - u) ** 3);
+      if (u >= 1) { this.swinging = false; this.psi = this.psiC + COCK; }
     }
-    v.pos.x = this.box.x; v.pos.z = this.box.z; v.vel.x = v.vel.z = 0; v.speed = 0; v.yaw = this._yawFor(this.psi); v.sync(0);
-    if (this.contactAt > 0 && t >= this.contactAt) { const at = this.contactAt; this.contactAt = -1; this._contact(k, at); }
-
+    // the car: it steps across the box as the reticle goes across the zone, so that its sweet spot comes past the plate under the reticle
+    this.carW += (this.ret.w - this.carW) * Math.min(1, dt * 12);
+    const C = this.zp(this.carW - RS, 0, this.tmp);
+    v.pos.set(C.x, this.groundY + this.hopY, C.z); v.vel.set(0, 0, 0); v.speed = 0; v.yaw = this._yawFor(this.psi); v.air = this.hopY > 0; v.sync(0);
+    // the bat tipped to the reticle's height (or, for the moment of contact, at the ball)
+    const aimT = Math.atan2(this.ret.y - (v.pos.y + PIV.y), RS + PIV.z), su = this.swinging ? Math.min(1, (t - this.swingT) / (SW * 0.8)) : 0;
+    const tilt = this.freeze > 0 ? this.batTiltHit : this.swinging ? UP + (aimT - UP) * su : UP + (aimT - UP) * 0.25;
+    this.batTilt.rotation.x = tilt;
+    { const sw = this.swish, u = this.swinging ? (t - this.swingT) / SPIN : 1; sw.visible = u < 0.75 && !this.calm; if (sw.visible) { sw.material.opacity = 0.14 * (1 - u / 0.75) ** 2; sw.position.y = PIV.y + (RS + PIV.z) * Math.tan(tilt); } }
+    // the reticle, and the mark of where the ball will cross
+    this.retG.position.set(this.ret.w, this.ret.y, 0.012);
+    let lined = false;
     const ph = this.phase;
+    if (ph === 'flight' && !this.hitType) {
+      const rem = this.tArr - t, AH = 0.45;
+      if (rem < AH && rem > -0.08) {
+        const f = Math.max(0, rem / AH);
+        this.mark.visible = true; this.mark.position.set(this.bw + this.markOff[0] * f, this.by + this.markOff[1] * f, 0.01);
+        this.mark.scale.setScalar(BR * 1.05 + 0.1 * f); this.markM.opacity = 0.55 + 0.4 * (1 - f);
+        lined = Math.abs(this.bw - this.ret.w) < AX * 0.45 && Math.abs(this.by - this.ret.y) < AY * 0.3;
+      } else this.mark.visible = false;
+    } else this.mark.visible = false;
+    this.retM.color.setRGB(lined ? 2.6 : 1.8, lined ? 2.1 : 0.9, lined ? 0.9 : 0.25); this.retG.scale.setScalar(lined ? 1.12 : 1);
+
     if (ph === 'ready') {
       this._pose(0.3, 0.6, 0); this.pHead.rotation.y *= 0.9;
       if (t >= this.tNext) {
-        this.kind = KINDS[this.order[this.pitchN] || 'straight']; this.kindName = this.order[this.pitchN] || 'straight';
-        this.phase = 'windup'; this.t0 = t; this.pitchN++; this.ball.scale.setScalar(1); this.result = ''; this.hitType = null; this.swung = false; this._hud(); this._board();
+        this.kindName = this.pitchN === 0 ? 'straight' : this.order[this.pitchN] || 'straight'; this.kind = KINDS[this.kindName];
+        this.locName = this.pitchN === 0 ? 'mid' : this.locs[this.pitchN] || 'mid';
+        [this.bw, this.by] = this._loc(this.locName); this.zp(this.bw, this.by, this.tgt);
+        this.inZone = Math.abs(this.bw) <= ZW + BR * 0.5 && this.by >= ZY0 - BR * 0.5 && this.by <= ZY1 + BR * 0.5;
+        this.markOff = [(Math.random() * 2 - 1) * 0.08, (Math.random() * 2 - 1) * 0.07];
+        this.phase = 'windup'; this.t0 = t; this.pitchN++; this.ball.scale.setScalar(1); this.result = ''; this.hitType = null; this.swung = false; this.pending = null; this._hud(); this._board();
         // the wind-up: a rising whirr as the arm goes round
         for (let i = 0; i < 6; i++) k.synth.note(180 + i * 70, 0.16, { type: 'triangle', vol: 0.018, at: this.kind.wind * (0.25 + 0.13 * i) });
       }
@@ -835,26 +972,28 @@ feature({
       this._pose(15 * DEG + 360 * DEG * u ** 2.2, 0.6 + Math.sin(Math.PI * u) * 1.2, Math.sin(Math.PI * u) * 0.12 - 0.05 * u);
       this.pitcher.updateMatrixWorld(true); this.rArm.hand.getWorldPosition(this.ball.position); this.ball.visible = true;
       if (u >= 1) {
-        // let go: the ball's path is laid out from his hand to the sweet spot, to arrive exactly T seconds from now
-        this.P0.copy(this.ball.position); this.tRel = t; this.tArr = t + this.kind.T * rnd(0.94, 1.06); this.curveSign = Math.random() < 0.5 ? -1 : 1;
-        const K = this.kind, len = this.P0.distanceTo(this.hit); this.vPlate = Math.hypot(len, 4 * K.arc, 4 * K.curve) / (this.tArr - this.tRel);
+        // let go: the ball's path is laid out from his hand to where it is to cross the plate, to get there exactly T seconds from now
+        this.P0.copy(this.ball.position); this.tRel = t; this.tArr = t + this.kind.T * (0.96 + Math.random() * 0.08); this.curveSign = Math.random() < 0.5 ? -1 : 1;
+        const K = this.kind, len = this.P0.distanceTo(this.tgt); this.vPlate = Math.hypot(len, 4 * K.arc, 4 * K.curve) / (this.tArr - this.tRel);
         this.phase = 'flight'; this.trailN = 0; this.trail.visible = true; this.shadow.visible = true;
         k.synth.noise(0.22, { vol: 0.045, lp: 1500 });
       }
     } else if (ph === 'flight') {
       const u = Math.min(1, (t - this.t0 - this.kind.wind) / 0.35); this._pose(375 * DEG + 50 * DEG * Math.sin(u * Math.PI / 2), 0.6, 0.12 * (1 - u));
       const s = (t - this.tRel) / (this.tArr - this.tRel);
-      if (s <= 1) this._pathAt(s, this.ball.position);
-      else { this.ball.position.addScaledVector(this.bv, dt); this.bv.y -= GRAV * dt * 0.5; if (this.ball.position.y < BR + 0.01) { this.ball.position.y = BR + 0.01; this.bv.y = 0; } }
-      if (s <= 1) { const K = this.kind, d = 4 - 8 * s; this.bv.subVectors(this.hit, this.P0); this.bv.y += K.arc * d; this.bv.addScaledVector(this.s, K.curve * d * this.curveSign).multiplyScalar(1 / (this.tArr - this.tRel)); }
-      // past the plate untouched: a strike, and on into the backstop
+      if (s <= 1) {
+        this._pathAt(s, this.ball.position);
+        const K = this.kind, d = 4 - 8 * s; this.bv.subVectors(this.tgt, this.P0); this.bv.y += K.arc * d; this.bv.addScaledVector(this.s, K.curve * d * this.curveSign).multiplyScalar(1 / (this.tArr - this.tRel));
+      } else { this.ball.position.addScaledVector(this.bv, dt); this.bv.y -= GRAV * dt * 0.5; if (this.ball.position.y < BR + 0.01) { this.ball.position.y = BR + 0.01; this.bv.y = 0; } }
+      // past the plate untouched: a strike (or a ball), and on into the backstop
       const back = (this.ball.position.x - this.H.x) * -this.c.x + (this.ball.position.z - this.H.z) * -this.c.z;
-      if (s > 1 && (back > 4.1 || t - this.tArr > 0.45)) {
+      if (s > 1 && !this.pending && (back > 4.1 || t - this.tArr > 0.45)) {
         this._burst(this.ball.position.x, this.ball.position.y, this.ball.position.z, 0.6);
-        this._outcome(k, 'STRIKE'); k.synth.note(110, 0.3, { type: 'sawtooth', vol: 0.02 });
+        this._outcome(k, this.inZone ? 'STRIKE' : 'BALL'); k.synth.note(110, 0.3, { type: 'sawtooth', vol: 0.02 });
+        this._logIt(this.swung ? 'miss' : 'taken');
       }
-      this._trail();
-    } else if (ph === 'hit') this._fly(dt, k);
+      if (this.phase === 'flight') this._trail();
+    } else if (ph === 'hit') { if (this.freeze <= 0) this._fly(dt, k); }
     else if (ph === 'after') {
       this._pose(0.3, 0.6, 0);
       if (t >= this.tNext) {
@@ -863,53 +1002,98 @@ feature({
       }
     }
     // the head follows the ball
+    // the halo: wide while the ball is far off (to pick it out against the snowman), tight as it comes in close
+    if (this.ball.visible) { const c = this.cam.at, b = this.ball.position, d = Math.hypot(b.x - c.x, b.y - c.y, b.z - c.z); this.halo.scale.setScalar(BR * Math.max(2.8, Math.min(6, 1.6 + d * 0.42))); }
     if (this.ball.visible) { const dx = this.ball.position.x - this.M.x, dz = this.ball.position.z - this.M.z, want = Math.atan2(dx, dz) - this.pitcher.rotation.y; let a = Math.atan2(Math.sin(want), Math.cos(want)); a = Math.max(-1.3, Math.min(1.3, a)); this.pHead.rotation.y += (a - this.pHead.rotation.y) * Math.min(1, dt * 8); }
     this._camera(dt);
     k.camClose = this.cam;
   },
+  // Where a pitch of each sort crosses the plate (w, y).
+  _loc(L) {
+    const r = (a, b) => a + Math.random() * (b - a), side = Math.random() < 0.5 ? -1 : 1;
+    switch (L) {
+      case 'high': return [r(-0.17, 0.17), r(0.44, 0.53)];
+      case 'low': return [r(-0.17, 0.17), r(0.1, 0.17)];
+      case 'in': return [r(-0.3, -0.19), r(0.18, 0.44)];
+      case 'away': return [r(0.19, 0.3), r(0.18, 0.44)];
+      case 'corner': return [side * r(0.21, 0.29), Math.random() < 0.5 ? r(0.1, 0.15) : r(0.47, 0.54)];
+      default: return [r(-0.11, 0.11), r(0.24, 0.38)];
+    }
+  },
   _pathAt(s, out) {
     const K = this.kind, a = 4 * s * (1 - s);
-    out.lerpVectors(this.P0, this.hit, s); out.y += K.arc * a; out.addScaledVector(this.s, K.curve * a * this.curveSign);
+    out.lerpVectors(this.P0, this.tgt, s); out.y += K.arc * a; out.addScaledVector(this.s, K.curve * a * this.curveSign);
     return out;
   },
   _trail() {
-    const P = this.trailP, i = this.trailHead; P[i * 3] = this.ball.position.x; P[i * 3 + 1] = this.ball.position.y; P[i * 3 + 2] = this.ball.position.z;
-    this.trailHead = (i + 1) % this.NT; this.trailN = Math.min(this.NT, this.trailN + 1);
-    const M = this._tm4 || (this._tm4 = new THREE.Matrix4()), Q = this.tmpQ || (this.tmpQ = new THREE.Quaternion()), Sv = this.tmp2, Pv = this.tmp;
-    for (let q = 0; q < this.NT; q++) {
-      const j = (this.trailHead - 1 - q + this.NT * 2) % this.NT, sc = q < this.trailN ? BR * 0.85 * this.ball.scale.x * (1 - q / this.NT) : 0;
-      Pv.set(P[j * 3], P[j * 3 + 1], P[j * 3 + 2]); Sv.setScalar(sc); this.trail.setMatrixAt(q, M.compose(Pv, Q, Sv));
+    const P = this.trailP, NT = this.NT, b = this.ball.position, i = this.trailHead;
+    P[i * 3] = b.x; P[i * 3 + 1] = b.y; P[i * 3 + 2] = b.z;
+    this.trailHead = (i + 1) % NT; this.trailN = Math.min(NT, this.trailN + 1);
+    const pa = this.trail.geometry.attributes.position, A = pa.array, cam = this.cam.at, w0 = BR * 0.8 * this.ball.scale.x, n = this.trailN;
+    const p = this.tmp2, d = this.tmp3, sd = this._sd || (this._sd = new THREE.Vector3());
+    const at = q => (this.trailHead - 1 - Math.max(0, Math.min(n - 1, q)) + NT * 2) % NT;
+    for (let q = 0; q < NT; q++) {
+      const j = at(q), jp = at(q - 1), jn = at(q + 1);
+      p.set(P[j * 3], P[j * 3 + 1], P[j * 3 + 2]); d.set(P[jp * 3] - P[jn * 3], P[jp * 3 + 1] - P[jn * 3 + 1], P[jp * 3 + 2] - P[jn * 3 + 2]);
+      sd.set(cam.x - p.x, cam.y - p.y, cam.z - p.z).cross(d);
+      const l = sd.length(), w = q < n ? w0 * (1 - q / (NT - 1)) : 0;
+      if (l > 1e-6) sd.multiplyScalar(w / l); else sd.set(0, 0, 0);
+      const o = q * 6; A[o] = p.x + sd.x; A[o + 1] = p.y + sd.y; A[o + 2] = p.z + sd.z; A[o + 3] = p.x - sd.x; A[o + 4] = p.y - sd.y; A[o + 5] = p.z - sd.z;
     }
-    this.trail.instanceMatrix.needsUpdate = true;
-    this.shadow.position.set(this.ball.position.x, 0.04, this.ball.position.z); this.shadow.scale.setScalar(1 + this.ball.position.y * 0.5);
+    pa.needsUpdate = true;
+    // the shadow, on the ground straight under it (the mound, where it is over the mound)
+    const gy = (b.x - this.M.x) ** 2 + (b.z - this.M.z) ** 2 < 2.6 * 2.6 ? heightOf(this.mound, b.x, b.z) : 0, h = Math.max(0, b.y - gy);
+    this.shadow.position.set(b.x, gy + 0.035, b.z); this.shadow.scale.setScalar(Math.max(1, this.ball.scale.x) * (1 + Math.min(h, 6) * 0.06));
+    this.shadow.material.opacity = Math.max(0.35, 1 - h * 0.08);
   },
+  // The press. Whether the bat will meet the ball is settled here: timing, from how far the ball will be from the plate
+  // as the sweet spot comes past it; aim, from how far the ball's middle is from the reticle's where it crosses. The
+  // contact itself is shown a moment later, where the bat would reach it (see _contact).
   _swing(k) {
-    this.swinging = true; this.swingT = this.t; this.contactAt = this.t + 0.03;
+    this.swinging = true; this.swingT = this.t; this.hopV = 2.9;
     k.synth.noise(0.16, { vol: 0.05, lp: 1300 });
-  },
-  // The tail comes round. How far the ball is from the sweet spot just then decides the hit.
-  _contact(k, at) {
-    if (this.swung) return;                                      // one swing a pitch
+    if (this.phase !== 'flight' || this.swung || this.hitType) return;        // before the pitch: a practice swing, and free
     this.swung = true;
-    if (this.phase !== 'flight' || this.hitType) return;
-    const e = at - this.tArr, d = e < 0 ? -e * this.vPlate : e * this.vPlate * 1.5;
-    let type = null;
-    if (d <= BANDS[0]) type = 'hr'; else if (d <= BANDS[1]) type = 'fly'; else if (d <= BANDS[2]) type = 'line'; else if (d <= BANDS[3]) type = 'ground';
-    if (!type) { this.swung = true; this.result = 'SWING AND A MISS'; this._hud(); return; }
-    this.hitType = type;
-    if (e > 0) this.ball.position.copy(this.hit);                  // late: met on the plate (early, out in front of it)
-    // early pulls it towards third (θ small), late pushes it to first; perfect is up the middle
-    const th = 45 * DEG + Math.sign(e) * (d / BANDS[3]) * 64 * DEG + rnd(-6, 6) * DEG;
-    const [sp, el] = type === 'hr' ? [rnd(31, 34), rnd(28, 33)] : type === 'fly' ? [19 + 5 * (1 - (d - BANDS[0]) / (BANDS[1] - BANDS[0])), rnd(38, 48)] : type === 'line' ? [rnd(19, 23), rnd(8, 15)] : [rnd(11, 14), rnd(-8, 0)];
-    const h = sp * Math.cos(el * DEG); this.bv.set(h * Math.cos(th), sp * Math.sin(el * DEG), h * Math.sin(th));
-    this.phase = 'hit'; this.over = false; this.bounces = 0; this.tHit = this.t; this.peakR = 0;
-    // the crack, a flash, a puff of snow off the ball
-    const q = type === 'hr' ? 1 : type === 'fly' ? 0.8 : 0.6;
-    k.synth.noise(0.06, { vol: 0.25 * q, lp: 9000 }); k.synth.note(2500, 0.04, { type: 'square', vol: 0.04 * q }); k.synth.note(760, 0.12, { type: 'triangle', vol: 0.08 * q });
-    this.flash.position.copy(this.ball.position); this.flashT = 0.18; this.flash.visible = true;
-    this._emit(this.powder, this.ball.position.x, this.ball.position.y, this.ball.position.z, 14, 2.2, [0.8, 0.85, 0.95], 0.5, 3);
-    if (type === 'hr') this.cheer = Math.max(this.cheer, 0.35);
+    const tS = this.t + SW, e = tS - this.tArr, d = Math.abs(e) * this.vPlate, tq = d / (e < 0 ? EARLY : LATE);
+    const ax = (this.bw - this.ret.w) / AX, ay = (this.by - this.ret.y) / AY;
+    let call = null;
+    if (tq > 1) call = e < 0 ? 'EARLY' : 'LATE';
+    else if (Math.abs(ax) > 1 || Math.abs(ay) > 1 || ax * ax + ay * ay > 1.3) call = Math.abs(ay) >= Math.abs(ax) ? (ay > 0 ? 'UNDER IT' : 'OVER IT') : (ax > 0 ? 'TOO FAR LEFT' : 'TOO FAR RIGHT');
+    this.swingInfo = { e: +e.toFixed(3), d: +d.toFixed(2), ax: +ax.toFixed(2), ay: +ay.toFixed(2) };
+    this.pending = call ? { miss: true, call, at: tS } : { at: e < 0 ? Math.max(tS, this.tArr - Math.min(d, 0.4) / this.vPlate) : tS, tq, te: Math.sign(e) * tq, ax, ay };
   },
+  _whiff(k, P) { this.result = 'SWING AND A MISS'; this.callWord = P.call; this._call(P.call); this._hud(); },
+  // The bat meets the ball. Up and down sets how it goes up (under it, a fly ball or a pop-up; over it, a grounder;
+  // on the button, a line drive or out of the park); timing and across set where (early pulls it to third, late
+  // pushes it to first, off the end of the bat goes the other way); and all three how hard.
+  _contact(k, P) {
+    if (this.phase !== 'flight' || this.hitType) return;
+    const b = this.ball.position, s = (P.at - this.tRel) / (this.tArr - this.tRel);
+    if (s <= 1) this._pathAt(s, b);
+    const { tq, te, ax, ay } = P;
+    const pw = (1 - 0.45 * tq * tq) * (1 - 0.75 * Math.abs(ay) ** 1.4) * (1 - 0.3 * ax * ax);
+    const sp = 34 * pw + (Math.random() - 0.5) * 1.2, el = Math.max(-18, Math.min(78, 25 + 50 * ay + (Math.random() - 0.5) * 5));
+    const th = (45 + 52 * te + 22 * ax + (Math.random() - 0.5) * 10) * DEG;
+    const type = el < 4 ? 'ground' : el < 16 ? 'line' : el < 50 ? 'fly' : 'pop';
+    this.hitType = type;
+    const h = sp * Math.cos(el * DEG); this.bv.set(h * Math.cos(th), sp * Math.sin(el * DEG), h * Math.sin(th));
+    this.phase = 'hit'; this.over = false; this.bounces = 0; this.tHit = this.t; this.peakR = 0; this.mark.visible = false;
+    // the bat on the ball: the car turned so that its bat points at it, tipped to its height, and held there a moment
+    const v = this.k.v, dx = b.x - v.pos.x, dz = b.z - v.pos.z, hr = Math.hypot(dx, dz);
+    this.psi = Math.atan2(dz, dx); this.batTiltHit = Math.atan2(b.y - (v.pos.y + PIV.y), Math.max(0.1, hr + PIV.z));
+    const worst = [[tq, te < 0 ? 'EARLY' : 'LATE'], [Math.abs(ay) * 1.1, ay > 0 ? 'UNDER IT' : 'OVER IT'], [Math.abs(ax) * 0.9, ax > 0 ? 'OFF THE END' : 'JAMMED']].sort((p, q) => q[0] - p[0])[0];
+    const clean = worst[0] < 0.3, q = clean ? 1 : pw;
+    this.freeze = clean ? 0.09 : 0.055;
+    this.callWord = clean ? 'ON THE BUTTON!' : worst[0] < 0.5 ? 'A BIT ' + worst[1].replace(' IT', '').replace('OFF THE END', 'OUT').replace('JAMMED', 'IN') : worst[1];
+    this._call(this.callWord, clean);
+    this.swingInfo = { ...this.swingInfo, sp: +sp.toFixed(1), el: +el.toFixed(1), th: +(th / DEG).toFixed(1) };
+    // the crack, a flash, a puff of snow off the ball
+    k.synth.noise(0.06, { vol: 0.25 * q, lp: 9000 }); k.synth.note(2500, 0.04, { type: 'square', vol: 0.04 * q }); k.synth.note(760, 0.12, { type: 'triangle', vol: 0.08 * q });
+    this.flash.position.copy(b); this.flashT = 0.2; this.flash.visible = true; this.flash.scale.setScalar(clean ? 0.34 : 0.24);
+    this._emit(this.powder, b.x, b.y, b.z, 14, 2.2, [0.8, 0.85, 0.95], 0.5, 3);
+    if (clean) this.cheer = Math.max(this.cheer, 0.35);
+  },
+  _logIt(result) { if (this.log) this.log.push({ n: this.pitchN, kind: this.kindName, loc: this.locName, w: +this.bw.toFixed(2), y: +this.by.toFixed(2), call: this.swung ? this.callWord || '' : '', result, ...(this.swung ? this.swingInfo : {}) }); this.callWord = ''; this.swingInfo = null; },
   // A hit, flying: gravity, a little drag, the wall, the scoreboard, the ground.
   _fly(dt, k) {
     const b = this.ball.position, v = this.bv, P = this.P;
@@ -959,8 +1143,9 @@ feature({
     for (let i = 0; i < 4; i++) { const a = th + (i % 2 ? 1 : -1) * (0.08 + 0.05 * i); this.fw.push([this.t + 0.3 + i * 0.38, this.P.hx + r * Math.cos(a), 15 + i * 2.2, this.P.hz + r * Math.sin(a), Math.floor(Math.random() * 6)]); }
   },
   _outcome(k, word, hold = 1.5) {
+    if (this.hitType) this._logIt(word);
     this.result = word === 'STRIKE' && this.swung ? 'SWING AND A MISS' : word;
-    this.phase = 'after'; this.tNext = this.t + hold; this.ball.visible = false; this.shadow.visible = false; this.trail.visible = false;
+    this.phase = 'after'; this.tNext = this.t + hold; this.ball.visible = false; this.shadow.visible = false; this.trail.visible = false; this.mark.visible = false;
     this._hud();
   },
   _end(k) {
@@ -970,16 +1155,18 @@ feature({
     k.say(n === 0 ? 'Ten pitches, no home runs. The snowman tips his cap.' : `${n} home run${n === 1 ? '' : 's'} in ten pitches.${n > prev ? ' A new best.' : ` Best ${this.best}.`}`, 4);
     this._board();
   },
-  // The camera stands behind the plate, a little to the first-base side, looking out at the mound; a hit, it watches.
+  // The camera stands low behind the plate, a little to the first-base side, looking out over the zone at the mound;
+  // a hit, it backs off and up and watches it go.
   _camera(dt) {
     const H = this.H, c = this.c, s = this.s, cam = this.cam, b = this.ball.position;
-    const follow = this.phase === 'hit' || (this.phase === 'after' && this.hitType);
+    const follow = (this.phase === 'hit' && this.freeze <= 0) || (this.phase === 'after' && this.hitType);
     this.camMix += ((follow ? 1 : 0) - this.camMix) * Math.min(1, dt * (follow ? 3 : 1.5));
     const m = this.camMix;
-    cam.at.x = H.x - c.x * (2.9 + m * 1.5) - s.x * 0.55; cam.at.z = H.z - c.z * (2.9 + m * 1.5) - s.z * 0.55; cam.at.y = 1.1 + m * 2.4;
-    const lx = this.M.x, ly = 0.75, lz = this.M.z;
-    if (this.phase === 'hit') this.look.lerp(b, Math.min(1, dt * 6)); else if (!follow) this.look.set(lx, ly, lz);
+    cam.at.x = H.x - c.x * (1.9 + m * 2.4) - s.x * (0.1 + m * 0.4); cam.at.z = H.z - c.z * (1.9 + m * 2.4) - s.z * (0.1 + m * 0.4); cam.at.y = 0.82 + m * 2.6;
+    const lx = H.x + c.x * 6 - s.x * 0.08, ly = -0.1, lz = H.z + c.z * 6 - s.z * 0.08;
+    if (follow && this.phase === 'hit') this.look.lerp(b, Math.min(1, dt * 6)); else if (!follow) this.look.set(lx, ly, lz);
     cam.look.x = lx + (this.look.x - lx) * m; cam.look.y = ly + (this.look.y - ly) * m; cam.look.z = lz + (this.look.z - lz) * m;
+    cam.fov = 50 + 14 * m;
   },
 
   spots() {
