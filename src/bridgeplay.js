@@ -192,12 +192,12 @@ feature({
 
     k.group.add(topG.mesh(track), bodyG.mesh(plastic), ledG.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45), side: THREE.DoubleSide })));      // (museum.js's led)
 
-    // ---- rings for the drone: over the top of the line, under the span over Monroe Street, through the loop, out along the
+    // ---- rings for the drone: over the way into the triple loop, under the span over Monroe Street, through the loop, out along the
     // launch (the car's jump goes through that one too), and low under the deck near the foot.
     {
       const L = this.loops[1], zM = (P.grounds.monroe.z0 + P.grounds.monroe.z1) / 2, zs = this.spurAt.z;
       const spec = [
-        { x: cx(D.z1 - 4) + 0.8, y: h(D.z1 - 4) + 1.4, z: D.z1 - 4, axis: 'z', r: 0.5 },
+        { x: L.x + L.shift, y: L.y + 2 * L.r + 0.7, z: this.loops[0].z + 1.2, axis: 'z', r: 0.5 },      // over the way into the loops
         { x: cx(zM), y: 4.6, z: zM, axis: 'z', r: 1.2 },
         { x: L.x + L.shift / 2, y: L.y + L.r, z: L.z, axis: 'x', r: L.r - 0.18, hidden: true },
         { x: this.spurAt.x, y: h(zs - 10) + 1.9, z: zs - 10, axis: 'z', r: 1.1 },
