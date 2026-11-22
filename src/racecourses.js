@@ -68,7 +68,7 @@ export const SPOTS = [
     boost: [430, 95],
     theme: { style: 'glyph', line: 0x2fe02a, mark: 0x9dff5a, cone: 0x3aff7a, next: 0xd4ffa8, start: 0xffffff, post: 0x2a3a30, bar: 0x6dff4a, text: '#0a1a0a', glow: 1.0 },
     rivals: [
-      { name: 'Zib', body: 'alien', colour: 0x6dff4a, skill: 0.93, lane: 0, wander: 0.3, pace: 0.4, look: 1.25, hello: 'Something small and green is humming in the middle of a circle in the snow. It wants to race.', win: 'Zib hums a low note and drops something in the snow.', lose: 'Zib zips round you twice. Showing off.' },
+      { name: 'Zib', body: 'alien', colour: 0x6dff4a, skill: 0.93, lane: 0, wander: 0.3, pace: 0.4, look: 1.25, hello: 'Something small and green is humming in the middle of a circle in the snow. It wants to race.', win: 'Zib hums a low note and leaves you something warm.', lose: 'Zib zips round you twice. Showing off.' },
     ],
   },
 ];

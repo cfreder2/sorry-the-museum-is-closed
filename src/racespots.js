@@ -4,9 +4,8 @@
 // a race is on, and the rivals are solid, parked off the line, out of every doorway.
 //
 // Each spot has its own look (the marks on the floor, the cones, the arch, the rivals' paint) and its rivals their own
-// characters. One of them is not from round here at all (the crop circle on Butler Field), and what it leaves behind
-// when it is beaten is a scrap of a star map: it points on along the trail to Project Green Cheese (docs/FINALE.md)
-// from wherever the player has got to, and changes nothing in that trail itself.
+// characters. One of them is not from round here at all (the crop circle on Butler Field): beat it and it leaves you its
+// charm, a page of the Green Cheese file (src/story.js, 'alienracer'), and the map's "?" moves on to the rings over the silo.
 //
 // The course is laid by src/course.js against the plan as it stands (features and all) the first time the toy comes
 // near, and the race is run by src/race.js with the same bots as ever. tools/check_layout.mjs lays and checks every
@@ -19,8 +18,9 @@ import { SPOTS, archOf } from './racecourses.js';
 import { Car } from './vehicles.js';
 import { buildVehicle, repaint } from './garage.js';
 import { clockText, ordinal } from './race.js';
+import { story } from './story.js';
 
-const SAVE = 'after-hours.races';          // { seen: [id], won: { id: true }, best: { id: secs }, clue: bool }
+const SAVE = 'after-hours.races';          // { seen: [id], won: { id: true }, best: { id: secs } }
 const NEAR = 4.2;                          // how close to the arch the race is offered
 const AWAKE = 42;                          // nearer than this, the rivals idle (blink, rev, wiggle); further, nothing runs
 
@@ -47,26 +47,14 @@ function buildAlien() {
   return { body, wheels: [], aerial, radius: 0.19 };
 }
 
-const load = () => { let s = {}; try { s = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { s = {}; } return { seen: [], won: {}, best: {}, clue: false, ...s }; };
-const read = key => { try { return JSON.parse(localStorage.getItem(key) || 'null') || {}; } catch { return {}; } };
-
-// What the scrap of star map says: the next step on the trail from wherever the player has got to (read, never written).
-function starMap() {
-  const nests = read('after-hours.nests'), sec = read('after-hours.secret'), fin = read('after-hours.finale');
-  if (fin.state && fin.state !== 'locked') return 'One mark is the Moon, ringed twice. Somebody has drawn a smile beside it.';
-  if (fin.card || fin.door) return 'A ring round the ballfield and an arrow pointing down. Under it, a door, and it is open.';
-  if (sec.arrived) return 'Lines from Sub-level 9, running east under the road to this very field. A card opens the way.';
-  if (sec.open || sec.read) return 'Lines from the Moon to the museum, and down. The stair goes deeper than the plans say.';
-  if (nests.key || nests.desk || nests.folder) return 'The Moon, and a line to the museum. Beside it, in glowing ink: GREEN CHEESE.';
-  return 'The Moon, and a line down to the museum. On the line, very small, a mouse.';
-}
-
+const load = () => { let s = {}; try { s = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { s = {}; } return { seen: [], won: {}, best: {}, ...s }; };
 feature({
   id: 'racespots',
   secrets: [...SPOTS.map(s => ['race:' + s.id, `Beat ${s.rivals[0].name}`]), ['race:all', 'Beat every rival']],
 
   init(k) {
     this.k = k; this.save = load(); this.t = 0;
+    story.enable('alienracer');                 // Zib's charm is a page of the file (src/story.js)
     const G = k.G, P = k.plan;
     this.root = new THREE.Group(); this.root.name = 'racespots'; k.group.add(this.root);
     const posts = [], bars = [];
@@ -149,7 +137,7 @@ feature({
     this.root.add(m); S.circle = m;
   },
 
-  // The card that comes up at the finish (and for the star map): a few short lines, gone on its own.
+  // The card that comes up at the finish: a few short lines, gone on its own.
   _card() {
     const el = this.cardEl = document.createElement('div'); el.id = 'raceCard'; el.hidden = true; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
     el.innerHTML = '<div class="o"></div><div class="h"></div><div class="t"></div><div class="q"></div>';
@@ -233,7 +221,7 @@ feature({
       this.save.won[S.id] = true; S.won = true;
       k.find('race:' + S.id);
       if (SPOTS.every(q => this.save.won[q.id])) k.find('race:all');
-      if (S.alien && !this.save.clue && !this.clue) this._dropClue(S);
+      if (S.alien) story.add('alienracer');          // its charm: a page of the file, the first time (src/story.js)
     }
     this._store();
     this.showCard(place === 1 ? `YOU BEAT ${rival.name.toUpperCase()}` : `${rival.name.toUpperCase()} WINS`, `${ordinal(place)} of ${all}`, line + (best ? (was ? ' · NEW BEST' : '') : ` · best ${clockText(was)}`), quip);
@@ -242,22 +230,9 @@ feature({
     this.cur = null;
   },
 
-  // The visitor, beaten, leaves a scrap of star map glowing on the start line. Drive over it to read it.
-  _dropClue(S) {
-    const c = document.createElement('canvas'); c.width = c.height = 128;
-    const g = c.getContext('2d'); g.fillStyle = 'rgba(20,40,24,.85)'; g.beginPath(); g.moveTo(10, 20); g.lineTo(110, 8); g.lineTo(120, 100); g.lineTo(60, 120); g.lineTo(6, 96); g.closePath(); g.fill();
-    g.fillStyle = '#d4ffa8'; for (const [x, y, r] of [[30, 40, 4], [52, 30, 2], [80, 46, 3], [96, 82, 7], [44, 86, 3], [64, 64, 2]]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
-    g.strokeStyle = '#6dff4a'; g.lineWidth = 2; g.beginPath(); g.moveTo(30, 40); g.lineTo(80, 46); g.lineTo(96, 82); g.moveTo(80, 46); g.lineTo(44, 86); g.stroke();
-    g.beginPath(); g.arc(96, 82, 12, 0, 7); g.stroke();
-    const tex = new THREE.CanvasTexture(c);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, color: new THREE.Color(1.6, 1.6, 1.6) }));
-    m.position.set(S.x + S.rx * 0.9, S.fy + 0.16, S.z + S.rz * 0.9);
-    this.root.add(m); this.clue = m; this.clueAt = { x: m.position.x, z: m.position.z, y: S.fy };
-  },
-
   active(k) {
     const R = k.G.race;
-    if (R.active || R.cooling || this.clue) return true;
+    if (R.active || R.cooling) return true;
     const p = k.pos;
     for (const S of SPOTS) if (Math.abs(p.y - S.fy) < 6 && (p.x - S.x) ** 2 + (p.z - S.z) ** 2 < AWAKE * AWAKE) return true;
     this.hum.set(0); this.hum2.set(0);
@@ -295,18 +270,6 @@ feature({
       if (R.left) this.quit('You left the course. Race off.');
       else if (R.finished && !this.done) this.finish();
       else if (this.cur.boost) this._boost(this.cur, dt);
-    }
-    // The scrap of star map, turning slowly where Zib left it.
-    if (this.clue) {
-      this.clue.rotation.y += dt * 1.4; this.clue.position.y = this.clueAt.y + 0.16 + Math.sin(this.t * 3) * 0.03;
-      if (Math.hypot(p.x - this.clueAt.x, p.z - this.clueAt.z) < 0.55 && Math.abs(p.y - this.clueAt.y) < 1) {
-        this.root.remove(this.clue); this.clue.geometry.dispose(); this.clue.material.map.dispose(); this.clue.material.dispose(); this.clue = null;
-        this.save.clue = true; this._store();
-        const text = starMap();
-        this.showCard('LEFT IN THE SNOW', 'A scrap of star map', text, '', 9);
-        k.synth.chime([523, 659, 784, 1047], { gap: 0.12, dur: 1.4, vol: 0.05 });
-        if (G.tm) G.tm.event('starmap', null, { text: text.slice(0, 40) });
-      }
     }
   },
 
@@ -376,10 +339,9 @@ feature({
     if (this.pad && this.pad.parent) this.pad.parent.remove(this.pad);
     if (this.cardEl) this.cardEl.hidden = true;
   },
-  // A new game: nobody has been raced, nothing seen, no star map yet.
+  // A new game: nobody has been raced, nothing seen.
   fresh() {
-    this.save = { seen: [], won: {}, best: {}, clue: false }; this._store();
+    this.save = { seen: [], won: {}, best: {} }; this._store();
     for (const S of SPOTS) S.won = false;
-    if (this.clue) { this.root.remove(this.clue); this.clue = null; }
   },
 });

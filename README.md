@@ -514,21 +514,56 @@ motion it is slow and nothing flashes. None of it runs when you are far off.
   work has been seen. The map shows each room as not visited, visited with more
   to see (and how many), or finished. Press `E` at any work to leave
   the toy and stand in front of it like a person.
-- **Race.** Two laps of the real ring of galleries round the Grand Staircase,
-  on the second floor, against three other toys. The circuit keeps to that one
-  level. The course (`src/course.js`) is laid on a grid of where a toy can
-  really go: square through the middle of each doorway, round every wall,
-  column, case, bench, stair and lift shaft, eased into curves, and straight
-  over a jump on the line or not at all. It is painted on the floor with arrows
-  running the way to go, as wide as the room allows, and the rest of the stunt
-  kit is cleared away. The rivals are real cars (or drones) driven by a simple
-  driver: each keeps a lane, slows for bends, queues in a doorway, backs off
-  when it is nose-in to something, and is put back on the line if it is stuck
-  for five seconds. The display shows place (`2nd of 4`), lap and lap time;
-  crossing the line says `LAP 2 — FINAL LAP` or `FINISH — 2nd` with the split,
-  and a place won or lost flashes `↑ 2nd` / `↓ 3rd`. Leave the track and the
-  arrow turns gold and points the way back; stay off it for 4.5 seconds and you
-  are put back where you left it.
+- **Races, found, not chosen.** There is one way to play; the races are
+  among the secrets. In six places a rival toy or two waits under a lit arch,
+  headlights blinking, engine revving, rocking on its springs: drive up and
+  the card says `RACE VOLT?`, and `E` (RACE on a phone) starts it. The course
+  lights up on the floor, the rivals and you are put on the grid, 3, 2, 1, GO.
+  The display shows place (`2nd of 3`), lap and lap time; crossing the line
+  says `LAP 2 / 3` or `FINISH — 1st` with the split, and a place won or lost
+  flashes `↑ 1st` / `↓ 3rd`. At the end a short card gives the place, the time
+  and the rival's word, and you are straight back where you are. `E` or `Esc`
+  again, *Leave the race* in the pause menu, or driving well off the course
+  (14 m, or off it for 10 s) calls it off. Cars only.
+
+  | Where | Rivals | Laps | Look |
+  |---|---|---|---|
+  | Griffin Court (Modern Wing) | Volt, Glowstick | 4 × 55 m | neon |
+  | Regenstein Hall | The Duchess, Sir Reginald | 3 × 85 m | gilt and velvet |
+  | The Café (lower level) | Pixel, Hi-Score | 3 × 66 m | arcade |
+  | The ballpark (Butler Field) | Peppermint, Sugarplum | 2 × 152 m | candy cane |
+  | The lakefront promenade | Frostbite, Floe | 2 × 193 m | ice |
+  | A circle in the snow (Butler Field) | Zib | 3 × 104 m | not from here |
+
+  Each first win is a secret (*Beat Volt*), all six one more; wins and best
+  times are kept between visits and forgotten by New game. A spot is marked
+  on the map once seen, a chequered flag, gold once won, with the best time on
+  the big map. Zib, in the crop circle, is the visitors' own rover, and beating
+  it adds a page to the Project Green Cheese file (src/story.js).
+  - **The courses** (`src/course.js`, the spots in `src/racecourses.js`) are
+    laid the first time the toy comes near, on a grid of the floor round the
+    spot where every cell is asked what the car itself would be asked
+    (`groundAt`, `wallAt`, `confine`): floor at this level, nothing too tall
+    on it, no wall, jamb, column, case or bench within reach, no kerb or drop
+    to the next cell. From waypoint to waypoint the line takes the cheapest
+    way, short but well clear of things, straight through the start arch and
+    square through any doorway, then eased into curves without coming nearer
+    anything. `tools/check_layout.mjs` lays every course the same way and
+    walks it every 10 cm with the car's probes (never pushed, never a step,
+    indoors always in a room), and checks the rivals are parked on clear
+    floor at least 1.6 m off the line.
+  - **Drawn only while a race is on:** a ribbon on the floor with marks
+    running the way to go, cones on the outside of the tight bends and a pair
+    at each checkpoint with a bar of light between (the next one bright), all
+    solid as drawn, instanced. The arches and the parked rivals are always
+    there and solid, parked off the line and out of every doorway. Far from a
+    spot nothing of this runs.
+  - **The rivals** are real cars driven by a simple driver: each keeps a lane,
+    slows for bends, queues in a doorway, backs off when it is nose-in to
+    something, and is put back on the line if it is stuck for five seconds.
+    Whoever is well ahead eases off and whoever is well behind pushes a little,
+    so a race stays a race. After the finish they finish their laps out of the
+    way and are put back under their arch when nobody is looking.
 - **Rooms stay open.** Stunt pieces and cases together cover a few per cent of
   a room's floor. Each piece either stands hard against a wall or leaves 1.7 m
   of clear floor, a clear lane is kept between every pair of doors, and doors
@@ -727,7 +762,7 @@ and ramps) and never wait in a doorway.
   are zapped, carried out, and wake up in the dumpster by a back door, which
   throws you out over its lid. It keeps 50 chips. Nothing else is lost.
 - Two trophies: one for the dumpster, one for shaking a robot off five times.
-- Explore only: never in a race, and not during a heist. They stand still
+- Never during a race, and not during a heist. They stand still
   while you look at a work. On a phone there are three, otherwise six.
   Settings, Driving, has a switch to turn them off.
 
@@ -748,8 +783,7 @@ brings it back. Every other room (offices, stores, plant, corridors) is dark
 until its switch is thrown, and then properly lit: cooler and whiter than a
 gallery, the ceiling fittings glowing. The toy's own headlamp has its own
 button, the lamp-and-beams sign at the top of the screen. Which rooms you left
-on or off is kept between visits; a new game forgets it. In a race the
-switches are dead.
+on or off is kept between visits; a new game forgets it.
 
 No lights are added to do this. Every surface in the building already glows
 a little in its own colour, and a room's working light is one more term of
@@ -923,7 +957,7 @@ Three things the docs do not make obvious:
 `node tools/build_layout.mjs` regenerates `src/layout.js`, the floor plan, from
 the survey in `survey/`. `node tools/check_layout.mjs` then checks
 that the plan is sound: every room and deck reached from the front door, no
-doorway opening onto nothing, no ramp too steep. `node tools/fetch_collection.mjs` refreshes
+doorway opening onto nothing, no ramp too steep, every race course on the floor and clear of walls. `node tools/fetch_collection.mjs` refreshes
 `data/collection.json`, the saved copy the game falls back to when the API
 cannot be reached. Add `--images` to also save every image to `data/img/`
 (about 190 MB, not in git); when the
@@ -939,9 +973,9 @@ covers come live from covers.openlibrary.org, only when a book is in front of
 you, and a book with no cover is a cloth binding with its title in gilt.
 
 URL switches, for testing: `?saved` skips the live API, `?remote` ignores the
-offline images, `?mode=explore|race&toy=car|drone` skips the title (`toy` may also be any id
+offline images, `?mode=explore&toy=car|drone` skips the title (`toy` may also be any id
 in `src/garage.js`, such as `truck`, which opens that one), `?auto`
-lets a test driver run the race. The game object is `window.__ah`; a test can
+lets a test driver run whatever race is under way (`__ah.raceSpots.at(id)` puts the toy at a spot, `.go(id)` starts it). The game object is `window.__ah`; a test can
 drive by setting its `testInput` (what the sticks would send) and look from
 anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
 
@@ -973,8 +1007,10 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/textures.js           every surface, painted on a canvas at start-up
     src/reflect.js            polished-floor reflections, on the level you are on
     src/vehicles.js           the car and the drone
-    src/course.js             the race course, laid round what is really there, and its check (no three.js)
-    src/race.js               gates, laps, rivals
+    src/course.js             a race course, laid round what is really there, and its check (no three.js)
+    src/racecourses.js        where the races are: each spot's waypoints, look and rivals (no three.js)
+    src/racespots.js          the arches and the rivals waiting in the world; starting, ending and keeping the races
+    src/race.js               a race under way: the drawn course, gates, laps, rivals
     src/props.js              loose cones and signs, and snowmen
     src/arcade.js             the monitors with games on them: the screens in the rooms, and playing one
     src/arcadegames.js        the ten games (no three.js, no DOM)

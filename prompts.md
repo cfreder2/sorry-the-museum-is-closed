@@ -902,3 +902,15 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 209
 
 > This is very underwhelming. Can this be a DDR and light show? Improve the way this looks, it's very bland.
+
+## 210
+
+> The race mode should become a secret you unlock in the game. At various points, you can find another RC car or two hanging out, and you can challenge it to a race. The track is drawn and off you go. This way we can integrate the 'race mode' more naturally into the core game. It also means we can put races in several locations, both indoor and out.
+
+## 211
+
+> the race mode on the title screen is forever gone.
+
+## 212
+
+> like Forza Horizon, you find the race in the game.
