@@ -1004,6 +1004,65 @@ function addGrounds(plan) {
   }
 }
 
+// The band shell on Butler Field (bandshell.js draws it and runs the dance game on it). A deck of boards `h` high, and
+// over it five arches nested one in front of another, each wider and taller than the one behind, so that the shell
+// opens out towards the lawn like a horn; a ramp up the middle of the front with steps either side of it; a lighting
+// truss on two towers just inside the front arch; the speaker stacks on the snow at the front corners; a backstage
+// block behind. Everything is solid where it is drawn: the arches from the very curves bandshell.js draws them from.
+export const SHELL_P = 2.6;                                    // how square the arches are (2 would be half ellipses)
+export function shellPlan(sh) {
+  const cx = (sh.x0 + sh.x1) / 2, depth = (sh.z1 - sh.z0) / 5;
+  sh.cx = cx; sh.t = 0.3;
+  sh.rings = [0, 1, 2, 3, 4].map(i => ({ i, zb: sh.z1 - depth * i, zf: sh.z1 - depth * (i + 1), w: 10.6 + 0.7 * i, H: 6 + 0.75 * i }));
+  sh.ramp = { x0: cx - 1.5, x1: cx + 1.5, z0: sh.z0 - 9, z1: sh.z0 };
+  sh.steps = { x0: cx - 7, x1: cx + 7, n: 6, tread: 0.6 };
+  sh.pad = { x: cx, z: sh.z0 + 5.6, cell: 1.15 };
+  sh.truss = { x0: cx - 10.2, x1: cx + 10.2, z: sh.z0 + 1.3, y: sh.h + 5.8, s: 0.42 };
+  sh.speakers = [{ x0: sh.x0 - 4.4, x1: sh.x0 - 2.0, z0: sh.z0 - 3.6, z1: sh.z0 - 1.6, h: 2.5 }, { x0: sh.x1 + 2.0, x1: sh.x1 + 4.4, z0: sh.z0 - 3.6, z1: sh.z0 - 1.6, h: 2.5 }];
+  sh.back = { x0: cx - 10, x1: cx + 10, z0: sh.z1 + 0.3, z1: sh.z1 + 3.6, h: 4.4 };
+  return sh;
+}
+// A point on ring r's arch: s from 0 (its west foot) to 1 (its east foot); `out` adds the shell's thickness (the
+// outside of it). Heights are over the deck.
+export function shellArch(sh, r, s, out = 0) {
+  const th = Math.PI * s, c = Math.cos(th), e = 2 / SHELL_P, w = r.w + out, H = r.H + out;
+  return [sh.cx - w * Math.sign(c) * Math.pow(Math.abs(c), e), H * Math.pow(Math.abs(Math.sin(th)), e)];
+}
+// The arch's inside and outside heights over the deck at x (null outside it), for the solids.
+function archAt(sh, r, x, out) {
+  const w = r.w + out, H = r.H + out, u = Math.abs(x - sh.cx) / w;
+  return u >= 1 ? null : H * Math.pow(1 - Math.pow(u, SHELL_P), 1 / SHELL_P);
+}
+function shellSolids(plan, sh) {
+  const S = plan.surfaces, O = plan.obstacles, h = sh.h, floorAt = x => (Math.abs(x - sh.cx) < (sh.x1 - sh.x0) / 2 ? h : 0);
+  // The deck, the ramp up the middle of its front, and the steps either side (each tread a block down to the ground).
+  S.push({ skin: 'shell', fixed: true, x0: sh.x0, x1: sh.x1, z0: sh.z0, z1: sh.z1, axis: null, h0: h, h1: h });
+  S.push({ skin: 'shell', fixed: true, ...sh.ramp, axis: 'z', h0: 0, h1: h });
+  const st = sh.steps;
+  for (let j = 0; j < st.n; j++) for (const [x0, x1] of [[st.x0, sh.ramp.x0], [sh.ramp.x1, st.x1]]) S.push({ skin: 'shell', fixed: true, x0, x1, z0: sh.z0 - st.tread * (st.n - j), z1: sh.z0, axis: null, h0: h * (j + 1) / st.n, h1: h * (j + 1) / st.n });
+  // The arches: cut into upright strips, each solid from the inside of the arch (or the floor, under its feet) to the
+  // outside of it, narrow where the arch is steep. A strip's top is the highest the outside reaches over it, its underside
+  // the lowest the inside does, so nothing pokes through what is drawn. The back of the last arch is a wall, cut the same way.
+  for (const r of sh.rings) {
+    const W = r.w + sh.t, step = 0.05, xs = [];
+    for (let x = sh.cx - W; x < sh.cx + W - 1e-6; x += step) { const xm = x + step / 2, o = archAt(sh, r, xm, sh.t), i = archAt(sh, r, xm, 0); xs.push({ x, top: h + (o ?? 0), bot: i == null ? floorAt(xm) : h + i }); }
+    for (let a = 0; a < xs.length;) {
+      let b = a, tlo = xs[a].top, thi = tlo, blo = xs[a].bot, bhi = blo;
+      while (b + 1 < xs.length) { const q = xs[b + 1], nt0 = Math.min(tlo, q.top), nt1 = Math.max(thi, q.top), nb0 = Math.min(blo, q.bot), nb1 = Math.max(bhi, q.bot); if (nt1 - nt0 > 0.08 || nb1 - nb0 > 0.08) break; tlo = nt0; thi = nt1; blo = nb0; bhi = nb1; b++; }
+      const x0 = xs[a].x, x1 = xs[b].x + step;
+      S.push({ skin: 'shell', fixed: true, x0, x1, z0: r.zf, z1: r.zb, axis: null, h0: thi, h1: thi, thick: thi - blo, arch: r.i });
+      if (r.i === 0) O.push({ x0, x1, z0: sh.z1, z1: sh.z1 + 0.3, y0: 0, y1: thi });
+      a = b + 1;
+    }
+  }
+  // The truss and the lamps under it; its two towers; the speaker stacks; the block behind.
+  const T = sh.truss;
+  O.push({ x0: T.x0 - T.s / 2, x1: T.x1 + T.s / 2, z0: T.z - T.s / 2 - 0.2, z1: T.z + T.s / 2 + 0.2, y0: T.y - 0.75, y1: T.y + T.s / 2 });
+  for (const x of [T.x0, T.x1]) O.push({ x0: x - T.s / 2, x1: x + T.s / 2, z0: T.z - T.s / 2, z1: T.z + T.s / 2, y0: 0, y1: T.y });
+  for (const q of sh.speakers) landable(plan, q.x0, q.x1, q.z0, q.z1, q.h);
+  { const q = sh.back; landable(plan, q.x0, q.x1, q.z0, q.z1, q.h); }
+}
+
 // East of Columbus Drive: Butler Field under snow with the band shell in its corner, Lake Shore
 // Drive, the promenade, and Monroe Harbor frozen out as far as the mooring buoys. The park is
 // about 190 m deep here where the real one is nearer 330: the order of things is kept, not the size.
@@ -1012,7 +1071,7 @@ function addLakefront(plan) {
   const z0 = G.monroe.z1, z1 = G.jackson.z0;
   const L = plan.lakefront = {
     field: { x0: C.x1, x1: 480, z0, z1 }, lsd: { x0: 480, x1: 514, med: [494.5, 499.5] }, prom: { x0: 514, x1: 528 },
-    shore: 530, buoys: 575, slip: [104, 116], shell: { x0: 304, x1: 328, z0: 220, z1: 232, h: 1.1 },
+    shore: 530, buoys: 575, slip: [104, 116], shell: shellPlan({ x0: 304, x1: 328, z0: 220, z1: 232, h: 1.1 }),
     breakwater: { x0: 600, x1: 605, z0: 44, z1: 200 }, light: { x: 602.5, z: 46 },
     paths: [], cars: [], hills: [],      // (the snow hill that stood here made way for the ballpark's centre field; the jump park has its own snow mountain: butlerfield.js)
   };
@@ -1038,14 +1097,10 @@ function addLakefront(plan) {
   O.push({ x0: L.buoys, x1: L.buoys + 0.5, z0: B.z0, z1: B.z1, y0: -0.3, y1: 0.7 });
   { const b = L.breakwater, t = L.light; landable(plan, b.x0, b.x1, b.z0, b.z0 + 4, 1.2, -0.3); landable(plan, b.x0, b.x1, b.z0 + 4, b.z1, 1.27, -0.3);
     O.push({ x0: t.x - 0.9, x1: t.x + 0.9, z0: t.z - 0.9, z1: t.z + 0.9, y0: 1.1, y1: 6.5 }); }      // the light on it
-  // The band shell: a stone stage facing north across the lawn, a ramp of somebody's plywood up its west end, and a kicker on its lip.
+  // The band shell, facing north across the lawn (bandshell.js draws it, and has the dance game on it).
   const sh = L.shell;
-  S.push({ skin: 'stone', x0: sh.x0, x1: sh.x1, z0: sh.z0, z1: sh.z1, axis: null, h0: sh.h, h1: sh.h });
-  S.push({ skin: 'ply', x0: sh.x0 - 8, x1: sh.x0 + 0.4, z0: sh.z0 + 0.4, z1: sh.z0 + 5.6, axis: 'x', h0: 0, h1: sh.h + 0.08, thick: 0.1, posts: true });
-  S.push({ skin: 'ply', x0: 312, x1: 320, z0: sh.z0, z1: sh.z0 + 3.4, axis: 'z', h0: sh.h + 0.75, h1: sh.h, base: sh.h });
-  O.push({ x0: sh.x0 - 1.2, x1: sh.x1 + 1.2, z0: sh.z1, z1: sh.z1 + 1.2, y0: 0, y1: 8 });
-  for (const x of [sh.x0 - 0.9, sh.x1 + 0.3]) O.push({ x0: x, x1: x + 0.6, z0: sh.z0 + 6, z1: sh.z1, y0: sh.h, y1: 8 });
-  plan.paved.push({ x0: sh.x0 - 9, x1: sh.x1 + 2, z0: sh.z0 - 1, z1: sh.z1 + 2 });
+  shellSolids(plan, sh);
+  plan.paved.push({ x0: sh.x0 - 2.5, x1: sh.x1 + 2.5, z0: sh.z0 - 0.2, z1: sh.z1 + 3.4 }, { x0: sh.steps.x0 - 0.6, x1: sh.steps.x1 + 0.6, z0: sh.ramp.z0 - 0.6, z1: sh.z0 });
   // Elms along the field's edges.
   const clearOf = (x, z) => !L.paths.some(q => x > q.x0 - 2.5 && x < q.x1 + 2.5 && z > q.z0 - 2.5 && z < q.z1 + 2.5) && !(x > sh.x0 - 12 && x < sh.x1 + 6 && z > sh.z0 - 8);
   const elm = (x, z) => { if (!clearOf(x, z)) return; G.trees.push({ x, z, kind: 'elm', s: 1.15 + ((x * 13 + z * 7) % 10) / 28, yaw: (x * 3 + z * 5) % 6.28 }); O.push({ x0: x - 0.18, x1: x + 0.18, z0: z - 0.18, z1: z + 0.18, y0: 0, y1: 5 }); };

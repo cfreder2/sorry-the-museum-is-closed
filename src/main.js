@@ -68,6 +68,7 @@ import './lobby.js';
 import './giftshop.js';
 import './butlerfield.js';
 import './lightshow.js';
+import './bandshell.js';        // the band shell on Butler Field, and Snow Ball, the dance game on its stage
 import './finale.js';
 import './finalelaunch.js';      // the five notes, the tractor beam and the launch (docs/FINALE.md, phase 3)
 
