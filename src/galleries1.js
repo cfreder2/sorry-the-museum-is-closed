@@ -11,7 +11,8 @@
 //                net onto the floor. Catch it.
 //
 // Everything here is modelled and painted by the game: no picture of any work is copied. Only works on view with
-// no copyright notice are touched. Nothing runs unless you are near.
+// no copyright notice are touched. Nothing runs unless you are near. Nothing is ever drawn on or over a work (the
+// user's rule): a glow goes on the wall round it or the floor below it, and the herring leaps from below the frame.
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
@@ -155,9 +156,16 @@ feature({
     const prints = st.arts.filter(a => !a.work.c && /Hour of the (\w+)/i.test(a.work.t || '')).map(a => { const m = /Hour of the (\w+)/i.exec(a.work.t), h = ANIMAL[m[1].toLowerCase()]; return h == null ? null : { art: a, animal: m[1], hour: h }; }).filter(Boolean);
     if (!prints.length) return;
     let seen = []; try { seen = JSON.parse(localStorage.getItem('after-hours.hours') || '[]'); } catch { /* none kept */ }
+    const halo = TX.radial(0.5, 1.1);
     for (const p of prints) {
-      const a = p.art, m = new THREE.Mesh(new THREE.PlaneGeometry(a.w + 0.5, a.h + 0.5), new THREE.MeshBasicMaterial({ map: TX.radial(0.55, 1.2), color: new THREE.Color(1.4, 1.0, 0.5), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
-      m.position.set(a.x + a.nx * 0.03, a.y, a.z + a.nz * 0.03); m.lookAt(a.x + a.nx, a.y, a.z + a.nz); m.visible = false; k.group.add(m); p.glow = m; p.g = 0;
+      // The glow when it is found: a halo on the wall round the print, laid 1.5 cm off the wall, behind the print and its
+      // frame (they hang 4 cm out), so they hide the middle of it and it can only light the wall round them. Never on the
+      // print itself (the user's rule). And a little pool of the same light on the floor below.
+      const a = p.art, mat = new THREE.MeshBasicMaterial({ alphaMap: halo, color: new THREE.Color(1, 0.6, 0.22), transparent: true, opacity: 0, depthWrite: false });      // (laid over the wall, not added: a pale wall would only go white)
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(a.w + 0.7, a.h + 1.3), mat);      // (taller than wide: the prints hang close side by side)
+      m.position.set(a.x - a.nx * 0.025, a.y, a.z - a.nz * 0.025); m.lookAt(a.x + a.nx, a.y, a.z + a.nz); m.visible = false; k.group.add(m); p.glow = m; p.g = 0;
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(a.w + 0.6, 0.7), new THREE.MeshBasicMaterial({ alphaMap: TX.radial(0, 1), color: new THREE.Color(1, 0.62, 0.25), transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      f.rotation.x = -Math.PI / 2; f.rotation.z = Math.atan2(a.nx, a.nz); f.position.set(a.x + a.nx * 0.4, (k.plan.byId.G107 || { y: 0 }).y + 0.006, a.z + a.nz * 0.4); f.visible = false; k.group.add(f); p.pool = f;
     }
     this.H = { room: k.plan.byId.G107, prints, seen: new Set(seen), done: false };
   },
@@ -174,7 +182,7 @@ feature({
   active() { return !!this.H && this.H.prints.some(p => p.g > 0 || p.glow.visible); },
   update(dt) {
     this.t += dt;
-    for (const p of this.H.prints) { p.g = Math.max(0, p.g - dt * 0.35); p.glow.visible = p.g > 0.01; p.glow.material.opacity = Math.min(1, p.g) * 0.75 * (0.85 + 0.15 * Math.sin(this.t * 3)); }
+    for (const p of this.H.prints) { p.g = Math.max(0, p.g - dt * 0.35); p.glow.visible = p.pool.visible = p.g > 0.01; const o = Math.min(1, p.g) * (0.85 + 0.15 * Math.sin(this.t * 3)); p.glow.material.opacity = o * 0.85; p.pool.material.opacity = o * 0.55; }
   },
   spots() { const H = this.H; if (!H) return []; const a = H.prints[0].art; return [{ kind: 'secret', id: 'hours107', name: 'The twelve hours (look at the print for this hour)', x: a.x, y: H.room.y, z: a.z }]; },
 });
@@ -358,10 +366,10 @@ feature({
     const F = this.F; if (!F || a !== F.art) return;
     F.sea = 30; if (F.state !== 'net') return;
     F.state = 'jump'; F.t = 0;
-    F.from = { x: a.x + a.nx * 0.05, y: a.y - 0.1, z: a.z + a.nz * 0.05 };
+    F.from = { x: a.x + a.nx * 0.12, y: a.y - a.h / 2 - (a.frame || 0.08) - 0.04, z: a.z + a.nz * 0.12 };      // from under the frame, never across the picture
     F.to = this.spot(k, a.x + a.nx * 1.4, a.z + a.nz * 1.4, 0.2, 1.0) || { x: a.x + a.nx * 1.2, z: a.z + a.nz * 1.2 };
     F.to.y = F.y + 0.035; F.g.visible = true;
-    k.say('Something silver went over the frame. It is flapping about on the floor.', 2.2, 6);
+    k.say('Something silver dropped from under the frame. It is flapping about on the floor.', 2.2, 6);
   },
   active(k) { const F = this.F; return !!F && (F.sea > 0 || F.state !== 'net' && F.state !== 'caught' && k.inRoom(F.room.id, 4)); },
   update(dt, k) {
@@ -372,7 +380,7 @@ feature({
       F.gullIn -= dt; if (F.gullIn <= 0 && g > 0.05) { F.gullIn = 3 + Math.random() * 5; gull(k, 0.02 * g); } } }
     if (F.state === 'net' || F.state === 'caught' || !near) return;
     if (F.state === 'jump' || F.state === 'hop') {
-      F.t = Math.min(1, F.t + dt * (F.state === 'jump' ? 1.1 : 1.8)); const s = F.t, h = F.state === 'jump' ? 0.5 : 0.45;
+      F.t = Math.min(1, F.t + dt * (F.state === 'jump' ? 1.1 : 1.8)); const s = F.t, h = F.state === 'jump' ? 0.12 : 0.45;      // (the leap off the frame stays low: down and out, not up across the picture)
       F.g.position.set(F.from.x + (F.to.x - F.from.x) * s, F.from.y + (F.to.y - F.from.y) * s + Math.sin(Math.PI * s) * h, F.from.z + (F.to.z - F.from.z) * s);
       F.g.rotation.set(0, Math.atan2(-(F.to.z - F.from.z), F.to.x - F.from.x), Math.sin(s * TAU * 1.5) * 0.9);
       if (F.t >= 1) { F.state = 'floor'; F.x = F.to.x; F.z = F.to.z; k.sound.tick(0.07, 1300, 0.05); }

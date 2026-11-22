@@ -906,3 +906,11 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 210
 
 > We need to ensure the storyline has plenty of hooks so that people become invested in the aliens and that it is discovered.
+
+## 211
+
+> Never draw over a painting. It might ruin the art. Place it next to the art or below the art, but not in the painting. (For the Seurat:) They can dance on the floor.
+
+## 212
+
+> They can dance out of the painting, but not in it.

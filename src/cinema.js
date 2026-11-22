@@ -3,7 +3,8 @@
 //
 // The game's own films are made here, a frame at a time on one canvas: tonight's hang, how a
 // museum runs at night, how the building grew, and a few of the artists on the walls. Nothing is
-// fetched for them. Only works with no copyright notice are ever put on a screen.
+// fetched for them. Only works with no copyright notice are ever put on a screen, and nothing is laid over one
+// there (no caption, grain or vignette): never draw over a painting.
 //
 // FILMS are real clips, public domain or openly licensed, streamed from Wikimedia Commons (never
 // stored here) and mixed into the programme between the game's own. Each went in only after its
@@ -186,7 +187,7 @@ export class Cinema {
     this.acc = Math.min(this.acc - step, step);
     if (this.t >= film.dur + CARD + (film.clip ? 30 : 0)) { this._go(this.index + 1); return; }
     const c = this.ctx;
-    c.save(); c.globalAlpha = 1; c.fillStyle = INK; c.fillRect(0, 0, CW, CH);
+    c.save(); c.globalAlpha = 1; c.fillStyle = INK; c.fillRect(0, 0, CW, CH); this._pics = [];
     if (this.t < CARD) this._card(c, film, this.t, CARD); else film.draw(c, this.t - CARD, film.dur);
     c.restore(); this._grain(c);
     if (film.clip && this.t >= CARD) this._credit(c, film.clip);
@@ -221,7 +222,10 @@ export class Cinema {
   // Old film: the light is never quite steady, there are scratches, and the corners are dark.
   _grain(c) {
     const f = this.frames;
-    c.save(); c.globalAlpha = 0.04 + 0.03 * Math.sin(f * 1.7) * Math.sin(f * 0.31); c.fillStyle = '#fff'; c.fillRect(0, 0, CW, CH);
+    c.save();
+    // The grain, the scratches and the vignette are the film's, never the paintings': they stop at a picture's edge.
+    if (this._pics && this._pics.length) { c.beginPath(); c.rect(0, 0, CW, CH); for (const [x, y, w, h] of this._pics) { c.moveTo(x, y); c.lineTo(x, y + h); c.lineTo(x + w, y + h); c.lineTo(x + w, y); c.closePath(); } c.clip('evenodd'); }
+    c.globalAlpha = 0.04 + 0.03 * Math.sin(f * 1.7) * Math.sin(f * 0.31); c.fillStyle = '#fff'; c.fillRect(0, 0, CW, CH);
     c.globalAlpha = 0.16; c.fillStyle = '#e8e2d0';
     const r = (n => { let a = (n * 2654435761) >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })(f + 1);
     if (r() < 0.3) c.fillRect(r() * CW, 0, 1, CH);
@@ -249,6 +253,7 @@ export class Cinema {
     const p = this._image(a), wk = a.work, ar = wk.iw && wk.ih ? wk.iw / wk.ih : 0.8;
     c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
     if (!p) { c.fillStyle = '#2a2622'; c.fillRect(x, y, w, h); c.restore(); return; }
+    if (this._pics) this._pics.push([x, y, w, h]);
     if (p.real) {
       let dw = w, dh = w / ar; if (dh > h) { dh = h; dw = h * ar; }
       dw *= zoom; dh *= zoom; c.imageSmoothingEnabled = true;
@@ -290,7 +295,7 @@ export class Cinema {
   _hang(c, t, list) {
     const i = Math.min(list.length - 1, Math.floor(t / 8)), u = t - i * 8, a = list[i], w = a.work, k = u / 8, dirn = i % 2 ? -1 : 1;
     c.globalAlpha = fade(u, 8, 0.7);
-    this._picture(c, a, 0, 0, CW, CH - 60, 1.06 + 0.16 * k, dirn * (1 - 2 * k) * 0.8, (i % 3 - 1) * (2 * k - 1) * 0.6);
+    this._picture(c, a, 0, 0, CW, CH - 132, 1.06 + 0.16 * k, dirn * (1 - 2 * k) * 0.8, (i % 3 - 1) * (2 * k - 1) * 0.6);      // (above the caption: nothing is laid over a picture)
     const where = [w.m, w.s || w.k, w.g].filter(Boolean).join('  ·  ');
     this._caption(c, [w.t, [String(w.a || '').split('\n')[0], w.d].filter(Boolean).join(', '), where], fade(u, 8, 0.7));
     c.globalAlpha = 1;
