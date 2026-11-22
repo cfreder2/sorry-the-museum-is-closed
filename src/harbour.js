@@ -85,7 +85,7 @@ function beamMaterial() {
 }
 
 feature({
-  id: 'harbour',
+  id: 'harbourlight',
   secrets: [[SECRET, 'The harbour light']],
 
   init(k) {
@@ -160,7 +160,7 @@ feature({
     { const on = this.show > 0; this.show = Math.max(0, this.show - dt);
       this.beam.rotation.y += dt * (on ? 2.6 : 0.7);
       const flash = on ? 0.5 + 0.5 * Math.sign(Math.sin(this.t * 14)) : 1;
-      this.beamM.uniforms.uI.value = on ? 0.3 + 0.45 * flash : 0.16;
+      this.beamM.uniforms.uI.value = on ? 0.22 + 0.3 * flash : 0.16;
       this.lamp.material.color.setRGB(3.2 * (on ? 0.4 + flash : 1), 0.7 * (on ? 0.4 + flash : 1), 0.55 * (on ? 0.4 + flash : 1));
       const s = on ? 3 + flash * 2.2 : 3 + Math.sin(this.t * 1.3) * 0.2; this.glow.scale.set(s, s, 1);
       this.halo.material.color.setRGB(0.22 * (on ? 0.6 + flash * 1.4 : 1), 0.05, 0.04);

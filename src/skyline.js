@@ -83,7 +83,7 @@ export function panorama() {
     for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(150,175,225,${0.05 + r() * 0.12})`; g.fillRect(xa + r() * (xb - xa), yh + r() * (yb - yh), 5 + r() * 14, 1.3); }
     const mx = px(MOON); for (let i = 0; i < 420; i++) { const t = r(), y = yh + t * (yb - yh); g.fillStyle = `rgba(220,232,255,${0.2 + r() * 0.55})`; g.fillRect(mx + (r() - 0.5) * (14 + t * 90), y, 4 + r() * 12, 1.5); } }
   // Out on the water: the breakwater's light, and the far shore's, round to the south-east.
-  for (const [b, c] of [[78, '#ff5a48'], [104, '#58e08a']]) { g.fillStyle = c; g.fillRect(px(b) - 2, py(3.2), 4, 4); }
+  for (const [b, c] of [[104, '#58e08a']]) { g.fillStyle = c; g.fillRect(px(b) - 2, py(3.2), 4, 4); }      // (the breakwater's own light is built, and lit: harbour.js. A red one painted far off was taken for something to drive to.)
   for (let d = 128; d < 168; d += 0.5 + r()) { g.fillStyle = `rgba(255,210,150,${0.25 + r() * 0.4})`; g.fillRect(px(d), py(1.2 + r()), 2, 2); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
   return t;

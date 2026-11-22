@@ -436,14 +436,19 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     for (const h of p.hills || []) for (let k = 1; k <= 3; k++) ell(h.cx, h.cz, h.rx * k / 3, h.rz * k / 3, OUT.hill, OUT.hillRing, px * 1.2);
     // The lake: the shelf of ice from the shore to the buoys, open water beyond, the breakwater and its light.
     if (L) {
-      rect({ x0: L.shore, x1: L.buoys, z0: B.z0, z1: B.z1 }, OUT.ice); rect({ x0: L.buoys, x1: B.x1, z0: B.z0, z1: B.z1 }, OUT.water);
+      const xw = L.edge ? L.edgeMin : L.buoys;
+      rect({ x0: xw, x1: B.x1, z0: B.z0, z1: B.z1 }, OUT.water); rect({ x0: L.shore, x1: xw, z0: B.z0, z1: B.z1 }, OUT.ice);
+      if (L.edge) {      // the ice out to its broken edge, and the floes (harbourplan.js) where they float
+        c.fillStyle = OUT.ice; c.beginPath(); c.moveTo(xw, L.edge[0][1]); for (const [x, z] of L.edge) c.lineTo(x, z); c.lineTo(xw, L.edge[L.edge.length - 1][1]); c.fill();
+        for (const f of L.floes) { c.beginPath(); f.poly.forEach(([u, v], i) => { const x = f.hx + (u * f.sx) * f.c + (v * f.sz) * f.s, z = f.hz - (u * f.sx) * f.s + (v * f.sz) * f.c; if (i) c.lineTo(x, z); else c.moveTo(x, z); }); c.fill(); }
+      }
       line(L.shore, B.z0, L.shore, B.z1, OUT.shore, px * 2.5);
-      for (let z = B.z0 + 4; z < B.z1; z += 9) ell(L.buoys, z, 0.9, 0.9, 'rgba(255,120,80,.8)');
-      rect(L.breakwater, '#5b616c'); ell(L.light.x, L.light.z, 2.2, 2.2, 'rgba(120,255,170,1)');
+      if (!L.edge) for (let z = B.z0 + 4; z < B.z1; z += 9) ell(L.buoys, z, 0.9, 0.9, 'rgba(255,120,80,.8)');
+      rect(L.breakwater, '#5b616c'); ell(L.light.x, L.light.z, 2.2, 2.2, L.edge ? 'rgba(255,90,80,1)' : 'rgba(120,255,170,1)');
       if (L.window) { rect(L.window, '#1c2c44'); ell((L.window.x0 + L.window.x1) / 2, (L.window.z0 + L.window.z1) / 2, 1.2, 1.2, '#06101e', OUT.shore, px * 1.5); }
     }
     // Pavements, the promenade and the paths through the gardens and the field.
-    for (const q of p.paved || []) if (!L || q.x0 < L.buoys - 1) rect(q, OUT.pave);       // (plan.paved also marks the open water, where nothing glitters)
+    for (const q of p.paved || []) if (!L || q.x0 < (L.edge ? L.edgeMin : L.buoys) - 1) rect(q, OUT.pave);       // (plan.paved also marks the open water, where nothing glitters)
     if (L) rect({ x0: L.prom.x0, x1: L.shore, z0: B.z0, z1: B.z1 }, OUT.pave);
     for (const q of [...(Gd.paths || []), ...((L && L.paths) || [])]) rect(q, OUT.path);
     for (const q of Gd.plazas || []) ell(q.x, q.z, q.r, q.r, OUT.path);

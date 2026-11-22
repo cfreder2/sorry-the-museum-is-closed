@@ -1007,7 +1007,7 @@ function addGrounds(plan) {
 }
 
 // East of Columbus Drive: Butler Field under snow with the band shell in its corner, Lake Shore
-// Drive, the promenade, and Monroe Harbor frozen out as far as the mooring buoys. The park is
+// Drive, the promenade, and Monroe Harbor frozen out to a broken edge (harbourplan.js). The park is
 // about 190 m deep here where the real one is nearer 330: the order of things is kept, not the size.
 function addLakefront(plan) {
   const B = plan.bounds, G = plan.grounds, O = plan.obstacles, C = G.columbus, S = plan.surfaces;
@@ -1036,7 +1036,7 @@ function addLakefront(plan) {
   harbourEdge(plan, L);
   plan.paved.push({ x0: L.edgeMax, x1: B.x1 + 400, z0: B.z0 - 400, z1: B.z1 + 400 });   // open water: nothing glitters or takes a tyre track there
   plan.ice.push({ x0: L.shore + 3, x1: L.edgeMax, z0: B.z0, z1: B.z1 });                // the harbour, frozen out to its broken edge (from the foot of the revetment's steps)
-  // The revetment along the water, with the slipway through it; the line of buoys where the ice gives out; the breakwater.
+  // The revetment along the water, with the slipway through it; the breakwater.
   // The revetment and the breakwater are walls with tops: jump up and drive along them (the tops are their snow).
   // The revetment is a stepped wall: three steps up from the promenade to its snowy top, three down the other side to the
   // ice (each 14 cm, 75 cm deep). A toy's wheels ride from nosing to nosing, so each flight is ground along the line

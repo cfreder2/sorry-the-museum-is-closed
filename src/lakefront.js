@@ -1,7 +1,7 @@
 // East of Columbus Drive, as far as the water: Butler Field under snow with the band shell in its
-// corner, Lake Shore Drive, the promenade along the revetment, and Monroe Harbor frozen out to the
-// line of mooring buoys, with the breakwater and its light beyond. Where things are is in plan.js
-// (addLakefront); this draws them. All of it made by hand.
+// corner, Lake Shore Drive, the promenade along the revetment, and Monroe Harbor frozen out to a
+// broken edge, open water beyond it, and the breakwater and its light. Where things are is in plan.js
+// (addLakefront, and harbourplan.js for the edge); this draws them, and harbour.js what floats. All made by hand.
 
 import * as THREE from 'three';
 import * as TX from './textures.js';
@@ -112,7 +112,6 @@ export function buildLakefront(museum, plan) {
     slab.col = ICEC;
     for (const [z, nz] of [[q.z0, -1], [q.z1, 1]]) slab.quad(P(q.x0, z, lo), P(q.x1, z, lo), P(q.x1, z, H(q.x1)), P(q.x0, z, q.h0), [0, 0, nz]);
     slab.quad(P(q.x0, q.z0, lo), P(q.x0, q.z1, lo), P(q.x0, q.z1, q.h0), P(q.x0, q.z0, q.h0), [-1, 0, 0]);
-    // broken pieces heaped at its sides, as far up as it goes (solid: plan.js has them as part of the slab's sides)
   }
   // Cracks running back into the ice from the edge.
   for (const pts of L.cracks) for (let i = 0; i + 1 < pts.length; i++) {
