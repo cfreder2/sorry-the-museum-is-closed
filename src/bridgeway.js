@@ -217,6 +217,13 @@ export function buildBridgeway(museum, plan) {
         fins.quad([a[0] + nn[0] * o, py - 0.6, a[1] + nn[2] * o], [b[0] + nn[0] * o, py - 0.6, b[1] + nn[2] * o], [b[0] + nn[0] * o, py + ph + 1.1, b[1] + nn[2] * o], [a[0] + nn[0] * o, py + ph + 1.1, a[1] + nn[2] * o], nn, [[0, 0], [len / 1.9, 0], [len / 1.9, 1], [0, 1]]);
       } else clearG.quad([a[0], py, a[1]], [b[0], py, b[1]], [b[0], py + 1.15, b[1]], [a[0], py + 1.15, a[1]], nn);
     }
+    // The glass is solid, as drawn: the screen on the street sides, the clear rail on the others, with the lift's doorway
+    // left open. (Before, the toy drove straight through it and off the roof.)
+    { const th = 0.08, tall = py + ph + 0.4, low = py + 1.15;
+      for (const [p, q] of besideLift(px0, px1)) O.push({ x0: p, x1: q, z0: pz0 - th, z1: pz0, y0: py - 0.3, y1: tall });
+      O.push({ x0: px0 - th, x1: px0, z0: pz0 - th, z1: pz1 + th, y0: py - 0.3, y1: tall });
+      O.push({ x0: px1, x1: px1 + th, z0: pz0 - th, z1: pz1 + th, y0: py - 0.3, y1: low });
+      O.push({ x0: px0 - th, x1: px1 + th, z0: pz1, z1: pz1 + th, y0: py - 0.3, y1: low }); }
     for (let x = px0; x <= px1 + 0.01; x += (px1 - px0) / 6) rail.box(x - 0.03, x + 0.03, py, py + 1.2, pz1 - 0.03, pz1 + 0.03);
     for (let z = pz0; z <= pz1 + 0.01; z += (pz1 - pz0) / 8) rail.box(px1 - 0.03, px1 + 0.03, py, py + 1.2, z - 0.03, z + 0.03);
     const pm = pink.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 0.22, 0.95), transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })); pm.renderOrder = 2;
@@ -226,7 +233,7 @@ export function buildBridgeway(museum, plan) {
     // The terrace itself: paving, a white pergola frame over it, and four things to walk round.
     // (The sculptures are made up for the game: nobody's work.)
     {
-      const st = slabTex(), pav = new Geo(), perg = new Geo(), y = py + 0.04;
+      const st = slabTex(), pav = new Geo(), perg = new Geo(), y = py + 0.004;      // (flush with what the toy drives on: at +4 cm its wheels looked sunk in it)
       pav.quad([px0, y, pz0], [px0, y, pz1], [px1, y, pz1], [px1, y, pz0], [0, 1, 0], [[0, 0], [0, (pz1 - pz0) / 2.4], [(px1 - px0) / 2.4, (pz1 - pz0) / 2.4], [(px1 - px0) / 2.4, 0]]);
       add(pav.mesh(new THREE.MeshStandardMaterial({ map: st, roughness: 0.85, emissiveMap: st, emissive: new THREE.Color(0.42, 0.45, 0.55), emissiveIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
       const H = 3.1, nxp = 3, nzp = 4;
@@ -243,15 +250,28 @@ export function buildBridgeway(museum, plan) {
       // A zigzag of red stone: three wedges leaning on one another.
       { const zg = new Geo(), bx = cx - 2.6, bz = cz - 3.2, wd = 1.5;
         const wedge = (x0, x1, hA, hB) => { zg.quad([x0, py, bz], [x1, py, bz], [x1, py + hB, bz], [x0, py + hA, bz], [0, 0, -1]); zg.quad([x1, py, bz + wd], [x0, py, bz + wd], [x0, py + hA, bz + wd], [x1, py + hB, bz + wd], [0, 0, 1]); zg.quad([x0, py + hA, bz], [x1, py + hB, bz], [x1, py + hB, bz + wd], [x0, py + hA, bz + wd], [0, 1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]); zg.quad([x0, py, bz + wd], [x0, py, bz], [x0, py + hA, bz], [x0, py + hA, bz + wd], [-1, 0, 0]); zg.quad([x1, py, bz], [x1, py, bz + wd], [x1, py + hB, bz + wd], [x1, py + hB, bz], [1, 0, 0]); };
-        wedge(bx, bx + 1.1, 1.25, 0.25); wedge(bx + 1.1, bx + 2.1, 0.25, 0.95); wedge(bx + 2.1, bx + 3.0, 0.95, 0.12);
-        add(zg.mesh(red)); O.push({ x0: bx, x1: bx + 3, z0: bz, z1: bz + wd, y0: py, y1: py + 1.25 }); }
-      // Two rough boulders.
+        wedge(bx, bx + 1.1, 1.25, 0.25); wedge(bx + 1.1, bx + 2.1, 0.25, 0.95); wedge(bx + 2.1, bx + 3.0, 0.95, 0.03);
+        add(zg.mesh(red));
+        // You can drive on it: each wedge is a ramp, exactly as drawn (and off the high end, a drop).
+        const RS = plan.roofs || plan.surfaces;
+        for (const [x0, x1, hA, hB] of [[bx, bx + 1.1, 1.25, 0.25], [bx + 1.1, bx + 2.1, 0.25, 0.95], [bx + 2.1, bx + 3.0, 0.95, 0.03]])
+          RS.push({ skin: 'stone', x0, x1, z0: bz, z1: bz + wd, axis: 'x', h0: py + hA, h1: py + hB, base: py, roof: true, fixed: true }); }
+      // Two boulders, smooth enough to drive over: each is drawn from the same height the toy feels (a mound with a
+      // little wobble round its rim), so the wheels sit on the stone, never in it.
       for (const [dx, dz, sc, seed] of [[2.6, 2.2, 0.85, 11], [-1.2, 4.6, 0.7, 23]]) {
-        const g = new THREE.IcosahedronGeometry(1, 1), pa = g.attributes.position, r = rng(seed);
-        const jit = new Map(); for (let i = 0; i < pa.count; i++) { const k = [pa.getX(i), pa.getY(i), pa.getZ(i)].map(v => v.toFixed(2)).join(); if (!jit.has(k)) jit.set(k, 0.78 + r() * 0.4); const f = jit.get(k); pa.setXYZ(i, pa.getX(i) * f, Math.max(-0.35, pa.getY(i) * f * 0.75), pa.getZ(i) * f); }
-        g.computeVertexNormals(); const m = new THREE.Mesh(g, rock); m.scale.setScalar(sc); m.position.set(cx + dx, py + 0.35 * sc, cz + dz); m.rotation.y = seed; add(m);
-        O.push({ x0: cx + dx - sc, x1: cx + dx + sc, z0: cz + dz - sc, z1: cz + dz + sc, y0: py, y1: py + sc * 1.1 });
+        const bx0 = cx + dx, bz0 = cz + dz, R = sc * 1.3, H = sc * 0.95, ph = seed * 1.7;
+        const rimAt = a => R * (1 + 0.12 * Math.sin(3 * a + ph) + 0.07 * Math.sin(5 * a - ph * 0.6));
+        const fn = (x, z) => { const ddx = x - bx0, ddz = z - bz0, d = Math.hypot(ddx, ddz) / rimAt(Math.atan2(ddz, ddx)); return d >= 1 ? py : py + H * (Math.cos(d * Math.PI) + 1) / 2; };
+        const NR = 7, NA = 18, pos = [], idx = [];
+        pos.push(bx0, fn(bx0, bz0), bz0);
+        for (let ri = 1; ri <= NR; ri++) for (let ai = 0; ai < NA; ai++) { const a = ai / NA * Math.PI * 2, rr = rimAt(a) * ri / NR * (ri === NR ? 0.999 : 1), x = bx0 + Math.cos(a) * rr, z = bz0 + Math.sin(a) * rr; pos.push(x, fn(x, z) + (ri === NR ? -0.01 : 0), z); }
+        for (let ai = 0; ai < NA; ai++) idx.push(0, 1 + (ai + 1) % NA, 1 + ai);
+        for (let ri = 1; ri < NR; ri++) for (let ai = 0; ai < NA; ai++) { const a = 1 + (ri - 1) * NA + ai, b = 1 + (ri - 1) * NA + (ai + 1) % NA, c = a + NA, d = b + NA; idx.push(a, b, c, b, d, c); }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+        add(new THREE.Mesh(g, rock));
+        (plan.roofs || plan.surfaces).push({ skin: 'stone', x0: bx0 - R * 1.2, x1: bx0 + R * 1.2, z0: bz0 - R * 1.2, z1: bz0 + R * 1.2, axis: null, fn, h0: py, h1: py + H, base: py, roof: true, fixed: true });
       }
+      museum.mw = Object.assign(museum.mw || {}, { terrace: { x0: px0, x1: px1, z0: pz0, z1: pz1, y: py } });      // (for the fireworks: src/fireworks.js)
       // A bronze drum on its side, on a low block.
       { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.5, 20), bronze); d.rotation.set(0, 0.5, Math.PI / 2); d.position.set(cx + 3.3, py + 0.95, cz - 4.6); const bl = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 1.0), red); bl.position.set(cx + 3.3, py + 0.2, cz - 4.6); bl.rotation.y = 0.5; add(d, bl);
         O.push({ x0: cx + 2.4, x1: cx + 4.2, z0: cz - 5.4, z1: cz - 3.8, y0: py, y1: py + 1.5 }); }
