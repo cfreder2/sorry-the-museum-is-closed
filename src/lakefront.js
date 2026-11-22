@@ -15,7 +15,7 @@ export function buildLakefront(museum, plan) {
   const add = (...m) => { for (const x of m) { x.matrixAutoUpdate = false; x.updateMatrix(); group.add(x); } };
   const off = (f = -1) => ({ polygonOffset: true, polygonOffsetFactor: f, polygonOffsetUnits: f });
   const flat = (g, x0, x1, z0, z1, y, s = 4) => g.quad([x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
-  const road = new Geo(), paint = new Geo(), walk = new Geo(), stone = new Geo(), dark = new Geo(), white = new Geo(), snow = new Geo(), ice = new Geo(), bike = new Geo();
+  const road = new Geo(), paint = new Geo(), walk = new Geo(), stone = new Geo(), dark = new Geo(), white = new Geo(), snow = new Geo(), ice = new Geo();
   const { lsd, prom, shore, buoys, slip, shell: sh } = L, z0 = B.z0, z1 = B.z1;
 
   // ---- the field's paths
@@ -49,7 +49,7 @@ export function buildLakefront(museum, plan) {
 
   // ---- the promenade, the cycle path, the revetment and the slipway
   flat(walk, prom.x0, prom.x1, z0, z1, 0.006, 2.5);
-  flat(bike, prom.x0 + 1.2, prom.x0 + 4.4, z0, z1, 0.009); for (let z = z0; z < z1; z += 6) flat(paint, prom.x0 + 2.75, prom.x0 + 2.85, z, z + 2, 0.012);
+  // (no cycle path drawn on it: a dark strip with a dashed line read as a second, lesser road beside the Drive)
   for (const [a, b] of [[z0, slip[0]], [slip[1], z1]]) {
     stone.box(prom.x1, shore, 0, 0.5, a, b, 1.2); snow.box(prom.x1 + 0.1, shore - 0.1, 0.5, 0.56, a, b);
     stone.box(shore, shore + 1.1, 0, 0.3, a, b, 1.2); stone.box(shore + 1.1, shore + 2.3, 0, 0.13, a, b, 1.2);         // two steps down to the ice
@@ -93,7 +93,6 @@ export function buildLakefront(museum, plan) {
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
   add(road.mesh(asphaltMaterial()), walk.mesh(walkMaterial()));
   { const pm = paint.mesh(paintMaterial(false)); pm.renderOrder = -3; for (let i = 0, uv = pm.geometry.attributes.uv; i < uv.count; i++) uv.setXY(i, 0.25, uv.getY(i) + uv.getX(i)); add(pm); }      // (the middle of the fresh half of the paint)
-  add(bike.mesh(new THREE.MeshStandardMaterial({ color: 0x4a5a52, roughness: 0.8, emissive: 0x1c2622, emissiveIntensity: 0.6, ...off(-2) })));
   add(stone.mesh(new THREE.MeshStandardMaterial({ color: 0xa9a59b, roughness: 0.9, emissive: 0x41465a, emissiveIntensity: 0.55 })));
   add(dark.mesh(new THREE.MeshStandardMaterial({ color: 0x23262d, roughness: 0.7, emissive: 0x0e1016, emissiveIntensity: 0.6 })));
   add(white.mesh(new THREE.MeshStandardMaterial({ color: 0xd9dbe0, roughness: 0.6, metalness: 0.15, emissive: 0x565c70, emissiveIntensity: 0.6, side: THREE.DoubleSide })));
