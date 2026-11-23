@@ -237,7 +237,7 @@ lifeFor(28560, {
     const fu = this.fu = {
       uO: { value: L.floor(U0, this.out0) }, uAx: { value: new THREE.Vector4(L.tx / SC, L.tz / SC, L.nx / SC, L.nz / SC) }, uC: { value: 0 }, uTint: u.uTint,
       uSh: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0.1, 0.1)) }, uShK: { value: [0, 0, 0, 0] },
-      uCol: { value: [col('#3f9468', 0.08), col('#5aa87e', 0.08), col('#2f8274', 0.08), col('#b8686c', 0.08), col('#9a5a60', 0.08), col('#c88886', 0.08), col('#c89a38', 0.08), col('#5a74c0', 0.08)] }, uSeam: { value: col('#5a3e48', 0.1) },
+      uCol: { value: [col('#6e9a82', 0.08), col('#80aa90', 0.08), col('#5e8a74', 0.08), col('#b0706e', 0.08), col('#9c6264', 0.08), col('#c08680', 0.08), col('#3e5e4a', 0.08), col('#c89a6a', 0.08)] }, uSeam: { value: col('#36553f', 0.08) },
     };
     const fm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false });
     fm.onBeforeCompile = sh => {
@@ -249,31 +249,32 @@ vec3 bfCol; float bfA;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec2 lq = lifeP.xz - uO.xz; vec2 q = vec2(dot(lq, uAx.xy), dot(lq, uAx.zw));
-  // the boards fan out from a point behind the wall, so they widen as they come towards you, as his do
-  vec2 vp = vec2(-0.1, -2.4), d = q - vp;
-  float phi = atan(d.x, d.y) / 0.027, rho = length(d), b = floor(phi), fb = fract(phi);
+  // long boards running into the room, towards the back wall, a little wider as they come towards you, as his are
+  vec2 vp = vec2(-0.15, -4.6), d = q - vp;
+  float phi = atan(d.x, d.y) / 0.0175, rho = length(d), b = floor(phi), fb = fract(phi);
   float hb = bfH(vec2(b, 1.7));
   float run = clamp((uC - (${T_BOARDS[0].toFixed(2)} + hb * ${T_BOARDS[1].toFixed(2)})) / ${T_BOARDS[2].toFixed(2)}, 0.0, 1.0);
   float reach = (${(DEPTH - 0.08).toFixed(2)} + bfH(vec2(b, 5.3)) * 0.16) * (1.0 - pow(1.0 - run, 3.0));
   float xl = ${BACK.x0.toFixed(3)} + ${(LW.out / LW.len).toFixed(4)} * q.y, xr = ${BACK.x1.toFixed(3)} + ${(RW.out / RW.len).toFixed(4)} * q.y;
   float inside = step(-0.01, q.y) * step(q.y, reach) * smoothstep(xl - 0.004, xl + 0.004, q.x) * smoothstep(xr + 0.004, xr - 0.004, q.x);
-  // dashes along each board, green and pink; a dark seam between boards; a lighter ridge on each stroke
-  float lane = floor(fb * 3.0), fl = fract(fb * 3.0);
-  float cell = (rho + bfH(vec2(b, lane + 0.5)) * 0.9) / (0.09 + 0.05 * bfH(vec2(b, lane + 7.0))), ci = floor(cell) + lane * 101.0, cf = fract(cell);
-  // each board mostly green or mostly pink, with dashes of the other, and now and then a touch of ochre or blue
-  float hd = bfH(vec2(b, ci)), fam = step(0.5, bfH(vec2(b, 2.9))), other = step(0.78, bfH(vec2(ci, b + 4.4)));
-  float pick = hd < 0.02 ? 6.0 : hd < 0.03 ? 7.0 : abs(fam - other) * 3.0 + floor(bfH(vec2(ci, b + 9.1)) * 3.0);
+  // long strokes along each board: greyish green, with pinkish red laid among it, a rare warm touch
+  float lane = floor(fb * 2.0), fl = fract(fb * 2.0);
+  float cell = (rho + bfH(vec2(b, lane + 0.5)) * 0.9) / (0.13 + 0.09 * bfH(vec2(b, lane + 7.0))), ci = floor(cell) + lane * 101.0, cf = fract(cell);
+  float hd = bfH(vec2(b, ci)), pink = 0.22 + 0.3 * bfH(vec2(b, 2.9));
+  float pick = hd < 0.012 ? 7.0 : (bfH(vec2(ci, b + 4.4)) < pink ? 3.0 : 0.0) + floor(bfH(vec2(ci, b + 9.1)) * 3.0);
   vec3 c = uCol[int(pick)];
-  c *= 0.86 + 0.24 * bfH(vec2(ci + 3.3, b));
-  // the bristles: fine streaks along the board, and a stroke's two halves a shade apart
-  float br = bfH(vec2(floor(fl * 4.0), ci + b * 3.0));
-  c *= 0.9 + 0.16 * br;
-  c = mix(c * 0.8, c, smoothstep(0.0, 0.18, fl) * smoothstep(1.0, 0.8, fl));
-  c = mix(c, c * 1.18, smoothstep(0.25, 0.32, fb) * smoothstep(0.45, 0.38, fb) * 0.7);
-  float gap = smoothstep(0.0, 0.07, cf) * smoothstep(1.0, 0.9, cf);
-  c = mix(c * 0.84, c, gap);
-  float seam = smoothstep(0.1, 0.0, fb) + smoothstep(0.9, 1.0, fb);
-  c = mix(c, uSeam, seam * 0.8);
+  c *= 0.9 + 0.16 * bfH(vec2(ci + 3.3, b));
+  // the bristles: fine streaks along the stroke
+  c *= 0.93 + 0.1 * bfH(vec2(floor(fl * 5.0), ci + b * 3.0));
+  c = mix(c * 0.86, c, smoothstep(0.0, 0.16, fl) * smoothstep(1.0, 0.84, fl));
+  float gap = smoothstep(0.0, 0.05, cf) * smoothstep(1.0, 0.93, cf);
+  c = mix(c * 0.88, c, gap);
+  // the darker green line between boards
+  float seam = smoothstep(0.09, 0.0, fb) + smoothstep(0.91, 1.0, fb);
+  c = mix(c, uSeam, seam * 0.85);
+  // towards the front it thins out stroke by stroke, scumbled, rather than ending in a line
+  float fade = smoothstep(0.6, 1.15, q.y) + smoothstep(0.15, 0.0, q.x - xl) * smoothstep(0.5, 0.9, q.y);
+  inside *= clamp((bfH(vec2(ci + 7.7, b)) - fade) * 5.0 + 0.4 * (1.0 - fade), 0.0, 1.0);
   // soft shadows under the furniture
   float sh = 0.0;
   for (int i = 0; i < 4; i++) { vec2 e = (q - uSh[i].xy) / uSh[i].zw; sh = max(sh, uShK[i] * smoothstep(1.0, 0.25, length(e))); }
@@ -389,7 +390,7 @@ vec3 bfCol; float bfA;`)
     this.fu.uC.value = c;
     // the evening
     const dusk = ease.smooth(ramp(tp, T_DUSK, T_DUSK + 1.3)) * (showing ? 1 : 1 - ease.smooth(L.ret));
-    this.u.uTint.value.setRGB(1 - 0.2 * dusk, 1 - 0.14 * dusk, 1 + 0.06 * dusk);
+    this.u.uTint.value.setRGB(1 - 0.34 * dusk, 1 - 0.24 * dusk, 1 + 0.1 * dusk);
 
     // ---- the walls
     const WO = this.WO || (this.WO = [{}, {}, {}]), HO = this.HO || (this.HO = [{ x: -0.47, z: 0.13, yaw: 0 }, {}, {}, { x: BED.x, z: BED.z, yaw: 0 }]);
