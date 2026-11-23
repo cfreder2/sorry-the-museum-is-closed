@@ -18,23 +18,24 @@ import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, shape, canvasTexture, walk } from '../paintlife.js';
 
 const OUT = 2.3, HALF = 2.2;           // the wet street: out from the wall, and either side of the middle (m)
-const DROPS = 300, RIPS = 16, SPLASH = 40, DRY = 32;
-const S = 1.4;                         // the Parisians' size: a man in his hat is 0.58 m, the toy's own height and a bit
+const DROPS = 300, SPL = 24, RIPS = 16, SPLASH = 40, DRY = 32;
+const S = 1.4, SC = 1.45;              // the Parisians' size: a man in his hat is 0.58 m, the toy's own height and a bit;
+                                       // the couple, who walk towards you as in the picture, a little larger
 // The puddles, in the stage's terms: [along, out, half length along the wall, half width out].
-const PUDDLES = [[0.3, 1.15, 0.32, 0.17], [-1.05, 0.85, 0.36, 0.19], [1.3, 1.45, 0.3, 0.17], [-0.35, 1.62, 0.26, 0.14], [0.95, 0.85, 0.18, 0.1]];
+const PUDDLES = [[0.95, 1.05, 0.3, 0.16], [-1.05, 0.75, 0.34, 0.17], [1.45, 0.55, 0.26, 0.14], [-0.3, 1.25, 0.26, 0.13], [0.2, 0.75, 0.16, 0.09]];
 // Who walks, and where: out of the wall under the frame, a pause to put the umbrella up, a stroll, and back in under
-// the frame further along (along, out, and how long to stand at that point).
+// the frame further along (along, out, and how long to stand at that point). The couple come towards you and stop.
 const WALKS = [
-  { who: 'couple', delay: 0.4, rest: 3, pts: [[0.36, -0.35], [0.36, 0.5, 0.9], [0.34, 0.8, 1.1], [-0.12, 1.0], [-0.14, 1.4], [0.5, 1.75], [1.0, 1.85], [1.75, 1.3], [1.8, 0.6], [1.62, 0.1], [1.6, -0.35]] },
-  { who: 'man', delay: 1.2, rest: 2, pts: [[-0.85, -0.35], [-0.85, 0.5, 0.7], [-0.5, 0.75], [0.35, 1.4], [0.9, 1.85], [1.85, 1.95], [2.1, 1.1], [2.0, 0.3], [1.95, -0.35]] },
-  { who: 'woman', delay: 2.0, rest: 4, pts: [[-1.55, -0.35], [-1.6, 0.5, 0.8], [-1.8, 1.05], [-1.45, 1.45], [-0.85, 1.35, 0.6], [-0.4, 0.95], [-0.3, 0.45], [-0.45, 0.1], [-0.5, -0.35]] },
-  { who: 'walker', delay: 2.9, rest: 3, pts: [[1.05, -0.35], [1.05, 0.45, 0.6], [0.55, 0.6], [-0.6, 0.42], [-1.75, 0.45], [-2.05, 0.2], [-2.05, -0.35]] },
+  { who: 'couple', delay: 0.4, rest: 3, pts: [[0.36, -0.35], [0.36, 0.5, 0.9], [0.4, 1.25, 1.6], [0.1, 1.45], [-0.6, 1.4], [-1.4, 0.95], [-1.6, 0.3], [-1.6, -0.35]] },
+  { who: 'man', delay: 1.3, rest: 2, pts: [[-0.85, -0.35], [-0.85, 0.5, 0.7], [-0.55, 0.95], [0.3, 1.02], [1.0, 1.38], [1.8, 1.2], [2.05, 0.5], [1.95, -0.35]] },
+  { who: 'woman', delay: 2.1, rest: 4, pts: [[-1.55, -0.35], [-1.6, 0.5, 0.8], [-1.85, 1.0], [-1.5, 1.4], [-0.95, 1.45, 0.6], [-0.75, 0.98], [-0.5, 0.45], [-0.5, 0.1], [-0.5, -0.35]] },
+  { who: 'walker', delay: 2.9, rest: 3, pts: [[1.05, -0.35], [1.05, 0.45, 0.6], [0.6, 0.42], [-0.6, 0.42], [-1.75, 0.45], [-2.05, 0.2], [-2.05, -0.35]] },
 ];
 
 lifeFor(20684, {
   title: /^Paris Street; Rainy Day/,
   word: 'puddle',
-  stage: { out: 1.7, half: 2.0 },
+  stage: { out: 1.7, half: 2.0, cam: { dist: 2.9, height: 1.3, side: 0.6, fov: 50, lookOut: 0.65, lookH: 0.55 } },
   wake: 2, ret: 2,
   secrets: [['rain', 'Rain indoors']],
 
@@ -114,13 +115,20 @@ float lPud, lDry;`)
     const top = y + Math.min(room.ceil || 5, 5.2) - 0.25;
     this.top = top;
     this.drops = Array.from({ length: DROPS }, () => this.drop(L, { y: y + L.rand() * (top - y) }));
-    const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(DROPS * 6), 3).setUsage(THREE.DynamicDrawUsage)); rg.setDrawRange(0, 0);
-    this.rain = L.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: col('#c3ccd6', 0.3), transparent: true, opacity: 0.5, depthWrite: false, fog: false })));
+    // Each drop a streak drawn twice side by side (so it holds its width on a fine screen), brighter where it passes the
+    // picture lights; and crowns of splashes where the heavier drops land; all one set of lines.
+    const NSEG = SPL * 4 + DROPS * 2, rg = new THREE.BufferGeometry();
+    rg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NSEG * 6), 3).setUsage(THREE.DynamicDrawUsage));
+    rg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NSEG * 6), 3).setUsage(THREE.DynamicDrawUsage)); rg.setDrawRange(0, 0);
+    this.rain = L.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })));
+    this.rainC = col('#c4d0dd', 0.2); this.splC = col('#d6e0ec', 0.2);
+    this.lamps = k.museum.arts.filter(q => q.room === L.art.room && !q.obj && !q.mini).map(q => ({ x: q.x + q.nx * 0.25, y: q.y + q.h / 2 + (q.frame || 0.1) + 0.12, z: q.z + q.nz * 0.25 }));
+    this.spl = Array.from({ length: SPL }, () => ({ age: 9, x: 0, y: 0, z: 0, a: 0 })); this.si = 0;
     this.rips = Array.from({ length: RIPS }, () => ({ age: 2, life: 0.6 })); this.ri = 0;
 
     // ---------------------------------------------------------- the Parisians
     const coat = col('#2f3439'), trouser = col('#8d8a85', 0.35), dark = col('#33373d'), skin = col('#d8b29a', 0.3), hatc = col('#1d1e21', 0.3), white = col('#e9e6df', 0.3);
-    const dress = col('#4d443e'), fur = col('#2c2622', 0.3), dress2 = col('#3e4650'), canopy = [col('#a3acb5'), col('#8f99a3')], under = col('#575e66'), umbBig = [col('#9ea6b0'), col('#858f9a')], umbPurple = [col('#6f6573'), col('#5d5462')], brown = col('#5a4632', 0.3);
+    const dress = col('#4d443e'), fur = col('#2c2622', 0.3), dress2 = col('#3e4650'), canopy = [col('#323a37', 0.2), col('#3b4440', 0.2)], under = col('#1d211f', 0.2), umbBig = [col('#a9b2bb', 0.25), col('#97a1ab', 0.25)], umbPurple = [col('#2c2f33', 0.2), col('#363a3f', 0.2)], brown = col('#5a4632', 0.3), rib = col('#141615', 0.1);
     const limb = (a, b, r0, r1, c, seg = 7) => { const ax = new THREE.Vector3(...a), bx = new THREE.Vector3(...b), len = ax.distanceTo(bx), g = shape.cyl(r0, r1, len, seg, c); const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), bx.clone().sub(ax).normalize()); g.applyQuaternion(q); const m = ax.clone().add(bx).multiplyScalar(0.5); g.translate(m.x, m.y, m.z); return g; };
     const head = (hy, r, hair) => { const h = shape.ball(r, skin, 1); shape.move(h, 0, hy, 0.002); shape.paint(h, (c, n) => (n.z < 0.2 && c.y > hy - r * 0.2 ? hair : n.z > 0.3 && c.y < hy - r * 0.35 && hair === brown ? brown : null)); return h; };
     const man = () => {
@@ -147,25 +155,34 @@ float lPud, lDry;`)
       return shape.merge([skirt, bodice, h, hatw, shape.move(shape.cyl(0.011, 0.012, 0.02, 6, skin), 0, 0.302, 0),
         limb([-0.045, 0.285, 0], [-0.05, 0.19, 0.03], 0.011, 0.01, dc), limb([0.045, 0.285, 0], [0.03, 0.235, 0.065], 0.011, 0.01, dc)]);
     };
-    // An umbrella, from the hand up: its shaft, and a canopy of eight panels in two greys, darker underneath.
+    // An umbrella, from the hand up: its shaft, and a canopy of eight panels that sag a little between their ribs, two
+    // shades of one colour, darker underneath; the ribs dark, with a tip at each end.
     const umbrella = (R, rise, cols) => {
       const prof = [[0.0005, 0.075], [0.05, 0.068], [0.1, 0.05], [0.145, 0.022], [0.165, 0]].map(([r, h]) => [r * R, h * R]);
-      const topc = shape.lathe(prof, 8, cols[0]); shape.paint(topc, (c, n, f) => (Math.floor(f / 2) % 2 ? cols[1] : null));
-      const und = shape.lathe(prof.slice().reverse().map(([r, h]) => [r * 0.985, h - 0.004]), 8, under);
-      const can = shape.merge([topc, und]); can.translate(0, rise, 0);
-      return shape.merge([can, shape.cyl(0.0032, 0.0032, rise + 0.075 * R + 0.012, 5, brown).translate(0, (rise + 0.075 * R + 0.012) / 2 - 0.012, 0),
+      const sag = g => { const q = g.attributes.position; for (let i = 0; i < q.count; i++) { const x = q.getX(i), z = q.getZ(i), r = Math.hypot(x, z); if (r < 1e-4) continue; const ph = Math.atan2(x, z) / (Math.PI / 4), fr = Math.abs(ph - Math.round(ph)) * 2, k = Math.sin(fr * Math.PI / 2) * (r / (0.165 * R)); q.setXYZ(i, x * (1 - 0.06 * k), q.getY(i) - 0.012 * R * k, z * (1 - 0.06 * k)); } g.computeVertexNormals(); return g; };
+      const topc = sag(shape.lathe(prof.slice().reverse(), 16, cols[0]));      // (rim to tip, so its faces look up) shape.paint(topc, (c, n, f) => (Math.floor(Math.atan2(c.x, c.z) / (Math.PI / 4) + 8) % 2 ? cols[1] : null));
+      const und = sag(shape.lathe(prof.map(([r, h]) => [r * 0.985, h - 0.004]), 16, under));
+      const parts = [topc, und];
+      for (let k = 0; k < 8; k++) {
+        const ang = k * Math.PI / 4, sx = Math.sin(ang), sz = Math.cos(ang);
+        for (let j = 0; j < prof.length - 1; j++) parts.push(limb([prof[j][0] * sx, prof[j][1] + 0.0015, prof[j][0] * sz], [prof[j + 1][0] * sx, prof[j + 1][1] + 0.0015, prof[j + 1][0] * sz], 0.0016 * R, 0.0016 * R, rib, 3));
+        parts.push(shape.move(shape.ball(0.003 * R, rib, 0), prof[4][0] * sx * 1.01, -0.002, prof[4][0] * sz * 1.01));
+      }
+      const can = shape.merge(parts); can.translate(0, rise, 0);
+      return shape.merge([can, shape.cyl(0.0032, 0.0032, rise + 0.075 * R + 0.025, 5, rib).translate(0, (rise + 0.075 * R + 0.025) / 2 - 0.012, 0),
         shape.move(shape.cyl(0.005, 0.005, 0.028, 5, brown), 0.008, -0.014, 0, 0, 0, 0.9)]);
     };
-    const big = g => shape.move(g, 0, 0, 0, 0, 0, 0, S);
-    const rig = this.rig = L.rig(24, 9000, L.paint({ glow: 0.55, rough: 0.5 }));
-    const G = { man: rig.geo(big(man())), leg: rig.geo(big(leg(trouser))), legD: rig.geo(big(leg(dark))), hat: rig.geo(big(hat)),
-      woman: rig.geo(big(woman(dress))), woman2: rig.geo(big(woman(dress2))), umb: rig.geo(big(umbrella(1, 0.22, canopy))), big: rig.geo(big(umbrella(1.28, 0.25, umbBig))), umbP: rig.geo(big(umbrella(1, 0.22, umbPurple))) };
+    const big = (g, k = S) => shape.move(g, 0, 0, 0, 0, 0, 0, k);
+    const rig = this.rig = L.rig(24, 26000, L.paint({ glow: 0.55, rough: 0.4 }));
+    const G = { man: rig.geo(big(man())), legD: rig.geo(big(leg(dark))), hat: rig.geo(big(hat)), woman2: rig.geo(big(woman(dress2))), umb: rig.geo(big(umbrella(1, 0.22, canopy))), umbP: rig.geo(big(umbrella(1, 0.22, umbPurple))),
+      man0: rig.geo(big(man(), SC)), leg0: rig.geo(big(leg(trouser), SC)), hat0: rig.geo(big(hat, SC)), woman0: rig.geo(big(woman(dress), SC)), big: rig.geo(big(umbrella(1.2, 0.24, umbBig), SC)) };
     const person = (kind) => kind === 'woman'
       ? { kind, body: rig.add(G.woman2) }
-      : { kind, body: rig.add(G.man), legs: [rig.add(kind === 'm0' ? G.leg : G.legD), rig.add(kind === 'm0' ? G.leg : G.legD)], hat: rig.add(G.hat), tip: 0 };
+      : kind === 'm0' ? { kind, body: rig.add(G.man0), legs: [rig.add(G.leg0), rig.add(G.leg0)], hat: rig.add(G.hat0), tip: 0 }
+      : { kind, body: rig.add(G.man), legs: [rig.add(G.legD), rig.add(G.legD)], hat: rig.add(G.hat), tip: 0 };
     this.walkers = WALKS.map(w => {
-      const o = { ...w, path: walk(w.pts, { speed: 0.28, rest: w.rest }), at: {}, phase: L.rand() * 6, x: 0, z: 0, yaw: 0, shown: false, open: 0, popped: false };
-      if (w.who === 'couple') { o.people = [person('m0'), { kind: 'f0', body: rig.add(G.woman) }]; o.umb = rig.add(G.big); }
+      const o = { ...w, S: w.who === 'couple' ? SC : S, path: walk(w.pts, { speed: 0.28, rest: w.rest }), at: {}, phase: L.rand() * 6, x: 0, z: 0, yaw: 0, shown: false, open: 0, popped: false };
+      if (w.who === 'couple') { o.people = [person('m0'), { kind: 'f0', body: rig.add(G.woman0) }]; o.umb = rig.add(G.big); }
       else { o.people = [person(w.who === 'woman' ? 'woman' : 'man')]; o.umb = rig.add(w.who === 'woman' ? G.umbP : G.umb); }
       return o;
     });
@@ -214,15 +231,36 @@ float lPud, lDry;`)
     this.street.material.visible = this.wetV > 0.002 && this.spreadV > 0.001;      // (by its material: the mirror shows and hides the mesh)
     if (this.wetV <= 0.002) { this.spreadV = 0; this.grow = 0; }
 
-    // The rain.
-    const n = Math.round(DROPS * this.amt), a = this.rain.geometry.attributes.position.array, wind = 0.035;
-    this.rain.visible = n > 0; this.rain.geometry.setDrawRange(0, n * 2);
+    // The rain: streaks catching the picture lights as they fall past them; the heavier drops splash where they land.
+    const n = Math.round(DROPS * this.amt), a = this.rain.geometry.attributes.position.array, cl = this.rain.geometry.attributes.color.array, wind = 0.035, w2 = 0.004;
+    const RC = this.rainC, SCc = this.splC, ox = L.nx * 0.0 + L.tx * w2, oz = L.tz * w2;
+    this.rain.visible = n > 0 || this.spl.some(q => q.age < 0.3); this.rain.geometry.setDrawRange(0, (SPL * 4 + n * 2) * 2);
+    for (let i = 0; i < SPL; i++) {                // splashes: four droplets thrown up and out, a few hundredths of a second long
+      const q = this.spl[i]; q.age += dt;
+      for (let k2 = 0; k2 < 4; k2++) {
+        const j = (i * 4 + k2) * 6, ang = q.a + k2 * Math.PI / 2, t1 = Math.min(q.age, 0.26), t0 = Math.max(0, t1 - 0.035), sp = 0.55;
+        if (q.age > 0.26) { a.fill(-1e4, j, j + 6); continue; }
+        const c = Math.cos(ang) * sp, sn = Math.sin(ang) * sp;
+        a[j] = q.x + c * t0; a[j + 1] = q.y + 1.1 * t0 - 4.9 * t0 * t0; a[j + 2] = q.z + sn * t0; a[j + 3] = q.x + c * t1; a[j + 4] = q.y + 1.1 * t1 - 4.9 * t1 * t1; a[j + 5] = q.z + sn * t1;
+        const f = 1 - q.age / 0.26; for (let v = 0; v < 2; v++) { cl[j + v * 3] = SCc.r * f; cl[j + v * 3 + 1] = SCc.g * f; cl[j + v * 3 + 2] = SCc.b * f; }
+      }
+    }
     for (let i = 0; i < n; i++) {
       const d = this.drops[i]; d.y -= d.s * dt;
-      if (d.y < L.y) { if (L.rand() < 0.55 && d.o < OUT && Math.abs(d.u) < HALF) this.ripple(L, d.x, d.z, d.u, d.o); this.drop(L, d); d.y = this.top - L.rand() * 0.6; }
-      const j = i * 6; a[j] = d.x; a[j + 1] = d.y; a[j + 2] = d.z; a[j + 3] = d.x - L.tx * wind; a[j + 4] = d.y + 0.2; a[j + 5] = d.z - L.tz * wind;
+      if (d.y < L.y) {
+        if (d.o < OUT && Math.abs(d.u) < HALF) { if (L.rand() < 0.55) this.ripple(L, d.x, d.z, d.u, d.o); if (L.rand() < 0.16) { const q = this.spl[this.si = (this.si + 1) % SPL]; q.age = 0; q.x = d.x; q.y = L.y + 0.012; q.z = d.z; q.a = L.rand() * 6.3; } }
+        this.drop(L, d); d.y = this.top - L.rand() * 0.6;
+      }
+      // how bright: the picture lights, each a little above its frame, light the drops that pass near them
+      let lit = 0.62; for (const lp of this.lamps) { const dd = (d.x - lp.x) ** 2 + ((d.y - lp.y) * 0.6) ** 2 + (d.z - lp.z) ** 2; if (dd < 4) lit += 1.6 * Math.exp(-dd / 0.5); }
+      lit = Math.min(2.2, lit);
+      for (let h = 0; h < 2; h++) {
+        const j = (SPL * 4 + i * 2 + h) * 6, sx = h ? ox : 0, sz = h ? oz : 0;
+        a[j] = d.x + sx; a[j + 1] = d.y; a[j + 2] = d.z + sz; a[j + 3] = d.x + sx - L.tx * wind; a[j + 4] = d.y + 0.32; a[j + 5] = d.z + sz - L.tz * wind;
+        cl[j] = RC.r * lit; cl[j + 1] = RC.g * lit; cl[j + 2] = RC.b * lit; cl[j + 3] = RC.r * lit * 0.25; cl[j + 4] = RC.g * lit * 0.25; cl[j + 5] = RC.b * lit * 0.25;
+      }
     }
-    if (n) this.rain.geometry.attributes.position.needsUpdate = true;
+    if (this.rain.visible) { this.rain.geometry.attributes.position.needsUpdate = true; this.rain.geometry.attributes.color.needsUpdate = true; }
     for (let i = 0; i < RIPS; i++) { const r = this.rips[i]; r.age += dt / r.life; u.uRip.value[i].z = Math.min(2, r.age); }
     const near = Math.max(0, 1 - Math.hypot(k.G.camera.position.x - L.cx, k.G.camera.position.z - L.cz) / 14);
     this.hiss.set(0.06 * this.amt * near);
@@ -245,7 +283,7 @@ float lPud, lDry;`)
       w.open = clamp01(w.open + (opening ? dt / 0.8 : -dt / 0.45));
       if (w.open > 0.6 && !w.popped) { w.popped = true; this.whump(L); } else if (w.open < 0.3) w.popped = false;
       const yaw = L.yawOf(du, dout), p = L.floor(u0, out0);
-      w.phase += dt * moving * 0.28 * (Math.PI * 2 / (0.13 * S));
+      w.phase += dt * moving * 0.28 * (Math.PI * 2 / (0.13 * w.S));
       this.place(L, w, p.x, p.z, yaw, moving);
     }
     // A gentleman raises his hat to the couple as they pass.
@@ -277,7 +315,7 @@ float lPud, lDry;`)
   hideWalker(w) { const r = this.rig; for (const p of w.people) { r.show(p.body, false); if (p.legs) { r.show(p.legs[0], false); r.show(p.legs[1], false); r.show(p.hat, false); } } r.show(w.umb, false); w.shown = false; },
   // Stand a walker (one person, or the couple) at (x, z) facing yaw, legs going if moving.
   place(L, w, x, z, yaw, moving) {
-    const r = this.rig, y = L.y + 0.002, rx = Math.cos(yaw), rz = -Math.sin(yaw), fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const r = this.rig, S = w.S, y = L.y + 0.002, rx = Math.cos(yaw), rz = -Math.sin(yaw), fx = Math.sin(yaw), fz = Math.cos(yaw);
     const swing = Math.sin(w.phase) * 0.42 * Math.min(1, moving), bob = Math.abs(Math.cos(w.phase)) * 0.006 * S * Math.min(1, moving);
     if (!w.shown) { for (const p of w.people) { r.show(p.body, true); if (p.legs) { r.show(p.legs[0], true); r.show(p.legs[1], true); r.show(p.hat, true); } } r.show(w.umb, true); w.shown = true; }
     const couple = w.people.length > 1;
@@ -292,7 +330,7 @@ float lPud, lDry;`)
     });
     // The umbrella, in the outside hand (between them, for the couple): furled, it is carried point down like a cane;
     // then swung up and opened, and tipped a little into the rain.
-    const ux = (couple ? 0 : 0.04) * S, uf = (couple ? 0.045 : 0.07) * S, hy = (couple ? 0.27 : 0.245) * S;
+    const ux = (couple ? 0 : 0.04) * S, uf = (couple ? 0.045 : 0.07) * S, hy = (couple ? 0.25 : 0.245) * S;
     const up = ease.smooth(w.open / 0.62), pop = ease.outBack(ramp(w.open, 0.55, 1)), furl = Math.PI - 0.62;
     const pitch = furl + (-0.12 + Math.sin(w.phase) * 0.02 - furl) * up, sc = this._sc || (this._sc = new THREE.Vector3());
     sc.set(0.14 + 0.86 * pop, 1 - 0.12 * (1 - pop), 0.14 + 0.86 * pop);
