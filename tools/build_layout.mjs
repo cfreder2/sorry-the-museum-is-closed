@@ -89,8 +89,17 @@ const sized = (q, m = 0.6) => q.x1 - q.x0 >= m && q.z1 - q.z0 >= m;
 function decksFrom(tall, pieces, y, name, voids = []) {
   let parts = pieces.map(p => cross(p, tall)).filter(q => sized(q));
   for (const v of voids) parts = parts.flatMap(p => minus(p, v)).filter(q => sized(q));
-  const touch = (p, s) => parts.some(o => o !== p && (s === 'w' ? Math.abs(o.x1 - p.x0) < 0.05 : s === 'e' ? Math.abs(o.x0 - p.x1) < 0.05 : s === 'n' ? Math.abs(o.z1 - p.z0) < 0.05 : Math.abs(o.z0 - p.z1) < 0.05)
-    && (s === 'w' || s === 'e' ? o.z0 < p.z1 - 0.05 && o.z1 > p.z0 + 0.05 : o.x0 < p.x1 - 0.05 && o.x1 > p.x0 + 0.05));
+  // Is this side of p wholly against other parts of the deck? A side only partly against them (a balcony's long side,
+  // with the short sides' decks meeting it at its ends) still has a rail: the game leaves a gap in it where they meet.
+  const touch = (p, s) => {
+    const along = s === 'w' || s === 'e', a = along ? p.z0 : p.x0, b = along ? p.z1 : p.x1;
+    let got = 0;
+    for (const o of parts) {
+      if (o === p || !(s === 'w' ? Math.abs(o.x1 - p.x0) < 0.05 : s === 'e' ? Math.abs(o.x0 - p.x1) < 0.05 : s === 'n' ? Math.abs(o.z1 - p.z0) < 0.05 : Math.abs(o.z0 - p.z1) < 0.05)) continue;
+      got += Math.max(0, Math.min(b, along ? o.z1 : o.x1) - Math.max(a, along ? o.z0 : o.x0));
+    }
+    return got > b - a - 0.3;
+  };
   parts.forEach((p, i) => {
     const rails = [];
     if (p.x0 > tall.x0 + 0.05 && !touch(p, 'w')) rails.push('w');

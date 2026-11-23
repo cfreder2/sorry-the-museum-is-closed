@@ -86,9 +86,21 @@ export class Poker {
     for (const s of this.seats.slice(1)) {
       const m = s.w.kind === 'car' ? buildCar(s.w.colour) : buildDrone(s.w.colour);
       if (m.lamp) m.group.remove(m.lamp, m.lamp.target);              // nobody at the table needs a real light
+      const box = s.w.kind === 'car' ? new THREE.Box3().setFromObject(m.group) : null;      // the car as built, in its own frame (wheels and wing included)
       m.group.position.set(s.x, s.w.kind === 'car' ? 0.04 : 0.62, s.z); m.group.rotation.y = Math.atan2(-s.x, -s.z);
       g.add(m.group); this.models.push({ m, s, y: m.group.position.y });
-      if (s.w.kind === 'car') plan.obstacles.push({ x0: T.x + s.x - 0.2, x1: T.x + s.x + 0.2, z0: T.z + s.z - 0.2, z1: T.z + s.z + 0.2, y0: T.top, y1: T.top + 0.4 });
+      // Solid as drawn: the car's own footprint, turned the way it sits. A box can only lie square to the world, so a car
+      // sitting at an angle is a row of short boxes down its length, each just round its stretch of the body.
+      if (box) {
+        const yaw = m.group.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = fz, rz = -fx, hw = (box.max.x - box.min.x) / 2, cx = (box.max.x + box.min.x) / 2, N = Math.abs(fx * fz) > 0.05 ? 5 : 1;
+        for (let i = 0; i < N; i++) {
+          const a = box.min.z + (box.max.z - box.min.z) * i / N, b = box.min.z + (box.max.z - box.min.z) * (i + 1) / N, xs = [], zs = [];
+          for (const d of [a, b]) for (const u of [cx - hw, cx + hw]) { xs.push(T.x + s.x + fx * d + rx * u); zs.push(T.z + s.z + fz * d + rz * u); }
+          // each slice drawn in to the middle of its corners' spread, so the row follows the body's outline and not its square hull
+          const ex = N > 1 ? Math.abs(fx) * (b - a) / 2 * 0.5 : 0, ez = N > 1 ? Math.abs(fz) * (b - a) / 2 * 0.5 : 0;
+          plan.obstacles.push({ x0: Math.min(...xs) + ex, x1: Math.max(...xs) - ex, z0: Math.min(...zs) + ez, z1: Math.max(...zs) - ez, y0: T.top, y1: T.top + 0.04 + Math.min(box.max.y, 0.26) });      // (to the top of the wing, not the tip of the aerial)
+        }
+      }
     }
     // On the baize: five places for the cards in the middle, two face down before each player, chips, the dealer's button.
     const cv = this.cv = document.createElement('canvas'); cv.width = 320; cv.height = 90; this.cardTex = new THREE.CanvasTexture(cv); this.cardTex.colorSpace = THREE.SRGBColorSpace;

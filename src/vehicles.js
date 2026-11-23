@@ -15,6 +15,66 @@ function part(geo, mat, x, y, z, parent) {
   return m;
 }
 
+// ---------------------------------------------------------------- shadow ---
+// Nothing here casts a real shadow, so each toy carries a blob of one: a soft dark oval, darkest under the middle and
+// fading to nothing at its rim, laid on whatever is underneath and tipped to its slope (a ramp, a stair's plank, the
+// side of a hill), spreading and fading as the toy goes up. One small texture for all of them.
+let _blob = null;
+function blobTex() {
+  if (_blob || typeof document === 'undefined') return _blob;
+  const N = 128, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const c = cv.getContext('2d'), g = c.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2 - 1);
+  // full under the middle, then a long smooth fall to nothing at the rim (dark well out: a lamp-lit floor is far over
+  // white before the grade, and a light shadow over it does not show)
+  for (let i = 0; i <= 12; i++) { const t = i / 12, x = Math.min(1, Math.max(0, (t - 0.4) / 0.6)), v = Math.round(255 * (1 - x * x * (3 - 2 * x)) ** 0.6); g.addColorStop(t, `rgb(${v},${v},${v})`); }
+  c.fillStyle = '#000'; c.fillRect(0, 0, N, N); c.fillStyle = g; c.fillRect(0, 0, N, N);
+  return (_blob = new THREE.CanvasTexture(cv));          // an alpha map: only its grey is read
+}
+// A shadow `w` across and `l` long (the soft edge included), `op` dark at its heart. It lies in its own x-z plane.
+export function blobShadow(w, l, op = 0.6) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0, alphaMap: blobTex(), transparent: true, opacity: op, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  // Darken what is under it and leave the frame's alpha alone: src/finish.js reads a pixel with alpha under 1 as a work of
+  // art and skips the grade there, which turned a soft shadow's edge into a pale halo.
+  Object.assign(m.material, { blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
+  m.scale.set(w, 1, l); m.userData.blob = { w, l, op, off: 0, n: new THREE.Vector3(0, 1, 0), want: new THREE.Vector3(0, 1, 0), at: [Infinity, 0, 0] };
+  return m;
+}
+// Fit a toy's shadow to the bodywork (and wheels) it now has: centred under it, and big enough that its dark heart (the
+// soft edge is about half the oval) covers the footprint.
+function fitShadow(sh, model) {
+  const B = sh.userData.blob; if (!B || !model.body) return;
+  const box = new THREE.Box3().setFromObject(model.body);
+  for (const w of model.wheels || []) box.expandByObject(w.pivot);
+  if (box.isEmpty()) return;
+  B.w = Math.max(0.36, (box.max.x - box.min.x) * 1.9); B.l = Math.max(0.42, (box.max.z - box.min.z) * 1.6); B.off = (box.max.z + box.min.z) / 2;
+  B.at[0] = Infinity;
+}
+const _sf = new THREE.Vector3(), _sr = new THREE.Vector3(), _sm = new THREE.Matrix4();
+// Lay it on the ground under (x, z), at ground height g, the toy h above it and pointing along yaw. The slope is found
+// from the ground a hand's width to each side, where that is near this height (a step or a ledge beside the toy is not
+// a slope), and only when the toy has moved; it eases round, so it does not flick at the edge of a ramp.
+function layShadow(sh, plan, x, z, g, yaw, h, dt, spread, fade, floor) {
+  const B = sh.userData.blob;
+  if (Math.abs(x - B.at[0]) + Math.abs(z - B.at[1]) + Math.abs(g - B.at[2]) > 0.01) {
+    B.at[0] = x; B.at[1] = z; B.at[2] = g;
+    const d = 0.14, y = g + 0.25, under = plan.under;
+    const at = (dx, dz) => { const v = groundAt(plan, x + dx, z + dz, y) - g; return Math.abs(v) < d * 1.25 ? v : NaN; };
+    const e = at(d, 0), w = at(-d, 0), s = at(0, d), n = at(0, -d);
+    plan.under = under;                                   // (the toy's own question about what is under it stands)
+    const gx = e === e && w === w ? (e - w) / (2 * d) : e === e ? e / d : w === w ? -w / d : 0;
+    const gz = s === s && n === n ? (s - n) / (2 * d) : s === s ? s / d : n === n ? -n / d : 0;
+    B.want.set(-gx, 1, -gz).normalize();
+  }
+  if (dt > 0) B.n.lerp(B.want, Math.min(1, dt * 14)).normalize(); else B.n.copy(B.want);
+  _sf.set(Math.sin(yaw), 0, Math.cos(yaw)); _sf.addScaledVector(B.n, -_sf.dot(B.n)).normalize();
+  _sr.crossVectors(B.n, _sf);
+  _sm.makeBasis(_sr, B.n, _sf); sh.quaternion.setFromRotationMatrix(_sm);
+  sh.position.set(x + _sf.x * B.off, g + _sf.y * B.off, z + _sf.z * B.off).addScaledVector(B.n, 0.03);      // (3 cm up: a stair's plank and its arrows lie 1.4 and 2.6 cm over the line the ground is reckoned on)
+  const k = 1 + Math.min(h, 4) * spread;
+  sh.scale.set(B.w * k, 1, B.l * k);
+  sh.material.opacity = B.op * Math.max(floor, 1 - h / fade) / Math.sqrt(k);
+}
+
 // ------------------------------------------------------------------- car ---
 
 // ---- the toy buggy's kit of parts
@@ -267,8 +327,7 @@ export function buildCar(colour = 0xd2261c) {
   g.add(lamp, lamp.target);
 
   // A blob of shadow, since nothing else here casts one.
-  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.62), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-  shadow.rotation.x = -Math.PI / 2; shadow.rotation.order = 'YXZ';
+  const shadow = blobShadow(0.62, 0.82, 0.92);
   g.rotation.order = 'YXZ';          // yaw, then tip the whole car nose-up or nose-down
 
   return { group: g, body, chassis, wheels, aerial, lamp, shadow, radius: 0.19, kind: 'car' };
@@ -305,6 +364,7 @@ export class Car {
   // Another body on the same toy (see garage.js): new bodywork, wheels and aerial, and how it handles.
   reskin(model, spec = {}) {
     this.group.remove(this.body); for (const w of this.wheels) this.group.remove(w.pivot);
+    fitShadow(this.shadow, model);
     this.body = model.body; this.wheels = model.wheels; this.aerial = model.aerial; this.chassis = model.chassis || null;
     this.group.add(this.body); for (const w of this.wheels) this.group.add(w.pivot);
     this.spec = { ...CAR_SPEC, ...spec };
@@ -320,8 +380,31 @@ export class Car {
     this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw;
     this.vy = 0; this.air = false; this.rail = null; this.tilt = 0; this.speed = 0; this.flip = this.spin = 0;
     this.pos.y = groundAt(this.plan, x, z, y + 0.3);
+    this._unbox();
     this._hitchReset();
     this.sync(0);
+  }
+
+  // A spot inside something solid (the hollow middle of a crate or a skate ramp, a block of furniture) would box the car in
+  // for good: it goes on top of the solid piece instead, and out of the side of a fixed obstacle (which has no top to stand on).
+  _unbox() {
+    const P = this.plan, p = this.pos;
+    for (let n = 0; n < 4 && wallAt(P, p.x, p.z, p.y); n++) {
+      let top = p.y;
+      for (const list of p.y > 2 && P.roofs ? [P.surfaces, P.roofs] : [P.surfaces]) for (const s of list) {
+        if (s.hill || p.x < s.x0 || p.x > s.x1 || p.z < s.z0 || p.z > s.z1) continue;
+        const h = heightOf(s, p.x, p.z); if (h > top && h - p.y < 6) top = h;
+      }
+      if (top <= p.y) break;
+      p.y = groundAt(P, p.x, p.z, top + 0.02, 0.05);
+    }
+    const r = this.radius;
+    for (const o of P.obstacles) {
+      if (o.gate || o.rail || p.y + 0.12 < o.y0 || p.y + 0.02 > o.y1 || p.x <= o.x0 || p.x >= o.x1 || p.z <= o.z0 || p.z >= o.z1) continue;
+      const l = p.x - o.x0, rr = o.x1 - p.x, nn = p.z - o.z0, ss = o.z1 - p.z, m = Math.min(l, rr, nn, ss);
+      if (m === l) p.x = o.x0 - r - 0.02; else if (m === rr) p.x = o.x1 + r + 0.02; else if (m === nn) p.z = o.z0 - r - 0.02; else p.z = o.z1 + r + 0.02;
+      p.y = groundAt(P, p.x, p.z, p.y + 0.3);
+    }
   }
 
   // ---- the trailer (a semi's). Its kingpin rides on the tractor's fifth wheel; its axles, `len` behind the kingpin, roll
@@ -758,10 +841,7 @@ export class Car {
     }
     // The shadow stays on whatever is underneath.
     const g = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y + 0.05), h = Math.max(0, this.pos.y - g);
-    this.shadow.position.set(this.pos.x, g + 0.006, this.pos.z);
-    this.shadow.rotation.y = this.yaw;
-    this.shadow.material.opacity = 0.55 * Math.max(0.15, 1 - h / 2.5);
-    this.shadow.scale.setScalar(1 + h * 0.35);
+    if (this.shadow.visible) layShadow(this.shadow, this.plan, this.pos.x, this.pos.z, g, this.yaw, h, dt, 0.3, 2.6, 0.12);
     this._drawTrailer(dt);
   }
 
@@ -794,8 +874,7 @@ export function buildDrone(colour = 0xe9e6df) {
   lamp.position.set(0, 0, 0.1);
   lamp.target.position.set(0, -0.5, 4);
   g.add(lamp, lamp.target);
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-  shadow.rotation.x = -Math.PI / 2;
+  const shadow = blobShadow(0.6, 0.62, 0.55);
   return { group: g, body, props, lamp, shadow, radius: 0.24, kind: 'drone' };
 }
 
@@ -814,6 +893,7 @@ export class Drone {
   // Another airframe on the same toy (see garage.js).
   reskin(model, spec = {}) {
     this.group.remove(this.body);
+    fitShadow(this.shadow, model);
     this.body = model.body; this.props = model.props;
     this.anim = model.anim || null;                   // a body that moves by itself (a saucer's lights) says how
     this.group.add(this.body);
@@ -886,11 +966,8 @@ export class Drone {
     this.spin += dt * (this.landed ? 12 : 70);
     for (const p of this.props) { p.blade.rotation.y = this.spin * p.dir; p.disc.material.opacity = this.landed ? 0.04 : 0.16; }
     if (this.anim) this.anim(this, dt);
-    const g = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y, 0.02), h = this.pos.y - g;
-    this.shadow.position.set(this.pos.x, g + 0.006, this.pos.z);
-    const k = Math.max(0, 1 - h / 5);
-    this.shadow.material.opacity = 0.45 * k;
-    this.shadow.scale.setScalar(1 + h * 0.5);
+    const g = groundAt(this.plan, this.pos.x, this.pos.z, this.pos.y, 0.02), h = Math.max(0, this.pos.y - g - 0.07);
+    if (this.shadow.visible) layShadow(this.shadow, this.plan, this.pos.x, this.pos.z, g, this.yaw, h, dt, 0.4, 5, 0);
   }
 
   get height() { return 0; }

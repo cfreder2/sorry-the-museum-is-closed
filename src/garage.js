@@ -5,7 +5,7 @@
 // building are what they are.
 
 import * as THREE from 'three';
-import { buildCar, buildDrone } from './vehicles.js';
+import { buildCar, buildDrone, blobShadow } from './vehicles.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
@@ -551,8 +551,7 @@ const CARS = {
       KW.add(cyl(0.028, 0.028, 0.068, 12), chrome, 0, 0, 0, 0, 0, Math.PI / 2).add(cyl(0.012, 0.012, 0.072, 8), black, 0, 0, 0, 0, 0, Math.PI / 2);
       KW.done(); tb.add(p); tw.push({ spin, r: 0.045 });
     }
-    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.6), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-    shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.006, -0.28); T.add(shadow);
+    const shadow = blobShadow(0.32, 0.74, 0.55); shadow.position.set(0, 0.008, -0.28); T.add(shadow);      // the same soft shadow as the toys'
     // In a picture (and until it is first towed) it stands straight out behind.
     T.position.set(0, 0, -0.12); g.add(T);
     return { group: g, body, wheels, aerial, radius: 0.17, probes: [[0.12, 0.1]], view: 0.66, trailer: { group: T, wheels: tw, hitch: -0.12, len: LEN, rear: 0.53, width: 0.11 } };

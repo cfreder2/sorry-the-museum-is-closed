@@ -13,6 +13,7 @@ import { panorama, lake, SPAN, BELOW } from './skyline.js';
 import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
 import { furnish, MATERIALS } from './furnish.js';
+import { withDetail } from './fitdetail.js';
 import { buildSetPieces } from './setpieces.js';
 import { keepTrue, roomShade, relief, ShadeSet, shadeMaterial } from './finish.js';
 const AUDIT = typeof location !== 'undefined' && /[?&]audit\b/.test(location.search);      // a test switch: keep geometry readable so openings can be checked by ray (tools/audit_openings.md)
@@ -1494,6 +1495,7 @@ export class Museum {
       // Everything in the building glows a little with its own colour, or the back rooms would be black: here the colour is the vertex's.
       mats[k] = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: m.roughness, metalness: m.metalness, emissive: 0xffffff, emissiveIntensity: m.glow });
       mats[k].onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;'); };
+      withDetail(mats[k], k === 'metal' ? 'steel' : k);      // brushed steel on the metal; paint, card or wood grain on the matte (src/fitdetail.js)
     }
     const chunks = [];
     for (const b of fit.batches) {

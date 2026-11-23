@@ -3,7 +3,7 @@
 // building opens on the level you are on, a level at a time. Tap a room there for its card, and Show the way lights it up, on the big map
 // and on the radar, across stairs and lifts if it is on another level.
 
-import { heightOf, GRAVITY } from './plan.js';
+import { heightOf, groundAt, GRAVITY } from './plan.js';
 import { features } from './features.js';
 
 const TAU = Math.PI * 2;
@@ -761,6 +761,23 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     c.restore();
   }
 
+  // Out of doors the radar shows the street's level, but the tag says where you are when that is somewhere up: in the
+  // glass lift, the level it is at (its own buttons say 1, 3 and R); on the Nichols Bridgeway, Bridge; over any roof (the
+  // terrace, the rink, the card game), Roof. Nothing when you are on the ground, or flying over it.
+  function outdoorTag() {
+    if (G.roomId) return null;
+    const v = G.vehicle, p = v.pos, mw = G.museum && G.museum.mw, L = mw && mw.lift;
+    if (L && p.y > 1 && p.x > L.x0 - 0.3 && p.x < L.x1 + 0.3 && p.z > L.z0 - 0.3 && p.z < L.z1 + 0.3) return p.y < 6 ? null : p.y < 14 ? 'L3' : 'Roof';
+    if (p.y < 2.4) return null;
+    const P = G.plan, under = P.under, g = groundAt(P, p.x, p.z, p.y + 0.1); P.under = under;      // (leave the toy's own answer about what it is on as it was)
+    if (g < 2.4) return null;
+    const D = mw && mw.deck;
+    if (D && p.z > D.z0 - 0.5 && p.z < D.z1 + 0.5 && Math.abs(p.x - D.cx(Math.max(D.z0, Math.min(D.z1, p.z)))) < D.w + 0.6) return 'Bridge';
+    // A roof is up on a building; a hill (the sled hill, the snow banks) is the street's level however high it is.
+    for (const m of P.masses || []) if (p.x > m.x0 - 0.5 && p.x < m.x1 + 0.5 && p.z > m.z0 - 0.5 && p.z < m.z1 + 0.5 && g > m.top - 3) return 'Roof';
+    return null;
+  }
+
   // ---- the radar ---------------------------------------------------------------
   // The plan of a level is drawn once onto a picture of its own, and the radar only turns and slides
   // that picture each frame: drawing several hundred rooms afresh every frame is what made it jerk.
@@ -837,7 +854,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     drawYou(c, R, R, Math.PI, 1.15);
     c.strokeStyle = 'rgba(226,205,148,.85)'; c.lineWidth = 3; c.beginPath(); c.arc(R, R, R - 2, 0, TAU); c.stroke();
     // Which level you are on: a gold tag on the rim at the bottom, big enough to read on the smallest radar (a phone's is a third the size).
-    { const lv = levelOf(ly), text = lv.name === 'LL' ? 'SL1' : lv.name === 'X' ? 'SL9' : lv.name === 'B' ? 'SL10' : 'L' + lv.name, font = `700 ${Math.round(W * 0.11)}px ${MONO}`;
+    { const lv = levelOf(ly), text = outdoorTag() || (lv.name === 'LL' ? 'SL1' : lv.name === 'X' ? 'SL9' : lv.name === 'B' ? 'SL10' : 'L' + lv.name), font = `700 ${Math.round(W * 0.11)}px ${MONO}`;
       c.font = font; const tw = c.measureText(text).width, ph = W * 0.15, pw = Math.max(ph * 1.5, tw + W * 0.08), px = R - pw / 2, py = W - ph - W * 0.035;
       c.fillStyle = 'rgba(226,205,148,.97)'; c.strokeStyle = 'rgba(8,10,16,.9)'; c.lineWidth = 3;
       c.beginPath(); if (c.roundRect) c.roundRect(px, py, pw, ph, ph / 2); else c.rect(px, py, pw, ph); c.fill(); c.stroke();

@@ -234,7 +234,34 @@ feature({
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     const wm = new THREE.MeshStandardMaterial({ vertexColors: true, map: mats().snowT, roughness: 0.6, metalness: 0.05, emissive: new THREE.Color(0.5, 0.56, 0.7), emissiveIntensity: 0.75 });
-    wm.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= vColor.rgb;'); };      // the glow takes the colours too: blue ice in the hollow, white on the back
+    // The glow takes the colours too: blue ice in the hollow, white on the back. And the hollow is not a smooth gradient: wind
+    // carves the underside of a breaking drift into scallops a hand across, packed like fish scales, with ridges of brighter
+    // crust between them and a glassy glaze in their bottoms, the scallops drawn out along the wave. Worked out in the shader
+    // from where the fragment is (no texture to stretch round the curl), strongest in the blue of the hollow, a trace on the back.
+    wm.onBeforeCompile = sh => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWavePos;').replace('#include <project_vertex>', '#include <project_vertex>\n  vWavePos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+        varying vec3 vWavePos;
+        vec2 waveCell(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+        // distance to the nearest scallop centre, and to the next (their difference is the ridge between two)
+        vec2 scallops(vec2 p) {
+          vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0;
+          for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), o = waveCell(i + g); float d = length(g + o * 0.85 - f); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
+          return vec2(d1, d2);
+        }`).replace('#include <map_fragment>', `#include <map_fragment>
+        float hollow = clamp((vColor.b - vColor.r) * 2.6, 0.0, 1.0);
+        // scallops stretched along the wave (z), about 16 cm across and 30 cm long; a finer set inside them
+        vec2 sc = scallops(vec2(vWavePos.z * 3.2, vWavePos.y * 6.0 + vWavePos.x * 2.0));
+        vec2 sf = scallops(vec2(vWavePos.z * 9.0 + 3.7, vWavePos.y * 15.0 - vWavePos.x * 5.0));
+        float ridge = 1.0 - smoothstep(0.0, 0.16, sc.y - sc.x), dish = smoothstep(0.0, 0.75, sc.x);
+        float fine = 1.0 - smoothstep(0.0, 0.12, sf.y - sf.x);
+        float carve = mix(1.0, 0.86 + 0.16 * dish + 0.13 * ridge + 0.07 * fine, mix(0.2, 1.0, hollow));
+        diffuseColor.rgb *= carve;
+        float wGlaze = hollow * (1.0 - dish) * 0.5;`).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        totalEmissiveRadiance *= vColor.rgb * carve;
+        totalEmissiveRadiance += vec3(0.55, 0.75, 1.0) * wGlaze * 0.12;`);
+    };
+    wm.customProgramCacheKey = () => 'roofwave-scallops';
     const wave = new THREE.Mesh(geo, wm);
     wave.position.set(X, top, zA); wave.receiveShadow = true; k.group.add(wave);
     // Claws of spray along the lip.
