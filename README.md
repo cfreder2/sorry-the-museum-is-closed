@@ -505,6 +505,13 @@ motion it is slow and nothing flashes. None of it runs when you are far off.
 
 Nothing is ever drawn on or over a painting: whatever a work sets off happens beside it, below it or in the room in front of it, so the picture always looks exactly like the museum's image.
 
+- **Paintings that come alive.** Stand and look at some works and what is in them comes out into the room: Seurat's
+  strollers waltz on the floor (Gallery 240); it rains in front of Caillebotte's Paris Street and Parisians walk out
+  under their umbrellas (201); Cézanne's apples tumble out down a spilled cloth, for the toy to push about (248);
+  Breton's lark climbs out over the frame, sings and flies round the room (222). They are built on one kit,
+  `src/paintlife.js`, which also guarantees, in the shader, that none of it is ever drawn over a picture; how to make
+  more is in `docs/PAINTING-ANIMATIONS.md`. `?lifecheck` checks them all from several cameras.
+
 - **Explore.** The building starts dark. Lamps come on as you reach them, each
   with its own note. A work counts as seen once you are close to it (a couple
   of metres for a small picture, about five for the largest), in front of it,

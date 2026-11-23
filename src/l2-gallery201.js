@@ -1,8 +1,8 @@
 // Gallery 201: Caillebotte's Paris Street; Rainy Day, and Renoir's Woman at the Piano.
 //
-// Rain indoors: stand and look at the Caillebotte and it starts to rain in the gallery, here and nowhere else. Puddles
-// spread on the floor (the toy splashes through them, and they hold it back), and the umbrellas on the hooks by the
-// south wall open. It stops a minute after you have left the room, and the floor dries.
+// Rain indoors (the Caillebotte) is one of the paintings that come alive now: src/life/20684-paris-street.js, on the
+// shared kit in src/paintlife.js. It keeps the secret's id ('rain'), the puddles that hold the toy back and splash, and
+// the umbrellas on the hooks by the south wall.
 //
 // A duet with Renoir: a small upright piano stands by the Renoir, Für Elise open on the desk (Beethoven, 1867). It is
 // one more keyboard for the grand pianos' own class (src/piano.js): the same keys, sound and staged camera. Play the
@@ -13,136 +13,7 @@ import * as THREE from 'three';
 import { feature } from './features.js';
 
 const lam = (color, glow = 0.5) => new THREE.MeshLambertMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(glow) });
-const rnd = (s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646)(201);
 function tex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
-
-// ---------------------------------------------------------------- rain indoors
-const DROPS = 420, SPLASH = 40, RINGS = 16, STOP_AFTER = 60;
-
-feature({
-  id: 'l2-rain201',
-  secrets: [['rain', 'Rain indoors']],
-  init(k) {
-    const r = this.r = k.plan.byId.G201; if (!r) return;
-    this.art = k.museum.arts.find(a => a.room === 'G201' && /^Paris Street; Rainy Day/.test(a.work.t || ''));
-    const y = r.y, top = y + Math.min(r.ceil || 5, 5) - 0.2, G = this.group = new THREE.Group(); G.name = 'rain201'; k.group.add(G);
-    this.top = top;
-    // The streaks.
-    const pos = new Float32Array(DROPS * 6); this.drops = [];
-    for (let i = 0; i < DROPS; i++) this.drops.push({ x: r.x0 + 0.2 + rnd() * (r.x1 - r.x0 - 0.4), z: r.z0 + 0.2 + rnd() * (r.z1 - r.z0 - 0.4), y: y + rnd() * (top - y), s: 6.5 + rnd() * 2 });
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setDrawRange(0, 0);
-    this.lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xb3c4dc, transparent: true, opacity: 0.55, depthWrite: false })); this.lines.frustumCulled = false; G.add(this.lines);
-    // Puddles: where the floor is clear, away from doors, walls and what stands on it.
-    const clear = (x, z, m) => x > r.x0 + 1.1 + m && x < r.x1 - 1.1 - m && z > r.z0 + 1.1 + m && z < r.z1 - 1.1 - m
-      && !k.plan.doorsOf(r.id).some(d => Math.hypot(x - (d.x0 + d.x1) / 2, z - (d.z0 + d.z1) / 2) < 2.2 + m)
-      && !k.plan.obstacles.some(o => x > o.x0 - 0.9 - m && x < o.x1 + 0.9 + m && z > o.z0 - 0.9 - m && z < o.z1 + 0.9 + m && o.y1 > y && o.y0 < y + 2);
-    this.puddles = [];
-    const pm = new THREE.MeshBasicMaterial({ color: 0x334766, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-    const disc = new THREE.CircleGeometry(1, 28);
-    for (let n = 0; n < 200 && this.puddles.length < 7; n++) {
-      const R = 0.45 + rnd() * 0.5, x = r.x0 + rnd() * (r.x1 - r.x0), z = r.z0 + rnd() * (r.z1 - r.z0);
-      if (!clear(x, z, R) || this.puddles.some(p => Math.hypot(p.x - x, p.z - z) < p.R + R + 0.6)) continue;
-      const m = new THREE.Mesh(disc, pm); m.rotation.x = -Math.PI / 2; m.position.set(x, y + 0.004 + this.puddles.length * 0.0004, z); m.scale.set(0.001, 0.001, 1); m.visible = false; G.add(m);
-      this.puddles.push({ x, z, R, s: 0, m, sx: 0.8 + rnd() * 0.4 });
-    }
-    // Rings where drops land in them, and the splash the toy makes.
-    const ringGeo = new THREE.RingGeometry(0.03, 0.045, 16); this.rings = [];
-    for (let i = 0; i < RINGS; i++) { const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xc9d6ea, transparent: true, opacity: 0, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; G.add(m); this.rings.push({ m, t: 1 }); }
-    const sp = new Float32Array(SPLASH * 3), sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-    this.splash = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xcfdcf0, size: 0.035, transparent: true, opacity: 0.9, depthWrite: false })); this.splash.visible = false; this.splash.frustumCulled = false; G.add(this.splash);
-    this.sv = Array.from({ length: SPLASH }, () => new THREE.Vector3()); this.st = 1;
-    // Umbrellas on hooks, along the south wall between its two doors, under the little pictures.
-    const south = k.plan.doorsOf(r.id).filter(d => Math.abs(d.z0 - r.z1) < 0.05).sort((a, b) => a.x0 - b.x0);
-    const ux0 = south.length >= 2 ? south[0].x1 + 0.75 : r.x0 + 1.5, ux1 = south.length >= 2 ? south[1].x0 - 0.75 : ux0 + 3.5;
-    const n = Math.max(3, Math.min(6, Math.floor((ux1 - ux0) / 0.62) + 1)), cols = [0x1d1d22, 0x23402f, 0x1f2b4f, 0x5a1f24, 0x4a4a4e, 0x2e2a22];
-    this.brollies = [];
-    const brass = lam(0xb8964a, 0.4), handle = lam(0x4a2d18, 0.4), cone = new THREE.ConeGeometry(0.22, 0.2, 8, 1, true);
-    for (let i = 0; i < n; i++) {
-      const x = ux0 + (ux1 - ux0) * (n === 1 ? 0.5 : i / (n - 1)), z = r.z1, hy = y + 0.82;
-      const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 6), brass); peg.rotation.x = Math.PI / 2; peg.position.set(x, hy, z - 0.035); G.add(peg);
-      const pivot = new THREE.Group(); pivot.position.set(x, hy, z - 0.06); G.add(pivot);
-      const crook = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.009, 6, 12, Math.PI), handle); crook.rotation.y = Math.PI / 2; crook.position.set(0, -0.005, 0.02); pivot.add(crook);
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.5, 6), handle); shaft.position.set(0, -0.25, 0.045); pivot.add(shaft);
-      const can = new THREE.Mesh(cone, new THREE.MeshLambertMaterial({ color: cols[i % cols.length], emissive: new THREE.Color(cols[i % cols.length]).multiplyScalar(0.6), side: THREE.DoubleSide }));
-      can.rotation.x = Math.PI; can.position.set(0, -0.42, 0.045); can.scale.set(0.16, 1.25, 0.16); pivot.add(can);
-      this.brollies.push({ pivot, can, ph: rnd() * 6 });
-    }
-    if (n) k.plan.obstacles.push({ x0: ux0 - 0.28, x1: ux1 + 0.28, z0: r.z1 - 0.48, z1: r.z1, y0: y + 0.04, y1: y + 0.86 });
-    this.hiss = k.loop({ lp: 5200, hp: 650 });
-    this.amt = 0; this.wet = false; this.stopAt = Infinity; this.open = 0; this.was = false; this.ringT = 0;
-  },
-  active(k) { return !!this.r && k.inRoom('G201', 6); },
-  onLook(art) {
-    if (!this.r || art !== this.art) return;
-    this.wet = true; this.stopAt = Infinity; this.lookedAt = performance.now();
-  },
-  update(dt, k) {
-    const r = this.r, here = k.inRoom('G201', 0.4), G = k.G;
-    if (this.wet && !this.found && this.lookedAt) { this.found = true; if (k.find('rain')) k.callout('RAIN INDOORS'); k.say('It has started to rain. In here.', 4); }
-    // (stopAt is a minute after the toy was last in the room: kept up to date while it is, and left alone once it has gone.)
-    if (this.wet) { if (this.stopAt === Infinity) this.stopAt = G.t + STOP_AFTER; if (G.t <= this.stopAt) { if (here) this.stopAt = G.t + STOP_AFTER; } else {
-      // (Away for longer than that: it stopped while you were gone, and the floor has been drying since.)
-      const gone = G.t - this.stopAt; this.wet = false; this.found = false; this.lookedAt = 0;
-      if (gone > 4) { this.amt = 0; this.open = 0; for (const q of this.puddles) q.s = Math.max(0, q.s - gone / 35); }
-    } }
-    this.amt = Math.max(0, Math.min(1, this.amt + (this.wet ? dt / 3 : -dt / 4)));
-    // How loud: full in the room, falling away to nothing five metres out of it.
-    const p = k.pos, out = Math.hypot(Math.max(r.x0 - p.x, 0, p.x - r.x1), Math.max(r.z0 - p.z, 0, p.z - r.z1)), fall = Math.max(0, 1 - out / 5) * (Math.abs(p.y - r.y) < 3 ? 1 : 0);
-    this.hiss.set(0.07 * this.amt * fall);
-    // The streaks.
-    const n = Math.round(DROPS * this.amt);
-    this.lines.visible = n > 0; this.lines.geometry.setDrawRange(0, n * 2);
-    if (n > 0) {
-      const a = this.lines.geometry.attributes.position.array;
-      for (let i = 0; i < n; i++) {
-        const d = this.drops[i]; d.y -= d.s * dt;
-        if (d.y < r.y) { d.y += this.top - r.y; d.x = r.x0 + 0.2 + Math.random() * (r.x1 - r.x0 - 0.4); d.z = r.z0 + 0.2 + Math.random() * (r.z1 - r.z0 - 0.4); }
-        const j = i * 6; a[j] = d.x; a[j + 1] = d.y; a[j + 2] = d.z; a[j + 3] = d.x + 0.01; a[j + 4] = d.y + 0.22; a[j + 5] = d.z;
-      }
-      this.lines.geometry.attributes.position.needsUpdate = true;
-    }
-    // Puddles spread while it rains and dry after.
-    let inside = null;
-    for (const q of this.puddles) {
-      q.s = Math.max(0, Math.min(1, q.s + (this.wet ? dt / 25 : -dt / 35)));
-      q.m.visible = q.s > 0.01; if (!q.m.visible) continue;
-      q.m.scale.set(q.R * q.s * q.sx, q.R * q.s / q.sx, 1);
-      if (!inside && Math.abs(p.y - r.y) < 0.3 && ((p.x - q.x) / (q.R * q.s * q.sx)) ** 2 + ((p.z - q.z) / (q.R * q.s / q.sx)) ** 2 < 1) inside = q;
-    }
-    const v = k.v, speed = Math.hypot(v.vel.x, v.vel.z);
-    if (inside && v.kind === 'car') {
-      if (speed > 0.5) { const f = Math.exp(-dt * 4.5); v.vel.x *= f; v.vel.z *= f; }
-      if (!this.was && speed > 0.9) this.splashAt(k, p, speed);
-    }
-    this.was = !!inside;
-    // Rings in the puddles.
-    this.ringT -= dt * this.amt;
-    if (this.ringT <= 0 && this.amt > 0.2) {
-      this.ringT = 0.06; const live = this.puddles.filter(q => q.s > 0.2);
-      const rg = this.rings.find(g => g.t >= 1);
-      if (live.length && rg) { const q = live[Math.floor(Math.random() * live.length)], a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * q.R * q.s * 0.85; rg.t = 0; rg.m.position.set(q.x + Math.cos(a) * d * q.sx, r.y + 0.008, q.z + Math.sin(a) * d / q.sx); rg.m.visible = true; }
-    }
-    for (const g of this.rings) if (g.t < 1) { g.t += dt * 1.8; const s = 0.5 + g.t * 2.2; g.m.scale.set(s, s, s); g.m.material.opacity = 0.7 * (1 - g.t); if (g.t >= 1) g.m.visible = false; }
-    // The toy's splash.
-    if (this.st < 1) {
-      this.st += dt * 1.4; const a = this.splash.geometry.attributes.position.array;
-      for (let i = 0; i < SPLASH; i++) { const s = this.sv[i]; s.y -= 9.8 * dt; a[i * 3] += s.x * dt; a[i * 3 + 1] = Math.max(r.y + 0.01, a[i * 3 + 1] + s.y * dt); a[i * 3 + 2] += s.z * dt; }
-      this.splash.geometry.attributes.position.needsUpdate = true; this.splash.material.opacity = 0.9 * (1 - this.st); if (this.st >= 1) this.splash.visible = false;
-    }
-    // The umbrellas open as it rains, and swing out from the wall to do it.
-    this.open = Math.max(0, Math.min(1, this.open + (this.wet ? dt / 1.6 : -dt / 3)));
-    const t = performance.now() / 1000;
-    for (const b of this.brollies) { const o = this.open; b.can.scale.set(0.16 + 0.84 * o, 1.25 - 0.35 * o, 0.16 + 0.84 * o); b.pivot.rotation.x = 0.5 * o + Math.sin(t * 1.3 + b.ph) * 0.02 * o; }
-  },
-  splashAt(k, p, speed) {
-    const a = this.splash.geometry.attributes.position.array;
-    for (let i = 0; i < SPLASH; i++) { const ang = Math.random() * 6.28, s = 0.4 + Math.random() * speed * 0.4; a[i * 3] = p.x; a[i * 3 + 1] = this.r.y + 0.02; a[i * 3 + 2] = p.z; this.sv[i].set(Math.cos(ang) * s, 1.2 + Math.random() * 1.6, Math.sin(ang) * s); }
-    this.splash.geometry.attributes.position.needsUpdate = true; this.splash.visible = true; this.st = 0;
-    k.synth.noise(0.35, { vol: 0.08, lp: 2400 }); k.synth.noise(0.2, { vol: 0.04, lp: 5000, at: 0.05 });
-  },
-  spots() { return this.art ? [{ kind: 'secret', id: 'rain', name: 'Rain indoors', x: this.art.x + this.art.nx * 1.5, y: this.r.y, z: this.art.z + this.art.nz * 1.5 }] : []; },
-  reset() { if (!this.r) return; this.wet = false; this.amt = 0; this.open = 0; this.stopAt = Infinity; this.found = false; this.lookedAt = 0; for (const q of this.puddles) { q.s = 0; q.m.visible = false; } },
-});
 
 // ---------------------------------------------------------------- a duet with Renoir
 // A white key's width and length, a black key's length, how far the keys stand off the bed: as the grands have them.
