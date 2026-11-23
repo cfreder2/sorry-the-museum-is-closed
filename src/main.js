@@ -28,6 +28,8 @@ import { Props } from './props.js';
 import { Poker } from './poker.js';
 import { Hockey } from './hockey.js';
 import { Telemetry } from './telemetry.js';
+import { Opening } from './opening.js';      // the cold open before a new game
+import { LoopHud } from './hud.js';           // secrets found and art viewed, in the corner while you play
 import { Score } from './score.js';
 import { Trophies, toast } from './trophies.js';
 import { Garage } from './garage.js';
@@ -134,6 +136,7 @@ const G = {
 };
 const BUILD = '2026.11.22.2';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
+tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
 Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
@@ -358,6 +361,7 @@ async function boot() {
   garage.chooseKind(sv ? sv.toy : garage.kind, pick);
   titleButtons();
   G.state = 'title';
+  tm.reach('title');                                    // (how long the building took to open, for the page-open record)
   admired();
   if (shown === 'title' && !params.get('mode')) show('title');       // puts focus on Start, so Enter begins
   if (params.get('mode')) { G.toy = garage.fromParam(params.get('toy') || 'car', pick); start(); }      // ?mode=explore (the only mode there is) skips the title
@@ -386,6 +390,7 @@ function setVehicle(kind) {
 }
 
 function start(fresh = false) {
+  const isNew = fresh || !hasGame();                  // a new game (not Continue): it opens with the cold open, src/opening.js
   queueMicrotask(() => tm.begin({ mode: 'explore', toy: G.toy, resumed: resumed && !fresh, seen: G.museum.seenCount }));
   sound.unlock();
   if (G.arcade.on) G.arcade.leave(); G.heist.abandon(true); if (G.boards.on) { stage.leave(); G.museum.fitout.group.visible = true; G.boards.close(); }
@@ -413,13 +418,15 @@ function start(fresh = false) {
     G.museum.setLocked(!(sv && unlocked()), true);
     G.outsideSince = G.t; G.hinted = 0;
     sound.musicOn = true;
+    // The first things said: how to move, then where to go. Short, and in that order: you need the first to do the second.
+    const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
-    else say(G.toy === 'drone' ? 'Locked. But the air vent just left of the doors is open: fly in low.' : 'Locked. But the air vent just left of the doors is open: drive in.', 3.5, 9);
-    if (input.usedTouch) say(G.toy === 'drone' ? 'Left thumb flies and turns. UP and DOWN on the right.' : (set.autogo ? 'Hold your left thumb down to go. Slide it to steer. Let go to stop. Pull back to back up.' : 'Left thumb drives: push forward to go, lean to steer, pull back to reverse.'), 7.5, 8);
-    if (!input.usedTouch) say(G.toy === 'drone'
-      ? 'W S to fly · A D to turn · arrows to climb and slide · E to look closer'
-      : 'W A S D to drive · E to look closer · V to swap toys', 7.5, 7);
-    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 6); if (!input.usedTouch) say('Space to jump. Hold it in the air and steer for tricks. Land it square for a perfect landing.', 24, 8); }
+    else {
+      say(touch ? (G.toy === 'drone' ? 'Left thumb flies. UP and DOWN on the right.' : set.autogo ? 'Hold a thumb down to go. Slide it to steer.' : 'Left thumb drives: push to go, lean to steer.')
+        : G.toy === 'drone' ? 'W A S D to fly · arrows to climb' : 'W A S D or the arrows to drive', 0.4, 4.5);
+      say(G.toy === 'drone' ? 'Locked. Follow the glowing pawprints to the air vent: fly in low.' : 'Locked. Follow the glowing pawprints to the air vent.', 5, 7);
+    }
+    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 5); if (!touch) say('Space to jump. Steer in the air for tricks.', 24, 6); }
   }
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
@@ -435,6 +442,16 @@ function start(fresh = false) {
   $('pLeave').hidden = true;
   canvas.focus();
   if (!fresh) resumeVoyage(G);       // a voyage under way when the page was left picks up where it was
+  // A new game opens on the museum at night (src/opening.js); the clock of everything said above waits for it.
+  if (isNew && !G.voyage && !params.has('mode') && !params.has('voyage') && !params.has('noopen')) {
+    G.state = 'opening'; $('hud').hidden = true;
+    opening.begin(took => {
+      for (const t of toasts) t.at += took;
+      G.outsideSince += took; G.startedAt += took;
+      G.state = 'play'; $('hud').hidden = false;
+      input.endFrame(); chase(0, true); canvas.focus({ preventScroll: true });
+    });
+  }
 }
 
 // ---- closed ----
@@ -504,6 +521,8 @@ function titleButtons() {
   // Your own tally lives here and nowhere else on this screen: how many works you have stopped to look at.
   $('startSub').textContent = game ? `Art viewed: ${score.looked.toLocaleString()}` : `${m.arts.length.toLocaleString()} works on view tonight`;
   $('bNew').hidden = !game;
+  // A first visit: the goal in a line and one big Start (the vehicle, the trophies and the secrets wait for a game to exist).
+  $('title').classList.toggle('first', !game); $('goal').hidden = game;
 }
 
 // A count short enough to sit in a sentence: 1, 10, 999, 1.5k, 12k, 999k, 1.2M.
@@ -609,8 +628,9 @@ upright.addEventListener('change', () => { if (upright.matches && (G.state === '
 document.addEventListener('visibilitychange', () => { if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
 
 const toasts = [];
-function say(text, delay = 0, hold = 5) { toasts.push({ text, at: G.t + delay, hold }); }
-function once(key, text, hold = 6) { if (G.told.has(key)) return; G.told.add(key); say(text, 0, hold); }
+// `now`: it cannot wait its turn (a robot has just seen you): it goes up at once, over whatever is showing.
+function say(text, delay = 0, hold = 5, now = false) { if (now) { toasts.unshift({ text, at: G.t + delay, hold }); toastUntil = 0; } else toasts.push({ text, at: G.t + delay, hold }); }
+function once(key, text, hold = 6, now = false) { if (G.told.has(key)) return; G.told.add(key); say(text, 0, hold, now); }
 let toastUntil = 0;
 function runToasts() {
   const el = $('toast');
@@ -1064,6 +1084,8 @@ G.spots = () => {
 if (params.has('secrets')) setTimeout(function mark() { if (!G.museum || !G.plan || !G.poker || !G.boards || !G.arcade || G.state === 'title' && !G.vehicle) return setTimeout(mark, 500); try { G.mapMarks = G.spots().map(q => ({ x: q.x, y: q.y, z: q.z, colour: q.kind === 'secret' ? '#ff4d6d' : '#4dd2ff', ring: q.kind === 'secret' })); } catch (e) { console.error(e); } }, 500);
 // The secrets you have found, where they are, for the big map (a gold star on each, as it is found; never the ones still to find).
 G.foundSpots = () => { try { return G.spots().filter(q => q.kind === 'secret' && secrets.has(q.id)); } catch { return []; } };
+const opening = G.opening = new Opening(G, { THREE, scene, camera, sound });
+const loop = G.loop = new LoopHud(G, { secrets, score, say });
 G.nav = nav;                                         // G.nav.goTo({ x, y, z, label }) lights the way to a spot; G.mapMarks = [{ x, y, z, colour, ring }] puts marks on it
 
 const knobL = $('stickL').firstElementChild, knobR = $('stickR').firstElementChild;
@@ -1118,6 +1140,7 @@ function hud() {
     else if (R.clock < 1) { c.textContent = 'GO'; c.style.opacity = 1 - R.clock; c.dataset.n = 'go'; }
     else c.style.opacity = 0;
   } else $('count').style.opacity = 0;
+  loop.update();
   if (G.t > roomUntil) $('room').classList.remove('on');
   if (G.t > calloutUntil) $('trick').classList.remove('on');
   runToasts();
@@ -1477,6 +1500,8 @@ function tick(now) {
     G.museum.update(dt, camera.position, null, camera.position);
     G.museum.winter.update(dt, G.t, camera.position, null, set.reduce);
     sound.update(null, false);
+  } else if (G.state === 'opening') {
+    opening.frame(dt);
   } else if (G.state === 'play') {
     play(dt * slow.k, dt);
     sound.update(G.vehicle, true);

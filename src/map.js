@@ -823,7 +823,15 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       const far = !pts.length ? state.target : pts.slice(near).find(p => Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > (R - 12) / s) || state.target; rim(far.x, far.z, '#7fe9f5');
     }
     if (G.racing) { const g = G.race.gates[G.race.next]; if (g) rim(g.x, g.z, '#7fe9f5'); }
-    for (const m of G.mapMarks || []) if (!m.glyph) rim(m.x, m.z, m.colour || '#ff5a4d');      // (a glyph is a faint hint, kept off the rim)
+    for (const m of G.mapMarks || []) if (!m.glyph) rim(m.x, m.z, m.colour || '#ff5a4d');
+    // The story's "?" (src/story.js) off the edge: a small one on the rim, the way to the next clue (src/hud.js rings the radar when it moves on).
+    for (const m of G.mapMarks || []) if (m.glyph) {
+      const dx = m.x - v.pos.x, dz = m.z - v.pos.z, a = v.yaw - Math.PI, rx = (dx * Math.cos(a) - dz * Math.sin(a)) * s, ry = (dx * Math.sin(a) + dz * Math.cos(a)) * s, d = Math.hypot(rx, ry);
+      if (d < R - 10) continue;
+      const k = (R - 11) / d, x = R + rx * k, y = R + ry * k;
+      c.save(); c.globalAlpha = 0.7 + 0.3 * Math.sin(t * 2.4); c.fillStyle = 'rgba(6,14,9,.85)'; c.beginPath(); c.arc(x, y, 8.5, 0, TAU); c.fill();
+      c.font = '700 14px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = m.colour || '#9dffb0'; c.fillText(m.glyph, x, y + 1); c.restore();
+    }
     // North, on the rim.
     { const a = v.yaw - Math.PI, nx = Math.sin(a) * (R - 13), ny = -Math.cos(a) * (R - 13); c.fillStyle = 'rgba(226,205,148,.95)'; c.font = '700 15px ui-monospace, Menlo, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('N', R + nx, R + ny); }
     drawYou(c, R, R, Math.PI, 1.15);

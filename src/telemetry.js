@@ -37,10 +37,17 @@ function uuid() {
   if (globalThis.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => ((Math.random() * 16) | 0).toString(16));
 }
-function where() {
-  const h = (typeof location !== 'undefined' && location.hostname) || '';
+// Where the page is served from. itch.io plays the game in a frame from its own file host (html-classic.itch.zone now,
+// v6p9d9t4.ssl.hwcdn.net before it), so the page around the frame is asked too: location.ancestorOrigins where the
+// browser has it, the referrer where it does not (this page sends none, but it is told the one it was opened from).
+function framedBy() {
+  try { const a = location.ancestorOrigins; if (a && a.length) return String(a[a.length - 1]); } catch { /* not told */ }
+  try { if (window.top !== window && document.referrer) return document.referrer; } catch { /* not told */ }
+  return '';
+}
+export function where(h = (typeof location !== 'undefined' && location.hostname) || '', framer = framedBy()) {
+  if (/(^|\.)itch\.(zone|io)$|hwcdn\.net$/.test(h) || /\bitch\.io\b/.test(framer)) return 'itch';
   if (h.endsWith('github.io')) return 'pages';
-  if (h.includes('itch')) return 'itch';
   if (h === 'localhost' || h === '127.0.0.1' || h === '') return 'local';
   return 'other';
 }
@@ -127,6 +134,33 @@ export class Telemetry {
   }
   rpc(name, p, keepalive = false) { return this.call(`/rest/v1/rpc/${name}`, { p: { v: 1, ...p } }, true, keepalive); }
 
+  // ---------------------------------------------------------------- opens --
+  // Every page opened, from the loading screen on, and how far it got: loading, title, play (supabase/005-opens.sql).
+  // The session row only exists once a game is started, so without this a visitor who leaves while the building loads,
+  // or at the title, is never seen at all (and on a slow phone, over a slow network, the title can take most of a minute).
+  // Fails soft: before 005 is applied the call is answered 404 and nothing else changes.
+  open() {
+    if (!this.enabled || this.opened) return;
+    this.opened = true; this.reached = 'loading'; this.loadSecs = null;
+    this.sendOpen();
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.sendOpen(true); });
+    window.addEventListener('pagehide', () => this.sendOpen(true));
+  }
+  /** The page got as far as 'title' (ready to start) or 'play' (a game begun). */
+  reach(stage) {
+    if (!this.opened) return;
+    const order = ['loading', 'title', 'play'];
+    if (order.indexOf(stage) <= order.indexOf(this.reached)) return;
+    this.reached = stage;
+    if (stage === 'title' && this.loadSecs == null) this.loadSecs = Math.round((Date.now() - this.openedAt) / 100) / 10;
+    this.sendOpen();
+  }
+  sendOpen(keepalive = false) {
+    if (!this.opened) return null;
+    return this.rpc('museum_record_open', { id: this.id, build: this.build, host: this.host, device: this.device, reached: this.reached,
+      loadSecs: this.loadSecs, wall: Math.round((Date.now() - this.openedAt) / 1000), framed: window.top !== window, synth: this.synth }, keepalive);
+  }
+
   // ------------------------------------------------------------ reporting --
   /** The session's totals so far. Sent when a game starts, each minute after, and as the page is hidden. */
   flush(keepalive = false) {
@@ -145,6 +179,7 @@ export class Telemetry {
     if (this.seen0 == null) this.seen0 = seen;
     this.seen = seen;
     if (!this.enabled) return;
+    this.reach('play');
     if (!this.started) this.started = this.flush();
     this.event('start', mode, { toy, resumed: !!resumed });
   }
