@@ -90,10 +90,10 @@ lifeFor(109938, {
     this.snow.instanceMatrix.array.fill(0); L.add(this.snow);
     // ---------------------------------------------------------- light: the eye (gold, on the floor), round the frame (on the wall behind it), and the lightning
     this.light = L.glows([
-      { w: 2.6, d: 2.0, u: CU, out: CO, color: col('#ffc46a', 0.15), strength: 0.9 },
+      { w: 2.4, d: 1.8, u: CU, out: CO, color: col('#ffb85a', 0.15), strength: 0.6 },
       { wall: true, w: 2.9, d: 2.4, u: 0.15, v: 0.2, color: col('#ffcf7a', 0.15), strength: 1.0 },
-      { w: 4.6, d: 3.4, u: 0, out: 1.3, color: 0xdfe8ff, strength: 1.1 },
-      { wall: true, w: 3.4, d: 2.8, u: 0, v: 0.1, color: 0xe8eeff, strength: 0.85 },
+      { w: 4.2, d: 3.0, u: 0, out: 1.3, color: 0xdfe8ff, strength: 0.3 },
+      { wall: true, w: 3.4, d: 2.8, u: 0, v: 0.1, color: 0xe8eeff, strength: 0.6 },
     ]);
     this.drift = { k: -1, melt: -1 };
     this.p = { u: 0, h: 0, o: 0, wu: 0, wh: 0, wo: 0 }; this.q = { u: 0, h: 0, o: 0, wu: 0, wh: 0, wo: 0 };
@@ -144,7 +144,7 @@ lifeFor(109938, {
     const th = R.th + spin * 1.5 / (0.3 + r0) + s * (0.32 + 0.38 * R.c) / Math.max(0.2, r);
     const cu = CU + 0.07 * Math.sin(t * 1.3) * (1 - calm), co = CO + 0.06 * Math.cos(t * 1.1) * (1 - calm);
     o.u = cu + r * Math.cos(th); o.o = co + r * Math.sin(th) * 0.78;
-    o.h = calm > 0.01 ? h + calm * (this.driftH(o.u, o.o) + 0.014) : h;
+    o.h = calm > 0.01 ? h + calm * (this.driftH(o.u, o.o) + 0.006) : h;
     // upright as it wheels; lying down along the drift as it settles (and the drift takes its marks)
     o.wu = Math.cos(th) * calm; o.wo = Math.sin(th) * calm; o.wh = 1 - calm; return o;
   },
@@ -164,7 +164,7 @@ lifeFor(109938, {
     if (rr > 6) return 0;
     const ph = Math.atan2(dd, du), rad = Math.sqrt(rr);
     // a heap, blown up on one side into a crest, its surface swept round in ridges
-    return k * (1 - (this.drift.mm || 0)) * 0.3 * Math.exp(-Math.pow(rr, 1.25)) * (1 + 0.38 * Math.sin(3 * ph + 2.1) + 0.2 * Math.sin(2 * ph - 0.7) + 0.12 * Math.sin(6 * ph + rad * 8));
+    return k * (1 - (this.drift.mm || 0)) * 0.27 * Math.exp(-rr) * (1 + 0.3 * Math.sin(3 * ph + 2.1) * Math.min(1, rad) + 0.16 * Math.sin(2 * ph - 0.7) * Math.min(1, rad) + 0.04 * Math.sin(5 * ph + rad * 5));
   },
 
   update(L, dt) {
@@ -207,7 +207,7 @@ lifeFor(109938, {
           if (k > 0) { this.vortexAt(L, R, s, spin, calm, t, q); this.mix(p, q, k, 0.15 * Math.sin(Math.PI * k)); }
         }
         // width: full in the middle of the stroke, the tail thinner
-        const w = R.w * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, s * 1.15 + 0.08))) * (1 + 0.4 * calm);
+        const w = R.w * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, s * 1.15 + 0.08))) * (1 - 0.35 * calm);
         const x = L.cx + L.tx * p.u + L.nx * p.o, z = L.cz + L.tz * p.u + L.nz * p.o, y = L.y + p.h;
         const wx = (L.tx * p.wu + L.nx * p.wo) * w, wz = (L.tz * p.wu + L.nz * p.wo) * w, wy = p.wh * w;
         const v = (i * (K + 1) + j) * 2;
