@@ -1387,6 +1387,7 @@ export class Museum {
       this.cards.setMatrixAt(i, M.compose(V, Q, S));
       return art;
     });
+    this._freeCards();
     this.lamps.count = Math.max(1, lampIdx); this.washes.count = Math.max(1, lampIdx);
     this.cans.count = Math.max(1, canIdx); this.canLens.count = Math.max(1, canIdx); if (!canIdx) this.cans.visible = this.canLens.visible = false;
     for (const run of runs.values()) {
@@ -1417,6 +1418,34 @@ export class Museum {
     for (const st of Object.values(this.rooms)) { st.seen = st.arts.filter(a => a.seen).length; st.done = st.arts.length > 0 && st.seen === st.arts.length; }
   }
 
+  // A picture's label goes to the right of its frame, but on a crowded wall that spot can be behind the next work along
+  // (110 of the ~900 were, including four of the paintings that come alive, whose labels carry a clue). Any such card
+  // moves to the left of its frame, else just under it, else stays put; never onto another work or another card.
+  _freeCards() {
+    const pics = this.arts.filter(a => !a.obj && !a.mini), M = new THREE.Matrix4(), V = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3();
+    const wallOf = a => `${a.room}|${a.nx.toFixed(2)}|${a.nz.toFixed(2)}`, walls = new Map();
+    for (const a of pics) { const k = wallOf(a); if (!walls.has(k)) walls.set(k, []); walls.get(k).push(a); }
+    const CW = 0.08 + 0.02, CH = 0.055 + 0.02;                                   // half a card, and a little air
+    for (const list of walls.values()) {
+      const rect = a => { const tx = Math.cos(a.rot), tz = -Math.sin(a.rot), f = a.frame || 0; return { u: a.x * tx + a.z * tz, y: a.y, hu: a.w / 2 + f, hy: a.h / 2 + f, d: a.x * a.nx + a.z * a.nz }; };
+      const works = list.map(rect), cards = [];
+      const clear = (u, y, d, self) => works.every((r, j) => j === self || Math.abs(r.d - d) > 0.25 || Math.abs(r.u - u) >= r.hu + CW || Math.abs(r.y - y) >= r.hy + CH)
+        && cards.every(c => Math.abs(c.d - d) > 0.25 || Math.abs(c.u - u) >= 2 * CW || Math.abs(c.y - y) >= 2 * CH);
+      list.forEach((a, j) => {
+        this.cards.getMatrixAt(a.i, M); M.decompose(V, Q, S);
+        const tx = Math.cos(a.rot), tz = -Math.sin(a.rot), r = works[j], u = V.x * tx + V.z * tz, d = r.d;
+        if (clear(u, V.y, d, j)) { cards.push({ u, y: V.y, d }); return; }
+        const low = a.y - r.hy - 0.12;
+        const tries = [[r.u - (u - r.u), V.y], [r.u, low]].filter(([, y]) => y > (a.fy || 0) + 0.35);
+        const ok = tries.find(([uu, yy]) => clear(uu, yy, d, j));
+        if (!ok) { cards.push({ u, y: V.y, d }); return; }
+        V.x += (ok[0] - u) * tx; V.z += (ok[0] - u) * tz; V.y = ok[1];
+        this.cards.setMatrixAt(a.i, M.compose(V, Q, S)); cards.push({ u: ok[0], y: ok[1], d });
+      });
+    }
+    this.cards.instanceMatrix.needsUpdate = true;
+  }
+
   _paint(a) {
     const c = this._col, b = a.boost || 0, l = a.lit * (1 + 1.6 * b);
     a.mat.emissiveIntensity = (a.mini ? 0.05 + 1.1 * a.lit : a.obj ? 0.08 + 0.8 * a.lit : 0.035 + 0.88 * a.lit) * (1 + 0.5 * b);
@@ -1428,8 +1457,9 @@ export class Museum {
     const k = a.mini ? 0.22 : 0.21;
     this.pools.setColorAt(a.i, c.setRGB(k * l, k * 0.76 * l, k * 0.48 * l));
     // The label stays dark until you have seen the work; then it is lit, and stays lit.
-    if (a.seen) this.cards.setColorAt(a.i, c.setRGB(1.55, 1.2, 0.5));
-    else this.cards.setColorAt(a.i, c.setRGB(0.03, 0.029, 0.027));
+    // (A work the visitors' light has woken, a.exposed, set by src/paintlife.js, has a faint green cast to its card.)
+    if (a.seen) this.cards.setColorAt(a.i, a.exposed ? c.setRGB(0.85, 1.75, 0.8) : c.setRGB(1.55, 1.2, 0.5));
+    else this.cards.setColorAt(a.i, a.exposed ? c.setRGB(0.025, 0.11, 0.05) : c.setRGB(0.03, 0.029, 0.027));
     this._dirty = true;
   }
 

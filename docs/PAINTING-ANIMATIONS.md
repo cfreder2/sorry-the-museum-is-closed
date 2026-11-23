@@ -166,6 +166,11 @@ hand-made recipes replace the archetypes one by one.
   - **Firing:** it fires with the same button as LOOK, when the toy faces a work within about 4 m; on a phone, BLAST.
   - **Sound:** it hums and has a short cool-down (about 1 s).
 - **The label:** a woken work's wall label glows green and keeps glowing; the info card says "Brought to life".
+  *Built now (LOOK trigger):* every work with a life has been touched by the visitors' light, and its label shows it
+  from the start, before the work ever moves: a mint cast to the card and a faint green glow round its edges, slowly
+  breathing (still when motion is reduced). `exposedCards` in src/paintlife.js; the card colours are `a.exposed` in
+  `_paint` (src/museum.js). Only the label, never the work. Labels that would hang behind the next work along move
+  to the left of their frame or under it (`_freeCards`), so no clue is hidden.
 - **Collecting:**
   - "Paintings brought to life: 37 of 898" appears in the notebook.
   - The map can show green dots for woken works.

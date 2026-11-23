@@ -688,6 +688,43 @@ class Life {
   }
 }
 
+// ------------------------------------------------------------------ the exposed works' labels --
+// The story's clue: the visitors' green light is what wakes a painting, and the works it has touched give it back,
+// faintly, round the edges of their wall labels, as if the card were lit from behind. Only the label: never the work.
+// A ring with the card’s own shape cut out of it, 1 cm in front of the card’s plane (clear of the wall: no shimmer), breathing slowly (still when
+// motion is reduced). It is there from the start, lit room or dark, so a sharp eye finds the living works before they move.
+const GLOW = 0.9, GLOW_RIM = 0.06;
+function exposedCards(museum, arts) {
+  const cards = museum && museum.cards; if (!cards || !arts.length) return null;
+  const M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3();
+  const pos = [];
+  for (const a of arts) {
+    cards.getMatrixAt(a.i, M); M.decompose(P, Q, S);
+    if (S.x < 0.01) continue;                                   // a work with no card
+    a.exposed = true; if (museum._paint) museum._paint(a);       // the card itself takes a green cast, dark or lit
+    // Out into the room along the work's normal (the card is a hair off the wall; its own +z is no guide).
+    pos.push([P.clone().add(new THREE.Vector3(a.nx, 0, a.nz).multiplyScalar(0.01)), Q.clone(), S.x, S.y]);
+  }
+  if (!pos.length) return null;
+  const cw = pos[0][2], ch = pos[0][3], W = cw + 2 * GLOW_RIM, H = ch + 2 * GLOW_RIM, px = 900;
+  const tex = canvasTexture(Math.round(W * px), Math.round(H * px), (g, w, h) => {
+    const img = g.createImageData(w, h), hx = cw * px / 2 + 1.5, hy = ch * px / 2 + 1.5, s = GLOW_RIM * px * 0.62;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = Math.max(0, Math.abs(x + 0.5 - w / 2) - hx), dy = Math.max(0, Math.abs(y + 0.5 - h / 2) - hy), d = Math.hypot(dx, dy);
+      const o = (y * w + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = 255;
+      img.data[o + 3] = dx === 0 && dy === 0 ? 0 : Math.round(255 * Math.exp(-(d / s) * (d / s)) * Math.min(1, (d + 0.6) / 2));
+    }
+    g.putImageData(img, 0, 0);
+  }, false);
+  // Normal blending, not additive: added to a lit cream wall a faint green vanishes into the white.
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.2, 1.0, 0.36), transparent: true, opacity: GLOW, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, pos.length);
+  pos.forEach(([p, q], i) => m.setMatrixAt(i, M.compose(p, q, S.set(W, H, 1))));
+  m.frustumCulled = false; m.renderOrder = 5;
+  museum.group.add(m);
+  return m;
+}
+
 // ------------------------------------------------------------------ the hook --
 feature({
   id: 'paintlife',
@@ -700,6 +737,7 @@ feature({
       LIVES.push(new Life(s, art, k));
     }
     this.byArt = new Map(LIVES.map(L => [L.art, L]));
+    this.exposed = exposedCards(k.museum, LIVES.map(L => L.art));
     this.byRoom = new Map(); for (const L of LIVES) { if (!this.byRoom.has(L.art.room)) this.byRoom.set(L.art.room, []); this.byRoom.get(L.art.room).push(L); }
     this.rid = undefined;
     if (typeof window !== 'undefined') window.__life = debugApi(k);
@@ -722,6 +760,7 @@ feature({
       if (seen && seen.art.floorFrame) { const S = k.G.secret, clue = !!(S && S.enabled && !S.open && S.clue && S.clue.art === seen.art); if (seen.cam === undefined) seen.cam = seen.art.floorFrame.cam || null; seen.art.floorFrame.cam = clue ? null : seen.cam; }
     }
     for (const L of LIVES) if (L.state !== 'off' || L === seen || L.force != null) L.step(dt, L === seen);
+    if (this.exposed) { this.glowT = (this.glowT || 0) + dt; this.exposed.material.opacity = k.museum.calm ? GLOW : GLOW * (0.8 + 0.2 * Math.sin(this.glowT * 1.1)); }
   },
   spots(k) {
     return LIVES.flatMap(L => (L.spec.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: L.cx + L.nx * 1.4, y: L.y, z: L.cz + L.nz * 1.4 })));
