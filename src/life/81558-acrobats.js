@@ -47,7 +47,7 @@ const AXIS_UP = new Set([TORSO, HEAD, PELVIS, ROOT]);
 lifeFor(81558, {
   title: /^Acrobats at the Cirque Fernando/,
   word: 'juggle',
-  stage: { out: 1.85, half: 1.35 },
+  stage: { out: 1.85, half: 1.35, cam: { dist: 2.75, side: 0.75, height: 0.92, fov: 50, lookU: -0.5, lookOut: 1.2, lookH: 0.6 } },
   wake: 2, ret: 2.2,
 
   build(L) {
