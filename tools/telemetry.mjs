@@ -48,6 +48,19 @@ line('time playing, median session', mins(median(sessions.map(s => s.play_secs))
 line('on a phone', `${sessions.filter(s => s.device === 'phone').length} of ${sessions.length}`);
 line('by host', tally(sessions, s => s.host).map(([k, n]) => `${k} ${n}`).join(', ') || '-');
 line('frame rate, median', median(sessions.map(s => s.stats && s.stats.fps)) ?? '-');
+// Page opens, from the loading screen on (supabase/005-opens.sql): how many got as far as the title, and as far as playing.
+{
+  const r = await fetch(`${URL_BASE}/rest/v1/museum_opens?select=host,reached,load_secs,synthetic,opened_at&order=opened_at.desc&limit=5000${days > 0 ? `&opened_at=gte.${new Date(Date.now() - days * 86400e3).toISOString()}` : ''}`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+  if (!r.ok) line('page opens', '(not recorded yet: apply supabase/005-opens.sql)');
+  else {
+    const opens = (await r.json()).filter(keep);
+    for (const [host, n] of tally(opens, o => o.host)) {
+      const mine = opens.filter(o => o.host === host), title = mine.filter(o => o.reached !== 'loading').length, play = mine.filter(o => o.reached === 'play').length;
+      line(`page opens, ${host}`, `${n}: ${title} reached the title (median ${mins(median(mine.map(o => o.load_secs)))}), ${play} started`);
+    }
+    if (!opens.length) line('page opens', '0 so far');
+  }
+}
 console.log('\nGetting in (new games only)');
 line('got in', `${fresh.filter(s => s.got_in).length} of ${fresh.length}`);
 for (const [how, n] of tally(fresh.filter(s => s.got_in), s => s.got_in)) line(`  by the ${how}`, `${n}, median ${mins(median(fresh.filter(s => s.got_in === how).map(s => s.got_in_secs)))}`);

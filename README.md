@@ -888,6 +888,14 @@ find the way in, how far round they get and what they stop to look at.
   gives back counts and titles only. `003-views.sql` has been written but is
   not applied by anything here: run it on the project before the counts will
   work. Until then the label simply leaves that line out.
+- **Page opens, as well as games.** A session row is only made when a game is
+  started, so anyone who left while the building loaded, or at the title, was
+  never seen (on a slow phone the title can take most of a minute). Each page
+  load now also reports itself from the loading screen on, and how far it got
+  (loading, title, play), with the host: `supabase/005-opens.sql`, to be
+  applied by hand. Until it is, that call is answered 404 and nothing changes.
+  The host is told from the page's own address and, inside a frame, from the
+  page around it, so itch.io reads as `itch` whichever file host it uses.
 - **Tests are kept out of the numbers.** A browser driven by automation, a
   page where anything touched the test handle `window.__ah`, and a start from a
   test switch are all flagged, and every summary leaves them out. On localhost
@@ -979,7 +987,8 @@ covers come live from covers.openlibrary.org, only when a book is in front of
 you, and a book with no cover is a cloth binding with its title in gilt.
 
 URL switches, for testing: `?saved` skips the live API, `?remote` ignores the
-offline images, `?mode=explore&toy=car|drone` skips the title (`toy` may also be any id
+offline images, `?noopen` leaves out the cold open before a new game (src/opening.js; `?mode` never plays it),
+`?mode=explore&toy=car|drone` skips the title (`toy` may also be any id
 in `src/garage.js`, such as `truck`, which opens that one), `?auto`
 lets a test driver run whatever race is under way (`__ah.raceSpots.at(id)` puts the toy at a spot, `.go(id)` starts it). The game object is `window.__ah`; a test can
 drive by setting its `testInput` (what the sticks would send) and look from
@@ -1043,6 +1052,8 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/trophies.js           the trophies, their screen and the card that slides in
     src/garage.js             the other cars and drones, and what unlocks them
     src/telemetry.js          anonymous play statistics (see Telemetry)
+    src/opening.js            the cold open before a new game: the lights going out, the sign, down to the toy
+    src/hud.js                secrets found and art viewed in the corner; the ring round the radar for a new clue
     supabase/                 the tables they go to
     tools/telemetry.mjs       the report
     vendor/                   three.js r170 (MIT)

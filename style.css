@@ -543,3 +543,10 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 @keyframes raceCardIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .reduce #raceCard.on { animation: none; }
 @media (max-height: 520px) { #raceCard { top: calc(env(safe-area-inset-top) + 10%); padding: 8px 14px 9px; } #raceCard .h { font-size: 22px; } #raceCard .q { font-size: 13px; } }
+
+/* the title on a first visit: the goal, and one big Start (main.js, titleButtons) */
+#title.first .choose, #title.first #garage, #title.first [data-act=trophies], #title.first [data-act=secrets] { display: none; }
+#title.first .lede { margin: 6px 0 18px; }
+#title.first .startrow .big:first-child { min-width: 300px; padding: 16px 34px; }
+#title.first .startrow .big:first-child b { font-size: 28px; }
+@media (max-height: 520px) { #title.first .lede { margin: 4px 0 10px; } #title.first .startrow .big:first-child { min-width: 0; padding: 10px 26px; } #title.first .startrow .big:first-child b { font-size: 20px; } }

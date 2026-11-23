@@ -499,7 +499,9 @@ feature({
         if (watch && !b.seen && b.mode !== 'scan') { const d = Math.hypot(p.x - b.x, p.z - b.z), sp = Math.hypot(k.v.vel.x, k.v.vel.z); if (d < HEAR && sp > 2.5 && Math.abs(p.y - b.fy) < 1.5) { b.mode = 'scan'; b.mt = 0; b.dur = 2.2; b.heard = Math.atan2(p.x - b.x, p.z - b.z); } }
         if (b.sus >= 1) {
           b.mode = 'alert'; b.mt = 0; b.sus = 0; this.sfx.query();
-          if (lamp) k.once('guards-lamp', 'Lights off: harder to spot.', 3.5);
+          // The first time one sees you, what is at stake, at once (over any other line): it is a setback, not the end.
+          if (!G.told.has('guards-seen')) k.once('guards-seen', 'A guard bot has seen you! Get out of its light, or it zaps you and throws you out.', 5, true);
+          else if (lamp) k.once('guards-lamp', 'Lights off: harder to spot.', 3.5);
         }
       }
     }
@@ -703,7 +705,9 @@ feature({
         this.grace = G.t + 8;
         const fined = k.chips(-FINE);
         k.callout('THROWN OUT');
-        if (fined) k.say(`−${FINE} chips`, 0.6, 3);
+        // The first time, a line to say what that was: a light setback. You keep everything, and the doors are open.
+        if (!G.told.has('binned')) k.once('binned', `Dumped. The bots don\u2019t like visitors.${fined ? ` (They kept ${FINE} chips.)` : ''} Everything you found is still yours.`, 6, true);      // (at once, ahead of anything queued)
+        else if (fined) k.say(`−${FINE} chips`, 0.6, 3);
         if (G.trophies) G.trophies.flag('binned');
       }
       return;
