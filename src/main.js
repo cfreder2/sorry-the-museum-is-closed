@@ -140,7 +140,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.23.4';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.23.5';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -1071,16 +1071,22 @@ function studyCam(dt) {
     dist = d * (1 - 0.07 * Math.min(1, s.t / 30));
     eyeY = ch; lookY = ch + Math.tan((Math.atan2(top, dist) + Math.atan2(low, dist - fl.out)) / 2) * dist;
   }
-  want.set(a.x + a.nx * dist - tx * side, eyeY, a.z + a.nz * dist - tz * side);
+  // A work that comes alive (src/paintlife.js) may say exactly where to stand instead (fl.cam = { dist, side, height,
+  // lookU, lookOut, lookH, fov }: out from the wall, along it, above the floor; and the point looked at): low, near, a little
+  // to one side, so what comes out onto the floor fills the view and the work is still there above it.
+  const fc = fl && fl.cam;
+  if (fc) want.set(a.x + a.nx * fc.dist * (1 - 0.05 * Math.min(1, s.t / 30)) + tx * fc.side, fl.y + fc.height, a.z + a.nz * fc.dist * (1 - 0.05 * Math.min(1, s.t / 30)) + tz * fc.side);
+  else want.set(a.x + a.nx * dist - tx * side, eyeY, a.z + a.nz * dist - tz * side);
   confine(G.plan, want, 0.25, true, null, true);
   if (a.obj) want.y = a.y;
   const k = Math.min(1, s.t / 1.7), e = k * k * (3 - 2 * k);
   camera.position.lerpVectors(s.from, want, e);
-  tmp.set(want.x - a.nx * dist, lookY, want.z - a.nz * dist);
+  if (fc) tmp.set(a.x + a.nx * fc.lookOut + tx * fc.lookU, fl.y + fc.lookH, a.z + a.nz * fc.lookOut + tz * fc.lookU);
+  else tmp.set(want.x - a.nx * dist, lookY, want.z - a.nz * dist);
   camLook.lerpVectors(s.look, tmp, e);
   camera.up.set(0, 1, 0);
   camera.lookAt(camLook);
-  camera.fov = s.fov + (fov - s.fov) * e;
+  camera.fov = s.fov + (((fc && fc.fov) || fov) - s.fov) * e;
   camera.updateProjectionMatrix();
 }
 
