@@ -2,6 +2,7 @@
 // driven the way the real ones are: two sticks.
 
 import * as THREE from 'three';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { confine, roomAt, groundAt, wallAt, heightOf, ceilingAt, headAt, GRAVITY, STEP } from './plan.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...o });
@@ -16,55 +17,245 @@ function part(geo, mat, x, y, z, parent) {
 
 // ------------------------------------------------------------------- car ---
 
+// ---- the toy buggy's kit of parts
+// A soft studio to be glossy in: the paint and the chrome pick up two softboxes and a warm floor, faintly, so the
+// plastic reads as plastic in a dark gallery. Painted once, small.
+let _studio = null;
+function studio() {
+  if (_studio || typeof document === 'undefined') return _studio;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  const c = cv.getContext('2d'), sky = c.createLinearGradient(0, 0, 0, 128);
+  sky.addColorStop(0, '#5a6070'); sky.addColorStop(0.45, '#262a33'); sky.addColorStop(0.55, '#3a3028'); sky.addColorStop(1, '#16120e');
+  c.fillStyle = sky; c.fillRect(0, 0, 256, 128);
+  const box = (x, y, w, h) => { const g = c.createLinearGradient(x, y, x, y + h); g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(255,240,220,0.55)'); c.fillStyle = g; c.fillRect(x, y, w, h); };
+  box(30, 22, 70, 18); box(150, 16, 46, 26); box(226, 30, 22, 12);
+  const t = new THREE.CanvasTexture(cv); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  return (_studio = t);
+}
+// A rim of light round the edges of a part, from its own colour and a cool sky, so a red car still shows its shape at night.
+function rimmed(mat, k = 0.55, sky = 0.25) {
+  mat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { float rim = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
+        totalEmissiveRadiance += diffuseColor.rgb * pow(rim, 2.6) * ${k.toFixed(3)} + vec3(0.42, 0.5, 0.62) * pow(rim, 4.0) * ${sky.toFixed(3)}; }`);
+  };
+  mat.customProgramCacheKey = () => `rim${k}/${sky}`;
+  return mat;
+}
+// Parts gathered by material and merged, so a toy with a great deal on it is still a handful of meshes.
+const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _m = new THREE.Matrix4(), _one = new THREE.Vector3(1, 1, 1), _up = new THREE.Vector3(0, 1, 0);
+class Kit {
+  constructor(parent) { this.parent = parent; this.by = new Map(); }
+  add(geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+    let g = geo.index ? geo.toNonIndexed() : geo.clone();
+    if (g.attributes.uv) g.deleteAttribute('uv');
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.clearGroups();
+    g.applyMatrix4(_m.compose(_v.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), _one));
+    if (!this.by.has(mat)) this.by.set(mat, []);
+    this.by.get(mat).push(g);
+    return this;
+  }
+  // a round bar from a to b
+  rod(a, b, r, mat, n = 5) {
+    const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]), L = d.length();
+    const g = new THREE.CylinderGeometry(r, r, L, n, 1, true);
+    g.applyQuaternion(_q.setFromUnitVectors(_up, d.normalize())); g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+    return this.add(g, mat);
+  }
+  done() { for (const [mat, list] of this.by) this.parent.add(new THREE.Mesh(mergeGeometries(list, false), mat)); this.by.clear(); return this.parent; }
+}
+// the height of a profile drawn through these points (as the shell's top is) at z
+const topAt = (prof, z) => { const P = new THREE.SplineCurve(prof.map(([a, b]) => new THREE.Vector2(a, b))).getPoints(60); for (let i = 1; i < P.length; i++) { const a = P[i - 1], b = P[i]; if ((z - a.x) * (z - b.x) <= 0) return a.y + (b.y - a.y) * ((z - a.x) / ((b.x - a.x) || 1)); } return P[0].y; };
+const ss = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+// A side profile ([z, y], front at +z; a list, or a function that draws on a THREE.Shape) pushed out across the car, bevelled
+// round its edges; welded, so it shades smooth.
+function shell(draw, w, bevel = 0.006, steps = 1, segs = 2) {
+  const sh = new THREE.Shape();
+  if (Array.isArray(draw)) { sh.moveTo(draw[0][0], draw[0][1]); for (const [z, y] of draw.slice(1)) sh.lineTo(z, y); sh.closePath(); } else draw(sh);
+  const d = Math.max(0.001, w - 2 * bevel);
+  let g = new THREE.ExtrudeGeometry(sh, { depth: d, steps, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel * 0.9, bevelOffset: -bevel * 0.9, bevelSegments: segs, curveSegments: 3 });
+  g.translate(0, 0, -d / 2); g.rotateY(-Math.PI / 2);
+  g.deleteAttribute('uv'); g.deleteAttribute('normal');
+  g = mergeVertices(g, 1e-5); g.computeVertexNormals();
+  return g;
+}
+// A painted disc: the racing number on each side.
+let _roundel = null;
+function roundelTex() {
+  if (_roundel || typeof document === 'undefined') return _roundel;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
+  c.fillStyle = '#111'; c.fillRect(0, 0, 128, 128);
+  c.fillStyle = '#f6f3ea'; c.beginPath(); c.arc(64, 64, 56, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#111'; c.font = 'bold 92px Helvetica, Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('7', 66, 70);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return (_roundel = t);
+}
+// The six-pointed star off the city's flag.
+function starGeo(r) {
+  const s = new THREE.Shape();
+  for (let i = 0; i < 12; i++) { const a = Math.PI / 2 + i * Math.PI / 6, q = i % 2 ? r * 0.5 : r; s[i ? 'lineTo' : 'moveTo'](Math.cos(a) * q, Math.sin(a) * q); }
+  return new THREE.ShapeGeometry(s);
+}
+// A balloon tyre with a tread of blocks, and a dished rim with five spokes: axle along x, the rim's face towards +x.
+const _wheelGeo = new Map();
+function wheelGeos(r, w, front) {
+  const key = `${r}/${w}/${front}`;
+  if (_wheelGeo.has(key)) return _wheelGeo.get(key);
+  const R = r - 0.0055, lug = 0.0055;              // the carcass, and the blocks standing proud of it, out to r
+  const prof = [[0.64, -0.44], [0.82, -0.5], [0.95, -0.46], [1, -0.32], [1, 0.32], [0.95, 0.46], [0.82, 0.5], [0.64, 0.44]].map(([p, a]) => new THREE.Vector2(p * R, a * w));
+  const T = new Kit(null), RIM = new Kit(null);
+  const tyre = new THREE.LatheGeometry(prof, 15); tyre.rotateZ(-Math.PI / 2);
+  T.add(tyre, 0);
+  // tread: blocks in two staggered rows (rear), or a row of chevrons with ribs either side (front)
+  const n = front ? 12 : 11;
+  for (let i = 0; i < n; i++) {
+    const a = i * Math.PI * 2 / n;
+    if (front) {
+      for (const s of [-1, 1]) T.add(new THREE.BoxGeometry(w * 0.3, lug * 1.6, R * 0.17), 0, s * w * 0.16, Math.cos(a) * (R + lug * 0.2), Math.sin(a) * (R + lug * 0.2), a, s * 0.45, 0);
+    } else {
+      for (const [s, o] of [[-1, 0], [1, 0.5]]) { const b = a + o * Math.PI * 2 / n; T.add(new THREE.BoxGeometry(w * 0.38, lug * 1.8, R * 0.2), 0, s * w * 0.2, Math.cos(b) * (R + lug * 0.1), Math.sin(b) * (R + lug * 0.1), b, 0, 0); }
+    }
+  }
+  // the rim: a lip, a dished face, five spokes and a hub nut
+  const lip = new THREE.TorusGeometry(R * 0.65, R * 0.065, 3, 14); lip.rotateY(Math.PI / 2); RIM.add(lip, 0, w * 0.42);
+  const well = new THREE.CylinderGeometry(R * 0.66, R * 0.66, w * 0.5, 16, 1, true); well.rotateZ(Math.PI / 2); RIM.add(well, 0, w * 0.17);
+  const face = new THREE.CircleGeometry(R * 0.62, 16); face.rotateY(Math.PI / 2); T.add(face, 0, w * 0.2);          // the dark dish behind the spokes
+  for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; RIM.add(new THREE.BoxGeometry(0.008, R * 0.13, R * 0.56), 0, w * 0.25, Math.cos(a) * R * 0.27, Math.sin(a) * R * 0.27, a + Math.PI / 2, 0, 0); }
+  const hub = new THREE.CylinderGeometry(R * 0.17, R * 0.2, w * 0.24, 6); hub.rotateZ(-Math.PI / 2); RIM.add(hub, 0, w * 0.3);
+  const merged = k => mergeGeometries(k.by.get(0), false);
+  const out = { tyre: merged(T), rim: merged(RIM) };
+  _wheelGeo.set(key, out);
+  return out;
+}
+
 export function buildCar(colour = 0xd2261c) {
   const g = new THREE.Group();
   const body = new THREE.Group();
   g.add(body);
-  const paint = std(colour, { roughness: 0.3, emissive: colour, emissiveIntensity: 0.12 }); paint.name = 'paint';      // (the one a can of paint goes on: src/garage.js)
-  const black = std(0x0c0c0e, { roughness: 0.7 });
-  const trim = std(0xf3c21b, { roughness: 0.4, emissive: 0xf3c21b, emissiveIntensity: 0.15 });
+  const env = studio();
+  const paint = rimmed(std(colour, { roughness: 0.3, metalness: 0.0, emissive: colour, emissiveIntensity: 0.12, envMap: env, envMapIntensity: 0.32 }), 0.42, 0.22); paint.name = 'paint';      // (the one a can of paint goes on: src/garage.js)
+  const black = rimmed(std(0x16171b, { roughness: 0.55, envMap: env, envMapIntensity: 0.4 }), 0.4, 0.35);
+  const trim = std(0xf3c21b, { roughness: 0.35, emissive: 0xf3c21b, emissiveIntensity: 0.15, envMap: env, envMapIntensity: 0.4 });
+  const chrome = std(0xc9ced6, { metalness: 0.9, roughness: 0.25, envMap: env, envMapIntensity: 1.2 });
+  const glass = std(0x0e1622, { roughness: 0.08, metalness: 0.3, envMap: env, envMapIntensity: 1.1 });
+  const white = rimmed(std(0xf4f2ec, { roughness: 0.3, envMap: env, envMapIntensity: 0.5 }), 0.25, 0.2);
+  const suit = std(0x1e4fc8, { roughness: 0.5, emissive: 0x1e4fc8, emissiveIntensity: 0.1 });
+  const steel = std(0x5b6068, { metalness: 0.7, roughness: 0.4, envMap: env, envMapIntensity: 0.6 });
+  const screen = new THREE.MeshStandardMaterial({ color: 0x9fc4dc, roughness: 0.05, metalness: 0.2, envMap: env, envMapIntensity: 1.4, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false });
+  const spring = std(0xf3c21b, { metalness: 0.5, roughness: 0.3, emissive: 0xf3c21b, emissiveIntensity: 0.12, envMap: env, envMapIntensity: 0.6 });
 
-  part(new THREE.BoxGeometry(0.2, 0.04, 0.42), black, 0, 0.0695, 0, body);                    // chassis: up to the underside of the tub, down to the axles
-  part(new THREE.BoxGeometry(0.19, 0.055, 0.4), paint, 0, 0.115, -0.005, body);               // tub
-  const hood = part(new THREE.BoxGeometry(0.17, 0.03, 0.15), paint, 0, 0.15, 0.12, body);
-  hood.rotation.x = 0.22;
-  const cab = part(new THREE.BoxGeometry(0.15, 0.06, 0.15), std(0x10151c, { roughness: 0.15, metalness: 0.5 }), 0, 0.17, -0.03, body);
-  cab.scale.set(1, 1, 1);
-  part(new THREE.BoxGeometry(0.155, 0.012, 0.11), paint, 0, 0.206, -0.035, body);             // roof
-  part(new THREE.BoxGeometry(0.19, 0.008, 0.02), trim, 0, 0.146, -0.19, body);                // stripe
-  part(new THREE.BoxGeometry(0.02, 0.008, 0.36), trim, 0, 0.147, 0, body);
-  for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.012, 0.1, 0.03), black, s * 0.08, 0.187, -0.188, body);      // wing posts, standing on the tub
-  part(new THREE.BoxGeometry(0.24, 0.01, 0.07), paint, 0, 0.24, -0.195, body);                // wing
-  part(new THREE.BoxGeometry(0.22, 0.03, 0.02), black, 0, 0.075, 0.228, body);                // bumper
-  for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.02, 0.016, 0.03), black, s * 0.07, 0.072, 0.212, body);       // and the two stays that hold it to the chassis
+  // ---- the body shell: a low wedge of a nose, an open cockpit with its driver, a deck behind with the wing on it
+  const HW = 0.085, CROWN = 0.011;
+  const TOP = [[0.238, 0.101], [0.212, 0.117], [0.16, 0.134], [0.1, 0.147], [0.062, 0.153]];
+  const DECK = [[-0.085, 0.153], [-0.1, 0.161], [-0.16, 0.159], [-0.2, 0.149], [-0.219, 0.13]];
+  const hull = shell(sh => {
+    sh.moveTo(0.236, 0.086); sh.lineTo(0.24, 0.096);
+    sh.splineThru(TOP.map(([z, y]) => new THREE.Vector2(z, y)));
+    sh.lineTo(-0.075, 0.152);
+    sh.splineThru(DECK.map(([z, y]) => new THREE.Vector2(z, y)));
+    sh.lineTo(-0.221, 0.094); sh.lineTo(-0.205, 0.084); sh.lineTo(0.2, 0.084); sh.closePath();
+  }, HW * 2, 0.011, 3, 2);
+  // narrower at the nose and a little at the tail; the top crowned, so it is a shell and not a box
+  const taper = z => (z > 0.1 ? 1 - 0.3 * ss((z - 0.1) / 0.14) : z < -0.15 ? 1 - 0.1 * ss((-0.15 - z) / 0.07) : 1);
+  const lift = (x, y) => CROWN * Math.max(0, 1 - (x / HW) ** 2) * ss((y - 0.095) / 0.05);
+  { const p = hull.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); p.setXYZ(i, x * taper(z), y + lift(x, y), z); } hull.computeVertexNormals(); }
+  const B = new Kit(body);
+  B.add(hull, paint);
+  // the sides of the cockpit, and the dark tub between them
+  for (const s of [-1, 1]) B.add(shell([[0.07, 0.15], [0.048, 0.171], [-0.05, 0.176], [-0.082, 0.158], [-0.082, 0.145], [0.07, 0.145]], 0.028, 0.006, 1, 2), paint, s * 0.069);
+  B.add(new THREE.BoxGeometry(0.11, 0.006, 0.15), black, 0, 0.166, -0.005);
+  // the driver: helmet and visor, shoulders in a blue suit, a seat back
+  B.add(new THREE.SphereGeometry(0.024, 12, 8), white, 0, 0.186, -0.028);
+  B.add(new THREE.SphereGeometry(0.0246, 8, 3, Math.PI / 2 - 0.95, 1.9, 1.2, 0.62), glass, 0, 0.186, -0.028);
+  B.add(new THREE.BoxGeometry(0.052, 0.006, 0.005), trim, 0, 0.2085, -0.028, 0, 0, 0);
+  { const sg = new THREE.SphereGeometry(0.022, 8, 5); sg.scale(1.55, 0.75, 1); B.add(sg, suit, 0, 0.172, -0.036); }
+  B.add(new THREE.BoxGeometry(0.07, 0.05, 0.012), black, 0, 0.175, -0.066, -0.15, 0, 0);
+  // a windscreen, raked back
+  { const ws = new THREE.CylinderGeometry(0.048, 0.048, 0.022, 8, 1, true, -0.75, 1.5); ws.scale(1, 1, 0.45); B.add(ws, screen, 0, 0.176, 0.036, -0.55, 0, 0); }
+  // the roll cage: a hoop behind the driver, braced back to the deck and forward to the windscreen
+  { const hoop = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[-0.068, 0.17, -0.066], [-0.056, 0.212, -0.07], [-0.03, 0.226, -0.071], [0.03, 0.226, -0.071], [0.056, 0.212, -0.07], [0.068, 0.17, -0.066]].map(p => new THREE.Vector3(...p))), 10, 0.0042, 4); B.add(hoop, black); }
+  for (const s of [-1, 1]) { B.rod([s * 0.048, 0.218, -0.07], [s * 0.052, 0.16, -0.15], 0.0036, black); B.rod([s * 0.046, 0.219, -0.07], [s * 0.056, 0.172, 0.04], 0.0032, black); }
+  // the wing: an aerofoil on two struts, with end plates and a yellow lip
+  B.add(shell([[-0.162, 0.244], [-0.175, 0.2495], [-0.2, 0.2495], [-0.232, 0.2445], [-0.244, 0.248], [-0.246, 0.243], [-0.215, 0.238], [-0.18, 0.2385]], 0.236, 0.003, 3, 1), paint);
+  B.add(new THREE.BoxGeometry(0.236, 0.006, 0.004), trim, 0, 0.2485, -0.243);
   for (const s of [-1, 1]) {
-    part(new THREE.SphereGeometry(0.018, 10, 8), glow(4, 3.6, 2.6), s * 0.06, 0.125, 0.2, body);
-    part(new THREE.BoxGeometry(0.03, 0.014, 0.01), glow(2.2, 0.1, 0.08), s * 0.07, 0.125, -0.207, body);
+    B.add(shell([[-0.16, 0.24], [-0.168, 0.255], [-0.236, 0.258], [-0.25, 0.24], [-0.238, 0.231], [-0.172, 0.232]], 0.005, 0.0015, 1, 1), trim, s * 0.12);
+    B.add(new THREE.BoxGeometry(0.004, 0.086, 0.016), steel, s * 0.05, 0.198, -0.19, 0.32, 0, 0);
   }
+  // decals: twin stripes over the nose and the deck, the number on each side, the star on the nose
+  const stripe = (z0, z1, prof) => {
+    const pts = new THREE.SplineCurve(prof.map(([z, y]) => new THREE.Vector2(z, y))).getPoints(24).filter(q => q.x <= Math.max(z0, z1) && q.x >= Math.min(z0, z1));
+    for (const xc of [-0.03, 0.03]) {
+      const pos = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1], v = (q, x) => [x * taper(q.x), q.y + lift(x, q.y) + 0.0012, q.x];
+        const A0 = v(a, xc - 0.0055), A1 = v(a, xc + 0.0055), B0 = v(b, xc - 0.0055), B1 = v(b, xc + 0.0055);
+        pos.push(...A0, ...B1, ...B0, ...A0, ...A1, ...B1);
+      }
+      const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); sg.computeVertexNormals();
+      if (sg.attributes.normal.getY(0) < 0) { const p = sg.attributes.position; for (let i = 0; i < p.count; i += 3) { const t = [p.getX(i + 1), p.getY(i + 1), p.getZ(i + 1)]; p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2)); p.setXYZ(i + 2, ...t); } sg.computeVertexNormals(); }
+      B.add(sg, trim);
+    }
+  };
+  const TOP2 = [[0.24, 0.096], ...TOP], DECK2 = [[-0.075, 0.152], ...DECK];
+  stripe(0.236, 0.065, TOP2); stripe(-0.09, -0.218, DECK2);
+  for (const s of [-1, 1]) for (const [z0, z1] of [[0.07, -0.088], [-0.115, -0.2]]) { const zc = (z0 + z1) / 2, len = z0 - z1; B.add(new THREE.BoxGeometry(0.0016, 0.006, len), trim, s * (HW * taper(zc) + 0.0006), 0.1, zc); }
+  { const st = starGeo(0.0145); st.rotateX(-Math.PI / 2 + 0.27); const z = 0.172, y = topAt(TOP2, z); B.add(st, white, 0, y + lift(0, y) + 0.0016, z); }
+  B.done();
+  const roundel = new THREE.MeshStandardMaterial({ map: roundelTex(), emissiveMap: roundelTex(), emissive: 0xffffff, emissiveIntensity: 0.32, roughness: 0.35, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  for (const s of [-1, 1]) { const d = part(new THREE.CircleGeometry(0.021, 20), roundel, s * (HW + 0.0008), 0.118, -0.03, body); d.rotation.y = s * Math.PI / 2; }
+
+  // lamps: two in chrome bezels on the nose, two tail lights under the wing
+  const L = new Kit(body);
+  for (const s of [-1, 1]) {
+    L.add(new THREE.SphereGeometry(0.0125, 8, 6), glow(4, 3.6, 2.6), s * 0.038, 0.115, 0.214);
+    const bz = new THREE.TorusGeometry(0.0128, 0.0028, 4, 12); L.add(bz, chrome, s * 0.038, 0.116, 0.218, -0.35, 0, 0);
+    L.add(new THREE.BoxGeometry(0.026, 0.013, 0.006), glow(2.2, 0.1, 0.08), s * 0.056, 0.118, -0.221);
+  }
+  L.done();
+
+  // ---- the chassis under it all, with its suspension. It lives in the body but leans only a third as far, so the shell
+  // can be seen to roll and pitch on its springs over it (Car.sync).
+  const chassis = new THREE.Group(); body.add(chassis);
+  const C = new Kit(chassis);
+  C.add(shell([[0.232, 0.07], [0.215, 0.06], [-0.205, 0.06], [-0.215, 0.07], [-0.205, 0.088], [0.205, 0.088]], 0.13, 0.008, 1, 2), black);       // the tub
+  { const bp = new THREE.CapsuleGeometry(0.011, 0.17, 2, 6); bp.rotateZ(Math.PI / 2); C.add(bp, black, 0, 0.072, 0.243); }                       // the front bumper
+  for (const s of [-1, 1]) C.add(new THREE.BoxGeometry(0.014, 0.012, 0.03), black, s * 0.05, 0.072, 0.228);
+  for (const [z, r, xw] of [[0.14, 0.058, 0.108], [-0.14, 0.068, 0.106]]) for (const s of [-1, 1]) {
+    // wishbones out to each wheel, a shock with a yellow spring
+    C.rod([s * 0.05, 0.066, z + 0.03], [s * xw, r, z], 0.0042, steel); C.rod([s * 0.05, 0.066, z - 0.03], [s * xw, r, z], 0.0042, steel);
+    const top = z > 0 ? [s * 0.083, 0.128, z + 0.012] : [s * 0.056, 0.15, -0.228], bot = z > 0 ? [s * 0.1, r + 0.004, z + 0.006] : [s * 0.094, r + 0.006, -0.17];
+    C.rod(top, bot, 0.0042, chrome, 6);
+    const d = new THREE.Vector3(bot[0] - top[0], bot[1] - top[1], bot[2] - top[2]), Ls = d.length(); d.normalize();
+    const coil = []; for (let i = 0; i <= 15; i++) { const t = i / 15, a = t * Math.PI * 2 * 3.5; coil.push(new THREE.Vector3(Math.cos(a) * 0.0085, 0.08 * Ls + t * Ls * 0.7, Math.sin(a) * 0.0085)); }
+    const cg = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil), 15, 0.002, 3); cg.applyQuaternion(_q.setFromUnitVectors(_up, d)); cg.translate(...top);
+    C.add(cg, spring);
+  }
+  // the motor and gearbox, between the back wheels
+  { const can = new THREE.CylinderGeometry(0.019, 0.019, 0.05, 12); can.rotateZ(Math.PI / 2); C.add(can, chrome, -0.012, 0.074, -0.224); }
+  C.add(new THREE.BoxGeometry(0.05, 0.04, 0.035), black, 0.026, 0.078, -0.212);
+  C.done();
 
   // Wheels: chunky, bigger at the back, the way a toy buggy's always were.
   const wheels = [];
-  const tyre = std(0x08080a, { roughness: 0.9 });
+  const tyre = rimmed(std(0x111113, { roughness: 0.85 }), 0.0, 0.18);
   for (const [x, z, r, w, front] of [[-0.125, 0.14, 0.058, 0.05, true], [0.125, 0.14, 0.058, 0.05, true], [-0.135, -0.14, 0.068, 0.065, false], [0.135, -0.14, 0.068, 0.065, false]]) {
     const pivot = new THREE.Group();
     pivot.position.set(x, r, z);
     const spin = new THREE.Group();
-    const t = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 16), tyre); t.rotation.z = Math.PI / 2;
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, w + 0.004, 6), trim); hub.rotation.z = Math.PI / 2;
+    const W = wheelGeos(r, w, front), t = new THREE.Mesh(W.tyre, tyre), hub = new THREE.Mesh(W.rim, trim);
+    if (x < 0) t.rotation.y = hub.rotation.y = Math.PI;          // the rim's face outwards
     spin.add(t, hub);
     pivot.add(spin);
     g.add(pivot);
     wheels.push({ pivot, spin, r, front });
   }
 
-  // An axle through each pair of wheels, so that they are plainly on the car.
-  const steel = std(0x8d9299, { metalness: 0.8, roughness: 0.35 });
-  for (const [z, r, half] of [[0.14, 0.058, 0.125], [-0.14, 0.068, 0.135]]) { const ax = part(new THREE.CylinderGeometry(0.009, 0.009, half * 2, 8), steel, 0, r, z, g); ax.rotation.z = Math.PI / 2; }
-
   // The aerial. It whips.
   const aerial = new THREE.Group();
-  aerial.position.set(-0.07, 0.143, -0.14);                // its foot is on the deck behind the cab
-  part(new THREE.CylinderGeometry(0.008, 0.01, 0.012, 8), black, 0, 0.006, 0, aerial);
+  aerial.position.set(-0.07, 0.158, -0.14);                // its foot is on the deck behind the cockpit
+  part(new THREE.CylinderGeometry(0.007, 0.0095, 0.014, 8), black, 0, 0.007, 0, aerial);
   part(new THREE.CylinderGeometry(0.0022, 0.003, 0.36, 5), std(0xbfc4c9, { metalness: 0.8, roughness: 0.3 }), 0, 0.18, 0, aerial);
   part(new THREE.SphereGeometry(0.008, 8, 6), glow(1.3, 0.45, 0.05), 0, 0.365, 0, aerial);
   body.add(aerial);
@@ -80,7 +271,7 @@ export function buildCar(colour = 0xd2261c) {
   shadow.rotation.x = -Math.PI / 2; shadow.rotation.order = 'YXZ';
   g.rotation.order = 'YXZ';          // yaw, then tip the whole car nose-up or nose-down
 
-  return { group: g, body, wheels, aerial, lamp, shadow, radius: 0.19, kind: 'car' };
+  return { group: g, body, chassis, wheels, aerial, lamp, shadow, radius: 0.19, kind: 'car' };
 }
 
 // How a car handles, as multiples of the first one's. Every body in the garage starts from these.
@@ -114,7 +305,7 @@ export class Car {
   // Another body on the same toy (see garage.js): new bodywork, wheels and aerial, and how it handles.
   reskin(model, spec = {}) {
     this.group.remove(this.body); for (const w of this.wheels) this.group.remove(w.pivot);
-    this.body = model.body; this.wheels = model.wheels; this.aerial = model.aerial;
+    this.body = model.body; this.wheels = model.wheels; this.aerial = model.aerial; this.chassis = model.chassis || null;
     this.group.add(this.body); for (const w of this.wheels) this.group.add(w.pivot);
     this.spec = { ...CAR_SPEC, ...spec };
     // A long body keeps its ends out of the walls with extra circles along it ([offset forward, radius]); a plough has a
@@ -554,6 +745,7 @@ export class Car {
     this.group.rotation.z = this.lean || 0;
     this.body.rotation.z = this.roll;
     this.body.rotation.x = this.pitch;
+    if (this.chassis) { this.chassis.rotation.z = -this.roll * 0.7; this.chassis.rotation.x = -this.pitch * 0.7; }      // the shell rolls on its springs; the chassis, much less
     this.aerial.rotation.z = this.aerialP.x;
     this.aerial.rotation.x = this.aerialP.y;
     const free = this.air ? this.throttle * 60 : 0;       // wheels race in the air

@@ -19,7 +19,7 @@ import { claimed, claim, placingNow } from './placing.js';
 import * as TX from './textures.js';
 import { MOTIF, hz } from './motif.js';
 
-const SCALE = 1.35;       // a well-fed mouse, a little bigger than life, so it reads from a toy's height
+const SCALE = 1.75;       // a well-fed mouse, bigger than life, so it reads from a toy's height and from the chase camera
 // Pace. The car tops out near 9.5 m/s; a mouse runs a little faster than the toy is coming, up to TOP.
 const TOP = 8.2, PACE = 4.5, SEE = 14, BOLT = 4.5, SCARE = 2.2, LAG = 10, BACK = 6, WAIT = 6;
 // notices you within SEE and sits up to look; runs within BOLT; at a stop on the way it stays put until you are within
@@ -31,22 +31,109 @@ const GREEN = new THREE.Color(0.32, 1, 0.42);
 // The run home: how long (along the floor), and the grid it is found on.
 const CELL = 0.45, WANT = 62, MINRUN = 36, MAXRUN = 95, OPEN = 1.4;
 
-export function mouseGeometry() {
-  const parts = [], eyes = [], col = (g, hex) => { g = g.index ? g.toNonIndexed() : g; const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.deleteAttribute('uv'); return g; };
-  const ball = (to, r, x, y, z, hex, sx = 1, sy = 1, sz = 1) => { const g = new THREE.SphereGeometry(r, 12, 8); g.scale(sx, sy, sz); g.translate(x, y, z); to.push(col(g, hex)); };
-  ball(parts, 0.03, 0, 0.03, 0.005, 0x9ccf94, 1, 0.92, 1.55);          // body
-  ball(parts, 0.031, 0, 0.031, -0.03, 0x94c88c, 1.08, 0.95, 1.15);     // haunches
-  ball(parts, 0.021, 0, 0.037, 0.055, 0xa8d8a0, 1, 0.9, 1.3);          // head
-  ball(parts, 0.012, 0, 0.032, 0.077, 0xb4e0aa, 0.95, 0.85, 1.6);      // snout
-  ball(parts, 0.0055, 0, 0.032, 0.097, 0xff9cb8);                     // nose
-  for (const s of [-1, 1]) {
-    ball(parts, 0.015, s * 0.018, 0.06, 0.045, 0xd6ffb0, 1, 1, 0.32);  // ears
-    ball(parts, 0.0072, s * 0.019, 0.006, 0.035, 0xc8f0b8, 1, 0.6, 1.5);   // front feet
-    ball(parts, 0.008, s * 0.022, 0.006, -0.035, 0xc8f0b8, 1, 0.6, 1.7);   // back feet
-    ball(eyes, 0.0048, s * 0.012, 0.044, 0.07, 0x050805);              // eyes
+// The mouse, in the units of its figure (the floor at y = 0, nose towards +z): a pear of a body, big round ears, a pointed
+// snout with whiskers, four little legs and a long thin tail. Everything is coloured by vertex, so one material does it all.
+const colour = (g, hex) => { g = g.index ? g.toNonIndexed() : g; const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); if (g.attributes.uv) g.deleteAttribute('uv'); return g; };
+const ball = (to, r, x, y, z, hex, sx = 1, sy = 1, sz = 1, w = 10, h = 7) => { const g = new THREE.SphereGeometry(r, w, h); g.scale(sx, sy, sz); g.translate(x, y, z); to.push(colour(g, hex)); };
+const FUR = 0x8fd486, BELLY = 0xd2f5c4, PINK = 0xff9cb8, INNER = 0xf7a8c4;
+// where the parts that move hang from
+export const TAIL_ROOT = [0, 0.022, -0.062];
+const EAR_AT = [[-0.017, 0.058, 0.043], [0.017, 0.058, 0.043]];
+const LEG_AT = [[-0.015, 0.024, 0.03], [0.015, 0.024, 0.03], [-0.019, 0.026, -0.03], [0.019, 0.026, -0.03]];       // front left, front right, hind left, hind right
+const TAIL = { n: 12, sides: 4, len: 0.19, r0: 0.0052, r1: 0.0016 };
+function earGeometry() {
+  const p = [];
+  ball(p, 0.0195, 0, 0.016, 0, FUR, 1, 1, 0.26, 10, 6);           // big and round
+  ball(p, 0.0145, 0, 0.0165, 0.0035, INNER, 1, 1, 0.18, 10, 5);     // pink inside, facing forward
+  return mergeGeometries(p);
+}
+function legGeometry(hind) {
+  const p = [], len = hind ? 0.019 : 0.016, r = hind ? 0.0046 : 0.0041;
+  const c = new THREE.CapsuleGeometry(r, len, 2, 6); c.translate(0, -len / 2 - 0.002, 0); p.push(colour(c, FUR));
+  ball(p, hind ? 0.0066 : 0.0057, 0, -(hind ? 0.0232 : 0.0205), hind ? 0.007 : 0.004, PINK, 0.9, 0.45, hind ? 2 : 1.6, 8, 5);   // a foot, pink
+  return mergeGeometries(p);
+}
+// The tail's centre line: from its root it lifts a little, then lies along the floor, `drop` below the root. A wave runs
+// down it (phase, amp) and it curls to one side (curl).
+function tailLine(out, phase, amp, curl, drop = TAIL_ROOT[1]) {
+  const { n, len } = TAIL;
+  for (let i = 0; i <= n; i++) {
+    const s = i / n, z = -s * len, y = 0.006 * Math.sin(Math.min(1, s * 3) * Math.PI) - Math.max(0, drop - TAIL.r0) * ss01(s * 2.2);
+    out[i] = out[i] || new THREE.Vector3();
+    out[i].set(amp * Math.sin(phase - s * 7) * Math.pow(s, 0.8) + curl * s * s, y, z);
   }
-  const tail = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0, 0, 0], [0.012, -0.006, -0.05], [-0.01, -0.012, -0.1], [0.004, -0.012, -0.15]].map(p => new THREE.Vector3(...p))), 16, 0.0032, 5, false);
-  return { body: mergeGeometries(parts), eyes: mergeGeometries(eyes), tail: col(tail, 0xc0f0a8) };
+  return out;
+}
+const ss01 = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+function tailGeometry() {
+  const { n, sides } = TAIL, rings = n + 1, g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(rings * sides * 3), 3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(rings * sides * 3), 3).setUsage(THREE.DynamicDrawUsage));
+  const c = new THREE.Color(0xc8f4b8), col = new Float32Array(rings * sides * 3); for (let i = 0; i < rings * sides; i++) col.set([c.r, c.g, c.b], i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const idx = []; for (let i = 0; i < n; i++) for (let j = 0; j < sides; j++) { const a = i * sides + j, b = i * sides + (j + 1) % sides, a2 = a + sides, b2 = b + sides; idx.push(a, a2, b, b, a2, b2); }
+  g.setIndex(idx);
+  poseTail(g, 0, 0.01, 0.015);
+  g.computeBoundingSphere(); g.boundingSphere.radius += 0.05;
+  return g;
+}
+const _tl = [], _t = new THREE.Vector3(), _sd = new THREE.Vector3(), _u2 = new THREE.Vector3(), _UP = new THREE.Vector3(0, 1, 0);
+export function poseTail(g, phase, amp, curl, drop) {
+  const { n, sides, r0, r1 } = TAIL, P = tailLine(_tl, phase, amp, curl, drop), pos = g.attributes.position.array, nor = g.attributes.normal.array;
+  for (let i = 0; i <= n; i++) {
+    _t.subVectors(P[Math.min(n, i + 1)], P[Math.max(0, i - 1)]).normalize();
+    _sd.crossVectors(_t, _UP).normalize(); _u2.crossVectors(_sd, _t);
+    const r = r0 + (r1 - r0) * (i / n);
+    for (let j = 0; j < sides; j++) {
+      const a = j / sides * Math.PI * 2, cx = Math.cos(a), cy = Math.sin(a), k = (i * sides + j) * 3;
+      const nx = _sd.x * cx + _u2.x * cy, ny = _sd.y * cx + _u2.y * cy, nz = _sd.z * cx + _u2.z * cy;
+      nor[k] = nx; nor[k + 1] = ny; nor[k + 2] = nz;
+      pos[k] = P[i].x + nx * r; pos[k + 1] = P[i].y + ny * r; pos[k + 2] = P[i].z + nz * r;
+    }
+  }
+  g.attributes.position.needsUpdate = true; g.attributes.normal.needsUpdate = true;
+}
+// The body, in one piece: what does not move.
+function trunkGeometry() {
+  const p = [];
+  ball(p, 0.03, 0, 0.036, 0.0, FUR, 0.95, 0.84, 1.5, 12, 8);            // the body
+  ball(p, 0.031, 0, 0.0365, -0.015, FUR, 1.02, 0.9, 1.25, 12, 8);       // (one smooth back, not two lumps)
+  ball(p, 0.03, 0, 0.037, -0.031, FUR, 1.12, 0.96, 1.06, 12, 8);        // haunches, round
+  ball(p, 0.026, 0, 0.027, 0.004, BELLY, 0.84, 0.6, 1.42);              // a paler belly
+  ball(p, 0.0215, 0, 0.046, 0.051, FUR, 0.95, 0.9, 1.08);               // head
+  ball(p, 0.013, 0, 0.0405, 0.077, BELLY, 0.78, 0.72, 1.95);            // a long pointed snout
+  ball(p, 0.0052, 0, 0.0415, 0.1015, PINK, 1, 1, 1, 8, 6);              // nose
+  for (const s of [-1, 1]) {
+    ball(p, 0.0058, s * 0.0128, 0.0515, 0.067, 0x030503, 1, 1, 1, 8, 6);                 // eyes, black beads
+    ball(p, 0.0017, s * 0.0148, 0.0538, 0.0712, 0xffffff, 1, 1, 1, 4, 3);                 // with a glint
+    for (const [dy, dz] of [[0.004, -0.004], [0, 0], [-0.004, 0.003]]) {                   // whiskers
+      const a = new THREE.Vector3(s * 0.006, 0.041, 0.093), b = new THREE.Vector3(s * 0.042, 0.041 + dy * 1.6, 0.084 + dz), d = b.clone().sub(a), L = d.length();
+      const w = new THREE.CylinderGeometry(0.0007, 0.0004, L, 3, 1, true); w.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(_UP, d.normalize())); w.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+      p.push(colour(w, 0xeaffdf));
+    }
+  }
+  return mergeGeometries(p);
+}
+let _mg = null;
+function mouseParts() { return _mg || (_mg = { trunk: trunkGeometry(), ear: earGeometry(), front: legGeometry(false), hind: legGeometry(true) }); }
+// A mouse that moves: { fig, ears, legs, tail }. Parts are put on `fig`, whose origin is the floor under the middle of it.
+export function buildMouse(mat) {
+  const G = mouseParts(), fig = new THREE.Group();
+  fig.add(new THREE.Mesh(G.trunk, mat));
+  const ears = EAR_AT.map(([x, y, z], i) => { const e = new THREE.Mesh(G.ear, mat), s = i ? 1 : -1; e.position.set(x, y, z); e.rotation.set(-0.12, s * 0.38, -s * 0.42); e.userData.rest = e.rotation.clone(); fig.add(e); return e; });
+  const legs = LEG_AT.map(([x, y, z], i) => { const l = new THREE.Mesh(i < 2 ? G.front : G.hind, mat); l.position.set(x, y, z); fig.add(l); return l; });
+  const tail = new THREE.Mesh(tailGeometry(), mat); tail.position.set(...TAIL_ROOT); fig.add(tail);
+  return { fig, ears, legs, tail };
+}
+// The whole mouse as three still pieces (src/story.js draws one this way): body (ears and legs on), eyes (nothing more:
+// they are on the body), tail (its root at TAIL_ROOT).
+export function mouseGeometry() {
+  const G = mouseParts(), p = [G.trunk.clone()];
+  EAR_AT.forEach(([x, y, z], i) => { const s = i ? 1 : -1, e = G.ear.clone(); e.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12, s * 0.38, -s * 0.42)), new THREE.Vector3(1, 1, 1))); p.push(e); });
+  LEG_AT.forEach(([x, y, z], i) => p.push((i < 2 ? G.front : G.hind).clone().translate(x, y, z)));
+  const eyes = new THREE.BufferGeometry(); eyes.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+  const tail = tailGeometry(); poseTail(tail, 0, 0, 0.03);
+  return { body: mergeGeometries(p), eyes, tail };
 }
 
 // A paw print with a soft halo round it, toes towards +v.
@@ -185,21 +272,28 @@ export const mice = feature({
   },
 
   _build() {
-    const k = this.k, G = mouseGeometry();
-    const body = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, color: 0x88aa88, emissive: 0xffffff, emissiveIntensity: 1.25 });
-    // the glow takes the fur's colour: ears and nose glow their own shades, the eyes stay dark
-    body.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb * vec3(0.45, 1.5, 0.5);'); };
-    const eyes = new THREE.MeshBasicMaterial({ color: 0x040604 });
+    const k = this.k;
+    const body = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, color: 0xb8d8b4, emissive: 0xffffff, emissiveIntensity: 0.6 });
+    // The glow takes the fur's colour (ears and nose glow their own shades, the eyes stay dark), and it is strongest round
+    // the edges: a green rim round the whole outline, so the shape of a mouse shows inside its own light.
+    body.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      totalEmissiveRadiance *= vColor.rgb * vec3(0.5, 1.35, 0.55);
+      { float rim = 1.0 - saturate(dot(normal, normalize(vViewPosition))), lit = step(0.1, max(vColor.r, vColor.g));
+        totalEmissiveRadiance += vec3(0.35, 1.25, 0.45) * pow(rim, 2.2) * 1.6 * lit; }`); };
+    body.customProgramCacheKey = () => 'mouse-fur';
     const glowTex = TX.radial(0, 1.2);
     const haloMat = new THREE.SpriteMaterial({ map: glowTex, color: GREEN, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
     const poolMat = new THREE.MeshBasicMaterial({ map: glowTex, color: GREEN.clone().multiplyScalar(0.75), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
     const poolGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     for (const m of this.list) {
       const g = m.mesh = new THREE.Group(); g.rotation.order = 'YXZ'; g.name = m.id;
-      m.fig = new THREE.Group(); m.fig.scale.setScalar(SCALE); g.add(m.fig);
-      m.fig.add(new THREE.Mesh(G.body, body), new THREE.Mesh(G.eyes, eyes));
-      m.tail = new THREE.Mesh(G.tail, body); m.tail.position.set(0, 0.022, -0.062); m.fig.add(m.tail);
-      m.halo = new THREE.Sprite(haloMat.clone()); m.halo.position.set(0, 0.05, 0); m.halo.scale.setScalar(0.36); g.add(m.halo);
+      const rig = buildMouse(body); m.fig = rig.fig; m.ears = rig.ears; m.legs = rig.legs; m.tail = rig.tail;
+      m.fig.scale.setScalar(SCALE); g.add(m.fig);
+      m.gait = 0; m.tph = Math.random() * 6; m.twitch = 0; m.earT = 1;
+      // The halo is drawn just behind the mouse (pushed away from whichever camera is looking), so it is a glow round the
+      // mouse and not a fog over it.
+      m.halo = new THREE.Sprite(haloMat.clone()); m.halo.position.set(0, 0.06, 0); m.halo.scale.setScalar(0.36); g.add(m.halo);
+      m.halo.onBeforeRender = (r, sc, cam) => { const e = m.halo.matrixWorld.elements, c = cam.matrixWorld.elements, dx = e[12] - c[12], dy = e[13] - c[13], dz = e[14] - c[14], l = Math.hypot(dx, dy, dz) || 1, b = Math.min(0.2, l * 0.5) / l; e[12] += dx * b; e[13] += dy * b; e[14] += dz * b; };
       m.pool = new THREE.Mesh(poolGeo, poolMat.clone()); m.pool.scale.setScalar(2.2); m.pool.renderOrder = 2;
       k.group.add(g, m.pool);
       if (this.tally.has(m.id)) m.state = 'done';
@@ -325,9 +419,35 @@ export const mice = feature({
     if (moved > 0) for (m.acc += moved; m.acc > STEP; m.acc -= STEP) this._print(m);
     if (g.visible) {
       g.position.y = m.y + 0.002 + bob; g.rotation.y = m.yaw; g.rotation.x = m.pitch;
-      m.tail.rotation.y = Math.sin(m.t * wag) * 0.35;
+      this._pose(m, dt, wag);
     }
-    this._glow(m, d);
+    m.d = d; this._glow(m, d);
+  },
+  // How it holds itself: a scurrying trot while it runs (legs in diagonal pairs, the body stretching and bunching, ears laid
+  // back, the tail whipping), and still, a slow sway of the tail and now and then a flick of one ear.
+  _pose(m, dt, wag) {
+    const run = m.state === 'run' && m.spd > 0.3 ? Math.min(1, m.spd / 2.5) : 0, duck = m.state === 'duck';
+    m.gait += dt * Math.PI * 2 * (run ? 3 + m.spd * 1.3 : 0);
+    m.run = (m.run || 0) + (run - (m.run || 0)) * Math.min(1, dt * 10);
+    const R = m.run, ph = m.gait, sitting = m.pitch < -0.25;
+    for (let i = 0; i < 4; i++) {
+      const pair = i === 0 || i === 3 ? 0 : Math.PI, want = Math.sin(ph + pair) * 0.95 * R + (sitting && i < 2 ? -0.7 : 0);
+      m.legs[i].rotation.x += (want - m.legs[i].rotation.x) * Math.min(1, dt * (R > 0.2 ? 40 : 10));
+    }
+    if (!duck) { const c = Math.sin(ph * 2) * R; m.fig.scale.set(SCALE * (1 - 0.03 * c), SCALE * (1 - 0.05 * c), SCALE * (1 + 0.08 * c)); }
+    // ears: laid back at a run; still, a twitch every second or two
+    if ((m.earT -= dt) < 0) { m.earT = 0.8 + Math.random() * 2.2; m.twitch = 0.32; m.earWhich = Math.random() < 0.5 ? 0 : Math.random() < 0.7 ? 1 : 2; }
+    m.twitch = Math.max(0, m.twitch - dt);
+    m.ears.forEach((e, i) => {
+      const rest = e.userData.rest, flick = !R && m.twitch > 0 && (m.earWhich === 2 || m.earWhich === i) ? Math.sin(m.twitch * 44) * 0.4 * (m.twitch / 0.32) : 0;
+      e.rotation.set(rest.x - 0.75 * R + flick, rest.y, rest.z + flick * 0.5 * (i ? -1 : 1));
+    });
+    // the tail: a wave running down it, quick and tight at a run, slow and wide sitting still
+    m.tph += dt * (R ? 10 + m.spd : wag * 0.7);
+    // kept lying on the floor whichever way the body is tipped: level, and dropped as far as its root is off the floor
+    const p = m.mesh.rotation.x, drop = TAIL_ROOT[1] * Math.cos(p) - TAIL_ROOT[2] * Math.sin(p) + (m.mesh.position.y - m.y - 0.002) / SCALE;
+    m.tail.rotation.x = -p;
+    if (m.d === undefined || m.d < 25) poseTail(m.tail.geometry, m.tph, 0.012 + 0.03 * (1 - R), 0.035 * Math.sin(m.tph * 0.23) * (1 - R), drop);
   },
   // the glow: a halo on the mouse and a pool of light on the floor round it, brighter as it flares
   _glow(m, d = 0) {
@@ -336,6 +456,7 @@ export const mice = feature({
     m.pool.position.set(at.x, m.y + 0.004, at.z); m.pool.scale.setScalar((2.2 + fl * 1.2) * pulse * (m.state === 'done' ? 0.55 : 1));
     m.pool.material.opacity = Math.min(1, 0.85 + fl); m.pool.visible = m.state !== 'home' || fl > 0;
     m.halo.scale.setScalar((0.36 + fl * 0.4) * pulse * (m.state === 'done' ? 1 : Math.max(1, Math.min(3.2, d / 4))));     // a beacon: bigger from further off
+    m.halo.material.opacity = Math.min(1, 0.45 + d / 16 + fl * 0.5);                  // and fainter close to, where the mouse itself is what you should see
   },
   _home(m, k, d) {
     m.flare = 1.2; m.followed = d < LAG - 1; m.home = true;
