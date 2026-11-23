@@ -176,7 +176,9 @@ feature({
     prog.push([t2 + 0.6, 'saucer', -34, 72, 3], [t2 + 0.75, 'hello', 34, 74, 1]);      // the visitors' own, either side of the crown
     prog.sort((a, b) => a[0] - b[0]);
     // the call, faint and high over the finale: as the barrage begins, so it ends as the crown opens
-    this.run = { t: 0, prog, i: 0, end: t2 + 0.45 + 1.9 + 3.0, callAt: Math.max(1, t2 + 0.45 - 7 * 0.36 - 0.2), called: false };
+    // ...and as the crown hangs there, an answer: a green light streaks across the sky over the park, dips, and climbs
+    // away into the dark. Not a firework. Not a sound.
+    this.run = { t: 0, prog, i: 0, end: t2 + 0.45 + 1.9 + 3.0, callAt: Math.max(1, t2 + 0.45 - 7 * 0.36 - 0.2), called: false, streak: { at: t2 + 1.1, dur: 2.4, flip: r() < 0.5 } };
     this.pts.visible = this.lines.visible = true;
     this.pressTo = 1;
     k.synth.noise(0.08, { vol: 0.08, lp: 900 }); k.synth.note(110, 0.15, { type: 'square', vol: 0.03 });
@@ -199,6 +201,7 @@ feature({
       R.t += dt;
       while (R.i < R.prog.length && R.prog[R.i][0] <= R.t) { this._launch(k, R.prog[R.i]); R.i++; }
       if (!R.called && R.t >= R.callAt) { R.called = true; this._call(k); }
+      if (R.streak && R.t >= R.streak.at) this._streak(R.t - R.streak.at, R.streak);
       // Sit still and the camera turns to watch: from behind the rack, up over the park.
       const v = k.v, sp = Math.hypot(v.vel.x, v.vel.z), c = this.crate;
       if (sp < 0.4 && Math.hypot(k.pos.x - c.x, k.pos.z - c.z) < 6) k.camClose = { at: { x: c.x + (c.x < (this.T.x0 + this.T.x1) / 2 ? 1.2 : -1.2), y: c.y + 3.7, z: c.z + 3.2 }, look: { x: c.x + 30, y: c.y + 50, z: c.z - 85 } };      // just over the pergola: nothing overhead, the screen below
@@ -216,6 +219,17 @@ feature({
       if (s.t >= s.T) { this._burst(k, s); this.shells.splice(i, 1); }
     }
     this._step(dt);
+  },
+
+  // The green light across the sky: from one side of the view over the park to the other, low in the middle and climbing
+  // away at the end, with a trail of green sparks that hang and fade. u runs 0..1 over its time.
+  _streak(t, S) {
+    const u = t / S.dur; if (u > 1) return;
+    const c = this.crate, sd = S.flip ? -1 : 1, e = u * u * (3 - 2 * u);
+    const x = c.x + 30 + sd * (-95 + 190 * e), z = c.z - 95 + 30 * Math.sin(u * Math.PI), y = c.y + 78 - 26 * Math.sin(u * Math.PI) + (u > 0.75 ? (u - 0.75) * 160 : 0);
+    const fade = u > 0.85 ? (1 - u) / 0.15 : 1;
+    this._spark(x, y, z, 0, 0, 0, [0.75 * fade, 1.6 * fade, 0.8 * fade], 0.05, 7.5, 0, 0);          // the light itself
+    for (let i = 0; i < 4; i++) this._spark(x + (Math.random() - 0.5) * 0.6, y + (Math.random() - 0.5) * 0.6, z, (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 1.2 - 0.6, (Math.random() - 0.5) * 1.2, [0.3 * fade, 1.0 * fade, 0.4 * fade], 0.9 + Math.random() * 0.6, 1.1, 1.2, 0);
   },
 
   _launch(k, [, kind, ox, h, ci]) {

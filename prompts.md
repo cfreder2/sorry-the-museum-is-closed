@@ -954,3 +954,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 222
 
 > The penguins sliding down the snow hill are coming through a wormhole inside the warming house (the Tuxedo Shop). Leave a note from the groundskeeper. You might say, "I'm used to dealing with worms, but not wormholes. I don't get paid enough for this."
+
+## 223
+
+> When the fireworks go off, during the finale, have a green light streak through the sky.
