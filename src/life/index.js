@@ -15,3 +15,4 @@ import './80607-self-portrait.js';      // 241  van Gogh, Self-Portrait (1887): 
 import './61128-at-the-moulin-rouge.js'; // 242  Toulouse-Lautrec, At the Moulin Rouge: cabaret
 import './18951-yellow-dancers.js';     // 226  Degas, Yellow Dancers (In the Wings): pirouette
 import './14572-millinery-shop.js';     // 226  Degas, The Millinery Shop: flutter
+import './8991-improvisation-30.js';    // 392  Kandinsky, Improvisation No. 30 (Cannons): boom
