@@ -583,11 +583,13 @@ export class Car {
         if (t > 0.3 && sp > 2.5) this.launched = t;
         this.fromHop = this.hopped; this.hopped = false; this.flip = this.spin = 0;
       }
+      const wasY = this.pos.y;
       this.pos.y = yb; this.vy -= GRAVITY * dt; this.airT += dt;
       if (this.vert && this.vert.t < this.vert.T) { const v = this.vert, step = Math.min(dt, v.T - v.t); v.t += step; this.yaw += v.turn * step / v.T; }
-      // Ceilings are real.
+      // Ceilings are real. (Only one the car was under: falling down a stair into the room below, that room's ceiling is
+      // under the car, not over it, and snapping to it put the car inside the stair, stuck for good.)
       const roof = ceilingAt(this.plan, this.pos.x, this.pos.z, this.pos.y) - 0.3;
-      if (this.pos.y > roof) { this.pos.y = roof; if (this.vy > 0) { this.bump = Math.max(this.bump, this.vy); this.vy *= -0.2; } }
+      if (this.pos.y > roof && wasY <= roof + 0.05) { this.pos.y = roof; if (this.vy > 0) { this.bump = Math.max(this.bump, this.vy); this.vy *= -0.2; } }
     } else {
       if (this.air) {
         this.air = false;
