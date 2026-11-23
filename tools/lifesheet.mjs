@@ -81,6 +81,7 @@ try {
       const G = window.__ah;
       await window.__life.pose(id, t, { ret });
       G.testEye = { at: view.at, look: view.look };
+      if (view.fov && G.camera.fov !== view.fov) { G.camera.fov = view.fov; G.camera.updateProjectionMatrix(); }
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))));
     }, id, view, t, ret);
     await page.screenshot({ path: file, type: 'jpeg', quality: 88 });
@@ -100,26 +101,17 @@ try {
     console.log('sheet:', file);
   }
 
-  if (flag('video')) {
-    const frames = path.join(tmp, 'frames'); fs.mkdirSync(frames);
-    await page.evaluate(async (id, view) => { await window.__life.pose(id, 0); window.__ah.testEye = { at: view.at, look: view.look }; }, id, views.look);
-    let n = 0; const FPS = 30, SHOW = 8.5, BACK = 2.2;
-    for (let i = 0; i < (SHOW + BACK) * FPS; i++) {
-      await page.evaluate(async (id, dt, looking) => { window.__life.advance(id, dt, looking); if (!looking) window.__life.release(id); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); }, id, i === 0 ? 0 : 1 / FPS, i < SHOW * FPS);
-      await page.screenshot({ path: path.join(frames, `f${String(n++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 90 });
-    }
-    const file = path.join(out, `${id}-${slug}.mp4`);
-    execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(frames, 'f%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', file]);
-    console.log('video:', file, `(${n} frames)`);
-  }
-
   if (flag('phone')) {
     // A phone-sized view, with the processor slowed four times (as a mid-range phone's): frame times, draw calls and
     // triangles drawn per frame (the whole game's, every pass), without the show and with it; and the show's own update.
-    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });      // (not isMobile: that reloads the page)
-    const cdp = await page.createCDPSession(); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    // (in a page of its own, fresh: the checks and poses above leave the game in a state no player sees)
+    const pp = await browser.newPage(); await pp.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+    await pp.goto(`http://127.0.0.1:${port}/?mode=explore&saved&noopen`, { waitUntil: 'domcontentloaded' });
+    await pp.waitForFunction('window.__ah && window.__ah.state === "play" && window.__life', { timeout: 120000, polling: 500 });
+    await pp.evaluate(async id => { const G = window.__ah, L = window.__life.life(id), q = L.floor(0.6, 2.2); G.vehicle.pos.set(q.x, L.y + 0.05, q.z); G.vehicle.vel.set(0, 0, 0); await new Promise(r => setTimeout(r, 1200)); await window.__life.ready(id); G.shell.look(L.art); await new Promise(r => setTimeout(r, 2500)); }, id);
+    const cdp = await pp.createCDPSession(); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     await new Promise(r => setTimeout(r, 1500));
-    const cost = await page.evaluate(async (id, view) => {
+    const cost = await pp.evaluate(async (id, view) => {
       const G = window.__ah, L = window.__life.life(id), r = G.renderer, wait = ms => new Promise(res => setTimeout(res, ms));
       r.info.autoReset = false;
       const sample = async secs => {
@@ -138,8 +130,22 @@ try {
       return { off, on, updateMs: +ms.toFixed(3) };
     }, id, views.look);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await pp.close();
     console.log('phone view 390x844 at 2x, processor slowed 4x; per frame, the whole game: without the show', JSON.stringify(cost.off), 'with it', JSON.stringify(cost.on), '; the show\'s own update', cost.updateMs, 'ms');
   }
+  if (flag('video')) {
+    const frames = path.join(tmp, 'frames'); fs.mkdirSync(frames);
+    await page.evaluate(async (id, view) => { await window.__life.pose(id, 0); window.__ah.testEye = { at: view.at, look: view.look }; }, id, views.look);
+    let n = 0; const FPS = 30, SHOW = 8.5, BACK = 2.2;
+    for (let i = 0; i < (SHOW + BACK) * FPS; i++) {
+      await page.evaluate(async (id, dt, looking) => { window.__life.advance(id, dt, looking); if (!looking) window.__life.release(id); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); }, id, i === 0 ? 0 : 1 / FPS, i < SHOW * FPS);
+      await page.screenshot({ path: path.join(frames, `f${String(n++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 90 });
+    }
+    const file = path.join(out, `${id}-${slug}.mp4`);
+    execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(frames, 'f%04d.jpg'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', file]);
+    console.log('video:', file, `(${n} frames)`);
+  }
+
 } finally {
   if (errors.length) console.log('page errors:', errors.slice(0, 12));
   await browser.close();
