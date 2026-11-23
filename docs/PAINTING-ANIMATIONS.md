@@ -8,6 +8,13 @@ by many agents, feel like one game.
 they wake while the player LOOKs at the work (as the Grande Jatte does), not with the blaster; see **How to make one**
 at the end.
 
+Also built on it: `src/life/44018-croquet-scene.js` (Homer: a lawn unrolls, players in crinolines play a stroke on
+Haydn's surprise chord, and the toy can knock the balls through the hoops; the nearest to copy for anything the toy
+plays with), `src/life/109938-valley-of-aosta.js` (Turner: his vortex of strokes round the frame, an avalanche from under
+it, a whirlwind on the floor and a drift; strokes drawn as ribbons in one mesh, for brushwork in motion) and
+`src/life/27943-mahana-no-atua.js` (Gauguin: a tide of flat shapes in three layers, all in one shader, with floating
+flowers; for anything flat and patterned on the floor).
+
 ## What it is
 
 An alien blaster, given to the player by the probe at the end of the UFO chase, wakes a work up. Blast a work and

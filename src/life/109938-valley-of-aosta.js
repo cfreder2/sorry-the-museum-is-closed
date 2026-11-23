@@ -16,8 +16,10 @@
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, canvasTexture, radialTexture } from '../paintlife.js';
 
-const NR = 96, NRING = 58, K = 12;           // strokes (the first NRING wheel round the frame; the rest come down in the avalanche), segments each
-const NP = 300;                               // snow
+const TAU = Math.PI * 2, wrap = a => a - TAU * Math.round(a / TAU);
+
+const NR = 96, NRING = 58, K = 9;           // strokes (the first NRING wheel round the frame; the rest come down in the avalanche), segments each
+const NP = 240;                               // snow
 const DR = 14, DS = 44, DRIFT_R = 1.45;       // the drift: rings, spokes, its reach (m)
 const CU = 0.05, CO = 1.3;                    // the whirlwind's middle (along, out)
 const T_AV = 2.0, T_BOOM = 4.75, T_CALM = 6.0;
@@ -29,7 +31,7 @@ const midi = n => { const m = /^([A-G])(b|#)?(\d)$/.exec(n), k = { C: 0, D: 2, E
 lifeFor(109938, {
   title: /^Valley of Aosta/,
   word: 'avalanche',
-  stage: { out: 2.15, half: 1.65 },
+  stage: { out: 2.15, half: 1.65, cam: { dist: 3.5, height: 1.15, side: 0.25, fov: 64, lookU: 0.05, lookOut: 0.8, lookH: 1.0, floorOut: 1.9 } },
   wake: 2, ret: 2.2,
 
   build(L) {
@@ -77,10 +79,15 @@ lifeFor(109938, {
       return { a: L.rand(), b: L.rand(), c: L.rand(), d: L.rand(), e: L.rand(), th: L.rand() * Math.PI * 2, col: c, gold: col(pick(golds), 0.3), w: (i >= NRING ? 0.07 : 0.05) + L.rand() * 0.065, ring: i < NRING, u0: (L.rand() - 0.5) * 2 * (L.hw - 0.05) };
     });
     // ---------------------------------------------------------- snow
-    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3).setUsage(THREE.DynamicDrawUsage)); sg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NP * 4), 4).setUsage(THREE.DynamicDrawUsage));
-    this.snow = L.add(new THREE.Points(sg, new THREE.PointsMaterial({ size: 0.085, map: radialTexture(), vertexColors: true, transparent: true, depthWrite: false, sizeAttenuation: true, fog: false })));
+    // (flakes are little quads turned to face the camera, so the guard tests them pixel by pixel like everything else)
+    const sm = new THREE.MeshBasicMaterial({ map: radialTexture(), transparent: true, depthWrite: false, fog: false });
+    sm.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', 'vec4 mvPosition = modelViewMatrix * vec4(instanceMatrix[3].xyz, 1.0);\n  mvPosition.xy += position.xy * length(instanceMatrix[0].xyz);\n  gl_Position = projectionMatrix * mvPosition;'); };
+    sm.customProgramCacheKey = () => 'aosta-flake';
+    this.snow = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), sm, NP); this.snow.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const snowC = [col('#f4f1e8', 0.15), col('#e9e2cf', 0.2), col('#d2cbbb', 0.25), col('#efd9a6', 0.3)];
-    this.F = Array.from({ length: NP }, (_, i) => ({ a: L.rand(), b: L.rand(), c: L.rand(), d: L.rand(), th: L.rand() * Math.PI * 2, aval: i % 2 === 0, fall: i % 4 === 1, col: snowC[i % 7 === 0 ? 3 : i % 3] }));
+    this.F = Array.from({ length: NP }, (_, i) => ({ a: L.rand(), b: L.rand(), c: L.rand(), d: L.rand(), th: L.rand() * Math.PI * 2, aval: i % 2 === 0, fall: i % 4 === 1, sz: 0.038 + 0.04 * L.rand() }));
+    for (let i = 0; i < NP; i++) this.snow.setColorAt(i, snowC[i % 7 === 0 ? 3 : i % 3]);
+    this.snow.instanceMatrix.array.fill(0); L.add(this.snow);
     // ---------------------------------------------------------- light: the eye (gold, on the floor), round the frame (on the wall behind it), and the lightning
     this.light = L.glows([
       { w: 2.6, d: 2.0, u: CU, out: CO, color: col('#ffc46a', 0.15), strength: 0.9 },
@@ -120,15 +127,19 @@ lifeFor(109938, {
 
   // A stroke's point s (0..1 along it), in stage terms (u along, h up from the floor, o out) with the way its width
   // lies (wu, wh, wo), into o.
-  ringAt(L, R, s, e, T, o) {
-    const th = R.th + T * (1.1 + 0.7 * R.d) + s * (0.55 + 0.75 * R.c), c = Math.cos(th), sn = Math.sin(th), pw = 0.2 + 0.6 * e;
-    const A = this.A0 - 0.03 + e * (0.2 + 0.8 * R.b), B = this.B0 - 0.03 + e * (0.16 + 0.55 * R.b);
+  // drain (0..1): slide round the ring, down its sides, to the bottom (so that coming down to the floor, nothing passes
+  // in front of the picture)
+  ringAt(L, R, s, e, T, o, drain = 0) {
+    let th = R.th + T * (1.1 + 0.7 * R.d) + s * (0.55 + 0.75 * R.c);
+    if (drain > 0) th += wrap(-Math.PI / 2 + (R.a - 0.5) * 1.3 + s * (0.55 + 0.75 * R.c) * 0.7 - th) * drain;
+    const c = Math.cos(th), sn = Math.sin(th), pw = 0.18 + 0.62 * e * e;
+    const A = this.A0 + 0.03 + e * (0.2 + 0.8 * R.b), B = this.B0 + 0.03 + e * (0.16 + 0.55 * R.b);
     o.u = A * Math.sign(c) * Math.pow(Math.abs(c), pw); o.h = this.cH + B * Math.sign(sn) * Math.pow(Math.abs(sn), pw);
     o.o = -0.05 + e * (0.12 + 0.42 * R.b) + 0.05 * e * Math.sin(th * 3 + T);
     o.wu = c; o.wh = sn; o.wo = 0; return o;
   },
   vortexAt(L, R, s, spin, calm, t, o) {
-    const r0 = 0.15 + 1.2 * R.b, h0 = 0.04 + 1.25 * R.c * R.c;
+    const r0 = 0.15 + 1.2 * R.b, h0 = 0.04 + 1.08 * R.c * R.c;
     const h = h0 * (1 - calm * 0.97) + s * 0.12 * (R.d - 0.5) * (1 - calm), r = r0 * (0.62 + 0.5 * h / 1.2) * (1 + 0.15 * calm);
     const th = R.th + spin * 1.5 / (0.3 + r0) + s * (0.32 + 0.38 * R.c) / Math.max(0.2, r);
     const cu = CU + 0.07 * Math.sin(t * 1.3) * (1 - calm), co = CO + 0.06 * Math.cos(t * 1.1) * (1 - calm);
@@ -139,11 +150,11 @@ lifeFor(109938, {
   },
   avalAt(L, R, s, ta, o) {
     // down from under the bottom rail, then out along the floor in a tumbling surge
-    const H = this.railH - 0.02, fallT = Math.sqrt(2 * H / 9.8), lenA = 0.55 + 0.3 * R.c;
+    const H = this.railH - 0.08, fallT = Math.sqrt(2 * H / 9.8), lenA = 0.55 + 0.3 * R.c;
     let dh = ta < fallT ? 4.9 * ta * ta : H + Math.min(1.75, (3.2 + R.d) * (ta - fallT) - 1.9 * (ta - fallT) ** 2 * (ta - fallT < (3.2 + R.d) / 3.8 ? 1 : 0));
     if (ta - fallT > (3.2 + R.d) / 3.8) dh = H + (3.2 + R.d) ** 2 / 7.6;
     const d = Math.max(0, dh - s * lenA), o0 = 0.05 + 0.12 * R.e;
-    if (d < H) { o.u = R.u0 + 0.05 * Math.sin(d * 5 + R.th); o.h = this.railH - 0.01 - d; o.o = o0 + 0.07 * d; o.wu = 1; o.wh = 0; o.wo = 0; }
+    if (d < H) { o.u = R.u0 + 0.05 * Math.sin(d * 5 + R.th); o.h = this.railH - 0.07 - d; o.o = o0 + 0.07 * d; o.wu = 1; o.wh = 0; o.wo = 0; }
     else { const f = d - H, spread = 0.55 * f * (R.a - 0.5); o.u = R.u0 * (1 + 0.4 * f) + spread; o.o = o0 + 0.07 * H + f * (0.8 + 0.3 * R.b); o.h = 0.03 + 0.28 * Math.abs(Math.sin(f * 3.5 + R.th)) * Math.exp(-f * 0.8); o.wu = 1; o.wh = 0.3; o.wo = 0; }
     return o;
   },
@@ -169,7 +180,7 @@ lifeFor(109938, {
     // ---- the strokes
     const pos = this.storm.geometry.attributes.position.array, cl = this.storm.geometry.attributes.color.array, p = this.p, q = this.q;
     const goldK = showing ? ease.smooth(ramp(t, 3.5, 4.6)) : 0, flash = this.flash(L, t, showing);
-    const retK = back ? ease.inOut(ramp(L.ret, 0.08, 0.7)) : 0, retE = back ? 1 - ease.inOut(ramp(L.ret, 0.55, 1)) : 1;
+    const retK = back ? ease.inOut(ramp(L.ret, 0.04, 0.42)) : 0, retD = back ? 1 - ease.inOut(ramp(L.ret, 0.38, 0.78)) : 0, retE = back ? 1 - ease.inOut(ramp(L.ret, 0.68, 1)) : 1;
     for (let i = 0; i < NR; i++) {
       const R = this.R[i];
       let alpha;
@@ -181,13 +192,13 @@ lifeFor(109938, {
         const s = j / K;
         if (back) {
           this.vortexAt(L, R, s, spin, calm, this.bT, p);
-          this.ringAt(L, R, s, retE, this.orbit, q);
-          this.mix(p, q, retK, 0.35 * Math.sin(Math.PI * retK));
+          this.ringAt(L, R, s, retE, this.orbit, q, retD);
+          this.mix(p, q, retK, 0.12 * Math.sin(Math.PI * retK));
         } else if (R.ring) {
           const e = ease.out(ramp(t, 0.05 + 0.3 * R.a, 1.7 + 0.3 * R.a));
-          this.ringAt(L, R, s, e, this.orbit, p);
-          const k = ease.inOut(ramp(t, 2.55 + 1.05 * R.a, 3.45 + 1.05 * R.a));
-          if (k > 0) { this.vortexAt(L, R, s, spin, calm, t, q); this.mix(p, q, k, 0.45 * Math.sin(Math.PI * k)); }
+          const k = ramp(t, 2.4 + 1.1 * R.a, 3.7 + 1.1 * R.a), k1 = ease.inOut(clamp01(k / 0.5)), k2 = ease.inOut(clamp01((k - 0.42) / 0.58));
+          this.ringAt(L, R, s, e, this.orbit, p, k1);
+          if (k2 > 0) { this.vortexAt(L, R, s, spin, calm, t, q); this.mix(p, q, k2, 0.25 * Math.sin(Math.PI * k2)); }
         } else {
           const ta = t - (T_AV + 0.45 * R.a);
           if (ta <= 0) { p.u = R.u0; p.h = this.railH; p.o = -0.1; p.wu = 1; p.wh = 0; p.wo = 0; }
@@ -248,34 +259,34 @@ lifeFor(109938, {
   },
 
   snowStep(L, t, showing, back, spin, calm) {
-    const g = this.snow.geometry, pa = g.attributes.position.array, ca = g.attributes.color.array, p = this.p, q = this.q;
-    const retK = back ? ease.inOut(ramp(L.ret, 0.05, 0.6)) : 0;
+    const M = this.snow.instanceMatrix.array, p = this.p, q = this.q;
+    const retK = back ? ease.inOut(ramp(L.ret, 0.04, 0.42)) : 0, retD = back ? 1 - ease.inOut(ramp(L.ret, 0.38, 0.78)) : 0;
     let any = false;
     for (let i = 0; i < NP; i++) {
       const F = this.F[i]; let a = 1;
       if (!back && F.aval && t < T_AV + 0.6 * F.a) { a = 0; }
       // where it would be in the whirlwind
-      const r0 = 0.08 + 1.35 * F.b, th = F.th + spin * 1.9 / (0.25 + r0) * (0.85 + 0.3 * F.d), h0 = 0.03 + 1.3 * F.c;
+      const r0 = 0.08 + 1.35 * F.b, th = F.th + spin * 1.9 / (0.25 + r0) * (0.85 + 0.3 * F.d), h0 = 0.03 + 1.06 * F.c;
       const vu = CU + r0 * Math.cos(th), vo = CO + r0 * Math.sin(th) * 0.78;
       let u, h, o;
       if (back) {
         u = vu; o = vo; h = h0 * (1 - this.bCalm) + this.bCalm * (this.driftH(vu, vo) + 0.02);
-        const e = 1 - ease.inOut(ramp(L.ret, 0.5, 1)), th2 = F.th + this.orbit * 2.2, c = Math.cos(th2), s = Math.sin(th2);
+        const e = 1 - ease.inOut(ramp(L.ret, 0.68, 1)); let th2 = F.th + this.orbit * 2.2; th2 += wrap(-Math.PI / 2 + (F.a - 0.5) * 1.4 - th2) * retD; const c = Math.cos(th2), s = Math.sin(th2);
         const A = this.A0 + e * (0.1 + 0.7 * F.b), B = this.B0 + e * (0.08 + 0.55 * F.b);
         u += (A * Math.sign(c) * Math.pow(Math.abs(c), 0.4) - u) * retK; h += (this.cH + B * Math.sign(s) * Math.pow(Math.abs(s), 0.4) - h) * retK; o += (-0.05 + e * (0.1 + 0.5 * F.d) - o) * retK;
         a = 1 - ramp(L.ret, 0.75 + 0.2 * F.a, 1);
       } else if (!F.aval) {
         // round the frame
-        const e = ease.out(ramp(t, 0.05 + 0.3 * F.a, 1.6 + 0.3 * F.a)), th2 = F.th + this.orbit * 2.2, c = Math.cos(th2), s = Math.sin(th2);
-        const A = this.A0 - 0.02 + e * (0.1 + 0.7 * F.b), B = this.B0 - 0.02 + e * (0.08 + 0.55 * F.b);
+        const kk = ramp(t, 2.4 + 1.2 * F.a, 3.7 + 1.2 * F.a), k1 = ease.inOut(clamp01(kk / 0.5)), k = ease.inOut(clamp01((kk - 0.42) / 0.58));
+        const e = ease.out(ramp(t, 0.05 + 0.3 * F.a, 1.6 + 0.3 * F.a)); let th2 = F.th + this.orbit * 2.2; th2 += wrap(-Math.PI / 2 + (F.a - 0.5) * 1.4 - th2) * k1; const c = Math.cos(th2), s = Math.sin(th2);
+        const A = this.A0 + 0.04 + e * (0.1 + 0.7 * F.b), B = this.B0 + 0.04 + e * (0.08 + 0.55 * F.b);
         u = A * Math.sign(c) * Math.pow(Math.abs(c), 0.25 + 0.2 * e); h = this.cH + B * Math.sign(s) * Math.pow(Math.abs(s), 0.25 + 0.2 * e); o = -0.05 + e * (0.1 + 0.5 * F.d);
         a = ease.smooth(ramp(t, 0.05 + 0.5 * F.a, 0.4 + 0.5 * F.a));
-        const k = ease.inOut(ramp(t, 2.5 + 1.2 * F.a, 3.4 + 1.2 * F.a));
-        if (k > 0) { u += (vu - u) * k; h += (h0 - h) * k - 0.2 * Math.sin(Math.PI * k); o += (vo - o) * k + 0.4 * Math.sin(Math.PI * k); }
+        if (k > 0) { u += (vu - u) * k; h += (h0 - h) * k - 0.1 * Math.sin(Math.PI * k); o += (vo - o) * k + 0.2 * Math.sin(Math.PI * k); }
       } else {
         // in the avalanche: down from the rail, a powder cloud out over the floor
         const ta = Math.max(0, t - T_AV - 0.6 * F.a), H = this.railH, fallT = Math.sqrt(2 * H / 9.8) * (0.9 + 0.3 * F.d);
-        if (ta < fallT) { const f = ta / fallT; u = (F.b - 0.5) * 2 * (L.hw - 0.05); h = H - H * f * f; o = 0.05 + 0.15 * F.c + 0.1 * f; }
+        if (ta < fallT) { const f = ta / fallT; u = (F.b - 0.5) * 2 * (L.hw - 0.05); h = H - 0.1 - (H - 0.1) * f * f; o = 0.05 + 0.15 * F.c + 0.1 * f; }
         else { const f = Math.min(1.6, (ta - fallT) * 2.2); u = (F.b - 0.5) * 2 * (L.hw - 0.05) * (1 + 0.6 * f); o = 0.2 + 0.15 * F.c + f * (0.5 + 0.6 * F.d); h = 0.02 + (0.15 + 0.5 * F.c) * Math.sin(Math.min(Math.PI, f * 2.2)) * (0.6 + 0.4 * F.a); }
         const k = ease.inOut(ramp(t, 3.3 + 0.9 * F.a, 4.2 + 0.9 * F.a));
         if (k > 0) { u += (vu - u) * k; h += (h0 - h) * k; o += (vo - o) * k; }
@@ -283,13 +294,14 @@ lifeFor(109938, {
       if (!back && calm > 0) {
         // settling: down onto the drift (where it stays, a glint), and a few go on falling softly while you look
         const land = this.driftH(u, o) + 0.02;
-        if (F.fall && t > 7) { const c = ((t - 7) * (0.14 + 0.08 * F.d) + F.a) % 1; h = 1.5 * (1 - c) + land * c; u = CU + (F.b - 0.5) * 2.4 + 0.1 * Math.sin(t * 0.7 + F.th); o = CO + (F.c - 0.5) * 1.5; a = Math.min(1, Math.sin(Math.PI * c) * 3); }
+        if (F.fall && t > 7) { const c = ((t - 7) * (0.14 + 0.08 * F.d) + F.a) % 1; h = 1.12 * (1 - c) + land * c; u = CU + (F.b - 0.5) * 2.4 + 0.1 * Math.sin(t * 0.7 + F.th); o = CO + (F.c - 0.5) * 1.5; a = Math.min(1, Math.sin(Math.PI * c) * 3); }
         else { const s2 = ease.inOut(clamp01((calm - 0.1 * F.a) / 0.9)); h = h + (land - h) * s2; u += 0.15 * s2 * (F.d - 0.5); }
       }
-      pa[i * 3] = L.cx + L.tx * u + L.nx * o; pa[i * 3 + 1] = L.y + Math.max(0.012, h); pa[i * 3 + 2] = L.cz + L.tz * u + L.nz * o;
-      const c = F.col; ca[i * 4] = c.r; ca[i * 4 + 1] = c.g; ca[i * 4 + 2] = c.b; ca[i * 4 + 3] = a * 0.95; if (a > 0) any = true;
+      // (straight into the instance matrix: a scale and a place, faded by shrinking)
+      const j = i * 16, sc = F.sz * Math.max(0, a); M[j] = sc; M[j + 5] = sc; M[j + 10] = sc; M[j + 15] = 1;
+      M[j + 12] = L.cx + L.tx * u + L.nx * o; M[j + 13] = L.y + Math.max(0.02, h); M[j + 14] = L.cz + L.tz * u + L.nz * o; if (a > 0) any = true;
     }
-    g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true;
+    this.snow.instanceMatrix.needsUpdate = true;
     this.snow.visible = any;
   },
 

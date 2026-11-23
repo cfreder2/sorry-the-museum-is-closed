@@ -39,7 +39,7 @@ float tField(vec2 p) { return 0.65 * tNoise(p) + 0.35 * tNoise(p * 2.13 + 7.3); 
 lifeFor(27943, {
   title: /^Mahana no atua/,
   word: 'tide',
-  stage: { out: 1.95, half: 1.7 },
+  stage: { out: 1.95, half: 1.7, cam: { dist: 3.0, height: 1.6, side: 0.15, fov: 64, lookU: 0.0, lookOut: 1.0, lookH: 0.3, floorOut: 1.95 } },
   wake: 2.4, ret: 2.4,
   linger: { near: 4.5, max: 40 },
 
@@ -47,13 +47,13 @@ lifeFor(27943, {
     const P = L.pal, col = (h, a = 0.2) => P.near(h, a);
     // his pool's colours (nudged a little towards what the picture's own palette holds)
     const C = {
-      deep: col('#1f3f8f'), ultra: col('#2f5fb5'), cerul: col('#5aa7c6'), violet: col('#6a4f9c'), pink: col('#e09aa8'), rose: col('#c9708a'),
+      deep: col('#1d3a86'), ultra: col('#2c58ab'), cerul: col('#4f9cbc'), violet: col('#5f4892'), pink: col('#d88e9e'), rose: col('#b8607c'),
       yellow: col('#ecc04e'), orange: col('#e0863a'), cream: col('#f1e3b6'), navy: col('#17203a'), red: col('#c8402e'), green: col('#6f9d4a'),
     };
     const v3 = c => new THREE.Vector3(c.r, c.g, c.b);
     this.u = {
       uT: { value: 0 }, uFront: { value: 0 }, uSwell: { value: new THREE.Vector3(-1, 0, 0) }, uRe: { value: new THREE.Vector2(0, 0) }, uToy: { value: new THREE.Vector3(9, 9, 0) }, uWarm: { value: 0 },
-      cA: { value: [C.deep, C.ultra, C.violet, C.pink, C.cerul].map(v3) }, cB: { value: [C.yellow, C.orange, C.pink, C.cream].map(v3) }, cC: { value: [C.navy, C.red, C.cerul, C.rose].map(v3) },
+      cA: { value: [C.pink, C.ultra, C.deep, C.violet, C.cerul].map(v3) }, cB: { value: [C.yellow, C.orange, C.pink, C.cream].map(v3) }, cC: { value: [C.navy, C.red, C.cerul, C.rose].map(v3) },
     };
     // ---------------------------------------------------------- the tide: three layers of a grid laid on the floor
     const nv = 3 * (NU + 1) * (NO + 1), pos = new Float32Array(nv * 3), st = new Float32Array(nv * 3), idx = [], p = new THREE.Vector3();
@@ -90,13 +90,14 @@ lifeFor(27943, {
     vec2 d = p - uToy.xy; float r = length(d), a = uToy.z * 2.4 * exp(-r * r * 10.0), ca = cos(a), sa = sin(a);
     p = uToy.xy + vec2(ca * d.x - sa * d.y, sa * d.x + ca * d.y);
     // the shapes: long and flat, as his are (stretched along the wall); behind the swell's crest, a new arrangement
-    float behind = smoothstep(uSwell.x + 0.12, uSwell.x - 0.12, O);
+    float behind = smoothstep(uSwell.x + 0.3, uSwell.x - 0.3, O);
     vec2 q = vec2(p.x * 0.85, p.y * 2.1);
     q += 0.32 * vec2(sin(q.y * 1.9 + uT * 0.22 + sin(q.x * 1.3)), sin(q.x * 1.4 - uT * 0.18));
-    vec2 off = mix(vec2(uRe.x, 0.0), vec2(uRe.y, 3.7), behind);
+    // (the two arrangements, ahead of the crest and behind it, are blended as shapes, not slid: a morph)
+    vec2 oA = vec2(uRe.x, 0.0), oB = vec2(uRe.y, 3.7);
     vec3 c;
     if (layer == 0) {
-      float f = tField(q * 1.1 + off + vec2(uT * 0.03, 0.0));
+      float f = behind <= 0.001 ? tField(q * 1.1 + oA + vec2(uT * 0.03, 0.0)) : behind >= 0.999 ? tField(q * 1.1 + oB + vec2(uT * 0.03, 0.0)) : mix(tField(q * 1.1 + oA + vec2(uT * 0.03, 0.0)), tField(q * 1.1 + oB + vec2(uT * 0.03, 0.0)), behind);
       float k = f * 5.0; int i = int(clamp(floor(k), 0.0, 4.0));
       c = cA[0];
       for (int j = 1; j < 5; j++) if (j == i) c = cA[j];
@@ -105,21 +106,24 @@ lifeFor(27943, {
       c = mix(c, cB[3], 1.0 - smoothstep(0.018, 0.018 + fw, e));
       c = mix(c, mix(c, cB[3], 0.55), smoothstep(0.075, 0.075 + fw, e) * (1.0 - smoothstep(0.09, 0.09 + fw, e)));
     } else if (layer == 1) {
-      float f = tField(q * 0.9 + off * 1.3 + vec2(11.0 - uT * 0.025, 4.0));
+      vec2 b1 = q * 0.9 + vec2(11.0 - uT * 0.025, 4.0);
+      float f = behind <= 0.001 ? tField(b1 + oA * 1.3) : behind >= 0.999 ? tField(b1 + oB * 1.3) : mix(tField(b1 + oA * 1.3), tField(b1 + oB * 1.3), behind);
       float aa = fwidth(f) * 1.2; if (f < 0.6 - aa) discard;
       int i = int(clamp(floor((f - 0.6) * 12.0), 0.0, 3.0));
       c = cB[0]; for (int j = 1; j < 4; j++) if (j == i) c = cB[j];
     } else {
-      float f = tField(q * 0.75 + off * 0.8 + vec2(-5.0 + uT * 0.02, 9.0)), g = tField(q * 1.3 + off + vec2(23.0, -uT * 0.03));
+      vec2 b2 = q * 0.75 + vec2(-5.0 + uT * 0.02, 9.0), b3 = q * 1.3 + vec2(23.0, -uT * 0.03);
+      float f = behind <= 0.001 ? tField(b2 + oA * 0.8) : behind >= 0.999 ? tField(b2 + oB * 0.8) : mix(tField(b2 + oA * 0.8), tField(b2 + oB * 0.8), behind);
+      float g = behind <= 0.001 ? tField(b3 + oA) : behind >= 0.999 ? tField(b3 + oB) : mix(tField(b3 + oA), tField(b3 + oB), behind);
       float aa = fwidth(f) * 1.2;
       if (f > 0.7) c = mix(cC[2], cC[0], smoothstep(0.735, 0.735 + aa, f));          // a dark shape with his pale blue rim
       else if (g > 0.74) c = mix(cC[3], cC[1], smoothstep(0.77, 0.77 + fwidth(g), g));
       else discard;
     }
     // rings spreading from the toy, and the warm light on it all
-    float ring = uToy.z * exp(-r * 4.5) * smoothstep(0.75, 1.0, sin(r * 42.0 - uT * 5.0));
-    c = mix(c, cB[3], ring * 0.6 * (layer == 0 ? 1.0 : 0.5));
-    float lit = 0.8 + uWarm * (0.12 + 0.28 * exp(-((U - 0.0) * (U - 0.0) * 0.6 + (O - 1.0) * (O - 1.0) * 1.4)));
+    float ring = uToy.z * exp(-r * 3.2) * smoothstep(0.6, 0.95, sin(r * 38.0 - uT * 5.0));
+    c = mix(c, cB[3], ring * 0.85 * (layer == 0 ? 1.0 : 0.6));
+    float lit = 0.7 + uWarm * (0.1 + 0.26 * exp(-((U - 0.0) * (U - 0.0) * 0.6 + (O - 1.0) * (O - 1.0) * 1.4)));
     diffuseColor.rgb = c * lit * vec3(1.0, 0.97, 0.92);
   }`);
     };
@@ -146,7 +150,7 @@ lifeFor(27943, {
     this.fl = Array.from({ length: NF }, (_, i) => {
       const kind = i % 5 === 2 ? 'h' : i === 6 || i === 13 ? 'l' : 't';
       const inst = rig.add(kind === 'h' ? gH : kind === 'l' ? gL : gT); rig.show(inst, false);
-      return { inst, kind, te: 1.0 + i * 0.16 + L.rand() * 0.1, u0: (L.rand() - 0.5) * 2 * (L.hw - 0.05), th0: (i / NF) * Math.PI * 2, rr: 0.55 + L.rand() * 0.3, spin: (L.rand() - 0.5) * 1.2, yaw: L.rand() * 6.3, s: kind === 'l' ? 1 : 0.95 + L.rand() * 0.35, u: 0, o: -0.2, vu: 0, vo: 0, ph: L.rand() * 6 };
+      return { inst, kind, te: 1.0 + i * 0.16 + L.rand() * 0.1, u0: (L.rand() - 0.5) * 2 * (L.hw - 0.05), th0: (i / NF) * Math.PI * 2, rr: 0.55 + L.rand() * 0.3, spin: (L.rand() - 0.5) * 1.2, yaw: L.rand() * 6.3, s: kind === 'l' ? 1.5 : 1.45 + L.rand() * 0.45, u: 0, o: -0.2, vu: 0, vo: 0, ph: L.rand() * 6 };
     });
     // ---------------------------------------------------------- warm light: on the water, and round the frame on the wall
     this.light = L.glows([{ w: 3.2, d: 2.2, u: 0, out: 1.0, color: col('#ffb870', 0.15), strength: 0.55 }, { wall: true, w: 2.4, d: 2.0, u: 0, v: -0.1, color: col('#ffc080', 0.15), strength: 0.8 }]);

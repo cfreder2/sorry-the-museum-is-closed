@@ -27,17 +27,17 @@ const NA = 14, NL = 44, TUFTS = 96;
 const HW = 0.095, HH = 0.2, WIRE = 0.0065;   // a hoop: half its inner width, its height, its wire
 // The line of play runs from the front left to the back right (on the slant, so the hoops show their arches to you).
 const DU = 0.77, DO = -0.64;            // its way, along and out
-const TEE = [-0.74, 1.42];              // where the blue ball is played from (along, out)
+const TEE = [-0.74, 1.3];              // where the blue ball is played from (along, out)
 const along = d => [TEE[0] + DU * d, TEE[1] + DO * d];
-const HOOPS = [[...along(0.52), DU, DO], [...along(1.04), DU, DO], [-0.98, 0.5, 0, 1]];      // along, out, and which way a ball goes through
-const STAKE = along(1.58), RUN = 1.58 - R - 0.013;
+const HOOPS = [[...along(0.45), DU, DO], [...along(0.9), DU, DO], [-0.98, 0.45, 0, 1]];      // along, out, and which way a ball goes through
+const STAKE = along(1.4), RUN = 1.4 - R - 0.013;
 const BALLS = [                         // colour, stripe, where it comes to rest, when it drops
   { c: '#3d6a9e', s: '#e8e2d0', rest: TEE, te: 1.5, u0: -0.12 },
-  { c: '#cf6a2c', s: '#f0d8a8', rest: [-1.14, 0.9], te: 1.75, u0: 0.1 },
-  { c: '#d8b44c', s: '#7a5a2a', rest: [1.18, 0.78], te: 2.0, u0: 0.18 },
-  { c: '#e9e3d2', s: '#b8392e', rest: [0.12, 1.62], te: 2.25, u0: -0.2 },
+  { c: '#cf6a2c', s: '#f0d8a8', rest: [-1.14, 0.82], te: 1.75, u0: 0.1 },
+  { c: '#d8b44c', s: '#7a5a2a', rest: [1.12, 0.7], te: 2.0, u0: 0.18 },
+  { c: '#e9e3d2', s: '#b8392e', rest: [0.18, 1.32], te: 2.25, u0: -0.2 },
 ];
-const T_HIT = 5.42, V0 = 1.82, DEC = 1.05;      // the stroke, and how the ball runs from it
+const T_HIT = 5.42, V0 = 1.72, DEC = 1.05;      // the stroke, and how the ball runs from it
 // The theme of the Andante of Haydn's Symphony No. 94, "Surprise" (1791), plucked, very soft, and the chord that
 // made the audience jump, on the stroke. Then the next phrase, for the stake.
 const BPM = 116, BEAT = 60 / BPM;
@@ -50,17 +50,17 @@ const T_TUNE = T_HIT - 7 * BEAT;
 // (Only the first and last times count: they go along the whole route at an easy pace, round the hoops.)
 const MOVES = {
   blue: [[2.1, -0.28, -0.32], [0, -0.55, 0.5], [0, -0.95, 1.05], [3.75, null, null]],     // (the last: her place by the tee, worked out)
-  red: [[1.95, 0.22, -0.32], [0, 0.85, 0.3], [0, 0.95, 0.95], [3.1, 0.66, 1.52]],
+  red: [[1.95, 0.22, -0.32], [0, 0.75, 0.25], [0, 0.95, 0.85], [3.1, 0.7, 1.28]],
   brown: [[2.55, -0.2, -0.32], [3.5, -0.48, 0.3]],
-  man: [[2.4, 0.3, -0.32], [0, 0.72, 0.0], [3.55, 0.84, 0.2]],
+  man: [[2.4, 0.3, -0.32], [0, 0.6, -0.05], [3.55, 0.68, 0.16]],
 };
 // Where they stand to watch the toy play (along, out).
-const WATCH = { blue: [-1.24, 1.5], red: [1.2, 1.45], brown: [-0.42, 0.26], man: [1.24, 0.42] };
+const WATCH = { blue: [-1.24, 1.25], red: [1.2, 1.25], brown: [-0.42, 0.24], man: [1.2, 0.4] };
 
 lifeFor(44018, {
   title: /^Croquet Scene/,
   word: 'mallet',
-  stage: { out: 1.75, half: 1.45 },
+  stage: { out: 1.75, half: 1.45, cam: { dist: 2.8, height: 0.75, side: 0.3, fov: 62, lookU: 0.0, lookOut: 0.8, lookH: 0.62, floorOut: 1.45 } },
   wake: 2, ret: 2.4,
   linger: { near: 5, max: 60 },
   secrets: [['croquet', 'Through Homer\'s hoop']],
@@ -293,9 +293,9 @@ lifeFor(44018, {
       if (tt < 0) { b.state = 'in'; return; }
       if (i === 0 && t >= T_HIT) return this.heroRun(L, t);
       b.state = 'out';
-      const pop = 0.18, H = L.rail - L.y - R - 0.012;
+      const pop = 0.18, H = L.rail - L.y - R - 0.07;
       let u, out, y;
-      if (tt < pop) { const q = ease.out(tt / pop); u = b.u0; out = -L.wall - R + q * (L.wall + 2 * R + 0.02); y = H; }
+      if (tt < pop) { const q = ease.out(tt / pop); u = b.u0; out = -L.wall - R + q * (L.wall + 2 * R + 0.02); y = H; }      // (out from the wall just under the rail, never up beside the picture)
       else {
         const q = tt - pop, fall = 1.45, Q = clamp01(q / fall);
         y = H * ease.bounce(Q);
@@ -342,7 +342,7 @@ lifeFor(44018, {
     M.wave = t > hitStake + 0.3 ? (t < hitStake + 2.6 ? 1 : 1 - ramp(t, hitStake + 2.6, hitStake + 3.0)) : 0;
     M.lean = 0.42 * M.crouch;
     // the ladies clap: a little for each hoop, and properly for the stake
-    const passes = [T_HIT + this.heroTime(0.52), T_HIT + this.heroTime(1.04)];
+    const passes = [T_HIT + this.heroTime(0.45), T_HIT + this.heroTime(0.9)];
     for (const f of [F.red, F.brown]) f.clap = (t > passes[0] + 0.08 && t < passes[0] + 0.5) || (t > passes[1] + 0.08 && t < passes[1] + 0.5) || (t > hitStake + 0.1 && t < hitStake + 1.7) ? 1 : 0;
     // music
     if (!this.sfx.tune && t >= T_TUNE) { this.sfx.tune = 1; const v = L.voice(); v.tune(THEME, { bpm: BPM, type: 'triangle', vol: 0.022, legato: 0.32 }); v.tune(THEME_BASS, { bpm: BPM, type: 'sine', vol: 0.02, legato: 0.25 }); }
@@ -475,10 +475,11 @@ lifeFor(44018, {
     this.balls.forEach((b, i) => {
       if (!b.from) return;
       const q = ramp(r, 0.06 + i * 0.085, 0.34 + i * 0.085);
-      const mouth = L.at(BALLS[i].u0, L.rail - R - 0.012 - L.cy, q < 0.92 ? 0.03 : -L.wall - R, this.w);
+      const mouth = L.at(BALLS[i].u0, L.rail - R - 0.07 - L.cy, q < 0.92 ? 0.03 : -L.wall - R, this.w);
       if (q >= 1) { b.state = 'in'; b.from = null; return; }
-      const h = Math.max(0, mouth.y - b.from.y) + 0.22, s = ease.inOut(q);
-      const x = b.from.x + (mouth.x - b.from.x) * s, z = b.from.z + (mouth.z - b.from.z) * s, y = b.from.y + (mouth.y - b.from.y) * s + 4 * h * s * (1 - s) * 0.6;
+      // a bounce off the turf, then up into the wall under the rail like a film run backwards (never above the rail)
+      const s = ease.inOut(q), lift = ease.in(ramp(q, 0.25, 1));
+      const x = b.from.x + (mouth.x - b.from.x) * s, z = b.from.z + (mouth.z - b.from.z) * s, y = b.from.y + 0.12 * Math.sin(Math.PI * Math.min(1, q / 0.25)) + (mouth.y - b.from.y) * lift;
       const bb = b.b, d = Math.hypot(x - bb.x, z - bb.z); if (d > 1e-5) { this.ax.set(z - bb.z, 0, -(x - bb.x)).multiplyScalar(1 / d); bb.q.premultiply(this.qq.setFromAxisAngle(this.ax, d / R)); }
       bb.x = x; bb.y = y; bb.z = z;
       if (q > 0 && !b.leapt) { b.leapt = true; this.knock(L, 0.5, i); L.voice().note([392, 494, 587, 784][i], 0.25, { vol: 0.02, type: 'triangle', at: 0.02 }); }
