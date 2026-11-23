@@ -427,12 +427,38 @@ feature({
 
   // ============================================================ the Gift Box Jump
   _giftJump(k) {
-    const red = new THREE.MeshStandardMaterial({ color: 0x9a1820, roughness: 0.5, emissive: 0xc8202c, emissiveIntensity: 0.55 });
-    const green = new THREE.MeshStandardMaterial({ color: 0x176a2c, roughness: 0.5, emissive: 0x1f9a3c, emissiveIntensity: 0.55 });
+    // Wrapping paper: red with gold candy stripes and white stars, green with white snowflakes and a red pinstripe;
+    // a little sheen and the odd crease. Laid on in metres (each face by the way it faces), a touch darker low down.
+    const paper = (base, draw) => { const t = canvasTex(256, 256, (c, w, h) => {
+      c.fillStyle = base; c.fillRect(0, 0, w, h);
+      const gr = c.createLinearGradient(0, 0, w, h); gr.addColorStop(0, 'rgba(255,255,255,0.06)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.05)'); gr.addColorStop(1, 'rgba(255,255,255,0.06)'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+      draw(c, w, h);
+      c.strokeStyle = 'rgba(0,0,0,0.12)'; c.lineWidth = 1; for (const [x0, y0, x1, y1] of [[0, 70, 256, 96], [150, 0, 170, 256]]) { c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+      c.strokeStyle = 'rgba(255,255,255,0.10)'; for (const [x0, y0, x1, y1] of [[0, 72, 256, 98], [152, 0, 172, 256]]) { c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+    }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return new THREE.MeshStandardMaterial({ map: t, vertexColors: true, roughness: 0.42, metalness: 0.05, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.42 }); };
+    const star = (c, x, y, r, col) => { c.fillStyle = col; c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.42 : r; c.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } c.closePath(); c.fill(); };
+    const red = paper('#a3141f', (c, w, h) => {
+      c.save(); c.translate(w / 2, h / 2); c.rotate(-Math.PI / 4); for (let x = -w; x < w; x += 64) { c.fillStyle = 'rgba(240,190,70,0.9)'; c.fillRect(x, -w, 7, 2 * w); c.fillStyle = 'rgba(255,240,200,0.55)'; c.fillRect(x + 11, -w, 2, 2 * w); } c.restore();
+      for (const [x, y] of [[32, 32], [160, 32], [96, 128], [224, 128], [32, 224], [160, 224]]) star(c, x, y, 13, 'rgba(255,250,240,0.95)');
+    });
+    const green = paper('#14692c', (c, w, h) => {
+      c.strokeStyle = 'rgba(210,40,46,0.85)'; c.lineWidth = 3; for (let x = 0; x <= w; x += 64) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); c.beginPath(); c.moveTo(0, x); c.lineTo(w, x); c.stroke(); }
+      c.strokeStyle = 'rgba(250,252,255,0.95)'; c.lineWidth = 2.4; c.lineCap = 'round';
+      for (const [x, y] of [[32, 32], [96, 96], [160, 32], [224, 96], [32, 160], [96, 224], [160, 160], [224, 224]]) for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3, dx = Math.cos(a) * 11, dy = Math.sin(a) * 11; c.beginPath(); c.moveTo(x - dx, y - dy); c.lineTo(x + dx, y + dy); c.stroke(); }
+    });
+    const wrap = (m, top) => {      // texture coordinates in metres, by the way each face looks; darker towards the snow
+      if (!m) return; const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, uv = new Float32Array(P.count * 2), cl = new Float32Array(P.count * 3), S = 1 / 1.3;
+      for (let i = 0; i < P.count; i++) {
+        const x = P.getX(i), y = P.getY(i), z = P.getZ(i), ax = Math.abs(N.getX(i)), ay = Math.abs(N.getY(i)), az = Math.abs(N.getZ(i));
+        if (ay >= ax && ay >= az) { uv[i * 2] = x * S; uv[i * 2 + 1] = z * S; } else if (ax >= az) { uv[i * 2] = z * S; uv[i * 2 + 1] = y * S; } else { uv[i * 2] = x * S; uv[i * 2 + 1] = y * S; }
+        const f = ay > 0.5 ? 1 : 0.62 + 0.38 * Math.min(1, y / top); cl[i * 3] = cl[i * 3 + 1] = cl[i * 3 + 2] = f;
+      }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(cl, 3));
+    };
     const G = GIFT, B = this.B, W = this.W, z0 = G.z0, z1 = G.z1, zc = (z0 + z1) / 2;
-    k.solid({ skin: 'snow', x0: G.kick[0], x1: G.kick[1], z0, z1, axis: 'x', h0: G.kick[2], h1: 0, thick: 0 }, red);
-    k.solid({ skin: 'snow', x0: G.deck[0], x1: G.deck[1], z0, z1, axis: null, h0: G.kick[2], h1: G.kick[2], thick: 0 }, red);
-    k.solid({ skin: 'snow', x0: G.land[0], x1: G.land[1], z0, z1, axis: 'x', h0: 0, h1: G.land[2], thick: 0 }, green);
+    wrap(k.solid({ skin: 'snow', x0: G.kick[0], x1: G.kick[1], z0, z1, axis: 'x', h0: G.kick[2], h1: 0, thick: 0 }, red), G.kick[2]);
+    wrap(k.solid({ skin: 'snow', x0: G.deck[0], x1: G.deck[1], z0, z1, axis: null, h0: G.kick[2], h1: G.kick[2], thick: 0 }, red), G.kick[2]);
+    wrap(k.solid({ skin: 'snow', x0: G.land[0], x1: G.land[1], z0, z1, axis: 'x', h0: 0, h1: G.land[2], thick: 0 }, green), G.land[2]);
     this.giftGap = { x0: G.land[1], x1: G.deck[0], z0, z1 };
     // the ribbon: gold lights down the middle and across, and round every edge
     const hK = x => x < G.kick[0] ? G.kick[2] : G.kick[2] * (G.kick[1] - x) / (G.kick[1] - G.kick[0]);
@@ -442,7 +468,10 @@ feature({
     for (let z = z0; z <= z1; z += 0.12) { B.add(G.deck[0], G.kick[2] + 0.05, z, C.gold, 1, z, 0, 0, 0.07); B.add(G.land[1], G.land[2] + 0.05, z, C.gold, 1, z, 0, 0, 0.07); for (let y = 0.15; y < G.kick[2]; y += 0.15) { B.add(G.deck[0] - 0.02, y, z, C.red, 0, Math.random(), 0, 0, 0.04); if (y < G.land[2]) B.add(G.land[1] + 0.02, y, z, C.green, 0, Math.random(), 0, 0, 0.04); } }
     // bows on the sides, off the way
     for (const [x, z, col] of [[G.deck[0] + 0.6, z1 + 0.05, C.gold], [G.deck[0] + 0.6, z0 - 0.05, C.gold], [G.land[1] - 0.6, z1 + 0.05, C.red], [G.land[1] - 0.6, z0 - 0.05, C.red]]) {
-      const M = new THREE.Matrix4().makeTranslation(x, 1.5, z); W.frame([{ pts: circle(-0.32, 0, 0.3, 14, 0, TAU, 0.34), col, d: 0 }, { pts: circle(0.32, 0, 0.3, 14, 0, TAU, 0.34), col, d: 0 }, { pts: circle(0, 0, 0.09, 8), col, d: 0 }], 0, M);
+      // (two loops, a knot and two tails, round in section and smooth: they are seen close to)
+      const M = new THREE.Matrix4().makeTranslation(x, 1.5, z), loop = sd => circle(0, 0, 0.3, 40, 0, TAU, 0.34).map(([px, py]) => { const t = Math.atan2(py, px); return [sd * (0.36 + px), py * (0.75 + 0.25 * Math.cos(t)) + 0.04 * Math.sin(2 * t), 0]; });
+      W.frame([{ pts: loop(-1), col, d: 0, sides: 8 }, { pts: loop(1), col, d: 0, sides: 8 }, { pts: circle(0, 0, 0.09, 20), col, d: 0, sides: 8 },
+        { pts: [[-0.04, -0.06], [-0.14, -0.32], [-0.22, -0.55], [-0.3, -0.66]], col, d: 0, sides: 8 }, { pts: [[0.04, -0.06], [0.12, -0.34], [0.2, -0.56], [0.27, -0.7]], col, d: 0, sides: 8 }], 0, M);
     }
     this.glow.push([G.deck[0], zc, 6, C.red, 0.14], [G.land[1] - 3, zc, 5, C.green, 0.12]);
     // a little stack of presents beside the gap, each side

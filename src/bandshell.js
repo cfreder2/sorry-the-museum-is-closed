@@ -206,12 +206,19 @@ feature({
     const D = new Mesher(), Fz = new Mesher(), W = [1, 1, 1];
     D.box(sh.x0, sh.x1, h - 0.06, h, sh.z0, sh.z1, n => W, 1.6);                // the boards (only their top shows)
     Fz.box(sh.x0, sh.x1, 0, h - 0.06, sh.z0, sh.z1, W, 0.6);                      // and the skirt round them
+    // out to the feet of the front arches (plan.js), each drawn 6 mm short of the step in the arches behind it and 6 mm
+    // into the one in front (so no face of them lies in the plane of the arches' steps)
+    for (const q of sh.wings || []) { const z0 = q.z0 > sh.z0 + 1e-6 ? q.z0 - 0.006 : q.z0, z1 = q.z1 - 0.006; D.box(q.x0, q.x1, h - 0.06, h, z0, z1, n => W, 1.6); Fz.box(q.x0, q.x1, 0, h - 0.06, z0, z1, W, 0.6); }
     const rp = sh.ramp, st = sh.steps;
     for (let j = 0; j < st.n; j++) {
       const y0 = h * j / st.n, y1 = h * (j + 1) / st.n, z0 = sh.z0 - st.tread * (st.n - j), z1 = z0 + st.tread;
       for (const [x0, x1] of [[st.x0, rp.x0 - 0.01], [rp.x1 + 0.01, st.x1]]) { D.box(x0, x1, y1 - 0.04, y1, z0, sh.z0 - 0.005, W, 1.6); Fz.box(x0, x1, j ? y0 : 0, y1 - 0.04, z0, sh.z0 - 0.005, W, 0.6); }
     }
     g.add(D.mesh(deckM), Fz.mesh(fasM));
+    // the snow drifted against the bottom step, up to the line the wheels ride (plan.js: the steps' nosings)
+    if (st.foot != null) { const m = new Mesher(), z0 = st.foot, z1 = sh.z0 - st.tread * st.n, y1 = h / st.n + 0.004, nl = Math.hypot(z1 - z0, y1), nrm = [0, (z1 - z0) / nl, -y1 / nl];
+      for (const [x0, x1] of [[st.x0, rp.x0 - 0.01], [rp.x1 + 0.01, st.x1]]) { const a = m.v(x0, -0.02, z0, ...nrm, x0 / 6, z0 / 6, W), b = m.v(x1, -0.02, z0, ...nrm, x1 / 6, z0 / 6, W), c = m.v(x1, y1, z1 - 0.004, ...nrm, x1 / 6, z1 / 6, W), d = m.v(x0, y1, z1 - 0.004, ...nrm, x0 / 6, z1 / 6, W); m.q(a, b, c, d); }
+      g.add(m.mesh(snowM)); }
     // the ramp: dark rubber with chevrons running up it to the stage
     this.chevT = tex(64, 128, (c, w, hh) => { c.fillStyle = '#121419'; c.fillRect(0, 0, w, hh); c.strokeStyle = '#fff'; c.lineWidth = 9; c.lineCap = 'round'; for (const y of [30, 94]) { c.beginPath(); c.moveTo(6, y + 22); c.lineTo(32, y - 6); c.lineTo(58, y + 22); c.stroke(); } });
     this.chevT.repeat.set(1, 3);
@@ -227,7 +234,7 @@ feature({
     const brick = new THREE.MeshStandardMaterial({ map: brickT, roughness: 0.9, emissiveMap: brickT, emissive: 0x6a5e5c, emissiveIntensity: 0.6 });
     const Pp = k.parts(), box = (mat, x0, x1, y0, y1, z0, z1) => Pp.add(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
     { const q = sh.back; box(brick, q.x0, q.x1, 0, q.h - 0.08, q.z0, q.z1); box(snowM, q.x0 - 0.05, q.x1 + 0.05, q.h - 0.08, q.h, q.z0 - 0.05, q.z1 + 0.05);
-      box(dark, q.x0 - 0.04, q.x1 + 0.04, q.h - 0.38, q.h - 0.08, q.z0 - 0.04, q.z1 + 0.04);                     // a coping round the top
+      box(dark, q.x0 - 0.04, q.x1 + 0.04, q.h - 0.38, q.h - 0.095, q.z0 - 0.04, q.z1 + 0.04);                    // a coping round the top (its top a little under the brick's, so the two never fight)
       for (const x of [cx - 6, cx + 5.7]) { box(metal, x - 0.75, x + 0.75, 0, 2.3, q.z1, q.z1 + 0.05); box(dark, x - 0.68, x + 0.68, 0, 2.22, q.z1 + 0.05, q.z1 + 0.07); }      // two doors, a frame round each
       for (const x of [cx - 6, cx + 5.7]) Pp.add(new THREE.SphereGeometry(0.11, 10, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 2.2, 1.2) }), x, 2.62, q.z1 + 0.16); }
     const grilleT = tex(128, 128, (c, w) => { c.fillStyle = '#0c0d10'; c.fillRect(0, 0, w, w); c.fillStyle = '#23262d'; for (let y = 2; y < w; y += 5) for (let x = (y % 10 ? 2 : 4.5); x < w; x += 5) c.fillRect(x, y, 2.2, 2.2); });
@@ -237,7 +244,7 @@ feature({
       const mx = (q.x0 + q.x1) / 2, w = q.x1 - q.x0;
       for (const [y0, y1, inset] of [[0, 1.0, 0], [1.0, 1.75, 0.08], [1.75, q.h - 0.03, 0.16]]) {
         box(dark, q.x0 + inset, q.x1 - inset, y0, y1 - 0.01, q.z0 + inset * 0.5, q.z1 - inset * 0.5);
-        Pp.add(new THREE.PlaneGeometry(w - inset * 2 - 0.08, y1 - y0 - 0.09).rotateY(Math.PI), grille, mx, (y0 + y1) / 2, q.z0 + inset * 0.5 - 0.004);
+        Pp.add(new THREE.PlaneGeometry(w - inset * 2 - 0.08, y1 - y0 - 0.09).rotateY(Math.PI), grille, mx, (y0 + y1) / 2, q.z0 + inset * 0.5 - 0.012);      // (a centimetre proud of the box)
       }
       box(snowM, q.x0 + 0.14, q.x1 - 0.14, q.h - 0.03, q.h, q.z0 + 0.06, q.z1 - 0.06);
       for (const s of [-1, 1]) { this.cones.push([mx + s * 0.55, 0.5, q.z0 - 0.01, 0.34]); strips.ring(mx + s * 0.55, 0.5, q.z0 - 0.012, 0.36, 0.03, 5, 0); }
@@ -272,9 +279,12 @@ feature({
     for (const r of R) lineArch(P[r.i], r.zf - 0.012, r.i);
     { const F = this.frameP, N = norms(F); lineArch(F.map((p, j) => [p[0] + N[j][0] * 0.13, p[1] + N[j][1] * 0.13]), R[R.length - 1].zf - 0.012, 5, 0.1); }
     const along = (x0, x1, n = 40) => Array.from({ length: n + 1 }, (_, i) => x0 + (x1 - x0) * i / n);
-    strips.line(along(sh.x0, sh.x1).map(x => [x, h - 0.075, sh.z0 - 0.012]), [0, 0.055, 0], 1, 0);
-    strips.line(along(sh.x0, sh.x1).map(x => [x, 0.06, sh.z0 - 0.012]), [0, 0.04, 0], 1, 1);
-    for (const [x, d] of [[sh.x0 - 0.012, 0], [sh.x1 + 0.012, 1]]) strips.line(along(sh.z0, sh.z1, 20).map(z => [x, h - 0.075, z]), [0, 0.055, 0], 1, 2 + d);
+    // (along the front as wide as the deck runs there, out under the front arch; down the sides where the deck has an edge of its own)
+    const fx0 = Math.min(sh.x0, ...(sh.wings || []).filter(q => q.z0 <= sh.z0 + 1e-6).map(q => q.x0)), fx1 = Math.max(sh.x1, ...(sh.wings || []).filter(q => q.z0 <= sh.z0 + 1e-6).map(q => q.x1));
+    strips.line(along(fx0, fx1).map(x => [x, h - 0.075, sh.z0 - 0.012]), [0, 0.055, 0], 1, 0);
+    strips.line(along(fx0, fx1).map(x => [x, 0.06, sh.z0 - 0.012]), [0, 0.04, 0], 1, 1);
+    const sz0 = Math.max(sh.z0, ...(sh.wings || []).map(q => q.z1));
+    for (const [x, d] of [[sh.x0 - 0.012, 0], [sh.x1 + 0.012, 1]]) strips.line(along(sz0, sh.z1, 20).map(z => [x, h - 0.075, z]), [0, 0.055, 0], 1, 2 + d);
     for (const x of [rp.x0 + 0.05, rp.x1 - 0.11]) strips.line(along(rp.z0, rp.z1, 30).map(z => [x, 0.012 + h * (z - rp.z0) / (rp.z1 - rp.z0), z]), [0.06, 0, 0], 2, 0);
     strips.line(along(T.x0, T.x1, 60).map(x => [x, T.y - s2 - 0.02, T.z - s2 - 0.03]), [0, 0.05, 0], 3, 0);
     for (let j = 0; j < st.n; j++) { const y1 = h * (j + 1) / st.n, z0 = sh.z0 - st.tread * (st.n - j) - 0.006; for (const [x0, x1] of [[st.x0, rp.x0 - 0.01], [rp.x1 + 0.01, st.x1]]) strips.line([[x0, y1 - 0.035, z0], [x1, y1 - 0.035, z0]], [0, 0.025, 0], 4, j); }

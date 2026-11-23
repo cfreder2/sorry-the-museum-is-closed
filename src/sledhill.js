@@ -54,6 +54,53 @@ class Parts {
     const mesh = new THREE.Mesh(geo, m); mesh.matrixAutoUpdate = false; return mesh;
   }
 }
+// The same, for what wants a texture as well: texture coordinates laid on in metres, each face by the way it looks
+// (`scale` texture repeats a metre), and its colour times the texture's. `snowTo`: faces turned up further than `snowy`
+// go into that one instead (as snow), so stone wears snow on top and is stone only where it is stone.
+class TexParts {
+  constructor(scale) { this.s = scale; this.p = []; this.n = []; this.uv = []; this.c = []; }
+  add(geo, c, M, snowy = 0, snowTo = null, scale = 0) {      // (scale: this one's own texture scale, if not the set's)
+    const g = geo.index ? geo.toNonIndexed() : geo.clone(); if (M) g.applyMatrix4(M);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    const P = g.attributes.position, N = g.attributes.normal;
+    for (let t = 0; t < P.count; t += 3) {
+      const fy = (N.getY(t) + N.getY(t + 1) + N.getY(t + 2)) / 3, to = snowy && snowTo && fy > snowy ? snowTo : this;
+      for (let i = t; i < t + 3; i++) {
+        const x = P.getX(i), y = P.getY(i), z = P.getZ(i), nx = N.getX(i), ny = N.getY(i), nz = N.getZ(i), ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz), k = to === this && scale ? scale : to.s;
+        to.p.push(x, y, z); to.n.push(nx, ny, nz);
+        if (ay >= ax && ay >= az) to.uv.push(x * k, z * k); else if (ax >= az) to.uv.push(z * k, y * k); else to.uv.push(x * k, y * k);
+        const cc = typeof c === 'function' ? c(nx, ny, nz, x, y, z) : to === this ? c : SNOW; to.c.push(cc[0], cc[1], cc[2]);
+      }
+    }
+    return g;
+  }
+  box(w, h, d, c, M, snowy, snowTo) { return this.add(new THREE.BoxGeometry(w, h, d), c, M, snowy, snowTo); }
+  mesh(mat) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
+    mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('vec3 totalEmissiveRadiance = emissive;', 'vec3 totalEmissiveRadiance = emissive * vColor;'); };
+    const mesh = new THREE.Mesh(geo, mat); mesh.matrixAutoUpdate = false; return mesh;
+  }
+}
+// Stone in courses (a fifth of a metre each), blocks of different lengths and tones, struck joints, worn arrises.
+function stoneTex() {
+  const t = canvasTex(256, 256, (c, w, h) => {
+    const r = rng(211); c.fillStyle = '#4a4640'; c.fillRect(0, 0, w, h);
+    for (let row = 0; row < 4; row++) {
+      const y = row * 64; let x = -Math.floor(r() * 60);
+      while (x < w) {
+        const L = 70 + Math.floor(r() * 70), v = 118 + Math.floor(r() * 40), wa = r() * 10 - 5;
+        c.fillStyle = `rgb(${v + wa + 6},${v + 2},${v - 6 - wa})`; c.fillRect(x + 3, y + 3, L - 5, 58);
+        for (let i = 0; i < 70; i++) { c.fillStyle = `rgba(${r() < 0.5 ? '30,28,24' : '220,214,200'},${0.06 + r() * 0.12})`; c.fillRect(x + 3 + r() * (L - 6), y + 3 + r() * 56, 1 + r() * 3, 1 + r() * 2); }
+        c.fillStyle = 'rgba(255,250,235,0.16)'; c.fillRect(x + 3, y + 3, L - 5, 3); c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(x + 3, y + 57, L - 5, 4);
+        x += L;
+      }
+    }
+    // (tiled across both ways: the joints that cross the seam are drawn on both sides)
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
 const M4 = (x, y, z, ry = 0, rx = 0, rz = 0, s = 1) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ')), new THREE.Vector3(s, s, s));
 // A round rod from a to b (radius r0 at a, r1 at b).
 function rod(P, a, b, r0, r1, c, snowy = 0, sides = 6) {
@@ -84,6 +131,7 @@ feature({
 
     g.add(this._ground(k));
     const P = new Parts(), B = this.bulbs = new Bulbs(), Wr = new Wire(0.012);
+    this.stoneP = new TexParts(1 / 0.8); this.lumpP = new TexParts(1 / 3);      // (stone, and snow: lumps, the tops of things)
     this._tunnel(P, B, k);
     this._summit(P, B, Wr, k);
     this._stairs(P);
@@ -92,6 +140,9 @@ feature({
     this._nature(P);
     this._sleds(P);
     g.add(P.mesh());
+    { const st = stoneTex(), sn = k.museum.snowTex.clone(); sn.needsUpdate = true; sn.repeat.set(1, 1);
+      g.add(this.stoneP.mesh(new THREE.MeshStandardMaterial({ map: st, vertexColors: true, roughness: 0.9, emissiveMap: st, emissive: new THREE.Color(0.3, 0.3, 0.33) })));
+      g.add(this.lumpP.mesh(new THREE.MeshStandardMaterial({ map: sn, vertexColors: true, roughness: 0.95, emissiveMap: sn, emissive: new THREE.Color(0.26, 0.3, 0.42) }))); }
     B.build(g); const wm = Wr.mesh(); if (wm) g.add(wm);
     this._poleMeshes(g);
     this._penguins(k);
@@ -264,13 +315,14 @@ feature({
   // ============================================================ the ground
   _ground(k) {
     const L = this.L, { x0, z0, step, nx, nz, W, h } = L, sx = nx * step, sz = nz * step;
-    const idx = [], pos = [], uv = [], uv1 = [], map = new Int32Array(W * (nz + 1)).fill(-1);
+    const idx = [], pos = [], uv = [], uv1 = [], foot = [], map = new Int32Array(W * (nz + 1)).fill(-1), fieldUV = this._fieldUV(k);
     const vert = n => {
       if (map[n] >= 0) return map[n];
       const i = n % W, j = (n - i) / W, x = x0 + i * step, z = z0 + j * step, y = h[n];
       // (the field's snow is drawn 3 cm under the ground the wheels run on: at its foot the hill comes down to meet it;
       // the last few millimetres of it are let go under the field's snow, rather than lie a hair's breadth over it)
-      map[n] = pos.length / 3; pos.push(x, y > FOOT_MM ? y + 0.002 - 0.032 * (1 - Math.min(1, y / 0.15)) : -0.06, z); uv.push(x / 6, z / 6); uv1.push(i / nx, j / nz);
+      map[n] = pos.length / 3; pos.push(x, y > FOOT_MM ? y + 0.002 - 0.032 * (1 - Math.min(1, y / 0.15)) : -0.06, z); uv.push(...fieldUV(x, z)); uv1.push(i / nx, j / nz);
+      foot.push(Math.min(1, Math.max(0, y)) ** 2 * (3 - 2 * Math.min(1, Math.max(0, y))));      // (0 at the field, 1 a metre up: the hill's own light and marks fade in over it)
       return map[n];
     };
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
@@ -280,21 +332,35 @@ feature({
       idx.push(A, Cv, Bv, Bv, Cv, D);            // (the same two triangles heightAt interpolates on)
     }
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('uv1', new THREE.Float32BufferAttribute(uv1, 2));
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('uv1', new THREE.Float32BufferAttribute(uv1, 2)); geo.setAttribute('aFoot', new THREE.Float32BufferAttribute(foot, 1));
     geo.setIndex(idx); geo.computeVertexNormals();
     const { macro, norm } = this._paint(sx, sz);
-    const m = new THREE.Mesh(geo, this._snowMat(k, macro, norm)); m.name = 'sledhill-ground'; m.matrixAutoUpdate = false; return m;
+    const m = new THREE.Mesh(geo, this._snowMat(k, macro, norm, 1, !!fieldUV.field)); m.name = 'sledhill-ground'; m.matrixAutoUpdate = false; return m;
+  },
+  // Where (x, z) falls on the field's own snow texture (museum.js lays one sheet of it over the whole ground, its
+  // texture at its own scale, and the rolling land on top at the same): read off the land's mesh, which is mapped just
+  // as the sheet is, so that the hill's snow carries on from the field's grain for grain. (x / 6 if there is no land.)
+  _fieldUV(k) {
+    let land = null; k.museum.group.traverse(o => { if (!land && o.isMesh && o.name === 'land' && o.material && o.material.map) land = o; });
+    if (!land) return Object.assign((x, z) => [x / 6, z / 6], { field: false });
+    const P = land.geometry.attributes.position, U = land.geometry.attributes.uv, t = land.material.map;
+    let a = 0, bx = -1, bz = -1; for (let i = 1; i < P.count && (bx < 0 || bz < 0); i++) { if (bx < 0 && Math.abs(P.getX(i) - P.getX(a)) > 1 && Math.abs(P.getZ(i) - P.getZ(a)) < 1e-4) bx = i; if (bz < 0 && Math.abs(P.getZ(i) - P.getZ(a)) > 1 && Math.abs(P.getX(i) - P.getX(a)) < 1e-4) bz = i; }
+    if (bx < 0 || bz < 0) return Object.assign((x, z) => [x / 6, z / 6], { field: false });
+    const du = (U.getX(bx) - U.getX(a)) / (P.getX(bx) - P.getX(a)), dv = (U.getY(bz) - U.getY(a)) / (P.getZ(bz) - P.getZ(a)), u0 = U.getX(a) - du * P.getX(a), v0 = U.getY(a) - dv * P.getZ(a);
+    const rx = t.repeat.x, ry = t.repeat.y, ox = t.offset.x, oy = t.offset.y;
+    return Object.assign((x, z) => [(u0 + du * x) * rx + ox, (v0 + dv * z) * ry + oy], { field: true });
   },
   // The field's own snow (museum.js), so that the foot of the hill cannot be told from the field, times a picture of the
   // whole hill (its light and shade, its marks) read off uv1: 1.25 x what the picture holds, so that 204 is unchanged.
-  _snowMat(k, macro, norm, tint = 1) {
-    const tile = k.museum.snowTex.clone(); tile.needsUpdate = true;
+  _snowMat(k, macro, norm, tint = 1, field = false) {
+    const tile = k.museum.snowTex.clone(); tile.needsUpdate = true; if (field) { tile.repeat.set(1, 1); tile.offset.set(0, 0); }      // (the field's own mapping is in the hill's uv: _fieldUV)
     const mat = new THREE.MeshStandardMaterial({ map: tile, roughness: 1, emissiveMap: tile, emissive: new THREE.Color(0.2, 0.25, 0.4).multiplyScalar(tint), emissiveIntensity: 0.55, color: new THREE.Color(tint, tint, tint) });
     if (macro) {
       mat.normalMap = norm; mat.normalScale = new THREE.Vector2(1, 1);
       mat.onBeforeCompile = sh => {
         sh.uniforms.uMacro = { value: macro };
-        sh.fragmentShader = 'uniform sampler2D uMacro;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  { vec3 mc = texture2D(uMacro, vNormalMapUv).rgb * 1.25; totalEmissiveRadiance *= mc; diffuseColor.rgb *= mc; }');
+        sh.vertexShader = 'attribute float aFoot;\nvarying float vFoot;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vFoot = aFoot;');
+        sh.fragmentShader = 'uniform sampler2D uMacro;\nvarying float vFoot;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  { vec3 mc = mix(vec3(1.0), texture2D(uMacro, vNormalMapUv).rgb * 1.25, vFoot); totalEmissiveRadiance *= mc; diffuseColor.rgb *= mc; }');
       };
     }
     return mat;
@@ -325,12 +391,17 @@ feature({
     for (let i = 0; i < 260; i++) { const x = r() * TW, y = r() * TH, R = (2 + r() * 6) * ppm; const gr = c.createRadialGradient(x, y, 0, x, y, R); const a = 0.05 + r() * 0.08; gr.addColorStop(0, r() < 0.5 ? `rgba(230,236,245,${a * 1.5})` : `rgba(150,168,205,${a})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(x - R, y - R, 2 * R, 2 * R); }
     // the ripples: short wavy crests across the wind (from the north-west), on the open snow only
     d.lineCap = 'round';
+    // (in patches, where the wind has scoured, and smooth between; their run turning slowly across the hill and each
+    // a little off it, a crest now heavy and now faint: laid evenly everywhere, all one way, they read from a low eye as
+    // a regular banding across the whole hill)
+    const patchy = (x, z) => { const v = Math.sin(x * 0.23 + 1.3) * Math.cos(z * 0.19 - 0.4) + 0.6 * Math.sin(x * 0.07 - z * 0.11 + 2.1); return Math.max(0, Math.min(1, 0.5 + 0.6 * v)); };
     for (let i = 0; i < 5200; i++) {
       const x = L.x0 + r() * sx, z = L.z0 + r() * sz, kd = kindAt(x, z); if (kd && kd !== 4 && kd !== 5) continue; if (L.heightAt(x, z) < 0.05) continue;
-      const len = (0.6 + r() * 2.2), a = Math.PI * 0.25 + (r() - 0.5) * 0.5, ux = Math.cos(a), uz = Math.sin(a);
-      const X = px(x), Y = pz(z);
-      d.lineWidth = 1.6; d.strokeStyle = 'rgba(160,160,160,0.55)'; d.beginPath(); d.moveTo(X, Y); d.quadraticCurveTo(X + ux * len * ppm * 0.5 + uz * 3, Y + uz * len * ppm * 0.5 - ux * 3, X + ux * len * ppm, Y + uz * len * ppm); d.stroke();
-      d.strokeStyle = 'rgba(100,100,100,0.45)'; d.beginPath(); d.moveTo(X + 1.5, Y + 1.5); d.quadraticCurveTo(X + ux * len * ppm * 0.5 + uz * 3 + 1.5, Y + uz * len * ppm * 0.5 - ux * 3 + 1.5, X + ux * len * ppm + 1.5, Y + uz * len * ppm + 1.5); d.stroke();
+      const pw = patchy(x, z); if (r() > pw * pw) continue;
+      const len = (0.4 + r() * 1.8), a = Math.PI * 0.25 + 0.45 * Math.sin(x * 0.09 + z * 0.05) + (r() - 0.5) * 0.9, ux = Math.cos(a), uz = Math.sin(a), k1 = (0.25 + 0.75 * r()) * pw;
+      const X = px(x), Y = pz(z), bow = (r() - 0.5) * 8;
+      d.lineWidth = 1 + r(); d.strokeStyle = `rgba(160,160,160,${0.5 * k1})`; d.beginPath(); d.moveTo(X, Y); d.quadraticCurveTo(X + ux * len * ppm * 0.5 + uz * bow, Y + uz * len * ppm * 0.5 - ux * bow, X + ux * len * ppm, Y + uz * len * ppm); d.stroke();
+      d.strokeStyle = `rgba(100,100,100,${0.4 * k1})`; d.beginPath(); d.moveTo(X + 1.5, Y + 1.5); d.quadraticCurveTo(X + ux * len * ppm * 0.5 + uz * bow + 1.5, Y + uz * len * ppm * 0.5 - ux * bow + 1.5, X + ux * len * ppm + 1.5, Y + uz * len * ppm + 1.5); d.stroke();
     }
     // a groove: dark in the height, a little darker and bluer in the glow
     const groove = (pts, wide, deep, tint = 0.32) => {
@@ -451,13 +522,14 @@ feature({
   // with icicles along the eave, and a stone chimney. The penguins live in it: the door opens to let them out (_penguins).
   _summit(P, B, Wr, k) {
     const L = this.L, hAt = L.heightAt;
-    const dark = col(0x2e1d12), green = col(0x1f4a36), stone = col(0x77716a), cream = col(0xefe4c8), iron = col(0x1c1c1e), red = col(0x8e2a22);
+    const dark = col(0x2e1d12), green = col(0x1f4a36), cream = col(0xefe4c8), iron = col(0x1c1c1e), red = col(0x8e2a22);
     const SX = 329.5, SZ = 138.6, W = 3.6, D = 2.8, WH = 2.6, T = 0.14;
     const fy = Math.max(hAt(SX - W / 2, SZ - D / 2), hAt(SX + W / 2, SZ - D / 2), hAt(SX - W / 2, SZ + D / 2), hAt(SX + W / 2, SZ + D / 2));
     const at = (x, y, z, ry = 0, rx = 0, rz = 0) => M4(SX + x, fy + y, SZ + z, ry, rx, rz);
     this.shop = { x: SX, z: SZ, y: fy, W, D, door: { x: SX + 0.6, z: SZ + D / 2 } };      // (the doorway, DX below)
     // the plinth, the walls in courses of logs (each a slightly different brown), the corner posts
-    P.box(W + 0.14, 0.5, D + 0.14, stone, at(0, -0.05, 0), 0.6);
+    const SP = this.stoneP, SN = this.lumpP, ST = [1, 1, 1];
+    SP.box(W + 0.14, 0.5, D + 0.14, ST, at(0, -0.05, 0), 0.6, SN);
     const logs = [col(0x6e4628), col(0x62401f), col(0x75502f), col(0x5c3b20)], CH = 0.168, nC = Math.round(WH / CH);
     const course = (x0, x1, y0, y1, side) => {        // one wall, x0..x1 along it, y0..y1 up it: side n/s/e/w
       for (let i = 0; i < nC; i++) {
@@ -492,7 +564,7 @@ feature({
       dg.position.set(SX + DX - DW / 2 + 0.01, fy + 0.2, SZ + D / 2 + 0.03); this.g.add(dg); this.door = dg; this.doorOpen = 0; this.doorWant = 0; }
     // the bay window to the west of the door: a stone base, three panes of glass onto the shop's wares (a tuxedo on a
     // stand, bow ties on shelves: tuxportal.js), a snowy hood. The glass is frosted at its edges.
-    P.box(BW + 0.08, BY0 - 0.2 + 0.02, BD + 0.04, stone, at(BX, 0.2 + (BY0 - 0.2) / 2, D / 2 + BD / 2), 0.6);
+    SP.box(BW + 0.08, BY0 - 0.2, BD + 0.04, ST, at(BX, 0.19 + (BY0 - 0.2) / 2, D / 2 + BD / 2), 0.6, SN);      // (its foot a centimetre into the plinth, its top just under the sill's and the wall's)
     // frost: clear in the middle, white and feathery in towards it from the edges and thickest in the bottom corners
     const frost = canvasTex(256, 192, (c, w, h) => {
       const r = rng(31); c.clearRect(0, 0, w, h);
@@ -504,7 +576,7 @@ feature({
       for (const sd of [-1, 1]) { const sm = new THREE.Mesh(new THREE.PlaneGeometry(BD - 0.1, H - 0.1), glassM); sm.position.set(SX + BX + sd * (BW / 2 - 0.03), fy + (BY0 + BY1) / 2, SZ + D / 2 + BD / 2); sm.rotation.y = sd * Math.PI / 2; sm.matrixAutoUpdate = false; sm.updateMatrix(); sm.renderOrder = 5; this.g.add(sm); } }
     // its frame: posts at the corners, sill and head, mullions, and the hood with snow on it
     for (const sd of [-1, 1]) P.box(0.06, BY1 - BY0 + 0.06, 0.06, green, at(BX + sd * (BW / 2 - 0.03), (BY0 + BY1) / 2, D / 2 + BD - 0.03));
-    P.box(BW + 0.12, 0.06, BD + 0.08, green, at(BX, BY0 - 0.02, D / 2 + BD / 2)); P.box(BW + 0.08, 0.07, BD + 0.04, green, at(BX, BY1 + 0.02, D / 2 + BD / 2));
+    P.box(BW + 0.12, 0.06, BD + 0.08, green, at(BX, BY0 - 0.02, D / 2 + BD / 2)); P.box(BW + 0.08, 0.07, BD + 0.04, green, at(BX, BY1 + 0.035, D / 2 + BD / 2));
     for (const dx of [-BW / 6, BW / 6]) P.box(0.035, BY1 - BY0, 0.03, green, at(BX + dx, (BY0 + BY1) / 2, D / 2 + BD - 0.015));
     P.box(BW - 0.08, 0.03, 0.03, green, at(BX, BY0 + (BY1 - BY0) * 0.62, D / 2 + BD - 0.015));
     P.box(BW + 0.3, 0.06, BD + 0.3, dark, at(BX, BY1 + 0.12, D / 2 + BD / 2 + 0.02, 0, 0.12)); P.box(BW + 0.34, 0.1, BD + 0.3, SNOW, at(BX, BY1 + 0.2, D / 2 + BD / 2 + 0.02, 0, 0.12));
@@ -525,7 +597,7 @@ feature({
     // a round warm window in the east gable, looking towards the gate
     { const gw = new THREE.Mesh(new THREE.CircleGeometry(0.2, 16), sideM); gw.position.set(SX + W / 2 + 0.035, fy + WH + rise * 0.42, SZ); gw.rotation.y = Math.PI / 2; gw.matrixAutoUpdate = false; gw.updateMatrix(); this.g.add(gw); P.add(new THREE.TorusGeometry(0.21, 0.035, 5, 16), green, at(W / 2 + 0.035, WH + rise * 0.42, 0, Math.PI / 2)); }
     // the chimney at the back, west end, snow on its cap
-    { const cx = -W / 2 + 0.7, cz = -D / 2 + 0.55, h0 = WH + Math.tan(PITCH) * (D / 2 - 0.55 - 0.25); P.box(0.5, 1.6, 0.5, stone, at(cx, h0 + 0.3, cz)); P.box(0.62, 0.1, 0.62, col(0x5a554e), at(cx, h0 + 1.12, cz)); P.box(0.6, 0.12, 0.6, SNOW, at(cx, h0 + 1.22, cz));
+    { const cx = -W / 2 + 0.7, cz = -D / 2 + 0.55, h0 = WH + Math.tan(PITCH) * (D / 2 - 0.55 - 0.25); SP.box(0.5, 1.6, 0.5, ST, at(cx, h0 + 0.3, cz)); P.box(0.62, 0.1, 0.62, col(0x5a554e), at(cx, h0 + 1.12, cz)); P.box(0.6, 0.12, 0.6, SNOW, at(cx, h0 + 1.22, cz));
       this.chimney = { x: SX + cx, y: fy + h0 + 1.3, z: SZ + cz }; this.O.push({ x0: SX + cx - 0.31, x1: SX + cx + 0.31, z0: SZ + cz - 0.31, z1: SZ + cz + 0.31, y0: fy + h0 - 0.5, y1: fy + h0 + 1.3 }); }
     // a lantern by the door, on a bracket
     { const lx = DX + DW / 2 + 0.2; P.box(0.04, 0.04, 0.26, iron, at(lx, 1.95, D / 2 + 0.13)); P.box(0.14, 0.2, 0.14, iron, at(lx, 1.8, D / 2 + 0.24)); P.add(new THREE.ConeGeometry(0.12, 0.1, 4), iron, at(lx, 1.95, D / 2 + 0.24, Math.PI / 4), 0.5); B.add(SX + lx, fy + 1.79, SZ + D / 2 + 0.24, C.warm, 0.2, 2, 0.065); }
@@ -574,7 +646,9 @@ feature({
       for (let j = 1; j < 16; j += 1.4) { const p = pts[Math.floor(j)]; B.add(p[0], p[1] - 0.07, p[2], palette[nb++ % palette.length], nb * 0.13, 0, 0.055); }
     });
     // a pair of old millstones somebody set as seats at the top, looking down the run, and a bin by the shop
-    for (const [x, z] of [[333.8, 148.6], [332.3, 149.5]]) { const y = hAt(x, z); P.add(new THREE.CylinderGeometry(0.42, 0.45, 0.42, 16), stone, M4(x, y + 0.19, z), 0.6); this.O.push({ x0: x - 0.45, x1: x + 0.45, z0: z - 0.45, z1: z + 0.45, y0: y - 1, y1: y + 0.42 }); }
+    for (const [x, z] of [[333.8, 148.6], [332.3, 149.5]]) { const y = hAt(x, z); SP.add(new THREE.CylinderGeometry(0.42, 0.45, 0.42, 32, 2), [0.92, 0.9, 0.86], M4(x, y + 0.19, z, x), 0.6, SN, 1 / 4);      // (one stone: its texture laid on large, so no course or joint of the walling shows on it, only the grain and a crack)
+      SP.add(new THREE.CylinderGeometry(0.09, 0.09, 0.03, 16), [0.25, 0.24, 0.22], M4(x, y + 0.4 + 0.012, z));      // (the eye of the stone, through the snow on it)
+      this.O.push({ x0: x - 0.45, x1: x + 0.45, z0: z - 0.45, z1: z + 0.45, y0: y - 1, y1: y + 0.42 }); }
     { const x = 327.0, z = 140.55, y = hAt(x, z); P.add(new THREE.CylinderGeometry(0.24, 0.22, 0.85, 12, 1), green, M4(x, y + 0.42, z), 0.7); this.O.push({ x0: x - 0.26, x1: x + 0.26, z0: z - 0.26, z1: z + 0.26, y0: y - 1, y1: y + 0.86 }); }
     // inside: the room, its portal and the note; the walls, floor and ceiling for the toy
     this.portal = new TuxPortal(this, k, { SX, SZ, fy, W, D, T, WH, DX, DW, DH, BX, BW, BD, BY0, BY1, door: this.shop.door }, { Parts, M4, col, B });
@@ -583,12 +657,12 @@ feature({
 
   // ============================================================ the steps up the north face
   _stairs(P) {
-    const L = this.L, st = STAIR, len = st.z1 - st.z0, top = L.heightAt(st.x, st.z1 - 0.3), n = Math.round(top / 0.14), run = len / n, rise = top / n;
+    const L = this.L, st = STAIR, len = st.z1 - st.z0, top = L.stairTop, n = Math.round(top / 0.14), run = len / n, rise = top / n;
     const tread = col(0x6b4a2c), rail = col(0x4a3220), x = st.x;
     for (let i = 0; i < n; i++) {
       const z = st.z0 + (i + 0.5) * run, y = (i + 1) * rise;
       P.box(1.7, 0.07, run + 0.04, tread, M4(x, y - 0.035, z), 0.6);                       // the tread, snow on it
-      P.box(1.7, rise, 0.05, col(0x5a3d24), M4(x, y - rise / 2, z - run / 2 + 0.025));       // the riser
+      P.box(1.7, rise + 0.07, 0.05, col(0x5a3d24), M4(x, y - (rise + 0.07) / 2, z - run / 2 + 0.025));       // the riser (its foot a little into the snow, which is cut to the line of the risers' feet: sledland.js)
     }
     for (const s of [-1, 1]) {
       const xs = x + s * 0.9;
@@ -749,7 +823,7 @@ feature({
 
   // ============================================================ trees and bushes
   _nature(P) {
-    const L = this.L, r = rng(31), bark = col(0x3d2f25), twig = col(0x4a3c30);
+    const L = this.L, r = rng(31), bark = col(0x3d2f25), twig = col(0x4a3c30), BUSH = col(0x3c4636).map(v => v * 1.3);
     const ok = (x, z, m) => { const n = L.node(x, z); return n >= 0 && L.gap[n] > m && !L.kind[n] && L.heightAt(x, z) > 0.2 && !this.O.some(o => x > o.x0 - m && x < o.x1 + m && z > o.z0 - m && z < o.z1 + m); };
     // bare trees: a trunk dividing and dividing again, snow along the tops of the boughs
     const tree = (x, z, s, seed) => {
@@ -773,8 +847,11 @@ feature({
       const y = L.heightAt(x, z), n = 4 + Math.floor(r() * 4); let ext = 0;
       for (let i = 0; i < n; i++) {
         const a = r() * TAU, d = r() * 0.55 * s, rad = (0.32 + r() * 0.28) * s, bx = x + Math.cos(a) * d, bz = z + Math.sin(a) * d, by = L.heightAt(bx, bz) + rad * 0.35;
-        const g = new THREE.SphereGeometry(rad, 10, 7), p = g.attributes.position; for (let j = 0; j < p.count; j++) { const f = 1 + Math.sin(p.getX(j) * 11 + i * 2) * Math.cos(p.getZ(j) * 9 - i) * 0.1; p.setXYZ(j, p.getX(j) * f, p.getY(j) * f * 0.72, p.getZ(j) * f); }
-        g.computeVertexNormals(); P.add(g, col(0x3c4636), M4(bx, by, bz), 0.15); ext = Math.max(ext, d + rad);
+        // (a round lump of snow over it, lumpy, its twigs and dark leaves showing through low down where the snow is thin)
+        const g = new THREE.SphereGeometry(rad, 22, 14), p = g.attributes.position; for (let j = 0; j < p.count; j++) { const X = p.getX(j) / rad, Y = p.getY(j) / rad, Z = p.getZ(j) / rad, f = 1 + Math.sin(X * 4.4 + i * 2) * Math.cos(Z * 3.6 - i) * 0.1 + Math.sin(X * 9 + Y * 7 + Z * 8 + i) * 0.035; p.setXYZ(j, p.getX(j) * f, p.getY(j) * f * 0.72, p.getZ(j) * f); }
+        g.computeVertexNormals();
+        const ph = r() * 6.3; this.lumpP.add(g, (nx, ny, nz, px, py, pz) => { const t = Math.min(1, Math.max(0, (ny + 0.05 + 0.22 * Math.sin(px * 7 + pz * 5 + ph)) / 0.5)), q = t * t * (3 - 2 * t); return [BUSH[0] + (SNOW[0] - BUSH[0]) * q, BUSH[1] + (SNOW[1] - BUSH[1]) * q, BUSH[2] + (SNOW[2] - BUSH[2]) * q]; }, M4(bx, by, bz));
+        ext = Math.max(ext, d + rad);
       }
       for (let i = 0; i < 6; i++) { const a = r() * TAU, b = new THREE.Vector3(x + Math.cos(a) * 0.5 * s, y + 0.45 * s + r() * 0.3, z + Math.sin(a) * 0.5 * s); rod(P, new THREE.Vector3(x + Math.cos(a) * 0.2 * s, y + 0.2, z + Math.sin(a) * 0.2 * s), b, 0.012, 0.006, twig, 0, 3); }
       this.O.push({ x0: x - ext * 0.8, x1: x + ext * 0.8, z0: z - ext * 0.8, z1: z + ext * 0.8, y0: y - 1, y1: y + 0.8 * s });

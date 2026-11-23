@@ -136,12 +136,26 @@ function twigTexture(seed, radial) {
  */
 export function winterTree() {
   const parts = [], col = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c[0]; a[i * 3 + 1] = c[1]; a[i * 3 + 2] = c[2]; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
-  const BARK = [0.085, 0.07, 0.06], SNOW = [1.7, 1.76, 1.95];
-  const limb = (len, r0, r1, x, y, z, rx, rz, snowOn = true) => {
-    const mk = (k, lift) => { const g = new THREE.CylinderGeometry(r1 * k, r0 * k, len, 7); g.translate(0, len / 2, 0); g.rotateX(rx); g.rotateZ(rz); g.translate(x, y + lift, z); return g; };
-    parts.push(col(mk(1, 0), BARK)); if (snowOn) parts.push(col(mk(0.72, r0 * 0.62), SNOW));
+  const BARK = [0.085, 0.07, 0.06], SNOW = [1.7, 1.76, 1.95], br = rng(57);
+  // Bark, in the vertex colours: furrows running up it (dark between lighter ridges, never quite straight), a paler
+  // patch here and there, a little green on the side the weather comes from. The trunk is round enough to be seen
+  // close to (12 sides, in rings up it, the outline a little uneven); the boughs need fewer.
+  const bark = (g, sides) => {
+    const P = g.attributes.position, n = P.count, a = new Float32Array(n * 3), uv = g.attributes.uv, ph = br() * 6.3;
+    for (let i = 0; i < n; i++) {
+      const u = uv.getX(i), v = uv.getY(i), k = Math.round(u * sides), ridge = (k % 2 ? 0.5 : 1.3) * (0.78 + 0.44 * br()), patch = 0.85 + 0.3 * Math.sin(u * 13 + v * 5 + ph) * Math.sin(v * 7.3 - ph);
+      const moss = Math.max(0, Math.cos(u * 6.283 - 0.8)) * 0.35 * (1 - v);
+      a[i * 3] = BARK[0] * ridge * patch * (1 - moss * 0.4); a[i * 3 + 1] = BARK[1] * ridge * patch * (1 + moss * 0.5); a[i * 3 + 2] = BARK[2] * ridge * patch * (1 - moss * 0.2);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g;
   };
-  limb(1.7, 0.2, 0.15, 0, 0, 0, 0.03, -0.04, false);                                                  // a short stout trunk, forking low
+  const limb = (len, r0, r1, x, y, z, rx, rz, snowOn = true, sides = 8, rows = 1) => {
+    const mk = (k, lift, sd, rw) => { const g = new THREE.CylinderGeometry(r1 * k, r0 * k, len, sd, rw); g.translate(0, len / 2, 0); g.rotateX(rx); g.rotateZ(rz); g.translate(x, y + lift, z); return g; };
+    const w = mk(1, 0, sides, rows);
+    if (rows > 1) { const P = w.attributes.position; for (let i = 0; i < P.count; i++) { const ang = Math.atan2(P.getZ(i) - z, P.getX(i) - x), f = 1 + 0.06 * Math.sin(ang * 3 + P.getY(i) * 2.1) + 0.03 * Math.sin(ang * 7 - P.getY(i) * 3.7); P.setX(i, x + (P.getX(i) - x) * f); P.setZ(i, z + (P.getZ(i) - z) * f); } }
+    parts.push(bark(w, sides)); if (snowOn) { const sn = mk(0.72, r0 * 0.62, 7, 1); parts.push(col(sn, SNOW)); }
+  };
+  limb(1.7, 0.2, 0.15, 0, 0, 0, 0.03, -0.04, false, 12, 6);                                           // a short stout trunk, forking low
   for (let i = 0; i < 5; i++) { const a = i * 1.26 + 0.4, tilt = 0.62 + (i % 2) * 0.2; limb(2.3 + (i % 3) * 0.3, 0.1, 0.035, 0, 1.55 + (i % 2) * 0.12, 0, Math.cos(a) * tilt, Math.sin(a) * tilt); }
   for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.9; limb(1.5, 0.045, 0.014, Math.sin(a) * 1.0, 2.7 + (i % 2) * 0.35, -Math.cos(a) * 1.0, Math.cos(a) * 1.05, Math.sin(a) * 1.05); }
   const wood = mergeGeometries(parts);
@@ -156,7 +170,14 @@ export function winterTree() {
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   return {
     wood, twigs,
-    woodMat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0.035, 0.035, 0.045), emissiveIntensity: 1 }),
+    // (the night glow follows the bark's own colour, ridge and furrow, as it did the old flat one on average: a glow the
+    // same everywhere would wash the bark out to one grey; the snow on the boughs glows no more than the palest bark)
+    woodMat: (() => {
+      const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0.6, 0.56, 0.66), emissiveIntensity: 1 });
+      m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('vec3 totalEmissiveRadiance = emissive;', 'vec3 totalEmissiveRadiance = emissive * min(vColor.rgb, vec3(0.16));'); };
+      m.customProgramCacheKey = () => 'bark-glow';
+      return m;
+    })(),
     twigMat: (() => {
       const m = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.35, side: THREE.DoubleSide, color: new THREE.Color(0.8, 0.84, 0.98) });
       // Far off, the texture's smaller copies average the fine twigs away below the alpha test, and all that is left is
