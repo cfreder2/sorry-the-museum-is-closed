@@ -1,19 +1,25 @@
 // Fireworks from the roof of the Modern Wing's west pavilion (features.js): a wooden rack of six cardboard mortar tubes
 // on the terrace where the glass lift comes up, their fuses run to a lead, and the lead to a plunger box. Push the plunger
 // (LAUNCH) and a short show goes up over Monroe Street, Millennium Park and the lake: peonies, rings, gold willows that
-// droop and crackle, crossettes that split, palms, then a finale of salutes and a gold crown. Each shell thumps out of
+// droop and crackle, crossettes that split, palms, then a finale of salutes and a gold crown. It is a welcome (the party
+// up here is for visitors from the stars, src/welcome.js): two of the shells are the visitors' own, a green saucer, a
+// ring and a dome with its lights and a beam, and HELLO in five blobs of the call's colours; and the call itself (src/
+// motif.js) is heard, faint and high, over the finale. Each shell thumps out of
 // its tube and whistles up; its bang comes a beat after its flash, as far off as it is. The sparks are small and hard,
 // each drawn with a short streak behind it. Sit still and the camera turns to watch; drive off and it lets you go.
 // Nothing is done per frame when no show is running.
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { fitText, SANS, rng } from './textures.js';
+import { MOTIF_COLOURS, playMotif } from './motif.js';
 
 const MAX = 6000;                 // sparks at once
 const GRAV = 9.8;
 const STREAK = 0.05;              // seconds of travel each spark's streak shows
 const HOT = 1.3;                  // how far over white a spark burns: more, and the bloom pass turns every burst to fog
 const PAL = [[1.0, 0.35, 0.3], [0.35, 0.8, 1.0], [1.0, 0.85, 0.35], [0.5, 1.0, 0.45], [0.95, 0.45, 1.0], [1.0, 1.0, 1.0], [1.0, 0.6, 0.2]];
+const CALL = MOTIF_COLOURS.map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255));      // the call's five colours
+const ALIEN = [0.36, 1.0, 0.5];
 
 // Small hard sparks: a white-hot core, a sharp edge, and a cap on size so a near one is never a blob.
 const V = `attribute float aSize; attribute vec3 aCol; attribute float aA; varying vec3 vC; varying float vA;
@@ -160,14 +166,17 @@ feature({
     // A programme of about 22 s: singles, pairs, then a finale. [time, kind, target x offset, height, colour]
     const r = Math.random, kinds = ['peony', 'ring', 'willow', 'crossette', 'palm'], prog = [], col = () => Math.floor(r() * PAL.length);
     let t = 1.0;
-    for (let i = 0; i < 6; i++) { prog.push([t, kinds[i % kinds.length], (r() - 0.5) * 50, 50 + r() * 20, col()]); t += 1.1 + r() * 0.5; }
+    for (let i = 0; i < 6; i++) { prog.push([t, i === 2 ? 'saucer' : i === 5 ? 'hello' : kinds[i % kinds.length], (r() - 0.5) * 50, 50 + r() * 20, col()]); t += 1.1 + r() * 0.5; }
     for (let i = 0; i < 4; i++) { for (let j = 0; j < 2; j++) prog.push([t + j * 0.2, kinds[Math.floor(r() * kinds.length)], (j ? 1 : -1) * (10 + r() * 20), 50 + r() * 20, col()]); t += 1.1 + r() * 0.4; }
     t += 0.5;
     // the finale: a barrage, salutes cracking through it, then a gold crown over everything
     for (let i = 0; i < 24; i++) prog.push([t + i * 0.11, i % 4 === 3 ? 'salute' : i % 3 ? 'peony' : 'willow', (r() - 0.5) * 70, 52 + r() * 25, col()]);
     const t2 = t + 24 * 0.11 + 0.35;
     prog.push([t2, 'salute', -24, 60, 5], [t2 + 0.08, 'salute', 24, 62, 5], [t2 + 0.2, 'salute', 0, 66, 5], [t2 + 0.45, 'brocade', 0, 84, 2]);
-    this.run = { t: 0, prog, i: 0, end: t2 + 0.45 + 1.9 + 3.0 };
+    prog.push([t2 + 0.6, 'saucer', -34, 72, 3], [t2 + 0.75, 'hello', 34, 74, 1]);      // the visitors' own, either side of the crown
+    prog.sort((a, b) => a[0] - b[0]);
+    // the call, faint and high over the finale: as the barrage begins, so it ends as the crown opens
+    this.run = { t: 0, prog, i: 0, end: t2 + 0.45 + 1.9 + 3.0, callAt: Math.max(1, t2 + 0.45 - 7 * 0.36 - 0.2), called: false };
     this.pts.visible = this.lines.visible = true;
     this.pressTo = 1;
     k.synth.noise(0.08, { vol: 0.08, lp: 900 }); k.synth.note(110, 0.15, { type: 'square', vol: 0.03 });
@@ -189,12 +198,14 @@ feature({
     if (R) {
       R.t += dt;
       while (R.i < R.prog.length && R.prog[R.i][0] <= R.t) { this._launch(k, R.prog[R.i]); R.i++; }
+      if (!R.called && R.t >= R.callAt) { R.called = true; this._call(k); }
       // Sit still and the camera turns to watch: from behind the rack, up over the park.
       const v = k.v, sp = Math.hypot(v.vel.x, v.vel.z), c = this.crate;
       if (sp < 0.4 && Math.hypot(k.pos.x - c.x, k.pos.z - c.z) < 6) k.camClose = { at: { x: c.x + (c.x < (this.T.x0 + this.T.x1) / 2 ? 1.2 : -1.2), y: c.y + 3.7, z: c.z + 3.2 }, look: { x: c.x + 30, y: c.y + 50, z: c.z - 85 } };      // just over the pergola: nothing overhead, the screen below
       if (R.t > R.end) {
         this.run = null; this.cool = 4; this.pressTo = 0;
         if (k.find('fireworks')) k.callout('FIREWORKS OVER THE PARK');
+        k.say('Welcome to Earth.', 0.6, 4);
       }
     }
     // shells on their way up: a bright head and a short trail, then the burst
@@ -217,6 +228,13 @@ feature({
     this._whistle(k, T);
     for (let i = 0; i < 10; i++) this._spark(tube.x, tube.y, tube.z, (Math.random() - 0.5) * 1.5, 2 + Math.random() * 3, (Math.random() - 0.5) * 1.5, [1, 0.8, 0.5], 0.35, 0.6, 1.5, 0);
   },
+  // The craft's five notes (src/motif.js), an octave up and far off, through a soft low-pass: you hear it under the bangs.
+  _call(k) {
+    const S = k.sound, c = S && S.ctx; if (!c || c.state !== 'running' || !S.master) return;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; lp.connect(S.master);
+    const end = playMotif(c, lp, c.currentTime + 0.05, { beat: 0.36, gain: 0.026, transpose: 12 });
+    setTimeout(() => { try { lp.disconnect(); } catch { /* gone */ } }, (end - c.currentTime) * 1000 + 300);
+  },
   _whistle(k, T) {
     const S = k.sound; if (!S || !S.ctx || S.ctx.state !== 'running' || !S.master || Math.random() < 0.4) return;
     const c = S.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
@@ -237,9 +255,23 @@ feature({
     else if (s.kind === 'brocade') { sphere(340, 22, 3.6, 1.2, 1.7, 1, [1, 0.78, 0.32]); sphere(80, 9, 1.4, 1.4, 1.2, 0, [1, 1, 1]); }
     else if (s.kind === 'salute') sphere(140, 26, 0.35, 1.6, 2.5, 0, [1, 1, 1]);
     else if (s.kind === 'crossette') sphere(18, 17, 0.85, 1.6, 0.6, 2);
+    else if (s.kind === 'saucer') {
+      // a visitor's saucer, in green: a flat ring tipped a little towards the terrace, a dome over it, five lights in the
+      // call's colours round the rim, and a beam of slow pale sparks straight down
+      const tip = 0.22, e1 = new THREE.Vector3(1, 0, 0), e2 = new THREE.Vector3(0, Math.sin(tip), Math.cos(tip));
+      for (let i = 0; i < 150; i++) { const a = i / 150 * Math.PI * 2, f = 24 * (0.97 + R() * 0.06); this._spark(x, y, z, (e1.x * Math.cos(a) + e2.x * Math.sin(a)) * f, (e1.y * Math.cos(a) + e2.y * Math.sin(a)) * f, (e1.z * Math.cos(a) + e2.z * Math.sin(a)) * f, ALIEN, 1.8, 1.3, 1.0, 0); }
+      for (let i = 0; i < 90; i++) { const a = R() * Math.PI * 2, el = R() * Math.PI * 0.42, f = 10; this._spark(x, y, z, Math.cos(a) * Math.cos(el) * f * 0.9, (Math.sin(el) * f) + 3.5, Math.sin(a) * Math.cos(el) * f * 0.9, [0.75, 1.0, 0.8], 1.5, 1.1, 1.0, 0); }
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 + 0.3, f = 24; for (let j = 0; j < 6; j++) this._spark(x, y, z, (e1.x * Math.cos(a) + e2.x * Math.sin(a)) * f * (0.92 + j * 0.02), (e1.y * Math.cos(a) + e2.y * Math.sin(a)) * f, (e1.z * Math.cos(a) + e2.z * Math.sin(a)) * f * (0.92 + j * 0.02), CALL[i], 2.0, 1.7, 1.0, 0); }
+      for (let i = 0; i < 40; i++) this._spark(x + (R() - 0.5) * 2, y - 2, z + (R() - 0.5) * 2, (R() - 0.5) * 1.2, -4 - R() * 9, (R() - 0.5) * 1.2, [0.7, 1.0, 0.75], 1.6, 0.9, 0.4, 1);
+    }
+    else if (s.kind === 'hello') {
+      // five blobs, one in each of the call's colours, side by side across the sky as the five cards on the terrace hang
+      for (let b = 0; b < 5; b++) { const dx = (b - 2) * 9.5, dy = (b % 2 ? -1.5 : 1.5); for (let i = 0; i < 52; i++) { const u = R() * 2 - 1, a = R() * Math.PI * 2, q = Math.sqrt(1 - u * u), f = 4 + R() * 3; this._spark(x, y, z, dx * 1.9 + q * Math.cos(a) * f, dy * 1.9 + u * f, q * Math.sin(a) * f, CALL[b], 1.9, 1.25, 1.7, 0); } }
+    }
     else { for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; for (let j = 0; j < 12; j++) { const f = 11 + j * 1.1; this._spark(x, y, z, Math.cos(a) * f * 0.8, 8 + j * 0.4, Math.sin(a) * f * 0.8, col, 2.0, 1.3, 1.6, 0); } } }
     // the bang, late by the distance: louder for a salute; a crackle after a willow or the crown
     const d = Math.hypot(x - k.pos.x, y - k.pos.y, z - k.pos.z), at = Math.min(0.6, d / 343), S = k.synth, big = s.kind !== 'crossette', sal = s.kind === 'salute' || s.kind === 'brocade';
+    if (s.kind === 'saucer' || s.kind === 'hello') this._spark(x, y, z, 0, 0, 0, [1, 1, 1], 0.12, 3, 0, 0);      // (a flash at the heart, as the burst opens)
     S.noise(sal ? 0.7 : big ? 0.5 : 0.25, { vol: sal ? 0.17 : big ? 0.12 : 0.07, lp: sal ? 2600 : 1400, at }); S.note(sal ? 42 : 55, sal ? 0.6 : 0.4, { type: 'sine', vol: sal ? 0.14 : 0.1, at });
     if (s.kind === 'willow' || s.kind === 'brocade') for (let i = 0; i < (s.kind === 'brocade' ? 22 : 10); i++) S.noise(0.03, { vol: 0.03, lp: 6000, at: at + 0.8 + i * 0.1 + R() * 0.08 });
   },

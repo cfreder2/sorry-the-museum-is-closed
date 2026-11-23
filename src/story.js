@@ -40,6 +40,7 @@ const NEST_ORDER = ['north', 'south', 'rice', 'modern', 'lower'];      // the or
 export const ENTRIES = [
   { id: 'grate', title: 'Five notes from below', line: 'A grate in the lobby, lit green from underneath. Far down, five notes, over and over. Like a call.', hint: 'Listen at the glowing grate in the lobby.' },
   { id: 'lights', title: 'Lights over the lake', line: 'A green light fell towards the park. Not a sound.', hint: 'Watch the sky over the lake.' },
+  { id: 'party', optional: true, title: 'The welcome party', line: 'A party on the roof for guests from the stars. “They’re coming back tonight. Keep the fireworks ready.”  — D.', hint: 'Somebody is expecting visitors on the roof.' },
   { id: 'ring', title: 'Rings in the snow', line: 'Rings melted into Butler Field, five marks round them, five colours. The call again, under the snow.', hint: 'Where did the light come down?' },
   { id: 'nests', title: 'The chewed file', line: n => `TOP SECRET pages the mice carried up from somewhere. ${n} of 5 nests.`, hint: 'Follow a glowing mouse home.' },
   { id: 'desk', title: 'The Director’s desk', line: '“The way down is behind a painting.”  — D.', hint: 'The mice have the Director’s key.' },

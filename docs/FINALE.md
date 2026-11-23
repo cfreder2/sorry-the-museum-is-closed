@@ -222,6 +222,12 @@ race module calls `story.enable('alienracer')` (until then the file counts 8 pag
 beaten, `story.add('alienracer')`. Its page says the charm hums when it faces the park, and once it is found the map's
 `?` goes on the rings over the silo.
 
+**The welcome party** (`src/welcome.js`, on the Modern Wing roof terrace): the party up there is a secret welcome for the
+visitors, WELCOME TO EARTH! and all. `party` is an optional page, "The welcome party", enabled at the terrace's init. It
+is added by READing the Director's note propped against the cake on the bar: "They're coming back tonight. Keep the
+fireworks ready. The signal is the five notes. Then light up the sky and make them welcome. — D." The fireworks are the
+welcome: a green saucer shell and a five-colour HELLO shell, and the call played faint and high over the finale.
+
 ## Open choices (decided for now; easy to change)
 
 - **Optional:** the finale doesn't block anything else, so the game can be explored without it.
