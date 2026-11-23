@@ -215,7 +215,7 @@ lifeFor(14655, {
     if (a < fall) {                                    // out from under the frame and down the wall's face
       const q = a / fall; b.dropping = true; b.n = 0;
       this.at(PATHS[b.i][0][0], (L.rail - L.y - R0 - 0.06) * (1 - q * q) + R0 * q * q, -L.wall + R0 * Math.min(1, a / 0.1) + 0.01, b.p);
-      b.r = R0; b.s = 0; this.spin(b, this.T, -a * 8);
+      b.r = R0; b.s = 0; b.q.setFromAxisAngle(this.T, -a * 8);
       return;
     }
     const c = a - fall, wn = this.wallN(b), floorLen = b.len - wn * SEG;
@@ -223,8 +223,6 @@ lifeFor(14655, {
     const q = ease.out(clamp01(c / ROLL)), s = wn * SEG + q * (b.i === CLIMB ? b.len - wn * SEG : floorLen);
     this.place(L, b, s);
     b.p.y += Math.abs(Math.sin(c * 10)) * 0.07 * Math.exp(-c * 5);
-    // a gentle rock once still, while you look
-    if (c > ROLL) this.spin(b, this.T, Math.sin((c - ROLL) * 2 + b.i) * 0.04, true);
   },
   wallN(b) { let n = 0; while (b.cwall[n] === 1) n++; return n; },
   // Put ball b at arc length s along its course: its strand runs up to there; it rolls by the distance.
@@ -237,9 +235,8 @@ lifeFor(14655, {
     // roll: about the axis across the way it goes, by how far it went
     const ds = s - (b.s || 0);
     if (Math.abs(ds) > 1e-5) { this.w.subVectors(pts[j + 1], pts[j]).normalize(); this.tmp.crossVectors(nrm, this.w).normalize(); b.q.premultiply(this.qq.setFromAxisAngle(this.tmp, ds / r)); }
-    b.s = s; b.r = r; b.n = j + 1; b.cur = this.v.clone ? b.cur || new THREE.Vector3() : null; b.cur.copy(this.v);
+    b.s = s; b.r = r; b.n = j + 1;
   },
-  spin(b, axis, ang, rock = false) { if (rock) return; b.q.setFromAxisAngle(axis, ang); },
   // Reeled home: back along its strand (and whatever it unwound while pushed), up the wall, in under the frame.
   reel(L, b, r) {
     const total = b.back + (b.extra ? b.extra.length : 0); if (!total && !b.dropping) { b.n = 0; return; }

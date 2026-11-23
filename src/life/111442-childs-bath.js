@@ -19,15 +19,15 @@ import { lifeFor, ease, ramp, clamp01, lerp, shape, canvasTexture, rng } from '.
 const RUG = { u: 0.24, w: 1.62, out: 1.5 };             // along, its width along the wall, how far out it reaches (m)
 const K = 1.65;                                           // the basin and the jug, larger than life (the toy's own size)
 const BASIN = [0.12, 0.74], JUG_IN = [0.56, 0.3], JUG_POUR = [0.56, 0.76, 0.5], JUG_REST = [0.7, 1.12];
-const NBUB = 44, NSTREAM = 20, NSPL = 24;
+const NBUB = 48, NSTREAM = 20, NSPL = 24;
 const T_RUG = 0.15, T_RUGD = 0.95, T_BASIN = 0.8, T_JUG = 1.15, T_LIFT = 1.7, T_TIP = 2.3, T_POUR = 2.55, T_STOP = 4.4, T_DOWN = 5.0, T_SET = 5.8;
-const T_BUB = 3.4;
+const T_BUB = 3.2;
 // Brahms, Wiegenlied, Op. 49 No. 4 (1868)
 const LULLABY = 'E5:.5 E5:.5 | G5:2 E5:.5 E5:.5 | G5:2 E5:.5 G5:.5 | C6 B5:1.5 A5:.5 | A5 G5 D5:.5 E5:.5 | F5 D5 D5:.5 E5:.5 | F5:2 D5:.5 F5:.5 | B5:.5 A5:.5 G5 B5 | C6:3';
 const LULL_B = 'R | C4:3 | C4:3 | F3:3 | C4:3 | G3:3 | G3:3 | G3:3 | C4:3';
 
 // When bubble n swells at the water's edge: a few, then a flight of them, then one now and then.
-const TE = n => (n < 6 ? T_BUB + n * 0.42 : n < 30 ? T_BUB + 2.4 + (n - 6) * 0.11 : T_BUB + 5.1 + (n - 30) * 0.42);
+const TE = n => (n < 4 ? T_BUB + n * 0.3 : n < 36 ? T_BUB + 1.2 + (n - 4) * 0.085 : T_BUB + 3.9 + (n - 36) * 0.36);
 
 lifeFor(111442, {
   title: /^The Child's Bath/,
@@ -70,7 +70,7 @@ lifeFor(111442, {
     rugMat.customProgramCacheKey = () => 'bath-rug';
     this.rug = L.decal({ w: RUG.w, d: RUG.out - 0.04, u: RUG.u, out: 0.04 + (RUG.out - 0.04) / 2, material: rugMat });
     // ---------------------------------------------------------- the rig: the rug's roll, the basin, its water, the jug
-    const rig = this.rig = L.rig(8, 9000, L.paint({ glow: 0.3, rough: 0.5 }));
+    const rig = this.rig = L.rig(8, 9000, L.paint({ glow: 0.34, rough: 0.5, side: THREE.DoubleSide }));      // (the basin is one skin: seen inside too)
     const roll = shape.cyl(1, 1, RUG.w, 16, col('#b84a2a', 0.3)); shape.move(roll, 0, 0, 0, 0, 0, Math.PI / 2);         // (along x: turned below to lie along the wall)
     shape.paint(roll, (c, n) => (Math.abs(c.x) > RUG.w / 2 - 0.03 ? col('#5f6e3c', 0.3) : L.rand() < 0.3 ? col('#cf6436', 0.3) : null));
     this.rollI = rig.add(rig.geo(roll));
@@ -78,7 +78,7 @@ lifeFor(111442, {
     const basin = shape.lathe([[0.07, 0], [0.1, 0.012], [0.135, 0.05], [0.15, 0.078], [0.158, 0.088], [0.152, 0.092], [0.14, 0.082], [0.125, 0.05], [0.09, 0.016], [0.0, 0.012]], 28);
     shape.paint(basin, (c, n) => { const r = Math.hypot(c.x, c.z); if (c.y > 0.074 && r > 0.142) return mauve; const d = n.dot(light) + (L.rand() - 0.5) * 0.4; return d > 0.4 ? white[1] : d > -0.2 ? white[0] : white[2]; });
     shape.move(basin, 0, 0, 0, 0, 0, 0, K); this.basinI = rig.add(rig.geo(basin));
-    const water = shape.lathe([[0.0, 0], [0.128, 0]], 28); shape.paint(water, () => (L.rand() < 0.25 ? col('#e6eef4', 0.2) : L.rand() < 0.5 ? col('#a9bccb', 0.2) : col('#bfd0dc', 0.2)));
+    const water = shape.cyl(0.128, 0.128, 0.004, 28); shape.paint(water, () => (L.rand() < 0.25 ? col('#e6eef4', 0.2) : L.rand() < 0.5 ? col('#a9bccb', 0.2) : col('#bfd0dc', 0.2)));
     shape.move(water, 0, 0, 0, 0, 0, 0, K); this.waterI = rig.add(rig.geo(water));
     // the jug: white, a pink flower spray on its belly, a lip and a spout (towards +x), a handle
     const jug = shape.lathe([[0.0, 0], [0.05, 0], [0.058, 0.02], [0.066, 0.07], [0.06, 0.12], [0.046, 0.165], [0.044, 0.19], [0.052, 0.215], [0.05, 0.22], [0.04, 0.205], [0.0, 0.2]], 22);
@@ -121,6 +121,7 @@ void main() {
     im.count = 0; im.renderOrder = 5; L.add(im);
     this.C = new THREE.Color();
     this.pour = L.voice().loop({ lp: 2600, hp: 700 });
+    this.lap = L.voice().loop({ lp: 900, hp: 260 });          // the water, lapping, quietly, while it shows
     this.toyP = new THREE.Vector3(); this.tmp = new THREE.Vector3(); this.tmp2 = new THREE.Vector3();
     this.basinP = at(BASIN[0], 0, BASIN[1]);
   },
@@ -133,7 +134,7 @@ void main() {
     v.note(659.25, 2.2, { at: 0.05, vol: 0.008, type: 'sine', attack: 0.3 });
   },
   back(L) { this.ret0 = { len: this.ru.uLen.value, basin: this.basinU != null ? [this.basinU, this.basinO] : null, jug: this.jugM ? this.jugM.clone() : null, level: this.level || 0 }; },
-  end(L) { for (const i of [this.rollI, this.basinI, this.waterI, this.jugI]) this.rig.show(i, false); this.bub.count = 0; this.ru.uLen.value = 0; this.rug.visible = false; this.pour.set(0); },
+  end(L) { for (const i of [this.rollI, this.basinI, this.waterI, this.jugI]) this.rig.show(i, false); this.bub.count = 0; this.ru.uLen.value = 0; this.rug.visible = false; this.pour.set(0); this.lap.set(0); },
   reset(L) { this.end(L); },
 
   // ------------------------------------------------------------------ every frame
@@ -169,6 +170,7 @@ void main() {
     if (!L.quiet) {
       const cam = L.k.G.camera, near = Math.max(0, 1 - Math.hypot(cam.position.x - L.cx, cam.position.z - L.cz) / 10);
       this.pour.set(this.pouring ? 0.03 * near : 0, 0.15);
+      this.lap.set(ph !== 'return' && (this.level || 0) > 0.2 ? 0.006 * near * (1 + 0.3 * Math.sin(this.clock * 1.7)) : 0, 0.3);
       if (showing && dt > 0 && t >= T_POUR + 0.4 && t - dt < T_POUR + 0.4) this.lullaby(L);
     }
     L.voice().place(this.basinP.x, this.basinP.z);
