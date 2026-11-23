@@ -30,10 +30,10 @@ const NB = 11, PEL = 0, TOR = 1, HEAD = 2, UAR = 3, FAR = 4, UAL = 5, FAL = 6, T
 const SC = 1.18;                     // everyone a little larger than life-size for the toy: a grown-up 0.59 m
 const THIGH = 0.112, SHIN = 0.108, BOOT = 0.02, TORSO = 0.15, UARM = 0.076, FARM = 0.07;
 // ---------------------------------------------------------------- the pond, in the stage's terms (along, out)
-const POND = { c: 0.86, U: 1.22, O: 1.02, p: 2.6 };
-const RING = { u: 0.02, out: 1.0 };            // the crowd circles round this
+const POND = { c: 0.84, U: 1.1, O: 0.93, p: 2.2 };
+const RING = { u: 0.02, out: 0.98 };            // the crowd circles round this
 const SPIN = { u: 0.05, out: 0.97 };          // where the two spin
-const KN = { u: -0.78, out: 1.36 };           // where the man kneels to do up his skate
+const KN = { u: 0.78, out: 1.3 };           // where the man kneels to do up his skate
 const TB = { u0: -1.35, o0: -0.32, w: 2.7, h: 2.4 }, TW = 160, TH = 142;     // the carved ice: where its map lies
 // ---------------------------------------------------------------- the waltz and the timeline
 // Waldteufel, Les Patineurs (The Skaters), 1882: the main waltz theme, in A.
@@ -46,20 +46,20 @@ const T_FACE = 3.75, T_HOLD = 4.3, T_IDLE = 8.6, T_RISE = 8.75, T_JOIN = 9.2, T_
 
 // The cast: his people, from the picture. coat: [colour, shade, light]; skirt: how far the coat comes down (m).
 const CAST = [
-  { id: 'kneel', role: 'kneel', te: 1.15, ue: -0.36, coat: ['#5c3f2d', '#38261b', '#7c5b40'], skirt: 0.085, hat: ['cap', '#34343a'], legs: '#2c2c32', scarf: '#c9b48a', arms: 'back', ring: [0.86, 0.62, 1.0, 0] },
-  { id: 'red', role: 'ring', te: 1.35, ue: -0.3, coat: ['#b8412f', '#86292a', '#de6a4a'], skirt: 0.19, hat: ['cloche', '#a33529'], legs: '#2a2224', scarf: '#ddc4a8', arms: 'muff', ring: [0.84, 0.6, 1.0, 0.3] },
-  { id: 'white', role: 'ring', te: 1.55, ue: 0.24, coat: ['#e9e7de', '#a6b3cc', '#ffffff'], skirt: 0.04, hat: ['cap', '#eeeee6'], legs: '#33343e', trousers: '#3a3b46', arms: 'back', ring: [0.72, 0.57, 1.0, 1.55] },
-  { id: 'violet', role: 'ring', te: 1.75, ue: -0.06, coat: ['#4d3558', '#2f2239', '#6e4c7c'], skirt: 0.2, hat: ['wide', '#d0602c'], legs: '#221c24', muff: '#ece8e0', arms: 'muff', ring: [0.92, 0.63, 1.0, 2.8] },
+  { id: 'kneel', role: 'kneel', te: 1.15, ue: 0.36, coat: ['#5c3f2d', '#38261b', '#7c5b40'], skirt: 0.085, hat: ['cap', '#34343a'], legs: '#2c2c32', scarf: '#c9b48a', arms: 'back', ring: [0.78, 0.55, 1.0, 0] },
+  { id: 'red', role: 'ring', te: 1.35, ue: -0.3, coat: ['#b8412f', '#86292a', '#de6a4a'], skirt: 0.19, hat: ['cloche', '#a33529'], legs: '#2a2224', scarf: '#ddc4a8', arms: 'swing', ring: [0.78, 0.54, 1.0, 0.3] },
+  { id: 'white', role: 'ring', te: 1.55, ue: 0.24, coat: ['#e9e7de', '#a6b3cc', '#ffffff'], skirt: 0.04, hat: ['cap', '#eeeee6'], legs: '#33343e', trousers: '#3a3b46', arms: 'swing', ring: [0.66, 0.5, 1.0, 1.55] },
+  { id: 'violet', role: 'ring', te: 1.75, ue: -0.06, coat: ['#4d3558', '#2f2239', '#6e4c7c'], skirt: 0.2, hat: ['wide', '#d0602c'], legs: '#221c24', muff: '#ece8e0', arms: 'muff', ring: [0.82, 0.56, 1.0, 2.8] },
   { id: 'yellow', role: 'pairL', te: 2.0, ue: -0.1, coat: ['#b5a23c', '#867625', '#d9ca6c'], skirt: 0.205, hat: ['wide', '#3a3242'], legs: '#2a2420', scarf: '#efe9dc', hands: '#efe9dc', arms: 'muff' },
   { id: 'child', role: 'pairC', te: 2.0, ue: 0.08, sc: 0.66, coat: ['#cf4630', '#962c22', '#ec744c'], skirt: 0.07, hat: ['cloche', '#b8382a'], hair: '#3a2a22', legs: '#eeeae2', arms: 'swing' },
-  { id: 'green', role: 'ring', te: 2.4, ue: 0.3, coat: ['#3f8a4d', '#295e36', '#66ac6c'], skirt: 0.17, hat: ['cloche', '#2a2a30'], legs: '#24242a', arms: 'swing', ring: [0.66, 0.58, 1.0, 4.05] },
-  { id: 'bowler', role: 'ring', te: 2.65, ue: -0.26, coat: ['#2b2f40', '#1b1d29', '#4a536c'], skirt: 0.1, hat: ['bowler', '#1d1d23'], legs: '#2a2a30', scarf: '#c8402c', arms: 'back', ring: [0.8, 0.6, 1.0, 5.25] },
+  { id: 'green', role: 'ring', te: 2.4, ue: 0.3, coat: ['#3f8a4d', '#295e36', '#66ac6c'], skirt: 0.17, hat: ['cloche', '#2a2a30'], legs: '#24242a', arms: 'swing', ring: [0.62, 0.5, 1.0, 4.05] },
+  { id: 'bowler', role: 'ring', te: 2.65, ue: -0.26, coat: ['#2b2f40', '#1b1d29', '#4a536c'], skirt: 0.1, hat: ['bowler', '#1d1d23'], legs: '#2a2a30', scarf: '#c8402c', arms: 'back', ring: [0.74, 0.53, 1.0, 5.25] },
 ];
 
 lifeFor(109780, {
   title: /^Love of Winter/,
   word: 'skate',
-  stage: { out: 1.95, half: 1.35, cam: { dist: 2.7, height: 0.62, side: 0.32, fov: 56, lookU: 0.0, lookOut: 0.95, lookH: 0.55, floorOut: 1.7 } },
+  stage: { out: 1.8, half: 1.25, cam: { dist: 2.55, height: 0.42, side: 0.25, fov: 60, lookU: 0.0, lookOut: 0.9, lookH: 0.8, floorOut: 1.5 } },
   wake: 2, ret: 2.2,
   linger: { near: 4.5, max: 45 },
 
@@ -110,12 +110,14 @@ lifeFor(109780, {
       for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + jit(0.3), sa = Math.sin(a), ca = Math.cos(a); add(TOR, [sa * 0.037, 0.072 + jit(0.02), ca * 0.027], [jit(0.5), 1, 0], [sa, 0, ca], 0.15, 0.052, pick()); }
       for (const s of [-1, 1]) add(TOR, [s * 0.03, 0.135, 0], [1, s * 0.3, 0], [s * 0.6, 0.6, 0.2], 0.07, 0.034, pick());
       add(TOR, [jit(0.01), 0.08, 0.03], [0.6 + jit(0.4), 1, 0], [0, 0.2, 1], 0.11, 0.03, C3[2]);           // a slash of light across the front
-      if (f.scarf) add(TOR, [0, 0.142, 0.016], [1, 0.25, 0], [0, 0.3, 1], 0.05, 0.026, col(f.scarf, 0.15));
+      if (f.scarf) { add(TOR, [0, 0.142, 0.016], [1, 0.25, 0], [0, 0.3, 1], 0.05, 0.026, col(f.scarf, 0.15)); add(TOR, [0.012, 0.128, -0.03], [0.2, -0.5, -1], [0, 0.3, -1], 0.085, 0.022, col(f.scarf, 0.15), 0, { tail: 1 }); }
       // the coat below the waist, to the knee or to the ankle (it flares as they spin)
       const nsk = f.skirt > 0.12 ? 9 : 7;
       for (let k = 0; k < nsk; k++) { const a = (k / nsk) * Math.PI * 2 + jit(0.3), sa = Math.sin(a), ca = Math.cos(a); add(PEL, [sa * 0.046, -f.skirt * 0.48 + 0.01, ca * 0.034], [sa * 0.22, -1, ca * 0.16], [sa, 0, ca], f.skirt + 0.02, 0.058, pick(), 0, { skirt: 1 }); }
       // the head: face, hair, the hat
       add(HEAD, [0, 0.038, 0.012], [0, 1, 0.1], [0, 0.1, 1], 0.05, 0.042, skin, 1);
+      // (a warm shadow down one side of the face and a touch of rose: abstract, as his faces are)
+      add(HEAD, [-0.011, 0.034, 0.02], [0.1, 1, 0], [0, 0.1, 1], 0.034, 0.017, col('#a85e46', 0.1), 1); add(HEAD, [0.01, 0.031, 0.024], [0, 1, 0], [0, 0.1, 1], 0.015, 0.014, col('#e07468', 0.1), 1);
       add(HEAD, [0, 0.044, -0.012], [0, 1, 0], [0, 0.2, -1], 0.05, 0.047, hair, 1);
       const [hk, hc0] = f.hat, hc = col(hc0, 0.15), hl = hc.clone().lerp(new THREE.Color(1, 1, 1), 0.18);
       if (hk === 'wide') { add(HEAD, [0, 0.077, -0.004], [1, 0, 0], [0, 1, 0], 0.04, 0.05, hc, 1); add(HEAD, [0, 0.064, 0.003], [1, 0, 0.12], [0, 1, 0.3], 0.105, 0.017, hl); }
@@ -141,10 +143,10 @@ lifeFor(109780, {
     }
     // the spray of ice when the two skid to a stop
     this.spray = [];
-    for (let i = 0; i < 18; i++) {
-      const a = (L.rand() - 0.5) * 1.6, sp = 0.55 + L.rand() * 0.75;
-      this.spray.push({ i: this.strokes.length, a, sp, up: 0.45 + L.rand() * 0.7, from: i % 3 === 0 ? 0 : 1, life: 0.9 + L.rand() * 0.5 });
-      this.strokes.push({ who: -1, spray: true, len: 0.03 + L.rand() * 0.03, wid: 0.012 + L.rand() * 0.01, c: col(L.rand() < 0.6 ? '#f4f6f8' : '#c4d2ea', 0.1), slot: L.rand() < 0.5 ? 0 : 1 });
+    for (let i = 0; i < 30; i++) {
+      const a = (L.rand() - 0.5) * 1.9, sp = 1.0 + L.rand() * 1.1;
+      this.spray.push({ i: this.strokes.length, a, sp, up: 0.9 + L.rand() * 1.0, from: i % 3 === 0 ? 0 : 1, life: 0.9 + L.rand() * 0.5 });
+      this.strokes.push({ who: -1, spray: true, len: 0.07 + L.rand() * 0.07, wid: 0.026 + L.rand() * 0.02, c: col(L.rand() < 0.5 ? '#f6f8fa' : L.rand() < 0.6 ? '#b4c6ea' : '#8aa2d8', 0.1), slot: L.rand() < 0.5 ? 0 : 1 });
     }
     const NS = this.strokes.length, geo = new THREE.PlaneGeometry(1, 1);
     this.aPos = new THREE.InstancedBufferAttribute(new Float32Array(NS * 3), 3).setUsage(THREE.DynamicDrawUsage);
@@ -177,20 +179,20 @@ lifeFor(109780, {
     L.add(im);
 
     // ---------------------------------------------------------- the pond and its bank of snow: one mesh, one shader
-    const iceTex = floorStrokes({ size: 512, base: col('#a9bad2', 0.2).getStyle(), n: 1500, seed: 1914, len: [26, 70], width: [5, 11], bend: 0.18, lift: 0.22,
-      colors: [[col('#eef2f6', 0.12).getStyle(), 4], [col('#cfdcec', 0.15).getStyle(), 3], [col('#8ea4cc', 0.2).getStyle(), 3], [col('#a69ccc', 0.2).getStyle(), 1.5], [col('#86b4c0', 0.2).getStyle(), 1], [col('#ffffff', 0.05).getStyle(), 2], [col('#6f86bc', 0.2).getStyle(), 1]],
+    const iceTex = floorStrokes({ size: 512, base: col('#9aaed0', 0.2).getStyle(), n: 1500, seed: 1914, len: [26, 70], width: [5, 11], bend: 0.18, lift: 0.22,
+      colors: [[col('#eef2f6', 0.12).getStyle(), 2.5], [col('#cfdcec', 0.15).getStyle(), 3], [col('#8ea4cc', 0.2).getStyle(), 3], [col('#a69ccc', 0.2).getStyle(), 1.5], [col('#86b4c0', 0.2).getStyle(), 1], [col('#ffffff', 0.05).getStyle(), 1.5], [col('#5f78bc', 0.2).getStyle(), 2.5], [col('#4d64ac', 0.2).getStyle(), 1]],
       angle: (x, y, r) => (r() - 0.5) * 0.35 });
     const snowTex = floorStrokes({ size: 256, base: col('#e6eaee', 0.15).getStyle(), n: 900, seed: 1882, len: [10, 24], width: [4, 8], bend: 0.3, lift: 0.3,
-      colors: [[col('#f6f6f2', 0.1).getStyle(), 6], [col('#d6deea', 0.15).getStyle(), 3], [col('#8fa2d0', 0.2).getStyle(), 2], [col('#7486c0', 0.2).getStyle(), 1], [col('#d08a4c', 0.2).getStyle(), 0.5], [col('#efe2c4', 0.15).getStyle(), 1]],
+      colors: [[col('#f6f6f2', 0.1).getStyle(), 6], [col('#d6deea', 0.15).getStyle(), 3], [col('#8fa2d0', 0.2).getStyle(), 2], [col('#7486c0', 0.2).getStyle(), 1], [col('#d08a4c', 0.2).getStyle(), 1.4], [col('#b8683a', 0.2).getStyle(), 0.6], [col('#efe2c4', 0.15).getStyle(), 1]],
       angle: (x, y, r) => -0.6 + (r() - 0.5) * 1.2 });
     const trail = this.trailData = new Uint8Array(TW * TH);
     this.trail = new THREE.DataTexture(trail, TW, TH, THREE.RedFormat, THREE.UnsignedByteType);
     this.trail.magFilter = this.trail.minFilter = THREE.LinearFilter; this.trail.needsUpdate = true;
     this.u = { uIce: { value: iceTex }, uSnow: { value: snowTex }, uTrail: { value: this.trail }, uR: { value: 0 }, uRMax: { value: 2.5 }, uBank: { value: 0 }, uY: { value: L.y },
       uC: { value: new THREE.Vector2(L.cx, L.cz) }, uT: { value: new THREE.Vector2(L.tx, L.tz) }, uN: { value: new THREE.Vector2(L.nx, L.nz) }, uO0: { value: -L.wall },
-      uTB: { value: new THREE.Vector4(TB.u0, TB.o0, 1 / TB.w, 1 / TB.h) }, uBase: { value: col('#a3b5ce', 0.2) }, uShade: { value: col('#7484c0', 0.25) } };
+      uTB: { value: new THREE.Vector4(TB.u0, TB.o0, 1 / TB.w, 1 / TB.h) }, uBase: { value: col('#a3b5ce', 0.2) }, uShade: { value: col('#4f62b0', 0.2) } };
     const pos = [], bank = [], idx = [];
-    const rim = (a, f = 1) => { const c = Math.cos(a), s = Math.sin(a), e = 2 / POND.p, w = f * (1 + 0.035 * Math.sin(3 * a + 1) + 0.025 * Math.sin(5 * a)); return [POND.U * w * Math.sign(c) * Math.abs(c) ** e, POND.c + POND.O * w * Math.sign(s) * Math.abs(s) ** e]; };
+    const rim = (a, f = 1) => { const c = Math.cos(a), s = Math.sin(a), e = 2 / POND.p, w = f * (1 + 0.11 * Math.sin(2 * a + 0.7) + 0.09 * Math.sin(3 * a + 2.1) + 0.06 * Math.sin(5 * a + 0.4) + 0.04 * Math.sin(9 * a + 1.3) + 0.02 * Math.sin(17 * a)); return [POND.U * w * Math.sign(c) * Math.abs(c) ** e, POND.c + POND.O * w * Math.sign(s) * Math.abs(s) ** e]; };
     const P3 = new THREE.Vector3(), put = (u, out, h, b) => { L.floor(u, Math.max(out, -L.wall + 0.004), P3); pos.push(P3.x, L.y + h, P3.z); bank.push(b); return pos.length / 3 - 1; };
     const NR = 12, NA = 60;
     for (let j = 0; j <= NR; j++) for (let i = 0; i < NA; i++) { const [u, o] = rim((i / NA) * Math.PI * 2, j / NR); put(u, o, 0.01, 0); }
@@ -199,8 +201,8 @@ lifeFor(109780, {
     const NBA = 84, NBX = 7, a0 = -0.68, a1 = Math.PI + 0.68, base0 = pos.length / 3, hts = [];
     for (let i = 0; i <= NBA; i++) {
       const a = a0 + (a1 - a0) * (i / NBA), taper = Math.min(1, (i / NBA) / 0.1, (1 - i / NBA) / 0.1);
-      const H = 0.074 * (0.78 + 0.2 * Math.sin(7 * a) + 0.12 * Math.sin(13 * a + 2) + 0.08 * Math.sin(29 * a)) * taper;
-      for (let j = 0; j <= NBX; j++) { const s = j / NBX, [u, o] = rim(a, 0.985 + 0.2 * s); const h = 0.01 + H * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.15)), 0.75); hts.push(h); put(u, o, h, 1); }
+      const H = 0.1 * Math.max(0.25, 0.68 + 0.26 * Math.sin(5 * a + 1) + 0.2 * Math.sin(11 * a + 2) + 0.12 * Math.sin(23 * a) + 0.08 * Math.sin(37 * a + 3)) * taper;      // heaped, lumpy
+      for (let j = 0; j <= NBX; j++) { const s = j / NBX, [u, o] = rim(a, 0.985 + 0.24 * s); const h = 0.01 + H * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.15)), 0.75); hts.push(h); put(u, o, h, 1); }
     }
     for (let i = 0; i < NBA; i++) for (let j = 0; j < NBX; j++) { const a = base0 + i * (NBX + 1) + j, b = a + NBX + 1; idx.push(a, b, b + 1, a, b + 1, a + 1); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
@@ -227,11 +229,11 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
     float tr = texture2D(uTrail, (loc - uTB.xy) * uTB.zw).r;
     c = mix(c, c * vec3(0.6, 0.68, 0.9), clamp(tr * 1.25, 0.0, 0.85));         // the blades' grooves, blue in the white
     c = mix(c, uShade, 0.22 * smoothstep(0.45, -0.1, loc.y));         // (bluer in the frame's shadow, by the wall)
-    diffuseColor.rgb = c * 0.92;
+    diffuseColor.rgb = c * 0.88;
   } else {
     if (uBank < 0.02 || length(loc - vec2(0.0, uO0)) > uR + 0.25) discard;
     vec3 s = texture2D(uSnow, tuv * 1.4).rgb; float sh = clamp(vBank - 1.0, 0.0, 1.0);
-    diffuseColor.rgb = mix(s * uShade * 1.25, s * 1.04, sh);
+    diffuseColor.rgb = mix(s * uShade * 1.15, s * 1.05, smoothstep(0.3, 0.7, sh));         // his snow: white in the light, a strong blue in shadow
   }
 }`);
     };
@@ -352,7 +354,7 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
     // while the two spin, the crowd stops round the back of the pond to watch (in the order they come, so no one
     // crosses), and leaves the front open to you
     const ring = this.figs.filter(f => f.role === 'ring'), at = f => { const o = {}; this.ringAt(f, T_SPIN + 0.6, o); return Math.atan2((o.out - RING.out) / f.ring[1], (o.u - RING.u) / f.ring[0]); };
-    ring.map(f => [f, (((at(f) - Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)]).sort((a, b) => a[1] - b[1]).forEach(([f], i) => { f.watch = -Math.PI + 0.5 + i * (Math.PI - 1.0) / (ring.length - 1); });
+    ring.map(f => [f, (((at(f) - Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)]).sort((a, b) => a[1] - b[1]).forEach(([f], i) => { f.watch = 2.5 + i * 3.5 / (ring.length - 1) + (L.rand() - 0.5) * 0.25; f.wr = [1.1, 0.95, 1.16, 0.97, 1.04][i % 5]; f.lookOff = (L.rand() - 0.5) * 0.9; });
     // the spin: its angle at every moment, from how fast it goes (worked out once, so any moment can be posed)
     const dtA = 0.01, n = Math.ceil((T_IDLE - T_HOLD) / dtA) + 2, A = this.spinA = new Float32Array(n), Wv = this.spinW = new Float32Array(n);
     let a = 0;
@@ -386,7 +388,7 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
   },
   // Everything about one skater at t: o.u, o.out, o.vis, o.mode, and o.yaw when it is not simply the way they go.
   plan(L, f, t, o) {
-    o.vis = t >= f.te; o.face = 0; o.mode = 'skate'; o.yaw = null; o.cheer = 0; o.kneel = 0; o.lift = 0; o.crouch = 0; o.spinW = 0; o.hold = 0; o.joy = 0;
+    o.vis = t >= f.te; o.face = 0; o.drift = 0; o.mode = 'skate'; o.yaw = null; o.cheer = 0; o.kneel = 0; o.lift = 0; o.crouch = 0; o.spinW = 0; o.hold = 0; o.joy = 0;
     const W = this.W;
     if (f.role === 'ring') {
       this.ringAt(f, t, o);
@@ -394,13 +396,18 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
       o.u = lerp(f.ue, o.u, k); o.out = lerp(so, o.out, k);
       o.cheer = hump(t, T_STOP + 0.05, T_STOP + 1.4);
       const wg = ease.inOut(ramp(t, T_SPIN - 0.5, T_SPIN + 0.7)) * (1 - ease.inOut(ramp(t, T_IDLE + 0.4, T_IDLE + 1.8)));
-      if (wg > 0) { const [ru, ro] = f.ring, wu = RING.u + this.cu + ru * 1.02 * Math.cos(f.watch), wo = RING.out + this.co + ro * 1.02 * Math.sin(f.watch); o.u = lerp(o.u, wu, wg); o.out = lerp(o.out, wo, wg); o.face = ease.smooth(ramp(wg, 0.55, 0.95)); }
+      if (wg > 0) {
+        // a loose arc round the back and sides, at different depths, each still drifting on a slow loop of the blades
+        const [ru, ro] = f.ring, th = f.watch + 0.1 * Math.sin(0.45 * t + f.seed), dr = 0.07;
+        const wu = RING.u + this.cu + ru * f.wr * Math.cos(th) + dr * Math.cos(0.8 * t + f.seed), wo = RING.out + this.co + ro * f.wr * Math.sin(th) + dr * Math.sin(1.1 * t + f.seed * 2);
+        o.u = lerp(o.u, wu, wg); o.out = lerp(o.out, wo, wg); o.face = 0.85 * ease.smooth(ramp(wg, 0.55, 0.95)); o.drift = wg;
+      }
     } else if (f.role === 'kneel') {
       if (t >= T_JOIN) { this.ringAt(f, t, o); const k = ease.smooth(ramp(t, T_JOIN, T_JOIN + 1.1)); o.u = lerp(KN.u, o.u, k); o.out = lerp(KN.out, o.out, k); }
       else {
-        const s = ease.inOut(ramp(t, f.te, f.te + 1.15)), a = 1 - s, p1u = KN.u - 0.55, p1o = KN.out - 0.1;
+        const s = ease.inOut(ramp(t, f.te, f.te + 1.15)), a = 1 - s, p1u = KN.u + 0.55, p1o = KN.out - 0.1;
         o.u = a * a * f.ue + 2 * a * s * p1u + s * s * KN.u; o.out = a * a * W + 2 * a * s * p1o + s * s * KN.out;
-        if (s >= 1) { o.yaw = L.yawOf(1, 0); o.mode = 'kneel'; }
+        if (s >= 1) { o.yaw = L.yawOf(-1, 0); o.mode = 'kneel'; }
         o.kneel = ease.smooth(ramp(t, f.te + 1.2, f.te + 1.6)) * (1 - ease.smooth(ramp(t, T_RISE, T_RISE + 0.4)));
       }
     } else {
@@ -439,9 +446,10 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
     P.vis = o.vis;
     if (sp > 0.03) P.yaw = L.yawOf(du, dout); else if (P.yaw == null) P.yaw = L.yawOut;
     if (o.yaw != null) P.yaw = o.yaw;
-    if (o.face > 0) P.yaw = turnTo(P.yaw, L.yawOf(SPIN.u + this.cu * 0.6 - o.u, SPIN.out + this.co * 0.6 - o.out), o.face);
+    if (o.face > 0) P.yaw = turnTo(P.yaw, L.yawOf(SPIN.u + this.cu * 0.6 - o.u, SPIN.out + this.co * 0.6 - o.out) + (f.lookOff || 0) + 0.35 * Math.sin(0.5 * t + f.seed), o.face);
     const l = Math.hypot(du, dout) || 1, r = this.rightOf(du / l, dout / l);
-    const amp = o.mode === 'spin' || o.mode === 'kneel' ? 0 : clamp01(sp / 0.45), str = t * 2 * Math.PI * 0.95 + f.seed;
+    const amp = o.mode === 'spin' || o.mode === 'kneel' ? 0 : Math.max(clamp01(sp / 0.45), 0.4 * o.drift), str = t * 2 * Math.PI * (0.95 - 0.4 * o.drift) + f.seed;
+    P.str = str;
     P.amp = amp * (o.vis ? 1 : 0);
     skate(P, str, amp, f.arms);
     P.su = r[0] * Math.sin(str) * amp; P.so = r[1] * Math.sin(str) * amp;           // (the blade swings side to side: the tracks curl)
@@ -452,7 +460,7 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
       crouch(P, o.crouch);
       // (the child swung off her feet: her body out along the pull, her feet flying, her arms still to the hands)
       if (child) { P.lean = -0.18 * (1 - o.lift) - 0.1 * k; P.pitch = 1.1 * o.lift; P.hover = o.lift; P.legs[0][0] = 0.25 * o.lift; P.legs[1][0] = 0.5 * o.lift; P.legs[1][2] = 0.4 * o.lift; P.arms[0][0] = P.arms[1][0] = -1.3 - P.pitch - P.lean; }
-      else { P.lean = -0.12 - 0.12 * k; }
+      else { P.lean = -0.3 - 0.18 * k; P.legs[0][0] -= 0.25 * k; P.legs[1][0] -= 0.25 * k; }
       P.flare = 0.9 * k;
       if (o.joy > 0) {
         const j = o.joy;
@@ -508,8 +516,8 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
         // thrown out sideways from the blades, the way they were turning, and settling on the ice
         if (!sp.p) sp.p = new THREE.Vector3();
         if (tt < 0.05 || !sp.set) { L.floor(f.P.u, f.P.out, sp.p); const ang = f.P.yaw + Math.PI / 2 + sp.a; sp.vx = Math.sin(ang) * sp.sp; sp.vz = Math.cos(ang) * sp.sp; sp.set = true; }
-        const fl = Math.min(tt, sp.up / 4.9), y = Math.max(0, sp.up * fl - 4.9 * fl * fl) * 0.35;
-        V.set(sp.p.x + sp.vx * fl * 0.55, L.y + 0.02 + y, sp.p.z + sp.vz * fl * 0.55);
+        const fl = Math.min(tt, sp.up / 2.5), y = Math.max(0, sp.up * fl - 2.5 * fl * fl);      // (powdered ice: it hangs in the air)
+        V.set(sp.p.x + sp.vx * fl * 0.7, L.y + 0.02 + y, sp.p.z + sp.vz * fl * 0.7);
         aP[n * 3] = V.x; aP[n * 3 + 1] = V.y; aP[n * 3 + 2] = V.z; aD[n * 3] = sp.vx; aD[n * 3 + 1] = 0.3; aD[n * 3 + 2] = sp.vz;
         aS[n * 3] = aS[n * 3 + 1] = aS[n * 3 + 2] = 0; aK[n * 2] = 0; aK[n * 2 + 1] = s.slot;
         aZ[n * 2] = s.len * life; aZ[n * 2 + 1] = s.wid * life; col.setXYZ(n, s.c.r * 1.1, s.c.g * 1.1, s.c.b * 1.1); n++; continue;
@@ -525,6 +533,8 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
       }
       const Mx = f.mats[s.bone];
       V.copy(s.p); N.copy(s.d);
+      if (s.skirt) { N.z -= 0.4 * P.amp; N.x += 0.22 * Math.sin(P.str) * P.amp; }
+      if (s.tail) { N.x += 0.55 * Math.sin(P.str * 0.5 + 1); N.z -= 0.5 * P.amp; N.y -= 0.2 * (1 - P.amp); }
       if (s.skirt && P.flare) { const fl = P.flare, rr = Math.hypot(V.x, V.z) || 1; V.x += (V.x / rr) * fl * 0.03; V.z += (V.z / rr) * fl * 0.03; V.y += fl * 0.025; N.x += (V.x / rr) * fl * 0.9; N.z += (V.z / rr) * fl * 0.9; }
       V.applyMatrix4(Mx); N.transformDirection(Mx);
       aP[n * 3] = V.x; aP[n * 3 + 1] = V.y; aP[n * 3 + 2] = V.z; aD[n * 3] = N.x; aD[n * 3 + 1] = N.y; aD[n * 3 + 2] = N.z;
@@ -543,7 +553,7 @@ uniform sampler2D uIce, uSnow, uTrail; uniform float uR, uRMax, uO0, uBank; unif
 
 // ------------------------------------------------------------------ poses
 // arms: [pitch (forward, negative), roll (out to the side), elbow]; legs: [pitch (forward, negative), roll (+x: the figure's left), knee]
-function newPose() { return { u: 0, out: 0, yaw: null, dy: 0, pitch: 0, roll: 0, lean: 0, tilt: 0, twist: 0, head: 0, flare: 0, kneel: 0, amp: 0, su: 0, so: 0, vis: false, legs: [[0, 0, 0], [0, 0, 0]], arms: [[0, 0, 0], [0, 0, 0]] }; }
+function newPose() { return { str: 0, u: 0, out: 0, yaw: null, dy: 0, pitch: 0, roll: 0, lean: 0, tilt: 0, twist: 0, head: 0, flare: 0, kneel: 0, amp: 0, su: 0, so: 0, vis: false, legs: [[0, 0, 0], [0, 0, 0]], arms: [[0, 0, 0], [0, 0, 0]] }; }
 function stand(P, u, out) {
   P.u = u; P.out = out; P.dy = 0; P.hover = 0; P.pitch = 0; P.roll = 0; P.lean = 0; P.tilt = 0; P.twist = 0; P.head = 0; P.flare = 0; P.kneel = 0;
   P.legs[0][0] = 0; P.legs[0][1] = -0.05; P.legs[0][2] = 0.1; P.legs[1][0] = 0; P.legs[1][1] = 0.05; P.legs[1][2] = 0.1;
@@ -553,12 +563,12 @@ function stand(P, u, out) {
 // forward and rocks over the gliding leg. amp 0..1 (how fast they go). Arms behind the back, in a muff, or swinging.
 function skate(P, ph, amp, arms) {
   const s = Math.sin(ph), R = Math.max(0, s) * amp, Lf = Math.max(0, -s) * amp;
-  P.lean = 0.06 + 0.3 * amp; P.roll = 0.09 * s * amp; P.twist = 0.08 * s * amp; P.head = -0.15 * amp;
+  P.lean = 0.2 + 0.2 * amp; P.roll = 0.09 * s * amp + 0.05 * Math.sin(ph * 0.37); P.twist = 0.08 * s * amp; P.head = -0.12 * amp;
   P.legs[0][0] = 0.3 * R - 0.18 * Lf; P.legs[0][1] = -0.05 - 0.5 * R; P.legs[0][2] = 0.12 + 0.05 * R + 0.5 * Lf;
   P.legs[1][0] = 0.3 * Lf - 0.18 * R; P.legs[1][1] = 0.05 + 0.5 * Lf; P.legs[1][2] = 0.12 + 0.05 * Lf + 0.5 * R;
   if (arms === 'back') { for (const [i, sg] of [[0, -1], [1, 1]]) { P.arms[i][0] = 0.5; P.arms[i][1] = sg * 0.12; P.arms[i][2] = 1.5; } }
   else if (arms === 'muff') { for (const [i, sg] of [[0, 1], [1, -1]]) { P.arms[i][0] = -0.4; P.arms[i][1] = sg * 0.3; P.arms[i][2] = 1.35; } }
-  else { P.arms[0][0] = -0.55 * s * amp - 0.1; P.arms[1][0] = 0.55 * s * amp - 0.1; P.arms[0][1] = -0.35; P.arms[1][1] = 0.35; P.arms[0][2] = P.arms[1][2] = 0.45; }
+  else { P.arms[0][0] = -0.5 * s * amp - 0.25; P.arms[1][0] = 0.5 * s * amp - 0.25; P.arms[0][1] = -0.6 - 0.12 * Math.sin(ph * 0.5); P.arms[1][1] = 0.6 + 0.12 * Math.sin(ph * 0.5 + 1); P.arms[0][2] = P.arms[1][2] = 0.35; }      // out for balance
 }
 // Hand in hand: she reaches her right hand forward to the child; the child, ahead and to her right, reaches back.
 function holdHands(P, child, k) {
