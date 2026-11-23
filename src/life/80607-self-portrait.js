@@ -35,7 +35,8 @@ const _hash = (a, b = 0) => { const h = Math.sin(a * 127.1 + b * 311.7) * 43758.
 lifeFor(80607, {
   title: /^Self-Portrait$/,
   word: 'swirl',
-  stage: { out: 2.15, half: 1.35, above: 0.42 },
+  // (the look camera stands to the right of the glass case that is 2.5 m out in front of this work)
+  stage: { out: 2.15, half: 1.35, above: 0.42, cam: { dist: 3.0, height: 1.2, side: 0.95, fov: 58, lookU: 0.05, lookOut: 0.9, lookH: 0.8, floorOut: 0.5 } },
   wake: 2, ret: 2.6,
   linger: { near: 3.5, max: 25 },
 
@@ -45,7 +46,7 @@ lifeFor(80607, {
     this.M = new THREE.Matrix4(); this.R = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.qa = new THREE.Quaternion(); this.qb = new THREE.Quaternion(); this.S = new THREE.Vector3(); this.c = new THREE.Color(); this.up = new THREE.Vector3(0, 1, 0);
     this.wallN = new THREE.Vector3(L.nx, 0, L.nz); this.wallT = new THREE.Vector3(L.tx, 0, L.tz);
     // ---------------------------------------------------------- a stroke: a slab of oil paint (length along z, its top up y)
-    const nl = 12, nw = 6, pos = [], shade = [];
+    const nl = 9, nw = 4, pos = [], shade = [];
     const W = z => 0.17 * (1 - 0.3 * z) * Math.pow(Math.sin(Math.PI * Math.min(1, z * 1.05 + 0.02)), 0.35);
     const top = (xx, z) => { const e = Math.min(1, z / 0.12) * (1 - 0.55 * Math.max(0, (z - 0.8) / 0.2)) + 0.5 * Math.exp(-(((z - 0.84) / 0.07) ** 2)); return 0.07 * Math.pow(Math.max(0, 1 - xx * xx), 0.5) * e * (1 + 0.16 * Math.sin(xx * Math.PI * 3.5)); };
     const vert = (i, j, up) => { const z = i / nl, xx = (j / nw) * 2 - 1, w = W(z); return [xx * w, up ? top(xx, z) : 0, z - 0.5, up ? 0.82 + 0.18 * Math.sin(xx * Math.PI * 3.5) * (z > 0.1 ? 1 : 0.3) + 0.12 * Math.exp(-(((z - 0.84) / 0.07) ** 2)) : 0.55]; };
@@ -56,7 +57,7 @@ lifeFor(80607, {
     }
     for (const j of [0, nw]) for (let i = 0; i < nl; i++) { const a = vert(i, j, true), b = vert(i + 1, j, true), a0 = vert(i, j, false), b0 = vert(i + 1, j, false); const tri = j ? [a, a0, b0, a, b0, b] : [a, b0, a0, a, b, b0]; for (const t of tri) { pos.push(t[0], t[1], t[2]); shade.push(0.6, 0.6, 0.6); } }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(shade, 3)); g.computeVertexNormals();
-    const mat = this.mat = tintedPaint({ glow: 0.42, rough: 0.32, key: 'vangogh' });
+    const mat = this.mat = tintedPaint({ glow: 0.55, rough: 0.48, key: 'vangogh' });
     const im = this.strokes = new THREE.InstancedMesh(g, mat, N); im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     // his colours: the halo's blues and greens with orange and red between, ochre, and the cream of the light on his brow
     const hues = [['#3c5a8a', 3], ['#4a70a8', 3], ['#2f4f7a', 1.5], ['#3f7a5a', 2.5], ['#5a9a5a', 2], ['#7aa850', 1], ['#d8743a', 2.4], ['#e8903c', 1.6], ['#c8502e', 1.4], ['#c8a050', 1], ['#e8d8b0', 0.6], ['#2a6a7a', 1]].map(([c, w]) => [col(c), w]);
@@ -79,7 +80,7 @@ lifeFor(80607, {
       this.s.push({
         u, v: vv, ang, k: (rho - rf) / (re - rf), col: pick(L.rand() * tot).clone().multiplyScalar(0.85 + L.rand() * 0.3), sz: 0.85 + L.rand() * 0.35,
         r, th0: arm + 2.4 * Math.log(r / 0.12) + (L.rand() - 0.5) * 0.7, h: 0.012 + L.rand() * 0.05 * (1.1 - r / RMAX), wob: L.rand() * 6.3,
-        hc: r < 0.44 ? 0.1 + 0.95 * Math.pow(1 - r / 0.44, 0.7) * (0.55 + 0.45 * L.rand()) : 0, fl: 1.1 + L.rand() * 0.4, home: new THREE.Vector3(), hq: new THREE.Quaternion(), at: new THREE.Vector3(), aq: new THREE.Quaternion(), from: null, fq: new THREE.Quaternion(),
+        hc: r < 0.6 ? 0.1 + 1.08 * Math.pow(1 - r / 0.6, 0.45) * (0.6 + 0.4 * L.rand()) : 0, fl: 1.1 + L.rand() * 0.4, home: new THREE.Vector3(), hq: new THREE.Quaternion(), at: new THREE.Vector3(), aq: new THREE.Quaternion(), from: null, fq: new THREE.Quaternion(),
       });
       i++;
     }
@@ -128,7 +129,7 @@ vec4 vgLayer(float r, float a, float bw, float off) {
   float edge = smoothstep(uR, uR - 0.22, r);
   vgA *= edge * (0.62 + 0.38 * smoothstep(0.08, 0.3, r));
   float glow = exp(-r * r / 0.03) * (0.35 + 0.65 * uB) * uK;
-  vgCol = vgCol * (0.85 + 0.6 * uB) + uGlow * glow * 1.4; vgA = max(vgA, glow * 0.8) * uK;
+  vgCol = vgCol * (0.72 + 0.5 * uB) + uGlow * glow * 1.4; vgA = max(vgA, glow * 0.8) * uK;
 }`)
         .replace('#include <opaque_fragment>', '  outgoingLight = vgCol; diffuseColor.a = vgA * 0.92;\n#include <opaque_fragment>');
     };
@@ -156,21 +157,23 @@ vec4 vgLayer(float r, float a, float bw, float off) {
   beat(ph) { const f = ph - Math.floor(ph); return Math.exp(-((f / 0.05) ** 2)) + Math.exp(-(((f - 1) / 0.05) ** 2)) + 0.65 * Math.exp(-(((f - 0.3) / 0.055) ** 2)); },
 
   // Stroke s in the whirl at show-time t, into o.
-  orbit(L, s, t, o, col, b) {
-    const om = 1.9 * Math.sqrt(0.3 / s.r) * (1 + 0.6 * col * (s.hc > 0 ? 1 : 0)), th = s.th0 + om * this.phi;
-    const hc = s.hc * col, r = (s.r + (0.05 + 0.2 * (1 - hc) * (s.r / 0.44) - s.r) * (s.hc > 0 ? col : 0)) * (1 + 0.1 * b);
+  orbit(L, s, t, o, col, b, phi = this.phi) {
+    const om = 1.9 * Math.sqrt(0.3 / s.r) * (1 + 0.6 * col * (s.hc > 0 ? 1 : 0)), th = s.th0 + om * phi;
+    const hc = s.hc * col, r = (s.r + (0.07 + 0.36 * Math.pow(1 - hc / 1.2, 1.5) * (0.4 + 0.6 * s.r / 0.56) - s.r) * (s.hc > 0 ? col : 0)) * (1 + 0.1 * b);
     const h = s.h + hc + 0.02 * b + 0.012 * Math.sin(t * 2.3 + s.wob);
     return L.floor(this.cu + Math.cos(th) * r, this.co + Math.sin(th) * r, o).setY(L.y + 0.012 + h);
   },
   // Stroke s at show-time t (its place from the start of the show: on the wall, pouring, or in the whirl), into o.
-  posAt(L, s, t, o, col, b) {
+  posAt(L, s, t, o, col, b, phi = this.phi) {
     if (t < s.lift) return o.copy(s.home).addScaledVector(this.wallN, 0.006 * this.beat(this.hb) * (1 - s.k));
     const f = (t - s.lift) / s.fl;
-    if (f >= 1) return this.orbit(L, s, t, o, col, b);
+    if (f >= 1) return this.orbit(L, s, t, o, col, b, phi);
     // pouring: off the wall, a loop out into the room and down, into its place in the whirl (which is moving on)
-    const e = ease.inOut(f), end = this.orbit(L, s, t, this.p1, col, b), a = 1 - e;
-    const c1x = s.home.x + L.nx * 0.32, c1y = s.home.y - 0.12, c1z = s.home.z + L.nz * 0.32;
-    const c2x = end.x + (end.x - L.cx) * 0.25, c2y = end.y + 0.45, c2z = end.z + (end.z - L.cz) * 0.1;
+    const e = ease.inOut(f), end = this.orbit(L, s, t, this.p1, col, b, phi), a = 1 - e;
+    // (out round the side of the frame, never down across the front of the picture)
+    const side = s.u < 0 ? -1 : 1, su = side * Math.max(Math.abs(s.u) * 1.15, L.hw + L.fw + 0.32), lo = Math.min(s.v, L.bottom - L.cy - 0.05);
+    const c1 = L.at(su, s.v < L.bottom - L.cy ? s.v - 0.1 : s.v, 0.1, this.p1b || (this.p1b = new THREE.Vector3())), c2 = L.at(su * 0.9, lo - 0.35, 0.55, this.p2b || (this.p2b = new THREE.Vector3()));
+    const c1x = c1.x, c1y = c1.y, c1z = c1.z, c2x = c2.x, c2y = Math.max(c2.y, end.y + 0.15), c2z = c2.z;
     return o.set(a * a * a * s.home.x + 3 * a * a * e * c1x + 3 * a * e * e * c2x + e * e * e * end.x, a * a * a * s.home.y + 3 * a * a * e * c1y + 3 * a * e * e * c2y + e * e * e * end.y, a * a * a * s.home.z + 3 * a * a * e * c1z + 3 * a * e * e * c2z + e * e * e * end.z);
   },
 
@@ -202,7 +205,7 @@ vec4 vgLayer(float r, float a, float bw, float off) {
     let shown = false;
     for (let i = 0; i < n; i++) {
       const s = this.s[i];
-      let sc = s.sz, q = this.q;
+      let sc = s.sz * (showing && t < s.lift ? 1.3 : 1), q = this.q;
       if (ret && s.from) {
         // back to its place on the wall, then in under the frame's edge
         const fl = clamp01((L.ret * 2.6 - s.rank * 0.9) / 1.15), sink = clamp01((L.ret * 2.6 - s.rank * 0.9 - 1.15) / 0.35);
@@ -218,7 +221,7 @@ vec4 vgLayer(float r, float a, float bw, float off) {
         if (t < s.lift) q.copy(s.hq);
         else {
           // facing the way it goes (from where it was a moment ago), its top up, banked into the turn
-          this.posAt(L, s, t - 0.03, pp, col, b);
+          this.posAt(L, s, t - 0.03, pp, col, b, this.phi - this.spin * 0.03);
           this.z.subVectors(p, pp); const sp = this.z.length() / 0.03;
           if (sp < 1e-4) this.z.set(L.nx, 0, L.nz); this.z.normalize();
           this.y.set(this.cx0 = L.floor(this.cu, this.co, this.d).x - p.x, 3, this.d.z - p.z).normalize();

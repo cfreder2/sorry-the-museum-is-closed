@@ -56,7 +56,7 @@ const HARP = [554.37, 659.25, 830.61, 1108.73, 1318.51, 1661.22];          // C#
 lifeFor(16568, {
   title: /^Water Lilies$/,
   word: 'ripple',
-  stage: { out: OUT, half: HALF },
+  stage: { out: OUT, half: HALF, cam: { dist: 3.3, height: 1.05, side: 0.3, fov: 64, lookU: 0.05, lookOut: 1.1, lookH: 0.68, floorOut: 0.45 } },
   wake: 2, ret: 2.6,
   linger: { near: 4, max: 30 },
 
@@ -128,6 +128,7 @@ vec2 pGrad; float pCrest, pMask, pSo; vec3 pWater; float pId;`)
 
     // ---------------------------------------------------------- pads, flowers and the frog: one rig
     const rig = this.rig = L.rig(170, 16000, L.paint({ glow: 0.42, rough: 0.62, side: THREE.DoubleSide }));
+    { const fl = L.k.museum.floors; if (fl && !fl.includes(rig.mesh)) fl.push(rig.mesh); }       // (kept out of the floor's reflection: the pond paints its own)
     const greens = ['#4d7a3e', '#5f8c45', '#6f9a48', '#86ad55', '#a9bf62', '#5f8a7a', '#486e5a'].map(c => col(c, 0.3)), violet = col('#8a86b8', 0.3), pale = col('#d9d6a8', 0.3), rosy = col('#c99aa8', 0.3), dark = col('#2c4a3a', 0.3);
     const pad = seed => {
       const pos = [], keys = [], rings = 8, seg = 36, notch = 0.3, R = a => 1 + 0.05 * Math.sin(3 * a + seed) + 0.03 * Math.sin(7 * a + seed * 2);
@@ -312,6 +313,14 @@ vec2 pGrad; float pCrest, pMask, pSo; vec3 pWater; float pId;`)
       }
       this.local(p, 0, 0, 0.026 * bs * (0.5 + 0.5 * open), 0.004 * bs); rig.mat(f.heart, this.m);
     }
+    // ---- the toy on the water: rings from its wheels as it goes (and a splash going in fast)
+    { const G = k.G, veh = G.vehicle;
+      if ((showing || lingering) && spread > 0.6 && G.state === 'play' && veh && veh.group.visible && Math.abs(veh.pos.y - L.y) < 0.3) {
+        const q = L.local(veh.pos.x, veh.pos.z), on = Math.pow(Math.abs(q.u) / HALF, 3) + Math.pow(Math.max(0, q.out) / OUT, 3) < 0.7 && q.out > 0, sp = Math.hypot(veh.vel.x, veh.vel.z);
+        if (on && sp > 0.25 && t > (this.wakeAt || 0)) { this.wakeAt = t + Math.max(0.07, 0.22 - sp * 0.05); this.ripple(veh.pos.x, veh.pos.z, Math.min(1.2, 0.35 + sp * 0.3)); }
+        if (on && !this.wasOn && sp > 1.2) { this.splash(L, veh.pos.x, veh.pos.z, 16, 0.9); this.plop(L, 0.5); }
+        this.wasOn = on;
+      } else this.wasOn = false; }
     // ---- the frog
     this.frogStep(L, dt, showing, lingering, ret);
     // ---- sound: the water lapping, the sonata going round while you look

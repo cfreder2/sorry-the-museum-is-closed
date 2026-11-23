@@ -42,6 +42,7 @@ try {
   await page.addStyleTag({ content: 'body > *:not(#view) { visibility: hidden !important; }' });
   const info = await page.evaluate(async id => {
     const G = window.__ah, L = window.__life.life(id);
+    G.set.guards = false;                                                    // (the security robots off: they wander into shot)
     if (!L) return { error: 'that work is not hung tonight, or has no life (' + window.__life.list().map(l => l.id).join(', ') + ')' };
     // Drive the toy in: to the floor in front of the work, facing it.
     const p = L.floor(0.6, 2.2); G.vehicle.pos.set(p.x, L.y + 0.05, p.z); G.vehicle.vel.set(0, 0, 0);

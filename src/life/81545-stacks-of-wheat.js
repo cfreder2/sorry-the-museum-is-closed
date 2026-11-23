@@ -3,20 +3,22 @@
 // He painted these stacks again and again, in every light, for a whole winter: the same two stacks, the hour and the
 // weather changing. Look at this one and the floor below it becomes his field, rose and lavender snow laid in short
 // strokes, in the low gold of a winter sunset (the glow on the wall round the frame is his sky). Then the stacks come
-// out. The big one first, out from under the bottom rail, where it hangs a moment and hiccups, drops into the snow with
-// a squash and hops into place; then the small one, as in the picture, and three littler ones, each with a hiccup of its
-// own, the last one landing badly and wobbling. They stand in a row, each throwing a long blue shadow towards you, as
+// out. The big one first, out of the foot of the wall below the picture, where it stands a moment and hiccups, jumps
+// out into the snow with a squash and hops into place; then the small one, as in the picture, and three littler
+// ones, each with a hiccup of its own, the last one landing badly and wobbling. They stand in a row, each throwing a long blue shadow towards you, as
 // his stacks do. A music box starts "Au clair de la lune". Then the hiccups go down the row, big to little, and the
 // littlest has two more by itself (and the tune skips each time). Snow drifts out from under the frame and round its
 // sides and comes down on them, and they grow snow caps, rose and violet in the light, and the light goes down: gold to
 // rose to violet, the shadows growing longer, as it does from one of his canvases to the next. The big one hiccups and
 // shakes its cap off in a puff. While you keep looking it goes on snowing softly and now and then one of them hiccups.
-// When you stop, they hop back up to the rail one after another and in under the frame, caps and all, and the light goes.
+// When you stop, they hop back to the wall one after another, littlest first, and in under the picture, caps and all,
+// and the light goes.
 //
-// Snow never falls in front of the canvas: it comes out below the frame and beside it, and drifts out and down.
+// Snow never falls in front of the canvas: it comes out below the frame and beside it, and drifts out and down (a flake
+// that drifts to where it would be seen over a picture is let go). Nothing stands on or hangs from the rail.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, shape } from '../paintlife.js';
-import { strokes, softDot, tintedPaint } from './brush.js';
+import { strokes, tintedPaint } from './brush.js';
 import { looper } from './tunes.js';
 
 const OUT = 2.45, HALF = 1.6;                 // his field on the floor: out from the wall, either side of the middle (m)
@@ -29,10 +31,10 @@ const STACKS = [
   { u: 0.74, out: 1.22, S: 0.22, t0: 2.65 },
   { u: 1.08, out: 1.06, S: 0.17, t0: 3.15 },
 ];
-// Hiccups: [show-time, stack]. As they come out (each as it hangs under the rail), then down the row, then the littlest.
+// Hiccups: [show-time, stack]. As they come out (each as it stands at the wall), then down the row, then the littlest.
 const HICS = [...STACKS.map((s, i) => [s.t0 + 0.38, i]), [5.0, 0], [5.36, 1], [5.62, 2], [5.82, 3], [5.97, 4], [6.65, 4], [7.05, 4], [7.75, 0], [8.4, 2]];
 const IDLE0 = 9.2, IDLE = 2.4;               // and while you keep looking, one every couple of seconds
-const SNOW0 = 3.4, CAP0 = 4.4;
+const SNOW0 = 3.4, CAP0 = 4.4, HOP1 = 0.46;      // (HOP1: the first jump, out of the wall's foot)
 // Au clair de la lune (French, 18th century), on a music box, in G.
 const LUNE = (() => {
   const A = 'G5 G5 G5 A5 B5:2 A5:2 G5 B5 A5 A5 G5:4', B = 'A5 A5 A5 A5 E5:2 E5:2 A5 G5 F#5 E5 D5:4', out = []; let t = 0;
@@ -45,7 +47,7 @@ const GOLD = new THREE.Color(), ROSE = new THREE.Color(), VIOLET = new THREE.Col
 lifeFor(81545, {
   title: /^Stacks of Wheat \(Sunset, Snow Effect\)/,
   word: 'hiccup',
-  stage: { out: 1.9, half: 1.5 },
+  stage: { out: 1.9, half: 1.5, cam: { dist: 3.0, height: 0.8, side: 0.3, fov: 62, lookU: 0.1, lookOut: 1.0, lookH: 0.62, floorOut: 0.7 } },
   wake: 2, ret: 2.8,
 
   build(L) {
@@ -111,10 +113,17 @@ if (vWall > 0.5) {
     this.field = new THREE.Mesh(g, m); this.field.position.y = 0.016; this.field.renderOrder = 5; L.add(this.field);
 
     // ---------------------------------------------------------- the stacks, and their caps: one rig, tinted by the light
-    const mat = this.mat = tintedPaint({ glow: 0.36, rough: 0.85, key: 'wheat' });
+    const mat = this.mat = tintedPaint({ glow: 0.62, rough: 0.85, key: 'wheat' });
     const rig = this.rig = L.rig(12, 8000, mat);
-    const sunlit = ['#d8906e', '#e0a07a', '#c87868', '#d89a86'].map(c => col(c, 0.2)), shade = ['#7c5468', '#6e5a80', '#8a5c64', '#5f5f8e', '#946a74', '#74587a'].map(c => col(c, 0.2)), mid = ['#a06a72', '#8c6a86', '#b07a7a', '#9a7484'].map(c => col(c, 0.2)), orange = col('#c07a5c', 0.2);
+    const sunlit = ['#e8a07a', '#f0b488', '#d88a78', '#e8aa94'].map(c => col(c, 0.2)), shade = ['#9a6478', '#86709a', '#a06a70', '#7474a8', '#ac7a84', '#8c6a90'].map(c => col(c, 0.2)), mid = ['#b87a80', '#a07c98', '#c48a86', '#ae8496'].map(c => col(c, 0.2)), orange = col('#d08a62', 0.2);
     const prof = [[0, 0], [0.4, 0], [0.43, 0.04], [0.445, 0.16], [0.44, 0.3], [0.475, 0.37], [0.45, 0.42], [0.39, 0.53], [0.3, 0.66], [0.2, 0.79], [0.1, 0.9], [0.035, 0.96], [0, 0.975]];
+    // (soft, not faceted: every corner's normal the average of the faces that meet there)
+    const smooth = g => {
+      const p = g.attributes.position, n = g.attributes.normal, acc = new Map(), key = i => `${Math.round(p.getX(i) * 1e4)},${Math.round(p.getY(i) * 1e4)},${Math.round(p.getZ(i) * 1e4)}`;
+      for (let i = 0; i < p.count; i++) { const k = key(i), a = acc.get(k) || [0, 0, 0]; a[0] += n.getX(i); a[1] += n.getY(i); a[2] += n.getZ(i); acc.set(k, a); }
+      for (let i = 0; i < p.count; i++) { const a = acc.get(key(i)), l = Math.hypot(a[0], a[1], a[2]) || 1; n.setXYZ(i, a[0] / l, a[1] / l, a[2] / l); }
+      n.needsUpdate = true; return g;
+    };
     const stack = seed => {
       const g = shape.lathe(prof, 30, mid[0]), p = g.attributes.position;
       for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x), w = 1 + 0.05 * Math.sin(a * 3 + seed) + 0.035 * Math.sin(a * 7 + y * 9 + seed * 2); p.setXYZ(i, x * w, y * (1 + 0.04 * Math.sin(a * 2 + seed)), z * w); }
@@ -128,26 +137,22 @@ if (vWall > 0.5) {
         const sun = -n.z * 0.9 + n.y * 0.15 - n.x * 0.2, q = best.q;
         return sun > 0.5 ? sunlit[Math.floor(q * sunlit.length)] : sun > 0.0 ? (q < 0.1 ? orange : mid[Math.floor(q * mid.length)]) : (q < 0.05 ? orange : shade[Math.floor(q * shade.length)]);
       });
-      return g;
+      return smooth(g);
     };
     // a cap of snow, its top at 0 and its rim hanging down over the thatch; white with rose and violet in it
     const capProf = [[0.37, -0.36], [0.4, -0.33], [0.36, -0.24], [0.27, -0.13], [0.17, -0.055], [0.07, -0.012], [0, 0.012]];
     const snows = ['#f6f0f4', '#ece0f0', '#f4dce0', '#d8d4f0', '#fbf0dc', '#e4d0e8'].map(c => col(c, 0.15));
-    const cap = () => { const g = shape.lathe(capProf, 22, snows[0]); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const a = Math.atan2(p.getZ(i), p.getX(i)), y = p.getY(i); if (y < -0.2) p.setY(i, y - 0.04 * Math.max(0, Math.sin(a * 5))); } g.computeVertexNormals(); shape.paint(g, () => snows[Math.floor(L.rand() * snows.length)]); return g; };
+    const cap = () => { const g = shape.lathe(capProf, 22, snows[0]); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const a = Math.atan2(p.getZ(i), p.getX(i)), y = p.getY(i); if (y < -0.2) p.setY(i, y - 0.04 * Math.max(0, Math.sin(a * 5))); } g.computeVertexNormals(); shape.paint(g, () => snows[Math.floor(L.rand() * snows.length)]); return smooth(g); };
     const gs = [0, 1, 2].map(i => rig.geo(stack(i * 2.3))), gc = rig.geo(cap());
     this.stacks = STACKS.map((s, i) => ({ ...s, i, R: 0.445 * s.S, body: rig.add(gs[i % 3]), cap: rig.add(gc), us: Math.max(-(L.hw - 0.12), Math.min(L.hw - 0.12, s.u * 0.55)), x: 0, y: 0, z: 0, sy: 1, sxz: 1, roll: 0, g: 0, from: null }));
     this.hideAll();
     // ---------------------------------------------------------- snow, out of the picture
-    const sg = new THREE.BufferGeometry();
-    sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NF * 3), 3).setUsage(THREE.DynamicDrawUsage));
-    const cols = new Float32Array(NF * 3), sizes = new Float32Array(NF);
-    for (let i = 0; i < NF; i++) { const c = snows[Math.floor(L.rand() * snows.length)]; cols.set([c.r, c.g, c.b], i * 3); sizes[i] = 0.6 + L.rand() * 0.9; }
-    sg.setAttribute('color', new THREE.BufferAttribute(cols, 3)); sg.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
-    const pm = new THREE.PointsMaterial({ size: 0.055, map: softDot(), vertexColors: true, transparent: true, depthWrite: false, fog: false });
-    pm.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aSize;').replace('gl_PointSize = size;', 'gl_PointSize = size * aSize;'); };
-    pm.customProgramCacheKey = () => 'wheat-snow';
-    this.snow = L.add(new THREE.Points(sg, pm));
-    this.flakes = Array.from({ length: NF }, () => ({ on: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ph: L.rand() * 6.3, life: 0 }));
+    // (each flake a tiny solid, in his coloured whites; one instanced mesh, so the guard is exact pixel by pixel)
+    const fg = new THREE.IcosahedronGeometry(1, 0); fg.scale(1, 0.55, 1);
+    this.snow = new THREE.InstancedMesh(fg, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }), NF);
+    this.snow.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.flakes = Array.from({ length: NF }, (_, i) => { this.snow.setColorAt(i, this.c.copy(snows[Math.floor(L.rand() * snows.length)]).multiplyScalar(0.92)); return { on: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ph: L.rand() * 6.3, life: 0, r: 0.006 + L.rand() * 0.007, spin: L.rand() * 6.3 }; });
+    L.add(this.snow); this.fm = new THREE.Matrix4(); this.fq = new THREE.Quaternion(); this.fe = new THREE.Euler(); this.fs = new THREE.Vector3();
     this.acc = 0;
     this.box = looper(L.voice(), LUNE, { len: 64, step: 0.46, type: 'sine', vol: 0.02, ring: 1.6, partial: 0.18 });
     this.wind = L.voice().loop({ lp: 1100, hp: 250 });
@@ -171,14 +176,14 @@ if (vWall > 0.5) {
   },
   // Where stack i stands at show-time t, into s (x, y, z of its foot; sy, sxz its squash; roll its wobble).
   place(L, s, t) {
-    const tt = t - s.t0, H = s.S, g = 9.8;
+    const tt = t - s.t0, H = s.S;
     s.sy = 1; s.sxz = 1; s.roll = 0; s.vis = tt >= 0;
     if (tt < 0) return;
-    const hangY = L.rail - 0.016 - H * 0.97, fall0 = 0.56, drop = hangY - L.y, tf = Math.sqrt(2 * drop / g), land = fall0 + tf, outHang = s.R + 0.03, outLand = 0.36;
+    const fall0 = 0.56, tf = HOP1, land = fall0 + tf, outHang = s.R + 0.03, outLand = 0.42 + s.R;
     let u = s.us, o, y;
-    if (tt < 0.3) { const k = ease.out(tt / 0.3); o = -L.wall - s.R + (outHang + L.wall + s.R) * k; y = hangY; }
-    else if (tt < fall0) { o = outHang; y = hangY; }
-    else if (tt < land) { const k = tt - fall0; o = outHang + (outLand - outHang) * (k / tf); y = hangY - 0.5 * g * k * k; s.sy = 1 + 0.12 * (k / tf); }
+    if (tt < 0.3) { const k = ease.out(tt / 0.3); o = -L.wall - s.R + (outHang + L.wall + s.R) * k; y = L.y; }
+    else if (tt < fall0) { o = outHang; y = L.y; }
+    else if (tt < land) { const k = (tt - fall0) / tf; o = outHang + (outLand - outHang) * ease.inOut(k); y = L.y + 4 * (0.1 + H * 0.35) * k * (1 - k); s.sy = k < 0.5 ? 1.2 - 0.2 * k * 2 : 1 + 0.1 * (k - 0.5) * 2; }
     else {
       const k = tt - land; o = outLand; y = L.y;
       // the landing: a squash, and a jelly wobble out of it
@@ -202,7 +207,7 @@ if (vWall > 0.5) {
         }
       }
     }
-    // a hiccup: a crouch, a jump up, a squash down (hanging under the rail, only a jolt: nothing rises past the frame)
+    // a hiccup: a crouch, a jump up, a squash down (just out of the wall, a jolt)
     const lh = this.lastHic(s.i, t), hk = t - lh;
     if (hk >= 0 && hk < 0.3 && tt < 0.56) { const j = Math.sin(hk / 0.3 * Math.PI); s.sy *= 1 - 0.14 * j; y -= 0.015 * j; }
     else if (hk >= 0 && hk < 0.34) {
@@ -238,15 +243,15 @@ if (vWall > 0.5) {
     u.uLight.value.copy(c); u.uLightK.value = lk; u.uSpread.value = spread; u.uLen.value = 1.1 + 1.3 * ease.smooth(ramp(hour, 1.5, 8.6));
     u.uSnow.value = showing ? ease.smooth(ramp(t, SNOW0 + 1, 10)) : ret ? (this.snow0 || 0) : 0;
     this.field.visible = spread > 0.002;
-    this.mat.userData.u.uTint.value.setRGB(1, 1, 1).lerp(c, 0.5 * lk).multiplyScalar(0.8 + 0.3 * lk);
+    this.mat.userData.u.uTint.value.setRGB(1, 1, 1).lerp(c, 0.35 * lk).multiplyScalar(0.95 + 0.2 * lk);
     // ---- the stacks
     this.stacks.forEach((s, i) => {
       if (ret && s.from) {
-        // back up to the rail, the littlest first, rising to meet it, and in under the frame
+        // back to the wall, the littlest first, in one hop, and in under the picture
         const k0 = 0.06 + (4 - i) * 0.13, k = clamp01((L.ret - k0) / 0.42), slide = clamp01((L.ret - k0 - 0.42) / 0.14);
-        const H = s.S, hangY = L.rail - 0.016 - H * 0.97, up = 1 - (1 - ease.inOut(k)) ** 2, mu = s.us, mo = s.R + 0.03;
+        const H = s.S, mu = s.us, mo = s.R + 0.03;
         s.su = s.from.u + (mu - s.from.u) * ease.inOut(k); s.so = s.from.o + (mo - s.from.o) * ease.inOut(k);
-        s.y = s.from.y + (hangY - s.from.y) * up; s.so -= slide * (mo + L.wall + s.R + 0.02);
+        s.y = L.y + 4 * (0.08 + H * 0.3) * k * (1 - k); s.so -= slide * (mo + L.wall + s.R + 0.02);
         s.sy = k < 0.12 ? 1 - 0.18 * Math.sin(k / 0.12 * Math.PI) : 1 + 0.12 * Math.sin(Math.min(1, (k - 0.12) / 0.6) * Math.PI); s.sxz = 1 / Math.sqrt(s.sy); s.roll = 0;
         L.floor(s.su, s.so, this.v); s.x = this.v.x; s.z = this.v.z; s.vis = slide < 1; s.g = s.from.g;
         if (k > 0 && !s.went) { s.went = true; this.hic(L, s, 0.8); }
@@ -264,7 +269,7 @@ if (vWall > 0.5) {
       u.uStk.value[i].set(s.x, s.z, s.R * s.sxz, s.y - L.y < 0.05 ? H : 0);
       // sounds as things happen: the hiccups, the landing
       if (showing) {
-        const tt = t - s.t0, land = 0.56 + Math.sqrt(2 * (L.rail - 0.016 - H * 0.97 - L.y) / 9.8);
+        const tt = t - s.t0, land = 0.56 + HOP1;
         if (this.lastT < s.t0 && t >= s.t0) L.k.synth.noise(0.18, { vol: 0.012, lp: 1800 });
         if (this.lastT - s.t0 < land && tt >= land) this.thump(L, s);
         this.hics(i, t, ht => { if (ht > this.lastT && ht <= t) { this.hic(L, s, 1); if (ht > 6 && this.capAt(i, ht - 0.001) > 0.42) this.puff(L, s, 18); } });
@@ -298,7 +303,7 @@ if (vWall > 0.5) {
     }
   },
   stepSnow(L, dt, rate, ret) {
-    const a = this.snow.geometry.attributes.position.array; let any = false;
+    let any = false;
     this.acc += rate * 46 * dt;
     for (const f of this.flakes) { if (this.acc < 1) break; if (!f.on) { this.spawn(L, f); this.acc -= 1; } }
     this.acc = Math.min(this.acc, 2);
@@ -315,11 +320,15 @@ if (vWall > 0.5) {
         // on a stack: taken into its cap
         for (const s of this.stacks) if (s.shown && !f.puff && Math.hypot(f.x - s.x, f.z - s.z) < s.R * 0.9 && f.y < s.y + s.S && f.y > s.y) f.on = 0;
         if (f.on && f.y <= L.y + 0.008) { f.y = L.y + 0.008; f.on = 2; f.life = 0; }
+        // (one that drifts to where, from the camera, it would be over a picture is let go: the guard would only cut it)
+        if (f.on === 1 && !f.puff && L.hides(f.x, f.y, f.z, 0.02)) f.on = 0;
       } else if (f.on === 2) { f.life += dt; if (f.life > 1.6 || ret) f.on = 0; }
       if (f.on) any = true;
-      a[i * 3] = f.x; a[i * 3 + 1] = f.on ? f.y : L.y - 9; a[i * 3 + 2] = f.z;
+      const sc = f.on === 1 ? f.r : f.on === 2 ? f.r * (1 - f.life / 1.6) : 0;
+      this.fq.setFromEuler(this.fe.set(f.spin + T * 1.3, f.spin * 2 + T, 0));
+      this.snow.setMatrixAt(i, this.fm.compose(this.v.set(f.x, f.y, f.z), this.fq, this.fs.set(sc, sc, sc)));
     });
-    this.snow.geometry.attributes.position.needsUpdate = true; this.snow.visible = any;
+    this.snow.instanceMatrix.needsUpdate = true; this.snow.visible = any;
   },
 
   // "hic!": a quick vocal blip, lower for the bigger stacks; and the music box skips a note.
