@@ -6,3 +6,6 @@ import './94841-song-of-the-lark.js';   // 222  Breton, The Song of the Lark: so
 import './44018-croquet-scene.js';     // 273  Homer, Croquet Scene: mallet
 import './109938-valley-of-aosta.js';    // hall Turner, Valley of Aosta: avalanche
 import './27943-mahana-no-atua.js';     // 247  Gauguin, Mahana no atua: tide
+import './81558-acrobats.js';          // 201  Renoir, Acrobats at the Cirque Fernando: juggle
+import './14655-two-sisters.js';      // 201  Renoir, Two Sisters (On the Terrace): yarn
+import './111442-childs-bath.js';     // 184  Cassatt, The Child's Bath: bubble
