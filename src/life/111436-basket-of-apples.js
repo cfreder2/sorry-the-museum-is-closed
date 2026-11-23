@@ -1,25 +1,26 @@
 // Paul Cézanne, The Basket of Apples (about 1893), Gallery 248. The word: tumble.
 //
-// Look at it and his white tablecloth comes out from under the frame: gathered where it slips from under the rail, it
-// falls in heavy folds down the wall and opens out across the floor into the cloth it is, a rectangle with a straight
-// hem, two corners lying flat, and a few big diagonal folds across it, as it lies across his tilted table; made, as he
-// made it, of planes: white, warm cream where the light falls, cool blue-greys in the hollows. Then the apples come,
-// one after another, out from under the rail: they hop off the cloth, drop, bounce (each bounce a soft wooden note),
-// tumble and roll out across the cloth and the floorboards in his colours, and rock to rest. One catches in a fold of
-// the fall and teeters there before it lets go. Two of the pale biscuits off the plate slide down the cloth after
-// them. Every apple is built of flat planes of colour (green, yellow, red-orange, a cool shadow plane), and while you
-// keep looking the floor tips a little now and then, as his table does, and they roll and settle again. A phrase of
-// Satie's first Gymnopédie (1888) as they come to rest.
+// Look at it and his white tablecloth slides out from under the frame and falls, billowing and turning a little as a
+// dropped cloth does, and lands on the floor in front of the wall: a rectangle with a straight hem, its far corners
+// flat, a few big diagonal folds across it, as it lies across his tilted table; made, as he made it, of planes: white,
+// warm cream where the light falls, cool blue-greys in the hollows. Then the apples come, one after another, out from
+// under the rail: they drop onto the cloth, bounce (each bounce a soft wooden note), tumble and roll out across the
+// cloth and the floorboards in his colours, and rock to rest. One lands on the crest of a fold and teeters there
+// before it rolls off. Two of the pale biscuits off the plate drop after them and land flat on the cloth. Every apple
+// is built of flat planes of colour (green, yellow, red-orange, a cool shadow plane), and while you keep looking the
+// floor tips a little now and then, as his table does, and they roll and settle again. A phrase of Satie's first
+// Gymnopédie (1888) as they come to rest.
 //
 // When you stop looking they stay out while the toy is near, so you can drive into them and send them rolling (they
 // never stop the toy, and keep out of the doorways). Drive off, or wait half a minute, and they roll back to the wall
-// and up into the frame, and the cloth draws itself back up the wall and in after them.
+// and up into the frame; then the cloth lifts, flutters up and slips back in under the rail after them.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, shape } from '../paintlife.js';
 
 const APPLES = 16, TEETER = 6;
-const NA = 18, NS = 44;                          // the cloth's grid: across, and along (from the rail down the wall and out)
-const W_FALL = 0.3, W = 1.04, LF = 0.86;         // gathered width of the fall, the cloth's width, how far it lies out (m)
+const NA = 20, NS = 18;                          // the cloth's grid: across, and out
+const W = 1.04, LF = 0.86, NEAR = 0.1;           // the cloth's width and depth, and how far from the wall it lies (m)
+const T_OUT = 0.1, T_DROP = 0.42, T_LAND = 1.4, T_SETTLE = 1.75;        // out from under the rail, falling, down, settled
 const NOTES = [587.33, 659.25, 739.99, 880, 987.77, 1174.66, 1318.5];            // D major pentatonic, for the bounces
 // Gymnopédie No. 1 (Erik Satie, 1888): the first phrase, over its two chords. 3/4.
 const GYMNO = 'R F#5 A5 | G5 F#5 C#5 | B4 C#5 D5 | A4:3 | F#4:3 | R:3';
@@ -31,33 +32,33 @@ lifeFor(111436, {
   word: 'tumble',
   // (a small work: the kit keeps the whole of it in view, in the upper part, with the cloth and apples below)
   stage: { out: 1.2, half: 1.0, cam: { dist: 2.5, height: 0.85, side: 0.32, fov: 54, lookOut: 0.5, lookH: 0.6, floorOut: 1.15 } },
-  wake: 2, ret: 2.4,
+  wake: 2, ret: 2.6,
   linger: { near: 4, max: 30 },
 
   build(L) {
     const P = L.pal, col = (h, a = 0.3) => P.near(h, a);
-    this.tmp = new THREE.Vector3(); this.o = {};
-    this.H = L.rail - L.y; this.LEN = this.H + LF;
-    // ---------------------------------------------------------- the cloth: one piece, from under the rail to its hem
+    this.tmp = new THREE.Vector3(); this.o = {}; this.t = 0;
+    // ---------------------------------------------------------- the cloth: a rectangle, falling, and lying in its folds
     const nTri = NA * NS * 2, pos = new Float32Array(nTri * 9), colr = new Float32Array(nTri * 9);
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); geo.setAttribute('color', new THREE.BufferAttribute(colr, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nTri * 9), 3));
     this.cloth = L.add(new THREE.Mesh(geo, L.paint({ flat: true, glow: 0.42, rough: 0.85, side: THREE.DoubleSide })));
     this.V = new Float32Array((NA + 1) * (NS + 1) * 3);
-    // Colour each plane by how it lies to the light once laid out: his whites, creams and blue-greys; the hem a line.
-    this.lay(L, this.LEN);
+    // Colour each plane by how it lies to the light once it has settled: his whites, creams and blue-greys; the hem a line.
+    this.lay(L, 1, 0);
     const lu = -0.45, ly = 0.8, lo = 0.4, ll = Math.hypot(lu, ly, lo), light = new THREE.Vector3((L.tx * lu + L.nx * lo) / ll, ly / ll, (L.tz * lu + L.nz * lo) / ll);
     const tones = [col('#f4f2ea', 0.15), col('#efe6cf', 0.2), col('#e6dcc2', 0.2), col('#cdd6dc', 0.25), col('#b3c2cf', 0.25), col('#97a9bb', 0.25), col('#c9c2cf', 0.2)], hem = col('#d9cfb6', 0.2);
     const a = new THREE.Vector3(), b = new THREE.Vector3(), n = new THREE.Vector3(), c = new THREE.Color();
     for (let i = 0, f = 0; i < NA; i++) for (let j = 0; j < NS; j++) for (let h = 0; h < 2; h++, f++) {
       a.fromArray(pos, f * 9 + 3).sub(this.tmp.fromArray(pos, f * 9)); b.fromArray(pos, f * 9 + 6).sub(this.tmp); n.crossVectors(a, b).normalize();
-      // (down the wall the folds are softer: whites and creams, a pale grey-blue now and then, so it reads as cloth)
-      const d = Math.abs(n.dot(light)) * (n.y < -0.2 ? 0.6 : 1) + (L.rand() - 0.5) * 0.1 + ((j + 0.5) / NS * this.LEN < this.H ? 0.3 : 0);
+      const d = Math.abs(n.dot(light)) * (n.y < -0.2 ? 0.6 : 1) + (L.rand() - 0.5) * 0.1;
       c.copy(d > 0.82 ? tones[0] : d > 0.66 ? tones[L.rand() < 0.5 ? 1 : 0] : d > 0.5 ? tones[2] : d > 0.36 ? tones[L.rand() < 0.8 ? 3 : 6] : d > 0.2 ? tones[4] : tones[5]);
-      if (j === NS - 1 || (j > NS * 0.4 && (i === 0 || i === NA - 1))) c.lerp(hem, 0.7);                    // the hem, along its edges
+      if (j === 0 || j === NS - 1 || i === 0 || i === NA - 1) c.lerp(hem, 0.7);                     // the hem, all round
       for (let v = 0; v < 3; v++) colr.set([c.r, c.g, c.b], f * 9 + v * 3);
     }
-    this.lay(L, 0);
+    // the crest of a fold, near the middle, for the apple that teeters
+    let best = -1; for (let i = 4; i <= NA - 4; i++) for (let j = 3; j <= NS - 6; j++) { const h = this.foldH(i / NA - 0.5, j / NS * LF); if (h > best) { best = h; this.crest = { a: i / NA - 0.5, s: j / NS * LF, h }; } }
+    this.lay(L, 0, 0);
 
     // ---------------------------------------------------------- apples, built of planes; and two biscuits
     const kinds = [
@@ -83,103 +84,108 @@ lifeFor(111436, {
     this.roll = L.rollers(APPLES, { r: 0.08, bounce: 0.56, roll: 0.45, onBounce: (bb, sp) => this.bounce(L, bb, sp), ground: (x, z) => this.onCloth(L, x, z) });
     for (let i = 0; i < APPLES; i++) {
       const g = geos[(i * 5) % 8], bb = this.roll.items[i]; bb.r = g.r; bb.i = i;
-      this.apples.push({ inst: rig.add(g.id), b: bb, te: 1.25 + i * 0.3 + (i > TEETER ? 0.5 : 0), u: (L.rand() - 0.5) * 0.3, state: 'in', spin: new THREE.Vector3(L.rand() - 0.5, L.rand() - 0.5, L.rand() - 0.5).normalize(), wob: 0, wt: 0, wax: new THREE.Vector3(1, 0, 0), q0: new THREE.Quaternion().setFromEuler(new THREE.Euler(L.rand() * 6, L.rand() * 6, L.rand() * 6)), last: 0 });
+      this.apples.push({ inst: rig.add(g.id), b: bb, te: 1.7 + i * 0.28 + (i > TEETER ? 0.4 : 0), u: (L.rand() - 0.5) * 0.36, state: 'in', spin: new THREE.Vector3(L.rand() - 0.5, L.rand() - 0.5, L.rand() - 0.5).normalize(), wob: 0, wt: 0, wax: new THREE.Vector3(1, 0, 0), q0: new THREE.Quaternion().setFromEuler(new THREE.Euler(L.rand() * 6, L.rand() * 6, L.rand() * 6)), last: 0 });
     }
-    this.apples[TEETER].u = 0.08;
+    this.apples[TEETER].u = this.crest.a * W * 0.6;
     const biscuit = shape.ball(1, col('#dcaa62'), 1);
     { const p = biscuit.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setXYZ(i, x * 0.06, p.getY(i) * 0.013 * (1 - 0.25 * x * x), p.getZ(i) * 0.02 * (1 - 0.2 * x * x)); } biscuit.computeVertexNormals(); }
     shape.paint(biscuit, (cen, nn) => (nn.y < -0.3 ? col('#b07a3e') : L.rand() < 0.22 ? col('#f0d9a6') : null));
     const bg = rig.geo(biscuit);
-    this.biscuits = [0, 1].map(i => ({ inst: rig.add(bg), te: 4.6 + i * 0.6, a: i ? 0.12 : -0.14, end: this.H + (i ? 0.48 : 0.3), yaw: i ? 0.5 : -0.4, l: 0, state: 'in' }));
+    this.biscuits = [0, 1].map(i => ({ inst: rig.add(bg), te: 5.0 + i * 0.6, u0: i ? 0.1 : -0.12, to: { a: i ? 0.22 : -0.2, s: i ? 0.34 : 0.52 }, yaw: i ? 0.5 : -0.4, k: 0, state: 'in' }));
     this.blobs = L.blobs(APPLES + 2);
-    this.m = new THREE.Matrix4(); this.v = new THREE.Vector3(); this.q = new THREE.Quaternion(); this.qq = new THREE.Quaternion(); this.one = new THREE.Vector3(1, 1, 1); this.eu = new THREE.Euler();
+    this.m = new THREE.Matrix4(); this.v = new THREE.Vector3(); this.w = new THREE.Vector3(); this.q = new THREE.Quaternion(); this.qq = new THREE.Quaternion(); this.one = new THREE.Vector3(1, 1, 1); this.eu = new THREE.Euler();
     this.hideAll();
   },
 
-  // Where the cloth is at a (across it, -0.5..0.5) and l (metres along it, from under the rail): along the wall, up, out.
-  // Down the wall it is gathered into heavy folds; at the wall's foot it turns onto the floor and opens out to its full
-  // width, a few big diagonal folds across it, its far hem straight and its far corners lying flat.
-  clothAt(L, a, l, o) {
-    const H = this.H;
-    if (l <= H) {
-      const t = l / H, fold = 0.5 + 0.5 * Math.sin(a * Math.PI * 5 + 0.5 + t * 7);      // (the folds wind down it, a slow twist)
-      o.u = a * (W_FALL + 0.08 * t) + 0.01 * Math.sin(t * 5 + a * 3);
-      o.y = L.rail + 0.006 - l;
-      o.out = -L.wall + 0.016 + fold * 0.035 * (0.35 + 0.65 * t) + 0.03 * Math.sin(t * Math.PI) + 0.05 * ease.in(ramp(t, 0.9, 1));
-    } else {
-      const s = l - H, open = ease.smooth(s / 0.24), w = W_FALL + 0.08 + (W - W_FALL - 0.08) * open, u = a * w;
-      // the folds: a few long diagonals, and those radiating from where the fall comes down onto the floor
-      const k = 1 - s / LF, edge = ease.smooth(ramp(k, 0, 0.12)), corner = Math.min(1, Math.hypot(Math.abs(a) - 0.5, s - LF) / 0.28);
-      const diag = Math.max(0, Math.sin((u * 0.8 + s * 1.1) * 7.2 + 0.4)) ** 2 * 0.075 + Math.max(0, Math.sin((u * 1.1 - s * 0.7) * 5.1 + 1.7)) ** 2 * 0.05;
-      const foot = Math.exp(-s / 0.18) * (0.05 + 0.03 * Math.abs(Math.sin(a * Math.PI * 6)));
-      o.u = u; o.out = -L.wall + 0.066 + s;
-      o.y = L.y + 0.012 + Math.min(0.115, (diag * (0.35 + 0.65 * k) + foot) * edge * ease.smooth(corner));
-    }
-    return o;
+  // The folds of the cloth lying on the floor at a (across, -0.5..0.5) and s (out from its near edge, 0..LF): two big
+  // diagonals and a smaller one, a little ruck along the wall side, the far hem and corners lying flat; at most 11.5 cm.
+  foldH(a, s) {
+    const u = a * W, k = 1 - s / LF, edge = ease.smooth(ramp(k, 0, 0.12)) * ease.smooth(ramp(s, 0, 0.06)), corner = Math.min(1, Math.hypot(Math.abs(a) - 0.5, s - LF) / 0.3);
+    const diag = (0.5 + 0.5 * Math.sin((u * 0.8 + s * 1.1) * 6.2 + 0.4)) ** 1.6 * 0.062 + (0.5 + 0.5 * Math.sin((u * 1.1 - s * 0.7) * 4.6 + 1.7)) ** 2 * 0.036;      // (broad, rounded)
+    const ruck = Math.exp(-s / 0.12) * 0.022 * (0.5 + 0.5 * Math.sin(a * Math.PI * 6));
+    return Math.min(0.115, (diag * (0.35 + 0.65 * k) + ruck) * edge * ease.smooth(corner));
   },
-  // Lay the cloth out as far as S along it (the rest still gathered at its leading edge, which slides down and out).
-  lay(L, S) {
-    this.S = S; const V = this.V, o = this.o, p = this.tmp;
+  // Lay the cloth: f how far through its fall (0 still a bundle under the rail, 1 down on the floor), z how far it is
+  // still settling into its folds (0..1), wind the time for the ripples running through it as it falls.
+  lay(L, f, wind) {
+    this.f = f; const V = this.V, p = this.tmp;
+    // its middle, its tilt (hanging from its near edge at first, lying flat at the end), its turn and how open it is
+    const fall = f < 0.12 ? 0 : (f - 0.12) / 0.88;
+    const cout = 0.05 + (NEAR + LF / 2 - 0.05) * ease.out(fall), tilt = 1.25 * (1 - ease.inOut(fall)), turn = 0.28 * Math.sin(fall * Math.PI) * (1 - fall * 0.3);
+    const sc = f < 0.12 ? 0.25 + 0.25 * (f / 0.12) : 0.5 + 0.5 * ease.out(fall), wide = Math.min(1, sc * 1.15), slide = f < 0.12 ? -L.wall - 0.25 * (1 - f / 0.12) : 0;
+    // (hanging, its top edge stays under the rail, never up in front of the picture; then it drops, slowed by the air)
+    const hang = L.rail - 0.04 - (LF / 2) * sc * Math.sin(tilt) - 0.08, cy = hang + (L.y + 0.012 - hang) * (0.25 * fall + 0.75 * ease.in(fall));
+    const bill = (f < 1 ? 0.025 : 0) + Math.sin(Math.min(1, fall) * Math.PI) * 0.06, settle = f >= 1 ? 1 : 0.35 + 0.65 * ease.smooth(fall);
+    const ct = Math.cos(tilt), st = Math.sin(tilt), cr = Math.cos(turn), sr = Math.sin(turn);
     for (let i = 0; i <= NA; i++) for (let j = 0; j <= NS; j++) {
-      const l = (j / NS) * this.LEN, past = l > S;
-      this.clothAt(L, i / NA - 0.5, past ? S : l, o);
-      if (past) { const g = Math.min(1, (l - S) / 0.3); o.u *= 1 - 0.25 * g; if (S <= this.H) o.out += 0.012 * g; else o.y += 0.012 * g; }
-      L.at(o.u, o.y - L.cy, o.out, p); V.set([p.x, p.y, p.z], (i * (NS + 1) + j) * 3);
+      const a = i / NA - 0.5, s = j / NS * LF;
+      let lu = a * W * wide, lz = (s - LF / 2) * sc;
+      let ly = this.foldH(a, s) * settle + bill * Math.sin((a * 1.3 + s * 1.6) * Math.PI * 2 - wind * 9) * (0.4 + 0.6 * Math.abs(a) * 2);
+      const y1 = ly * ct - lz * st, z1 = lz * ct + ly * st;                 // tilted about the line along the wall
+      const u2 = lu * cr - z1 * sr, z2 = lu * sr + z1 * cr;                 // and turned a little
+      let out = cout + z2 + slide; const yy = Math.max(L.y + 0.012, cy + y1);
+      if (f < 0.12) out = Math.max(-L.wall - 0.2, Math.min(out, 0.06));
+      L.at(u2, yy - L.cy, out, p); V.set([p.x, p.y, p.z], (i * (NS + 1) + j) * 3);
     }
-    const pos = this.cloth.geometry.attributes.position.array; let f = 0;
-    const put = k => { pos[f++] = V[k]; pos[f++] = V[k + 1]; pos[f++] = V[k + 2]; };
+    const pos = this.cloth.geometry.attributes.position.array; let k = 0;
+    const put = q => { pos[k++] = V[q]; pos[k++] = V[q + 1]; pos[k++] = V[q + 2]; };
     for (let i = 0; i < NA; i++) for (let j = 0; j < NS; j++) { const A = (i * (NS + 1) + j) * 3, B = ((i + 1) * (NS + 1) + j) * 3; put(A); put(B); put(B + 3); put(A); put(B + 3); put(A + 3); }
     this.cloth.geometry.attributes.position.needsUpdate = true;
-    this.cloth.visible = S > 0.005;
+    this.cloth.visible = f > 0.002;
   },
-  // How high the cloth lies on the floor at (x, z), for the apples (0 off it).
+  // Where a point of the cloth lying on the floor is (world), for the apples and biscuits.
+  onFloor(L, a, s, into) { return L.floor(a * W, NEAR + s, into).setY(L.y + 0.012 + this.foldH(a, s)); },
   onCloth(L, x, z) {
-    if (this.S < this.LEN - 0.01) return 0;
-    const q = L.local(x, z), s = q.out + L.wall - 0.066;
-    if (s < 0 || s > LF) return 0;
-    const w = W_FALL + 0.08 + (W - W_FALL - 0.08) * ease.smooth(s / 0.24); if (Math.abs(q.u) > w / 2) return 0;
-    return this.clothAt(L, q.u / w, this.H + s, this.o).y - L.y + 0.004;
+    if (this.f < 1) return 0;
+    const q = L.local(x, z), s = q.out - NEAR, a = q.u / W;
+    return s < 0 || s > LF || Math.abs(a) > 0.5 ? 0 : 0.012 + this.foldH(a, s);
   },
   hideAll() { for (const ap of this.apples) { this.rig.show(ap.inst, false); ap.state = 'in'; ap.b.on = false; } for (const bi of this.biscuits) { this.rig.show(bi.inst, false); bi.state = 'in'; } this.blobs.count = 0; },
 
   start(L, resumed) {
-    if (!resumed) { this.hideAll(); this.lay(L, 0); this.sung = false; L.k.synth.noise(0.9, { vol: 0.025, lp: 1400, at: 0.2 }); }
+    if (!resumed) { this.hideAll(); this.lay(L, 0, 0); this.sung = false; this.thumped = false; L.k.synth.noise(0.5, { vol: 0.02, lp: 2200, at: 0.1 }); }
   },
   back(L) {
     for (const ap of this.apples) ap.from = ap.state !== 'in' ? (ap.from0 || (ap.from0 = new THREE.Vector3())).set(ap.b.x, ap.b.y, ap.b.z) : null;
-    for (const bi of this.biscuits) bi.from = bi.state !== 'in' ? bi.l : null;
-    this.S0 = this.S;
+    for (const bi of this.biscuits) bi.from = bi.state !== 'in' ? bi.k : null;
+    this.f0 = this.f;
   },
   end() { this.hideAll(); },
-  reset(L) { this.hideAll(); this.lay(L, 0); },
+  reset(L) { this.hideAll(); this.lay(L, 0, 0); },
 
   update(L, dt) {
     const ph = L.phase, t = L.t, rig = this.rig;
+    this.t += dt;
     if (ph === 'wake' || ph === 'play') {
-      // The cloth slips out from under the rail, falls down the wall and runs out over the floor.
-      if (this.S < this.LEN) this.lay(L, Math.max(this.S, this.LEN * ease.inOut(ramp(t, 0.1, 1.35))));
-      // The apples, one at a time, out from under the rail, a hop off the cloth, and away.
+      // The cloth: out from under the rail, a fall of a second, billowing and turning, and down flat on the floor.
+      const f = t < T_OUT ? 0 : t < T_DROP ? 0.12 * (t - T_OUT) / (T_DROP - T_OUT) : t < T_LAND ? 0.12 + 0.88 * (t - T_DROP) / (T_LAND - T_DROP) : 1;
+      if (f > this.f || (f > 0 && f < 1)) this.lay(L, Math.max(this.f, f), this.t);
+      if (!this.thumped && this.f >= 1) { this.thumped = true; L.k.synth.noise(0.3, { vol: 0.035, lp: 480 }); }
+      // The apples, one at a time, out from under the rail, and down onto the cloth.
       for (const ap of this.apples) {
         const b = ap.b;
         if (ap.state === 'in' && t >= ap.te) { ap.state = 'pop'; ap.pt = 0; }
         if (ap.state === 'pop') {
-          ap.pt += dt / 0.22; const q = ease.out(ap.pt), front = this.clothAt(L, ap.u / W_FALL, 0.02, this.o).out;
-          L.at(ap.u, L.rail - b.r - 0.006 - L.cy, -L.wall - b.r + q * (front + L.wall + 2 * b.r), this.v);
+          ap.pt += dt / 0.22; const q = ease.out(ap.pt);
+          L.at(ap.u, L.rail - b.r - 0.006 - L.cy, -L.wall - b.r + q * (L.wall + 2 * b.r + 0.03), this.v);
           b.x = this.v.x; b.y = this.v.y; b.z = this.v.z;
           if (ap.pt >= 1) {
-            if (b.i === TEETER) { ap.state = 'teeter'; ap.tt = 0; continue; }
+            if (b.i === TEETER) { ap.state = 'drop'; ap.dt = 0; ap.p0 = (ap.p0 || new THREE.Vector3()).copy(this.v); continue; }
             ap.state = 'out'; b.on = true; const last = b.i === APPLES - 1;
             const vu = (L.rand() - 0.5) * (last ? 0.12 : 1.0), vo = last ? 1.45 : 0.6 + L.rand() * 0.75;
             b.vx = L.tx * vu + L.nx * vo; b.vz = L.tz * vu + L.nz * vo; b.vy = 0.55 + L.rand() * 0.4;
           }
         }
-        if (ap.state === 'teeter') {
-          // caught in a fold of the fall: it slides down a little way, and rocks there before it lets go
-          ap.tt += dt; const k = Math.min(1, ap.tt / 0.4), o = this.clothAt(L, ap.u / W_FALL, 0.08 + 0.24 * k, this.o);
-          L.at(o.u, o.y - L.cy, o.out + b.r * 0.92, this.v);
+        if (ap.state === 'drop') {
+          // down onto the crest of a fold, and it stays there, rocking, before it rolls off
+          ap.dt += dt; const k = Math.min(1, ap.dt / 0.5), C = this.onFloor(L, this.crest.a, this.crest.s, this.w); C.y += b.r * 0.92;
+          this.v.lerpVectors(ap.p0, C, k); this.v.y = ap.p0.y + (C.y - ap.p0.y) * k * k + 0.15 * Math.sin(k * Math.PI) * (1 - k);
           b.x = this.v.x; b.y = this.v.y; b.z = this.v.z;
-          ap.wax.set(L.tx, 0, L.tz); ap.wob = ap.tt > 0.4 ? 0.25 + 0.2 * Math.min(1, (ap.tt - 0.4) / 1.2) : 0; ap.wt = ap.tt * 1.3;
-          if (ap.tt > 1.9) { ap.state = 'out'; b.on = true; b.vx = L.nx * 0.55; b.vz = L.nz * 0.55; b.vy = 0.1; ap.wob = 0; L.voice().note(1318.5, 0.18, { vol: 0.02 }); }
+          if (k >= 1) { ap.state = 'teeter'; ap.tt = 0; this.bounce(L, b, 2); }
+        }
+        if (ap.state === 'teeter') {
+          ap.tt += dt; ap.wax.set(L.tx, 0, L.tz); ap.wob = 0.22 + 0.22 * Math.min(1, ap.tt / 1.3); ap.wt = ap.tt * 1.2;
+          if (ap.tt > 1.7) { ap.state = 'out'; b.on = true; b.vx = L.nx * 0.45 + L.tx * 0.2; b.vz = L.nz * 0.45 + L.tz * 0.2; b.vy = 0.15; ap.wob = 0; L.voice().note(1318.5, 0.18, { vol: 0.02 }); }
         }
       }
       // Now and then, while you keep looking, the floor tips a little (as his table does), and they roll again.
@@ -189,19 +195,20 @@ lifeFor(111436, {
         if (on > 0) for (const ap of this.apples) if (ap.b.on && !ap.b.air) { ap.b.vx += ax * dt; ap.b.vz += az * dt; }
       }
       this.roll.step(dt);
-      // Biscuits: down the cloth like sledges, and to a stop on it.
+      // Biscuits: out from under the rail, a drop and a turn, and flat on the cloth.
       for (const bi of this.biscuits) {
-        if (bi.state === 'in' && t >= bi.te) { bi.state = 'slide'; bi.st = 0; this.swish(L); }
-        if (bi.state === 'slide') { bi.st += dt; const fall = Math.min(1, bi.st / 0.6), slow = clamp01((bi.st - 0.6) / 0.8); bi.l = fall < 1 ? this.H * fall * fall : this.H + (bi.end - this.H) * ease.out(slow); if (slow >= 1) bi.state = 'out'; }
+        if (bi.state === 'in' && t >= bi.te) { bi.state = 'slide'; bi.k = 0; this.swish(L); }
+        if (bi.state === 'slide') { bi.k = Math.min(1, bi.k + dt / 0.75); if (bi.k >= 1) bi.state = 'out'; }
       }
-      if (!this.sung && t > 6.6) { this.sung = true; this.gymnopedie(L); }
+      if (!this.sung && t > 6.8) { this.sung = true; this.gymnopedie(L); }
     } else if (ph === 'linger') {
       this.roll.step(dt);
     } else if (ph === 'return') {
-      // Back they all come: across the floor to the wall, up and in under the rail; then the cloth draws itself back up.
+      // Back they all come: across the floor to the wall, up and in under the rail; then the cloth lifts, flutters up
+      // and slips back in under the rail after them.
       const R = L.ret;
       this.apples.forEach((ap, i) => {
-        if (!ap.from) return; const b = ap.b, k = ease.inOut(clamp01((R * 2.4 - i * 0.045) / 1.5));
+        if (!ap.from) return; const b = ap.b, k = ease.inOut(clamp01((R * 2.6 - i * 0.04) / 1.3));
         const mouth = L.at(ap.u, L.rail - b.r - 0.006 - L.cy, -L.wall - b.r * (k > 0.97 ? 3 : 0), this.tmp), base = L.floor(ap.u * 0.8, 0.12 + b.r);
         const s1 = 1 - k, x = s1 * s1 * ap.from.x + 2 * s1 * k * base.x + k * k * mouth.x, y = s1 * s1 * ap.from.y + 2 * s1 * k * (L.y + b.r + 0.3) + k * k * mouth.y, z = s1 * s1 * ap.from.z + 2 * s1 * k * base.z + k * k * mouth.z;
         const d = Math.hypot(x - b.x, z - b.z) + Math.abs(y - b.y);
@@ -209,8 +216,8 @@ lifeFor(111436, {
         b.x = x; b.y = y; b.z = z; b.on = false; ap.wob = 0;
         if (k >= 1) { ap.state = 'in'; ap.from = null; }
       });
-      for (const bi of this.biscuits) if (bi.from != null) bi.l = bi.from * (1 - ease.inOut(clamp01(R * 1.7)));
-      this.lay(L, this.S0 * (1 - ease.inOut(ramp(R, 0.45, 1))));
+      for (const bi of this.biscuits) if (bi.from != null) bi.k = bi.from * (1 - ease.inOut(clamp01(R * 1.9)));
+      this.lay(L, this.f0 * (1 - ease.inOut(ramp(R, 0.55, 1))), this.t);
     }
     // Draw them where they are: apples tumbling in the air, rocking as they come to rest.
     let nb = 0;
@@ -234,14 +241,19 @@ lifeFor(111436, {
       if (b.y - L.y < 0.45) this.blobs.set(nb++, b.x, b.z, b.r * 1.15, 0.85 * clamp01(1 - (b.y - L.y - b.r) / 0.35));
     }
     for (const bi of this.biscuits) {
-      const show = bi.state !== 'in' || (ph === 'return' && bi.from != null && bi.l > 0.002);
+      const show = bi.state !== 'in' || (ph === 'return' && bi.from != null && bi.k > 0.01);
       rig.show(bi.inst, !!show); if (!show) continue;
-      // flat against the cloth: upright down the wall, turning to lie on the floor where the cloth does
-      const o = this.clothAt(L, bi.a, Math.max(0.001, bi.l), this.o), bend = clamp01((bi.l - this.H + 0.04) / 0.1);
-      L.at(o.u, o.y - L.cy + 0.016 * bend, o.out + 0.016 * (1 - bend), this.v);
-      this.q.setFromEuler(this.eu.set(-Math.PI / 2 * (1 - bend), L.yawOut + Math.PI / 2 + bi.yaw * bend, 0, 'YXZ'));
+      // out from under the rail (0..0.2), then a drop and a turn onto the cloth (0.2..1)
+      const k = bi.k; let flat = 0;
+      L.at(bi.u0, L.rail - 0.03 - L.cy, -L.wall + Math.min(1, k / 0.2) * (L.wall + 0.05), this.w);
+      if (k < 0.2) this.v.copy(this.w);
+      else {
+        const s = (k - 0.2) / 0.8, land = this.onFloor(L, bi.to.a, bi.to.s, this.tmp); land.y += 0.016;
+        this.v.lerpVectors(this.w, land, ease.smooth(s)); this.v.y = this.w.y + (land.y - this.w.y) * (s * s); flat = ease.smooth(s);
+      }
+      this.q.setFromEuler(this.eu.set(-Math.PI / 2 * (1 - flat), L.yawOut + Math.PI / 2 + bi.yaw * flat, 0, 'YXZ'));
       rig.mat(bi.inst, this.m.compose(this.v, this.q, this.one));
-      if (bend > 0.5) this.blobs.set(nb++, this.v.x, this.v.z, 0.06, 0.4);
+      if (flat > 0.5) this.blobs.set(nb++, this.v.x, this.v.z, 0.06, 0.4);
     }
     this.blobs.count = nb;
     L.voice().place();
