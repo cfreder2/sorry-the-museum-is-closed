@@ -17,3 +17,4 @@ import './18951-yellow-dancers.js';     // 226  Degas, Yellow Dancers (In the Wi
 import './14572-millinery-shop.js';     // 226  Degas, The Millinery Shop: flutter
 import './28560-bedroom.js';            // 241  van Gogh, The Bedroom: tuck
 import './111559-boy-on-a-ram.js';     // 217  Goya, Boy on a Ram: bleat
+import './109780-love-of-winter.js';    // 272  Bellows, Love of Winter: skate
