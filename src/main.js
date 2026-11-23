@@ -798,9 +798,11 @@ function chase(dt, snap) {
     {
       camFrom.set(v.pos.x, v.pos.y + 0.22, v.pos.z);
       const D = camFrom.distanceTo(want), n = Math.max(1, Math.ceil(D / 0.1)); let good = 0;
+      const solid = camSolids(camFrom, want, v.pos);      // (and the solid things confine() leaves out for it: a plinth, a planter, the front of a building seen from outside)
       for (let i = 1; i <= n; i++) {
         camTry.lerpVectors(camFrom, want, i / n); camHit.copy(camTry);
         if (confine(G.plan, camHit, 0.14, true, null, true) && camHit.distanceToSquared(camTry) > 0.0009) break;
+        if (solid.length && inSolid(solid, camTry, 0.1)) break;
         good = i;
       }
       if (good < n) {
@@ -828,6 +830,24 @@ function chase(dt, snap) {
 
 const movers = [], prev = new THREE.Vector3(0, -99, 0), here = new THREE.Vector3();
 const camFrom = new THREE.Vector3(), camTry = new THREE.Vector3(), camHit = new THREE.Vector3();
+// What the chase camera's boom must also stop at out of doors, besides the walls confine() finds: solid blocks taller
+// than 0.6 m and at least half a metre across (a lion's plinth, a planter: not a lamp post or a railing, which it may
+// pass), and the buildings (the front of the museum is a room's edge to confine(), and the camera went through it).
+// Gathered once a frame from round the boom, then each step along it is tested against those few.
+const _solids = [];
+function camSolids(a, b, toy) {
+  _solids.length = 0;
+  const P = G.plan, x0 = Math.min(a.x, b.x) - 0.3, x1 = Math.max(a.x, b.x) + 0.3, z0 = Math.min(a.z, b.z) - 0.3, z1 = Math.max(a.z, b.z) + 0.3;
+  if (!P.masses.some(m => toy.x > m.x0 && toy.x < m.x1 && toy.z > m.z0 && toy.z < m.z1)) {      // (out of doors only: indoors is the rooms' business)
+    for (const o of P.obstacles) {
+      if (o.x1 < x0 || o.x0 > x1 || o.z1 < z0 || o.z0 > z1 || o.train || (o.gate && o.gate.off)) continue;
+      if (o.y1 - o.y0 > 0.6 && Math.min(o.x1 - o.x0, o.z1 - o.z0) >= 0.5) _solids.push(o);
+    }
+    for (const m of P.masses) if (!(m.x1 < x0 || m.x0 > x1 || m.z1 < z0 || m.z0 > z1) && toy.y < m.top - 0.4) _solids.push({ x0: m.x0 - 0.25, x1: m.x1 + 0.25, z0: m.z0 - 0.25, z1: m.z1 + 0.25, y0: -50, y1: m.top });      // (a little wide: plinths and pilasters stand proud of a building's line)
+  }
+  return _solids;
+}
+function inSolid(list, p, r) { for (const o of list) if (p.x > o.x0 - r && p.x < o.x1 + r && p.z > o.z0 - r && p.z < o.z1 + r && p.y > o.y0 && p.y < o.y1 + r) return true; return false; }
 
 // A word or two in the middle of the screen when you pull something off.
 let calloutUntil = 0, calloutHeld = 0;

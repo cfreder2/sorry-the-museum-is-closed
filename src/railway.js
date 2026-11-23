@@ -17,25 +17,46 @@ import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { streetY } from './plan.js';
 
-// Ballast under a little snow, with nothing else on it.
+// Ballast under a little snow, with nothing else on it. One tile to 3 m: 512 px, so a stone is a few pixels, lit from
+// one side and shadowed on the other, and the snow lies between them in soft little drifts, never in flat discs.
 function ballastTex() {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 256; const g = cv.getContext('2d'), r = TX.rng(4471);
-  g.fillStyle = '#8f8a80'; g.fillRect(0, 0, 256, 256);
-  for (let k = 0; k < 5200; k++) { const v = 95 + r() * 110 | 0; g.fillStyle = `rgba(${v},${v - 4},${v - 12},${0.25 + r() * 0.5})`; g.fillRect(r() * 256, r() * 256, 1 + r() * 2.5, 1 + r() * 2.5); }
-  g.fillStyle = 'rgba(232,238,250,.55)';
-  for (let k = 0; k < 90; k++) { g.beginPath(); g.ellipse(r() * 256, r() * 256, 6 + r() * 22, 3 + r() * 9, r() * 3, 0, 7); g.fill(); }
-  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d'), r = TX.rng(4471);
+  g.fillStyle = '#7d786f'; g.fillRect(0, 0, S, S);
+  const wrap = (x, y, rad, f) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) if (x + ox > -rad && x + ox < S + rad && y + oy > -rad && y + oy < S + rad) f(x + ox, y + oy); };
+  for (let k = 0; k < 11000; k++) {
+    const x = r() * S, y = r() * S, rad = 1.5 + r() * 2.8, v = 90 + r() * 100 | 0, a = r() * 3;
+    wrap(x, y, rad + 1, (px, py) => {
+      g.fillStyle = `rgba(30,28,26,.45)`; g.beginPath(); g.ellipse(px + 0.7, py + 0.8, rad, rad * 0.75, a, 0, 7); g.fill();          // its shadow
+      g.fillStyle = `rgb(${v},${v - 4},${v - 11})`; g.beginPath(); g.ellipse(px, py, rad, rad * 0.75, a, 0, 7); g.fill();
+      g.fillStyle = `rgba(255,250,240,${0.12 + r() * 0.12})`; g.beginPath(); g.ellipse(px - rad * 0.3, py - rad * 0.3, rad * 0.45, rad * 0.3, a, 0, 7); g.fill();      // and its lit face
+    });
+  }
+  for (let k = 0; k < 70; k++) {                      // snow, caught in drifts between the stones
+    const cx = r() * S, cy = r() * S, spread = 10 + r() * 26, n = 30 + (r() * 60 | 0);
+    for (let i = 0; i < n; i++) { const d = Math.pow(r(), 0.7) * spread, an = r() * 6.283, x = cx + Math.cos(an) * d, y = cy + Math.sin(an) * d * 0.7, rad = 1.5 + r() * 4 * (1 - d / spread * 0.6);
+      wrap(x, y, rad, (px, py) => { const gr = g.createRadialGradient(px, py, 0, px, py, rad); gr.addColorStop(0, 'rgba(232,238,250,.85)'); gr.addColorStop(1, 'rgba(232,238,250,0)'); g.fillStyle = gr; g.fillRect(px - rad, py - rad, rad * 2, rad * 2); }); }
+  }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 // One track seen from above: sleepers, two rails, ballast showing between. Across the picture is across the track.
 function trackTex() {
-  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128; const g = cv.getContext('2d'), r = TX.rng(907);
-  g.fillStyle = '#857f74'; g.fillRect(0, 0, 128, 128);
-  for (let k = 0; k < 900; k++) { const v = 90 + r() * 100 | 0; g.fillStyle = `rgba(${v},${v - 4},${v - 12},.5)`; g.fillRect(r() * 128, r() * 128, 2, 2); }
-  g.fillStyle = '#4a3a2c'; for (let y = 6; y < 128; y += 32) g.fillRect(14, y, 100, 13);
-  g.fillStyle = 'rgba(232,238,250,.5)'; for (let k = 0; k < 14; k++) g.fillRect(r() * 128, r() * 128, 6 + r() * 16, 3 + r() * 5);
-  g.fillStyle = '#5b3f2c'; g.fillRect(31, 0, 9, 128); g.fillRect(88, 0, 9, 128);
-  g.fillStyle = '#c3c9d2'; g.fillRect(33, 0, 4, 128); g.fillRect(90, 0, 4, 128);
-  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256; const g = cv.getContext('2d'), r = TX.rng(907);
+  g.fillStyle = '#7f7a70'; g.fillRect(0, 0, 256, 256);
+  for (let k = 0; k < 5200; k++) { const v = 90 + r() * 100 | 0, x = r() * 256, y = r() * 256, rad = 0.8 + r() * 1.6; g.fillStyle = 'rgba(30,28,26,.4)'; g.beginPath(); g.arc(x + 0.5, y + 0.6, rad, 0, 7); g.fill(); g.fillStyle = `rgb(${v},${v - 4},${v - 12})`; g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill(); }
+  for (let y = 12; y < 256; y += 64) { g.fillStyle = '#3e3026'; g.fillRect(28, y, 200, 26); g.fillStyle = 'rgba(255,240,220,.08)'; g.fillRect(28, y, 200, 4); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(28, y + 22, 200, 4); }
+  for (let k = 0; k < 900; k++) { const x = r() * 256, y = r() * 256, rad = 1 + r() * 3.5, gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, 'rgba(232,238,250,.7)'); gr.addColorStop(1, 'rgba(232,238,250,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+  g.fillStyle = '#4f3727'; g.fillRect(62, 0, 18, 256); g.fillRect(176, 0, 18, 256);
+  g.fillStyle = '#c3c9d2'; g.fillRect(66, 0, 8, 256); g.fillRect(180, 0, 8, 256); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(68, 0, 2, 256); g.fillRect(182, 0, 2, 256);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+// Cab glass at night: dark, the sky's blue towards the top, a soft streak of reflection across it and the far lights
+// of the city caught in it.
+function glassTex() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'), r = TX.rng(77);
+  const gr = g.createLinearGradient(0, 128, 0, 0); gr.addColorStop(0, '#0b111c'); gr.addColorStop(0.6, '#1a2840'); gr.addColorStop(1, '#3d5578'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  g.save(); g.translate(64, 64); g.rotate(-0.6); const st = g.createLinearGradient(0, -14, 0, 14); st.addColorStop(0, 'rgba(190,210,240,0)'); st.addColorStop(0.5, 'rgba(200,220,250,.4)'); st.addColorStop(1, 'rgba(190,210,240,0)'); g.fillStyle = st; g.fillRect(-100, -14, 200, 28); g.fillStyle = 'rgba(190,210,240,.12)'; g.fillRect(-100, 22, 200, 6); g.restore();
+  for (let i = 0; i < 18; i++) { g.fillStyle = `rgba(255,${200 + r() * 40 | 0},140,${0.3 + r() * 0.4})`; g.fillRect(r() * 128, 70 + r() * 40, 1.5, 1.5); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 // Board-marked concrete, stained where the water comes down it.
 function concreteTex() {
@@ -158,12 +179,16 @@ export function buildRailway(museum, plan) {
   // ---- the trains ----
   const carriage = TX.carriage();
   const train = (t, y0) => {
-    const ct = carriage, sides = new Geo(), body = new Geo(), under = new Geo(), blue = new Geo(), orange = new Geo(), lit = new Geo(), red = new Geo(), rails = new Geo(), cap = new Geo(), glass = new Geo();
+    const ct = carriage, bogieG = new Geo(), steelBits = new Geo(), frame = new Geo(), sides = new Geo(), body = new Geo(), under = new Geo(), blue = new Geo(), orange = new Geo(), lit = new Geo(), red = new Geo(), rails = new Geo(), cap = new Geo(), glass = new Geo();
       const X = t.x, hw = 1.45, wheelsAt = [];
       
+      // A bogie: two wheelsets, the side frames outside the wheels with an axle box over each, springs, and the bolster across.
       const bogie = z => {
-        under.box(X - 1.08, X + 1.08, 0.4, 0.8, z - 1.55, z + 1.55);
-        for (const dz of [-0.95, 0.95]) { for (const rx of [-0.72, 0.72]) wheelsAt.push([X + rx, 0.6, z + dz]); under.box(X - 0.72, X + 0.72, 0.52, 0.68, z + dz - 0.07, z + dz + 0.07); }
+        for (const sx of [-1, 1]) { const a = X + sx * 0.8, b = X + sx * 0.93;
+          bogieG.box(Math.min(a, b), Math.max(a, b), 0.42, 0.74, z - 1.5, z + 1.5); bogieG.box(Math.min(a, b), Math.max(a, b), 0.3, 0.42, z - 0.55, z + 0.55);
+          for (const dz of [-0.95, 0.95]) { bogieG.box(Math.min(a, b) - 0.02, Math.max(a, b) + 0.02, 0.44, 0.78, z + dz - 0.17, z + dz + 0.17); steelBits.box(Math.min(a, b) + 0.02, Math.max(a, b) - 0.02, 0.78, 0.92, z + dz - 0.1, z + dz + 0.1); } }
+        under.box(X - 0.8, X + 0.8, 0.6, 0.8, z - 0.22, z + 0.22);
+        for (const dz of [-0.95, 0.95]) { for (const rx of [-0.72, 0.72]) wheelsAt.push([X + rx, 0.6, z + dz]); under.box(X - 0.72, X + 0.72, 0.56, 0.64, z + dz - 0.05, z + dz + 0.05); }
       };
       const coach = (a, b, last) => {
         const len = b - a;
@@ -183,15 +208,29 @@ export function buildRailway(museum, plan) {
       blue.box(X - hw, X + hw, 1.1, 4.3, la + 2.6, lb); blue.box(X - hw, X + hw, 1.1, 3.0, la, la + 2.6);
       blue.quad([X - hw, 3.0, la], [X + hw, 3.0, la], [X + hw, 4.3, la + 2.6], [X - hw, 4.3, la + 2.6], [0, 0.89, -0.45]);
       for (const sx of [-1, 1]) blue.quad([X + sx * hw, 3.0, la], [X + sx * hw, 3.0, la + 2.6], [X + sx * hw, 4.3, la + 2.6], [X + sx * hw, 3.0, la], [sx, 0, 0]);
-      glass.quad([X - 1.1, 3.25, la + 0.44], [X + 1.1, 3.25, la + 0.44], [X + 1.1, 4.0, la + 1.94], [X - 1.1, 4.0, la + 1.94], [0, 0.89, -0.45]);              // the windscreen
+      // The windscreen: two panes in a dark rubber frame either side of a pillar, on the slope of the nose, a wiper on each.
+      { const NS = [0, 0.89, -0.45], on = (x, t, d) => [x, 3.0 + 1.3 * t + 0.89 * d, la + 2.6 * t - 0.45 * d];
+        frame.quad(on(X - 1.16, 0.14, 0.02), on(X + 1.16, 0.14, 0.02), on(X + 1.16, 0.78, 0.02), on(X - 1.16, 0.78, 0.02), NS);
+        for (const [a, b] of [[X - 1.08, X - 0.06], [X + 0.06, X + 1.08]]) {
+          glass.quad(on(a, 0.19, 0.035), on(b, 0.19, 0.035), on(b, 0.73, 0.035), on(a, 0.73, 0.035), NS, [[0, 0], [1, 0], [1, 1], [0, 1]]);
+          const m = (a + b) / 2; steelBits.quad(on(m - 0.42, 0.22, 0.05), on(m - 0.4, 0.2, 0.05), on(m + 0.06, 0.5, 0.05), on(m + 0.04, 0.52, 0.05), NS);      // the wiper, parked
+        }
+        // a number board over it, lit; handrails up the nose; marker lamps low on the front; a horn on the cab roof
+        lit.quad(on(X - 0.4, 0.83, 0.03), on(X + 0.4, 0.83, 0.03), on(X + 0.4, 0.93, 0.03), on(X - 0.4, 0.93, 0.03), NS);
+        for (const sx of [-1, 1]) { steelBits.box(X + sx * 1.32 - 0.02, X + sx * 1.32 + 0.02, 1.4, 2.9, la - 0.1, la - 0.06); steelBits.box(X + sx * 1.32 - 0.02, X + sx * 1.32 + 0.02, 1.4, 1.44, la - 0.1, la); steelBits.box(X + sx * 1.32 - 0.02, X + sx * 1.32 + 0.02, 2.86, 2.9, la - 0.1, la);
+          red.box(X + sx * 1.0 - 0.07, X + sx * 1.0 + 0.07, 1.62, 1.74, la - 0.02, la); lit.box(X + sx * 0.72 - 0.07, X + sx * 0.72 + 0.07, 1.62, 1.74, la - 0.02, la);
+          frame.box(X + sx * 0.5 - 0.17, X + sx * 0.5 + 0.17, 2.6, 2.95, la - 0.05, la); }      // the headlamps' bezels
+        steelBits.box(X - 0.3, X + 0.3, 4.3, 4.42, la + 2.75, la + 2.95); }
       for (const sx of [-1, 1]) glass.box(X + sx * hw - 0.012, X + sx * hw + 0.012, 3.3, 4.0, la + 2.8, la + 4.2);                                              // cab side windows
       orange.box(X - hw - 0.012, X + hw + 0.012, 2.1, 2.55, la + 0.3, lb - 0.2); orange.box(X - hw - 0.012, X + hw + 0.012, 1.088, 1.3, la - 0.012, lb + 0.012);      // (proud of the body all round: their faces never coincide)
       body.box(X - hw + 0.1, X + hw - 0.1, 4.3, 4.48, la + 3, lb - 0.3); body.box(X - 0.55, X + 0.55, 4.48, 4.85, la + 8, la + 10.6); cap.box(X - hw + 0.12, X + hw - 0.12, 4.48, 4.53, la + 11, lb - 0.4);
       for (const zz of [la + 5.2, la + 7.4, la + 11.6, la + 13.8]) for (const sx of [-1, 1]) under.box(Math.min(X + sx * hw, X + sx * (hw + 0.015)), Math.max(X + sx * hw, X + sx * (hw + 0.015)), 2.8, 3.9, zz, zz + 1.7);   // louvres
       under.box(X - hw + 0.08, X + hw - 0.08, 0.8, 1.1, la + 0.05, lb - 0.05); under.box(X - 1.3, X + 1.3, 0.25, 0.8, la + 6.4, la + 10.8);                    // frame and fuel tank
-      under.box(X - 1.4, X + 1.4, 0.3, 0.9, la - 0.25, la + 0.05);                                                                                              // the pilot, down at the rails
+      under.box(X - 1.4, X + 1.4, 0.9, 1.1, la - 0.18, la + 0.05);                                                                                              // the buffer beam
+      under.quad([X - 1.3, 0.62, la - 0.32], [X + 1.3, 0.62, la - 0.32], [X + 1.1, 0.24, la - 0.12], [X - 1.1, 0.24, la - 0.12], [0, -0.5, -0.86]);                  // the pilot, a plough down at the rails
+      under.box(X - 1.3, X + 1.3, 0.62, 0.9, la - 0.32, la + 0.05); under.box(X - 0.14, X + 0.14, 0.82, 1.0, la - 0.62, la - 0.18);                              // and the coupler
       bogie(la + 3.2); bogie(lb - 3.2);
-      for (const sx of [-1, 1]) lit.box(X + sx * 0.5 - 0.13, X + sx * 0.5 + 0.13, 2.65, 2.9, la - 0.02, la);                                                    // headlamps, dimmed
+      for (const sx of [-1, 1]) lit.box(X + sx * 0.5 - 0.13, X + sx * 0.5 + 0.13, 2.65, 2.9, la - 0.06, la - 0.04);                                              // headlamps, dimmed (in their bezels)
       under.box(X - 0.12, X + 0.12, 0.85, 1.0, lb, lb + 0.5);
       coach(lb + gap, lb + gap + cl, false); coach(lb + 2 * gap + cl, t.z1, true);
       const wheel = new THREE.CylinderGeometry(0.46, 0.46, 0.12, 16); wheel.rotateZ(Math.PI / 2);
@@ -199,7 +238,7 @@ export function buildRailway(museum, plan) {
       const parts = [sides.mesh(new THREE.MeshStandardMaterial({ map: ct, roughness: 0.4, metalness: 0.5, emissiveMap: ct, emissive: 0xffffff, emissiveIntensity: 0.7 })), body.mesh(steel), under.mesh(darkM), rails.mesh(steel),
         blue.mesh(new THREE.MeshStandardMaterial({ color: 0x1c3f8a, roughness: 0.5, metalness: 0.3, emissive: 0x0e2048, emissiveIntensity: 0.8, side: THREE.DoubleSide })),
         orange.mesh(new THREE.MeshStandardMaterial({ color: 0xe8731c, roughness: 0.5, emissive: 0x7a3a0c, emissiveIntensity: 0.8 })),
-        glass.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.05, 0.07, 0.11), side: THREE.DoubleSide })),
+        glass.mesh(new THREE.MeshBasicMaterial({ map: glassTex(), side: THREE.DoubleSide })), frame.mesh(darkM), steelBits.mesh(steel), bogieG.mesh(new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.6, metalness: 0.4, emissive: 0x1c1e22, emissiveIntensity: 0.9 })),
         lit.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.1, 0.55) })), red.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.15, 0.1) })), cap.mesh(snow),
         new THREE.Mesh(mergeGeometries(wheelsAt.map(([x, y, z]) => wheel.clone().translate(x, y, z))), steel)];
       for (const m of parts) { m.position.y = y0; add(m); }

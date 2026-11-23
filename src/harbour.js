@@ -13,25 +13,40 @@ import { snowLook } from './finish.js';
 
 const SECRET = 'harbourlight';
 
-// A floe: a flat top over its outline, raw sides down into the water (white at the top, green-blue below).
+// A floe: a snowy top over its outline, broken off unevenly round the lip, and raw ice down its sides: pale at the
+// top, going green-blue down into the water. The top is at 0 over the whole outline, as the solid is (harbourplan.js
+// floeTop); only the lip, inside the outline's edge, falls away below it. UVs for the snow picture (the material's
+// map), colours for the ice.
 function floeGeo(poly, depth) {
-  const P = [], N = [], C = [], top = [0.9, 0.95, 1.0], lip = [0.7, 0.86, 0.95], low = [0.18, 0.42, 0.52];
+  const P = [], N = [], U = [], C = [], top = [1, 1, 1], lipC = [0.74, 0.86, 0.96], hi = [0.7, 0.87, 0.98], low = [0.16, 0.4, 0.5], BV = 0.05;
   let cu = 0, cv = 0; for (const [u, v] of poly) { cu += u; cv += v; } cu /= poly.length; cv /= poly.length;
-  const tri = (a, b, c, ca, cb, cc, want) => {
+  const tri = (a, b, c, ca, cb, cc, ua, ub, uc, want) => {
     const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
     let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-    if (n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { [b, c] = [c, b]; [cb, cc] = [cc, cb]; n = n.map(x => -x); }
-    const l = Math.hypot(...n) || 1; n = n.map(x => x / l);
-    for (const [p, col] of [[a, ca], [b, cb], [c, cc]]) { P.push(...p); N.push(...n); C.push(...col); }
+    if (n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { [b, c] = [c, b]; [cb, cc] = [cc, cb]; [ub, uc] = [uc, ub]; n = n.map(x => -x); }
+    const l = Math.hypot(...n) || 1; n = want.length > 3 ? want.slice(0, 3) : n.map(x => x / l);
+    for (const [p, col, uv] of [[a, ca, ua], [b, cb, ub], [c, cc, uc]]) { P.push(...p); N.push(...n); C.push(...col); U.push(...uv); }
   };
-  for (let i = 0; i < poly.length; i++) {
-    const [ua, va] = poly[i], [ub, vb] = poly[(i + 1) % poly.length], out = [(ua + ub) / 2 - cu, 0, (va + vb) / 2 - cv];
-    tri([cu, 0, cv], [ua, 0, va], [ub, 0, vb], top, top, top, [0, 1, 0]);
-    tri([ua, 0, va], [ub, 0, vb], [ub, -0.06, vb], lip, lip, lip, out); tri([ua, 0, va], [ub, -0.06, vb], [ua, -0.06, va], lip, lip, lip, out);
-    tri([ua, -0.06, va], [ub, -0.06, vb], [ub, -depth, vb], lip, lip, low, out); tri([ua, -0.06, va], [ub, -depth, vb], [ua, -depth, va], lip, low, low, out);
+  // the outline, cut into pieces no longer than 0.45, each point with the lip broken back from it by its own amount
+  const ring = [];
+  { let h = 7; const rr = () => ((h = (h * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < poly.length; i++) {
+      const [ua, va] = poly[i], [ub, vb] = poly[(i + 1) % poly.length], n = Math.max(1, Math.ceil(Math.hypot(ub - ua, vb - va) / 0.45));
+      for (let k = 0; k < n; k++) { const u = ua + (ub - ua) * k / n, v = va + (vb - va) * k / n, dx = cu - u, dz = cv - v, d = Math.hypot(dx, dz) || 1, b = BV * (0.5 + 1.1 * rr()); ring.push({ u, v, iu: u + dx / d * b, iv: v + dz / d * b }); }
+    } }
+  const tUV = (u, v) => [u / 2.6, v / 2.6];
+  let along = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length], out = [(a.u + b.u) / 2 - cu, 0, (a.v + b.v) / 2 - cv], len = Math.hypot(b.u - a.u, b.v - a.v);
+    tri([cu, 0, cv], [a.iu, 0, a.iv], [b.iu, 0, b.iv], top, top, top, tUV(cu, cv), tUV(a.iu, a.iv), tUV(b.iu, b.iv), [0, 1, 0]);
+    const ol = Math.hypot(out[0], out[2]) || 1, ch = [out[0] / ol, 1.1, out[2] / ol];
+    tri([a.iu, 0, a.iv], [b.iu, 0, b.iv], [b.u, -BV, b.v], top, top, lipC, tUV(a.iu, a.iv), tUV(b.iu, b.iv), tUV(b.u, b.v), ch); tri([a.iu, 0, a.iv], [b.u, -BV, b.v], [a.u, -BV, a.v], top, lipC, lipC, tUV(a.iu, a.iv), tUV(b.u, b.v), tUV(a.u, a.v), ch);
+    const s0 = along / 0.7, s1 = (along + len) / 0.7, y1 = -depth;
+    tri([a.u, -BV, a.v], [b.u, -BV, b.v], [b.u, y1, b.v], hi, hi, low, [s0, 0], [s1, 0], [s1, depth / 2.5], out); tri([a.u, -BV, a.v], [b.u, y1, b.v], [a.u, y1, a.v], hi, low, low, [s0, 0], [s1, depth / 2.5], [s0, depth / 2.5], out);
+    along += len;
   }
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
   return g;
 }
 
@@ -98,7 +113,10 @@ feature({
     { const w = L.water, m = this.water = new THREE.Mesh(new THREE.PlaneGeometry(w.x1 - w.x0 + 1, w.z1 - w.z0 + 20), waterMaterial());
       m.rotation.x = -Math.PI / 2; m.position.set((w.x0 + w.x1) / 2 - 0.5, WATER_Y, (w.z0 + w.z1) / 2); m.updateMatrix(); m.matrixAutoUpdate = false; m.frustumCulled = false; g.add(m); }
     // the floes: the chain's, one mesh each; the loose ones and the bits, instanced by outline
-    const iceM = snowLook(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, emissive: new THREE.Color(0.2, 0.27, 0.42), emissiveIntensity: 0.75 }), { drift: 0, moon: 0.5, sheen: 0.4 });      // (faces turned to the moon lit, the far ice catching it: src/finish.js)
+    const snowTex = k.museum && k.museum.snowTex;
+    const iceM0 = new THREE.MeshStandardMaterial({ map: snowTex || null, vertexColors: true, roughness: 0.4, emissiveMap: snowTex || null, emissive: new THREE.Color(0.3, 0.37, 0.55), emissiveIntensity: 0.62 });
+    iceM0.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;'); };      // (as the slabs along the edge: lakefront.js)
+    const iceM = snowLook(iceM0, { drift: 0, moon: 0.5, sheen: 0.4 });      // (faces turned to the moon lit, the far ice catching it: src/finish.js; it chains the hook above)
     this.floes = L.floes;
     let ph = 1;
     for (const f of L.floes) { f.p1 = (ph = (ph * 7.13) % 6.283); f.p2 = (ph * 3.7) % 6.283; f.p3 = (ph * 5.3) % 6.283; f.p0 = (ph * 2.1) % 6.283; f.w1 = 1.1 + (ph % 0.5); }
@@ -183,6 +201,7 @@ feature({
     const redM = new THREE.MeshStandardMaterial({ color: 0xb01c24, roughness: 0.6, ...em(0x3a0608, 0.8) });
     const roofM = new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.9, ...em(0x0c0e14, 0.6) });
     const snowM = new THREE.MeshStandardMaterial({ color: 0xeef3ff, roughness: 0.9, ...em(0x5a6680, 0.55) });
+    const snowTex = k.museum && k.museum.snowTex, roofSnowM = snowTex ? new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.3, 0.36, 0.52), emissiveIntensity: 0.55 }) : snowM;
     const stoneM = new THREE.MeshStandardMaterial({ color: 0x8d9096, roughness: 0.95, ...em(0x24272e, 0.6) });
     const doorM = new THREE.MeshStandardMaterial({ map: door, roughness: 0.7, emissiveMap: door, ...em(0xffffff, 0.25) });
     const scarfM = new THREE.MeshStandardMaterial({ map: scarf, roughness: 1, emissiveMap: scarf, ...em(0xffffff, 0.3), side: THREE.DoubleSide, alphaTest: 0.5 });
@@ -192,7 +211,8 @@ feature({
     P.add(box(W, wallTop, D), wallM, cx, y + wallTop / 2, cz);                                         // the walls
     P.add(box(W + 0.02, 0.12, D + 0.02), redM, cx, y + wallTop - 0.06, cz);                             // the fascia under the roof
     P.add(box(W, 0.1, D), roofM, cx, y + wallTop + 0.05, cz);                                          // the roof
-    P.add(box(W - 0.02, 0.04, D - 0.02), snowM, cx, y + H.h - 0.02, cz);                                // and its snow, at the top you land on
+    P.add(box(W + 0.06, 0.05, D + 0.06), roofSnowM, cx, y + H.h - 0.025, cz);                           // and its snow, at the top you land on, over the eaves a little
+    for (const [dx, dz, w, d] of [[0, -(D + 0.06) / 2, W + 0.06, 0.07], [0, (D + 0.06) / 2, W + 0.06, 0.07], [-(W + 0.06) / 2, 0, 0.07, D + 0.06], [(W + 0.06) / 2, 0, 0.07, D + 0.06]]) P.add(new THREE.CylinderGeometry(0.035, 0.035, 1, 6).rotateZ(Math.PI / 2).rotateY(w > d ? 0 : Math.PI / 2), roofSnowM, cx + dx, y + H.h - 0.03, cz + dz, 0, 0, 0, w > d ? w : 1, 1, w > d ? 1 : d);      // a rounded lip of it along each edge
     P.add(box(0.03, H.door.h, H.door.w), doorM, H.x1 + 0.006, y + H.door.h / 2 + 0.06, H.door.z);      // the door
     P.add(box(0.05, 0.06, H.door.w + 0.14), redM, H.x1 + 0.01, y + H.door.h + 0.09, H.door.z);           // its lintel
     { const s = H.step; P.add(box(s.x1 - s.x0, s.h, s.z1 - s.z0), stoneM, (s.x0 + s.x1) / 2, y + s.h / 2, (s.z0 + s.z1) / 2); }
