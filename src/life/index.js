@@ -3,3 +3,6 @@
 import './20684-paris-street.js';      // 201  Caillebotte, Paris Street; Rainy Day: puddle
 import './111436-basket-of-apples.js';  // 248  Cézanne, The Basket of Apples: tumble
 import './94841-song-of-the-lark.js';   // 222  Breton, The Song of the Lark: song
+import './16568-water-lilies.js';      // 243  Monet, Water Lilies: ripple
+import './81545-stacks-of-wheat.js';   // 243  Monet, Stacks of Wheat (Sunset, Snow Effect): hiccup
+import './80607-self-portrait.js';      // 241  van Gogh, Self-Portrait (1887): swirl
