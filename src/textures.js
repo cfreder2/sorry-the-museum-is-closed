@@ -691,3 +691,43 @@ export function carriage() {
   g.fillStyle = '#d0661c'; g.fillRect(0, 108, 512, 7);
   return tex(c, { repeat: true });
 }
+
+// ------------------------------------------------------------------ finish (src/finish.js, the look pass) ---
+
+// Plaster: a soft, tileable unevenness, grey about 0.5 (it scales the light, never colours it).
+export function plaster() {
+  const S = 256, [c, g] = canvas(S, S), r = rng(313);
+  g.fillStyle = '#808080'; g.fillRect(0, 0, S, S);
+  // big soft blotches, drawn wrapped so the tile has no seam
+  for (let k = 0; k < 140; k++) {
+    const x = r() * S, y = r() * S, rad = 10 + r() * 46, v = r() > 0.5 ? 255 : 0, a = 0.025 + r() * 0.04;
+    for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
+      const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad);
+      gr.addColorStop(0, `rgba(${v},${v},${v},${a})`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`);
+      g.fillStyle = gr; g.fillRect(x + ox - rad, y + oy - rad, rad * 2, rad * 2);
+    }
+  }
+  // trowel marks: faint short strokes
+  g.lineCap = 'round';
+  for (let k = 0; k < 220; k++) {
+    const x = r() * S, y = r() * S, l = 6 + r() * 18, a = r() * Math.PI, v = r() > 0.5 ? 255 : 0;
+    g.strokeStyle = `rgba(${v},${v},${v},${0.02 + r() * 0.03})`; g.lineWidth = 2 + r() * 5;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+  }
+  for (let k = 0; k < 3000; k++) { const v = r() > 0.5 ? 255 : 0; g.fillStyle = `rgba(${v},${v},${v},${r() * 0.04})`; g.fillRect(r() * S, r() * S, 1, 1); }
+  return tex(c, { repeat: true, srgb: false });
+}
+
+// Shade for the baked contact decals: alpha only (the decal is black), a soft box. The middle half of the tile is
+// solid shade and its outer half fades out; a decal is cut into nine so the fade keeps its width on any size of box.
+export function softBox() {
+  const S = 128, [c, g] = canvas(S, S), img = g.createImageData(S, S);
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const fx = Math.min(1, Math.abs(i + 0.5 - S / 2) / (S / 2)), fy = Math.min(1, Math.abs(j + 0.5 - S / 2) / (S / 2));
+    const d = Math.min(1, Math.hypot(Math.max(0, fx * 2 - 1), Math.max(0, fy * 2 - 1)));       // 0 inside the middle half, 1 at the edge
+    const a = Math.pow(1 - d, 1.5);
+    const o = (j * S + i) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * a);
+  }
+  g.putImageData(img, 0, 0);
+  const t = tex(c, { srgb: false }); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+}

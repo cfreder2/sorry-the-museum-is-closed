@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
+import { relief } from './finish.js';
 import { T, streetY, landable } from './plan.js';
 import { winterTree, frostHedges, hedgeMaterial } from './frost.js';
 import { buildBridgeway } from './bridgeway.js';
@@ -77,7 +78,8 @@ export function buildGrounds(museum, plan) {
     // An acroterion: a palmette, standing up off the cornice.
     const palmT = cvTex(128, 160, (c, w, h) => { c.clearRect(0, 0, w, h); for (const [col, o] of [['#6f6655', 3], ['#c4baa6', 0]]) { c.fillStyle = col; for (let i = -4; i <= 4; i++) { const a = i * 0.26; c.save(); c.translate(64 + o, 150); c.rotate(a); c.beginPath(); c.ellipse(0, -72 + Math.abs(i) * 6, 9, 62 - Math.abs(i) * 6, 0, 0, 7); c.fill(); c.restore(); } c.fillRect(22 + o, 138, 84, 22); c.beginPath(); c.arc(64 + o, 138, 20, Math.PI, 0); c.fill(); } }, false);
     const E = new THREE.Color(0.78, 0.66, 0.50), EI = 0.5;
-    const mk = (t, k = 1, o = {}) => new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, emissiveMap: t, emissive: E.clone().multiplyScalar(k), emissiveIntensity: EI, side: THREE.DoubleSide, ...o });
+    // (relief: each stone's joints given depth, the foot of the front in shade, a rim of moonlight at a glance: src/finish.js)
+    const mk = (t, k = 1, o = {}) => relief(new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, emissiveMap: t, emissive: E.clone().multiplyScalar(k), emissiveIntensity: EI, side: THREE.DoubleSide, ...o }), { depth: 3, foot: [0.35, 2.2], rim: 0.5, px: (t.image && t.image.width) || 512 });
     const wallM = mk(ash, 1.0), rustM = mk(rustT, 1.0), voussM = mk(voussT, 1.03), shadeM = mk(plainT, 0.66), deepM = mk(plainT, 0.4), dentM = mk(dentT, 1.0), smoothM = mk(plainT, 0.97);
     const bronzeM = new THREE.MeshStandardMaterial({ color: 0x2c2418, roughness: 0.5, metalness: 0.5, emissive: 0x1a140c, emissiveIntensity: 0.8 });
     const loggiaM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.075, 0.062, 0.05) });

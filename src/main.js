@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
@@ -73,6 +73,7 @@ import './bandshell.js';        // the band shell on Butler Field, and Snow Ball
 import './finale.js';
 import './finalelaunch.js';      // the five notes, the tractor beam and the launch (docs/FINALE.md, phase 3)
 import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
+import './look.js';              // the look pass over the finished world: the snow's drifts, soft shadows under what moves (last: src/finish.js)
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -93,9 +94,10 @@ camera.position.set(8, 0.5, -2);
 const mirror = new FloorMirror(0.5);
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.62, 0.8, 1.0);
+const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.6, 0.12, 1.0);      // tight: the glow hugs what is bright, no smear
 composer.addPass(bloom);
-composer.addPass(new OutputPass());
+const finish = new FinishPass(bloom);
+composer.addPass(finish);
 
 function resize() {
   const w = innerWidth, h = innerHeight, pr = Math.min(devicePixelRatio || 1, 1.75);

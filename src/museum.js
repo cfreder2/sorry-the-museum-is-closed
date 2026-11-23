@@ -14,6 +14,7 @@ import { buildWinter } from './winter.js';
 import { buildStatues } from './statues.js';
 import { furnish, MATERIALS } from './furnish.js';
 import { buildSetPieces } from './setpieces.js';
+import { keepTrue, roomShade, relief, ShadeSet, shadeMaterial } from './finish.js';
 const AUDIT = typeof location !== 'undefined' && /[?&]audit\b/.test(location.search);      // a test switch: keep geometry readable so openings can be checked by ray (tools/audit_openings.md)
 
 // ---------------------------------------------------------------- geometry --
@@ -543,10 +544,11 @@ export class Museum {
     this.onSeen = null;         // (art, roomState) the first time a work is properly looked at
     this.seenIds = new Set(); this.visited = new Set();
     try { this.seenIds = new Set(JSON.parse(localStorage.getItem('after-hours.seen-ids') || '[]')); this.visited = new Set(JSON.parse(localStorage.getItem('after-hours.rooms') || '[]')); } catch { /* no storage */ }
+    this.shade = new ShadeSet();      // baked contact shadows, gathered as the building goes up (src/finish.js)
     this.kit = new THREE.Group();     // the stunt kit, so it can be put away while you look at a picture
     this.group.add(this.kit);
     this._toBuild = [() => this._buildShell(mirror), () => this._buildOutside(), () => this._buildHall(), () => this._buildArt(), () => this._buildFurniture(),
-      () => { this._buildStunts(); this._buildLevels(); this.group.updateMatrixWorld(true); }];
+      () => { this._buildStunts(); this._buildLevels(); for (const m of this.shade.meshes(shadeMaterial())) this.group.add(m); this.group.updateMatrixWorld(true); }];
     if (!later) while (this.buildNext());
   }
   /** Puts up the next part of the building. True while there is more to come. */
@@ -615,13 +617,36 @@ export class Museum {
       // stands open, and wherever a stair or a lift comes down through it from the room above.
       const hole = plan.skylights.find(k => k.room === r.id) || null;
       const through = [...plan.wells.filter(k => k.y > r.y + 1 && Math.abs(k.y - SLAB - r.top) < 1.3 && over(k, r)), ...(plan.shafts || []).filter(k => k.room === r.id)];      // (a shaft: the silo over the hangar, src/finaleplan.js)
-      if (r.kind !== 'hall') for (const c of carve(r, hole ? [hole, ...through] : through)) sheet(walls, c.x0, c.x1, c.z0, c.z1, r.h, [0, -1, 0], () => [[0, 0.9], [1, 0.9], [1, 0.9], [0, 0.9]], null);
+      if (r.kind !== 'hall') for (const c of carve(r, hole ? [hole, ...through] : through)) sheet(walls, c.x0, c.x1, c.z0, c.z1, r.h, [0, -1, 0], () => [[0, 0.8], [1, 0.8], [1, 0.8], [0, 0.8]], null);
+      // Contact shade (src/finish.js): along the foot of every stretch of wall (fading out where it stops at a doorway,
+      // running into the corner where it meets the next wall), and round each doorway's stone surround.
+      for (const w of plan.walls.filter(w => w.room === r)) {
+        if (w.side === r.glass) continue;
+        const U = w.horiz ? [1, 0, 0] : [0, 0, 1], N = [w.nx, 0, w.nz], fy = r.y + 0.012;
+        const P = w.horiz ? [0, fy, w.fixed] : [w.fixed, fy, 0];
+        const reach = r.kind === 'hall' ? 1.1 : lower ? 0.6 : 0.75, k = r.kind === 'hall' ? 0.5 : 0.68;
+        for (const sg of w.segs || [{ lo: w.lo, hi: w.hi }]) {
+          const len = sg.hi - sg.lo; if (len < 0.1) continue;
+          const fLo = Math.abs(sg.lo - w.lo) < 0.05 ? 0 : Math.min(0.45, len / 3), fHi = Math.abs(sg.hi - w.hi) < 0.05 ? 0 : Math.min(0.45, len / 3);
+          this.shade.soft(P, U, N, sg.lo + fLo, sg.hi - fHi, 0, 0, fLo, fHi, 0, reach, k);
+        }
+        const Pw = w.horiz ? [0, r.y, w.fixed + w.nz * 0.012] : [w.fixed + w.nx * 0.012, r.y, 0];
+        for (const o of w.openings) {
+          if (o.door.hidden || o.door.vent) continue;
+          const top = o.y + o.h + 0.36, mT = Math.max(0, Math.min(0.24, r.h - top - 0.02));
+          if (top > r.h + 0.01) continue;
+          this.shade.soft(Pw, U, [0, 1, 0], o.lo - 0.3, o.hi + 0.3, Math.max(0, o.y), top, 0.26, 0.26, o.y > 0.1 ? 0.26 : 0, mT, 0.5, false);
+        }
+      }
       const tint = new THREE.Color(r.tint);
       const wallMat = new THREE.MeshStandardMaterial({
         color: tint, roughness: 0.94, metalness: 0,
         emissive: tint.clone().lerp(WARM, 0.35), emissiveMap: this.textures.wallGlow, emissiveIntensity: 0,
       });
       const trimMat = new THREE.MeshStandardMaterial({ color: 0xb9ae9b, roughness: 0.8, emissive: new THREE.Color(0.75, 0.62, 0.45), emissiveIntensity: 0 });
+      // Soft shade where the walls meet the floor, the ceiling and each other, and the plaster's unevenness (src/finish.js).
+      roomShade(wallMat, r, r.kind === 'hall' ? { floor: [0.45, 1.4], ceil: [0, 1], corner: [0.3, 1.0] } : { floor: [0.5, 0.85], ceil: [0.5, 0.75], corner: [0.38, 0.65], grain: 0.12 });
+      roomShade(trimMat, r, { floor: [0.22, 0.5], ceil: [0.28, 0.6], corner: [0.2, 0.4], grain: 0 });
       this.group.add(lift(walls.mesh(wallMat), r.y));
       if (!trim.empty) this.group.add(lift(trim.mesh(trimMat), r.y));
       const state = this.rooms[r.id] = { room: r, wallMat, trimMat, wake: 0, lit: false, arts: [], frameMats: [], seen: 0, done: false };
@@ -640,7 +665,7 @@ export class Museum {
       else {
         const fl = new Geo();
         for (const c of boards) fq(fl, c.x0, c.x1, c.z0, c.z1, 1.7, r.y);
-        const fm = mirror.patch(new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55, emissiveMap: woodTex, emissive: new THREE.Color(1, 0.86, 0.7), emissiveIntensity: 0.02 }), [0.02, 0.5]);
+        const fm = relief(mirror.patch(new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55, emissiveMap: woodTex, emissive: new THREE.Color(1, 0.86, 0.7), emissiveIntensity: 0.02 }), [0.02, 0.5]), { depth: 1.2, px: 1024 });
         this.floors.push(fl.mesh(fm));
         state.floorMat = fm;
       }
@@ -748,7 +773,7 @@ export class Museum {
     // Faintly self-lit, so a doorway always reads as a doorway in the dark.
     this.group.add(portals.mesh(new THREE.MeshStandardMaterial({ color: 0xa69c8a, roughness: 0.75, emissive: 0x8a7f6c, emissiveIntensity: 0.07 })));
 
-    const floorMat = (map, rough, k, glow) => mirror.patch(new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, emissiveMap: map, emissive: new THREE.Color(0.55, 0.66, 1), emissiveIntensity: glow }), k);
+    const floorMat = (map, rough, k, glow) => relief(mirror.patch(new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, emissiveMap: map, emissive: new THREE.Color(0.55, 0.66, 1), emissiveIntensity: glow }), k), { depth: 1.4, px: map.image.width });
     this.floors.push(stone.mesh(floorMat(TX.marble(), 0.35, [0.04, 0.62], 0.05)), slate.mesh(floorMat(TX.slate(), 0.4, [0.05, 0.6], 0.03)));
     if (!wcTile.empty) {
       this.floors.push(wcTile.mesh(floorMat(TX.mosaic(), 0.85, [0.01, 0.3], 0.05)));
@@ -758,11 +783,11 @@ export class Museum {
     this.group.add(...this.floors);
     this.group.add(lay.mesh(new THREE.MeshBasicMaterial({ map: TX.laylight(), color: new THREE.Color(0.34, 0.4, 0.56) })));
     const ash = TX.ashlar(), snowTex = TX.snow();
-    if (!facade.empty) this.group.add(facade.mesh(new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.32, 0.36, 0.5), emissiveIntensity: 0.42 })));
+    if (!facade.empty) this.group.add(facade.mesh(relief(new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.32, 0.36, 0.5), emissiveIntensity: 0.42 }), { depth: 3.4, foot: [0.4, 2.0], rim: 0.6 })));
     // Each building in its own stone, brick, steel or concrete.
     for (const [name, sk] of Object.entries(FAC)) {
       const t = TX.wallStyle(name), K = STYLES[name];
-      if (!sk.wall.empty) this.group.add(sk.wall.mesh(new THREE.MeshStandardMaterial({ map: t, roughness: 0.88, emissiveMap: t, emissive: new THREE.Color(K.glow[0], K.glow[1], K.glow[2]), emissiveIntensity: 0.5 })));
+      if (!sk.wall.empty) this.group.add(sk.wall.mesh(relief(new THREE.MeshStandardMaterial({ map: t, roughness: 0.88, emissiveMap: t, emissive: new THREE.Color(K.glow[0], K.glow[1], K.glow[2]), emissiveIntensity: 0.5 }), { depth: 3.4, foot: [0.4, 2.0], rim: 0.6 })));      // (relief: the joints given depth, the foot of the wall in shade: src/finish.js)
       if (!sk.trim.empty) this.group.add(sk.trim.mesh(new THREE.MeshStandardMaterial({ color: K.trim, roughness: 0.8, emissive: K.trim, emissiveIntensity: 0.22 })));
     }
     this.group.add(roofs.mesh(new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 })));
@@ -892,7 +917,7 @@ export class Museum {
     sky.position.set(sx, (SPAN / 2 - BELOW) * SK, cz);
     const moonAt = new THREE.Vector3(sx + R * 0.82, 100 * SK, cz - R * 0.33);       // far enough inside the backdrop that its glow is not sliced off by it        // low in the east, over the lake
     const moon = new THREE.Mesh(new THREE.SphereGeometry(13 * SK, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.5, 2.8), fog: false }));
-    moon.position.copy(moonAt);
+    moon.position.copy(moonAt); this.moonAt = moonAt;      // (src/look.js: the snow's slopes are shaded from it)
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(190 * SK, 190 * SK), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.4), color: new THREE.Color(0.3, 0.38, 0.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     halo.position.copy(moonAt); halo.lookAt(cx, 20, cz);
     this.group.add(sky, moon, halo);
@@ -1250,6 +1275,12 @@ export class Museum {
     this.pools = inst(unit, additive(TX.radial(0, 1)), n);
     this.cards = inst(unit, new THREE.MeshBasicMaterial({ color: 0xffffff }), n);
     this.pools.renderOrder = 4; this.washes.renderOrder = 4;
+    // Track lights on a gallery's ceiling, a can on the track for each painting, aimed at it: the can's lens glows when the
+    // room wakes. (No beam is drawn: nothing ever lies over a painting.)
+    const tracks = new Geo(), runs = new Map();
+    this.cans = inst(new THREE.CylinderGeometry(0.045, 0.055, 0.17, 10, 1, false), new THREE.MeshStandardMaterial({ color: 0x1c1b1a, roughness: 0.45, metalness: 0.6, emissive: 0x0c0b0a, emissiveIntensity: 1 }), Math.max(1, paintings));
+    this.canLens = inst(new THREE.CircleGeometry(0.04, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, paintings));
+    let canIdx = 0; const Y_UP = new THREE.Vector3(0, 1, 0), Z_ON = new THREE.Vector3(0, 0, 1), dir = new THREE.Vector3();
 
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), V = new THREE.Vector3();
     const E = new THREE.Euler();
@@ -1260,6 +1291,7 @@ export class Museum {
       // Mostly self-lit: a headlamp should warm a picture, not bleach it.
       const mat = new THREE.MeshStandardMaterial({ color: 0x4c4c4c, map: blank, emissiveMap: blank, emissive: 0xffffff, emissiveIntensity: 0.03, roughness: 0.6, metalness: 0 });
       if (obj) { mat.alphaTest = 0.5; mat.side = THREE.DoubleSide; mat.color.set(0x8a8a8a); }
+      keepTrue(mat);      // shown exactly as the museum's image: no grade, vignette or glow over it (src/finish.js)
       const mesh = new THREE.Mesh(unit, mat);
       if (obj) mesh.visible = false;              // until its photograph has been cut out
       mesh.position.set(p.x, p.y, p.z);
@@ -1267,7 +1299,7 @@ export class Museum {
       mesh.scale.set(p.w, p.h, 1);
       mesh.matrixAutoUpdate = false; mesh.updateMatrix();
       this.group.add(mesh);
-      const art = { ...p, i, mini, obj, mesh, mat, lit: 0, wakeAt: -1, tier: 0, want: 0, busy: false, studied: false, lamp: -1, tex: null, seen: this.seenIds.has(p.work.id) };
+      const art = { ...p, i, mini, obj, mesh, mat, lit: 0, wakeAt: -1, tier: 0, want: 0, busy: false, studied: false, lamp: -1, can: -1, tex: null, seen: this.seenIds.has(p.work.id) };
       if (obj) this.objects.push(art);
       this.rooms[p.room].arts.push(art);
 
@@ -1278,11 +1310,18 @@ export class Museum {
 
       // The frame: see buildFrame.
       const f = p.frame, hw = p.w / 2, hh = p.h / 2;
-      if (!obj) buildFrame(frames[p.room] || (frames[p.room] = new Geo()), p, frameStyle(p.work, mini));
+      if (!obj) {
+        buildFrame(frames[p.room] || (frames[p.room] = new Geo()), p, frameStyle(p.work, mini));
+        // The frame's soft shadow on the wall round it, a little lower than the frame (the lamp is above): never on the canvas,
+        // which stands in front of it (src/finish.js).
+        const ff = f * (mini ? 1 : 0.9), m = mini ? 0.12 : Math.min(0.3, 0.12 + 0.06 * Math.max(p.w, p.h));
+        this.shade.soft([p.x - p.nx * 0.028, p.y, p.z - p.nz * 0.028], [Math.cos(p.rot), 0, -Math.sin(p.rot)], [0, 1, 0], -hw - ff + 0.02, hw + ff - 0.02, -hh - ff - 0.04, hh + ff - 0.08, m * 1.15, m * 1.15, m * 1.5, m * 0.55, 0.9, false);
+      }
       else {
         // A plinth, and a glass case over whatever stands on it.
         const a = p.half, top = fy + p.plinth + p.h + 0.18;
         plinths.box(p.x - a, p.x + a, fy, fy + p.plinth, p.z - a, p.z + a);
+        this.shade.soft([p.x, fy + 0.012, p.z], [1, 0, 0], [0, 0, 1], -a, a, -a, a, 0.3, 0.3, 0.3, 0.3, 0.5, false);
         glass.box(p.x - a + 0.02, p.x + a - 0.02, fy + p.plinth + 0.012, top - 0.012, p.z - a + 0.02, p.z + a - 0.02);
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) brass.box(p.x + sx * (a - 0.02) - 0.008, p.x + sx * (a - 0.02) + 0.008, fy + p.plinth, top, p.z + sz * (a - 0.02) - 0.008, p.z + sz * (a - 0.02) + 0.008);
         for (const sgn of [-1, 1]) { brass.box(p.x - a, p.x + a, top, top + 0.02, p.z + sgn * a - (sgn > 0 ? 0.03 : 0), p.z + sgn * a + (sgn > 0 ? 0 : 0.03)); brass.box(p.x + sgn * a - (sgn > 0 ? 0.03 : 0), p.x + sgn * a + (sgn > 0 ? 0 : 0.03), top, top + 0.02, p.z - a, p.z + a); }
@@ -1304,6 +1343,22 @@ export class Museum {
         S.set(ww, wh, 1);
         this.washes.setMatrixAt(lampIdx, M.compose(V, Q, S));
         art.lamp = lampIdx++;
+        const rr = this.plan.byId[p.room];
+        if (rr && rr.kind === 'gallery' && rr.h > 3.2) {
+          const out = Math.min(1.5, 0.2 * Math.min(rr.x1 - rr.x0, rr.z1 - rr.z0)), ceil = rr.y + rr.h, cy = ceil - 0.14;
+          const cx = p.x + p.nx * out, cz = p.z + p.nz * out;
+          dir.set(p.x - cx, p.y - cy, p.z - cz).normalize();
+          Q.setFromUnitVectors(Y_UP, dir); S.set(1, 1, 1);
+          this.cans.setMatrixAt(canIdx, M.compose(V.set(cx, cy, cz), Q, S));
+          Q.setFromUnitVectors(Z_ON, dir);
+          this.canLens.setMatrixAt(canIdx, M.compose(V.set(cx + dir.x * 0.087, cy + dir.y * 0.087, cz + dir.z * 0.087), Q, S));
+          E.set(0, p.rot, 0); Q.setFromEuler(E);
+          tracks.box(cx - 0.008, cx + 0.008, cy + 0.06, ceil - 0.03, cz - 0.008, cz + 0.008);
+          const key = p.room + '|' + p.nx + '|' + p.nz, along = p.nz !== 0 ? cx : cz;
+          const run = runs.get(key) || { r: rr, nx: p.nx, nz: p.nz, at: p.nz !== 0 ? cz : cx, lo: along, hi: along, ceil };
+          run.lo = Math.min(run.lo, along); run.hi = Math.max(run.hi, along); runs.set(key, run);
+          art.can = canIdx++;
+        }
       }
       // What the lamp spills on the floor.
       E.set(-Math.PI / 2, 0, 0); flatQ.setFromEuler(E);
@@ -1322,6 +1377,13 @@ export class Museum {
       return art;
     });
     this.lamps.count = Math.max(1, lampIdx); this.washes.count = Math.max(1, lampIdx);
+    this.cans.count = Math.max(1, canIdx); this.canLens.count = Math.max(1, canIdx); if (!canIdx) this.cans.visible = this.canLens.visible = false;
+    for (const run of runs.values()) {
+      const r = run.r, alongX = run.nz !== 0, lo = Math.max(alongX ? r.x0 : r.z0, run.lo - 1) + 0.3, hi = Math.min(alongX ? r.x1 : r.z1, run.hi + 1) - 0.3, y0 = run.ceil - 0.035, y1 = run.ceil - 0.006;
+      if (hi - lo < 0.2) continue;
+      if (alongX) tracks.box(lo, hi, y0, y1, run.at - 0.025, run.at + 0.025); else tracks.box(run.at - 0.025, run.at + 0.025, y0, y1, lo, hi);
+    }
+    if (!tracks.empty) this.group.add(tracks.mesh(new THREE.MeshStandardMaterial({ color: 0x2a2826, roughness: 0.5, metalness: 0.5, emissive: 0x1a1816, emissiveIntensity: 1 })));
 
     for (const [room, geo] of Object.entries(frames)) {
       // One material per room; each ring of moulding carries its own colour, and glows in it.
@@ -1349,10 +1411,11 @@ export class Museum {
     a.mat.emissiveIntensity = (a.mini ? 0.05 + 1.1 * a.lit : a.obj ? 0.08 + 0.8 * a.lit : 0.035 + 0.88 * a.lit) * (1 + 0.5 * b);
     if (a.lamp >= 0) {
       this.lamps.setColorAt(a.lamp, c.setRGB(0.05 + 3.6 * l, 0.04 + 2.9 * l, 0.03 + 1.9 * l));
-      this.washes.setColorAt(a.lamp, c.setRGB(0.34 * l, 0.26 * l, 0.17 * l));
+      this.washes.setColorAt(a.lamp, c.setRGB(0.6 * l, 0.43 * l, 0.23 * l));
     }
-    const k = a.mini ? 0.2 : 0.17;
-    this.pools.setColorAt(a.i, c.setRGB(k * l, k * 0.8 * l, k * 0.55 * l));
+    if (a.can >= 0) this.canLens.setColorAt(a.can, c.setRGB(0.06 + 3.4 * l, 0.05 + 2.6 * l, 0.04 + 1.6 * l));
+    const k = a.mini ? 0.22 : 0.21;
+    this.pools.setColorAt(a.i, c.setRGB(k * l, k * 0.76 * l, k * 0.48 * l));
     // The label stays dark until you have seen the work; then it is lit, and stays lit.
     if (a.seen) this.cards.setColorAt(a.i, c.setRGB(1.55, 1.2, 0.5));
     else this.cards.setColorAt(a.i, c.setRGB(0.03, 0.029, 0.027));
@@ -1368,6 +1431,7 @@ export class Museum {
       const L = 1.4, W = 0.38;
       const hx = alongX ? L : W, hz = alongX ? W : L;
       leather.box(cx - hx, cx + hx, y + 0.4, y + 0.5, cz - hz, cz + hz);
+      this.shade.soft([cx, y + 0.012, cz], [1, 0, 0], [0, 0, 1], -hx + 0.05, hx - 0.05, -hz + 0.05, hz - 0.05, 0.24, 0.24, 0.24, 0.24, 0.45);
       plan.obstacles.push({ x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz, y0: y + 0.37, y1: y + 0.488, bench: true });
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
         const lx = cx + sx * (hx - 0.07), lz = cz + sz * (hz - 0.07);
@@ -1385,6 +1449,7 @@ export class Museum {
     const lobby = plan.byId[plan.front.a] || plan.rooms[0];
     const dx = lobby.x0 + 2.4, dz = lobby.z1 - 1.1, dy = lobby.y;
     desk.box(dx - 1.1, dx + 1.1, dy, dy + 1.02, dz - 0.5, dz + 0.5);
+    this.shade.soft([dx, dy + 0.012, dz], [1, 0, 0], [0, 0, 1], -1.1, 1.1, -0.5, 0.5, 0.28, 0.28, 0.28, 0.28, 0.5, false);
     desk.box(dx - 1.16, dx + 1.16, dy + 1.02, dy + 1.07, dz - 0.56, dz + 0.56);
     plan.obstacles.push({ x0: dx - 1.16, x1: dx + 1.16, z0: dz - 0.56, z1: dz + 0.56, y0: dy, y1: dy + 1.5 });
     this.group.add(desk.mesh(new THREE.MeshStandardMaterial({ color: 0x2c1e14, roughness: 0.55, emissive: 0x2a1a0c, emissiveIntensity: 0.25 })));
@@ -1396,6 +1461,16 @@ export class Museum {
     glow.rotation.x = -Math.PI / 2; glow.position.set(dx + 0.05, dy + 1.075, dz);
     this.group.add(shade, stem, glow);
     this._buildFitout();
+    // Everything the fit-out stood on a floor, of any size: a soft shadow under and round it (src/finish.js).
+    for (const o of plan.obstacles) {
+      if (o.bench) continue;
+      const w = o.x1 - o.x0, d = o.z1 - o.z0, h = o.y1 - o.y0;
+      if (w < 0.25 || d < 0.25 || h < 0.3 || w > 5 || d > 5) continue;
+      const r = roomAt(plan, (o.x0 + o.x1) / 2, (o.z0 + o.z1) / 2, o.y0 + 0.1);
+      if (!r || Math.abs(o.y0 - r.y) > 0.05) continue;
+      const m = Math.min(0.32, 0.1 + h * 0.08);
+      this.shade.soft([(o.x0 + o.x1) / 2, o.y0 + 0.012, (o.z0 + o.z1) / 2], [1, 0, 0], [0, 0, 1], -w / 2 + 0.03, w / 2 - 0.03, -d / 2 + 0.03, d / 2 - 0.03, m, m, m, m, 0.42);
+    }
     this.setpieces = buildSetPieces(this, this.plan);
   }
 
@@ -1897,7 +1972,7 @@ export class Museum {
       const target = k === 'gallery' ? (s.lit && s.sw !== false ? 1 : 0) : 0;
       s.wake += (target - s.wake) * Math.min(1, dt * 1.1);
       const base = s.room.glow != null ? s.room.glow : k === 'hall' ? 0.05 : k === 'corridor' ? 0.012 : 0.022;      // (glow: a room that is lit whether or not anybody has woken it)
-      s.wallMat.emissiveIntensity = base + 0.34 * s.wake;
+      s.wallMat.emissiveIntensity = base + 0.24 * s.wake;      // (a little darker between the works: the washes round each one carry the light)
       s.trimMat.emissiveIntensity = 0.02 + 0.2 * s.wake;
       if (s.floorMat) s.floorMat.emissiveIntensity = 0.02 + 0.26 * s.wake;
       for (const m of s.frameMats) m.emissiveIntensity = 0.05 + 0.85 * s.wake;
@@ -1911,7 +1986,7 @@ export class Museum {
     }
     if (this._dirty) {
       this.lamps.instanceColor.needsUpdate = true; this.washes.instanceColor.needsUpdate = true;
-      this.pools.instanceColor.needsUpdate = true; this.cards.instanceColor.needsUpdate = true;
+      this.pools.instanceColor.needsUpdate = true; this.cards.instanceColor.needsUpdate = true; this.canLens.instanceColor.needsUpdate = true;
       this._dirty = false;
     }
     this._weather(dt, t, cam);
