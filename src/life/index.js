@@ -16,3 +16,4 @@ import './61128-at-the-moulin-rouge.js'; // 242  Toulouse-Lautrec, At the Moulin
 import './18951-yellow-dancers.js';     // 226  Degas, Yellow Dancers (In the Wings): pirouette
 import './14572-millinery-shop.js';     // 226  Degas, The Millinery Shop: flutter
 import './28560-bedroom.js';            // 241  van Gogh, The Bedroom: tuck
+import './111559-boy-on-a-ram.js';     // 217  Goya, Boy on a Ram: bleat
