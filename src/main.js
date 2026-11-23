@@ -75,6 +75,7 @@ import './finale.js';
 import './finalelaunch.js';      // the five notes, the tractor beam and the launch (docs/FINALE.md, phase 3)
 import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
 import './racespots.js';         // rival toys waiting about the building and the grounds, each with a course to race them round
+import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');

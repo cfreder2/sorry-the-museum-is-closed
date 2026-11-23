@@ -142,6 +142,18 @@ export function harbourEdge(plan, L) {
   lamps.push({ x: bw.x0 + 0.5, z: L.ramp.z1 + 0.4, y: 1.27 });
   for (const q of lamps) O.push({ x0: q.x - 0.05, x1: q.x + 0.05, z0: q.z - 0.05, z1: q.z + 0.05, y0: q.y - 0.1, y1: q.y + 0.85 });
 
+  // ---- the keeper's hut at the foot of the light: a boarded box with a flat roof on the west half of the breakwater,
+  // leaving the east side clear to drive down to the light. Its door faces east, onto that lane, with a stone step in
+  // front of it (low enough to drive over) where the keeper's log lies (src/probe.js). Solid as drawn (harbour.js draws
+  // it); the roof is a top you can land on.
+  { const y = 1.27, H = L.hut = { x0: bw.x0 + 0.35, x1: bw.x0 + 2.75, z0: 48.3, z1: 50.5, y, h: 2.1 };
+    H.door = { x: H.x1, z: (H.z0 + H.z1) / 2, w: 0.8, h: 1.8 };
+    H.step = { x0: H.x1, x1: H.x1 + 0.34, z0: H.door.z - 0.45, z1: H.door.z + 0.45, h: 0.06 };
+    H.log = { x: H.x1 + 0.19, y: y + H.step.h, z: H.door.z };
+    S.push({ skin: 'wall', fixed: true, x0: H.x0, x1: H.x1, z0: H.z0, z1: H.z1, axis: null, h0: y + H.h, h1: y + H.h, base: y });
+    O.push({ x0: H.x0, x1: H.x1, z0: H.z0, z1: H.z1, y0: y, y1: y + H.h - 0.08 });
+    const s = H.step; S.push({ skin: 'wall', fixed: true, x0: s.x0, x1: s.x1, z0: s.z0, z1: s.z1, axis: null, h0: y + s.h, h1: y + s.h, base: y }); }
+
   // ---- along the edge, on the solid ice: slabs tipped up on end (ramps: drive up them) and blocks shoved up in ridges,
   // never in the chain's corner of the edge, and always leaving open stretches where you can drive right to the water
   const slabs = L.slabs = [];

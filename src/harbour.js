@@ -158,12 +158,68 @@ feature({
         fragmentShader: 'varying float vA; void main(){ vec2 c = gl_PointCoord - 0.5; float d = dot(c, c); if (d > 0.25) discard; gl_FragColor = vec4(vec3(0.62, 0.92, 1.0) * vA * (1.0 - d * 4.0), 1.0); }',
       });
       this.way = new THREE.Points(gg, this.wayM); this.way.frustumCulled = false; g.add(this.way); }
+    if (L.hut) this._hut(k, L.hut);
     this.splash = k.puffs(90, { color: 0xd8f0ff, size: 0.08 });
     this.sparks = k.puffs(80, { color: 0xffd0c0, size: 0.14 });
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.4, 40), new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
     this.ring.rotation.x = -Math.PI / 2; this.ring.visible = false; g.add(this.ring);
     this.show = 0; this.armed = true; this.seq = null; this.pew = 6;
     this._float(0);
+  },
+
+  // The keeper's hut (harbourplan.js has where, and its solids): white boards, a red fascia, a flat roof under snow, a
+  // red door onto the lane with a stone step and a lamp over it, a lit window looking west at the city and the museum,
+  // a lifebuoy on the wall, and a striped scarf on a hook by the door. Drawn once, as one mesh a material.
+  _hut(k, H) {
+    const P = k.parts(), y = H.y, cx = (H.x0 + H.x1) / 2, cz = (H.z0 + H.z1) / 2, W = H.x1 - H.x0, D = H.z1 - H.z0, wallTop = H.h - 0.14;
+    const tex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+    const boards = tex(128, 128, (g, w, h) => { g.fillStyle = '#e9e6dc'; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 16) { g.fillStyle = 'rgba(70,64,56,.45)'; g.fillRect(x, 0, 2, h); g.fillStyle = `rgba(120,110,96,${0.04 + (x % 48) / 900})`; g.fillRect(x + 3, 0, 12, h); } for (let i = 0; i < 26; i++) { g.fillStyle = 'rgba(90,80,70,.12)'; g.fillRect((i * 37) % w, (i * 53) % h, 1, 6 + (i % 5) * 3); } });
+    boards.wrapS = boards.wrapT = THREE.RepeatWrapping; boards.repeat.set(2.2, 1.6);
+    const door = tex(64, 128, (g, w, h) => { g.fillStyle = '#9c2a26'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(40,8,8,.55)'; g.lineWidth = 3; g.strokeRect(8, 10, w - 16, 46); g.strokeRect(8, 66, w - 16, 52); g.fillStyle = '#d8c070'; g.beginPath(); g.arc(w - 12, 64, 3.5, 0, 7); g.fill(); });
+    const scarf = tex(16, 128, (g, w, h) => { g.clearRect(0, 0, w, h); for (let i = 0; i < 7; i++) { g.fillStyle = i % 2 ? '#efe9da' : '#c0392b'; g.fillRect(0, i * 17, w, 17); } g.fillStyle = '#c0392b'; for (let x = 1; x < w; x += 3) g.fillRect(x, 119, 1.4, 9); g.fillStyle = 'rgba(0,0,0,.14)'; for (let x = 0; x < w; x += 3) g.fillRect(x, 0, 1, 119); });
+    const em = (c, i = 0.45) => ({ emissive: new THREE.Color(c), emissiveIntensity: i });
+    const wallM = new THREE.MeshStandardMaterial({ map: boards, roughness: 0.85, emissiveMap: boards, ...em(0xffffff, 0.22) });
+    const redM = new THREE.MeshStandardMaterial({ color: 0xb01c24, roughness: 0.6, ...em(0x3a0608, 0.8) });
+    const roofM = new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.9, ...em(0x0c0e14, 0.6) });
+    const snowM = new THREE.MeshStandardMaterial({ color: 0xeef3ff, roughness: 0.9, ...em(0x5a6680, 0.55) });
+    const stoneM = new THREE.MeshStandardMaterial({ color: 0x8d9096, roughness: 0.95, ...em(0x24272e, 0.6) });
+    const doorM = new THREE.MeshStandardMaterial({ map: door, roughness: 0.7, emissiveMap: door, ...em(0xffffff, 0.25) });
+    const scarfM = new THREE.MeshStandardMaterial({ map: scarf, roughness: 1, emissiveMap: scarf, ...em(0xffffff, 0.3), side: THREE.DoubleSide, alphaTest: 0.5 });
+    const ironM = new THREE.MeshStandardMaterial({ color: 0x1d2026, roughness: 0.5, metalness: 0.4, ...em(0x0c0e14, 0.6) });
+    const warm = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.35, 0.62) });
+    const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+    P.add(box(W, wallTop, D), wallM, cx, y + wallTop / 2, cz);                                         // the walls
+    P.add(box(W + 0.02, 0.12, D + 0.02), redM, cx, y + wallTop - 0.06, cz);                             // the fascia under the roof
+    P.add(box(W, 0.1, D), roofM, cx, y + wallTop + 0.05, cz);                                          // the roof
+    P.add(box(W - 0.02, 0.04, D - 0.02), snowM, cx, y + H.h - 0.02, cz);                                // and its snow, at the top you land on
+    P.add(box(0.03, H.door.h, H.door.w), doorM, H.x1 + 0.006, y + H.door.h / 2 + 0.06, H.door.z);      // the door
+    P.add(box(0.05, 0.06, H.door.w + 0.14), redM, H.x1 + 0.01, y + H.door.h + 0.09, H.door.z);           // its lintel
+    { const s = H.step; P.add(box(s.x1 - s.x0, s.h, s.z1 - s.z0), stoneM, (s.x0 + s.x1) / 2, y + s.h / 2, (s.z0 + s.z1) / 2); }
+    // the window on the west wall, looking back at the city: lit from inside, with a frame and glazing bars
+    P.add(box(0.02, 0.5, 0.64), warm, H.x0 - 0.004, y + 1.25, cz);
+    P.add(box(0.04, 0.06, 0.74), redM, H.x0 - 0.012, y + 0.97, cz); P.add(box(0.04, 0.06, 0.74), redM, H.x0 - 0.012, y + 1.53, cz);
+    for (const dz of [-0.35, 0, 0.35]) P.add(box(0.04, 0.56, dz ? 0.05 : 0.03), redM, H.x0 - 0.012, y + 1.25, cz + dz);
+    P.add(box(0.04, 0.03, 0.64), redM, H.x0 - 0.012, y + 1.25, cz);
+    // the lamp over the door, on an iron bracket
+    P.add(box(0.2, 0.02, 0.02), ironM, H.x1 + 0.1, y + 2.0, H.door.z); P.add(new THREE.CylinderGeometry(0.05, 0.07, 0.07, 8), ironM, H.x1 + 0.2, y + 1.98, H.door.z);
+    P.add(new THREE.SphereGeometry(0.035, 8, 6), warm, H.x1 + 0.2, y + 1.94, H.door.z);
+    // a lifebuoy on the north wall, the side you come along the breakwater from
+    { const seg = new THREE.TorusGeometry(0.2, 0.05, 6, 4, Math.PI / 4);
+      for (let i = 0; i < 8; i++) P.add(seg, i % 2 ? snowM : redM, cx - 0.45, y + 1.2, H.z0 - 0.055, 0, 0, i * Math.PI / 4);
+      P.add(box(0.04, 0.06, 0.03), ironM, cx - 0.45, y + 1.43, H.z0 - 0.02); }
+    // a scarf left on a hook by the door: hers
+    { const hz = H.door.z + H.door.w / 2 + 0.24, hy = y + 1.5;
+      P.add(box(0.06, 0.015, 0.015), ironM, H.x1 + 0.03, hy, hz);
+      P.add(new THREE.PlaneGeometry(0.09, 0.62), scarfM, H.x1 + 0.035, hy - 0.3, hz - 0.035, 0.05, Math.PI / 2, 0.04);
+      P.add(new THREE.PlaneGeometry(0.09, 0.5), scarfM, H.x1 + 0.045, hy - 0.25, hz + 0.04, -0.06, Math.PI / 2, -0.07); }
+    P.done(this.g);
+    // the warm light round the lamp and the window
+    const glowM = new THREE.SpriteMaterial({ map: TX.radial(0, 1.6), color: new THREE.Color(1.0, 0.66, 0.3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+    const a = new THREE.Sprite(glowM); a.position.set(H.x1 + 0.2, y + 1.92, H.door.z); a.scale.setScalar(0.9);
+    const b = new THREE.Sprite(glowM); b.position.set(H.x0 - 0.1, y + 1.25, cz); b.scale.setScalar(1.3);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.6), color: new THREE.Color(0.32, 0.22, 0.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    pool.position.set(H.x1 + 0.5, y + 0.012, H.door.z); pool.renderOrder = 2;
+    this.g.add(a, b, pool);
   },
 
   // The lakefront, and nowhere else: nothing here moves while the toy is away from it.
@@ -186,6 +242,14 @@ feature({
       const s = on ? 3 + flash * 2.2 : 3 + Math.sin(this.t * 1.3) * 0.2; this.glow.scale.set(s, s, 1);
       this.halo.material.color.setRGB(0.22 * (on ? 0.6 + flash * 1.4 : 1), 0.05, 0.04);
       if (on && Math.random() < dt * 14) { const a = Math.random() * 6.283; this.sparks.emit(L.light.x + Math.cos(a) * 0.5, 5.5, L.light.z + Math.sin(a) * 0.5, 2, { spread: 0.2, up: 1.4, life: 1.4, out: 1.2, color: Math.random() < 0.5 ? 0xff5040 : 0xffffff }); } }
+    // Green for a moment, flickering, while something circles the lantern (src/probe.js sets this.green, in seconds).
+    if (this.green > 0 || this.wasGreen) {
+      this.green = Math.max(0, (this.green || 0) - dt);
+      const on = this.green > 0, f = on ? (Math.sin(this.t * 31) * Math.sin(this.t * 17.3) > -0.2 ? 1 : 0.25) : 0;
+      if (on) { this.lamp.material.color.setRGB(0.5 * f, 3.0 * f, 0.9 * f); this.glow.material.color.setRGB(0.2, 1.0, 0.4).multiplyScalar(0.4 + 0.6 * f); this.beamM.uniforms.uC.value.setRGB(0.3, 1.0, 0.45); this.beamM.uniforms.uI.value = 0.3 * f; this.glass.material.color.setRGB(0.35, 0.95, 0.5); this.halo.material.color.setRGB(0.04, 0.22 * f, 0.08); }
+      else { this.glow.material.color.setRGB(1.0, 0.25, 0.2); this.beamM.uniforms.uC.value.setRGB(1.0, 0.42, 0.36); this.glass.material.color.setRGB(0.9, 0.3, 0.28); }
+      this.wasGreen = on;
+    }
     // A shadow over the water lies on the water, not on the ground level the ice would be at.
     if (v.shadow && v.shadow.visible && v.shadow.position.y < 0.03 && L.wet(v.pos.x, v.pos.z)) { v.shadow.position.y = WATER_Y + 0.006; v.shadow.updateMatrix && v.shadow.updateMatrix(); }
     // At the light, a moment's look up at it as it flashes.

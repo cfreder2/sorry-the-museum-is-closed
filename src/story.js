@@ -8,6 +8,8 @@
 //   * out of doors, now and then, a green light falling over the lake towards Butler Field;
 //   * where it comes down, rings melted into the snow over the silo, five marks round them in the call's colours, and the
 //     call again, from under your wheels;
+//   * a little probe that rises out of the grate once you have seen some art, and that you herd out of the building; it
+//     flies to the harbour light, where the keeper's log says what she saw (src/probe.js, the page 'lighthouse');
 //   * in the base, a last note from the Director, "— D.", on the floor of the office: why any of it matters;
 //   * the file itself: each step found is a page, with a toast and as many notes of the call as pages so far (the tune
 //     grows as the mystery does), and a faint "?" on the map where to look next. The pause menu opens it once it has a page.
@@ -39,6 +41,7 @@ const NEST_ORDER = ['north', 'south', 'rice', 'modern', 'lower'];      // the or
 // The pages of the file, in the order a player usually meets them. `hint` is shown (dimly) for the first page not yet found.
 export const ENTRIES = [
   { id: 'grate', title: 'Five notes from below', line: 'A grate in the lobby, lit green from underneath. Far down, five notes, over and over. Like a call.', hint: 'Listen at the glowing grate in the lobby.' },
+  { id: 'lighthouse', title: 'Clarice’s log', line: 'The harbour keeper watched the museum at night. Crates going down. Five notes off the water. Then she was gone.', hint: 'Give the grate time. Then follow what comes out.' },
   { id: 'lights', title: 'Lights over the lake', line: 'A green light fell towards the park. Not a sound.', hint: 'Watch the sky over the lake.' },
   { id: 'ring', title: 'Rings in the snow', line: 'Rings melted into Butler Field, five marks round them, five colours. The call again, under the snow.', hint: 'Where did the light come down?' },
   { id: 'nests', title: 'The chewed file', line: n => `TOP SECRET pages the mice carried up from somewhere. ${n} of 5 nests.`, hint: 'Follow a glowing mouse home.' },
@@ -404,7 +407,7 @@ feature({
     const k = this.k, G = k.G, out = [];
     if (story.count) {
       const s = this.silo;
-      if (s && (story.has('lights') || story.has('alienracer')) && !story.has('ring')) out.push({ x: s.cx, y: 0, z: s.cz });
+      if (s && (story.has('lights') || story.has('alienracer') || story.has('lighthouse')) && !story.has('ring')) out.push({ x: s.cx, y: 0, z: s.cz });      // (Clarice's log: "under the ballfield")
       const q = this._next(); if (q) out.push(q);
     }
     const key = out.map(q => `${q.x.toFixed(1)},${q.z.toFixed(1)}`).join('|');
@@ -417,6 +420,7 @@ feature({
   _next() {
     const k = this.k, G = k.G, N = this._feat('nests'), S = G.secret, F = this._feat('finale');
     const ns = N && N.state, state = F && F.save ? F.save.state : 'locked';
+    { const q = G.probe && G.probe.where(); if (q) return q; }      // the probe out of the grate, while it is to be followed, and then the keeper's log (src/probe.js)
     if (state !== 'locked') {
       if (state === 'found' && F.built && G.finale) { const c = G.finale.console; if (c && c.position) return { x: c.position.x, y: c.position.y, z: c.position.z }; }
       return null;
