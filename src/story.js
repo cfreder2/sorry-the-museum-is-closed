@@ -208,8 +208,9 @@ feature({
     const N = 64, P = this.trailPts = new Float32Array(N * 3).fill(-9999), C = new Float32Array(N * 3);
     const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(P, 3).setUsage(THREE.DynamicDrawUsage)); tg.setAttribute('color', new THREE.BufferAttribute(C, 3).setUsage(THREE.DynamicDrawUsage));
     const spot = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'), r = c.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, '#fff'); r.addColorStop(0.3, 'rgba(255,255,255,.6)'); r.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = r; c.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
-    this.trail = new THREE.Points(tg, new THREE.PointsMaterial({ size: 9, map: spot, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false, toneMapped: false }));
-    this.head = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3)), new THREE.PointsMaterial({ size: 22, map: spot, color: new THREE.Color(0.75, 1.0, 0.8), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false, toneMapped: false }));
+    this.trail = new THREE.Points(tg, new THREE.PointsMaterial({ size: 7, map: spot, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false, toneMapped: false }));
+    this.head = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3)), new THREE.PointsMaterial({ size: 8, map: spot, color: new THREE.Color(0.75, 1.0, 0.8),      // (small enough to read as a light falling, not a green sun)
+ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false, toneMapped: false }));
     for (const o of [this.trail, this.head]) { o.frustumCulled = false; o.visible = false; o.renderOrder = 8; this.root.add(o); }
     this.trailCol = C; this.trailN = N;
     this.skyT = 0; this.streak = null; this.nextFall = 7;
@@ -242,7 +243,7 @@ feature({
       const hp = this.head.geometry.attributes.position; hp.setXYZ(0, h.x, h.y, h.z); hp.needsUpdate = true;
       const T = this.trailPts, N = this.trailN; T.copyWithin(3, 0, (N - 1) * 3); T[0] = h.x; T[1] = h.y; T[2] = h.z;
       const C = this.trailCol, fade = f > 0.92 ? (1 - f) / 0.08 : 1;
-      for (let i = 0; i < N; i++) { const b = (1 - i / N) * fade; C[i * 3] = 0.25 * b; C[i * 3 + 1] = 0.95 * b; C[i * 3 + 2] = 0.45 * b; }
+      for (let i = 0; i < N; i++) { const b = (1 - i / N) * fade * 1.4; C[i * 3] = 0.25 * b; C[i * 3 + 1] = 0.95 * b; C[i * 3 + 2] = 0.45 * b; }
       this.trail.geometry.attributes.position.needsUpdate = true; this.trail.geometry.attributes.color.needsUpdate = true;
       this.head.material.opacity = fade;
       if (f >= 1) {

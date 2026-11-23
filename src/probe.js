@@ -416,7 +416,7 @@ feature({
     const u = f < a ? vmax * f * f / (2 * a) : f < b ? vmax * (a / 2 + (f - a)) : vmax * (a / 2 + (b - a) + ((1 - b) - (1 - f) ** 2 / (1 - b)) / 2);
     this.curve.getPointAt(Math.min(1, u), this.pos);
     const far = this.pos.distanceTo(k.pos);
-    this._show(dt, k, this.curve.getPointAt(Math.min(1, u + 0.01), this.v4), { halo: Math.min(6, 0.7 + far * 0.04), size: Math.min(2.2, 0.09 + far * 0.012), step: 0.4, fade: 0.9, tilt: 0.35 });
+    this._show(dt, k, this.curve.getPointAt(Math.min(1, u + 0.01), this.v4), { halo: Math.min(2.4, 0.7 + far * 0.02), size: Math.min(1.2, 0.09 + far * 0.008), step: 0.4, fade: 0.9, tilt: 0.35 });
     if (this.phase === 'takeoff') {
       const t = this.pt, p = this.toy0;
       if (this.watched) {
@@ -441,7 +441,7 @@ feature({
     if (far > 160) return;                                       // (nothing to do while you are a long way off)
     const t = this.t;
     this.pos.set(W.x + Math.sin(t * 0.7) * 0.25, W.y + Math.sin(t * 1.9) * 0.12, W.z + Math.cos(t * 0.6) * 0.2);
-    this._show(dt, k, p, { halo: Math.min(3, 0.8 + far * 0.03), trail: false });
+    this._show(dt, k, p, { halo: Math.min(2, 0.8 + far * 0.015), trail: false });
     if (far < 90 && (this.chimeT -= dt) <= 0) { this.chimeT = 3.2; this._note(this.chimeI, { gain: 0.016 * Math.max(0.3, 1 - far / 90), dur: 0.6 }); this.chimeI = (this.chimeI + 1) % 5; }
     // here: on the breakwater by the light (or flying up to it)
     const L = this.light, d = Math.hypot(p.x - L.x, p.z - (L.z + 3));
