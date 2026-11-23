@@ -918,3 +918,15 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 213
 
 > like Forza Horizon, you find the race in the game.
+
+## 214
+
+> Never draw over a painting. It might ruin the art. Place it next to the art or below the art, but not in the painting. (For the Seurat:) They can dance on the floor.
+
+## 215
+
+> They can dance out of the painting, but not in it.
+
+## 216
+
+> Record the browser's sound effects when it says "intruder alert." I would use "intruder alert, warning, warning, intruder alert, warning, warning." Then you can simply record it, so we don't have to worry about the browser playing it.

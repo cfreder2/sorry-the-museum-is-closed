@@ -503,6 +503,8 @@ motion it is slow and nothing flashes. None of it runs when you are far off.
 
 ## What is in it
 
+Nothing is ever drawn on or over a painting: whatever a work sets off happens beside it, below it or in the room in front of it, so the picture always looks exactly like the museum's image.
+
 - **Explore.** The building starts dark. Lamps come on as you reach them, each
   with its own note. A work counts as seen once you are close to it (a couple
   of metres for a small picture, about five for the largest), in front of it,
