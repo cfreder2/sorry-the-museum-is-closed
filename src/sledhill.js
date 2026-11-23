@@ -9,7 +9,8 @@
 // banked sweeper, the tunnel through a big drift and the finish, with a snow fence across the run-out.
 // Bamboo stakes and marker poles line it: they bend when hit and spring back. The clock starts at the gate; under GOOD
 // seconds is one secret, beating a penguin to the bottom another: as you sit in the sled (and now and then on their
-// own) a penguin comes out of the shop, flops on its belly and races you down, over the jump and all.
+// own) a penguin comes out of the shop, flops on its belly and races you down, over the jump and all. The penguins
+// come through a portal at the back of the shop (tuxportal.js): the toy can drive in and see it.
 //
 // The ground is one heightfield (sledland.js): the car drives on exactly the triangles that are drawn. The hill is one
 // mesh, the props another, the bulbs one instanced mesh, the wires one more; the poles and the penguins are instanced.
@@ -19,6 +20,7 @@ import { groundAt, confine, GRAVITY } from './plan.js';
 import { buildLand, TOP, RUN_W, RUN_LIP, PATH_W, FINISH_S, TUNNEL, KICKERS, STAIR } from './sledland.js';
 import { Bulbs, Wire, canvasTex, C, TAU } from './glowkit.js';
 import { fitText, twoFaced, SERIF } from './textures.js';
+import { TuxPortal } from './tuxportal.js';      // inside the shop: the portal the penguins come through, and the groundskeeper's note
 
 const GOOD = 14;                                // seconds, gate to finish
 const FOOT_MM = 0.008;                            // the hill is drawn where it stands more than this over the field (sledhill-ground)
@@ -159,6 +161,7 @@ feature({
   near(v, k) {
     if (!this.L || k.G.racing) return null;
     if (this.riding) return { verb: 'OFF', hint: '', act: () => this._off('') };
+    if (this.portal) { const q = this.portal.near(v, k); if (q) return q; }
     if (k.close(this.gate, 1.8, 1.2) && (v.kind === 'car' || v.kind === 'drone')) return { verb: 'SLED', hint: 'E to sled.', act: () => this._on() };
     return null;
   },
@@ -466,12 +469,12 @@ feature({
     };
     course(-W / 2, W / 2, 0.2, WH, 'n'); course(-D / 2 + T, D / 2 - T, 0.2, WH, 'e'); course(-D / 2 + T, D / 2 - T, 0.2, WH, 'w');
     const DX = 0.6, DW = 0.9, DH = 1.85;                                    // the doorway: centre (from the middle of the front), width, height
-    course(-W / 2, DX - DW / 2, 0.2, WH, 's'); course(DX + DW / 2, W / 2, 0.2, WH, 's'); course(DX - DW / 2, DX + DW / 2, DH, WH, 's');
+    const BX = -0.8, BW = 1.45, BD = 0.42, BY0 = 0.6, BY1 = 1.7;           // the bay window: centre, width, how far it stands out, sill and head
+    const WX0 = BX - BW / 2 + 0.06, WX1 = BX + BW / 2 - 0.06;              // (the opening in the wall behind it)
+    course(-W / 2, WX0, 0.2, WH, 's'); course(WX0, WX1, 0.2, BY0, 's'); course(WX0, WX1, BY1, WH, 's'); course(WX1, DX - DW / 2, 0.2, WH, 's'); course(DX + DW / 2, W / 2, 0.2, WH, 's'); course(DX - DW / 2, DX + DW / 2, DH, WH, 's');
     for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) P.box(0.18, WH - 0.2, 0.18, dark, at(x * (W / 2 - 0.07), 0.2 + (WH - 0.2) / 2, z * (D / 2 - 0.07)));
-    // the doorway: trim round it, a step, and a warm room behind (a lit wall a little way in)
+    // the doorway: trim round it (the room behind it is real: tuxportal.js)
     P.box(0.08, DH + 0.05, 0.06, green, at(DX - DW / 2 - 0.04, 0.2 + DH / 2, D / 2 + 0.03)); P.box(0.08, DH + 0.05, 0.06, green, at(DX + DW / 2 + 0.04, 0.2 + DH / 2, D / 2 + 0.03)); P.box(DW + 0.24, 0.1, 0.07, green, at(DX, DH + 0.05, D / 2 + 0.035));
-    { const inside = new THREE.Mesh(new THREE.PlaneGeometry(DW + 0.1, DH), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.25, 0.82, 0.42) })); inside.position.set(SX + DX, fy + 0.2 + DH / 2, SZ + D / 2 - 0.55); inside.matrixAutoUpdate = false; inside.updateMatrix(); this.g.add(inside);
-    }
     // the warm light from the window and the door, lying on the snow in front (a soft glow laid just over it)
     { const pool = canvasTex(256, 128, (c, w, h) => { for (const [cx, r, a] of [[0.36, 0.5, 0.75], [0.6, 0.34, 0.6]]) { const gr = c.createRadialGradient(w * cx, 0, 4, w * cx, 0, w * r); gr.addColorStop(0, `rgba(255,190,110,${a})`); gr.addColorStop(1, 'rgba(255,170,90,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); } });
       const pm = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 2.2), new THREE.MeshBasicMaterial({ map: pool, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
@@ -487,25 +490,18 @@ feature({
       const dm = DP.mesh(0.26); dm.matrixAutoUpdate = true; dg.add(dm);
       const port = new THREE.Mesh(new THREE.CircleGeometry(0.11, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 0.95, 0.5) })); port.position.set(w / 2, 1.55, 0.024); dg.add(port);
       dg.position.set(SX + DX - DW / 2 + 0.01, fy + 0.2, SZ + D / 2 + 0.03); this.g.add(dg); this.door = dg; this.doorOpen = 0; this.doorWant = 0; }
-    // the bay window to the west of the door: a stone base, three panes of warm light on the shop's wares, a snowy hood
-    const BX = -0.8, BW = 1.45, BD = 0.42, BY0 = 0.6, BY1 = 1.7;
+    // the bay window to the west of the door: a stone base, three panes of glass onto the shop's wares (a tuxedo on a
+    // stand, bow ties on shelves: tuxportal.js), a snowy hood. The glass is frosted at its edges.
     P.box(BW + 0.08, BY0 - 0.2 + 0.02, BD + 0.04, stone, at(BX, 0.2 + (BY0 - 0.2) / 2, D / 2 + BD / 2), 0.6);
-    const wtex = canvasTex(512, 384, (c, w, h) => {
-      const gr = c.createRadialGradient(w / 2, h * 0.55, 20, w / 2, h * 0.5, w * 0.62); gr.addColorStop(0, '#ffd889'); gr.addColorStop(0.6, '#e89a3c'); gr.addColorStop(1, '#8a4a1c'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
-      // shelves of bow ties either side
-      for (const sx of [70, w - 70]) for (let r = 0; r < 3; r++) { const y = 90 + r * 90; c.fillStyle = '#5a3418'; c.fillRect(sx - 60, y + 22, 120, 8); for (let i = 0; i < 3; i++) { const bx = sx - 36 + i * 36, colr = ['#c8262a', '#1d1d24', '#2a6ad2', '#d8a52a'][(r + i) % 4]; c.fillStyle = colr; c.beginPath(); c.moveTo(bx, y + 10); c.lineTo(bx - 14, y); c.lineTo(bx - 14, y + 20); c.closePath(); c.fill(); c.beginPath(); c.moveTo(bx, y + 10); c.lineTo(bx + 14, y); c.lineTo(bx + 14, y + 20); c.closePath(); c.fill(); c.fillRect(bx - 3, y + 6, 6, 8); } }
-      // a tuxedo on a stand in the middle
-      const cx = w / 2; c.fillStyle = '#3a2412'; c.fillRect(cx - 4, 250, 8, 100); c.fillRect(cx - 40, 345, 80, 8);
-      c.fillStyle = '#16161c'; c.beginPath(); c.moveTo(cx - 70, 110); c.lineTo(cx + 70, 110); c.lineTo(cx + 62, 260); c.lineTo(cx - 62, 260); c.closePath(); c.fill();
-      c.fillStyle = '#f4f0e6'; c.beginPath(); c.moveTo(cx - 26, 110); c.lineTo(cx + 26, 110); c.lineTo(cx, 220); c.closePath(); c.fill();
-      c.fillStyle = '#c8262a'; c.beginPath(); c.moveTo(cx, 122); c.lineTo(cx - 18, 112); c.lineTo(cx - 18, 132); c.closePath(); c.fill(); c.beginPath(); c.moveTo(cx, 122); c.lineTo(cx + 18, 112); c.lineTo(cx + 18, 132); c.closePath(); c.fill();
-      c.fillStyle = '#16161c'; for (const y of [160, 190]) { c.beginPath(); c.arc(cx, y, 4, 0, TAU); c.fill(); }
-      c.fillStyle = '#16161c'; c.fillRect(cx - 34, 60, 68, 40); c.fillRect(cx - 50, 96, 100, 8);           // and a top hat on top
-      c.strokeStyle = 'rgba(90,40,10,0.5)'; c.lineWidth = 6; c.strokeRect(3, 3, w - 6, h - 6);
+    // frost: clear in the middle, white and feathery in towards it from the edges and thickest in the bottom corners
+    const frost = canvasTex(256, 192, (c, w, h) => {
+      const r = rng(31); c.clearRect(0, 0, w, h);
+      for (let i = 0; i < 520; i++) { const e = r(), side = r() * 4 | 0, u = r(), d = Math.pow(e, 2.6) * 40 * (side === 2 ? 1.6 : 1), x = side === 0 ? d : side === 1 ? w - d : u * w, y = side === 2 ? h - d : side === 3 ? d : u * h;
+        c.strokeStyle = `rgba(235,244,255,${0.03 + (1 - e) * 0.11})`; c.lineWidth = 0.6 + r() * 0.8; c.beginPath(); c.moveTo(x, y); const a = r() * TAU, l = 3 + r() * 9; c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); c.stroke(); }
     });
-    const glassM = new THREE.MeshBasicMaterial({ map: wtex, color: new THREE.Color(1.35, 1.25, 1.1) }), sideM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.3, 0.85, 0.42) });
-    { const H = BY1 - BY0, front = new THREE.Mesh(new THREE.PlaneGeometry(BW - 0.1, H - 0.1), glassM); front.position.set(SX + BX, fy + (BY0 + BY1) / 2, SZ + D / 2 + BD - 0.03); front.matrixAutoUpdate = false; front.updateMatrix(); this.g.add(front);
-      for (const sd of [-1, 1]) { const sm = new THREE.Mesh(new THREE.PlaneGeometry(BD - 0.1, H - 0.1), sideM); sm.position.set(SX + BX + sd * (BW / 2 - 0.03), fy + (BY0 + BY1) / 2, SZ + D / 2 + BD / 2); sm.rotation.y = sd * Math.PI / 2; sm.matrixAutoUpdate = false; sm.updateMatrix(); this.g.add(sm); } }
+    const glassM = new THREE.MeshBasicMaterial({ map: frost, color: new THREE.Color(0.85, 0.92, 1.0), transparent: true, opacity: 0.95, depthWrite: false }), sideM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.3, 0.85, 0.42) });
+    { const H = BY1 - BY0, front = new THREE.Mesh(new THREE.PlaneGeometry(BW - 0.1, H - 0.1), glassM); front.position.set(SX + BX, fy + (BY0 + BY1) / 2, SZ + D / 2 + BD - 0.03); front.matrixAutoUpdate = false; front.updateMatrix(); front.renderOrder = 5; this.g.add(front);
+      for (const sd of [-1, 1]) { const sm = new THREE.Mesh(new THREE.PlaneGeometry(BD - 0.1, H - 0.1), glassM); sm.position.set(SX + BX + sd * (BW / 2 - 0.03), fy + (BY0 + BY1) / 2, SZ + D / 2 + BD / 2); sm.rotation.y = sd * Math.PI / 2; sm.matrixAutoUpdate = false; sm.updateMatrix(); sm.renderOrder = 5; this.g.add(sm); } }
     // its frame: posts at the corners, sill and head, mullions, and the hood with snow on it
     for (const sd of [-1, 1]) P.box(0.06, BY1 - BY0 + 0.06, 0.06, green, at(BX + sd * (BW / 2 - 0.03), (BY0 + BY1) / 2, D / 2 + BD - 0.03));
     P.box(BW + 0.12, 0.06, BD + 0.08, green, at(BX, BY0 - 0.02, D / 2 + BD / 2)); P.box(BW + 0.08, 0.07, BD + 0.04, green, at(BX, BY1 + 0.02, D / 2 + BD / 2));
@@ -556,11 +552,13 @@ feature({
       P.box(0.02, sh + 0.04, sw + 0.04, dark, at(bx, by - 0.12 - sh / 2, D / 2 + 0.55));                                        // (its board, between the two faces)
       P.box(0.04, 0.04, 1.0, iron, at(bx, by, D / 2 + 0.5)); P.box(0.03, 0.03, 0.55, iron, at(bx, by - 0.2, D / 2 + 0.25, 0, -0.62));      // the bracket
       for (const dz of [-0.3, 0.3]) P.box(0.008, 0.12, 0.008, iron, at(bx, by - 0.06, D / 2 + 0.55 + dz)); }
-    // solid: the shop and its plinth, the bay, the roof (three slabs, stepped as it rises), as drawn
+    // solid: the bay, the roof (three slabs, stepped as it rises), as drawn; the walls, the floor inside and its ramp are tuxportal.js's
     const O = this.O, X0 = SX - W / 2 - 0.07, X1 = SX + W / 2 + 0.07;
-    O.push({ x0: X0, x1: X1, z0: SZ - D / 2 - 0.07, z1: SZ + D / 2 + 0.07, y0: fy - 1, y1: fy + WH });
     O.push({ x0: SX + BX - BW / 2 - 0.06, x1: SX + BX + BW / 2 + 0.06, z0: SZ + D / 2, z1: SZ + D / 2 + BD + 0.22, y0: fy - 1, y1: fy + BY1 + 0.25 });
-    for (let i = 0; i < 3; i++) { const z = half * (1 - i / 3); O.push({ x0: SX - W / 2 - OS, x1: SX + W / 2 + OS, z0: SZ - z - 0.1, z1: SZ + z + 0.1, y0: fy + WH - 0.2 + i * rise / 3, y1: fy + WH + (i + 1) * rise / 3 + 0.25 }); }
+    // (over the room the roof starts above its ceiling, or a drone inside would be pushed out through a wall; the eaves
+    // hang lower only where they overhang the walls)
+    for (let i = 0; i < 3; i++) { const z = half * (1 - i / 3); O.push({ x0: SX - W / 2 - OS, x1: SX + W / 2 + OS, z0: SZ - z - 0.1, z1: SZ + z + 0.1, y0: fy + WH + 0.05 + i * rise / 3, y1: fy + WH + (i + 1) * rise / 3 + 0.25 }); }
+    for (const sd of [-1, 1]) O.push({ x0: SX - W / 2 - OS, x1: SX + W / 2 + OS, z0: sd < 0 ? SZ - half - 0.1 : SZ + D / 2 + 0.07, z1: sd < 0 ? SZ - D / 2 - 0.07 : SZ + half + 0.1, y0: fy + WH - 0.2, y1: fy + WH + 0.3 });
     // Lights strung on poles round the top, over the run and the path where they leave it (not behind the shop).
     const R = TOP.r + 0.9, poles = [];
     for (const deg of [-40, 35, 65, 95, 125, 140, 180, -150, -125]) { const a = deg * Math.PI / 180, x = TOP.x + Math.cos(a) * R, z = TOP.z + Math.sin(a) * R, y = hAt(x, z); poles.push([x, y, z]); }
@@ -578,7 +576,9 @@ feature({
     // a pair of old millstones somebody set as seats at the top, looking down the run, and a bin by the shop
     for (const [x, z] of [[333.8, 148.6], [332.3, 149.5]]) { const y = hAt(x, z); P.add(new THREE.CylinderGeometry(0.42, 0.45, 0.42, 16), stone, M4(x, y + 0.19, z), 0.6); this.O.push({ x0: x - 0.45, x1: x + 0.45, z0: z - 0.45, z1: z + 0.45, y0: y - 1, y1: y + 0.42 }); }
     { const x = 327.0, z = 140.55, y = hAt(x, z); P.add(new THREE.CylinderGeometry(0.24, 0.22, 0.85, 12, 1), green, M4(x, y + 0.42, z), 0.7); this.O.push({ x0: x - 0.26, x1: x + 0.26, z0: z - 0.26, z1: z + 0.26, y0: y - 1, y1: y + 0.86 }); }
-    void cream; void k;
+    // inside: the room, its portal and the note; the walls, floor and ceiling for the toy
+    this.portal = new TuxPortal(this, k, { SX, SZ, fy, W, D, T, WH, DX, DW, DH, BX, BW, BD, BY0, BY1, door: this.shop.door }, { Parts, M4, col, B });
+    void cream; void X0; void X1;
   },
 
   // ============================================================ the steps up the north face
@@ -869,8 +869,11 @@ feature({
     // the way out: from inside the door, out onto the top, and over to beside the gate (the start of its lane)
     const g0 = at(0.4);
     this.penStart = lane => ({ x: g0.x - g0.tz * lane, z: g0.z + g0.tx * lane });
-    this.penDoor = [{ x: sh.door.x, z: sh.door.z - 0.5 }, { x: sh.door.x, z: sh.door.z + 0.9 }];
+    // (from the portal at the back of the shop, if it is there: across the room to the door, and down the ramp)
+    this.penDoor = this.portal ? [...this.portal.route, { x: sh.door.x, z: sh.door.z + 1.6 }] : [{ x: sh.door.x, z: sh.door.z - 0.5 }, { x: sh.door.x, z: sh.door.z + 0.9 }];
   },
+  // The ground a penguin walks on: the shop's floor and ramp, or the snow.
+  _penY(x, z) { return this.portal ? this.portal.floorAt(x, z, this.L.heightAt) : this.L.heightAt(x, z); },
   // Lay out one penguin's parts from its state: where it is, which way it faces, how far it has flopped (lie: 0
   // standing, 1 on its belly), its waddle phase, how far its flippers are out.
   _posePen(p) {
@@ -878,7 +881,9 @@ feature({
     if (p.state === 'home') { M.makeScale(0, 0, 0); pm.body.setMatrixAt(p.i, M); pm.fl.setMatrixAt(p.i, M); pm.fr.setMatrixAt(p.i, M); pm.foot.setMatrixAt(p.i * 2, M); pm.foot.setMatrixAt(p.i * 2 + 1, M); return; }
     const walk = p.state === 'out' || p.state === 'leave' || p.state === 'home2' ? 1 : 0, s = Math.sin(p.ph), lie = p.lie, li = lie * Math.PI / 2;
     // the root: on the snow, facing yaw, tipped with the slope (pitch, roll), rocking side to side as it waddles
-    E.set(p.pitch || 0, p.yaw, (p.roll || 0) + walk * 0.13 * s * (1 - lie)); M.makeRotationFromEuler(E).setPosition(p.x, p.y, p.z);
+    E.set(p.pitch || 0, p.yaw, (p.roll || 0) + walk * 0.13 * s * (1 - lie) + (p.shake || 0)); M.makeRotationFromEuler(E).setPosition(p.x, p.y, p.z);
+    // (popping out of the portal: from nothing, a little too big, then itself)
+    if (p.pop != null && p.pop < 1) { const t = p.pop, sc = t <= 0 ? 0 : 1 + 2.9 * Math.pow(t - 1, 3) + 1.9 * Math.pow(t - 1, 2); const V = this._sv || (this._sv = new THREE.Vector3()); M.scale(V.set(sc, sc, sc)); }
     // flopped: tipped forward about the feet, and lifted so that its belly lies on the snow
     Tm.makeTranslation(0, 0.18 * Math.sin(li) + (p.hop || 0), -0.28 * Math.sin(li)); M.multiply(Tm); R.makeRotationX(li); M.multiply(R);
     pm.body.setMatrixAt(p.i, M);
@@ -909,10 +914,11 @@ feature({
     const busy = this.pens.filter(q => q !== p && q.state === 'slide' && q.s < 40).map(q => Math.sign(q.lane));
     p.lane = race ? 1.35 : busy.includes(1) ? -1.35 : busy.includes(-1) ? 1.35 : (Math.random() < 0.5 ? 1.35 : -1.35);
     const st = this.penStart(p.lane);
-    p.path = [...this.penDoor, { x: st.x - 1.6, z: st.z }, st]; p.pi = 0; p.state = 'out'; p.lie = 0; p.flap = 0; p.hop = 0; p.t = 0; p.delay = 0.55;
+    p.path = [...this.penDoor, { x: st.x - 1.6, z: st.z }, st]; p.pi = 0; p.state = 'out'; p.lie = 0; p.flap = 0; p.hop = 0; p.t = 0; p.popK = race ? 0.6 : 1; p.delay = this.portal ? p.popK : 0.55; p.pop = this.portal ? 0 : 1; p.shake = 0;      // (one fetched for a race is in a hurry)
     p.go = !!race; p.race = race ? 'on' : null; p.crossed = false; p.won = false; p.air = false; p.s = 0; p.v = 0; p.vy = 0; p.o = p.lane; p.pitch = 0; p.roll = 0;
-    p.x = p.path[0].x; p.z = p.path[0].z; p.y = this.L.heightAt(p.x, p.z); p.yaw = 0;
+    p.x = p.path[0].x; p.z = p.path[0].z; p.y = this._penY(p.x, p.z); p.yaw = this.portal ? 0.6 : 0;
     this.doorWant = 1; this.doorT = 0;
+    if (this.portal) this.portal.flare(p.popK);                // (the portal flares, and out it pops)
     if (race) this.racer = p;
     k.synth.note(880, 0.07, { type: 'square', vol: 0.012, at: 0.5 }); k.synth.note(700, 0.09, { type: 'square', vol: 0.012, at: 0.58 });
     return p;
@@ -928,21 +934,23 @@ feature({
       if (d < R && d > 1e-4 && Math.abs(v.pos.y - p.y) < 0.8) { const m = R - d; p.x += dx / d * m; p.z += dz / d * m; if (!p.squawk || p.t - p.squawk > 2) { p.squawk = p.t; k.synth.note(930, 0.06, { type: 'square', vol: 0.014 }); k.synth.note(760, 0.08, { type: 'square', vol: 0.014, at: 0.07 }); } }
     }
     if (p.state === 'out' || p.state === 'leave' || p.state === 'home2') {
-      if (p.t < (p.delay || 0)) { p.y = hAt(p.x, p.z); return; }            // (the door opens first)
-      const w = p.path[p.pi], sp = p.state === 'out' ? 1.25 : 0.9;
-      p.ph += dt * 11 * (sp / 1.25); p.y = hAt(p.x, p.z); p.pitch = 0; p.roll = 0;
+      // (the door opens first; or, from the portal, it pops out, shakes itself, and then sets off)
+      if (p.t < (p.delay || 0)) { p.y = this._penY(p.x, p.z); if (this.portal && p.state === 'out') { const K = p.popK || 1, u = p.t / K; p.pop = Math.max(0, Math.min(1, (u - 0.35) / 0.3)); p.shake = u > 0.62 ? Math.sin((u - 0.62) * 40) * 0.24 * Math.max(0, 1 - (u - 0.62) / 0.38) : 0; } return; }
+      p.pop = 1; p.shake = 0;
+      const w = p.path[p.pi], sp = p.state === 'out' ? (p.go ? 2.2 : 1.25) : 0.9;
+      p.ph += dt * 11 * (sp / 1.25); p.y = this._penY(p.x, p.z); p.pitch = 0; p.roll = 0;
       if (toward(w.x, w.z, sp) < 0.05) {
         p.pi++;
         if (p.pi >= p.path.length) {
           if (p.state === 'out') { p.state = p.go ? 'flop' : 'wait'; p.t = 0; p.waitT = 0; }
-          else if (p.state === 'home2') { p.state = 'home'; this.doorWant = 0; }
+          else if (p.state === 'home2') { if (this.portal) this.portal.gulp(p); p.state = 'home'; this.doorWant = 0; }
           else { p.state = 'idle'; p.t = 0; }
           p.pi = p.path.length - 1;
         }
       }
-      if (p.state === 'out' && p.pi >= 2 && this.doorWant) this.doorWant = 0;
+      if (p.state === 'out' && p.pi >= this.penDoor.length && this.doorWant) this.doorWant = 0;
       // the toy at the gate set off while it was still on its way: flop now and scoot the rest
-      if (p.state === 'out' && p.go && p.pi >= 2) { p.state = 'flop'; p.t = 0; }
+      if (p.state === 'out' && p.go && p.pi >= this.penDoor.length) { p.state = 'flop'; p.t = 0; }
       return;
     }
     if (p.state === 'wait' || p.state === 'idle') {
@@ -950,7 +958,7 @@ feature({
       p.ph = 0; p.y = hAt(p.x, p.z); p.flap = Math.max(0, Math.sin(p.t * 0.9 + p.i) - 0.85) * 4;
       if (p.state === 'wait') { const g0 = this.penAt(0.4); p.yaw += (Math.atan2(g0.tx, g0.tz) + Math.sin(p.t * 0.7) * 0.5 - p.yaw) * Math.min(1, dt * 3); p.waitT = (p.waitT || 0) + dt;
         if (p.go) { p.state = 'flop'; p.t = 0; }
-        else if (p.waitT > 25 && !this.riding) { p.state = 'home2'; p.t = 0; p.delay = 0; p.path = [{ x: this.penDoor[1].x, z: this.penDoor[1].z }, { x: this.penDoor[0].x, z: this.penDoor[0].z }]; p.pi = 0; this.doorWant = 1; this.doorT = 0; this.waitCool = 40; } }
+        else if (p.waitT > 25 && !this.riding) { p.state = 'home2'; p.t = 0; p.delay = 0; p.path = this.penDoor.slice().reverse(); p.pi = 0; this.doorWant = 1; this.doorT = 0; this.waitCool = 40; } }
       else if (Math.hypot(v.pos.x - p.x, v.pos.z - p.z) > 16 && p.t > 3) p.state = 'home';            // (gone home, while nobody was watching)
       return;
     }
@@ -1052,7 +1060,7 @@ feature({
     this._penAny = any;
     // the door, swinging out and back
     if (this.doorWant) { this.doorT = (this.doorT || 0) + dt; if (this.doorT > 6) this.doorWant = 0; }
-    const want = this.doorWant ? 1 : 0;
+    const want = this.doorWant || (this.portal && this.portal.wantsDoor(k.pos)) ? 1 : 0;      // (and for the toy, coming in or inside)
     if (this.doorOpen !== want) { this.doorOpen += Math.sign(want - this.doorOpen) * Math.min(Math.abs(want - this.doorOpen), dt * 2.2); const e = this.doorOpen * this.doorOpen * (3 - 2 * this.doorOpen); this.door.rotation.y = -e * 1.5; if (this.doorOpen === want) k.synth.note(want ? 300 : 220, 0.08, { type: 'triangle', vol: 0.02 }); }
     // smoke from the chimney
     this.smokeT -= dt; if (this.smokeT <= 0 && near < 40) { this.smokeT = 0.35 + Math.random() * 0.3; const c = this.chimney; this.smoke.emit(c.x, c.y, c.z, 1, { spread: 0.1, up: 0.5, life: 3.2, out: 0.15 }); }
@@ -1086,6 +1094,7 @@ feature({
       k.camClose = { at: { x: cx + S.vx * la, y: cy + S.vy * la, z: cz + S.vz * la }, look: { x: S.x + fx * 2.4 + S.vx * lb, y: S.y + 0.28 + S.vy * lb, z: S.z + fz * 2.4 + S.vz * lb } };
     } else this.camYaw = null;
     this._polesStep(dt);
+    if (this.portal) this.portal.update(dt, k);
     this._pensStep(dt);
     this.puffs.update(dt); this.smoke.update(dt);
   },
@@ -1094,6 +1103,6 @@ feature({
     if (this.pm) for (const m of Object.values(this.pm)) m.instanceMatrix.needsUpdate = true;
     this.racer = null; this.doorWant = 0; this.doorOpen = 0; if (this.door) this.door.rotation.y = 0;
   },
-  spots() { return this.at ? [{ kind: 'secret', id: 'sledding', name: `Sledding (under ${GOOD} s)`, ...this.at }] : []; },
-  reset() { if (this.riding) this._off(''); if (this.timer) this.timer.cancel(); this._pensHome(); },
+  spots() { return this.at ? [{ kind: 'secret', id: 'sledding', name: `Sledding (under ${GOOD} s)`, ...this.at }, ...(this.portal ? this.portal.spots() : [])] : []; },
+  reset() { if (this.riding) this._off(''); if (this.timer) this.timer.cancel(); this._pensHome(); if (this.portal) this.portal.reset(); },
 });
