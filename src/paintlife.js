@@ -521,12 +521,15 @@ class Life {
   // over), with the floor in front out to floorOut below it. If the camera as asked cannot, it is tilted, and then
   // moved back, until it can; the work then sits in the upper part of the view, what comes out of it below.
   wholeWork(cam, floorOut) {
-    const F = cam.fov * Math.PI / 180 * 0.94, H = cam.height, topY = this.crown + 0.1 - this.y;
+    const H = cam.height, topY = this.crown + 0.1 - this.y;
     const top = d => Math.atan2(topY - H, d), low = d => -Math.atan2(H, Math.max(0.05, d - floorOut));
-    let D = cam.dist, pitch = Math.atan2(cam.lookH - H, D - cam.lookOut);
+    let D = cam.dist, pitch = Math.atan2(cam.lookH - H, D - cam.lookOut), F = cam.fov * Math.PI / 180 * 0.94;
     if (top(D) <= pitch + F / 2 && low(D) >= pitch - F / 2) return;      // it fits as it is
+    // First a wider view (up to 62°), so the show stays near and big; only then step back.
+    while (top(D) - low(D) > F && cam.fov < 62) { cam.fov += 1; F = cam.fov * Math.PI / 180 * 0.94; }
     while (top(D) - low(D) > F && D < 8) D += 0.05;
-    pitch = Math.max(low(D) + F / 2, Math.min(top(D) - F / 2, pitch));
+    // The pitch that keeps both the top of the work and the floor in view: between top - F/2 and low + F/2.
+    pitch = Math.min(low(D) + F / 2, Math.max(top(D) - F / 2, pitch));
     cam.dist = D; cam.lookH = H + Math.tan(pitch) * (D - cam.lookOut);
   }
   measure() {
