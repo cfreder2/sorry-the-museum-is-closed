@@ -1,9 +1,12 @@
 // The roof terrace of the Modern Wing's west pavilion (features.js). bridgeway.js draws its paving, pink glass and white
 // pergola; this file puts things on it. There are three sculptures, all made up for the game (nobody's real work): a
 // zigzag of three polished red granite wedges, a low dome of mirror-polished steel, and a bronze band that rises out of
-// the paving, turns half over at the top and goes back down. All three can be driven on, or under. And there is a party
-// laid out for guests who never came: tall cocktail tables in white cloths, bar stools, a small bar with a champagne
-// tower and a bucket, flowers by the lift, and strings of lights across the pergola.
+// the paving, turns half over at the top and goes back down. All three can be driven on, or under. And there is a party,
+// in full swing and paused: a secret welcome for guests from the stars (the banners, balloons, cake and the Director's
+// note are in src/welcome.js). Here: tall cocktail tables in white cloths, crowded with flutes, coupes, cocktails, cups of
+// green punch with little alien-head stirrers and paper hats; bar stools; a long bar with a champagne tower, an ice
+// bucket, a bowl of green punch and a tray of flutes; open bottles on ice round the terrace and corks on the floor; flowers
+// by the lift; and strings of lights across the pergola, turning at the posts the big banner hangs from.
 //
 // Everything is at real size next to a toy 0.5 m long, and the collision is the drawing: the legs are posts, the tops are
 // tops, the toy fits between a table's legs and under its cloth. Bump a table and its glasses ring. Nothing is done per
@@ -151,6 +154,24 @@ const FLUTE = { glass: () => lathe([[0.001, 0], [0.032, 0.002], [0.032, 0.006], 
   wine: () => lathe([[0.001, 0.12], [0.015, 0.132], [0.022, 0.18], [0.023, 0.2], [0.001, 0.2]], 12) };
 const COUPE = { glass: () => lathe([[0.001, 0], [0.036, 0.002], [0.036, 0.006], [0.004, 0.01], [0.004, 0.07], [0.02, 0.078], [0.046, 0.098], [0.056, 0.118], [0.054, 0.118], [0.044, 0.1], [0.02, 0.082], [0.001, 0.08]], 16),
   wine: () => lathe([[0.001, 0.081], [0.02, 0.085], [0.042, 0.1], [0.048, 0.108], [0.001, 0.108]], 14) };
+// A cocktail glass (a cone on a stem) and its drink; a punch cup; a stirrer with a little green alien head on it (eyes
+// and all); a paper party hat and its pompom.
+const MARTINI = { glass: () => lathe([[0.001, 0], [0.034, 0.002], [0.034, 0.006], [0.004, 0.01], [0.004, 0.09], [0.055, 0.155], [0.053, 0.157], [0.002, 0.094]], 16),
+  drink: () => lathe([[0.001, 0.096], [0.042, 0.14], [0.001, 0.14]], 14) };
+const CUP = { glass: () => lathe([[0.001, 0], [0.024, 0], [0.026, 0.004], [0.031, 0.068], [0.029, 0.068], [0.024, 0.006], [0.001, 0.006]], 14),
+  punch: () => lathe([[0.001, 0.007], [0.024, 0.008], [0.028, 0.05], [0.001, 0.05]], 12) };
+const STIR = { stick: () => new THREE.CylinderGeometry(0.0016, 0.0016, 0.12, 5).translate(0, 0.06, 0),
+  head: () => merged([[new THREE.SphereGeometry(0.011, 10, 8).scale(1, 1.15, 0.9).translate(0, 0.127, 0)], [new THREE.CylinderGeometry(0.0008, 0.0008, 0.01, 4).translate(0.004, 0.142, 0).rotateZ(-0.03)], [new THREE.CylinderGeometry(0.0008, 0.0008, 0.01, 4).translate(-0.004, 0.142, 0).rotateZ(0.03)]]),
+  eyes: () => merged([-1, 1].map(s => [new THREE.SphereGeometry(0.0034, 6, 4).scale(1.3, 0.8, 0.6), M4(s * 0.0045, 0.128, 0.0088, 0, 0, s * 0.4)])) };
+const HAT = { cone: () => new THREE.ConeGeometry(0.05, 0.15, 18, 1, true).translate(0, 0.075, 0), pom: () => new THREE.SphereGeometry(0.013, 8, 6).translate(0, 0.152, 0) };
+const HAT_COLS = ['#4fc8ff', '#6dff9e', '#ffe35c', '#ff8a4c', '#d78cff'];      // the call's five colours (src/motif.js)
+function hatTex() {      // white card with paler stripes and stars, tinted per hat
+  return texture(canvas(128, 64, g => {
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 128, 64);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; for (let x = -64; x < 128; x += 22) { g.beginPath(); g.moveTo(x, 64); g.lineTo(x + 10, 64); g.lineTo(x + 44, 0); g.lineTo(x + 34, 0); g.fill(); }
+    g.fillStyle = '#fff8d0'; for (let i = 0; i < 6; i++) { const x = 10 + i * 21, y = 40 - (i % 2) * 14; g.beginPath(); for (let j = 0; j < 10; j++) { const a = -Math.PI / 2 + j * Math.PI / 5, rr = j % 2 ? 2.2 : 5; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.fill(); }
+  }));
+}
 // A wine bottle's shape, 0.3 m tall; scaled for the others.
 const bottle = (shoulder = 0.21, neck = 0.0135) => lathe([[0.001, 0], [0.036, 0], [0.038, 0.01], [0.038, shoulder], [0.03, shoulder + 0.03], [neck + 0.002, shoulder + 0.065], [neck, 0.29], [neck + 0.003, 0.296], [0.001, 0.3]], 16);
 
@@ -248,6 +269,7 @@ feature({
     const chrome = metal('chrome'), brass = metal('brass');
     const glassM = new THREE.MeshStandardMaterial({ color: 0xdfeeff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.32, emissive: 0x6a7c90, emissiveIntensity: 0.5, depthWrite: false });
     const wineM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0, 0.82, 0.42) });
+    const punchM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.18, 0.95, 0.32) });      // the alien green of the call's second note
     const seatM = new THREE.MeshStandardMaterial({ color: 0x1b1d24, roughness: 0.55, emissive: 0x15171e, emissiveIntensity: 0.6 });
     polish(seatM, 0.6);
     const inst = (geo, mat, mats) => { const m = new THREE.InstancedMesh(geo, mat, mats.length); mats.forEach((q, i) => m.setMatrixAt(i, q)); m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); m.matrixAutoUpdate = false; this.group.add(m); return m; };
@@ -275,7 +297,7 @@ feature({
     const SH = 0.76, SL = 0.12;
     const stoolMetal = merged([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sz]) => [new THREE.CylinderGeometry(0.011, 0.011, SH - 0.05, 8).translate(sx * SL, (SH - 0.05) / 2, sz * SL)]).concat([[new THREE.TorusGeometry(SL * 1.414, 0.008, 6, 28).rotateX(Math.PI / 2).translate(0, 0.3, 0)], [new THREE.CylinderGeometry(0.15, 0.15, 0.015, 20).translate(0, SH - 0.06, 0)]]));
     const seatGeo = merged([[new THREE.CylinderGeometry(0.175, 0.165, 0.06, 28).translate(0, SH - 0.03, 0)], [new THREE.TorusGeometry(0.165, 0.012, 6, 28).rotateX(Math.PI / 2).translate(0, SH, 0)]]);
-    const tMats = [], lMats = [], sMats = [], fl = [], vo = [];
+    const tMats = [], lMats = [], sMats = [], fl = [], vo = [], tCoupe = [], tMart = [], cups = [], stirs = [], hats = [], hatCol = [];
     this.tables = [];
     for (const [u, w, ry, stools] of tables) {
       const cx = X(u), cz = Z(w), m = M4(cx, py, cz, 0, ry); tMats.push(m); lMats.push(m);
@@ -294,18 +316,29 @@ feature({
         shadows.push([sx, sz, 0.55, 0.55]);
       }
       // on the cloth: two flutes and a candle in a glass, kept to one side; solid, as they stand
+      const at = (ix, iz) => [cx + ix * Math.cos(ry) + iz * Math.sin(ry), py + TH + 0.008, cz - ix * Math.sin(ry) + iz * Math.cos(ry)];
       const items = [[0.13, 0.05], [0.04, 0.15]], base = [];
-      for (const [ix, iz] of items) { const x = cx + ix * Math.cos(ry) + iz * Math.sin(ry), z = cz - ix * Math.sin(ry) + iz * Math.cos(ry); fl.push([x, py + TH + 0.008, z]); base.push(fl.length - 1); }
-      { const ix = -0.08, iz = -0.06, x = cx + ix * Math.cos(ry) + iz * Math.sin(ry), z = cz - ix * Math.sin(ry) + iz * Math.cos(ry); vo.push([x, py + TH + 0.008, z]); }
+      for (const [ix, iz] of items) { fl.push(at(ix, iz)); base.push(fl.length - 1); }
+      vo.push(at(-0.08, -0.06));
       const its = [...base.map(i => fl[i]), vo[vo.length - 1]];
       O.push({ x0: Math.min(...its.map(q => q[0])) - 0.035, x1: Math.max(...its.map(q => q[0])) + 0.035, z0: Math.min(...its.map(q => q[2])) - 0.035, z1: Math.max(...its.map(q => q[2])) + 0.035, y0: py + TH, y1: py + TH + 0.25 });
+      // and the party round them, left as it was when everyone stepped away (small, and not solid): a coupe, a cocktail,
+      // two cups of green punch each with its stirrer, a paper hat standing and one knocked over
+      const n = this.tables.length;
+      tCoupe.push(M4(...at(0.2, -0.12), 0, n));
+      tMart.push(M4(...at(-0.05, 0.25), 0, n * 2));
+      for (const [ix, iz] of [[-0.24, 0.08], [0.02, -0.24]]) { const p = at(ix, iz); cups.push(M4(...p, 0, n + ix * 9)); stirs.push(M4(p[0] + 0.012, p[1] + 0.02, p[2], 0.32, n * 1.7 + iz * 11, 0.18)); }
+      hats.push(M4(...at(-0.22, -0.17), 0, n)); hatCol.push(HAT_COLS[n % HAT_COLS.length]);
+      { const p = at(0.26, 0.17); hats.push(M4(p[0], p[1] + 0.05, p[2], 1.9, ry + n, 0)); hatCol.push(HAT_COLS[(n + 2) % HAT_COLS.length]); }
       this.tables.push({ x: cx, z: cz, legs, flutes: base, wob: 0, cool: 0 });
     }
     inst(clothGeo, cloth, tMats); inst(legs4, chrome, lMats);
     inst(stoolMetal, brass, sMats); inst(seatGeo, seatM, sMats);
 
-    // ---- the bar, along the east rail: black lacquer banded in brass, a white marble top, a brass foot rail.
-    const bx0 = X(13.85), bx1 = X(14.4), bz0 = Z(6.0), bz1 = Z(8.4), BH = 1.08, P = k.parts();
+    // ---- the bar, along the east rail: black lacquer banded in brass, a white marble top, a brass foot rail. (Long enough
+    // for the welcome cake and the punch as well as the champagne, and short of the pergola post to its south, so the toy
+    // can still get round behind it.)
+    const bx0 = X(13.85), bx1 = X(14.4), bz0 = Z(6.0), bz1 = Z(9.2), BH = 1.08, P = k.parts();
     const lacquer = polish(new THREE.MeshStandardMaterial({ color: 0x0d0e12, roughness: 0.3, emissive: 0x0a0b10, emissiveIntensity: 0.6 }), 1.2);
     const mt = marbleTex(); mt.repeat.set(1.2, 0.6);
     const marbleM = polish(new THREE.MeshStandardMaterial({ map: mt, roughness: 0.25, emissiveMap: mt, emissive: new THREE.Color(0.62, 0.62, 0.64), emissiveIntensity: 0.55 }), 0.7);
@@ -344,11 +377,21 @@ feature({
       const m = M4(bcx + dx, top + 0.02, bkz + dz, tx, 0, tx * 0.6);
       P.add(champ, green, m); P.add(new THREE.CylinderGeometry(0.0175, 0.0175, 0.07, 12).translate(0, 0.27, 0), foil, m);
     }
-    const tray = bz0 + 1.45;
+    // a cut-glass bowl of green punch (it glows a little), slices of lime, a ladle, and cups beside it
+    const pz = bz0 + 1.35;
+    P.add(lathe([[0.001, 0], [0.06, 0], [0.065, 0.01], [0.03, 0.022], [0.03, 0.045], [0.1, 0.062], [0.155, 0.11], [0.17, 0.165], [0.164, 0.168], [0.15, 0.115], [0.095, 0.068], [0.001, 0.064]], 28), glassM, bcx, top, pz);
+    P.add(lathe([[0.001, 0.067], [0.094, 0.071], [0.146, 0.115], [0.155, 0.135], [0.001, 0.135]], 24), punchM, bcx, top, pz);
+    const lime = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.75, 0.95, 0.45) });
+    for (let i = 0; i < 5; i++) { const a = i * 1.3 + 0.4, d = 0.04 + (i % 3) * 0.035; P.add(new THREE.CylinderGeometry(0.024, 0.024, 0.006, 12), lime, bcx + Math.cos(a) * d, top + 0.136, pz + Math.sin(a) * d, 0.15 * (i % 2), 0, 0.1); }
+    P.add(new THREE.CylinderGeometry(0.006, 0.006, 0.3, 8), chrome, bcx + 0.07, top + 0.2, pz + 0.02, 0, 0, 0.55);
+    P.add(new THREE.SphereGeometry(0.035, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), chrome, bcx - 0.005, top + 0.11, pz + 0.02);
+    for (const dz of [-0.26, 0.26]) cups.push(M4(bx0 + 0.09, top, pz + dz, 0, dz * 7));
+    post(bcx - 0.18, bcx + 0.18, pz - 0.18, pz + 0.18, BH, BH + 0.22);
+    const tray = bz0 + 1.85;
     P.add(new THREE.CylinderGeometry(0.15, 0.15, 0.008, 28), chrome, bcx, top + 0.004, tray);
     const tf = []; for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.283; tf.push(M4(bcx + Math.cos(a) * 0.09, top + 0.008, tray + Math.sin(a) * 0.09)); }
     // bottles at the south end: two more of champagne, a gin, a whisky, a red
-    const bott = bz1 - 0.55, glassG = (col, op = 0.6) => polish(new THREE.MeshStandardMaterial({ color: col, roughness: 0.1, transparent: true, opacity: op, emissive: col, emissiveIntensity: 0.35 }), 1.2);
+    const bott = bz1 - 0.47, glassG = (col, op = 0.6) => polish(new THREE.MeshStandardMaterial({ color: col, roughness: 0.1, transparent: true, opacity: op, emissive: col, emissiveIntensity: 0.35 }), 1.2);
     const kinds = [[champ, green, 1, foil], [champ, green, 1, foil], [bottle(0.16, 0.012), glassG(0x9fc6d8, 0.55), 0.95, chrome], [bottle(0.14, 0.015), glassG(0x7a3a0c, 0.85), 0.9, kick], [bottle(0.21, 0.013), glassG(0x2a0610, 0.95), 1, kick]];
     kinds.forEach(([geo, mat, s, cap], i) => {
       const x = bcx + (i % 2 ? 0.07 : -0.05), z = bott + i * 0.085, m = M4(x, top, z, 0, i, 0, s);
@@ -360,6 +403,13 @@ feature({
     // flutes: on the tray and on the tables, one instanced set
     this.fluteBase = [...fl.map(([x, y, z]) => M4(x, y, z)), ...tf];
     this.flG = inst(FLUTE.glass(), glassM, this.fluteBase); this.flW = inst(FLUTE.wine(), wineM, this.fluteBase);
+    // the rest of the drinks on the tables: coupes, cocktails, cups of punch with alien-head stirrers; and paper hats
+    inst(COUPE.glass(), glassM, tCoupe); inst(COUPE.wine(), wineM, tCoupe);
+    inst(MARTINI.glass(), glassM, tMart); inst(MARTINI.drink(), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0, 0.36, 0.5) }), tMart);
+    inst(CUP.glass(), glassM, cups); inst(CUP.punch(), punchM, cups);
+    inst(STIR.stick(), new THREE.MeshBasicMaterial({ color: 0xe8f0f4 }), stirs); inst(STIR.head(), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.42, 1.0, 0.5) }), stirs); inst(STIR.eyes(), new THREE.MeshBasicMaterial({ color: 0x050805 }), stirs);
+    { const hm = inst(HAT.cone(), new THREE.MeshBasicMaterial({ map: hatTex(), side: THREE.DoubleSide }), hats); hatCol.forEach((c, i) => hm.setColorAt(i, new THREE.Color(c).multiplyScalar(0.85))); hm.instanceColor.needsUpdate = true;
+      inst(HAT.pom(), new THREE.MeshBasicMaterial({ color: 0xf4f0e8 }), hats); }
     // candles in little glasses on the tables: a flame that flickers while you are up here
     this.flame = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.0, 0.45) });
     const voG = merged([[new THREE.CylinderGeometry(0.03, 0.026, 0.07, 14, 1, true).translate(0, 0.035, 0)]]), wax = merged([[new THREE.CylinderGeometry(0.022, 0.022, 0.035, 12).translate(0, 0.018, 0)]]), fla = merged([[new THREE.SphereGeometry(0.008, 8, 6).scale(1, 2.2, 1).translate(0, 0.05, 0)]]);
@@ -404,11 +454,30 @@ feature({
         shadows.push([x, z, 0.6, 0.6]);
       }
     }
+    // ---- open champagne on ice round the terrace: a chrome bucket on a stand of three legs, a bottle in it, its cork gone
+    for (const [u, w] of [[13.65, 11.0], [4.6, 5.6], [4.4, 13.0]]) {
+      const x = X(u), z = Z(w), sh = 0.6;
+      for (let i = 0; i < 3; i++) { const a = i * 2.094 + 0.5; P.add(new THREE.CylinderGeometry(0.008, 0.008, sh + 0.04, 8), chrome, x + Math.cos(a) * 0.15, py + sh / 2, z + Math.sin(a) * 0.15, Math.sin(a) * 0.1, 0, -Math.cos(a) * 0.1); }
+      P.add(new THREE.TorusGeometry(0.105, 0.008, 6, 24).rotateX(Math.PI / 2), chrome, x, py + sh, z);
+      P.add(new THREE.TorusGeometry(0.15, 0.006, 6, 24).rotateX(Math.PI / 2), chrome, x, py + 0.12, z);
+      P.add(lathe([[0.001, 0], [0.085, 0], [0.09, 0.012], [0.108, 0.2], [0.116, 0.205], [0.112, 0.215], [0.1, 0.205], [0.08, 0.02], [0.001, 0.02]], 28), chrome, x, py + sh - 0.05, z);
+      for (let i = 0; i < 8; i++) { const a = r() * 6.28, d = 0.02 + r() * 0.06; P.add(box(0.035, 0.03, 0.035), ice, x + Math.cos(a) * d, py + sh + 0.13 + r() * 0.02, z + Math.sin(a) * d, r(), r(), r()); }
+      const m = M4(x + 0.02, py + sh - 0.02, z, 0.3, u, 0.18);
+      P.add(champ, green, m); P.add(new THREE.CylinderGeometry(0.0165, 0.0175, 0.035, 12).translate(0, 0.25, 0), foil, m); P.add(new THREE.CylinderGeometry(0.0395, 0.0395, 0.08, 16).translate(0, 0.1, 0), label, m);
+      post(x - 0.17, x + 0.17, z - 0.17, z + 0.17, 0, sh + 0.32);
+      shadows.push([x, z, 0.55, 0.55]);
+    }
+    // corks that went off with a pop, where they came down (and one on the bar)
+    { const cork = new THREE.MeshStandardMaterial({ color: 0xb08a5a, roughness: 0.9, emissive: 0x4a3420, emissiveIntensity: 0.6 }), cg = merged([[new THREE.CylinderGeometry(0.0115, 0.0125, 0.026, 10).translate(0, 0.013, 0)], [new THREE.CylinderGeometry(0.0155, 0.0155, 0.014, 12).translate(0, 0.033, 0)]]);
+      for (const [x, z, a] of [[X(9.4), Z(3.3), 0.4], [X(12.6), Z(7.4), 2.1], [X(5.6), Z(8.3), 4.0], [X(10.2), Z(14.2), 1.2]]) P.add(cg, cork, x, py + 0.016, z, 0, a, Math.PI / 2);
+      P.add(cg, cork, bx0 + 0.12, top + 0.016, bz0 + 1.62, 0, 1, Math.PI / 2); }
     P.done(this.group).forEach(m => { m.matrixAutoUpdate = false; m.updateMatrix(); });
+    // where the welcome goes (src/welcome.js): the cake and the Director's note on the bar, and the tables
+    this.T.party = { bar: { x0: bx0, x1: bx1, z0: bz0, z1: bz1, top }, cake: { x: bcx, z: bz0 + 2.3 }, note: { x: bx0 + 0.1, z: bz0 + 2.53 }, tables: this.tables.map(t => ({ x: t.x, z: t.z })) };
 
     // ---- strings of lights across the pergola, side to side and back, sagging between the beams
     {
-      const yb = py + 2.95, xw = X(0.32), xe = X(14.88), ws = [0.9, 3.5, 6.1, 8.7, 11.3, 13.9, 16.5, 19.0], bulbs = [], wire = [];
+      const yb = py + 2.95, xw = X(0.32), xe = X(14.88), ws = [0.9, 3.85, 6.8, 9.75, 12.7, 15.65, 18.6], bulbs = [], wire = [];
       for (let i = 0; i + 1 < ws.length; i++) {
         const a = i % 2 ? [xe, Z(ws[i])] : [xw, Z(ws[i])], b = i % 2 ? [xw, Z(ws[i + 1])] : [xe, Z(ws[i + 1])], len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.round(len / 0.45), sag = 0.5;
         let prev = null;

@@ -62,6 +62,7 @@ import './rooftops.js';      // the roofs: snowman, vents, the snow wave, skylig
 import './level3.js';
 import './fireworks.js';         // fireworks from the Modern Wing's roof terrace
 import './terrace.js';           // what stands on that terrace: three sculptures and a party laid out
+import './welcome.js';           // the party is a welcome for visitors from the stars: banners, balloons, cake, the Director's note
 import './bridgeplay.js';      // the toy track down the Nichols Bridgeway: a triple loop, a launch off it into the park, rings
 import './icefish.js';
 import './reading.js';
