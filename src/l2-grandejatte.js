@@ -167,14 +167,14 @@ feature({
     if (this.state === 'home' && this.look > 4 && this.free(k)) {
       this.state = 'leaving'; this.leap = 0; k.synth.chime([1568, 1976, 2349], { gap: 0.07, dur: 0.3, vol: 0.04 });
       const a = this.art, R = a.work.id === 27992 && k.G.secret && k.G.secret.clue ? k.G.secret.clue.rect : [0.685, 0.755, 0.805, 0.9], u = (R[0] + R[2]) / 2 - 0.5;
-      this.from = { x: a.x + this.tx * u * a.w + a.nx * 0.14, y: a.y - a.h / 2 - 0.16, z: a.z + this.tz * u * a.w + a.nz * 0.14 };
+      this.from = { x: a.x + this.tx * u * a.w + a.nx * 0.14, y: a.y - a.h / 2 - Math.max(0.05, a.frame || 0.1) - 0.24, z: a.z + this.tz * u * a.w + a.nz * 0.14 };      // hanging from the frame's foot, its head under it
       this.at = this.corners[Math.floor(Math.random() * this.corners.length)];
       this.monkey.position.set(this.from.x, this.from.y, this.from.z); this.monkey.visible = true;
     }
     if (this.state === 'leaving') {
       this.leap += dt;
       const f = Math.min(1, this.leap / 1.6), mk = this.monkey, F = this.from, A = this.at, y0 = this.y;
-      if (f < 0.25) { const s = f / 0.25; mk.position.set(F.x + (F.x + (A.x - F.x) * 0.08 - F.x) * s, F.y + (y0 - F.y) * s * s + Math.sin(s * Math.PI) * 0.1, F.z + (A.z - F.z) * 0.08 * s); }      // down off the frame
+      if (f < 0.25) { const s = f / 0.25; mk.position.set(F.x + (F.x + (A.x - F.x) * 0.08 - F.x) * s, F.y + (y0 - F.y) * s * s, F.z + (A.z - F.z) * 0.08 * s); }      // down off the frame
       else { const s = 0.08 + 0.92 * (f - 0.25) / 0.75; mk.position.set(F.x + (A.x - F.x) * s, y0 + Math.abs(Math.sin(s * Math.PI * 7)) * 0.08, F.z + (A.z - F.z) * s); }     // and away, in bounds
       mk.rotation.y = Math.atan2(A.x - F.x, A.z - F.z);
       if (this.leap > 1.6) { this.state = 'out'; this.monkey.position.set(this.at.x, this.at.y, this.at.z); k.say('The monkey has slipped its lead. It is in here somewhere.', 5); }
@@ -225,6 +225,10 @@ feature({
       f.c = Math.cos(f.yaw); f.s = Math.sin(f.yaw); f.pc = Math.cos(f.spin); f.ps = Math.sin(f.spin);
     }
     const P = this.dots.geometry.attributes.position, a = P.array, l = this.local, S = this.src, V = this.via;
+    // And the guarantee: a dot that, from wherever the camera is just now, would be seen in front of the canvas (with a
+    // little to spare) is not drawn this frame. However the camera swings, nothing is ever seen on the picture.
+    const art = this.art, cam = k.G.camera, cp = cam && cam.position, ax = art.x, ay = art.y, az = art.z;
+    const cN = cp ? (cp.x - ax) * nx + (cp.z - az) * nz : 0, hw = art.w / 2 + 0.03, hh = art.h / 2 + 0.03;
     for (let i = 0; i < show; i++) {
       const f = F[this.fig[i]], pt = this.part[i];
       let x = l[i * 3], y = l[i * 3 + 1], zz = l[i * 3 + 2];
@@ -242,6 +246,13 @@ feature({
         const j = i * 3;
         if (g < 0.5) { const q = ease(g * 2); px = S[j] + (V[j] - S[j]) * q; py = S[j + 1] + (V[j + 1] - S[j + 1]) * q; pz = S[j + 2] + (V[j + 2] - S[j + 2]) * q; }
         else { const q = ease(g * 2 - 1); px = V[j] + (px - V[j]) * q; py = V[j + 1] + (py - V[j + 1]) * q; pz = V[j + 2] + (pz - V[j + 2]) * q; }
+      }
+      if (cp) {
+        const pN = (px - ax) * nx + (pz - az) * nz;
+        if (cN > pN && pN > 0) {
+          const q = cN / (cN - pN), hx = cp.x + (px - cp.x) * q, hz = cp.z + (pz - cp.z) * q, hy = cp.y + (py - cp.y) * q;
+          if (Math.abs((hx - ax) * tx + (hz - az) * tz) < hw && Math.abs(hy - ay) < hh) py = -1e4;
+        }
       }
       a[i * 3] = px; a[i * 3 + 1] = py; a[i * 3 + 2] = pz;
     }
