@@ -507,13 +507,27 @@ class Life {
       // The look camera for a life: low (a child's eye, or a toy's on a box), near, a little to one side, looking at the
       // floor in front and the foot of the work, so what comes out fills the view; the top of a big work may crop.
       // stage.cam = { dist, side, height, lookU, lookOut, lookH } overrides any of it; cam: false keeps the wide view.
+      // A work under 1.2 m high is kept whole in view (cam.floorOut: how far out the floor must show below it).
       if (st.cam !== false) {
         const c = st.cam || {}, foot = this.bottom - this.y;
         art.floorFrame.cam = { dist: c.dist || 2.2, side: c.side == null ? 0.4 : c.side, height: c.height || 0.8, fov: c.fov || 48,
           lookU: c.lookU == null ? 0.05 : c.lookU, lookOut: c.lookOut == null ? 0.4 : c.lookOut, lookH: c.lookH == null ? Math.max(0.5, Math.min(0.9, foot * 0.85)) : c.lookH };
+        if (this.art.h < 1.2 && c.whole !== false) this.wholeWork(art.floorFrame.cam, c.floorOut == null ? 1.0 : c.floorOut);
       }
     }
     this.ms = 0;
+  }
+  // A small work is never cropped: the look camera keeps the whole of it in view (the top of its frame, and a little
+  // over), with the floor in front out to floorOut below it. If the camera as asked cannot, it is tilted, and then
+  // moved back, until it can; the work then sits in the upper part of the view, what comes out of it below.
+  wholeWork(cam, floorOut) {
+    const F = cam.fov * Math.PI / 180 * 0.94, H = cam.height, topY = this.crown + 0.1 - this.y;
+    const top = d => Math.atan2(topY - H, d), low = d => -Math.atan2(H, Math.max(0.05, d - floorOut));
+    let D = cam.dist, pitch = Math.atan2(cam.lookH - H, D - cam.lookOut);
+    if (top(D) <= pitch + F / 2 && low(D) >= pitch - F / 2) return;      // it fits as it is
+    while (top(D) - low(D) > F && D < 8) D += 0.05;
+    pitch = Math.max(low(D) + F / 2, Math.min(top(D) - F / 2, pitch));
+    cam.dist = D; cam.lookH = H + Math.tan(pitch) * (D - cam.lookOut);
   }
   measure() {
     const a = this.art, G = placeGuard(a).uLifeR.value;
