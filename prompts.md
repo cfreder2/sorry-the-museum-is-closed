@@ -974,3 +974,11 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 227
 
 > The flying saucer is a bit weak and needs an upgrade; it is also small, as is the path it leaves when it moves.
+
+## 228
+
+> The world is not very detailed in many parts. For example, where the security room is. Let's start with the wing that houses the security substation and turn it into a genuine command center: offices and workstations the player can explore, interactive consoles for hacking or monitoring, props that convey a realistic security environment. Brainstorm ideas for this security hub. Imagine being able to see the location of all the security bots. You could remote-control a security bot and drive it around, maybe zapping the mice or the alien saucer. However, you would not be able to see into the basement; it would be restricted access, and security guards can see that. The security team can describe some of the weird things they've been seeing.
+
+## 229
+
+> The Red Teaming Heist game is really great and tons of fun. However, the travel time to get there and back feels excessive. It would be nice if you could jump now, making the challenge to jump over a line. If you set off the alarm, a cage should fall around you, trapping you briefly. You would then be kicked out and taken to a dumpster. Ideally, this dumpster would be closer to the external security system and include a vent, perhaps an underground one, that lets you re-enter the security area. (Asked: the cage drops on any alarm; keep a set time to get there and back, with the lit path, so the urgency is part of the adventure.)
