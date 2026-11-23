@@ -51,6 +51,13 @@ const lancet = seed => tex(64, 192, (c, w, h) => { const r = TX.rng(seed); c.fil
   for (let y = 0; y < h; y += 12) for (let x = 0; x < w; x += 10) { c.fillStyle = ['#2a4aa8', '#b8262c', '#d8a82a', '#2a8a4a', '#6a2a8a'][Math.floor(r() * 5)]; c.fillRect(x + 1, y + 1, 9, 11); }
   c.fillStyle = '#f0e6c8'; c.beginPath(); c.ellipse(w / 2, h * 0.38, 10, 22, 0, 0, 7); c.fill(); c.fillStyle = '#d8a82a'; c.beginPath(); c.arc(w / 2, h * 0.24, 8, 0, 7); c.fill(); });
 // (drawn at the plate's own shape, 1.5 m by 0.12, and a long title set smaller or on two lines, never squeezed)
+// The case's own joinery, outside: dark fumed oak, the grain running along; and its ends, two fielded panels in a frame.
+const caseWood = () => tex(256, 256, (c, w, h) => { const r = TX.rng(31); c.fillStyle = '#3a2618'; c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 70; i++) { const y = r() * h; c.strokeStyle = r() < 0.5 ? 'rgba(20,10,4,.35)' : 'rgba(120,80,48,.22)'; c.lineWidth = 0.6 + r() * 1.8; c.beginPath(); c.moveTo(0, y); for (let x = 0; x <= w; x += 32) c.lineTo(x, y + Math.sin(x * 0.03 + i) * (2 + r() * 3)); c.stroke(); } }, [1, 1]);
+const casePanels = () => tex(512, 256, (c, w, h) => { const r = TX.rng(37); c.fillStyle = '#3c2819'; c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 90; i++) { const y = r() * h; c.strokeStyle = r() < 0.5 ? 'rgba(18,9,4,.35)' : 'rgba(125,84,50,.22)'; c.lineWidth = 0.6 + r() * 1.6; c.beginPath(); c.moveTo(0, y); for (let x = 0; x <= w; x += 40) c.lineTo(x, y + Math.sin(x * 0.02 + i) * 3); c.stroke(); }
+  for (const [x0, x1] of [[26, 242], [270, 486]]) { const y0 = 30, y1 = h - 34; c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(x0, y0, x1 - x0, y1 - y0); c.fillStyle = '#4a3220'; c.fillRect(x0 + 8, y0 + 8, x1 - x0 - 16, y1 - y0 - 16); c.fillStyle = 'rgba(255,220,170,.10)'; c.fillRect(x0 + 8, y0 + 8, x1 - x0 - 16, 4); c.fillRect(x0 + 8, y0 + 8, 4, y1 - y0 - 16); c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(x0 + 8, y1 - 12, x1 - x0 - 16, 4); c.fillRect(x1 - 12, y0 + 8, 4, y1 - y0 - 16); }
+  c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(0, h - 14, w, 14); });
 const plaque = (code, title) => tex(1024, 82, (c, w, h) => { c.fillStyle = '#16120c'; c.fillRect(0, 0, w, h); c.fillStyle = '#d9c38a'; TX.fitText(c, `${code} · ${title}`, { x: w / 2, y: h / 2, w: w - 48, h: h - 14, px: 44, weight: '600', family: 'Georgia, serif', lines: 2, wrapAt: 0.8 }); });
 
 // ------------------------------------------------------------------ one room
@@ -65,9 +72,13 @@ class RoomBuild {
   block(u0, u1, d0, d1, y1) { const xa = this.X(d0), xb = this.X(d1); this.solid.push({ x0: Math.min(xa, xb), x1: Math.max(xa, xb), z0: this.Z(u0), z1: this.Z(u1), y0: this.y0 - 0.05, y1: this.Y(y1) }); }
   // A painted panel: on the back wall, a side wall (0 or W), or the floor.
   panel(where, a0, a1, b0, b1, map, o = {}) {
-    const mat = o.basic ? new THREE.MeshBasicMaterial({ map, color: o.tint || 0xffffff, transparent: !!o.transparent }) : new THREE.MeshStandardMaterial({ map, roughness: 0.85, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: o.glow == null ? 0.45 : o.glow, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    // (A rug or a hearth laid on the boards is pulled further forward in depth than the boards it lies on, or the two flicker.)
+    const off = where === 'floor' && o.lift ? -4 : -2;
+    const mat = o.basic ? new THREE.MeshBasicMaterial({ map, color: o.tint || 0xffffff, transparent: !!o.transparent, polygonOffset: true, polygonOffsetFactor: off, polygonOffsetUnits: off }) : new THREE.MeshStandardMaterial({ map, roughness: 0.85, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: o.glow == null ? 0.45 : o.glow, polygonOffset: true, polygonOffsetFactor: off, polygonOffsetUnits: off });
     let m;
-    if (where === 'floor') { m = new THREE.Mesh(new THREE.PlaneGeometry(b1 - b0, a1 - a0), mat); m.rotation.x = -Math.PI / 2; m.rotation.z = this.f > 0 ? Math.PI / 2 : -Math.PI / 2; m.position.set(this.X((b0 + b1) / 2), this.Y(o.lift || 0.004), this.Z((a0 + a1) / 2)); }
+    // (Along the front by in from the glass: turned a quarter about its own middle, the plane runs a1 - a0 along the
+    // front and b1 - b0 in. The other way round, the boards stuck out through the glass and short of the ends.)
+    if (where === 'floor') { m = new THREE.Mesh(new THREE.PlaneGeometry(a1 - a0, b1 - b0), mat); m.rotation.x = -Math.PI / 2; m.rotation.z = this.f > 0 ? Math.PI / 2 : -Math.PI / 2; m.position.set(this.X((b0 + b1) / 2), this.Y(o.lift || 0.004), this.Z((a0 + a1) / 2)); }
     else if (where === 'back') { m = new THREE.Mesh(new THREE.PlaneGeometry(a1 - a0, b1 - b0), mat); m.rotation.y = this.f > 0 ? Math.PI / 2 : -Math.PI / 2; m.position.set(this.X(D - (o.off || 0.004)), this.Y((b0 + b1) / 2), this.Z((a0 + a1) / 2)); }
     else { const left = where === 'left'; m = new THREE.Mesh(new THREE.PlaneGeometry(a1 - a0, b1 - b0), mat); m.rotation.y = left ? 0 : Math.PI; if (this.f < 0) m.rotation.y += Math.PI; m.position.set(this.X((a0 + a1) / 2), this.Y((b0 + b1) / 2), this.Z(left ? (o.off || 0.004) : W - (o.off || 0.004))); }
     this.extra.push(m); return m;
@@ -106,7 +117,7 @@ const ROOMS = [
       R.fire(1.615, D - 0.08); R.candle(1.4, D - 0.06, 0.53); R.candle(1.83, D - 0.06, 0.53);
       R.B(1.55, 1.68, 0.53, 0.66, D - 0.08, D - 0.02, 0x4a3a2a); R.E(1.615, D - 0.085, 0.62, 0.035, 0.035, 0.005, 0xf0ead8);      // the mantel clock
       R.panel('back', 0.85, 1.2, 0.42, 0.86, view('snow'), { glow: 0.95 });                                           // a window on the snow
-      R.panel('floor', 0.95, 1.55, 0.36, 0.96, braided(), { lift: 0.006 });
+      R.panel('floor', 0.95, 1.55, 0.36, 0.96, braided(), { lift: 0.01 });
       R.B(1.0, 1.12, 0, 0.14, 0.95, 1.07, 0x6a4a2c); R.B(1.0, 1.12, 0.14, 0.42, 1.06, 1.08, 0x6a4a2c);                 // a ladder-back chair
       R.panel('right', 0.5, 0.8, 0.5, 0.75, picture(3));                                                              // a sampler
     } },
@@ -114,7 +125,7 @@ const ROOMS = [
     find: { id: 'thimble', name: 'a silver thimble', u: 0.78, d: 0.5 },
     build(R) {
       R.panel('floor', 0, W, 0, D, planks('#8a6038', '#7d5530'));
-      R.panel('floor', 0.55, 1.75, 0.25, 1.0, carpet(), { lift: 0.006 });
+      R.panel('floor', 0.55, 1.75, 0.25, 1.0, carpet(), { lift: 0.01 });
       R.B(0, W, 0, H, D, D + 0.04, 0xb9cfb4); R.B(-0.04, 0, 0, H, 0, D, 0xb9cfb4); R.B(W, W + 0.04, 0, H, 0, D, 0xb9cfb4); R.B(0, W, H, H + 0.04, 0, D, 0xf2efe6);
       R.B(0, W, 0, 0.06, D - 0.01, D, 0xf2efe6); R.B(0, W, 0.3, 0.32, D - 0.012, D, 0xf2efe6); R.B(0, W, H - 0.06, H, D - 0.02, D, 0xf2efe6);      // skirting, dado, cornice
       for (const [a, b] of [[0.05, 0.25], [1.4, 1.95]]) { R.B(a, b, 0.4, 0.42, D - 0.008, D, 0xf2efe6); R.B(a, b, 0.98, 1.0, D - 0.008, D, 0xf2efe6); R.B(a, a + 0.02, 0.4, 1.0, D - 0.008, D, 0xf2efe6); R.B(b - 0.02, b, 0.4, 1.0, D - 0.008, D, 0xf2efe6); }      // panel mouldings
@@ -204,7 +215,8 @@ feature({
     const defs = [[ROOMS[0], -1, xW, zA], [ROOMS[1], -1, xW, zB], [ROOMS[2], 1, xE, zA], [ROOMS[3], 1, xE, zB]];
     const mat = cast({ roughness: 0.85, metalness: 0, emissiveIntensity: 0.42 });
     const glassM = new THREE.MeshStandardMaterial({ color: 0xdfeef5, transparent: true, opacity: 0.13, roughness: 0.05, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide });
-    const frameM = new THREE.MeshStandardMaterial({ color: 0x1e1812, roughness: 0.6, metalness: 0.2, emissive: 0x0e0a06, emissiveIntensity: 0.6 });
+    const oak = caseWood(), frameM = new THREE.MeshStandardMaterial({ map: oak, color: 0xffffff, roughness: 0.5, metalness: 0, emissiveMap: oak, emissive: 0xffffff, emissiveIntensity: 0.22 });
+    const endP = casePanels(), endM = new THREE.MeshStandardMaterial({ map: endP, roughness: 0.5, emissiveMap: endP, emissive: 0xffffff, emissiveIntensity: 0.22 });
     const crackM = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 });
     const O = P.obstacles, frame = [];
     this.rooms = defs.map(([def, f, xg, z0], i) => {
@@ -233,7 +245,7 @@ feature({
       O.push({ x0: bx0, x1: bx1, z0: z0 - 0.1, z1: z0 - 0.005, y0: y0 - 0.1, y1: y0 + H + 0.2 }, { x0: bx0, x1: bx1, z0: z0 + W + 0.005, z1: z0 + W + 0.1, y0: y0 - 0.1, y1: y0 + H + 0.2 });
       // the plaque on the fascia over the glass
       const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.12), new THREE.MeshBasicMaterial({ map: plaque(def.code, def.title), color: new THREE.Color(0.9, 0.85, 0.75) }));
-      pl.rotation.y = f > 0 ? Math.PI / 2 : -Math.PI / 2; pl.position.set(xg + f * 0.062, y0 + H + 0.12, z0 + W / 2); k.group.add(pl);
+      pl.rotation.y = f > 0 ? Math.PI / 2 : -Math.PI / 2; pl.position.set(xg + f * 0.072, y0 + H + 0.12, z0 + W / 2); k.group.add(pl);
       // the find
       const fd = def.find, fm = findMesh(fd.id); fm.position.set(R.X(fd.d), y0 + 0.005, R.Z(fd.u)); fm.rotation.y = i * 1.3; k.group.add(fm);
       return { def, f, xg, z0, y0, R, find: { ...fd, x: R.X(fd.d), z: R.Z(fd.u), mesh: fm }, flames: R.flames, candles: R.candles || [] };
@@ -241,7 +253,9 @@ feature({
     // the back walls between the rooms, the posts between the pairs, the cornice over the whole case, and its top (which a drone cannot drop through)
     const cxW = cx - 0.05, cxE = cx + 0.05;
     const caseG = new THREE.Group(), cb = (x0, x1, a, b, z0, z1, m = frameM) => { const g = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, b - a, z1 - z0), m); g.position.set((x0 + x1) / 2, (a + b) / 2, (z0 + z1) / 2); caseG.add(g); };
-    cb(cxW, cxE, y0, y0 + H + 0.05, zA - 0.05, zB + W + 0.05);
+    cb(cxW + 0.012, cxE - 0.012, y0, y0 + H + 0.05, zA - 0.05, zB + W + 0.05);      // (inside the rooms' back walls, not in the plane of their faces)
+    // The two ends of the case, clad in panelling over the rooms' side walls (inside the solid kept round them).
+    for (const [za, zb] of [[zA - 0.075, zA - 0.045], [zB + W + 0.045, zB + W + 0.075]]) cb(xW + 0.003, xE - 0.003, y0, y0 + H + 0.02, za, zb, endM);
     cb(xW - 0.06, xE + 0.06, y0 + H + 0.02, y0 + H + 0.2, zA - 0.1, zB + W + 0.1);
     cb(xW - 0.08, xE + 0.08, y0 + H + 0.2, y0 + H + 0.26, zA - 0.12, zB + W + 0.12);
     cb(xW, xE, y0, y0 + H + 0.05, zA + W, zB);

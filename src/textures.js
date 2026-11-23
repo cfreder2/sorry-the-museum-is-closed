@@ -138,15 +138,35 @@ export function marble() {
   return tex(c, { repeat: true });
 }
 
+// Dressed stone for the sides and undersides of stairs and balconies: the marble's colour, honed, with no joints and no
+// inlays (those are for walking on), a little cloud and a fine fleck.
+export function dressedStone() {
+  const [c, g] = canvas(512, 512);
+  const r = rng(17);
+  g.fillStyle = 'hsl(40, 12%, 70%)'; g.fillRect(0, 0, 512, 512);
+  for (let k = 0; k < 90; k++) {
+    const x = r() * 512, y = r() * 512, rad = 30 + r() * 110, gr = g.createRadialGradient(x, y, 0, x, y, rad), dark = r() > 0.5;
+    gr.addColorStop(0, dark ? 'rgba(120,108,92,0.06)' : 'rgba(250,244,232,0.06)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; for (const ox of [-512, 0, 512]) for (const oy of [-512, 0, 512]) { g.save(); g.translate(ox, oy); g.fillRect(x - rad, y - rad, rad * 2, rad * 2); g.restore(); }
+  }
+  for (let k = 0; k < 3000; k++) { g.fillStyle = `rgba(${r() > 0.5 ? '90,82,70' : '255,250,240'},${0.04 + r() * 0.07})`; g.fillRect(r() * 512, r() * 512, 1 + r() * 2, 1 + r() * 2); }
+  return tex(c, { repeat: true });
+}
+
+// Dark polished slate in big slabs, two to a repeat: blue-grey, each slab a shade off the next, with the cleft's faint
+// banding and a fine fleck. Dark, but a floor and not a hole: light enough that a lit room shows it.
 export function slate() {
   const [c, g] = canvas(512, 512);
   const r = rng(5);
-  g.fillStyle = '#17181c'; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 2; i++) { const l = 22 + r() * 4; g.fillStyle = `hsl(${214 + r() * 10}, ${9 + r() * 4}%, ${l}%)`; g.fillRect(i * 256, 0, 256, 512); }
+  g.globalAlpha = 0.07;
+  for (let k = 0; k < 40; k++) { g.fillStyle = r() > 0.5 ? '#9aa4b4' : '#0c0e12'; const y = r() * 512; g.fillRect(0, y, 512, 2 + r() * 10); }
+  g.globalAlpha = 1;
   for (let k = 0; k < 2600; k++) {
-    g.fillStyle = `rgba(${r() > 0.5 ? '120,125,140' : '0,0,0'},${0.05 + r() * 0.08})`;
+    g.fillStyle = `rgba(${r() > 0.5 ? '150,158,175' : '8,9,12'},${0.05 + r() * 0.08})`;
     g.fillRect(r() * 512, r() * 512, 1 + r() * 3, 1 + r() * 3);
   }
-  g.strokeStyle = '#0b0b0d'; g.lineWidth = 3;
+  g.strokeStyle = '#121418'; g.lineWidth = 3;
   g.strokeRect(0, 0, 512, 512); g.beginPath(); g.moveTo(256, 0); g.lineTo(256, 512); g.stroke();
   return tex(c, { repeat: true });
 }

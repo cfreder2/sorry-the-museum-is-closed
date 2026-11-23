@@ -796,9 +796,17 @@ function chase(dt, snap) {
     {
       camFrom.set(v.pos.x, v.pos.y + 0.22, v.pos.z);
       const D = camFrom.distanceTo(want), n = Math.max(1, Math.ceil(D / 0.1)); let good = 0;
+      // Tall furniture stops it too, as a wall does (shelving, cases, booths, the snow wave on the roof: anything in
+      // plan.obstacles standing over 0.6 m), so it never ends up inside one with the toy hidden. Picked out once a frame
+      // from those near the line it walks out along.
+      camObs.length = 0;
+      { const P = 0.12, x0 = Math.min(camFrom.x, want.x) - P, x1 = Math.max(camFrom.x, want.x) + P, z0 = Math.min(camFrom.z, want.z) - P, z1 = Math.max(camFrom.z, want.z) + P, y0 = Math.min(camFrom.y, want.y) - P, y1 = Math.max(camFrom.y, want.y) + P;
+        for (const o of G.plan.obstacles) if (o.y1 - o.y0 > 0.6 && o.x1 > x0 && o.x0 < x1 && o.z1 > z0 && o.z0 < z1 && o.y1 > y0 && o.y0 < y1 && !(o.gate && o.gate.off)) camObs.push(o); }
+      const inObs = p => { for (const o of camObs) if (p.x > o.x0 - 0.1 && p.x < o.x1 + 0.1 && p.z > o.z0 - 0.1 && p.z < o.z1 + 0.1 && p.y > o.y0 - 0.05 && p.y < o.y1 + 0.1) return true; return false; };
       for (let i = 1; i <= n; i++) {
         camTry.lerpVectors(camFrom, want, i / n); camHit.copy(camTry);
         if (confine(G.plan, camHit, 0.14, true, null, true) && camHit.distanceToSquared(camTry) > 0.0009) break;
+        if (camObs.length && inObs(camTry)) break;
         good = i;
       }
       if (good < n) {
@@ -826,6 +834,7 @@ function chase(dt, snap) {
 
 const movers = [], prev = new THREE.Vector3(0, -99, 0), here = new THREE.Vector3();
 const camFrom = new THREE.Vector3(), camTry = new THREE.Vector3(), camHit = new THREE.Vector3();
+const camObs = [];                                         // (the tall obstacles near the camera's line this frame)
 
 // A word or two in the middle of the screen when you pull something off.
 let calloutUntil = 0, calloutHeld = 0;
@@ -1351,7 +1360,7 @@ function play(dt, real) {
     G.boardNear = busy || G.ufoNear || paintNear || simonNear || stallNear ? null : G.boards.near(v);
     const ufoTap = G.ufoNear && input.took('look'), boardTap = !!G.boardNear && input.took('look');      // asked for now, before a picture on the wall beside it can take the press
     // The headlamp is dipped while you are pulled up at a board, or the glare off it is all you would see.
-    { const dip = !!G.boardNear; if (dip || G.dipped) { const to = G.lampOn ? (dip ? 14 : 70) : 0; G.lamp.intensity += (to - G.lamp.intensity) * Math.min(1, real * 6); G.dipped = dip || Math.abs(G.lamp.intensity - to) > 0.5; if (!G.dipped) G.lamp.intensity = to; } }
+    { const dip = !!G.boardNear; if (dip || G.dipped) { const to = G.lampOn ? (dip ? 14 : 70) : 0, at = G.lamp.intensity === G.lampSet ? (G.lampRaw ?? G.lamp.intensity) : G.lamp.intensity; G.lampRaw = at + (to - at) * Math.min(1, real * 6); G.dipped = dip || Math.abs(G.lampRaw - to) > 0.5; if (!G.dipped) G.lampRaw = to; G.lamp.intensity = G.lampSet = G.lampRaw * (G.lampK ?? 1); } }      // (on its own strength, G.lampRaw: lampNear turns it down by a wall)
     if (G.boardNear) once('board', `A whiteboard somebody has left written on. ${input.usedTouch ? 'READ' : 'E'} to read it.`, 6);
     if (G.ufoNear) once('ufo', `${input.usedTouch ? 'TAKE' : 'E'} to take it. Nobody is looking.`, 6);
     $('bLook').hidden = !(G.facing || busy || G.ufoNear || G.boardNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : G.ufoNear ? 'TAKE' : G.boardNear ? 'READ' : 'LOOK';
@@ -1578,9 +1587,38 @@ function tick(now) {
   else if (G.cineEye && G.state === 'play') { const e = G.cineEye; camera.position.copy(e.at); camera.up.set(0, 1, 0); camera.lookAt(e.look); if (e.fov && Math.abs(camera.fov - e.fov) > 0.01) { camera.fov = e.fov; camera.updateProjectionMatrix(); } }      // a feature's cinematic camera, held exactly ({ at, look: Vector3, fov }: src/finalelaunch.js)
   // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
+  lampNear(dt);
   fitNear();
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
+}
+
+// The headlamp up against something. Its light falls off with distance, so a wall a hand in front of it took dozens of
+// times what a wall two metres off does, burnt to white and bloomed over the whole frame. So the lamp is turned down as
+// whatever is in front of it comes within 1.6 m, just enough that what it lights stays as bright as it was at 1.6 m;
+// beyond that it is at full strength. What is in front is found once every three frames, with the
+// plan's own solids (walls, buildings, furniture): six points out along the beam. Whatever set the lamp's strength last
+// (the switch, the dip at a board, a test) is its strength before this; G.lampRaw keeps it.
+const _lp = new THREE.Vector3();
+function lampNear(dt) {
+  const L = G.lamp, v = G.vehicle; if (!L || !v) return;
+  if (L.intensity !== G.lampSet) G.lampRaw = L.intensity;              // set from outside since the last frame: that is the lamp's strength now
+  const raw = G.lampRaw || 0;
+  if (G.lampK == null) G.lampK = 1;
+  if (raw > 0 && G.state === 'play' && (G.lampTick = ((G.lampTick || 0) + 1) % 3) === 0) {
+    const s = Math.sin(v.yaw), c = Math.cos(v.yaw), y = v.pos.y + (v.kind === 'drone' ? 0 : 0.14), nose = v.kind === 'drone' ? 0.1 : 0.2;
+    let d = 99;
+    for (const t of [0.12, 0.3, 0.55, 0.85, 1.2, 1.6]) {
+      _lp.set(v.pos.x + s * (nose + t), y, v.pos.z + c * (nose + t));
+      const x0 = _lp.x, z0 = _lp.z;
+      confine(G.plan, _lp, 0.02, true);
+      if ((_lp.x - x0) ** 2 + (_lp.z - z0) ** 2 > 1e-4) { d = t; break; }
+    }
+    G.lampWant = Math.max(0.1, Math.min(1, (d / 1.6) ** 1.6));
+  } else if (raw <= 0) G.lampWant = 1;
+  const want = G.lampWant ?? 1;
+  G.lampK += (want - G.lampK) * Math.min(1, dt * (want < G.lampK ? 12 : 5));
+  L.intensity = raw * G.lampK; G.lampSet = L.intensity;
 }
 
 // The near plane of the camera, as far out as it can safely go. The depth buffer's precision is shared out by the ratio

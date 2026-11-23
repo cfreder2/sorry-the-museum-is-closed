@@ -211,8 +211,8 @@ export function buildSetPieces(museum, plan) {
       const bars = (n, vert) => { for (let k = 0; k <= n; k++) { const t = k / n, bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, vert ? H : 0.05, vert ? 0.05 : w), dark); bar.position.set(x - 0.09, vert ? y0 + H / 2 : y0 + t * H, vert ? a + t * w : (a + b) / 2); fix(bar); } };
       bars(3, false); bars(Math.max(2, Math.round(w / 1.5)), true);
       // white piers either side, a dark plinth under, a white head over
-      for (const z of [a - 0.25, b + 0.25]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.34, H + 0.75, 0.5), white); p.position.set(x - 0.07, br.y + (H + 0.75) / 2, z); fix(p); }
-      const pl = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, w + 0.02), dark); pl.position.set(x - 0.25, br.y + 0.25, (a + b) / 2); fix(pl);
+      for (const z of [a - 0.25, b + 0.25]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.33, H + 0.75, 0.5), white); p.position.set(x - 0.075, br.y + (H + 0.75) / 2, z); fix(p); }      // (a centimetre off the wall: their backs lay in the skirting's plane)
+      const pl = new THREE.Mesh(new THREE.BoxGeometry(0.69, 0.5, w + 0.02), dark); pl.position.set(x - 0.255, br.y + 0.25, (a + b) / 2); fix(pl);
       const hd = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, w + 1), white); hd.position.set(x - 0.07, y0 + H + 0.15, (a + b) / 2); fix(hd);
       O.push({ x0: x - 0.62, x1: br.x1, z0: a - 0.5, z1: b + 0.5, y0: br.y, y1: br.y + 0.55 });
       pool(x - 1.9, br.y + 0.03, (a + b) / 2, 3.6, w + 1.5, new THREE.Color(0.08, 0.16, 0.6));

@@ -105,16 +105,35 @@ export function grid(plan, roomIds, fy) {
   for (const q of plan.ramps || []) if (Math.min(q.y0, q.y1) < H && Math.max(q.y0, q.y1) > fy - 0.1) fill(q.x0 - 0.2, q.x1 + 0.2, q.z0 - 0.2, q.z1 + 0.2, k => { open[k] = 0; });
   for (const l of plan.lifts || []) if (l.stops[0] - 0.3 < H && l.stops[l.stops.length - 1] + 2.7 > fy) fill(l.x0 - 0.2, l.x1 + 0.2, l.z0 - 0.2, l.z1 + 0.2, k => { open[k] = 0; sight[k] |= 1; });
   for (const w of plan.wells || []) if (Math.abs(w.y - fy) < 0.3) fill(w.x0 - 0.3, w.x1 + 0.3, w.z0 - 0.3, w.z1 + 0.3, k => { open[k] = 0; });
-  // How far each cell is from the nearest shut one (two passes, near enough).
+  const g = { X0, Z0, X1, Z1, nx, nz, N, C, fy, open, clr: null, sight, rooms: roomIds };
+  clearance(g);
+  return g;
+}
+// How far each cell is from the nearest shut one (two passes, near enough): g.clr.
+function clearance(g) {
+  const { nx, nz, N, open } = g;
   const dist = new Float32Array(N).fill(99);
   for (let k = 0; k < N; k++) if (!open[k]) dist[k] = 0;
   const D1 = C, D2 = C * Math.SQRT2;
   const relax = (k, i, j, di, dj, w) => { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= nx || b >= nz) { if (dist[k] > C / 2) dist[k] = C / 2; return; } const v = dist[b * nx + a] + w; if (v < dist[k]) dist[k] = v; };
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (!open[k]) continue; relax(k, i, j, -1, 0, D1); relax(k, i, j, 0, -1, D1); relax(k, i, j, -1, -1, D2); relax(k, i, j, 1, -1, D2); }
   for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i; if (!open[k]) continue; relax(k, i, j, 1, 0, D1); relax(k, i, j, 0, 1, D1); relax(k, i, j, 1, 1, D2); relax(k, i, j, -1, 1, D2); }
-  const clr = new Float32Array(N);
+  const clr = g.clr || new Float32Array(N);
   for (let k = 0; k < N; k++) clr[k] = open[k] ? dist[k] - C / 2 : -1;
-  return { X0, Z0, X1, Z1, nx, nz, N, C, fy, open, clr, sight, rooms: roomIds };
+  g.clr = clr;
+}
+// Something set down after the grid was made (a feature's furniture: src/lobby.js's benches): shut its cells, low
+// (`top` under a metre: it hides only what is low behind it) or tall, and work out the clearances again.
+export function shut(g, boxes) {
+  let any = false;
+  for (const b of boxes) {
+    if (b.x1 < g.X0 || b.x0 > g.X1 || b.z1 < g.Z0 || b.z0 > g.Z1 || b.y1 <= g.fy + 0.05 || b.y0 >= g.fy + BOT.h) continue;
+    const i0 = Math.max(0, Math.floor((b.x0 - g.X0) / g.C)), i1 = Math.min(g.nx - 1, Math.ceil((b.x1 - g.X0) / g.C) - 1), j0 = Math.max(0, Math.floor((b.z0 - g.Z0) / g.C)), j1 = Math.min(g.nz - 1, Math.ceil((b.z1 - g.Z0) / g.C) - 1);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * g.nx + i; g.open[k] = 0; if (b.y0 < g.fy + 0.5) g.sight[k] |= b.y1 > g.fy + 1 ? 1 : 2; }
+    any = true;
+  }
+  if (any) clearance(g);
+  return any;
 }
 
 export const cellAt = (g, x, z) => { const i = Math.floor((x - g.X0) / g.C), j = Math.floor((z - g.Z0) / g.C); return i < 0 || j < 0 || i >= g.nx || j >= g.nz ? -1 : j * g.nx + i; };
