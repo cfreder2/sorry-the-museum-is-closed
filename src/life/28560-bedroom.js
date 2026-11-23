@@ -372,8 +372,6 @@ vec3 bfCol; float bfA;`)
 
   start(L, resumed) {
     this.sc.from(0); this.hold = 0;
-    // (only one room's worth at a time: the van Gogh next door, if it is still out round the toy, goes home)
-    if (!L.quiet && typeof window !== 'undefined' && window.__life) for (const o of window.__life.list()) if (o.room === L.art.room && o.id !== L.id && o.state === 'linger') window.__life.release(o.id);
   },
   back(L) { this.hold = L.t; if (!L.quiet) L.k.synth.noise(0.6, { vol: 0.015, lp: 1400 }); },
   end() { this.hide(); },
