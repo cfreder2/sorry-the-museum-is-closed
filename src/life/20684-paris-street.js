@@ -67,12 +67,11 @@ lifeFor(20684, {
       g.putImageData(img, 0, 0);
     });
     setts.wrapS = setts.wrapT = THREE.RepeatWrapping; setts.repeat.set(2 * HALF / 0.85, OUT / 0.85); setts.anisotropy = 4;
-    const M = k.G.mirror, origin = L.floor(0, 0);
+    const origin = L.floor(0, 0);
     const u = this.u = {
       uSpread: { value: 0 }, uWet: { value: 0 }, uGrow: { value: 0 },
       uO: { value: origin }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uSize: { value: new THREE.Vector2(HALF, OUT) },
       uPud: { value: PUDDLES.map(p => new THREE.Vector4(...p)) }, uRip: { value: Array.from({ length: RIPS }, () => new THREE.Vector4(0, 0, 2, 0.1)) },
-      tRefl: { value: M ? M.rt.texture : null }, reflMatrix: { value: M ? M.matrix : new THREE.Matrix4() }, reflOn: M ? M.strength : { value: 0 }, reflY: M ? M.level : { value: y },
     };
     const street = new THREE.MeshStandardMaterial({ map: setts, transparent: true, depthWrite: false, roughness: 0.42, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     street.onBeforeCompile = sh => {
@@ -94,7 +93,7 @@ float lPud, lDry;`)
   for (int i = 0; i < ${PUDDLES.length}; i++) { vec4 q = uPud[i]; vec2 d = vec2((su - q.x) / (q.z * uGrow + 1e-3), (so - q.y) / (q.w * uGrow + 1e-3)); float wob = 0.1 * sin(su * 11.0 + so * 7.0) + 0.06 * sin(so * 23.0 - su * 5.0); lPud = max(lPud, 1.0 - smoothstep(0.72, 1.0, length(d) + wob)); }
   lPud *= lDry;
   diffuseColor.a = opacity * laid * lDry * edge;
-  diffuseColor.rgb *= mix(0.86, 0.24, lPud);
+  diffuseColor.rgb *= mix(0.76, 0.22, lPud);
 }`)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.05, lPud);')
         .replace('#include <opaque_fragment>', `{
@@ -103,12 +102,13 @@ float lPud, lDry;`)
   vec4 rp = reflMatrix * vec4(lifeP, 1.0); vec2 ruv = rp.xy / rp.w + bend * 0.012;
   float on = reflOn * lDry * (1.0 - step(0.08, abs(lifeP.y - reflY)));
   vec3 sharp = min(texture2D(tRefl, ruv).rgb, vec3(2.5)), soft = min(texture2D(tRefl, ruv, 2.5).rgb, vec3(2.5));
-  outgoingLight = (outgoingLight + diffuseColor.rgb * 0.16) * (1.0 - 0.5 * lPud) + mix(soft * 0.2, sharp * 0.9, lPud) * on + ring * vec3(0.3, 0.33, 0.37) * (0.25 + 0.75 * lPud) * lDry;
+  outgoingLight = (outgoingLight + diffuseColor.rgb * 0.16) * (1.0 - 0.5 * lPud) + mix(soft * 0.3, sharp * 0.9, lPud) * on + ring * vec3(0.3, 0.33, 0.37) * (0.25 + 0.75 * lPud) * lDry;
 }
 #include <opaque_fragment>`);
     };
     street.customProgramCacheKey = () => 'paris-street';
     this.street = L.decal({ w: 2 * HALF, d: OUT, u: 0, out: OUT / 2, material: street });
+    Object.assign(u, L.mirrored(this.street));        // (the puddles hold the room upside down: the floor's own reflection)
 
     // ---------------------------------------------------------- rain, from the ceiling, in front of the picture
     const top = y + Math.min(room.ceil || 5, 5.2) - 0.25;
@@ -190,7 +190,7 @@ float lPud, lDry;`)
 
   start(L) {
     const k = L.k;
-    if (!this.found) { this.found = true; if (k.find('rain')) k.callout('RAIN INDOORS'); k.say('It has started to rain. In here.', 4); }
+    if (!this.found && !L.quiet) { this.found = true; if (k.find('rain')) k.callout('RAIN INDOORS'); k.say('It has started to rain. In here.', 4); }
     for (const w of this.walkers) w.back = null;
     this.spread0 = this.spreadV;                     // (still wet from last time: the street is already laid)
     const v = L.voice(); v.note(587.3, 1.6, { vol: 0.025, type: 'sine', attack: 0.3 }); v.note(440, 2.2, { at: 0.35, vol: 0.022, type: 'sine', attack: 0.4 }); v.note(349.2, 2.8, { at: 0.75, vol: 0.02, type: 'sine', attack: 0.5 });
@@ -211,7 +211,7 @@ float lPud, lDry;`)
     if (showing) { this.spreadV = Math.max(this.spread0 || 0, ease.out(ramp(t, 0.25, 2.8))); this.wetV = 1; this.grow = Math.max(this.grow, ease.smooth(ramp(t, 1.4, 4.2))); }
     else if (ph === 'after') this.wetV = Math.max(0, this.wetV - dt / DRY);
     const u = this.u; u.uSpread.value = this.spreadV; u.uWet.value = this.wetV; u.uGrow.value = this.grow * (0.6 + 0.4 * this.wetV);
-    this.street.visible = this.wetV > 0.002 && this.spreadV > 0.001;
+    this.street.material.visible = this.wetV > 0.002 && this.spreadV > 0.001;      // (by its material: the mirror shows and hides the mesh)
     if (this.wetV <= 0.002) { this.spreadV = 0; this.grow = 0; }
 
     // The rain.

@@ -1,7 +1,12 @@
 # Painting animations: the framework
 
-Status: draft for review, 2026-11-22. Nothing is built yet. This is the contract every animation follows, so that
-roughly 900 of them, made by many agents, feel like one game.
+Status: draft for review, 2026-11-22. This is the contract every animation follows, so that roughly 900 of them, made
+by many agents, feel like one game.
+
+**Built (2026-11-23):** the shared kit, `src/paintlife.js`, and the first three works on it, which are the ones to copy:
+`src/life/20684-paris-street.js`, `src/life/111436-basket-of-apples.js`, `src/life/94841-song-of-the-lark.js`. For now
+they wake while the player LOOKs at the work (as the Grande Jatte does), not with the blaster; see **How to make one**
+at the end.
 
 ## What it is
 
@@ -170,3 +175,87 @@ hand-made recipes replace the archetypes one by one.
    turn its head, a miniature room's lamps could light.)
 4. How many showpieces (custom code): 10, 25 or 50?
 5. Should archetypes ship first so every work responds at once, or only hand-made ones?
+
+## How to make one
+
+The kit is `src/paintlife.js` (its header is the full reference). One work is one file, `src/life/<id>-<slug>.js`,
+imported from `src/life/index.js`. Copy whichever of the three reference works is nearest to yours: the
+**Caillebotte** for figures that walk out and back, weather and water on the floor; the **Cézanne** for things that fall,
+roll and can be pushed about by the toy; the **Breton** for something that flies, and light.
+
+```js
+import * as THREE from 'three';
+import { lifeFor, ease, ramp, shape, walk, flight } from '../paintlife.js';
+
+lifeFor(111436, {                         // the museum's id; title: /^The Basket/ is the fallback
+  title: /^The Basket of Apples/,
+  word: 'tumble',                         // the one word it is about
+  stage: { out: 1.2, half: 1.0 },         // the floor in front, framed with the work while you look (above: 0.9 for fliers)
+  wake: 2, ret: 2.4,                      // seconds: Wake/Emerge, and Return when the look ends
+  linger: { near: 4, max: 30 },           // optional: stay out after the look while the toy is near (things to push)
+  build(L) { },                           // once, when the toy first comes near the room: make everything, L.add() it
+  start(L, resumed) { },                  // a show begins
+  update(L, dt) { },                      // each frame while it shows: L.phase, L.t (show seconds), L.wake, L.ret
+  back(L) { },                            // the look has ended: note where things are, to take them home
+  end(L) { },                             // all home again
+});
+```
+
+**The trigger and the timeline.** A show starts 1.3 s into a look at the work (the camera has come round) and runs
+while the player keeps looking: **Wake/Emerge** (0 to `wake`, about 2 s; `L.wake` eases 0 to 1) has things gathering out
+of the frame's edges; **Play** (from 2 s; make 2 to 8 s the main moment, then loop gently); **Return** (`ret`, about
+1.5 s; `L.ret` runs 0 to 1) takes everything back into the frame when the look ends. `linger` keeps a show out after
+the look while the toy is near, so the toy can play with it; `keep(L)` keeps `update` running after Return (puddles
+drying). A second look during Return or linger simply carries on. Work everything out from `L.t` where you can (not by
+adding up `dt`), so any moment can be posed for the checks; use `L.rand()` (seeded), never `Math.random()`.
+
+**Where things are.** `L.at(u, v, out)` is a point `u` metres along the wall from the canvas centre (to the viewer's
+right), `v` up from it, `out` from the canvas plane into the room; `L.floor(u, out)` the same on the floor. The frame:
+`L.hw`, `L.hh` (canvas half sizes), `L.fw` (frame width), `L.bottom`, `L.top`, `L.rail` (underside of the frame),
+`L.crown` (top of the frame), `L.wall` (canvas plane to the wall: things out of sight at `out < -L.wall` are in the
+wall, which is how figures and apples come out from under the bottom rail). `L.yawOut` faces out of the wall.
+
+**The guarantee, built in.** Everything added with `L.add(object)` has every material put through `protectArt()`: a
+shader guard that throws away any pixel which, seen from the camera drawing it, lies in front of the work's canvas,
+**or any other picture's canvas in the same room**, with 3 cm to spare; within 5 to 8 cm of a canvas things dissolve
+(solid) or fade (transparent) rather than stopping at a hard line. It works for meshes, instanced and batched meshes,
+points (a point is hidden whole), lines, sprites and ShaderMaterials, from every camera, the floor's reflection included.
+If you make a material yourself and add it some other way, pass it through `L.mat()`. On the CPU, `L.hides(x, y, z, r)`
+asks the same question. Choreograph so the guard rarely acts: from the look camera it should cut next to nothing (the
+check reports how much it cut). A pool of light on the floor, and a glow on the wall **behind** the canvas (the canvas and
+frame hide it; `L.glows([{ wall: true, ... }])`), are fine; nothing ever tints, lights or covers the picture.
+
+**The kit.** `L.pal` is the work's palette, sampled from its own image (`L.pal.near('#5b6a7a', 0.4)`: the swatch nearest
+the colour you mean, mixed in that far). `L.paint({ flat, glow, rough })` is a vertex-coloured material that glows a little
+in its own colours (the galleries are dark at night). `shape.lathe/ball/box/cyl/cone/move/paint/merge` make small
+geometries with vertex colours, painted face by face (`shape.paint` is how the apples get Cézanne's planes).
+`L.rig(n, verts)` is many rigid parts in one draw call (legs, hats, umbrellas, wings, apples): `rig.geo(g)`, `rig.add(id)`,
+`rig.put(i, x, y, z, yaw, pitch, roll, scale)`, `rig.show(i, on)`. `walk(points)` is a stroll over the floor with pauses;
+`flight(points)` a smooth path for a flier with heading and bank; `hop()` a jump. `L.rollers(n)` are balls on the floor
+with bounces and rolling that the toy pushes about and that keep out of doorways (they never stop the toy). `L.decal()`,
+`L.glows()` and `L.blobs()` are flat things on the floor or wall, pools of light, and soft contact shadows. `L.voice()` is
+sound placed at the work (louder nearer, panned): `note`, `chirp` (birds), `tune` (carols.js notation; music published
+before 1900 only), `bell`, `loop` (rain, wind).
+
+**Budget.** Phones are half the players. At most about 400 marks or particles on screen, at most 3 draw calls of its own
+while it shows (a rig is one; merge lights into one `glows`), geometry and textures shared, nothing allocated per frame,
+nothing run per frame unless it shows. Nothing is built until the toy first comes into the work's room (or the next
+room through a door), and its shaders are compiled then, off the main thread where the browser can.
+
+**Test it, and make the contact sheet.** Serve the repo (with `data/img/` for the pictures) and run
+
+    node tools/lifesheet.mjs <id> --video --phone
+
+It boots the game headless, drives the toy into the room, looks at the work, and
+
+- runs the guarantee check: the animation drawn alone from the look camera and eight others (the toy's eye looking up,
+  low and to the side, slanted, close under the frame, grazing along the wall, high, across the room) at eight moments
+  of the show and its Return; not one of its pixels may land on the work or on any other canvas in the room;
+- writes `~/Desktop/Museum-life/<id>-<slug>-sheet.jpg`: the look camera at 0.5, 1.5, 3, 5 and 8 s, the toy's eye, the
+  room, and the Return;
+- with `--video`, a film of the whole show on a fixed clock, `<id>-<slug>.mp4`; with `--phone`, the frame cost in a phone
+  sized view with and without the show.
+
+In the browser, `?lifecheck` (or `?lifecheck=20684,111436`) runs the same check on every work once the game is up and
+shows the result in the corner; `__life.check(id)`, `__life.pose(id, t)`, `__life.stats(id)` and `__life.palette(id)` are
+there in the console.

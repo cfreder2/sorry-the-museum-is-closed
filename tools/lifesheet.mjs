@@ -52,7 +52,7 @@ try {
     return { title: a.work.t, artist: a.work.a, room: a.room, tier: a.tier, palette: window.__life.palette(id), works: G.museum.arts.length };
   }, id);
   if (info.error) throw new Error(info.error);
-  const slug = info.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').slice(0, 4).join('-');
+  const slug = info.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').replace(/^(the|a|an)-/, '').split('-').slice(0, 4).join('-');
   console.log(`${id} ${info.title} (${info.artist}), ${info.room}; ${info.works} works hung; picture tier ${info.tier}; palette from ${info.palette.src}: ${info.palette.hex.join(' ')}`);
 
   // A real look, so the look camera is exactly the game's.
@@ -114,19 +114,31 @@ try {
   }
 
   if (flag('phone')) {
-    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    // A phone-sized view, with the processor slowed four times (as a mid-range phone's): frame times, draw calls and
+    // triangles drawn per frame (the whole game's, every pass), without the show and with it; and the show's own update.
+    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });      // (not isMobile: that reloads the page)
+    const cdp = await page.createCDPSession(); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    await new Promise(r => setTimeout(r, 1500));
     const cost = await page.evaluate(async (id, view) => {
       const G = window.__ah, L = window.__life.life(id), r = G.renderer, wait = ms => new Promise(res => setTimeout(res, ms));
-      const sample = async secs => { const t = []; let last = performance.now(); const t0 = last; await new Promise(res => { const f = now => { t.push(now - last); last = now; if (now - t0 < secs * 1000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); }); t.sort((a, b) => a - b); return { median: +t[t.length >> 1].toFixed(2), p95: +t[Math.floor(t.length * 0.95)].toFixed(2), calls: r.info.render.calls, tris: r.info.render.triangles }; };
+      r.info.autoReset = false;
+      const sample = async secs => {
+        const t = [], calls = [], tris = []; let last = performance.now(); const t0 = last; r.info.reset();
+        await new Promise(res => { const f = now => { t.push(now - last); last = now; calls.push(r.info.render.calls); tris.push(r.info.render.triangles); r.info.reset(); if (now - t0 < secs * 1000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+        const med = a => { const b = a.slice(1).sort((x, y) => x - y); return b[b.length >> 1]; };
+        const sorted = t.slice(1).sort((a, b) => a - b);
+        return { medianMs: +med(t).toFixed(1), p95Ms: +sorted[Math.floor(sorted.length * 0.95)].toFixed(1), calls: med(calls), tris: med(tris) };
+      };
       G.testEye = { at: view.at, look: view.look };
-      window.__life.free(id); L.reset(); L.force = false; await wait(800);
-      const off = await sample(3);
+      window.__life.free(id); L.reset(); L.force = false; await wait(1000);
+      const off = await sample(4);
       L.force = true; await wait(5000);
-      const on = await sample(3);
-      const ms = L.ms; L.force = null; L.reset();
+      const on = await sample(4);
+      const ms = L.ms; L.force = null; L.reset(); r.info.autoReset = true;
       return { off, on, updateMs: +ms.toFixed(3) };
     }, id, views.look);
-    console.log('phone view 390x844@2x, frame ms (median / p95) and draw calls, without the show:', JSON.stringify(cost.off), 'with it:', JSON.stringify(cost.on), 'its update:', cost.updateMs, 'ms a frame');
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    console.log('phone view 390x844 at 2x, processor slowed 4x; per frame, the whole game: without the show', JSON.stringify(cost.off), 'with it', JSON.stringify(cost.on), '; the show\'s own update', cost.updateMs, 'ms');
   }
 } finally {
   if (errors.length) console.log('page errors:', errors.slice(0, 12));

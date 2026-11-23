@@ -45,12 +45,14 @@
 //                           right), L.nx/L.nz (out of the wall)
 //   L.at(u, v, out, into?)  a point: u along the wall from the centre, v up from the centre, out from the canvas plane
 //   L.floor(u, out, into?)  a point on the floor; L.local(x, z) -> { u, out }
+//   L.quiet                 true while a check or a test poses it: find no secrets, say nothing
 //   L.phase                 'wake' | 'play' | 'return' | 'linger' | 'after'; L.t seconds of show, L.wake 0..1 (eased)
 //                           over the Wake, L.ret 0..1 over the Return, L.looking
 //   L.hides(x, y, z, r)     the guard's test on the CPU, from the camera now (true: it would be in front of the canvas)
 //   L.rig(n, verts)         many rigid parts, one draw call (a BatchedMesh): legs, wings, apples, a cloth's panels
 //   L.rollers(n, opts)      balls on the floor the toy can push about: apples, croquet balls, yarn (never solid)
-//   L.decal(opts)           something flat on the floor (or wall), 1 cm clear of it; L.glow(opts) a pool of light,
+//   L.decal(opts)           something flat on the floor (or wall), 1 cm clear of it (L.mirrored(mesh): it shows the
+//                           floor's reflection, as a puddle does); L.glow(opts) a pool of light,
 //                           L.glows([...]) several in one draw call; L.blobs(n) soft contact shadows
 //   L.voice()               sound: chirps, notes, tunes (pre-1900 only), loops, louder the nearer the camera
 //   shape.*                 small geometry makers (lathe, ball, box, cyl, merge, paint) with vertex colours
@@ -142,14 +144,15 @@ const GUARDS = new WeakMap();
 let MUSEUM = null;
 function guardOf(art) {
   let u = GUARDS.get(art);
-  if (!u) { GUARDS.set(art, u = { uLifeR: { value: Array.from({ length: MAXC * 3 }, () => new THREE.Vector4()) }, uLifeN: { value: 0 }, uLifeOff: { value: 0 }, arts: [] }); placeGuard(art); }
+  if (!u) { GUARDS.set(art, u = { uLifeR: { value: Array.from({ length: MAXC * 3 }, () => new THREE.Vector4()) }, uLifeN: { value: 0 }, uLifeOff: { value: 0 }, uLifePx: { value: 900 }, arts: [] }); placeGuard(art); }
   return u;
 }
-const _m = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _ax = new THREE.Vector3();
+const _m = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _ax = new THREE.Vector3(), _vp = new THREE.Vector4();
 // Read where the canvases are now, from their meshes (centre; along and out of the wall; half width and height).
 function placeGuard(art) {
   const u = guardOf(art), room = MUSEUM && MUSEUM.rooms && MUSEUM.rooms[art.room];
-  u.arts = [art, ...((room && room.arts) || []).filter(a => a !== art && !a.obj && a.mesh)].slice(0, MAXC);
+  const d2 = a => (a.x - art.x) ** 2 + (a.z - art.z) ** 2;      // (the nearest first, should a room ever hold more than MAXC)
+  u.arts = [art, ...((room && room.arts) || []).filter(a => a !== art && !a.obj && a.mesh).sort((a, b) => d2(a) - d2(b))].slice(0, MAXC);
   u.arts.forEach((a, i) => {
     const m = a.mesh, R = u.uLifeR.value;
     if (m) { m.updateMatrixWorld(); m.matrixWorld.decompose(_m, _q, _s); } else { _m.set(a.x, a.y, a.z); _s.set(a.w, a.h, 1); _q.setFromAxisAngle(_ax.set(0, 1, 0), a.rot); }
@@ -163,7 +166,7 @@ function placeGuard(art) {
 }
 
 const GUARD_COMMON = /* glsl */`
-uniform vec4 uLifeR[${MAXC * 3}]; uniform int uLifeN; uniform float uLifeOff;
+uniform vec4 uLifeR[${MAXC * 3}]; uniform int uLifeN; uniform float uLifeOff; uniform float uLifePx;
 varying vec3 vLifeV;
 // How far outside canvas i (grown by the margin) the ray from the eye E through world point P meets its plane beyond
 // P: negative means P is in front of that canvas, as seen from E. (r grows the canvas, for a point's size.)
@@ -189,7 +192,7 @@ export function protectArt(mat, art, { soft = 0 } = {}) {
   mat.userData.lifeArt = art;
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev.call(mat, sh, r);
-    Object.assign(sh.uniforms, { uLifeR: g.uLifeR, uLifeN: g.uLifeN, uLifeOff: g.uLifeOff, uLifeSoft: { value: soft } });
+    Object.assign(sh.uniforms, { uLifeR: g.uLifeR, uLifeN: g.uLifeN, uLifeOff: g.uLifeOff, uLifePx: g.uLifePx, uLifeSoft: { value: soft } });
     // Every vertex: where it is, in the camera's space (from gl_Position, so it works whatever the shader did).
     // A point sprite is hidden whole if any of it could be over the canvas.
     let tail = '\n  { vec4 lq = inverse(projectionMatrix) * gl_Position; vLifeV = lq.xyz / lq.w; }\n';
@@ -200,7 +203,8 @@ export function protectArt(mat, art, { soft = 0 } = {}) {
       sh.fragmentShader.replace(/void\s+main\s*\(\s*(void)?\s*\)\s*\{/, m => m + `
   lifeP = lifeWorld(vLifeV);
   if (uLifeOff < 0.5) {
-    float lo = lifeOut(cameraPosition, lifeP, 0.0); if (lo < 0.0) discard;
+    // (grown by a pixel and a half at this depth: a line is a pixel wide, and an edge's samples reach half a pixel out)
+    float lo = lifeOut(cameraPosition, lifeP, 1.5 * max(-vLifeV.z, 0.0) / uLifePx); if (lo < 0.0) discard;
     // (a soft edge: transparent things fade out towards the canvas; solid ones dissolve, in a fine ordered dither)
     if (uLifeSoft > 0.0) { lifeK = smoothstep(0.0, uLifeSoft, lo); ${fade ? '' : 'vec2 bq = mod(floor(gl_FragCoord.xy), 4.0); float bt = (mod(bq.x + bq.y * 2.0, 4.0) * 4.0 + mod(bq.x * 3.0 + bq.y, 4.0) + 0.5) / 16.0; if (lifeK < bt) discard;'} }
   }
@@ -519,7 +523,14 @@ class Life {
   hides(x, y, z, r = 0, only = null) { return hides(this.art, this.k.G.camera.position, x, y, z, r, only); }
   mat(m, o) { return protectArt(m, this.art, o); }
   add(obj, parent = this.group) {
-    obj.traverse(o => { for (const m of [].concat(o.material || [])) protectArt(m, this.art, { soft: m.transparent ? 0.08 : 0.05 }); o.frustumCulled = false; });
+    const g = guardOf(this.art);
+    obj.traverse(o => {
+      for (const m of [].concat(o.material || [])) protectArt(m, this.art, { soft: m.transparent ? 0.08 : 0.05 });
+      o.frustumCulled = false;
+      // the guard's pixel size, for the target and camera this is about to be drawn with (the screen, the floor's
+      // reflection, a check)
+      if (o.material) { const prev = o.onBeforeRender; o.onBeforeRender = function (r, sc, cam) { r.getCurrentViewport(_vp); g.uLifePx.value = Math.max(1, _vp.w * cam.projectionMatrix.elements[5] * 0.5); if (prev) prev.apply(this, arguments); }; }
+    });
     parent.add(obj); return obj;
   }
   // A standard material in vertex colours that glows a little in them (the galleries are dark at night).
@@ -545,6 +556,14 @@ class Life {
     const m = this.decal({ w, d, u, out, v, map: radialTexture(), color, opacity: 0, additive: true, wall });
     m.set = a => { m.material.opacity = strength * a; m.visible = a > 0.002; };
     return m;
+  }
+  // The polished floor's reflection, for something on the floor that shows it (a puddle): the uniforms to sample it
+  // (tRefl, reflMatrix: world to its texture, reflOn, reflY: the floor it is laid on), and the mesh is kept out of the
+  // reflection's own drawing (it cannot read the picture it is being drawn into). The mirror shows and hides it for
+  // that, so show and hide such a mesh by its material.visible, not its own.
+  mirrored(mesh) {
+    const M = this.k.G.mirror; if (M && this.k.museum.floors && !this.k.museum.floors.includes(mesh)) this.k.museum.floors.push(mesh);
+    return { tRefl: { value: M ? M.rt.texture : null }, reflMatrix: { value: M ? M.matrix : new THREE.Matrix4() }, reflOn: M ? M.strength : { value: 0 }, reflY: M ? M.level : { value: this.y } };
   }
   // Several pools of light in one draw call: list = [{ w, d, u, out, v, color, wall, strength }] (as glow); g.set(i, a).
   glows(list) {
@@ -700,7 +719,7 @@ function cameras(L, k) {
 async function pose(id, t, { ret = null } = {}) {
   const L = lifeOf(id); if (!L) return false;
   await L.prepare(); if (L.made !== true) return false;
-  L.frozen = false; L.rand = rng(L.id * 7 + 13); L.reset(); L.force = true;
+  L.frozen = false; L.quiet = true; L.rand = rng(L.id * 7 + 13); L.reset(); L.force = true;
   let tt = 0; L.step(0, true);
   while (tt < t - 1e-6) { const d = Math.min(DT, t - tt); L.step(d, true); tt += d; }
   if (ret != null) { L.force = false; L.step(0, false); if (L.state === 'linger') L.toReturn(); let r = 0; while (r < ret - 1e-6) { const d = Math.min(DT, ret - r); L.step(d, false); r += d; } }
@@ -736,7 +755,7 @@ function shoot(L, k, view, W = 320) {
   const mask = new Uint8Array(W * H * 4), buf = new Uint8Array(W * H * 4), g = guardOf(L.art);
   if (!L._quads) {
     L._quads = new THREE.Group();
-    g.arts.forEach((a, i) => { const m = new THREE.Mesh(a.mesh.geometry, new THREE.MeshBasicMaterial({ color: i ? 0x808080 : 0xffffff, side: THREE.DoubleSide, toneMapped: false })); m.matrixAutoUpdate = false; L._quads.add(m); m.userData.art = a; });
+    g.arts.forEach((a, i) => { const m = new THREE.Mesh(a.mesh.geometry, new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(i ? 0.5 : 1, i ? 0.5 : 1, i ? 0.5 : 1, THREE.LinearSRGBColorSpace), side: THREE.DoubleSide, toneMapped: false })); m.matrixAutoUpdate = false; L._quads.add(m); m.userData.art = a; });
   }
   for (const m of L._quads.children) { m.matrix.copy(m.userData.art.mesh.matrixWorld); m.material.colorWrite = true; }
   L._quads.updateMatrixWorld(true);
@@ -764,7 +783,7 @@ async function check(k, id, { times = [0.5, 1.5, 3, 5, 8, 12], rets = [0.4, 1.0]
   for (const t of times) await run(t, null);
   for (const r of rets) await run(8, r);
   const st = stats(L);
-  L.frozen = false; L.force = null; L.reset();
+  L.frozen = false; L.force = null; L.quiet = false; L.reset();
   const bad = rows.filter(x => x.drawn > 0 || x.drawnOthers > 0), sum = (f, list = rows) => list.reduce((n, x) => n + f(x), 0);
   return { id, title: L.art.work.t, pass: !bad.length && !st.open.length, cams: Object.keys(views).length, frames: rows.length, canvases: guardOf(L.art).arts.length,
     drawnOnCanvas: sum(x => x.drawn), drawnOnOthers: sum(x => x.drawnOthers), badFrames: bad.length,
@@ -789,11 +808,11 @@ function debugApi(k) {
     life: lifeOf,
     ready: async id => { const L = lifeOf(id); if (L) await L.prepare(); return !!L && L.made === true; },
     pose, cams: id => { const L = lifeOf(id); if (!L) return null; const c = cameras(L, k); c.look = lookCam(L, k); return c; },
-    free: id => { const L = lifeOf(id); if (L) { L.frozen = false; L.force = null; } },
+    free: id => { const L = lifeOf(id); if (L) { L.frozen = false; L.force = null; L.quiet = false; } },
     // One step of dt seconds, looking or not, then held again (for films on a fixed clock: tools/lifesheet.mjs).
     // Skip the linger (things left out for the toy) and go straight back.
     release: id => { const L = lifeOf(id); if (L && L.state === 'linger') L.toReturn(); },
-    advance: (id, dt, looking = true) => { const L = lifeOf(id); if (!L || L.made !== true) return; L.frozen = false; L.force = !!looking; L.step(dt, !!looking); L.frozen = true; },
+    advance: (id, dt, looking = true) => { const L = lifeOf(id); if (!L || L.made !== true) return; L.quiet = true; L.frozen = false; L.force = !!looking; L.step(dt, !!looking); L.frozen = true; },
     check: (id, o) => check(k, id, o),
     stats: id => { const L = lifeOf(id); return L ? stats(L) : null; },
     palette: id => { const L = lifeOf(id); return L && L.pal ? { src: L.pal.src, hex: L.pal.hex } : null; },
