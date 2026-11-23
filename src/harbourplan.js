@@ -146,7 +146,7 @@ export function harbourEdge(plan, L) {
   // leaving the east side clear to drive down to the light. Its door faces east, onto that lane, with a stone step in
   // front of it (low enough to drive over) where the keeper's log lies (src/probe.js). Solid as drawn (harbour.js draws
   // it); the roof is a top you can land on.
-  { const y = 1.27, H = L.hut = { x0: bw.x0 + 0.35, x1: bw.x0 + 2.75, z0: 48.3, z1: 50.5, y, h: 2.1 };
+  { const y = 1.27, H = L.hut = { x0: bw.x0, x1: bw.x0 + 2.4, z0: 48.3, z1: 50.5, y, h: 2.1 };      // (flush with the west edge: a strip beside it was a ledge to be shoved off into the lake)
     H.door = { x: H.x1, z: (H.z0 + H.z1) / 2, w: 0.8, h: 1.8 };
     H.step = { x0: H.x1, x1: H.x1 + 0.34, z0: H.door.z - 0.45, z1: H.door.z + 0.45, h: 0.06 };
     H.log = { x: H.x1 + 0.19, y: y + H.step.h, z: H.door.z };

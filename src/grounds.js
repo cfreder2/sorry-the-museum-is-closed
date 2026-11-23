@@ -17,6 +17,7 @@ import { buildEastSide } from './eastside.js';
 import { buildRailway } from './railway.js';
 import { buildStreets } from './streets.js';
 import { buildLakefront } from './lakefront.js';
+import { buildWorldEdge } from './worldedge.js';
 import { asphaltMaterial, walkMaterial } from './streetscape.js';
 
 export function buildGrounds(museum, plan) {
@@ -29,7 +30,16 @@ export function buildGrounds(museum, plan) {
   // An urn 1 unit wide at the rim and `h` tall, standing on y = 0: foot, stem, a gadrooned bowl, a rolled rim.
   const urnGeo = (w, h) => lathe([[0.001, 0], [0.5, 0], [0.52, 0.04], [0.5, 0.08], [0.3, 0.12], [0.22, 0.2], [0.26, 0.26], [0.5, 0.34], [0.78, 0.5], [0.9, 0.7], [0.92, 0.86], [1.0, 0.92], [1.0, 0.97], [0.9, 1], [0.8, 0.94], [0.001, 0.9]].map(([r, y]) => [r * w / 2, y * h]), 20);
   const clump = (r, mat, x, y, z, sy = 0.7) => { const g = new THREE.Group(); for (const [dx, dy, dz, k] of [[0, 0, 0, 1], [0.45, -0.12, 0.2, 0.62], [-0.4, -0.1, 0.3, 0.6], [0.1, -0.1, -0.48, 0.62], [-0.2, 0.2, -0.1, 0.6]]) { const m = new THREE.Mesh(clumpGeo, mat); m.position.set(dx * r, dy * r, dz * r); m.scale.set(r * k, r * k * sy, r * k); g.add(m); } g.position.set(x, y, z); return g; };
-  const clumpGeo = new THREE.SphereGeometry(1, 14, 10);
+  const clumpGeo = new THREE.SphereGeometry(1, 20, 14);
+  // Clipped box, for the topiary in the planters and the urns: small leaves in three greens, and snow lying on the top
+  // of each ball, thick on the crown and thinning down its shoulders (v runs up a sphere, so the top of the picture is the crown).
+  const topiary = (() => { const S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d'), r = TX.rng(512);
+    c.fillStyle = '#2a4f31'; c.fillRect(0, 0, S, S);
+    for (let i = 0; i < 5200; i++) { const x = r() * S, y = r() * S, k = r(); c.fillStyle = k < 0.35 ? '#1b3a22' : k < 0.75 ? '#3a6a42' : '#548c58'; c.beginPath(); c.ellipse(x, y, 1.4 + r() * 1.6, 0.8 + r() * 0.8, r() * 3.14, 0, 7); c.fill(); }
+    for (let i = 0; i < 5000; i++) { const t = Math.pow(r(), 2.4), y = t * S * 0.62; c.fillStyle = `rgba(${236 + r() * 19 | 0},${242 + r() * 13 | 0},255,${0.5 + r() * 0.5 - t * 0.3})`; c.beginPath(); c.ellipse(r() * S, y, 0.8 + r() * (2.6 - t * 1.6), 0.6 + r() * 1.2, 0, 0, 7); c.fill(); }
+    c.fillStyle = 'rgba(244,248,255,.92)'; c.fillRect(0, 0, S, 22);
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 1); t.anisotropy = 4;
+    return new THREE.MeshStandardMaterial({ map: t, roughness: 0.9, emissiveMap: t, emissive: new THREE.Color(0.42, 0.47, 0.6), emissiveIntensity: 0.55 }); })();
   const ash = TX.ashlar();
   const stone = new THREE.MeshStandardMaterial({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.78, 0.66, 0.50), emissiveIntensity: 0.5 });
   const trim = new THREE.MeshStandardMaterial({ color: 0xbdb3a0, roughness: 0.9, emissive: new THREE.Color(0.78, 0.66, 0.50).multiplyScalar(0.47), emissiveIntensity: 0.5, side: THREE.DoubleSide });       // dressed limestone, the wall's own colour
@@ -152,7 +162,8 @@ export function buildGrounds(museum, plan) {
     pierced(rust, PX, p0, p1, 0.9, LOW, holes.map(o => ({ ...o, sill: 0.9 })), 1.8, 0.9);
     { // the plinth, left open at the doors and at the hole beside them
       const gaps = [...(v ? [[v.z0, v.z1]] : []), ...holes.filter(o => o.sill === 0).map(o => [o.zc - o.r, o.zc + o.r])].sort((a, b) => a[0] - b[0]); let z = p0;
-      for (const [a, b] of gaps) { tr.box(PX - 0.16, PX, 0, 0.9, z, a); z = b; } tr.box(PX - 0.16, PX, 0, 0.9, z, p1);
+      const solidPlinth = (za, zb) => { tr.box(PX - 0.16, PX, 0, 0.9, za, zb); if (zb - za > 0.05) plan.obstacles.push({ x0: PX - 0.16, x1: PX, z0: za, z1: zb, y0: -0.3, y1: 0.9 }); };      // (solid as drawn: the toy, and the camera behind it, stopped at its face, not 16 cm into it)
+      for (const [a, b] of gaps) { solidPlinth(z, a); z = b; } solidPlinth(z, p1);
       if (v) tr.box(PX - 0.16, PX, v.h + 0.07, 0.9, v.z0, v.z1); }
     for (const o of holes) {
       ring(vouss, PX, 0.1, o.zc, o.r + 0.012, o.r + 0.62, o.spring, 13); tr.box(PX - 0.24, PX, o.spring + o.r - 0.08, o.spring + o.r + 0.86, o.zc - 0.26, o.zc + 0.26); tr.box(PX - 0.3, PX, o.spring + o.r + 0.62, o.spring + o.r + 0.86, o.zc - 0.34, o.zc + 0.34);
@@ -283,7 +294,7 @@ export function buildGrounds(museum, plan) {
     { const bw = new Geo(); bw.quad([FX + 0.6, 5, F.z0], [FX + 0.6, 5, F.z1], [FX + 0.6, WH, F.z1], [FX + 0.6, WH, F.z0], [1, 0, 0], [[0, 0], [40, 0], [40, 5], [0, 5]]); add(bw.mesh(wallM)); }
     add(roof.mesh(snow));
     // On the terrace by the doors: two great square planters each side, and lamp standards with five globes.
-    const green = new THREE.MeshStandardMaterial({ color: 0x1c3322, roughness: 0.9, emissive: 0x0c1810, emissiveIntensity: 0.7 });
+    const green = topiary;
     { const pl = new Geo(), iron = new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.5, metalness: 0.6, emissive: 0x0a0b0e, emissiveIntensity: 0.8 });
       for (const k of [-15.0, -9.3, 9.3, 15.0]) { const x = PX - 1.3, z = cz + k, hw = 0.78;
         pl.box(x - hw - 0.08, x + hw + 0.08, 0, 0.16, z - hw - 0.08, z + hw + 0.08); pl.box(x - hw, x + hw, 0.16, 1.25, z - hw, z + hw); pl.box(x - hw - 0.1, x + hw + 0.1, 1.25, 1.42, z - hw - 0.1, z + hw + 0.1); pl.box(x - hw + 0.08, x + hw - 0.08, 1.42, 1.62, z - hw + 0.08, z + hw - 0.08);
@@ -349,11 +360,12 @@ export function buildGrounds(museum, plan) {
     // The wall that holds the terrace up, with its coping; and along the museum's own front a balustrade on top of it.
     for (const [a, b2] of S.walls) {
       cheek.quad([SX, SY, a], [SX, SY, b2], [SX, 0.02, b2], [SX, 0.02, a], [-1, 0, 0], [[a / 2, 0], [b2 / 2, 0], [b2 / 2, 0.6], [a / 2, 0.6]]);
-      cope.box(SX - 0.1, SX + 0.34, -0.04, 0.1, a, b2);
+      cope.box(SX - 0.1, SX + 0.34, -0.04, 0.08, a, b2);
+      plan.surfaces.push({ skin: 'wall', fixed: true, x0: SX - 0.1, x1: SX + 0.34, z0: a, z1: b2, axis: null, h0: 0.08, h1: 0.08, base: SY });      // its coping is a top to drive along, as drawn (8 cm over the terrace: a wheel climbs it from there; from the avenue it is the wall)
       const z0 = Math.max(a, F.z0 - 2), z1 = Math.min(b2, F.z1 + 2);
       if (z1 - z0 > 1 && !(Math.abs((a + b2) / 2 - F.cz) < F.steps)) {
         const lo = Math.abs(z0 - F.cz) < F.lion + 0.5 ? z0 + 1.05 : z0, hi = Math.abs(z1 - F.cz) < F.lion + 0.5 ? z1 - 1.05 : z1;      // the lion's block takes the end nearest the steps
-        cope.box(SX - 0.02, SX + 0.3, 0.1, 0.2, lo, hi); cope.box(SX - 0.06, SX + 0.34, 0.82, 0.96, lo, hi);
+        cope.box(SX - 0.02, SX + 0.3, 0.08, 0.2, lo, hi); cope.box(SX - 0.06, SX + 0.34, 0.82, 0.96, lo, hi);
         for (let z = lo + 0.2; z < hi - 0.1; z += 0.36) balAt.push([SX + 0.14, 0.2, z, 0.62, 0.085]);
         for (let z = lo; z <= hi + 0.01; z += Math.max(3.6, (hi - lo) / Math.max(1, Math.round((hi - lo) / 5.4)))) cope.box(SX - 0.08, SX + 0.36, 0.1, 1.04, z - 0.2, z + 0.2);
         ledge(SX - 0.06, SX + 0.34, lo, hi, 0.96);
@@ -367,7 +379,7 @@ export function buildGrounds(museum, plan) {
     add(nosing.mesh(snow), cheek2.mesh(steps));
     add(rampG.mesh(new THREE.MeshStandardMaterial({ color: 0x9c9484, roughness: 0.9, emissive: 0x4a4134, emissiveIntensity: 0.55 })), posts.mesh(railM));
     { const bowl = urnGeo(1.05, 0.62).translate(0, -0.28, 0), fl = new THREE.SphereGeometry(0.5, 16, 8);
-      const green = new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.9, emissive: 0x0e1c12, emissiveIntensity: 0.6 }), red = new THREE.MeshStandardMaterial({ color: 0xb3202a, roughness: 0.8, emissive: 0x6a0d14, emissiveIntensity: 0.8 });
+      const green = topiary, red = new THREE.MeshStandardMaterial({ color: 0xb3202a, roughness: 0.8, emissive: 0x6a0d14, emissiveIntensity: 0.8 });
       for (const [x, y, z] of urns) { const u = new THREE.Mesh(bowl, trim), l = clump(0.44, green, x, y + 0.86, z), f = new THREE.Mesh(fl, red); u.position.set(x, y + 0.28, z); f.position.set(x, y + 0.62, z); f.scale.set(1.1, 0.3, 1.1); add(u, f, l); } }
   }
 
@@ -420,6 +432,8 @@ export function buildGrounds(museum, plan) {
   buildLakefront(museum, plan);
   // The streets as they are: pavements, medians, crossings, signals, and what stands on them (streets.js).
   buildStreets(museum, plan);
+  // The north and south edges of the world: the plough's banks, the windrows across the through roads (worldedge.js).
+  buildWorldEdge(museum, plan);
   void T;
 
   // The Columbus Drive side, and the gardens as they lie from above.

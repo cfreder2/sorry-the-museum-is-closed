@@ -1108,7 +1108,7 @@ function addLakefront(plan) {
     S.push({ skin: 'wall', fixed: true, x0: L.prom.x1 - RW, x1: L.prom.x1, z0: a, z1: b, axis: 'x', h0: 0, h1: RV.top, base: -0.3, stairs: true });
     S.push({ skin: 'wall', fixed: true, x0: L.shore, x1: L.shore + RW, z0: a, z1: b, axis: 'x', h0: RV.top, h1: 0, base: -0.3, stairs: true });
   }
-  { const b = L.breakwater, t = L.light; landable(plan, b.x0, b.x1, b.z0, b.z0 + 4, 1.2, -0.45); landable(plan, b.x0, b.x1, b.z0 + 4, b.z1, 1.27, -0.45);
+  { const b = L.breakwater, t = L.light; landable(plan, b.x0, b.x1, b.z0, b.z1, 1.27, -0.45);      // (its snow, all the way along: lakefront.js)
     // The light on it: a plinth to jump up onto, the round tower (an octagon of solids), its gallery up top.
     landable(plan, t.x - 0.9, t.x + 0.9, t.z - 0.9, t.z + 0.9, 1.7, 1.1);
     for (const [a, c] of [[0.56, 0.24], [0.24, 0.56], [0.42, 0.42]]) O.push({ x0: t.x - a, x1: t.x + a, z0: t.z - c, z1: t.z + c, y0: 1.6, y1: 5.0 });
@@ -1124,7 +1124,7 @@ function addLakefront(plan) {
   for (let z = z0 + 19; z <= z1 - 19; z += 14) { elm(473, z); elm(301, z); }
   for (let z = B.z0 + 14; z < B.z1 - 6; z += 22) elm((L.lsd.med[0] + L.lsd.med[1]) / 2, z);
   // Lamps down the middle of the Drive and along the promenade.
-  for (let z = B.z0 + 25; z < B.z1 - 6; z += 44) { plan.lamps.push({ x: 497, z }, { x: 521, z: z + 22 > B.z1 - 4 ? z - 22 : z + 22 }); }
+  for (let z = B.z0 + 25; z < B.z1 - 6; z += 44) { plan.lamps.push({ x: 497, z }); if (z + 22 < B.z1 - 4) plan.lamps.push({ x: 521, z: z + 22 }); }      // (the promenade's last would fall past the end: it is left out, not doubled up on the one before)
   plan.reserved.push({ x0: C.x1, x1: B.x1, z0: B.z0, z1: B.z1 });
 }
 

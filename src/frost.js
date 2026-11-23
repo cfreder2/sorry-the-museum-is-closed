@@ -11,11 +11,19 @@ let _hedgeMat = null;
 /** Dark yew below, thick with frost towards the top. v runs up the hedge. */
 export function hedgeMaterial() {
   if (_hedgeMat) return _hedgeMat;
-  const cv = document.createElement('canvas'); cv.width = cv.height = 256; const c = cv.getContext('2d'), r = rng(77);
-  const g = c.createLinearGradient(0, 256, 0, 0); g.addColorStop(0, '#12251a'); g.addColorStop(0.55, '#1b3626'); g.addColorStop(1, '#2a4634'); c.fillStyle = g; c.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 2600; i++) { const y = r() * 256; c.fillStyle = r() < 0.5 ? 'rgba(8,20,12,.5)' : 'rgba(48,86,58,.45)'; c.fillRect(r() * 256, y, 1 + r() * 3, 1 + r() * 3); }      // needles
-  for (let i = 0; i < 5200; i++) { const t = Math.pow(r(), 2.2), y = t * 250, s = 1.2 + r() * (4.5 - t * 3); c.fillStyle = `rgba(${236 + r() * 19 | 0},${242 + r() * 13 | 0},255,${0.55 + r() * 0.45})`; c.beginPath(); c.arc(r() * 256, y, s, 0, 7); c.fill(); }   // snow, thickest at the top
-  c.fillStyle = 'rgba(244,248,255,.9)'; c.fillRect(0, 0, 256, 10);
+  // 512 square, one tile to 1.4 m along the hedge and the whole way up, over and down it: so a texel is twice as
+  // tall as it is wide, and every flake is drawn half as tall as it is wide, to come out round. Fine needles under fine
+  // snow, the snow lying in clusters and thickening to a crust towards the top; nothing bigger than a thumbnail.
+  const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d'), r = rng(77);
+  const g = c.createLinearGradient(0, S, 0, 0); g.addColorStop(0, '#11231a'); g.addColorStop(0.55, '#1b3626'); g.addColorStop(1, '#2c4836'); c.fillStyle = g; c.fillRect(0, 0, S, S);
+  for (let i = 0; i < 14000; i++) { const x = r() * S, y = r() * S, a = r() * Math.PI; c.strokeStyle = r() < 0.5 ? 'rgba(6,16,10,.55)' : 'rgba(52,92,62,.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * (2 + r() * 3), y + Math.sin(a) * (1 + r() * 1.5)); c.stroke(); }      // needles
+  const flake = (x, y, rad, a) => { c.fillStyle = `rgba(${238 + r() * 17 | 0},${243 + r() * 12 | 0},255,${a})`; c.beginPath(); c.ellipse(x, y, rad, rad * 0.5, 0, 0, 7); c.fill(); if (x < rad) { c.beginPath(); c.ellipse(x + S, y, rad, rad * 0.5, 0, 0, 7); c.fill(); } else if (x > S - rad) { c.beginPath(); c.ellipse(x - S, y, rad, rad * 0.5, 0, 0, 7); c.fill(); } };
+  for (let i = 0; i < 4200; i++) {      // clusters: where a twig holds snow, a little drift of flakes
+    const t = Math.pow(r(), 1.35), cx = r() * S, cy = t * S * 0.97, n = 5 + (r() * 12 | 0), spread = 3 + r() * 8;
+    for (let k = 0; k < n; k++) flake(cx + (r() - 0.5) * spread * 2, cy + (r() - 0.5) * spread * 0.6, 0.9 + r() * (2.6 - t * 1.2), 0.55 + r() * 0.45);
+  }
+  for (let i = 0; i < 24000; i++) { const t = Math.pow(r(), 1.3); flake(r() * S, t * S, 0.5 + r() * 1.4, 0.35 + r() * 0.55); }      // and fine snow over everything, thickest at the top
+  { const cr = c.createLinearGradient(0, 0, 0, 30); cr.addColorStop(0, 'rgba(244,248,255,.95)'); cr.addColorStop(1, 'rgba(244,248,255,0)'); c.fillStyle = cr; c.fillRect(0, 0, S, 30); }      // the crust along the top
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
   _hedgeMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, emissiveMap: t, emissive: new THREE.Color(0.42, 0.47, 0.6), emissiveIntensity: 0.55 });
   return _hedgeMat;

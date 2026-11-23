@@ -12,7 +12,7 @@ import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { Clay, cast } from './sculpt.js';
 
-const VERD = { hi: 0x86d2bd, lo: 0x1c4a42 }, BRONZE = { hi: 0xb08a52, lo: 0x2a1c10 };
+const VERD = { hi: 0x7cc2ac, lo: 0x173d36 }, BRONZE = { hi: 0xb08a52, lo: 0x2a1c10 };
 
 // ---------------------------------------------------------------- a figure --
 // Built from where its joints are. Lengths in metres for someone about 1.75 tall; `s` scales the
@@ -104,7 +104,7 @@ export function buildStatues(museum, plan) {
   // Kemeys made them a pair but not twins: the one to the south stands with its head up, "in an
   // attitude of defiance"; the one to the north is "on the prowl", head lower and turned, one paw forward.
   const lion = (prowl) => {
-    const c = new Clay([-0.85, 0, -1.9], [0.85, 2.55, 2.25], 0.04); c.k = 0.1;
+    const c = new Clay([-0.85, 0, -1.9], [0.85, 2.55, 2.25], 0.03); c.k = 0.1;
     const turn = prowl ? 0.42 : -0.12, drop = prowl ? -0.14 : 0.04, reach = prowl ? 0.12 : 0;
     // Everything from the neck forward swings about the shoulders.
     const hd = (x, y, z) => { const px = x, pz = z - 0.9, cs = Math.cos(turn), sn = Math.sin(turn); return [px * cs + pz * sn, y + drop * Math.min(1, pz / 0.9), 0.9 - px * sn + pz * cs + reach * Math.min(1, pz / 0.9)]; };
@@ -124,26 +124,38 @@ export function buildStatues(museum, plan) {
       c.blob([sx * 0.29, 0.1, -0.74], [0.13, 0.1, 0.2], { k: 0.05 });
       for (let t = -1; t <= 1; t++) c.blob([sx * 0.29 + t * 0.07, 0.07, -0.58], [0.038, 0.05, 0.055], { k: 0.025 });
     }
-    // neck, and the mane, which is most of a lion: built in locks
+    // neck, and the mane, which is most of a lion: a great mass over the shoulders and down the chest, built in locks
+    // that fall back and down from a ruff framing the face
     c.limb(hd(0, 1.62, 0.92), hd(0, 2.0, 1.36), 0.3, 0.25);
-    c.blob(hd(0, 1.82, 1.05), [0.5, 0.55, 0.46]); c.blob(hd(0, 1.42, 1.12), [0.4, 0.42, 0.34]); c.blob(hd(0, 2.08, 1.24), [0.4, 0.34, 0.36]); c.blob([0, 1.72, 0.6], [0.4, 0.34, 0.34]);
-    for (let i = 0; i < 64; i++) {
-      const a = i * 2.399, v = ((i * 0.618) % 1), y = 1.2 + v * 1.0, rr = 0.36 + 0.16 * Math.sin(v * Math.PI), z = 0.75 + 0.6 * ((i * 0.381) % 1);
-      const p = hd(Math.cos(a) * rr * 1.08, y + Math.sin(a) * 0.05, z), q = hd(Math.cos(a) * rr * 1.12, y - 0.2, z - 0.07);
-      if (p[2] > 1.42 && Math.abs(p[0]) < 0.2 && p[1] > 1.75) continue;                 // keep the face clear
-      c.limb(p, q, 0.075, 0.035, { k: 0.035 });
+    c.blob(hd(0, 1.84, 1.04), [0.52, 0.58, 0.5]); c.blob(hd(0, 1.4, 1.14), [0.42, 0.46, 0.36]); c.blob(hd(0, 2.1, 1.22), [0.42, 0.36, 0.38]); c.blob([0, 1.74, 0.58], [0.42, 0.36, 0.36]);
+    c.blob(hd(0, 1.2, 1.2), [0.3, 0.26, 0.26], { k: 0.12 });                                                // the chest mane hanging between the forelegs
+    for (let i = 0; i < 120; i++) {
+      const a = i * 2.399, v = ((i * 0.618) % 1), y = 1.15 + v * 1.12, rr = 0.38 + 0.18 * Math.sin(v * Math.PI), z = 0.7 + 0.62 * ((i * 0.381) % 1);
+      const p = hd(Math.cos(a) * rr * 1.1, y + Math.sin(a) * 0.05, z), q = hd(Math.cos(a) * rr * 1.18, y - 0.26, z - 0.12);
+      if (p[2] > 1.4 && Math.abs(p[0]) < 0.22 && p[1] > 1.72) continue;                 // keep the face clear
+      c.limb(p, q, 0.07, 0.028, { k: 0.03 });
     }
-    // head: broad across the brow, a long square muzzle, small ears set back in the mane
-    c.blob(hd(0, 2.1, 1.56), [0.24, 0.23, 0.26], { k: 0.06 }); c.blob(hd(0, 2.0, 1.83), [0.155, 0.13, 0.2], { k: 0.06 });
-    c.blob(hd(0, 1.86, 1.76), [0.12, 0.075, 0.17], { k: 0.04 }); c.blob(hd(0, 2.04, 2.0), [0.075, 0.055, 0.06], { k: 0.03 });
+    for (let i = 0; i < 22; i++) {                                                           // the ruff round the face
+      const a = (i / 22) * Math.PI * 2, rx = 0.34, ry = 0.36, cy = 2.02;
+      const p = hd(Math.cos(a) * rx, cy + Math.sin(a) * ry, 1.5), q = hd(Math.cos(a) * rx * 1.28, cy + Math.sin(a) * ry * 1.25 - 0.06, 1.36);
+      if (Math.sin(a) < -0.6) continue;                                                     // (not under the chin)
+      c.limb(p, q, 0.075, 0.04, { k: 0.035 });
+    }
+    // head: broad across the brow, a long square muzzle with a heavy chin, small ears set back in the mane
+    c.blob(hd(0, 2.1, 1.56), [0.25, 0.24, 0.26], { k: 0.06 });
+    c.slab(hd(0, 1.99, 1.84), [0.15, 0.125, 0.17], 0.07, { k: 0.06, rot: [0.1, -turn, 0] });                 // the muzzle, square
+    c.slab(hd(0, 2.1, 1.74), [0.085, 0.06, 0.2], 0.04, { k: 0.05, rot: [0.28, -turn, 0] });                  // the bridge of the nose
+    c.blob(hd(0, 1.85, 1.79), [0.12, 0.07, 0.14], { k: 0.04 });                                             // chin
+    c.blob(hd(0, 2.04, 2.0), [0.08, 0.055, 0.06], { k: 0.03 });                                             // the nose pad
     for (const sx of [-1, 1]) {
-      c.blob(hd(sx * 0.11, 2.2, 1.7), [0.075, 0.05, 0.08], { k: 0.04 });                  // brow
-      c.blob(hd(sx * 0.1, 1.95, 1.92), [0.075, 0.07, 0.085], { k: 0.035 });               // the pads the whiskers grow from
-      c.blob(hd(sx * 0.2, 2.31, 1.42), [0.07, 0.085, 0.045], { k: 0.03 });                // ear
-      c.blob(hd(sx * 0.105, 2.13, 1.77), 0.034, { cut: true, k: 0.02 });                  // eye
-      c.blob(hd(sx * 0.03, 2.03, 2.05), 0.014, { cut: true, k: 0.01 });                   // nostril
+      c.blob(hd(sx * 0.115, 2.21, 1.7), [0.08, 0.05, 0.085], { k: 0.04 });                // brow
+      c.blob(hd(sx * 0.105, 1.95, 1.92), [0.08, 0.075, 0.09], { k: 0.035 });              // the pads the whiskers grow from
+      c.blob(hd(sx * 0.2, 2.06, 1.62), [0.07, 0.08, 0.1], { k: 0.04 });                   // cheekbone
+      c.blob(hd(sx * 0.21, 2.32, 1.42), [0.07, 0.085, 0.045], { k: 0.03 });               // ear
+      c.blob(hd(sx * 0.105, 2.13, 1.79), 0.032, { cut: true, k: 0.02 });                  // eye
+      c.blob(hd(sx * 0.03, 2.03, 2.06), 0.014, { cut: true, k: 0.01 });                   // nostril
     }
-    c.slab(hd(0, 1.915, 1.9), [0.13, 0.012, 0.14], 0.01, { cut: true, k: 0.02, rot: [0.12, -turn, 0] });   // the mouth, a little open
+    c.slab(hd(0, 1.915, 1.92), [0.13, 0.012, 0.13], 0.01, { cut: true, k: 0.02, rot: [0.12, -turn, 0] });   // the mouth, a little open
     // tail: out, down, and curling up at the tuft
     const tp = [[0, 1.5, -1.08], [0, 1.22, -1.46], [0, 0.82, -1.62], [0.03, 0.56, -1.56], [0.08, 0.5, -1.4]];
     for (let i = 0; i < tp.length - 1; i++) c.limb(tp[i], tp[i + 1], 0.075 - i * 0.008, 0.067 - i * 0.008, { k: 0.04 });
@@ -151,17 +163,26 @@ export function buildStatues(museum, plan) {
     return c.mesh({ ...VERD, snow: 0.42, reach: 0.3 });       // a dusting on the back, the mane, the head and the top of every limb
   };
   const block = std({ color: 0xbdb3a0, roughness: 0.9, emissive: 0x5c5040, emissiveIntensity: 0.6 });       // the same limestone as the front
-  const fir = std({ color: 0x1f5a30, roughness: 0.9, emissive: 0x0e2a16, emissiveIntensity: 0.9, flatShading: true }), bow = std({ color: 0xc8261c, roughness: 0.7, emissive: 0x6a100a, emissiveIntensity: 0.8 });
+  const ash = TX.ashlar(), ashlar = std({ map: ash, roughness: 0.9, emissiveMap: ash, emissive: new THREE.Color(0.78, 0.66, 0.5), emissiveIntensity: 0.5 });      // (and laid in courses, as the front is: grounds.js)
+  const needles = (() => { const cv = document.createElement('canvas'); cv.width = 128; cv.height = 32; const g = cv.getContext('2d'), r = TX.rng(61); g.fillStyle = '#1f5a30'; g.fillRect(0, 0, 128, 32);
+    for (let i = 0; i < 700; i++) { const x = r() * 128, y = r() * 32, a = (r() - 0.5) * 1.6; g.strokeStyle = r() < 0.5 ? 'rgba(10,34,18,.7)' : 'rgba(70,130,80,.6)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 4, y + Math.sin(a) * 4); g.stroke(); }
+    for (let i = 0; i < 90; i++) { g.fillStyle = 'rgba(240,246,255,.75)'; g.fillRect(r() * 128, r() * 10, 1 + r() * 2, 1); }      // snow caught on the top of it
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 1); return t; })();
+  const fir = std({ map: needles, roughness: 0.9, emissiveMap: needles, emissive: 0x4a6a50, emissiveIntensity: 0.55 }), bow = std({ color: 0xc8261c, roughness: 0.7, emissive: 0x6a100a, emissiveIntensity: 0.8 });
   plan.lions.forEach((l, i) => {
     const g = new THREE.Group(), B = l.h || 1.1, prowl = l.z < plan.facade.cz;          // north of the door
-    put(g, box, block, 0, B / 2, 0.1, 1.75, B, 4.2); put(g, box, block, 0, B + 0.04, 0.1, 1.5, 0.1, 3.95); put(g, box, block, 0, 0.09, 0.1, 1.95, 0.18, 4.4); put(g, box, block, 0, B - 0.12, 0.1, 1.9, 0.14, 4.34);
+    { const pg = new Geo(), bx = (x, y, z, w, h, d) => pg.box(x - w / 2, x + w / 2, y - h / 2, y + h / 2, z - d / 2, z + d / 2, 3.6);      // (UVs a unit to 3.6 m: the ashlar's eight courses)
+      bx(0, B / 2, 0.1, 1.75, B, 4.2); bx(0, B + 0.04, 0.1, 1.5, 0.1, 3.95); bx(0, 0.09, 0.1, 1.95, 0.18, 4.4); bx(0, B - 0.12, 0.1, 1.9, 0.14, 4.34);
+      g.add(pg.mesh(ashlar)); }
     put(g, lion(prowl), metal, 0, B + 0.08, 0);
     // The wreath it is given every December, hung round its neck.
-    const w = new THREE.Group(), t = prowl ? 0.42 : -0.12;
-    put(w, new THREE.TorusGeometry(0.62, 0.14, 7, 20), fir).rotation.x = 0.0;
-    for (let k = 0; k < 9; k++) { const a = k * 0.7; put(w, ball, bow, Math.cos(a) * 0.62, Math.sin(a) * 0.62, 0.12, 0.045); }
-    put(w, box, bow, 0, -0.62, 0.15, 0.4, 0.18, 0.07); for (const sx of [-1, 1]) put(w, box, bow, sx * 0.12, -0.9, 0.15, 0.12, 0.4, 0.05).rotation.z = sx * 0.25;
-    w.position.set(Math.sin(t) * 0.52, B + 1.55 + (prowl ? -0.1 : 0.05), 0.9 + Math.cos(t) * 0.52); w.rotation.set(-0.5, t, 0);
+    const w = new THREE.Group(), t = prowl ? 0.42 : -0.12, drop = prowl ? -0.14 : 0.04, R = 0.6;
+    put(w, new THREE.TorusGeometry(R, 0.13, 12, 40), fir);
+    for (let k = 0; k < 9; k++) { const a = k * 0.7 + 0.3; put(w, ball, bow, Math.cos(a) * R, Math.sin(a) * R, 0.12, 0.045); }
+    put(w, box, bow, 0, -R, 0.15, 0.4, 0.18, 0.07); for (const sx of [-1, 1]) put(w, box, bow, sx * 0.12, -R - 0.28, 0.15, 0.12, 0.4, 0.05).rotation.z = sx * 0.25;
+    // round the neck, over the mane: its back on the shoulders behind the head, its front hanging on the chest, the bow
+    // under the chin (where the head turns, so does it)
+    { const pz = 0.3, y = 1.74 + drop * Math.min(1, pz / 0.9); w.position.set(pz * Math.sin(t), B + 0.08 + y, 0.9 + pz * Math.cos(t)); w.rotation.order = 'YXZ'; w.rotation.set(-0.62, t, 0); }
     g.add(w);
     g.position.set(l.x, l.y || 0, l.z); g.rotation.y = -Math.PI / 2;        // facing the avenue
     group.add(g); void i;

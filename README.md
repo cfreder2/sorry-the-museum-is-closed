@@ -1004,6 +1004,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/books.js, reading.js  books from Open Library: the reading room's display, further reading on labels (tools/books.mjs)
     src/museum.js             the building inside and out, the artworks, the lamps, cut-outs
     src/grounds.js            the Michigan Avenue front, streets, railway, gardens, Modern Wing roof
+    src/worldedge.js          the north and south edges of the world: the plough's snowbanks, the windrows over the through roads, barriers
     src/land.js               the lie of the land: the one height field the open lawns roll on (no three.js)
     src/winter.js             paths, the courtyard tree, glitter, tyre tracks
     src/statues.js            the lions, the fountains and the sculpture outdoors
