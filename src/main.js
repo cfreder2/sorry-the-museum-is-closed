@@ -94,7 +94,7 @@ camera.position.set(8, 0.5, -2);
 const mirror = new FloorMirror(0.5);
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.6, 0.12, 1.0);      // tight: the glow hugs what is bright, no smear
+const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.85, 0.2, 1.0);      // tight: the glow hugs what is bright, no smear
 composer.addPass(bloom);
 const finish = new FinishPass(bloom);
 composer.addPass(finish);

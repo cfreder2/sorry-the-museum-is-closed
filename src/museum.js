@@ -548,7 +548,7 @@ export class Museum {
     this.kit = new THREE.Group();     // the stunt kit, so it can be put away while you look at a picture
     this.group.add(this.kit);
     this._toBuild = [() => this._buildShell(mirror), () => this._buildOutside(), () => this._buildHall(), () => this._buildArt(), () => this._buildFurniture(),
-      () => { this._buildStunts(); this._buildLevels(); for (const m of this.shade.meshes(shadeMaterial())) this.group.add(m); this.group.updateMatrixWorld(true); }];
+      () => { this._buildStunts(); this._buildLevels(); this.shadeMeshes = this.shade.meshes(shadeMaterial()); for (const m of this.shadeMeshes) this.group.add(m); this.group.updateMatrixWorld(true); }];
     if (!later) while (this.buildNext());
   }
   /** Puts up the next part of the building. True while there is more to come. */
@@ -645,8 +645,8 @@ export class Museum {
       });
       const trimMat = new THREE.MeshStandardMaterial({ color: 0xb9ae9b, roughness: 0.8, emissive: new THREE.Color(0.75, 0.62, 0.45), emissiveIntensity: 0 });
       // Soft shade where the walls meet the floor, the ceiling and each other, and the plaster's unevenness (src/finish.js).
-      roomShade(wallMat, r, r.kind === 'hall' ? { floor: [0.45, 1.4], ceil: [0, 1], corner: [0.3, 1.0] } : { floor: [0.5, 0.85], ceil: [0.5, 0.75], corner: [0.38, 0.65], grain: 0.12 });
-      roomShade(trimMat, r, { floor: [0.22, 0.5], ceil: [0.28, 0.6], corner: [0.2, 0.4], grain: 0 });
+      roomShade(wallMat, r, r.kind === 'hall' ? { floor: [0.55, 1.5], ceil: [0, 1], corner: [0.4, 1.1] } : { floor: [0.62, 0.95], ceil: [0.6, 0.9], corner: [0.5, 0.8], grain: 0.12 });
+      roomShade(trimMat, r, { floor: [0.3, 0.5], ceil: [0.4, 0.7], corner: [0.3, 0.5], grain: 0 });
       this.group.add(lift(walls.mesh(wallMat), r.y));
       if (!trim.empty) this.group.add(lift(trim.mesh(trimMat), r.y));
       const state = this.rooms[r.id] = { room: r, wallMat, trimMat, wake: 0, lit: false, arts: [], frameMats: [], seen: 0, done: false };
@@ -1954,6 +1954,8 @@ export class Museum {
     // Snow falls outdoors only: not when the camera is in a room, nor in the thickness of a wall or a gap between rooms
     // (inside a building's block), nor when the toy it is following is indoors and it has backed out through a wall.
     this.flakes.visible = !this.playerIndoors && !roomAt(this.plan, cam.x, cam.z, cam.y) && !this.plan.masses.some(m => cam.x > m.x0 && cam.x < m.x1 && cam.z > m.z0 && cam.z < m.z1 && cam.y < m.top);
+    // The baked contact shade fades out by 46 m (src/finish.js): patches further off than that are not drawn at all.
+    if (this.shadeMeshes) for (const m of this.shadeMeshes) { const b = m.geometry.boundingSphere; m.visible = b.center.distanceTo(cam) - b.radius < 47; }
     // The back rooms' fittings: only what is near, and on this level or the one below (down a stair well, over a balcony). From outdoors, only what is just inside a door.
     const near = this.flakes.visible ? 10 : 32;
     for (const c of this.fitout.chunks) c.mesh.visible = cam.x > c.x0 - near && cam.x < c.x1 + near && cam.z > c.z0 - near && cam.z < c.z1 + near && cam.y > c.y0 - 2.5 && cam.y < c.y1 + 7;

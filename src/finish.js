@@ -122,6 +122,7 @@ export function roomShade(mat, room, k = {}) {
     uAoC: { value: new THREE.Vector3(n[0], n[1], grain) },
     uPlaster: { value: shared() },
   };
+  mat.userData.shade = u;
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev.call(mat, sh, r);
@@ -254,25 +255,27 @@ export function relief(mat, k = {}) {
 // the horizon, which is also what ties the far snow into the night sky.
 const MOON_DIR = { value: new THREE.Vector3(0.83, 0.3, -0.33).normalize() };
 export function setMoon(dir) { MOON_DIR.value.copy(dir).normalize(); }
-export function snowLook(mat) {
-  const u = { uDrift: { value: shared() }, uMoonDir: MOON_DIR };
+// opts: { drift: how uneven (0: none, for ice), moon: how strongly slopes are shaded from the moon, sheen: the glance }
+export function snowLook(mat, opts = {}) {
+  const o = { drift: 3.2, moon: 0.55, sheen: 0.55, ...opts };
+  const u = { uDrift: { value: shared() }, uMoonDir: MOON_DIR, uSnowK: { value: new THREE.Vector3(o.drift, o.moon, o.sheen) } };
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev.call(mat, sh, r);
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vSnowW;\nvarying vec3 vSnowN;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvSnowW = (modelMatrix * vec4(transformed, 1.0)).xz;\nvSnowN = mat3(modelMatrix) * objectNormal;');
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvSnowW = (modelMatrix * vec4(transformed, 1.0)).xz;\nvSnowN = (vec4(transformedNormal, 0.0) * viewMatrix).xyz;');      // (in world space, with any instancing)
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', MOON_GLSL + '#include <common>\nuniform sampler2D uDrift;\nuniform vec3 uMoonDir;\nvarying vec2 vSnowW;\nvarying vec3 vSnowN;')
+      .replace('#include <common>', MOON_GLSL + '#include <common>\nuniform sampler2D uDrift;\nuniform vec3 uMoonDir;\nuniform vec3 uSnowK;\nvarying vec2 vSnowW;\nvarying vec3 vSnowN;')
       .replace('#include <opaque_fragment>', `{
           float dr = texture2D(uDrift, vSnowW * 0.037).r * 0.55 + texture2D(uDrift, vSnowW * 0.011 + 0.31).r * 0.45;
-          outgoingLight *= 0.93 * (1.0 + (dr - 0.5) * 3.2);
+          outgoingLight *= mix(1.0, 0.93, step(0.01, uSnowK.x)) * (1.0 + (dr - 0.5) * uSnowK.x);
           // the moon low in the east: slopes that face it are brighter, slopes turned from it fall into blue shade (flat snow unchanged)
           float mo = clamp(dot(normalize(vSnowN), uMoonDir) - uMoonDir.y, -0.5, 0.6);
-          outgoingLight *= 1.0 + mo * 0.55;
+          outgoingLight *= 1.0 + mo * uSnowK.y;
           float fres = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 4.0);
-          outgoingLight += MOON * fres * 0.55;
+          outgoingLight += MOON * fres * uSnowK.z;
         }
         #include <opaque_fragment>`);
   };

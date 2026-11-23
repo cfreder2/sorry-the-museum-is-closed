@@ -23,7 +23,7 @@ feature({
     });
     this.snowMats = done.size;
     const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: radial(0, 0.75), transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    const mat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: radial(0, 0.75), transparent: true, opacity: 0.58, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     const m = this.blobs = new THREE.InstancedMesh(geo, mat, MAX);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false; m.renderOrder = 1;
     k.group.add(m);
