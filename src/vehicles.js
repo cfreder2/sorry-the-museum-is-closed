@@ -226,9 +226,10 @@ export class Car {
       for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
-      const icy = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.some(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1);
-      // (Big studded tyres, S.ice, bite into it: less wheelspin, more steering, and the slide is caught sooner.)
-      if (icy) { const ice = S.ice || 0; grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
+      const sheet = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.find(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1), icy = !!sheet;
+      // (Big studded tyres, S.ice, bite into it: less wheelspin, more steering, and the slide is caught sooner. The
+      // harbour's crusted lake ice is driven as if on studs: it still slides, but a toy can steer across it and line up a jump.)
+      if (icy) { const ice = sheet.crust ? Math.max(S.ice || 0, 0.85) : S.ice || 0; grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
       rate = this.steer * bite * 3.6 * S.steer / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);

@@ -930,3 +930,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 216
 
 > Record the browser's sound effects when it says "intruder alert." I would use "intruder alert, warning, warning, intruder alert, warning, warning." Then you can simply record it, so we don't have to worry about the browser playing it.
+
+## 217
+
+> The ice is too difficult to drive on with the RC car. The brr sound is really irritating. Jumping across is too hard with the current ice controls. The path that lights up does not go over many ramps. It seems inconsistent: maybe some things are on the ground, and so it goes through those, and some things are the ground? How do we fix this?

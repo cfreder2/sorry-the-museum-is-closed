@@ -1095,7 +1095,7 @@ function addLakefront(plan) {
   // Where the ice gives out: its broken edge, the floes, the chain of them out to the breakwater (harbourplan.js).
   harbourEdge(plan, L);
   plan.paved.push({ x0: L.edgeMax, x1: B.x1 + 400, z0: B.z0 - 400, z1: B.z1 + 400 });   // open water: nothing glitters or takes a tyre track there
-  plan.ice.push({ x0: L.shore + 3, x1: L.edgeMax, z0: B.z0, z1: B.z1 });                // the harbour, frozen out to its broken edge (from the foot of the revetment's steps)
+  plan.ice.push({ x0: L.shore + 3, x1: L.edgeMax, z0: B.z0, z1: B.z1, crust: true });    // the harbour, frozen out to its broken edge (from the foot of the revetment's steps): lake ice with a crust of snow on it, so it slides but steers
   // The revetment along the water, with the slipway through it; the breakwater.
   // The revetment and the breakwater are walls with tops: jump up and drive along them (the tops are their snow).
   // The revetment is a stepped wall: three steps up from the promenade to its snowy top, three down the other side to the

@@ -67,24 +67,32 @@ export function harbourEdge(plan, L) {
   L.lake = 700;                                           // where the lake that goes on to the horizon begins (skyline.js, via museum.js)
   L.water = { x0: xMin - 0.6, x1: 720, z0: B.z0 - 190, z1: B.z1 + 190 };      // the snow is left off the water, which lies lower than it (groundOpenings)
 
-  // ---- the chain of floes from the edge to the breakwater: big, flat, hops that grow a little (1.0 to 1.4 m); and a
-  // slab jammed up against the breakwater's side, a ramp onto its top.
+  // ---- the chain of floes from the edge to the breakwater: big, flat, held fast in the ice (they do not bob), with
+  // gaps of half a metre. A low ramp of tipped ice on the sheet before the edge and at the far end of each of the first three
+  // floes throws a toy driven straight at anything from a crawl to flat out across the next gap: no hop needed (though a
+  // hop works too). Then a slab jammed up against the breakwater's side, a ramp onto its top.
   const route = [
-    [RX + 1.0, RX + 5.0, 61.6, 66.8, 64.2],
-    [RX + 6.2, RX + 10.2, 61.0, 66.2, 63.6],
-    [RX + 11.5, RX + 15.5, 61.8, 67.0, 64.4],
-    [RX + 16.9, RX + 20.4, 60.4, 67.2, 63.6],
+    [RX + 0.5, RX + 4.7, 61.6, 66.8, 64.2],
+    [RX + 5.2, RX + 9.4, 61.0, 66.2, 63.6],
+    [RX + 9.9, RX + 14.1, 61.8, 67.0, 64.4],
+    [RX + 14.6, RX + 18.9, 60.4, 67.2, 63.6],
   ];
   const bw = L.breakwater;
-  L.ramp = { x0: RX + 20.0, x1: bw.x0, z0: 61.6, z1: 65.8, h0: FLOE_TOP, h1: 1.27 };
+  L.ramp = { x0: RX + 18.5, x1: bw.x0, z0: 61.6, z1: 65.8, h0: FLOE_TOP, h1: 1.27 };
   const floes = L.floes = [];
   const jag = () => r() * 0.35;
   for (const [xa, xb, za, zb, zc] of route) {
     const w = xb - xa, cx = (xa + xb) / 2, cz = (za + zb) / 2;
     const pts = [[xa, zc + 1.3], [xa, zc - 1.3], [xa + 0.3 + jag(), za + 0.45 + jag()], [xa + w * 0.35 + jag(), za + jag() * 0.5], [xa + w * 0.7 + jag(), za + 0.15 + jag()], [xb - 0.3 - jag(), za + 0.5 + jag()],
       [xb, zc - 1.3], [xb, zc + 1.3], [xb - 0.35 - jag(), zb - 0.45 - jag()], [xa + w * 0.65 + jag(), zb - jag() * 0.5], [xa + w * 0.3 + jag(), zb - 0.2 - jag()], [xa + 0.35 + jag(), zb - 0.5 - jag()]];
-    floes.push({ route: true, poly: pts.map(([x, z]) => [x - cx, z - cz]), hx: cx, hz: cz, sx: 1, sz: 1, yaw: 0, top: FLOE_TOP, drift: 0 });
+    floes.push({ route: true, held: true, poly: pts.map(([x, z]) => [x - cx, z - cz]), hx: cx, hz: cz, sx: 1, sz: 1, yaw: 0, top: FLOE_TOP, drift: 0 });
   }
+  // The launch ramps: plates of ice like the ones tipped up along the edge (drawn by lakefront.js with them), rising
+  // 20 cm over 1.2 m towards the next gap. (Added to L.slabs below, once that list exists.)
+  const LIFT = 0.2, launch = [[RX - 1.25, RX - 0.05, 62.6, 65.8, 0]];
+  for (let i = 0; i < 3; i++) { const [, xb, , , zc] = route[i]; launch.push([xb - 1.25, xb - 0.05, zc - 1.5, zc + 1.5, FLOE_TOP]); }
+  // The way, for the line of lights along it (harbour.js): the middle of each floe and ramp, from the ice to the top.
+  L.way = [[RX - 3, 64.2], ...route.flatMap(([xa, xb, , , zc]) => [[xa + 0.2, zc], [xb - 0.2, zc]]), [L.ramp.x0 + 0.3, 63.7], [bw.x0 + 1.2, 63.7]];
   // Loose floes, big enough to hold a toy, turning slowly about where they are; and the bits too small to, low in the
   // water (drawn by harbour.js, nothing to stand on). None of them near the chain, the breakwater, or each other.
   const shapes = L.floeShapes = [0, 1, 2].map(k => {
@@ -110,7 +118,7 @@ export function harbourEdge(plan, L) {
   }
   const bits = L.bits = [];
   for (let tries = 0; bits.length < 150 && tries < 6000; tries++) {
-    const z = Z0 + r() * (Z1 - Z0), near = r() < 0.7, rad = 0.2 + r() * (near ? 0.5 : 0.8);
+    const z = Z0 + r() * (Z1 - Z0), near = r() < 0.7, rad = 0.12 + r() * (near ? 0.22 : 0.3);          // slush: never big enough to look like something to drive on
     const x = near ? edgeX(z) + 0.3 + rad + r() * r() * 5 : edgeX(z) + 1 + r() * (bw.x1 + 30 - edgeX(z));
     if (x + rad > bw.x0 - 0.3 && x - rad < bw.x1 + 0.3 && z > bw.z0 - 1 && z < bw.z1 + 1) continue;
     if (x - rad < edgeX(z) + 0.15) continue;
@@ -137,6 +145,10 @@ export function harbourEdge(plan, L) {
   // ---- along the edge, on the solid ice: slabs tipped up on end (ramps: drive up them) and blocks shoved up in ridges,
   // never in the chain's corner of the edge, and always leaving open stretches where you can drive right to the water
   const slabs = L.slabs = [];
+  for (const [x0, x1, z0, z1, h] of launch) {
+    const q = { x0, x1, z0, z1, kind: 'plate', axis: 'x', h0: h, h1: h + LIFT, T: 0.13, launch: true };
+    slabs.push(q); S.push({ skin: 'wall', fixed: true, x0, x1, z0, z1, axis: 'x', h0: q.h0, h1: q.h1, thick: q.T });
+  }
   const taken = [], free = (q) => !taken.some(t => q.x0 < t.x1 + 0.12 && q.x1 > t.x0 - 0.12 && q.z0 < t.z1 + 0.12 && q.z1 > t.z0 - 0.12);
   for (let z = B.z0 + 3 + r() * 4; z < B.z1 - 6;) {
     const span = 3 + r() * 4;

@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import * as TX from './textures.js';
 import { feature } from './features.js';
 import { floeTop, floeBox, WATER_Y } from './harbourplan.js';
+import { groundAt } from './plan.js';
 
 const SECRET = 'harbourlight';
 
@@ -138,6 +139,25 @@ feature({
       const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(gp, 3));
       this.trailGlow = new THREE.Points(gg, new THREE.PointsMaterial({ size: 1.1, map: TX.radial(0, 1.6), color: new THREE.Color(1.0, 0.62, 0.25), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false }));
       this.trailGlow.frustumCulled = false; g.add(this.trailGlow); }
+    // The way across, lit along the ground: a line of small lights up the launch ramps, over the floes and up the slab to
+    // the breakwater, at the height of whatever is under each one (so over every ramp, never through anything). A pulse
+    // runs along it towards the light while the toy is near.
+    { const pts = [];
+      for (let i = 0; i + 1 < L.way.length; i++) {
+        const [xa, za] = L.way[i], [xb, zb] = L.way[i + 1], n = Math.max(1, Math.round(Math.hypot(xb - xa, zb - za) / 0.45));
+        for (let j = 0; j < n; j++) {
+          const x = xa + (xb - xa) * j / n, z = za + (zb - za) * j / n, y = groundAt(k.plan, x, z, 1.5, 3);
+          if (y > -0.05 && !(L.wet(x, z) && y < 0.04)) pts.push(x, y + 0.035, z);           // nothing over the open water between floes
+        }
+      }
+      const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      const lum = new Float32Array(pts.length / 3).map((_, i) => i); gg.setAttribute('lum', new THREE.BufferAttribute(lum, 1));
+      this.wayM = new THREE.ShaderMaterial({
+        uniforms: { uT: { value: 0 }, uOn: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+        vertexShader: 'uniform float uT; uniform float uOn; attribute float lum; varying float vA; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); float i = lum; float p = 0.5 + 0.5 * sin(i * 0.55 - uT * 7.0); vA = uOn * (0.35 + 0.65 * p * p * p); gl_PointSize = clamp(90.0 / -mv.z, 2.0, 14.0); gl_Position = projectionMatrix * mv; }',
+        fragmentShader: 'varying float vA; void main(){ vec2 c = gl_PointCoord - 0.5; float d = dot(c, c); if (d > 0.25) discard; gl_FragColor = vec4(vec3(0.62, 0.92, 1.0) * vA * (1.0 - d * 4.0), 1.0); }',
+      });
+      this.way = new THREE.Points(gg, this.wayM); this.way.frustumCulled = false; g.add(this.way); }
     this.splash = k.puffs(90, { color: 0xd8f0ff, size: 0.08 });
     this.sparks = k.puffs(80, { color: 0xffd0c0, size: 0.14 });
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.4, 40), new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
@@ -152,6 +172,7 @@ feature({
   update(dt, k) {
     const L = this.L, v = k.v, G = k.G;
     this.t += dt;
+    if (this.wayM) { const d = Math.hypot(v.pos.x - (L.way[0][0] + 10), v.pos.z - 64), want = d < 34 ? 1 : 0, u = this.wayM.uniforms; u.uT.value = this.t; u.uOn.value += (want - u.uOn.value) * Math.min(1, dt * 2); this.way.visible = u.uOn.value > 0.01; }
     this.water.material.uniforms.uT.value = this.t;
     this._float(dt, v);
     this.splash.update(dt); this.sparks.update(dt);
@@ -198,8 +219,8 @@ feature({
       const oh = riding ? floeTop(f, car.pos.x, car.pos.z) : 0;
       if (riding) { car.pos.x += nx - f.x; car.pos.z += nz - f.z; }
       f.x = nx; f.z = nz;
-      f.h = f.top + 0.012 * Math.sin(f.w1 * t + f.p1) - (riding ? 0.012 : 0);
-      f.gx = 0.006 * Math.sin(0.8 * t + f.p2); f.gz = 0.006 * Math.cos(0.65 * t + f.p3);
+      if (f.held) { f.h = f.top; f.gx = f.gz = 0; }           // the chain's floes are frozen fast: their ramps stay put
+      else { f.h = f.top + 0.012 * Math.sin(f.w1 * t + f.p1) - (riding ? 0.012 : 0); f.gx = 0.006 * Math.sin(0.8 * t + f.p2); f.gz = 0.006 * Math.cos(0.65 * t + f.p3); }
       if (riding) { const nh = floeTop(f, car.pos.x, car.pos.z); if (nh > -Infinity && nh > oh) car.pos.y += nh - oh; }
       floeBox(f);
       N.set(-f.gx, 1, -f.gz).normalize(); Q.setFromUnitVectors(this.UP, N); Qy.setFromAxisAngle(this.UP, f.yaw); Q.multiply(Qy);
@@ -244,7 +265,6 @@ feature({
         v.place(best.x, best.z, best.yaw, best.y); G.camYaw = best.yaw; if (v.shadow) v.shadow.visible = true;
         S.placed = true; S.t2 = 0;
         if (G.museum.winter && G.museum.winter.burst) G.museum.winter.burst(best.x, best.y + 0.05, best.z, 14, 1.0);
-        this._shiver(k);
       }
       return;
     }
@@ -286,14 +306,6 @@ feature({
     if (!A) return; const { c, out } = A, t0 = c.currentTime;
     const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(700, t0); o.frequency.exponentialRampToValueAtTime(180, t0 + 0.25);
     g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.09, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + 0.35);
-  },
-  _shiver(k) {
-    const A = this._audio(k); if (!A) return; const { c, out } = A, t0 = c.currentTime;
-    // brrr: a buzzing lip-trill, wobbling
-    const o = c.createOscillator(), lfo = c.createOscillator(), lg = c.createGain(), g = c.createGain(), f = c.createBiquadFilter();
-    o.type = 'sawtooth'; o.frequency.value = 150; lfo.type = 'square'; lfo.frequency.value = 26; lg.gain.value = 0.5; f.type = 'lowpass'; f.frequency.value = 900;
-    lfo.connect(lg); lg.connect(g.gain); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.05, t0 + 0.05); g.gain.linearRampToValueAtTime(0.0001, t0 + 0.6);
-    o.connect(f); f.connect(g); g.connect(out); o.frequency.linearRampToValueAtTime(120, t0 + 0.6); o.start(t0); lfo.start(t0); o.stop(t0 + 0.65); lfo.stop(t0 + 0.65);
   },
   _sing(k) {
     const A = this._audio(k); if (!A) return; const { c, out } = A, t0 = c.currentTime;
