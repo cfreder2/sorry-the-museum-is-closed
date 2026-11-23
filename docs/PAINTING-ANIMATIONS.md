@@ -190,7 +190,8 @@ import { lifeFor, ease, ramp, shape, walk, flight } from '../paintlife.js';
 lifeFor(111436, {                         // the museum's id; title: /^The Basket/ is the fallback
   title: /^The Basket of Apples/,
   word: 'tumble',                         // the one word it is about
-  stage: { out: 1.2, half: 1.0 },         // the floor in front, framed with the work while you look (above: 0.9 for fliers)
+  stage: { out: 1.2, half: 1.0,          // the floor in front of the work, in metres
+           cam: { dist: 2.6, height: 0.9, side: 0.35, fov: 50, lookOut: 0.6, lookH: 0.52 } },      // the look camera
   wake: 2, ret: 2.4,                      // seconds: Wake/Emerge, and Return when the look ends
   linger: { near: 4, max: 30 },           // optional: stay out after the look while the toy is near (things to push)
   build(L) { },                           // once, when the toy first comes near the room: make everything, L.add() it
@@ -208,6 +209,13 @@ of the frame's edges; **Play** (from 2 s; make 2 to 8 s the main moment, then lo
 the look while the toy is near, so the toy can play with it; `keep(L)` keeps `update` running after Return (puddles
 drying). A second look during Return or linger simply carries on. Work everything out from `L.t` where you can (not by
 adding up `dt`), so any moment can be posed for the checks; use `L.rand()` (seeded), never `Math.random()`.
+
+**The look camera.** While a life shows, the look camera stands low, near and a little to one side (`stage.cam`:
+`dist` out from the wall, `side` along it, `height` above the floor, `fov`, and the point looked at, `lookU`, `lookOut`,
+`lookH`; the defaults are 2.2 m out, 0.4 m to the right, 0.8 m up, 48 degrees), so what comes out onto the floor fills
+the view and the foot of the work is there above it; the top of a big work may crop. Frame the floor show and the bottom
+third of the work. Keep fliers inside it for part of their flight. (`cam: false` keeps the old wide view of the whole
+wall.) Check it on the contact sheet: the look camera frames are the ones that matter.
 
 **Where things are.** `L.at(u, v, out)` is a point `u` metres along the wall from the canvas centre (to the viewer's
 right), `v` up from it, `out` from the canvas plane into the room; `L.floor(u, out)` the same on the floor. The frame:

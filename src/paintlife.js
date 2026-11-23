@@ -17,8 +17,9 @@
 //   import { lifeFor, ease } from '../paintlife.js';
 //   lifeFor(20684, {                       // the museum's id (title: /^Paris Street/ as a fallback)
 //     word: 'puddle',                       // the one word the animation is about
-//     stage: { out: 2.4, half: 2.2 },       // the floor in front, framed with the work while you look (metres; above:
-//                                           // room to leave over the work, for things that fly)
+//     stage: { out: 2.4, half: 2.2,         // the floor in front, framed with the work while you look (metres)
+//              cam: { dist, side, height, fov, lookOut, lookH } }  // the look camera: low, near, off to one side
+//                                           // (defaults 2.2 m out, 0.4 along, 0.8 up, 48 degrees)
 //     wake: 2, ret: 1.5,                    // the timeline (seconds): Wake/Emerge, then Play; Return when the look ends
 //     linger: { near: 3.5, max: 25 },       // optional: stay out after the look while the toy is this near (to push things)
 //     secrets: [['rain', 'Rain indoors']],  // optional, as features have them; spot: { id, name } for the debug map
@@ -501,7 +502,17 @@ class Life {
     this.measure();
     // The look frames the work with its floor in front (main.js, studyCam): set now, so the very first look has it.
     const st = spec.stage || {};
-    if (st !== false) art.floorFrame = { y: this.y, out: st.out || 1.8, half: st.half || Math.max(this.hw + 0.4, 1.2), above: st.above || 0.12 };
+    if (st !== false) {
+      art.floorFrame = { y: this.y, out: st.out || 1.8, half: st.half || Math.max(this.hw + 0.4, 1.2), above: st.above || 0.12 };
+      // The look camera for a life: low (a child's eye, or a toy's on a box), near, a little to one side, looking at the
+      // floor in front and the foot of the work, so what comes out fills the view; the top of a big work may crop.
+      // stage.cam = { dist, side, height, lookU, lookOut, lookH } overrides any of it; cam: false keeps the wide view.
+      if (st.cam !== false) {
+        const c = st.cam || {}, foot = this.bottom - this.y;
+        art.floorFrame.cam = { dist: c.dist || 2.2, side: c.side == null ? 0.4 : c.side, height: c.height || 0.8, fov: c.fov || 48,
+          lookU: c.lookU == null ? 0.05 : c.lookU, lookOut: c.lookOut == null ? 0.4 : c.lookOut, lookH: c.lookH == null ? Math.max(0.5, Math.min(0.9, foot * 0.85)) : c.lookH };
+      }
+    }
     this.ms = 0;
   }
   measure() {
@@ -687,6 +698,12 @@ feature({
     }
     const look = k.looking, seen = look && this.byArt.get(look);
     if (seen && !seen.made) seen.prepare();
+    // The near, low look camera crops the top of a big work. Not while the work is the Director's clue (src/secret.js):
+    // the part to touch must be on the screen, so then the look keeps the whole work in view.
+    if (look !== this.lookArt) {
+      this.lookArt = look;
+      if (seen && seen.art.floorFrame) { const S = k.G.secret, clue = !!(S && S.enabled && !S.open && S.clue && S.clue.art === seen.art); if (seen.cam === undefined) seen.cam = seen.art.floorFrame.cam || null; seen.art.floorFrame.cam = clue ? null : seen.cam; }
+    }
     for (const L of LIVES) if (L.state !== 'off' || L === seen || L.force != null) L.step(dt, L === seen);
   },
   spots(k) {
@@ -791,6 +808,8 @@ async function check(k, id, { times = [0.5, 1.5, 3, 5, 8, 12], rets = [0.4, 1.0]
 }
 // The look camera as main.js's studyCam settles it (label away), for checks; a real look is better when there is one.
 function lookCam(L, k) {
+  const fc = L.art.floorFrame && L.art.floorFrame.cam;
+  if (fc) { const p = L.floor(fc.side, fc.dist), q = L.floor(fc.lookU, fc.lookOut); return { at: [p.x, L.y + fc.height, p.z], look: [q.x, L.y + fc.lookH, q.z], fov: fc.fov || 46 }; }
   const a = L.art, cam = k.G.camera, fov = 46, tan = Math.tan(fov * Math.PI / 360), aspect = cam.aspect || 16 / 9, fl = a.floorFrame;
   let dist = Math.max(a.h * 1.3 / (2 * tan), a.w * 1.3 / (2 * tan * aspect), 1.1), eyeY = a.y, lookY = a.y;
   if (fl) {
