@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Paintings that come alive (src/paintlife.js): the checks and the pictures for review, for one work at a time.
 //
-//   node tools/lifesheet.mjs <id> [--port 8857] [--out ~/Desktop/Museum-life] [--video] [--no-sheet] [--phone]
+//   node tools/lifesheet.mjs <id> [--port 8857] [--out ~/Desktop/Museum-life] [--video [--show 8.5]] [--no-sheet] [--phone]
 //
 // Serve the game first (any static server on --port, from the repo root, with data/img/ for the pictures). It boots
 // the game headless, drives the toy into the work's room, looks at the work and then:
@@ -9,7 +9,8 @@
 //     eight moments, and not one of its pixels may land on the canvas; prints the result;
 //   * makes the contact sheet: the look camera at 0.5, 1.5, 3, 5 and 8 s, one low (the toy's eye) and one wide
 //     room view, at <out>/<id>-<slug>-sheet.jpg;
-//   * with --video, a ten-second film of the whole show, Wake to Return, on a fixed clock (30 frames a second),
+//   * with --video, a ten-second film of the whole show, Wake to Return, on a fixed clock (30 frames a second; --show:
+//     seconds of show before the look ends, 8.5 by default),
 //     at <out>/<id>-<slug>.mp4 (needs ffmpeg: $FFMPEG, ~/Desktop/Avara-trailer/ffmpeg, or on the PATH);
 //   * with --phone, the frame cost in a phone-sized view (390 x 844 at 2x), with and without the show.
 // Puppeteer: the copy inside mermaid-cli (see the memory note on headless testing), or $PUPPETEER.
@@ -137,7 +138,7 @@ try {
   if (flag('video')) {
     const frames = path.join(tmp, 'frames'); fs.mkdirSync(frames);
     await page.evaluate(async (id, view) => { await window.__life.pose(id, 0); window.__ah.testEye = { at: view.at, look: view.look }; }, id, views.look);
-    let n = 0; const FPS = 30, SHOW = 8.5, BACK = 2.2;
+    let n = 0; const FPS = 30, SHOW = Number(opt('show')) || 8.5, BACK = 2.2;
     for (let i = 0; i < (SHOW + BACK) * FPS; i++) {
       await page.evaluate(async (id, dt, looking) => { window.__life.advance(id, dt, looking); if (!looking) window.__life.release(id); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); }, id, i === 0 ? 0 : 1 / FPS, i < SHOW * FPS);
       await page.screenshot({ path: path.join(frames, `f${String(n++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 90 });

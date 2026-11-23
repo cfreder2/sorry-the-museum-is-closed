@@ -274,3 +274,14 @@ It boots the game headless, drives the toy into the room, looks at the work, and
 In the browser, `?lifecheck` (or `?lifecheck=20684,111436`) runs the same check on every work once the game is up and
 shows the result in the corner; `__life.check(id)`, `__life.pose(id, t)`, `__life.stats(id)` and `__life.palette(id)` are
 there in the console.
+
+`--show 10.5` films that many seconds of show before the look ends (8.5 by default), for a number that runs longer.
+Check a work's file as a module: `node --check --input-type=module < src/life/<file>.js` (plain `node --check` on a
+`.js` file passes some syntax errors that stop the whole game loading).
+
+**Stagecraft** (`src/life/stagecraft.js`), shared by the Toulouse-Lautrec and the two Degas works: `score(L)`, a band on
+the work's voice that plays to the show's own clock, a little ahead of it, so steps fall on the beat, any moment can be
+posed and the music stops when the look does (tunes, notes, noise hits for drums and claps, loops for a vamp);
+`inked(g)`, a lithograph's bold outline as an inverted hull in the same draw call; `Bones`, parent-child matrices for
+figures in a rig. The Degas dancers (`18951-yellow-dancers.js`) show how to draw a figure in a painter's own marks:
+camera-facing pastel strokes on bones, one instanced draw.
