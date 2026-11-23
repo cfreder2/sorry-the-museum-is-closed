@@ -61,11 +61,11 @@ lifeFor(111442, {
     });
     const rugMat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.25, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
     const o0 = L.floor(0, 0);
-    this.ru = { uLen: { value: 0 }, uO: { value: new THREE.Vector2(o0.x, o0.z) }, uN: { value: new THREE.Vector2(L.nx, L.nz) } };
+    this.ru = { uLen: { value: 0 }, uO: { value: new THREE.Vector2(o0.x, o0.z) }, uN: { value: new THREE.Vector2(L.nx, L.nz) }, uSh: { value: [new THREE.Vector4(0, 0, 1, 0), new THREE.Vector4(0, 0, 1, 0)] } };
     rugMat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, this.ru);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLen; uniform vec2 uO, uN;')
-        .replace('#include <map_fragment>', '#include <map_fragment>\n  if (dot(lifeP.xz - uO, uN) > uLen) discard;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLen; uniform vec2 uO, uN; uniform vec4 uSh[2];')
+        .replace('#include <map_fragment>', '#include <map_fragment>\n  if (dot(lifeP.xz - uO, uN) > uLen) discard;\n  for (int i = 0; i < 2; i++) { vec4 s = uSh[i]; diffuseColor.rgb *= 1.0 - s.w * (1.0 - smoothstep(s.z * 0.3, s.z, length(lifeP.xz - s.xy))); }');
     };
     rugMat.customProgramCacheKey = () => 'bath-rug';
     this.rug = L.decal({ w: RUG.w, d: RUG.out - 0.04, u: RUG.u, out: 0.04 + (RUG.out - 0.04) / 2, material: rugMat });
@@ -155,6 +155,7 @@ void main() {
     const bo = lerp(-L.wall - 0.2, BASIN[1], goB), wob = showing ? Math.sin(t * 14) * 0.04 * Math.exp(-Math.max(0, t - T_BASIN - 0.7) * 4) * (t > T_BASIN + 0.7 ? 1 : 0) : 0;
     this.basinU = BASIN[0]; this.basinO = bo;
     rig.show(this.basinI, goB > 0.001);
+    { const bp = L.floor(BASIN[0], bo, this.w); this.ru.uSh.value[1].set(bp.x, bp.z, 0.17 * K, 0.38 * (goB > 0.001 ? 1 : 0)); }
     { const p = L.floor(BASIN[0], bo, this.v); this.q.setFromEuler(this.e.set(wob, L.yawOut, wob * 0.5)); this.m.compose(p, this.q, this.one); rig.mat(this.basinI, this.m); }
     // the water in it, rising as the jug pours
     const level = showing ? ease.inOut(ramp(t, T_POUR + 0.2, T_STOP + 0.2)) : ph === 'linger' ? 1 : this.ret0 ? this.ret0.level : 0;
@@ -183,10 +184,10 @@ void main() {
       if (!this.ret0 || !this.ret0.jug) { rig.show(this.jugI, false); this.pouring = false; return null; }
       const q = ease.inOut(ramp(L.ret, 0.0, 0.5)); this.ret0.jug.decompose(A, this.q, this.s3);
       const home = L.floor(JUG_IN[0], -L.wall - 0.2, B); A.lerp(home, q); A.y = lerp(A.y, L.y, q);
-      this.m.compose(A, this.q, this.one); rig.mat(this.jugI, this.m); rig.show(this.jugI, q < 1); this.pouring = false; this.jugM = this.m.clone(); return null;
+      this.m.compose(A, this.q, this.one); rig.mat(this.jugI, this.m); rig.show(this.jugI, q < 1); this.pouring = false; this.jugM = this.m.clone(); this.ru.uSh.value[0].set(A.x, A.z, 0.075 * K, 0.5 * (q < 1 ? 1 : 0)); return null;
     }
     const tt = ph === 'linger' ? 99 : t;
-    if (tt < T_JUG) { rig.show(this.jugI, false); this.pouring = false; return null; }
+    if (tt < T_JUG) { rig.show(this.jugI, false); this.pouring = false; this.ru.uSh.value[0].w = 0; return null; }
     if (tt < T_LIFT) { const q = ease.out(ramp(tt, T_JUG, T_JUG + 0.45)); u = JUG_IN[0]; o = lerp(-L.wall - 0.2, JUG_IN[1], q); h = 0; }
     else if (tt < T_TIP) { const q = ease.inOut(ramp(tt, T_LIFT, T_TIP)), dip = Math.sin(Math.PI * clamp01((tt - T_LIFT) / 0.25)) * -0.012; u = lerp(JUG_IN[0], JUG_POUR[0], q); o = lerp(JUG_IN[1], JUG_POUR[1], q); h = Math.max(0, JUG_POUR[2] * q + dip + Math.sin(Math.PI * q) * 0.08); }
     else if (tt < T_DOWN) { u = JUG_POUR[0]; o = JUG_POUR[1]; h = JUG_POUR[2] + Math.sin(tt * 2.1) * 0.006; tip = ease.inOut(ramp(tt, T_TIP, T_POUR + 0.1)) * (1 - ease.inOut(ramp(tt, T_STOP, T_STOP + 0.45))); }
@@ -197,6 +198,7 @@ void main() {
     this.q.setFromEuler(this.e.set(0, yaw, 0, 'YXZ')); const qt = new THREE.Quaternion().setFromAxisAngle(this.w.set(0, 0, 1), -tip * 1.25); this.q.multiply(qt);
     this.m.compose(p, this.q, this.one); rig.mat(this.jugI, this.m); rig.show(this.jugI, show); this.jugM = this.m.clone();
     this.pouring = tip > 0.55;
+    this.ru.uSh.value[0].set(p.x, p.z, 0.075 * K * (1 + h * 1.5), 0.5 * clamp01(1 - h / 0.9));
     return { m: this.m, tip };
   },
 

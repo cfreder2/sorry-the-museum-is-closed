@@ -20,16 +20,16 @@ import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape } from '../paintlife.js';
 import { strokes } from './strokes.js';
 
-const NB = 6, R0 = 0.085, SEG = 0.02, MAXP = 260;              // balls, their size, the strand's step (m), points a strand can hold
+const NB = 6, R0 = 0.12, SEG = 0.02, MAXP = 260;              // balls, their size, the strand's step (m), points a strand can hold
 const CLIMB = 2;                                               // the green one climbs the wall
 // Where each one goes (stage terms: along, out), from where it lands under the basket; the green one's floor part.
 const PATHS = [
-  [[-0.24, 0.12], [-0.1, 0.43], [0.1, 0.82], [0.45, 0.95], [0.6, 0.73], [0.38, 0.6], [0.35, 0.99], [0.62, 1.16]],
-  [[-0.14, 0.12], [0.25, 0.43], [0.7, 0.69], [1.05, 0.6], [1.1, 0.39], [0.9, 0.34], [0.95, 0.73], [1.3, 0.95]],
-  [[-0.04, 0.12], [0.25, 0.26], [0.52, 0.19], [0.7, 0.12]],
-  [[-0.2, 0.12], [-0.1, 0.39], [0.0, 0.73], [0.2, 1.03], [0.5, 1.2]],
-  [[0.04, 0.12], [0.5, 0.3], [1.1, 0.26], [1.5, 0.52], [1.45, 0.82], [1.15, 0.82], [1.25, 0.65]],
-  [[-0.1, 0.12], [0.15, 0.6], [0.05, 0.9], [-0.1, 1.07], [0.05, 1.22]],
+  [[-0.24, 0.12], [0.2, 0.41], [0.55, 0.75], [0.9, 0.9], [1.05, 0.69], [0.82, 0.57], [0.8, 0.97], [1.1, 1.16]],
+  [[-0.14, 0.12], [0.4, 0.37], [0.95, 0.59], [1.35, 0.51], [1.55, 0.34], [1.8, 0.41], [1.85, 0.74], [2.1, 0.94]],
+  [[-0.04, 0.12], [0.25, 0.25], [0.52, 0.18], [0.7, 0.12]],
+  [[-0.2, 0.12], [0.05, 0.41], [0.3, 0.75], [0.55, 1.05], [0.85, 1.31]],
+  [[0.04, 0.12], [0.45, 0.4], [0.8, 0.75], [1.0, 1.15], [1.05, 1.55], [1.1, 1.95]],
+  [[-0.1, 0.12], [0.3, 0.57], [0.4, 0.86], [0.25, 1.08], [0.45, 1.27]],
 ];
 const COLS = ['#c8423a', '#e49aa0', '#6e9a4c', '#2e3f7a', '#e8845a', '#efe6d2'];
 const DROP = i => 0.35 + i * 0.2;                             // when each falls out from under the frame
@@ -42,7 +42,7 @@ const SPRING_B = 'R | E3:2 B2:2 | E3:2 B2:2 | E3:2 B2:2 | E3:2 B2:2 | E3:2 E3:2 
 lifeFor(14655, {
   title: /^Two Sisters \(On the Terrace\)/,
   word: 'yarn',
-  stage: { out: 2.0, half: 1.6, above: 0.32, cam: { dist: 2.5, side: 0.95, height: 0.95, fov: 58, lookU: 0.45, lookOut: 0.5, lookH: 0.95, floorOut: 1.25 } },
+  stage: { out: 2.0, half: 1.6, above: 0.32, cam: { dist: 2.5, side: 1.05, height: 0.5, fov: 56, lookU: 1.15, lookOut: 0.7, lookH: 0.9, floorOut: 1.2 } },
   wake: 2, ret: 2.4,
   linger: { near: 4, max: 30 },
 
@@ -52,11 +52,11 @@ lifeFor(14655, {
     const at = this.at = (u, h, o, into = new THREE.Vector3()) => L.at(u, h + L.y - L.cy, o, into);
     this.N = new THREE.Vector3(L.nx, 0, L.nz); this.UP = new THREE.Vector3(0, 1, 0); this.T = new THREE.Vector3(L.tx, 0, L.tz);
     // ---------------------------------------------------------- the balls of wool: wound, the strands showing
-    const rig = this.rig = L.rig(12, 9000, L.paint({ glow: 0.32, rough: 0.9 }));
+    const rig = this.rig = L.rig(12, 30000, L.paint({ glow: 0.32, rough: 0.9 }));
     this.balls = COLS.map((hex, i) => {
-      const base = col(hex, 0.2), g = shape.ball(1, base, 2), dark = base.clone().multiplyScalar(0.62), light = base.clone().lerp(new THREE.Color(1, 1, 1), 0.28);
+      const base = col(hex, 0.2), g = shape.ball(1, base, 3), dark = base.clone().multiplyScalar(0.62), light = base.clone().lerp(new THREE.Color(1, 1, 1), 0.28);
       const ax = [new THREE.Vector3(1, 0.3, 0).normalize(), new THREE.Vector3(0.2, 1, 0.5).normalize(), new THREE.Vector3(-0.4, 0.2, 1).normalize()];
-      shape.paint(g, (c, n) => { const k = Math.floor((c.y + 1) * 3) % 3, s = Math.sin(c.dot(ax[(k + i) % 3]) * 26); return s > 0.55 ? light : s < -0.5 ? dark : null; });
+      shape.paint(g, (c, n) => { const k = Math.floor((c.y + 1) * 3) % 3, s = Math.sin(c.dot(ax[(k + i) % 3]) * 34); return s > 0.55 ? light : s < -0.5 ? dark : null; });
       return { inst: rig.add(rig.geo(g)), i, base, p: new THREE.Vector3(), r: R0, q: new THREE.Quaternion().setFromEuler(new THREE.Euler(i, i * 2, i * 3)), path: null, pts: [], n: 0, s: 0, wall: [] };
     });
     // ---------------------------------------------------------- each one's course, as dense points: off the rail, down, along the floor
@@ -76,48 +76,47 @@ lifeFor(14655, {
       }
       b.course = pts; b.cwall = wall; b.len = (pts.length - 1) * SEG; b.top = top;
     }
-    // ---------------------------------------------------------- the strands: soft ribbons of wool, one draw call for all six
-    const NV = NB * MAXP * 2, pos = new Float32Array(NV * 3), nor = new Float32Array(NV * 3), cl = new Float32Array(NV * 3), idx = [];
-    for (let s = 0; s < NB; s++) for (let j = 0; j < MAXP - 1; j++) { const a = (s * MAXP + j) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-    this.balls.forEach((b, s) => { const d = b.base.clone().multiplyScalar(0.78); for (let j = 0; j < MAXP; j++) for (let e = 0; e < 2; e++) { const c = (j + e) % 3 === 0 ? d : b.base; cl.set([c.r, c.g, c.b], ((s * MAXP + j) * 2 + e) * 3); } });
+    // ---------------------------------------------------------- the creeper's other two vines: up the wall beside the frame, from the foot
+    // (stage terms on the wall: along, up; never left of the frame's right edge below its top, nor below its top rail over it)
+    const vineCurve = list => { const c = new THREE.CatmullRomCurve3(list.map(([u, h]) => at(u, h, 0.006)), false, 'centripetal'), n = Math.ceil(c.getLength() / SEG), pts = []; for (let j = 0; j <= n; j++) pts.push(c.getPointAt(j / n)); return pts; };
+    this.vines = [
+      { pts: vineCurve([[0.98, 0.0], [1.02, 0.35], [0.92, 0.7], [1.08, 1.05], [1.0, 1.4], [1.18, 1.7], [1.12, 1.95], [1.3, 2.12], [1.42, 2.02]]), delay: 0.25 },
+      { pts: vineCurve([[1.24, 0.0], [1.32, 0.3], [1.5, 0.55], [1.48, 0.85], [1.72, 1.1], [1.82, 1.36], [2.02, 1.52], [2.22, 1.44]]), delay: 0.5 },
+    ];
+    // ---------------------------------------------------------- the strands (and the vines' stems): soft ribbons, one draw call
+    const NS = NB + this.vines.length; this.NS = NS;
+    const NV = NS * MAXP * 2, pos = new Float32Array(NV * 3), nor = new Float32Array(NV * 3), cl = new Float32Array(NV * 3), idx = [];
+    for (let s = 0; s < NS; s++) for (let j = 0; j < MAXP - 1; j++) { const a = (s * MAXP + j) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const stemCol = col('#5d7d48', 0.2);
+    for (let s = 0; s < NS; s++) { const base = s < NB ? this.balls[s].base : stemCol, d = base.clone().multiplyScalar(0.72); for (let j = 0; j < MAXP; j++) for (let e = 0; e < 2; e++) { const c = (j + e) % 3 === 0 ? d : base; cl.set([c.r, c.g, c.b], ((s * MAXP + j) * 2 + e) * 3); } }
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); sg.setAttribute('normal', new THREE.BufferAttribute(nor, 3).setUsage(THREE.DynamicDrawUsage)); sg.setAttribute('color', new THREE.BufferAttribute(cl, 3)); sg.setIndex(idx);
-    const sm = L.paint({ glow: 0.4, rough: 1, side: THREE.DoubleSide }); sm.polygonOffset = true; sm.polygonOffsetFactor = -3; sm.polygonOffsetUnits = -3;
+    const sm = L.paint({ glow: 0.42, rough: 1, side: THREE.DoubleSide }); sm.polygonOffset = true; sm.polygonOffsetFactor = -3; sm.polygonOffsetUnits = -3;
     this.strand = L.add(new THREE.Mesh(sg, sm));
-    // ---------------------------------------------------------- the creeper: leaves and flowers, in his strokes
-    const S = this.S = strokes(L, 300), green = ['#4f6e3a', '#6f8f4a', '#8eaa5c', '#a9bd7a', '#5d7d48', '#c2c88e'].map(h => col(h, 0.2));
+    // ---------------------------------------------------------- the creeper: leaves in clusters and flowers, in his strokes
+    const S = this.S = strokes(L, 400), green = ['#3f5e30', '#56763c', '#6f8f4a', '#86a256', '#4a6a38', '#9db46a', '#2f4a26'].map(h => col(h, 0.15));
     const climb = this.balls[CLIMB], cf = this.climbFrom, items = [];
-    // anchors along the climb (in course arc metres): a leaf either side, now and then a shoot off to the right
-    const W = (i, h, o, into) => at(i, h, o, into);
-    const leaf = (p, dirAng, arc, size) => items.push({ kind: 'leaf', p: p.clone(), turn: dirAng, arc, size: size * (0.85 + L.rand() * 0.3), c: green[Math.floor(L.rand() * green.length)] });
-    const local = p => { const q = L.local(p.x, p.z); return [q.u, p.y - L.y]; };
-    const blossoms = [];
-    for (let j = cf + 2; j < climb.course.length; j += 2) {
-      const p = climb.course[j], [u, h] = local(p), arc = j * SEG;
-      for (const s of [-1, 1]) { const ou = s * (0.02 + L.rand() * 0.02); if (u + ou < 0.56 && h < 2.24) continue; leaf(W(u + ou, h + (L.rand() - 0.3) * 0.03, 0.012 + L.rand() * 0.02), s * 0.7 + (L.rand() - 0.5) * 0.6, arc, 0.082); }
-      // a shoot, every so often, wandering right and up, leaves along it and a flower cluster at its end
-      if ((j - cf) % 12 === 8 && h > 0.3) {
-        const n = 5 + Math.floor(L.rand() * 3), ang0 = h > 2.1 ? Math.PI * 0.95 : 0.25 + L.rand() * 0.6; let cu = u, ch = h, ang = ang0;
-        for (let k = 1; k <= n; k++) {
-          ang += (L.rand() - 0.5) * 0.5; cu += Math.cos(ang) * 0.055; ch += Math.sin(ang) * 0.055;
-          if (h > 2.1) ch = Math.max(2.27, ch);
-          if (cu < 0.56 && ch < 2.25) break;
-          leaf(W(cu, ch + (k % 2 ? 0.018 : -0.018), 0.015), ang + (k % 2 ? 0.9 : -0.9), arc + k * 0.06, 0.074);
-        }
-        blossoms.push({ u: cu, h: ch, arc: arc + n * 0.06 + 0.15 });
-      }
-    }
-    // the flowers: white (the blossom behind them), rose and red (the little one's hat), a blue one; at the shoots' ends and among the leaves
-    for (const b of [{ u: 1.05, h: 1.25 }, { u: 0.78, h: 0.62 }, { u: 1.2, h: 1.78 }, { u: 0.66, h: 2.42 }, { u: 0.95, h: 2.0 }]) { let best = null, bd = 9; for (const it of items) { const [iu, ih] = local(it.p), d = Math.hypot(iu - b.u, ih - b.h); if (d < bd) { bd = d; best = it; } } blossoms.push({ u: b.u, h: b.h, arc: (best ? best.arc : 2) + 0.2 }); }
-    const kinds = [['#f6f2e8', '#e9e6f0', '#fbfaf2', '#e8d98a'], ['#eaa2a8', '#f4c6c4', '#d9808c', '#f0d070'], ['#d6443a', '#e8644e', '#c23a32', '#f0c860'], ['#f6f2e8', '#ece8f2', '#fbfaf2', '#e8d98a'], ['#8fa2d6', '#b4c0e6', '#7088c4', '#f0e090']];
-    this.perches = [];
-    blossoms.forEach((b, bi) => {
-      const k = kinds[bi % kinds.length].map(h => col(h, 0.15)), petals = 8, R = 0.036 + L.rand() * 0.014, c = W(b.u, b.h, 0.03);
-      for (let j = 0; j < petals; j++) { const a = (j / petals) * Math.PI * 2 + L.rand() * 0.3; items.push({ kind: 'petal', p: c.clone(), a, R, turn: a, arc: b.arc, size: 0.06 + L.rand() * 0.016, c: k[j % 3], open: bi * 0.21 % 1 }); }
-      items.push({ kind: 'petal', p: c.clone(), a: 0, R: 0, turn: 0, arc: b.arc, size: 0.034, c: k[3], open: bi * 0.21 % 1 });
-      this.perches.push(W(b.u + 0.02, b.h + 0.035, 0.07));
-    });
-    this.items = items; items.forEach((it, i) => S.color(i, it.c)); S.colorsChanged();
     this.climbStart = cf * SEG;
+    const local = p => { const q = L.local(p.x, p.z); return [q.u, p.y - L.y]; };
+    const clear = (u, h) => u >= 0.57 || h >= 2.26;                 // beside the frame, or above its top rail
+    // a cluster of three or four feathery leaves fanning from a node
+    const cluster = (u, h, arc, side, size) => { const n = 3 + (L.rand() < 0.4 ? 1 : 0); for (let i = 0; i < n; i++) { const a = side * (0.5 + i * 0.45) + (L.rand() - 0.5) * 0.4, d = 0.022 + i * 0.012, lu = u + Math.cos(a) * d * side, lh = h + Math.sin(a) * d * 0.8 + 0.01; if (!clear(lu - 0.02, lh)) continue; items.push({ kind: 'leaf', p: at(lu, lh, 0.012 + L.rand() * 0.025), turn: a + (side < 0 ? Math.PI : 0), arc: arc + i * 0.03, size: size * (0.8 + L.rand() * 0.4), c: green[Math.floor(L.rand() * green.length)] }); } };
+    const nodes = [];         // every stem point that carries leaves: [u, h, arc]
+    for (let j = cf + 4; j < climb.course.length; j += 6) { const [u, h] = local(climb.course[j]); nodes.push([u, h, j * SEG]); }
+    this.vines.forEach(v => { v.arc0 = this.climbStart + v.delay; v.pts.forEach((p, j) => { if (j % 6 === 3) { const [u, h] = local(p); nodes.push([u, h, v.arc0 + j * SEG * 0.85]); } }); });
+    nodes.forEach(([u, h, arc], i) => cluster(u, h, arc, i % 2 ? 1 : -1, 0.088));
+    // the flowers, many: white (the blossom behind them), rose and red (the little one's hat), blue; opening in a wave up the vines
+    const kinds = [['#f6f2e8', '#e9e6f0', '#fbfaf2', '#e8d98a'], ['#eaa2a8', '#f4c6c4', '#d9808c', '#f0d070'], ['#d6443a', '#e8644e', '#c23a32', '#f0c860'], ['#f6f2e8', '#ece8f2', '#fbfaf2', '#e8d98a'], ['#8fa2d6', '#b4c0e6', '#7088c4', '#f0e090'], ['#eaa2a8', '#f6d2d0', '#e08a96', '#f0d070']];
+    this.perches = [];
+    const tall = nodes.filter(nd => nd[1] > 0.3), step = Math.max(1, tall.length / 26), blooms = Array.from({ length: Math.min(26, tall.length) }, (_, i) => tall[Math.floor(i * step)]);
+    blooms.forEach(([u, h, arc], bi) => {
+      const side = bi % 2 ? 1 : -1, bu = Math.max(0.62, u + side * 0.05), bh = h + 0.03; if (!clear(bu - 0.05, bh)) return;
+      const k = kinds[bi % kinds.length].map(x => col(x, 0.15)), petals = 6, R = 0.03 + L.rand() * 0.012, c = at(bu, bh, 0.035);
+      const open = 2.8 + h * 1.2 + (L.rand() - 0.5) * 0.5;                      // (a wave of blooming, up the wall)
+      for (let j = 0; j < petals; j++) { const a = (j / petals) * Math.PI * 2 + L.rand() * 0.4; items.push({ kind: 'petal', p: c.clone(), a, R, turn: a, arc: arc + 0.05, size: 0.058 + L.rand() * 0.014, c: k[j % 3], open }); }
+      items.push({ kind: 'petal', p: c.clone(), a: 0, R: 0, turn: 0, arc: arc + 0.05, size: 0.03, c: k[3], open });
+      if (bi % 3 === 0) this.perches.push(at(bu + 0.02, bh + 0.035, 0.075));
+    });
+    this.items = items.slice(0, 392); this.items.forEach((it, i) => S.color(i, it.c)); S.colorsChanged();
     // ---------------------------------------------------------- the bird: blue back, rust breast, a dark cap; body and two wings
     const BS = 2.0, blue = [col('#3b5aa0', 0.15), col('#2c437e', 0.15), col('#5a78b8', 0.15)], rust = col('#d0603e', 0.15), cream = col('#efe2c8', 0.2);
     const body = shape.ball(1, blue[0], 2); { const p = body.attributes.position; for (let i = 0; i < p.count; i++) { const z = p.getZ(i); p.setXYZ(i, p.getX(i) * 0.026, p.getY(i) * 0.026, z * 0.05); } body.computeVertexNormals(); }
@@ -170,7 +169,7 @@ lifeFor(14655, {
         const rb = this.roll.items[b.i]; b.p.set(rb.x, rb.y, rb.z); b.q.copy(rb.q);
         // pushed: it unwinds more strand behind it as it goes
         const last = b.extra.length ? b.extra[b.extra.length - 1] : b.course[b.n - 1];
-        if (last && Math.hypot(rb.x - last.x, rb.z - last.z) > SEG * 1.5 && b.n + b.extra.length < MAXP - 2) { b.extra.push(new THREE.Vector3(rb.x, L.y + 0.004, rb.z)); b.r = Math.max(0.055, b.r - 0.00025); rb.r = b.r; }
+        if (last && Math.hypot(rb.x - last.x, rb.z - last.z) > SEG * 1.5 && b.n + b.extra.length < MAXP - 2) { b.extra.push(new THREE.Vector3(rb.x, L.y + 0.004, rb.z)); b.r = Math.max(0.075, b.r - 0.00025); rb.r = b.r; }
       }
     }
     // draw them
@@ -186,7 +185,7 @@ lifeFor(14655, {
     for (const it of this.items) {
       let a = clamp01((arc - it.arc) / 0.25);
       if (ph === 'linger' || ph === 'return') a = 1;
-      if (it.kind === 'petal') a = showing ? ease.outBack(clamp01((t - 3.0 - it.open * 2.4 - Math.max(0, it.arc - this.climbStart) * 0.6) / 0.7)) * clamp01((arc - it.arc) / 0.1) : 1;
+      if (it.kind === 'petal') a = showing ? ease.outBack(clamp01((t - it.open) / 0.7)) * clamp01((arc - it.arc) / 0.1) : 1;
       if (ret > 0) a *= 1 - ease.inOut(clamp01((ret - (it.kind === 'petal' ? 0 : 0.15) - Math.max(0, it.arc - this.climbStart) * 0.06) / 0.4));
       if (a <= 0.001) { S.set(k++, 0, 0, 0, 0, 0); continue; }
       const sway = Math.sin((t + L.r) * 1.7 + it.p.x * 9 + it.p.y * 7) * 0.08;
@@ -272,12 +271,28 @@ lifeFor(14655, {
         const nrm = wall ? this.N : this.UP, dx = q.x - p.x, dy = q.y - p.y, dz = q.z - p.z, dl = Math.hypot(dx, dy, dz) || 1;
         // across the strand, flat on what it lies on
         let sx = nrm.y * dz / dl - nrm.z * dy / dl, sy = nrm.z * dx / dl - nrm.x * dz / dl, sz = nrm.x * dy / dl - nrm.y * dx / dl; const sl = Math.hypot(sx, sy, sz) || 1;
-        const w = (b.i === CLIMB && wall === 2 ? 0.011 : 0.011) / sl;
+        const w = (b.i === CLIMB && wall === 2 ? 0.012 : 0.016) / sl;
         P[o] = p.x + sx * w; P[o + 1] = p.y + sy * w; P[o + 2] = p.z + sz * w; P[o + 3] = p.x - sx * w; P[o + 4] = p.y - sy * w; P[o + 5] = p.z - sz * w;
         lx = p.x; ly = p.y; lz = p.z;
         Nn[o] = Nn[o + 3] = nrm.x; Nn[o + 1] = Nn[o + 4] = nrm.y; Nn[o + 2] = Nn[o + 5] = nrm.z;
       }
     }
+    // the creeper's two other stems: grown with the climb, drawn back after
+    const climb = this.balls[CLIMB], ph = L.phase, arc = ph === 'linger' ? 1e3 : climb.s;
+    this.vines.forEach((v, vi) => {
+      const base = (NB + vi) * MAXP * 2, N = Math.min(MAXP - 1, v.pts.length);
+      let n = ph === 'return' ? Math.floor(N * (1 - ease.inOut(clamp01((L.ret - 0.1) / 0.6)))) : Math.min(N, Math.max(0, Math.floor((arc - v.arc0) / (SEG * 0.85))));
+      if (ph === 'off' || ph === 'after') n = 0;
+      for (let j = 0; j < MAXP; j++) {
+        const o = (base + j * 2) * 3, jj = Math.min(j, Math.max(0, n - 1)), p = v.pts[jj], q = v.pts[Math.min(N - 1, jj + 1)];
+        if (n < 2) { for (let e = 0; e < 6; e++) P[o + e] = 0; continue; }
+        any = true;
+        const dx = q.x - p.x, dy = q.y - p.y, dz = q.z - p.z, dl = Math.hypot(dx, dy, dz) || 1, nrm = this.N;
+        let sx = nrm.y * dz / dl - nrm.z * dy / dl, sy = nrm.z * dx / dl - nrm.x * dz / dl, sz = nrm.x * dy / dl - nrm.y * dx / dl; const sl = Math.hypot(sx, sy, sz) || 1, w = 0.009 * (1 - 0.5 * j / N) / sl;
+        P[o] = p.x + sx * w; P[o + 1] = p.y + sy * w; P[o + 2] = p.z + sz * w; P[o + 3] = p.x - sx * w; P[o + 4] = p.y - sy * w; P[o + 5] = p.z - sz * w;
+        Nn[o] = Nn[o + 3] = nrm.x; Nn[o + 1] = Nn[o + 4] = nrm.y; Nn[o + 2] = Nn[o + 5] = nrm.z;
+      }
+    });
     g.attributes.position.needsUpdate = true; g.attributes.normal.needsUpdate = true; this.strand.visible = any;
   },
 
