@@ -1041,8 +1041,19 @@ function shellSolids(plan, sh) {
   S.push({ skin: 'shell', fixed: true, x0: sh.x0, x1: sh.x1, z0: sh.z0, z1: sh.z1, axis: null, h0: h, h1: h });
   S.push({ skin: 'shell', fixed: true, ...sh.ramp, axis: 'z', h0: 0, h1: h });
   { const p = sh.pad, e = p.cell * 1.5 + 0.12; S.push({ skin: 'shell', fixed: true, x0: p.x - e, x1: p.x + e, z0: p.z - e, z1: p.z + e, axis: null, h0: p.y, h1: p.y, base: h }); }
-  const st = sh.steps;
-  for (let j = 0; j < st.n; j++) for (const [x0, x1] of [[st.x0, sh.ramp.x0], [sh.ramp.x1, st.x1]]) S.push({ skin: 'shell', fixed: true, x0, x1, z0: sh.z0 - st.tread * (st.n - j), z1: sh.z0, axis: null, h0: h * (j + 1) / st.n, h1: h * (j + 1) / st.n });
+  // The front arches stand wider than the deck: under them the deck runs out to their feet (sh.wings, drawn by
+  // bandshell.js), so there is no slot between the boards and the arch to drop into.
+  sh.wings = [];
+  for (const r of sh.rings) if (r.w > (sh.x1 - sh.x0) / 2 + 1e-6) for (const [x0, x1] of [[sh.cx - r.w, sh.x0], [sh.x1, sh.cx + r.w]]) { sh.wings.push({ x0, x1, z0: r.zf, z1: r.zb }); S.push({ skin: 'shell', fixed: true, x0, x1, z0: r.zf, z1: r.zb, axis: null, h0: h, h1: h }); }
+  // The steps: a toy's wheels ride from nosing to nosing, so each flight is ground along the line through its treads'
+  // front edges, run out a tread beyond the bottom riser (where snow has drifted against it: bandshell.js draws it), then
+  // the top tread, level. (As the revetment's steps are.)
+  const st = sh.steps, foot = sh.z0 - st.tread * (st.n + 1);
+  st.foot = foot;
+  for (const [x0, x1] of [[st.x0, sh.ramp.x0], [sh.ramp.x1, st.x1]]) {
+    S.push({ skin: 'shell', fixed: true, x0, x1, z0: foot, z1: sh.z0 - st.tread, axis: 'z', h0: 0, h1: h, stairs: true });
+    S.push({ skin: 'shell', fixed: true, x0, x1, z0: sh.z0 - st.tread, z1: sh.z0, axis: null, h0: h, h1: h });
+  }
   // The arches: cut into upright strips, each solid from the inside of the arch (or the floor, under its feet) to the
   // outside of it, narrow where the arch is steep. A strip's top is the highest the outside reaches over it, its underside
   // the lowest the inside does, so nothing pokes through what is drawn. The back of the last arch is a wall, cut the same way.

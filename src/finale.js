@@ -48,6 +48,7 @@ import { CRAFT, DOOR, hullY } from './finaleplan.js';
 import { BLABELS } from './finalefit.js';
 import { beat } from './guardplan.js';
 import { Geo } from './geo.js';
+import { outfield } from './ballpark.js';      // (the outfield's checker, for the doors' tops)
 import * as TX from './textures.js';
 import { imageUrl } from './collection.js';
 import { MOTIF_COLOURS } from './motif.js';
@@ -110,25 +111,26 @@ feature({
 
   // ---------------------------------------------------------------- the silo doors (always)
   _silo(k) {
-    const F = this.F, sq = F.silo, half = (sq.x1 - sq.x0) / 2, D = DOOR.thick, g = this.siloG = new THREE.Group(); g.name = 'silo doors'; this.root.add(g);
+    const F = this.F, sq = F.silo, half = (sq.x1 - sq.x0) / 2, D = DOOR.thick, OF = outfield(k), g = this.siloG = new THREE.Group(); g.name = 'silo doors'; this.root.add(g);
     this.doorMeshes = ['w', 'e'].map(side => {
       const grp = new THREE.Group(), top = new Geo(), sides = new Geo(), seam = new Geo();
       const x0 = side === 'w' ? sq.x0 : sq.x0 + half, x1 = x0 + half, z0 = sq.z0, z1 = sq.z1;
       // Built where it lies shut, its top at y 0; the group is moved as it opens.
-      top.quad([x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1], [0, 1, 0], [[x0 / 4, z0 / 4], [x1 / 4, z0 / 4], [x1 / 4, z1 / 4], [x0 / 4, z1 / 4]]);
+      // (its top is the outfield's checker, laid to the outfield's own lines, so the square cannot be told from the field round it)
+      top.quad([x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1], [0, 1, 0], [OF.uv(x0, z0), OF.uv(x1, z0), OF.uv(x1, z1), OF.uv(x0, z1)]);
       sides.box(x0, x1, -D, -0.03, z0, z1);      // (3 cm under the snow top, so the two never flicker from afar)
       for (let z = z0 + 2; z < z1 - 1; z += 4) sides.box(x0 + 0.3, x1 - 0.3, -D - 0.35, -D, z - 0.15, z + 0.15);        // the ribs under it
       for (const x of [x0 + 1, x1 - 1]) sides.box(x - 0.15, x + 0.15, -D - 0.35, -D, z0 + 0.3, z1 - 0.3);
       const e = side === 'w' ? x1 : x0; seam.box(e - 0.012, e + 0.012, -0.004, 0.006, z0, z1);      // where the halves meet: a hairline in the snow
-      grp.add(top.mesh(this.M.snow), sides.mesh(this.M.steelD), seam.mesh(this.M.black));
+      grp.add(top.mesh(OF.mat), sides.mesh(this.M.steelD), seam.mesh(this.M.black));
       for (const m of grp.children) m.matrixAutoUpdate = false, m.updateMatrix();
       g.add(grp); grp.userData.side = side;
       return grp;
     });
-    // A steel coaming round the square, flush with the snow, and its lip down into the shaft.
-    const co = new Geo(), W = 0.22;
-    co.box(sq.x0 - W, sq.x1 + W, -0.5, 0.012, sq.z0 - W, sq.z0); co.box(sq.x0 - W, sq.x1 + W, -0.5, 0.012, sq.z1, sq.z1 + W);
-    co.box(sq.x0 - W, sq.x0, -0.5, 0.012, sq.z0, sq.z1); co.box(sq.x1, sq.x1 + W, -0.5, 0.012, sq.z0, sq.z1);
+    // A steel coaming round the square, just under the outfield's snow (which hides it), and its lip down into the shaft.
+    const co = new Geo(), W = 0.22, CT = -0.004;
+    co.box(sq.x0 - W, sq.x1 + W, -0.5, CT, sq.z0 - W, sq.z0); co.box(sq.x0 - W, sq.x1 + W, -0.5, CT, sq.z1, sq.z1 + W);
+    co.box(sq.x0 - W, sq.x0, -0.5, CT, sq.z0, sq.z1); co.box(sq.x1, sq.x1 + W, -0.5, CT, sq.z0, sq.z1);
     g.add(co.mesh(this.M.steelD));
     this.doorsAnim = null;
     this._placeDoors();

@@ -54,6 +54,23 @@ const NOINP = Object.freeze({});                              // (no controls th
 const NAMES = { fly: 'FLY BALL', line: 'LINE DRIVE', ground: 'GROUNDER', pop: 'POP-UP' };
 const COLS = [[2.8, 0.3, 0.25], [0.35, 2.4, 0.5], [0.45, 0.9, 3.0], [2.9, 1.9, 0.35], [2.8, 0.9, 1.7], [2.9, 1.1, 0.2]];
 
+// The outfield's snow, rolled in a checker as a groundsman mows grass: one texture and material, shared with the silo's
+// doors in centre field (finale.js), which wear the same checker, laid to the same lines, so the square cannot be seen.
+// `uv(x, z)`: where (x, z) falls on it, the squares 4.5 m and square to the line from the plate to centre field.
+let OUTFIELD = null;
+export function outfield(k) {
+  if (OUTFIELD) return OUTFIELD;
+  const L = (k.plan.lakefront && k.plan.lakefront.ballpark) || {}, hx = L.hx ?? 402, hz = L.hz ?? 146;
+  const chk = canvasTex(128, 128, (c, w, h) => {
+    let a = 12345; const r = () => { a = (a * 1103515245 + 12345) >>> 0; return a / 4294967296; };      // (seeded, so it is the same every time)
+    c.fillStyle = '#dfe7f0'; c.fillRect(0, 0, w, h); c.fillStyle = '#c9d4e0'; c.fillRect(0, 0, w / 2, h / 2); c.fillRect(w / 2, h / 2, w / 2, h / 2);
+    for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(${r() < 0.5 ? '255,255,255' : '150,165,185'},${r() * 0.25})`; c.fillRect(r() * w, r() * h, 1.5, 1.5); }
+  });
+  chk.wrapS = chk.wrapT = THREE.RepeatWrapping;
+  const mat = new THREE.MeshStandardMaterial({ map: chk, roughness: 0.95, emissive: 0xffffff, emissiveMap: chk, emissiveIntensity: 0.62, color: 0xeef3fa, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  return (OUTFIELD = { mat, uv: (x, z) => { const dx = x - hx, dz = z - hz; return [(dx * S2 + dz * S2) / 9, (dx * S2 - dz * S2) / 9]; } });
+}
+
 feature({
   id: 'ballpark',
   secrets: [['derbyhr', 'Home Run Derby: one over the wall'], ['derby5', 'Home Run Derby: five in a round']],
@@ -100,19 +117,15 @@ feature({
     const arc = (r, a0, a1, n, cx = P.hx, cz = P.hz, rf = null) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n, R = rf ? rf(a) : r; return [cx + R * Math.cos(a), cz + R * Math.sin(a)]; });
     const decal = (map, o = {}) => new THREE.MeshStandardMaterial({ map, roughness: 0.95, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, ...o });
     // The outfield: snow rolled flat in a checker, as a groundsman mows grass, out to the warning track.
-    const chk = canvasTex(128, 128, (c, w, h) => {
-      c.fillStyle = '#dfe7f0'; c.fillRect(0, 0, w, h); c.fillStyle = '#c9d4e0'; c.fillRect(0, 0, w / 2, h / 2); c.fillRect(w / 2, h / 2, w / 2, h / 2);
-      for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '150,165,185'},${Math.random() * 0.25})`; c.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
-    });
-    chk.wrapS = chk.wrapT = THREE.RepeatWrapping;
+    const OF = outfield(k);
     {
       const pts = [[P.hx, P.hz], ...arc(0, 0, Math.PI / 2, 60, P.hx, P.hz, a => this.wallR(a) - 3.2)];
       // The silo's square in centre field (plan.grounds.silo, finaleplan.js) is left out: its doors are drawn there, and
       // when they open, the shaft is open to the sky. (Every opening below the street is in groundOpenings().)
       const sq = k.plan.grounds && k.plan.grounds.silo;
       const q = flat(pts, 0.01, 1, sq ? [[[sq.x0, sq.z0], [sq.x1, sq.z0], [sq.x1, sq.z1], [sq.x0, sq.z1]]] : []); const uv = q.attributes.uv, pos = q.attributes.position;
-      for (let i = 0; i < uv.count; i++) { const dx = pos.getX(i) - P.hx, dz = pos.getZ(i) - P.hz; uv.setXY(i, (dx * S2 + dz * S2) / 9, (dx * S2 - dz * S2) / 9); }
-      const m = new THREE.Mesh(q, decal(chk, { emissiveIntensity: 0.62, color: 0xeef3fa })); m.receiveShadow = true; g.add(m);
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, ...OF.uv(pos.getX(i), pos.getZ(i)));
+      const m = new THREE.Mesh(q, OF.mat); m.receiveShadow = true; g.add(m);
     }
     // Frozen clay, ploughed clear: the infield, the circle round the plate, the warning track and the mound.
     const clay = canvasTex(256, 256, (c, w, h) => {
@@ -157,11 +170,13 @@ feature({
     put(new THREE.BoxGeometry(0.61, 0.03, 0.15), this.M.x, this.M.y + 0.015, this.M.z, Math.atan2(c.x, c.z));
     g.add(new THREE.Mesh(mergeAll(white), new THREE.MeshStandardMaterial({ color: 0xf6f7f9, roughness: 0.6, emissive: 0xc8ccd4, emissiveIntensity: 0.7 })));
     // The light the towers throw on the snow round the field: a broad soft pool, drawn under the field's own ground
-    // (which is lit in its own materials, so that the mound and the infield take the same light).
-    const pool = canvasTex(128, 128, (c2, w, h) => { const gr = c2.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.55, 'rgba(255,255,255,.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c2.fillStyle = gr; c2.fillRect(0, 0, w, h); });
-    for (const [d, size, col] of [[30, 110, [0.26, 0.26, 0.25]]]) {
+    // (which is lit in its own materials, so that the mound and the infield take the same light). It brightens the snow
+    // under it in proportion (what is there times 1 + the pool), a warm tint rather than a coat of white laid over it,
+    // so that the snow's own texture still shows through.
+    const pool = canvasTex(128, 128, (c2, w, h) => { c2.fillStyle = '#000'; c2.fillRect(0, 0, w, h); const gr = c2.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgb(255,255,255)'); gr.addColorStop(0.55, 'rgb(178,178,178)'); gr.addColorStop(1, 'rgb(0,0,0)'); c2.fillStyle = gr; c2.fillRect(0, 0, w, h); });
+    for (const [d, size, col] of [[30, 110, [0.34, 0.3, 0.22]]]) {
       const q = new THREE.PlaneGeometry(size, size); q.rotateX(-Math.PI / 2); q.rotateY(Math.PI / 4); const o = H.clone().addScaledVector(c, d); q.translate(o.x, 0.004, o.z);
-      const m = new THREE.Mesh(q, new THREE.MeshBasicMaterial({ map: pool, color: new THREE.Color(...col), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+      const m = new THREE.Mesh(q, new THREE.MeshBasicMaterial({ map: pool, color: new THREE.Color(...col), transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstColorFactor, blendDst: THREE.OneFactor, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
       m.renderOrder = 4; g.add(m); this.pool = m;
     }
   },
@@ -248,7 +263,24 @@ feature({
       if (i === 2) { const q = new THREE.BoxGeometry(0.02, top - 0.035, 8); q.translate(x0 + 0.01, (top - 0.035) / 2, zm); risers.push(q); }
     }
     const g = this.g, wood = lit(0x6b4a2a);
-    g.add(new THREE.Mesh(mergeAll(walls), lit(0x23402e)), new THREE.Mesh(mergeAll(roofs), lit(0xe9eef5, { roughness: 0.9 })), new THREE.Mesh(mergeAll(benches), wood));
+    // The dugouts' walls: painted block, green, in courses, a little weathered and darker at the foot where the snow
+    // lies against them; a cap along their tops and a fascia board round the roof's edge, in cream.
+    const blockT = canvasTex(256, 256, (c, w, h) => {
+      let a = 77; const r = () => { a = (a * 1103515245 + 12345) >>> 0; return a / 4294967296; };
+      c.fillStyle = '#1b3324'; c.fillRect(0, 0, w, h);
+      for (let row = 0; row < 8; row++) for (let col = -1; col < 4; col++) { const x = col * 64 + (row % 2) * 32, y = row * 32, v = r() * 14 - 7; c.fillStyle = `rgb(${38 + v},${74 + v},${52 + v})`; c.fillRect(x + 2, y + 2, 60, 28); c.fillStyle = 'rgba(255,255,255,0.07)'; c.fillRect(x + 2, y + 2, 60, 2); }
+      for (let i = 0; i < 600; i++) { c.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '200,220,205'},${r() * 0.12})`; c.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
+    });
+    blockT.wrapS = blockT.wrapT = THREE.RepeatWrapping;
+    const worldUV = (geo, k) => { const P = geo.attributes.position, N = geo.attributes.normal, uv = new Float32Array(P.count * 2); for (let i = 0; i < P.count; i++) { const ax = Math.abs(N.getX(i)), ay = Math.abs(N.getY(i)), az = Math.abs(N.getZ(i)); uv[i * 2] = (ay >= ax && ay >= az ? P.getX(i) : ax >= az ? P.getZ(i) : P.getX(i)) * k; uv[i * 2 + 1] = (ay >= ax && ay >= az ? P.getZ(i) : P.getY(i)) * k; } geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return geo; };
+    const trim = [];
+    for (const q of walls) { q.computeBoundingBox(); const b = q.boundingBox, t2 = new THREE.BoxGeometry(b.max.x - b.min.x + 0.03, 0.05, b.max.z - b.min.z + 0.03); t2.translate((b.min.x + b.max.x) / 2, b.max.y - 0.025, (b.min.z + b.max.z) / 2); trim.push(t2); }
+    for (const q of roofs) { q.computeBoundingBox(); const b = q.boundingBox, y = b.min.y - 0.06, fw = 0.025; for (const [x0, x1, z0, z1] of [[b.min.x, b.max.x, b.min.z - fw, b.min.z], [b.min.x, b.max.x, b.max.z, b.max.z + fw], [b.min.x - fw, b.min.x, b.min.z - fw, b.max.z + fw], [b.max.x, b.max.x + fw, b.min.z - fw, b.max.z + fw]]) { const f = new THREE.BoxGeometry(x1 - x0, 0.12, z1 - z0); f.translate((x0 + x1) / 2, y + 0.06 + 0.02, (z0 + z1) / 2); trim.push(f); } }
+    const wallG = worldUV(mergeAll(walls), 1 / 1.6);
+    { const P = wallG.attributes.position, cl = new Float32Array(P.count * 3); for (let i = 0; i < P.count; i++) { const f = 0.6 + 0.4 * Math.min(1, P.getY(i) / 0.5); cl[i * 3] = cl[i * 3 + 1] = cl[i * 3 + 2] = f; } wallG.setAttribute('color', new THREE.BufferAttribute(cl, 3)); }
+    g.add(new THREE.Mesh(wallG, new THREE.MeshStandardMaterial({ map: blockT, vertexColors: true, roughness: 0.85, emissiveMap: blockT, emissive: 0xffffff, emissiveIntensity: 0.45 })),
+      new THREE.Mesh(mergeAll(trim), lit(0xd9cfb4, { roughness: 0.7 })),
+      new THREE.Mesh(mergeAll(roofs), lit(0xe9eef5, { roughness: 0.9 })), new THREE.Mesh(mergeAll(benches), wood));
     const grain = canvasTex(64, 256, (c, w, h) => {
       c.fillStyle = '#9a6b3e'; c.fillRect(0, 0, w, h);
       for (let i = 0; i < 70; i++) { c.strokeStyle = `rgba(${Math.random() < 0.5 ? '70,42,20' : '196,150,100'},${0.15 + Math.random() * 0.3})`; c.lineWidth = 0.5 + Math.random() * 1.5; const x = Math.random() * w; c.beginPath(); c.moveTo(x, 0); c.bezierCurveTo(x + (Math.random() - 0.5) * 6, h / 3, x + (Math.random() - 0.5) * 6, h * 2 / 3, x + (Math.random() - 0.5) * 4, h); c.stroke(); }
@@ -297,7 +329,18 @@ feature({
     padT.wrapS = THREE.RepeatWrapping;
     const g = this.g;
     g.add(new THREE.Mesh(strip(inner, inner, 0, Hh, 0, 0, true), new THREE.MeshStandardMaterial({ map: padT, roughness: 0.75, emissive: 0xffffff, emissiveMap: padT, emissiveIntensity: 0.55, side: THREE.DoubleSide })));
-    g.add(new THREE.Mesh(strip(back, back, 0, Hh, 0, 0, false), lit(0x24302a, { side: THREE.DoubleSide })));
+    // behind: the boards the padding is fixed to, painted dark green, upright, a rail along the top and the foot, a post every
+    // 2.4 m, the paint gone grey towards the snow
+    const boardT = canvasTex(256, 128, (c, w, h) => {
+      let a = 31; const r = () => { a = (a * 1103515245 + 12345) >>> 0; return a / 4294967296; };
+      c.fillStyle = '#142019'; c.fillRect(0, 0, w, h);
+      for (let x = 0; x < w; x += 16) { const v = r() * 10 - 5; c.fillStyle = `rgb(${34 + v},${50 + v},${40 + v})`; c.fillRect(x + 1, 0, 14, h); c.fillStyle = 'rgba(255,255,255,0.05)'; c.fillRect(x + 1, 0, 2, h); for (let i = 0; i < 6; i++) { c.fillStyle = `rgba(0,0,0,${0.08 + r() * 0.1})`; c.fillRect(x + 3 + r() * 10, r() * h, 1, 6 + r() * 30); } }
+      c.fillStyle = '#26382d'; c.fillRect(0, 10, w, 12); c.fillRect(0, h - 22, w, 12); c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(0, 22, w, 2); c.fillRect(0, h - 10, w, 2);
+      c.fillStyle = '#1e2c24'; c.fillRect(0, 0, 10, h); c.fillStyle = 'rgba(255,255,255,0.06)'; c.fillRect(0, 0, 2, h);
+      const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0.75, 'rgba(150,160,170,0)'); gr.addColorStop(1, 'rgba(150,160,170,0.22)'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    });
+    boardT.wrapS = THREE.RepeatWrapping;
+    g.add(new THREE.Mesh(strip(back, back, 0, Hh, 0, 0, true), new THREE.MeshStandardMaterial({ map: boardT, roughness: 0.85, emissiveMap: boardT, emissive: 0xffffff, emissiveIntensity: 0.4, side: THREE.DoubleSide })));
     { const q = strip(inner, back, Hh, Hh, 0, 0, false); g.add(new THREE.Mesh(q, new THREE.MeshBasicMaterial({ color: new THREE.Color(2.1, 1.75, 0.2), side: THREE.DoubleSide }))); }
     // solid: a run of short boxes along it (it is curved, and what stops a car is square)
     for (let i = 0; i < n; i += 2) {
@@ -378,16 +421,37 @@ feature({
     // a haze round each bank, and a faint beam down through the snowy air onto the field
     const glowT = canvasTex(64, 64, (c2, w, h) => { const gr = c2.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c2.fillStyle = gr; c2.fillRect(0, 0, w, h); });
     const sm = new THREE.SpriteMaterial({ map: glowT, color: new THREE.Color(1.6, 1.55, 1.4), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    const beams = [];
+    // The beams: open cones, drawn from outside only, and brightest where the eye looks through the most of one (its
+    // middle, where the surface faces it) and fading to nothing at its edges, so that where they cross they add up
+    // softly instead of into hard grey planes; and all but gone while the eye is inside one (looking up a beam, there
+    // is no beam to see). Each vertex carries its cone's apex and axis for that.
+    const R0 = 1.6, R1 = 13, pos = [], nor = [], fade = [], apex = [], axis = [];
     for (const p of this.glowAt) {
       const sp = new THREE.Sprite(sm); sp.position.copy(p); sp.scale.setScalar(7); g.add(sp);
-      const L = p.distanceTo(aim), q = new THREE.CylinderGeometry(1.6, 13, L, 20, 1, true); q.translate(0, -L / 2, 0);
-      const col = new Float32Array(q.attributes.position.count * 3); for (let i = 0; i < q.attributes.position.count; i++) { const f = Math.max(0, 1 + q.attributes.position.getY(i) / L) ** 1.5 * 0.035; col[i * 3] = f; col[i * 3 + 1] = f; col[i * 3 + 2] = f * 0.95; }
-      q.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      D.position.copy(p); D.lookAt(aim); D.updateMatrix(); q.rotateX(-Math.PI / 2); q.applyMatrix4(D.matrix); beams.push(q.toNonIndexed());
+      const L = p.distanceTo(aim), q = new THREE.CylinderGeometry(R0, R1, L, 24, 1, true); q.translate(0, -L / 2, 0);
+      const ys = q.attributes.position.array.filter((_, i) => i % 3 === 1);
+      D.position.copy(p); D.lookAt(aim); D.updateMatrix(); q.rotateX(-Math.PI / 2); q.applyMatrix4(D.matrix);
+      const qn = q.toNonIndexed(), idx = q.index.array, ax = tmp.copy(aim).sub(p).normalize();
+      pos.push(...qn.attributes.position.array); nor.push(...qn.attributes.normal.array);
+      for (let i = 0; i < idx.length; i++) { fade.push(Math.max(0, 1 + ys[idx[i]] / L) ** 1.5 * 0.035); apex.push(p.x, p.y, p.z); axis.push(ax.x, ax.y, ax.z, L); }
     }
-    { const geo = mergeAll(beams), cs = []; for (const b of beams) cs.push(...b.attributes.color.array); geo.setAttribute('color', new THREE.Float32BufferAttribute(cs, 3));
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.renderOrder = 6; g.add(m); }
+    { const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+      geo.setAttribute('aFade', new THREE.Float32BufferAttribute(fade, 1)); geo.setAttribute('aApex', new THREE.Float32BufferAttribute(apex, 3)); geo.setAttribute('aAxis', new THREE.Float32BufferAttribute(axis, 4));
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { uR: { value: new THREE.Vector2(R0, R1) } }, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.FrontSide,
+        vertexShader: `attribute float aFade; attribute vec3 aApex; attribute vec4 aAxis; uniform vec2 uR; varying float vF; varying vec3 vN; varying vec3 vV;
+          void main() {
+            vec4 wp = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = cameraPosition - wp.xyz;
+            vec3 d = cameraPosition - aApex; float t = dot(d, aAxis.xyz), rr = length(d - aAxis.xyz * t), rc = uR.x + (uR.y - uR.x) * t / aAxis.w;
+            float inside = (t > 0.0 && t < aAxis.w) ? smoothstep(-2.0, 2.0, rc - rr) : 0.0;
+            vF = aFade * (1.0 - 0.92 * inside);
+            gl_Position = projectionMatrix * viewMatrix * wp;
+          }`,
+        fragmentShader: `varying float vF; varying vec3 vN; varying vec3 vV;
+          void main() { float e = abs(dot(normalize(vN), normalize(vV))); gl_FragColor = vec4(vec3(1.0, 1.0, 0.95) * vF * 1.5 * e * e, 1.0); }`,
+      });
+      const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.renderOrder = 6; g.add(m); }
   },
 
   // ============================================================ the scoreboard

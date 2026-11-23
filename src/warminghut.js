@@ -409,7 +409,7 @@ feature({
       sheared(ins, M.pine, x0, x1, y0, 0.012, RZ0, RZ1, slope);
       sheared(out, M.trim, x0, x1, y0 + 0.012, 0.15, RZ0, RZ1, slope);
       const sx0 = s < 0 ? -EX - 0.03 : 0, sx1 = s < 0 ? 0 : EX + 0.03;
-      sheared(out, M.snow, sx0, sx1, under(sx0) + 0.16, RT - 0.16, RZ0 - 0.03, RZ1 + 0.03, slope, null, 0.25);
+      sheared(out, M.snow, sx0, sx1, under(sx0) + 0.162, RT - 0.162, RZ0 - 0.03, RZ1 + 0.03, slope, null, 0.25);      // (on the boards, not 2 mm into them: their ends at the ridge would fight)
       // fascia at the eaves, barge boards down the gables
       box(out, M.trim, s * EX - (s > 0 ? 0 : 0.04), s * EX + (s > 0 ? 0.04 : 0), under(EX) - 0.05, under(EX) + 0.16, RZ0 - 0.04, RZ1 + 0.04);
       for (const z of [RZ0 - 0.04, RZ1]) sheared(out, M.trim, x0, x1, y0 - 0.07, 0.23, z, z + 0.04, slope);

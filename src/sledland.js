@@ -251,9 +251,25 @@ export function buildLand() {
     const a = j * W + i, lo = Math.min(h[a], h[a + 1], h[a + W], h[a + W + 1]), hi = Math.max(h[a], h[a + 1], h[a + W], h[a + W + 1]);
     return s < lo ? lo : s > hi ? hi : s;
   };
+  // The steps (sledhill.js) rise in one straight line from the cross path to the top tread, `stairTop` high, but the
+  // hill's crest is rounder than that and its foot is eased in under it: so the ground is cut and filled to the line
+  // through the risers' feet (a couple of centimetres under it), and eased back into the hill either side. Every tread
+  // stands clear of the snow, and the car rides the nosings, not the snow.
+  const stairTop = heightAt(STAIR.x, STAIR.z1 - 0.3);
+  { const st = STAIR, len = st.z1 - st.z0, CORE = 1.05, SIDE = 1.25;
+    for (let j = 0; j <= nz; j++) {
+      const z = z0 + j * step; if (z < st.z0 - 0.6 || z > st.z1 + 1.2) continue;
+      const lineH = Math.max(0, Math.min(stairTop, stairTop * (z - st.z0) / len)) - 0.02;
+      const wz = z < st.z0 ? smooth((z - st.z0 + 0.6) / 0.6) : z > st.z1 ? 1 - smooth((z - st.z1) / 1.2) : 1;
+      for (let i = 0; i <= nx; i++) {
+        const ad = Math.abs(x0 + i * step - st.x); if (ad > CORE + SIDE) continue;
+        const n = j * W + i, w = wz * (1 - smooth((ad - CORE) / SIDE));
+        h[n] += (Math.max(0, lineH) - h[n]) * w;
+      }
+    } }
   const node = (x, z) => { const i = Math.round((x - x0) / step), j = Math.round((z - z0) / step); return i < 0 || j < 0 || i > nx || j > nz ? -1 : j * W + i; };
   let top = 0; for (let n = 0; n < N; n++) if (h[n] > top) top = h[n];
-  return { ...LAND, W, h, kind, tan, along, gap, run, path, stair, runLen, pathLen, tun, heightAt, heightTri, node, top, x1: x0 + nx * step, z1: z0 + nz * step };
+  return { ...LAND, W, h, kind, tan, along, gap, run, path, stair, stairTop, runLen, pathLen, tun, heightAt, heightTri, node, top, x1: x0 + nx * step, z1: z0 + nz * step };
 }
 // Long low drifts the wind has laid on the open faces: [x, z, length, width, angle, height].
 const DRIFTS = [[314, 132, 7, 2.2, 0.7, 0.35], [349, 129, 8, 2.4, 0.6, 0.3], [366, 141, 5, 1.8, 0.9, 0.28], [324, 163, 5, 1.8, 0.8, 0.3], [349, 167, 4, 1.4, 0.4, 0.22], [328, 191, 7, 2.2, 0.7, 0.3], [352, 193, 6, 2, 0.5, 0.25], [371, 170, 4, 1.6, 1.0, 0.22], [341, 151, 4, 1.3, 0.2, 0.2]];

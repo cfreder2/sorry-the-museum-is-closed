@@ -42,15 +42,16 @@ export class Bulbs {
 // figure (or of the whole show) merged into one mesh. Colours above 1 glow under the bloom.
 export class Wire {
   constructor(r = 0.028) { this.r = r; this.pos = []; this.col = []; }
-  stroke(pts, col, M = null, r = this.r) {
+  // (sides: round the wire, 4 unless asked for more; something seen close to, like a bow, wants 8)
+  stroke(pts, col, M = null, r = this.r, sides = 4) {
     const v = pts.map(p => { const q = new THREE.Vector3(p[0], p[1], p[2] || 0); return M ? q.applyMatrix4(M) : q; });
     const d = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), alt = new THREE.Vector3(1, 0, 0);
     for (let i = 0; i < v.length - 1; i++) {
       const p0 = v[i], p1 = v[i + 1]; d.subVectors(p1, p0); if (d.lengthSq() < 1e-8) continue; d.normalize();
       a.crossVectors(d, Math.abs(d.y) > 0.9 ? alt : up).normalize(); b.crossVectors(d, a).normalize();
-      const off = [a.clone().multiplyScalar(r), b.clone().multiplyScalar(r), a.clone().multiplyScalar(-r), b.clone().multiplyScalar(-r)];
-      for (let s = 0; s < 4; s++) {
-        const o0 = off[s], o1 = off[(s + 1) % 4], A = p0.clone().add(o0), B = p0.clone().add(o1), C = p1.clone().add(o1), D = p1.clone().add(o0);
+      const off = Array.from({ length: sides }, (_, s) => { const t = TAU * s / sides; return a.clone().multiplyScalar(r * Math.cos(t)).addScaledVector(b, r * Math.sin(t)); });
+      for (let s = 0; s < sides; s++) {
+        const o0 = off[s], o1 = off[(s + 1) % sides], A = p0.clone().add(o0), B = p0.clone().add(o1), C = p1.clone().add(o1), D = p1.clone().add(o0);
         for (const q of [A, B, C, A, C, D]) { this.pos.push(q.x, q.y, q.z); this.col.push(col[0], col[1], col[2]); }
       }
     }
@@ -58,11 +59,11 @@ export class Wire {
   // Strokes drawn in a figure's plane (x along, y up), doubled at ±depth with ties across every few points: a wire frame.
   frame(strokes, depth, M) {
     for (const s of strokes) {
-      const { pts, col, d = depth, ties = 3 } = s;
+      const { pts, col, d = depth, ties = 3, r = this.r, sides = 4 } = s;
       if (d > 0) {
-        this.stroke(pts.map(p => [p[0], p[1], d]), col, M); this.stroke(pts.map(p => [p[0], p[1], -d]), col, M);
-        for (let i = 0; i < pts.length; i += ties) this.stroke([[pts[i][0], pts[i][1], d], [pts[i][0], pts[i][1], -d]], col, M);
-      } else this.stroke(pts.map(p => [p[0], p[1], p[2] || 0]), col, M);
+        this.stroke(pts.map(p => [p[0], p[1], d]), col, M, r, sides); this.stroke(pts.map(p => [p[0], p[1], -d]), col, M, r, sides);
+        for (let i = 0; i < pts.length; i += ties) this.stroke([[pts[i][0], pts[i][1], d], [pts[i][0], pts[i][1], -d]], col, M, r, sides);
+      } else this.stroke(pts.map(p => [p[0], p[1], p[2] || 0]), col, M, r, sides);
     }
   }
   mesh() {
