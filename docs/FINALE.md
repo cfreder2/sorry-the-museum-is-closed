@@ -215,12 +215,22 @@ Along the way:
 
 **The story API** (`import { story } from './story.js'`, also `G.story`): `story.add(id)` (true the first time; toast
 and sting), `story.has(id)`, `story.count`, `story.total`, `story.open()`, `story.enable(id)`, `story.heard`. Page ids:
-`grate`, `lights`, `ring`, `nests`, `desk`, `passage`, `sublevel9`, `alienracer`, `base`.
+`grate`, `lights`, `ring`, `portal`, `nests`, `desk`, `passage`, `sublevel9`, `alienracer`, `base`.
 
 **For the alien racer** (the race spots): `alienracer` is an optional page, "The green racer's charm". At its init the
 race module calls `story.enable('alienracer')` (until then the file counts 8 pages, after it 9); when the alien racer is
 beaten, `story.add('alienracer')`. Its page says the charm hums when it faces the park, and once it is found the map's
 `?` goes on the rings over the silo.
+
+**The penguins' portal** (`src/tuxportal.js`, built into the Tuxedo Shop on the sledding hill by `src/sledhill.js`):
+why there are penguins at all. Behind the shop's rack of penguin-sized tuxedos a wormhole turns at the back of the room,
+green, its rim running through the call's five colours. A penguin due flares it and pops out, shakes itself and waddles
+out of the door; now and then it shrinks and flickers as if forced shut, and opens again. The toy can drive in (a plank
+ramp; the door opens for it). Pinned beside it, the groundskeeper's note, "I don't know what to do about these
+penguins. ... — G.": he shuts it, it opens; worse when that tune plays; the snow on the ballfield melts in rings. Reading
+it is the optional page `portal`, "The groundskeeper's note" (enabled at the shop's init, so the file counts it), and
+puts the map's `?` on the rings over the silo if they are not yet found. GO IN at the portal spits the toy out at the
+bottom of the sled run.
 
 ## Open choices (decided for now; easy to change)
 

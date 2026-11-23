@@ -41,6 +41,7 @@ export const ENTRIES = [
   { id: 'grate', title: 'Five notes from below', line: 'A grate in the lobby, lit green from underneath. Far down, five notes, over and over. Like a call.', hint: 'Listen at the glowing grate in the lobby.' },
   { id: 'lights', title: 'Lights over the lake', line: 'A green light fell towards the park. Not a sound.', hint: 'Watch the sky over the lake.' },
   { id: 'ring', title: 'Rings in the snow', line: 'Rings melted into Butler Field, five marks round them, five colours. The call again, under the snow.', hint: 'Where did the light come down?' },
+  { id: 'portal', optional: true, title: 'The groundskeeper’s note', line: 'Pinned beside a hole in the air at the back of the Tuxedo Shop: “I don’t know what to do about these penguins.”  — G.', hint: 'Where do the penguins come from?' },      // (src/tuxportal.js)
   { id: 'nests', title: 'The chewed file', line: n => `TOP SECRET pages the mice carried up from somewhere. ${n} of 5 nests.`, hint: 'Follow a glowing mouse home.' },
   { id: 'desk', title: 'The Director’s desk', line: '“The way down is behind a painting.”  — D.', hint: 'The mice have the Director’s key.' },
   { id: 'passage', title: 'Behind the painting', line: 'Stone on stone. A way through, and it goes down.', hint: 'The Director’s whiteboard names a picture.' },
@@ -404,7 +405,7 @@ feature({
     const k = this.k, G = k.G, out = [];
     if (story.count) {
       const s = this.silo;
-      if (s && (story.has('lights') || story.has('alienracer')) && !story.has('ring')) out.push({ x: s.cx, y: 0, z: s.cz });
+      if (s && (story.has('lights') || story.has('alienracer') || story.has('portal')) && !story.has('ring')) out.push({ x: s.cx, y: 0, z: s.cz });      // (the groundskeeper's note says the snow there melts in rings)
       const q = this._next(); if (q) out.push(q);
     }
     const key = out.map(q => `${q.x.toFixed(1)},${q.z.toFixed(1)}`).join('|');
