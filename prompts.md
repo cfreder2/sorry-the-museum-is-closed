@@ -942,3 +942,11 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 219
 
 > I think the UFO will stay in front of you. If you drive toward it, it will move slightly outward. If you stand still, it will remain stationary. When you go outside, you'll see it fly through the areas and head to the lighthouse.
+
+## 220
+
+> The rooftop party should feature signs that read "Welcome to Earth", like an Independence Day event, with the fireworks.
+
+## 221
+
+> Add signs, drinks, and champagne to create a party atmosphere up there that says, "Welcome to Earth."
