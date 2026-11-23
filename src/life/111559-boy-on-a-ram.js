@@ -21,17 +21,18 @@ import { strokes } from './brush.js';
 import { score, Bones, hump, turnTo, noise } from './stagecraft.js';
 
 const TAU = Math.PI * 2;
-const SC = 1.08, LS = 1.1, BOY = 1.1;                      // the ram (and the boy on it), the lambs
-const OUT = 2.05, HALF = 1.5;                   // his path on the floor: out from the wall, either side of the middle (m)
+const SC = 1.2, LS = 1.42, BOY = 1.1;           // the ram (and the boy on it: 0.76 m to the top of his hat), the lambs
+const OUT = 1.7, HALF = 1.3;                    // the floor the ground may cover: out from the wall, either side of the middle (m)
+const PATCH = { u: -0.02, out: 0.74, ru: 1.16, ro: 0.72 };     // his ground: its middle and its reach (along, out)
 const HOME = -0.16;                             // where the ram comes out from under the picture (along the wall)
 const T_OUT = 0.55, T_HALT = 4.0, T_BLEAT = 4.55, BLEAT = 1.1, T_GO = 6.75;
-const TL = [5.75, 6.05, 6.35], LAMB_IN = 1.2, LAMB_U = [0.04, -0.28, -0.56];
+const TL = [5.75, 6.05, 6.35], LAMB_IN = 1.2, LAMB_U = [0.06, -0.3, -0.62];
 const BPM = 132, BEAT = 60 / BPM, T_MUS = 6.6;
-const V = 0.29, STRIDE = 2 * V * BEAT;          // on the loop the ram trots one step to a beat
-const GAP0 = 0.4, GAP = 0.27;                    // the lambs behind the ram, and behind each other
-const RAM = { x: 0, y: 0.18, z: 0 };
+const V = 0.3, STRIDE = 2 * V * BEAT;           // on the loop the ram trots one step to a beat
+const GAP0 = 0.5, GAP = 0.32;                    // the lambs behind the ram, and behind each other
+const CAM = [0.12, 2.45];                        // the look camera, along and out: the boy turns to it
 // The way out (along, out) to where it stops broadside, and the round it leads the lambs (closed; starts where it stopped).
-const LOOP = [[0.34, 0.86], [0.68, 1.02], [0.66, 1.4], [0.12, 1.56], [-0.5, 1.42], [-0.74, 1.04], [-0.46, 0.72], [-0.02, 0.7]];
+const LOOP = [[0.34, 0.95], [0.7, 1.02], [0.74, 1.16], [0.2, 1.22], [-0.45, 1.18], [-0.8, 1.0], [-0.56, 0.8], [-0.04, 0.8]];
 // Christian Petzold, Minuet in G (1725), the melody and a bass a bar, on a pipe and a plucked string.
 const MIN = 'D5 G4:.5 A4:.5 B4:.5 C5:.5 | D5 G4 G4 | E5 C5:.5 D5:.5 E5:.5 F#5:.5 | G5 G4 G4 | C5 D5:.5 C5:.5 B4:.5 A4:.5 | B4 C5:.5 B4:.5 A4:.5 G4:.5 | F#4 G4:.5 A4:.5 B4:.5 G4:.5 | A4:3 |'
   + ' D5 G4:.5 A4:.5 B4:.5 C5:.5 | D5 G4 G4 | E5 C5:.5 D5:.5 E5:.5 F#5:.5 | G5 G4 G4 | C5 D5:.5 C5:.5 B4:.5 A4:.5 | B4 C5:.5 B4:.5 A4:.5 G4:.5 | A4 B4:.5 A4:.5 G4:.5 F#4:.5 | G4:3';
@@ -42,7 +43,7 @@ const smoothStart = (x, a) => (x <= 0 ? 0 : x < a ? (x * x) / (2 * a) : x - a / 
 lifeFor(111559, {
   title: /^Boy on a Ram/,
   word: 'bleat',
-  stage: { out: 1.8, half: 1.4, cam: { dist: 2.8, height: 0.6, side: 0.38, fov: 60, lookU: 0.0, lookOut: 0.95, lookH: 0.63 } },
+  stage: { out: 1.6, half: 1.3, cam: { dist: CAM[1], height: 0.76, side: CAM[0], fov: 66, lookU: 0.16, lookOut: 0.9, lookH: 0.8 } },
   wake: 2, ret: 2.6,
 
   build(L) {
@@ -53,49 +54,51 @@ lifeFor(111559, {
     const M = () => new THREE.Matrix4();
     this.M = { root: M(), head: M(), jaw: M(), bell: M(), knot: M(), up: [M(), M(), M(), M()], lo: [M(), M(), M(), M()], seat: M(), torso: M(), arm: M(), hat: M(), legL: M(), legR: M(), lamb: [M(), M(), M()], ll: [0, 1, 2].map(() => [M(), M(), M(), M()]) };
 
-    // ---------------------------------------------------------- his path, out of the foot of the wall
+    // ---------------------------------------------------------- his ground, spilled out of the foot of the picture
+    // A patch of the picture's own sandy ochre (sampled from its foreground), only under where they go: his dabs laid
+    // one way, a scumbled olive margin, and an edge that wanders and breaks up stroke by stroke. A tongue of it runs
+    // back under the frame, where it comes from.
     const sand = strokes({
-      size: 512, seed: 111559, n: 2600, len: [16, 42], width: [5, 12], bend: 0.35, lift: 0.22, base: col('#c4ad86').getStyle(),
-      colors: [['#cdb892', 3], ['#c2aa84', 3], ['#b89c78', 2], ['#d6c4a2', 2], ['#c8a892', 1.2], ['#ae9474', 1.2], ['#a89c82', 0.8], ['#d0b494', 1]].map(([c, w]) => [col(c).getStyle(), w]),
-      angle: (x, y, r) => (r() - 0.5) * 0.9 + 0.3,
+      size: 512, seed: 111559, n: 3200, len: [10, 26], width: [7, 13], bend: 0.3, lift: 0.18, base: col('#947e53', 0.1).getStyle(),
+      colors: [['#9c8558', 3], ['#8c774e', 3], ['#a68e5e', 2.4], ['#b09566', 1.6], ['#857048', 1.6], ['#bca274', 0.7], ['#8e8064', 0.9], ['#a0805a', 0.9]].map(([c, w]) => [col(c, 0.1).getStyle(), w]),
+      angle: (x, y, r) => (r() - 0.5) * 0.45 + 0.35,
     });
     const green = strokes({
-      size: 256, seed: 1786, n: 1300, len: [10, 30], width: [5, 11], bend: 0.5, lift: 0.2, base: col('#5d6b48', 0.2).getStyle(),
-      colors: [['#6f7f55', 3], ['#55683f', 3], ['#8a9466', 2], ['#4a5c3c', 2], ['#5f8a86', 1.2], ['#7a8a62', 1.5], ['#9aa47a', 0.8], ['#4d4630', 0.8]].map(([c, w]) => [col(c, 0.2).getStyle(), w]),
-      angle: (x, y, r) => r() * TAU,
+      size: 256, seed: 1786, n: 1300, len: [12, 30], width: [5, 11], bend: 0.35, lift: 0.15, base: col('#55603e', 0.2).getStyle(),
+      colors: [['#606c46', 3], ['#4e5c3a', 3], ['#727a52', 2], ['#46523a', 2], ['#56766e', 1], ['#7a7450', 1.5], ['#5a4e34', 1.2]].map(([c, w]) => [col(c, 0.2).getStyle(), w]),
+      angle: (x, y, r) => (r() - 0.5) * 0.6 + 0.35,
     });
     {
       const F = (u, o) => L.floor(u, o, V3()).toArray(), pos = [];
       const a = F(-HALF, -L.wall), b = F(HALF, -L.wall), c = F(HALF, OUT), d = F(-HALF, OUT);
       pos.push(...a, ...b, ...c, ...a, ...c, ...d);
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      const u = this.u = { uSpread: { value: 0 }, tSand: { value: sand }, tGreen: { value: green }, uO: { value: L.floor(0, -L.wall) }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uSize: { value: new THREE.Vector2(HALF, OUT + L.wall) }, uHome: { value: HOME } };
+      const u = this.u = { uSpread: { value: 0 }, tSand: { value: sand }, tGreen: { value: green }, uO: { value: L.floor(0, -L.wall) }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uC: { value: new THREE.Vector4(PATCH.u, PATCH.out, PATCH.ru, PATCH.ro) }, uHome: { value: HOME } };
       const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
       m.onBeforeCompile = sh => {
         Object.assign(sh.uniforms, u);
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform float uSpread, uHome; uniform vec3 uO; uniform vec4 uAx; uniform vec2 uSize; uniform sampler2D tSand, tGreen; vec3 fCol; float fA;')
+          .replace('#include <common>', '#include <common>\nuniform float uSpread, uHome; uniform vec3 uO; uniform vec4 uAx, uC; uniform sampler2D tSand, tGreen; vec3 fCol; float fA;')
           .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec2 lq = lifeP.xz - uO.xz; float su = dot(lq, uAx.xy), so = dot(lq, uAx.zw);
-  vec4 s1 = texture2D(tSand, vec2(su, so) / 0.95), s2 = texture2D(tSand, vec2(su, so) / 2.1 + 0.27), g1 = texture2D(tGreen, vec2(su, so) / 0.75 + 0.41);
-  // the path: wandering a little, widening towards you; its edges go to his scumbled greens
-  float cl = uHome + 0.2 + 0.16 * sin(so * 1.7 + 0.4), wdt = 0.62 + 0.3 * so;
-  float edge = abs(su - cl) - wdt + (g1.a - 0.55) * 0.42 + (s1.a - 0.55) * 0.12;
-  float onPath = 1.0 - smoothstep(-0.05, 0.05, edge);
-  vec3 c = mix(g1.rgb, mix(s1.rgb, s2.rgb, 0.3), onPath);
-  // the soft light of his sky on the middle of it, cooler at the edges
-  float lit = exp(-(pow((su - cl) / 1.1, 2.0) + pow((so - 0.7) / 1.3, 2.0)));
-  c *= mix(vec3(0.74, 0.77, 0.84), vec3(0.98, 0.94, 0.86), lit);
-  float id = mix(g1.a, s1.a, onPath);
-  float rr = pow(pow(abs(su) / uSize.x, 3.0) + pow(max(so, 0.0) / uSize.y, 3.0), 1.0 / 3.0);
-  float grow = length(vec2((su - uHome) / uSize.x, so / uSize.y));
-  fA = smoothstep(0.0, 0.03, uSpread * 1.25 - (grow * 0.8 + id * 0.2)) * (1.0 - smoothstep(0.8, 0.97, rr + (id - 0.55) * 0.25)) * (0.55 + 0.4 * onPath);
+  vec4 s1 = texture2D(tSand, vec2(su, so) / 0.8), s2 = texture2D(tSand, vec2(su, so) / 1.9 + 0.27), g1 = texture2D(tGreen, vec2(su, so) / 0.6 + 0.41);
+  // its outline: an irregular round, wandering, with a tongue back under the frame; broken by the strokes themselves
+  vec2 d = vec2((su - uC.x) / uC.z, (so - uC.y) / uC.w); float ang = atan(d.y, d.x), rr = length(d);
+  float wob = 1.0 + 0.15 * sin(3.0 * ang + 1.3) + 0.09 * sin(5.0 * ang + 0.4) + 0.05 * sin(9.0 * ang + 2.1);
+  float e = rr / wob - 0.45 * exp(-max(so, 0.0) / 0.3) * exp(-pow((su - uHome) / 0.5, 2.0)) + (s1.a - 0.55) * 0.3 + (g1.a - 0.55) * 0.18;
+  float core = 1.0 - smoothstep(0.66, 0.74, e), rim = 1.0 - smoothstep(0.8, 0.9, e);
+  vec3 c = mix(g1.rgb * 0.9, mix(s1.rgb, s2.rgb, 0.3), core);
+  // his soft light on the middle of it, a little cooler and darker towards its edge
+  c *= mix(0.86, 1.04, exp(-rr * rr * 1.6));
+  float id = mix(g1.a, s1.a, core);
+  float grow = length(vec2((su - uHome) / uC.z, so / uC.w));
+  fA = smoothstep(0.0, 0.03, uSpread * 1.35 - (grow * 0.8 + id * 0.2)) * rim * mix(0.6, 0.94, core);
   fCol = c;
 }`)
           .replace('#include <opaque_fragment>', '  outgoingLight = fCol; diffuseColor.a = fA;\n#include <opaque_fragment>');
       };
-      m.customProgramCacheKey = () => 'goya-path';
+      m.customProgramCacheKey = () => 'goya-ground';
       this.path = new THREE.Mesh(g, m); this.path.position.y = 0.016; this.path.renderOrder = 5; L.add(this.path);
     }
 
@@ -200,7 +203,7 @@ lifeFor(111559, {
     {
       const BODY = [[0, 0.24, -0.01], [0.112, 0.108, 0.195]], CHEST = [[0, 0.27, 0.13], [0.092, 0.102, 0.09]], RUMP = [[0, 0.255, -0.13], [0.104, 0.1, 0.09]];
       const smoothFleece = g => vpaint(g, v => fleeceTone(V3(v.x, v.y - 0.24, v.z * 0.6).normalize()).clone().multiplyScalar(0.8));
-      const parts = [smoothFleece(ell(...BODY, under, 3)), smoothFleece(ell(...CHEST, under)), smoothFleece(ell(...RUMP, under))];
+      const parts = [smoothFleece(ell(...BODY, under, 2)), smoothFleece(ell(...CHEST, under)), smoothFleece(ell(...RUMP, under))];
       const all = [BODY, CHEST, RUMP], wl = [];
       const WL = { l: [0.022, 0.034], w: [0.018, 0.027], lift: [0.12, 0.34] };
       wl.push(...fleece(...BODY, 880, ramWool, { ...WL, keep: p => !inside(p, [CHEST, RUMP]) }));
@@ -216,39 +219,58 @@ lifeFor(111559, {
     }
     let gold0;
     {
-      // the head, from the top of the neck: a woolly neck, a long Roman-nosed face, amber eyes, curled horns, his
-      // yellow collar
-      const face = col('#3a2a20'), bridge = col('#4e382a'), nose = col('#5a3024', 0.1);
-      const NECK = [[0, -0.02, -0.03], [0.064, 0.078, 0.072]], SKULL = [[0, 0.035, 0.045], [0.05, 0.054, 0.056]];
-      const parts = [ell(...NECK, under), ell(...SKULL, face)];
-      const muzzle = ell([0, 0.006, 0.094], [0.031, 0.038, 0.046], face, 2, 0.5);
-      shape.paint(muzzle, (c, n) => (n.y > 0.5 && c.z < 0.12 ? bridge : c.z > 0.128 && c.y < 0.0 ? nose : null)); parts.push(muzzle);
-      parts.push(ell([0, -0.016, 0.1], [0.018, 0.008, 0.028], col('#5a2420', 0.1), 1, 0.5));          // the mouth, seen when it opens
+      // the head, from the top of the neck: a woolly neck and poll, a long Roman-nosed face sloping down to a soft muzzle,
+      // amber eyes set back high on the side, ears drooping out sideways, and the horns, heavy ridged spirals curling
+      // back, down and forward beside the head; his yellow collar
+      const NECK = [[0, -0.02, -0.03], [0.064, 0.078, 0.072]], CRAN = [[0, 0.04, 0.025], [0.046, 0.05, 0.05]];
+      const FD = col('#2c2119'), FM = col('#47342a'), FL = col('#6e5038');
+      // the face lit as he lights it: warm along the bridge and the lit cheek, dark beneath
+      const faceTone = (v, C) => { const n = V3(v.x - C[0], v.y - C[1], v.z - C[2]).normalize(), k = n.dot(KEY) + 0.25 * n.y; return (k < 0.1 ? FD.clone().lerp(FM, THREE.MathUtils.smoothstep(k, -0.5, 0.1)) : FM.clone().lerp(FL, THREE.MathUtils.smoothstep(k, 0.1, 0.9))); };
+      const facePart = (C, R, rx = 0) => vpaint(ell(C, R, FM, 2, rx), v => faceTone(v, C));
+      const parts = [ell(...NECK, under), facePart(...CRAN)];
+      parts.push(facePart([0, 0.0, 0.08], [0.034, 0.042, 0.064], 0.66));                 // the long face
+      parts.push(facePart([0, 0.026, 0.074], [0.026, 0.03, 0.056], 0.5));             // the Roman nose, arched
+      parts.push(facePart([0, -0.03, 0.114], [0.023, 0.025, 0.024]));                   // the muzzle
+      for (const s of [-1, 1]) parts.push(ell([s * 0.009, -0.03, 0.138], [0.004, 0.006, 0.003], col('#1a120e', 0.05), 1, 0.4));     // nostrils
+      parts.push(ell([0, -0.05, 0.11], [0.016, 0.007, 0.026], col('#5a2420', 0.1), 1, 0.55));          // the mouth, seen when it opens
       for (const s of [-1, 1]) {
-        parts.push(ell([s * 0.037, 0.046, 0.083], [0.009, 0.009, 0.007], col('#c08436', 0.1), 1));          // his amber eyes
-        parts.push(ell([s * 0.0425, 0.046, 0.087], [0.0035, 0.0055, 0.004], col('#140e0a', 0.05), 1));
-        parts.push(shape.move(ell([0, 0, 0], [0.028, 0.009, 0.014], col('#4a3426'), 1), s * 0.056, 0.03, 0.02, 0, 0, -s * 0.55));
-        // a horn: a heavy curl out and back and down round the ear, and forward, ridged
-        const pts = [], N = 26, turns = 2.25 * Math.PI;
-        for (let i = 0; i <= N; i++) { const q = i / N, a = q * turns, r = 0.046 * (1 - 0.58 * q); pts.push(V3(s * (0.03 + 0.058 * Math.sqrt(q)), 0.018 + r * Math.cos(a), -0.012 - r * Math.sin(a))); }
-        const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 1, 7, false), tp = tube.attributes.position, tn = tube.attributes.normal;
+        parts.push(ell([s * 0.041, 0.047, 0.05], [0.007, 0.0095, 0.0095], col('#c08436', 0.1), 1));          // his amber eyes, set back
+        parts.push(ell([s * 0.0455, 0.047, 0.051], [0.003, 0.0032, 0.0066], col('#140e0a', 0.05), 1));
+        parts.push(ell([s * 0.042, 0.056, 0.05], [0.007, 0.003, 0.011], FL, 1));                             // the brow over it
+        parts.push(shape.move(vpaint(ell([0, 0, 0], [0.034, 0.008, 0.015], FM, 2), v => (v.y > 0 ? FM : FD)), s * 0.062, 0.03, 0.012, 0, s * 0.25, -s * 0.62));     // the ear, drooping
+        // a horn: a heavy ridged spiral, from the top of the head back, down round the ear and forward, beside the head
+        const pts = [], N = 30, turns = 1.85 * Math.PI;
+        for (let i = 0; i <= N; i++) { const q = i / N, a = q * turns, r = 0.054 * (1 - 0.6 * q); pts.push(V3(s * (0.036 + 0.066 * Math.sqrt(q)), 0.026 + r * Math.cos(a), -0.004 - r * Math.sin(a))); }
+        const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 1, 8, false), tp = tube.attributes.position, tn = tube.attributes.normal;
         for (let i = 0; i < tp.count; i++) {      // (tapering: the tube's radius 1, scaled down along it)
-          const seg = Math.floor(i / 8) / 40, r = 0.017 * (1 - 0.7 * seg), c = new THREE.Vector3(), q = Math.min(1, seg); tube.parameters.path.getPointAt(q, c);
+          const seg = Math.floor(i / 9) / 48, r = 0.024 * (1 - 0.68 * seg), c = new THREE.Vector3(); tube.parameters.path.getPointAt(Math.min(1, seg), c);
           tp.setXYZ(i, c.x + tn.getX(i) * r, c.y + tn.getY(i) * r, c.z + tn.getZ(i) * r);
         }
-        const horn = own(tube, col('#86704e'));
-        shape.paint(horn, (c, n, f) => (Math.floor(f / 14) % 3 === 0 ? col('#76623f') : n.y > 0.3 ? col('#9e8a66') : null));
+        const horn = own(tube, col('#9a8460'));
+        shape.paint(horn, (c, n, f) => (Math.floor(f / 16) % 2 === 0 ? col('#7a6646') : n.dot(KEY) > 0.3 ? col('#bca880') : null));
         parts.push(horn);
       }
       // wool on the poll and down the neck
-      const wl = [...fleece(...NECK, 230, ramWool, { l: [0.02, 0.03], w: [0.017, 0.025], lift: [0.12, 0.34], keep: p => !inside(p, [SKULL]) }), ...fleece(...SKULL, 60, ramWool, { keep: (p, n) => n.z < 0.15 && n.y > -0.1, l: [0.018, 0.028], w: [0.016, 0.024] })];
+      const wl = [...fleece(...NECK, 230, ramWool, { l: [0.02, 0.03], w: [0.017, 0.025], lift: [0.12, 0.34], keep: p => !inside(p, [CRAN], 1.0) }), ...fleece(...CRAN, 70, ramWool, { keep: (p, n) => n.z < 0.05 && n.y > -0.1 && Math.abs(n.x) < 0.75, l: [0.018, 0.028], w: [0.016, 0.024] })];
       parts.push(dabs(wl));
-      parts.push(curls(fleece(...NECK, 90, curlTone, { l: [0, 0], w: [0.005, 0.008], curl: 0.009, grow: 1.08, keep: (p, n) => lightKeep(p, n) && !inside(p, [SKULL], 1.1) })));
-      // his collar, yellow cloth knotted round the neck
-      const gold = ['#b49a48', '#c8ae58', '#9e8640', '#d4bc6a'].map(c => col(c, 0.1)); gold0 = gold[1]; const cn = V3(0, Math.cos(0.75), -Math.sin(0.75));
-      parts.push(dabs(fleece(...NECK, 1400, (n, p, r) => pick(gold, r), { grow: 1.1, l: [0.022, 0.032], w: [0.01, 0.016], lift: [0.05, 0.2], keep: p => p.z > 0.0 && Math.abs(V3(p.x, p.y + 0.05, p.z + 0.01).dot(cn)) < 0.011, dir: () => cn })));
+      parts.push(curls(fleece(...NECK, 90, curlTone, { l: [0, 0], w: [0.005, 0.008], curl: 0.009, grow: 1.08, keep: (p, n) => lightKeep(p, n) && !inside(p, [CRAN], 1.1) })));
+      // his collar: a band of yellow cloth round the neck, a fold where it gathers at the throat
+      const gold = ['#b49a48', '#c8ae58', '#9e8640', '#d4bc6a'].map(c => col(c, 0.1)); gold0 = gold[1];
+      {
+        const NA = 40, NV = 6, pos = [], idx = [];
+        for (let i = 0; i <= NA; i++) for (let j = 0; j <= NV; j++) {
+          const th = (i / NA) * TAU, v = j / NV, front = Math.exp(-Math.pow(Math.atan2(Math.sin(th - Math.PI / 2), Math.cos(th - Math.PI / 2)) / 0.3, 2));
+          const bulge = 1 + 0.07 * Math.sin(Math.PI * v) + 0.1 * front * Math.sin(Math.PI * v) * (1 + 0.5 * Math.sin(v * TAU * 1.5));
+          pos.push(Math.cos(th) * 0.069 * bulge, (v - 0.5) * 0.026 - 0.012 * front, Math.sin(th) * 0.08 * bulge);
+        }
+        for (let i = 0; i < NA; i++) for (let j = 0; j < NV; j++) { const a = i * (NV + 1) + j, b = a + NV + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+        const band = own(g, gold[0]); shape.move(band, 0, -0.05, -0.012, -0.75, 0, 0);
+        vpaint(band, v => gold[1].clone().lerp(gold[2], 0.5 + 0.5 * Math.sin(v.x * 160 + v.z * 40)).lerp(gold[3], THREE.MathUtils.smoothstep(v.y, -0.06, -0.02) * 0.4));
+        parts.push(band);
+      }
       this.gHead = rig.geo(shape.merge(parts));
-      this.gJaw = rig.geo(ell([0, -0.006, 0.034], [0.022, 0.0095, 0.042], face, 1, 0.3));
+      this.gJaw = rig.geo(vpaint(ell([0, -0.012, 0.036], [0.02, 0.01, 0.038], FM, 2, 0.55), () => FD));
       // the bell, silver, hanging from the knot
       const bell = shape.lathe([[0.003, 0.004], [0.007, 0], [0.012, -0.006], [0.0155, -0.02], [0.019, -0.033], [0.023, -0.04], [0.0001, -0.04]], 14, col('#cfcfc6', 0.05));
       shape.paint(bell, (c, n) => (n.x < -0.3 && n.z > -0.2 ? col('#f4f2ea', 0.05) : n.x > 0.5 ? col('#8a8a84', 0.05) : c.y < -0.037 ? col('#4a4a46', 0.05) : null));
@@ -265,17 +287,17 @@ lifeFor(111559, {
     }
 
     // ---------------------------------------------------------- the boy
-    const jacket = ['#c45a32', '#d0683a', '#b84e2c', '#dc7a44'].map(c => col(c)), stripe = ['#233024', '#1a2218', '#2e3a2a'].map(c => col(c)), sash = col('#c97a7a', 0.1), sashHi = col('#e0a0a0', 0.1);
+    const jacket = ['#c45a32', '#d0683a', '#b84e2c', '#dc7a44'].map(c => col(c)), stripe = ['#34452f', '#2c3b2a', '#3e4c36', '#47503a'].map(c => col(c, 0.1)), sash = col('#c97a7a', 0.1), sashHi = col('#e0a0a0', 0.1);
     const white = ['#f2ede2', '#e8e2d4', '#fbf7ee'].map(c => col(c, 0.1)), whiteSh = ['#c8c8cc', '#b8bcc8', '#d4d0c8'].map(c => col(c, 0.1));
     const skin = col('#eec4a2', 0.1), cheek = col('#e49a86', 0.1), hair = ['#a8643a', '#c07a48', '#8e5230'].map(c => col(c, 0.1));
     // his suit: orange-red, warm and cool by turns, crossed by dark green stripes running on the slant, soft-edged
     const SJ = new THREE.Color();
     const striped = c => SJ.copy(jacket[0]).lerp(jacket[3], 0.5 + 0.5 * Math.sin(c.y * 70 + c.x * 50)).lerp(jacket[2], 0.5 * Math.max(0, Math.sin(c.z * 60 - c.x * 30))).clone();
     // the stripes: dark strokes laid along lines running on the slant round the body, and down the sleeves and legs
-    const SG = V3(150, 210, -60), onStripe = p => Math.cos(p.x * SG.x + p.y * SG.y + p.z * SG.z + 0.8 * Math.sin(p.y * 60)) > 0.78;
+    const SG = V3(150, 210, -60), onStripe = p => Math.cos(p.x * SG.x + p.y * SG.y + p.z * SG.z + 0.8 * Math.sin(p.y * 60)) > 0.93 && L.rand() < 0.75;
     const darkTone = (a, b, r) => pick(stripe, r);
-    const bodyStripes = (C, Rr, n) => dabs(fleece(C, Rr, n, darkTone, { grow: 1.03, keep: p => onStripe(p), dir: () => SG, l: [0.02, 0.032], w: [0.006, 0.009], lift: [0.02, 0.06] }));
-    const tubeStripes = (a, b, r0, r1, n, k = 5) => dabs(tubeMarks(a, b, r0 * 1.06, r1 * 1.06, n, darkTone, { keep: (t, ph) => Math.cos(ph * k + t * 4) > 0.72, twist: 0.25, l: [0.018, 0.026], w: [0.005, 0.008] }));
+    const bodyStripes = (C, Rr, n) => dabs(fleece(C, Rr, n, darkTone, { grow: 1.03, keep: p => onStripe(p), dir: () => SG, l: [0.014, 0.026], w: [0.0026, 0.0042], lift: [0.0, 0.03] }));
+    const tubeStripes = (a, b, r0, r1, n, k = 5) => dabs(tubeMarks(a, b, r0 * 1.05, r1 * 1.05, n, darkTone, { keep: (t, ph) => Math.cos(ph * k + t * 4) > 0.9 && L.rand() < 0.8, twist: 0.25, l: [0.014, 0.022], w: [0.0024, 0.0038], lift: [0.0, 0.03] }));
         {
       // the torso, from the seat up: his jacket in its stripes, the pink sash, the great collar, his round face and
       // auburn hair, and his left hand forward on the rope
@@ -283,7 +305,7 @@ lifeFor(111559, {
       parts.push(vpaint(ell(...PEL, jacket[0], 3), striped));
       const trunk = shape.lathe([[0.047, 0.0], [0.049, 0.015], [0.05, 0.03], [0.048, 0.045], [0.047, 0.06], [0.048, 0.076], [0.05, 0.092], [0.053, 0.102], [0.054, 0.11], [0.049, 0.119], [0.04, 0.126], [0.022, 0.13], [0.0001, 0.131]], 28, jacket[0]);
       shape.move(trunk, 0, 0, 0, 0, 0, 0, 1, 1, 0.8); vpaint(trunk, striped); parts.push(trunk);
-      parts.push(bodyStripes([0, 0.065, 0], [0.05, 0.068, 0.04], 900));
+      parts.push(bodyStripes([0, 0.065, 0], [0.05, 0.068, 0.04], 2600));
       const sh = shape.cyl(0.056, 0.055, 0.036, 16, sash); shape.move(sh, 0, 0.046, 0, 0, 0, 0, 1, 1, 0.84); shape.paint(sh, (c, n) => (n.x < -0.3 || c.y > 0.058 ? sashHi : null)); parts.push(sh);
       parts.push(ell([0.05, 0.044, 0.012], [0.016, 0.02, 0.014], sashHi, 1), ell([0.054, 0.024, 0.018], [0.01, 0.022, 0.008], sash, 1));     // the bow of his sash
       // the collar: a ruff of white frills lying out over his shoulders, open in a V at the front
@@ -297,19 +319,30 @@ lifeFor(111559, {
       parts.push(dabs(ruff));
       parts.push(limb([0, 0.12, 0], [0, 0.146, 0.002], 0.016, 0.015, skin));
       const HEAD = [[0, 0.172, 0.004], [0.04, 0.044, 0.04]];
-      parts.push(ell(...HEAD, skin, 3));
-      for (const s of [-1, 1]) parts.push(ell([s * 0.022, 0.164, 0.03], [0.011, 0.008, 0.006], cheek.clone().lerp(skin, 0.35), 1));
-      for (const s of [-1, 1]) { parts.push(ell([s * 0.0145, 0.176, 0.0385], [0.0052, 0.006, 0.0032], col('#3a2418', 0.05), 1)); parts.push(ell([s * 0.015, 0.1865, 0.037], [0.0075, 0.0018, 0.0025], hair[0], 1)); }
-      parts.push(ell([0, 0.159, 0.04], [0.007, 0.0035, 0.003], col('#b65a4c', 0.05), 1), ell([0, 0.169, 0.044], [0.0045, 0.006, 0.004], skin, 1));
+      // (lit from high on the left, warm in the half-shade, the cheeks and the tip of the nose flushed, a soft chin)
+      const skinLit = col('#f6dcc4', 0.05), skinShade = col('#cf9070', 0.08), rose = col('#e48a78', 0.05);
+      parts.push(vpaint(ell(...HEAD, skin, 3), v => {
+        const n = V3((v.x - HEAD[0][0]) / HEAD[1][0], (v.y - HEAD[0][1]) / HEAD[1][1], (v.z - HEAD[0][2]) / HEAD[1][2]).normalize();
+        const k = n.dot(KEY) * 0.6 + n.z * 0.5, c = skinShade.clone().lerp(skin, THREE.MathUtils.smoothstep(k, -0.5, 0.35)).lerp(skinLit, THREE.MathUtils.smoothstep(k, 0.45, 1.0) * 0.7);
+        let r = 0; for (const s of [-1, 1]) r += Math.exp(-(Math.pow(n.x - s * 0.5, 2) + Math.pow(n.y + 0.28, 2) * 1.4) / 0.045);
+        r += 0.5 * Math.exp(-(n.x * n.x + Math.pow(n.y + 0.2, 2)) / 0.01) * Math.max(0, n.z);
+        return c.lerp(rose, Math.min(0.55, r * 0.5));
+      }));
+      for (const s of [-1, 1]) {
+        parts.push(ell([s * 0.0145, 0.177, 0.0378], [0.0046, 0.0052, 0.003], col('#3e2618', 0.05), 1));                 // his big dark eyes
+        parts.push(ell([s * 0.0145, 0.1805, 0.0372], [0.0062, 0.0022, 0.0032], skinShade, 1));                          // their lids
+        parts.push(ell([s * 0.015, 0.1875, 0.0355], [0.0072, 0.0014, 0.0024], hair[2].clone().lerp(skin, 0.4), 1));     // faint brows
+      }
+      parts.push(ell([0, 0.1595, 0.0395], [0.0058, 0.0026, 0.003], col('#c0685a', 0.05), 1), ell([0, 0.169, 0.0435], [0.004, 0.0055, 0.0036], skin, 1));
       parts.push(dabs(fleece(...HEAD, 46, (n, p, r) => pick(hair, r), { grow: 1.04, keep: (p, n) => n.z < 0.25 || p.y > 0.198, l: [0.018, 0.028], w: [0.014, 0.022], lift: [0.05, 0.2] })));
       // his left arm, forward and down to the rope at the ram's horns
       parts.push(vpaint(limb([0.05, 0.112, 0], [0.068, 0.068, 0.03], 0.0175, 0.015, jacket[1], 10, 6), striped), vpaint(limb([0.068, 0.068, 0.03], [0.04, 0.052, 0.076], 0.015, 0.013, jacket[2], 10, 6), striped));
-      parts.push(tubeStripes([0.05, 0.112, 0], [0.068, 0.068, 0.03], 0.0175, 0.015, 60), tubeStripes([0.068, 0.068, 0.03], [0.04, 0.052, 0.076], 0.015, 0.013, 60));
+      parts.push(tubeStripes([0.05, 0.112, 0], [0.068, 0.068, 0.03], 0.0175, 0.015, 220), tubeStripes([0.068, 0.068, 0.03], [0.04, 0.052, 0.076], 0.015, 0.013, 220));
       parts.push(shape.move(shape.cone(0.017, 0.018, 8, white[0]), 0.042, 0.053, 0.074, 1.3, 0.0, 0.5), ell([0.036, 0.05, 0.086], [0.012, 0.011, 0.013], skin, 1));
       this.gTorso = rig.geo(shape.merge(parts));
       // his right arm and the switch, from the shoulder: the forearm up, as he holds it in the picture
       const arm = [vpaint(limb([0, 0, 0], [-0.032, -0.048, 0.012], 0.0175, 0.015, jacket[1], 10, 6), striped), vpaint(limb([-0.032, -0.048, 0.012], [-0.04, 0.012, 0.03], 0.015, 0.013, jacket[2], 10, 6), striped)];
-      arm.push(tubeStripes([0, 0, 0], [-0.032, -0.048, 0.012], 0.0175, 0.015, 60), tubeStripes([-0.032, -0.048, 0.012], [-0.04, 0.012, 0.03], 0.015, 0.013, 60));
+      arm.push(tubeStripes([0, 0, 0], [-0.032, -0.048, 0.012], 0.0175, 0.015, 220), tubeStripes([-0.032, -0.048, 0.012], [-0.04, 0.012, 0.03], 0.015, 0.013, 220));
       arm.push(shape.move(shape.cone(0.019, 0.02, 9, white[0]), -0.04, 0.008, 0.03, 0, 0, Math.PI), ell([-0.04, 0.026, 0.032], [0.012, 0.013, 0.012], skin, 1));
       arm.push(limb([-0.04, 0.0, 0.034], [-0.03, 0.27, -0.03], 0.0026, 0.0013, col('#2a2018', 0.05), 5));
       this.gArm = rig.geo(shape.merge(arm));
@@ -324,7 +357,7 @@ lifeFor(111559, {
       // his legs astride, each from the hip: striped breeches round the ram's sides, buff shoes with silver buckles
       const leg = s => {
         const p = [vpaint(limb([0, 0, 0], [s * 0.1, -0.072, 0.05], 0.023, 0.019, jacket[0], 10, 8), striped), vpaint(limb([s * 0.1, -0.072, 0.05], [s * 0.104, -0.155, 0.036], 0.0185, 0.015, jacket[2], 10, 6), striped)];
-        p.push(tubeStripes([0, 0, 0], [s * 0.1, -0.072, 0.05], 0.023, 0.019, 90, 6), tubeStripes([s * 0.1, -0.072, 0.05], [s * 0.104, -0.155, 0.036], 0.0185, 0.015, 80, 6));
+        p.push(tubeStripes([0, 0, 0], [s * 0.1, -0.072, 0.05], 0.023, 0.019, 320, 6), tubeStripes([s * 0.1, -0.072, 0.05], [s * 0.104, -0.155, 0.036], 0.0185, 0.015, 280, 6));
         p.push(ell([s * 0.104, -0.165, 0.05], [0.017, 0.013, 0.032], col('#d6ac70', 0.1), 1), ell([s * 0.104, -0.157, 0.068], [0.009, 0.006, 0.004], col('#d8d8d0', 0.05), 1));
         return shape.merge(p);
       };
@@ -333,19 +366,24 @@ lifeFor(111559, {
 
     // ---------------------------------------------------------- the lambs
     {
-      const woolC = ['#f3ecdc', '#efe6d2', '#f8f2e6', '#f0dcc0'].map(c => col(c, 0.1)), woolM = ['#e2d8c2', '#dccfb8', '#e8dcc8'].map(c => col(c, 0.1)), woolS = ['#c4c0b8', '#b4b8c4', '#c8beb0', '#aab0bc'].map(c => col(c, 0.1));
-      const lw = toneOf(woolC, woolM, woolS), faceC = col('#ecd2bc', 0.1);
+      const woolC = ['#f2e4c6', '#eedcba', '#f6ead0', '#ecd6b0'].map(c => col(c, 0.08)), woolM = ['#d8c6a4', '#d2bf9c', '#dccbaa'].map(c => col(c, 0.08)), woolS = ['#9ea4b2', '#a8aab4', '#949cac', '#b0aca8'].map(c => col(c, 0.08));
+      const CL = col('#efdfc0', 0.08), CM = col('#cdbb98', 0.08), CS = col('#8e94a4', 0.08);
+      const lambTone = (n, into = new THREE.Color()) => { const k = n.dot(KEY); return k < 0.05 ? into.copy(CS).lerp(CM, THREE.MathUtils.smoothstep(k, -0.6, 0.05)) : into.copy(CM).lerp(CL, THREE.MathUtils.smoothstep(k, 0.05, 0.7)); };
+      const lw0 = toneOf(woolC, woolM, woolS), lw = (n, p, r) => lw0(n, p, r).clone().lerp(lambTone(n), 0.55), faceC = col('#e6cbb0', 0.1);
+      const lambCurl = (n, p, r) => { const k = n.dot(KEY) + (r - 0.5) * 0.3; return k > 0.3 ? col('#fbf0d8', 0.05) : k > -0.1 ? col('#e4d2b0', 0.05) : col('#a6aab8', 0.05); };
       const BODY = [[0, 0.118, 0], [0.048, 0.046, 0.076]], SKULL = [[0, 0.168, 0.084], [0.026, 0.028, 0.032]];
-      const parts = [ell(...BODY, woolM[0]), ell(...SKULL, faceC)];
+      const smoothL = (C, R, d = 2) => vpaint(ell(C, R, CM, d), v => lambTone(V3((v.x - C[0]) / R[0], (v.y - C[1]) / R[1], (v.z - C[2]) / R[2]).normalize()).multiplyScalar(0.9));
+      const parts = [smoothL(...BODY), vpaint(ell(...SKULL, faceC, 2), v => faceC.clone().lerp(col('#b8a090', 0.05), THREE.MathUtils.smoothstep(-(v.y - 0.168) / 0.028, 0.0, 1.0) * 0.55))];
       parts.push(ell([0, 0.157, 0.11], [0.016, 0.017, 0.022], col('#e6c0ac', 0.1), 1, 0.3), ell([0, 0.153, 0.13], [0.006, 0.004, 0.003], col('#6a4a44', 0.05), 1));
       for (const s of [-1, 1]) {
         parts.push(ell([s * 0.019, 0.174, 0.104], [0.0048, 0.0052, 0.004], col('#1e1612', 0.05), 1));
         parts.push(shape.move(ell([0, 0, 0], [0.022, 0.0055, 0.01], col('#e8b8a8', 0.1), 1), s * 0.03, 0.172, 0.07, 0, 0, -s * 0.65));
       }
       parts.push(ell([0, 0.134, -0.08], [0.015, 0.02, 0.014], woolC[0], 1));
-      parts.push(dabs([...fleece(...BODY, 190, lw, { l: [0.022, 0.032], w: [0.018, 0.026], keep: p => !inside(p, [SKULL]) }), ...fleece(...SKULL, 16, lw, { keep: (p, n) => n.y > 0.45 && n.z < 0.5, l: [0.016, 0.022], w: [0.014, 0.018] })]));
+      parts.push(dabs([...fleece(...BODY, 300, lw, { l: [0.016, 0.024], w: [0.014, 0.02], lift: [0.12, 0.32], keep: p => !inside(p, [SKULL]) }), ...fleece(...SKULL, 22, lw, { keep: (p, n) => n.y > 0.45 && n.z < 0.5, l: [0.013, 0.018], w: [0.011, 0.015] })]));
+      parts.push(curls(fleece(...BODY, 120, lambCurl, { l: [0, 0], w: [0.0035, 0.0055], curl: 0.0065, grow: 1.1, keep: p => !inside(p, [SKULL], 1.2) })));
       this.gLamb = rig.geo(shape.merge(parts));
-      this.gLambLeg = rig.geo(shape.merge([limb([0, 0.005, 0], [0, -0.08, 0], 0.0095, 0.0075, woolM[0]), limb([0, -0.078, 0.001], [0, -0.092, 0.003], 0.0078, 0.0088, col('#5a4a3e', 0.05))]));
+      this.gLambLeg = rig.geo(shape.merge([limb([0, 0.005, 0], [0, -0.08, 0], 0.0095, 0.0075, CM), limb([0, -0.078, 0.001], [0, -0.092, 0.003], 0.0078, 0.0088, col('#5a4a3e', 0.05))]));
       // (the legs: a pale shank with a dark hoof, from the hip at 0.09)
     }
 
@@ -359,7 +397,7 @@ lifeFor(111559, {
 
     // ---------------------------------------------------------- the routes
     const C3 = pts => pts.map(([u, o]) => V3(u, 0, o));
-    this.pathA = new THREE.CatmullRomCurve3(C3([[HOME, -L.wall - 0.42], [HOME, -0.02], [-0.06, 0.46], [0.18, 0.78], LOOP[0]]), false, 'centripetal'); this.pathA.arcLengthDivisions = 300; this.pathA.updateArcLengths();
+    this.pathA = new THREE.CatmullRomCurve3(C3([[HOME, -L.wall - 0.56], [HOME, -0.02], [-0.1, 0.42], [0.1, 0.8], LOOP[0]]), false, 'centripetal'); this.pathA.arcLengthDivisions = 300; this.pathA.updateArcLengths();
     this.lenA = this.pathA.getLength();
     this.loop = new THREE.CatmullRomCurve3(C3(LOOP), true, 'centripetal'); this.loop.arcLengthDivisions = 400; this.loop.updateArcLengths();
     this.lenL = this.loop.getLength();
@@ -399,7 +437,7 @@ lifeFor(111559, {
     this.loop.getPointAt(s, this.p); this.loop.getTangentAt(s, this.tg);
     o.dist = d + 3;
     if (k < 1) {
-      const e = ease.inOut(clamp01(k)), eu = LAMB_U[j], eo = -this.wallOut - 0.14;
+      const e = ease.inOut(clamp01(k)), eu = LAMB_U[j], eo = -this.wallOut - 0.2;
       o.u = lerp(eu, this.p.x, e); o.out = lerp(eo, this.p.z, e); o.du = this.p.x - eu; o.dout = this.p.z - eo;
       const h = clamp01(k) * 3, f = h - Math.floor(h); o.hop = 0.1 * 4 * f * (1 - f) * (k < 1 ? 1 : 0); o.air = f;
       o.dist = 3 + k * 0.5;
@@ -426,11 +464,11 @@ lifeFor(111559, {
     this.retFrom = { show: r.vis, dist: r.dist, t };
     if (r.vis) {
       const l = Math.hypot(r.du, r.dout) || 1, hu = r.u + r.du / l * 0.16, ho = r.out + r.dout / l * 0.16;
-      this.retRam = C([[r.u, r.out], [hu, ho], [(hu + HOME) / 2, Math.max(0.3, ho * 0.6)], [HOME, 0.06], [HOME, -L.wall - 0.44]]);
+      this.retRam = C([[r.u, r.out], [hu, ho], [(hu + HOME) / 2, Math.max(0.3, ho * 0.6)], [HOME, 0.06], [HOME, -L.wall - 0.58]]);
     } else this.retRam = null;
     this.retLambs = this.lambs.map(lb => {
       const o = this.lambAt(lb.j, t, this.lp); if (!o.vis) return null;
-      return C([[o.u, o.out], [(o.u + LAMB_U[lb.j]) / 2, Math.max(0.25, o.out * 0.55)], [LAMB_U[lb.j], 0.05], [LAMB_U[lb.j], -L.wall - 0.16]]);
+      return C([[o.u, o.out], [(o.u + LAMB_U[lb.j]) / 2, Math.max(0.25, o.out * 0.55)], [LAMB_U[lb.j], 0.05], [LAMB_U[lb.j], -L.wall - 0.22]]);
     });
     this.spread0 = this.u.uSpread.value;
   },
@@ -455,7 +493,7 @@ lifeFor(111559, {
       else {
         const k = ease.inOut(ramp(L.ret, 0, 0.86)), c = this.retRam;
         c.getPointAt(k, this.p); c.getTangentAt(Math.min(k, 0.995), this.tg);
-        r.u = this.p.x; r.out = this.p.z; r.du = this.tg.x; r.dout = this.tg.z; vis = r.out > -L.wall - 0.4;
+        r.u = this.p.x; r.out = this.p.z; r.du = this.tg.x; r.dout = this.tg.z; vis = r.out > -L.wall - 0.54;
         dist = this.retFrom.dist + k * c.getLength(); speed = Math.min(1, Math.sin(Math.PI * clamp01(L.ret / 0.86)) * 2.2);
       }
     } else {
@@ -478,10 +516,10 @@ lifeFor(111559, {
       B.set(M.root, this.v.x, L.y + bob * SC, this.v.z, yaw, 0.02 * amp - 0.07 * antic - 0.08 * raise, shiver + 0.02 * amp * Math.sin(phi), SC);
       rig.mat(this.ram.body, M.root);
       // head, jaw, bell
-      const headP = 0.08 + 0.05 * amp * Math.sin(phi * 2) + 0.34 * antic - 0.5 * raise + 0.08 * lurch;
+      const headP = 0.08 + 0.05 * amp * Math.sin(phi * 2) + 0.34 * antic - 0.36 * raise + 0.08 * lurch;
       B.child(M.head, M.root, 0, 0.315, 0.19, 0.08 * Math.sin(t * 1.3) * (1 - raise), headP, shiver * 1.5);
       rig.mat(this.ram.head, M.head);
-      B.child(M.jaw, M.head, 0, -0.008, 0.076, 0, raise * (0.26 + 0.1 * flut), 0); rig.mat(this.ram.jaw, M.jaw);
+      B.child(M.jaw, M.head, 0, -0.04, 0.086, 0, raise * (0.36 + 0.12 * flut), 0); rig.mat(this.ram.jaw, M.jaw);
       const swing = 0.35 * amp * Math.sin(phi + 0.6) + raise * 0.25 * Math.sin(TAU * 4.5 * tb) - 0.3 * lurch;
       B.child(M.knot, M.root, 0, 0.246 + 0.02 * raise, 0.238 + 0.012 * raise, 0, 0, 0); rig.mat(this.ram.knot, M.knot);
       B.child(M.bell, M.knot, 0, -0.006, 0.004, 0, swing * 0.5, swing * 0.6); rig.mat(this.ram.bell, M.bell);
@@ -496,7 +534,7 @@ lifeFor(111559, {
       // the boy: astride, his body turned to us (as he sits in the picture), bouncing with the trot
       const laugh = raise * Math.abs(Math.sin(TAU * 4 * tb));
       B.child(M.seat, M.root, 0, 0.334 + 0.012 * amp * Math.abs(Math.sin(phi + 0.5)) + 0.006 * laugh, -0.035, 0, 0, 0, BOY);
-      const cam = L.floor(0.38, 2.75, this.w), want = Math.atan2(cam.x - this.v.x, cam.z - this.v.z), twist = Math.max(-1.05, Math.min(1.05, turnTo(0, want - yaw, 1))) * 0.75;
+      const cam = L.floor(CAM[0], CAM[1], this.w), want = Math.atan2(cam.x - this.v.x, cam.z - this.v.z), twist = Math.max(-1.05, Math.min(1.05, turnTo(0, want - yaw, 1))) * 0.75;
       const lean = 0.06 * amp + 0.38 * lurch - 0.16 * raise + 0.04 * Math.sin(phi * 2) * amp;
       B.child(M.torso, M.seat, 0, 0, 0, twist, lean, 0.04 * Math.sin(t * 1.7)); rig.mat(this.boy.torso, M.torso);
       for (const [leg, s] of [[this.boy.legL, 1], [this.boy.legR, -1]]) {
@@ -537,12 +575,12 @@ lifeFor(111559, {
           c.getPointAt(e, this.p); c.getTangentAt(Math.min(e, 0.995), this.tg);
           o.u = this.p.x; o.out = this.p.z; o.du = this.tg.x; o.dout = this.tg.z;
           const h = k * 4, f = h - Math.floor(h); o.hop = k > 0 && k < 1 ? 0.09 * 4 * f * (1 - f) : 0; o.air = k > 0 && k < 1 ? f : -1; o.dist = 3 + k;
-          on = o.out > -L.wall - 0.14;
+          on = o.out > -L.wall - 0.2;
         }
       } else on = showing && this.lambAt(lb.j, t, o).vis;
       rig.show(lb.body, on); for (const l of lb.legs) rig.show(l, on);
       if (!on) return;
-      const yaw = L.yawOf(o.du, o.dout), air = o.air >= 0, pitch = air ? -0.32 * Math.cos(Math.PI * o.air) : 0;
+      const yaw = L.yawOf(o.du, o.dout), air = o.air >= 0, pitch = air ? -0.16 * Math.cos(Math.PI * o.air) : 0;
       L.floor(o.u, o.out, this.v);
       B.set(M.lamb[lb.j], this.v.x, L.y + o.hop * LS, this.v.z, yaw, pitch, 0, LS); rig.mat(lb.body, M.lamb[lb.j]);
       const lphi = o.dist / 0.13 * TAU, moving = ret || t > T_GO || t < TL[lb.j] + LAMB_IN ? 1 : 0.15;
