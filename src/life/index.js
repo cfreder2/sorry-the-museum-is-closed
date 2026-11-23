@@ -14,3 +14,4 @@ import './81545-stacks-of-wheat.js';   // 243  Monet, Stacks of Wheat (Sunset, S
 import './80607-self-portrait.js';      // 241  van Gogh, Self-Portrait (1887): swirl
 import './61128-at-the-moulin-rouge.js'; // 242  Toulouse-Lautrec, At the Moulin Rouge: cabaret
 import './18951-yellow-dancers.js';     // 226  Degas, Yellow Dancers (In the Wings): pirouette
+import './14572-millinery-shop.js';     // 226  Degas, The Millinery Shop: flutter
