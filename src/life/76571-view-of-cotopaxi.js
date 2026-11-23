@@ -8,10 +8,11 @@
 // boulder rises beside them, and a canoe slides out from behind the falls and paddles slowly round the lake. Then the
 // volcano: a rumble, the lake shivers, a few small puffs come up from behind the top of the frame right above his peak,
 // plucked strings (and a hushed chord) as in Haydn's The Creation (1798) before "and there was light"; and then
-// C major, and the smoke rolls up out from behind the top of the frame, broadening as it climbs, and heaps into a
-// great soft cloud over the picture, lavender in its own shade, rose and cream where his low sun catches it, trailing
-// away to the right as his clouds lie over the range, the wall glowing faintly under it. While you keep looking the falls go on pouring, the canoe goes round, and every few seconds the peak
-// breathes another small puff up into the cloud. When you stop, the cloud sinks back down behind the frame, the falls
+// C major, and the smoke comes up from behind the top of the frame over his peak as a column, which the wind bends
+// over and draws out along the wall to the right, a long soft band of grey-brown smoke, lavender-grey underneath, cream
+// and rose only along its sunlit upper edge, spreading and thinning to haze over metres, as his Cotopaxi's plume trails
+// across the sky. While you keep looking the falls go on pouring, the canoe goes round and the mountain goes on smoking
+// into the wind. When you stop, the column lets go of the rail and the last of the smoke drifts off and thins out, the falls
 // run dry, the palms fold back into the floor and the lake draws back in under the picture.
 //
 // Nothing that rises passes in front of a picture: the smoke comes out behind the top rail and keeps above the frame
@@ -24,12 +25,14 @@ import { strokes } from './brush.js';
 import { score, hz } from './stagecraft.js';
 
 const TAU = Math.PI * 2;
-const PEAK_U = -0.2;                           // above his peak (along the wall, from the middle)
-const FALLS = [{ u: -0.05, w: 0.072, v: 0.92, t0: 0.3 }, { u: -0.26, w: 0.016, v: 0.6, t0: 0.85 }];     // the main falls, and the thin veil left of it
-const LAKE = { u: -0.06, o: 0.46, a: 1.0, b: 0.47 };   // the lake: centre and half sizes (it spreads inside this)
+const PEAK_U = -0.2;
+const TOPS = 2.26, TOPS_R = 1.98;              // above the frames to the left (the tall neighbour's top is 2.16 m), and to the right (1.89 m)                           // above his peak (along the wall, from the middle)
+const FALLS = [{ u: -0.05, w: 0.072, v: 0.56, t0: 0.3 }, { u: -0.26, w: 0.016, v: 0.42, t0: 0.85 }];     // the main falls, and the thin veil left of it
+const LAKE = { u: -0.06, o: 0.36, a: 1.0, b: 0.4 };   // the lake: centre and half sizes (it spreads inside this)
 const FOOT = { u: -0.05, o: 0.44 };            // where the main falls land (set from the falls when built)
-const T_LAND = 0.82, T_PALM = 1.7, T_CANOE = 2.5, T_RUMBLE = 3.4, T_ERUPT = 4.4, T_BREATH = 9.0;
-const N_PRE = 7, N_PLUME = 124, N_CLOUD = N_PRE + N_PLUME, N_MIST = 26, N_SPRAY = 24, N_FOL = 64;
+const T_LAND = 0.82, T_PALM = 1.7, T_CANOE = 2.5, T_RUMBLE = 3.4, T_ERUPT = 4.4;
+const LIFE = 10, WIND = 0.42;                 // a puff of the plume lives this long, carried along by the wind (m/s)
+const N_PRE = 7, N_PLUME = 112, DT_E = LIFE / N_PLUME, N_CLOUD = N_PRE + N_PLUME, N_MIST = 26, N_SPRAY = 24, N_FOL = 64;
 const NC = N_CLOUD + N_MIST + N_SPRAY + N_FOL;
 const NS = 22, NW = 5;                         // the falls' sheet: rows down, columns across
 // the lake's edge, as the shader draws it (and the banks' clumps are put on it)
@@ -42,7 +45,7 @@ const CLIFFS = [[-0.42, 0.06, 1.05, 0.3], [0.2, 0.05, 1.2, 2.0], [-0.17, 0.02, 0
 lifeFor(76571, {
   title: /^View of Cotopaxi/,
   word: 'erupt',
-  stage: { out: 1.2, half: 1.3, cam: { dist: 3.2, height: 0.64, side: 0.32, fov: 64, lookU: -0.08, lookOut: 0.4, lookH: 1.4, whole: false } },
+  stage: { out: 1.0, half: 1.3, cam: { dist: 2.9, height: 1.1, side: 0.03, fov: 55, lookU: 0, lookOut: 0, lookH: 1.14, whole: false } },
   wake: 2, ret: 2.4,
 
   build(L) {
@@ -106,7 +109,7 @@ lifeFor(76571, {
       uPour: { value: new THREE.Vector4(0, 0, 0, 0) },            // the falls: head and tail (0..1 down), the main one and the veil
       uGlow: { value: new THREE.Vector4(0, 0, 0, 0) },            // the wall: his sky's gold round the frame; the smoke's light (amount, its height, its spread)
       tStreak: { value: streak }, tBank: { value: bank },
-      cHi: { value: col('#d6b27a', 0.2) }, cMid: { value: col('#8a7450', 0.25) }, cLo: { value: col('#2a3024', 0.3) }, cSky: { value: col('#8fa2a6', 0.3) },
+      cHi: { value: col('#c8a860', 0.1) }, cMid: { value: col('#7c7a3e', 0.12) }, cLo: { value: col('#2c3a22', 0.2) }, cSky: { value: col('#ecd6a0', 0.1) },
       cFoam: { value: col('#f4efe2', 0.12) }, cWaterLo: { value: col('#8c979c', 0.25) }, cGold: { value: col('#f2c27a', 0.2) }, cRose: { value: col('#e8a08c', 0.2) },
       cPeak: { value: new THREE.Vector2(PEAK_U, this.crownH) },
     };
@@ -143,7 +146,7 @@ if (vKind > 1.5) {
   float kg = exp(-(pow(wu / 0.82, 2.0) + pow(wv / 0.62, 2.0)) * 1.6);
   float kp = exp(-(pow((wu - cPeak.x - 0.25 * uGlow.y) / max(0.2, uGlow.w), 2.0) + pow((lifeP.y - uO.y - uGlow.z) / max(0.3, uGlow.w * 0.9), 2.0)));
   fCol = mix(cGold, cRose, kp * uGlow.y / max(0.01, kg * uGlow.x + kp * uGlow.y));
-  fA = min(0.8, kg * 0.5 * uGlow.x + kp * 0.22 * uGlow.y) * (1.0 - smoothstep(3.0, 3.75, lifeP.y - uO.y)) * smoothstep(0.85, 1.2, lifeP.y - uO.y) * (1.0 - smoothstep(0.75, 1.05, abs(wu - 0.05)));
+  fA = min(0.8, kg * 0.5 * uGlow.x + kp * 0.14 * uGlow.y) * (1.0 - smoothstep(3.0, 3.75, lifeP.y - uO.y)) * smoothstep(0.85, 1.2, lifeP.y - uO.y) * (1.0 - smoothstep(0.75, 1.05, abs(wu - 0.05)));
 } else {
   vec2 st = vec2(su, so);
   float r = lakeR(st), d = length(st - uFoot.xy), d2 = length(st - uFoot.zw), reach = uSpread * 1.75;
@@ -154,7 +157,8 @@ if (vKind > 1.5) {
   // the lake: the sky's gold in the middle, his banks' dark greens round the edge
   vec3 c = mix(cHi, cMid, smoothstep(0.05, 0.8, r));
   c = mix(c, cLo, smoothstep(0.5, 1.0, r) * 0.85);
-  c = mix(c, cSky, smoothstep(0.4, 0.9, so) * (1.0 - smoothstep(0.75, 1.0, r)) * 0.25);
+  // his sky in the water, brightest by the falls, where it lies in the picture
+  c = mix(c, cSky, exp(-pow((su - uFoot.x - 0.05) / 0.42, 2.0)) * (1.0 - smoothstep(0.05, 0.8, so)) * (1.0 - smoothstep(0.7, 1.0, r)) * 0.5);
   // the falls' reflection, a pale column out from under them, and their foam
   c = mix(c, cFoam, exp(-pow((su - uFoot.x) / 0.1, 2.0)) * (1.0 - smoothstep(0.15, 0.95, so)) * 0.5 * uFall.x);
   // rings from the falls (sharper when the mountain shakes), and a slow glassy shimmer
@@ -165,7 +169,7 @@ if (vKind > 1.5) {
   vec4 rp = reflMatrix * vec4(lifeP, 1.0); vec2 ruv = rp.xy / rp.w + vec2(rip * 0.003, rip * 0.005);
   float on = reflOn * (1.0 - step(0.08, abs(lifeP.y - reflY)));
   vec3 refl = min(texture2D(tRefl, ruv).rgb, vec3(2.0));
-  c = mix(c, c * 0.35 + refl * vec3(0.9, 0.84, 0.72), 0.7 * on);
+  c = mix(c, c * 0.6 + refl * vec3(0.75, 0.78, 0.6), 0.4 * on);
   c *= 1.0 - 0.25 * smoothstep(0.5, 1.0, r);
   c = mix(c, cFoam, (exp(-pow(d / 0.075, 2.0)) * uFall.x + exp(-pow(d2 / 0.04, 2.0)) * uFall.y) * 0.75);
   // the banks: his foliage in fine dabs, sunlit on the far side
@@ -213,8 +217,8 @@ if (vKind > 1.5) {
     this.aCol = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3).setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('aInfo', this.aInfo); geo.setAttribute('aCol', this.aCol);
     const cu = this.cu = {
-      tAtlas: { value: atlas }, uLightW: { value: new THREE.Vector3(L.tx * 0.7 + L.nx * 0.12, 0.65, L.tz * 0.7 + L.nz * 0.12).normalize() },
-      cLit: { value: col('#fde3c2', 0.1) }, cShade: { value: col('#a294aa', 0.15) }, cRim: { value: col('#ffd49c', 0.1) }, cSmoke: { value: col('#8a8496', 0.2) }, cSmokeLit: { value: col('#d8c4bc', 0.2) },
+      tAtlas: { value: atlas }, uLightW: { value: new THREE.Vector3(L.tx * 0.35 + L.nx * 0.1, 0.9, L.tz * 0.35 + L.nz * 0.1).normalize() },
+      cLit: { value: col('#f4d6bc', 0.1) }, cShade: { value: col('#8a8498', 0.15) }, cRim: { value: col('#f0b89a', 0.1) }, cSmoke: { value: col('#8e8074', 0.15) }, cSmokeLit: { value: col('#c4bcbc', 0.15) },
     };
     const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
     m.onBeforeCompile = sh => {
@@ -222,7 +226,7 @@ if (vKind > 1.5) {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aInfo; attribute vec3 aCol; varying vec4 vInfo; varying vec3 vCol; varying vec2 vN; varying vec2 vQ;')
         .replace('#include <project_vertex>', `vec4 mvPosition = modelViewMatrix * vec4(instanceMatrix[3].xyz, 1.0);
   float cs = cos(aInfo.z), sn = sin(aInfo.z); vec2 q = vec2(cs * position.x - sn * position.y, sn * position.x + cs * position.y);
-  mvPosition.xy += q * instanceMatrix[0][0];
+  mvPosition.xy += vec2(q.x * instanceMatrix[0][0], q.y * instanceMatrix[1][1]);
   vN = q * 2.0; vQ = position.xy + 0.5; vInfo = aInfo; vCol = aCol;
   gl_Position = projectionMatrix * mvPosition;`);
       sh.fragmentShader = sh.fragmentShader
@@ -236,9 +240,12 @@ if (vKind > 1.5) {
     vec3 lv = normalize((viewMatrix * vec4(uLightW, 0.0)).xyz);
     float rr = dot(vN, vN); vec3 n = normalize(vec3(vN * 0.75, sqrt(max(0.1, 1.0 - rr * 0.6)) + 0.9 * (tx.r - 0.62)));
     float lam = clamp(dot(n, lv) * 0.8 + 0.36, 0.0, 1.0), lit = vInfo.w;
-    vec3 sh = mix(cSmoke, cShade, lit), li = mix(cSmokeLit, cLit, lit);
-    c = mix(sh, li, smoothstep(0.15, 0.95, lam)) * vCol;
-    c += cRim * pow(clamp(1.0 - n.z, 0.0, 1.0), 1.5) * 0.35 * lit * smoothstep(-0.2, 0.7, dot(normalize(vN + 1e-4), lv.xy));
+    // his plume: grey-brown smoke, lavender-grey underneath, warm cream and rose only where the low sun catches its
+    // upper edge; paler and cooler as it thins to haze (lit: how far it has thinned)
+    c = mix(cShade, cSmoke, smoothstep(0.2, 0.6, lam));
+    c = mix(c, cLit, smoothstep(0.58, 0.95, lam) * 0.85);
+    c += cRim * pow(clamp(1.0 - n.z, 0.0, 1.0), 1.5) * 0.3 * smoothstep(0.1, 0.8, dot(normalize(vN + 1e-4), lv.xy));
+    c = mix(c, cSmokeLit, lit * 0.45) * vCol;
     a = smoothstep(0.0, 0.55, tx.a) * vInfo.y;
   } else if (kd < 2.5) { c = vCol; a = tx.a * vInfo.y; }
   else { c = vCol * (0.45 + 0.85 * tx.r); a = smoothstep(0.3, 0.6, tx.a) * vInfo.y; }
@@ -257,11 +264,11 @@ if (vKind > 1.5) {
       if (pre) return { pre, a, b, c, tb: T_RUMBLE + 0.25 + (i / N_PRE) * (T_ERUPT - T_RUMBLE - 0.35) + 0.08 * b, H: 0.18 + 0.3 * b, r1: 0.045 + 0.04 * c, O: 0.06 + 0.1 * d, S: (e - 0.5) * 0.25 };
       // (the first out go highest; it broadens as it climbs, and leans away to the right as his clouds trail: a
       // volcano's plume in the evening wind, never a stem and a cap)
-      const k = (i - N_PRE) / N_PLUME, Hn = Math.min(1.05, Math.sqrt(1 - k) * (0.6 + 0.55 * b)), H = 0.12 + 0.74 * Hn, r1 = 0.085 + 0.2 * Hn + 0.085 * c;
-      return { pre, a, b, c, tb: T_ERUPT + 2.6 * Math.pow(k, 1.4) + 0.06 * a, H, r1, O: 0.04 + r1 * 0.4 + 0.26 * Hn * d, S: (e - 0.5) * 2 * (0.12 + 0.88 * Hn) + 0.4 * Hn * Hn };
+      return { pre, a, b, c, d, j: i - N_PRE };
     });
-    const tint = ['#f8e2cc', '#ecc8c0', '#ddd4de', '#fbe9cc', '#d2cad6'].map(c => col(c, 0.08));
-    this.C.forEach((p, i) => { p.tint = tint[i % tint.length]; });
+    // (the puffs along its upper edge warmer, catching his low sun; those underneath cooler)
+    const warm = col('#fff0e0', 0.05), cool = col('#e4e2ee', 0.05);
+    this.C.forEach(p => { p.tint = cool.clone().lerp(warm, clamp01((p.c - 0.25) * 1.6)); });
     this.M = Array.from({ length: N_MIST }, () => ({ a: R(), b: R(), c: R(), d: R(), e: R(), thin: R() < 0.25, P: 2.0 + 0.9 * R() }));
     this.S = Array.from({ length: N_SPRAY }, () => ({ a: R(), b: R(), c: R(), d: R(), e: R(), thin: R() < 0.25, P: 0.5 + 0.35 * R() }));
     const greens = ['#2e3e24', '#3c5028', '#50642e', '#6a7a36', '#445a30', '#5a5030'].map(c => col(c, 0.25));
@@ -278,7 +285,7 @@ if (vKind > 1.5) {
     this.mistC = [col('#f2ece0', 0.1), col('#e8e4dc', 0.1)]; this.sprayC = col('#fbf7ee', 0.1);
     // scratch: one row per card, then drawn far to near
     this.px = new Float32Array(n); this.py = new Float32Array(n); this.pz = new Float32Array(n); this.ps = new Float32Array(n);
-    this.pk = new Float32Array(n); this.pw = new Float32Array(n); this.lit = 0; this.pa = new Float32Array(n); this.pr = new Float32Array(n); this.pc = new Float32Array(n * 3); this.dep = new Float32Array(n);
+    this.pk = new Float32Array(n); this.pw = new Float32Array(n); this.pq = new Float32Array(n); this.lit = 0; this.sq = 1; this.pa = new Float32Array(n); this.pr = new Float32Array(n); this.pc = new Float32Array(n * 3); this.dep = new Float32Array(n);
     this.order = Array.from({ length: n }, (_, i) => i); this.byDepth = (a, b) => this.dep[b] - this.dep[a];
     this.cp0 = { u: 0, h: 0, o: 0, r: 0, a: 0 };
   },
@@ -343,10 +350,10 @@ if (vKind > 1.5) {
     this.gCliff = rig.geo(rock(0.14, 0.2, 0.12, 2.1, col('#9a8670', 0.25), col('#6e6052', 0.25), col('#3e3832', 0.25), col('#4a5a2c', 0.25)));
     // the canoe: a dugout, with its paddler in a white shirt and a straw hat, and his paddle
     {
-      const hull = shape.move(shape.lathe([[0, -0.5], [0.22, -0.44], [0.4, -0.3], [0.5, -0.1], [0.5, 0.1], [0.4, 0.3], [0.22, 0.44], [0, 0.5]], 10, col('#4e3a2c', 0.25)), 0, 0, 0, Math.PI / 2, 0, 0, 0.034, 0.26, 0.022);
+      const hull = shape.move(shape.lathe([[0, -0.5], [0.22, -0.44], [0.4, -0.3], [0.5, -0.1], [0.5, 0.1], [0.4, 0.3], [0.22, 0.44], [0, 0.5]], 10, col('#2c1e16', 0.15)), 0, 0, 0, Math.PI / 2, 0, 0, 0.034, 0.26, 0.022);
       const inside = col('#2a2018', 0.2); shape.paint(hull, (cen, nm) => (nm.y > 0.45 ? inside : null));
       this.gHull = rig.geo(hull);
-      const shirt = col('#e2dccc', 0.2), skin = col('#7a4e34', 0.2), straw = col('#c8b07c', 0.2), red = col('#a8402c', 0.2);
+      const shirt = col('#f6f0e2', 0.05), skin = col('#7a4e34', 0.2), straw = col('#c8b07c', 0.2), red = col('#a8402c', 0.2);
       this.gMan = rig.geo(shape.merge([
         shape.move(shape.lathe([[0.018, 0], [0.02, 0.02], [0.016, 0.042], [0.008, 0.05]], 8, shirt), 0, 0.01, 0),
         shape.move(shape.box(0.034, 0.012, 0.03, red), 0, 0.014, 0.004),
@@ -378,7 +385,6 @@ if (vKind > 1.5) {
     [36, 48, 55, 60, 64, 67, 72, 76].forEach((m, i) => s.note(T_ERUPT + 0.01 * i, hz(m), 4.6, { type: i < 2 ? 'sine' : 'triangle', vol: i < 2 ? 0.03 : 0.016, attack: 0.05, over: i > 3 ? 2 : 0, overVol: 0.15 }));
     s.hit(T_ERUPT + 0.15, { d: 3.2, vol: 0.02, lp: 600, hp: 90, attack: 0.4 });
     // the peak breathing while you look, each puff with a low soft note
-    s.loop(T_BREATH, 3.3, [{ t: 0, f: hz(36), d: 1.6, type: 'sine', vol: 0.018, attack: 0.3 }, { t: 0.05, noise: true, d: 0.9, vol: 0.012, lp: 300, attack: 0.25 }]);
     return s.done();
   },
 
@@ -398,22 +404,28 @@ if (vKind > 1.5) {
   reset(L) { this.hideAll(); this.hiss.set(0); },
 
   // ---------------------------------------------------------------- a puff of smoke at show-time t (its own numbers p), into o
-  cloudAt(L, p, t, o) {
-    let tb = p.tb, H = p.H, r1 = p.r1, O = p.O, S = p.S, fade = p.pre;
-    if (p.pre && t > T_BREATH - 0.2) {
-      // while you keep looking: the peak breathes a small puff every few seconds (the pre-puffs, again)
-      const per = 3.3, k = Math.floor((t - T_BREATH + 0.2 + p.a * 0.25) / per);
-      if (k >= 0) { tb = T_BREATH - 0.2 + k * per - p.a * 0.25 + (p.b - 0.5) * 0.2; H = 0.45 + 0.6 * p.b; r1 = 0.06 + 0.06 * p.c; O = 0.12 + 0.2 * p.c; S = (p.a - 0.5) * 0.4; }
+  cloudAt(L, p, t, o, tb0 = null) {
+    if (p.pre) {
+      // the mountain clearing its throat: a few small puffs up over the rail, gone again
+      const tau = t - p.tb; if (tau <= 0) { o.a = 0; return o; }
+      const g = 1 - Math.exp(-tau / 0.45), go = 1 - Math.exp(-tau / 1.15);
+      o.r = 0.035 + (p.r1 - 0.035) * (1 - Math.exp(-tau / 0.85)); o.sy = 1; o.haze = 0;
+      o.h = this.crownH + 0.035 + p.H * g; o.u = PEAK_U + (p.b - 0.5) * 0.06 + p.S * go + 0.05 * tau; o.o = -0.028 + p.O * go;
+      o.a = ease.smooth(tau / 0.35) * 0.8 * (1 - ramp(tau, 0.9, 1.9)); o.spin = p.a * TAU; return o;
     }
-    const tau = t - tb;
-    if (tau <= 0) { o.a = 0; return o; }
-    const g = 1 - Math.exp(-tau / (0.32 + 0.36 * H)), gs = 1 - Math.exp(-tau / 1.5), go = 1 - Math.exp(-tau / 1.15);
-    o.r = (0.035 + (r1 - 0.035) * (1 - Math.exp(-tau / 0.85))) * (1 + 0.05 * Math.sin(t * 0.9 + 7 * p.b));
-    o.h = this.crownH + 0.035 + H * g + 0.02 * Math.sin(t * 0.7 + 6 * p.a) * gs;
-    o.u = PEAK_U + (p.pre ? (p.b - 0.5) * 0.06 : (p.c - 0.5) * 0.42) + S * gs + 0.05 * Math.sin(t * 0.33 + 5 * p.c) * gs + (p.pre ? 0 : Math.min(0.3, 0.025 * Math.max(0, tau - 1.2)) * clamp01(H - 0.5));
-    o.o = -0.028 + O * go;
-    o.a = ease.smooth(tau / 0.35) * (fade ? 0.8 * (1 - ramp(tau, 0.9, 1.9)) : 0.72);
-    o.spin = p.a * TAU + tau * 0.12 * (p.c - 0.5);
+    // the plume: puffs given off one after another from behind the top rail over his peak, each rising in the column,
+    // bent over by the wind and carried away to the right along the wall, spreading, flattening and thinning to haze
+    const since = t - T_ERUPT - p.j * DT_E; if (since < 0) { o.a = 0; return o; }
+    const k = tb0 == null ? Math.floor(since / LIFE) : tb0, tau = since - k * LIFE;
+    if (tau > LIFE) { o.a = 0; return o; }
+    const burst = k === 0 && p.j * DT_E < 1.4, hc = (burst ? 0.36 : 0.2) * (0.85 + 0.3 * p.b), lift = 1 - Math.exp(-tau / 0.7), sp = Math.min(1, tau / 2.5);
+    o.h = this.crownH + 0.04 + hc * lift - 0.045 * Math.min(4, Math.max(0, tau - 1.2)) + (p.c - 0.5) * (0.06 + 0.1 * sp) + 0.025 * Math.sin(t * 0.6 + 7 * p.a) * sp;
+    o.u = PEAK_U + (p.a - 0.5) * 0.06 + WIND * (tau - 1.1 * (1 - Math.exp(-tau / 1.1))) + 0.05 * Math.sin(t * 0.37 + 6 * p.d) * sp;
+    o.o = -0.026 + (0.06 + 0.14 * p.d) * (1 - Math.exp(-tau / 1.6));
+    o.r = Math.min(0.34, (0.05 + 0.04 * tau) * (burst ? 1.45 : 1) * (0.85 + 0.3 * p.c));
+    o.sy = 1 - 0.5 * Math.min(1, tau / 4); o.haze = ramp(tau, 1.5, 8);
+    o.a = ease.smooth(tau / 0.35) * (0.78 - 0.4 * ramp(tau, 1.8, 8.5)) * (1 - ramp(tau, 8.5, LIFE)) * (burst ? 1.1 : 1);
+    o.spin = p.a * TAU + tau * 0.05 * (p.c - 0.5);
     return o;
   },
 
@@ -448,19 +460,21 @@ if (vKind > 1.5) {
     const put = (u, h, o, s, kind, a, spin, c) => {
       if (a <= 0.004 || s <= 0.001) return;
       L.at(u, h - (L.cy - L.y), o, v);
-      this.px[n] = v.x; this.py[n] = v.y; this.pz[n] = v.z; this.ps[n] = s; this.pk[n] = kind; this.pa[n] = a; this.pr[n] = spin; this.pw[n] = this.lit;
+      this.px[n] = v.x; this.py[n] = v.y; this.pz[n] = v.z; this.ps[n] = s; this.pk[n] = kind; this.pa[n] = a; this.pr[n] = spin; this.pw[n] = this.lit; this.pq[n] = this.sq;
       this.pc[n * 3] = c.r; this.pc[n * 3 + 1] = c.g; this.pc[n * 3 + 2] = c.b; n++;
     };
     // smoke
     for (const p of this.C) {
       if (back) {
-        this.cloudAt(L, p, this.bT, cp); if (cp.a <= 0) continue;
-        const k = ease.inOut(ramp(ret, 0.06 * p.a, 0.66 + 0.3 * p.a)), ko = ease.inOut(Math.min(1, k * 1.6)), kh = ease.inOut(Math.max(0, (k - 0.25) / 0.75));
-        cp.o += (-0.03 - cp.o) * ko; cp.u += (PEAK_U - cp.u) * k * 0.8; cp.h += (this.crownH + 0.04 - cp.h) * kh; cp.r *= 1 - 0.65 * k; cp.a *= 1 - ramp(k, 0.55, 1);
+        // no more is given off: the column lets go of the rail and the last of the smoke drifts away and thins out
+        const since = this.bT - T_ERUPT - (p.pre ? 0 : p.j * DT_E); if (!p.pre && since < 0) continue;
+        this.cloudAt(L, p, this.bT + R, cp, p.pre ? null : Math.floor(since / LIFE)); if (cp.a <= 0) continue;
+        cp.a *= 1 - ease.inOut(ramp(ret, 0.05, 0.92));
       } else if (showing) { this.cloudAt(L, p, t, cp); if (cp.a <= 0) continue; } else continue;
-      // (in front of the wall, a puff stays wholly above the frame)
-      if (cp.o > -0.012) cp.h = Math.max(cp.h, this.crownH + 0.035 + cp.r * 0.55);
-      this.lit = clamp01((cp.h - this.crownH - 0.15) / 0.9); put(cp.u, cp.h, cp.o, cp.r * 2, 0, cp.a, cp.spin, p.tint); this.lit = 0;
+      // (in front of the wall, a puff stays wholly above the frames: over his own, just above it; downwind, above the
+      // lower pictures to the right; to the left, above the tall one there)
+      if (cp.o > -0.012) cp.h = Math.max(cp.h, (cp.u < -1.2 ? TOPS : cp.u < 0.66 ? this.crownH + 0.035 : TOPS_R) + cp.r * cp.sy * 0.6);
+      this.lit = cp.haze; this.sq = cp.sy; put(cp.u, cp.h, cp.o, cp.r * 2, 0, cp.a, cp.spin, p.tint); this.lit = 0; this.sq = 1;
     }
     // mist and spray at the falls' feet
     const fallOn = [fu.uFall.value.x, fu.uFall.value.y], tt = showing ? t : this.bT + R;
@@ -498,7 +512,7 @@ if (vKind > 1.5) {
     const M = this.cards.instanceMatrix.array, I = this.aInfo.array, C = this.aCol.array;
     for (let j = 0; j < n; j++) {
       const i = ord[j], m = j * 16, s = this.ps[i];
-      M[m] = s; M[m + 5] = s; M[m + 10] = s; M[m + 15] = 1; M[m + 12] = this.px[i]; M[m + 13] = this.py[i]; M[m + 14] = this.pz[i];
+      M[m] = s; M[m + 5] = s * this.pq[i]; M[m + 10] = s; M[m + 15] = 1; M[m + 12] = this.px[i]; M[m + 13] = this.py[i]; M[m + 14] = this.pz[i];
       I[j * 4] = this.pk[i]; I[j * 4 + 1] = this.pa[i]; I[j * 4 + 2] = this.pr[i]; I[j * 4 + 3] = this.pw[i];
       C[j * 3] = this.pc[i * 3]; C[j * 3 + 1] = this.pc[i * 3 + 1]; C[j * 3 + 2] = this.pc[i * 3 + 2];
     }
@@ -547,7 +561,7 @@ if (vKind > 1.5) {
     for (const i of [this.iHull, this.iMan, this.iPaddle]) rig.show(i, vis);
     if (!vis) { cp.u = cp.u == null ? -0.14 : cp.u; return; }
     const bob = 0.003 * Math.sin(t * 2.3), tt = showing ? t : this.bT + ret * 2.4;
-    L.floor(cp.u, cp.out, v); const K = 1.4, y0 = v.y + 0.022 * K + bob;
+    L.floor(cp.u, cp.out, v); const K = 1.9, y0 = v.y + 0.022 * K + bob;
     rig.put(this.iHull, v.x, y0, v.z, cp.yaw, 0.02 * Math.sin(t * 1.7), 0.03 * Math.sin(t * 1.3), K);
     // the paddler sits a little aft; the paddle swings in long strokes, changing sides
     const fx = Math.sin(cp.yaw), fz = Math.cos(cp.yaw), aft = -0.03 * K;
