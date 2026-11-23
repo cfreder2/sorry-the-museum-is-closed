@@ -9,6 +9,7 @@ import * as TX from './textures.js';
 import { feature } from './features.js';
 import { floeTop, floeBox, WATER_Y } from './harbourplan.js';
 import { groundAt } from './plan.js';
+import { snowLook } from './finish.js';
 
 const SECRET = 'harbourlight';
 
@@ -97,7 +98,7 @@ feature({
     { const w = L.water, m = this.water = new THREE.Mesh(new THREE.PlaneGeometry(w.x1 - w.x0 + 1, w.z1 - w.z0 + 20), waterMaterial());
       m.rotation.x = -Math.PI / 2; m.position.set((w.x0 + w.x1) / 2 - 0.5, WATER_Y, (w.z0 + w.z1) / 2); m.updateMatrix(); m.matrixAutoUpdate = false; m.frustumCulled = false; g.add(m); }
     // the floes: the chain's, one mesh each; the loose ones and the bits, instanced by outline
-    const iceM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, emissive: new THREE.Color(0.2, 0.27, 0.42), emissiveIntensity: 0.75 });
+    const iceM = snowLook(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, emissive: new THREE.Color(0.2, 0.27, 0.42), emissiveIntensity: 0.75 }), { drift: 0, moon: 0.5, sheen: 0.4 });      // (faces turned to the moon lit, the far ice catching it: src/finish.js)
     this.floes = L.floes;
     let ph = 1;
     for (const f of L.floes) { f.p1 = (ph = (ph * 7.13) % 6.283); f.p2 = (ph * 3.7) % 6.283; f.p3 = (ph * 5.3) % 6.283; f.p0 = (ph * 2.1) % 6.283; f.w1 = 1.1 + (ph % 0.5); }
