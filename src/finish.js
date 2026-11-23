@@ -257,6 +257,8 @@ const MOON_DIR = { value: new THREE.Vector3(0.83, 0.3, -0.33).normalize() };
 export function setMoon(dir) { MOON_DIR.value.copy(dir).normalize(); }
 // opts: { drift: how uneven (0: none, for ice), moon: how strongly slopes are shaded from the moon, sheen: the glance }
 export function snowLook(mat, opts = {}) {
+  if (mat.userData.snowLook) return mat;          // (once only: src/look.js also wraps every snow-mapped material, and a second wrap redefines its varyings)
+  mat.userData.snowLook = true;
   const o = { drift: 3.2, moon: 0.55, sheen: 0.55, ...opts };
   const u = { uDrift: { value: shared() }, uMoonDir: MOON_DIR, uSnowK: { value: new THREE.Vector3(o.drift, o.moon, o.sheen) } };
   const prev = mat.onBeforeCompile;
