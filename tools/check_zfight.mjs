@@ -30,7 +30,8 @@ const errors = [];
 try {
   const p = await b.newPage(); await p.setViewport({ width: 900, height: 600 });
   p.on('pageerror', e => errors.push(String(e)));
-  await p.goto(`http://localhost:${port}/?mode=explore&toy=car&saved`); await p.waitForFunction(() => window.__ah && window.__ah.state === 'play', { timeout: 200000 });
+  // (audit: the fit-out keeps its vertices after upload, src/museum.js, so the furniture can be looked at too)
+  await p.goto(`http://localhost:${port}/?mode=explore&toy=car&saved&audit`); await p.waitForFunction(() => window.__ah && window.__ah.state === 'play', { timeout: 200000 });
   const found = new Map(); let same = 0, apart = 0, tris = 0;
   for (const at of spots.length ? spots : [null]) {
     if (at) { await p.evaluate(at => window.__ah.vehicle.place(at[0], at[1], 0), at); await new Promise(r => setTimeout(r, 1200)); }
@@ -73,7 +74,9 @@ try {
       const T = [], cells = new Map(), A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), N = new THREE.Vector3(), E1 = new THREE.Vector3(), E2 = new THREE.Vector3(), M = new THREE.Matrix4(), IM = new THREE.Matrix4();
       const ua = [], ub = [], uc = [];
       for (const [mi, o] of meshes.entries()) {
-        const g = o.geometry, pos = g.attributes.position, uv = g.attributes.uv, idx = g.index, count = idx ? idx.count : pos.count;
+        const g = o.geometry, pos = g.attributes.position, uv = g.attributes.uv, idx = g.index;
+        if (!pos?.array || (idx && !idx.array) || (uv && !uv.array)) continue;      // (a geometry whose copy was let go once it was on the graphics card)
+        const count = idx ? idx.count : pos.count;
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         const groups = g.groups.length ? g.groups : [{ start: 0, count, materialIndex: 0 }];
         const inst = o.isInstancedMesh ? o.count : 1;

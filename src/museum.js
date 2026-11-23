@@ -774,7 +774,9 @@ export class Museum {
     this.group.add(portals.mesh(new THREE.MeshStandardMaterial({ color: 0xa69c8a, roughness: 0.75, emissive: 0x8a7f6c, emissiveIntensity: 0.07 })));
 
     const floorMat = (map, rough, k, glow) => relief(mirror.patch(new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, emissiveMap: map, emissive: new THREE.Color(0.55, 0.66, 1), emissiveIntensity: glow }), k), { depth: 1.4, px: map.image.width });
-    this.floors.push(stone.mesh(floorMat(TX.marble(), 0.35, [0.04, 0.62], 0.05)), slate.mesh(floorMat(TX.slate(), 0.4, [0.05, 0.6], 0.03)));
+    const slateMat = floorMat(TX.slate(), 0.4, [0.05, 0.6], 0.06);
+    slateMat.userData.workLift = 0.12;          // (dark stone: a room's working light, or a lit gallery's, brings it up further towards grey: src/lights.js)
+    this.floors.push(stone.mesh(floorMat(TX.marble(), 0.35, [0.04, 0.62], 0.05)), slate.mesh(slateMat));
     if (!wcTile.empty) {
       this.floors.push(wcTile.mesh(floorMat(TX.mosaic(), 0.85, [0.01, 0.3], 0.05)));
       const em = TX.mosaic(true), edge = wcEdge.mesh(new THREE.MeshStandardMaterial({ map: em, roughness: 0.9, emissiveMap: em, emissive: new THREE.Color(0.55, 0.66, 1), emissiveIntensity: 0.05, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
@@ -1104,6 +1106,14 @@ export class Museum {
         } else if (d.kind === 'flap') {
           bx(paint, 1.0, 2.1 - d.h, 0.06, 0, d.h + (2.1 - d.h) / 2, 0.03); for (const sx of [-1, 1]) bx(paint, (1.0 - w) / 2, d.h, 0.06, sx * (w / 2 + (1.0 - w) / 4), d.h / 2, 0.03);
           bx(steel, 0.04, 0.22, 0.08, 0.36, 1.05, 0.08); const fl = bx(paint, w, d.h, 0.03, 0, d.h - 0.02, 0.2); fl.rotation.x = -1.1; fl.position.set(0, d.h - 0.02 - Math.cos(1.1) * d.h / 2 + d.h * 0.05, 0.03 + Math.sin(1.1) * d.h / 2);
+          // A real service door: a pressed-steel frame round it, two raised panels, a kick plate over the hole, a closer,
+          // a notice, and a caged lamp over it.
+          for (const sx of [-1, 1]) bx(steel, 0.07, 2.17, 0.1, sx * 0.535, 1.085, 0.05); bx(steel, 1.14, 0.07, 0.1, 0, 2.135, 0.05);
+          for (const [y0, y1] of [[d.h + 0.3, 1.0], [1.2, 1.95]]) { bx(paint, 0.7, y1 - y0, 0.012, 0, (y0 + y1) / 2, 0.066); for (const yy of [y0, y1]) bx(steel, 0.72, 0.012, 0.024, 0, yy, 0.07); }
+          bx(steel, 0.96, 0.16, 0.012, 0, d.h + 0.1, 0.066);
+          bx(steel, 0.32, 0.04, 0.05, -0.16, 2.0, 0.09); bx(steel, 0.3, 0.025, 0.025, -0.2, 1.96, 0.12);
+          const nt = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.22), new THREE.MeshBasicMaterial({ map: TX.notice(['Staff only', 'Keep shut']), color: new THREE.Color(0.62, 0.6, 0.56) })); nt.position.set(0, 1.58, 0.08); g.add(nt);
+          bx(steel, 0.16, 0.1, 0.08, 0, 2.42, 0.04); const bulb = bx(warm, 0.1, 0.1, 0.07, 0, 2.32, 0.09); bulb.scale.set(1, 0.9, 1); for (const s of [-1, 1]) bx(steel, 0.008, 0.11, 0.08, s * 0.05, 2.32, 0.09);
         } else {
           for (const sx of [-1, 1]) bx(steel, 0.05, d.h + 0.05, 0.08, sx * (w / 2 + 0.025), (d.h + 0.05) / 2, 0.04); bx(steel, w + 0.1, 0.05, 0.08, 0, d.h + 0.025, 0.04);
           const pane = bx(glass, w, d.h, 0.02, 0, 0, 0); pane.rotation.x = 0.75; pane.position.set(0, d.h - Math.cos(0.75) * d.h / 2, 0.06 + Math.sin(0.75) * d.h / 2);
@@ -1508,17 +1518,30 @@ export class Museum {
   // lifts, and the guard rails round all of them. They are part of the building, so they stay when
   // the stunt kit is cleared away for a race.
   _buildLevels() {
-    const { plan } = this, stone = new Geo(), ply = new Geo(), steel = new Geo(), arrows = new Geo();
+    const { plan } = this, stone = new Geo(), dress = new Geo(), ply = new Geo(), steel = new Geo(), arrows = new Geo();
     const g = this.levels = new THREE.Group(); this.group.add(g);
-    for (const d of plan.decks) stone.box(d.x0, d.x1, d.y - d.thick, d.y, d.z0, d.z1, 1.3);
+    // A block of stone: its top is floor (the marble, inlays and all); its sides and underside are dressed stone, plain.
+    // `under`: whether its underside can be seen (a deck's can; a tread standing on the floor's cannot).
+    const slab = (x0, x1, y0, y1, z0, z1, under, s = 1.3) => {
+      const dx = (x1 - x0) / s, dy = (y1 - y0) / s, dz = (z1 - z0) / s;
+      dress.quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [[0, 0], [dx, 0], [dx, dy], [0, dy]]);
+      dress.quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [0, 0, -1], [[0, 0], [dx, 0], [dx, dy], [0, dy]]);
+      dress.quad([x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [1, 0, 0], [[0, 0], [dz, 0], [dz, dy], [0, dy]]);
+      dress.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [[0, 0], [dz, 0], [dz, dy], [0, dy]]);
+      stone.quad([x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1], [0, 1, 0], [[x0 / s, z0 / s], [x1 / s, z0 / s], [x1 / s, z1 / s], [x0 / s, z1 / s]]);
+      if (under) dress.quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [0, -1, 0], [[0, 0], [dx, 0], [dx, dz], [0, dz]]);
+    };
+    for (const d of plan.decks) slab(d.x0, d.x1, d.y - d.thick, d.y, d.z0, d.z1, true);
     for (const q of plan.ramps) {
       const alongX = q.axis === 'x', a = alongX ? q.x0 : q.z0, b = alongX ? q.x1 : q.z1, lo = Math.min(q.y0, q.y1), rise = Math.abs(q.y1 - q.y0), up = q.y1 > q.y0;
       if (q.stairs) {
         // The steps, counted from the low end: each tread comes just under the plank where the plank passes its edge.
-        const n = Math.max(2, Math.round(rise / 0.17));
+        // (Each a centimetre and a half in from the flight's sides: a flight built against a wall comes to the face of its
+        // skirting, and the two faces in one plane flickered.)
+        const n = Math.max(2, Math.round(rise / 0.17)), IN = 0.015;
         for (let k = 1; k < n; k++) {
           const i = up ? k : n - 1 - k, u0 = a + (b - a) * i / n, u1 = a + (b - a) * (i + 1) / n, top = lo + rise * k / n;
-          if (alongX) stone.box(u0, u1, lo, top, q.z0, q.z1, 1.3); else stone.box(q.x0, q.x1, lo, top, u0, u1, 1.3);
+          if (alongX) slab(u0, u1, lo, top, q.z0 + IN, q.z1 - IN, false); else slab(q.x0 + IN, q.x1 - IN, lo, top, u0, u1, false);
         }
       }
       // The plank: plywood, a hand narrower than the flight each side, with arrows running up it.
@@ -1535,8 +1558,8 @@ export class Museum {
     // The edge of the slab, wherever a floor has been cut for a stair or a lift.
     for (const w of plan.wells) {
       const y1 = w.y, y0 = w.y - SLAB;
-      stone.quad([w.x0, y0, w.z0], [w.x1, y0, w.z0], [w.x1, y1, w.z0], [w.x0, y1, w.z0], [0, 0, 1]); stone.quad([w.x0, y0, w.z1], [w.x1, y0, w.z1], [w.x1, y1, w.z1], [w.x0, y1, w.z1], [0, 0, -1]);
-      stone.quad([w.x0, y0, w.z0], [w.x0, y0, w.z1], [w.x0, y1, w.z1], [w.x0, y1, w.z0], [1, 0, 0]); stone.quad([w.x1, y0, w.z0], [w.x1, y0, w.z1], [w.x1, y1, w.z1], [w.x1, y1, w.z0], [-1, 0, 0]);
+      dress.quad([w.x0, y0, w.z0], [w.x1, y0, w.z0], [w.x1, y1, w.z0], [w.x0, y1, w.z0], [0, 0, 1]); dress.quad([w.x0, y0, w.z1], [w.x1, y0, w.z1], [w.x1, y1, w.z1], [w.x0, y1, w.z1], [0, 0, -1]);
+      dress.quad([w.x0, y0, w.z0], [w.x0, y0, w.z1], [w.x0, y1, w.z1], [w.x0, y1, w.z0], [1, 0, 0]); dress.quad([w.x1, y0, w.z0], [w.x1, y0, w.z1], [w.x1, y1, w.z1], [w.x1, y1, w.z0], [-1, 0, 0]);
     }
     // Guard rails: a top bar, a bar half way down, and a post to each length.
     for (const o of plan.obstacles) {
@@ -1549,6 +1572,8 @@ export class Museum {
     const plyTex = TX.plywood();
     const marble = TX.marble();
     put(stone, new THREE.MeshStandardMaterial({ map: marble, color: 0xc9c2b4, roughness: 0.5, emissiveMap: marble, emissive: new THREE.Color(0.6, 0.6, 0.62), emissiveIntensity: 0.3 }));
+    const dressed = TX.dressedStone();
+    put(dress, new THREE.MeshStandardMaterial({ map: dressed, color: 0xc9c2b4, roughness: 0.8, emissiveMap: dressed, emissive: new THREE.Color(0.6, 0.6, 0.62), emissiveIntensity: 0.28 }));
     put(ply, new THREE.MeshStandardMaterial({ map: plyTex, roughness: 0.75, emissiveMap: plyTex, emissive: 0x8a7a66, emissiveIntensity: 0.16, side: THREE.DoubleSide }));
     put(steel, new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.45, metalness: 0.6, emissive: 0x15120e, emissiveIntensity: 0.6 }));
     const am = put(arrows, new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
@@ -1608,7 +1633,7 @@ export class Museum {
           F.box(frame, a + J, b - J, y0 + 0.004, y0 + 0.01, 0.005, W + 0.02);             // the sill
           // Over it, which floor this is, lit; on the jamb to its right, the call button.
           const k = Math.max(0, labels.indexOf(floorName(y0))), n = Math.max(1, labels.length), m = (a + b) / 2, u0 = k / n, u1 = (k + 1) / n;
-          F.wall(sign, m - 0.26, m + 0.26, y0 + DOOR + 0.05, y0 + DOOR + 0.25, W + 0.026, F.flip ? [[u1, 0], [u0, 0], [u0, 1], [u1, 1]] : [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
+          F.wall(sign, m - 0.26, m + 0.26, y0 + DOOR + 0.05, y0 + DOOR + 0.25, W + 0.034, F.flip ? [[u1, 0], [u0, 0], [u0, 1], [u1, 1]] : [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]);
           const ub = F.flip ? a + 0.12 : b - 0.12;
           F.box(frame, ub - 0.06, ub + 0.06, y0 + 0.95, y0 + 1.25, W + 0.02, W + 0.035);
           for (const yb of [1.03, 1.14]) F.box(lamp, ub - 0.025, ub + 0.025, y0 + yb, y0 + yb + 0.05, W + 0.035, W + 0.045);
@@ -1623,11 +1648,12 @@ export class Museum {
         frame.box(x[0], x[1], lo - 0.02, top, z[0], z[1]);
       }
       frame.box(l.x0 - W - 0.03, l.x1 + W + 0.03, top, top + 0.12, l.z0 - W - 0.03, l.z1 + W + 0.03);
-      pit.quad([l.x0 + 0.01, lo + 0.004, l.z0 + 0.01], [l.x1 - 0.01, lo + 0.004, l.z0 + 0.01], [l.x1 - 0.01, lo + 0.004, l.z1 - 0.01], [l.x0 + 0.01, lo + 0.004, l.z1 - 0.01], [0, 1, 0]);
+      // (Not where a room's own floor runs under the shaft at its lowest stop: a pit floor 4 mm over that one flickered against it.)
+      if (!plan.rooms.some(r => Math.abs(r.y - lo) < 0.05 && l.x0 >= r.x0 - 0.05 && l.x1 <= r.x1 + 0.05 && l.z0 >= r.z0 - 0.05 && l.z1 <= r.z1 + 0.05)) pit.quad([l.x0 + 0.01, lo + 0.004, l.z0 + 0.01], [l.x1 - 0.01, lo + 0.004, l.z0 + 0.01], [l.x1 - 0.01, lo + 0.004, l.z1 - 0.01], [l.x0 + 0.01, lo + 0.004, l.z1 - 0.01], [0, 1, 0]);
 
       // ---- the car, built at its own floor (y = 0) and moved up and down as one
       const e = 0.015, open = new Set(l.doors), cf = new Geo(), cs = new Geo(), cg = new Geo(), ch = new Geo(), cl = new Geo();
-      cf.box(l.x0 + e, l.x1 - e, -0.2, 0.012, l.z0 + e, l.z1 - e, 0.4);                      // the floor: chequer plate on a slab a hand deep
+      cf.box(l.x0 + e, l.x1 - e, -0.19, 0.012, l.z0 + e, l.z1 - e, 0.4);                     // the floor: chequer plate on a slab a hand deep (its underside a centimetre above the toe guard's, not in its plane)
       cs.box(l.x0 + e, l.x1 - e, CAB, CAB + 0.1, l.z0 + e, l.z1 - e);                         // the roof
       for (const x of [l.x0 + e, l.x1 - e - 0.05]) for (const z of [l.z0 + e, l.z1 - e - 0.05]) cs.box(x, x + 0.05, 0.012, CAB, z, z + 0.05);
       for (const s of SIDES) {
@@ -1644,7 +1670,7 @@ export class Museum {
           for (const u of [a + 0.3, b - 0.3]) F.box(cs, u - 0.015, u + 0.015, 0.87, 0.89, -0.09, -0.055);
         }
       }
-      cl.quad([l.x0 + 0.7, CAB - 0.004, l.z0 + 0.7], [l.x1 - 0.7, CAB - 0.004, l.z0 + 0.7], [l.x1 - 0.7, CAB - 0.004, l.z1 - 0.7], [l.x0 + 0.7, CAB - 0.004, l.z1 - 0.7], [0, -1, 0]);
+      cl.quad([l.x0 + 0.7, CAB - 0.012, l.z0 + 0.7], [l.x1 - 0.7, CAB - 0.012, l.z0 + 0.7], [l.x1 - 0.7, CAB - 0.012, l.z1 - 0.7], [l.x0 + 0.7, CAB - 0.012, l.z1 - 0.7], [0, -1, 0]);      // (1.2 cm under the roof: at 4 mm the two flickered)
       const mesh = new THREE.Group();
       for (const [G, m] of [[cf, M.floor], [cs, M.frame], [cg, M.glass], [ch, M.stripe], [cl, M.ceiling]]) if (!G.empty) mesh.add(G.mesh(m));
       mesh.position.y = l.y;

@@ -1113,13 +1113,25 @@ def('vending', 0.95, 0.85, (g, w, r) => {
 // ---- the café ----
 def('column', 0.56, 0.56, g => { g.bs(-0.26, 0.26, 0, g.H, 0.02, 0.54, 0xb9b6ad); g.b(-0.28, 0.28, 0, 0.14, 0, 0.56, C.steelD); g.b(-0.27, 0.27, 0.14, 1.0, 0.01, 0.55, 0x7c8690); g.b(-0.285, 0.285, 1.0, 1.04, -0.005, 0.565, C.steelL, 'metal'); g.b(-0.29, 0.29, g.H - 0.22, g.H, -0.01, 0.57, 0x8f8c84); });
 def('booth', 2.1, 1.75, (g, w, r) => {                                  // two benches with high backs and a table between, end-on to the wall
-  const c = pick(r, [C.leather, C.velvet, C.greenD, 0x2c4460, 0x8a4a1c]), t = pick(r, [C.woodL, C.white, C.woodD]);
+  // Each bench: a panelled oak base with a black toe-kick, two seat cushions with chamfered edges, a back of four
+  // buttoned channels on an oak board, and an oak cap rail. Leather has a sheen; the colour varies a shade cushion to cushion.
+  const c = pick(r, [C.leather, C.velvet, C.greenD, 0x2c4460, 0x8a4a1c]), t = pick(r, [C.woodL, C.white, C.woodD]), lth = c === C.velvet ? 'matte' : 'sheen';
+  const shade = k => [16, 8, 0].reduce((h, b) => h | Math.min(255, Math.round(((c >> b) & 255) * k)) << b, 0), btn = shade(0.55);
   for (const sg of [-1, 1]) {
-    const u0 = sg < 0 ? -1.03 : 0.45, u1 = u0 + 0.58, ub = sg < 0 ? -1.03 : 0.91;
-    g.bs(u0, u1, 0, 0.44, 0.02, 1.6, c); g.b(u0 + 0.02, u1 - 0.02, 0.44, 0.5, 0.04, 1.58, c, 'matte', true);
-    g.bs(ub, ub + 0.12, 0, 1.25, 0.02, 1.6, c); g.b(ub - 0.01, ub + 0.13, 1.25, 1.29, 0.01, 1.61, C.woodD, 'matte', true);
+    const u0 = sg < 0 ? -1.03 : 0.45, u1 = u0 + 0.58, bo = sg * 1.03, bi = sg * 0.97, ci = sg * 0.87;   // the seat; the back board; the back cushions
+    g.b(u0 + 0.03, u1 - 0.03, 0, 0.07, 0.05, 1.57, C.black);                                                   // toe-kick
+    g.b(u0, u1, 0.07, 0.33, 0.02, 1.6, C.woodD); for (const [d0, d1] of [[0.12, 0.76], [0.86, 1.5]]) g.b(sg < 0 ? u1 : u0 - 0.008, sg < 0 ? u1 + 0.008 : u0, 0.12, 0.28, d0, d1, 0x3a2618);      // fielded panels on its face
+    for (const [d0, d1, k] of [[0.03, 0.805, 0.97], [0.815, 1.59, 1.03]]) g.cu(sg < 0 ? bi : u0 + 0.005, sg < 0 ? u1 - 0.005 : bi, 0.33, 0.47, d0, d1, 0.04, shade(k), lth);
+    g.b(Math.min(bo, bi), Math.max(bo, bi), 0, 1.22, 0.02, 1.6, C.woodD);                                       // the back board
+    for (let i = 0; i < 4; i++) {
+      const d0 = 0.03 + i * 0.39, d1 = d0 + 0.38, k = 0.94 + (i % 2) * 0.08;
+      g.cu(Math.min(bi, ci), Math.max(bi, ci), 0.47, 1.16, d0, d1, 0.03, shade(k), lth);
+      for (const y of [0.7, 0.95]) g.c(sg < 0 ? ci + 0.002 : ci - 0.002, y, (d0 + d1) / 2, 0.011, 0.012, 'u', btn, 'matte', 8);
+    }
+    g.b(Math.min(bo, ci) - 0.01, Math.max(bo, ci) + 0.01, 1.22, 1.26, 0.01, 1.61, C.woodD, 'matte', true);          // cap rail
+    g.s(u0, u1, 0, 0.47, 0.02, 1.6); g.s(Math.min(bo, ci), Math.max(bo, ci), 0, 1.26, 0.02, 1.6);
   }
-  g.b(-0.4, 0.4, 0.71, 0.75, 0.02, 1.45, t, 'matte', true); g.bs(-0.05, 0.05, 0, 0.71, 0.7, 0.8, C.steelD, 'metal'); g.b(-0.2, 0.2, 0, 0.03, 0.55, 0.95, C.steelD, 'metal'); g.s(-0.4, 0.4, 0.66, 0.78, 0.02, 1.45);
+  g.cu(-0.4, 0.4, 0.705, 0.75, 0.02, 1.45, 0.012, t); g.b(-0.385, 0.385, 0.69, 0.705, 0.035, 1.435, C.woodD, 'matte', true); g.c(0, 0.355, 0.75, 0.05, 0.69, 'y', C.steelD, 'metal', 12); g.b(-0.2, 0.2, 0, 0.03, 0.55, 0.95, C.steelD, 'metal'); g.s(-0.4, 0.4, 0.66, 0.78, 0.02, 1.45);
   g.b(-0.38, 0.38, 1.3, 1.7, 0, 0.02, pick(r, PAINT)); g.c(0, 1.98, 0.75, 0.16, 0.2, 'y', C.woodD, 'matte', 8); g.c(0, 1.875, 0.75, 0.13, 0.012, 'y', C.lamp, 'glow', 8); g.c(0, 2.08 + Math.max(0.1, g.H - 2.1) / 2, 0.75, 0.008, Math.max(0.1, g.H - 2.1), 'y', C.black, 'matte', 4);
   if (r() < 0.6) g.c(0.2 * (r() - 0.5), 0.8, 0.3 + r() * 0.8, 0.035, 0.1, 'y', C.white, 'matte', 6); if (r() < 0.4) g.q(-0.15, 1.0, 0.3, 0.22, 0.75, 0.765, C.orange);
 });
@@ -1589,8 +1601,8 @@ def('dishwasher', 1.6, 0.8, (g, w, r) => { g.bs(-0.4, 0.4, 0, 0.86, 0.02, 0.78, 
 def('trayRack', 0.6, 0.75, (g, w, r) => { for (const u of [-0.27, 0.27]) for (const d of [0.04, 0.7]) g.q(u, d, 0.025, 0.025, 0.1, 1.75, C.steelL, 'metal'); for (let y = 0.25; y < 1.7; y += 0.1) if (r() < 0.75) g.b(-0.26, 0.26, y, y + 0.02, 0.05, 0.69, pick(r, [C.steelL, C.fabric, C.cream, C.orange]), 'matte', true); castors(g, -0.27, 0.27, 0.04, 0.7); g.s(-0.28, 0.28, 0, 1.75, 0.03, 0.72); });
 def('cafeTable', 1.9, 1.9, (g, w, r, o = {}) => {
   const c = o.cloth ? C.enamel : o.outdoor ? C.steelL : pick(r, [C.woodL, C.white, C.woodD]), cc = o.outdoor ? C.steelL : o.cloth ? C.woodD : pick(r, [C.woodD, C.fabric, C.red, C.black]), m = 0.95;
-  if (o.square || o.cloth) { g.b(-0.4, 0.4, 0.71, 0.75, m - 0.4, m + 0.4, c, 'matte', true); if (o.cloth) g.b(-0.42, 0.42, 0.5, 0.71, m - 0.42, m + 0.42, c, 'matte', true); } else g.c(0, 0.73, m, 0.42, 0.04, 'y', c, 'matte', 12);
-  g.c(0, 0.36, m, 0.04, 0.7, 'y', C.steelD, 'metal', 6); g.c(0, 0.015, m, 0.24, 0.03, 'y', C.steelD, 'metal', 8); g.s(-0.06, 0.06, 0, 0.7, m - 0.06, m + 0.06); g.s(-0.4, 0.4, 0.68, 0.78, m - 0.4, m + 0.4);
+  if (o.square || o.cloth) { g.b(-0.4, 0.4, 0.71, 0.75, m - 0.4, m + 0.4, c, 'matte', true); if (o.cloth) g.b(-0.42, 0.42, 0.5, 0.71, m - 0.42, m + 0.42, c, 'matte', true); } else g.c(0, 0.73, m, 0.42, 0.04, 'y', c, 'matte', 28); g.c(0, 0.706, m, 0.4, 0.008, 'y', C.woodD, 'matte', 28);
+  g.c(0, 0.36, m, 0.04, 0.7, 'y', C.steelD, 'metal', 12); g.c(0, 0.015, m, 0.24, 0.03, 'y', C.steelD, 'metal', 20); g.s(-0.06, 0.06, 0, 0.7, m - 0.06, m + 0.06); g.s(-0.4, 0.4, 0.68, 0.78, m - 0.4, m + 0.4);
   if (r() < 0.9) chair(g, 0, m - 0.66, 1, cc); if (r() < 0.9) chair(g, 0, m + 0.66, -1, cc);
   if (o.cloth) { g.c(0, 0.82, m, 0.03, 0.14, 'y', C.glass, 'matte', 6); for (const d of [-0.22, 0.22]) g.c(0, 0.756, m + d, 0.11, 0.012, 'y', C.white, 'matte', 8); } else if (r() < 0.4) g.c(0.15, 0.8, m + 0.1, 0.035, 0.1, 'y', C.white, 'matte', 6);
 });
@@ -1623,7 +1635,7 @@ def('etchingPress', 1.8, 1.4, (g, w, r) => {
   for (const u of [-0.5, 0.5]) g.c(u, 1.42, 0.7, 0.025, 0.16, 'y', C.steelL, 'metal', 6); g.s(-0.55, 0.75, 0.8, 1.45, 0.0, 1.4);
 });
 def('kidsTable', 1.8, 1.9, (g, w, r) => { table(g, -0.7, 0.7, 0.55, 1.35, 0.55, pick(r, [C.woodL, C.white, C.yellow, C.blueL]), C.steelL); for (const u of [-0.4, 0.4]) for (const [d, s] of [[0.28, 1], [1.62, -1]]) { g.qs(u + (r() - 0.5) * 0.1, d, 0.3, 0.3, 0, 0.32, pick(r, MERCH)); } for (let i = 0; i < 4; i++) g.q(-0.5 + r() * 1.0, 0.75 + r() * 0.4, 0.2, 0.15, 0.55, 0.556, pick(r, [C.white, C.cream, C.pink, C.blueL, C.yellow])); if (r() < 0.6) g.c(0, 0.6, 0.95, 0.06, 0.1, 'y', pick(r, TINS), 'matte', 7); });
-def('cubbies', 1.6, 0.4, (g, w, r) => { g.b(-0.8, 0.8, 0, 1.2, 0, 0.02, C.woodL); for (let u = -0.8; u <= 0.81; u += 0.4) g.b(u - 0.012, u + 0.012, 0, 1.2, 0, 0.4, C.woodL, 'matte', true); for (let y = 0; y < 1.21; y += 0.4) g.b(-0.8, 0.8, Math.max(0, y - 0.02), y + 0.004, 0, 0.4, C.woodL, 'matte', true); for (let u = -0.78; u < 0.7; u += 0.4) for (let y = 0.004; y < 1.1; y += 0.4) if (r() < 0.7) g.b(u + 0.04, u + 0.33, y, y + 0.15 + r() * 0.18, 0.05, 0.36, pick(r, MERCH), 'matte', true); g.s(-0.8, 0.8, 0, 1.2, 0, 0.4); });
+def('cubbies', 1.6, 0.4, (g, w, r) => { g.b(-0.8, 0.8, 0, 1.2, 0, 0.02, C.woodL); for (let u = -0.8; u <= 0.81; u += 0.4) g.b(u - 0.012, u + 0.012, 0, 1.2, 0, 0.4, C.woodL, 'matte', true); for (let y = 0; y < 1.21; y += 0.4) g.b(-0.8, 0.8, Math.max(0, y - 0.02), Math.max(0.02, y + 0.004), 0, 0.4, C.woodL, 'matte', true); for (let u = -0.78; u < 0.7; u += 0.4) for (let y = 0.004; y < 1.1; y += 0.4) if (r() < 0.7) g.b(u + 0.04, u + 0.33, Math.max(0.02, y), y + 0.15 + r() * 0.18, 0.05, 0.36, pick(r, MERCH), 'matte', true); g.s(-0.8, 0.8, 0, 1.2, 0, 0.4); });
 def('blocks', 0.9, 0.9, (g, w, r) => { for (let i = 0; i < 7; i++) { const s = 0.14 + r() * 0.14, u = (r() - 0.5) * 0.6, d = 0.45 + (r() - 0.5) * 0.6; g.q(u, d, s, s, 0, s, pick(r, MERCH)); g.s(u - s / 2, u + s / 2, 0, s, d - s / 2, d + s / 2); } });
 def('beanbag', 0.9, 0.9, (g, w, r) => { const c = pick(r, MERCH); g.c(0, 0.16, 0.45, 0.4, 0.32, 'y', c, 'matte', 10); g.c(0, 0.4, 0.45, 0.28, 0.18, 'y', c, 'matte', 10); g.s(-0.38, 0.38, 0, 0.5, 0.07, 0.83); });
 
@@ -1726,6 +1738,18 @@ class Batch {
     if (!fx && !fz) { this.quad(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, 0, 1, 0, c); if (under) this.quad(x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, 0, -1, 0, c); }
     this.grow(x0, x1, y0, y1, z0, z1); this.boxes++;
   }
+  // A cushion: a box whose top edges are chamfered by `r` (a hipped top), so a seat or a squab reads as upholstered
+  // and not as a block. Its underside is never seen.
+  cush(x0, x1, y0, y1, z0, z1, r, hex) {
+    r = Math.min(r, (x1 - x0) / 2 - 1e-3, (z1 - z0) / 2 - 1e-3, y1 - y0 - 1e-3); if (!(r > 0)) return this.box(x0, x1, y0, y1, z0, z1, hex, false);
+    const c = colour(hex), ym = y1 - r, a = Math.SQRT1_2;
+    this.quad(x0, y0, z1, x1, y0, z1, x1, ym, z1, x0, ym, z1, 0, 0, 1, c); this.quad(x1, y0, z0, x0, y0, z0, x0, ym, z0, x1, ym, z0, 0, 0, -1, c);
+    this.quad(x1, y0, z1, x1, y0, z0, x1, ym, z0, x1, ym, z1, 1, 0, 0, c); this.quad(x0, y0, z0, x0, y0, z1, x0, ym, z1, x0, ym, z0, -1, 0, 0, c);
+    this.quad(x0, ym, z1, x1, ym, z1, x1 - r, y1, z1 - r, x0 + r, y1, z1 - r, 0, a, a, c); this.quad(x1, ym, z0, x0, ym, z0, x0 + r, y1, z0 + r, x1 - r, y1, z0 + r, 0, a, -a, c);
+    this.quad(x1, ym, z1, x1, ym, z0, x1 - r, y1, z0 + r, x1 - r, y1, z1 - r, a, a, 0, c); this.quad(x0, ym, z0, x0, ym, z1, x0 + r, y1, z1 - r, x0 + r, y1, z0 + r, -a, a, 0, c);
+    this.quad(x0 + r, y1, z1 - r, x1 - r, y1, z1 - r, x1 - r, y1, z0 + r, x0 + r, y1, z0 + r, 0, 1, 0, c);
+    this.grow(x0, x1, y0, y1, z0, z1); this.boxes++;
+  }
   // A cylinder of `seg` flat-shaded-smooth sides along world axis 0 (x), 1 (y) or 2 (z), centred on (cx, cy, cz).
   cyl(cx, cy, cz, rad, len, axis, hex, seg) {
     if (!(rad > 0 && len > 0)) return;
@@ -1762,6 +1786,11 @@ class Pen {
     const H = this.H - 0.01; if (y1 > H) y1 = H; if (y0 < 0) y0 = 0; if (y1 <= y0) return;
     const xa = this.X(u0, d0), xb = this.X(u1, d1), za = this.Z(u0, d0), zb = this.Z(u1, d1);
     this.R.batch(mat).box(Math.min(xa, xb), Math.max(xa, xb), this.y + y0, this.y + y1, Math.min(za, zb), Math.max(za, zb), hex, under === true);
+  }
+  cu(u0, u1, y0, y1, d0, d1, r, hex, mat = 'matte') {
+    const H = this.H - 0.01; if (y1 > H) y1 = H; if (y1 <= y0) return;
+    const xa = this.X(u0, d0), xb = this.X(u1, d1), za = this.Z(u0, d0), zb = this.Z(u1, d1);
+    this.R.batch(mat).cush(Math.min(xa, xb), Math.max(xa, xb), this.y + y0, this.y + y1, Math.min(za, zb), Math.max(za, zb), r, hex);
   }
   q(u, d, w, dp, y0, y1, hex, mat, under) { this.b(u - w / 2, u + w / 2, y0, y1, d - dp / 2, d + dp / 2, hex, mat, under); }
   s(u0, u1, y0, y1, d0, d1) {
@@ -1871,7 +1900,7 @@ class Room {
 
   walls(list, o = {}) {
     const { L, W } = this, sel = o.walls || 'all', gap = o.gap == null ? 0.1 : o.gap, rnd = this.rnd;
-    const all = [['side0', L, t => [t, 0], 'b+'], ['side1', L, t => [t, W], 'b-'], ['end0', W, t => [0, t], 'a+'], ['end1', W, t => [L, t], 'a-']];
+    const OFF = 0.02, all = [['side0', L, t => [t, OFF], 'b+'], ['side1', L, t => [t, W - OFF], 'b-'], ['end0', W, t => [OFF, t], 'a+'], ['end1', W, t => [L - OFF, t], 'a-']];      // (two centimetres off the wall: set flush, a back lay in the plane of the skirting's)
     const use = all.filter(w => sel === 'all' || sel === w[0] || (sel === 'long' && w[0][0] === 's') || (sel === 'short' && w[0][0] === 'e'));
     const width = spec => (typeof spec === 'string' ? 0 : spec[1]) || ITEMS[typeof spec === 'string' ? spec : spec[0]].w;
     const pending = list.slice();
@@ -2155,5 +2184,6 @@ export function furnish(plan) {
 export const MATERIALS = {
   matte: { roughness: 0.85, metalness: 0, glow: 0.26 },
   metal: { roughness: 0.42, metalness: 0.55, glow: 0.24 },
+  sheen: { roughness: 0.38, metalness: 0, glow: 0.26 },                    // leather and vinyl: the café's booths
   glow: { unlit: true, gain: 1.5 },
 };

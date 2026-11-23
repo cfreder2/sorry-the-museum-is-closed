@@ -105,6 +105,33 @@ function card(c) {
 
 // ---------------------------------------------------------------- geometry helpers
 // Plain non-indexed geometry with a colour on every vertex, ready to merge.
+// The run's surfaces, painted once and shared by every nest.
+const _nt = {};
+function nestTex(kind) {
+  if (_nt[kind]) return _nt[kind];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256; const c = cv.getContext('2d');
+  let s = 17 + kind.length * 31; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  if (kind === 'boards') {
+    for (let i = 0; i < 4; i++) { c.fillStyle = `hsl(${28 + r() * 8}, ${28 + r() * 10}%, ${34 + r() * 10}%)`; c.fillRect(0, i * 64, 256, 64); c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(0, i * 64, 256, 3);
+      for (let k = 0; k < 14; k++) { c.strokeStyle = r() < 0.5 ? 'rgba(40,22,10,.25)' : 'rgba(200,160,110,.15)'; c.lineWidth = 1 + r(); c.beginPath(); const yy = i * 64 + 6 + r() * 54; c.moveTo(0, yy); c.bezierCurveTo(80, yy + (r() - 0.5) * 8, 170, yy + (r() - 0.5) * 8, 256, yy + (r() - 0.5) * 6); c.stroke(); }
+      const jx = r() * 256; c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(jx, i * 64, 3, 64); c.fillStyle = 'rgba(30,20,10,.8)'; for (const dx of [10, -10]) { c.beginPath(); c.arc(jx + dx, i * 64 + 32, 2.2, 0, 7); c.fill(); } }
+    for (let k = 0; k < 900; k++) { c.fillStyle = `rgba(${r() < 0.5 ? '220,210,190' : '20,14,8'},${0.04 + r() * 0.06})`; c.fillRect(r() * 256, r() * 256, 1 + r() * 2, 1 + r() * 2); }      // dust
+  } else if (kind === 'brick') {
+    c.fillStyle = '#8a8070'; c.fillRect(0, 0, 256, 256);
+    for (let row = 0; row < 8; row++) for (let col = -1; col < 4; col++) { const x = col * 64 + (row % 2) * 32 + 3, yy = row * 32 + 3; c.fillStyle = `hsl(${8 + r() * 12}, ${40 + r() * 15}%, ${28 + r() * 12}%)`; c.fillRect(x, yy, 58, 26); c.fillStyle = 'rgba(0,0,0,.15)'; c.fillRect(x, yy + 20, 58, 6); }
+    for (let k = 0; k < 600; k++) { c.fillStyle = `rgba(${r() < 0.5 ? '230,220,200' : '0,0,0'},${0.05 + r() * 0.08})`; c.fillRect(r() * 256, r() * 256, 1 + r() * 3, 1 + r() * 2); }
+  } else if (kind === 'lath') {
+    c.fillStyle = '#2a2018'; c.fillRect(0, 0, 256, 256);
+    for (let yy = 0; yy < 256; yy += 21) { c.fillStyle = `hsl(${30 + r() * 8}, ${30 + r() * 10}%, ${40 + r() * 12}%)`; c.fillRect(0, yy + 2, 256, 14); c.fillStyle = 'rgba(230,224,206,.55)'; for (let k = 0; k < 5; k++) c.fillRect(r() * 256, yy + 15, 10 + r() * 30, 4 + r() * 4); }      // laths, and plaster keys squeezed between
+  } else {
+    c.fillStyle = '#e8b0ae'; c.fillRect(0, 0, 256, 256);
+    for (let k = 0; k < 2600; k++) { const a = r() * 6.3, l = 4 + r() * 14, x = r() * 256, yy = r() * 256; c.strokeStyle = r() < 0.5 ? 'rgba(255,230,220,.35)' : 'rgba(160,80,80,.25)'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(x, yy); c.lineTo(x + Math.cos(a) * l, yy + Math.sin(a) * l); c.stroke(); }
+    for (let x = 0; x < 256; x += 128) { c.fillStyle = 'rgba(90,60,40,.35)'; c.fillRect(x, 0, 6, 256); }      // the seams between batts
+  }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  return (_nt[kind] = t);
+}
+
 function prep(g, hex) {
   g = g.index ? g.toNonIndexed() : g; if (g.attributes.uv) g.deleteAttribute('uv');
   if (hex != null) { const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); }
@@ -125,6 +152,10 @@ feature({
     const steel = new THREE.MeshStandardMaterial({ color: 0x7c848c, roughness: 0.45, metalness: 0.6, emissive: 0x2c3138, emissiveIntensity: 0.7 });
     this.glowMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
     this.bakedMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    // The run's own surfaces, painted (the baked light is in their vertex colours, the texture over it): old boards
+    // underfoot, joists overhead, brick and lath at the back and sides, pink insulation between the joists.
+    const tm = map => new THREE.MeshBasicMaterial({ vertexColors: true, map, side: THREE.DoubleSide });
+    this.surf = { boards: tm(nestTex('boards')), brick: tm(nestTex('brick')), lath: tm(nestTex('lath')), fluff: tm(nestTex('fluff')) };
     this.rim = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 1.6, 0.55), toneMapped: false });
     const radial = TX.radial(0, 1.2);
     this.poolMat = new THREE.MeshBasicMaterial({ map: radial, color: GREEN.clone().multiplyScalar(0.55), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
@@ -187,21 +218,30 @@ feature({
     v.nestLat = bl; v.nestDep = bd;
     // ---- the shell: brick and lath inside the wall, dusty boards underfoot; tiled small so the baked glow falls off smoothly
     const shell = new Geo(); shell.col = [1, 1, 1];
+    const S = { boards: new Geo(), brick: new Geo(), lath: new Geo(), fluff: new Geo() }; for (const q of Object.values(S)) q.col = [1, 1, 1];
     const tone = (hex, j = 0.12) => { const c = new THREE.Color(hex), f = 1 - j / 2 + rnd() * j; return [c.r * f, c.g * f, c.b * f]; };
-    const panel = (A, B, C, Dd, nr, hex, su = 0.2, sv = 0.1) => {
-      // a flat panel from corner A along to B and up to D (all [lat, dep, h]), split into tiles of about su by sv
-      const nu = Math.max(1, Math.round(Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]) / su)), nv = Math.max(1, Math.round(Math.hypot(Dd[0] - A[0], Dd[1] - A[1], Dd[2] - A[2]) / sv));
+    // A flat panel from corner A along to B and up to D (all [lat, dep, h]), split into tiles of about su by sv; onto the
+    // surface `geo` (a painted one: its texture laid at `ts` metres to a repeat), or plain.
+    const panel = (A, B, C, Dd, nr, hex, su = 0.2, sv = 0.1, geo = shell, ts = 0.5) => {
+      const lu = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]), lv = Math.hypot(Dd[0] - A[0], Dd[1] - A[1], Dd[2] - A[2]);
+      const nu = Math.max(1, Math.round(lu / su)), nv = Math.max(1, Math.round(lv / sv));
       for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
         const at = (u, w) => [0, 1, 2].map(q => A[q] + (B[q] - A[q]) * u + (Dd[q] - A[q]) * w);
         const p = [at(i / nu, j / nv), at((i + 1) / nu, j / nv), at((i + 1) / nu, (j + 1) / nv), at(i / nu, (j + 1) / nv)].map(q => P(...q));
-        shell.col = tone(hex); shell.quad(p[0], p[1], p[2], p[3], nr);
+        const U = k => k / nu * lu / ts, W2 = k => k / nv * lv / ts;
+        geo.col = tone(hex, geo === shell ? 0.12 : 0.06); geo.quad(p[0], p[1], p[2], p[3], nr, [[U(i), W2(j)], [U(i + 1), W2(j)], [U(i + 1), W2(j + 1)], [U(i), W2(j + 1)]]);
       }
     };
     const e = 0.004, d0 = a + e, d1 = a + D - e, L0 = -l0 + e, L1 = l1 - e, top = CH - e;
-    panel([L0, d0, e], [L1, d0, e], null, [L0, d1, e], nrm(0, 0, 1), 0x4c443c, 0.2, 0.2);                        // floor
-    panel([L0, d0, top], [L1, d0, top], null, [L0, d1, top], nrm(0, 0, -1), 0x3a2e24, 0.2, 0.2);                 // underside of the joists
-    panel([L0, d1, 0], [L1, d1, 0], null, [L0, d1, CH], nrm(0, -1, 0), 0x6a4636);                                 // the back: brick
-    panel([L0, d0, 0], [L0, d1, 0], null, [L0, d0, CH], nrm(1, 0, 0), 0x63443a); panel([L1, d0, 0], [L1, d1, 0], null, [L1, d0, CH], nrm(-1, 0, 0), 0x63443a);
+    panel([L0, d0, e], [L1, d0, e], null, [L0, d1, e], nrm(0, 0, 1), 0xb8a890, 0.2, 0.2, S.boards, 0.6);          // floor: old boards
+    panel([L0, d0, top - 0.07], [L1, d0, top - 0.07], null, [L0, d1, top - 0.07], nrm(0, 0, -1), 0xe0b4b0, 0.2, 0.2, S.fluff, 0.45);      // insulation between the joists
+    panel([L0, d1, 0], [L1, d1, 0], null, [L0, d1, CH], nrm(0, -1, 0), 0xc8a08c, 0.2, 0.1, S.brick, 0.5);          // the back: brick
+    panel([L0, d0, 0], [L0, d1, 0], null, [L0, d0, CH], nrm(1, 0, 0), 0xc0a488, 0.2, 0.1, S.lath, 0.4); panel([L1, d0, 0], [L1, d1, 0], null, [L1, d0, CH], nrm(-1, 0, 0), 0xc0a488, 0.2, 0.1, S.lath, 0.4);      // the ends: lath, the plaster gone
+    // the joists over it all, across the run every 40 cm, and a stud up each end
+    const woodBox = (la, lb, da, db, h0, h1, hex) => { const [ax, az] = this.W(n, la, da), [bx, bz] = this.W(n, lb, db), q = new THREE.BoxGeometry(Math.abs(bx - ax), h1 - h0, Math.abs(bz - az)); q.translate((ax + bx) / 2, y + (h0 + h1) / 2, (az + bz) / 2); const c = new THREE.Color(hex), cc = new Float32Array(q.attributes.position.count * 3); for (let i = 0; i < cc.length; i += 3) { cc[i] = c.r; cc[i + 1] = c.g; cc[i + 2] = c.b; } q.setAttribute('color', new THREE.BufferAttribute(cc, 3)); woods.push(q.toNonIndexed()); };
+    const woods = [];
+    for (let la = L0 + 0.12; la < L1 - 0.05; la += 0.4) woodBox(la - 0.025, la + 0.025, d0, d1, top - 0.1, top, 0x9a7a58);
+    for (const la of [L0 + 0.03, L1 - 0.03]) woodBox(la - 0.025, la + 0.025, d1 - 0.07, d1 - 0.005, 0, top - 0.1, 0x8a6a4a);
     // the room side, round the way in
     const hh = a ? VH + 0.1 : VH;
     panel([L0, d0, 0], [-VW / 2, d0, 0], null, [L0, d0, CH], nrm(0, 1, 0), 0x5a4a40); panel([VW / 2, d0, 0], [L1, d0, 0], null, [VW / 2, d0, CH], nrm(0, 1, 0), 0x5a4a40);
@@ -215,7 +255,18 @@ feature({
     // ---- the nest: a low mound of shredded paper and fluff
     const NX = bl, ND = bd, R = Math.min(0.36, D / 2 - 0.08);
     const at = (lat, dep, h) => P(lat, dep, h);
-    { const m = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2); const [x, yy, z] = at(NX, ND, 0); parts.push(placed(prep(m, 0x8f8a7c), x, yy, z, 0, 0, 0, R, 0.1, R * 0.9)); }
+    { // a lumpy mound of insulation, chewed paper and fluff, a hollow in the top of it where they sleep
+      const m = new THREE.SphereGeometry(1, 28, 9, 0, Math.PI * 2, 0, Math.PI / 2), mp = m.attributes.position;
+      for (let i = 0; i < mp.count; i++) { const px = mp.getX(i), py = mp.getY(i), pz = mp.getZ(i), an = Math.atan2(pz, px), k = 1 + 0.13 * Math.sin(an * 5 + 1.3) * Math.cos(an * 3) + 0.07 * Math.sin(an * 11 + py * 6), hollow = py > 0.75 ? 0.5 : 1; mp.setXYZ(i, px * k, py * hollow, pz * k); }
+      const g2 = prep(m), cs = g2.attributes.position.count, col = new Float32Array(cs * 3), PAL = [0xe2a4a8, 0xd89a9e, 0xd8d0bc, 0xbab2a0, 0xe8c8b0, 0x9a8c78];
+      for (let i = 0; i < cs; i += 3) { const c = new THREE.Color(PAL[Math.floor(rnd() * PAL.length)]); for (let q = 0; q < 3; q++) col.set([c.r, c.g, c.b], (i + q) * 3); }
+      g2.setAttribute('color', new THREE.BufferAttribute(col, 3)); g2.computeVertexNormals();
+      const [x, yy, z] = at(NX, ND, 0); parts.push(placed(g2, x, yy, z, 0, rnd() * 6, 0, R, 0.13, R * 0.9));
+      const rim = new THREE.TorusGeometry(0.7, 0.2, 6, 22); rim.rotateX(Math.PI / 2); const [rx, ry, rz] = at(NX, ND, 0.1); parts.push(placed(prep(rim, 0xd8a0a4), rx, ry, rz, 0, 0, 0, R, 0.25, R * 0.85));
+      const cup = new THREE.CircleGeometry(0.62, 16); cup.rotateX(-Math.PI / 2); parts.push(placed(prep(cup, 0x5a4a3c), rx, ry + 0.012, rz, 0, 0, 0, R, 1, R * 0.85));
+      // a torn-off strip of batt dragged in, and a crumb of cheese they have not got round to
+      for (let i = 0; i < 5; i++) { const [bx, by, bz] = at(NX + (rnd() - 0.5) * 0.6, ND - R * 0.9 - 0.08 + (rnd() - 0.5) * 0.12, 0.02); parts.push(placed(prep(new THREE.IcosahedronGeometry(1, 1), i % 2 ? 0xe0a2a6 : 0xeab8b8), bx, by, bz, rnd(), rnd(), rnd(), 0.07, 0.025, 0.05)); }
+    }
     const PAPER = [0xe9e5d8, 0xdcd3b4, 0xcaa96c, 0xb9b5a8, 0xf2f0ea, 0xa8323a, 0xd8d0b8];
     for (let i = 0; i < 120; i++) {
       const r = Math.sqrt(rnd()) * R * 1.15, an = rnd() * Math.PI * 2, lat = NX + Math.cos(an) * r, dep = ND + Math.sin(an) * r * 0.85, h = 0.1 * Math.sqrt(Math.max(0, 1 - (r / R) ** 2)) + 0.004 + rnd() * 0.02;
@@ -246,16 +297,25 @@ feature({
       for (let i = 0; i < 5; i++) glow.push(placed(prep(new THREE.BoxGeometry(0.07 - i * 0.008, 0.002, 0.003), i % 2 ? 0x7af0ff : 0x9dff8a), x, yy + 0.106 + 0.0, z - 0.02 + i * 0.01, 0.25, 0.7, 0.1));
     }
     { // goo: smears of it
-      for (const [t, rr, s] of [[4.6, R + 0.12, 0.07], [5.4, R * 0.95, 0.05], [1.4, R * 0.3, 0.045], [3.1, R + 0.18, 0.04]]) { const [x, yy, z] = side(t, rr, rr * 0.8); glow.push(placed(prep(new THREE.SphereGeometry(1, 10, 6), 0x3fd36a), x, yy + 0.004, z, 0, rnd() * 3, 0, s, s * 0.14, s * 0.8)); }
+      // (each an irregular puddle, not a disc, lit only by the nest; a few bright beads in it are what glows)
+      for (const [t, rr, s] of [[4.6, R + 0.12, 0.07], [5.4, R * 0.95, 0.05], [1.4, R * 0.3, 0.045], [3.1, R + 0.18, 0.04]]) {
+        const [x, yy, z] = side(t, rr, rr * 0.8), q = new THREE.SphereGeometry(1, 18, 6, 0, Math.PI * 2, 0, Math.PI / 2), qp = q.attributes.position, ph = rnd() * 6;
+        for (let i = 0; i < qp.count; i++) { const a = Math.atan2(qp.getZ(i), qp.getX(i)), k = 1 + 0.28 * Math.sin(a * 3 + ph) + 0.14 * Math.sin(a * 5 + ph * 2); qp.setXYZ(i, qp.getX(i) * k, qp.getY(i), qp.getZ(i) * k); }
+        parts.push(placed(prep(q, 0x2f9a50), x, yy + 0.002, z, 0, rnd() * 3, 0, s, s * 0.12, s * 0.8));
+        for (let b = 0; b < 3; b++) glow.push(placed(prep(new THREE.SphereGeometry(0.006 + rnd() * 0.005, 8, 5), 0x8dffb0), x + (rnd() - 0.5) * s, yy + 0.006, z + (rnd() - 0.5) * s * 0.7)); }
     }
     // ---- the light, baked in: green from the nest, falling off; a little from the room through the way in
-    const solid = mergeGeometries(parts), pos = solid.attributes.position, col = solid.attributes.color, [gx, gy, gz] = at(NX, ND, 0.18), [vx, vy, vz] = at(0, -0.1, 0.25);
-    for (let i = 0; i < pos.count; i++) {
+    const [gx, gy, gz] = at(NX, ND, 0.18), [vx, vy, vz] = at(0, -0.1, 0.25);
+    // (green from the nest, but only a tint over what things are: wood stays wood, paper stays paper)
+    const bake = geo => { const pos = geo.attributes.position, col = geo.attributes.color; for (let i = 0; i < pos.count; i++) {
       const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i), dn = Math.hypot(px - gx, py - gy, pz - gz), dv = Math.hypot(px - vx, py - vy, pz - vz);
-      const gl = Math.exp(-dn / 0.75), lv = 0.35 * Math.exp(-dv / 0.6), f = 0.16 + 0.9 * gl + lv;
-      col.setXYZ(i, col.getX(i) * f + 0.06 * gl, col.getY(i) * f + 0.32 * gl, col.getZ(i) * f + 0.1 * gl);
-    }
+      const gl = Math.exp(-dn / 0.75), lv = 0.35 * Math.exp(-dv / 0.6), f = 0.2 + 0.8 * gl + lv;
+      col.setXYZ(i, col.getX(i) * f * (1 - 0.25 * gl) + 0.03 * gl, col.getY(i) * f + 0.14 * gl, col.getZ(i) * f * (1 - 0.2 * gl) + 0.04 * gl);
+    } return geo; };
+    const solid = bake(mergeGeometries(parts));
     G.add(new THREE.Mesh(solid, this.bakedMat));
+    for (const [k2, geo] of Object.entries(S)) if (!geo.empty) G.add(new THREE.Mesh(bake(geo.build()), this.surf[k2]));
+    if (woods.length) G.add(new THREE.Mesh(bake(mergeGeometries(woods)), this.surf.boards));
     const gm = mergeGeometries(glow); { const c = gm.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * 1.7, c.getY(i) * 1.7, c.getZ(i) * 1.7); }
     G.add(new THREE.Mesh(gm, this.glowMat));
     // a soft pool of green on the floor round the nest, breathing
@@ -264,6 +324,14 @@ feature({
     // ---- the thing to read, between the nest and the way in, with a glint on it
     const iLat = NX - Math.sign(NX || 1) * Math.min(Math.abs(NX) * 0.6, R + 0.32), iDep = a + D / 2, [ix, iy, iz] = at(iLat, iDep, 0);
     v.item = { x: ix, y: iy, z: iz, mesh: this._item(v.clue, ix, iy, iz, rnd) };
+    { // the cheese: a wedge of something yellow with holes in it, beside the page and well clear of its words
+      const sh = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.075, -0.024), new THREE.Vector2(0.075, 0.024)]);
+      const wg = new THREE.ExtrudeGeometry(sh, { depth: 0.035, bevelEnabled: false }); wg.rotateX(-Math.PI / 2);
+      const bits = [prep(wg, 0xf2c24a)];
+      for (const [hx, hz, hr] of [[0.04, 0.008, 0.008], [0.058, -0.01, 0.006], [0.025, -0.004, 0.005]]) bits.push(prep(new THREE.SphereGeometry(hr, 8, 5).translate(hx, 0.036, -hz), 0xa8801c));
+      const [cx, cy, cz] = at(iLat + Math.sign(NX || 1) * 0.2, iDep - D * 0.28, 0);
+      G.add(new THREE.Mesh(bake(placed(mergeGeometries(bits), cx, cy + 0.001, cz, 0, rnd() * 6.3, 0)), this.bakedMat));
+    }
     const glint = v.glint = new THREE.Sprite(this.glintMat.clone()); glint.position.set(ix, iy + 0.06, iz); glint.scale.setScalar(0.22); v.item.mesh.add(glint);
     G.add(v.item.mesh); v.item.mesh.visible = !this.state.read[n.wing];
     // where the camera stands inside: the end of the run away from the nest, up under the joists

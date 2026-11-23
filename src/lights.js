@@ -37,6 +37,7 @@ const AUDIT = typeof location !== 'undefined' && /[?&]audit\b/.test(location.sea
 const KEY = 'after-hours.lights';
 const WORK = new THREE.Color(0.56, 0.62, 0.7);             // the colour of a room's working light (linear)
 const SLOTS = 512;                                         // rooms the level texture has room for
+const GALLERY_FLOOR = 0.6;                                // how far a lit gallery's lamps bring up its slate floor, against a room's working lights
 const MIN_AREA = 6;                                        // a cupboard smaller than this has no switch
 
 // Where the plates go, in metres: along the wall from the edge of the opening, and up from the floor.
@@ -110,8 +111,13 @@ export class Lights {
   // ---------------------------------------------------------------- lighting --
 
   _materials() {
+    // A gallery's lamps light its walls (museum.js, by its wake), but a slate floor is shared with every room below: so a
+    // lit gallery down there writes its wake into the same level texture as a room's working lights (update()).
+    this.lowGalleries = [];
     for (const st of Object.values(this.museum.rooms)) {
       st.work = 0;
+      const r = st.room;
+      if (r.kind === 'gallery' && (r.floor === 'LL' || r.floor === 'X') && !st.floorMat) this.lowGalleries.push(st);
       if (st.room.kind === 'gallery') continue;
       st.lum = { value: 0 };
       patchOwn(st.wallMat, st.lum, 0.34); patchOwn(st.trimMat, st.lum, 0.2);
@@ -164,7 +170,7 @@ export class Lights {
         for (let k = 0; k < 4; k++) ix[q + k] = (at >= 0 ? at : find(pos[(q + k) * 3], y + 0.02, pos[(q + k) * 3 + 2])) + 1;
       }
       mesh.geometry.setAttribute('roomIx', new THREE.BufferAttribute(ix, 1));
-      patchShared(mesh.material, this.tex, 0.1); count += n;
+      patchShared(mesh.material, this.tex, mesh.material.userData.workLift ?? 0.1); count += n;
     }
     // The stone round every doorway is one mesh for the whole building. Each of its corners stands a hand's breadth into one room or the other.
     const stone = museum.group.children.find(m => m.isMesh && m.material && m.material.isMeshStandardMaterial && m.material.color.getHex() === 0xa69c8a && m.material.emissive.getHex() === 0x8a7f6c);
@@ -425,6 +431,10 @@ export class Lights {
   // only the rooms that are at this moment coming on or going out.
   update(dt, cam) {
     if (cam && (this._tick = ((this._tick || 0) + 1) % 6) === 0) for (const c of this.cells) c.mesh.visible = cam.x > c.x0 - 34 && cam.x < c.x1 + 34 && cam.z > c.z0 - 34 && cam.z < c.z1 + 34 && cam.y > c.y0 - 7 && cam.y < c.y1 + 9;
+    for (const st of this.lowGalleries) {
+      const i = this.index.get(st.room.id), b = Math.round(Math.min(1, st.wake) * GALLERY_FLOOR * 255);
+      if (b !== this.lum[i]) { this.lum[i] = b; this.tex.needsUpdate = true; }
+    }
     if (!this.anims.size) return;
     const calm = !!this.museum.calm;
     for (const [id, an] of this.anims) {

@@ -240,9 +240,19 @@ function dumpsterGeo() {
     box(0.14, 0.06, 0.06, -DW / 2 - 0.02, 0.78, 0, GREEN2), box(0.14, 0.06, 0.06, DW / 2 + 0.02, 0.78, 0, GREEN2),                 // the lifting pins
     box(0.05, 0.05, DD + 0.02, 0, DH - 0.1, 0, GREEN2),                            // the bar between the lids
   ];
-  for (const x of [-0.66, -0.22, 0.22, 0.66]) parts.push(box(0.06, DH - 0.32, 0.03, x, 0.22, DD / 2 + 0.01, GREEN2));      // ribs
+  for (const x of [-0.66, -0.22, 0.22, 0.66]) parts.push(box(0.07, DH - 0.3, 0.05, x, 0.2, DD / 2 + 0.02, GREEN2), box(0.09, 0.04, 0.06, x, 0.18, DD / 2 + 0.02, GREEN2));      // ribs, each on a foot
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(box(0.06, DH - 0.2, 0.06, sx * (DW / 2 - 0.01), 0.14, sz * (DD / 2 - 0.01), GREEN2));      // the corner posts
+  parts.push(box(DW + 0.03, 0.07, 0.04, 0, 0.58, DD / 2 + 0.01, GREEN2));                                    // a band across the front
+  for (const sx of [-1, 1]) for (const z of [-0.3, 0.3]) parts.push(box(0.03, DH - 0.36, 0.05, sx * (DW / 2 + 0.01), 0.2, z, GREEN2));      // and ribs down the ends
   for (const [x, y, w, h] of [[-0.48, 0.3, 0.12, 0.08], [0.4, 0.62, 0.09, 0.14], [0.78, 0.24, 0.1, 0.06], [-0.8, 0.85, 0.07, 0.1]]) parts.push(box(w, h, 0.012, x, y, DD / 2 + 0.003, RUST));
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { parts.push(cyl(0.012, 0.012, 0.06, sx * (DW / 2 - 0.15), 0.08, sz * (DD / 2 - 0.12), 0x555a60, 6)); const w = new THREE.CylinderGeometry(0.055, 0.055, 0.04, 12); w.rotateZ(Math.PI / 2); w.translate(sx * (DW / 2 - 0.15), 0.055, sz * (DD / 2 - 0.12)); parts.push(paint(w, RUBBER)); }
+  // four swivel casters: a plate under the bin, a fork, a fat rubber wheel with a hub
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const cx = sx * (DW / 2 - 0.15), cz = sz * (DD / 2 - 0.13);
+    parts.push(box(0.13, 0.012, 0.13, cx, 0.128, cz, 0x4a4e54), cyl(0.02, 0.02, 0.02, cx, 0.108, cz, 0x555a60, 8));
+    for (const s of [-1, 1]) parts.push(box(0.008, 0.07, 0.07, cx + s * 0.03, 0.04, cz, 0x6a6e74));
+    const w = new THREE.CylinderGeometry(0.055, 0.055, 0.045, 16); w.rotateZ(Math.PI / 2); w.translate(cx, 0.055, cz); parts.push(paint(w, RUBBER));
+    const hub = new THREE.CylinderGeometry(0.022, 0.022, 0.05, 10); hub.rotateZ(Math.PI / 2); hub.translate(cx, 0.055, cz); parts.push(paint(hub, 0x9aa0a8));
+  }
   // Snow along the rim, and a drift at its foot against the wall side.
   parts.push(ball(0.5, -0.3, 0.0, -DD / 2 - 0.1, SNOW, 0.35), ball(0.42, 0.55, 0.0, -DD / 2 - 0.05, SNOW, 0.3));
   return mergeGeometries(parts);
@@ -250,6 +260,8 @@ function dumpsterGeo() {
 function lidGeo(withSnow) {
   // In the frame of its hinge, along the back edge: it lies forward over the bin, with a little fall to the front.
   const w = DW / 2 - 0.04, parts = [box(w, 0.045, DD + 0.04, 0, 0, (DD + 0.04) / 2, LID), box(w, 0.07, 0.04, 0, -0.05, DD + 0.04, LID), box(0.18, 0.03, 0.08, -w / 2 + 0.2, 0.04, DD - 0.12, 0x2a2d30), box(0.18, 0.03, 0.08, w / 2 - 0.2, 0.04, DD - 0.12, 0x2a2d30)];
+  for (const f of [0.22, 0.5, 0.78]) parts.push(box(w - 0.04, 0.03, 0.05, 0, 0.04, (DD + 0.04) * f, 0x202326));      // moulded ribs across the plastic
+  for (const s of [-1, 1]) parts.push(cyl(0.03, 0.03, 0.06, s * (w / 2 - 0.12), -0.03, 0.01, 0x2a2d30, 10));         // the hinge knuckles
   if (withSnow) parts.push(...snowGeo(w));
   const g = mergeGeometries(parts); return g;
 }
@@ -258,7 +270,45 @@ function snowGeo(w) {
 }
 function bagsGeo() {
   const b = new THREE.BoxGeometry(0.4, 0.3, 0.32); b.rotateY(0.3); b.translate(0, 0.15, 0);
-  return mergeGeometries([ball(0.26, 0, 0.22, 0, 0x2a2d33, 0.85), ball(0.07, 0.02, 0.44, 0, 0x2a2d33), ball(0.22, 0.42, 0.18, 0.18, 0x30343a, 0.8), paint(b.translate(-0.55, 0, 0.12), 0x9a7a4c), box(0.36, 0.05, 0.28, -0.55, 0.3, 0.12, SNOW)]);
+  const flap = new THREE.BoxGeometry(0.2, 0.01, 0.3); flap.rotateZ(0.5); flap.rotateY(0.3); flap.translate(-0.37, 0.33, 0.06);
+  return mergeGeometries([paint(b.translate(-0.55, 0, 0.12), 0x9a7a4c), paint(flap, 0x8a6a40), box(0.36, 0.05, 0.28, -0.55, 0.3, 0.12, SNOW)]);
+}
+// Bin bags: black polythene, full and slumped, pulled up into a neck and knotted; shiny (their own material).
+function bagGeo(r, sy, seed) {
+  const g = new THREE.SphereGeometry(r, 18, 12), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    let x = p.getX(i), y = p.getY(i), z = p.getZ(i); const a = Math.atan2(z, x), t = y / r;
+    const lump = 1 + 0.09 * Math.sin(a * 3 + seed) * Math.cos(t * 4 + seed) + 0.05 * Math.sin(a * 7 + seed * 2);
+    const slump = t < 0 ? 1 + 0.18 * (-t) : 1 - 0.35 * t * t;            // spread at the foot, drawn in to the neck
+    x *= lump * slump; z *= lump * slump; y = y * sy; if (t < -0.55) y = -r * sy * 0.55 - (y + r * sy * 0.55) * 0.2;       // flat underneath
+    p.setXYZ(i, x, y, z);
+  }
+  g.translate(0, r * sy * 0.55, 0);
+  const neck = new THREE.CylinderGeometry(0.018, 0.06, 0.1, 10); neck.translate(0, r * sy * 1.45 + 0.03, 0);
+  const knot = new THREE.SphereGeometry(0.032, 10, 6); knot.scale(1.3, 0.8, 1); knot.translate(0, r * sy * 1.45 + 0.09, 0);
+  const ear = new THREE.ConeGeometry(0.025, 0.09, 6); ear.rotateZ(1.1); ear.translate(0.05, r * sy * 1.45 + 0.1, 0);
+  const out = mergeGeometries([g, neck, knot, ear].map(q => { q = q.index ? q.toNonIndexed() : q; q.deleteAttribute('uv'); return q; }));
+  out.computeVertexNormals(); return out;
+}
+
+// The front of the bin: a stencilled notice, a hazard band along the foot, rust weeping from the rim, and dirt.
+let _decal = null;
+function binDecal() {
+  if (_decal) return _decal;
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const c = cv.getContext('2d');
+  let s = 91; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  c.clearRect(0, 0, 512, 256);
+  for (let i = 0; i < 26; i++) { const x = r() * 512, w = 2 + r() * 6, h = 30 + r() * 140, g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(110,60,30,.55)'); g.addColorStop(1, 'rgba(110,60,30,0)'); c.fillStyle = g; c.fillRect(x, 0, w, h); }      // rust weeping from the rim
+  for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(${r() < 0.5 ? '30,26,20' : '160,150,120'},${0.05 + r() * 0.1})`; c.fillRect(r() * 512, 120 + r() * 136, 1 + r() * 4, 1 + r() * 3); }      // road dirt, thicker low down
+  // (a word to each bay between the ribs, which stand in front of the decal at x = ±0.22 and ±0.66 m)
+  c.fillStyle = 'rgba(232,226,200,.85)'; c.textAlign = 'center';
+  const bay = (word, small, u0, u1) => { const w = u1 - u0 - 14; let px = 60; c.font = `700 ${px}px "Arial Black", Arial, sans-serif`; while (c.measureText(word).width > w && px > 10) { px -= 2; c.font = `700 ${px}px "Arial Black", Arial, sans-serif`; } c.fillText(word, (u0 + u1) / 2, 92); px = 18; c.font = `700 ${px}px Arial, sans-serif`; while (c.measureText(small).width > w && px > 8) { px -= 1; c.font = `700 ${px}px Arial, sans-serif`; } c.fillText(small, (u0 + u1) / 2, 121); };
+  bay('KEEP', 'LOADING DOCK', 70, 178); bay('LID', 'NO', 204, 308); bay('SHUT', 'PARKING', 335, 442);
+  for (let i = 0; i < 50; i++) { c.clearRect(r() * 512, 40 + r() * 100, 1 + r() * 3, 1 + r() * 3); }      // the stencil chipped
+  for (let x = -40; x < 552; x += 40) { c.fillStyle = 'rgba(220,170,30,.8)'; c.beginPath(); c.moveTo(x, 256); c.lineTo(x + 20, 256); c.lineTo(x + 44, 222); c.lineTo(x + 24, 222); c.fill(); }      // the hazard band
+  c.fillStyle = 'rgba(15,15,15,.55)'; c.fillRect(0, 218, 512, 4);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return (_decal = t);
 }
 
 // ------------------------------------------------------------------ sound --
@@ -388,14 +438,20 @@ feature({
     this.lidSnow = new THREE.Mesh(mergeGeometries(snowGeo(DW / 2 - 0.04)), mat); this.lid.add(this.lidSnow);
     const lid2 = new THREE.Group(); lid2.position.set(DW / 4, DH, -DD / 2 - 0.02); lid2.add(new THREE.Mesh(lidGeo(true), mat));
     const bags = new THREE.Mesh(bagsGeo(), mat); bags.position.set(DW / 2 + 0.45, 0, -0.1);
-    g.add(body, this.lid, lid2, bags); k.group.add(g);
+    const poly = new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.22, metalness: 0.0, emissive: 0x1c2026, emissiveIntensity: 1 });
+    const bag1 = new THREE.Mesh(bagGeo(0.27, 0.8, 1.3), poly), bag2 = new THREE.Mesh(bagGeo(0.22, 0.75, 4.1), poly);
+    bag1.position.set(DW / 2 + 0.45, 0, -0.1); bag1.rotation.y = 0.6; bag2.position.set(DW / 2 + 0.72, 0, 0.0); bag2.rotation.set(0.12, 2.2, -0.15);
+    // On the front, between the ribs: the stencil and the grime of a working bin.
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(DW - 0.2, DH - 0.36), new THREE.MeshStandardMaterial({ map: binDecal(), transparent: true, depthWrite: false, roughness: 0.8, emissiveMap: binDecal(), emissive: 0xffffff, emissiveIntensity: 0.32, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    decal.position.set(0, 0.14 + (DH - 0.14) / 2, DD / 2 + 0.002);
+    g.add(body, this.lid, lid2, bags, bag1, bag2, decal); k.group.add(g);
     // Solid: the bin and the bags (in the bin's frame, turned into the plan's).
     const foot = (lx0, lx1, lz0, lz1, top) => { const cs = [[lx0, lz0], [lx1, lz0], [lx0, lz1], [lx1, lz1]].map(([a, b]) => ({ x: B.x + B.tx * a + B.nx * b, z: B.z + B.tz * a + B.nz * b })); P.obstacles.push({ x0: Math.min(...cs.map(c => c.x)), x1: Math.max(...cs.map(c => c.x)), z0: Math.min(...cs.map(c => c.z)), z1: Math.max(...cs.map(c => c.z)), y0: 0, y1: top }); };
     // (the plan's x along the bin is -t: the group's +x is the tangent turned by its yaw)
     const ax = Math.cos(B.yaw), az = -Math.sin(B.yaw); B.ax = ax; B.az = az;      // the group's local +x in the world
     B.tx = ax; B.tz = az;
     foot(-DW / 2 - 0.05, DW / 2 + 0.05, -DD / 2 - 0.05, DD / 2 + 0.05, DH + 0.05);
-    foot(DW / 2 + 0.1, DW / 2 + 0.95, -0.45, 0.3, 0.5);
+    foot(DW / 2 + 0.1, DW / 2 + 1.02, -0.47, 0.32, 0.55);      // (the bags and the box)
   },
   _local(lx, ly, lz, out) { const B = this.bin; return out.set(B.x + B.ax * lx + B.nx * lz, ly, B.z + B.az * lx + B.nz * lz); },
 
