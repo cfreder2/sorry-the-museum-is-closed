@@ -9,3 +9,6 @@ import './27943-mahana-no-atua.js';     // 247  Gauguin, Mahana no atua: tide
 import './81558-acrobats.js';          // 201  Renoir, Acrobats at the Cirque Fernando: juggle
 import './14655-two-sisters.js';      // 201  Renoir, Two Sisters (On the Terrace): yarn
 import './111442-childs-bath.js';     // 184  Cassatt, The Child's Bath: bubble
+import './16568-water-lilies.js';      // 243  Monet, Water Lilies: ripple
+import './81545-stacks-of-wheat.js';   // 243  Monet, Stacks of Wheat (Sunset, Snow Effect): hiccup
+import './80607-self-portrait.js';      // 241  van Gogh, Self-Portrait (1887): swirl
