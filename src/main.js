@@ -79,6 +79,7 @@ import './finalelaunch.js';      // the five notes, the tractor beam and the lau
 import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
 import './racespots.js';         // rival toys waiting about the building and the grounds, each with a course to race them round
 import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
+import './life/index.js';        // paintings that come alive while you look at them (src/paintlife.js, docs/PAINTING-ANIMATIONS.md)
 import './look.js';              // the look pass over the finished world: the snow's drifts, soft shadows under what moves (last: src/finish.js)
 
 const $ = id => document.getElementById(id);
@@ -1029,13 +1030,13 @@ function studyCam(dt) {
   // On a wide screen, stand a little to one side so the label does not cover the work,
   // but stay square to the wall.
   const side = (a.w * 0.2 + 0.1) * (1 - wide) / 0.28, tx = Math.cos(a.rot), tz = -Math.sin(a.rot);
-  // A work with something happening on the floor in front of it (a.floorFrame = { y, out, half }: the floor, how far
-  // out from the wall and how far either side; src/l2-grandejatte.js) is framed with that floor below it, from a
+  // A work with something happening on the floor in front of it (a.floorFrame = { y, out, half, above? }: the floor, how
+  // far out from the wall and how far either side, and room to leave over the work; src/l2-grandejatte.js, src/paintlife.js) is framed with that floor below it, from a
   // person's eye height, looking a little down. (Never by drawing on the work: the floor is the stage.)
   const fl = a.floorFrame;
   let eyeY = a.y, lookY = a.y;
   if (fl) {
-    const ch = fl.y + 1.45, top = a.y + a.h / 2 + 0.12 - ch, low = fl.y - ch, half = Math.max(a.w / 2 + 0.15, fl.half), room = tan * camera.aspect * wide * 0.92;
+    const ch = fl.y + 1.45, top = a.y + a.h / 2 + (fl.above || 0.12) - ch, low = fl.y - ch, half = Math.max(a.w / 2 + 0.15, fl.half), room = tan * camera.aspect * wide * 0.92;
     let d = dist;
     for (; d < 12; d += 0.05) if (Math.atan2(top, d) - Math.atan2(low, d - fl.out) <= fov * Math.PI / 180 * 0.9 && half / (d - fl.out) <= room * 1.4 && half / d <= room) break;
     dist = d * (1 - 0.07 * Math.min(1, s.t / 30));
@@ -1609,7 +1610,8 @@ if (params.has('probe')) setTimeout(() => {
 }, 14000);
 
 // What the voyage needs of this file, to hand the game back when it is over.
-G.shell = { setVehicle, chase: () => chase(0, true), newGame: () => { quit(); newGame(); G.toy = pick.toy; start(true); } };
+G.shell = { setVehicle, chase: () => chase(0, true), newGame: () => { quit(); newGame(); G.toy = pick.toy; start(true); },
+  look: art => beginStudy(art), endLook: () => endStudy() };      // (look and endLook: test aids, tools/lifesheet.mjs)
 
 boot().then(() => requestAnimationFrame(tick)).catch(err => {
   console.error(err);
