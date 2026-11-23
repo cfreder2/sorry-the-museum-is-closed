@@ -62,7 +62,8 @@ try {
     const G = window.__ah, L = window.__life.life(id);
     G.shell.look(L.art); window.__life.free(id); L.force = false;          // (the show waits, so the camera can settle)
     if (G.study) G.study.label = false;                                       // (the label away: the camera stands square to the work)
-    await new Promise(r => setTimeout(r, 2600));
+    await new Promise(r => setTimeout(r, 2600));      // (and on a busy machine, until the look camera has eased in)
+    for (let i = 0; i < 80 && (!G.study || G.study.t < 2.2); i++) await new Promise(r => setTimeout(r, 250));
     const c = G.camera, d = new c.position.constructor(); c.getWorldDirection(d);
     return { at: c.position.toArray(), look: c.position.clone().addScaledVector(d, 3).toArray(), fov: c.fov };
   }, id);
@@ -110,7 +111,7 @@ try {
     const pp = await browser.newPage(); await pp.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
     await pp.goto(`http://127.0.0.1:${port}/?mode=explore&saved&noopen`, { waitUntil: 'domcontentloaded' });
     await pp.waitForFunction('window.__ah && window.__ah.state === "play" && window.__life', { timeout: 120000, polling: 500 });
-    await pp.evaluate(async id => { const G = window.__ah, L = window.__life.life(id), q = L.floor(0.6, 2.2); G.vehicle.pos.set(q.x, L.y + 0.05, q.z); G.vehicle.vel.set(0, 0, 0); await new Promise(r => setTimeout(r, 1200)); await window.__life.ready(id); G.shell.look(L.art); await new Promise(r => setTimeout(r, 2500)); }, id);
+    await pp.evaluate(async id => { const G = window.__ah, L = window.__life.life(id), q = L.floor(0.6, 2.2); G.vehicle.pos.set(q.x, L.y + 0.05, q.z); G.vehicle.vel.set(0, 0, 0); await new Promise(r => setTimeout(r, 1200)); await window.__life.ready(id); G.shell.look(L.art); await new Promise(r => setTimeout(r, 2500)); for (let i = 0; i < 80 && (!G.study || G.study.t < 2.2); i++) await new Promise(r => setTimeout(r, 250)); }, id);
     const cdp = await pp.createCDPSession(); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     await new Promise(r => setTimeout(r, 1500));
     const cost = await pp.evaluate(async (id, view) => {
