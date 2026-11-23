@@ -12,3 +12,4 @@ import './111442-childs-bath.js';     // 184  Cassatt, The Child's Bath: bubble
 import './16568-water-lilies.js';      // 243  Monet, Water Lilies: ripple
 import './81545-stacks-of-wheat.js';   // 243  Monet, Stacks of Wheat (Sunset, Snow Effect): hiccup
 import './80607-self-portrait.js';      // 241  van Gogh, Self-Portrait (1887): swirl
+import './61128-at-the-moulin-rouge.js'; // 242  Toulouse-Lautrec, At the Moulin Rouge: cabaret
