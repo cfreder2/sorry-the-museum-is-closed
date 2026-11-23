@@ -26,26 +26,43 @@ function texture(c, { repeat = true, srgb = true } = {}) {
 
 // ---------------------------------------------------------------- materials
 
-// Polished red granite: big blocky pink and red feldspar, grey glassy quartz, black mica, the odd glint. Tiles.
+// Red granite, as quarried: an interlocking mosaic of crystals, each one a single flat colour with straight sides where
+// it meets its neighbours. Most are feldspar, salmon to brick red, the big ones with a faint sheen along their cleavage;
+// a quarter are quartz, smoky grey and glassy; one in ten is black mica or hornblende, gathered in clots. The grains are
+// a centimetre or so across (the canvas is 0.6 m of stone), and the picture tiles. Grown as a weighted Voronoi mosaic
+// on a jittered grid (each pixel takes the nearest seed), so the grains have the straight, meeting edges real ones do.
 function graniteCanvas() {
-  const N = 512, r = rng(91);
+  const N = 512, S = 40, cs = N / S, r = rng(91), seeds = [];
+  const hsl = (h, sa, l) => { const a = sa * Math.min(l, 1 - l), f = n => { const k = (n + h / 30) % 12; return 255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))); }; return [f(0), f(8), f(4)]; };
+  // the clotting: a smooth tileable field, high where the dark minerals and the deeper reds gather
+  const clot = (x, y) => { const u = x / N * 6.2832, v = y / N * 6.2832; return 0.5 + 0.22 * Math.sin(u * 3 + 1.3) * Math.cos(v * 2 - 0.4) + 0.16 * Math.sin(u * 5 + v * 4 + 2.1) + 0.12 * Math.cos(u * 7 - v * 6 + 0.7); };
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const x = (i + 0.15 + r() * 0.7) * cs, y = (j + 0.15 + r() * 0.7) * cs, c = clot(x, y), k = r();
+    const big = r() < 0.18;                                       // the odd big feldspar crystal pushes its neighbours aside
+    let rgb, w = (big ? 0.9 : r() * 0.45) * cs * cs;
+    if (k < 0.03 + 0.12 * c) { const l = 18 + r() * 18; rgb = [l * 1.1, l * 0.85, l * 0.8]; w *= 0.5; big || (w *= 0.6); }       // mica, hornblende
+    else if (k < 0.3 + 0.08 * c) { const l = 70 + r() * 36; rgb = [l * 1.08, l * 0.95, l * 0.93]; }                               // quartz
+    else rgb = hsl(3 + r() * 12, 0.42 + r() * 0.2, (0.36 + r() * 0.2) * (1.08 - 0.22 * c));                                        // feldspar
+    seeds.push({ x, y, w, rgb, a: r() * 3.1416, sh: big ? 0.06 + r() * 0.05 : r() * 0.03 });
+  }
   return canvas(N, N, g => {
-    g.fillStyle = '#76362f'; g.fillRect(0, 0, N, N);
-    const grain = (x, y, s, fill) => {
-      const n = 5 + (r() * 3 | 0), a0 = r() * 6.283, sq = 0.65 + r() * 0.6, pts = [];
-      for (let i = 0; i < n; i++) { const a = a0 + (i / n) * 6.283, rr = s * (0.6 + r() * 0.5); pts.push([Math.cos(a) * rr, Math.sin(a) * rr * sq]); }
-      g.fillStyle = fill;
-      for (const dx of [-N, 0, N]) for (const dy of [-N, 0, N]) {
-        if (x + dx < -2 * s || x + dx > N + 2 * s || y + dy < -2 * s || y + dy > N + 2 * s) continue;
-        g.beginPath(); pts.forEach(([px, py], i) => (i ? g.lineTo : g.moveTo).call(g, x + dx + px, y + dy + py)); g.closePath(); g.fill();
+    const img = g.createImageData(N, N), d = img.data;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const ci = Math.floor(x / cs), cj = Math.floor(y / cs);
+      let b1 = Infinity, b2 = Infinity, best = null;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const ii = ci + di, jj = cj + dj, sd = seeds[((jj % S + S) % S) * S + ((ii % S + S) % S)];
+        const sx = sd.x + Math.floor(ii / S) * N, sy = sd.y + Math.floor(jj / S) * N, dd = (x - sx) ** 2 + (y - sy) ** 2 - sd.w;
+        if (dd < b1) { b2 = b1; b1 = dd; best = sd; } else if (dd < b2) b2 = dd;
       }
-    };
-    // the stone's slow drift of colour, under the crystals: warmer here, duskier there
-    for (let i = 0; i < 40; i++) { const x = r() * N, y = r() * N, rad = 40 + r() * 90; for (const dx of [-N, 0, N]) for (const dy of [-N, 0, N]) { const rg = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad); rg.addColorStop(0, r() < 0.5 ? 'rgba(150,70,58,0.35)' : 'rgba(60,24,22,0.3)'); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(x + dx - rad, y + dy - rad, rad * 2, rad * 2); } }
-    for (let i = 0; i < 1300; i++) grain(r() * N, r() * N, 4 + r() * 9, `hsla(${4 + r() * 10},${40 + r() * 14}%,${33 + r() * 9}%,${0.5 + r() * 0.4})`);
-    for (let i = 0; i < 520; i++) grain(r() * N, r() * N, 2 + r() * 5, `hsla(${14 + r() * 20},${10 + r() * 10}%,${40 + r() * 10}%,${0.3 + r() * 0.25})`);
-    for (let i = 0; i < 420; i++) grain(r() * N, r() * N, 0.8 + r() * 2.2, `rgba(${20 + r() * 16 | 0},${13 + r() * 10 | 0},${12 + r() * 10 | 0},${0.6 + r() * 0.3})`);
-    for (let i = 0; i < 120; i++) { g.fillStyle = `rgba(255,236,224,${0.2 + r() * 0.35})`; g.fillRect(r() * N, r() * N, 1 + r(), 1 + r()); }
+      // a fine seam where two crystals meet, and the faint sheen along a feldspar's cleavage
+      const edge = Math.min(1, (b2 - b1) / (cs * 1.6)), seam = 0.9 + 0.1 * edge;
+      const cl = 1 + best.sh * 0.6 * Math.sin((x * Math.cos(best.a) + y * Math.sin(best.a)) * 0.35);
+      const n = 0.96 + (((Math.imul(x, 73856093) ^ Math.imul(y, 19349663)) >>> 0) % 97) / 97 * 0.08;      // a whisper of grain, so a crystal is not a flat card
+      const o = (y * N + x) * 4, k = seam * cl * n;
+      d[o] = Math.min(255, best.rgb[0] * k); d[o + 1] = Math.min(255, best.rgb[1] * k); d[o + 2] = Math.min(255, best.rgb[2] * k); d[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
   });
 }
 // The same picture as a height (for the honed top, which has a tooth to it), and as a gloss (quartz and mica shine).
@@ -205,7 +222,7 @@ feature({
     // (paler, with a tooth). Each wedge is a ramp, exactly as drawn: up the long one and off the high end, northwards.
     {
       const gc = graniteCanvas(), map = texture(gc), rough = texture(greyOf(gc, v => 0.38 - v * 0.3), { srgb: false }), bump = texture(greyOf(gc, v => v), { srgb: false });
-      for (const t of [map, rough, bump]) t.repeat.set(1 / 0.7, 1 / 0.7);
+      for (const t of [map, rough, bump]) t.repeat.set(1 / 0.6, 1 / 0.6);      // the canvas is 0.6 m of stone
       const sides = polish(new THREE.MeshStandardMaterial({ map, roughnessMap: rough, roughness: 1, metalness: 0, emissiveMap: map, emissive: new THREE.Color(0.62, 0.5, 0.5), emissiveIntensity: 0.5 }), 0.9);
       const tops = new THREE.MeshStandardMaterial({ map, color: new THREE.Color(1.25, 1.15, 1.12), roughness: 0.7, bumpMap: bump, bumpScale: 0.5, emissiveMap: map, emissive: new THREE.Color(0.66, 0.54, 0.54), emissiveIntensity: 0.6 });
       const xa = X(8.2), W = 1.5, z0 = Z(13.0);

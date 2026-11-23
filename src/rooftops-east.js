@@ -58,8 +58,8 @@ feature({
     board(RK.x1, RK.x1 + 0.08, RK.z0, RK.z1); board(RK.x0 - 0.08, RK.x0, RK.z0, gate[0]); board(RK.x0 - 0.08, RK.x0, gate[1], RK.z1);
     // The island in the middle: a little fir in a tub of snow, hung with lights.
     const fir = lit(0x1d4a32, { glow: 0.5 });
-    P.add(new THREE.CylinderGeometry(0.75, 0.85, 0.35, 20), M.wood, RK.cx, y + 0.175, RK.cz); P.add(snowCap(1.5, 1.5, 0.12), M.snow, RK.cx, y + 0.35, RK.cz);
-    for (const [r, h, yy] of [[0.7, 1.0, 0.75], [0.55, 0.85, 1.25], [0.38, 0.7, 1.7]]) { P.add(new THREE.ConeGeometry(r, h, 12), fir, RK.cx, y + yy, RK.cz); P.add(new THREE.ConeGeometry(r * 0.85, h * 0.3, 12), M.snow, RK.cx, y + yy + h * 0.28, RK.cz); }
+    P.add(new THREE.CylinderGeometry(0.75, 0.85, 0.35, 32), M.wood, RK.cx, y + 0.175, RK.cz); P.add(snowCap(1.5, 1.5, 0.12), M.snow, RK.cx, y + 0.35, RK.cz);
+    for (const [r, h, yy] of [[0.7, 1.0, 0.75], [0.55, 0.85, 1.25], [0.38, 0.7, 1.7]]) { P.add(new THREE.ConeGeometry(r, h, 24), fir, RK.cx, y + yy, RK.cz); P.add(new THREE.ConeGeometry(r * 0.85, h * 0.3, 24), M.snow, RK.cx, y + yy + h * 0.28, RK.cz); }
     P.add(new THREE.OctahedronGeometry(0.1), M.gilt, RK.cx, y + 2.12, RK.cz);
     O.push({ x0: RK.cx - 0.85, x1: RK.cx + 0.85, z0: RK.cz - 0.85, z1: RK.cz + 0.85, y0: y, y1: y + 2.2 });
     const lights = []; for (let i = 0; i < 26; i++) { const a = i * 1.9, hh = 0.5 + i * 0.055, r = 0.72 - i * 0.022; lights.push([RK.cx + Math.cos(a) * r, y + hh, RK.cz + Math.sin(a) * r]); }

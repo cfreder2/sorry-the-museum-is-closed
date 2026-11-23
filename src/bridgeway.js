@@ -40,14 +40,27 @@ function curtain(seed, lit = 0.22) {
   });
 }
 
-// The sunshade's blades: fine, close, parallel, with the sky between them.
-function blades() {
-  return tex(64, 64, (c, w, h) => {
-    c.clearRect(0, 0, w, h);
-    c.fillStyle = 'rgba(244,247,252,0.96)';
-    for (let x = 0; x < w; x += 4) c.fillRect(x, 0, 2, h);
-    c.fillStyle = 'rgba(244,247,252,0.5)'; c.fillRect(0, 0, w, 1);
-  });
+// The sunshade's blades: fine, close, parallel, with the sky between them. Not a picture of blades (a texture of fine
+// stripes shimmers at every distance, however it is filtered): the shader works out, for each pixel, how much of what
+// it covers is blade and how much is sky, with the u coordinate counting blades. Close to, crisp blades; far off, or at
+// a grazing angle, the stripes average out into an even veil instead of crawling.
+const BLADE = 0.42;                          // the share of each pitch that is blade
+function bladeMaterial(color) {
+  const one = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); one.needsUpdate = true;
+  one.wrapS = one.wrapT = THREE.RepeatWrapping;
+  const m = new THREE.MeshBasicMaterial({ map: one, transparent: true, side: THREE.DoubleSide, depthWrite: false, color, fog: false });
+  m.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `{
+      float bu = vMapUv.x, bw = max(fwidth(bu), 1e-4);
+      #define BLADE_SUM(x) (floor(x) * ${BLADE.toFixed(2)} + min(fract(x), ${BLADE.toFixed(2)}))
+      float cover = clamp((BLADE_SUM(bu + 0.5 * bw) - BLADE_SUM(bu - 0.5 * bw)) / bw, 0.0, 1.0);
+      cover = mix(cover, ${BLADE.toFixed(2)}, smoothstep(0.15, 0.4, bw));      // under about six pixels to a blade even a filtered stripe beats against the pixel grid: let it go to the even veil
+      diffuseColor.rgb *= vec3(0.905, 0.93, 0.97);
+      diffuseColor.a *= 0.96 * cover;
+    }`);
+  };
+  m.customProgramCacheKey = () => 'sunshade-blades';
+  return { mat: m, map: one };
 }
 
 // Glass with the lights left on a long way behind it: a soft even glow, brighter low down.
@@ -643,8 +656,8 @@ export function buildBridgeway(museum, plan) {
     const roof = Math.max(...src.map(m => m.top), plan.massOf[h.id] ? plan.massOf[h.id].top : 0);
     const x0 = bx0 - 6.5, x1 = bx1 + 6.5, z0 = bz0 - 9.5, z1 = bz1 + 7, y = Math.max(22.4, roof + 2.6);      // 22.4 m in the architect's section
     museum.mw = Object.assign(museum.mw || {}, { shade: { x0, x1, z0, z1, y } });
-    const bt = blades(); bt.repeat.set((x1 - x0) / 1.2, (z1 - z0) / 6);
-    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: bt, transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.72, 0.77, 0.9), fog: false }));
+    const bl = bladeMaterial(new THREE.Color(0.72, 0.77, 0.9)); bl.map.repeat.set((x1 - x0) / 0.22, 1);      // a blade every 22 cm
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), bl.mat);
     sheet.rotation.x = -Math.PI / 2; sheet.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); sheet.renderOrder = 3; add(sheet);
     const fr = new Geo(), t = 0.09;
     fr.box(x0, x1, y - t, y + t, z0 - 0.12, z0); fr.box(x0, x1, y - t, y + t, z1, z1 + 0.12); fr.box(x0 - 0.12, x0, y - t, y + t, z0, z1); fr.box(x1, x1 + 0.12, y - t, y + t, z0, z1);
