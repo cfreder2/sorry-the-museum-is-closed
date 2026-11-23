@@ -35,8 +35,10 @@ const _hash = (a, b = 0) => { const h = Math.sin(a * 127.1 + b * 311.7) * 43758.
 lifeFor(80607, {
   title: /^Self-Portrait$/,
   word: 'swirl',
-  // (the look camera stands to the right of the glass case that is 2.5 m out in front of this work)
-  stage: { out: 2.15, half: 1.35, above: 0.42, cam: { dist: 3.0, height: 1.2, side: 0.95, fov: 58, lookU: 0.05, lookOut: 0.9, lookH: 0.8, floorOut: 0.5 } },
+  // (a glass case stands 2.5 m out in front of this work: the look camera is nearer the wall than it and off to the
+  // left, looking along the wall, so the case is out of the picture; it is aimed by hand to keep the whole work and the
+  // halo above it in view, with the whirl below, so it skips the kit's automatic fit: whole: false)
+  stage: { out: 2.15, half: 1.35, above: 0.42, cam: { dist: 2.0, height: 1.5, side: -1.6, fov: 66, lookU: -0.12, lookOut: 0.8, lookH: 0.92, whole: false } },
   wake: 2, ret: 2.6,
   linger: { near: 3.5, max: 25 },
 
@@ -159,7 +161,7 @@ vec4 vgLayer(float r, float a, float bw, float off) {
   // Stroke s in the whirl at show-time t, into o.
   orbit(L, s, t, o, col, b, phi = this.phi) {
     const om = 1.9 * Math.sqrt(0.3 / s.r) * (1 + 0.6 * col * (s.hc > 0 ? 1 : 0)), th = s.th0 + om * phi;
-    const hc = s.hc * col, r = (s.r + (0.07 + 0.36 * Math.pow(1 - hc / 1.2, 1.5) * (0.4 + 0.6 * s.r / 0.56) - s.r) * (s.hc > 0 ? col : 0)) * (1 + 0.1 * b);
+    const hc = s.hc * col, r = (s.r + (0.1 + 0.48 * Math.pow(1 - hc / 1.2, 1.3) * (0.4 + 0.6 * s.r / 0.6) - s.r) * (s.hc > 0 ? col : 0)) * (1 + 0.1 * b);
     const h = s.h + hc + 0.02 * b + 0.012 * Math.sin(t * 2.3 + s.wob);
     return L.floor(this.cu + Math.cos(th) * r, this.co + Math.sin(th) * r, o).setY(L.y + 0.012 + h);
   },

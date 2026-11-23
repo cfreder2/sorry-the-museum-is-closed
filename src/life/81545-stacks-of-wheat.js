@@ -112,39 +112,77 @@ if (vWall > 0.5) {
     m.customProgramCacheKey = () => 'wheat-field';
     this.field = new THREE.Mesh(g, m); this.field.position.y = 0.016; this.field.renderOrder = 5; L.add(this.field);
 
-    // ---------------------------------------------------------- the stacks, and their caps: one rig, tinted by the light
-    const mat = this.mat = tintedPaint({ glow: 0.62, rough: 0.85, key: 'wheat' });
-    const rig = this.rig = L.rig(12, 8000, mat);
-    const sunlit = ['#e8a07a', '#f0b488', '#d88a78', '#e8aa94'].map(c => col(c, 0.2)), shade = ['#9a6478', '#86709a', '#a06a70', '#7474a8', '#ac7a84', '#8c6a90'].map(c => col(c, 0.2)), mid = ['#b87a80', '#a07c98', '#c48a86', '#ae8496'].map(c => col(c, 0.2)), orange = col('#d08a62', 0.2);
-    const prof = [[0, 0], [0.4, 0], [0.43, 0.04], [0.445, 0.16], [0.44, 0.3], [0.475, 0.37], [0.45, 0.42], [0.39, 0.53], [0.3, 0.66], [0.2, 0.79], [0.1, 0.9], [0.035, 0.96], [0, 0.975]];
-    // (soft, not faceted: every corner's normal the average of the faces that meet there)
+    // ---------------------------------------------------------- the stacks: one rig, tinted by the light
+    // His silhouette: a round, squat body, an eave where the thatched cap overhangs it, the cap a soft cone, about as
+    // wide as it is tall. Built as a smooth body under a shell of short stroke cards (his dabs) laid over it like
+    // thatch, each a little proud of the form, so the edges are broken and soft, never a hard facet.
+    const mat = this.mat = tintedPaint({ glow: 0.58, rough: 0.92, side: THREE.DoubleSide, key: 'wheat' });
+    const rig = this.rig = L.rig(36, 26000, mat);
+    const C = list => list.map(c => col(c, 0.2));
+    const sunlit = C(['#e8a878', '#f0bc84', '#e09a80', '#f4c890', '#eab08c']), mid = C(['#c08a88', '#b0809c', '#c89a84', '#b88c92']);
+    const shade = C(['#8a6a9a', '#7a74b0', '#9a7090', '#6e78b8', '#a87888', '#84689a']), orange = col('#d88a5a', 0.2), under = C(['#7e5e74', '#6e6488', '#86626c']);
+    const snows = C(['#f6f0f4', '#ece0f0', '#f4dce0', '#d8d4f0', '#fbf0dc', '#e4d0e8']);
+    // the profile: radius at height y (the stack is 1 tall)
+    const PR = [[0, 0.4], [0.04, 0.43], [0.15, 0.46], [0.3, 0.465], [0.39, 0.45], [0.43, 0.5], [0.47, 0.485], [0.58, 0.42], [0.7, 0.33], [0.82, 0.22], [0.92, 0.11], [0.975, 0.04], [1, 0]];
+    const rAt = y => { for (let i = 1; i < PR.length; i++) if (y <= PR[i][0]) { const [y0, r0] = PR[i - 1], [y1, r1] = PR[i]; return r0 + (r1 - r0) * (y - y0) / (y1 - y0); } return 0; };
+    const sunOf = (nx, ny, nz) => -nz * 0.8 + ny * 0.5 - nx * 0.2;          // the light is behind them, low, in his sky
+    const tone = (sun, q) => (sun > 0.45 ? sunlit[Math.floor(q * sunlit.length)] : sun > 0.0 ? (q < 0.06 ? orange : mid[Math.floor(q * mid.length)]) : (q < 0.04 ? orange : shade[Math.floor(q * shade.length)]));
+    // (each dab drawn towards the stack's own tone where it lies, so they sit together as one soft mass, as his do)
+    const avg = l => l.reduce((a, c) => a.add(c), new THREE.Color(0, 0, 0)).multiplyScalar(1 / l.length);
+    const baseS = avg(sunlit), baseM = avg(mid), baseD = avg(shade), mixc = new THREE.Color();
+    const soft = (sun, q) => tone(sun, q).clone().lerp(sun > 0.45 ? baseS : sun > 0 ? mixc.copy(baseM).lerp(baseS, sun / 0.45 * 0.5) : mixc.copy(baseD).lerp(baseM, Math.max(0, 1 + sun * 2.5) * 0.5), 0.5);
+    // a surface point at (y, a), its outward normal and its tangents
+    const surf = (y, a, w = 1) => {
+      const r = rAt(y) * w, d = 0.012, dr = (rAt(Math.min(1, y + d)) - rAt(Math.max(0, y - d))) / (2 * d) * w, ca = Math.cos(a), sa = Math.sin(a);
+      const n = new THREE.Vector3(ca, -dr, sa).normalize(), up = new THREE.Vector3(ca * dr, 1, sa * dr).normalize(), side = new THREE.Vector3(-sa, 0, ca);
+      return { p: new THREE.Vector3(ca * r, y, sa * r), n, up, side };
+    };
     const smooth = g => {
       const p = g.attributes.position, n = g.attributes.normal, acc = new Map(), key = i => `${Math.round(p.getX(i) * 1e4)},${Math.round(p.getY(i) * 1e4)},${Math.round(p.getZ(i) * 1e4)}`;
       for (let i = 0; i < p.count; i++) { const k = key(i), a = acc.get(k) || [0, 0, 0]; a[0] += n.getX(i); a[1] += n.getY(i); a[2] += n.getZ(i); acc.set(k, a); }
       for (let i = 0; i < p.count; i++) { const a = acc.get(key(i)), l = Math.hypot(a[0], a[1], a[2]) || 1; n.setXYZ(i, a[0] / l, a[1] / l, a[2] / l); }
       n.needsUpdate = true; return g;
     };
-    const stack = seed => {
-      const g = shape.lathe(prof, 30, mid[0]), p = g.attributes.position;
-      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x), w = 1 + 0.05 * Math.sin(a * 3 + seed) + 0.035 * Math.sin(a * 7 + y * 9 + seed * 2); p.setXYZ(i, x * w, y * (1 + 0.04 * Math.sin(a * 2 + seed)), z * w); }
-      g.computeVertexNormals();
-      // his stacks against the sun: rimmed in gold and orange where they face it (the wall, the picture's sky), rose,
-      // violet and blue in their shade towards you; short upright strokes, like the thatch
-      const dabs = Array.from({ length: 240 }, () => ({ a: L.rand() * Math.PI * 2, y: L.rand(), q: L.rand() }));
-      shape.paint(g, (c, n) => {
-        const a = Math.atan2(c.z, c.x); let best = dabs[0], bd = 1e9;
-        for (const d of dabs) { let da = Math.abs(a - d.a); if (da > Math.PI) da = 2 * Math.PI - da; const dd = da * da * 0.2 + (c.y - d.y) ** 2 * 0.12; if (dd < bd) { bd = dd; best = d; } }
-        const sun = -n.z * 0.9 + n.y * 0.15 - n.x * 0.2, q = best.q;
-        return sun > 0.5 ? sunlit[Math.floor(q * sunlit.length)] : sun > 0.0 ? (q < 0.1 ? orange : mid[Math.floor(q * mid.length)]) : (q < 0.05 ? orange : shade[Math.floor(q * shade.length)]);
-      });
-      return smooth(g);
+    // stroke cards: [surface point, size, colour], each a quad lying along the form, its lower end lifted off it
+    const cards = list => {
+      const pos = [], nor = [], colr = [], P = new THREE.Vector3(), tmp = new THREE.Vector3();
+      for (const { s: S, l, w, c, lift, lean } of list) {
+        const u = tmp.copy(S.up).multiplyScalar(Math.cos(lean)).addScaledVector(S.side, Math.sin(lean)).normalize().clone(), sd = new THREE.Vector3().crossVectors(S.n, u).normalize();
+        const base = P.copy(S.p).addScaledVector(S.n, 0.006).clone();
+        const lo = base.clone().addScaledVector(u, -l / 2).addScaledVector(S.n, lift * l), hi = base.clone().addScaledVector(u, l / 2);
+        const q = [lo.clone().addScaledVector(sd, -w / 2), lo.clone().addScaledVector(sd, w / 2), hi.clone().addScaledVector(sd, w * 0.35), hi.clone().addScaledVector(sd, -w * 0.35)];
+        for (const k of [0, 1, 2, 0, 2, 3]) { pos.push(q[k].x, q[k].y, q[k].z); nor.push(S.n.x, S.n.y, S.n.z); colr.push(c.r, c.g, c.b); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+      return g;
     };
-    // a cap of snow, its top at 0 and its rim hanging down over the thatch; white with rose and violet in it
-    const capProf = [[0.37, -0.36], [0.4, -0.33], [0.36, -0.24], [0.27, -0.13], [0.17, -0.055], [0.07, -0.012], [0, 0.012]];
-    const snows = ['#f6f0f4', '#ece0f0', '#f4dce0', '#d8d4f0', '#fbf0dc', '#e4d0e8'].map(c => col(c, 0.15));
-    const cap = () => { const g = shape.lathe(capProf, 22, snows[0]); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const a = Math.atan2(p.getZ(i), p.getX(i)), y = p.getY(i); if (y < -0.2) p.setY(i, y - 0.04 * Math.max(0, Math.sin(a * 5))); } g.computeVertexNormals(); shape.paint(g, () => snows[Math.floor(L.rand() * snows.length)]); return smooth(g); };
-    const gs = [0, 1, 2].map(i => rig.geo(stack(i * 2.3))), gc = rig.geo(cap());
-    this.stacks = STACKS.map((s, i) => ({ ...s, i, R: 0.445 * s.S, body: rig.add(gs[i % 3]), cap: rig.add(gc), us: Math.max(-(L.hw - 0.12), Math.min(L.hw - 0.12, s.u * 0.55)), x: 0, y: 0, z: 0, sy: 1, sxz: 1, roll: 0, g: 0, from: null }));
+    const stack = seed => {
+      const g = shape.lathe(PR.map(([y, r]) => [r * 0.97, y * 0.985]), 28, under[0]), p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), a = Math.atan2(z, x), w = 1 + 0.035 * Math.sin(a * 3 + seed); p.setX(i, x * w); p.setZ(i, z * w); }
+      g.computeVertexNormals(); shape.paint(g, (c, n) => { const sun = sunOf(n.x, n.y, n.z); return sun > 0.3 ? mid[Math.floor(L.rand() * mid.length)] : under[Math.floor(L.rand() * under.length)]; }); smooth(g);
+      const list = [];
+      for (let i = 0; i < 300; i++) {
+        const y = Math.pow(L.rand(), 0.9) * 0.97, a = L.rand() * Math.PI * 2, S = surf(y, a, 1 + 0.035 * Math.sin(a * 3 + seed)), sun = sunOf(S.n.x, S.n.y, S.n.z);
+        const roof = y > 0.44;
+        list.push({ s: S, l: (roof ? 0.13 : 0.11) * (0.8 + 0.4 * L.rand()), w: 0.05 + 0.03 * L.rand(), c: soft(sun + (L.rand() - 0.5) * 0.2, L.rand()), lift: roof ? 0.35 + 0.25 * L.rand() : 0.15 + 0.2 * L.rand(), lean: (L.rand() - 0.5) * (roof ? 0.35 : 0.9) });
+      }
+      return shape.merge([g, cards(list)]);
+    };
+    // snow on the cap, as it settles: a dusting from the top down to depth d, ragged at its edge, in his coloured whites
+    const dust = (d, seed) => {
+      const list = [], n = Math.round(60 + 220 * d);
+      for (let i = 0; i < n; i++) {
+        const a = L.rand() * Math.PI * 2, edge = d * (1 + 0.28 * Math.sin(a * 5 + seed) + 0.16 * Math.sin(a * 11 + seed * 3)), y = 1 - Math.pow(L.rand(), 1.6) * edge;
+        if (y < 0.45) continue;
+        const S = surf(Math.min(0.985, y), a, 1.03);
+        list.push({ s: S, l: 0.09 * (0.7 + 0.5 * L.rand()), w: 0.06 + 0.03 * L.rand(), c: snows[Math.floor(L.rand() * snows.length)], lift: 0.12 + 0.15 * L.rand(), lean: L.rand() * Math.PI * 2 });
+      }
+      const top = shape.ball(0.05, snows[0], 1); shape.move(top, 0, 0.985, 0, 0, 0, 0, 1, 0.45, 1);
+      return shape.merge([top, cards(list)]);
+    };
+    const LEVELS = 5;
+    const gs = [0, 1, 2].map(i => rig.geo(stack(i * 2.3))), gc = Array.from({ length: LEVELS }, (_, k) => rig.geo(dust(0.08 + 0.36 * (k + 1) / LEVELS, k * 1.7)));
+    this.stacks = STACKS.map((s, i) => ({ ...s, i, R: 0.47 * s.S, body: rig.add(gs[i % 3]), caps: gc.map(g => rig.add(g)), us: Math.max(-(L.hw - 0.12), Math.min(L.hw - 0.12, s.u * 0.55)), x: 0, y: 0, z: 0, sy: 1, sxz: 1, roll: 0, g: 0, from: null }));
     this.hideAll();
     // ---------------------------------------------------------- snow, out of the picture
     // (each flake a tiny solid, in his coloured whites; one instanced mesh, so the guard is exact pixel by pixel)
@@ -158,7 +196,7 @@ if (vWall > 0.5) {
     this.wind = L.voice().loop({ lp: 1100, hp: 250 });
   },
 
-  hideAll() { for (const s of this.stacks) { this.rig.show(s.body, false); this.rig.show(s.cap, false); s.shown = false; } },
+  hideAll() { for (const s of this.stacks) { this.rig.show(s.body, false); for (const c of s.caps) this.rig.show(c, false); s.shown = false; } },
 
   // ---------------------------------------------------------------- timing, all from show-time (so any moment can be posed)
   // Every hiccup of stack i up to show-time t (the fixed ones, then the idle ones, which are the same each night).
@@ -257,14 +295,13 @@ if (vWall > 0.5) {
         if (k > 0 && !s.went) { s.went = true; this.hic(L, s, 0.8); }
       } else if (showing) { this.place(L, s, t); s.g = this.capAt(i, t); s.went = false; }
       else s.vis = false;
-      rig.show(s.body, !!s.vis); rig.show(s.cap, !!s.vis && s.g > 0.02); s.shown = !!s.vis;
+      const lev = s.vis && s.g > 0.06 ? Math.min(s.caps.length - 1, Math.floor(s.g * s.caps.length)) : -1;
+      rig.show(s.body, !!s.vis); s.caps.forEach((c, k) => rig.show(c, k === lev)); s.shown = !!s.vis;
       if (!s.vis) { u.uStk.value[i].set(0, 0, 0, 0); return; }
       const yaw = L.yawOut, H = s.S;
       rig.put(s.body, s.x, s.y, s.z, yaw, 0, s.roll, this.sc.set(H * s.sxz, H * s.sy, H * s.sxz));
-      // the cap sits on the top, growing down over the thatch, tipped with the wobble
-      const top = H * 0.965 * s.sy, cg = s.g;
-      this.w.set(Math.sin(s.roll) * top * -Math.cos(yaw), Math.cos(s.roll) * top, Math.sin(s.roll) * top * Math.sin(yaw));
-      rig.put(s.cap, s.x + this.w.x, s.y + this.w.y + 0.004, s.z + this.w.z, yaw, 0, s.roll, this.sc.set(H * s.sxz * (0.86 + 0.16 * cg), H * (0.25 + 0.75 * cg) * Math.min(1.1, s.sy), H * s.sxz * (0.86 + 0.16 * cg)));
+      // the snow on its cap, settled to the depth it has reached (in the stack's own shape, so it squashes with it)
+      if (lev >= 0) rig.put(s.caps[lev], s.x, s.y, s.z, yaw, 0, s.roll, this.sc.set(H * s.sxz, H * s.sy, H * s.sxz));
       // and its shadow on the snow (only once it is down)
       u.uStk.value[i].set(s.x, s.z, s.R * s.sxz, s.y - L.y < 0.05 ? H : 0);
       // sounds as things happen: the hiccups, the landing

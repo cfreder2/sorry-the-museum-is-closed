@@ -56,7 +56,7 @@ const HARP = [554.37, 659.25, 830.61, 1108.73, 1318.51, 1661.22];          // C#
 lifeFor(16568, {
   title: /^Water Lilies$/,
   word: 'ripple',
-  stage: { out: OUT, half: HALF, cam: { dist: 3.3, height: 1.05, side: 0.3, fov: 64, lookU: 0.05, lookOut: 1.1, lookH: 0.68, floorOut: 0.45 } },
+  stage: { out: OUT, half: HALF, cam: { dist: 3.6, height: 1.5, side: -0.9, fov: 60, lookU: -0.3, lookOut: 1.0, lookH: 0.55, floorOut: 1.9 } },
   wake: 2, ret: 2.6,
   linger: { near: 4, max: 30 },
 
