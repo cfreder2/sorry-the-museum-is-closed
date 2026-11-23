@@ -32,8 +32,8 @@ const LAKE = { u: -0.06, o: 0.36, a: 1.0, b: 0.4 };   // the lake: centre and ha
 const FOOT = { u: -0.05, o: 0.44 };            // where the main falls land (set from the falls when built)
 const T_LAND = 0.82, T_PALM = 1.7, T_CANOE = 2.5, T_RUMBLE = 3.4, T_ERUPT = 4.4;
 const LIFE = 10, WIND = 0.42;                 // a puff of the plume lives this long, carried along by the wind (m/s)
-const N_PRE = 7, N_PLUME = 112, DT_E = LIFE / N_PLUME, N_CLOUD = N_PRE + N_PLUME, N_MIST = 26, N_SPRAY = 24, N_FOL = 64;
-const NC = N_CLOUD + N_MIST + N_SPRAY + N_FOL;
+const N_PRE = 7, N_PLUME = 112, DT_E = LIFE / N_PLUME, N_CLOUD = N_PRE + N_PLUME, N_MIST = 26, N_SPRAY = 24, N_FOL = 64, N_DAB = 128;
+const NC = N_CLOUD + N_MIST + N_SPRAY + N_FOL + N_DAB;
 const NS = 22, NW = 5;                         // the falls' sheet: rows down, columns across
 // the lake's edge, as the shader draws it (and the banks' clumps are put on it)
 const edgeOf = a => 1 + 0.08 * Math.sin(3 * a + 1.3) + 0.05 * Math.sin(5 * a + 0.4) + 0.03 * Math.sin(9 * a + 2.0);
@@ -200,8 +200,14 @@ if (vKind > 1.5) {
       g.restore();
       // 1: mist, wide and soft
       g.save(); g.beginPath(); g.rect(128, 0, 128, 128); g.clip(); blob(192, 64, 58, 0.7); blob(178, 70, 30, 0.3); blob(208, 58, 28, 0.3); g.restore();
-      // 2: a drop of spray
-      g.save(); g.beginPath(); g.rect(0, 128, 128, 128); g.clip(); blob(64, 192, 40, 1.0); blob(64, 192, 16, 1.0); g.restore();
+      // 2: one painted dab, a few loaded strokes laid over each other, ragged at the edge (red: lit to shaded)
+      g.save(); g.beginPath(); g.rect(0, 128, 128, 128); g.clip(); g.lineCap = 'round';
+      for (let i = 0; i < 14; i++) {
+        const y = 192 + (L.rand() - 0.5) * 56, half = 40 * Math.sqrt(1 - Math.pow((y - 192) / 30, 2) * 0.8), x0 = 64 - half * (0.7 + 0.3 * L.rand()), x1 = 64 + half * (0.7 + 0.3 * L.rand());
+        const v = Math.floor(110 + 145 * clamp01(0.55 - (y - 192) / 70 + (L.rand() - 0.5) * 0.4));
+        g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 7 + L.rand() * 7; g.beginPath(); g.moveTo(x0, y); g.quadraticCurveTo(64, y - 4 + L.rand() * 8, x1, y + (L.rand() - 0.5) * 6); g.stroke();
+      }
+      g.restore();
       // 3: a clump of leaves: small dabs heaped in a mound (red: lit to dark)
       g.save(); g.beginPath(); g.rect(128, 128, 128, 128); g.clip();
       for (let i = 0; i < 170; i++) {
@@ -218,7 +224,7 @@ if (vKind > 1.5) {
     geo.setAttribute('aInfo', this.aInfo); geo.setAttribute('aCol', this.aCol);
     const cu = this.cu = {
       tAtlas: { value: atlas }, uLightW: { value: new THREE.Vector3(L.tx * 0.35 + L.nx * 0.1, 0.9, L.tz * 0.35 + L.nz * 0.1).normalize() },
-      cLit: { value: col('#f4d6bc', 0.1) }, cShade: { value: col('#8a8498', 0.15) }, cRim: { value: col('#f0b89a', 0.1) }, cSmoke: { value: col('#8e8074', 0.15) }, cSmokeLit: { value: col('#c4bcbc', 0.15) },
+      cLit: { value: col('#f4d6bc', 0.1) }, cShade: { value: col('#7a7488', 0.15) }, cRim: { value: col('#f0b89a', 0.1) }, cSmoke: { value: col('#6a5e56', 0.15) }, cWet: { value: col('#dfe8ec', 0.05) }, cSmokeLit: { value: col('#c4bcbc', 0.15) },
     };
     const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
     m.onBeforeCompile = sh => {
@@ -230,7 +236,7 @@ if (vKind > 1.5) {
   vN = q * 2.0; vQ = position.xy + 0.5; vInfo = aInfo; vCol = aCol;
   gl_Position = projectionMatrix * mvPosition;`);
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D tAtlas; uniform vec3 uLightW, cLit, cShade, cRim, cSmoke, cSmokeLit; varying vec4 vInfo; varying vec3 vCol; varying vec2 vN; varying vec2 vQ;')
+        .replace('#include <common>', '#include <common>\nuniform sampler2D tAtlas; uniform vec3 uLightW, cLit, cShade, cRim, cSmoke, cSmokeLit, cWet; varying vec4 vInfo; varying vec3 vCol; varying vec2 vN; varying vec2 vQ;')
         .replace('#include <map_fragment>', `{
   float kd = vInfo.x; vec2 cell = kd < 0.5 ? vec2(0.0, 1.0) : kd < 1.5 ? vec2(1.0, 1.0) : kd < 2.5 ? vec2(0.0, 0.0) : vec2(1.0, 0.0);
   vec4 tx = texture2D(tAtlas, (clamp(vQ, 0.02, 0.98) + cell) * 0.5);
@@ -247,7 +253,11 @@ if (vKind > 1.5) {
     c += cRim * pow(clamp(1.0 - n.z, 0.0, 1.0), 1.5) * 0.3 * smoothstep(0.1, 0.8, dot(normalize(vN + 1e-4), lv.xy));
     c = mix(c, cSmokeLit, lit * 0.45) * vCol;
     a = smoothstep(0.0, 0.55, tx.a) * vInfo.y;
-  } else if (kd < 2.5) { c = vCol; a = tx.a * vInfo.y; }
+  } else if (kd < 1.5) { c = vCol; a = tx.a * vInfo.y; }
+  else if (kd < 2.5) {
+    // a dab of his rock: its own colour, lit and shaded by the stroke, and wet where the falls spray it (w)
+    c = vCol * (0.5 + 0.75 * tx.r); c = mix(c, cWet, vInfo.w * smoothstep(0.7, 1.0, tx.r) * 0.5); a = smoothstep(0.25, 0.55, tx.a) * vInfo.y;
+  }
   else { c = vCol * (0.45 + 0.85 * tx.r); a = smoothstep(0.3, 0.6, tx.a) * vInfo.y; }
   if (a < 0.01) discard;
   diffuseColor = vec4(c, a);
@@ -332,7 +342,7 @@ if (vKind > 1.5) {
     const rock = (A, B, Cz, seed, warm, rose, shade, moss) => {
       const g = shape.ball(1, 0xffffff, 3), p = g.attributes.position, n = g.attributes.normal;
       for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + 0.12 * Math.sin(x * 4 + z * 3 + seed) + 0.07 * Math.sin(y * 7 + x * 5 + seed) + 0.05 * Math.sin(z * 9 + seed);
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + 0.07 * Math.sin(x * 3 + z * 2.5 + seed) + 0.03 * Math.sin(y * 5 + x * 4 + seed);
         p.setXYZ(i, x * A * k, Math.max(-0.2, y) * B * k + 0.2 * B, z * Cz * k);
         const nl = new THREE.Vector3(x / A, y / B, z / Cz).normalize(); n.setXYZ(i, nl.x, nl.y, nl.z);
       }
@@ -346,13 +356,45 @@ if (vKind > 1.5) {
       }
       return g;
     };
+    // (a smooth, dark underbody: the shell of his dabs over it is what is seen; see dabs below)
     this.gRock = rig.geo(rock(0.17, 0.12, 0.14, 0, col('#c69a74', 0.25), col('#b88272', 0.25), col('#6c5654', 0.25), col('#6e7a3c', 0.25)));
-    this.gCliff = rig.geo(rock(0.14, 0.2, 0.12, 2.1, col('#9a8670', 0.25), col('#6e6052', 0.25), col('#3e3832', 0.25), col('#4a5a2c', 0.25)));
+    this.gCliff = rig.geo(rock(0.14, 0.2, 0.12, 2.1, col('#8a7258', 0.25), col('#6a5848', 0.25), col('#4e4236', 0.25), col('#46562a', 0.25)));
+    // the dabs on the rocks: [rock (0..2 the gorge's, 3 his boulder), its local x, y, z (as its body is laid out), size, colour, wet]
+    {
+      const moss = ['#34461f', '#4a5e28', '#647230', '#3e4a24'].map(c => col(c, 0.2)), brown = ['#6e5236', '#8a6a46', '#5a4632', '#9a7a52'].map(c => col(c, 0.2)), dark = col('#2a2420', 0.2);
+      const ochre = ['#b88e64', '#a87a5c', '#c8a072', '#9a7058'].map(c => col(c, 0.2));
+      this.D = [];
+      const per = [34, 36, 22, 36];
+      per.forEach((n, ri) => {
+        const boulder = ri === 3, [A, B, C] = boulder ? [0.17, 0.12, 0.14] : [0.14, 0.2, 0.12];
+        for (let j = 0; j < n; j++) {
+          let x, y, z; do { x = L.rand() * 2 - 1; y = L.rand() * 1.15 - 0.15; z = L.rand() * 1.25 - 0.25; } while (x * x + y * y + z * z > 1 || x * x + y * y + z * z < 0.05);      // (z: out into the room; few on the back)
+          const l = Math.hypot(x, y, z); x /= l; y /= l; z /= l;
+          const top = y > 0.55, pick = a => a[Math.floor(L.rand() * a.length)];
+          const c = top ? pick(moss) : y < -0.05 ? dark : boulder ? pick(ochre) : (L.rand() < 0.3 ? pick(moss) : pick(brown));
+          this.D.push({ ri, x: x * A * 1.08, y: (Math.max(-0.2, y) * 1.08 + 0.2) * B, z: z * C * 1.08, s: (boulder ? 0.11 : 0.11) + 0.06 * L.rand(), c, wet: !boulder && !top && L.rand() < 0.6 ? 1 : 0, spin: L.rand() * TAU });
+        }
+      });
+    }
     // the canoe: a dugout, with its paddler in a white shirt and a straw hat, and his paddle
     {
-      const hull = shape.move(shape.lathe([[0, -0.5], [0.22, -0.44], [0.4, -0.3], [0.5, -0.1], [0.5, 0.1], [0.4, 0.3], [0.22, 0.44], [0, 0.5]], 10, col('#2c1e16', 0.15)), 0, 0, 0, Math.PI / 2, 0, 0, 0.034, 0.26, 0.022);
-      const inside = col('#2a2018', 0.2); shape.paint(hull, (cen, nm) => (nm.y > 0.45 ? inside : null));
-      this.gHull = rig.geo(hull);
+      // a dugout lofted along its length: a round belly, its ends rising (the sheer), a pale worn gunwale along the top
+      const NL = 16, NA = 9, pos = [], cl = [], idx = [], wood = col('#5e3e26', 0.15), lit = col('#7a5434', 0.15), gun = col('#d6bc8a', 0.1), c = new THREE.Color();
+      for (let i = 0; i <= NL; i++) {
+        const tt = i / NL * 2 - 1, w = 0.036 * Math.pow(Math.max(0.002, 1 - tt * tt), 0.55) + 0.001, d = 0.02 * Math.pow(Math.max(0, 1 - tt * tt), 0.4) + 0.004, sh = 0.006 + 0.016 * Math.pow(tt, 4);
+        for (let j = 0; j <= NA; j++) {
+          const ph = j / NA * Math.PI, sp = Math.sin(ph);
+          pos.push(w * Math.cos(ph), sh - (sh + d) * sp, tt * 0.14);
+          c.copy(sp < 0.3 ? gun : wood).lerp(lit, sp >= 0.3 ? clamp01(Math.cos(ph) * 0.8 + 0.3) * 0.7 : 0); cl.push(c.r, c.g, c.b);
+        }
+      }
+      for (let i = 0; i < NL; i++) for (let j = 0; j < NA; j++) { const a = i * (NA + 1) + j, b = a + NA + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+      // and its dark inside, a floor just under the gunwale, so the pale rim reads as a line round an open boat
+      const base = pos.length / 3, inn = col('#24180f', 0.1);
+      for (let i = 0; i <= NL; i++) { const tt = i / NL * 2 - 1, w = 0.03 * Math.pow(Math.max(0.002, 1 - tt * tt), 0.55), y = 0.003 + 0.012 * Math.pow(tt, 4); for (const sx of [-1, 1]) { pos.push(sx * w, y, tt * 0.135); cl.push(inn.r, inn.g, inn.b); } }
+      for (let i = 0; i < NL; i++) { const a = base + i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      let hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); hg.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); hg.setIndex(idx); hg.computeVertexNormals(); hg = hg.toNonIndexed();
+      this.gHull = rig.geo(hg);
       const shirt = col('#f6f0e2', 0.05), skin = col('#7a4e34', 0.2), straw = col('#c8b07c', 0.2), red = col('#a8402c', 0.2);
       this.gMan = rig.geo(shape.merge([
         shape.move(shape.lathe([[0.018, 0], [0.02, 0.02], [0.016, 0.042], [0.008, 0.05]], 8, shirt), 0, 0.01, 0),
@@ -360,7 +402,7 @@ if (vKind > 1.5) {
         shape.move(shape.ball(0.011, skin, 1), 0, 0.064, 0),
         shape.move(shape.cyl(0.02, 0.02, 0.003, 10, straw), 0, 0.071, 0), shape.move(shape.cone(0.011, 0.014, 8, straw), 0, 0.079, 0),
       ]));
-      this.gPaddle = rig.geo(shape.merge([shape.move(shape.box(0.004, 0.11, 0.004, col('#6a5038', 0.2)), 0, -0.04, 0), shape.move(shape.box(0.016, 0.03, 0.003, col('#5a4230', 0.2)), 0, -0.105, 0)]));
+      this.gPaddle = rig.geo(shape.merge([shape.move(shape.box(0.005, 0.11, 0.005, col('#8a6a44', 0.15)), 0, -0.04, 0), shape.move(shape.box(0.02, 0.034, 0.004, col('#b89668', 0.15)), 0, -0.108, 0)]));
     }
     this.iTrunk = PALMS.map(() => rig.add(this.gTrunk)); this.iCrown = PALMS.map(() => rig.add(this.gCrown));
     this.iRock = rig.add(this.gRock); this.iCliff = CLIFFS.map(() => rig.add(this.gCliff)); this.iHull = rig.add(this.gHull); this.iMan = rig.add(this.gMan); this.iPaddle = rig.add(this.gPaddle);
@@ -418,13 +460,16 @@ if (vKind > 1.5) {
     const since = t - T_ERUPT - p.j * DT_E; if (since < 0) { o.a = 0; return o; }
     const k = tb0 == null ? Math.floor(since / LIFE) : tb0, tau = since - k * LIFE;
     if (tau > LIFE) { o.a = 0; return o; }
-    const burst = k === 0 && p.j * DT_E < 1.4, hc = (burst ? 0.36 : 0.2) * (0.85 + 0.3 * p.b), lift = 1 - Math.exp(-tau / 0.7), sp = Math.min(1, tau / 2.5);
-    o.h = this.crownH + 0.04 + hc * lift - 0.045 * Math.min(4, Math.max(0, tau - 1.2)) + (p.c - 0.5) * (0.06 + 0.1 * sp) + 0.025 * Math.sin(t * 0.6 + 7 * p.a) * sp;
-    o.u = PEAK_U + (p.a - 0.5) * 0.06 + WIND * (tau - 1.1 * (1 - Math.exp(-tau / 1.1))) + 0.05 * Math.sin(t * 0.37 + 6 * p.d) * sp;
-    o.o = -0.026 + (0.06 + 0.14 * p.d) * (1 - Math.exp(-tau / 1.6));
-    o.r = Math.min(0.34, (0.05 + 0.04 * tau) * (burst ? 1.45 : 1) * (0.85 + 0.3 * p.c));
-    o.sy = 1 - 0.5 * Math.min(1, tau / 4); o.haze = ramp(tau, 1.5, 8);
-    o.a = ease.smooth(tau / 0.35) * (0.78 - 0.4 * ramp(tau, 1.8, 8.5)) * (1 - ramp(tau, 8.5, LIFE)) * (burst ? 1.1 : 1);
+    // (laid out in the band the look camera sees between the frames' tops and its own top, about 2.0 to 2.6 m at the
+    // wall, and close to the wall so it is seen where it is: the root just over the rail and under his lamp, bending
+    // over within a hand's breadth, then streaming away to the right, rising a little, widening and thinning)
+    const burst = k === 0 && p.j * DT_E < 1.4, sp = Math.min(1, tau / 4), rise = 1 - Math.exp(-tau / 0.4);
+    o.u = PEAK_U + (p.a - 0.5) * 0.05 + WIND * (tau - 0.6 * (1 - Math.exp(-tau / 0.6))) + 0.04 * Math.sin(t * 0.37 + 6 * p.d) * sp;
+    o.h = this.crownH + 0.035 + (burst ? 0.16 : 0.1) * rise + 0.09 * ease.smooth(ramp(o.u, 0.25, 1.1)) + (p.c - 0.5) * (0.03 + 0.2 * sp) + 0.02 * Math.sin(t * 0.6 + 7 * p.a) * sp;
+    o.o = -0.022 + (0.02 + 0.05 * p.d) * (1 - Math.exp(-tau / 1.5));
+    o.r = Math.min(0.28, (0.045 + 0.04 * tau) * (burst ? 1.35 : 1) * (0.85 + 0.3 * p.c));
+    o.sy = 1 - 0.45 * Math.min(1, tau / 3); o.haze = ramp(tau, 0.8, 7);
+    o.a = ease.smooth(tau / 0.25) * (0.95 - 0.6 * ramp(tau, 1.2, 8)) * (1 - ramp(tau, 7.5, LIFE));
     o.spin = p.a * TAU + tau * 0.05 * (p.c - 0.5);
     return o;
   },
@@ -488,12 +533,21 @@ if (vKind > 1.5) {
       const fi = q.thin ? 1 : 0, on = fallOn[fi]; if (on <= 0.01) continue;
       const tau = ((tt / q.P + q.a) % 1) * q.P, vu = (q.d - 0.5) * 0.5, vo = 0.1 + 0.35 * q.c, vh = 0.5 + 0.55 * q.b, h = 0.02 + vh * tau - 4.9 * tau * tau;
       if (h <= 0.005) continue;
-      put(FALLS[fi].u + (q.e - 0.5) * 0.08 + vu * tau, h, FALLS[fi].land + vo * tau, 0.016 + 0.012 * q.e, 2, 0.85 * on, 0, this.sprayC);
+      put(FALLS[fi].u + (q.e - 0.5) * 0.08 + vu * tau, h, FALLS[fi].land + vo * tau, 0.022 + 0.014 * q.e, 1, 0.9 * on, 0, this.sprayC);
     }
     // the banks' foliage, up as the lake reaches it (and down as it draws back)
     for (const f of this.Fo) {
       const k = ease.outBack(clamp01((reach - f.d) / 0.3)); if (k <= 0.01) continue;
       const s = f.s * k; put(f.u, s * 0.36, f.o, s * 1.25, 3, Math.min(1, k * 1.5), f.spin * 0.15, f.c);
+    }
+    // the rocks' dabs, up with their rocks (a little wet glint where the falls spray them)
+    for (const d of this.D) {
+      const R0 = d.ri < 3 ? CLIFFS[d.ri] : null, ru = R0 ? R0[0] : ROCK.u, ro = R0 ? R0[1] : ROCK.o, sc = R0 ? R0[2] : 1;
+      const k = R0 ? ease.outBack(clamp01((reach - Math.hypot(ru - FOOT.u, ro - FOOT.o) + 0.2) / 0.35)) : ease.outBack(clamp01((reach - Math.hypot(ROCK.u - FOOT.u, ROCK.o - FOOT.o)) / 0.35));
+      if (k <= 0.01) continue;
+      const S = sc * k, du = d.x * S, dout = d.z * S;      // (laid out square to the wall: the bodies are near enough round about their axis)
+      const wet = d.wet * fallOn[0] * clamp01(1 - Math.abs(ru + du - FOOT.u) / 0.16) * (d.y < 0.12 ? 1 : 0.4) * (0.75 + 0.25 * Math.sin(tt * 3.1 + d.spin * 5));
+      this.lit = wet; put(ru + du, d.y * S - (R0 ? 0.08 : 0.05) * (1 - k), ro + dout, d.s * S * 1.15, 2, Math.min(1, k * 1.4), d.spin, d.c); this.lit = 0;
     }
     this.flushCards(L, n, cam);
     // ---- palms, rock, canoe
@@ -561,13 +615,14 @@ if (vKind > 1.5) {
     for (const i of [this.iHull, this.iMan, this.iPaddle]) rig.show(i, vis);
     if (!vis) { cp.u = cp.u == null ? -0.14 : cp.u; return; }
     const bob = 0.003 * Math.sin(t * 2.3), tt = showing ? t : this.bT + ret * 2.4;
-    L.floor(cp.u, cp.out, v); const K = 1.9, y0 = v.y + 0.022 * K + bob;
+    L.floor(cp.u, cp.out, v); const K = 1.9, y0 = v.y + 0.016 * K + bob;
     rig.put(this.iHull, v.x, y0, v.z, cp.yaw, 0.02 * Math.sin(t * 1.7), 0.03 * Math.sin(t * 1.3), K);
     // the paddler sits a little aft; the paddle swings in long strokes, changing sides
     const fx = Math.sin(cp.yaw), fz = Math.cos(cp.yaw), aft = -0.03 * K;
-    rig.put(this.iMan, v.x + fx * aft, y0 + 0.004 * K, v.z + fz * aft, cp.yaw, 0, 0, K);
+    rig.put(this.iMan, v.x + fx * aft, y0 - 0.004 * K, v.z + fz * aft, cp.yaw, 0, 0, K * 1.35);
     const ph = (tt * 0.87) % 1, side = Math.floor(tt * 0.87 / 2) % 2 ? 1 : -1, sweep = Math.sin(ph * TAU) * 0.7 * (cp.paddle || 0.3);
     const sx = fz * side, sz = -fx * side;
-    rig.put(this.iPaddle, v.x + fx * (aft + 0.01 * K) + sx * 0.026 * K, y0 + 0.055 * K, v.z + fz * (aft + 0.01 * K) + sz * 0.026 * K, cp.yaw, -sweep, side * 0.35, K);
+    const dip = Math.max(0, Math.sin(ph * TAU)) * 0.018 * K * (cp.paddle || 0.3);         // (down into the water on the pull, up on the return)
+    rig.put(this.iPaddle, v.x + fx * (aft + 0.01 * K) + sx * 0.034 * K, y0 + 0.07 * K - dip, v.z + fz * (aft + 0.01 * K) + sz * 0.034 * K, cp.yaw, -sweep, side * 0.4, K);
   },
 });
