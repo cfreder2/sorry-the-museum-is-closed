@@ -272,7 +272,9 @@ function voices(k) {
     if (lfo) { const l = c.createOscillator(), lg = c.createGain(), am = c.createGain(); l.frequency.value = lfo; lg.gain.value = 0.5; am.gain.value = 0.5; l.connect(lg); lg.connect(am.gain); o.connect(am); node = am; l.start(t); l.stop(t + dur + 0.05); }
     node.connect(g); g.connect(S.master); o.start(t); o.stop(t + dur + 0.05);
   };
-  const sy = k.synth;
+  const sy = k.synth, lines = {};
+  // Fetch the recorded lines early so the first alert is not late; decoding waits for the sound to start.
+  const files = {}; for (const n of ['intruder-alert', 'warning']) files[n] = fetch(`assets/sfx/${n}.mp3`).then(r => r.arrayBuffer()).catch(() => null);
   return {
     query() { sy.note(660, 0.12, { type: 'triangle', vol: 0.05 }); sy.note(990, 0.2, { type: 'triangle', vol: 0.05, at: 0.12 }); },
     spotted() { for (let i = 0; i < 3; i++) sy.note(1250, 0.07, { type: 'square', vol: 0.03, at: i * 0.09 }); osc('sawtooth', 300, 900, 0.35, 0.025, 0.28); },
@@ -286,13 +288,22 @@ function voices(k) {
     thump() { sy.note(80, 0.18, { type: 'sine', vol: 0.1 }); sy.noise(0.1, { vol: 0.05, lp: 500 }); },
     clang() { sy.note(220, 0.4, { type: 'triangle', vol: 0.06 }); sy.note(331, 0.35, { type: 'triangle', vol: 0.04 }); sy.noise(0.12, { vol: 0.07, lp: 2500 }); },
     boing() { osc('sine', 260, 520, 0.22, 0.05); },
-    // A robot's voice: the browser's own speech, low and clipped. Silent when the game's sound is off.
-    speak(text) {
-      try {
-        const sp = typeof speechSynthesis !== 'undefined' && speechSynthesis; if (!sp || !S || S.muted || !(S.vol && S.vol.master > 0)) return;
-        sp.cancel(); const u = new SpeechSynthesisUtterance(text); u.pitch = 0.2; u.rate = 1.1; u.volume = Math.min(1, S.vol.master * 0.9); sp.speak(u);
-      } catch { /* no voice: the words are on the screen anyway */ }
+    // A robot's voice: recorded once (macOS "Fred", ring-modulated) so every browser sounds the same.
+    // Fetched on first use; only one line plays at a time, and a newer line cuts the older one off.
+    speak(name) {
+      if (!ok()) return;
+      const go = buf => {
+        if (!buf || !ok()) return;
+        try { if (this._line) this._line.stop(); } catch { /* already over */ }
+        const c = S.ctx, src = c.createBufferSource(), g = c.createGain(); g.gain.value = 0.9;
+        src.buffer = buf; src.connect(g); g.connect(S.master); src.start();
+        this._line = src; src.onended = () => { if (this._line === src) this._line = null; };
+      };
+      if (lines[name]) return go(lines[name]);
+      (files[name] || Promise.resolve(null)).then(a => a && S.ctx.decodeAudioData(a.slice(0)))
+        .then(buf => { lines[name] = buf; go(buf); }).catch(() => { /* no voice: the words are on the screen anyway */ });
     },
+    talking() { return !!this._line; },
   };
 }
 
@@ -516,7 +527,7 @@ feature({
           const other = this.bots.some(q => q !== b && (q.mode === 'chase' || q.mode === 'charge' || q.mode === 'hold'));
           if (now - b.seenAt < 0.35 && !other) {
             b.mode = 'chase'; b.mt = 0; b.lost = 0; b.chaseT = 0; b.replan = 0; b.pn = 0; this.sfx.spotted();
-            k.callout('INTRUDER ALERT'); this.sfx.speak('Intruder! Intruder alert!');
+            k.callout('INTRUDER ALERT'); this.sfx.speak('intruder-alert');
           } else this._search(b);
         }
         break;
@@ -527,7 +538,7 @@ feature({
         if ((b.replan -= dt) <= 0) { b.replan = 0.3; this._plan(b, b.lx, b.lz); if (!b.pn) b.lost += 0.3; }
         if (b.pn) this._follow(b, BOT.run, dt);
         if (b.seen) look(atToy(), 8); else look(b.yaw, 4);
-        if (b.seen && b.cool <= 0 && this._dist3(b, p) < BOT.reach) { b.mode = 'charge'; b.mt = 0; this.sfx.charge(); k.callout('WARNING! WARNING!'); this.sfx.speak('Warning! Warning!'); }
+        if (b.seen && b.cool <= 0 && this._dist3(b, p) < BOT.reach) { b.mode = 'charge'; b.mt = 0; this.sfx.charge(); k.callout('WARNING! WARNING!'); if (!this.sfx.talking()) this.sfx.speak('warning'); }
         else if (b.lost > LOSE) {
           this.sfx.giveUp();
           if (b.chaseT > 2.5) { this._evaded(k); k.callout('SHAKEN OFF'); }
