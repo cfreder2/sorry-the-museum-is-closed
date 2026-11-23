@@ -641,6 +641,8 @@ class Life {
   }
   begin(resumed) {
     this.measure(); placeGuard(this.art);
+    // One show at a time in a room: anything another work left out for the toy goes back as this one begins.
+    for (const L of LIVES) if (L !== this && L.state === 'linger' && L.art.room === this.art.room) L.toReturn();
     this.state = 'show'; this.phase = resumed ? 'play' : 'wake'; this.t = resumed ? this.wakeDur : 0; this.r = 0; this.ret = 0; this.wake = resumed ? 1 : 0;
     this.group.visible = true;
     if (this.spec.start) this.spec.start(this, !!resumed);
