@@ -982,3 +982,11 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 229
 
 > The Red Teaming Heist game is really great and tons of fun. However, the travel time to get there and back feels excessive. It would be nice if you could jump now, making the challenge to jump over a line. If you set off the alarm, a cage should fall around you, trapping you briefly. You would then be kicked out and taken to a dumpster. Ideally, this dumpster would be closer to the external security system and include a vent, perhaps an underground one, that lets you re-enter the security area. (Asked: the cage drops on any alarm; keep a set time to get there and back, with the lit path, so the urgency is part of the adventure.)
+
+## 230
+
+> I'd like you to be able to use the computers in the control room. What would security officers do? There might be a donut-chase game, a bit of a "lean into it" scenario. I'd also like you to open a terminal and use a virtual command prompt. You'll need to run `ls` and `dir` commands, navigate to the file, and open it in a text editor. The file will contain clues worth finding. You should also be able to turn on the sprinkler system, test the fire suppression, and similar tasks.
+
+## 231
+
+> We need another set of subagents to improve the grounds, parks, snow, and the shaders that affect the ice in that area. Some sections are extremely flat, lacking any variation, so you just drive on boring, featureless roads. It feels odd, not like a real place, more like Roblox.
