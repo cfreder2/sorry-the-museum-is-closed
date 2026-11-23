@@ -4,3 +4,5 @@ import './20684-paris-street.js';      // 201  Caillebotte, Paris Street; Rainy 
 import './111436-basket-of-apples.js';  // 248  Cézanne, The Basket of Apples: tumble
 import './94841-song-of-the-lark.js';   // 222  Breton, The Song of the Lark: song
 import './81558-acrobats.js';          // 201  Renoir, Acrobats at the Cirque Fernando: juggle
+import './14655-two-sisters.js';      // 201  Renoir, Two Sisters (On the Terrace): yarn
+import './111442-childs-bath.js';     // 184  Cassatt, The Child's Bath: bubble
