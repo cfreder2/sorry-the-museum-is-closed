@@ -38,8 +38,9 @@ export function repaint(body, hex) {
 // Polished chrome. A mirror needs something to reflect, so it is given a night to look at: a dark
 // sky, a band of city lights, the warm lamps of the galleries and the colours of Griffin Court's
 // roof, painted once onto a panorama. It is not the room you are in, but it moves the way one would.
+// (Shared: the probe's hull reflects the same night, src/probe.js.)
 let _night = null;
-function night() {
+export function night() {
   if (_night || typeof document === 'undefined') return _night;
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512;
   const c = cv.getContext('2d'), sky = c.createLinearGradient(0, 0, 0, 512);
