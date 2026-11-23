@@ -73,6 +73,7 @@ import './bandshell.js';        // the band shell on Butler Field, and Snow Ball
 import './finale.js';
 import './finalelaunch.js';      // the five notes, the tractor beam and the launch (docs/FINALE.md, phase 3)
 import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
+import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');

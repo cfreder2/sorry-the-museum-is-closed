@@ -191,22 +191,38 @@ What was added (`src/story.js`, in the order a player meets it):
    Now and then it calls again by itself. The first page of the file.
 3. **The mice squeak the call** (`src/mice.js`): two notes of it at each stop, the next two at the next; the whole call as
    one goes in through its grille.
-4. **A light over the lake**, out of doors now and then: a green streak falling towards Butler Field, then the call, far
+4. **The probe** (`src/probe.js`), once the grate's page is in the file, three more works have been looked at (or three
+   minutes spent indoors since) and over a minute indoors in all: the grate hums louder and the `?` sits on it. Come near
+   the lobby and a toy-sized saucer rises out of it in a column of green light, flies to you through the doorways, past
+   you, and hangs in front of you, chiming the call. Then you herd it out: it keeps about 2.8 m ahead of you along its way
+   to the vent (the floor grid of `guardplan.js`, through doorways, never a wall), eases away as you come, hurries if you
+   rush it, stays put and chimes softly when you stop, never runs off. Out on the terrace it takes off on its own, over
+   the roofs, Butler Field and the ballpark to the harbour light (a short camera beat watches it go), and waits there.
+   Reach the light across the floes and it circles the lantern once, the light flickers green, and it streaks straight up.
+   Saved in `after-hours.probe` (`flown` from the moment it rises, so a reload finds it waiting at the light; `gone`).
+5. **Clarice's log**, on the step of the keeper's hut at the foot of the light (drawn in `harbour.js`, solid in
+   `harbourplan.js` as `L.hut`). READ: the harbour keeper's last entries, the museum lit at two, "people" with crates
+   going down not out, green light under Butler Field, five notes off the water, "They answered", something small at
+   her window, "I'm going to", signed "— C." Pinned to the door, the new keeper: "We don't know what happened to
+   Clarice. She kept saying the music came from under the ballfield." A scarf on the hook. The page `lighthouse`; the
+   `?` then goes to the rings over the silo.
+6. **A light over the lake**, out of doors now and then: a green streak falling towards Butler Field, then the call, far
    off and thin. It waits until the camera faces that way with no building in the way.
-5. **Rings in the snow** over the silo, five marks round them in the call's colours (one half on each silo door, so the
+7. **Rings in the snow** over the silo, five marks round them in the call's colours (one half on each silo door, so the
    pattern parts at the launch). Drive onto them: the call again, from under the snow.
-6. **The older chain** (nests, desk, painting, Sub-level 9, the base) is noticed by what each module already saves, and
+8. **The older chain** (nests, desk, painting, Sub-level 9, the base) is noticed by what each module already saves, and
    each step is a page.
-7. **The Director's last note**, on the floor of the base office under a saucer paperweight: it calls every night; play it
+9. **The Director's last note**, on the floor of the base office under a saucer paperweight: it calls every night; play it
    back, take it home, and the pictures, "that is what they came for. — D." The reason to care, just before the console.
-8. **At the console**, if any of it was heard: "You know this tune."
+10. **At the console**, if any of it was heard: "You know this tune."
 
 Along the way:
 
 - **The file**: each page is a toast with as many notes of the call as pages so far (the tune grows with the mystery),
   and a pause-menu button, *The Green Cheese file*, once there is a page: pages found, the rest as `? ? ?`, the next one
   with a one-line hint.
-- **A faint `?` on the map** for the next step: the next mouse (or its vent), the desk, the whiteboard, the picture, the
+- **A faint `?` on the map** for the next step: the grate once the probe is due, the probe while it is to be followed,
+  the keeper's log once it has gone (`G.probe.where()`, asked first); then the next mouse (or its vent), the desk, the whiteboard, the picture, the
   keycard, the blast door, the console; and the rings once the light has been seen. On the big map and the radar, not
   the radar's rim.
 - **Whiteboards**: the incidents board logs the light over the lake, the engineers' board the humming grate, the
@@ -215,15 +231,17 @@ Along the way:
 
 **The story API** (`import { story } from './story.js'`, also `G.story`): `story.add(id)` (true the first time; toast
 and sting), `story.has(id)`, `story.count`, `story.total`, `story.open()`, `story.enable(id)`, `story.heard`. Page ids:
-`grate`, `lights`, `ring`, `nests`, `desk`, `passage`, `sublevel9`, `alienracer`, `base`.
+`grate`, `lighthouse`, `lights`, `ring`, `nests`, `desk`, `passage`, `sublevel9`, `alienracer`, `base`.
 
 **For the alien racer** (the race spots): `alienracer` is an optional page, "The green racer's charm". At its init the
-race module calls `story.enable('alienracer')` (until then the file counts 8 pages, after it 9); when the alien racer is
+race module calls `story.enable('alienracer')` (until then the file counts 9 pages, after it 10); when the alien racer is
 beaten, `story.add('alienracer')`. Its page says the charm hums when it faces the park, and once it is found the map's
 `?` goes on the rings over the silo.
 
 ## Open choices (decided for now; easy to change)
 
 - **Optional:** the finale doesn't block anything else, so the game can be explored without it.
-- **One saucer:** the small UFO toy from Sub-level 9 stays as an unlock. The big craft is the one you ride.
+- **Three saucers, one family:** the *probe* out of the lobby grate is a live scout, toy-sized and unmanned, that
+  leads you to Clarice's log and leaves; the *UFO toy* in Sub-level 9 (`buildSaucer`) is a model of the craft someone
+  made, and stays an unlock you can drive; the *craft* in the hangar (`craft.js`) is the real one, the one you ride.
 - **Car or drone:** you can arrive with either; the car rides along, the drone docks, and both are on the Moon.
