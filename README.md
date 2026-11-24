@@ -725,22 +725,39 @@ kind of room, add a line to the list.
   tested alone; which room has which is `ARCADE_ROOMS` in `src/furnish.js`.
 - **The heist.** Each security control room (there are two, on the lower
   level) has a plinth with a big red button. Press it and the building names
-  a gallery and a picture in it; say yes and a clock starts, a toy-sized copy
-  of the picture appears on a plinth in the middle of that gallery, and the
-  room fills with laser beams: fixed ones with a gap low down for a car and a
-  gap higher up for a drone, curtains that blink, curtains that slide, one
-  that turns about the plinth like a lighthouse, and a net over the top. An
-  arrow points the way. Touch a beam and the alarm goes and you are put back
-  at the doorway; three alarms are forgiven and the fourth ends it. Take the
-  copy (drive up to it) and the beams deal themselves again for the way out;
-  get it back to the button before the clock runs out. Heists done, clean
-  runs and the best time for each room are kept. The real picture never
-  leaves the wall. Not in a race. Pause has *Abandon the heist*.
+  a gallery not too far off and a picture in it; say yes and a clock starts,
+  a toy-sized copy of the picture appears on a plinth in the middle of that
+  gallery, and the room fills with laser beams: fixed ones with a gap low
+  down for a car and a gap higher up for a drone, curtains that blink,
+  curtains that slide, one that turns about the plinth like a lighthouse, a
+  net over the top, and hurdles. A hurdle is one low beam right across the
+  way with nothing over it for two metres: a car hops it (a tap clears it; a
+  held jump, at the top of its arc, hits the bars above), and later ones have
+  a shutter over them that blinks or a curtain that slides, so the hop has to
+  be timed. For a drone the bars over a hurdle start at one metre, and it
+  goes through low. An arrow points the way. Touch a beam, once, and a cage
+  drops out of the ceiling: the alarm, the robot's voice, two and a half
+  seconds to rattle the bars, and then you are carried out and wake up in the
+  dumpster. It costs nothing but the heist, and the vent beside the dumpster
+  goes straight back down to the button. Take the copy (drive up to it, or
+  come down on it from a hop) and the beams deal themselves again for the way
+  out; get it back to the button before the clock runs out.
+  The clock is made from the real car: a par for the drive out, an allowance
+  for the room, a par for the drive back (`pars` in `src/heistplan.js`). The
+  briefing gives all three; the clock on screen says how many seconds ahead of
+  par or behind it you are, and beats and ticks through its last ten seconds.
+  The first heist is a gentle one (nothing moves, and its one hurdle stands
+  beside an open gap); they get harder, and the pars a little tighter, with
+  each one pulled off. Heists done and the best time for each room are kept.
+  The real picture never leaves the wall. Not in a race. Pause has *Abandon
+  the heist*.
   Every pattern is built from a seed out of pieces with known gaps and then
   proven before it is switched on: `solve` in `src/heistplan.js` searches the
   floor and the clock for a way a slow toy car can get from the doorway to
-  the plinth, and back, without coming near a beam, and a pattern that fails
-  is dealt again.
+  the plinth, and back, without coming near a beam, driving and hopping (a hop
+  has to clear everything, and come down on free floor, for the weakest and
+  the strongest tap any car can make, slow and fast), and a pattern that
+  fails is dealt again.
 
 ## Security robots
 
@@ -768,8 +785,13 @@ and ramps) and never wait in a doorway.
   prong glows for a second and a half before it fires: time to get away, or
   get something between you. Nobody looking at a work is ever zapped: robots
   just pass by, and give you a moment after you look away. Caught, you
-  are zapped, carried out, and wake up in the dumpster by a back door, which
-  throws you out over its lid. It keeps 50 chips. Nothing else is lost.
+  are zapped, carried out, and wake up in the dumpster in the bin yard round
+  the back (by the old building's north-east corner), which throws you out
+  over its lid. It keeps 50 chips. Nothing else is lost. In front of the
+  dumpster is the hood of an air intake with its grille off: the duct under
+  it slides down to the staff entrance on the lower level, next door to a
+  security control room, and can be driven back up (`src/ventplan.js`,
+  `src/staffvent.js`).
 - Two trophies: one for the dumpster, one for shaking a robot off five times.
 - Never during a race, and not during a heist. They stand still
   while you look at a work. On a phone there are three, otherwise six.
@@ -1040,8 +1062,9 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/lights.js             a light switch by every door, and each room's working lights
     src/repair.js             the conservation line: the table in the studio, and playing it
     src/repairgame.js         its rules (no three.js, no DOM)
-    src/heist.js              the heist: the button, the beams, the clock
+    src/heist.js              the heist: the button, the beams, the cage, the clock
     src/guards.js             the security robots, the bolt, the dumpster
+    src/ventplan.js, staffvent.js   the bin yard the dumpster stands in, and the vent from it down to the staff entrance (the first has no three.js, no DOM)
     src/guardplan.js          their beats, the floor they can drive, what they can see, the way they find (no three.js, no DOM)
     src/whiteboards.js        the whiteboards: the writing on them, and reading one
     src/boardtext.js          what each of them says (no three.js, no DOM)
@@ -1053,7 +1076,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/craft.js, moon.js     the saucer you ride in, and the Moon: its ground, its museum, its visitors
     src/cosmos.js, spacetex.js, cosmicmusic.js   the sky, the planets and the galaxy; their pictures (assets/space); the music out there
     src/level3.js, level3-terrace.js, level3-back.js, level3kit.js   Level 3: a set-piece in each Modern Wing gallery, the snowy terrace and Terzo Piano, the conservation offices' clues
-    src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
+    src/heistplan.js          its target rooms, routes, clock and beam patterns, and the proof each can be passed, hops and all (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
     src/score.js              Art Score, view counts, Stunt Looks

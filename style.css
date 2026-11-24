@@ -449,6 +449,13 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 #heist { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; text-align: center; pointer-events: none; z-index: 4; }
 #heist .row { display: inline-flex; gap: 18px; align-items: baseline; font: 600 13px var(--mono); color: #ffb0a0; background: rgba(16,5,4,.66); border: 1px solid rgba(255,90,70,.4); border-radius: 6px; padding: 6px 14px; letter-spacing: .08em; }
 #hClock { font-size: 20px; color: #fff; min-width: 3.2em; } #heist.late #hClock { color: #ff5a46; }
+#hPar { min-width: 7.2em; text-align: right; } #hPar.ahead { color: #8ff0a8; } #hPar.behind { color: #ff7a66; }
+/* the last ten seconds: the clock beats once a second (and only changes colour with motion reduced) */
+#heist.last #hClock { color: #ff3d28; display: inline-block; animation: heistBeat 1s ease-out infinite; text-shadow: 0 0 12px rgba(255,60,30,.8); }
+#heist.last .row { border-color: #ff5a46; }
+@keyframes heistBeat { 0% { transform: scale(1.34); } 35% { transform: scale(1); } 100% { transform: scale(1); } }
+.reduce #heist.last #hClock { animation: none; }
+#heist.caught .row, #heist.caught #hArrow { visibility: hidden; }
 #hArrow { margin-top: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; font: 11px var(--mono); letter-spacing: .08em; color: #ffc9bd; text-shadow: 0 1px 5px #000; }
 #hArrow svg { width: 38px; height: 38px; fill: #ff6a55; filter: drop-shadow(0 0 7px #ff2a10); }
 .studying #heist, .cine #heist { opacity: .35; }

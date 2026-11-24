@@ -850,6 +850,7 @@ function finish(R, recipe) {
     // a mouse's grille low in this wall (plan.js addNests): the skirting and the lower wall stop either side of it, and go on over it
     const nests = (plan.nests || []).filter(n => n.room === r.id && n.side === side).map(n => [n.u - n.VW / 2 - 0.05, n.u + n.VW / 2 + 0.05, n.VH + 0.04]);
     for (const [a, b, h] of nests) { if (recipe === 'restroom') { B(a, b, h, 1.1, 0.045, 0xdfe6e4); B(a, b, 1.1, 1.24, 0.05, 0x5f8794); B(a, b, 1.24, 2.1, 0.045, 0xdfe6e4); B(a, b, 2.1, 2.14, 0.06, 0xb7b2a6); } else { B(a, b, h, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); } }
+    { const V = plan.staffVent; if (V && V.room === r.id && V.side === side) nests.push([V.z0 - 0.05, V.z1 + 0.05, V.H + 0.04]); }      // and the same where the staff vent comes out (src/ventplan.js)
     spans.push(...nests.map(([a, b]) => [a, b]));
     for (const [a, b] of runs(lo, hi, spans)) { B(a, b, 0, 0.11, 0.07, 0x3c3f45);
       if (recipe === 'restroom') { B(a, b, 0.11, 1.1, 0.045, 0xdfe6e4); B(a, b, 1.1, 1.24, 0.05, 0x5f8794); B(a, b, 1.24, 2.1, 0.045, 0xdfe6e4); B(a, b, 2.1, 2.14, 0.06, 0xb7b2a6); }      // tiled to the height of the doors, with a darker band
@@ -1846,7 +1847,7 @@ class Room {
       { const o = s.deck || s.ramp, of = o && plan.byId[o.room]; if (of && of.secret && of !== r) continue; }      // a stair nobody knows is there, the other side of the wall, moves nobody's furniture
       const lo = s.lift ? s.lift.stops[0] : Math.min(s.h0, s.h1) - (s.thick || 0), hi = s.lift ? s.lift.stops[s.lift.stops.length - 1] : Math.max(s.h0, s.h1);
       if (hi < y0 || lo > y1) continue;
-      keep(s, s.deck ? 0.3 : s.fixed ? 1.5 : 0.6, !!(s.ramp || s.lift));
+      keep(s, s.deck ? 0.3 : s.fixed ? 1.5 : 0.6, !!(s.ramp || s.lift || s.vent));      // (s.vent: the foot of the staff vent, src/ventplan.js: a way in like any other)
     }
     for (const w of plan.wells || []) if (lap(w, 1.2) && w.y > y0 && w.y < y1 + 0.8) keep(w, 1.2, true);
     for (const ob of plan.obstacles) if (!ob.fit && lap(ob, 0.4) && ob.y1 > y0 && ob.y0 < y1) keep(ob, 0.4, false);
