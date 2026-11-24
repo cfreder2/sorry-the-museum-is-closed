@@ -32,21 +32,25 @@ import { groundAt, wallAt, confine, streetY, heightOf, STEP, GRAVITY } from './p
 export const CELL = 0.5;
 const BK = 8;                    // the plan is sorted into squares this big, so that a question is asked only of what is near
 const RAD = 0.32;                // a way is planned for something this wide: the car (0.19) and a hand's breadth to spare
-const SUB = 0.1;                 // a step is tried in lengths of this
+const SUB = 0.125;               // a step is tried in lengths of this
+const SIDE = 0.24;               // and this far to either side of it nothing may stand taller than a wheel climbs
 export const CLIMB = 0.85;       // the steepest the plain car climbs from a standing start at half throttle (1.2 m/s at 0.8, a stall at 1.0)
 const KEEP = 0.7;                // nearer than this to something solid costs
 const MASS = 1, OBST = 2, KIT = 4, RING = 8, WET = 16, WALL = 32, EDGE = 64, ANCH = 128;
 const SOLID = MASS | OBST | WET | WALL, SPOT = KIT | RING;
 const UNIT = 40;                 // a cell's cost: this many to the metre
-const PAVE = 1, ROAD = 1.1, SNOW = 1.22, ICE = 1.32, BLACK = 1.8;      // what a metre costs, by what is underfoot
+const PAVE = 1, ROAD = 1.06, SNOW = 1.13, ICE = 1.22, BLACK = 1.7;     // what a metre costs, by what is underfoot: a mild preference, no more
 export const VB = 1 << 27;              // the building's ways are numbered from here
 
 export function createLandway(plan) {
-  const B = plan.bounds, X0 = B.x0 - CELL, Z0 = B.z0 - CELL, NX = Math.ceil((B.x1 - B.x0) / CELL) + 2, NZ = Math.ceil((B.z1 - B.z0) / CELL) + 2, NC = NX * NZ;
-  const H = new Float32Array(NC), K = new Uint8Array(NC), C = new Uint8Array(NC), D = new Uint8Array(NC), CC = new Float32Array(NC);      // height; what it is; what is underfoot; how far from anything solid; what a metre costs
+  // The field covers the plan's bounds and any strip of ground beyond them that may be driven (plan.allow: the foot of the bridgeway).
+  const B = plan.bounds, F = (plan.allow || []).reduce((f, q) => ({ x0: Math.min(f.x0, q.x0), x1: Math.max(f.x1, q.x1), z0: Math.min(f.z0, q.z0), z1: Math.max(f.z1, q.z1) }), { x0: B.x0, x1: B.x1, z0: B.z0, z1: B.z1 });
+  const X0 = F.x0 - CELL, Z0 = F.z0 - CELL, NX = Math.ceil((F.x1 - F.x0) / CELL) + 2, NZ = Math.ceil((F.z1 - F.z0) / CELL) + 2, NC = NX * NZ, INV = 1 / UNIT;
+  const H = new Float32Array(NC), K = new Uint8Array(NC), C = new Uint8Array(NC), D = new Uint8Array(NC), CC = new Uint8Array(NC);      // height; what it is; what is underfoot; how far from anything solid; what a metre costs (UNIT to the metre)
   const cellOf = (x, z) => { const i = Math.floor((x - X0) / CELL), j = Math.floor((z - Z0) / CELL); return i < 1 || j < 1 || i >= NX - 1 || j >= NZ - 1 ? -1 : j * NX + i; };
   const xOf = c => X0 + (c % NX + 0.5) * CELL, zOf = c => Z0 + (Math.floor(c / NX) + 0.5) * CELL;
   const wet = plan.lakefront && plan.lakefront.wet ? plan.lakefront.wet : null;
+  const DX = [1, -1, 0, 0, 1, 1, -1, -1], DZ = [0, 0, 1, -1, 1, -1, 1, -1], DIST = DX.map((d, k) => Math.hypot(d, DZ[k]) * CELL), OFF = DX.map((d, k) => d + DZ[k] * NX);
   const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   // ---- the plan, sorted into squares ------------------------------------------------------
@@ -58,79 +62,88 @@ export function createLandway(plan) {
   const blank = () => { const s = Object.create(plan); s.surfaces = []; s.roofs = plan.roofs ? [] : null; s.floors = []; s.obstacles = []; s.boxes = []; s.masses = []; s._hills = []; s._rooms = []; s._decks = []; return s; };
   const nowhere = blank();
   const subAt = (x, z) => { const i = Math.floor((x - bx0) / BK), j = Math.floor((z - bz0) / BK); return i < 0 || j < 0 || i >= nbx || j >= nbz ? nowhere : subs[j * nbx + i] || nowhere; };
-  function sort(list, into, pad = 1.2) {
-    for (const q of list || []) {
-      if (!(q.x1 >= q.x0) || !(q.z1 >= q.z0)) continue;
+  function sort(list, into, pad, from, to) {
+    for (let n = from; n < to; n++) {
+      const q = list[n]; if (!(q.x1 >= q.x0) || !(q.z1 >= q.z0) || q.train) continue;
       const i0 = Math.max(0, Math.floor((q.x0 - pad - bx0) / BK)), i1 = Math.min(nbx - 1, Math.floor((q.x1 + pad - bx0) / BK)), j0 = Math.max(0, Math.floor((q.z0 - pad - bz0) / BK)), j1 = Math.min(nbz - 1, Math.floor((q.z1 + pad - bz0) / BK));
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * nbx + i; (subs[k] || (subs[k] = blank()))[into].push(q); }
     }
   }
-  // Whatever has been set down or taken up since (a fire door's bars, a cage): the squares it touches are sorted again.
-  let seen = null;
+  // (A few thousand at a time while the field is being made; all at once when something has been set down or taken up since: a fire door's bars, a cage.)
+  let seen = null, queue = [], qi = 0;
   const low = new Set();           // pieces that lie no higher than a wheel climbs (a plate, a low block of ice, a floe): ground like any other
-  function sortAll() {
-    subs.fill(null);
-    sort(plan.surfaces, 'surfaces'); if (plan.roofs) sort(plan.roofs, 'roofs'); sort(plan.floors, 'floors'); sort(plan.obstacles.filter(o => !o.train), 'obstacles'); sort(plan.boxes, 'boxes'); sort(plan.masses, 'masses');
-    sort(plan.surfaces.filter(s => s.hill || low.has(s)), '_hills', 0.1); sort(plan.rooms, '_rooms', 0.1); sort(plan.decks, '_decks', 0.1);
-    seen = new Set(plan.obstacles);
+  function sortBegin() {
+    subs.fill(null); qi = 0; seen = new Set(plan.obstacles);
+    queue = [[plan.surfaces, 'surfaces', 1.2], [plan.roofs || [], 'roofs', 1.2], [plan.floors, 'floors', 1.2], [plan.obstacles, 'obstacles', 1.2], [plan.boxes, 'boxes', 1.2], [plan.masses, 'masses', 1.2],
+      [plan.surfaces.filter(s => s.hill || low.has(s)), '_hills', 0.1], [plan.rooms, '_rooms', 0.1], [plan.decks, '_decks', 0.1]];
   }
+  function sortSome(n) {
+    while (n > 0 && queue.length) { const [list, into, pad] = queue[0], e = Math.min(list.length, qi + n); sort(list, into, pad, qi, e); n -= Math.max(1, e - qi); qi = e; if (e >= list.length) { queue.shift(); qi = 0; } }
+    return !queue.length;
+  }
+  function sortAll() { sortBegin(); sortSome(Infinity); }
 
   // ---- the field ----------------------------------------------------------------------------
   const mark = (x0, x1, z0, z1, pad, f) => {
     const i0 = Math.max(1, Math.ceil((x0 - pad - X0) / CELL - 0.5)), i1 = Math.min(NX - 2, Math.floor((x1 + pad - X0) / CELL - 0.5)), j0 = Math.max(1, Math.ceil((z0 - pad - Z0) / CELL - 0.5)), j1 = Math.min(NZ - 2, Math.floor((z1 + pad - Z0) / CELL - 0.5));
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) f(j * NX + i);
   };
-  const T = { built: false, phase: 0, row: 1, ms: 0, ex: 0, exMs: 0 };
-  let soft = null;
-  function prepare() {
+  const T = { built: false, phase: 0, row: 1, col: 1, k: 0, ms: 0, worst: 0, step: [], ex: 0, exMs: 0, open: null };
+  let soft = null, kitted = [], blocks = [];
+  function classify() {
     // What stands on the street, and how. `low` is ground. What is well under the ground, or overhead with room for a
     // car beneath, is nothing to a car on the street (it matters only to something already down there or up on it).
     // A level block too tall for a wheel is a wall, and no more. What is left (anything that slopes, anything with a
     // shape of its own, a lift) is kit: driven, not read.
-    low.clear(); const kitted = [], blocks = [];
+    low.clear(); kitted = []; blocks = [];
     for (const s of plan.surfaces) {
       if (s.hill) continue;
       const sy = streetY(plan, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2), top = Math.max(s.h0, s.h1), bot = s.thick ? Math.min(s.h0, s.h1) - s.thick : s.base || 0, level = !s.axis && !s.fn && !s.lift;
       if (top < sy - 0.3 || bot > sy + (level ? 0.24 : 0.6)) continue;
       if (top <= sy + STEP - 0.004 && top >= sy - 0.02 && !s.lift) low.add(s); else if (level) blocks.push(s); else kitted.push(s);
     }
-    sortAll();
-    K.fill(0); C.fill(Math.round(SNOW * UNIT)); soft = new Uint8Array(NC);
-    for (let i = 0; i < NX; i++) { K[i] = MASS; K[(NZ - 1) * NX + i] = MASS; } for (let j = 0; j < NZ; j++) { K[j * NX] = MASS; K[j * NX + NX - 1] = MASS; }
-    // (A strip of ground beyond the bounds that may be driven, plan.allow: the field stops at the bounds, and from its edge there the way on is found by driving.)
-    for (const q of plan.allow || []) { const edge = c => { const x = xOf(c), z = zOf(c); if (x > q.x0 + RAD && x < q.x1 - RAD && z > q.z0 - CELL && z < q.z1 + CELL) K[c] = KIT; };
-      for (let i = 0; i < NX; i++) { edge(i); edge((NZ - 1) * NX + i); } for (let j = 0; j < NZ; j++) { edge(j * NX); edge(j * NX + NX - 1); } }
-    for (const m of plan.masses) if (m.top > 0.9) mark(m.x0, m.x1, m.z0, m.z1, RAD, c => { K[c] |= MASS; });
-    // Where a place to stand has to be found by driving: on and beside every piece of kit, and in every lift. Round a
-    // hole in the ground (a pit, a well) each cell is looked at as it is read: lidded over, it is ground; open, it is kit.
-    for (const s of kitted) mark(s.x0, s.x1, s.z0, s.z1, 0.3, c => { K[c] |= KIT; });
-    for (const s of blocks) mark(s.x0, s.x1, s.z0, s.z1, RAD, c => { K[c] |= WALL; });
-    for (const q of plan.lifts || []) mark(q.x0, q.x1, q.z0, q.z1, 0.5, c => { K[c] |= KIT; });
-    for (const q of [...(plan.pits || []), ...(plan.wells || [])]) mark(q.x0, q.x1, q.z0, q.z1, 0.5, c => { soft[c] = 1; });
-    // What is underfoot. Later ones lie over earlier.
-    const lay = (q, v, pad = 0) => mark(q.x0, q.x1, q.z0, q.z1, pad, c => { C[c] = v; });
-    const Gd = plan.grounds || {}, L = plan.lakefront, road = Math.round(ROAD * UNIT), pave = Math.round(PAVE * UNIT);
-    for (const q of plan.paved || []) lay(q, pave);
-    for (const s of [Gd.michigan, Gd.columbus, L && L.lsd]) if (s) lay({ x0: s.x0, x1: s.x1, z0: B.z0, z1: B.z1 }, road);
-    for (const s of [Gd.monroe, Gd.jackson]) if (s) lay({ x0: B.x0, x1: B.x1, z0: s.z0, z1: s.z1 }, road);
-    for (const q of [...(Gd.paths || []), ...((L && L.paths) || [])]) lay(q, pave);
-    for (const q of Gd.plazas || []) mark(q.x - q.r, q.x + q.r, q.z - q.r, q.z + q.r, 0, c => { if ((xOf(c) - q.x) ** 2 + (zOf(c) - q.z) ** 2 < q.r * q.r) C[c] = pave; });
-    // Ice, by how well it holds (a sheet may say, spot by spot: crust): snowed over is only ice, glassy is black ice. Where two sheets say, the worse.
-    const iced = new Uint8Array(NC);
-    for (const q of plan.ice || []) {
-      const crust = typeof q.crust === 'function' ? q.crust : null;
-      mark(q.x0, q.x1, q.z0, q.z1, 0, c => { const k = crust ? crust(xOf(c), zOf(c)) : q.crust ? 0.85 : 0, v = Math.round((BLACK + (ICE - BLACK) * Math.min(1, k / 0.6)) * UNIT); C[c] = iced[c] ? Math.max(C[c], v) : v; iced[c] = 1; });
-    }
-    // The way staked out across the ice is a path like any other.
-    const way = L && L.safeWay;
-    if (way) for (let k = 0; k + 1 < way.length; k++) { const [ax, az] = way[k], [bx, bz] = way[k + 1], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
-      mark(Math.min(ax, bx), Math.max(ax, bx), Math.min(az, bz), Math.max(az, bz), 1.6, c => { const x = xOf(c), z = zOf(c), t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); if (Math.hypot(x - ax - dx * t, z - az - dz * t) < 1.6) C[c] = pave; }); }
   }
-  function heights(j) {
-    for (let i = 1; i < NX - 1; i++) {
+  // Nothing can be beyond the bounds, the car's width short of them, except in a strip that may be driven.
+  function begin() { K.fill(MASS); C.fill(Math.round(SNOW * UNIT)); soft = new Uint8Array(NC); }
+  const openGround = () => [{ x0: B.x0 + RAD, x1: B.x1 - RAD, z0: B.z0 + RAD, z1: B.z1 - RAD }, ...(plan.allow || [])];
+  function outRow(j, i0, i1) { const z = Z0 + (j + 0.5) * CELL; for (const q of T.open || (T.open = openGround())) { if (z <= q.z0 || z >= q.z1) continue; const a = Math.max(i0, Math.ceil((q.x0 - X0) / CELL - 0.5)), b = Math.min(i1, Math.floor((q.x1 - X0) / CELL - 0.5)); if (b >= a) K.fill(0, j * NX + a, j * NX + b + 1); } }
+  // The buildings; then where a place to stand has to be found by driving: on and beside every piece of kit, and in
+  // every lift. Round a hole in the ground (a pit, a well) each cell is looked at as it is read: lidded over, it is
+  // ground; open, it is kit. (Each of these is one small job: see `batch`.)
+  const layKit = () => [
+    ...plan.masses.filter(m => m.top > 0.9).map(m => () => mark(m.x0, m.x1, m.z0, m.z1, RAD, c => { K[c] |= MASS; })),
+    ...kitted.map(s => () => mark(s.x0, s.x1, s.z0, s.z1, 0.3, c => { K[c] |= KIT; })),
+    ...blocks.map(s => () => mark(s.x0, s.x1, s.z0, s.z1, RAD, c => { K[c] |= WALL; })),
+    ...(plan.lifts || []).map(q => () => mark(q.x0, q.x1, q.z0, q.z1, 0.5, c => { K[c] |= KIT; })),
+    ...[...(plan.pits || []), ...(plan.wells || [])].map(q => () => mark(q.x0, q.x1, q.z0, q.z1, 0.5, c => { soft[c] = 1; }))];
+  // What is underfoot. Later ones lie over earlier.
+  const ROADC = Math.round(ROAD * UNIT), PAVEC = Math.round(PAVE * UNIT);
+  const layGround = () => {
+    const put = (q, v) => () => mark(q.x0, q.x1, q.z0, q.z1, 0, c => { C[c] = v; }), Gd = plan.grounds || {}, L = plan.lakefront;
+    return [...(plan.paved || []).map(q => put(q, PAVEC)),
+      ...[Gd.michigan, Gd.columbus, L && L.lsd].filter(Boolean).map(s => put({ x0: s.x0, x1: s.x1, z0: B.z0, z1: B.z1 }, ROADC)),
+      ...[Gd.monroe, Gd.jackson].filter(Boolean).map(s => put({ x0: B.x0, x1: B.x1, z0: s.z0, z1: s.z1 }, ROADC)),
+      ...[...(Gd.paths || []), ...((L && L.paths) || [])].map(q => put(q, PAVEC)),
+      ...(Gd.plazas || []).map(q => () => mark(q.x - q.r, q.x + q.r, q.z - q.r, q.z + q.r, 0, c => { if ((xOf(c) - q.x) ** 2 + (zOf(c) - q.z) ** 2 < q.r * q.r) C[c] = PAVEC; }))];
+  };
+  // Ice, by how well it holds (a sheet may say, spot by spot: crust): snowed over is only ice, glassy is black ice. Where two sheets say, the worse.
+  function iceRow(j, i0, i1) {
+    const z = Z0 + (j + 0.5) * CELL, sheets = plan.ice || [];
+    for (let n = 0; n < sheets.length; n++) { const q = sheets[n]; if (z < q.z0 || z > q.z1) continue;
+      const a = Math.max(i0, Math.ceil((q.x0 - X0) / CELL - 0.5)), b = Math.min(i1, Math.floor((q.x1 - X0) / CELL - 0.5)), crust = typeof q.crust === 'function' ? q.crust : null;
+      for (let i = a; i <= b; i++) { const c = j * NX + i, k = crust ? crust(X0 + (i + 0.5) * CELL, z) : q.crust ? 0.85 : 0, v = Math.round((BLACK + (ICE - BLACK) * Math.min(1, k / 0.6)) * UNIT); C[c] = soft[c] & 2 ? Math.max(C[c], v) : v; soft[c] |= 2; } }
+  }
+  // The way staked out across the ice is a path like any other.
+  function layWay() {
+    const way = plan.lakefront && plan.lakefront.safeWay;
+    if (way) for (let k = 0; k + 1 < way.length; k++) { const [ax, az] = way[k], [bx, bz] = way[k + 1], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
+      mark(Math.min(ax, bx), Math.max(ax, bx), Math.min(az, bz), Math.max(az, bz), 1.6, c => { const x = xOf(c), z = zOf(c), t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); if (Math.hypot(x - ax - dx * t, z - az - dz * t) < 1.6) C[c] = PAVEC; }); }
+  }
+  function heights(j, i0, i1) {
+    for (let i = i0; i <= i1; i++) {
       const c = j * NX + i, k = K[c]; if (k & MASS) continue;
       const x = X0 + (i + 0.5) * CELL, z = Z0 + (j + 0.5) * CELL, sy = streetY(plan, x, z), sub = subAt(x, z); let h = sy;
-      if ((k & KIT) || soft[c]) {
+      if ((k & KIT) || (soft[c] & 1)) {
         h = groundAt(sub, x, z, sy + 0.02); const u = sub.under, wall = wallAt(sub, x, z, sy);
         if (!(k & KIT) && (wall || Math.abs(h - sy) > STEP + 0.001)) K[c] |= KIT;      // an open hole
         if (wall) K[c] |= WALL; else if (wet && (!u || u.land) && wet(x, z)) K[c] |= WET;
@@ -145,33 +158,41 @@ export function createLandway(plan) {
   const solidTo = (o, c) => !(K[c] & MASS) && o.y0 <= H[c] + 0.24 && o.y1 >= H[c];
   function obstacles(list, bit = OBST) { for (const o of list) { if (o.gate || o.train) continue; mark(o.x0, o.x1, o.z0, o.z1, RAD, c => { if (solidTo(o, c)) K[c] |= bit; }); } }
   // How far each cell is from the nearest thing a car cannot be in or on (in twentieths of a metre, to 12 m), and from
-  // that and what is underfoot, what a metre of it costs. `win`: only this much of the field (after a change).
-  function costs(win) {
-    const i0 = win ? win.i0 : 1, i1 = win ? win.i1 : NX - 2, j0 = win ? win.j0 : 1, j1 = win ? win.j1 : NZ - 2, A = 10, G2 = 14;
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-      const c = j * NX + i; let k = K[c] & ~EDGE;
-      if (!(k & SOLID)) { const h = H[c]; if ((!(K[c - 1] & MASS) && Math.abs(H[c - 1] - h) > 0.9) || (!(K[c + 1] & MASS) && Math.abs(H[c + 1] - h) > 0.9) || (!(K[c - NX] & MASS) && Math.abs(H[c - NX] - h) > 0.9) || (!(K[c + NX] & MASS) && Math.abs(H[c + NX] - h) > 0.9)) k |= EDGE; }      // the brink of a drop
-      K[c] = k; if (!win || (i > i0 && i < i1 && j > j0 && j < j1)) D[c] = k & (SOLID | EDGE) ? 0 : 250;
-    }
-    const lo = (c, v) => { if (v < D[c]) D[c] = v; };
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const c = j * NX + i; if (!D[c]) continue; lo(c, D[c - 1] + A); lo(c, D[c - NX] + A); lo(c, D[c - NX - 1] + G2); lo(c, D[c - NX + 1] + G2); }
-    for (let j = j1; j >= j0; j--) for (let i = i1; i >= i0; i--) { const c = j * NX + i; if (!D[c]) continue; lo(c, D[c + 1] + A); lo(c, D[c + NX] + A); lo(c, D[c + NX + 1] + G2); lo(c, D[c + NX - 1] + G2); }
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const c = j * NX + i; CC[c] = C[c] / UNIT + near[D[c]]; }
+  // that and what is underfoot, what a metre of it costs. A row at a time: the brink of every drop is found, the
+  // distances are swept forwards and then back, and the costs are written. `w`: only this much of the field (after a change).
+  const A = 10, G2 = 14, lo = (c, v) => { if (v < D[c]) D[c] = v; };
+  const near = new Uint8Array(256); for (let d = 0; d < 256; d++) { const m = d * 0.05; near[d] = m >= KEEP ? 0 : Math.round(((KEEP - m) / KEEP) ** 2 * 2.6 * UNIT); }
+  const costOf = c => CC[c] * INV;
+  const steep = (c, n, h) => !(K[n] & MASS) && Math.abs(H[n] - h) > 0.9;
+  function brinkRow(j, i0, i1, edge) {
+    for (let i = i0; i <= i1; i++) { const c = j * NX + i; let k = K[c] & ~EDGE; if (!(k & SOLID)) { const h = H[c]; if (steep(c, c - 1, h) || steep(c, c + 1, h) || steep(c, c - NX, h) || steep(c, c + NX, h)) k |= EDGE; } K[c] = k; if (!edge || (i > i0 && i < i1 && !edge(j))) D[c] = k & (SOLID | EDGE) ? 0 : 250; }
   }
-  const near = new Float32Array(256); for (let d = 0; d < 256; d++) { const m = d * 0.05; near[d] = m >= KEEP ? 0 : ((KEEP - m) / KEEP) ** 2 * 2.6; }
-  const costOf = c => CC[c];
-  function build() {
-    const t0 = now();
-    if (T.phase === 0) { prepare(); T.phase = 1; T.row = 1; }
-    else if (T.phase === 1) { const e = Math.min(NZ - 1, T.row + 6); for (; T.row < e; T.row++) heights(T.row); if (T.row >= NZ - 1) T.phase = 2; }
-    else if (T.phase === 2) {
-      for (let j = 1; j < NZ - 1; j++) for (let i = 1; i < NX - 1; i++) { const c = j * NX + i; if (K[c] & KIT) continue; if ((K[c - 1] | K[c + 1] | K[c - NX] | K[c + NX] | K[c - NX - 1] | K[c - NX + 1] | K[c + NX - 1] | K[c + NX + 1]) & KIT) K[c] |= RING; }      // beside the kit: where a step onto it starts from
-      obstacles(plan.obstacles); soft = null; T.phase = 3;
-    }
-    else { costs(null); T.built = true; }
-    T.ms += now() - t0;
+  function fwdRow(j, i0, i1) { for (let i = i0; i <= i1; i++) { const c = j * NX + i; if (!D[c]) continue; lo(c, D[c - 1] + A); lo(c, D[c - NX] + A); lo(c, D[c - NX - 1] + G2); lo(c, D[c - NX + 1] + G2); } }
+  function backRow(j, i0, i1) { for (let i = i1; i >= i0; i--) { const c = j * NX + i; if (!D[c]) continue; lo(c, D[c + 1] + A); lo(c, D[c + NX] + A); lo(c, D[c + NX + 1] + G2); lo(c, D[c + NX - 1] + G2); } }
+  function costRow(j, i0, i1) { for (let i = i0; i <= i1; i++) { const c = j * NX + i; CC[c] = Math.min(255, C[c] + near[D[c]]); } }
+  function ringRow(j, i0, i1) { for (let i = i0; i <= i1; i++) { const c = j * NX + i; if (K[c] & KIT) continue; if ((K[c - 1] | K[c + 1] | K[c - NX] | K[c + NX] | K[c - NX - 1] | K[c - NX + 1] | K[c + NX - 1] | K[c + NX + 1]) & KIT) K[c] |= RING; } }      // beside the kit: where a step onto it starts from
+  function costs(w) {
+    for (let j = w.j0; j <= w.j1; j++) brinkRow(j, w.i0, w.i1, r => r === w.j0 || r === w.j1);      // (the rim of the window keeps the distances it had: the rest is measured from them)
+    for (let j = w.j0; j <= w.j1; j++) fwdRow(j, w.i0, w.i1);
+    for (let j = w.j1; j >= w.j0; j--) backRow(j, w.i0, w.i1);
+    for (let j = w.j0; j <= w.j1; j++) costRow(j, w.i0, w.i1);
   }
-  const tick = ms => { const t0 = now(); while (!T.built && now() - t0 < ms) build(); return T.built; };
+  // The making of it, in pieces none of which is long: what stands where, the plan sorted into squares, what is
+  // underfoot, then a row of the field at a time (heights; beside the kit; the brinks; distances there and back; costs),
+  // with the obstacles set down in between, a few hundred at a go.
+  // (A list of small jobs, done a millisecond's worth at a go.)
+  const batch = make => { let list = null, i = 0; return () => { if (!list) { list = make(); i = 0; } const t0 = now(); while (i < list.length && now() - t0 < 1) list[i++](); if (i >= list.length) { list = null; next(); } }; };
+  const next = () => { T.phase++; const s = STEPS[T.phase], back = s && s.back; T.row = back ? NZ - 2 : 1; T.col = back ? NX - 2 : 1; T.k = 0; };
+  const rows = (f, back, SPAN = 512) => Object.assign(() => {
+    if (!back) { const a = T.col, b = Math.min(NX - 2, a + SPAN - 1); f(T.row, a, b); if (b >= NX - 2) { T.col = 1; if (++T.row > NZ - 2) next(); } else T.col = b + 1; }
+    else { const b = T.col, a = Math.max(1, b - SPAN + 1); f(T.row, a, b); if (a <= 1) { T.col = NX - 2; if (--T.row < 1) next(); } else T.col = a - 1; }
+  }, { back: !!back });
+  const once = f => () => { f(); next(); };
+  const STEPS = [once(classify), once(sortBegin), () => { if (sortSome(700)) next(); }, once(begin), rows(outRow), batch(layKit), batch(layGround), rows(iceRow), once(layWay), rows(heights, false, 128), rows(ringRow),
+    () => { const list = plan.obstacles, e = Math.min(list.length, T.k + 600); for (; T.k < e; T.k++) { const o = list[T.k]; if (!o.gate && !o.train) mark(o.x0, o.x1, o.z0, o.z1, RAD, c => { if (solidTo(o, c)) K[c] |= OBST; }); } if (T.k >= list.length) { soft = null; next(); } },
+    rows(brinkRow), rows(fwdRow), rows(backRow, true), rows(costRow)];
+  function build() { const t0 = now(), ph = T.phase; STEPS[ph](); if (T.phase >= STEPS.length) T.built = true; const dt = now() - t0; T.ms += dt; if (dt > (T.step[ph] || 0)) T.step[ph] = dt; }
+  const tick = ms => { const t0 = now(); let n = 0; while (!T.built && now() - t0 < ms) { build(); n++; } const dt = now() - t0; if (dt > T.worst) T.worst = dt; return T.built; };
   const finish = () => { while (!T.built) build(); };
   // Something has been put down or taken up since the field was made (plan.obstacles is not the list it was): only
   // the ground round each such thing is looked at again. Returns what changed, for whoever else keeps a picture of it.
@@ -206,12 +227,19 @@ export function createLandway(plan) {
     for (const r of sub._rooms) if (Math.abs(r.y - y) < 0.3 && x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) return 'R' + r.id;
     return null;
   };
+  // Near the edge of what it stands on (the flank of a ramp, the rim of a table, a deck, a floe, the ice): each side
+  // the ground falls away on costs, so a way up a ramp goes up the middle of it.
+  function brink(sub, x, z, y, on) {
+    let n = 0;
+    for (const [r, w] of [[0.42, 1.1], [0.85, 0.5]]) for (let k = 0; k < 4; k++) { const px = x + DX[k] * r, pz = z + DZ[k] * r, s2 = r > 0.5 ? subAt(px, pz) : sub, g = groundAt(s2, px, pz, y + 0.12, 0.12, on || null), u = s2.under; if (g < y - 0.3 || (wet && (!u || u.land) && wet(px, pz))) n += w; }
+    return n;
+  }
   function spot(x, z, y, on) {
     const key = keyOf(x, z), list = spots.at.get(key);
     if (list) for (const e of list) if (Math.abs(spots.y[e] - y) < 0.3) return e;
     const e = spots.n++, c = cellOf(x, z), sub = subAt(x, z);
     spots.x[e] = x; spots.y[e] = y; spots.z[e] = z; spots.on[e] = on || null; spots.pl[e] = placeOf(sub, x, z, y); spots.out[e] = null; spots.st[e] = 0; spots.cell[e] = -1;
-    spots.cost[e] = c >= 0 && !(K[c] & MASS) && Math.abs(H[c] - y) < 0.3 ? costOf(c) : 1.04;
+    spots.cost[e] = (c >= 0 && !(K[c] & MASS) && Math.abs(H[c] - y) < 0.3 ? costOf(c) : 1.04) + (on && !on.hill ? brink(sub, x, z, y, on) : 0);      // (on the open ground the field has already counted the brinks)
     if (list) list.push(e); else spots.at.set(key, [e]);
     return e;
   }
@@ -224,7 +252,8 @@ export function createLandway(plan) {
     e = -1;
     if (!(K[c] & SOLID)) {
       const x = xOf(c), z = zOf(c), sub = subAt(x, z), sy = streetY(plan, x, z), g = groundAt(sub, x, z, sy + 0.02), u = sub.under;
-      if (clear(sub, x, g, z, RAD)) { e = spot(x, z, g, u); if (!(K[c] & KIT)) spots.cell[e] = c; }
+      // (Not the foot of a ramp, where it is within a wheel's climb of the street: that is come onto by a step, square on, like the rest of it.)
+      if (!(u && !u.hill && !low.has(u)) && clear(sub, x, g, z, RAD)) { e = spot(x, z, g, u); if (!(K[c] & KIT)) spots.cell[e] = c; }
     }
     spots.base.set(c, e); return e;
   }
@@ -242,15 +271,38 @@ export function createLandway(plan) {
       if (!busy) for (const q of plan.pits) if (over(q)) { busy = true; break; }
       if (!busy) for (const q of plan.wells) if (over(q)) { busy = true; break; }
     }
+    const sx = -(z1 - z0) / d * SIDE, sz = (x1 - x0) / d * SIDE;
+    // From open ground to open ground beside the kit (most steps there are): the far end is looked at, and that nothing
+    // stands in the line or beside it; only a step onto, along or off a piece is walked a hand's breadth at a time.
+    if (busy && d < 0.8 && (!on0 || on0.hill)) {
+      const sub = subAt(x1, z1), g = groundAt(sub, x1, z1, y0, STEP, on0), u = sub.under, rise = g - y0;
+      if ((!u || u.hill) && rise <= (u ? Math.max(STEP, d * CLIMB) : STEP + 0.005) && rise >= -Math.max(0.12, d * 1.3)) {
+        if (wet && (!u || u.land) && wet(x1, z1)) return -1;
+        for (let t = 1; t <= 3; t++) { const x = x0 + (x1 - x0) * t / 3, z = z0 + (z1 - z0) * t / 3, yy = y0 + rise * t / 3; if (wallAt(sub, x, z, yy, STEP, on0) || wallAt(sub, x + sx, z + sz, yy, STEP, on0) || wallAt(sub, x - sx, z - sz, yy, STEP, on0)) return 0; }
+        if (d > 0.6 && !clear(sub, (x0 + x1) / 2, y0 + rise / 2, (z0 + z1) / 2, 0.2)) return 0;
+        let x = x1, z = z1, yy = g, on = u;
+        if (!clear(sub, x, yy, z, RAD)) {
+          if (!snap || Math.hypot(P3.x - x, P3.z - z) > 0.3) return 0;
+          x = P3.x; z = P3.z; const s2 = subAt(x, z), g2 = groundAt(s2, x, z, yy, STEP, on); if (Math.abs(g2 - yy) > 0.08 || wallAt(s2, x, z, yy, STEP, on)) return 0; yy = g2; on = s2.under;
+        }
+        for (const q of plan.lifts || []) if (x > q.x0 - 0.1 && x < q.x1 + 0.1 && z > q.z0 - 0.1 && z < q.z1 + 0.1) return 0;
+        W.x = x; W.y = yy; W.z = z; W.on = on; W.drop = 0;
+        return 1;
+      }
+    }
     const n = busy ? Math.max(1, Math.ceil(d / SUB)) : d > 0.6 ? 2 : 1, l = d / n; let yy = y0, on = on0, drop = 0, x = x0, z = z0;
     for (let i = 1; i <= n; i++) {
       x = x0 + (x1 - x0) * i / n; z = z0 + (z1 - z0) * i / n;
       const sub = subAt(x, z);
       if (wallAt(sub, x, z, yy, STEP, on)) return 0;
+      // (and not along the side of a piece either: the middle of the car may be clear of a ramp's flank when the car is not)
+      if (busy && (wallAt(sub, x + sx, z + sz, yy, STEP, on) || wallAt(sub, x - sx, z - sz, yy, STEP, on))) return 0;
       const g = groundAt(sub, x, z, yy, STEP, on), u = sub.under, rise = g - yy;
       if (rise > (u && u.hill ? Math.max(STEP, l * CLIMB) : u && u === on ? Math.max(STEP, l * 1.3) : STEP + 0.005)) return 0;
       if (rise < -Math.max(0.12, l * 1.3)) { drop -= rise; if (drop > 0.35) return -1; }
       if (wet && (!u || u.land) && wet(x, z)) return -1;
+      // Onto a piece of kit: square on, and well in from its corners (as far to either side, the same piece is underfoot).
+      if (u && u !== on && !u.hill) { const m = Math.min(1, 0.28 * Math.min(u.x1 - u.x0, u.z1 - u.z0)) / SIDE; for (const sg of [m, -m]) { groundAt(sub, x + sx * sg, z + sz * sg, yy, STEP, on); if (sub.under !== u) return 0; } }
       yy = g; on = u;
       if (i === n || !busy || !(i & 1)) {
         if (!clear(sub, x, yy, z, i === n ? RAD : 0.2)) {
@@ -259,15 +311,15 @@ export function createLandway(plan) {
         }
       }
     }
+    for (const q of plan.lifts || []) if (x > q.x0 - 0.1 && x < q.x1 + 0.1 && z > q.z0 - 0.1 && z < q.z1 + 0.1) return 0;      // (a lift is a way of the building's, taken as one: its floor is not always there)
     W.x = x; W.y = yy; W.z = z; W.on = on; W.drop = drop;
     return 1;
   }
-  const DX = [1, -1, 0, 0, 1, 1, -1, -1], DZ = [0, 0, 1, -1, 1, -1, 1, -1], DIST = DX.map((d, k) => Math.hypot(d, DZ[k]) * CELL), OFF = DX.map((d, k) => d + DZ[k] * NX);
   const slope = (dh, d) => { const g = dh / d; return g > 0.1 ? (g - 0.1) * (g - 0.1) * 12 * d + dh * 1.2 : g < -0.15 ? (g + 0.15) * (g + 0.15) * 6 * d : 0; };
   // Where a spot's eight steps lead: [to, cost, how] in threes. `how`: 0 a step, 1 a step down off something, 2 + n a leap (leaps[n]).
   function explore(e) {
     const out = [], ex = spots.x[e], ez = spots.z[e], ey = spots.y[e], on = spots.on[e], ci = Math.floor((ex - X0) / CELL), cj = Math.floor((ez - Z0) / CELL), hill = !on || on.hill, c0 = spots.cell[e];
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0, n = hill ? 8 : 4; k < n; k++) {      // (up on a piece, square steps only: a line across it is pulled straight afterwards, see line)
       // Beside the kit, a step that does not go onto it is a step over plain ground, and is taken as one.
       if (c0 >= 0) { const v = c0 + OFF[k], kv = K[v];
         if (!(kv & KIT)) {
@@ -346,12 +398,20 @@ export function createLandway(plan) {
   // The ground under a point, for something lying on it at about height y: what the car would be standing on there.
   const U = { on: null };
   function groundUnder(x, z, y, on, reach = 0.3) { const sub = subAt(x, z), g = groundAt(sub, x, z, y + reach, reach, on); U.on = sub.under; return g; }
+  // Can this line be driven, point to point, the car's way? (For a bend drawn between places to stand up on the kit: [{ x, y, z }, ...].)
+  function walks(pts) {
+    const a = pts[0], sub = subAt(a.x, a.z); let y = groundAt(sub, a.x, a.z, a.y + 0.15, 0.15), on = sub.under, x = a.x, z = a.z;
+    if (Math.abs(y - a.y) > 0.25) return false;
+    for (let i = 1; i < pts.length; i++) { const b = pts[i]; if (Math.hypot(b.x - x, b.z - z) < 0.02) continue; if (step(x, z, y, on, b.x, b.z, false) !== 1 || W.drop > 0.1 || Math.abs(W.y - b.y) > 0.3) return false; x = W.x; z = W.z; y = W.y; on = W.on; }
+    return true;
+  }
   // Metres from (x, z), at height y, to the nearest thing a car cannot be in (a guess of plenty where the field does not say).
   function room(x, z) { const c = cellOf(x, z); return c < 0 ? 0 : (K[c] & SOLID) ? 0 : D[c] * 0.05; }
   const street = (x, z) => { const c = cellOf(x, z); return c >= 0 && !(K[c] & (MASS | SPOT)) ? H[c] : null; };
 
   // ---- the search ------------------------------------------------------------------------------
-  const gC = new Float32Array(NC), par = new Int32Array(NC), st = new Uint16Array(NC); let q = 0;
+  const gC = new Float32Array(NC), pd = new Uint8Array(NC), st = new Uint16Array(NC), pm = new Map(); let q = 0;      // (where each cell was come to from: which of its eight neighbours, or, for the few come to from a spot or a way, kept on the side)
+  const parOf = v => (pd[v] < 8 ? v - OFF[pd[v]] : pm.get(v));
   let hk = new Float32Array(4096), hv = new Int32Array(4096), hn = 0;
   const push = (f, v) => { if (hn === hk.length) { const a = new Float32Array(hn * 2), b = new Int32Array(hn * 2); a.set(hk); b.set(hv); hk = a; hv = b; } let i = hn++; while (i > 0) { const p = (i - 1) >> 1; if (hk[p] <= f) break; hk[i] = hk[p]; hv[i] = hv[p]; i = p; } hk[i] = f; hv[i] = v; };
   const pop = () => { const top = hv[0], f = hk[--hn], v = hv[hn]; let i = 0; for (;;) { let l = 2 * i + 1; if (l >= hn) break; if (l + 1 < hn && hk[l + 1] < hk[l]) l++; if (hk[l] >= f) break; hk[i] = hk[l]; hv[i] = hv[l]; i = l; } hk[i] = f; hv[i] = v; return top; };
@@ -361,7 +421,7 @@ export function createLandway(plan) {
   //   [[m, cost], ...], the ways of a room for something that has just driven onto its floor at n; fly: a drone
   //   (straight over anything that is not a building); limit: how many places may be looked at }
   // Returns { cost, path: [node, ...], looked } or null. A node below VB is a cell or a spot; from VB up, way m + VB.
-  const EPS = 1.08;                 // how far the straight line is trusted: the way found is within this of the best
+  const EPS = 1.1;                  // how far the straight line is trusted: the way found is within this of the best (and the search looks at a fraction of what it otherwise would)
   function search(o) {
     finish();
     if (++q > 32000) { st.fill(0); for (let e = 0; e < spots.n; e++) spots.st[e] = 0; q = 1; }
@@ -370,13 +430,14 @@ export function createLandway(plan) {
     const back = new Map();          // which ways stand at a cell or a spot
     for (let m = 0; m < nv; m++) { const a = anchor[m]; if (a < 0) continue; if (back.has(a)) back.get(a).push(m); else back.set(a, [m]); if (a < NC) K[a] |= ANCH; }
     const hOf = (x, z) => Math.sqrt((x - tx) * (x - tx) + (z - tz) * (z - tz)) * EPS;
-    const relax = (v, g, from) => {
-      if (v >= VB) { const m = v - VB; if (vs[m] === 2 || g >= vg[m]) return; vg[m] = g; vp[m] = from; vs[m] = 1; const p = o.at(m); push(g + hOf(p.x, p.z), v); }
+    pm.clear();
+    const relax = (v, g, from, k = 255) => {
+      if (v >= VB) { const m = v - VB; if (vs[m] === 2 || g >= vg[m]) return; vg[m] = g; vp[m] = from; vs[m] = 1; const p = o.at(m); push(g + hOf(p.x, p.z) * (0.85 / EPS), v); }      // (the building's ways are never overrated: a jump is offered at 0.85 of its length, and is to be taken when it is passed)
       else if (v >= NC) { const e = v - NC; if (spots.st[e] === shut || (spots.st[e] === open && g >= spots.g[e])) return; spots.g[e] = g; spots.par[e] = from; spots.st[e] = open; push(g + hOf(spots.x[e], spots.z[e]), v); }
-      else { if (st[v] === shut || (st[v] === open && g >= gC[v])) return; gC[v] = g; par[v] = from; st[v] = open; push(g + hOf(xOf(v), zOf(v)), v); }
+      else { if (st[v] === shut || (st[v] === open && g >= gC[v])) return; gC[v] = g; pd[v] = k; if (k === 255) pm.set(v, from); st[v] = open; push(g + hOf(xOf(v), zOf(v)), v); }
     };
     hn = 0; vg[o.S] = 0; vs[o.S] = 1; push(0, o.S + VB);
-    let looked = 0, found = false, driven = 0; const drive = o.drive || 5000;      // (how many new spots may be driven to in one search: each is a few dozen questions of the plan)
+    let looked = 0, found = false, driven = 0; const drive = o.drive || 6000;      // (how many new spots may be driven to in one search: each is a few dozen questions of the plan)
     const bound = o.bound || Infinity;       // (give up once nothing left to look at could be on a way as short as this)
     while (hn) {
       if (hk[0] > bound) break;
@@ -395,23 +456,23 @@ export function createLandway(plan) {
         for (let i = 0; i < out.length; i += 3) relax(out[i], g + out[i + 1], u);
       } else {
         if (st[u] === shut) continue; st[u] = shut; if (++looked > limit) break;
-        const g = gC[u], ku = K[u], hu = H[u], cu = fly ? 1 : CC[u];
+        const g = gC[u], ku = K[u], hu = H[u], cu = fly ? 1 : CC[u] * INV;
         if (ku & ANCH) { const ms = back.get(u); if (ms) for (const m of ms) relax(m + VB, g + (o.reach ? o.reach[m] : 0), u); }
         for (let k = 0; k < 8; k++) {
           const v = u + OFF[k], kv = K[v];
           if (kv & block) continue;
           if (k >= 4 && ((K[u + DX[k]] | K[u + DZ[k] * NX]) & block)) continue;
-          if (fly) { relax(v, g + DIST[k], u); continue; }
+          if (fly) { relax(v, g + DIST[k], u, k); continue; }
           if (kv & SPOT) { const e = baseSpot(v); if (e < 0) continue; const dh = spots.y[e] - hu; if (dh > DIST[k] * CLIMB || dh < -DIST[k] * 1.1) continue; relax(NC + e, g + DIST[k] * (cu + spots.cost[e]) * 0.5 + slope(dh, DIST[k]), u); continue; }
           const dh = H[v] - hu; if (dh > DIST[k] * CLIMB || dh < -DIST[k] * 1.1) continue;
-          relax(v, g + DIST[k] * (cu + CC[v]) * 0.5 + slope(dh, DIST[k]), u);
+          relax(v, g + DIST[k] * (cu + CC[v] * INV) * 0.5 + slope(dh, DIST[k]), u, k);
         }
       }
     }
     for (const a of back.keys()) if (a < NC) K[a] &= ~ANCH;
     if (!found) return null;
     const path = [];
-    for (let u = o.T + VB; u >= 0;) { path.push(u); u = u >= VB ? vp[u - VB] : u >= NC ? spots.par[u - NC] : par[u]; if (u === o.S + VB) { path.push(u); break; } }
+    for (let u = o.T + VB; u >= 0;) { path.push(u); u = u >= VB ? vp[u - VB] : u >= NC ? spots.par[u - NC] : parOf(u); if (u === o.S + VB) { path.push(u); break; } }
     path.reverse();
     return { cost: vg[o.T], path, looked };
   }
@@ -435,14 +496,18 @@ export function createLandway(plan) {
       const v = nodes[i]; out.push({ x: xN(v), y: fly && v < NC ? H[v] : yOf(v), z: zN(v), o: true, rigid: !plain[i] && !fly });
       if (i === n - 1) break;
       let best = i + 1;
+      // (Up on the kit: straight from one spot to another wherever that line can be driven, the car's way, and comes out where the other is.)
+      const spotty = j => { const a = nodes[i] - NC, b = nodes[j]; return step(spots.x[a], spots.z[a], spots.y[a], spots.on[a], xN(b), zN(b), false) === 1 && W.drop < 0.1 && Math.abs(W.y - yOf(b)) < 0.12; };
+      const hop = k => { const outE = nodes[k] >= NC ? spots.out[nodes[k] - NC] : null; if (outE) for (let q = 0; q < outE.length; q += 3) if (outE[q] === nodes[k + 1] && outE[q + 2] >= 1) return true; return false; };      // (a step down or a leap: not to be cut across)
+      if (!plain[i] && !fly && v >= NC && !hop(i)) { let e = i + 1; while (e < n - 1 && e - i < 14 && nodes[e] >= NC && !hop(e)) e++; for (let j = e; j > i + 1; j--) if (nodes[j] >= NC && spotty(j)) { best = j; break; } }
       if (plain[i] || fly) { let e = i + 1; while (e < n && e - i < 90 && (fly ? nodes[e] < NC : plain[e])) e++; for (let j = e - 1; j > i + 1; j--) if (straight(v, nodes[j], (gOf(nodes[j]) - gOf(v)) * 1.006 + 0.02)) { best = j; break; } }
-      else if (v >= NC) {
+      else if (v >= NC && best === i + 1) {
         const w = nodes[i + 1], outE = spots.out[v - NC];
         if (outE) for (let k = 0; k < outE.length; k += 3) if (outE[k] === w && outE[k + 2] >= 2) {
           const lp = leaps[outE[k + 2] - 2], ux = lp.land.x - lp.lip.x, uz = lp.land.z - lp.lip.z, far = Math.hypot(ux, uz), kk = GRAVITY / (2 * lp.v * lp.v * Math.cos(lp.th) ** 2);
-          out.push({ ...lp.lip, o: true, rigid: true, air: false });
+          out.push({ ...lp.lip, o: true, rigid: true, air: false, leap: lp.v });
           for (let s = 0.25; s < far; s += 0.25) out.push({ x: lp.lip.x + ux * s / far, y: Math.max(lp.land.y, lp.lip.y + s * Math.tan(lp.th) - kk * s * s), z: lp.lip.z + uz * s / far, o: true, rigid: true, air: true });
-          out.push({ ...lp.land, o: true, rigid: true, air: false }); out[out.length - 1].speed = lp.v;
+          out.push({ ...lp.land, o: true, rigid: true, air: false });
         }
       }
       i = best;
@@ -450,9 +515,9 @@ export function createLandway(plan) {
     return out;
   }
 
-  return { CELL, NC, tick, finish, sync, search, line, nodeAt, flyAt, baseSpot, xN, zN, yOf, placeOfNode, groundUnder, U, room, street, subAt,
-    get built() { return T.built; }, get ms() { return T.ms; }, reset() { T.built = false; T.phase = 0; T.ms = 0; spots.clear(); },
+  return { CELL, NC, tick, finish, sync, search, line, nodeAt, flyAt, walks, baseSpot, xN, zN, yOf, placeOfNode, groundUnder, U, room, street, subAt,
+    get built() { return T.built; }, get ms() { return T.ms; }, reset() { T.built = false; T.phase = 0; T.row = 1; T.col = 1; T.k = 0; T.ms = 0; T.open = null; spots.clear(); },
     forget() { spots.clear(); },
-    get stats() { return { cells: NC, spots: spots.n, leaps: leaps.length, explored: T.ex, exploreMs: +T.exMs.toFixed(1), buildMs: +T.ms.toFixed(1), bytes: H.byteLength + K.byteLength + C.byteLength + D.byteLength + CC.byteLength + gC.byteLength + par.byteLength + st.byteLength }; },
+    get stats() { return { cells: NC, spots: spots.n, leaps: leaps.length, explored: T.ex, exploreMs: +T.exMs.toFixed(1), worstTick: +T.worst.toFixed(1), longestStep: T.step.map(v => +v.toFixed(1)), buildMs: +T.ms.toFixed(1), bytes: H.byteLength + K.byteLength + C.byteLength + D.byteLength + CC.byteLength + gC.byteLength + pd.byteLength + st.byteLength }; },
     _dbg: { H, K, C, D, NX, NZ, X0, Z0, spots, leaps, cellOf, step, W, explore, costOf } };
 }

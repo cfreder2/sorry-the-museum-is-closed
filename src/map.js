@@ -46,8 +46,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   // Everywhere else that a toy car can stand is one place, 'OUT': the ground out of doors at whatever height it lies
   // (a hill is ground), and whatever is reached from it by driving (a table top, a roof, the ice, a floe, a duct under
   // the yard). It is not crossed in straight lines: src/landway.js knows the lie of it.
-  let land = null, landReady = false;
-  const landOf = () => { if (!land) land = createLandway(G.plan); land.finish(); return land; };
+  let land = null, landReady = false, landKey = '';
+  const landKeyNow = () => { const p = G.plan; return `${p.surfaces.length}|${p.masses.length}|${p.floors.length}|${(p.roofs || []).length}|${p.boxes.length}`; };      // what the field was made from: if this is not what it was, it is made again
+  const landOf = () => { if (!land) { land = createLandway(G.plan); landKey = landKeyNow(); } land.finish(); return land; };
   function placeAt(x, z, y) {
     const p = G.plan;
     for (const d of p.decks) if (near(d.y, y) && x >= d.x0 - 0.05 && x <= d.x1 + 0.05 && z >= d.z0 - 0.05 && z <= d.z1 + 0.05) return 'D' + d.id;
@@ -94,7 +95,6 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       const a = L.nodeAt(at(0.45).x, at(0.45).z, y, false); if (a < 0) continue;
       const i = node(at(-0.5).x, y, at(-0.5).z, 'R' + r.id); nodes[i].hole = a; nodes[i].ax = ew ? [1, 0] : [0, 1]; nodes[i].deep = 0.3;
     }
-    const tB1 = performance.now();
     for (const q of p.ramps) {
       if (!shown(p.byId[q.room])) continue;
       // Up one side of a wide flight, not the middle: the middle of the Grand Staircase's landing has a kicker on it.
@@ -120,7 +120,6 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     // The stunt kit. A kicker with a landing ramp beyond it (or a hump: the two back to back) is a way too, in the one
     // direction it can be taken: up the kicker and down the landing, never across and never backwards. It is offered a
     // little cheaper than walking round, so a route that passes a jump takes it, and only if the plain car can clear the gap.
-    const tB2 = performance.now();
     const jumps = new Map(), kit = p.surfaces.filter(q => (q.skin === 'ply' || q.skin === 'snow') && q.axis && !q.curve && !q.hang && !q.hill && Math.abs(q.h1 - q.h0) > 0.12);
     for (const U of kit) for (const Dn of kit) {
       if (U === Dn || U.axis !== Dn.axis) continue;
@@ -144,7 +143,6 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       adj[a].push([b, Math.abs(x - e) * 0.85, 'jump']);
       jumps.set(a + ':' + b, { U, D: Dn, ax, dir, c, bot, theta, gap, v: Math.max(need * 1.12, 5) });
     }
-    const tB3 = performance.now();
     const byPlace = new Map();
     nodes.forEach((n, i) => { if (!byPlace.has(n.place)) byPlace.set(n.place, []); byPlace.get(n.place).push(i); });
     // Where each way stands on the land: the cell or the spot (landway.js) it is reached from and left by, and how far off that is.
@@ -161,7 +159,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     adj.forEach((es, a) => { for (const e of es) join(a, e[0]); });
     for (const [pl, list] of byPlace) if (pl !== 'OUT') for (const i of list) join(list[0], i);
     const lands = new Set(), flies = new Set(); for (let i = 0; i < N; i++) { comp[i] = top(i); if (anchor[i] >= 0) lands.add(comp[i]); if (flyAnchor[i] >= 0) flies.add(comp[i]); }
-    return { nodes, adj, byPlace, flights, jumps, anchor, reach, flyAnchor, none: new Int32Array(N + 2).fill(-1), comp, lands, flies, key: navKey(), ms: performance.now() - tB0, parts: [tB1 - tB0, tB2 - tB1, tB3 - tB2, performance.now() - tB3].map(v => Math.round(v)) };
+    return { nodes, adj, byPlace, flights, jumps, anchor, reach, flyAnchor, none: new Int32Array(N + 2).fill(-1), comp, lands, flies, key: navKey(), ms: performance.now() - tB0 };
   }
   // What the ways depend on that can change under them: the doors (locked, then not), what has been found, and how much is standing about.
   const navKey = () => { const p = G.plan, f = G.finale; return `${p.locked ? 1 : 0}${p.secretOpen ? 1 : 0}${f && f.found ? 1 : 0}${f && f.doorOpen ? 1 : 0}|${p.surfaces.length}|${p.doors.length}|${p.masses.length}|${p.boxes.length}`; };
@@ -311,6 +309,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     path.draw = path.runs.map(r => r.filter((p, i) => i % 4 === 0 || i === r.length - 1 || p.air !== (r[i - 1] || p).air));
     path.jumpIn = null;
     { let s = 0; outer: for (const r of path.runs) for (let i = 0; i < r.length; i++) { if (r[i].air) { path.jumpIn = s; break outer; } s += STEP; } }
+    // Every place the way leaves the ground (a jump over a pair of ramps, a leap off one): where the take-off is, and how fast it has to be taken.
+    const speeds = path.pts.filter(a => (a.how === 'jump' && a.jump) || a.leap).map(a => (a.leap ? a.leap : a.jump.v)); path.airs = [];
+    for (const r of path.runs) for (let i = 1; i < r.length; i++) if (r[i].air && !r[i - 1].air) path.airs.push({ x: r[i - 1].x, y: r[i - 1].y, z: r[i - 1].z, v: speeds[path.airs.length] || 5 });
     return path;
   }
   // Out of doors the way lies on the ground: each point of it is set on whatever is under it there (snow, a hill, a
@@ -346,8 +347,8 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       let arc = null;
       for (let tries = 0; tries < 4 && Math.max(ti, to) > 0.06; tries++, ti *= 0.55, to *= 0.55) {
         const p0 = { x: B.x - ux * ti, z: B.z - uz * ti, y: B.y + (A.y - B.y) * (ti / la) }, p2 = { x: B.x + wx * to, z: B.z + wz * to, y: B.y + (C.y - B.y) * (to / lc) }, n = Math.max(3, Math.ceil(phi / 0.15)), pts = [];
-        for (let k = 0; k <= n; k++) { const s = k / n, q = 1 - s; pts.push({ x: q * q * p0.x + 2 * q * s * B.x + s * s * p2.x, y: q * q * p0.y + 2 * q * s * B.y + s * s * p2.y, z: q * q * p0.z + 2 * q * s * B.z + s * s * p2.z, rigid: k === n ? B.rigid : false, bend: true, o: B.o && (k < n / 2 ? V[i - 1].o : C.o) }); }
-        if (!pts.some(blockedAt)) { arc = pts; break; }
+        for (let k = 0; k <= n; k++) { const s = k / n, q = 1 - s; pts.push({ x: q * q * p0.x + 2 * q * s * B.x + s * s * p2.x, y: q * q * p0.y + 2 * q * s * B.y + s * s * p2.y, z: q * q * p0.z + 2 * q * s * B.z + s * s * p2.z, rigid: k === n ? B.rigid : false, bend: true, o: B.o && (k < n / 2 ? V[i - 1].o : C.o), rigid0: !!(B.o && B.rigid) }); }
+        if (B.o && B.rigid ? land.walks(pts) : !pts.some(blockedAt)) { arc = pts; break; }      // (a bend up on the kit has to be one a car can drive, the car's way)
       }
       if (arc) R.push(...arc); else R.push(B);
     }
@@ -358,13 +359,13 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       const a = R[i], b = R[i + 1], len = Math.hypot(b.x - a.x, b.z - a.z);
       if (len < 1e-4) { if (Math.abs(b.y - a.y) > 0.05) S.push({ ...b }); continue; }
       let s = STEP - carry;
-      for (; s <= len; s += STEP) { const f = s / len; S.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, rigid: a.rigid, air: a.air && b.air, bend: a.bend || b.bend, o: a.o && b.o }); }
+      for (; s <= len; s += STEP) { const f = s / len; S.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, rigid: a.rigid, air: a.air && b.air, bend: a.bend || b.bend, o: a.o && b.o, rigid0: a.rigid0 || b.rigid0 }); }
       carry = len - (s - STEP);
     }
     { const e = R[R.length - 1], l = S[S.length - 1]; if (Math.hypot(e.x - l.x, e.z - l.z) > 0.05) S.push({ ...e }); }
     // 3. Ease it: each point towards the middle of its neighbours, unless that would take it nearer to something solid than it should be.
     for (let it = 0; it < 24; it++) for (let i = 1; i < S.length - 1; i++) {
-      const p = S[i]; if (p.air || S[i - 1].air || S[i + 1].air || ((p.rigid || S[i - 1].rigid) && !p.bend) || (p.bend && (S[i - 1].rigid && !S[i - 1].bend || S[i + 1].rigid && !S[i + 1].bend))) continue;
+      const p = S[i]; if (p.air || p.rigid0 || S[i - 1].air || S[i + 1].air || ((p.rigid || S[i - 1].rigid) && !p.bend) || (p.bend && (S[i - 1].rigid && !S[i - 1].bend || S[i + 1].rigid && !S[i + 1].bend))) continue;
       const nx2 = p.x * 0.5 + (S[i - 1].x + S[i + 1].x) * 0.25, nz2 = p.z * 0.5 + (S[i - 1].z + S[i + 1].z) * 0.25, was = clearance(p.x, p.y, p.z, p), now = clearance(nx2, p.y, nz2, p);
       if (now >= Math.min(was, 0.45) - 0.01 && now > 0) { p.x = nx2; p.z = nz2; }       // (a bend may give up a little room to be a bend, but never the car's own width)
     }
@@ -374,15 +375,13 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   }
 
   // Whatever has changed since the ways were last worked out: a door unlocked, a wall opened, something set down or taken up.
-  let landKey = '';
-  const landKeyNow = () => { const p = G.plan; return `${p.surfaces.length}|${p.masses.length}|${p.floors.length}|${(p.roofs || []).length}|${p.boxes.length}`; };
   function fresh() {
-    if (land && landKey !== landKeyNow()) { land.reset(); nav = null; grids.clear(); }
-    const L = landOf(); landKey = landKeyNow();
+    if (land && landKey !== landKeyNow()) { land.reset(); landKey = landKeyNow(); nav = null; grids.clear(); }
+    const L = landOf();
     const changed = L.sync();
     if (changed.length) { nav = null; for (const [id, g] of grids) if (changed.some(o => o.x1 > g.room.x0 && o.x0 < g.room.x1 && o.z1 > g.room.z0 && o.z0 < g.room.z1)) grids.delete(id); }
-    if (L.stats.spots > 120000) { L.forget(); nav = null; }
-    if (!nav || nav.key !== navKey()) nav = build();
+    if (L.stats.spots > 120000 || (nav && nav.key !== navKey())) { L.forget(); nav = null; }      // (a door unlocked, a wall opened: what was found by driving while it was shut is forgotten)
+    if (!nav) nav = build();
     return L;
   }
   // The shortest way from one spot to another: a list of points, each with how you get to the next.
@@ -907,7 +906,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     // The route is drawn once, when it is asked for, and stays as drawn until you arrive or rub it out.
     if (ribbon && ribbon.visible) ribbon.material.map.offset.x = -(t * 1.6) % 1;
     // The lie of the land out of doors (landway.js), read a strip at a time once everything is standing where it will stand, so that the first way asked for does not wait for it.
-    if (!landReady && G.features && G.state === 'play') { if (!land) land = createLandway(G.plan); landReady = land.tick(2); }
+    if (!landReady && G.features && G.state === 'play') { if (!land) { land = createLandway(G.plan); landKey = landKeyNow(); } landReady = land.tick(2); }
     const ly = youY();
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, W);
     c.save();
@@ -964,6 +963,8 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       c.fillStyle = 'rgba(226,205,148,.97)'; c.strokeStyle = 'rgba(8,10,16,.9)'; c.lineWidth = 3;
       c.beginPath(); if (c.roundRect) c.roundRect(px, py, pw, ph, ph / 2); else c.rect(px, py, pw, ph); c.fill(); c.stroke();
       c.fillStyle = '#14120c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, R, py + ph / 2 + 1); }
+    // A jump on the way, coming up: said once, as it is when the way starts with one.
+    if (state.path && state.path.airs) for (const a of state.path.airs) if (!a.told && Math.hypot(a.x - v.pos.x, a.z - v.pos.z) < 12 && Math.abs(a.y - v.pos.y) < 2.5) { a.told = true; if (say && v.kind === 'car') say('Jump ahead: the arrows leave the floor. Take it at speed.'); }
     if (state.target && Math.hypot(state.target.x - v.pos.x, state.target.z - v.pos.z) < 2.6 && Math.abs(state.target.y - v.pos.y) < 1.6) { say(`You are here: ${state.target.label}.`); clear(); }
   }
 
@@ -1048,7 +1049,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const v = G.vehicle;
     state.path = state.target ? route({ x: v.pos.x, y: v.pos.y, z: v.pos.z }, state.target) : null;
     layRibbon();
-    if (state.path && state.path.jumpIn != null && state.path.jumpIn < 15 && say) say('Jump ahead: the arrows leave the floor. Take it at speed.');
+    if (state.path && state.path.jumpIn != null && state.path.jumpIn < 15 && say) { say('Jump ahead: the arrows leave the floor. Take it at speed.'); if (state.path.airs[0]) state.path.airs[0].told = true; }
   }
   function clear() { state.target = null; state.path = null; layRibbon(); }
   // Set a destination from anywhere in the game: { x, y, z, label }.
@@ -1132,5 +1133,5 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   radarEl.addEventListener('touchstart', tap, { passive: false });
   radarEl.addEventListener('click', tap);
 
-  return { radar, open, close, goTo, clear, route, clearance: clearanceAt, picture: levelPicture /* the plan of the level at height y, as a canvas: src/tracker.js */, get target() { return state.target; }, get path() { return state.path; }, get land() { return land; }, get nav() { return nav; }, reset() { nav = null; grids.clear(); clear(); } };
+  return { radar, open, close, goTo, clear, route, clearance: clearanceAt, picture: levelPicture /* the plan of the level at height y, as a canvas: src/tracker.js */, get target() { return state.target; }, get path() { return state.path; }, get land() { return land; }, get nav() { return nav; } /* test aids (tools/dev/routeprobe.mjs): the lie of the land, and the ways worked out */, reset() { nav = null; grids.clear(); if (land) land.forget(); clear(); } };
 }
