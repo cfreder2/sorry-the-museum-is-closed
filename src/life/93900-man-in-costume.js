@@ -295,7 +295,7 @@ lifeFor(93900, {
     this.mesh = L.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, alphaTest: 0.4, side: THREE.DoubleSide, fog: false })));
     this.mesh.renderOrder = 5;
     this.sC = sC; this.sN = sN; this.sB = sB; this.sSkin = sSkin; this.sH = sH;
-    this.shadow = L.blobs(1);
+    this.shadow = L.blobs(1, { fade: true });
 
     // ---------------------------------------------------------- working room (nothing is made per frame)
     this.p = pose({}); this.p0 = pose({});
@@ -510,9 +510,9 @@ lifeFor(93900, {
       }
     }
     this.mesh.geometry.attributes.position.needsUpdate = true; this.mesh.geometry.attributes.color.needsUpdate = true; this.mesh.visible = true;
-    // ---- its shadow on the boards (it grows and shrinks: the kit's blobs do not fade)
+    // ---- its shadow on the boards (faint: it is a drawing, and the light goes through it)
     const W = MT[0][B_HIP], dark = sm(ramp(t, 0.9, 2.4)) * (back ? 1 - sm(ramp(ret, 0.2, 0.7)) : 1);
-    this.shadow.count = dark > 0.01 ? 1 : 0; this.shadow.set(0, W[3] + L.nx * 0.03, W[11] + L.nz * 0.03, 0.24 * Math.sqrt(dark), 1);
+    this.shadow.count = dark > 0.01 ? 1 : 0; this.shadow.set(0, W[3] + L.nx * 0.03, W[11] + L.nz * 0.03, 0.26, 0.62 * dark);
     // ---- the band
     const v = L.voice(); v.level = calm ? 0.55 * (0.35 + 0.65 * ramp(t, 0.3, 2.4)) : 1; v.place(L.cx, L.cz, 14);
     if (showing) this.band.play(L.t);
