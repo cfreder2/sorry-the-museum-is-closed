@@ -608,6 +608,9 @@ class Life {
     return m;
   }
   voice() { return this._voice || (this._voice = new Voice(this)); }
+  // "Reduce motion and flashing" (Settings) is on: a show keeps its promise too. No flash, no pulse of brightness faster
+  // than about one a second, spins and whirls at about half speed, no sudden loud first sound.
+  get calm() { const m = this.k && this.k.museum; return !!(m && m.calm); }
   // Soft contact shadows on the floor under things that sit or roll there: b = L.blobs(n); b.set(i, x, z, radius,
   // darkness 0..1) each frame for the ones in use, b.count = how many. One draw call.
   blobs(n, { y = this.y + 0.011 } = {}) {

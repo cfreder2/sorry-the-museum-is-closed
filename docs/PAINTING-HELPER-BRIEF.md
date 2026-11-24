@@ -31,7 +31,40 @@ nothing) before you start.
 4. **Phone budget** (the doc's marks and draw calls; lazy build; nothing per frame when off).
 5. **Routes stay open**; collision matches what is drawn (soft or none). If another work in the same room is alive,
    read its file so the two never collide (the kit sends a lingering show home when another begins).
-6. From the work, never mocking it. Religious works are treated gently: light, a slow drift, never comic.
+6. From the work, never mocking it; and the **Care** rules below, which are not optional.
+
+## Care (from an independent sensitivity review of the first twenty-one; these are rules)
+The game is played by children, classrooms and people of every background and faith, under real artists' names.
+1. **Ask first: who is in this picture, and whose is it?** If the answer is a sacred figure, a people other than the
+   artist's own, a child, a nude, a person at the edge of harm, or someone suffering, do not animate that figure. Find
+   the thing beside them (the water, the light, the cloth, the bird, the tools) and animate that. It has never made a
+   weaker show: Gauguin's shows only the pool, Cassatt's only the basin and bubbles, Breton's the lark and the dawn.
+2. **Sacred figures do not move, and sacred things are not toys.** No holy figure of any faith, angel, saint, deity,
+   ancestor or spirit is built or moved, in any form, however stylised. No sacred object can be pushed, collected,
+   scored with or driven through, and there is no `linger` play on a religious or funerary work. What may come out:
+   light, colour, the picture's own marks, plants that are really in it, cloth, stars, a slow upward or outward drift.
+3. **Sacred music stays in its place, at its own pace**: from the work's own tradition and time, quiet and straight;
+   never on a music box, sped up, or as a sting; never one faith's music under another's picture.
+4. **The word must fit the room the work was made for.** For a religious or grave work: rise, light, hush, breath.
+5. **No stand-in for a people.** No music, costume, movement, prop or flower used because it "says" a place or a race.
+   A person of another culture than the artist's, if shown, does an ordinary thing in an ordinary way, modelled with
+   the painter's care, never as the comic or the servant of the scene.
+6. **Children and bodies.** No unclothed or partly clothed figure is ever modelled, of any age, whatever the picture
+   shows. No child alone with nothing to do but be looked at. Nothing a floor-level camera can see under. If the
+   subject is a private moment (washing, dressing, sleeping, a girl at a window), the show is the room, not the person.
+7. **Work and hardship keep their weight.** A labourer's show is the labour's world, not the labourer dancing. Nobody
+   poor, old, disabled, drunk or foreign is the joke.
+8. **Danger without injury.** Grand, even a little frightening, but nobody is shown hurt, falling, drowning, struck or
+   killed. Monsters menace; they are not butchered, and they do not strike at the toy or the camera.
+9. **Animals** are never struck, whipped, hooked, netted, caged or killed on screen, nor frightened for fun.
+10. **Check the whole tune**, not the phrase: title, words, origin, later use. Never a minstrel or "plantation" song
+    (Camptown Races, Oh! Susanna, Dixie, Turkey in the Straw and their like), an anthem or hymn as a joke, or
+    mock-"Oriental", mock-"Indian" or mock-"African" scales or drums.
+11. **Words.** Captions describe what happens; they do not wink. No dialect, no nickname about a real person's body.
+    Read each caption as the least charitable informed adult would. Give no sitter an identity the museum does not.
+12. **Honour "Reduce motion and flashing".** When `L.calm` is true: no flash, no pulse of brightness faster than about
+    one a second, spins and whirls at half speed, no sudden loud first sound. Build it in from the start.
+13. **Say what you left out.** End your file's header comment with one sentence on what the show does not do, and why.
 
 ## What failed in review on the first twenty (avoid up front)
 - **Faceted low-poly objects.** Use a smooth underbody with a shell of soft painted dab cards (the haystacks, the ram,

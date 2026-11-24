@@ -40,6 +40,10 @@ work, never away from it.
    brands. Music only from compositions published before 1900, synthesised.
 5. **Collision matches what is drawn.** Animations are not solid, or push the toy aside softly. Nothing blocks a
    doorway or a route.
+6. **Care.** Sacred figures do not move and sacred things are not toys; no unclothed figure is modelled; nobody is
+   shown hurt; no people, faith or person is a prop or a joke; and a show honours "Reduce motion and flashing"
+   (`L.calm`: no flash, no fast pulse, half-speed spins, no sudden bang). The full list is the Care section of
+   `docs/PAINTING-HELPER-BRIEF.md`, from the independent sensitivity review of 2026-11-24.
 
 ## How long, and how it goes
 

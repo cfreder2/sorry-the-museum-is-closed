@@ -495,8 +495,9 @@ ${GLSL_NOISE}`)
   // a cannon: the timpani's boom, a thump in the floor and a little crack
   boom(L, f, at, k = 1) {
     const v = L.voice(); if (!v.ctx) return;
+    if (L.calm) k *= 0.55;                                  // (reduced motion and flashing: no sudden bang; the crack is left out)
     this.play(L, 'timp', f, at, 1.5, 0.085 * k);
-    noise(v, at, { d: 0.55, vol: 0.05 * k, lp: 240, attack: 0.004 });
-    noise(v, at, { d: 0.07, vol: 0.014 * k, hp: 1800, attack: 0.001 });
+    noise(v, at, { d: 0.55, vol: 0.05 * k, lp: 240, attack: L.calm ? 0.05 : 0.004 });
+    if (!L.calm) noise(v, at, { d: 0.07, vol: 0.014 * k, hp: 1800, attack: 0.001 });
   },
 });

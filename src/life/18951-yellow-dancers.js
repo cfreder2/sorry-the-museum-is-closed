@@ -233,7 +233,7 @@ lifeFor(18951, {
   start(L, resumed) {
     if (!resumed) this.hideAll();
     this.band.from(L.t); this.creaked = false;
-    if (!this.told && !L.quiet) { this.told = true; L.k.say('The orchestra is tuning. Someone is waiting in the wings.', 4); }
+    if (!this.told && !L.quiet) { this.told = true; L.k.say('The orchestra is tuning. The dancers are waiting in the wings.', 4); }
   },
   back(L) {
     this.from = this.poses.map(p => ({ u: p.u, out: p.out, yaw: p.yaw + p.spin, vis: p.vis }));
