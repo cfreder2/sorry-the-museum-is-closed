@@ -56,3 +56,4 @@ import './60755-ruins-of-egmond.js';  // 213  van Ruisdael, Landscape with the R
 import './150054-mrs-beatty-and-susan.js'; // 161  Johnson, Mrs. Beatty and Her Daughter Susan: strawberry
 import './111610-garden-of-palazzo-contarini.js'; // 217  Guardi, The Garden of Palazzo Contarini dal Zaffo: parterre
 import './110507-in-the-sea.js';       // 245  Böcklin, In the Sea: echo
+import './16488-armida-encounters-rinaldo.js'; // 215  Tiepolo, Armida Encounters the Sleeping Rinaldo: hush
