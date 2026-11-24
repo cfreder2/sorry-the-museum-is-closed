@@ -567,6 +567,8 @@ feature({
     }
     const look = (a, rate) => { b.look = turn(b.look, a, rate * dt); };
     const atToy = () => Math.atan2(p.x - b.x, p.z - b.z);
+    // The building's systems (src/systems.js) may have this robot for now: rained on, halted by a fire test, listening to the PA. True: it has been driven this time.
+    if (G.systems && G.systems.guard(b, dt, this)) return;
     switch (b.mode) {
       case 'patrol': {
         const P = b.P, tx = P.pts[b.k * 2], tz = P.pts[b.k * 2 + 1];

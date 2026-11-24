@@ -82,6 +82,7 @@ import './racespots.js';         // rival toys waiting about the building and th
 import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
 import './secdesk.js';           // the computers in the security control rooms: a terminal, the robot tracker, a donut game
 import './life/index.js';        // paintings that come alive while you look at them (src/paintlife.js, docs/PAINTING-ANIMATIONS.md)
+import './systems.js';           // the building's systems, for the control room: sprinklers, the fire test, lights, lifts, doors, the PA (after guards.js: it takes robots over)
 import './look.js';              // the look pass over the finished world: the snow's drifts, soft shadows under what moves (last: src/finish.js)
 
 const $ = id => document.getElementById(id);

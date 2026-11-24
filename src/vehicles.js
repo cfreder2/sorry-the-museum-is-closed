@@ -497,7 +497,7 @@ export class Car {
       grip *= S.grip;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
       this.wet = false;
-      for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
+      for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (p.x0 !== undefined ? this.pos.x > p.x0 && this.pos.x < p.x1 && this.pos.z > p.z0 && this.pos.z < p.z1 : (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r)) this.wet = true;      // (a rectangle: a room the sprinklers have wetted, src/systems.js)
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
       const sheet = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.find(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1), icy = !!sheet;
