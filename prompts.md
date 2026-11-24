@@ -1010,3 +1010,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 236
 
 > There are some routes with plywood on stairs that have arrows painted on them or even moving arrows (if I recall). We cannot have that because then when you do a route on the map, and they collide, it looks terrible. So no arrows on the ground moving unless it is the dynamic follow-the-path stuff.
+
+## 237
+
+> Please do another 10 paintings.
