@@ -13,9 +13,12 @@
 // bows in over the frame and opens its crown there, the tall straight one on the right goes highest, the small bare
 // tree stands beyond it, and the picture hangs among them like a clearing. The far pines, out of focus, and the red
 // roofs stand small at the foot of the wall, his gold grass in front of them, his ground a little way out over the
-// floor, his sky a veil on the wall behind it all. It is all still in the blue of before the sun. A dove calls. A
-// bird comes in out of that sky, small and far, and wheels once over the room; high up, it is the first thing the
-// sun reaches, and it goes pale gold while everything under it is still blue. Then the light comes down: the clouds
+// floor, and his sky is in the air behind it all: no patch, only colour lying along the ground and thinning upward
+// between the trunks like mist lifting, a breath of cool blue-violet before the sun (the trees' own dark blue says
+// the hour), then peach coming up into it from the ground, then his pale gold, rose and pale blue. A dove calls. A
+// bird comes in out of that sky, small and far, a warm off-white with the sky's blue on it, and wheels once over the
+// room; high up, gliding with its wings held still, it is the first thing the sun reaches, and it turns gold while
+// everything under it is still blue. Only then does the light start down: the clouds
 // go pink, the crowns go green from the top, a rose edge runs down every trunk and leaves it warm, the far roofs
 // catch red, the gable yellow, the grass gold, and the yellow flowers in the tuft at your feet open. The birds that
 // were single voices are a chorus. The bird comes round and settles on the dead stub of the tall pine, beside the
@@ -34,6 +37,8 @@
 // comes down on) is within 0.85 m of the picture's middle, which is what a phone held upright shows.
 // Three draw calls: the ground and the sky (one mesh, one shader), the trunks (one mesh, grown in its shader), and
 // every soft thing (crowns, clouds, far trees, roofs, grass, twigs, the bird) as painted cards in one instanced mesh.
+// The trunks are painted, not modelled: broken upright strokes of warm and cool with the dark between the bark's
+// plates, orange only in the warm strokes on the side the sun has reached; and a few dead stubs.
 // The trunks stand 2 cm off the canvas plane: nearer the wall, the picture lamps' own wash (additive, 2.5 cm off)
 // bleaches them.
 // The sounds are the birds of a Florida pine wood at that hour, each a few sine sweeps: a mourning dove, a bobwhite,
@@ -80,7 +85,11 @@ const BOUGHS = [
   { tree: 0, pts: [[-0.5, 2.52], [-0.6, 2.68], [-0.74, 2.8]], r: 0.012 }, { tree: 0, pts: [[-0.44, 2.66], [-0.32, 2.82], [-0.2, 2.9]], r: 0.012 }, { tree: 0, pts: [[-0.41, 2.72], [-0.42, 2.86], [-0.5, 2.98]], r: 0.01 },
   { tree: 3, pts: [[0.55, 2.66], [0.46, 2.8], [0.36, 2.88]], r: 0.01 }, { tree: 3, pts: [[0.562, 2.78], [0.68, 2.88], [0.8, 2.9]], r: 0.01 },
 ];
-const STUBS = [{ pts: [[0.566, 2.36], [0.53, 2.42], [0.5, 2.42]], r: 0.006 }, { pts: [[0.558, 1.985], [0.6, 2.045], [0.66, 2.062]], r: 0.0085, perch: true }];
+const STUBS = [
+  { tree: 3, pts: [[0.566, 2.36], [0.53, 2.42], [0.5, 2.42]], r: 0.006 }, { tree: 3, pts: [[0.558, 1.985], [0.6, 2.045], [0.66, 2.062]], r: 0.0085, perch: true }, { tree: 3, pts: [[0.556, 1.5], [0.595, 1.552], [0.622, 1.548]], r: 0.006 },
+  { tree: 0, pts: [[-0.603, 1.9], [-0.648, 1.958], [-0.69, 1.955]], r: 0.007 }, { tree: 0, pts: [[-0.588, 2.3], [-0.628, 2.368], [-0.662, 2.36]], r: 0.006 }, { tree: 0, pts: [[-0.59, 1.22], [-0.556, 1.268], [-0.538, 1.262]], r: 0.005 },
+  { tree: 1, pts: [[-0.818, 1.76], [-0.85, 1.81], [-0.872, 1.8]], r: 0.004 },
+];
 const PERCH = [0.65, 2.07, 0.004];
 // the crowns: whose, centre, half sizes, how many dabs, how warm (the tall one's is browner, as his is)
 const CROWNS = [
@@ -100,10 +109,10 @@ const ROOFS = [[-0.41, 0.15, 0.06, 0], [-0.28, 0.2, 0.078, 0], [-0.12, 0.22, 0.0
 const TUFT = { u: -0.14, o: 0.62 };
 const TRUNK_O = -0.019;                    // the trunks' centre lines, out from the canvas plane: just clear of the lamps' wash on the wall
 // ---------------------------------------------------------------- the timeline (seconds of show)
-const T_BIRD = 2.7, T_LAND = 7.3, T_SUN = 4.5;
+const T_BIRD = 2.6, T_CATCH = 3.9, T_SUN = 4.75, T_LAND = 7.45;      // the bird comes; the sun catches it; the light starts down; the bird settles
 const TOP = 3.45;                          // where the light starts down from (m above the floor)
 // the bird's way: out of the sky on the wall, once round over the room, and down to the stub
-const WAY = [[0.2, 3.0, -0.02], [-0.2, 2.95, 0.28], [-0.58, 2.72, 0.62], [-0.5, 2.44, 1.0], [0.0, 2.26, 1.16], [0.5, 2.15, 1.0], [0.7, 2.1, 0.62], [0.67, 2.12, 0.28], [PERCH[0], PERCH[1] + 0.085, 0.03]];
+const WAY = [[0.2, 3.0, -0.02], [-0.2, 2.95, 0.26], [-0.58, 2.74, 0.56], [-0.52, 2.5, 0.88], [0.0, 2.3, 1.0], [0.5, 2.17, 0.9], [0.7, 2.1, 0.58], [0.67, 2.12, 0.28], [PERCH[0], PERCH[1] + 0.085, 0.03]];
 // the atlas: 4 x 4 cells
 const C_FOL = 0, C_FOL2 = 1, C_WISP = 2, C_BLOB = 3, C_FAR = 4, C_FAR2 = 5, C_ROOF = 6, C_GABLE = 7, C_WING = 8, C_BODY = 9, C_PERCH = 10, C_TUFT = 11, C_DOT = 12, C_SHRUB = 13, C_TWIG = 14, C_CLOUD = 15;
 const MAXC = 220;
@@ -119,7 +128,7 @@ lifeFor(64729, {
     const P = L.pal, col = (h, a = 0.22) => P.near(h, a);
     this.foot = L.cy - L.y;
     this.v = new THREE.Vector3(); this.c = new THREE.Color();
-    this.m4 = new THREE.Matrix4(); this.mB = new THREE.Matrix4(); this.mT = new THREE.Matrix4(); this.q4 = new THREE.Quaternion(); this.e4 = new THREE.Euler(0, 0, 0, 'YXZ'); this.s4 = new THREE.Vector3();
+    this.m4 = new THREE.Matrix4(); this.mB = new THREE.Matrix4(); this.mT = new THREE.Matrix4(); this.mW = new THREE.Matrix4(); this.q4 = new THREE.Quaternion(); this.e4 = new THREE.Euler(0, 0, 0, 'YXZ'); this.s4 = new THREE.Vector3();
     this.grow = new Float32Array(NT); this.open = new Float32Array(NT); this.sway = new Float32Array(NT);
     this.buildLand(L, col); this.buildTrunks(L, col); this.buildCards(L, col);
     this.way = flight(WAY.map(p => L.at(p[0], p[1] - this.foot, p[2], new THREE.Vector3())), { closed: false, tension: 0.5 });
@@ -165,8 +174,8 @@ lifeFor(64729, {
       uDay: { value: new THREE.Vector3(0, TOP, 0) },              // how far the day has come, where the light has come down to, time
       tGround: { value: ground }, tCloud: { value: cloud },
       cNightG: { value: col('#2e2e34', 0.1) }, cGold: { value: col('#a87638', 0.3) }, cOlive: { value: col('#494a36', 0.3) },
-      cNight: { value: col('#34434e', 0.12) }, cNightLo: { value: col('#414b52', 0.12) }, cSky: { value: col('#8d9a9d', 0.3) }, cSkyHi: { value: col('#74878f', 0.3) },
-      cPink: { value: col('#cfa291', 0.25) }, cHaze: { value: col('#b5a999', 0.25) },
+      // (his sky's own colours, the grey taken out of them: the blue of his upper sky, the rose of his clouds, the pale gold of his horizon)
+      cPreLo: { value: col('#c6c4dc', 0.06) }, cPreHi: { value: col('#a6aed6', 0.06) }, cDayLo: { value: col('#f8dca0', 0.05) }, cDayMid: { value: col('#efb8a6', 0.06) }, cDayHi: { value: col('#a6c4dc', 0.06) }, cTurn: { value: col('#f2c0a2', 0.06) },
     };
     const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
     m.onBeforeCompile = sh => {
@@ -175,7 +184,7 @@ lifeFor(64729, {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
 uniform vec3 uO, uDay; uniform vec4 uAx, uShow; uniform sampler2D tGround, tCloud;
-uniform vec3 cNightG, cGold, cOlive, cNight, cNightLo, cSky, cSkyHi, cPink, cHaze;
+uniform vec3 cNightG, cGold, cOlive, cPreLo, cPreHi, cDayLo, cDayMid, cDayHi, cTurn;
 varying float vKind; vec3 fCol; float fA;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
@@ -194,17 +203,20 @@ varying float vKind; vec3 fCol; float fA;`)
     c = mix(mix(cNightG * (0.75 + 0.5 * gt.a), c, 0.2 + 0.8 * uDay.x), cGold * (0.72 + 0.5 * gt.a), clamp(band, 0.0, 1.0) * uShow.w * 0.82);
     fCol = c; fA = m * 0.94;
   } else {
-    // his sky on the wall behind the grove, an even veil with a feathered edge: slate blue before the sun, then
-    // paler, with a warm haze low down
-    vec3 n2 = texture2D(tCloud, vec2(su * 0.6 + 0.37, wh * 0.6 + 0.21)).rgb;
-    vec2 e = vec2((su - 0.02) / (1.02 + 0.3 * smoothstep(1.5, 2.6, wh)), (wh - 1.72) / 1.8);
-    float d = pow(pow(abs(e.x), 2.6) + pow(abs(e.y), 2.6), 1.0 / 2.6) + (n2.r - 0.4) * 0.06;
-    float m = 1.0 - smoothstep(0.5, 1.0, d);
-    vec3 night = mix(cNightLo, cNight, smoothstep(0.2, 2.2, wh)), day = mix(cSky, cSkyHi, smoothstep(1.0, 3.2, wh));
-    vec3 c = mix(night, day, uDay.x);
-    c = mix(c, cHaze, exp(-wh / 0.62) * (0.2 + 0.62 * uDay.x) + 0.3 * uShow.z * exp(-wh / 0.9) * (1.0 - uDay.x));
-    c *= 0.96 + 0.08 * n2.g;
-    fCol = c; fA = m * uShow.y * (0.74 + 0.16 * uDay.x);
+    // his sky on the wall behind the grove: air with colour in it, never a patch. It lies widest along the ground and
+    // thins as it goes up between the trunks, like mist lifting, and it has no straight side anywhere. Before the sun
+    // it is only a breath of cool blue-violet; then peach comes up from the ground into it, and by day it is his sky:
+    // pale gold low, rose over that, pale blue high.
+    vec3 n1 = texture2D(tCloud, vec2(su * 0.27 + 0.11, wh * 0.21 + 0.05)).rgb, n2 = texture2D(tCloud, vec2(su * 0.66 + 0.37, wh * 0.46 + 0.21 - uDay.z * 0.004)).rgb;
+    float hw = 0.56 + 0.7 * exp(-wh / 0.7) + 0.34 * smoothstep(1.9, 2.8, wh);
+    float ex = abs(su - 0.02 + (n1.g - 0.3) * 0.4) - hw + (n1.r - 0.4) * 0.6 + (n2.b - 0.35) * 0.2;
+    float m = (1.0 - smoothstep(-0.5, 0.12, ex)) * (1.0 - smoothstep(2.6, 3.45, wh + (n1.r - 0.4) * 0.8 + (n2.b - 0.35) * 0.2));
+    m *= 0.66 + 0.5 * n2.r;
+    vec3 pre = mix(cPreLo, cPreHi, smoothstep(0.2, 2.4, wh));
+    vec3 day = mix(cDayLo, cDayMid, smoothstep(0.2, 1.3, wh)); day = mix(day, cDayHi, smoothstep(1.1, 2.6, wh + (n2.g - 0.3) * 0.5));
+    vec3 c = mix(pre, cTurn, uShow.z * exp(-wh / 1.3) * 0.85);
+    c = mix(c, day, uDay.x);
+    fCol = c; fA = m * uShow.y * mix(0.3 + 0.16 * uShow.z * exp(-wh / 1.3), 0.74, uDay.x);
   }
 }`)
         .replace('#include <opaque_fragment>', '  outgoingLight = fCol; diffuseColor.a = fA;\n#include <opaque_fragment>');
@@ -237,15 +249,36 @@ varying float vKind; vec3 fCol; float fA;`)
     });
     const bo = TRUNK_O + TREES[BARE].r * 0.25;
     for (const l of LIMBS) tube(BARE, l.pts, l.r, l.r * 0.35, BARE_H, { out0: bo });
-    for (const s of STUBS) tube(TALL, s.pts, s.r, s.r * 0.45, TREES[TALL].H, { dip: !!s.perch, out0: TRUNK_O + TREES[TALL].r * 0.25 });
+    for (const s of STUBS) tube(s.tree, s.pts, s.r, s.r * 0.45, TREES[s.tree].H, { dip: !!s.perch, out0: TRUNK_O + TREES[s.tree].r * 0.25 });
     for (const b of BOUGHS) tube(b.tree, b.pts, b.r, b.r * 0.4, TREES[b.tree].H, { out0: TRUNK_O + TREES[b.tree].r * 0.25 });
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aAxis', new THREE.Float32BufferAttribute(axis, 3));
     g.setAttribute('aInf', new THREE.Float32BufferAttribute(inf, 4)); g.setAttribute('aAux', new THREE.Float32BufferAttribute(aux, 2));
-    const bark = strokes({ size: 128, seed: 6472, n: 300, len: [20, 56], width: [5, 11], bend: 0.12, lift: 0.1, base: '#808080', colors: [['#727272', 3], ['#8c8c8c', 3], ['#a2a2a2', 2], ['#606060', 1.5], ['#b4b4b4', 0.6]], angle: (x, y, r) => Math.PI / 2 + (r() - 0.5) * 0.2 });
+    // his paint on them: broken upright strokes, some warm (red), some cool (green), and the dark between the bark's
+    // plates (blue). It wraps, once round a trunk and every 40 cm up it.
+    const bark = canvasTexture(128, 256, (c, w, h) => {
+      const R = () => L.rand();
+      c.fillStyle = '#000'; c.fillRect(0, 0, w, h); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+      const each = fn => { for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) { c.save(); c.translate(ox, oy); fn(); c.restore(); } };
+      for (const [ch, n] of [['255,0,0', 44], ['0,255,0', 32]]) for (let i = 0; i < n; i++) {
+        const x = R() * w, y = R() * h, len = 24 + R() * 84, wd = 5 + R() * 10, a = 0.3 + 0.55 * R(), lean = (R() - 0.5) * 9;
+        each(() => {
+          c.strokeStyle = `rgba(${ch},${a})`; c.lineWidth = wd; c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + lean, y + len * 0.5, x + lean * 0.4, y + len); c.stroke();
+          // (a loaded edge down one side of it)
+          c.strokeStyle = `rgba(${ch},${a * 0.6})`; c.lineWidth = wd * 0.45; c.beginPath(); c.moveTo(x + wd * 0.2, y); c.lineTo(x + wd * 0.2 + lean * 0.3, y + len * 0.3); c.stroke();
+        });
+      }
+      for (let i = 0; i < 90; i++) {
+        const x = R() * w, y = R() * h, across = R() < 0.55, len = across ? 6 + R() * 16 : 12 + R() * 34, a = 0.45 + 0.5 * R(), k = (R() - 0.5) * 6, lw = 1.6 + R() * 2.4;
+        each(() => { c.strokeStyle = `rgba(0,0,255,${a})`; c.lineWidth = lw; c.beginPath(); c.moveTo(x, y); if (across) c.quadraticCurveTo(x + len * 0.5, y + k, x + len, y + k * 0.3); else c.quadraticCurveTo(x + k, y + len * 0.5, x + k * 0.4, y + len); c.stroke(); });
+      }
+      for (let i = 0; i < 14; i++) { const x = R() * w, y = R() * h, rx = 7 + R() * 10, ry = 10 + R() * 22; each(() => { const gr = c.createRadialGradient(x, y, 0, x, y, ry); gr.addColorStop(0, 'rgba(0,0,255,0.4)'); gr.addColorStop(1, 'rgba(0,0,255,0)'); c.fillStyle = gr; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.fill(); }); }
+    }, false);
+    bark.wrapS = bark.wrapT = THREE.RepeatWrapping; bark.anisotropy = 4;
     const u = this.tu = {
       uGrow: { value: this.grow }, uSway: { value: this.sway }, uDay: this.lu.uDay, uAx: this.lu.uAx, uY: { value: L.y }, uDip: { value: 0 }, tBark: { value: bark },
-      cNightA: { value: col('#2c2f37', 0.1) }, cNightB: { value: col('#3b3e46', 0.1) }, cShade: { value: col('#38353a', 0.15) }, cBark: { value: col('#4a3e39', 0.2) }, cSun: { value: col('#765444', 0.2) },
+      cNightA: { value: col('#2b2e38', 0.1) }, cNightB: { value: col('#393c46', 0.1) }, cNightC: { value: col('#4b526c', 0.08) }, cShade: { value: col('#37343a', 0.12) }, cBark: { value: col('#493e39', 0.18) },
+      cWarm: { value: col('#684a3a', 0.18) }, cCool: { value: col('#4b4a5e', 0.1) }, cSun: { value: col('#b26d42', 0.14) },
       cPale: { value: col('#93857a', 0.3) }, cRose: { value: col('#e2a48e', 0.2) },
     };
     const m = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, side: THREE.DoubleSide });
@@ -264,21 +297,26 @@ varying vec4 vInf; varying vec2 vAux;`)
   vInf = aInf; vAux = aAux;`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
-uniform vec3 uDay; uniform float uY; uniform sampler2D tBark; uniform vec3 cNightA, cNightB, cShade, cBark, cSun, cPale, cRose;
+uniform vec3 uDay; uniform float uY; uniform sampler2D tBark; uniform vec3 cNightA, cNightB, cNightC, cShade, cBark, cWarm, cCool, cSun, cPale, cRose;
 varying vec4 vInf; varying vec2 vAux;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
   float wh = lifeP.y - uY, side = clamp(vInf.z * 0.5 + 0.5, 0.0, 1.0);
-  vec3 bk = texture2D(tBark, vec2(vAux.x * 0.35 * vAux.y + vInf.x * 0.37, wh * 0.7)).rgb;
+  vec3 bk = clamp(texture2D(tBark, vec2(vAux.x * vAux.y + vInf.x * 0.37, wh / 0.4 + vInf.x * 0.23)).rgb, 0.0, 1.0);
+  float warm = bk.r, cool = bk.g * (1.0 - 0.6 * bk.r), plate = bk.b;                // (his strokes: warm, cool, and the dark between the plates)
   float lit = smoothstep(uDay.y - 0.1, uDay.y + 0.45, wh);                   // the sun has come down to here
   float edge = exp(-pow((wh - uDay.y - 0.12) / 0.2, 2.0));                    // its first touch is rose
-  float tone = 0.84 + 0.3 * bk.r, low = 0.8 + 0.2 * smoothstep(0.1, 1.3, wh);        // (darker towards the ground, as his are)
-  vec3 night = mix(cNightA, cNightB, side) * (0.85 + 0.3 * bk.g);
-  vec3 day = mix(cShade, cBark, smoothstep(0.15, 0.85, side)) * tone * low;
-  vec3 sun = mix(day, cSun * tone * (0.9 + 0.1 * low), smoothstep(0.5, 0.97, side) * 0.9);
+  float low = 0.8 + 0.2 * smoothstep(0.1, 1.3, wh);                           // (darker towards the ground, as his are)
+  vec3 night = mix(cNightA, cNightB, side) * (1.0 + 0.2 * warm - 0.22 * plate); night = mix(night, cNightC, cool * 0.4);
+  vec3 day = mix(cShade, cBark, smoothstep(0.15, 0.85, side));
+  day = mix(day, cWarm, warm * 0.7); day = mix(day, cCool, cool * 0.6 * (1.0 - 0.35 * side)); day *= (1.0 - 0.33 * plate) * low;
+  // where the sun has reached, the warm strokes on that side are orange; the shade side keeps its violet
+  vec3 sun = mix(day, cSun * (1.0 - 0.3 * plate) * (0.9 + 0.1 * low), smoothstep(0.3, 0.88, side) * (0.22 + 0.78 * warm));
+  sun = mix(sun, cCool * 1.2, cool * 0.3 * (1.0 - smoothstep(0.2, 0.7, side)));
   float bare = step(${GL(BARE - 0.5)}, vInf.x);
-  day = mix(day, cPale * tone * (0.72 + 0.28 * side), bare * 0.85); sun = mix(sun, mix(cPale, cRose, 0.4) * tone * (0.82 + 0.3 * side), bare * 0.85);
-  vec3 c = mix(night, day, uDay.x); c = mix(c, sun, lit); c = mix(c, cRose, edge * 0.36 * (0.35 + 0.65 * side));
+  vec3 pale = cPale * (0.74 + 0.26 * side) * (1.0 + 0.16 * warm - 0.3 * plate);
+  day = mix(day, pale, bare * 0.85); sun = mix(sun, mix(pale, cRose, 0.3 + 0.25 * warm), bare * 0.85);
+  vec3 c = mix(night, day, uDay.x); c = mix(c, sun, lit); c = mix(c, cRose, edge * 0.34 * (0.35 + 0.65 * side));
   diffuseColor.rgb = c;
 }`);
     };
@@ -405,14 +443,14 @@ varying vec4 vInf; varying vec2 vAux;`)
       shade: col('#3f4a40', 0.3), mid: col('#525c38', 0.3), lit: col('#7a8242', 0.3), top: col('#93944e', 0.3),
       wShade: col('#51473a', 0.3), wMid: col('#716249', 0.3), wLit: col('#93805c', 0.3),
       rose: col('#e0a690', 0.2),
-      farN: col('#34414a', 0.15), farD: col('#4e5f5b', 0.3), farL: col('#66745e', 0.3), stemD: col('#45413f', 0.3),
-      cloudN: col('#56636d', 0.12), cloudP: col('#d6a595', 0.25), cloudD: col('#d9bcab', 0.25),
-      roofN: col('#473d40', 0.15), roofD: col('#6e504b', 0.3), roofL: col('#9a5a4e', 0.35), gableL: col('#c09a64', 0.35), tin: col('#766c60', 0.3), tinL: col('#928468', 0.35), farG: col('#4a4a3a', 0.3), farGL: col('#8a6c3c', 0.3),
+      farN: col('#7c86ac', 0.08), farD: col('#4e5f5b', 0.3), farL: col('#66745e', 0.3), stemD: col('#45413f', 0.3),
+      cloudN: col('#a9acc8', 0.08), cloudP: col('#d6a595', 0.25), cloudD: col('#d9bcab', 0.25),
+      roofN: col('#716c8a', 0.1), roofD: col('#6e504b', 0.3), roofL: col('#9a5a4e', 0.35), gableL: col('#c09a64', 0.35), tin: col('#766c60', 0.3), tinL: col('#928468', 0.35), farG: col('#4a4a3a', 0.3), farGL: col('#8a6c3c', 0.3),
       grassN: col('#2c3134', 0.12), grass: col('#5a5136', 0.3), grassL: col('#a77a3a', 0.3), grassL2: col('#8f7a3c', 0.3),
       tuftN: col('#293130', 0.12), tuft: col('#434d36', 0.3), tuftL: col('#636b3c', 0.3), flower: col('#e2c458', 0.2),
       shrubN: col('#23282a', 0.1), shrub: col('#383a2e', 0.3),
       twigN: col('#3c3c44', 0.12), twig: col('#8c7e74', 0.3), bud: col('#d49c90', 0.25),
-      birdN: col('#5d6973', 0.1), birdD: col('#a39b90', 0.15), birdL: col('#dcc7a6', 0.1),
+      birdN: col('#8a93b0', 0.06), birdG: col('#f2c47e', 0.06), birdL: col('#e4d2b2', 0.08),
     };
     // ---- the crowns' dabs
     this.dabs = [];
@@ -467,7 +505,7 @@ varying vec4 vInf; varying vec2 vAux;`)
     const whistle = (t, v = 0.012) => { [0, 0.3, 0.58].forEach((d, i) => s.note(t + d, 2500 + 160 * i, 0.22, { type: 'sine', vol: v * (1 - 0.2 * i), to: 3000 + 160 * i, attack: 0.04 })); };
     // the pines going up: a long breath of air
     s.hit(0.15, { d: 1.9, vol: calm ? 0.007 : 0.011, lp: 1700, hp: 420, attack: calm ? 1.1 : 0.7 });
-    dove(2.15, calm ? 0.022 : 0.03); whistle(3.25, 0.008); bobwhite(4.0); cardinal(4.9); wren(5.75); bobwhite(6.3, 0.012); warbler(6.6); cardinal(7.0, 0.01); wren(7.55, 0.008);
+    dove(2.15, calm ? 0.022 : 0.03); whistle(T_CATCH + 0.1, 0.009); bobwhite(4.5); cardinal(5.1); wren(5.75); bobwhite(6.3, 0.012); warbler(6.6); cardinal(7.0, 0.01); wren(7.55, 0.008);
     // the bird comes down: two soft beats of air, and the stub
     s.hit(T_LAND - 0.42, { d: 0.16, vol: 0.006, lp: 900, hp: 200, attack: 0.03 }); s.hit(T_LAND - 0.2, { d: 0.16, vol: 0.006, lp: 900, hp: 200, attack: 0.03 }); s.hit(T_LAND, { d: 0.22, vol: 0.008, lp: 1400, hp: 500, attack: 0.01 });
     whistle(T_LAND + 0.9, 0.011);
@@ -488,7 +526,7 @@ varying vec4 vInf; varying vec2 vAux;`)
   back(L) {
     const S = this.S0; S.t = L.t; S.grow.set(this.grow); S.open.set(this.open); S.far = this.farK || 0;
     const sh = this.lu.uShow.value; S.spread = sh.x; S.sky = sh.y; S.pink = sh.z; S.gold = sh.w; S.day = this.lu.uDay.value.x; S.sun = this.sunQ || 0;
-    S.landed = this.bird.on && L.t >= T_LAND; S.birdOn = this.bird.on; this.bird.from.copy(this.bird.p); S.birdS = this.bird.s;
+    S.landed = this.bird.on && L.t >= T_LAND; S.birdOn = this.bird.on; this.bird.from.copy(this.bird.p); S.birdS = this.bird.s; S.birdLit = this.bird.lit || 0;
   },
   end(L) { this.hideAll(); },
   reset(L) { this.hideAll(); },
@@ -564,23 +602,23 @@ varying vec4 vInf; varying vec2 vAux;`)
     if (far > 0.01) {
       const liF = litAt(0.75);
       c.copy(C.farN).lerp(C.farD, day * 0.85).lerp(C.farL, liF * 0.4);
-      for (const z of this.hazes) { L.at(z.u, z.h - foot, z.o, v); this.put(C_BLOB, v.x, v.y, v.z, z.w * 1.5, z.hh * 1.5, yo, 0, 0, c, far * 0.72, 0, 1); }
+      for (const z of this.hazes) { L.at(z.u, z.h - foot, z.o, v); this.put(C_BLOB, v.x, v.y, v.z, z.w * 1.5, z.hh * 1.5, yo, 0, 0, c, far * (0.2 + 0.52 * day), 0, 1); }
       for (const f of this.far) {
         const hh = f.h - SKIRT, li = litAt(f.h - 0.1);
         c.copy(C.farN).lerp(f.back ? C.farD : C.stemD, day * 0.5).lerp(C.farD, day * 0.45).lerp(C.farL, li * (0.25 + 0.5 * f.k));
         L.at(f.u, SKIRT + hh * 0.5 - 0.01 - foot, f.o, v);
-        this.put(f.cell, v.x, v.y, v.z, (hh * 0.72 + 0.06) * f.wide, hh * (0.92 + 0.08 * far) * 1.03, yo, 0, f.roll, c, far * (f.back ? 0.6 : 0.92), 0.9, f.flip);
+        this.put(f.cell, v.x, v.y, v.z, (hh * 0.72 + 0.06) * f.wide, hh * (0.92 + 0.08 * far) * 1.03, yo, 0, f.roll, c, far * (f.back ? 0.6 : 0.92) * (0.42 + 0.58 * day), 0.9, f.flip);
       }
       const li = 1 - sm(lightH, 0.1, 0.62);              // the roofs are low: the last things the light comes to
       c.copy(C.farN).lerp(C.farG, day * 0.85).lerp(C.farGL, li * 0.7);
-      for (const gu of [-0.52, -0.1, 0.32, 0.7]) { L.at(gu, SKIRT + 0.012 - foot, -L.wall + 0.0225, v); this.put(C_BLOB, v.x, v.y, v.z, 0.62, 0.11, yo, 0, 0, c, far * 0.85, 0, 1); }
+      for (const gu of [-0.52, -0.1, 0.32, 0.7]) { L.at(gu, SKIRT + 0.012 - foot, -L.wall + 0.0225, v); this.put(C_BLOB, v.x, v.y, v.z, 0.62, 0.11, yo, 0, 0, c, far * (0.25 + 0.6 * day), 0, 1); }
       for (const q of this.roofs) {
         if (q.kind === 1) c.copy(C.roofN).lerp(C.tin, day * 0.6).lerp(C.gableL, li);
         else if (q.kind === 2) c.copy(C.roofN).lerp(C.tin, day * 0.75).lerp(C.tinL, li * 0.7);
         else c.copy(C.roofN).lerp(C.roofD, day * 0.6).lerp(C.roofL, li);
         // (the roof is the middle half of its card)
-        if (q.kind === 1) { L.at(q.u, SKIRT + 0.012 + q.h * 0.5 - foot, q.o, v); this.put(C_GABLE, v.x, v.y, v.z, q.w / 0.6, q.h / 0.66, yo, 0, 0, c, far * 0.82, 0.6, 1); }
-        else { L.at(q.u, SKIRT + 0.012 + q.h * 0.5 - foot, q.o, v); this.put(C_ROOF, v.x, v.y - q.h * 0.1, v.z, q.w / 0.84, q.h / 0.52, yo, 0, 0, c, far * 0.82, 0.6, 1); }
+        if (q.kind === 1) { L.at(q.u, SKIRT + 0.012 + q.h * 0.5 - foot, q.o, v); this.put(C_GABLE, v.x, v.y, v.z, q.w / 0.6, q.h / 0.66, yo, 0, 0, c, far * (0.36 + 0.46 * day), 0.6, 1); }
+        else { L.at(q.u, SKIRT + 0.012 + q.h * 0.5 - foot, q.o, v); this.put(C_ROOF, v.x, v.y - q.h * 0.1, v.z, q.w / 0.84, q.h / 0.52, yo, 0, 0, c, far * (0.36 + 0.46 * day), 0.6, 1); }
       }
     }
     // ---- the crowns: each dab out of its trunk's tip, and breathing
@@ -640,8 +678,10 @@ varying vec4 vInf; varying vec2 vAux;`)
     if (showing) this.band.play(t);
   },
 
-  // The bird: far and small in the sky on the wall, once round over the room, down to the tall pine's stub; at the Return, up
-  // and back into that sky. Three cards while it flies (body, two wings), one when it sits.
+  // The bird: far and small in the sky on the wall, once round over the room, down to the tall pine's stub; at the
+  // Return, up and back into that sky. While it flies it is a small soft body and two wings with a little thickness
+  // (nine cards: flat ones for what is seen from below, upright soft ones for what is seen from in front), so it
+  // never goes to a line; when it sits, one.
   stepBird(L, t, showing, back, r, calm, landed, dip, day) {
     const B = this.bird, C = this.C, c = this.c, S = this.S0, v = this.v;
     let flying = false, s = 0, scale = 1, alpha = 1, flap = 0, pitch = 0, lit = 0;
@@ -650,52 +690,61 @@ varying vec4 vInf; varying vec2 vAux;`)
       // slow while it is far, an even glide, and slower again as it comes in
       s = clamp01(0.5 * (ease.smooth(q) + q) * 0.55 + 0.45 * ease.inOut(q));
       this.way.at(s, B.p); this.way.dir(Math.min(0.995, s), B.d);
-      scale = 0.2 + 0.8 * sm(q, 0, 0.3); alpha = sm(q, 0, 0.1);
+      scale = 0.2 + 0.8 * sm(q, 0, 0.22); alpha = sm(q, 0, 0.1);
       const beat = calm ? 5 : 8.5;
-      // a few slow beats as it comes out, then it glides; at the end it throws its wings up and back-beats to stop
+      // a few slow beats as it comes out, then it holds its wings still and glides (it is gliding when the sun finds
+      // it); at the end it throws its wings up and back-beats to stop
       const brake = sm(q, 0.86, 0.97);
-      flap = (0.42 * (1 - sm(q, 0.12, 0.3)) + 0.08) * Math.sin(t * beat) * (1 - brake) + brake * (0.2 + 0.32 * Math.sin(t * beat * 1.5));
-      pitch = brake * 0.9; lit = sm(t, T_SUN - 0.9, T_SUN - 0.1);
+      flap = 0.4 * (1 - sm(q, 0.1, 0.22)) * Math.sin(t * beat) * (1 - brake) + brake * (0.2 + 0.32 * Math.sin(t * beat * 1.5));
+      pitch = brake * 0.9; lit = sm(t, T_CATCH, T_CATCH + (calm ? 0.9 : 0.5));
       flying = true;
     } else if (showing && landed) {
       B.p.copy(this.perch); B.p.y -= dip; lit = 1;
     } else if (back && S.birdOn) {
-      // up off the branch (or from wherever it was) and back into the sky
+      // up off the stub (or from wherever it was) and back into the sky
       const q = ramp(r, 0.05, 0.62), e = ease.inOut(q);
-      if (q <= 0) { if (S.landed) { B.p.copy(this.perch); B.p.y -= dip; lit = 1; } else { B.p.copy(B.from); flying = true; lit = 1; scale = S.birdS; } }
+      if (q <= 0) { if (S.landed) { B.p.copy(this.perch); B.p.y -= dip; lit = 1; } else { B.p.copy(B.from); flying = true; lit = S.birdLit; scale = S.birdS; } }
       else if (q < 1) {
         B.p.lerpVectors(B.from, B.home, e); B.p.y += 0.3 * Math.sin(Math.PI * e) * (S.landed ? 1 : 0.4);
         B.d.subVectors(B.home, B.from); B.d.y = 0; if (B.d.lengthSq() < 1e-6) B.d.set(L.nx, 0, L.nz); B.d.normalize();
         scale = lerp(S.landed ? 1 : S.birdS, 0.2, sm(q, 0.45, 1)); alpha = 1 - sm(q, 0.82, 1);
-        flap = (0.6 * (1 - sm(q, 0.35, 0.7)) + 0.1) * Math.sin(r * 2.4 * (calm ? 5 : 9)); pitch = 0.3 * (1 - sm(q, 0, 0.4)); lit = 1 - sm(r, 0.1, 0.5) * 0.8;
+        flap = (0.5 * (1 - sm(q, 0.35, 0.7)) + 0.08) * Math.sin(r * 2.4 * (calm ? 5 : 9)); pitch = 0.3 * (1 - sm(q, 0, 0.4)); lit = S.birdLit * (1 - sm(r, 0.1, 0.5));
         flying = true;
       } else { B.on = false; return; }
     } else { B.on = false; return; }
-    B.on = true; B.s = scale;
-    c.copy(C.birdN).lerp(C.birdD, day * 0.5).lerp(C.birdL, lit);
+    B.on = true; B.s = scale; B.lit = lit;
+    // a warm off-white with the sky's blue in it; gold when the sun reaches it; and when the day has come down to
+    // the ground and it is only daylight on it, off-white again
+    c.copy(C.birdN).lerp(C.birdG, lit).lerp(C.birdL, lit * 0.6 * sm(day, 0.55, 1));
     if (!flying) {
       // at rest on the stub, looking in towards the picture; now and then it shifts
       const tilt = 0.05 * Math.sin(t * 0.7) + (calm ? 0 : 0.06 * Math.exp(-Math.max(0, t - T_LAND) * 3) * Math.sin((t - T_LAND) * 9));
       this.put(C_PERCH, B.p.x, B.p.y + 0.1, B.p.z, 0.21, 0.23, L.yawOut, 0, tilt, c, 1, 1, -1);
       return;
     }
-    // its frame: z the way it flies, y up, banked into its turn
-    const yaw = Math.atan2(B.d.x, B.d.z), span = 0.225 * scale, chord = 0.125 * scale, cam = L.k.G.camera;
-    // it leans into its turn; and (a painter's licence) it shows whoever is looking a little more of its wings than it would
+    // its frame: z the way it flies, y up, leaning into its turn
+    const yaw = Math.atan2(B.d.x, B.d.z), span = 0.19 * scale, chord = 0.105 * scale, cam = L.k.G.camera;
+    // (and, a painter's licence, it shows whoever is looking a little more of its wings than it would)
     const rx = Math.cos(yaw), rz = -Math.sin(yaw), dx = cam.position.x - B.p.x, dz = cam.position.z - B.p.z, dl = Math.hypot(dx, dz) || 1;
     const toward = (dx * rx + dz * rz) / dl, bank = (showing ? -this.way.bank(s) * 0.3 : 0) + 0.12 * toward * (1 - pitch);
-    this.e4.set(-Math.asin(Math.max(-0.6, Math.min(0.6, B.d.y))) - pitch, yaw, bank, 'YXZ'); this.q4.setFromEuler(this.e4);
-    this.mB.compose(B.p, this.q4, this.s4.set(1, 1, 1));
-    // the body lies along z (its head forward)
-    this.e4.set(Math.PI / 2, 0, 0, 'YXZ'); this.q4.setFromEuler(this.e4); this.mT.compose(v.set(0, 0, -0.01 * scale), this.q4, this.s4.set(0.14 * scale, 0.215 * scale, 1));
-    this.m4.multiplyMatrices(this.mB, this.mT); this.putM(C_BODY, this.m4, c, alpha, 1, 1);
+    const Q = this.q4, E = this.e4, flat = Math.PI / 2;
+    E.set(-Math.asin(Math.max(-0.6, Math.min(0.6, B.d.y))) - pitch, yaw, bank, 'YXZ'); Q.setFromEuler(E);
+    this.mB.compose(B.p, Q, this.s4.set(1, 1, 1));
+    const part = (cell, x, y, z, rxx, ryy, sx, sy, keep, flip, a, parent) => {
+      E.set(rxx, ryy, 0, 'YXZ'); Q.setFromEuler(E); this.mT.compose(v.set(x, y, z), Q, this.s4.set(sx, sy, 1));
+      this.m4.multiplyMatrices(parent, this.mT); this.putM(cell, this.m4, c, alpha * a, keep, flip);
+    };
+    // the body: its plan, lying along z with the head forward; its side, upright; and its round, seen head on
+    part(C_BODY, 0, 0, -0.01 * scale, flat, 0, 0.125 * scale, 0.2 * scale, 1, 1, 1, this.mB);
+    part(C_BLOB, 0, -0.004 * scale, -0.006 * scale, 0, flat, 0.2 * scale, 0.062 * scale, 0, 1, 0.95, this.mB);
+    part(C_BLOB, 0, -0.004 * scale, 0.02 * scale, 0, 0, 0.062 * scale, 0.058 * scale, 0, 1, 0.95, this.mB);
     for (const side of [1, -1]) {
-      // a wing: hinged along the body, raised by the dihedral and the beat, its root at the body
-      const up = 0.2 + flap;
-      this.e4.set(0, 0, side * up, 'YXZ'); this.q4.setFromEuler(this.e4); this.mT.compose(v.set(0, 0, 0), this.q4, this.s4.set(1, 1, 1));
-      this.m4.multiplyMatrices(this.mB, this.mT);
-      this.e4.set(Math.PI / 2, 0, 0, 'YXZ'); this.q4.setFromEuler(this.e4); this.mT.compose(v.set(side * span * 0.5, 0, 0.012 * scale), this.q4, this.s4.set(span, chord, 1));
-      this.m4.multiply(this.mT); this.putM(C_WING, this.m4, c, alpha, 1, side);
+      // a wing: hinged along the body, raised by the dihedral and the beat, its root at the body; flat for below,
+      // and an upright soft edge along it for in front (thick at the root, nothing at the tip)
+      E.set(0, 0, side * (0.24 + flap), 'YXZ'); Q.setFromEuler(E); this.mW.compose(v.set(0, 0, 0), Q, this.s4.set(1, 1, 1)); this.mW.premultiply(this.mB);
+      part(C_WING, side * span * 0.5, 0, 0.012 * scale, flat, 0, span, chord, 1, side, 1, this.mW);
+      part(C_BLOB, side * span * 0.36, 0.002 * scale, 0.02 * scale, 0, 0, span * 0.86, 0.04 * scale, 0, 1, 0.9, this.mW);
+      part(C_BLOB, side * span * 0.62, 0.001 * scale, 0.016 * scale, 0, 0, span * 0.8, 0.024 * scale, 0, 1, 0.9, this.mW);
     }
   },
 });
