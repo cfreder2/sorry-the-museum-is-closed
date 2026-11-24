@@ -457,7 +457,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       if (after || k === 0) { full.push({ ...q, thru: true }, inner); } else { full.push({ ...inner, thru: true }, q); }
     }
     for (let k = 0; k + 1 < full.length; k++) if (Math.hypot(full[k].x - full[k + 1].x, full[k].z - full[k + 1].z) < 0.05 && Math.abs(full[k].y - full[k + 1].y) < 0.1 && !full[k].how) full[k].thru = true;
-    const tC = performance.now(), path = refine({ pts: full, length: res.cost, looked: res.looked, out: tp === 'OUT' });
+    const tC = performance.now(), path = refine({ pts: full, length: res.cost, cost: res.cost, looked: res.looked, out: tp === 'OUT' });
     path.ms = [tB - tA, tC - tB, performance.now() - tC].map(v => +v.toFixed(1));      // (the search, the line, the smoothing: for whoever is measuring)
     return path;
   }

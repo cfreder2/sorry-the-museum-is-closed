@@ -38,8 +38,8 @@ for (const [name, fx, fz, tx, tz, fy, ty] of list) {
     let worst = 0, at = null, buried = 0, floating = 0, solid = 0, n = 0; const solids = [];
     for (const q of pts) {
       if (q.air) continue; n++;
-      // (the ground something at the point's own height would be on: indoors, and up on a deck or under one, that is not whatever is highest within a metre)
-      const g = gy(q.x, q.z, (q.y || 0) + (q.o && Math.abs(q.y) < 1.5 ? 1.2 : 0.3)), d = (q.y || 0) - g;
+      // (the ground something at the point's own height would be on: a hill is ground at any height, so a way under one still shows; a table over the way, or the yard over the duct, is not the ground it is on)
+      const g = gy(q.x, q.z, (q.y || 0) + 0.3), d = (q.y || 0) - g;
       if (d < -0.08) buried++; if (d > 0.25) floating++;
       if (Math.abs(d) > Math.abs(worst)) { worst = d; at = [+q.x.toFixed(1), +q.z.toFixed(1), +(q.y || 0).toFixed(2), +g.toFixed(2)]; }
       const o = P.obstacles.find(o => !o.gate && q.x > o.x0 && q.x < o.x1 && q.z > o.z0 && q.z < o.z1 && o.y0 < g + 0.3 && o.y1 > g + 0.1);

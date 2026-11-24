@@ -47,6 +47,8 @@ export function createLandway(plan) {
   const B = plan.bounds, F = (plan.allow || []).reduce((f, q) => ({ x0: Math.min(f.x0, q.x0), x1: Math.max(f.x1, q.x1), z0: Math.min(f.z0, q.z0), z1: Math.max(f.z1, q.z1) }), { x0: B.x0, x1: B.x1, z0: B.z0, z1: B.z1 });
   const X0 = F.x0 - CELL, Z0 = F.z0 - CELL, NX = Math.ceil((F.x1 - F.x0) / CELL) + 2, NZ = Math.ceil((F.z1 - F.z0) / CELL) + 2, NC = NX * NZ, INV = 1 / UNIT;
   const H = new Float32Array(NC), K = new Uint8Array(NC), C = new Uint8Array(NC), D = new Uint8Array(NC), CC = new Uint8Array(NC);      // height; what it is; what is underfoot; how far from anything solid; what a metre costs (UNIT to the metre)
+  const nbX = Math.ceil(NX / 8), nbZ = Math.ceil(NZ / 8), NCN = nbX * nbZ * 8, lab = new Uint8Array(NC), blockOf = c => (Math.floor(c / NX) >> 3) * nbX + ((c % NX) >> 3);      // (the field in blocks, for the coarse look: see guide)
+  const coarse = { ready: false, min: new Uint8Array(NCN), adj: new Array(NCN), far: new Float32Array(NCN) };
   const cellOf = (x, z) => { const i = Math.floor((x - X0) / CELL), j = Math.floor((z - Z0) / CELL); return i < 1 || j < 1 || i >= NX - 1 || j >= NZ - 1 ? -1 : j * NX + i; };
   const xOf = c => X0 + (c % NX + 0.5) * CELL, zOf = c => Z0 + (Math.floor(c / NX) + 0.5) * CELL;
   const wet = plan.lakefront && plan.lakefront.wet ? plan.lakefront.wet : null;
@@ -177,6 +179,34 @@ export function createLandway(plan) {
     for (let j = w.j1; j >= w.j0; j--) backRow(j, w.i0, w.i1);
     for (let j = w.j0; j <= w.j1; j++) costRow(j, w.i0, w.i1);
   }
+  // For the coarse look: the joined-up parts of each block (a row of blocks at a time), and which parts of neighbouring blocks each joins.
+  const joined = (a, b) => ((K[a] | K[b]) & SPOT) !== 0 || Math.abs(H[a] - H[b]) <= CELL * 1.1;
+  const stack = new Int32Array(64);
+  function parts(bj) {
+    if (bj === 0) { lab.fill(0); coarse.min.fill(255); coarse.adj.fill(undefined); }
+    for (let bi = 0; bi < nbX; bi++) {
+      const i0 = bi * 8, j0 = bj * 8, i1 = Math.min(NX, i0 + 8), j1 = Math.min(NZ, j0 + 8), base = (bj * nbX + bi) * 8; let n = 0;
+      for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
+        const c = j * NX + i; if ((K[c] & SOLID) || lab[c]) continue;
+        const id = Math.min(8, ++n); let top = 0, least = 255; stack[top++] = c; lab[c] = id;
+        while (top) { const u = stack[--top], ui = u % NX, uj = (u - ui) / NX; if (CC[u] < least) least = CC[u];
+          if (ui + 1 < i1) { const v = u + 1; if (!(K[v] & SOLID) && !lab[v] && joined(u, v)) { lab[v] = id; stack[top++] = v; } }
+          if (ui > i0) { const v = u - 1; if (!(K[v] & SOLID) && !lab[v] && joined(u, v)) { lab[v] = id; stack[top++] = v; } }
+          if (uj + 1 < j1) { const v = u + NX; if (!(K[v] & SOLID) && !lab[v] && joined(u, v)) { lab[v] = id; stack[top++] = v; } }
+          if (uj > j0) { const v = u - NX; if (!(K[v] & SOLID) && !lab[v] && joined(u, v)) { lab[v] = id; stack[top++] = v; } } }
+        coarse.min[base + id - 1] = Math.min(coarse.min[base + id - 1], least);      // (what a metre of it costs, at the least)
+      }
+    }
+  }
+  function joins(bj) {
+    const link = (a, b, diag) => { if (!lab[a] || !lab[b] || !joined(a, b)) return; const na = blockOf(a) * 8 + lab[a] - 1, nb = blockOf(b) * 8 + lab[b] - 1; for (const [p, q] of [[na, nb], [nb, na]]) { const e = coarse.adj[p] || (coarse.adj[p] = []); if (!e.includes(q * 2 + diag) && !e.includes(q * 2 + 1 - diag)) e.push(q * 2 + diag); } };
+    for (let bi = 0; bi < nbX; bi++) {
+      const i0 = bi * 8, j0 = bj * 8, iE = i0 + 8, jS = j0 + 8;
+      if (iE < NX) for (let j = j0; j < Math.min(NZ, jS); j++) link(j * NX + iE - 1, j * NX + iE, 0);
+      if (jS < NZ) for (let i = i0; i < Math.min(NX, iE); i++) link((jS - 1) * NX + i, jS * NX + i, 0);
+      if (iE < NX && jS < NZ) { const a = (jS - 1) * NX + iE - 1; if (lab[a + 1] && lab[a + NX]) link(a, a + NX + 1, 1); if (lab[a] && lab[a + NX + 1]) link(a + 1, a + NX, 1); }
+    }
+  }
   // The making of it, in pieces none of which is long: what stands where, the plan sorted into squares, what is
   // underfoot, then a row of the field at a time (heights; beside the kit; the brinks; distances there and back; costs),
   // with the obstacles set down in between, a few hundred at a go.
@@ -190,7 +220,8 @@ export function createLandway(plan) {
   const once = f => () => { f(); next(); };
   const STEPS = [once(classify), once(sortBegin), () => { if (sortSome(700)) next(); }, once(begin), rows(outRow), batch(layKit), batch(layGround), rows(iceRow), once(layWay), rows(heights, false, 128), rows(ringRow),
     () => { const list = plan.obstacles, e = Math.min(list.length, T.k + 600); for (; T.k < e; T.k++) { const o = list[T.k]; if (!o.gate && !o.train) mark(o.x0, o.x1, o.z0, o.z1, RAD, c => { if (solidTo(o, c)) K[c] |= OBST; }); } if (T.k >= list.length) { soft = null; next(); } },
-    rows(brinkRow), rows(fwdRow), rows(backRow, true), rows(costRow)];
+    rows(brinkRow), rows(fwdRow), rows(backRow, true), rows(costRow),
+    () => { parts(T.k++); if (T.k >= nbZ) next(); }, () => { joins(T.k++); if (T.k >= nbZ) { coarse.ready = true; next(); } }];
   function build() { const t0 = now(), ph = T.phase; STEPS[ph](); if (T.phase >= STEPS.length) T.built = true; const dt = now() - t0; T.ms += dt; if (dt > (T.step[ph] || 0)) T.step[ph] = dt; }
   const tick = ms => { const t0 = now(); let n = 0; while (!T.built && now() - t0 < ms) { build(); n++; } const dt = now() - t0; if (dt > T.worst) T.worst = dt; return T.built; };
   const finish = () => { while (!T.built) build(); };
@@ -203,7 +234,7 @@ export function createLandway(plan) {
     const live = new Set(cur), changed = [];
     for (const o of cur) if (!seen.has(o)) changed.push(o);
     for (const o of seen) if (!live.has(o)) changed.push(o);
-    sortAll(); spots.clear();
+    sortAll(); spots.clear(); coarse.ready = false;      // (the coarse look is made again when next wanted)
     for (const o of changed) {
       const w = { i0: Math.max(1, Math.floor((o.x0 - 2.5 - X0) / CELL)), i1: Math.min(NX - 2, Math.ceil((o.x1 + 2.5 - X0) / CELL)), j0: Math.max(1, Math.floor((o.z0 - 2.5 - Z0) / CELL)), j1: Math.min(NZ - 2, Math.ceil((o.z1 + 2.5 - Z0) / CELL)) };
       if (w.i1 < w.i0 || w.j1 < w.j0) continue;
@@ -424,16 +455,27 @@ export function createLandway(plan) {
   const EPS = 1.1;                  // how far the straight line is trusted: the way found is within this of the best (and the search looks at a fraction of what it otherwise would)
   function search(o) {
     finish();
+    if (o.fly || o.bound) return seek(o, null, o.limit || 260000);
+    // A short look first, by the straight line. If that is not enough (the way is a long way round: over a bridge,
+    // round a building), the whole of it is looked at coarsely from the far end first, and the search follows that.
+    const r = seek(o, null, 9000); if (r || !T.capped) return r;
+    return seek(o, guide(o), o.limit || 260000);
+  }
+  function seek(o, far, limit) {
+    T.capped = false;
     if (++q > 32000) { st.fill(0); for (let e = 0; e < spots.n; e++) spots.st[e] = 0; q = 1; }
     const open = q << 1, shut = open | 1, nv = o.n, vg = new Float64Array(nv).fill(Infinity), vp = new Int32Array(nv).fill(-1), vs = new Uint8Array(nv), anchor = o.anchor;
-    const tgt = o.at(o.T), tx = tgt.x, tz = tgt.z, fly = !!o.fly, limit = o.limit || 260000, block = fly ? MASS : SOLID;
+    const tgt = o.at(o.T), tx = tgt.x, tz = tgt.z, ty = tgt.y || 0, fly = !!o.fly, block = fly ? MASS : SOLID;
     const back = new Map();          // which ways stand at a cell or a spot
     for (let m = 0; m < nv; m++) { const a = anchor[m]; if (a < 0) continue; if (back.has(a)) back.get(a).push(m); else back.set(a, [m]); if (a < NC) K[a] |= ANCH; }
-    const hOf = (x, z) => Math.sqrt((x - tx) * (x - tx) + (z - tz) * (z - tz)) * EPS;
+    const crow = (x, z) => Math.sqrt((x - tx) * (x - tx) + (z - tz) * (z - tz));
+    // How far there still is to go, at the least: the straight line; or, with a guide, what the coarse look made of it from that part of the field (less a block's width, which is all it is good to).
+    const hOf = far ? (x, z) => { const c = cellOf(x, z), l = c < 0 ? 0 : lab[c], d = l ? far.land[blockOf(c) * 8 + l - 1] : Infinity, e = crow(x, z) * EPS, f = (d - SLACK) * EPS; return d < Infinity && f > e ? f : e; } : (x, z) => crow(x, z) * EPS;
+    const hWay = far ? m => { const p = o.at(m), e = crow(p.x, p.z) * 0.85, d = far.ways[m] - SLACK; return d < Infinity && d > e ? d : e; } : m => { const p = o.at(m); return crow(p.x, p.z) * 0.85; };
     pm.clear();
     const relax = (v, g, from, k = 255) => {
-      if (v >= VB) { const m = v - VB; if (vs[m] === 2 || g >= vg[m]) return; vg[m] = g; vp[m] = from; vs[m] = 1; const p = o.at(m); push(g + hOf(p.x, p.z) * (0.85 / EPS), v); }      // (the building's ways are never overrated: a jump is offered at 0.85 of its length, and is to be taken when it is passed)
-      else if (v >= NC) { const e = v - NC; if (spots.st[e] === shut || (spots.st[e] === open && g >= spots.g[e])) return; spots.g[e] = g; spots.par[e] = from; spots.st[e] = open; push(g + hOf(spots.x[e], spots.z[e]), v); }
+      if (v >= VB) { const m = v - VB; if (vs[m] === 2 || g >= vg[m]) return; vg[m] = g; vp[m] = from; vs[m] = 1; push(g + hWay(m), v); }      // (the building's ways are never overrated: a jump is offered at 0.85 of its length, and is to be taken when it is passed)
+      else if (v >= NC) { const e = v - NC; if (spots.st[e] === shut || (spots.st[e] === open && g >= spots.g[e])) return; spots.g[e] = g; spots.par[e] = from; spots.st[e] = open; const up = Math.abs(spots.y[e] - ty) - 1; push(g + hOf(spots.x[e], spots.z[e]) + (up > 0 ? up * 2 : 0), v); }      // (up on something, or down in something, that the end is not: there is all that height to get back, and seldom in the right direction. It keeps the search off the roofs unless the way is over them.)
       else { if (st[v] === shut || (st[v] === open && g >= gC[v])) return; gC[v] = g; pd[v] = k; if (k === 255) pm.set(v, from); st[v] = open; push(g + hOf(xOf(v), zOf(v)), v); }
     };
     hn = 0; vg[o.S] = 0; vs[o.S] = 1; push(0, o.S + VB);
@@ -447,15 +489,15 @@ export function createLandway(plan) {
         const g = vg[m]; for (const [m2, c] of o.adj(m)) relax(m2 + VB, g + c, u);
         if (anchor[m] >= 0) relax(anchor[m], g + (o.reach ? o.reach[m] : 0), u);
       } else if (u >= NC) {
-        const e = u - NC; if (spots.st[e] === shut) continue; spots.st[e] = shut; if (++looked > limit) break;
+        const e = u - NC; if (spots.st[e] === shut) continue; spots.st[e] = shut; if (++looked > limit) { T.capped = true; break; }
         const g = spots.g[e], pl = spots.pl[e];
         const ms = back.get(u); if (ms) for (const m of ms) relax(m + VB, g + (o.reach ? o.reach[m] : 0), u);
         if (pl && !(o.open && o.open.has(pl))) { if (!o.sealed) for (const [m, c] of o.portals(pl, u)) relax(m + VB, g + c, u); continue; }      // onto a room's floor: from here it is the room's own ways (not while the building is locked: nothing shows a way in before one is found)
         if (fly) continue;
-        let out = spots.out[e]; if (!out) { if (++driven > drive) break; const t0 = now(); out = spots.out[e] = explore(e); T.ex++; T.exMs += now() - t0; }
+        let out = spots.out[e]; if (!out) { if (++driven > drive) continue; const t0 = now(); out = spots.out[e] = explore(e); T.ex++; T.exMs += now() - t0; }      // (past the allowance nothing new is driven to: the search goes on over what it knows)
         for (let i = 0; i < out.length; i += 3) relax(out[i], g + out[i + 1], u);
       } else {
-        if (st[u] === shut) continue; st[u] = shut; if (++looked > limit) break;
+        if (st[u] === shut) continue; st[u] = shut; if (++looked > limit) { T.capped = true; break; }
         const g = gC[u], ku = K[u], hu = H[u], cu = fly ? 1 : CC[u] * INV;
         if (ku & ANCH) { const ms = back.get(u); if (ms) for (const m of ms) relax(m + VB, g + (o.reach ? o.reach[m] : 0), u); }
         for (let k = 0; k < 8; k++) {
@@ -475,6 +517,26 @@ export function createLandway(plan) {
     for (let u = o.T + VB; u >= 0;) { path.push(u); u = u >= VB ? vp[u - VB] : u >= NC ? spots.par[u - NC] : parOf(u); if (u === o.S + VB) { path.push(u); break; } }
     path.reverse();
     return { cost: vg[o.T], path, looked };
+  }
+  // The coarse look. The field in blocks of eight cells (4 m), and in each block the parts of it that are joined up
+  // (a fence through a block, the brink of the cutting, make two): each such part is one place, joined to the parts
+  // of the blocks round it that a car can cross into. From the far end of a way, over these and the building's own
+  // ways (taken either way round), how far it is to everywhere: a few thousand places, not a million.
+  const SLACK = 4;
+  function guide(o) {
+    if (!coarse.ready) { for (let bj = 0; bj < nbZ; bj++) parts(bj); for (let bj = 0; bj < nbZ; bj++) joins(bj); coarse.ready = true; }
+    const nv = o.n, land = coarse.far.fill(Infinity), ways = new Float32Array(nv).fill(Infinity) /* (as the heap keeps its keys: a key must compare equal to what it was pushed for) */, und = Array.from({ length: nv }, () => []);
+    for (let m = 0; m < nv; m++) for (const [m2, c] of o.adj(m)) { und[m].push(m2, c); und[m2].push(m, c); }
+    const at = new Int32Array(nv).fill(-1), from = new Map();
+    for (let m = 0; m < nv; m++) { const a = o.anchor[m]; if (a < 0) continue; const c = a < NC ? a : cellOf(spots.x[a - NC], spots.z[a - NC]); if (c < 0 || !lab[c] || (a >= NC && Math.abs(spots.y[a - NC] - H[c]) > 0.6)) continue; const n = blockOf(c) * 8 + lab[c] - 1; at[m] = n; if (from.has(n)) from.get(n).push(m); else from.set(n, [m]); }
+    hn = 0; ways[o.T] = 0; push(0, NCN + o.T);
+    const go = (v, d) => { if (v >= NCN) { if (d < ways[v - NCN]) { ways[v - NCN] = d; push(d, v); } } else if (d < land[v]) { land[v] = d; push(d, v); } };
+    while (hn) {
+      const d0 = hk[0], u = pop();
+      if (u >= NCN) { const m = u - NCN; if (d0 > ways[m]) continue; const e = und[m]; for (let i = 0; i < e.length; i += 2) go(NCN + e[i], d0 + e[i + 1]); if (at[m] >= 0) go(at[m], d0 + (o.reach ? o.reach[m] : 0)); }
+      else { if (d0 > land[u]) continue; const e = coarse.adj[u], cu = coarse.min[u]; if (e) for (let i = 0; i < e.length; i++) { const v = e[i] >> 1; go(v, d0 + (e[i] & 1 ? 5.66 : 4) * (cu + coarse.min[v]) * 0.5 * INV); } const ms = from.get(u); if (ms) for (const m of ms) go(NCN + m, d0 + (o.reach ? o.reach[m] : 0)); }
+    }
+    return { land, ways };
   }
   const gOf = n => (n >= NC ? spots.g[n - NC] : gC[n]);
   // A stretch of the way just found, over cells and spots, as points: pulled straight wherever the straight line costs
@@ -516,8 +578,8 @@ export function createLandway(plan) {
   }
 
   return { CELL, NC, tick, finish, sync, search, line, nodeAt, flyAt, walks, baseSpot, xN, zN, yOf, placeOfNode, groundUnder, U, room, street, subAt,
-    get built() { return T.built; }, get ms() { return T.ms; }, reset() { T.built = false; T.phase = 0; T.row = 1; T.col = 1; T.k = 0; T.ms = 0; T.open = null; spots.clear(); },
+    get built() { return T.built; }, get ms() { return T.ms; }, reset() { T.built = false; T.phase = 0; T.row = 1; T.col = 1; T.k = 0; T.ms = 0; T.open = null; coarse.ready = false; spots.clear(); },
     forget() { spots.clear(); },
-    get stats() { return { cells: NC, spots: spots.n, leaps: leaps.length, explored: T.ex, exploreMs: +T.exMs.toFixed(1), worstTick: +T.worst.toFixed(1), longestStep: T.step.map(v => +v.toFixed(1)), buildMs: +T.ms.toFixed(1), bytes: H.byteLength + K.byteLength + C.byteLength + D.byteLength + CC.byteLength + gC.byteLength + pd.byteLength + st.byteLength }; },
+    get stats() { return { cells: NC, spots: spots.n, leaps: leaps.length, explored: T.ex, exploreMs: +T.exMs.toFixed(1), worstTick: +T.worst.toFixed(1), longestStep: T.step.map(v => +v.toFixed(1)), buildMs: +T.ms.toFixed(1), bytes: H.byteLength + K.byteLength + C.byteLength + D.byteLength + CC.byteLength + gC.byteLength + pd.byteLength + st.byteLength + lab.byteLength + coarse.min.byteLength + coarse.far.byteLength }; },
     debug: { H, K, C, D, NX, NZ, X0, Z0, spots, leaps, cellOf, costOf } /* for a picture of it from above: tools/dev/routedrive.mjs */ };
 }
