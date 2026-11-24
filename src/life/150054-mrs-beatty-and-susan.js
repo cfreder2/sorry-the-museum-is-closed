@@ -67,9 +67,9 @@ const BASS = [['C4', 'G4', 'E4', 'G4'], ['C4', 'G4', 'E4', 'G4'], ['D4', 'G4', '
 
 const DROP_U = 0.065;                          // under the sprig, as it lies in the picture (a little right of the middle)
 const BERRY0 = 0.118;                          // the first berry's length (m)
+const K = 1.45;                                // the bed's scale: a strawberry plant about twice the size of life, so the toy looks up at its leaves
 // The crowns: where each stands (u along the wall from the middle of the picture, out from it), its size, and the beat
 // it opens on. The first is where the berry comes to rest; the others are where its runners root.
-const K = 1.45;                                // the bed's scale: a strawberry plant about twice its size, so a leaf is the toy's roof
 const CROWNS = [
   { u: 0.04, o: 0.58, s: 1.0, beat: 0, turn: 0.4 },
   { u: -0.45, o: 1.02, s: 0.86, beat: 2, turn: 4.1 },      // in front, left and right, with a gap between them
@@ -78,7 +78,8 @@ const CROWNS = [
   { u: 0.78, o: 0.42, s: 0.94, beat: 5.5, turn: 2.9 },
 ];
 // The fruit: [crown, which way its stalk arches (degrees: 0 out into the room, 90 to the viewer's right), the stalk's
-// length, the berry's length, the beat it ripens on]. The last is the largest, at the front.
+// length and the berry's (both before the bed's scale), the beat it ripens on]. The last is the largest, in the middle
+// at the front; the one before it colours across the two quick notes.
 const FRUIT = [
   [1, -72, 0.35, 0.064, 8], [1, -20, 0.37, 0.07, 8.67], [1, 30, 0.35, 0.062, 9.33],
   [2, -34, 0.35, 0.064, 10], [2, 16, 0.37, 0.07, 10.33], [2, 70, 0.35, 0.062, 10.67],
@@ -88,6 +89,7 @@ const FRUIT = [
   [0, -1, 0.47, 0.09, 14],
 ];
 const NSEG = 12;                               // a runner's pieces
+let TOLD = false;                              // its one line has been said tonight (kept here: the kit lets a far-off show go and builds it again)
 const TIP = 0.26, LYING = Math.PI * 1.5, SIDE = -1.15;      // the first berry's turn: tipping at the lip; lying on its side; and how far round it comes to lie (so it is seen side on)
 
 // ---------------------------------------------------------------- geometry (unit sizes; +z is the way a thing points)
@@ -253,7 +255,7 @@ lifeFor(150054, {
 
     this.shade = L.blobs(CROWNS.length + 1 + FRUIT.length, { fade: true });
     this.band = this.makeScore(L);
-    this.bT = 0; this.told = false; this.calm = L.calm;
+    this.bT = 0; this.calm = L.calm;
     this.hideAll();
   },
 
@@ -280,7 +282,7 @@ lifeFor(150054, {
   start(L, resumed) { this.calm = L.calm; if (!resumed) this.hideAll(); this.band.from(L.t); },
   back(L) { this.bT = L.t; },
   end(L) { this.hideAll(); },
-  reset(L) { this.hideAll(); this.told = false; },
+  reset(L) { this.hideAll(); TOLD = false; },
 
   // The first berry at show-time t: out from under the frame, the hang, the fall and its two bounces, into o:
   // { u, h (its middle, above the floor), out, pitch, k (size) }.
@@ -310,7 +312,7 @@ lifeFor(150054, {
     const ph = L.phase, showing = ph !== 'return' && ph !== 'after', R = showing ? 0 : L.ret * RET, t = showing ? L.t : this.bT;
     const rig = this.rig, bn = this.bones, M = this.M, Mb = this.Mb, Mc = this.Mc, v = this.v, calm = this.calm, F = this.fall;
     const tt = t + R, stir = calm ? 0.5 : 1;                       // (the air goes on while it folds)
-    if (showing) { this.band.play(t); if (!this.told && !L.quiet && t > F.tDrop) { this.told = true; L.k.say('A strawberry falls from under the picture and takes root.', 4); } }
+    if (showing) { this.band.play(t); if (!TOLD && !L.quiet && t > F.tDrop) { TOLD = true; L.k.say('A strawberry falls from under the picture and takes root.', 4); } }
     const early = !showing && this.bT < T0;                        // the look ended before the berry had landed
     let nb = 0;
 
