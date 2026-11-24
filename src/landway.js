@@ -13,19 +13,25 @@
 //     ice least, a road a little more, snow more, ice more again and black ice most, and more the nearer to something
 //     solid. Going from cell to cell costs more the steeper it is, and nothing is climbed that the plain car cannot
 //     climb at half throttle (measured: a gradient of 0.85; see CLIMB). That is all there is to most of the outdoors.
-//   * The kit: wherever a piece of the building or the stunt kit stands (anything in plan.surfaces that is not a hill,
-//     a roof, a pit), a cell is not a number but a place to stand, found by driving: from a spot, a step to the next
-//     is tried the way the car would take it, a hand's breadth at a time, climbing what a wheel climbs, staying on the
-//     ramp it is on, stopped by what stops the car. A spot reached at another height is another spot (the table top
-//     over the ground, the roof over the building, the duct under the yard). Nothing of this is worked out until a
-//     search first comes to it, and then it is kept.
+//   * What stands on the ground is sorted first: a piece no higher than a wheel climbs is ground; a level block taller
+//     than that is a wall and no more; what is overhead with room beneath, or well under the ground, is nothing to a
+//     car on the street. What is left is the kit: anything that slopes (a ramp, a flight of steps, a deck's foot, the
+//     duct under the yard), a lift, an open hole. On and beside the kit a cell is not a number but a place to stand,
+//     found by driving: from a spot, a step to the next is tried the way the car would take it, a hand's breadth at a
+//     time, climbing what a wheel climbs, staying on the ramp it is on, stopped by what stops the car; onto a piece
+//     only square on and well in from its corners, and never along its flank. A spot reached at another height is
+//     another spot (the table top over the ground, the roof over the building, the duct under the yard). Nothing of
+//     this is worked out until a search first comes to it, and then it is kept.
 //   * A leap: where a rising ramp ends in the air, the flight off its lip is flown ahead of time at a few speeds, as
 //     the car's own take-off is; if it comes down on something to stand on, with room to run out, that is a way too,
-//     in that one direction, and whoever takes it has to take it at speed.
+//     in that one direction, and whoever takes it has to take it at speed (the floes out to the breakwater).
 //
-// The search (one A*, over cells, spots and the building's own ways handed in by map.js) is told how far it may look
-// and gives up beyond that. The field is made in strips, a few milliseconds at a time (tick), or all at once if a way
-// is asked for before it is ready (finish).
+// The search is one A* over cells, spots and the building's own ways (handed in by map.js: doors, stairs, lifts,
+// jumps), by the straight line at first. If that has not found the way after a short look (it is a long way round:
+// over a bridge, round or through the building), the field is looked at coarsely from the far end first, in blocks of
+// four metres split wherever a fence or a brink splits them, and the search follows that. It is told how far it may
+// look and how many new spots it may drive to, and gives up beyond that. The field is made in strips, a couple of
+// milliseconds at a time (tick), or all at once if a way is asked for before it is ready (finish).
 
 import { groundAt, wallAt, confine, streetY, heightOf, STEP, GRAVITY } from './plan.js';
 
@@ -467,7 +473,7 @@ export function createLandway(plan) {
     if (o.fly || o.bound) return seek(o, null, o.limit || 260000);
     // A short look first, by the straight line. If that is not enough (the way is a long way round: over a bridge,
     // round a building), the whole of it is looked at coarsely from the far end first, and the search follows that.
-    const r = seek(o, null, 20000); if (r || !T.capped) return r;
+    const r = seek(o, null, o.anchor[o.T] >= NC ? 60000 : 20000); if (r || !T.capped) return r;      // (an end up on the kit is past the coarse look's knowing: a longer plain look for that)
     return seek(o, guide(o), o.limit || 260000);
   }
   function seek(o, far, limit) {
