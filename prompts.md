@@ -1002,3 +1002,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 234
 
 > Should there be slightly more variation in the trees? Also bushes and shrubs? Benches, etc. What does this area of Chicago really look like, can you borrow some of those things and have them placed to make it less empty.
+
+## 235
+
+> A completed heist should give you some money.
