@@ -147,6 +147,7 @@ class Fish {
 
 feature({
   id: 'icefish',
+  lazy: { x: 550, z: 122, r: 160 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['icefish', 'Ice fishing']],
   init(k) {
     this.k = k; const L = k.plan.lakefront; if (!L || !L.window) return;
