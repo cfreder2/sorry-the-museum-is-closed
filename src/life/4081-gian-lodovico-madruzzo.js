@@ -470,7 +470,7 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     this.u.uLay.value = lay; this.pave.visible = lay > 0.002;
 
     // ---- where the dog is
-    let sit = 0, standing = 1;
+    let sit = 0;
     if (ret && R) {
       if (!R.show) o.vis = false;
       else if (R.rev) { const s = lerp(R.s0, 2 * LB, ease.inOut(ramp(r, 0, 0.8))); this.triple(this.A, s, o); o.phi = s / STRIDE * TAU; o.amp = Math.sin(Math.PI * ramp(r, 0, 0.8)); o.piv = 0; o.vis = true; }
