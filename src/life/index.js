@@ -42,3 +42,4 @@ import './16298-jean-gros.js';        // 202  van der Weyden, Portrait of Jean G
 import './14574-uncle-and-niece.js';   // 226  Degas, Henri Degas and His Niece Lucie Degas: rustle
 import './14591-woman-reading.js';   // 201  Manet, Woman Reading: leaf
 import './64818-end-of-summer.js';      // 243  Monet, Stacks of Wheat (End of Summer): harvest
+import './64729-early-morning-tarpon-springs.js'; // 161  Inness, Early Morning, Tarpon Springs: daybreak
