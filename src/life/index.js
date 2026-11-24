@@ -27,3 +27,4 @@ import './20579-hercules-and-the-hydra.js'; // 223  Moreau, Hercules and the Ler
 import './87045-still-life-with-geranium.js'; // 391  Matisse, Still Life with Geranium: bloom
 import './154235-girl-by-the-window.js'; // 245  Munch, The Girl by the Window: moonbeam
 import './25865-herring-net.js';      // 161  Homer, The Herring Net: haul
+import './16584-houses-of-parliament.js'; // 243  Monet, Houses of Parliament, London: toll
