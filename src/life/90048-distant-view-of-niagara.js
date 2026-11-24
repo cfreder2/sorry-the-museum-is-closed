@@ -12,21 +12,22 @@
 //
 // So what comes out is the place, small and far, as he has it. Look at it and a far-off roar begins, muffled. A table
 // of rock in level beds rises out of the floor at the foot of the wall, dry, with a wooded bank either side and an
-// island on its edge, the woods coming up with the ground and dull under the weather; and his storm builds on the
-// wall behind it, a slate cloud standing up the left side of the frame and coming down to the horizon on the right,
-// as it lies across his sky. Then the river: it slides out from under the far shore over the dry rock, pale,
-// quickening, a white front on it and one red leaf riding the front. It reaches the brink and for a moment it stands
-// there, a green lip swelling along the whole curve of the Horseshoe, the leaf held on it, the roar hushed. Then it
-// goes over, the deep middle first and the two ends after it, slowly, as a great height falls when it is seen from
-// far away; and where it lands the sound opens, the basin goes white, and the spray comes up. It boils low in the
-// bowl of the Horseshoe; and on the left, from behind the woods of the bank, where it is in the picture, it climbs:
-// a white column going up the wall in front of the storm, beside the frame and as high as its top. Last, the light
-// that is breaking on the right of his sky comes across. The wall low on the right goes gold; the banks and the
-// island turn, one after another, to scarlet, orange and amber; the water goes from slate to cream; the storm's near
-// edge goes rose; and in the spray over the basin the bow stands up from its right foot. While you keep looking the
-// river goes on going over, a leaf comes down it now and then, and a cloud crosses and takes the bow with it for a
-// while. When you stop, the river runs out from the far shore, the last of it goes over, the spray lifts off and
-// thins, the basin drains, the cloud sinks, and the woods and the rock go back into the floor.
+// island on its edge. The woods come up with the ground: forest seen from far off, many small trees on thin dark
+// stems, a few dark spires among them, deep and brown under the weather. Behind the brink, on the wall, is the far
+// shore and a low strip of his slate sky, no higher than the woods. Then the river: it slides out from under the far
+// shore over the dry rock, pale, quickening, a white front on it and one red leaf riding the front. It reaches the
+// brink and for a moment it stands there, a green lip swelling along the whole curve of the Horseshoe, the leaf held
+// on it, the roar hushed. Then it goes over, the deep middle first and the two ends after it, slowly, as a great
+// height falls when it is seen from far away; and where it lands the sound opens, the basin goes white, and the
+// spray comes up. It boils low in the bowl of the Horseshoe; and on the left, from behind the woods of the bank,
+// where it is in the picture, it climbs: a small column, grey-violet in its core and light only on its edge, leaning
+// downwind and thinning as it goes up the bare wall. As soon as the water is down the light that is breaking on the
+// right of his sky comes across. The strip of sky goes rose and gold at that end; the banks and the island glow,
+// one after another, russet, ochre and amber with a few clear reds; the water goes from slate to cream; the column
+// takes a warm edge; and in the spray over the basin the bow stands up from its right foot. While you keep looking
+// the river goes on going over, a leaf comes down it now and then, and a cloud crosses and takes the bow with it for
+// a while. When you stop, the river runs out from the far shore, the last of it goes over, the spray lifts off and
+// thins, the basin drains, and the woods and the rock go back into the floor.
 //
 // The bow is the essay's, not the picture's, and the line the game says about it tells the player so. It is drawn as
 // a rainbow is seen: not a thing standing in the room but a ring about the point opposite the sun. It turns to face
@@ -39,17 +40,18 @@
 // comes out of the distance at knee height, falls a hand's length as a curtain a metre and a half round, and what it
 // makes is spray. Its neighbours are Mrs. Beatty's strawberry bed (src/life/150054-mrs-beatty-and-susan.js, 1.67 m to
 // the right, which can reach under this picture's right side; neither show stays out after its look, and going home
-// this one's right bank goes down first) and, 1.55 m to the left, a small Chase with no show yet. The ground keeps
-// within 1.3 m of the middle of its own picture, and nothing that stands on the floor is higher than 0.65 m. His
-// cloud is painted flat on the wall, behind the plane of every canvas (the frame hangs in front of it, as the picture
-// hangs in front of its own sky); it stops short of the Chase's frame. The column of spray goes up the bare wall
-// between this frame and the Chase's, a hand's breadth off the wall, and from the look camera it is in front of
-// neither (the guard cuts nothing there); from cameras close along the wall the kit's guard thins it away before it
-// reaches a canvas. Nothing is solid to the toy and nothing stays out after the look.
-// Three draw calls: the rock, the banks and the island (one mesh; its beds, and the storm and then the sun on it,
-// are worked out in its shader); the water and the sky (the wall, the river on the rock, the two curtains, the basin
-// and the shade the land throws on the floor: one mesh, one shader; the cloud is painted once, in a texture); and
-// every soft thing (each tree's crown, spray, the column, the leaves and the bow) as cards in one instanced mesh.
+// this one's right bank goes down first) and, 1.55 m to the left, a small Chase with no show yet.
+// Measured in the game (the show posed at 3 to 16 s and through its Return): the ground and the stems stand 0.57 m
+// at their highest and the highest crown 0.65 m; the widest soft card of the woods reaches 1.46 m either side of
+// the picture's middle; the strip of sky is painted no higher than 0.6 m; the column's highest card tops out at
+// 1.09 m and its furthest reaches 1.28 m to the left. The wall's lowest frame near it starts at 1.13 m and the
+// Chase's label at 1.17 m, so nothing of this show is on the wall beside another picture or across a label. In the
+// kit's check (nine cameras, eight moments) the guard had nothing to cut: 0 pixels on this canvas or any other.
+// Nothing is solid to the toy and nothing stays out after the look.
+// Three draw calls: the rock, the banks, the island and every stem (one mesh; its beds, and the storm and then the
+// sun on it, are worked out in its shader); the water and the sky (the strip of wall, the river on the rock, the two
+// curtains, the basin and the shade the land throws on the floor: one mesh, one shader); and every soft thing (the
+// woods' canopy and each tree's crown, spray, the column, the leaves and the bow) as cards in one instanced mesh.
 // The sound is the falls and nothing else: three bands of noise, the low one heard first and from far off. No tune.
 // With "Reduce motion and flashing": the roar comes up slowly and is quieter, the water's streaks run at about half
 // speed, the first water lands without its burst of spray, the light takes half as long again to cross, and the
@@ -101,12 +103,15 @@ const bankL = (u, o) => bank(BL, u, o), bankR = (u, o) => bank(BR, u, o);
 const ISLE = { u: -0.34, o: 0.44, a: 0.125, b: 0.26, up: 0.05 };      // the island's mound on the table
 const isle = (u, o) => { const x = (u - ISLE.u) / ISLE.a, z = (o - ISLE.o) / ISLE.b, r = x * x + z * z; return r >= 1 ? 0 : ISLE.up * Math.sqrt(1 - r); };
 // ---- the hour
-const T_WOOD = 0.05, T_RIVER = 1.9, T_LIP = 3.2, T_PLUNGE = 3.55, T_HIT = T_PLUNGE + FALL, T_SUN = 5.4, T_BOW = 6.5;
+const T_WOOD = 0.05, T_RIVER = 1.9, T_LIP = 3.2, T_PLUNGE = 3.55, T_HIT = T_PLUNGE + FALL, T_SUN = 4.6, T_BOW = 5.3;
 const D_AM = 0.42;                              // the American fall goes over this much after the Horseshoe's middle
 const RET = 2.6;
-const PLUME = { u: -0.84, o: 0.1, h: 0.36, life: 5.6 };      // the column: up from behind the woods of the left bank, as it stands in the picture
-const SKY = { u0: -1.4, v0: 0.2, w: 2.7, h: 2.1 };      // the piece of wall his sky is painted on: from u0, from v0 over the floor, this wide and high
-const N_TREE = 230, N_DAB = 10, N_BOIL = 40, N_PLUME = 54, N_SPRAY = 22, N_LEAF = 5, NC = N_TREE + N_DAB + N_BOIL + N_PLUME + N_SPRAY + N_LEAF + 2;
+// the column: up from behind the woods of the left bank, as it stands in the picture; it rises `rise` and no more (it
+// has thinned away under the neighbour's label, which hangs 1.17 m up, and well under every frame), leaning downwind
+const PLUME = { u: -0.8, o: 0.11, h: 0.4, rise: 0.56, lean: 0.3, life: 4.2 };
+const SKY_TOP = 0.6;                            // his sky on the wall stands no higher than this over the floor
+const SKY = { u0: -1.3, v0: 0.2, w: 2.6, h: 0.52 };      // the piece of wall it is painted on: from u0, from v0 over the floor, this wide and high
+const N_TREE = 236, N_DAB = 10, N_BOIL = 40, N_PLUME = 44, N_SPRAY = 22, N_LEAF = 5, NC = N_TREE + N_DAB + N_BOIL + N_PLUME + N_SPRAY + N_LEAF + 2;
 let TOLD = false;
 
 lifeFor(90048, {
@@ -120,6 +125,7 @@ lifeFor(90048, {
     this.R = rng(90048);
     this.railH = L.rail - L.y;
     this.v = new THREE.Vector3();
+    this.plant(L, col);
     this.buildLand(L, col);
     this.buildWater(L, col);
     this.buildCards(L, col);
@@ -142,6 +148,45 @@ lifeFor(90048, {
       out.push({ u, o, nu: -to / tl, no: tu / tl, w, len: len[M] });
     }
     return out;
+  },
+
+  // ---------------------------------------------------------------- the woods: where every tree stands
+  // Forest seen from far off, small beside the falls: the massed canopy lying on the banks, dark and broken in
+  // colour; out of it many small trees, each a thin stem and a feathered crown; a few dark spires among them, as
+  // his banks have. Russet, ochre, brown and dull green, and only a few clear reds.
+  plant(L, col) {
+    const R = this.R, T = this.T = [];
+    const hues = [['#7a3a1c', 3.2], ['#8a5a22', 2.6], ['#a8782c', 2.4], ['#5c5e2c', 2.6], ['#6a4a22', 2], ['#b0661f', 1.8], ['#b4301a', 1.3], ['#c04a1c', 0.8]].map(([c, w]) => [col(c, 0.2), w]);
+    const total = hues.reduce((s, x) => s + x[1], 0), hue = () => { let r = R() * total; for (const x of hues) if ((r -= x[1]) <= 0) return x[0]; return hues[0][0]; };
+    const massC = ['#4a3018', '#5a3216', '#3c3e1e', '#62401c', '#38321c'].map(c => col(c, 0.2)), pine = ['#22301f', '#2c3a24', '#1e2a22'].map(c => col(c, 0.25)), haze = col('#5e646e', 0.15);
+    const add = f => T.push({ t0: T_WOOD + 0.3 * clamp01((f.o + 0.05) / 1.1) + 0.12 * R(), spin: (R() - 0.5) * (f.kind === 'pine' ? 0.08 : 0.5), ph: R() * TAU, ax: 0.9 + 0.3 * R(), ay: 0.85 + 0.25 * R(), stem: 0, sr: 0, lean: 0, pale: false, ...f });
+    const near = o => lerp(0.82, 1.14, clamp01(o / 1.05));
+    const tree = (u, o, g, k = 1) => {
+      if (R() < 0.13) return add({ kind: 'pine', u, o, g, s: (0.066 + 0.02 * R()) * near(o) * k, c: pine[Math.floor(R() * 3)] });
+      return add({ kind: 'tree', u, o, g, s: (0.085 + 0.045 * R()) * near(o) * k, c: hue().clone().multiplyScalar(0.85 + 0.3 * R()), stem: (0.05 + 0.035 * R()) * near(o) * k, sr: 0.0035 + 0.002 * R(), lean: (R() - 0.5) * 0.02, pale: R() < 0.14 });
+    };
+    const mass = (u, o, g) => add({ kind: 'mass', u, o, g, s: 0.2 + 0.07 * R(), c: massC[Math.floor(R() * massC.length)] });
+    const stand = (count, box, ground, fn, k) => { for (let i = 0, made = 0; made < count && i < count * 40; i++) { const u = lerp(box[0], box[1], R()), o = lerp(box[2], box[3], R()), g = ground(u, o); if (g < 0.04) continue; fn(u, o, g, k); made++; } };
+    // (a bank's sides and its nose are what is seen from in front: rows along them too)
+    const skirt = (B, count, x, fn, side = 1) => {
+      const inner = (B.u < 0 ? 1 : -1) * side;
+      for (let i = 0; i < count; i++) {
+        const q = (i + 0.2 + 0.6 * R()) / count, o = lerp(side > 0 ? 0.56 : 0.1, B.o1 - 0.03, Math.min(1, q * 1.25)), round = clamp01((q - 0.8) / 0.2);
+        const u = bankMid(B, o) + inner * bankWide(B, o) * x * (1 - 1.6 * round), g = bank(B, u, o); if (g >= 0.02) fn(u, o, g);
+      }
+    };
+    for (const [B, n] of [[BL, 0], [BR, 4]]) {
+      const box = [B.u - B.w, B.u + B.w, -0.02, B.o1], gr = (u, o) => bank(B, u, o);
+      stand(16 + n / 2, box, gr, mass); skirt(B, 8, 0.8, mass); skirt(B, 5, 0.85, mass, -1);
+      stand(46 + n, box, gr, tree); skirt(B, 8, 0.7, tree); skirt(B, 7, 0.92, tree); skirt(B, 6, 0.8, tree, -1);
+      // (and his nearest, biggest because nearest, at the end of each bank)
+      for (const du of [-0.05, 0.07]) { const u = bankMid(B, B.o1 - 0.14) + du, o = B.o1 - 0.14 + du; add({ kind: 'tree', u, o, g: bank(B, u, o), s: 0.15 + 0.02 * R(), c: col(du < 0 ? '#b4301a' : '#b0661f', 0.15), stem: 0.085, sr: 0.007, lean: 0.01 }); }
+    }
+    const onIsle = (u, o) => { const g = isle(u, o); return g > 0.01 ? H + g : 0; }, ib = [ISLE.u - ISLE.a, ISLE.u + ISLE.a, ISLE.o - ISLE.b, ISLE.o + ISLE.b];
+    stand(3, ib, onIsle, (u, o, g) => add({ kind: 'mass', u, o, g, s: 0.15, c: massC[Math.floor(R() * massC.length)] })); stand(9, ib, onIsle, tree, 0.82);
+    // the far shore, small and grey with distance, a low broken line along the foot of the wall
+    for (let i = 0; i < 14; i++) { const u = lerp(-0.84, 0.82, Math.pow(R(), 0.8) * (i % 2 ? 1 : 0.55) + (i % 2 ? 0 : 0.2)); add({ kind: 'far', u, o: -0.02 + 0.02 * R(), g: H - 0.006, s: 0.04 + 0.03 * R() * R(), c: hue().clone().lerp(haze, 0.72 + 0.14 * R()) }); }
+    while (T.length > N_TREE) T.pop();
   },
 
   // ---------------------------------------------------------------- the rock, the banks, the island: one mesh
@@ -190,6 +235,18 @@ lifeFor(90048, {
     }, up3);
     // the island's mound
     surf(8, 12, (i, j) => { const th = i * TAU, rr = Math.sin(j * Math.PI / 2), u = ISLE.u + ISLE.a * rr * Math.cos(th), o = ISLE.o + ISLE.b * rr * Math.sin(th); return [u, o, H - 0.004 + ISLE.up * Math.cos(j * Math.PI / 2) + 0.004, mixc(earth, earth2, 0.6)]; }, up3);
+    // the trees' stems: thin, dark, a little out of true, going up into their crowns (one in five pale, as his are)
+    const stemD = col('#2a1c12', 0.2), stemP = col('#665e52', 0.2);
+    for (const f of this.T) {
+      if (!f.stem) continue;
+      const cc = f.pale ? stemP : stemD, h0 = Math.max(0, f.g - 0.01), h1 = f.g + f.stem + f.s * 0.2;
+      for (let k = 0; k < 4; k++) {
+        const a0 = k * TAU / 4, a1 = (k + 1) * TAU / 4, am = (a0 + a1) / 2;
+        const P4 = [[a0, f.sr, h0, 0], [a1, f.sr, h0, 0], [a1, f.sr * 0.55, h1, 1], [a0, f.sr * 0.55, h1, 1]].map(([an, r, hh, q]) => [X(f.u, f.o) + (L.tx * Math.cos(an) + L.nx * Math.sin(an)) * r + L.tx * f.lean * q, hh, Z(f.u, f.o) + (L.tz * Math.cos(an) + L.nz * Math.sin(an)) * r + L.tz * f.lean * q]);
+        const nx = L.tx * Math.cos(am) + L.nx * Math.sin(am), nz = L.tz * Math.cos(am) + L.nz * Math.sin(am);
+        for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(P4[i][0], P4[i][1], P4[i][2]); nor.push(nx, 0, nz); cl.push(cc.r, cc.g, cc.b); }
+      }
+    }
     const folTo = pos.length / 3;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3));
@@ -279,36 +336,30 @@ lifeFor(90048, {
       colors: [['#a9ad98', 3], ['#c9c8b2', 2], ['#7c836f', 3], ['#5f6654', 2], ['#e2dfcd', 1], ['#6f6a52', 1]].map(([c, w]) => [col(c, 0.3).getStyle(), w]),
       angle: (x, y, r) => (r() - 0.5) * 0.3,
     });
-    // his cloud: soft masses heaped on each other (red: how far a billow stands out into the light; green: how thick)
-    // It is painted once, as the wall will show it (SKY: the piece of wall it covers, in metres). Its shape is many
-    // small billows run together, so its edge is a cloud's edge; inside, it is one mass, modelled broadly, with a
-    // soft light on the upper right of a billow here and there and its own shade under it. Never a heap of balls.
-    // Red: dark to light. Green: the storm (1), or the broken cloud low on the right that the sun will find (0).
-    // Alpha: cloud or wall.
-    const sky = canvasTexture(512, 512, (c, w, h) => {
-      const SX = u => (u - SKY.u0) / SKY.w * w, SY = v => (1 - (v - SKY.v0) / SKY.h) * h, SR = r => r / SKY.w * w, puffs = [];
-      // the storm: it stands highest on the left, behind where the column climbs, and comes down to the horizon on
-      // the right, as it does across his sky
-      const top = u => lerp(2.04, 0.6, sm(ramp(u, -0.66, 0.42))) - 0.3 * Math.pow(Math.max(0, (-0.9 - u) / 0.3), 2) + 0.05 * Math.sin(u * 9);
-      // (its body in big billows; then smaller ones, of every size, crowded along its top and its left side: its edge)
-      for (let i = 0; i < 200; i++) { const u = lerp(-1.1, 0.34, R()), t = top(u); puffs.push({ u, v: lerp(0.3, t - 0.1, Math.pow(R(), 0.75)), r: 0.11 + 0.08 * R(), ax: 1.15, storm: 1 }); }
-      for (let i = 0; i < 130; i++) { const u = lerp(-1.14, 0.42, R()); puffs.push({ u, v: top(u) - 0.12 + 0.16 * R() * R(), r: 0.035 + 0.075 * R() * R(), ax: 1 + 0.3 * R(), storm: 1, edge: 1 }); }
-      for (let i = 0; i < 60; i++) { const v = lerp(0.3, top(-1.14), R()); puffs.push({ u: -1.1 - 0.1 * R() * R() + 0.04 * Math.sin(v * 7), v, r: 0.035 + 0.07 * R() * R(), ax: 1 + 0.2 * R(), storm: 1, edge: 1 }); }
+    // His sky: only a low strip of it, on the wall behind the brink and no higher than the woods (SKY_TOP), so that
+    // the far shore and the white line of the falls have his slate behind them. Nothing of it stands up the wall.
+    // It is painted once (SKY: the piece of wall it covers, in metres): small billows run together, so its top is a
+    // cloud's edge; inside it is one mass, modelled broadly. Red: dark to light. Alpha: cloud or wall.
+    const sky = canvasTexture(512, 128, (c, w, h) => {
+      const SX = u => (u - SKY.u0) / SKY.w * w, SY = v => (1 - (v - SKY.v0) / SKY.h) * h, RX = r => r / SKY.w * w, RY = r => r / SKY.h * h, puffs = [];
+      const top = u => SKY_TOP - 0.035 - 0.03 * (0.5 + 0.5 * Math.sin(u * 5.3 + 1)) - 0.09 * Math.pow(Math.abs(u) / 1.15, 3);
+      for (let i = 0; i < 110; i++) { const u = lerp(-1.16, 1.14, R()); puffs.push({ u, v: lerp(0.28, top(u) - 0.03, R()), r: 0.035 + 0.035 * R(), ax: 1.5 }); }
+      for (let i = 0; i < 150; i++) { const u = lerp(-1.18, 1.16, R()); puffs.push({ u, v: top(u) - 0.035 + 0.035 * R() * R(), r: 0.012 + 0.022 * R() * R(), ax: 1.2 + 0.6 * R(), edge: 1 }); }
       puffs.sort((a, b) => b.v - a.v);
-      // its shape (and which part it is)
       c.clearRect(0, 0, w, h);
-      for (const p of puffs) { c.fillStyle = `rgb(0,${p.storm ? 255 : 0},0)`; c.beginPath(); c.ellipse(SX(p.u), SY(p.v), SR(p.r) * p.ax, SR(p.r), 0, 0, TAU); c.fill(); }
+      c.fillStyle = 'rgb(0,0,0)';
+      for (const p of puffs) { c.beginPath(); c.ellipse(SX(p.u), SY(p.v), RX(p.r) * p.ax, RY(p.r), 0, 0, TAU); c.fill(); }
       const shape = c.getImageData(0, 0, w, h);
       // its light, on a canvas of its own
       const lc = document.createElement('canvas'); lc.width = w; lc.height = h; const g = lc.getContext('2d', { willReadFrequently: true });
       g.fillStyle = 'rgb(96,96,96)'; g.fillRect(0, 0, w, h);
       const soft = (x, y, rx, ry, v, a) => { g.save(); g.translate(x, y); g.scale(rx, ry); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(${v},${v},${v},${a})`); gr.addColorStop(0.6, `rgba(${v},${v},${v},${a * 0.5})`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore(); };
-      for (let i = 0; i < 46; i++) soft(R() * w, R() * h, 40 + R() * 70, 26 + R() * 40, R() < 0.5 ? 40 : 150, 0.3);      // broad masses, darker and lighter
+      for (let i = 0; i < 40; i++) soft(R() * w, R() * h, 24 + R() * 50, 10 + R() * 18, R() < 0.5 ? 40 : 150, 0.3);      // broad masses, darker and lighter
       for (const p of puffs) {
         if (p.edge) continue;                                                                               // (the small ones are edge, not form)
-        const x = SX(p.u), y = SY(p.v), r = SR(p.r);
-        soft(x - r * 0.25, y + r * 0.55, r * p.ax * 1.2, r * 0.9, 20, 0.14);                               // its own shade, under it
-        if (R() < 0.4) soft(x + r * 0.3 * p.ax, y - r * 0.4, r * p.ax * 1.0, r * 0.75, 255, 0.1 + 0.14 * R());      // a soft light on its shoulder
+        const x = SX(p.u), y = SY(p.v), rx = RX(p.r) * p.ax, ry = RY(p.r);
+        soft(x - rx * 0.2, y + ry * 0.55, rx * 1.2, ry * 0.9, 20, 0.12);                                   // its own shade, under it
+        if (R() < 0.4) soft(x + rx * 0.3, y - ry * 0.4, rx, ry * 0.75, 255, 0.1 + 0.12 * R());             // a soft light on its shoulder
       }
       const light = g.getImageData(0, 0, w, h).data, d = shape.data;
       for (let i = 0; i < d.length; i += 4) d[i] = light[i];
@@ -345,23 +396,17 @@ vec2 lq = lifeP.xz - uO.xz; float su = dot(lq, uAx.xy), so = dot(lq, uAx.zw);
 float lit = uSun.x * smoothstep(uSun.y - 0.3, uSun.y + 0.3, su);
 vec3 light = mix(vec3(0.54, 0.58, 0.68), vec3(0.94, 0.9, 0.8), lit);
 if (vKind > 3.5) {
-  // the wall: his sky, as a painted cloud with an edge to it. The storm stands up the left side of the frame, where
-  // the column climbs, and leans over behind the falls; low on the right it has broken, and that part takes the sun.
+  // the wall behind the brink: a low strip of his sky, slate, and (when the light has crossed) rose and gold where
+  // it has broken on the right; under it the far shore. It comes up with the land and stands no higher than the woods.
   float wv = lifeP.y - uO.y;
-  vec2 uv = vec2((su - (${F(SKY.u0)})) / ${F(SKY.w)} + uClock * 0.0006, (wv - ${F(SKY.v0)}) / ${F(SKY.h)});
-  // (it builds up from the horizon, as a storm does: the whole of it, growing taller, its own edge on it all the way)
-  float gy = 0.048 + (uv.y - 0.048) / (0.3 + 0.7 * uSky);
+  // (it rides up with the ground, so it is never seen standing over nothing)
+  vec2 uv = vec2((su - (${F(SKY.u0)})) / ${F(SKY.w)} + uClock * 0.0005, (wv + (1.0 - uShade) * 0.3 - ${F(SKY.v0)}) / ${F(SKY.h)});
+  float gy = 0.16 + (uv.y - 0.16) / (0.3 + 0.7 * uSky);
   vec4 ck = texture2D(tSky, vec2(uv.x, gy));
-  float a = ck.a * smoothstep(0.03, 0.4, uSky) * step(0.004, uv.x) * step(uv.x, 0.996) * step(0.004, uv.y) * step(gy, 0.996);
+  float a = ck.a * smoothstep(0.03, 0.4, uSky) * smoothstep(0.15, 0.7, uShade) * step(0.004, uv.x) * step(uv.x, 0.996) * step(0.004, uv.y) * step(gy, 0.996);
   vec3 dark = mix(cStormLo, cStorm, smoothstep(0.12, 0.8, ck.r));
-  // (the storm's billows catch the light on the side it comes from)
-  dark = mix(dark, mix(cRose, cGold, 0.45), 0.36 * uSun.x * smoothstep(0.5, 0.85, ck.r) * smoothstep(-1.3, -0.1, su));
-  // (the edge of it that faces the break goes rose and gold)
-  dark = mix(dark, mix(cRose, cGold, 0.5 + 0.5 * ck.r), 0.5 * uSun.x * smoothstep(-0.25, 0.4, su - (wv - 0.6) * 0.9));
-  fCol = dark; fA = a * 0.9;
-  // low on the right the cloud has broken: no shape there, only his gold light on the wall
-  float brk = exp(-(pow((su - 0.78) / 0.52, 2.0) + pow((wv - 0.72) / 0.36, 2.0))) * uSun.x * 0.55 * (1.0 - step(1.26, wv)) * smoothstep(0.0, 0.5, uSky);
-  if (brk > 0.001) { fCol = mix(mix(cGold, cRose, smoothstep(0.5, 1.0, wv)), fCol, fA / (fA + brk * (1.0 - fA))); fA = fA + brk * (1.0 - fA); }
+  dark = mix(dark, mix(cRose, cGold, smoothstep(0.2, 0.75, ck.r)), 0.8 * uSun.x * smoothstep(-0.45, 0.75, su));
+  fCol = dark; fA = a * 0.92;
   // (the far shore: a dark ridge along the river, up with the land)
   float ridge = (1.0 - smoothstep(0.0, 0.025, wv - uShade * (0.455 + 0.035 * sin(su * 4.3 + 1.0) + 0.016 * sin(su * 13.0)))) * (1.0 - smoothstep(1.0, 1.22, abs(su + 0.02))) * smoothstep(0.1, 0.2, wv) * smoothstep(0.3, 0.7, uShade);
   fCol = mix(fCol, cRidge * mix(0.85, 1.2, lit), ridge); fA = max(fA, ridge * 0.94);
@@ -435,8 +480,8 @@ if (fA < 0.012) discard;`)
   // ---------------------------------------------------------------- soft cards: the woods, the rock's dabs, spray, the column, leaves, the bow
   buildCards(L, col) {
     const R = this.R;
-    const atlas = canvasTexture(256, 256, (g, w, h) => {
-      g.clearRect(0, 0, w, h);
+    const atlas = canvasTexture(512, 512, (g, w, h) => {
+      g.clearRect(0, 0, w, h); g.scale(2, 2);                // (drawn in a 256 square, at twice the size)
       const blob = (x, y, r, a, lum = 255) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${lum},${lum},${lum},${a})`); gr.addColorStop(0.6, `rgba(${lum},${lum},${lum},${a * 0.6})`); gr.addColorStop(1, `rgba(${lum},${lum},${lum},0)`); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); };
       // 0 (top left): a billow of spray, lumpy, no disc under it (red: how far each lump stands out)
       g.save(); g.beginPath(); g.rect(0, 0, 128, 128); g.clip();
@@ -453,21 +498,20 @@ if (fA < 0.012) discard;`)
         g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 7 + R() * 7; g.beginPath(); g.moveTo(x0, y); g.quadraticCurveTo(64, y - 4 + R() * 8, x1, y + (R() - 0.5) * 6); g.stroke();
       }
       g.restore();
-      // 3 (bottom right): a tree's crown as he stipples it: small touches heaped in a mound, lit from the upper right
-      // (dark first, a solid mass with a ragged edge; then the mid tones; then the small lights, up and to the right)
+      // 3 (bottom right): a mass of leaves, made the way the Ruisdael's are (src/life/60755-ruins-of-egmond.js): every
+      // touch soft, feathering to nothing, so nothing in it has an edge. A dark body in a few uneven boughs; over it
+      // many small touches, the lighter ones up and to the right where his light is; and round it loose touches
+      // standing clear of the body, with the wall or the dark of the wood between them. (Red: dark to light.)
       g.save(); g.beginPath(); g.rect(128, 128, 128, 128); g.clip();
-      // (and not a ball: a crown is several boughs of leaves, each with its own light side and its own shade)
-      const boughs = [[0, -8, 25], [-25, 3, 21], [25, 0, 22], [-13, 23, 20], [15, 21, 22], [3, -31, 17], [-30, -18, 13]];
-      const dabs = (count, shrink, sz, tone) => {
-        for (let i = 0; i < count; i++) {
-          const b = boughs[Math.floor(R() * boughs.length)], a = R() * TAU, rr = Math.sqrt(R()) * shrink, dx = Math.cos(a) * rr, dy = Math.sin(a) * rr, x = 192 + b[0] + dx * b[2], y = 196 + b[1] + dy * b[2] * 0.9;
-          const v = Math.floor(255 * clamp01(tone(0.62 * (dx - dy) + 0.38 * (b[0] - b[1]) / 34)));      // -1 down on the left, in shade; +1 up on the right, in the light
-          g.fillStyle = `rgb(${v},${v},${v})`; g.beginPath(); g.ellipse(x, y, sz * (0.7 + 0.6 * R()), sz * (0.45 + 0.4 * R()), R() * Math.PI, 0, TAU); g.fill();
-        }
-      };
-      dabs(210, 0.9, 5.5, s => 0.19 + 0.08 * s + 0.08 * R());
-      dabs(340, 1.0, 3.3, s => 0.38 + 0.24 * s + 0.24 * (R() - 0.5));
-      dabs(190, 0.95, 2.4, s => (s > -0.2 ? 0.7 + 0.3 * s + 0.2 * (R() - 0.5) : 0.34 + 0.2 * R()));
+      const touch = (x, y, rx, ry, rot, v, a) => { g.save(); g.translate(x, y); g.rotate(rot); g.scale(rx, ry); const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(${v},${v},${v},${a})`); gr.addColorStop(0.5, `rgba(${v},${v},${v},${a * 0.72})`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore(); };
+      const cx = 192, cy = 194, sub = Array.from({ length: 5 }, () => [cx + (R() - 0.5) * 46, cy + (R() - 0.5) * 30, 14 + R() * 10]); sub.push([cx, cy + 3, 23]);
+      for (const q of sub) touch(q[0], q[1], q[2] * 1.2, q[2] * 1.05, 0, 34, 0.94);
+      for (let i = 0; i < 640; i++) {
+        const s = sub[Math.floor(R() * sub.length)], a = R() * TAU, loose = R() < 0.3, rr = (loose ? 0.82 + 0.5 * R() : Math.sqrt(R()) * 0.9) * s[2], x = s[0] + Math.cos(a) * rr * 1.1, y = s[1] + Math.sin(a) * rr * 0.9;
+        if (Math.abs(x - cx) > 56 || Math.abs(y - cy) > 56) continue;
+        const lit = clamp01(0.2 + (x - s[0]) / (s[2] * 2.4) - (y - s[1]) / (s[2] * 1.9) + (R() - 0.5) * 0.55), v = Math.floor(30 + 46 * R() + (lit > 0.42 ? 190 * (lit - 0.42) / 0.58 : 0));
+        touch(x, y, 2.3 + R() * 2.6, 1.6 + R() * 1.6, R() * Math.PI, v, loose ? 0.8 : 0.62);
+      }
       g.restore();
     }, false);
     const n = NC, geo = new THREE.PlaneGeometry(1, 1);
@@ -476,7 +520,7 @@ if (fA < 0.012) discard;`)
     geo.setAttribute('aInfo', this.aInfo); geo.setAttribute('aCol', this.aCol);
     const cu = this.cu = {
       tAtlas: { value: atlas }, uLightW: { value: new THREE.Vector3(L.tx * 0.6 + L.nx * 0.3, 0.72, L.tz * 0.6 + L.nz * 0.3).normalize() },
-      cMistLit: { value: col('#ece5d4', 0.08) }, cMistWarm: { value: col('#f1cfa6', 0.1) }, cMistStorm: { value: col('#b4b8c0', 0.08) }, cMistShade: { value: col('#787c8a', 0.1) },
+      cMistLit: { value: col('#ece5d4', 0.08) }, cMistWarm: { value: col('#f1cfa6', 0.1) }, cMistStorm: { value: col('#a9acb8', 0.06) }, cMistShade: { value: col('#5f5d7a', 0.05) },
     };
     const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
     m.onBeforeCompile = sh => {
@@ -506,31 +550,32 @@ if (fA < 0.012) discard;`)
     vec2 cell = kd < 0.5 ? vec2(0.0, 1.0) : kd < 1.5 ? vec2(1.0, 1.0) : kd < 2.5 ? vec2(0.0, 0.0) : vec2(1.0, 0.0);
     vec4 tx = texture2D(tAtlas, (clamp(vQ, 0.02, 0.98) + cell) * 0.5);
     if (kd < 0.5) {
-      // a billow of spray: slate in the storm; then lit from the right, warm white, lavender in its own shade
+      // a billow of spray, modelled so that it reads against a pale wall: a cool grey-violet core and shadow side,
+      // paler where a lump stands out, and white only on the edge the light is on (warm, once the sun has come)
       vec3 lv = normalize((viewMatrix * vec4(uLightW, 0.0)).xyz);
       float rr = dot(vN, vN); vec3 nn = normalize(vec3(vN * 0.75, sqrt(max(0.1, 1.0 - rr * 0.6)) + 0.9 * (tx.r - 0.7)));
       float lam = clamp(dot(nn, lv) * 0.8 + 0.4, 0.0, 1.0);
-      vec3 st = mix(cMistShade, cMistStorm, 0.35 + 0.65 * tx.r);
-      vec3 su = mix(mix(cMistShade, cMistStorm, 0.7), cMistLit, smoothstep(0.2, 0.8, lam));
-      su += cMistWarm * 0.22 * pow(clamp(1.0 - nn.z, 0.0, 1.0), 1.5) * smoothstep(0.1, 0.8, dot(normalize(vN + 1e-4), lv.xy));
+      vec3 st = mix(cMistShade, cMistStorm, smoothstep(0.45, 1.0, lam) * 0.75 + 0.15 * tx.r);
+      vec3 su = mix(mix(cMistShade, cMistStorm, 0.1 + 0.3 * tx.r), cMistLit, smoothstep(0.62, 0.96, lam));
+      su += cMistWarm * 0.25 * pow(clamp(1.0 - nn.z, 0.0, 1.0), 1.5) * smoothstep(0.1, 0.8, dot(normalize(vN + 1e-4), lv.xy));
       c = mix(st, su, lit) * vCol; a = smoothstep(0.0, 0.6, tx.a) * vInfo.y;
     } else if (kd < 1.5) { c = mix(cMistStorm, cMistLit, lit) * vCol; a = tx.a * vInfo.y; }
     else if (kd < 2.5) {
       // a dab: rock, or a leaf on the water
       c = vCol * (0.62 + 0.5 * tx.r) * mix(vec3(0.6, 0.64, 0.74), vec3(1.05, 1.0, 0.88), lit); a = smoothstep(0.25, 0.55, tx.a) * vInfo.y;
     } else {
-      // a crown: dull and cool under the storm, and then his October, the lit touches warmest
-      float sh = tx.r, mask = smoothstep(0.3, 0.6, tx.a);
+      // leaves: deep and brown before the light, the body darkest; glowing only where the light has reached, and
+      // then mostly in the small touches that stand out to it
+      float tone = smoothstep(0.14, 0.8, tx.r), mask = min(1.0, tx.a * 1.12);
       if (kd > 4.5) {
         // (a dark spire among them: a hemlock or a pine)
-        float sp = (1.0 - vQ.y) * 0.4 + 0.035 - abs(vQ.x - 0.5) + (tx.r - 0.5) * 0.09;
-        mask *= smoothstep(0.0, 0.05, sp) * smoothstep(0.02, 0.1, vQ.y);
+        float sp = (1.0 - vQ.y) * 0.4 + 0.035 - abs(vQ.x - 0.5) + (tx.r - 0.3) * 0.12;
+        mask *= smoothstep(0.0, 0.07, sp) * smoothstep(0.02, 0.1, vQ.y);
       }
-      // (its own shade goes towards a brown-violet, as his do; its lights towards yellow)
-      vec3 body = mix(vCol * vec3(0.5, 0.42, 0.5), vCol, smoothstep(0.1, 0.55, sh)) * (0.34 + 0.86 * sh);
-      vec3 storm = mix(vec3(dot(body, vec3(0.3, 0.5, 0.2))), body, 0.62) * vec3(0.6, 0.62, 0.74) * 0.74;
-      vec3 sun = body * vec3(1.12, 1.0, 0.8) * 1.02 + vec3(0.15, 0.09, 0.015) * smoothstep(0.7, 1.0, sh) * (kd > 4.5 ? 0.15 : 1.0);
-      c = mix(storm, sun, lit); a = mask * vInfo.y;
+      vec3 body = vCol * (0.3 + 0.75 * tone);
+      vec3 deep = mix(vec3(dot(body, vec3(0.3, 0.5, 0.2))), body, 0.55) * vec3(0.8, 0.66, 0.56) * 0.82;
+      vec3 glow = vCol * (0.36 + 1.3 * tone) * mix(vec3(1.0), vec3(1.14, 1.0, 0.78), tone);
+      c = mix(deep, glow, lit); a = mask * vInfo.y;
     }
   }
   if (a < 0.01) discard;
@@ -541,44 +586,6 @@ if (fA < 0.012) discard;`)
     const mesh = this.cards = new THREE.InstancedMesh(geo, m, n);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.count = 0; mesh.renderOrder = 6;
     L.add(mesh);
-
-    // ---- the woods. Each tree: where it stands, its ground, its size, its colour, when it comes up.
-    // (his October: scarlet, vermilion, burnt orange and amber, a little gold; olive and dull green still; russet, maroon)
-    const hues = [['#a8301a', 3.2], ['#c2481c', 3], ['#c86a20', 3], ['#c68a2a', 2.6], ['#d0a23c', 1], ['#74702c', 2.2], ['#4c5828', 2], ['#7a3a1c', 2.6], ['#5e2618', 1.8]].map(([c, w]) => [col(c, 0.2), w]);
-    const total = hues.reduce((s, x) => s + x[1], 0), hue = () => { let r = R() * total; for (const x of hues) if ((r -= x[1]) <= 0) return x[0]; return hues[0][0]; };
-    const pine = [col('#22301f', 0.25), col('#2c3a24', 0.25), col('#1e2a22', 0.25)], haze = col('#5e646e', 0.15), under = ['#3c3a1c', '#4a2c18', '#30381e', '#54301a'].map(c => col(c, 0.2));
-    const T = this.T = [];
-    const tree = (u, o, g, s, c, conifer = false, far = 0, low = 0) => T.push({ u, o, g, s, c: far ? c.clone().lerp(haze, far) : c.clone().multiplyScalar(0.86 + 0.28 * R()), conifer, far, low, t0: T_WOOD + 0.3 * clamp01((o + 0.05) / 1.1) + 0.12 * R(), spin: (R() - 0.5) * (conifer ? 0.1 : 0.7), ph: R() * TAU, ax: conifer ? 1 : 0.9 + 0.3 * R(), ay: conifer ? 1 : 0.88 + 0.26 * R() });
-    const any = (size, o, far = 0.3) => { const near = clamp01(o / 1.05), con = R() < 0.12; return [size * lerp(0.66, 1.16, near) * (0.8 + 0.4 * R()) * (con ? 0.82 : 1), con ? pine[Math.floor(R() * 3)] : hue(), con, far * (1 - near) * (1 - near)]; };
-    const stand = (count, box, ground, size) => {
-      for (let i = 0, made = 0; made < count && i < count * 40; i++) {
-        const u = lerp(box[0], box[1], R()), o = lerp(box[2], box[3], R()), g = ground(u, o); if (g < 0.04) continue;
-        tree(u, o, g, ...any(size, o)); made++;
-      }
-    };
-    // (a bank's sides and its nose are what is seen from in front: a row round them at mid height, another low down,
-    // and dark undergrowth under it all, so no bare ground shows)
-    const skirt = (B, count, x, size, dark, side = 1) => {
-      const inner = (B.u < 0 ? 1 : -1) * side;
-      for (let i = 0; i < count; i++) {
-        const q = (i + 0.2 + 0.6 * R()) / count, o = lerp(side > 0 ? 0.56 : 0.1, B.o1 - 0.03, Math.min(1, q * 1.25)), round = clamp01((q - 0.8) / 0.2);      // along that side, then round the nose
-        const u = bankMid(B, o) + inner * bankWide(B, o) * x * (1 - 1.6 * round), g = bank(B, u, o); if (g < 0.02) continue;
-        if (dark) tree(u, o, g * 0.5, size * (0.9 + 0.3 * R()), under[Math.floor(R() * 4)], false, 0, 1); else tree(u, o, g, ...any(size, o, 0));
-      }
-    };
-    stand(34, [BL.u - BL.w, BL.u + BL.w + BL.in, -0.02, BL.o1], bankL, 0.15);
-    stand(38, [BR.u - BR.w + BR.in, BR.u + BR.w, -0.02, BR.o1], bankR, 0.155);
-    stand(8, [BL.u - BL.w, BL.u + BL.w + BL.in, BL.o1 - 0.36, BL.o1], bankL, 0.15); stand(9, [BR.u - BR.w + BR.in, BR.u + BR.w, BR.o1 - 0.38, BR.o1], bankR, 0.155);
-    stand(10, [BL.u - BL.w * 0.7, BL.u + BL.w * 0.8, 0, 0.5], bankL, 0.2); stand(10, [BR.u - BR.w * 0.8, BR.u + BR.w * 0.7, 0, 0.55], bankR, 0.2);      // (their tops at the back, which stand highest)
-    skirt(BL, 9, 0.72, 0.15); skirt(BL, 8, 0.93, 0.14); skirt(BL, 9, 0.85, 0.19, true); skirt(BL, 8, 0.8, 0.15, false, -1); skirt(BL, 6, 0.9, 0.19, true, -1);
-    skirt(BR, 10, 0.72, 0.155); skirt(BR, 9, 0.93, 0.14); skirt(BR, 10, 0.85, 0.19, true); skirt(BR, 8, 0.8, 0.15, false, -1); skirt(BR, 6, 0.9, 0.19, true, -1);
-    stand(14, [ISLE.u - ISLE.a, ISLE.u + ISLE.a, ISLE.o - ISLE.b, ISLE.o + ISLE.b], (u, o) => { const g = isle(u, o); return g > 0.01 ? H + g : 0; }, 0.105);
-    // the far shore, small and grey with distance, a low broken line along the foot of the wall
-    for (let i = 0; i < 16; i++) { const u = lerp(-0.84, 0.82, Math.pow(R(), 0.8) * (i % 2 ? 1 : 0.55) + (i % 2 ? 0 : 0.2)), con = R() < 0.25, s = 0.04 + 0.04 * R() * R(); tree(u, -0.02 + 0.02 * R(), H - 0.006, con ? s * 0.9 : s, con ? pine[0] : hue(), con, 0.72 + 0.14 * R()); }
-    // and his nearest, biggest because nearest: the scarlet one at the end of the left bank, the orange one on the right
-    tree(BL.u + 0.08, BL.o1 - 0.1, bankL(BL.u + 0.08, BL.o1 - 0.1), 0.23, col('#b0321a', 0.15)); tree(BR.u - 0.1, BR.o1 - 0.1, bankR(BR.u - 0.1, BR.o1 - 0.1), 0.25, col('#cc7422', 0.15));
-    tree(BL.u - 0.06, BL.o1 - 0.24, bankL(BL.u - 0.06, BL.o1 - 0.24), 0.2, col('#c68a2a', 0.15)); tree(BR.u + 0.06, BR.o1 - 0.26, bankR(BR.u + 0.06, BR.o1 - 0.26), 0.21, col('#a8301a', 0.15));
-    while (T.length > N_TREE) T.pop();
 
     // ---- dabs of rock: the island's face, the stones at the cliff's foot
     const rockC = ['#5a4a3c', '#6e5e4c', '#463a32', '#8a7a64', '#5e5040'].map(c => col(c, 0.25)), mossC = ['#3c4424', '#4e5a2c'].map(c => col(c, 0.25));
@@ -595,7 +602,7 @@ if (fA < 0.012) discard;`)
     // ---- leaves on the river: the first rides the front of the first water, the rest come down while you look
     const leafC = ['#c23a1c', '#d9792a', '#e0b040', '#b5361e', '#d89030'].map(c => col(c, 0.15));
     this.Lf = Array.from({ length: N_LEAF }, (_, i) => ({ i, u: i === 0 ? 0.3 : [0.52, 0.08, -0.66, 0.4][i - 1], c: leafC[i], T0: i === 0 ? 0 : 8.2 + (i - 1) * 3.1, per: 12.4, ph: R() * TAU }));
-    this.white = new THREE.Color(1, 1, 1);
+    this.white = new THREE.Color(1, 1, 1); this.veil = new THREE.Color(0.56, 0.56, 0.7); this.foam = new THREE.Color(1.25, 1.25, 1.2);
     // scratch: one row per card, then drawn far to near
     this.px = new Float32Array(n); this.py = new Float32Array(n); this.pz = new Float32Array(n); this.sx = new Float32Array(n); this.sy = new Float32Array(n);
     this.pk = new Float32Array(n); this.pa = new Float32Array(n); this.pr = new Float32Array(n); this.pw = new Float32Array(n); this.pc = new Float32Array(n * 3); this.dep = new Float32Array(n);
@@ -638,10 +645,10 @@ if (fA < 0.012) discard;`)
     const hitH = sm(ramp(t, T_HIT - 0.06, T_HIT + 0.5)) * (1 - gone), hitA = sm(ramp(t, T_HIT + D_AM - 0.06, T_HIT + D_AM + 0.6)) * (1 - gone);
     const reach = ease.out(ramp(t, T_HIT - 0.05, T_HIT + 1.9)) * (1 - ease.inOut(ramp(R, 1.1, 2.15)));
     // the light: it comes across from the right; later a cloud crosses now and then and it dims, and comes back
-    const sunSpan = calm ? 3.3 : 2.2, cloud = t > 14 ? hump((t - 14) % 21, 0, 7) : 0;
+    const sunSpan = calm ? 3.0 : 2.0, cloud = t > 14 ? hump((t - 14) % 21, 0, 7) : 0;
     const sunAmt = sm(ramp(t, T_SUN, T_SUN + 0.7)) * (1 - 0.72 * cloud), sunEdge = lerp(1.75, -1.95, ease.inOut(ramp(t, T_SUN, T_SUN + sunSpan)));
     const litAt = u => sunAmt * sm(ramp(u, sunEdge - 0.3, sunEdge + 0.3));
-    const bowIn = ramp(t, T_BOW, T_BOW + (calm ? 2.4 : 1.6)), bow = sm(bowIn) * hitH * (1 - 0.95 * sm(cloud * 1.6)) * (1 - sm(ramp(R, 0.1, 1.0)));
+    const bowIn = ramp(t, T_BOW, T_BOW + (calm ? 2.0 : 1.3)), bow = sm(bowIn) * hitH * (1 - 0.95 * sm(cloud * 1.6)) * (1 - sm(ramp(R, 0.1, 1.0)));
     const sky = ease.out(ramp(t, 0.1, 3.0)) * (1 - ease.inOut(ramp(R, 0.9, 2.5)));
     // (a bow is seen only with the sun at your back: from in front of the picture, not from along the wall)
     const bq = L.floor(0.06, 0.8, this.v), bx = cam.position.x - bq.x, bz = cam.position.z - bq.z, facing = sm(ramp((bx * L.nx + bz * L.nz) / (Math.hypot(bx, bz) || 1), 0.5, 0.82));
@@ -671,8 +678,11 @@ if (fA < 0.012) discard;`)
     for (const f of this.T) {
       const lr = clamp01((1.2 - f.u) / 2.4), q = ramp(t, f.t0, f.t0 + 0.75), down = 1 - ease.inOut(ramp(R, 1.35 + 0.25 * lr, 2.3 + 0.25 * lr));
       const k = (calm ? sm(q) : ease.outBack(q)) * down; if (k <= 0.01) continue;
-      const s = f.s * k, sway = (calm ? 0.012 : 0.025) * Math.sin(tt * 1.2 + f.ph);
-      put(f.u + sway * s, f.g * rise + s * (f.conifer ? 0.62 : f.low ? 0.2 : 0.34), f.o, s * (f.conifer ? 0.8 : f.low ? 1.6 : 1.36 * f.ax), s * (f.conifer ? 1.7 : f.low ? 1.1 : 1.36 * f.ay), f.conifer ? 5 : 3, Math.min(1, k * 1.5) * (1 - 0.3 * f.far), f.spin + sway, f.c, litAt(f.u) * (1 - 0.4 * f.far) * (f.low ? 0.5 : 1));
+      const s = f.s * k, sway = (calm ? 0.01 : 0.02) * Math.sin(tt * 1.2 + f.ph), g = f.g * rise, a = Math.min(1, k * 1.5), lit = litAt(f.u);
+      if (f.kind === 'mass') put(f.u, g * 0.92 + s * 0.2, f.o, s * 1.5, s * 0.85, 3, a, f.spin * 0.4, f.c, lit * 0.6);            // the canopy, lying on the bank
+      else if (f.kind === 'pine') put(f.u + sway * s, g + s * 0.9, f.o, s * 0.72, s * 1.95, 5, a, f.spin + sway * 0.5, f.c, lit);
+      else if (f.kind === 'far') put(f.u, g + s * 0.3, f.o, s * 1.5, s * 1.1, 3, a * 0.8, f.spin, f.c, lit * 0.55);
+      else put(f.u + f.lean + sway * s, g + (f.stem + s * 0.3) * rise, f.o, s * 1.25 * f.ax, s * 1.05 * f.ay, 3, a, f.spin + sway, f.c, lit);      // a crown, on its stem
     }
     // the rock's dabs, up with the rock
     if (rise > 0.3) for (const d of this.D) put(d.u, d.h * rise, d.o, d.s * (d.w || 1.2), d.s * (d.w ? 0.8 : 1.2), 2, 0.92 * sm(ramp(rise, 0.3, 0.9)), d.spin, d.c, litAt(d.u));
@@ -683,7 +693,7 @@ if (fA < 0.012) discard;`)
       const age = (tt / m.P + m.a) % 1, inw = (m.am ? 0.04 : 0.06) + 0.12 * m.c;
       const u = m.u + m.nu * age * inw + (m.d - 0.5) * 0.12 * age, o = m.o + 0.02 + m.no * age * inw + age * 0.04, h = 0.04 + age * (0.16 + (m.am ? 0.16 : 0.36) * m.b) * (1 + 0.5 * burst);
       const s = (m.am ? 0.09 : 0.13) + age * (m.am ? 0.16 : 0.32);
-      put(u, h, o, s, s, m.lump ? 0 : 1, (m.lump ? 0.3 : 0.24) * Math.pow(Math.sin(Math.PI * age), 0.8) * on, m.a * TAU + age * 0.6, this.white, litAt(u));
+      put(u, h, o, s, s, m.lump ? 0 : 1, (m.lump ? 0.3 : 0.24) * (m.am ? 0.6 : 1) * Math.pow(Math.sin(Math.PI * age), 0.8) * on, m.a * TAU + age * 0.6, this.foam, litAt(u));
     }
     // the drops it throws (they go at the water's own pace)
     for (const q of this.Sp) {
@@ -692,19 +702,19 @@ if (fA < 0.012) discard;`)
       if (h <= 0.012) continue;
       put(q.u + (q.d - 0.5) * 0.3 * tau + q.nu * 0.16 * tau, h, q.o + 0.02 + q.no * 0.2 * tau + 0.1 * q.c * tau, 0.02 + 0.014 * q.b, 0.02 + 0.014 * q.b, 1, 0.85 * on, 0, this.white, litAt(q.u));
     }
-    // the column: given off from the foot of the American fall, climbing the wall beside the frame; once the water
-    // is shut off no more is given off, and what is in the air goes on up and thins
-    const tA = T_HIT + D_AM + 0.1, DTP = PLUME.life / N_PLUME, fadeP = 1 - ease.inOut(ramp(R, 0.4, 2.3));
+    // the column: given off behind the left bank's woods once the American fall has landed, climbing a little way up
+    // the bare wall and leaning downwind as it thins. It is modelled, not white: billows with a grey-violet core and
+    // a light edge, so it reads against the pale wall. Once the water is shut off no more is given off, and what is
+    // in the air drifts on and thins.
+    const tA = T_HIT + D_AM + 0.1, DTP = PLUME.life / N_PLUME, fadeP = 1 - ease.inOut(ramp(R, 0.4, 2.2));
     if (t > tA) for (const p of this.Pl) {
       const since = t - tA - p.j * DTP; if (since < 0) continue;
       const tau = (since % PLUME.life) + R; if (tau > PLUME.life) continue;
-      // (a soft veil, not puffs: wide, thin, many laid over each other; a few billows low down where it is thick)
-      const up = 1 - Math.exp(-tau / 3.0), h = PLUME.h + 1.95 * up + 0.03 * Math.sin(tt * 0.6 + 7 * p.a);
-      const u = PLUME.u - 0.08 * (1 - Math.exp(-tau / 2.2)) + (p.a - 0.5) * (0.07 + 0.04 * tau) + 0.03 * Math.sin(tt * 0.41 + 6 * p.d) * Math.min(1, tau / 2);
-      const o = PLUME.o + 0.05 * (1 - Math.exp(-tau / 1.5)) + (p.c - 0.5) * 0.04;
-      const r = Math.min(0.24, 0.085 + 0.04 * tau) * (0.85 + 0.3 * p.b), bill = p.j % 4 === 2 && tau < 3.2;
-      const a = sm(tau / 0.6) * (bill ? 0.3 : 0.25 - 0.11 * ramp(tau, 1.0, 4)) * (1 - ramp(tau, 3.0, PLUME.life)) * fadeP;
-      put(u, h, o, r * 2, r * 2.3, bill ? 0 : 1, a, bill ? p.a * TAU : 0, this.white, litAt(u) * (0.6 + 0.4 * ramp(h, 0.4, 1.2)));
+      const q = tau / PLUME.life, h = PLUME.h + PLUME.rise * (1 - Math.exp(-tau / 1.5)) + 0.012 * Math.sin(tt * 0.6 + 7 * p.a);
+      const u = PLUME.u - PLUME.lean * Math.pow(q, 1.5) + (p.a - 0.5) * (0.05 + 0.1 * q) + 0.015 * Math.sin(tt * 0.41 + 6 * p.d) * q;
+      const o = PLUME.o + (p.c - 0.5) * 0.04, r = (0.05 + 0.085 * q) * (0.85 + 0.3 * p.b), veil = p.j % 3 === 1;
+      const a = sm(tau / 0.5) * (veil ? 0.34 : 0.56) * Math.pow(1 - ramp(tau, 1.5, PLUME.life), 1.3) * fadeP;
+      put(u, h, o, r * 2, r * 2, veil ? 1 : 0, a, p.a * TAU + (calm ? 0.1 : 0.25) * tau * (p.c - 0.5), veil ? this.veil : this.white, litAt(u));
     }
     // leaves on the river: down to the lip (the first one waits there with the water), over, under, and up in the basin
     for (const lf of this.Lf) this.leaf(L, lf, t, tt, back, R, put, litAt);
