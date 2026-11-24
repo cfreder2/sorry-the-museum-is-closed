@@ -32,7 +32,8 @@
 // stands 4 cm off the wall) and behind the frame; where it is behind the picture and its frame its ripples are
 // held to 2 cm, so it never comes through; a place is cut in it for the label, which stays in view with its green
 // glow; the roll lies on the floor, under the frame's rail; the dust is let go only along the cloth's foot and
-// down its sides; the kit's guard is there for the rest (from the checks' nine cameras it has nothing to cut). It
+// down its sides; the kit's guard is there for the rest (from the look camera it has nothing to cut; from one of
+// the checks' nine, grazing along the wall, it trims a few pixels of that dust). It
 // ends 2.8 m either side of the picture's middle (the Vallotton, the only other picture in the room, begins 5.3 m
 // to the left). Nothing is solid and nothing stays out after the look. One draw call: the cloth, its roll, the
 // cords, the rings, the dust and the roll's shadow are one mesh, moved in its shader. The cloth is one texture,
@@ -61,6 +62,7 @@
 // the hanging does not copy the view or add to it; and nobody is seen hauling, because nobody in the picture is.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, lerp, rng } from '../paintlife.js';
+import { LOWMEM } from '../budget.js';
 import { score } from './stagecraft.js';
 
 const TAU = Math.PI * 2;
@@ -81,7 +83,9 @@ const PW = 2048, M = PW / W, PH = Math.round(HC * M);
 // ------------------------------------------------------------------ his paint --
 // The cloth, painted a step at a time (a generator: each yield is a place to stop for this frame). Everything is
 // a flat shape filled with chips of two or three close tones; nothing is blended and nothing shines.
-function* paintCloth(g, tone, seed) {
+// (KS: the canvas is that much smaller than PW x PH, where memory is short; everything is still laid out in PW x PH.)
+function* paintCloth(g, tone, seed, KS) {
+  g.setTransform(KS, 0, 0, KS, 0, 0);
   const rand = rng(seed), R = (a, b) => a + (b - a) * rand(), pick = a => a[Math.floor(rand() * a.length) % a.length];
   // one colour, a little lighter or darker each time it is used (his close tones)
   const css = (h, j = 0.07) => { const c = tone(h), k = 1 + (rand() - 0.5) * 2 * j; return `rgb(${Math.min(255, c[0] * k) | 0},${Math.min(255, c[1] * k) | 0},${Math.min(255, c[2] * k) | 0})`; };
@@ -150,7 +154,7 @@ function* paintCloth(g, tone, seed) {
     for (let v = 0; v < VAR; v++) blossom(CELL * (v + 0.5), CELL * (FAM.length * 2 + 0.5), 3.0, v < 14 ? WHITE : GOLD);
     g = cloth;
   }
-  const stamp = (v, row, x, y, k, flip) => { g.setTransform(flip ? -k : k, 0, 0, k, x, y); g.drawImage(sheet, v * CELL, row * CELL, CELL, CELL, -CELL / 2, -CELL / 2, CELL, CELL); };
+  const stamp = (v, row, x, y, k, flip) => { g.setTransform((flip ? -k : k) * KS, 0, 0, k * KS, x * KS, y * KS); g.drawImage(sheet, v * CELL, row * CELL, CELL, CELL, -CELL / 2, -CELL / 2, CELL, CELL); };
   {
     const rows = Math.round((FY1 - FY0) / 0.092), cols = Math.round((FX1 - FX0) / 0.15), lobes = [];
     for (let j = 0; j <= rows; j++) {
@@ -161,10 +165,10 @@ function* paintCloth(g, tone, seed) {
         lobes.push(m(cx + R(-0.2, 0.2) * r), m(cy + r * 0.12), m(r * R(0.5, 0.64)) / RREF, Math.floor(rand() * VAR) % VAR, rand() < 0.5);
         for (let q = 0; q < lobes.length; q += 5) stamp(lobes[q + 3], 2 * f + 1, lobes[q], lobes[q + 1] + 1.7, lobes[q + 2] * 1.02, lobes[q + 4]);
         for (let q = 0; q < lobes.length; q += 5) stamp(lobes[q + 3], 2 * f, lobes[q], lobes[q + 1], lobes[q + 2], lobes[q + 4]);
-        if (tick(lobes.length * 0.6)) { g.setTransform(1, 0, 0, 1, 0, 0); yield; }
+        if (tick(lobes.length * 0.6)) { g.setTransform(KS, 0, 0, KS, 0, 0); yield; }
       }
     }
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.setTransform(KS, 0, 0, KS, 0, 0);
   }
   // (buff where a bough's bark shows through the leaves: broken runs of pale chips, climbing)
   for (let bx = FX0 + R(0.15, 0.4); bx < FX1 - 0.1; bx += R(0.45, 0.8)) {
@@ -182,7 +186,7 @@ function* paintCloth(g, tone, seed) {
     const x = R(FX0, FX1), y = R(FY0, FY1); if (vn(x * 2.3 + 40.0, y * 2.6 + 9.0) < 0.44 + 0.3 * rand()) continue;
     stamp(rand() < 0.9 ? Math.floor(rand() * 14) % 14 : 14 + Math.floor(rand() * 6) % 6, FAM.length * 2, m(x), m(y), R(0.8, 1.17), rand() < 0.5);
   }
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.setTransform(KS, 0, 0, KS, 0, 0);
   yield;
 
   // ---- his border. The top: an olive ochre band, fronds hatched across it, pale rosettes, a few orange flowers
@@ -283,10 +287,13 @@ lifeFor(109926, {
   build(L) {
     const tone = h => { const c = L.pal.near(h, 0.12).convertLinearToSRGB(); return [c.r * 255, c.g * 255, c.b * 255]; };
     // ---- the cloth's paint: one canvas, painted a step at a time from now on (it is finished long before a look)
-    const cv = document.createElement('canvas'); cv.width = PW; cv.height = PH;
-    const g = cv.getContext('2d'); g.fillStyle = '#453620'; g.fillRect(0, 0, PW, PH);
+    const KS = LOWMEM ? 0.5 : 1, cv = document.createElement('canvas'); cv.width = Math.round(PW * KS); cv.height = Math.round(PH * KS);
+    const g = cv.getContext('2d'); g.fillStyle = '#453620'; g.fillRect(0, 0, cv.width, cv.height);
     const tex = this.tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-    const job = paintCloth(g, tone, 109926); this.painted = false;
+    const job = paintCloth(g, tone, 109926, KS); this.painted = false;
+    // (and a small texture of chance, for the unevenness of a thing made by hand)
+    const nd = new Uint8Array(64 * 64 * 4), nr = rng(244); for (let i = 0; i < nd.length; i++) nd[i] = Math.floor(nr() * 256);
+    const noise = new THREE.DataTexture(nd, 64, 64, THREE.RGBAFormat); noise.wrapS = noise.wrapT = THREE.RepeatWrapping; noise.magFilter = THREE.LinearFilter; noise.minFilter = THREE.LinearMipmapLinearFilter; noise.generateMipmaps = true; noise.needsUpdate = true;
     let steps = 0;
     const step = () => {
       if (this.tex !== tex) return;                                 // (let go while it was being painted)
@@ -325,7 +332,7 @@ lifeFor(109926, {
       if (cs.x > 0.01) card.set(L.local(cp.x, cp.z).u, cp.y - L.y, cs.x / 2 + 0.004, cs.y / 2 + 0.004);
     }
     const U = this.U = {
-      tCloth: { value: tex },
+      tCloth: { value: tex }, tNoise: { value: noise },
       uO: { value: new THREE.Vector3(o.x, L.y, o.z) }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) },
       uHaul: { value: new THREE.Vector4(0, 0, -0.4, 0) }, uMove: { value: new THREE.Vector4(0, 0, 0, 0) }, uMore: { value: new THREE.Vector4(0, 0, RING_Y, 0) },
       uBox: { value: new THREE.Vector4(L.hw + L.fw + 0.03, foot - 0.03, head + 0.03, 0.02) },
@@ -335,6 +342,7 @@ lifeFor(109926, {
       uLining: { value: new THREE.Color('#6e6149') }, uCordC: { value: L.pal.near('#a8956a', 0.1) }, uBrass: { value: new THREE.Color('#b08a3c') },
     };
     const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: true, side: THREE.DoubleSide, forceSinglePass: true, fog: false });
+    mat.clothTex = tex; mat.noiseTex = noise;                        // (so the kit finds the textures and lets them go with the rest, where memory is short)
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, U);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
@@ -374,8 +382,9 @@ uniform sampler2D tCloth; uniform vec3 uO, uLamp, uLining, uCordC, uBrass, uDust
 varying vec3 vuL, vuN; varying vec3 vuQ; varying float vuS;
 const float HC = ${f3(HC)}, R0 = ${f3(R0)}, KK = ${KK.toFixed(6)}, OS = ${f3(O_SKIRT)};
 vec3 vuC; float vuA;
-float vuH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vuV(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(vuH(i), vuH(i + vec2(1.0, 0.0)), f.x), mix(vuH(i + vec2(0.0, 1.0)), vuH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
+// (unevenness, from a small texture of chance: four numbers at a place given in millimetres; with distance it evens out to nothing)
+uniform sampler2D tNoise;
+#define vuZ(p) texture2D(tNoise, (p) / 64.0)`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
   float kind = vuQ.z; vec3 n = normalize(vuN);
@@ -389,17 +398,18 @@ float vuV(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   if (kind < 0.5) {
     // (his edges are dragged, not cut: each touch is read a millimetre or two out of true, where the eye is near enough to tell)
     vec2 mm = vec2(vuQ.x * ${f3(W)}, vuS) * 1000.0; float fw = max(fwidth(mm.y), 0.001), near = 1.0 - smoothstep(0.6, 2.2, fw), mid = 1.0 - smoothstep(2.0, 7.0, fw);
-    vec2 drag = (vec2(vuV(mm * 0.37), vuV(mm * 0.37 + 41.0)) - 0.5) * 2.6 * mid + (vec2(vuV(mm * 0.9 + 7.0), vuV(mm * 0.9 + 19.0)) - 0.5) * 1.3 * near;
+    vec4 z1 = vuZ(mm * 0.37), z2 = vuZ(mm * 0.9 + 7.0), z3 = vuZ(mm * 0.11 + 3.0), z4 = vuZ(mm * 0.023 + 11.0);
+    vec2 drag = (z1.rg - 0.5) * 3.2 * mid + (z2.ba - 0.5) * 1.6 * near;
     vec2 uv = vec2(vuQ.x + drag.x / ${f3(W * 1000)}, 1.0 - vuQ.y - drag.y / ${f3(HC * 1000)});
     vec3 c = texture2D(tCloth, uv).rgb;
     // a weave: fine ribs across, the warp just showing, and the unevenness of a thing made by hand (faded out with distance)
     float rib = 0.5 + 0.5 * sin(mm.y * 2.2), warp = 0.5 + 0.5 * sin(mm.x * 1.5 + 0.8 * sin(mm.y * 0.11));
-    c *= 1.0 - near * (0.13 * rib + 0.06 * warp) + near * 0.09;
-    c *= 0.9 + 0.2 * vuV(mm * 0.11) * (0.5 + 0.5 * vuV(mm * 0.023)) * mix(0.5, 1.0, mid) + 0.1 * (vuV(mm * 0.42) - 0.5) * mid;
+    c *= 1.0 - near * (0.13 * rib + 0.035 * warp) + near * 0.08;
+    c *= 0.9 + 0.2 * z3.r * (0.5 + 0.5 * z4.g) * mix(0.5, 1.0, mid) + 0.12 * (z1.b - 0.5) * mid;
     // thin paint on coarse canvas, and no varnish: a little of the colour gone out of it, a little chalk in its darks
     c = mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, 0.84) * 0.96 + 0.006;
     // its back: a plain lining, a coarse linen, its threads uneven
-    if (lining) c = uLining * (0.84 + 0.2 * vuV(mm * 0.05)) * (1.0 - near * 0.16 * rib) * (1.0 - (1.0 - smoothstep(2.0, 7.0, fw)) * 0.13 * (0.5 + 0.5 * sin(mm.y * 0.7 + 2.0 * vuV(mm * vec2(0.004, 0.03))))) * (0.94 + 0.1 * vuV(mm * vec2(0.012, 0.3)));
+    if (lining) c = uLining * (0.84 + 0.2 * z3.g) * (1.0 - near * 0.16 * rib) * (1.0 - mid * 0.13 * (0.5 + 0.5 * sin(mm.y * 0.7 + 5.0 * z4.b))) * (0.94 + 0.12 * (z1.a - 0.5));
     // the frame's shadow on it, below the frame and a little down each side (the lamp is above)
     float inx = 1.0 - smoothstep(uBox.x - 0.04, uBox.x + 0.05, abs(vuL.x));
     float under = inx * (1.0 - smoothstep(0.0, 0.2, uBox.y + 0.03 - vuL.y)) * step(vuL.y, uBox.y + 0.03);
@@ -410,7 +420,7 @@ float vuV(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     if (!lining) lit *= clamp(1.0 + 1.9 * n.y - 2.2 * n.x * sign(vuL.x) * smoothstep(0.2, 1.2, abs(vuL.x)), 0.5, 1.55);
     // its edges: a selvedge, not a ruled line
     float ex = (0.5 - abs(vuQ.x - 0.5)) * ${f3(W)}, es = min(vuS, HC - vuS);
-    float edge = smoothstep(0.0, 0.004, min(ex, es) - 0.0025 * vuV(vec2(vuS * 90.0, vuQ.x * 500.0)));
+    float edge = smoothstep(0.0, 0.004, min(ex, es) - 0.003 * z3.a);
     // (never over the label)
     if (abs(vuL.x - uCard.x) < uCard.z && abs(vuL.y - uCard.y) < uCard.w) discard;
     vuC = c * lit; vuA = edge;
@@ -483,7 +493,7 @@ float vuV(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   start(L, resumed) {
     if (!this.painted) { this.live = true; this.tex.needsUpdate = true; }
     this.calm0 = L.calm; this.sc = this.band(L, L.calm); this.sc.from(resumed ? 1e9 : 0);
-    this.p0 = P_END; this.pNow = 0;
+    this.p0 = P_END; this.pNow = 0; this.was = { shift: -0.3, drop: 0.4, shown: 0, cord: RING_Y, tied: false };
   },
   back() { this.p0 = this.pNow == null ? P_END : this.pNow; },
   end() { this.hide(); },
@@ -504,15 +514,19 @@ float vuV(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       p = this.haul(t, calm, o); this.pNow = p;
     } else {
       // let down, rolling itself up as it comes; then the roll goes back into the wall, and the cords run up
+      // (from wherever it had got to, should the look be broken off before the roll has even landed)
+      const w = this.was;
       p = this.p0 * (1 - ease.inOut(ramp(L.ret, 0, 0.6)));
-      shift = -0.32 * ease.in(ramp(L.ret, 0.62, 1));
-      shown = 1 - ease.smooth(ramp(L.ret, 0.8, 1));
+      shift = lerp(w.shift, -0.32, ease.in(ramp(L.ret, 0.62, 1)));
+      drop = w.drop * (1 - ease.smooth(ramp(L.ret, 0, 0.3)));
+      shown = w.shown * (1 - ease.smooth(ramp(L.ret, 0.8, 1)));
     }
     const l = Math.min(p, HC), lift = Math.max(0, p - HC), Rl = Math.sqrt(R0 * R0 + KK * (HC - l)), top = Rl + l + lift;
     U.uHaul.value.set(l, lift, shift, drop);
     // the cords: down from their rings, loose, to the roll; then fast to the batten and taut
     if (!back) { const fallen = ramp(t, 0.3, 1.05); cordEnd = t < HEAVES[0][0] ? lerp(RING_Y, R_START + 0.02, fallen * fallen) : top; }
-    else cordEnd = L.ret < 0.6 ? top : lerp(top, RING_Y, ease.inOut(ramp(L.ret, 0.6, 0.95)));
+    else { const from = this.was.tied ? top : this.was.cord; cordEnd = L.ret < 0.6 ? from : lerp(from, RING_Y, ease.inOut(ramp(L.ret, 0.6, 0.95))); }
+    if (!back) { const w = this.was || (this.was = {}); w.shift = shift; w.drop = drop; w.shown = shown; w.cord = cordEnd; w.tied = t >= HEAVES[0][0]; }
     U.uMore.value.z = Math.min(RING_Y, cordEnd); U.uMore.value.w = shown; U.uMore.value.y = t;
     // ---- how it moves: a ripple down it from each heave; a belly while it is hauled; the swing when its foot is free
     let rs = 0, ra = 0, belly = 0, swing = 0, fold = 0;
