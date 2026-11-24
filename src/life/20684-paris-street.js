@@ -356,7 +356,7 @@ float lPud, lDry;`)
         const a = this.splash.geometry.attributes.position.array;
         for (let i = 0; i < SPLASH; i++) { const ang = Math.random() * 6.28, s = 0.4 + Math.random() * speed * 0.4; a[i * 3] = p.x; a[i * 3 + 1] = L.y + 0.02; a[i * 3 + 2] = p.z; this.sv[i].set(Math.cos(ang) * s, 1.2 + Math.random() * 1.6, Math.sin(ang) * s); }
         this.splash.geometry.attributes.position.needsUpdate = true; this.splash.visible = true; this.st = 0;
-        k.synth.noise(0.35, { vol: 0.08, lp: 2400 }); k.synth.noise(0.2, { vol: 0.04, lp: 5000, at: 0.05 });
+        { const c = L.calm ? 0.45 : 1; k.synth.noise(0.35, { vol: 0.08 * c, lp: 2400, attack: L.calm ? 0.04 : undefined }); k.synth.noise(0.2, { vol: 0.04 * c, lp: 5000, at: 0.05 }); }      // (with Reduce motion on, no sudden loud sound)
       }
     }
     this.was = inside;

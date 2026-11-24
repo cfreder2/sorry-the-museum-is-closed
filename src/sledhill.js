@@ -113,6 +113,7 @@ function rod(P, a, b, r0, r1, c, snowy = 0, sides = 6) {
 
 feature({
   id: 'sledding',
+  lazy: { x: 330, z: 140, r: 170 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['sledding', 'Sledding'], ['penguinrace', 'Beat a penguin down the hill']],
   init(k) {
     if (!k.plan.lakefront) return;

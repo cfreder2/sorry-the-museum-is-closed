@@ -99,6 +99,7 @@ function glyphTex() {
 // ---------------------------------------------------------------- the feature
 feature({
   id: 'bandshell',
+  lazy: { x: 316, z: 212, r: 150 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['snowball', 'Snow Ball: a full combo'], ['snowstar', 'Snow Ball: an S on HARD']],
   init(k) {
     const L = k.plan.lakefront; if (!L || !L.shell || !L.shell.rings) return;

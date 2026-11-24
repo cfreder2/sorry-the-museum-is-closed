@@ -73,6 +73,7 @@ export function outfield(k) {
 
 feature({
   id: 'ballpark',
+  lazy: { x: 402, z: 146, r: 160 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['derbyhr', 'Home Run Derby: one over the wall'], ['derby5', 'Home Run Derby: five in a round']],
   init(k) {
     const L = k.plan.lakefront; if (!L) return;

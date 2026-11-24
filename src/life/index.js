@@ -50,4 +50,8 @@ import './4081-gian-lodovico-madruzzo.js'; // 206  Moroni, Gian Lodovico Madruzz
 import './64729-early-morning-tarpon-springs.js'; // 161  Inness, Early Morning, Tarpon Springs: daybreak
 import './27307-madame-de-pastoret.js'; // 218  David, Madame de Pastoret and Her Son: thread
 import './23333-pastoral-scene.js';   // 217  Piazzetta, Pastoral Scene: paddle
+import './62371-madame-cezanne-yellow-chair.js'; // 248  Cezanne, Madame Cezanne in a Yellow Chair: trace
+import './4796-fishing-boats-hucksters.js'; // 220  Turner, Fishing Boats with Hucksters Bargaining for Fish: bargain
+import './60755-ruins-of-egmond.js';  // 213  van Ruisdael, Landscape with the Ruins of the Castle of Egmond: shelter
+import './150054-mrs-beatty-and-susan.js'; // 161  Johnson, Mrs. Beatty and Her Daughter Susan: strawberry
 import './14598-beach-at-sainte-adresse.js'; // 225  Monet, The Beach at Sainte-Adresse: ebb

@@ -397,19 +397,30 @@ function kitFor(o) {
     },
   };
   k.carry = new Carry(k);
+  // A feature with `lazy: { x, z, r }` (where it is, and how near the toy must come) is not built at start-up but the
+  // first time the toy comes within r metres: the park, the hill, the harbour cost a phone nothing until you go out there.
+  // Its secrets are counted from the start; until it is built it is on the map at (x, z).
+  const init = f => { f._pending = false; try { if (f.init) f.init(k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } };
   const start = f => {
     for (const [id, name] of f.secrets || []) secrets.add(id, name);
-    try { if (f.init) f.init(k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; }
+    if (f.lazy) { f._pending = true; return; }
+    init(f);
+  };
+  let lazyT = 0;
+  const wake = dt => {
+    if ((lazyT += dt) < 0.5) return; lazyT = 0;
+    const p = G.vehicle && G.vehicle.pos; if (!p) return;
+    for (const f of features) if (f._pending && Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) < f.lazy.r) { init(f); return; }      // (one at a time)
   };
   const api = {
     kit: k,
     // Called where main.js decides what the action button says. Returns { verb, hint, act } or null.
-    near(v) { for (const f of features) { if (f._broken || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } if (r) return r; } return null; },
-    update(dt) { k.camClose = null; for (const f of features) { if (f._broken || !f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } } },
-    look(art) { for (const f of features) if (!f._broken && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
-    spots() { return features.flatMap(f => { try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
-    reset() { k.carry.clear(); for (const f of features) if (f.reset) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },
-    fresh() { for (const f of features) if (f.fresh) try { f.fresh(k); } catch (e) { console.error('feature ' + f.id, e); } },
+    near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } if (r) return r; } return null; },
+    update(dt) { k.camClose = null; wake(dt); for (const f of features) { if (f._broken || f._pending || !f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } } },
+    look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
+    spots() { return features.flatMap(f => { if (f._pending) return (f.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: f.lazy.x, y: 0, z: f.lazy.z })); try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
+    reset() { k.carry.clear(); for (const f of features) if (f.reset && !f._pending) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },
+    fresh() { for (const f of features) if (f.fresh && !f._pending) try { f.fresh(k); } catch (e) { console.error('feature ' + f.id, e); } },
   };
   return { start, api };
 }
