@@ -240,17 +240,18 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
     // random breaks where somebody dug a way through from the pavement
     for (let p = a + 14 + hash(seed, a, 1) * 20; p < b - 10; p += 24 + hash(p, seed, 2) * 30) gs.push([p - 0.55, p + 0.55]);
     const tp = (0.2 + behind) / (behind + into), gam = Math.log(0.5) / Math.log(tp), WMAX = behind + into * 1.32;
-    const wide = p => behind + into * (0.72 + 0.6 * vn(p / 5.3, seed + 5));          // how far it was thrown, which comes and goes
+    const wide = p => behind + into * (0.6 + 0.5 * vn(p / 5.3, seed + 5) + 0.22 * vn(p / 2.3, seed + 6));      // how far it was thrown, which comes and goes, in scallops
+    const lean = p => gam * (0.78 + 0.5 * vn(p / 2.9, seed + 8));                        // and where across it the crest lies
     const amp = p => {
       let g = 1; for (const [g0, g1] of gs) { const o = Math.max(g0 - p, p - g1); if (o < 1.1) g = Math.min(g, smooth(0, 1.1, o)); if (g === 0) return 0; }
       if (!open[0]) g = Math.min(g, smooth(0, 1.4, p - a)); if (!open[1]) g = Math.min(g, smooth(0, 1.4, b - p));
-      let h = H * (0.42 + 0.78 * vn(p / 3.7, seed) + 0.36 * vn(p / 1.9, seed + 11));
+      let h = H * (0.34 + 0.9 * vn(p / 3.7, seed) + 0.4 * vn(p / 1.9, seed + 11));
       for (const c of heaps) { const u = (p - c) / 1.15; if (u > -3 && u < 3) h += H * 0.9 * Math.exp(-u * u); }
       return h * g;
     };
     const fn = axis === 'z'
-      ? (x, z) => { const u = (x - k) * d + behind; if (u <= 0 || u >= WMAX) return 0; const t = u / wide(z); if (t >= 1) return 0; const A = amp(z); return A ? A * (0.5 - 0.5 * Math.cos(2 * Math.PI * Math.pow(t, gam))) : 0; }
-      : (x, z) => { const u = (z - k) * d + behind; if (u <= 0 || u >= WMAX) return 0; const t = u / wide(x); if (t >= 1) return 0; const A = amp(x); return A ? A * (0.5 - 0.5 * Math.cos(2 * Math.PI * Math.pow(t, gam))) : 0; };
+      ? (x, z) => { const u = (x - k) * d + behind; if (u <= 0 || u >= WMAX) return 0; const t = u / wide(z); if (t >= 1) return 0; const A = amp(z); return A ? A * (0.5 - 0.5 * Math.cos(2 * Math.PI * Math.pow(t, lean(z)))) : 0; }
+      : (x, z) => { const u = (z - k) * d + behind; if (u <= 0 || u >= WMAX) return 0; const t = u / wide(x); if (t >= 1) return 0; const A = amp(x); return A ? A * (0.5 - 0.5 * Math.cos(2 * Math.PI * Math.pow(t, lean(x)))) : 0; };
     const across = [0, 0.08, 0.18, 0.29, 0.41, 0.54, 0.7, 1].map(t => k + d * (t * WMAX - behind)); if (d < 0) across.reverse();
     const colour = (x, z, h) => { const u = ((axis === 'z' ? x : z) - k) * d, grit = smooth(0.1, into, u) * (0.55 + 0.45 * hash(x * 7, z * 7, 5)), q = Math.min(1, grit * 0.9 + (h < 0.03 ? 0.25 : 0)); return [CLEAN[0] + (DIRT[0] - CLEAN[0]) * q, CLEAN[1] + (DIRT[1] - CLEAN[1]) * q, CLEAN[2] + (DIRT[2] - CLEAN[2]) * q]; };
     // in lengths of 70 m or so, each its own piece of ground, skipping what the gaps leave empty
