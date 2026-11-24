@@ -61,4 +61,5 @@ import './14598-beach-at-sainte-adresse.js'; // 225  Monet, The Beach at Sainte-
 import './4758-stoke-by-nayland.js';   // 220  Constable, Stoke-by-Nayland: dew
 import './90048-distant-view-of-niagara.js'; // 161  Cole, Distant View of Niagara Falls: spray
 import './16146-equestrienne-cirque-fernando.js'; // 242  Toulouse-Lautrec, Equestrienne (At the Cirque Fernando): hoop
+import './16488-armida-encounters-rinaldo.js'; // 215  Tiepolo, Armida Encounters the Sleeping Rinaldo: hush
 import './81512-interrupted-reading.js'; // 224  Corot, Interrupted Reading: pause
