@@ -34,8 +34,10 @@
 // water is a puddle and a bough-full of drops), and it keeps to the left of Turner's canvas. Nothing is solid and
 // nothing stays out after the look. Three draw calls: the ground (one sheet: his earth, the grass, the puddle and its
 // rings, the dew on the grass, one shader), one rig (the stems, the bough's three lengths, the horse, the cart; every
-// part condenses in its shader) and his touches (leaves, hanging drags, beads, drops, mane and tail, the hedge: knife
-// marks that face you, one instanced shader).
+// part condenses in its shader) and his touches (leaves, hanging drags, beads, drops, the hedge: knife marks that face
+// you, one instanced shader). The horse is a modelled body only underneath: over it is a shell of those touches on its
+// bones (blacks and warm browns, the wet light on its back and quarters, the blaze and the feather at its feet as
+// loaded white, a dull red for the collar), and the cart has a few too.
 // With "Reduce motion and flashing": the bough comes up slowly with no bounce and no tremble, the horse's shake is
 // half as fast and half as far, the leaves swing a third as much, nothing glints (the dew only shimmers, slowly), and
 // every sound is eased in.
@@ -315,7 +317,7 @@ float blot(vec2 p, vec2 c, vec2 d, vec2 r) { vec2 q = p - c; return exp(-pow(dot
 
   // ---------------------------------------------------------------- the rig: the tree, the bough, the horse, the cart
   buildRig(L, col) {
-    const ru = this.ru = { uGrow: { value: 0 }, uGrow1: this.gu.uGrow1, uDewR: { value: 0 }, uC: { value: new THREE.Vector2(this.O.x, this.O.z) }, uTN: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uFloor: { value: L.y }, cDew: this.gu.cDew };
+    const ru = this.ru = { uGrow: { value: 0 }, uGrow1: this.gu.uGrow1, uDewR: { value: 0 }, uC: { value: new THREE.Vector2(this.O.x, this.O.z) }, uTN: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uFloor: { value: L.y }, cDew: this.gu.cDew, uHDew: { value: 0 }, cWet: { value: col('#6d7678', 0.3) } };
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, emissive: 0xffffff, emissiveIntensity: 0.42 });
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, ru);
@@ -332,7 +334,7 @@ float blot(vec2 p, vec2 c, vec2 d, vec2 r) { vec2 q = p - c; return exp(-pow(dot
       // out where each part is its own, so it stays put when the part moves), and afterwards the dew lies on whatever
       // faces the sky (not on the horse).
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-uniform float uGrow, uGrow1, uDewR, uFloor; uniform vec4 uTN; uniform vec2 uC; uniform vec3 cDew; varying vec3 vWp; varying vec3 vLp;
+uniform float uGrow, uGrow1, uDewR, uFloor, uHDew; uniform vec4 uTN; uniform vec2 uC; uniform vec3 cDew, cWet; varying vec3 vWp; varying vec3 vLp;
 float h31(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
 float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(h31(i), h31(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h31(i + vec3(0.0, 1.0, 0.0)), h31(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
@@ -345,13 +347,18 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     if (g < 0.0 && (uGrow1 * 1.7 - 0.3 - far < 0.12 || n1 < 0.69)) discard;
     vec2 hq = uo - vec2(${GL(HORSE.u)}, ${GL(HORSE.o)}); float ha = dot(hq, vec2(${GL(HORSE.du)}, ${GL(HORSE.dv)})), hc = dot(hq, vec2(${GL(-HORSE.dv)}, ${GL(HORSE.du)}));
     float notHorse = 1.0 - (1.0 - smoothstep(${GL(0.26 * HS)}, ${GL(0.3 * HS)}, abs(ha))) * (1.0 - smoothstep(${GL(0.1 * HS)}, ${GL(0.13 * HS)}, abs(hc)));
-    float k1 = vn3(vLp * vec3(46.0, 17.0, 46.0) + 3.1), k2 = vn3(vLp * vec3(150.0, 60.0, 150.0)), kk = mix(0.4, 1.0, notHorse);
+    float k1 = vn3(vLp * vec3(46.0, 17.0, 46.0) + 3.1), k2 = vn3(vLp * vec3(150.0, 60.0, 150.0)), kk = mix(0.85, 1.0, notHorse);
     diffuseColor.rgb *= 1.0 + kk * (0.62 * k1 - 0.38 + 0.3 * (k2 - 0.5));
     diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.5 + vec3(0.02, 0.018, 0.012), smoothstep(0.66, 0.8, k1) * smoothstep(0.4, 0.6, k2) * kk);
+    // (the horse's back and quarters are wet: the sky's grey lies on them, in touches)
+    float up = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)), k3 = vn3(vLp * vec3(64.0, 40.0, 30.0) + 5.7);
+    diffuseColor.rgb = mix(diffuseColor.rgb, cWet * (0.7 + 0.5 * k2), (1.0 - notHorse) * smoothstep(0.35, 0.9, up) * smoothstep(0.5, 0.64, k3) * 0.6);
     diffuseColor.rgb = mix(cDew * 0.92, diffuseColor.rgb, smoothstep(0.0, 0.035, g));
-    float up = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));
-    float fk = smoothstep(0.3, 0.8, up) * smoothstep(0.86 - 0.14 * uDewR, 0.9 - 0.14 * uDewR, vn3(vLp * 82.0 + 9.0)) * step(0.001, uDewR) * notHorse;
-    diffuseColor.rgb = mix(diffuseColor.rgb, cDew, fk * 0.9); }`)
+    float n82 = vn3(vLp * 82.0 + 9.0);
+    float fk = smoothstep(0.3, 0.8, up) * smoothstep(0.86 - 0.14 * uDewR, 0.9 - 0.14 * uDewR, n82) * step(0.001, uDewR) * notHorse;
+    // (and after the bough has let go, some of its drops are caught there)
+    float fh = smoothstep(0.45, 0.85, up) * smoothstep(0.8, 0.84, n82) * uHDew * (1.0 - notHorse);
+    diffuseColor.rgb = mix(diffuseColor.rgb, cDew, max(fk, fh) * 0.9); }`)
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= diffuseColor.rgb;');
     };
     mat.customProgramCacheKey = () => 'stoke-rig';
@@ -374,8 +381,8 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const hd = HORSE, yawH = Math.atan2(-hd.dv, hd.du), bones = this.bones = new Bones();
     this.yawH = yawH;
     {
-      const wood = col('#54463a'), woodL = col('#a59880', 0.15), woodD = col('#2a2018'), red = col('#6d3a26', 0.18), redL = col('#a87a52', 0.15);
-      const Mw = new THREE.Matrix4(); bones.set(Mw, hd.u - hd.du * WAG, 0, hd.o - hd.dv * WAG, yawH, 0, 0, HS);
+      const wood = col('#54463a'), woodL = col('#a59880', 0.15), woodD = col('#2a2018'), red = col('#54342a', 0.22), redL = col('#86694d', 0.2);
+      const Mw = this.Mw = new THREE.Matrix4(); bones.set(Mw, hd.u - hd.du * WAG, 0, hd.o - hd.dv * WAG, yawH, 0, 0, HS);
       const LW = LS.clone().transformDirection(new THREE.Matrix4().copy(Mw).invert());
       const board = (w, h, d, x, y, z, rx = 0, rz = 0) => tint(shape.move(shape.box(w, h, d), x, y, z, rx, 0, rz), (p, n, c) => { const s = Math.sin(p.x * 150 + p.y * 40) * Math.sin(p.x * 61 + 1.3); c.copy(woodD).lerp(wood, clamp01(0.35 + (p.y - 0.13) * 9 + 0.25 * s)).lerp(woodL, clamp01((n.dot(LW) - 0.35) * 1.2) * (0.5 + 0.3 * s)).multiplyScalar(lit(n, LW)); });
       const rail = (x, y, z, len) => tint(shape.move(shape.box(len, 0.01, 0.014), x, y, z), (p, n, c) => c.copy(wood).lerp(woodL, clamp01(0.3 + n.y)).multiplyScalar(lit(n, LW) * 1.08));
@@ -407,11 +414,11 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     // ---- the horse: black, heavy, white to the fetlock, a red collar. Its own frame: x the way it faces, y up, z to
     // its right (the wall's side; its near side is -z)
     {
-      const coat = col('#17120d'), coatL = col('#5a4633', 0.16), coatW = col('#2b1f17'), white = col('#dcd5c2', 0.1), muzzle = col('#6a5648'), red = col('#8a2c20', 0.2), brass = col('#b08a4a', 0.2);
+      const coat = col('#17120d'), coatL = col('#5a4633', 0.16), coatW = col('#2b1f17'), white = col('#8f887a', 0.2), mud = col('#4a3c2d', 0.2), muzzle = col('#3d302a'), red = col('#5e2c22', 0.25), redD = col('#2e1711', 0.2), brass = col('#7d6a44', 0.25);
       const LH = LS.clone().applyAxisAngle(this.UP, -yawH);
       const hide = (p, n, c) => { c.copy(coat).lerp(coatW, 0.5 + 0.5 * Math.sin(p.x * 70 + p.y * 40)).lerp(coatL, clamp01((n.dot(LH) - 0.4) * 1.5)).multiplyScalar(lit(n, LH)); };
-      // (white feather from the fetlock down, ragged at its top)
-      const leg = (p, n, c) => { hide(p, n, c); const f = 1 - sm(p.y + 0.012 * Math.sin(p.x * 300 + p.z * 240), 0.04, 0.072); c.lerp(k2.copy(white).multiplyScalar(lit(n, LH) * 0.96), f); };
+      // (under the feather at its feet: a dull broken grey, muddy below; the white itself is laid over it in touches)
+      const leg = (p, n, c) => { hide(p, n, c); const w = Math.sin(p.x * 300 + p.z * 240), f = (1 - sm(p.y + 0.014 * w, 0.036, 0.07)) * (0.42 + 0.34 * Math.sin(p.y * 520 + p.z * 310 + p.x * 170)); c.lerp(k2.copy(white).lerp(mud, 1 - sm(p.y + 0.006 * w, 0.004, 0.026)).multiplyScalar(lit(n, LH)), f); };
       const body = loft([[-0.176, 0.224, 0, 0.004], [-0.168, 0.224, 0, 0.04, 0.045], [-0.146, 0.222, 0, 0.064, 0.064], [-0.112, 0.219, 0, 0.074, 0.073], [-0.065, 0.213, 0, 0.076, 0.07], [-0.015, 0.207, 0, 0.078, 0.069], [0.035, 0.208, 0, 0.076, 0.071], [0.078, 0.215, 0, 0.069, 0.076], [0.112, 0.219, 0, 0.058, 0.069], [0.137, 0.216, 0, 0.042, 0.052], [0.15, 0.213, 0, 0.004]], 18, Y, hide, 2);
       const fore = z => loft([[0.104, 0.2, z, 0.004], [0.105, 0.19, z, 0.031], [0.106, 0.135, z, 0.025], [0.109, 0.09, z, 0.021], [0.107, 0.055, z, 0.015], [0.109, 0.028, z, 0.022], [0.114, 0.007, z, 0.031], [0.114, 0, z, 0.022]], 10, Z, leg, 2);
       const hindR = loft([[-0.105, 0.215, 0.045, 0.004], [-0.11, 0.2, 0.045, 0.047, 0.04], [-0.125, 0.15, 0.045, 0.035, 0.03], [-0.146, 0.1, 0.045, 0.022], [-0.136, 0.055, 0.045, 0.015], [-0.13, 0.028, 0.045, 0.023], [-0.125, 0.007, 0.045, 0.032], [-0.125, 0, 0.045, 0.022]], 10, Z, leg, 2);
@@ -419,13 +426,13 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       const hindL = loft([[-0.105, 0.212, -0.045, 0.004], [-0.108, 0.198, -0.045, 0.047, 0.04], [-0.117, 0.148, -0.045, 0.035, 0.03], [-0.13, 0.104, -0.046, 0.022], [-0.108, 0.058, -0.047, 0.015], [-0.1, 0.032, -0.047, 0.023], [-0.09, 0.011, -0.047, 0.028], [-0.086, 0.002, -0.047, 0.017]], 10, Z, leg, 2);
       // the collar: a red ring round the root of the neck, a brass tip to each hame
       const ring = Array.from({ length: 9 }, (_, i) => [0.06 + 0.013 * Math.cos(i / 8 * TAU), 0.013 * Math.sin(i / 8 * TAU)]);
-      const collar = tint(shape.move(shape.lathe(ring, 18), 0.114, 0.23, 0, 0, 0, -0.9, 1, 1, 0.84), (p, n, c) => c.copy(red).lerp(brass, sm(p.y, 0.278, 0.292)).multiplyScalar(lit(n, LH)));
+      const collar = tint(shape.move(shape.lathe(ring, 18), 0.114, 0.23, 0, 0, 0, -0.9, 1, 1, 0.84), (p, n, c) => c.copy(red).lerp(redD, 0.5 + 0.5 * Math.sin(p.y * 260 + p.z * 190)).lerp(brass, 0.7 * sm(p.y, 0.282, 0.294)).multiplyScalar(lit(n, LH)));
       this.gBody = rig.geo(shape.merge([body, fore(0.04), fore(-0.04), hindR, hindL, collar]));
       this.gNeck = rig.geo(loft([[-0.04, -0.016, 0, 0.004], [-0.03, -0.014, 0, 0.055, 0.08], [0.015, -0.002, 0, 0.049, 0.072], [0.058, 0.008, 0, 0.04, 0.06], [0.1, 0.011, 0, 0.033, 0.048], [0.128, 0.006, 0, 0.028, 0.037], [0.14, 0.002, 0, 0.004]], 14, Y, hide, 2));
-      // the head: a white blaze down the face, a grey muzzle
+      // the head: a grey muzzle, and a dull light down the face for the blaze to be laid on
       this.gHead = rig.geo(loft([[-0.016, 0.002, 0, 0.004], [-0.008, 0.002, 0, 0.029, 0.034], [0.022, -0.001, 0, 0.032, 0.04], [0.054, -0.005, 0, 0.026, 0.033], [0.09, -0.009, 0, 0.02, 0.024], [0.114, -0.01, 0, 0.021, 0.022], [0.126, -0.01, 0, 0.004]], 14, Y, (p, n, c) => {
         hide(p, n, c); c.lerp(k2.copy(muzzle).multiplyScalar(lit(n, LH)), sm(p.x, 0.092, 0.116));
-        c.lerp(k2.copy(white).multiplyScalar(lit(n, LH)), sm(n.y, 0.45, 0.75) * sm(p.x, 0.004, 0.02) * (1 - sm(p.x, 0.096, 0.112)) * (1 - sm(Math.abs(p.z), 0.007, 0.014)));
+        c.lerp(k2.copy(white).multiplyScalar(lit(n, LH)), 0.8 * sm(n.y, 0.5, 0.8) * sm(p.x, 0.006, 0.024) * (1 - sm(p.x, 0.09, 0.108)) * (1 - sm(Math.abs(p.z + 0.003 * Math.sin(p.x * 150)), 0.005, 0.011)));
       }, 2));
       this.gEar = rig.geo(loft([[0, -0.004, 0, 0.004], [0, 0, 0, 0.011, 0.007], [0, 0.015, 0, 0.009, 0.005], [0, 0.032, 0, 0.003, 0.002], [0, 0.037, 0, 0.001]], 8, [1, 0, 0], hide));
       this.iBody = rig.add(this.gBody); this.iNeck = rig.add(this.gNeck); this.iHead = rig.add(this.gHead); this.iEar = [rig.add(this.gEar), rig.add(this.gEar)];
@@ -497,7 +504,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     for (let i = 0; i < 4; i++) HG.push({ u: -0.86 + RR(-0.09, 0.09), h: 0.19 + RR(-0.05, 0.08), o: 0.1 + RR(0, 0.03), s: RR(0.11, 0.14), slot: CLUMP + i % 3, len: 1.2, a: RR(-0.8, 0.4), c: tone(RR(0.2, 0.45), new THREE.Color()), k: 0.95, ph: R() * TAU, r: R() });
     for (let i = 0; i < 4; i++) HG.push({ u: -0.86 + RR(-0.09, 0.09), h: 0.2 + RR(-0.05, 0.08), o: 0.13 + RR(0, 0.02), s: RR(0.034, 0.048), slot: BLOSSOM, len: 1.1, a: RR(-0.5, 0.5), c: col('#d9d4c2', 0.1), k: 0.95, ph: R() * TAU, r: R() });
     // ---- grass, in tufts round the edges of the lane
-    this.tufts = [[-0.95, 0.42], [-0.76, 0.74], [-0.56, 0.98], [-0.3, 0.86], [-0.1, 1.17], [0.62, 0.64], [0.74, 0.9], [0.56, 1.16], [0.8, 0.36], [-1.05, 0.16], [-0.34, 0.26]]
+    this.tufts = [[-0.95, 0.42], [-0.76, 0.74], [-0.56, 0.98], [-0.3, 0.86], [-0.1, 1.17], [0.62, 0.64], [0.74, 0.9], [0.56, 1.16], [0.8, 0.36]]
       .map(([u, o]) => ({ u: u + RR(-0.03, 0.03), o, s: RR(0.06, 0.095), c: tone(RR(0.3, 0.7), new THREE.Color()), k: RR(0.85, 1.1), lean: RR(-0.25, 0.25), r: R() })).sort((a, b) => a.o - b.o);
     // ---- the bough's leaves: the lit, golden ones, in clusters along it (which length, how far along, to the side,
     // up), each three clumps, a lit dab, and drags hanging under it; more and longer towards the tip
@@ -522,12 +529,51 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       b.rel = new THREE.Vector3(); b.relK = -1; b.F = 0; b.land = 0; b.y1 = 0; b.where = 0;
       b.late = b.tipmost ? 0 : 0.03 + 0.92 * Math.pow(1 - b.along, 0.85) + 0.1 * b.jit;       // the bough lets go from the tip inwards
     }
-    this.still = Array.from({ length: 14 }, () => { const m = MASS[Math.floor(R() * 8)]; return { u: m[0] + RR(-1, 1) * m[3], h: m[1] + RR(-1, 0.6) * m[4], o: m[2] + 0.03, sz: RR(0.009, 0.014), ap: R(), ph: R() * TAU }; });
+    this.still = Array.from({ length: 9 }, () => { const m = MASS[Math.floor(R() * 8)]; return { u: m[0] + RR(-1, 1) * m[3], h: m[1] + RR(-1, 0.6) * m[4], o: m[2] + 0.03, sz: RR(0.009, 0.014), ap: R(), ph: R() * TAU }; });
     this.mist = Array.from({ length: 30 }, (_, i) => ({ u: -1.05 + 1.8 * (i + R()) / 30, o: RR(0.2, 1.2), s: RR(0.008, 0.015), ph: R() * TAU, r: R() }));
-    // ---- the horse's touches: mane, forelock, tail, the light along its back
-    this.cCoatL = col('#4c3c2e', 0.18); this.cHair = col('#120e0a'); this.cHairL = col('#2b2019');
-    this.mane = [0.0, 0.028, 0.056, 0.084, 0.11].map(x => ({ x, len: RR(0.06, 0.085) * HS, w: RR(0.024, 0.03) * HS, r: R(), ph: R() * TAU }));
-    this.tail = Array.from({ length: 4 }, (_, i) => ({ len: RR(0.16, 0.2) * HS, w: RR(0.026, 0.034) * HS, z: (i - 1.5) * 0.012, r: R(), ph: R() * TAU }));
+    // ---- the horse in his paint: a shell of knife touches over the modelled body, on its bones (m 0: the body, 1: the
+    // neck, 2: the head; p and d in that bone's own frame: x the way it faces, y up, its near side -z). Blacks and warm
+    // browns down its sides, the blue-grey of wet light along its back and quarters, the white of the blaze and of the
+    // feather at its feet as loaded touches, the collar and the harness a few dull dabs.
+    {
+      const cBlk = col('#0e0b08', 0.1), cDeep = col('#241911', 0.15), cBrn = col('#35261b', 0.2), cBrn2 = col('#473528', 0.2), cOch = col('#4f3f2a', 0.2), cWet = col('#6a7375', 0.3), cWet2 = col('#474e50', 0.25);
+      const cSock = col('#d3ccba', 0.1), cSockG = col('#989183', 0.2), cMud = col('#5b4a38', 0.2), cRed = col('#5c2a22', 0.25), cRedD = col('#341813', 0.2), cStrap = col('#2c221b', 0.15);
+      const BR = [[-0.168, 0.224, 0.04, 0.045], [-0.146, 0.222, 0.064, 0.064], [-0.112, 0.219, 0.074, 0.073], [-0.065, 0.213, 0.076, 0.07], [-0.015, 0.207, 0.078, 0.069], [0.035, 0.208, 0.076, 0.071], [0.078, 0.215, 0.069, 0.076], [0.112, 0.219, 0.058, 0.069], [0.137, 0.216, 0.042, 0.052]];
+      const NR = [[-0.03, -0.014, 0.055, 0.08], [0.015, -0.002, 0.049, 0.072], [0.058, 0.008, 0.04, 0.06], [0.1, 0.011, 0.033, 0.048], [0.128, 0.006, 0.028, 0.037]];
+      // a point on a limb's skin: x along it, th round it from its top (a quarter turn: its near side), a little clear of it
+      const skin = (T, x, th) => { let i = 0; while (i < T.length - 2 && x > T[i + 1][0]) i++; const A = T[i], B = T[i + 1], q = clamp01((x - A[0]) / (B[0] - A[0])); return [x, lerp(A[1], B[1], q) + (lerp(A[3], B[3], q) + 0.005) * Math.cos(th), -(lerp(A[2], B[2], q) + 0.005) * Math.sin(th)]; };
+      const K = this.coat = [], touch = (m, p, d, len, wid, c, al = 1, slot = DAB) => K.push({ m, p, d, len: len * HS, wid: wid * HS, c, al, slot, k: RR(0.85, 1.12) });
+      // far feet first (what is behind is laid first): the feather, a ragged tuft, broad at the hoof
+      touch(0, [0.112, 0.036, 0.03], [0.06, 1, 0], 0.074, 0.046, cSockG, 0.9, DRAG); touch(0, [-0.125, 0.036, 0.035], [-0.06, 1, 0], 0.074, 0.048, cSockG, 0.9, DRAG);
+      // its sides, row by row from the back down; the hair lies back and down
+      const rows = [[-0.12, 0.3, [cWet, cBlk, cWet2, cBrn, cWet], 0.8], [0.55, 0.95, [cBrn, cBlk, cBrn2, cDeep, cBlk], 1], [1.1, 1.5, [cBlk, cDeep, cOch, cBlk], 1], [1.65, 1.95, [cDeep], 1]];
+      for (const [t0, t1, cs, al] of rows) cs.forEach((c, i) => {
+        const x = lerp(-0.145, 0.118, (i + RR(0.15, 0.85)) / cs.length), th = RR(t0, t1), wet = c === cWet || c === cWet2;
+        touch(0, skin(BR, x, th), th < 0.4 ? [1, 0.04, RR(-0.5, 0.1)] : [RR(-0.5, -0.15), -Math.sin(th), -0.6 * Math.cos(th)], RR(0.055, 0.08), RR(0.022, 0.032), c, wet ? al : RR(0.85, 1));
+      });
+      touch(0, [-0.172, 0.25, -0.03], [-0.2, -1, -0.3], 0.07, 0.03, cWet2, 0.8); touch(0, [-0.168, 0.2, -0.05], [-0.1, -1, 0], 0.065, 0.03, cBrn);
+      // the near legs, and the feather at their feet: white, loaded, with mud under it
+      touch(0, [0.106, 0.145, -0.068], [0.05, -1, 0], 0.062, 0.024, cDeep); touch(0, [-0.118, 0.17, -0.088], [-0.3, -1, 0], 0.07, 0.03, cBrn);
+      for (const [x, z, sx] of [[0.112, -0.058, 1], [-0.09, -0.066, -1]]) { touch(0, [x, 0.036, z], [0.06 * sx, 1, 0], 0.078, 0.05, cSock, 1, DRAG); touch(0, [x - 0.01 * sx, 0.05, z - 0.004], [0.25 * sx, 1, 0], 0.046, 0.02, cSock, 0.95); touch(0, [x + 0.012, 0.012, z - 0.006], [1, 0.12, 0], 0.044, 0.015, cMud, 0.9); }
+      // the harness: a strap over its back, a trace along its side; the collar's red, dull, and its dark
+      touch(0, [0.045, 0.262, -0.058], [-0.1, -0.85, -0.6], 0.07, 0.014, cStrap, 0.95); touch(0, [-0.04, 0.2, -0.086], [1, 0.06, 0], 0.11, 0.011, cStrap, 0.9);
+      touch(0, [0.128, 0.215, -0.064], [0.55, -1, 0], 0.062, 0.02, cRed, 0.95); touch(0, [0.112, 0.262, -0.05], [0.6, -1, -0.2], 0.05, 0.017, cRedD, 0.95);
+      // the neck
+      [[0.012, 0.25, cBlk], [0.036, 0.95, cBrn], [0.06, 1.35, cDeep], [0.088, 0.75, cBrn2], [0.108, 1.3, cBlk]].forEach(([x, th, c]) => touch(1, skin(NR, x, th), [0.3, -Math.sin(th), -0.6 * Math.cos(th)], RR(0.05, 0.065), RR(0.022, 0.03), c, RR(0.85, 1)));
+      // the head: a cheek, the jaw, the nose, and the blaze, one loaded touch of white down the face
+      touch(2, [0.03, -0.004, -0.036], [1, -0.3, 0], 0.05, 0.022, cBrn, 0.9); touch(2, [0.07, -0.02, -0.026], [1, -0.15, 0], 0.05, 0.018, cBlk, 0.9); touch(2, [0.108, 0.004, -0.018], [0.5, -1, 0], 0.03, 0.017, cBrn2, 0.85); touch(2, [0.056, 0.03, -0.004], [1, -0.1, 0], 0.082, 0.021, cSock, 0.96);
+      // what the shower leaves on its back: a few flecks of his white
+      this.caught = [[-0.13, 0.25], [-0.08, -0.1], [-0.02, 0.35], [0.03, 0.05], [0.07, 0.4], [-0.15, 0.6]].map(([x, th]) => ({ p: skin(BR, x, th), sz: RR(0.008, 0.012) * HS, ph: R() * TAU }));
+      // the cart, lightly: a dull light and a dark on its near wheel and its boards
+      const cWd = col('#8d8472', 0.2), cWdD = col('#2a211a', 0.15), cWh = col('#6b4a36', 0.25), cWhD = col('#2f1d16', 0.2), v3 = new THREE.Vector3(), d3 = new THREE.Vector3();
+      this.cartMarks = [[[-0.08 + 0.1 * Math.cos(1.0), 0.112 + 0.1 * Math.sin(1.0), -0.116], [-Math.sin(1.0), Math.cos(1.0), 0], 0.07, 0.016, cWh, 0.9], [[-0.08 + 0.1 * Math.cos(3.0), 0.112 + 0.1 * Math.sin(3.0), -0.116], [-Math.sin(3.0), Math.cos(3.0), 0], 0.06, 0.016, cWhD, 0.9], [[-0.08 + 0.1 * Math.cos(5.1), 0.112 + 0.1 * Math.sin(5.1), -0.116], [-Math.sin(5.1), Math.cos(5.1), 0], 0.06, 0.015, cWhD, 0.85],
+        [[-0.1, 0.19, -0.104], [1, 0.04, 0], 0.1, 0.022, cWd, 0.8], [[0.0, 0.168, -0.1], [1, -0.03, 0], 0.09, 0.022, cWdD, 0.85], [[-0.03, 0.224, -0.1], [1, 0, 0], 0.11, 0.011, cWd, 0.85]]
+        .map(([p, d, len, wid, c, al]) => { v3.set(...p).applyMatrix4(this.Mw); d3.set(...d).transformDirection(this.Mw); return { x: v3.x, y: v3.y, z: v3.z, dx: d3.x, dy: d3.y, dz: d3.z, len: len * HS, wid: wid * HS, c, al }; });
+    }
+    // its mane, forelock and tail: rough drags, black and brown, one or two with the wet light on them
+    this.cHair = col('#120e0a'); this.cHairL = col('#33261c'); this.cHairW = col('#3d4244', 0.3);
+    this.mane = [0.0, 0.018, 0.036, 0.056, 0.074, 0.094, 0.112].map((x, i) => ({ x, len: RR(0.05, 0.1) * HS, w: RR(0.02, 0.032) * HS, r: R(), ph: R() * TAU, lean: RR(-0.35, 0.25), c: i === 2 || i === 5 ? this.cHairW : i % 2 ? this.cHairL : this.cHair }));
+    this.tail = Array.from({ length: 5 }, (_, i) => ({ len: RR(0.13, 0.21) * HS, w: RR(0.022, 0.036) * HS, z: (i - 2) * 0.011, r: R(), ph: R() * TAU, c: i === 3 ? this.cHairW : i % 2 ? this.cHairL : this.cHair }));
     this.spray = Array.from({ length: 12 }, (_, i) => ({ burst: i % 3, a: R() * TAU, up: RR(0.25, 0.7), sp: RR(0.25, 0.5), r: R() }));
     this.rings = Array.from({ length: NRING }, () => ({ u: 0, o: 0, age: 9, amp: 0 }));
   },
@@ -714,7 +760,9 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     for (const q of this.still) { const g = sm(t, 1.8 + q.ap * 2.2, 2.9 + q.ap * 2.2) * this.came(q.u, q.h, q.o, 0); if (g > 0) put(q.u, q.h + lift * 0.1, q.o, 0, -1, 0, q.sz * 1.2 * g, q.sz * g, FLECK, 0.2, dewAl, this.cDew, this.glint(t, q.ph, calm)); }
     // the clusters on the first length of the bough stand behind the horse
     this.leaves(0, 2, o, t);
-    this.horseMarks(t, calm, sinceH, shaker, shakeV, x0, sp);
+    { const a = this.came(HORSE.u - HORSE.du * WAG, 0.15, HORSE.o - HORSE.dv * WAG, 0.8); if (a > 0) for (const q of this.cartMarks) put(q.x, q.y, q.z, q.dx, q.dy, q.dz, q.len, q.wid, DAB, lerp(0.93, 0.2, a), q.al, q.c, 1); }
+    const hdew = sm(sinceH, 0.4, 1.0) * (1 - sm(sinceH, 4, 7)) * (1 - lift); ru.uHDew.value = hdew;
+    this.horseMarks(t, calm, sinceH, shaker, shakeV, x0, sp, hdew);
     this.leaves(2, this.clusters.length, o, t);
 
     // ---- the beads, the drops, the rings in the puddle
@@ -769,24 +817,27 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   },
 
   // the horse's touches, on its bones
-  horseMarks(t, calm, sinceH, shaker, shakeV, x0, sp) {
+  horseMarks(t, calm, sinceH, shaker, shakeV, x0, sp, hdew) {
     const v = this.v, d = this.v2, hd = HORSE;
     const a = this.came(hd.u, 0.2, hd.o, 0.8); if (a <= 0) return;
     const cut = lerp(0.93, 0.2, a), w2s = this.w2s || (this.w2s = new THREE.Matrix4().copy(this.M0).invert());
     // (a point and a direction on a bone, into the scene's frame)
     const at = (m, x, y, z) => v.set(x, y, z).applyMatrix4(m).applyMatrix4(w2s), dir = (m, x, y, z) => d.set(x, y, z).transformDirection(m).transformDirection(w2s);
-    // the light along its back
-    for (const [x, y, z, l] of [[-0.105, 0.29, -0.028, 0.075], [-0.01, 0.276, -0.036, 0.085], [0.075, 0.289, -0.028, 0.06]]) { at(this.mBody, x, y, z); const px = v.x, py = v.y, pz = v.z; dir(this.mBody, 1, 0.05, 0); this.put(px, py, pz, d.x, d.y, d.z, l * HS, 0.022 * HS, DAB, cut, 0.5, this.cCoatL, 1); }
-    // the tail: long dark drags from the dock, swinging once when it has shaken
+    // the tail: rough dark drags from the dock, swinging once when it has shaken
     const swish = hump(sinceH, 2.2, 3.1) * Math.sin((sinceH - 2.2) * 9) * (calm ? 0.3 : 0.7) + 0.06 * Math.sin(t * 0.9);
-    for (const q of this.tail) { at(this.mBody, -0.168, 0.25, q.z); const px = v.x, py = v.y, pz = v.z; dir(this.mBody, -0.22 - 0.1 * q.r, -1, q.z * 4 - swish * (0.6 + q.r)); this.put(px + d.x * q.len * 0.5, py + d.y * q.len * 0.5, pz + d.z * q.len * 0.5, d.x, d.y, d.z, q.len, q.w, DRAG, cut, 1, q.r > 0.5 ? this.cHair : this.cHairL, 1); }
-    // the mane, lying on its near side; it flies when the neck shakes
+    for (const q of this.tail) { at(this.mBody, -0.168, 0.25, q.z); const px = v.x, py = v.y, pz = v.z; dir(this.mBody, -0.22 - 0.16 * q.r, -1, q.z * 5 - swish * (0.6 + q.r)); this.put(px + d.x * q.len * 0.5, py + d.y * q.len * 0.5, pz + d.z * q.len * 0.5, d.x, d.y, d.z, q.len, q.w, DRAG, cut, 1, q.c, 1); }
+    // its shell of touches
+    const bone = this.bone3 || (this.bone3 = [this.mBody, this.mNeck, this.mHead]);
+    for (const q of this.coat) { const m = bone[q.m]; at(m, q.p[0], q.p[1], q.p[2]); const px = v.x, py = v.y, pz = v.z; dir(m, q.d[0], q.d[1], q.d[2]); this.put(px, py, pz, d.x, d.y, d.z, q.len, q.wid, q.slot, cut, q.al, q.c, q.k); }
+    // the drops caught on its back after the shower
+    if (hdew > 0.01) for (const q of this.caught) { at(this.mBody, q.p[0], q.p[1], q.p[2]); this.put(v.x, v.y, v.z, 0, -1, 0, q.sz * 1.2, q.sz, FLECK, 0.2, hdew, this.cDew, this.glint(t, q.ph, calm)); }
+    // the mane, lying on its near side, rough; it flies when the neck shakes
     for (const q of this.mane) {
-      at(this.mNeck, q.x, 0.045 - q.x * 0.1, -0.026); const px = v.x, py = v.y, pz = v.z;
-      dir(this.mNeck, -0.3, -1, -0.5 - 2.2 * shakeV * (0.6 + 0.8 * q.r)); d.y -= 0.6; d.normalize();
-      this.put(px + d.x * q.len * 0.5, py + d.y * q.len * 0.5, pz + d.z * q.len * 0.5, d.x, d.y, d.z, q.len, q.w, DRAG, cut, 1, q.r > 0.4 ? this.cHair : this.cHairL, 1);
+      at(this.mNeck, q.x, 0.05 - q.x * 0.1, -0.03); const px = v.x, py = v.y, pz = v.z;
+      dir(this.mNeck, -0.3 + q.lean, -1, -0.5 - 2.2 * shakeV * (0.6 + 0.8 * q.r)); d.y -= 0.6; d.normalize();
+      this.put(px + d.x * q.len * 0.5, py + d.y * q.len * 0.5, pz + d.z * q.len * 0.5, d.x, d.y, d.z, q.len, q.w, DRAG, cut, 1, q.c, 1);
     }
-    at(this.mHead, 0.012, 0.03, -0.006); { const px = v.x, py = v.y, pz = v.z; dir(this.mHead, 1, 0.1, -0.2); this.put(px + d.x * 0.02, py + d.y * 0.02, pz + d.z * 0.02, d.x, d.y, d.z, 0.045 * HS, 0.02 * HS, DRAG, cut, 1, this.cHair, 1); }
+    at(this.mHead, 0.012, 0.03, -0.006); { const px = v.x, py = v.y, pz = v.z; dir(this.mHead, 1, 0.1, -0.2); this.put(px + d.x * 0.02, py + d.y * 0.02, pz + d.z * 0.02, d.x, d.y, d.z, 0.05 * HS, 0.022 * HS, DRAG, cut, 1, this.cHair, 1); }
     // and the drops it throws off
     if (shaker && x0 > 0 && x0 < 1.3 / sp) {
       at(this.mNeck, 0.07, 0.03, 0); const px = v.x, py = v.y, pz = v.z;
