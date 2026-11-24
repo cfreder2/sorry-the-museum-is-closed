@@ -46,6 +46,7 @@ export const ENTRIES = [
   { id: 'party', optional: true, title: 'The welcome party', line: 'A party on the roof for guests from the stars. “They’re coming back tonight. Keep the fireworks ready.”  — D.', hint: 'Somebody is expecting visitors on the roof.' },
   { id: 'ring', title: 'Rings in the snow', line: 'Rings melted into Butler Field, five marks round them, five colours. The call again, under the snow.', hint: 'Where did the light come down?' },
   { id: 'portal', optional: true, title: 'The groundskeeper’s note', line: 'Pinned beside a hole in the air at the back of the Tuxedo Shop: “I don’t know what to do about these penguins.”  — G.', hint: 'Where do the penguins come from?' },      // (src/tuxportal.js)
+  { id: 'nightlog', optional: true, title: 'The first night', line: 'Security’s own log of the night it came down. It sang, five notes. The Director hummed them back, and it stopped.', hint: 'The night shift keeps a log. Some of it needs clearance.' },      // (src/secdesk.js: the locked folder on the security desk's computer)
   { id: 'nests', title: 'The chewed file', line: n => `TOP SECRET pages the mice carried up from somewhere. ${n} of 5 nests.`, hint: 'Follow a glowing mouse home.' },
   { id: 'desk', title: 'The Director’s desk', line: '“The way down is behind a painting.”  — D.', hint: 'The mice have the Director’s key.' },
   { id: 'passage', title: 'Behind the painting', line: 'Stone on stone. A way through, and it goes down.', hint: 'The Director’s whiteboard names a picture.' },

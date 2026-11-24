@@ -1027,5 +1027,5 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   radarEl.addEventListener('touchstart', tap, { passive: false });
   radarEl.addEventListener('click', tap);
 
-  return { radar, open, close, goTo, clear, route, clearance, get target() { return state.target; }, get path() { return state.path; }, reset() { nav = null; grids.clear(); clear(); } };
+  return { radar, open, close, goTo, clear, route, clearance, picture: levelPicture /* the plan of the level at height y, as a canvas: src/tracker.js */, get target() { return state.target; }, get path() { return state.path; }, reset() { nav = null; grids.clear(); clear(); } };
 }
