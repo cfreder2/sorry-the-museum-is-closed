@@ -70,9 +70,11 @@ import './bridgeplay.js';      // the toy track down the Nichols Bridgeway: a tr
 import './icefish.js';
 import './reading.js';
 import './guards.js';
+import './staffvent.js';        // the bin yard round the back and the vent down to the staff entrance (src/ventplan.js)
 import './lobby.js';
 import './giftshop.js';
 import './butlerfield.js';
+import './parkdress.js';
 import './lightshow.js';
 import './bandshell.js';        // the band shell on Butler Field, and Snow Ball, the dance game on its stage
 import './finale.js';
@@ -80,7 +82,9 @@ import './finalelaunch.js';      // the five notes, the tractor beam and the lau
 import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
 import './racespots.js';         // rival toys waiting about the building and the grounds, each with a course to race them round
 import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
+import './secdesk.js';           // the computers in the security control rooms: a terminal, the robot tracker, a donut game
 import './life/index.js';        // paintings that come alive while you look at them (src/paintlife.js, docs/PAINTING-ANIMATIONS.md)
+import './systems.js';           // the building's systems, for the control room: sprinklers, the fire test, lights, lifts, doors, the PA (after guards.js: it takes robots over)
 import './look.js';              // the look pass over the finished world: the snow's drifts, soft shadows under what moves (last: src/finish.js)
 
 const $ = id => document.getElementById(id);
@@ -141,7 +145,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.24.1';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.24.34';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -331,7 +335,7 @@ async function boot() {
   G.repair = new Repair(G.museum, plan, sound, collection, stage);
   if (G.repair.at) secrets.add('repair', 'The conservation line');
   addEventListener('museum:repair', e => { const d = e.detail || {}; if (d.event !== 'end') return; tm.event('repair', null, { repaired: d.repaired, accuracy: Math.round(d.accuracy * 100), sent: !!d.sent }); if (d.repaired >= 50) trophies.flag('steady'); if (d.sent && d.repaired < 15) trophies.flag('remedial'); });
-  addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (!d.trips) trophies.flag('ghost'); } });
+  addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (d.ghost) trophies.flag('ghost'); } });
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);
@@ -358,7 +362,7 @@ async function boot() {
   // done while the bar is still seen to move.
   await loading(98, null, 99.5);
   $('source').innerHTML = (collection.live && !collection.stale ? 'Sourced from the live API.' : 'Sourced from a saved cache.')
-    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. The grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
+    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. The grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors, ODbL).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
   trophies.setup(G.museum);
@@ -631,7 +635,7 @@ addEventListener('keydown', e => {
 input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
-upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study')) pause(); });
+upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study') && !document.body.classList.contains('sd-open')) pause(); });      // (not at the security desk's computer, which works either way up, and is easier to type at upright: src/secdesk.js)
 document.addEventListener('visibilitychange', () => { if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
 
 const toasts = [];

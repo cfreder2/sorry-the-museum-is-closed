@@ -57,7 +57,7 @@ export const TROPHIES = [
   { id: 'letlight', tier: 'bronze', hidden: true, name: 'Let There Be Light', desc: 'Switch on the lights in 10 rooms behind the scenes.', goal: 10, count: s => Math.min(10, s.flags.lightsOn || 0), test: s => (s.flags.lightsOn || 0) >= 10 },
   { id: 'steady', tier: 'silver', hidden: true, name: 'Steady Hand', desc: 'Repair 50 blemishes in one shift on the conservation line.', test: s => s.flags.steady },
   { id: 'remedial', tier: 'bronze', hidden: true, name: 'Remedial Training', desc: 'Be sent home from the conservation line with fewer than 15 repaired.', test: s => s.flags.remedial },
-  { id: 'ghost', tier: 'gold', hidden: true, name: 'A Ghost', desc: 'Pull off a heist without tripping a single alarm.', test: s => s.flags.ghost },
+  { id: 'ghost', tier: 'gold', hidden: true, name: 'A Ghost', desc: 'Pull off a heist with a quarter of the clock to spare.', test: s => s.flags.ghost },
   { id: 'paint12', tier: 'silver', hidden: true, name: 'Twelve Coats', desc: 'Own twelve cans of spray paint from the vending machines.', goal: 12, count: s => Math.min(12, s.flags.paints || 0), test: s => (s.flags.paints || 0) >= 12 },
   { id: 'boards', tier: 'bronze', hidden: true, name: 'Read the Room', desc: 'Read five of the whiteboards the staff have left written on.', test: s => s.flags.boards },
   { id: 'vault', tier: 'gold', hidden: true, name: 'Need to Know', desc: 'Find what is kept under the building.', test: s => s.flags.vault },

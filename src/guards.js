@@ -407,14 +407,16 @@ feature({
     b.mode = 'patrol'; b.mt = 0; b.v = 0; b.sus = 0; b.lost = 0; b.pn = 0; b.cool = 0; b.seen = false;
   },
 
-  // Where you wake up: beside a service door at the back, against the wall, on open ground.
+  // Where you wake up: in the bin yard round the back, by the staff entrance's air intake (src/ventplan.js), which is
+  // the quick way back in. (Without that yard: beside a service door at the back, against the wall, on open ground.)
   _dumpster() {
     const k = this.k, P = k.plan;
+    if (P.staffVent) { const b = P.staffVent.bin; this.bin = { x: b.x, z: b.z, nx: b.nx, nz: b.nz, tx: 0, tz: 0, yaw: Math.atan2(b.nx, b.nz), hole: 'staffvent' }; }
     const rank = h => { const r = P.byId[h.a]; const back = r && (r.kind === 'room' || r.kind === 'corridor') && /not public|service|range|foyer/i.test(r.gallery || ''); return (back ? 0 : 10) + ({ flap: 0, dock: 1, duct: 2, window: 3 }[h.kind] ?? 5); };
     const holes = (P.holes || []).filter(h => h.side && h.kind !== 'inner').sort((a, b) => rank(a) - rank(b));
     const inMass = (x, z, m = 0.15) => P.masses.some(q => x > q.x0 - m && x < q.x1 + m && z > q.z0 - m && z < q.z1 + m);
     const clearHere = (x, z) => !inMass(x, z) && Math.abs(groundAt(P, x, z, 0.3)) < 0.04 && !P.obstacles.some(o => x > o.x0 - 0.3 && x < o.x1 + 0.3 && z > o.z0 - 0.3 && z < o.z1 + 0.3 && o.y0 < 1.3) && !P.surfaces.some(s => x > s.x0 - 0.2 && x < s.x1 + 0.2 && z > s.z0 - 0.2 && z < s.z1 + 0.2 && Math.max(s.h0, s.h1) > 0.06);
-    for (const h of holes) {
+    for (const h of this.bin ? [] : holes) {
       const n = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[h.side], t = [n[1], -n[0]];
       const face = h.side === 'n' ? h.z0 : h.side === 's' ? h.z1 : h.side === 'e' ? h.x1 : h.x0;
       const hx = (h.x0 + h.x1) / 2, hz = (h.z0 + h.z1) / 2, hw = (h.side === 'n' || h.side === 's' ? h.x1 - h.x0 : h.z1 - h.z0) / 2;
@@ -472,7 +474,9 @@ feature({
   update(dt, k) {
     const G = k.G, on = G.mode === 'explore' && G.set.guards !== false && !!this.bots && this.bots.length > 0;
     if (!on) {
-      if (this.wasOn) { this.wasOn = false; this._release(true); for (const b of this.bots || []) { b.group.visible = false; b.pool.visible = false; } }
+      const own = this.seq && this.seq.own && G.mode === 'explore';      // (carried out of a heist's cage: that goes on with the robots switched off)
+      if (this.wasOn) { this.wasOn = false; if (!own) this._release(true); for (const b of this.bots || []) { b.group.visible = false; b.pool.visible = false; } }
+      if (own) this._sequence(dt, k);
       return;
     }
     this.wasOn = true;
@@ -563,6 +567,8 @@ feature({
     }
     const look = (a, rate) => { b.look = turn(b.look, a, rate * dt); };
     const atToy = () => Math.atan2(p.x - b.x, p.z - b.z);
+    // The building's systems (src/systems.js) may have this robot for now: rained on, halted by a fire test, listening to the PA. True: it has been driven this time.
+    if (G.systems && G.systems.guard(b, dt, this)) return;
     switch (b.mode) {
       case 'patrol': {
         const P = b.P, tx = P.pts[b.k * 2], tz = P.pts[b.k * 2 + 1];
@@ -702,6 +708,17 @@ feature({
     this._fx(k.G.set.reduce ? 0.35 : 0.85, k.G.set.reduce ? '#1a2540' : '#cfe0ff');
     for (const q of this.bots) { if (q !== b && (q.mode === 'chase' || q.mode === 'charge' || q.mode === 'alert')) this._return(q); q.sus = 0; }
   },
+  // Somebody else has caught the toy (the heist's cage, src/heist.js): it is carried out the same way, to the same
+  // dumpster. `o.fine`: the chips kept (a robot keeps FINE; a cage keeps none). `o.why`: 'heist'. Returns false if it
+  // cannot be done (nowhere to put it, or it is being carried already).
+  carryOut(o = {}) {
+    const k = this.k, G = k.G, v = k.v;
+    if (!this.bin || this.seq || G.mode !== 'explore') return false;
+    G.held = true; v.vel.set(0, 0, 0); if (v.kind === 'car') { v.air = false; v.airT = 0; v.vy = 0; v.rail = null; v.flip = v.spin = 0; }
+    this.seq = { t: 0, b: null, hx: v.pos.x, hy: v.pos.y, hz: v.pos.z, yaw: v.yaw, stage: 'fade', popT: -1, spark: 0, own: true, fine: o.fine == null ? FINE : o.fine, why: o.why || '' };
+    for (const q of this.bots || []) { if (q.mode === 'chase' || q.mode === 'charge' || q.mode === 'alert') this._return(q); q.sus = 0; }
+    return true;
+  },
   // The screen: a flash, a fade to black and back.
   _fx(alpha, colour) {
     if (!this.fxEl) { const el = this.fxEl = document.createElement('div'); el.id = 'guardFx'; el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:28;opacity:0;background:#000'; document.body.append(el); }
@@ -712,6 +729,12 @@ feature({
     const S = this.seq, G = k.G, v = k.v, calm = !!G.set.reduce;
     S.t += dt; const t = S.t;
     const hold = () => { v.pos.set(S.hx, S.hy, S.hz); v.vel.set(0, 0, 0); if (v.speed !== undefined) v.speed = 0; v.yaw = S.yaw; v.sync(0); };
+    if (S.stage === 'fade') {
+      // (carryOut: no bolt. The dark comes up where it stands, and from there it is the same.)
+      hold(); this._fx(Math.min(1, t / 0.45), '#000');
+      if (t > 0.5) { S.stage = 'carried'; S.t = 1.6; this.sfx.carried(); }
+      return;
+    }
     if (S.stage === 'zap') {
       hold();
       // The toy jerks about on the end of it, and spits sparks.
@@ -725,7 +748,7 @@ feature({
         v.group.rotation.z = 0;
         S.stage = 'carried'; this.sfx.carried();
         // Back on its beat, the one that did it.
-        this._home(S.b, 0);
+        if (S.b) this._home(S.b, 0);
         if (!this.bin) { S.stage = 'done'; this._release(false); return; }
       }
       return;
@@ -759,12 +782,17 @@ feature({
         S.stage = 'out'; S.outT = 0;
         G.held = false;
         this.grace = G.t + 8;
-        const fined = k.chips(-FINE);
+        const fine = S.fine == null ? FINE : S.fine, fined = fine > 0 ? k.chips(-fine) : false, vent = !!k.plan.staffVent;
         k.callout('THROWN OUT');
-        // The first time, a line to say what that was: a light setback. You keep everything, and the doors are open.
-        if (!G.told.has('binned')) k.once('binned', `Dumped. The bots don\u2019t like visitors.${fined ? ` (They kept ${FINE} chips.)` : ''} Everything you found is still yours.`, 6, true);      // (at once, ahead of anything queued)
-        else if (fined) k.say(`−${FINE} chips`, 0.6, 3);
-        if (G.trophies) G.trophies.flag('binned');
+        if (S.why === 'heist') {
+          // Out of the heist's cage: it costs nothing but the heist, and the way back to the button is right in front.
+          if (!G.told.has('binned-heist')) k.once('binned-heist', `Caged, carried out and binned. It cost you nothing but the heist, and the room is waiting as you left it.${vent ? ' The vent hood in front of you goes straight back down to security.' : ''}`, 8, true);
+        } else {
+          // The first time, a line to say what that was: a light setback. You keep everything, and there is a way back in.
+          if (!G.told.has('binned')) k.once('binned', `Dumped. The bots don\u2019t like visitors.${fined ? ` (They kept ${fine} chips.)` : ''} Everything you found is still yours.${vent ? ' The vent hood in front of you is a way back in.' : ''}`, 7, true);      // (at once, ahead of anything queued)
+          else if (fined) k.say(`−${fine} chips`, 0.6, 3);
+          if (G.trophies) G.trophies.flag('binned');
+        }
       }
       return;
     }

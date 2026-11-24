@@ -40,7 +40,8 @@ building's own 246 m square.
 You get from one level to another the way a toy car would have to:
 
 - **Stairs with planks on them.** Somebody has been in here with plywood. Every
-  flight is real steps with a sheet laid up it, arrows running uphill, and a
+  flight is real steps with a sheet laid up it (grip tape down its edges,
+  hazard stripes at its foot and head; nothing on it points), and a
   rail down each side so it can be taken at speed. None is steeper than about
   one in three.
 - **The Grand Staircase** (Gallery 200) is one hall from the lobby floor to the
@@ -72,8 +73,8 @@ level can be driven to from the front door.
 You start outside on Michigan Avenue, between the lions, and the doors are
 locked: a sign on the front door says so. The way in is right at the door and
 hard to miss: for the car, an aluminium air duct at the foot of the wall just
-left of the doors, its grille swung open and arrows on the pavement running
-into it; for the drone, the fanlight over the doors standing open (a pane of
+left of the doors, its grille swung open and its light spilt on the
+pavement; for the drone, the fanlight over the doors standing open (a pane of
 the skylight over the Grand Staircase is open too). Both lead into the lobby
 on the first floor, with the Grand Staircase straight ahead. Once you are in,
 every outside door unlocks for good. Hints appear if you stay outside a while.
@@ -192,6 +193,17 @@ map (OpenStreetMap), placed in the same frame as the galleries:
 - **The courtyard** that Griffin Court's south door opens on has the tree:
   eleven and a half metres of it, lit, with a star, and parcels underneath.
   The car fits under the lowest branches.
+- **What grows and what stands** (`src/groundsplan.js`, `src/trees.js`, `src/parkdress.js`;
+  `docs/GROUNDS-REAL.md` is the field guide to the real place). Seven kinds of tree, each with
+  its own habit and no two alike: American elms in rows, honey locusts with their pods still
+  on, lindens, a ginkgo or two, the South Garden's cockspur hawthorns, crabapples with fruit,
+  river birch in clumps; each carrying its own load of snow. Under them red-twig dogwood,
+  viburnum, roses with their hips, grasses and seed heads left standing, yew and arborvitae,
+  clipped hedges, ivy at the foot of the walls. And the park's furniture: twin-globe lamps,
+  benches, bare flagpoles, bagged drinking fountains, bicycle hoops, signs, posts and chains,
+  urns and a balustrade at the bridge over the railway, a shuttered kiosk, and by the harbour
+  three boats under shrink wrap, a rack of dinghies and life rings along the wall. West of
+  Columbus Drive the trees, benches, hedges and beds stand where the map has the real ones.
 - **Fountains are off for the winter**, each with a board saying so: the
   Fountain of the Great Lakes, Carl Milles's Fountain of the Tritons in the
   courtyard, and a bowl fountain in the North Garden. Snow lies where the water
@@ -725,22 +737,42 @@ kind of room, add a line to the list.
   tested alone; which room has which is `ARCADE_ROOMS` in `src/furnish.js`.
 - **The heist.** Each security control room (there are two, on the lower
   level) has a plinth with a big red button. Press it and the building names
-  a gallery and a picture in it; say yes and a clock starts, a toy-sized copy
-  of the picture appears on a plinth in the middle of that gallery, and the
-  room fills with laser beams: fixed ones with a gap low down for a car and a
-  gap higher up for a drone, curtains that blink, curtains that slide, one
-  that turns about the plinth like a lighthouse, and a net over the top. An
-  arrow points the way. Touch a beam and the alarm goes and you are put back
-  at the doorway; three alarms are forgiven and the fourth ends it. Take the
-  copy (drive up to it) and the beams deal themselves again for the way out;
-  get it back to the button before the clock runs out. Heists done, clean
-  runs and the best time for each room are kept. The real picture never
-  leaves the wall. Not in a race. Pause has *Abandon the heist*.
+  a gallery not too far off and a picture in it; say yes and a clock starts,
+  a toy-sized copy of the picture appears on a plinth in the middle of that
+  gallery, and the room fills with laser beams: fixed ones with a gap low
+  down for a car and a gap higher up for a drone, curtains that blink,
+  curtains that slide, one that turns about the plinth like a lighthouse, a
+  net over the top, and hurdles. A hurdle is one low beam right across the
+  way with nothing over it for two metres: a car hops it (a tap clears it; a
+  held jump, at the top of its arc, hits the bars above), and later ones have
+  a shutter over them that blinks or a curtain that slides, so the hop has to
+  be timed. For a drone the bars over a hurdle start at one metre, and it
+  goes through low. An arrow points the way. Touch a beam, once, and a cage
+  drops out of the ceiling: the alarm, the robot's voice, two and a half
+  seconds to rattle the bars, and then you are carried out and wake up in the
+  dumpster. It costs nothing but the heist, and the vent beside the dumpster
+  goes straight back down to the button. The room is kept as it was: the next
+  press of either button offers the same gallery and the same beams for
+  another go, until it is won, the clock runs out on it, or it is turned down
+  with *Not tonight* (which moves on to a new room). Take the copy (drive up to it, or
+  come down on it from a hop) and the beams deal themselves again for the way
+  out; get it back to the button before the clock runs out.
+  The clock is made from the real car: a par for the drive out, an allowance
+  for the room, a par for the drive back (`pars` in `src/heistplan.js`). The
+  briefing gives all three; the clock on screen says how many seconds ahead of
+  par or behind it you are, and beats and ticks through its last ten seconds.
+  The first heist is a gentle one (nothing moves, and its one hurdle stands
+  beside an open gap); they get harder, and the pars a little tighter, with
+  each one pulled off. Heists done and the best time for each room are kept.
+  The real picture never leaves the wall. Not in a race. Pause has *Abandon
+  the heist*.
   Every pattern is built from a seed out of pieces with known gaps and then
   proven before it is switched on: `solve` in `src/heistplan.js` searches the
   floor and the clock for a way a slow toy car can get from the doorway to
-  the plinth, and back, without coming near a beam, and a pattern that fails
-  is dealt again.
+  the plinth, and back, without coming near a beam, driving and hopping (a hop
+  has to clear everything, and come down on free floor, for the weakest and
+  the strongest tap any car can make, slow and fast), and a pattern that
+  fails is dealt again.
 
 ## Security robots
 
@@ -768,8 +800,13 @@ and ramps) and never wait in a doorway.
   prong glows for a second and a half before it fires: time to get away, or
   get something between you. Nobody looking at a work is ever zapped: robots
   just pass by, and give you a moment after you look away. Caught, you
-  are zapped, carried out, and wake up in the dumpster by a back door, which
-  throws you out over its lid. It keeps 50 chips. Nothing else is lost.
+  are zapped, carried out, and wake up in the dumpster in the bin yard round
+  the back (by the old building's north-east corner), which throws you out
+  over its lid. It keeps 50 chips. Nothing else is lost. In front of the
+  dumpster is the hood of an air intake with its grille off: the duct under
+  it slides down to the staff entrance on the lower level, next door to a
+  security control room, and can be driven back up (`src/ventplan.js`,
+  `src/staffvent.js`).
 - Two trophies: one for the dumpster, one for shaking a robot off five times.
 - Never during a race, and not during a heist. They stand still
   while you look at a work. On a phone there are three, otherwise six.
@@ -803,6 +840,66 @@ level up in a 512 x 1 texture. The plates and ceiling panels are instanced
 boxes, one mesh to a 32 m patch, drawn only near the camera. It is all in
 `src/lights.js`. A switch plate keeps within half a metre of its door jamb
 and never sits over a picture, a label, another doorway or furniture.
+
+## The building's systems
+
+What a security officer could switch on from the control room (the terminal
+there types at it; from a console, `__ah.systems.run('sprinklers', ['lobby', 'on'])`).
+It is all in `src/systems.js`: `G.systems.list()`, `.run(id, args)` (the reply
+comes back as lines, in the voice of a building management system),
+`.zones()` and `.state()`.
+
+- `sprinklers <zone|all> on|off`: ceiling heads rain in a zone until shut off,
+  or for 90 seconds ("valve closed, tank low"). The zones are public and
+  back-of-house rooms worked out from the plan by use and name: the lobby, the
+  shops, the cafés, corridors, kitchens, plant, loading, the security rooms
+  themselves. **Never a gallery, a store of works, or anywhere a work hangs**:
+  any room with a work in it, or with one within reach of one of its doorways,
+  is struck off whatever the plan calls it, and asking for one gets a refusal
+  ("Zone G201 is a GALLERY. There is a Renoir in there. Request logged. Request
+  reported."). The floor is wet: the car slides, on the same wet-floor model as
+  the mopped patch in Gallery 200 (`plan.puddles`), while it rains and for most
+  of a minute after. A robot in the rain breaks off whatever it was doing,
+  leaves for a dry room on its patch and stays out until the floor has dried:
+  a way to clear a room, at the price of a slippery one.
+- `firetest <gallery|wing>`: the galleries' suppression is inert gas, not water,
+  and this is its 20-second test. Amber beacons over the doorways, a light
+  curtain across each (solid while it is drawn; it is a sensor, so leaning on
+  it aborts the test and nothing is ever shut in; a test asked for while the
+  toy is in the room waits until it has left), cold grey gas lying on the
+  floor, heaped at the skirting vents and thinning out across the room, robots
+  in the room halted and then restarting for a few seconds.
+- `lights <zone|room|all> on|off` throws switches (`src/lights.js`) for tonight
+  only (a wall switch is remembered between visits; a command from the desk is
+  not), `lift call <floor>` calls and holds a lift, `doors status` is honest
+  about the locks (the vents are "not on the system"), and `pa <message>`
+  chimes, shows the words and makes every robot stop to listen. `pa donuts`
+  sends one to the control room, which is where you are: it is off duty, takes
+  no notice of the toy, looks about and goes back.
+
+Nothing is ever drawn over a work of art, and this is held three ways. All of
+it that is see-through (rain, ripples, the wet sheen, mist, vapour, beacons,
+beams) is added with a blend weighted by the frame's alpha, which is 0 on a
+work (`keepTrue`, `src/finish.js`), so a canvas pixel cannot change from any
+camera. Mist and vapour never stand higher than the eye of the camera drawing
+them, nor within 20 cm of the lowest work in the room, so no line of sight
+through them rises to a picture. And the test's beacons and beams are thrown
+away pixel by pixel wherever they would lie in front of a work: any work with
+a line of sight to one of the room's doorways, through however many doorways
+(the walls and their openings are walked for each). One more thing keeps the
+weighting honest: the game's own added lights (a picture lamp's pool and wash,
+a searchlight) each add to the frame's alpha too, so inside their rectangles
+it stands at 2 or 3; it is brought back to 1 at most, once, before anything
+here is drawn. `__ah.systems.artCheck(views)` renders with and
+without everything here and counts the pixels of works that differ;
+`node tools/systems_check.mjs` does that from 118 cameras, with every valve open
+and two wings under test.
+
+With nothing switched on it costs a counter a frame. A raining room is three
+draw calls (rain as instanced streaks worked out in the vertex shader, the wet
+floor, mist), made when the camera first comes within 36 m; a gallery under
+test is two (its lights; and its vapour, one box over the floor whose every
+pixel adds up the gas along its own line of sight through the layer).
 
 ## The conservation line
 
@@ -1000,6 +1097,7 @@ in `src/garage.js`, such as `truck`, which opens that one), `?auto`
 lets a test driver run whatever race is under way (`__ah.raceSpots.at(id)` puts the toy at a spot, `.go(id)` starts it). The game object is `window.__ah`; a test can
 drive by setting its `testInput` (what the sticks would send) and look from
 anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
+`?sys=sprinklers+lobby+on;lights+lobby+on` runs building-system commands a moment after the start (src/systems.js).
 
 ## Layout
 
@@ -1040,8 +1138,10 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/lights.js             a light switch by every door, and each room's working lights
     src/repair.js             the conservation line: the table in the studio, and playing it
     src/repairgame.js         its rules (no three.js, no DOM)
-    src/heist.js              the heist: the button, the beams, the clock
+    src/heist.js              the heist: the button, the beams, the cage, the clock
     src/guards.js             the security robots, the bolt, the dumpster
+    src/ventplan.js, staffvent.js   the bin yard the dumpster stands in, and the vent from it down to the staff entrance (the first has no three.js, no DOM)
+    src/systems.js            the building's systems: sprinklers, the fire suppression test, lights, lifts, doors, the PA
     src/guardplan.js          their beats, the floor they can drive, what they can see, the way they find (no three.js, no DOM)
     src/whiteboards.js        the whiteboards: the writing on them, and reading one
     src/boardtext.js          what each of them says (no three.js, no DOM)
@@ -1053,7 +1153,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/craft.js, moon.js     the saucer you ride in, and the Moon: its ground, its museum, its visitors
     src/cosmos.js, spacetex.js, cosmicmusic.js   the sky, the planets and the galaxy; their pictures (assets/space); the music out there
     src/level3.js, level3-terrace.js, level3-back.js, level3kit.js   Level 3: a set-piece in each Modern Wing gallery, the snowy terrace and Terzo Piano, the conservation offices' clues
-    src/heistplan.js          its target rooms, routes and beam patterns, and the proof each can be passed (no three.js, no DOM)
+    src/heistplan.js          its target rooms, routes, clock and beam patterns, and the proof each can be passed, hops and all (no three.js, no DOM)
     src/input.js, audio.js    two sticks; all sound is synthesised
     src/main.js               camera, modes, slow motion, settings, loop
     src/score.js              Art Score, view counts, Stunt Looks
@@ -1076,7 +1176,8 @@ The pictures of the Earth, the Moon, the planets, the galaxy and the lunar groun
 generated for this game with OpenAI's Codex image generation. Everything else in space is drawn in code.
 
 Artwork images and data: the Art Institute of Chicago, <https://api.artic.edu>.
-Positions of streets, gardens and the railway: © OpenStreetMap contributors.
+Positions of streets, gardens and the railway, and of the trees, benches, hedges and planted beds in the
+grounds (`src/groundsdata.js`, `tools/survey/grounds-osm.json`): © OpenStreetMap contributors, ODbL.
 Data is CC0; images used are those the museum marks public domain. This is a
 fan project and is not affiliated with or endorsed by the museum.
 

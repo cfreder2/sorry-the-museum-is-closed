@@ -533,18 +533,6 @@ export function paving() {
   return tex(c, { repeat: true });
 }
 
-// What a knobbly tyre leaves in snow: a pressed strip with the blocks of the tread across it. Tiles along its length.
-export function tread() {
-  const [c, g] = canvas(32, 64);
-  g.clearRect(0, 0, 32, 64);
-  g.fillStyle = 'rgba(40,56,92,0.42)'; g.fillRect(2, 0, 28, 64);
-  g.fillStyle = 'rgba(22,32,58,0.8)';
-  for (let y = 0; y < 64; y += 16) { g.beginPath(); g.moveTo(3, y + 10); g.lineTo(16, y + 2); g.lineTo(29, y + 10); g.lineTo(29, y + 15); g.lineTo(16, y + 7); g.lineTo(3, y + 15); g.fill(); }
-  g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(0, 0, 2, 64); g.fillRect(30, 0, 2, 64);       // the ridge pushed up either side
-  const t = tex(c, { repeat: true });
-  return t;
-}
-
 // A board on a stake.
 export function notice(lines, bg = '#efe6cf', fg = '#1d3a2c') {
   const [c, g] = canvas(512, 256);
@@ -556,14 +544,13 @@ export function notice(lines, bg = '#efe6cf', fg = '#1d3a2c') {
   return tex(c);
 }
 
-// Arrows of light that run up a ramp. Drawn white on black, used additively.
-export function chevrons() {
-  const [c, g] = canvas(128, 128);
-  g.fillStyle = '#000'; g.fillRect(0, 0, 128, 128);
-  g.strokeStyle = '#fff'; g.lineWidth = 13; g.lineJoin = 'miter';
-  for (const y of [84, 148]) { g.beginPath(); g.moveTo(22, y); g.lineTo(64, y - 44); g.lineTo(106, y); g.stroke(); }
-  g.beginPath(); g.moveTo(22, 20); g.lineTo(64, -24); g.lineTo(106, 20); g.stroke();
-  return tex(c, { repeat: true, srgb: false });
+// The chequered line across the start of a strip of toy track: two squares by two, repeated. (It is what says where
+// to line up and which end to start from. There are no arrows on any floor but the lit route's: src/map.js.)
+export function chequered() {
+  const [c, g] = canvas(64, 64);
+  g.fillStyle = '#ecebe4'; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = '#15161a'; g.fillRect(0, 0, 32, 32); g.fillRect(32, 32, 32, 32);
+  return tex(c, { repeat: true });
 }
 
 // Toy-car track, the orange kind, scaled up to fit.
@@ -591,7 +578,8 @@ export function crate() {
   g.fillStyle = 'rgba(30,20,10,.82)'; g.textAlign = 'center';
   g.font = '900 54px "Courier New", Courier, monospace'; g.fillText('FRAGILE', 256, 210);
   g.font = '700 30px "Courier New", Courier, monospace'; g.fillText('WORKS OF ART', 256, 256);
-  g.beginPath(); g.moveTo(256, 300); g.lineTo(300, 356); g.lineTo(274, 356); g.lineTo(274, 420); g.lineTo(238, 420); g.lineTo(238, 356); g.lineTo(212, 356); g.closePath(); g.fill();
+  // the glass that means fragile (not a this-way-up arrow: a crate's lid is driven over, and nothing on a floor points but the lit route)
+  g.beginPath(); g.moveTo(222, 296); g.lineTo(290, 296); g.bezierCurveTo(290, 340, 276, 356, 262, 360); g.lineTo(262, 404); g.lineTo(284, 412); g.lineTo(284, 420); g.lineTo(228, 420); g.lineTo(228, 412); g.lineTo(250, 404); g.lineTo(250, 360); g.bezierCurveTo(236, 356, 222, 340, 222, 296); g.closePath(); g.fill();
   return tex(c, { repeat: true });
 }
 

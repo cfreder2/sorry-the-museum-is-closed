@@ -4,23 +4,26 @@
 // shapes: ultramarine, violet, pink, a yellow, an orange, a dark blue-black, a red. Look at it and that pool comes out
 // from under the frame as a slow tide across the floor, made of those flat shapes in his colours, laid in three
 // layers one over another like his planes of colour, each wobbling sideways the way a reflection does. Its edge laps in
-// and out with a pale line of foam. Flowers float out on it from under the frame (tiare, white and starry, a few red
-// hibiscus, two green leaves) and turn slowly as they go. Then a long swell comes up by the wall and rolls out across
-// it: the layers lift and part, the flowers ride up, and as the crest passes the shapes behind it turn over into a new
-// arrangement, as the colours of a reflection do when the water moves; a warm light comes up with it. The flowers
-// gather and circle. Music: the flute's opening phrase from Debussy's Prélude à l'après-midi d'un faune (1894, the year
+// and out with a pale line of foam. A few of the pool's own shapes come loose from under the frame (a patch of his
+// yellow, his orange, rose, the red, cream, pale blue) and drift out on it, turning slowly. Then a long swell comes up by
+// the wall and rolls out across it: the layers lift and part, the loose shapes ride up, and as the crest passes the shapes
+// behind it turn over into a new arrangement, as the colours of a reflection do when the water moves; a warm light comes
+// up with it. The loose shapes gather and circle. Music: the flute's opening phrase from Debussy's Prélude à l'après-midi d'un faune (1894, the year
 // of the picture; Debussy and Gauguin knew each other in Mallarmé's circle), over a quiet harp and the lapping water.
 //
-// It is made only of his colour, his pattern and the pool; nothing in it imitates the people or the god in the picture.
 // When you stop looking it stays while the toy is near: drive into it and the shapes swirl round the toy, rings spread
-// from it, and the flowers bob away and drift back. Then the tide draws back in under the frame, taking the flowers.
+// from it, and the loose shapes bob away and drift back. Then the tide draws back in under the frame, taking them.
+//
+// It is made only of his colour, his pattern and the pool. No figure and no god leaves the picture, and nothing is
+// brought in from outside it to stand for a place or a people (no flowers, no "island" music): the painting shows a
+// Polynesian deity and women through a Frenchman's invention, and a second life as a toy is not ours to give them.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, shape } from '../paintlife.js';
 
 const HALF = 1.75, REACH = 1.95;        // the tide: either side of the middle, and how far it comes out (m)
 const NU = 56, NO = 30;                 // its grid (for the swell)
-const NF = 15;                          // flowers and leaves
-const RING = [0.05, 1.02];              // the middle of the flowers' circle (along, out)
+const NF = 15;                          // loose shapes of the pool
+const RING = [0.05, 1.02];              // the middle of the loose shapes' circle (along, out)
 const T_SWELL = 3.9, SWELL = 2.6;       // the swell: when it starts by the wall, and how long it takes to cross
 // Debussy, Prélude à l'après-midi d'un faune (1894): the flute's first phrase, down through a tritone and back. 9/8,
 // très modéré. Beats are quavers' worth here.
@@ -156,27 +159,29 @@ lifeFor(27943, {
     this.tide = L.add(new THREE.Mesh(geo, mat)); this.tide.material.visible = false;
     Object.assign(u, L.mirrored(this.tide));        // (the room's reflection in the water: the floor's own; shown and hidden by its material)
 
-    // ---------------------------------------------------------- flowers and leaves
-    const petal = (len, wid, c) => { const g = shape.ball(1, c, 1); shape.move(g, len * 0.55, 0, 0, 0, 0, 0, len * 0.5, 0.008, wid * 0.5); return g; };
-    const tiare = () => {
-      const white = col('#f6f2e4', 0.12), cream = col('#efe1b4', 0.15), parts = [];
-      for (let i = 0; i < 6; i++) { const g = petal(0.072, 0.036, i % 2 ? white : cream); shape.paint(g, c => (c.x < 0.012 ? cream : null)); shape.move(g, 0, 0.004, 0, 0, (i / 6) * Math.PI * 2, 0.12); g.rotateY(0.3); parts.push(g); }
-      parts.push(shape.move(shape.ball(0.012, col('#e9c25a', 0.2), 1), 0, 0.012, 0, 0, 0, 0, 1, 0.7, 1));
+    // ---------------------------------------------------------- shapes of the pool, loose on the tide
+    // Each is one flat patch of one of the pool's own colours, with the soft lobed outline his shapes have, as if a piece
+    // of a reflection had come away and gone drifting. (They were tiare and hibiscus once: flowers that are not in the
+    // picture, brought in to say "Tahiti". Everything here is now from the canvas.)
+    const isle = (hex, lobes) => {
+      const c = col(hex, 0.12), parts = [];
+      for (const [x, z, len, wid, yaw] of lobes) { const g = shape.ball(1, c, 1); shape.move(g, x, 0, z, 0, yaw, 0, len, 0.006, wid); parts.push(g); }
       return shape.merge(parts);
     };
-    const hibiscus = () => {
-      const red = col('#d23a34', 0.15), dark = col('#8a1c24', 0.15), parts = [];
-      for (let i = 0; i < 5; i++) { const g = petal(0.085, 0.07, red); shape.paint(g, c => (c.x < 0.02 ? dark : null)); shape.move(g, 0, 0.006, 0, 0, (i / 5) * Math.PI * 2, 0.32); parts.push(g); }
-      parts.push(shape.move(shape.cyl(0.003, 0.003, 0.06, 5, col('#f0d060', 0.2)), 0.015, 0.03, 0, 0, 0, -0.9), shape.move(shape.ball(0.008, col('#e8b040', 0.2), 1), 0.04, 0.052, 0));
-      return shape.merge(parts);
-    };
-    const leaf = () => { const g = shape.ball(1, col('#5f8f3e', 0.2), 1); shape.move(g, 0, 0, 0, 0, 0, 0, 0.11, 0.006, 0.035); shape.paint(g, c => (Math.abs(c.z) < 0.004 ? col('#a8c46a', 0.2) : null)); return g; };
+    const ISLES = [
+      ['#dca22a', [[0, 0, 0.07, 0.04, 0.2], [0.045, 0.02, 0.045, 0.03, -0.5], [-0.04, -0.015, 0.04, 0.028, 0.9]]],          // his yellow
+      ['#cc6a28', [[0, 0, 0.06, 0.045, -0.3], [0.04, -0.025, 0.04, 0.026, 0.6]]],                                           // orange
+      ['#c47c86', [[0, 0, 0.075, 0.035, 0.5], [-0.05, 0.02, 0.04, 0.03, -0.2], [0.05, 0.015, 0.035, 0.024, 1.1]]],          // rose
+      ['#b23628', [[0, 0, 0.05, 0.04, 0], [0.035, 0.02, 0.03, 0.022, 0.8]]],                                                // the red
+      ['#e6d8ae', [[0, 0, 0.055, 0.03, -0.6], [0.04, -0.01, 0.035, 0.022, 0.3]]],                                           // cream
+      ['#86afbf', [[0, 0, 0.065, 0.04, 0.9], [-0.04, 0.025, 0.04, 0.025, 0.1]]],                                            // the pale blue
+    ];
     const rig = this.rig = L.rig(NF, 9000, L.paint({ glow: 0.5, rough: 0.7 }));
-    const gT = rig.geo(tiare()), gH = rig.geo(hibiscus()), gL = rig.geo(leaf());
+    const gI = ISLES.map(([hex, lobes]) => rig.geo(isle(hex, lobes)));
     this.fl = Array.from({ length: NF }, (_, i) => {
-      const kind = i % 5 === 2 ? 'h' : i === 6 || i === 13 ? 'l' : 't';
-      const inst = rig.add(kind === 'h' ? gH : kind === 'l' ? gL : gT); rig.show(inst, false);
-      return { inst, kind, te: 1.0 + i * 0.16 + L.rand() * 0.1, u0: (L.rand() - 0.5) * 2 * (L.hw - 0.05), th0: (i / NF) * Math.PI * 2, rr: 0.55 + L.rand() * 0.3, spin: (L.rand() - 0.5) * 1.2, yaw: L.rand() * 6.3, s: kind === 'l' ? 1.5 : 1.45 + L.rand() * 0.45, u: 0, o: -0.2, vu: 0, vo: 0, ph: L.rand() * 6 };
+      const kind = i % gI.length;
+      const inst = rig.add(gI[kind]); rig.show(inst, false);
+      return { inst, kind, te: 1.0 + i * 0.16 + L.rand() * 0.1, u0: (L.rand() - 0.5) * 2 * (L.hw - 0.05), th0: (i / NF) * Math.PI * 2, rr: 0.55 + L.rand() * 0.3, spin: (L.rand() - 0.5) * 1.2, yaw: L.rand() * 6.3, s: 1.1 + L.rand() * 0.6, u: 0, o: -0.2, vu: 0, vo: 0, ph: L.rand() * 6 };
     });
     // ---------------------------------------------------------- warm light: on the water, and round the frame on the wall
     this.light = L.glows([{ w: 3.0, d: 2.0, u: 0, out: 1.0, color: col('#ff9a50', 0.15), strength: 0.16 }, { wall: true, w: 2.4, d: 2.0, u: 0, v: -0.1, color: col('#ffc080', 0.15), strength: 0.8 }]);
@@ -199,7 +204,7 @@ lifeFor(27943, {
   end(L) { this.hide(); this.lap.set(0); },
   reset(L) { this.hide(); },
 
-  // the swell's height at (along, out) now, for the flowers to ride (the same as the shader's)
+  // the swell's height at (along, out) now, for the loose shapes to ride (the same as the shader's)
   swellAt(u, o) { const s = this.u.uSwell.value; return s.y * Math.exp(-(((o - s.x) / 0.28) ** 2)) * (0.85 + 0.15 * Math.sin(u * 3 + this.u.uT.value)); },
   frontAt(u) { const t = this.u.uT.value, U = u / HALF; return this.u.uFront.value * (REACH * Math.sqrt(Math.max(0, 1 - 0.92 * U * U)) + 0.06 * Math.sin(t * 1.05 + u * 2.3) + 0.1 * Math.sin(u * 1.7 + 1.3) + 0.09 * Math.sin(t * 0.62) + 0.05 * Math.sin(t * 1.13 + 1.7)); },
 
@@ -229,7 +234,7 @@ lifeFor(27943, {
     this.toyK = (this.toyK || 0) + ((inWater ? 0.35 + Math.min(0.65, sp * 0.5) : 0) - (this.toyK || 0)) * Math.min(1, dt * 3);
     U.uToy.value.set(tl.u, tl.out, this.toyK);
     if (inWater && sp > 0.4 && this.clock > (this.plipAt || 0)) { this.plipAt = this.clock + 0.25 + Math.random() * 0.3; L.voice().note(700 + Math.random() * 500, 0.09, { vol: 0.012, type: 'sine', to: 1300 + Math.random() * 400 }); }
-    // ---- flowers
+    // ---- the loose shapes
     const r = this.rig;
     for (let i = 0; i < NF; i++) {
       const f = this.fl[i];

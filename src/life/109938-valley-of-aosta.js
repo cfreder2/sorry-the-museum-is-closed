@@ -235,6 +235,7 @@ lifeFor(109938, {
   mix(p, q, k, out) { p.u += (q.u - p.u) * k; p.h += (q.h - p.h) * k - out * 0.3; p.o += (q.o - p.o) * k + out; p.wu += (q.wu - p.wu) * k; p.wh += (q.wh - p.wh) * k; p.wo += (q.wo - p.wo) * k; const l = Math.hypot(p.wu, p.wh, p.wo) || 1; p.wu /= l; p.wh /= l; p.wo /= l; p.h = Math.max(0.01, p.h); },
   flash(L, t, showing) {
     if (!showing) return 0;
+    if (L.calm) { const c = (t - T_BOOM) / 1.8; return c > 0 && c < 1 ? 0.33 * Math.sin(Math.PI * c) : 0; }      // (reduced flashing: one slow swell of light, a third as strong, and no more after it)
     const f = (at, a) => (t >= at ? a * Math.exp(-(t - at) * 9) : 0);
     let k = f(T_BOOM, 1) + f(T_BOOM + 0.24, 0.7) + f(T_BOOM + 0.33, 0.35);
     if (t > 11) { const c = (t - 11) % 10.5; k += c < 1 ? 0.22 * Math.exp(-c * 7) + 0.12 * (c > 0.18 ? Math.exp(-(c - 0.18) * 8) : 0) : 0; }
@@ -342,7 +343,7 @@ lifeFor(109938, {
     if (!showing) return;
     const once = (k, at, f) => { if (!this.sfx[k] && t >= at) { this.sfx[k] = 1; f(); } };
     once('aval', T_AV, () => { this.rumble(L, { dur: 2.8, f: 320, vol: 0.075 }); this.rumble(L, { at: 0.1, dur: 1.4, f: 1400, vol: 0.02 }); v.note(49, 1.8, { vol: 0.05, type: 'sine', to: 33 }); });
-    once('boom', T_BOOM, () => { this.crack(L, 0, 0.1); this.crack(L, 0.24, 0.05); this.rumble(L, { at: 0.12, dur: 3.6, f: 220, vol: 0.09 }); this.rumble(L, { at: 0.5, dur: 2.6, f: 120, vol: 0.06 }); });
+    once('boom', T_BOOM, () => { if (!L.calm) this.crack(L, 0, 0.1); this.crack(L, 0.24, L.calm ? 0.03 : 0.05); this.rumble(L, { at: 0.12, dur: 3.6, f: 220, vol: 0.09 }); this.rumble(L, { at: 0.5, dur: 2.6, f: 120, vol: 0.06 }); });
     once('calm', T_CALM + 0.5, () => { for (const [n, d] of [['F3', 4], ['A3', 4], ['C4', 4], ['F4', 3.6], ['F2', 4.2]]) v.note(midi(n), d, { vol: n === 'F2' ? 0.022 : 0.014, type: 'sine', attack: 0.5 }); });
     if (t > 11) { const cyc = (t - 11) % 10.5; if (cyc < dt * 1.5) this.rumble(L, { at: 0.35, dur: 2.6, f: 140, vol: 0.035 }); }
     // the shiver: each part comes in and keeps on in quavers, softly, louder as the storm grows; off for the calm

@@ -40,6 +40,10 @@ work, never away from it.
    brands. Music only from compositions published before 1900, synthesised.
 5. **Collision matches what is drawn.** Animations are not solid, or push the toy aside softly. Nothing blocks a
    doorway or a route.
+6. **Care.** Sacred figures do not move and sacred things are not toys; no unclothed figure is modelled; nobody is
+   shown hurt; no people, faith or person is a prop or a joke; and a show honours "Reduce motion and flashing"
+   (`L.calm`: no flash, no fast pulse, half-speed spins, no sudden bang). The full list is the Care section of
+   `docs/PAINTING-HELPER-BRIEF.md`, from the independent sensitivity review of 2026-11-24.
 
 ## How long, and how it goes
 
@@ -166,6 +170,11 @@ hand-made recipes replace the archetypes one by one.
   - **Firing:** it fires with the same button as LOOK, when the toy faces a work within about 4 m; on a phone, BLAST.
   - **Sound:** it hums and has a short cool-down (about 1 s).
 - **The label:** a woken work's wall label glows green and keeps glowing; the info card says "Brought to life".
+  *Built now (LOOK trigger):* every work with a life has been touched by the visitors' light, and its label shows it
+  from the start, before the work ever moves: a mint cast to the card and a faint green glow round its edges, slowly
+  breathing (still when motion is reduced). `exposedCards` in src/paintlife.js; the card colours are `a.exposed` in
+  `_paint` (src/museum.js). Only the label, never the work. Labels that would hang behind the next work along move
+  to the left of their frame or under it (`_freeCards`), so no clue is hidden.
 - **Collecting:**
   - "Paintings brought to life: 37 of 898" appears in the notebook.
   - The map can show green dots for woken works.

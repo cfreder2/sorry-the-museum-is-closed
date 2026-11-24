@@ -194,7 +194,7 @@ vec4 vgLayer(float r, float a, float bw, float off) {
     // ---- the whirl's clock (turning, the heart) and where its middle is: in front of him, or round the toy
     const tt = showing ? t : (this.tHold || t); if (showing) this.tHold = t;
     this.spin = linger ? 0.8 : ret ? this.spin : this.spinAt(t);
-    this.phi += dt * this.spin;
+    this.phi += dt * this.spin * (L.calm ? 0.5 : 1);      // (reduced motion: the whirl turns at half speed)
     const bpm = linger ? 72 : this.bpm(tt); this.hb += dt * bpm / 60;
     const b = this.beat(this.hb), col = showing ? this.colAt(t) : 0;
     let wu = CU, wo = CO;
@@ -242,7 +242,7 @@ vec4 vgLayer(float r, float a, float bw, float off) {
       if (sc > 0) shown = true;
     }
     im.instanceMatrix.needsUpdate = true; im.visible = shown;
-    this.mat.userData.u.uPulse.value = 0.55 * b;
+    this.mat.userData.u.uPulse.value = L.calm ? 0 : 0.55 * b;      // (about three pulses a second at its fastest: steady when flashing is reduced)
     // ---- the painted floor: it comes as the strokes arrive, and goes as they leave
     let fk2, fr;
     if (showing) { fk2 = ease.smooth(ramp(t, T_POUR + 0.9, T_FORM + 0.4)); fr = RMAX * (0.3 + 0.75 * ease.out(ramp(t, T_POUR + 0.9, T_FORM + 0.8))); }

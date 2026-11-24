@@ -5,6 +5,11 @@
 // keeps the floes' surfaces where it draws them). The water itself is not ground: a car that comes down on it has gone in
 // (harbour.js fishes it out).
 
+import { buildIceField, HSTEP, WAY } from './icefield.js';
+
+// Something solid with a top to land on (as plan.js landable, which cannot be imported here: plan.js imports this).
+const landable = (plan, x0, x1, z0, z1, top, base = 0) => { plan.surfaces.push({ skin: 'wall', fixed: true, x0, x1, z0, z1, axis: null, h0: top, h1: top, base }); plan.obstacles.push({ x0, x1, z0, z1, y0: base, y1: top - 0.08 }); };
+
 const rng = s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
 
 // Is (u, v) inside the polygon pts ([[u, v], ...])?
@@ -64,8 +69,8 @@ export function harbourEdge(plan, L) {
   L.edge = edge; L.edgeX = edgeX; L.edgeMin = xMin; L.edgeMax = xMax;
   L.wet = (x, z) => x > edgeX(z);                         // over open water (unless on something: a floe, the breakwater)
   L.waterY = WATER_Y;
-  L.lake = 700;                                           // where the lake that goes on to the horizon begins (skyline.js, via museum.js)
-  L.water = { x0: xMin - 0.6, x1: 720, z0: B.z0 - 190, z1: B.z1 + 190 };      // the snow is left off the water, which lies lower than it (groundOpenings)
+  L.lake = 795;                                           // where the lake that goes on to the horizon begins (skyline.js, via museum.js): out past the painted horizon itself, for the harbour's own water (harbour.js) now runs all the way to it
+  L.water = { x0: xMin - 0.6, x1: 760, z0: B.z0 - 190, z1: B.z1 + 190 };      // the snow is left off the water, which lies lower than it (groundOpenings)
 
   // ---- the chain of floes from the edge to the breakwater: big, flat, held fast in the ice (they do not bob), with
   // gaps of half a metre. A low ramp of tipped ice on the sheet before the edge and at the far end of each of the first three
@@ -197,9 +202,82 @@ export function harbourEdge(plan, L) {
     if (pts.every(([px, pz]) => !(L.window && px > L.window.x0 - 1 && px < L.window.x1 + 1 && pz > L.window.z0 - 1 && pz < L.window.z1 + 1))) cracks.push(pts);
   }
 
+  // ---- out on the sheet, between the shore and the edge
+  // The marked way across: from the slipway, where a toy comes down onto the ice, to where the chain of floes starts.
+  // Stakes with a reflector band stand down both sides of it, as on any road laid out over lake ice; nothing rises in
+  // it (icefield.js keeps the ridges and the drifts out), so the crossing to the light is as it was.
+  const sx = L.shore + 3.5, sz = (L.slip[0] + L.slip[1]) / 2;
+  // (One long easy bend, the same way all the way round, that comes onto the chain's own line short of the edge: the last of it is a straight run at the first ramp.)
+  const way = L.safeWay = [[sx, sz], [sx + 5.5, sz - 7], [sx + 12, sz - 20], [sx + 18.5, sz - 31.5], [sx + 24.5, sz - 39.5], [RX - 10.5, 65.6], [RX - 7, 64.2], [RX - 3.2, 64.2]];
+  const wayD = (x, z) => { let m = Infinity; for (let i = 0; i + 1 < way.length; i++) { const [ax, az] = way[i], [bx, bz] = way[i + 1], dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz))); m = Math.min(m, Math.hypot(x - ax - dx * t, z - az - dz * t)); } return m; };
+  const stakes = L.stakes = [];
+  { let side = 1, next = 2.5, run = 0;
+    for (let i = 0; i + 1 < way.length; i++) {
+      const [ax, az] = way[i], [bx, bz] = way[i + 1], l = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / l, uz = (bz - az) / l;
+      for (; next < run + l; next += 4.2, side = -side) { const d = next - run, x = ax + ux * d - uz * 2.05 * side, z = az + uz * d + ux * 2.05 * side; if (wayD(x, z) > 1.9 && Math.hypot(x - RX, z - 64.2) > 3.4) stakes.push({ x, z, yaw: r() * 6.283, lean: (r() - 0.5) * 0.16 }); }
+      run += l;
+    } }
+  for (const q of stakes) O.push({ x0: q.x - 0.04, x1: q.x + 0.04, z0: q.z - 0.04, z1: q.z + 0.04, y0: 0, y1: 0.8 });
+  // The harbour's moorings, left out all winter and frozen in where they float: can buoys in their rows, each a thing
+  // to steer round. (Drawn by lakefront.js with the ones riding in the open water; solid as drawn.)
+  const fish = L.fish || { x: -1e3, z: -1e3 }, moor = L.moorings = [];
+  // More fishing shanties, where the one at the hole (icefish.js) has neighbours: boarded huts square to the shore, a lit
+  // window in each. Solid as drawn (icefish.js draws them all).
+  const shanties = L.shanties = L.fish ? [{ x: fish.x - 3.5, z: fish.z + 27, turn: 1 }, { x: fish.x + 5.2, z: fish.z + 33.5, turn: 3 }, { x: fish.x + 10.5, z: fish.z - 98, turn: 2 }] : [];
+  for (const q of shanties) { const hw = q.turn % 2 ? 0.9 : 1.1, hd = q.turn % 2 ? 1.1 : 0.9; O.push({ x0: q.x - hw, x1: q.x + hw, z0: q.z - hd, z1: q.z + hd, y0: -0.3, y1: 2.6 }); }
+  for (const [k, mx] of [[0, 542.5], [1, 553], [2, 563.5]]) for (let z = B.z0 + 12 + (k % 2) * 11; z < B.z1 - 6; z += 22) {
+    const x = mx + (r() - 0.5) * 0.7, zz = z + (r() - 0.5) * 1.2;
+    if (x > edgeX(zz) - 6.5 || wayD(x, zz) < 6.5 || Math.hypot(x - fish.x, zz - fish.z) < 11 || Math.hypot(x - RX, zz - 64.2) < 8 || shanties.some(q => Math.hypot(x - q.x, zz - q.z) < 4)) continue;
+    moor.push({ x, z: zz, s: 0.62 + r() * 0.16, yaw: r() * 6.283, tip: (r() - 0.5) * 0.3, red: r() < 0.3 });
+  }
+  for (const q of moor) { const a = 0.42 * q.s * 0.72; O.push({ x0: q.x - a, x1: q.x + a, z0: q.z - a, z1: q.z + a, y0: 0, y1: 0.42 * q.s + 0.1 }); }
+  // Two rowing boats left out too late and frozen in by the shore, full of snow: each solid as drawn (three boxes down
+  // its length, narrowing to the bow), with the snow in it a top to land on. And bollards along the lake side of the
+  // revetment's top (0.56 m up: plan.js L.rev.top), every twelve metres, to tie up to.
+  const boats = L.boats = [{ x: L.shore + 6.4, z: sz - 11.5, dir: 1, heel: 0.13, hull: [0.1, 0.24, 0.2] }, { x: L.shore + 7.3, z: sz + 44, dir: -1, heel: -0.1, hull: [0.36, 0.07, 0.06] }];
+  for (const q of boats) for (const [za, zb, hw] of [[-1.35, 0.3, 0.52], [0.3, 0.9, 0.4], [0.9, 1.32, 0.2]]) landable(plan, q.x - hw, q.x + hw, q.z + Math.min(za * q.dir, zb * q.dir), q.z + Math.max(za * q.dir, zb * q.dir), 0.4, 0);
+  const bollards = L.bollards = [];
+  for (let z = B.z0 + 8; z < B.z1 - 4; z += 12) if (z < L.slip[0] - 2 || z > L.slip[1] + 2) bollards.push({ x: L.shore - 0.38, z, y: 0.56 });
+  for (const q of bollards) O.push({ x0: q.x - 0.1, x1: q.x + 0.1, z0: q.z - 0.1, z1: q.z + 0.1, y0: q.y, y1: q.y + 0.34 });
+  // The lie of the ice (icefield.js): the plates it froze in, the ridges and refrozen leads between them, the drifts.
+  // Its heave is a piece of ground like the hills (never a wall, ground at any height, the car rolls off it); how well
+  // the ice holds is read from it by the car (vehicles.js: the first sheet of ice found here is this one, ahead of the
+  // plain one plan.js lists after).
+  const F = L.iceField = buildIceField({ x0: L.shore + 2.25, x1: xMax + 0.5, z0: B.z0 - 40, z1: B.z1 + 40, edgeX, play: [B.z0 + 1, B.z1 - 1], hx0: L.shore + 5,
+    way, keep: [{ x: fish.x, z: fish.z, r: 9 }, { x: RX - 2, z: 64.2, r: 6 }, ...boats.map(q => ({ x: q.x, z: q.z, r: 2.6 })), ...shanties.map(q => ({ x: q.x, z: q.z, r: 3.4 }))], posts: moor });
+  { const hv = F.heave; L.heave = { skin: 'wall', fixed: true, hill: true, axis: 'hill', x0: hv.x0, x1: hv.x0 + hv.nx * HSTEP, z0: hv.z0, z1: hv.z0 + hv.nz * HSTEP, h0: 0, h1: F.top, thick: 0, cx: 0, cz: 0, rx: 1, rz: 1, H: 0, fn: F.heaveAt };
+    S.push(L.heave); }
+  plan.ice.push({ x0: L.shore + 3, x1: xMax, z0: B.z0, z1: B.z1, crust: F.crust });
+  // Plates rafted up along the crests of the ridges (one end out of the snow: a ramp to hop the ridge from), and lumps
+  // of broken ice thrown out beside them: low ones a wheel bumps over, taller ones to steer round. Drawn with the slabs
+  // along the edge (lakefront.js), solid as drawn.
+  const clearOf = q => !moor.some(m => q.x0 < m.x + 0.7 && q.x1 > m.x - 0.7 && q.z0 < m.z + 0.7 && q.z1 > m.z - 0.7) && [[q.x0, q.z0], [q.x1, q.z0], [q.x0, q.z1], [q.x1, q.z1]].every(([x, z]) => wayD(x, z) > WAY);
+  F.crests.forEach((c, i) => {
+    if (i % 5 < 3) {
+      const w = 0.7 + r() * 0.6, d = 0.9 + r() * 0.6, axis = r() < 0.5 ? 'x' : 'z', up = r() < 0.5 ? 1 : -1, hi = c.h + 0.1 + r() * 0.15, T = 0.1;
+      const q = axis === 'x' ? { x0: c.x - d / 2, x1: c.x + d / 2, z0: c.z - w / 2, z1: c.z + w / 2 } : { x0: c.x - w / 2, x1: c.x + w / 2, z0: c.z - d / 2, z1: c.z + d / 2 };
+      if (!free(q) || !clearOf(q)) return;
+      taken.push(q);
+      slabs.push({ ...q, kind: 'plate', axis, h0: up > 0 ? 0 : hi, h1: up > 0 ? hi : 0, T, sunk: true });
+      S.push({ skin: 'wall', fixed: true, ...q, axis, h0: up > 0 ? 0 : hi, h1: up > 0 ? hi : 0, thick: T });
+    }
+    for (let k = 0, n = 1 + Math.floor(r() * 3); k < n; k++) {
+      const a = r() * 6.283, d = 1.2 + r() * 1.1, s = 0.3 + r() * 0.45, x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d, low = r() < 0.6, h = low ? 0.045 + r() * 0.04 : 0.13 + r() * 0.1;
+      const q = { x0: x - s / 2, x1: x + s / 2, z0: z - s * (0.35 + r() * 0.3), z1: z + s * (0.35 + r() * 0.3) };
+      if (!free(q) || !clearOf(q) || x > edgeX(z) - 5 || [[q.x0, q.z0], [q.x1, q.z0], [q.x0, q.z1], [q.x1, q.z1], [x, z]].some(([px, pz]) => F.heaveAt(px, pz) > 0.012)) continue;
+      taken.push(q);
+      slabs.push({ ...q, kind: 'block', h });
+      S.push({ skin: 'wall', fixed: true, ...q, axis: null, h0: h, h1: h, base: 0 });
+      if (!low) O.push({ ...q, y0: 0, y1: h - 0.08 });
+    }
+  });
+
+  // The look of it, now that everything standing on it is known: snow lies round the foot of each slab and in its lee.
+  F.paint(slabs.filter(q => !q.launch).map(q => ({ x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, h: q.kind === 'block' ? q.h : Math.max(q.h0, q.h1) })));
+
   // ---- where a toy that has gone in is put back: on the solid ice a few metres back from the edge, facing the shore,
   // or on top of the breakwater, facing the light
   const safe = L.safe = [];
-  for (let z = B.z0 + 4; z < B.z1 - 4; z += 5) { const x = edgeX(z) - 4.2; if (!taken.some(t => x > t.x0 - 0.6 && x < t.x1 + 0.6 && z > t.z0 - 0.6 && z < t.z1 + 0.6)) safe.push({ x, z, y: 0, yaw: -Math.PI / 2 }); }
+  for (let z = B.z0 + 4; z < B.z1 - 4; z += 5) { const x = edgeX(z) - 4.2; if (!taken.some(t => x > t.x0 - 0.6 && x < t.x1 + 0.6 && z > t.z0 - 0.6 && z < t.z1 + 0.6) && !F.heaveAt(x, z) && !moor.some(m => Math.hypot(m.x - x, m.z - z) < 1)) safe.push({ x, z, y: 0, yaw: -Math.PI / 2 }); }
   for (let z = bw.z0 + 8; z < bw.z1 - 2; z += 6) safe.push({ x: (bw.x0 + bw.x1) / 2, z, y: 1.27, yaw: Math.PI });
 }

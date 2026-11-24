@@ -193,8 +193,10 @@ What was added (`src/story.js`, in the order a player meets it):
    one goes in through its grille.
 4. **The probe** (`src/probe.js`), once the grate's page is in the file, three more works have been looked at (or three
    minutes spent indoors since) and over a minute indoors in all: the grate hums louder and the `?` sits on it. Come near
-   the lobby and a toy-sized saucer rises out of it in a column of green light, flies to you through the doorways, past
-   you, and hangs in front of you, chiming the call. Then you herd it out: it keeps about 2.8 m ahead of you along its way
+   the lobby and a small saucer (80 cm across, bigger than your toy) rises out of it, edge on, in a column of green
+   light, flies to you through the doorways, past you, and hangs in front of you, chiming the call. It leaves a ribbon
+   of light in the call's colours, kept low indoors and, like all its glows, never drawn on a work of art (src/probe.js
+   artSafe). Then you herd it out: it keeps about 3.2 m ahead of you along its way
    to the vent (the floor grid of `guardplan.js`, through doorways, never a wall), eases away as you come, hurries if you
    rush it, stays put and chimes softly when you stop, never runs off. Out on the terrace it takes off on its own, over
    the roofs, Butler Field and the ballpark to the harbour light (a short camera beat watches it go), and waits there.
@@ -258,7 +260,7 @@ bottom of the sled run.
 ## Open choices (decided for now; easy to change)
 
 - **Optional:** the finale doesn't block anything else, so the game can be explored without it.
-- **Three saucers, one family:** the *probe* out of the lobby grate is a live scout, toy-sized and unmanned, that
+- **Three saucers, one family:** the *probe* out of the lobby grate is a live scout, small and unmanned, that
   leads you to Clarice's log and leaves; the *UFO toy* in Sub-level 9 (`buildSaucer`) is a model of the craft someone
   made, and stays an unlock you can drive; the *craft* in the hangar (`craft.js`) is the real one, the one you ride.
 - **Car or drone:** you can arrive with either; the car rides along, the drone docks, and both are on the Moon.

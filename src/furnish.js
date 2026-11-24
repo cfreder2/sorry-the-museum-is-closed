@@ -850,6 +850,7 @@ function finish(R, recipe) {
     // a mouse's grille low in this wall (plan.js addNests): the skirting and the lower wall stop either side of it, and go on over it
     const nests = (plan.nests || []).filter(n => n.room === r.id && n.side === side).map(n => [n.u - n.VW / 2 - 0.05, n.u + n.VW / 2 + 0.05, n.VH + 0.04]);
     for (const [a, b, h] of nests) { if (recipe === 'restroom') { B(a, b, h, 1.1, 0.045, 0xdfe6e4); B(a, b, 1.1, 1.24, 0.05, 0x5f8794); B(a, b, 1.24, 2.1, 0.045, 0xdfe6e4); B(a, b, 2.1, 2.14, 0.06, 0xb7b2a6); } else { B(a, b, h, low, 0.045, dado); B(a, b, low, low + 0.045, 0.065, 0xb7b2a6); } }
+    { const V = plan.staffVent; if (V && V.room === r.id && V.side === side) nests.push([V.z0 - 0.05, V.z1 + 0.05, V.H + 0.04]); }      // and the same where the staff vent comes out (src/ventplan.js)
     spans.push(...nests.map(([a, b]) => [a, b]));
     for (const [a, b] of runs(lo, hi, spans)) { B(a, b, 0, 0.11, 0.07, 0x3c3f45);
       if (recipe === 'restroom') { B(a, b, 0.11, 1.1, 0.045, 0xdfe6e4); B(a, b, 1.1, 1.24, 0.05, 0x5f8794); B(a, b, 1.24, 2.1, 0.045, 0xdfe6e4); B(a, b, 2.1, 2.14, 0.06, 0xb7b2a6); }      // tiled to the height of the doors, with a darker band
@@ -1071,6 +1072,7 @@ def('monitorWall', 4.4, 0.25, (g, w, r) => {
   const e = w / 2; g.b(-e, e, 0.9, 2.7, 0, 0.12, C.black);
   for (let u = -e + 0.08; u + 0.72 < e; u += 0.74) for (let y = 0.98; y < 2.5; y += 0.56) g.b(u, u + 0.68, y, y + 0.5, 0.12, 0.125, (pick(r, [0x1a2a3a, 0x24384a, 0x303840, 0x182a22, 0x2a3440, 0x0c1014]), C.off), 'metal');
   g.s(-e, e, 0.9, 2.7, 0, 0.14);
+  g.mark('monitorWall', 0, 0.125, 0, { w });                          // src/secdesk.js lights the screens
 });
 def('keyCabinet', 0.8, 0.15, (g, w, r) => { g.b(-0.4, 0.4, 1.1, 1.9, 0, 0.12, C.steel, 'metal'); g.b(0.3, 0.33, 1.45, 1.55, 0.12, 0.14, C.steelD); });
 def('radios', 0.9, 0.4, (g, w, r) => { table(g, -0.45, 0.45, 0, 0.4, 0.9, C.grey, C.steelD); for (let u = -0.36; u < 0.4; u += 0.14) { g.q(u, 0.2, 0.07, 0.05, 0.9, 1.08, C.black); g.q(u, 0.23, 0.02, 0.006, 1.02, 1.035, r() < 0.7 ? C.led : C.ledR, 'glow'); } });
@@ -1845,7 +1847,7 @@ class Room {
       { const o = s.deck || s.ramp, of = o && plan.byId[o.room]; if (of && of.secret && of !== r) continue; }      // a stair nobody knows is there, the other side of the wall, moves nobody's furniture
       const lo = s.lift ? s.lift.stops[0] : Math.min(s.h0, s.h1) - (s.thick || 0), hi = s.lift ? s.lift.stops[s.lift.stops.length - 1] : Math.max(s.h0, s.h1);
       if (hi < y0 || lo > y1) continue;
-      keep(s, s.deck ? 0.3 : s.fixed ? 1.5 : 0.6, !!(s.ramp || s.lift));
+      keep(s, s.deck ? 0.3 : s.fixed ? 1.5 : 0.6, !!(s.ramp || s.lift || s.vent));      // (s.vent: the foot of the staff vent, src/ventplan.js: a way in like any other)
     }
     for (const w of plan.wells || []) if (lap(w, 1.2) && w.y > y0 && w.y < y1 + 0.8) keep(w, 1.2, true);
     for (const ob of plan.obstacles) if (!ob.fit && lap(ob, 0.4) && ob.y1 > y0 && ob.y0 < y1) keep(ob, 0.4, false);
@@ -2058,6 +2060,19 @@ const EXTRAS = {
     g.b(-0.3, 0.3, 0.04, 0.3, 0.5, 0.503, C.redD); g.b(-0.22, 0.22, 0.2, 0.26, 0.503, 0.506, C.yellow);
   },
 };
+// The security desk's computer (src/secdesk.js): a desk against the wall, 0.2 m left of the middle of its 2.2 m, with an old
+// computer under it; and beside it, pushed back out of the way, a swivel chair (drawn there; solid here). What stands on the
+// desk (the lit monitor, the keyboard, the mug, the donuts) is drawn by src/secdesk.js too.
+EXTRAS.secdesk = g => {
+  const u = -0.2, e = 0.8;
+  g.cu(u - e, u + e, 0.7, 0.74, 0.04, 0.84, 0.012, C.greyL); g.b(u - e + 0.02, u + e - 0.02, 0.66, 0.7, 0.06, 0.82, C.steelD, 'metal', true);
+  for (const s of [-1, 1]) g.b(u + s * (e - 0.02) - 0.02, u + s * (e - 0.02) + 0.02, 0, 0.66, 0.08, 0.8, C.steelD, 'metal');
+  g.b(u - e + 0.04, u + e - 0.04, 0.2, 0.66, 0.06, 0.085, C.steelD, 'metal');                                    // the modesty panel
+  g.b(u + 0.36, u + e - 0.04, 0.08, 0.66, 0.14, 0.8, C.grey, 'metal'); for (const y of [0.26, 0.46]) { g.b(u + 0.38, u + e - 0.06, y, y + 0.012, 0.8, 0.804, C.black); g.b(u + 0.5, u + 0.62, y + 0.08, y + 0.1, 0.8, 0.815, C.steelL, 'metal', true); }      // drawers
+  g.cu(u - 0.7, u - 0.5, 0, 0.44, 0.24, 0.7, 0.015, C.greyL); g.b(u - 0.68, u - 0.52, 0.3, 0.4, 0.7, 0.703, C.grey); g.b(u - 0.66, u - 0.645, 0.2, 0.215, 0.7, 0.704, C.led, 'glow');      // the computer, beige, one green lamp
+  g.s(u - e, u + e, 0, 0.78, 0.04, 0.84);
+  g.s(0.6, 1.06, 0, 0.92, 0.98, 1.44);                                                                          // the chair
+};
 // Set one down in room R; returns where it is ({ x, z, y, fx, fz }: its middle at the wall, and which way it faces) or null.
 function extra(R, kind) {
   const { L, W } = R, A = R.aisle, rnd = dice(hash(R.room.id + ':' + kind)), tries = [];
@@ -2138,7 +2153,7 @@ function writtenBoard(R, id) {
 // triangles: { batches: [{ mat, floor, position, normal, color, index, bounds }], rooms, items, solids }.
 // Normals are signed bytes and colours unsigned bytes (linear), both to be read as normalised.
 export function furnish(plan) {
-  const out = { batches: {}, solids: [], marks: [] }, rooms = {}, arcades = [], consoles = [];
+  const out = { batches: {}, solids: [], marks: [] }, rooms = {}, arcades = [], consoles = [], desks = [];
   let items = 0;
   const lineRooms = plan.rooms.filter(r => LINE_ROOM.test(String(r.gallery || ''))).sort((p, q) => (q.x1 - q.x0) * (q.z1 - q.z0) - (p.x1 - p.x0) * (p.z1 - p.z0)); plan.repair = null; plan.repairNotes = [];      // where the conservation line goes (src/repair.js)
   const boards = assignBoards(plan.rooms, r => !!fitoutOf(r));       // which rooms have a whiteboard with something written on it (src/boardtext.js)
@@ -2148,7 +2163,7 @@ export function furnish(plan) {
     const R = new Room(plan, room, out, OPTS[recipe]);
     const slot = ARCADE_ROOMS.indexOf(room.gallery);
     if (slot >= 0) { const at = extra(R, 'arcade'); if (at) arcades.push({ slot, ...at }); }
-    if (recipe === 'securityControl') { const at = extra(R, 'heist'); if (at) consoles.push(at); }
+    if (recipe === 'securityControl') { const at = extra(R, 'heist'); if (at) consoles.push(at); const dk = extraWide(R, 'secdesk', 2.2); if (dk) desks.push(dk); }
     if (lineRooms.includes(room)) { const first = !plan.repair && room === lineRooms.find(r => fitoutOf(r)), at = extraWide(R, first ? 'repair' : 'repairNote', first ? 2.8 : 1.0); if (at) { if (first) plan.repair = at; else plan.repairNotes.push(at); } }
     if (recipe === 'xBrief') { const at = extra(R, 'arcade'); if (at) plan.bonusArcade = at; }           // one more monitor, where nobody was meant to find it
     // A whiteboard with something written on it goes up before the furniture, in the middle of whichever wall has room, so that it is not behind a bookcase.
@@ -2171,7 +2186,7 @@ export function furnish(plan) {
   plan.fitout = rooms;
   plan.wc = out.wc || [];                                 // how each restroom block was divided, and what is in each part of it
   plan.marks = out.marks;                                 // spots the fit-out leaves for others to dress: whiteboards (src/whiteboards.js), and what is under the building (src/secret.js)
-  plan.arcades = arcades.sort((p, q) => p.slot - q.slot); plan.heistConsoles = consoles;      // where src/arcade.js and src/heist.js will find their things
+  plan.arcades = arcades.sort((p, q) => p.slot - q.slot); plan.heistConsoles = consoles; plan.secDesks = desks;      // where src/arcade.js, src/heist.js and src/secdesk.js will find their things
   const batches = Object.values(out.batches).filter(b => b.i.length).map(b => ({
     mat: b.mat, floor: b.floor, boxes: b.boxes,
     position: new Float32Array(b.p), normal: new Int8Array(b.n), color: new Uint8Array(b.c), index: b.p.length / 3 > 65535 ? new Uint32Array(b.i) : new Uint16Array(b.i),

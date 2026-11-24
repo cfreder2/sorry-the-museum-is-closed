@@ -219,10 +219,11 @@ feature({
     if (st.foot != null) { const m = new Mesher(), z0 = st.foot, z1 = sh.z0 - st.tread * st.n, y1 = h / st.n + 0.004, nl = Math.hypot(z1 - z0, y1), nrm = [0, (z1 - z0) / nl, -y1 / nl];
       for (const [x0, x1] of [[st.x0, rp.x0 - 0.01], [rp.x1 + 0.01, st.x1]]) { const a = m.v(x0, -0.02, z0, ...nrm, x0 / 6, z0 / 6, W), b = m.v(x1, -0.02, z0, ...nrm, x1 / 6, z0 / 6, W), c = m.v(x1, y1, z1 - 0.004, ...nrm, x1 / 6, z1 / 6, W), d = m.v(x0, y1, z1 - 0.004, ...nrm, x0 / 6, z1 / 6, W); m.q(a, b, c, d); }
       g.add(m.mesh(snowM)); }
-    // the ramp: dark rubber with chevrons running up it to the stage
-    this.chevT = tex(64, 128, (c, w, hh) => { c.fillStyle = '#121419'; c.fillRect(0, 0, w, hh); c.strokeStyle = '#fff'; c.lineWidth = 9; c.lineCap = 'round'; for (const y of [30, 94]) { c.beginPath(); c.moveTo(6, y + 22); c.lineTo(32, y - 6); c.lineTo(58, y + 22); c.stroke(); } });
-    this.chevT.repeat.set(1, 3);
-    const rampM = this.rampM = new THREE.MeshStandardMaterial({ map: this.chevT, roughness: 0.7, emissiveMap: this.chevT, emissive: new THREE.Color(0.6, 0.8, 1.6), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1 });
+    // the ramp: dark ribbed rubber matting with a strip of light down each edge, in the show's colour. Nothing on it
+    // points or runs: the only arrows on the ground are the lit route's (map.js).
+    const matT = tex(64, 128, (c, w, hh) => { c.fillStyle = '#121419'; c.fillRect(0, 0, w, hh); c.fillStyle = '#20242d'; for (let y = 2; y < hh; y += 8) c.fillRect(7, y, w - 14, 3); c.fillStyle = '#fff'; c.fillRect(0, 0, 4, hh); c.fillRect(w - 4, 0, 4, hh); });
+    matT.repeat.set(1, 6);
+    const rampM = this.rampM = new THREE.MeshStandardMaterial({ map: matT, roughness: 0.7, emissiveMap: matT, emissive: new THREE.Color(0.6, 0.8, 1.6), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1 });
     { const m = new Mesher(), up = [0, 9 / Math.hypot(9, h), -h / Math.hypot(9, h)], a = m.v(rp.x0, 0.004, rp.z0, ...up, 1, 0, W), b = m.v(rp.x1, 0.004, rp.z0, ...up, 0, 0, W), c = m.v(rp.x1, h + 0.004, rp.z1, ...up, 0, 1, W), d = m.v(rp.x0, h + 0.004, rp.z1, ...up, 1, 1, W); m.q(a, b, c, d); g.add(m.mesh(rampM));
       const s = new Mesher(); for (const [x, nx] of [[rp.x0, -1], [rp.x1, 1]]) { const p0 = s.v(x, 0, rp.z0, nx, 0, 0, 0, 0, W), p1 = s.v(x, 0, rp.z1, nx, 0, 0, 1.5, 0, W), p2 = s.v(x, h, rp.z1, nx, 0, 0, 1.5, 0.2, W); s.t(p0, p1, p2); } g.add(s.mesh(fasM)); }
 
@@ -666,7 +667,6 @@ feature({
     const target = pal || IDLE_PAL.map((c, i) => { const j = (i + Math.floor(T / 14)) % 3, n = (j + 1) % 3, w = smooth((T % 14) / 14 * 3 - 2); return [0, 1, 2].map(q => IDLE_PAL[j][q] * (1 - w) + IDLE_PAL[n][q] * w); });
     U.uPal.value.forEach((v, i) => { const c = target[i]; v.x += (c[0] - v.x) * Math.min(1, dt * 2); v.y += (c[1] - v.y) * Math.min(1, dt * 2); v.z += (c[2] - v.z) * Math.min(1, dt * 2); });
     this._aimAll(dt, b / meter, kick);
-    this.chevT.offset.y = -T * (0.3 + this.lvl * 0.8) * (calm ? 0.3 : 1);
     this.rampM.emissive.setRGB(U.uPal.value[0].x * 0.25, U.uPal.value[0].y * 0.25, U.uPal.value[0].z * 0.25);
     // ---- the pad, the screen
     for (let l = 0; l < 4; l++) { this.padLit[l] = Math.max(0, this.padLit[l] - dt * 4); this.recep[l] = Math.max(0, this.recep[l] - dt * 5); }

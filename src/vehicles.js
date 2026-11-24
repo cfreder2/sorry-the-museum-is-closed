@@ -69,7 +69,7 @@ function layShadow(sh, plan, x, z, g, yaw, h, dt, spread, fade, floor) {
   _sf.set(Math.sin(yaw), 0, Math.cos(yaw)); _sf.addScaledVector(B.n, -_sf.dot(B.n)).normalize();
   _sr.crossVectors(B.n, _sf);
   _sm.makeBasis(_sr, B.n, _sf); sh.quaternion.setFromRotationMatrix(_sm);
-  sh.position.set(x + _sf.x * B.off, g + _sf.y * B.off, z + _sf.z * B.off).addScaledVector(B.n, 0.03);      // (3 cm up: a stair's plank and its arrows lie 1.4 and 2.6 cm over the line the ground is reckoned on)
+  sh.position.set(x + _sf.x * B.off, g + _sf.y * B.off, z + _sf.z * B.off).addScaledVector(B.n, 0.03);      // (3 cm up: a stair's plank lies 1.4 cm over the line the ground is reckoned on, and its steel edge 1.8)
   const k = 1 + Math.min(h, 4) * spread;
   sh.scale.set(B.w * k, 1, B.l * k);
   sh.material.opacity = B.op * Math.max(floor, 1 - h / fade) / Math.sqrt(k);
@@ -497,13 +497,15 @@ export class Car {
       grip *= S.grip;
       let bite = Math.max(-1, Math.min(1, vf / 1.4));
       this.wet = false;
-      for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r) this.wet = true;
+      for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (p.x0 !== undefined ? this.pos.x > p.x0 && this.pos.x < p.x1 && this.pos.z > p.z0 && this.pos.z < p.z1 : (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r)) this.wet = true;      // (a rectangle: a room the sprinklers have wetted, src/systems.js)
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
       const sheet = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.find(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1), icy = !!sheet;
       // (Big studded tyres, S.ice, bite into it: less wheelspin, more steering, and the slide is caught sooner. The
       // harbour's crusted lake ice is driven as if on studs: it still slides, but a toy can steer across it and line up a jump.)
-      if (icy) { const ice = sheet.crust ? Math.max(S.ice || 0, 0.85) : S.ice || 0; grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
+      // (A sheet may say how crusted it is at a spot, 0 glassy to 1 snowed over: crust(x, z). The harbour's does: src/icefield.js.)
+      const crust = !icy ? 0 : typeof sheet.crust === 'function' ? sheet.crust(this.pos.x, this.pos.z) : sheet.crust ? 0.85 : 0;
+      if (icy) { const ice = Math.max(S.ice || 0, crust); grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
       rate = this.steer * bite * 3.6 * S.steer / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);

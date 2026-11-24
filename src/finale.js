@@ -216,7 +216,7 @@ feature({
     const k = this.k;
     this.save.card = true; this._store();
     if (this.cardMesh) this.cardMesh.visible = this.cardHalo.visible = false;
-    k.sound.bell(659.25, 0, 0.06, 1.6); k.sound.bell(987.77, 0.12, 0.05, 1.8);
+    k.sound.bell(659.25, 0, 0.06, 1.6); k.sound.bell(987.77, (k.sound.ctx ? k.sound.ctx.currentTime : 0) + 0.12, 0.05, 1.8);      // (bell takes a time on the audio clock)
     k.callout('KEYCARD');
     k.say('A keycard. PROJECT GREEN CHEESE, it says. And a map of a tunnel, going east.', 0.3, 7);
     this._blastAt(this.blastK || 0);
@@ -766,8 +766,9 @@ function buildCraft(M) {
   const rampG = new THREE.Group(), Lr = Math.hypot(C.rampLen, C.floor - 0.02), th = Math.atan2(C.floor - 0.02, C.rampLen);
   rampG.position.set(-(C.R - 0.4), C.floor, 0); g.add(rampG);
   const plank = new THREE.Group(); rampG.add(plank);
-  const chev = TX.chevrons(); chev.wrapS = chev.wrapT = THREE.RepeatWrapping; chev.repeat.set(1, Lr / 1.2);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(Lr, 0.12, C.rampW), [dark, dark, new THREE.MeshStandardMaterial({ color: 0x8a949c, map: chev, roughness: 0.6, metalness: 0.4, emissive: 0x2a3036, emissiveIntensity: 0.6 }), dark, dark, dark]);
+  // its tread: ribs across it, as the flying craft's own ramp has (craft.js). Nothing on it points.
+  const ribs = canvas(64, 64, (c, w, h) => { c.fillStyle = '#20242a'; c.fillRect(0, 0, w, h); c.fillStyle = '#9aa3ab'; c.fillRect(8, 5, 16, h - 10); c.fillStyle = '#0c0e11'; c.fillRect(24, 5, 5, h - 10); }).tex; ribs.wrapS = ribs.wrapT = THREE.RepeatWrapping; ribs.repeat.set(Math.round(Lr / 0.3), 1);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(Lr, 0.12, C.rampW), [dark, dark, new THREE.MeshStandardMaterial({ color: 0x8a949c, map: ribs, roughness: 0.6, metalness: 0.4, emissive: 0x2a3036, emissiveIntensity: 0.6 }), dark, dark, dark]);
   top.position.set(-Lr / 2, -0.06, 0); plank.add(top);
   for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(Lr, 0.06, 0.08), glow(0.95, 0.72, 0.2)); e.position.set(-Lr / 2, 0.01, s * (C.rampW / 2 - 0.04)); plank.add(e); }
   const setRamp = u => {      // 0: down; 1: stowed

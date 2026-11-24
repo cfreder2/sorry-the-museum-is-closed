@@ -9,7 +9,8 @@
 // of the stage and dance the quadrille: kicks in unison, a ripple of kicks down the line, a spin with every skirt
 // flaring out and the white froth of the petticoats showing, higher kicks, and on the last chord they jump and drop
 // into the splits together, skirts spread round them like four flowers. A tall thin gentleman in a top hat (the
-// poster's Valentin, the boneless one, and the tall figure in the picture's background) strolls out along the back,
+// poster's dancer Valentin, as a silhouette; not the tall man walking in the picture's background, who is the painter's
+// cousin) strolls out along the back,
 // dances a few loose-limbed steps of his own at the end of the line, and sweeps off his hat to them. The crowd
 // claps; they curtsey. While you keep looking the band vamps quietly, the dancers chat and fan themselves, and now
 // and then the line kicks again. When you stop, they curtsey, run back in under the frame one after another, the
@@ -271,7 +272,7 @@ lifeFor(61128, {
       this.popped = null;
     }
     this.lightK = lightK;
-    const flick = k => 0.94 + 0.06 * Math.sin(t * 13.1 + k * 2.3) * Math.sin(t * 7.3 + k);
+    const flick = k => (L.calm ? 0.94 : 0.94 + 0.06 * Math.sin(t * 13.1 + k * 2.3) * Math.sin(t * 7.3 + k));      // (steady when flashing is reduced)
     this.light.set(0, lightK * flick(0)); this.light.set(1, lightK * flick(1));
     const r = this.rig, B = this.B, M = this.M, beat = (t - T0) / BEAT;
     this.globes.forEach((g, i) => {
@@ -394,7 +395,7 @@ lifeFor(61128, {
     V.u = o.u; V.out = o.out;
     if (s < 1) { V.yaw = L.yawOf(o.du, o.dout); vwalkPose(V, (t - 1.25) * 2 * Math.PI * 1.15, 1); return; }
     V.yaw = turnTo(L.yawOf(o.du, o.dout), L.yawOut - 0.25, ramp(t, tb(9) - 0.3, tb(9)));
-    if (t < tb(11)) {                                                    // the boneless one's steps
+    if (t < tb(11)) {                                                    // the tall gentleman's steps
       const q = (t - tb(9)) / BEAT, w = q * Math.PI;
       V.legs[0][0] = -1.2 * Math.max(0, Math.sin(w)); V.legs[0][2] = 1.9 * Math.max(0, Math.sin(w)); V.legs[0][1] = -0.4 * Math.max(0, Math.sin(w));
       V.legs[1][0] = -1.2 * Math.max(0, -Math.sin(w)); V.legs[1][2] = 1.9 * Math.max(0, -Math.sin(w)); V.legs[1][1] = 0.4 * Math.max(0, -Math.sin(w));

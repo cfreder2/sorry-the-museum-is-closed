@@ -962,3 +962,67 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 224
 
 > Yes, I want you to make 15 more paintings come alive with hand animation that does not draw over the existing art. You can be creative. Brainstorm ideas by picking random words, try to think what could be fun, exciting, engaging. Have subagents do the work, you review for quality. Send it back if the bar is not met, make sure these are top shelf art pieces.
+
+## 225
+
+> So the story goes that the radiation green stuff from the aliens is what makes the pictures alive. I'm wondering if there is a subtle clue these paintings have been exposed. Maybe on the little placeholder cards, they have a faint green glow?
+
+## 226
+
+> Can you do 5 more paintings?
+
+## 227
+
+> The flying saucer is a bit weak and needs an upgrade; it is also small, as is the path it leaves when it moves.
+
+## 228
+
+> The world is not very detailed in many parts. For example, where the security room is. Let's start with the wing that houses the security substation and turn it into a genuine command center: offices and workstations the player can explore, interactive consoles for hacking or monitoring, props that convey a realistic security environment. Brainstorm ideas for this security hub. Imagine being able to see the location of all the security bots. You could remote-control a security bot and drive it around, maybe zapping the mice or the alien saucer. However, you would not be able to see into the basement; it would be restricted access, and security guards can see that. The security team can describe some of the weird things they've been seeing.
+
+## 229
+
+> The Red Teaming Heist game is really great and tons of fun. However, the travel time to get there and back feels excessive. It would be nice if you could jump now, making the challenge to jump over a line. If you set off the alarm, a cage should fall around you, trapping you briefly. You would then be kicked out and taken to a dumpster. Ideally, this dumpster would be closer to the external security system and include a vent, perhaps an underground one, that lets you re-enter the security area. (Asked: the cage drops on any alarm; keep a set time to get there and back, with the lit path, so the urgency is part of the adventure.)
+
+## 230
+
+> I'd like you to be able to use the computers in the control room. What would security officers do? There might be a donut-chase game, a bit of a "lean into it" scenario. I'd also like you to open a terminal and use a virtual command prompt. You'll need to run `ls` and `dir` commands, navigate to the file, and open it in a text editor. The file will contain clues worth finding. You should also be able to turn on the sprinkler system, test the fire suppression, and similar tasks.
+
+## 231
+
+> We need another set of subagents to improve the grounds, parks, snow, and the shaders that affect the ice in that area. Some sections are extremely flat, lacking any variation, so you just drive on boring, featureless roads. It feels odd, not like a real place, more like Roblox.
+
+## 232
+
+> I need all the sounds you play recorded as MP3s so I can listen to them. Wherever there is music or sound, we need MP3 versions created because I am not sure they all sound good, and I want to be able to listen quickly. We need a tool that lets me play them directly in the browser, such as a sound-reviewer HTML document.
+
+## 233
+
+> Resume those not finished. Make sure that if you get a destination on the map that the route goes over hills and ramps properly.
+
+## 234
+
+> Should there be slightly more variation in the trees? Also bushes and shrubs? Benches, etc. What does this area of Chicago really look like, can you borrow some of those things and have them placed to make it less empty.
+
+## 235
+
+> A completed heist should give you some money.
+
+## 236
+
+> There are some routes with plywood on stairs that have arrows painted on them or even moving arrows (if I recall). We cannot have that because then when you do a route on the map, and they collide, it looks terrible. So no arrows on the ground moving unless it is the dynamic follow-the-path stuff.
+
+## 237
+
+> Please do another 10 paintings.
+
+## 238
+
+> We need another agent to perform a sensitivity check on all the animations to date.
+
+## 239
+
+> Ship it (the El Greco). Reshoot the trailer. I am not sure what to do about the flowers or the haystack hiccup gag; just take a look. What is your recommendation? ... I take your recommendation.
+
+## 240
+
+> Okay, we are going to keep animating until we have them all done. So keep going. Do not compromise on quality. The reviewer should still review and send back for feedback and improvement.
