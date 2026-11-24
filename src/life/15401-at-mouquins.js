@@ -36,7 +36,12 @@
 // turns it as a mirror does, and follows it into a room that stands where the gallery is: a far wall with its lamps,
 // side walls, a floor, and three painted sheets of diners standing across it at three depths, each swaying a little
 // (heads more than shoulders), so the room has depth from wherever you look and moves rightly when a door swings.
-// The diners are painted once, in dabs, on a canvas: faces are two or three touches of tone, never drawn. The toy
+// They are not all alike: the man beside the yellow hat leans in to say something and sits back, the woman under the
+// flowers turns her head a little, one at a middle table nods, and a waiter's back crosses behind the middle tables
+// once the room is open (and again every quarter of a minute).
+// The diners are painted once, in dabs, on a canvas, as his mirror has them: backs, profiles, heads turned
+// three-quarters to a neighbour, never a face square to the glass. A face is the plane turned to the talk, its far
+// side lost, a dark touch for the eyes under the brow or a hat's brim, a warm cheek: tone, never drawn. The toy
 // and the table are put into the same room where a mirror would put them. The light on the gallery floor is part of
 // the same mesh. The woodwork, the banquette, the table and the rose are his strokes over bodies a shade darker
 // than themselves (one rig, one draw call; the strokes are let down from under the frame and the bodies scumbled in
@@ -51,8 +56,8 @@
 // says only that her gaze gives the scene "tension and mystery": the show leaves both where he put them, and the
 // caption names no one); it pours nothing, raises nothing and shows no bottle or wine glass, in the room or in the
 // mirror, because the game is played by children and the drink is not what the picture is about; nobody in the glass
-// turns to the player or follows the toy (they go on with their evening); the doors are the show's, not the
-// picture's, and the caption does not say otherwise; and the mirror shows the gallery nothing of itself but the
+// faces the player or follows the toy (they go on with their evening); the doors and the waiter are the show's, not
+// the picture's, and the caption does not say otherwise; and the mirror shows the gallery nothing of itself but the
 // toy, because it is his room that it holds.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape, canvasTexture, rng } from '../paintlife.js';
@@ -193,9 +198,12 @@ function paintRoom(size, pal) {
       for (let i = 0; i < 4; i++) dab(x + (i / 3 - 0.5) * 1.5 * w + jit(0.03), top + 0.003 + jit(0.006), 0.16, 0.014, jit(0.05), mix(c0, pick([LILAC, BLUEW, CREAM, WHITE]), 0.5 * R()), 0.9);
       if (R() < 0.8) { const fx = x + jit(w * 0.6); dab(fx, top + 0.034, 0.036, 0.024, PI / 2 + jit(0.4), mix(LEAF, UMBER, far * 0.3), 0.95); dab(fx + jit(0.01), top + 0.064, 0.036, 0.032, jit(1), mix(pick([PINK, CORAL, WHITE]), VIOLET, far * 0.3), 0.97); }
       for (let i = 0; i < 2; i++) dab(x + jit(w * 1.4), top + 0.016, 0.05, 0.01, jit(0.1), mix(WHITE, LILAC, 0.3 * R()), 0.95);                    // a plate's edge
+      for (let i = 0; i < 2; i++) dab(x - w * (0.75 - 0.9 * i) + jit(0.03), top + 0.004, 0.1, 0.012, jit(0.04), [255, 255, 250], 0.95 - 0.35 * far);      // the lamps on its top, loaded on
+      dab(x - w * 0.86 + jit(0.01), lerp(hem, top, 0.55), 0.16, 0.02, PI / 2 + jit(0.06), mix(c0, [255, 255, 250], 0.5), 0.9 - 0.3 * far);                // and down its lit edge
+      for (let i = 0; i < 5; i++) dab(x + (i / 4 - 0.5) * 1.8 * w + jit(0.03), hem + jit(0.014), 0.05, 0.022, PI / 2 + jit(0.5), i % 2 ? sh : mix(sh, SHADW, 0.5), 0.95);      // (its hem broken)
     };
-    // one of his diners. o: x; kind 'front' | 'side' | 'back'; dir (the way they turn or lean, +1 to the right); who 'man' |
-    // 'woman'; stand (true: on their feet); far (0 near .. 1: greyer, softer); and their colours
+    // one of his diners. o: x; kind 'front' (sitting square to us, the head turned three-quarters to a neighbour) | 'side' |
+    // 'back'; dir (the way they turn or lean, +1 to the right); who 'man' | 'woman'; stand (true: on their feet); far (0 near .. 1: greyer, softer); and their colours
     const person = o => {
       const { x, kind, dir = 1, who = 'man', far = 0 } = o, up = o.stand ? 0.27 : 0, lean = (o.lean || 0) * dir * 0.045;
       const hz = c => mix(c, VIOLET, far * 0.28), coat = hz(o.coat || pick(COATS)), hair = hz(o.hair || pick(HAIRS)), skin = hz(pick(FLESH)), shade = hz(pick(RUDDY));
@@ -220,8 +228,9 @@ function paintRoom(size, pal) {
       for (let i = 0; i < 6; i++) { const s = i % 2 ? 1 : -1, k = R(); dab(bx(k) + s * bw * (1.02 + 0.1 * R()), lerp(low + 0.02, sh - 0.06, k), 0.07, 0.028, PI / 2 - s * (0.1 + 0.4 * R()), s < 0 ? mix(cloth, lit, 0.5 * R()) : mix(cloth, dark, 0.6 * R()), 0.95); }      // (its edge broken, as a brush leaves it)
       if (kind === 'front' && !o.stand) for (const s of [-1, 1]) { dab(x + s * bw * 0.72, 0.385, 0.15, 0.042, PI / 2 + s * 0.6, s < 0 ? mix(cloth, lit, 0.5) : mix(cloth, dark, 0.4), 0.97); dab(x + s * 0.045, 0.34, 0.036, 0.024, 0, mix(skin, shade, s < 0 ? 0.1 : 0.5), 0.97); }       // the arms come in to the table
       dab(bx(1) - bw * 0.62, sh - 0.02, 0.1, 0.03, 0.5, lit, 0.75); dab(bx(1) + bw * 0.64, sh - 0.022, 0.1, 0.03, -0.5, dark, 0.8);                   // the slope of the shoulders
-      if (kind === 'front' && who === 'man') { mass([[hx - 0.03, sh + 0.004], [hx + 0.03, sh + 0.004], [hx + 0.012, sh - 0.105], [hx - 0.012, sh - 0.105]], hz(WHITE)); dab(hx + 0.012, sh - 0.05, 0.07, 0.014, PI / 2 + 0.1, hz(LILAC), 0.6); dab(hx, sh - 0.012, 0.034, 0.02, 0.05, hz(o.tie || pick([COATS[0], REDTIE, COATS[2]])), 0.97); }
-      if (kind === 'side') { dab(hx + dir * 0.028, sh + 0.002, 0.034, 0.02, 0.5 * dir, hz(WHITE), 0.97); dab(x + dir * 0.105, 0.385, 0.15, 0.045, dir * 0.42, mix(cloth, lit, 0.25), 0.97); dab(x + dir * 0.18, 0.345, 0.04, 0.028, 0, skin, 0.97); }      // a collar; an arm to the table, a hand
+      if (kind === 'front' && who === 'man') { mass([[hx - 0.03, sh + 0.004], [hx + 0.03, sh + 0.004], [hx + 0.012, sh - 0.105], [hx - 0.012, sh - 0.105]], hz(WHITE)); dab(hx + 0.012, sh - 0.05, 0.07, 0.014, PI / 2 + 0.1, hz(LILAC), 0.6); dab(hx - 0.01, sh - 0.045, 0.055, 0.014, PI / 2 - 0.08, [255, 255, 250], 0.9 - 0.3 * far); dab(hx, sh - 0.012, 0.034, 0.02, 0.05, hz(o.tie || pick([COATS[0], REDTIE, COATS[2]])), 0.97); }
+      if (o.blouse) for (let i = 0; i < 3; i++) dab(bx(0.8) - bw * (0.2 + 0.5 * R()), sh - 0.03 - 0.1 * R(), 0.06, 0.016, PI / 2 + 0.3 + jit(0.4), mix(hz(o.blouse), [255, 255, 250], 0.7), 0.85);
+      if (kind === 'side') { dab(hx + dir * 0.028, sh + 0.002, 0.034, 0.02, 0.5 * dir, hz(WHITE), 0.97); if (!o.stand) { dab(x + dir * 0.105, 0.385, 0.15, 0.045, dir * 0.42, mix(cloth, lit, 0.25), 0.97); dab(x + dir * 0.18, 0.345, 0.04, 0.028, 0, skin, 0.97); } }      // a collar; an arm to the table, a hand
       if (kind === 'back' && who === 'man') dab(hx, sh + 0.012, 0.075, 0.014, 0, hz(WHITE), 0.95);
       if (o.touches) for (let i = 0; i < 7; i++) dab(x + jit(bw * 1.3), lerp(0.3, sh - 0.04, R()), 0.026, 0.016, jit(2), hz(o.touches), 0.9);
       // the neck, the head
@@ -231,42 +240,46 @@ function paintRoom(size, pal) {
         for (let i = 0; i < 5; i++) dab(hx + jit(hw * 0.5), hc + jit(hh * 0.5), 0.06, 0.03, PI / 2 + jit(1.0), mix(hair, R() < 0.4 ? WHITE : UMBER, 0.16 * R()), 0.85);
         for (const s of [-1, 1]) dab(hx + s * hw * 0.52, hc - 0.014, 0.024, 0.015, PI / 2, shade, 0.95);                            // an ear each side
         dab(hx, hc - hh * 0.5, 0.05, 0.018, 0, shade, 0.9);                                                                         // the nape
-      } else if (kind === 'front') {
-        oval(hx, hc - 0.004, hw * 0.47, hh * 0.5, mix(skin, shade, 0.3));
-        dab(hx - hw * 0.12, hc - 0.006, 0.085, 0.052, PI / 2 + jit(0.1), skin, 0.95);                                                // the side to the light
-        dab(hx + hw * 0.3, hc - 0.008, 0.08, 0.024, PI / 2 + jit(0.1), shade, 0.85);                                                 // the side away from it
-        dab(hx - 0.003, hc + 0.013, 0.062, 0.013, jit(0.06), mix(shade, SOCKET, 0.5), 0.55);                                         // the shade the eyes lie in
-        for (const s of [-1, 1]) dab(hx + s * 0.019 - 0.002, hc + 0.012, 0.024, 0.014, 0, mix(SOCKET, shade, 0.3), 0.5);
-        dab(hx - 0.004, hc - 0.008, 0.012, 0.022, 0, mix(skin, WHITE, 0.25), 0.6);                                                   // a light down the nose
-        dab(hx - 0.003, hc - 0.029, 0.02, 0.009, 0, who === 'woman' ? mix(LIPS, shade, 0.3) : mix(SOCKET, shade, 0.5), 0.55);
-        if (o.moustache) dab(hx - 0.003, hc - 0.021, 0.04, 0.012, 0, mix(hair, UMBER, 0.2), 0.97);
-        if (who === 'woman') dab(hx - 0.022, hc - 0.014, 0.022, 0.018, 0, ROSY, 0.5);
-        for (let i = 0; i < 6; i++) { const a = PI * (0.04 + 0.92 * i / 5); dab(hx + Math.cos(a) * hw * 0.46, hc + 0.016 + Math.sin(a) * hh * 0.42, 0.05, 0.026, a + PI / 2 + jit(0.3), mix(hair, UMBER, 0.3 * R()), 0.97); }      // the hair, round the top
-        if (who === 'woman') for (const s of [-1, 1]) dab(hx + s * hw * 0.55, hc + 0.006, 0.058, 0.034, PI / 2 + s * 0.2, hair, 0.97);
+        dab(hx - 0.016 + jit(0.01), hc + hh * 0.3, 0.036, 0.012, 0.4 + jit(0.5), mix(hair, WHITE, 0.3), 0.7);                       // a light on the crown
+        for (let i = 0; i < 3; i++) dab(hx + (i - 1) * hw * 0.5 + jit(0.01), hc + hh * (0.3 + 0.2 * R()), 0.028, 0.011, PI / 2 + jit(1.2), mix(hair, UMBER, 0.2), 0.9);      // (its edge broken)
       } else {
-        const f = dir;                 // a profile: the face to the front, the hair behind it, a nose, an ear
+        // a face, turned: in profile (kind 'side'), or three-quarters to a neighbour (kind 'front': nobody in the glass
+        // faces straight out of it). The hair is a mass behind; the face is the plane turned to the talk, its far side
+        // lost; a dark touch where the eyes are, under the brow or a hat's brim; a warm cheek; a nose and a mouth barely.
+        const f = dir, q = kind === 'side' ? 1 : 0.55, brim = o.hat ? 1 : 0, litSide = f < 0 ? 1 : 0;      // (his light is from the left)
         oval(hx, hc - 0.004, hw * 0.47, hh * 0.5, mix(hair, UMBER, 0.2));
-        dab(hx + f * 0.014, hc - 0.008, 0.088, 0.05, PI / 2 + f * 0.06, f < 0 ? skin : mix(skin, shade, 0.45), 0.97);
-        dab(hx + f * 0.046, hc - 0.008, 0.02, 0.013, -f * 0.9, skin, 0.97); dab(hx + f * 0.024, hc + 0.013, 0.026, 0.013, 0, mix(SOCKET, shade, 0.3), 0.5);
-        dab(hx + f * 0.03, hc - 0.031, 0.015, 0.008, 0, who === 'woman' ? mix(LIPS, shade, 0.3) : mix(SOCKET, shade, 0.4), 0.5); if (o.moustache) dab(hx + f * 0.032, hc - 0.022, 0.026, 0.011, f * 0.3, hair, 0.97);
-        dab(hx - f * 0.006, hc - 0.006, 0.022, 0.014, PI / 2, shade, 0.9);
-        for (let i = 0; i < 6; i++) { const a = PI * (0.12 + 0.95 * i / 5); dab(hx - f * Math.cos(a) * hw * 0.48 - f * 0.012, hc + 0.01 + Math.sin(a) * hh * 0.44 - (i > 3 ? 0.018 : 0), 0.05, 0.028, a + PI / 2 + jit(0.4), mix(hair, UMBER, 0.3 * R()), 0.97); }
+        dab(hx + f * 0.014 * q, hc - 0.008, 0.09, 0.052 - 0.006 * q, PI / 2 + f * 0.06, mix(skin, shade, litSide ? 0.12 : 0.4), 0.97);
+        dab(hx + f * (0.03 * q + 0.008), hc - 0.01, 0.07, 0.016, PI / 2 + f * 0.05, mix(shade, SOCKET, litSide ? 0.05 : 0.3), 0.8);          // the far side of the face, lost
+        dab(hx + f * 0.004 * q - 0.006, hc - 0.02, 0.034, 0.024, 0.3, mix(ROSY, skin, 0.35), 0.6);                                           // a warm cheek
+        dab(hx + f * 0.046 * q, hc - 0.008, 0.02, 0.013, -f * 0.9, mix(skin, WHITE, 0.12), 0.95 * q + 0.2);                                  // the nose
+        dab(hx + f * 0.016 * q, hc + 0.015, 0.058 - 0.014 * q, 0.016 + 0.008 * brim, -f * 0.1, mix(shade, SOCKET, 0.55 + 0.25 * brim), 0.62 + 0.2 * brim);      // the shade the eyes lie in
+        dab(hx + f * 0.024 * q + f * 0.004, hc + 0.012, 0.02, 0.011, 0, mix(SOCKET, UMBER, 0.35), 0.8);                                      // a dark touch for the eye
+        if (kind === 'front') dab(hx - f * 0.012, hc + 0.012, 0.016, 0.01, 0, mix(SOCKET, UMBER, 0.2), 0.6);
+        dab(hx + f * 0.03 * q, hc - 0.031, 0.016, 0.008, 0, who === 'woman' ? mix(LIPS, shade, 0.3) : mix(SOCKET, shade, 0.4), 0.55);
+        if (o.moustache) dab(hx + f * 0.03 * q, hc - 0.022, 0.03, 0.011, f * 0.3, mix(hair, UMBER, 0.2), 0.97);
+        dab(hx - f * (0.006 + 0.022 * (1 - q)), hc - 0.006, 0.022, 0.014, PI / 2, shade, 0.9);                                               // an ear
+        for (let i = 0; i < 6; i++) { const a = PI * (0.12 + 0.95 * i / 5); dab(hx - f * Math.cos(a) * hw * 0.48 - f * 0.012 * q, hc + 0.01 + Math.sin(a) * hh * 0.44 - (i > 3 ? 0.018 * q : 0), 0.05, 0.028, a + PI / 2 + jit(0.4), mix(hair, UMBER, 0.3 * R()), 0.97); }
+        if (who === 'woman') dab(hx - f * hw * 0.5, hc + 0.004, 0.06, 0.036, PI / 2 - f * 0.2, hair, 0.97);
+        dab(hx - f * 0.02 + jit(0.02), hc + hh * 0.36, 0.03, 0.012, 0.3 + jit(0.6), mix(hair, WHITE, 0.25), 0.7);                            // a light in the hair
+        for (let i = 0; i < 2; i++) dab(hx - f * (hw * 0.5 + 0.006) + jit(0.01), hc + jit(0.05), 0.026, 0.01, PI / 2 + jit(0.8), mix(hair, UMBER, 0.2), 0.9);      // (its edge broken)
       }
       // a hat
       const hy = hc + hh * 0.42;
-      if (o.hat === 'bowler') { oval(hx, hy + 0.026, 0.046, 0.034, hz(COATS[0])); dab(hx, hy + 0.002, 0.14, 0.016, 0.04 * dir, hz(COATS[1]), 0.98); dab(hx - 0.016, hy + 0.04, 0.036, 0.01, 0.2, hz(VIOLET), 0.5); }
+      if (o.hat === 'bowler') { oval(hx, hy + 0.026, 0.046, 0.034, hz(COATS[0])); dab(hx, hy + 0.002, 0.14, 0.016, 0.04 * dir, hz(COATS[1]), 0.98); dab(hx - 0.016, hy + 0.042, 0.04, 0.011, 0.25, mix(hz(VIOLET), WHITE, 0.35), 0.8); }
       if (o.hat === 'boater') { mass([[hx - 0.044, hy + 0.034], [hx + 0.044, hy + 0.034], [hx + 0.046, hy], [hx - 0.046, hy]], hz(STRAW)); dab(hx, hy, 0.16, 0.014, 0.03 * dir, hz(mix(STRAW, WHITE, 0.3)), 0.98); dab(hx, hy + 0.012, 0.09, 0.011, 0, hz(COATS[0]), 0.95); }
       if (o.hat === 'wide') {         // a woman's hat: a great dark shape, with flowers or a plume on it
         const hcI = hz(o.hatCol || COATS[0]);
         mass([[hx - 0.13, hy + 0.008], [hx - 0.07, hy + 0.06], [hx + 0.03, hy + 0.074], [hx + 0.12, hy + 0.04], [hx + 0.13, hy], [hx, hy - 0.012]], hcI);
         for (let i = 0; i < 5; i++) dab(hx + jit(0.16), hy + 0.026 + jit(0.03), 0.1, 0.032, jit(0.5), mix(hcI, R() < 0.5 ? UMBER : VIOLET, 0.3 * R()), 0.8);
         for (let i = 0; i < 6; i++) dab(hx + jit(0.13), hy + 0.05 + jit(0.02), 0.04, 0.024, jit(2), hz(pick(o.trim || [BLUE, BLUE_D, PINK])), 0.95);
+        dab(hx - 0.06 + jit(0.02), hy + 0.05, 0.06, 0.012, 0.5, mix(hcI, WHITE, 0.4), 0.75); for (let i = 0; i < 3; i++) dab(hx + (i - 1) * 0.12 + jit(0.02), hy + 0.006 + jit(0.012), 0.05, 0.014, jit(0.5), mix(hcI, UMBER, 0.3), 0.95);      // a light along its crown; its brim's edge broken
       }
       if (o.hat === 'straw') {        // the yellow straw hat, its coral ribbon and green leaves (the picture's own)
         mass([[hx - 0.135, hy + 0.012], [hx - 0.08, hy + 0.066], [hx + 0.04, hy + 0.082], [hx + 0.13, hy + 0.046], [hx + 0.125, hy + 0.004], [hx, hy - 0.008]], hz(STRAW));
         for (let i = 0; i < 6; i++) dab(hx + jit(0.16), hy + 0.04 + jit(0.03), 0.11, 0.028, 0.25 + jit(0.3), mix(hz(STRAW), R() < 0.5 ? hz(STRAW_D) : WHITE, R() * 0.5), 0.85);
         for (let i = 0; i < 8; i++) dab(hx - 0.02 + jit(0.13), hy + 0.01 + jit(0.014), 0.044, 0.022, jit(2.4), hz(CORAL), 0.97);
         for (let i = 0; i < 4; i++) dab(hx + 0.056 + jit(0.03), hy - 0.012 + jit(0.012), 0.03, 0.014, jit(2.4), hz(LEAF), 0.97);
+        for (let i = 0; i < 3; i++) dab(hx - 0.05 + jit(0.08), hy + 0.068 + jit(0.008), 0.05, 0.012, 0.3 + jit(0.2), [255, 240, 190], 0.9);      // the lamps on the straw
       }
     };
     const chairBack = (x, far) => { for (let i = 0; i < 6; i++) { const a = PI * (i + 0.5) / 6; dab(x + Math.cos(a) * 0.105, 0.33 + Math.sin(a) * 0.14, 0.085, 0.014, a + PI / 2, mix(CHAIR, VIOLET, far * 0.3), 0.95); } for (const s of [-1, 1]) dab(x + s * 0.105, 0.27, 0.13, 0.014, PI / 2, mix(CHAIR, VIOLET, far * 0.3), 0.95); };
@@ -275,23 +288,23 @@ function paintRoom(size, pal) {
 
     // the far sheet: grey heads and dark coats, two on their feet
     sheet(1, [
-      { x: -2.3, kind: 'side', dir: 1, hat: 'bowler' }, { x: -1.6, kind: 'front', moustache: true }, { x: -1.14, kind: 'side', dir: 1, who: 'woman', hat: 'wide', blouse: LILAC, trim: [PINK, WHITE] },
-      { x: -0.4, kind: 'front', hair: HAIRS[2] }, { x: 0.06, kind: 'back', stand: true, hat: 'bowler' }, { x: 0.3, kind: 'side', dir: 1 }, { x: 0.95, kind: 'front', who: 'woman', hat: 'wide', blouse: BLUE, trim: [CORAL, PINK] },
-      { x: 1.42, kind: 'side', dir: 1, hair: HAIRS[5], moustache: true }, { x: 2.14, kind: 'side', dir: -1 }, { x: 2.45, kind: 'front', stand: true, hair: HAIRS[2] },
+      { x: -2.3, kind: 'side', dir: 1, hat: 'bowler' }, { x: -1.6, kind: 'front', dir: -1, moustache: true }, { x: -1.14, kind: 'side', dir: 1, who: 'woman', hat: 'wide', blouse: LILAC, trim: [PINK, WHITE] },
+      { x: -0.4, kind: 'front', dir: -1, hair: HAIRS[2] }, { x: 0.06, kind: 'back', stand: true, hat: 'bowler' }, { x: 0.3, kind: 'side', dir: 1 }, { x: 0.95, kind: 'front', dir: -1, who: 'woman', hat: 'wide', blouse: BLUE, trim: [CORAL, PINK] },
+      { x: 1.42, kind: 'side', dir: 1, hair: HAIRS[5], moustache: true }, { x: 2.14, kind: 'side', dir: -1 }, { x: 2.45, kind: 'side', dir: -1, stand: true, hair: HAIRS[2] },
     ], [-1.95, -0.75, 0.6, 1.8], 1, 0.4);
     // the middle sheet
     sheet(2, [
-      { x: -2.02, kind: 'side', dir: 1, who: 'woman', hat: 'wide', blouse: BLUEW, trim: [BLUE, PINK, WHITE] }, { x: -1.62, kind: 'back', hair: HAIRS[3] }, { x: -0.96, kind: 'front', moustache: true, hair: HAIRS[2], tie: COATS[0] },
-      { x: -0.28, kind: 'back', hair: HAIRS[4], coat: COATS[5] }, { x: 0.2, kind: 'side', dir: -1, hat: 'boater' }, { x: 0.78, kind: 'front', hair: HAIRS[0], tie: REDTIE },
+      { x: -2.02, kind: 'side', dir: 1, who: 'woman', hat: 'wide', blouse: BLUEW, trim: [BLUE, PINK, WHITE] }, { x: -1.62, kind: 'back', hair: HAIRS[3] }, { x: -0.96, kind: 'front', dir: -1, moustache: true, hair: HAIRS[2], tie: COATS[0] },
+      { x: -0.28, kind: 'back', hair: HAIRS[4], coat: COATS[5] }, { x: 0.2, kind: 'side', dir: -1, hat: 'boater' }, { x: 0.78, kind: 'front', dir: 1, hair: HAIRS[0], tie: REDTIE },
       { x: 1.12, kind: 'back', who: 'woman', hat: 'wide', hatCol: hex('#3a2f44'), trim: [PINK, WHITE], blouse: LILAC }, { x: 1.68, kind: 'side', dir: -1, hair: HAIRS[5] }, { x: 2.3, kind: 'back', hair: HAIRS[1] },
     ], [-1.3, 0.5, 1.4], 0.5, 0.5);
     // the near sheet: the woman in the yellow straw hat with her back to the glass, the man in profile beside her, the
     // rosy face under flowers at the left
     sheet(3, [
-      { x: -2.24, kind: 'side', dir: 1, hair: HAIRS[2], moustache: true }, { x: -1.5, kind: 'front', who: 'woman', hat: 'wide', hatCol: hex('#2e3a58'), trim: [BLUE, PINK, WHITE, PINK], blouse: hex('#dfe3ea'), skirt: hex('#5a5870'), hair: AUBURN_D },
+      { x: -2.24, kind: 'side', dir: 1, hair: HAIRS[2], moustache: true }, { x: -1.5, kind: 'front', dir: -1, who: 'woman', hat: 'wide', hatCol: hex('#2e3a58'), trim: [BLUE, PINK, WHITE, PINK], blouse: hex('#dfe3ea'), skirt: hex('#5a5870'), hair: AUBURN_D },
       { x: -0.62, kind: 'back', hair: HAIRS[0] }, { x: -0.08, kind: 'side', dir: -1, hair: HAIRS[2], moustache: true },
       { x: 0.42, kind: 'back', who: 'woman', hat: 'straw', hair: AUBURN, blouse: WHITE, skirt: hex('#cfd2da'), touches: CORAL }, { x: 1.0, kind: 'side', dir: -1, hair: HAIRS[1] },
-      { x: 1.5, kind: 'front', hair: HAIRS[5], tie: COATS[0] }, { x: 2.02, kind: 'back', hair: HAIRS[3], coat: COATS[4] }, { x: 2.44, kind: 'side', dir: -1, hat: 'bowler' },
+      { x: 1.5, kind: 'front', dir: 1, hair: HAIRS[5], tie: COATS[0] }, { x: 2.02, kind: 'back', hair: HAIRS[3], coat: COATS[4] }, { x: 2.44, kind: 'side', dir: -1, hat: 'bowler' },
     ], [-1.88, -0.36, 0.72, 1.78], 0, 0.6);
   });
   tex.premultiplyAlpha = true; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = 4; tex.needsUpdate = true;
@@ -301,7 +314,7 @@ function paintRoom(size, pal) {
 // The table as the glass has it (from behind: the cloth, the rose's dark side, the tumbler), and the toy as he might
 // have touched it in: both small sheets, stood in the room in the glass where a mirror would put them.
 function paintTable(pal) {
-  const R = rng(4107), W = 256, H = 192;
+  const R = rng(4107), W = 384, H = 192;
   const css = h => '#' + pal(h).getHexString();
   const t = canvasTexture(W, H, g => {
     g.clearRect(0, 0, W, H); g.lineCap = 'round';
@@ -320,6 +333,23 @@ function paintTable(pal) {
     for (let i = 0; i < 6; i++) dab(X(rx + (R() - 0.5) * 0.06), Y(ROSE.y + 0.012 + (R() - 0.5) * 0.02), M(0.036), M(0.016), (R() - 0.5) * 3, css(i % 2 ? '#2f5e45' : '#3f7a55'));
     for (let i = 0; i < 9; i++) dab(X(rx + 0.008 + (R() - 0.5) * 0.034), Y(ROSE.y + 0.046 + (R() - 0.5) * 0.03), M(0.026), M(0.02), R() * 3, css(i < 6 ? '#d5807c' : '#f0a39c'));
     for (let i = 0; i < 3; i++) dab(X(rx - 0.03 + (R() - 0.5) * 0.016), Y(ROSE.y + 0.03 + (R() - 0.5) * 0.016), M(0.018), M(0.014), R() * 3, css('#d9d0b4'));
+    // a waiter, from behind, on his way across the room (the right-hand third of the sheet: 0.64 m by 0.96 m): a
+    // short black jacket, the long white apron tied at his back, a napkin over his arm
+    const wx = x => 320 + x * 200, wy = h => 192 * (1 - h / 0.96), wm = m => m * 200, J = s => (R() - 0.5) * s;
+    const wd = (x, h, l, w, a, c, al = 0.96) => dab(wx(x), wy(h), wm(l), wm(w), -a, c, al);
+    const BLK = css('#1f1e23'), BLK2 = css('#34323a'), APR = css('#e6e8e4'), APS = css('#b4b8c6'), SKN = css('#c98a70'), HAIR = css('#3a2a20');
+    g.globalAlpha = 0.4; g.fillStyle = css('#33261f'); g.beginPath(); g.ellipse(wx(0), wy(0.014), wm(0.15), wm(0.014), 0, 0, 7); g.fill(); g.globalAlpha = 1;
+    for (const sx of [-1, 1]) { wd(sx * 0.05, 0.19, 0.3, 0.052, Math.PI / 2 + sx * 0.05, BLK); wd(sx * 0.06 + 0.01, 0.024, 0.07, 0.028, 0, BLK); }
+    for (const sx of [-1, 1]) { wd(sx * 0.085, 0.3, 0.3, 0.07, Math.PI / 2 - sx * 0.04, sx < 0 ? APR : APS); wd(sx * 0.1, 0.2, 0.12, 0.03, Math.PI / 2 + J(0.2), sx < 0 ? css('#f6f6f0') : css('#c6c9d4'), 0.9); }
+    for (let i = 0; i < 4; i++) wd(J(0.2), 0.15 + J(0.02), 0.05, 0.022, Math.PI / 2 + J(0.5), i % 2 ? APS : APR);
+    for (let i = 0; i < 7; i++) wd((i / 6 - 0.5) * 0.23 + J(0.02), 0.62 + J(0.12), 0.2, 0.05, Math.PI / 2 + J(0.2), i < 3 ? BLK2 : BLK);
+    for (const sx of [-1, 1]) { wd(sx * 0.09, 0.745, 0.1, 0.04, -sx * 0.55, sx < 0 ? BLK2 : BLK); wd(sx * 0.145, 0.6, 0.2, 0.046, Math.PI / 2 + sx * 0.1, sx < 0 ? BLK2 : BLK); }
+    wd(0, 0.47, 0.2, 0.02, 0, APR); wd(-0.012, 0.455, 0.05, 0.02, 0.6, APR); wd(0.014, 0.452, 0.05, 0.02, -0.6, APS);                              // the apron's band, and its bow
+    wd(-0.16, 0.47, 0.13, 0.036, Math.PI / 2 + 0.06, css('#f2f3ee')); wd(-0.168, 0.5, 0.05, 0.014, Math.PI / 2, css('#ffffff'), 0.9);               // the napkin over his arm
+    wd(0, 0.82, 0.07, 0.05, Math.PI / 2, SKN); wd(0, 0.788, 0.044, 0.008, 0, css('#b4b7bc'), 0.8);                                                   // his neck, a line of collar
+    g.fillStyle = HAIR; g.beginPath(); g.ellipse(wx(0), wy(0.888), wm(0.043), wm(0.048), 0, 0, 7); g.fill();                                     // the back of his head: hair, the nape under it, an ear each side
+    for (let i = 0; i < 4; i++) wd(J(0.04), 0.892 + J(0.04), 0.05, 0.026, Math.PI / 2 + J(1), i % 2 ? HAIR : css('#2a1e18'), 0.9);
+    wd(0, 0.842, 0.06, 0.02, 0, SKN); for (const sx of [-1, 1]) wd(sx * 0.045, 0.868, 0.026, 0.014, Math.PI / 2, SKN);
   });
   t.premultiplyAlpha = true; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.needsUpdate = true;
   return t;
@@ -374,6 +404,7 @@ lifeFor(15401, {
     const CRH = C(['#f0eada', '#e8e1ce', '#e1d9c5', '#ded8ca', '#ebe3cc', '#e4dccb'], 0.08), GLH = C(['#dcbe74', '#c4a258', '#a8843e', '#8a6c34', '#e6cc8a'], 0.1);
     const MRH = C(['#7c3d34', '#5e2a24', '#8a4a3c', '#451a18', '#6a2f2a', '#3a1614'], 0.1), CLH = C(['#f6f6f2', '#e9e2d2', '#cdd3e2', '#d6cfdd', '#e4e9ea', '#c6ccdc', '#efe9dc'], 0.06);
     const ROSEC = C(['#f2a09a', '#f7b8ae', '#e98482', '#fbd0c6', '#ee9690'], 0.06), ROSE_D = col('#c96e6c', 0.08), LEAVES = C(['#3f7a55', '#2f5e45', '#6ea77c', '#24483a', '#4c8a5e'], 0.1), BUD = C(['#e9dfc4', '#d6ccac', '#f2ecd8'], 0.08);
+    const BROKEN = C(['#f8f3e6', '#fbf8ee', '#d2cab9', '#cbc6c0', '#ecdcb4', '#f3ecd6'], 0.06);
     const MOULD = C(['#aaa39e', '#9f9894', '#b3aca4'], 0.1);
     const under = S => { const c = new THREE.Color(); return n => { const k = n.dot(KEY); return c.copy(S.deep[0]).lerp(S.lo[0], sstep(k, -0.75, -0.3)).lerp(S.mid[0], sstep(k, -0.25, 0.2)).lerp(S.hi[1 % S.hi.length], sstep(k, 0.25, 0.75)).multiplyScalar(0.98); }; };
     const mixer = (S, hues, amt = 0.4, v = 0.14) => {
@@ -494,6 +525,7 @@ lifeFor(15401, {
       face(base, 14, -0.9, 0.9, 0.1455, 0.1465, 0.036, OUT, ACROSS, gl, TW + 0.2, { l: [0.1, 0.15], w: [0.006, 0.008], grid: true, jit: 0.02, tip: 0.0005, lift: 0.003, tilt: 0.1, cell: 0 });
       slab(base, -0.99, 0.99, Y1 + 0.002, 0.846, -WALL, 0.056, CR, TW + 0.1, 0.9);
       face(base, 20, -0.98, 0.98, 0.822, 0.83, 0.056, OUT, ACROSS, cr, TW + 0.1, { l: [0.14, 0.2], w: [0.034, 0.04], grid: true, jit: 0.03, tip: 0.001, tilt: 0.08, cell: 0 });
+      face(base, 12, -0.97, 0.97, 0.816, 0.836, 0.056, OUT, ACROSS, r => pick(BROKEN, r), TW + 0.2, { l: [0.06, 0.11], w: [0.012, 0.018], jit: 0.2, tip: 0.001, tilt: 0.12, lift: 0.0028, cell: 1 });
       face(base, 14, -0.98, 0.98, 0.806, 0.808, 0.056, OUT, ACROSS, gl, TW + 0.3, { l: [0.12, 0.16], w: [0.006, 0.008], grid: true, jit: 0.02, tip: 0.0005, lift: 0.003, tilt: 0.1, cell: 0 });
       face(base, 18, -0.98, 0.98, -WALL + 0.02, 0.036, 0.846, UP, ACROSS, cr, TW + 0.1, { l: [0.16, 0.2], w: [0.07, 0.08], grid: true, jit: 0.03, tip: 0.001, tilt: 0.08, cell: 0 });
       for (const sx of [-1, 1]) {
@@ -520,6 +552,11 @@ lifeFor(15401, {
         for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; stroke(Pt, V3(X(lerp(x0, x1, t)), lerp(y0, y1, t), HZ - 0.004), IN, vert_ ? UP : ACROSS, (vert_ ? 0.51 : 0.3) / n * 1.15, 0.008, pick(MOULD, R()), TD + 0.3, { cell: 0, tip: 0.0004, tilt: 0.06, lift: 0.0032 }); }
       }
       for (let k = 0; k < 3; k++) for (const y of rows) stroke(Pt, V3(X(0.864 + k * 0.0125), y + 0.03 * (R() - 0.5), HZ - 0.004), IN, UP, 0.19, 0.009, pick(k % 2 ? GL.lo : GL.hi, R()).clone().multiplyScalar(1 + 0.1 * (R() - 0.5)), when(TD + 0.2, 0.2, 0.5), { cell: 0, tip: 0.0005, tilt: 0.12, lift: 0.0034, ridge: 0.12 });
+      for (let i = 0; i < 16; i++) stroke(Pt, V3(X(0.475 + 0.4 * R()), 0.19 + 0.57 * R(), HZ - 0.004), IN, along(IN, UP, 0.6), 0.06 + 0.07 * R(), 0.02 + 0.016 * R(), pick(BROKEN, R()), when(TD + 0.15, 0.2, 0.5), { cell: 1, tip: 0.0012, tilt: 0.14, lift: 0.0027 });      // broken lights and greys over it
+      for (const [x0, x1, y0, y1] of [[0.534, 0.534, 0.234, 0.716], [0.806, 0.806, 0.234, 0.716], [0.534, 0.806, 0.234, 0.234], [0.534, 0.806, 0.716, 0.716]]) {      // a line of gilt inside the moulding
+        const vert_ = x0 === x1, n = vert_ ? 4 : 2;
+        for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; stroke(Pt, V3(X(lerp(x0, x1, t)), lerp(y0, y1, t), HZ - 0.004), IN, vert_ ? UP : ACROSS, (vert_ ? 0.482 : 0.272) / n * 1.1, 0.0052, pick(k % 2 ? GL.mid : GL.hi, R()), TD + 0.36, { cell: 0, tip: 0.0003, tilt: 0.05, lift: 0.0038, ridge: 0.1 }); }
+      }
       // its edges
       for (const y of rows) stroke(Pt, V3(X(2 * WG), y, HZ), V3(sx, 0, 0), UP, 0.19, 0.008, cr(R()), TD + 0.2, { cell: 0, tip: 0, tilt: 0, lift: 0.0006 });
       for (let j = 0; j < 3; j++) stroke(Pt, V3(X(0.525 + j * 0.15), Y1 - 0.001, HZ), UP, ACROSS, 0.16, 0.008, cr(R()), TD + 0.2, { cell: 0, tip: 0, tilt: 0, lift: 0.0006 });
@@ -538,10 +575,10 @@ lifeFor(15401, {
     {
       const T = TABLE, ring = (y, k) => ({ y, c: [T.x, T.z], r1: T.rx * k, r2: T.rz * k }), span = T.y - T.hem;
       const pleat = th => { let s = 0; for (let k = 0; k < 4; k++) { const d = wrap(th - (PI / 4 + k * PI / 2)); s += Math.exp(-(d / 0.34) * (d / 0.34)) * Math.cos(7 * d + k * 1.3); } return s; };
-      const fl = (v, th) => 1 + (0.004 + 0.14 * Math.pow(1 - v, 1.3)) * fall(v, 0.6, 0.82) * pleat(th) + 0.012 * fall(v, 0.5, 0.8) * Math.sin(th * 9 + 1.2);
+      const fl = (v, th) => 1 + (0.004 + 0.14 * Math.pow(1 - v, 1.3)) * fall(v, 0.6, 0.82) * pleat(th) + (0.012 * Math.sin(th * 9 + 1.2) + 0.03 * Math.pow(1 - v, 1.2) * Math.sin(th * 4 + 0.7) * Math.sin(th * 2.5 + 2.0)) * fall(v, 0.5, 0.8);
       const uC = under(CL), c = new THREE.Color();
       const paint = (nw, v, th, p, nl) => { c.copy(uC(nw)); if (nl.y > 0.6) return c.lerp(CL.hi[0], 0.6); c.lerp(CL.lo[0], 0.5); return c.multiplyScalar((1 - 0.2 * fall(pleat(th), -0.8, 0.1) * fall(v, 0.3, 0.75)) * (0.86 + 0.14 * sstep(v, 0, 0.2))); };
-      const S = loft(table, [ring(T.hem, 1.05), ring(T.hem + 0.012, 1.045), ring(T.hem + span * 0.3, 1.03), ring(T.hem + span * 0.6, 1.012), ring(T.y - 0.022, 1.0), ring(T.y - 0.005, 0.992), ring(T.y, 0.97), ring(T.y, 0.9), ring(T.y, 0.78)], TT, paint, { pow: 5, flute: fl, seg: 64, rows: 16, cap: true, shrink: 0.975, dark: 0.82 });
+      const S = loft(table, [ring(T.hem, 1.05), ring(T.hem + 0.012, 1.045), ring(T.hem + span * 0.3, 1.03), ring(T.hem + span * 0.6, 1.012), ring(T.y - 0.022, 1.0), ring(T.y - 0.005, 0.992), ring(T.y, 0.97), ring(T.y, 0.9), ring(T.y, 0.78)], TT, paint, { pow: 3.6, flute: fl, seg: 72, rows: 16, cap: true, shrink: 0.975, dark: 0.82 });
       const tn = mixer(CL, CLH, 0.5, 0.12), n = V3(), p = V3();
       for (let i = 0; i < 150; i++) { const dv = lerp(0.3, 0.5, R()), v = lerp(0.04 + dv / 2, 0.66 - dv / 2, R()), th = R() * TAU; S.normal(v, th, n); S.lay(v, th, dv, (R() - 0.5) * 0.03, lerp(0.03, 0.05, R()), tn(n, R()).lerp(pick(CL.lo, R()), 0.15 + 0.55 * R()), null, { ridge: 0.05, tip: 0.002, tilt: 0.2 }); }       // the cloth hanging: in the shade of its own top, lilac and blue
       for (let i = 0; i < 40; i++) { const th = R() * TAU; S.normal(0.03, th, n); S.lay(0.035, th, 0.02, 0.1 + 0.08 * R(), 0.02, tn(n, R()).multiplyScalar(0.9), null, { cell: 1, tip: 0.001 }); }                                             // its hem
@@ -549,6 +586,8 @@ lifeFor(15401, {
         p.set(T.x + (R() - 0.5) * 1.6 * T.rx, T.y, T.z + (R() - 0.5) * 1.74 * T.rz);
         stroke(table, p.clone(), UP, along(UP, V3(1, 0, 0.12 * (R() - 0.5)), 0.3), lerp(0.08, 0.12, R()), lerp(0.024, 0.04, R()), pick(CLH, R()).clone().lerp(CL.hi[0], 0.45 + 0.4 * R()).multiplyScalar(1.02), when(TT + 0.12, 0.2, p.y), { cell: R() < 0.65 ? 0 : 1, tip: 0.001, tilt: 0.1, ridge: 0.05 });
       }
+      for (let i = 0; i < 3; i++) stroke(table, V3(T.x + (i - 1) * 0.125, T.y, T.z + 0.006 * (R() - 0.5)), UP, ACROSS, 0.13, 0.006, CL.lo[1].clone().lerp(CL.hi[0], 0.3), TT + 0.34, { cell: 0, tip: 0, lift: 0.0026, tilt: 0.04, ridge: 0.02 });      // where it lay folded: a crease along it
+      for (let i = 0; i < 2; i++) stroke(table, V3(T.x - 0.03 + 0.006 * (R() - 0.5), T.y, T.z + (i - 0.5) * 0.13), UP, OUT, 0.12, 0.006, CL.lo[0].clone().lerp(CL.hi[0], 0.3), TT + 0.36, { cell: 0, tip: 0, lift: 0.0026, tilt: 0.04, ridge: 0.02 });      // and one across
       // the legs
       const uL = under(LG);
       for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
@@ -642,7 +681,7 @@ lifeFor(15401, {
       const u = this.mu = {
         uA: { value: new THREE.Vector2(PI, PI) }, uInv: { value: new THREE.Matrix4() }, uT: { value: 0 }, uSway: { value: 1 }, uGlint: { value: 1 }, uOpen: { value: 0 }, uGlow: { value: 0 }, uSeam: { value: 0 },
         uFloor: { value: floorTex }, uBits: { value: paintTable(h => col(h, 0.1)) }, uToyTex: { value: paintToy() },
-        uToy: { value: new THREE.Vector4(0, 0, 1, 0) }, uToyCol: { value: new THREE.Color(0xd2261c) }, uToyW: { value: new THREE.Vector2(0.25, 0.125) },
+        uToy: { value: new THREE.Vector4(0, 0, 1, 0) }, uToyCol: { value: new THREE.Color(0xd2261c) }, uToyW: { value: new THREE.Vector2(0.25, 0.125) }, uWaiter: { value: new THREE.Vector3(-9, 0, 0) },
       };
       const rowU = ROWS.map(r => `vec3(${(r[0] / 2048).toFixed(5)}, ${(r[1] / 2048).toFixed(5)}, ${r[2].toFixed(3)})`);
       const m = new THREE.MeshBasicMaterial({ map: this.roomTex, transparent: true, depthWrite: false, fog: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
@@ -662,16 +701,28 @@ lifeFor(15401, {
     vEye = (uInv * vec4(cameraPosition, 1.0)).xyz;
   }`);
         sh.fragmentShader = sh.fragmentShader.replace('#include <map_pars_fragment>', `#include <map_pars_fragment>
-uniform vec2 uA; uniform float uT, uSway, uGlint, uOpen, uGlow, uSeam; uniform sampler2D uFloor, uBits, uToyTex; uniform vec4 uToy; uniform vec3 uToyCol; uniform vec2 uToyW;
+uniform vec2 uA; uniform float uT, uSway, uGlint, uOpen, uGlow, uSeam; uniform sampler2D uFloor, uBits, uToyTex; uniform vec4 uToy; uniform vec3 uToyCol; uniform vec2 uToyW; uniform vec3 uWaiter;
 varying vec3 vLoc; varying vec3 vNrm; varying vec3 vEye; varying float vPanel; varying vec2 vPuv;
 const float UW = ${UW.toFixed(2)}, D0 = ${D0.toFixed(2)}, HC = ${HC.toFixed(2)};
 // one of the three sheets of diners, where the ray meets it: they sway a little, their heads more than their shoulders
-vec4 mqRow(vec3 P, vec3 r, float tm, float d, vec3 yy, float ph) {
+vec4 mqRow(vec3 P, vec3 r, float tm, float d, vec3 yy, float ph, int id) {
   float t = clamp((d - P.z) / max(r.z, 1.0e-4), 0.0, 60.0);
   vec3 H = P + r * t;
   float k = smoothstep(0.36, 0.62, H.y) * uSway;
   H.x += 0.013 * k * sin(H.x * 9.0 + uT * 0.9 + ph) * sin(H.x * 3.7 - uT * 0.53 + ph * 2.0);
   H.y += 0.007 * k * sin(H.x * 11.0 - uT * 1.1 + ph * 3.0);
+  if (id == 3) {
+    // the man beside the yellow hat leans in to say something, and sits back; the woman under the flowers turns her head a little, and back
+    float g = exp(-pow((H.x - 0.98) / 0.17, 2.0)) * smoothstep(0.3, 0.62, H.y) * smoothstep(0.1, 0.9, sin(uT * 0.42 + 0.5)) * uSway;
+    H.x += 0.036 * g; H.y += 0.008 * g;
+    vec2 c = vec2(-1.527, 0.6), dd = (H.xy - c) / vec2(0.1, 0.075);
+    float g2 = exp(-dot(dd, dd)) * smoothstep(0.2, 0.95, sin(uT * 0.31 + 2.0)) * uSway;
+    H.x = mix(H.x, c.x + (H.x - c.x) * 1.3 - 0.012, g2);
+  } else if (id == 2) {
+    // one of the middle table nods at what he is told
+    float g = exp(-pow((H.x + 0.98) / 0.1, 2.0)) * smoothstep(0.5, 0.6, H.y) * smoothstep(0.55, 1.0, sin(uT * 0.8 + 1.0)) * uSway;
+    H.y += 0.014 * g;
+  }
   float s = (H.x + UW) / (2.0 * UW), v = 1.0 - H.y / yy.z;
   float m = step(1.0e-3, r.z) * step(t, tm) * step(0.0, s) * step(s, 1.0) * step(0.0, v) * step(v, 1.0);
   return texture2D(map, vec2(clamp(s, 0.002, 0.998), 1.0 - mix(yy.x, yy.y, clamp(v, 0.012, 0.988)))) * m;
@@ -692,7 +743,15 @@ vec4 mqTable(vec3 P, vec3 r, float tm) {
   vec3 H = P + r * t;
   vec2 q = vec2((H.x - ${(TABLE.x - 0.34).toFixed(3)}) / 0.68, H.y / 0.51);
   float m = step(1.0e-3, r.z) * step(t, tm) * step(0.0, q.x) * step(q.x, 1.0) * step(0.0, q.y) * step(q.y, 1.0);
-  return texture2D(uBits, clamp(q, 0.01, 0.99)) * m;
+  return texture2D(uBits, vec2(clamp(q.x, 0.01, 0.99) * 256.0 / 384.0, clamp(q.y, 0.01, 0.99))) * m;
+}
+// a waiter, crossing behind the middle tables
+vec4 mqWaiter(vec3 P, vec3 r, float tm) {
+  float t = clamp((2.2 - P.z) / max(r.z, 1.0e-4), 0.0, 60.0);
+  vec3 H = P + r * t;
+  vec2 q = vec2((H.x - uWaiter.x) / 0.64 + 0.5, (H.y - uWaiter.y) / 0.96);
+  float m = uWaiter.z * step(1.0e-3, r.z) * step(t, tm) * step(0.0, q.x) * step(q.x, 1.0) * step(0.0, q.y) * step(q.y, 1.0);
+  return texture2D(uBits, vec2((256.0 + clamp(q.x, 0.02, 0.98) * 128.0) / 384.0, clamp(q.y, 0.01, 0.99))) * m;
 }`).replace('#include <map_fragment>', `
   if (vPanel > 3.5) {                                    // the line of light down the join of the shut doors
     float e = 1.0 - abs(vPuv.x - 0.5) * 2.0, v = smoothstep(0.0, 0.08, vPuv.y) * smoothstep(1.0, 0.92, vPuv.y);
@@ -729,11 +788,12 @@ vec4 mqTable(vec3 P, vec3 r, float tm) {
     vec3 haze = vec3(0.3, 0.27, 0.3);
     vec4 toy = mqToy(P, r, tm), s;
     if (uToy.z > ${DL[0].toFixed(2)}) col = mqOver(col, toy);
-    s = mqRow(P, r, tm, ${DL[0].toFixed(2)}, ${rowU[1]}, 0.7); s.rgb = mix(s.rgb, haze * s.a, 0.22) * 0.9; col = mqOver(col, s);
+    s = mqRow(P, r, tm, ${DL[0].toFixed(2)}, ${rowU[1]}, 0.7, 1); s.rgb = mix(s.rgb, haze * s.a, 0.22) * 0.9; col = mqOver(col, s);
+    s = mqWaiter(P, r, tm); s.rgb = mix(s.rgb, haze * s.a, 0.16) * 0.93; col = mqOver(col, s);
     if (uToy.z <= ${DL[0].toFixed(2)} && uToy.z > ${DL[1].toFixed(2)}) col = mqOver(col, toy);
-    s = mqRow(P, r, tm, ${DL[1].toFixed(2)}, ${rowU[2]}, 2.9); s.rgb = mix(s.rgb, haze * s.a, 0.1) * 0.96; col = mqOver(col, s);
+    s = mqRow(P, r, tm, ${DL[1].toFixed(2)}, ${rowU[2]}, 2.9, 2); s.rgb = mix(s.rgb, haze * s.a, 0.1) * 0.96; col = mqOver(col, s);
     if (uToy.z <= ${DL[1].toFixed(2)} && uToy.z > ${DL[2].toFixed(2)}) col = mqOver(col, toy);
-    col = mqOver(col, mqRow(P, r, tm, ${DL[2].toFixed(2)}, ${rowU[3]}, 5.3));
+    col = mqOver(col, mqRow(P, r, tm, ${DL[2].toFixed(2)}, ${rowU[3]}, 5.3, 3));
     if (uToy.z <= ${DL[2].toFixed(2)} && uToy.z > ${TABLE.z.toFixed(3)}) col = mqOver(col, toy);
     col = mqOver(col, mqTable(P, r, tm));
     if (uToy.z <= ${TABLE.z.toFixed(3)}) col = mqOver(col, toy);
@@ -791,7 +851,7 @@ vec4 mqTable(vec3 P, vec3 r, float tm) {
     if (resumed) { this.pL = this.pR = 1; this.c = BUILT + 1; return; }
     this.clear();
   },
-  clear() { this.c = 0; this.pL = this.pR = 0; this.clock = 0; this.knockL = this.knockR = -1; this.hT = 0; this.cT = 1.5; this.cBack = BUILT; this.pL0 = this.pR0 = 0; this.seen = 0; this.toyT = 0; },
+  clear() { this.c = 0; this.pL = this.pR = 0; this.clock = 0; this.knockL = this.knockR = -1; this.hT = 0; this.cT = 1.5; this.cBack = BUILT; this.pL0 = this.pR0 = 0; this.seen = 0; this.wT = 0; this.toyT = 0; },
   back(L) { this.cBack = Math.min(this.c, BUILT); this.pL0 = this.pL; this.pR0 = this.pR; },
   end() { this.hide(); },
   reset() { this.hide(); this.clear(); },
@@ -829,6 +889,9 @@ vec4 mqTable(vec3 P, vec3 r, float tm) {
     this.glass.visible = built > 0.01;
     u.uA.value.set(aL, aR); u.uInv.value.copy(this.Binv); u.uT.value = this.clock; u.uSway.value = calm ? 0.5 : 1; u.uGlint.value = calm ? 0.3 : 1;
     u.uGlow.value = built; u.uOpen.value = ease.smooth(open);
+    // a waiter crosses behind the middle tables once the room is open, and again every quarter of a minute
+    if (!back && this.pL >= 1 && this.pR >= 1) this.wT += dt * (calm ? 0.7 : 1);
+    { const wp = this.wT % 15, wx = -2.75 + wp * 0.7, st = wp * PI * 1.9; u.uWaiter.value.set(wx + 0.005 * Math.sin(st), 0.007 * Math.abs(Math.sin(st)), this.wT > 0 && wx < 2.9 ? 1 : 0); }
     u.uSeam.value = built * fall(open, 0.02, 0.2) * (showing ? ease.smooth(ramp(L.t, T_SEAM, T_SEAM + 0.45)) : 1) * (calm ? 0.85 : 0.92 + 0.08 * Math.sin(this.clock * 2.1));
     // ---- the toy, where a mirror would put it
     const v = G.vehicle, q = v ? L.local(v.pos.x, v.pos.z) : null;
