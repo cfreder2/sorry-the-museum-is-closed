@@ -146,7 +146,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.24.50';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.24.52';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -360,7 +360,8 @@ async function boot() {
   await loading(95, 'Turning on the lights', 99);
   await prepare(95, 99, 'Turning on the lights');
   // Streaming (stream.js): only what is near you is kept on the graphics card; a phone keeps a tighter circle.
-  { const art = new WeakSet(); for (const a of G.museum.arts || []) { if (a.mesh) art.add(a.mesh); if (a.obj) a.obj.traverse && a.obj.traverse(o => art.add(o)); }
+  // On a computer nothing is streamed: it has the memory, and sending the building back up as you drive through it stalls the game.
+  if (LOWMEM) { const art = new WeakSet(); for (const a of G.museum.arts || []) { if (a.mesh) art.add(a.mesh); if (a.obj) a.obj.traverse && a.obj.traverse(o => art.add(o)); }
     const P = G.plan, inRoom = (x, z, y) => { const r = roomAt(P, x, z, y + 0.3); return !!r; };
     G.stream = new Streamer(renderer, G.museum.group, { near: LOWMEM ? 70 : 170, far: LOWMEM ? 85 : 195, out: LOWMEM ? 220 : 900, skip: o => art.has(o),
       inside: b => inRoom((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, b.min.y) && b.max.x - b.min.x < 40 && b.max.z - b.min.z < 40,
