@@ -423,7 +423,8 @@ if (vKind > 1.5) {
     // Haydn, The Creation: plucked strings and a hush ("und es ward") ... and then C major, "Licht"
     [[T_ERUPT - 1.05, 43], [T_ERUPT - 0.75, 50], [T_ERUPT - 0.45, 55], [T_ERUPT - 0.2, 59]].forEach(([t, m]) => s.note(t, hz(m), 0.22, { type: 'triangle', vol: 0.02, attack: 0.003 }));
     [55, 59, 62].forEach(m => s.note(T_ERUPT - 1.0, hz(m), 1.15, { type: 'sine', vol: 0.006, attack: 0.5 }));
-    s.note(T_ERUPT, 65.4, 1.4, { type: 'sine', vol: 0.07, to: 52, attack: 0.006 }); s.hit(T_ERUPT, { d: 0.9, vol: 0.05, lp: 260, attack: 0.004 });
+    { const c = L.calm ? 0.45 : 1, at = L.calm ? 0.12 : 0;                               // with Reduce motion on, the eruption swells, it does not bang
+      s.note(T_ERUPT, 65.4, 1.4, { type: 'sine', vol: 0.07 * c, to: 52, attack: 0.006 + at }); s.hit(T_ERUPT, { d: 0.9, vol: 0.05 * c, lp: 260, attack: 0.004 + at }); }
     [36, 48, 55, 60, 64, 67, 72, 76].forEach((m, i) => s.note(T_ERUPT + 0.01 * i, hz(m), 4.6, { type: i < 2 ? 'sine' : 'triangle', vol: i < 2 ? 0.03 : 0.016, attack: 0.05, over: i > 3 ? 2 : 0, overVol: 0.15 }));
     s.hit(T_ERUPT + 0.15, { d: 3.2, vol: 0.02, lp: 600, hp: 90, attack: 0.4 });
     // the peak breathing while you look, each puff with a low soft note
