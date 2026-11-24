@@ -82,12 +82,13 @@ export class ParkedCars {
     for (const wz of K.wb) this.rest.push(S.axle.clone().applyMatrix4(new THREE.Matrix4().makeTranslation(0, K.r, wz).premultiply(M)));
 
     // ---- the blanket: slices across the car every 5 cm, each a crown that droops over the edges
-    const DZ = 0.05, nS = Math.max(4, Math.round((S.zb - S.za) / DZ)), Z = [], base = [], raw = [];
+    // (opts.coarse: slices every 10 cm and a coarser heap, a third of the triangles, for cars that are only ever background)
+    const DZ = opts.coarse ? 0.1 : 0.05, SM = opts.coarse ? 2 : 4, nS = Math.max(4, Math.round((S.zb - S.za) / DZ)), Z = [], base = [], raw = [];
     for (let i = 0; i <= nS; i++) {
       const z = S.za + (S.zb - S.za) * i / nS, t = S.at(z), sl = Math.abs(S.at(Math.min(S.zb, z + 0.03)).y - S.at(Math.max(S.za, z - 0.03)).y) / 0.06;
       Z.push(z); base.push(t); raw.push(t.y + (t.cab ? Troof : Tlid) * Math.max(0.5, Math.min(1, 1 - 0.5 * sl)));
     }
-    let Y = raw.slice(); for (let pass = 0; pass < 3; pass++) Y = Y.map((_, i) => { let a = 0, k = 0; for (let j = Math.max(0, i - 4); j <= Math.min(nS, i + 4); j++) { a += Y[j]; k++; } return a / k; });
+    let Y = raw.slice(); for (let pass = 0; pass < 3; pass++) Y = Y.map((_, i) => { let a = 0, k = 0; for (let j = Math.max(0, i - SM); j <= Math.min(nS, i + SM); j++) { a += Y[j]; k++; } return a / k; });
     const crown = Y.map((v, i) => { const t = base[i], d = Math.min(Z[i] - S.za, S.zb - Z[i]), e = Math.sqrt(Math.min(1, d / 0.2)); return t.y + Math.max(0.02, v - t.y) * e; });
     // Across: a cushion, flat on top, rounding off at the shoulders and rolling over the edge, then drooping down the side.
     const U = [-1.085, -1.055, -1.0, -0.93, -0.8, -0.6, -0.3, 0, 0.3, 0.6, 0.8, 0.93, 1.0, 1.055, 1.085], nU = U.length;
@@ -114,7 +115,7 @@ export class ParkedCars {
     {
       const Hp = 0.29 + r() * 0.08, Hk = 0.18 + r() * 0.06, He = 0.16 + r() * 0.06, Hin = 0.2, RF = 0.3, L2 = K.len / 2;
       const p1 = r() * 6, p2 = r() * 6, p3 = r() * 6, lump = (lx, lz) => 0.028 * Math.sin(lz * 5.3 + p1) * Math.sin(lx * 4.1 + p2) + 0.018 * Math.sin(lz * 11.7 + p3) + 0.012 * Math.sin(lx * 13 + lz * 3 + p1);
-      const X0 = -hw - RF - 0.06, X1 = hw + RF + 0.06, Z0 = -L2 - RF - 0.06, Z1 = L2 + RF + 0.06, nx = Math.ceil((X1 - X0) / 0.08), nz = Math.ceil((Z1 - Z0) / 0.08);
+      const X0 = -hw - RF - 0.06, X1 = hw + RF + 0.06, Z0 = -L2 - RF - 0.06, Z1 = L2 + RF + 0.06, HG = opts.coarse ? 0.19 : 0.08, nx = Math.ceil((X1 - X0) / HG), nz = Math.ceil((Z1 - Z0) / HG);
       const P = [], T2 = [], I = [];
       for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
         const lx = X0 + (X1 - X0) * i / nx, lz = Z0 + (Z1 - Z0) * j / nz, dx = Math.abs(lx) - hw, dz = Math.abs(lz) - L2;
