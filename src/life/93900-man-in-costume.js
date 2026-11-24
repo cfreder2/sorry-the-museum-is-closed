@@ -40,7 +40,7 @@ import { score, hz } from './stagecraft.js';
 const TAU = Math.PI * 2, sm = ease.smooth;
 const K = 8;                                   // segments in a stroke
 const CU = -0.18, CO = 0.32;                   // where the costume stands: along the wall from the picture's middle, out from it
-const SC = 1.3, WAIST = 0.215;                // its size, and its waist above the floor
+const SC = 1.3, WAIST = 0.205;                // its size, and its waist above the floor
 const T1 = 0.55;                               // seconds for a stroke from under the frame to the whirl on the floor
 const RE = 0.24;                               // the whirl's radius where the strokes join it
 
@@ -71,7 +71,7 @@ const JT = [0.03, 0.11, 0.19], JD = 0.04;          // the spine's three joints, 
 const NECK = 0.262, HEADP = 0.3;                   // where the collar stands, and where the cap's (absent) head turns
 const ARM = side => ({ S: [side * 0.136, 0.232, 0], E: [side * 0.166, 0.08, 0.006], W: [side * 0.174, -0.062, 0.03], H: [side * 0.172, -0.025, 0.024] });      // shoulder, elbow, cuff's end; and where the cuff hinges
 const AL = ARM(1), AR = ARM(-1), SPINE = [0.3, 0.35, 0.35];
-const CAP = { c: [-0.008, 0.392, -0.012], r: [0.09, 0.032, 0.096] };
+const CAP = { c: [-0.008, 0.414, -0.012], r: [0.09, 0.032, 0.096] };      // (it rides a little above the collar: there is no head under it)
 // bones: hips, three of the spine (the last is the chest), collar, cap, left upper arm and forearm, right, the two wings,
 // and the two cuffs (an empty sleeve's end hangs a little, as a wrist does)
 const B_HIP = 0, B_CHEST = 3, B_COL = 4, B_CAP = 5, B_LU = 6, B_LF = 7, B_RU = 8, B_RF = 9, B_LW = 10, B_RW = 11, B_LH = 12, B_RH = 13, NB = 14;
