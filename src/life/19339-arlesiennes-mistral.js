@@ -366,7 +366,7 @@ vec3 lwCol; float lwA;`)
 
   start(L) {
     this.calm = L.calm; this.sc = this.band(L, this.calm); this.sc.from(0); this.hold = 0;
-    if (!this.told && !L.quiet) { this.told = true; L.k.say('Straw against the frost: the young trees are wrapped up before the mistral comes.', 4); }
+    if (!this.told && !L.quiet) { this.told = true; L.k.say('Straw against the frost, most likely: the garden is wrapped up before the mistral comes.', 4); }
   },
   back(L) { this.hold = L.t; if (!L.quiet) L.k.synth.noise(0.7, { vol: 0.014, lp: 1200 }); },
   end() { this.hideAll(); },
