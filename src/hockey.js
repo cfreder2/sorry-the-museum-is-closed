@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import * as TX from './textures.js';
 import { buildCar } from './vehicles.js';
+import { iceMaterial } from './icelook.js';
 
 // Five pegs by seven for each figure.
 const DIGIT = ['01110 10001 10011 10101 11001 10001 01110', '00100 01100 00100 00100 00100 00100 01110', '01110 10001 00001 00010 00100 01000 11111', '11110 00001 00001 01110 00001 00001 11110', '00010 00110 01010 10010 11111 00010 00010',
@@ -21,8 +22,10 @@ export class Hockey {
     if (!R) return;
     const g = this.group = new THREE.Group(); g.position.set(R.x, 0, R.z); museum.group.add(g);
     const std = o => new THREE.MeshStandardMaterial(o), put = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-    // The ice: black and polished, in a bank of shovelled snow.
-    const ice = new THREE.Mesh(new THREE.CircleGeometry(1, 64), museum.mirror.patch(std({ color: 0x16283a, roughness: 0.07, emissive: 0x0a1828, emissiveIntensity: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [0.35, 0.5]));
+    // The ice: black and polished, in a bank of shovelled snow. Not the harbour's wild ice: a pond that is flooded and
+    // skated on, so few cracks and no drifts, but scored all over with the long arcs of skates (and tyres), a little
+    // milky where it was flooded last, and the snow the shovels left lying in along its rim (src/icelook.js).
+    const ice = new THREE.Mesh(new THREE.CircleGeometry(1, 64), iceMaterial({ mirror: museum.mirror, zone: [0.1, 0.34, 0, 0.16], rim: [R.x, R.z, R.rx, R.rz], scratch: 0.34, crack: 0.5, tile: 7.5, params: { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 } }));
     ice.rotation.x = -Math.PI / 2; ice.scale.set(R.rx, R.rz, 1); ice.position.set(R.x, 0.011, R.z); ice.updateMatrix(); ice.matrixAutoUpdate = false; museum.group.add(ice); museum.floors.push(ice);
     const snowTex = museum.snowTex, snow = std({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.3, 0.36, 0.52), emissiveIntensity: 0.55 });
     const pts = []; for (let i = 0; i <= 64; i++) { const a = i / 64 * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * (R.rx + 0.3), 0.05, Math.sin(a) * (R.rz + 0.3))); }

@@ -263,6 +263,23 @@ feature({
       add(new THREE.BoxGeometry(0.42, 0.32, 0.04), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.1, 0.5) }), 0.5, 1.3, -0.92);
       add(new THREE.CylinderGeometry(0.06, 0.06, 0.8, 10), dark, 0.6, 2.6, 0.3);
       k.plan.obstacles.push({ x0: x + 2.45, x1: x + 4.75, z0: z + 4.25, z1: z + 6.15, y0: -0.3, y1: 2.6 });
+      // Its neighbours (harbourplan.js L.shanties, where they are solid): the same hut, each turned its own way, a
+      // sled's worth of light from the window lying on the ice. All of them together are five meshes.
+      const more = L.shanties || [];
+      if (more.length) {
+        const walls = [], roofs = [], trim = [], panes = [], pools = [], M = new THREE.Matrix4();
+        more.forEach((q, i) => {
+          M.makeRotationY(q.turn * Math.PI / 2).setPosition(q.x, 0, q.z);
+          const put = (list, geo, px, py, pz) => list.push(geo.translate(px, py, pz).applyMatrix4(M));
+          put(walls, new THREE.BoxGeometry(2.2, 2.0, 1.8), 0, 1.0, 0); roofs.push(roofG.clone().applyMatrix4(M));
+          put(trim, new THREE.BoxGeometry(0.7, 1.5, 0.04), -0.45, 0.75, -0.92); put(trim, new THREE.CylinderGeometry(0.06, 0.06, 0.8, 10), 0.6, 2.6, 0.3);
+          put(panes, new THREE.BoxGeometry(0.42, 0.32, 0.04), 0.5, 1.3, -0.92);
+          put(pools, new THREE.PlaneGeometry(2.6, 2.2).rotateX(-Math.PI / 2), 0.45, 0.016 + i * 0.001, -2.0);
+        });
+        const mesh = (list, m) => { const o = new THREE.Mesh(mergeGeometries(list), m); o.matrixAutoUpdate = false; k.group.add(o); return o; };
+        mesh(walls, planks); mesh(roofs, lit(0xeef3f8, { side: THREE.DoubleSide })); mesh(trim, lit(0x3a2a1e)); mesh(panes, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.1, 0.5) }));
+        mesh(pools, new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.34, 0.23, 0.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })).renderOrder = 5;
+      }
     }
     // ---- the fish
     const kit = this.kit = { perch: buildKind('perch'), smelt: buildKind('smelt') };
