@@ -4,6 +4,22 @@ A plan, not yet built. It covers the sixty paintings that are alive on 2026-11-2
 changes the shows; it adds a second life to some of them. The rule at the end is a proposal to be tested on five
 scenarios before it is applied to anything else.
 
+## Where this stands (2026-11-24)
+
+The independent reviewer who knows the shows has read the idea (`~/Desktop/Museum-life/ESCAPES-REVIEW.md`). They
+think it is worth building and disagree with this plan on three points, which the owner has yet to decide:
+
+1. **No person is ever quarry.** Not the bolt at their feet either: a machine chasing painted people who run from it
+   is the one picture that must not reach the screen. That removes the people rows below as escapees (the skaters,
+   the Paris couple, the two painters, the strollers) and test T4, and it means Goya's boy and ram only ride out to
+   fetch strayed lambs, with no robot ever pointing anything at them.
+2. **The "zap" is a lamp, not a bolt**: the gallery's own warm white washing the green off, the escapee turning to
+   strokes and flowing home.
+3. **The player is the sheepdog**: leading escapees home is the win; the robot doing it is the dull ending.
+
+Their first tests: Seurat's monkey, Degas's hats, the Herring Net keg on its sea, Goya's boy and ram fetching the
+lambs, and the Cliff Walk parasol. Until the owner decides, read rules 5, 6 and 8 and the table below with that in mind.
+
 ## The idea
 
 Today a painting wakes when you look at it, plays its show beside the canvas, and goes home. The owner's idea: the
