@@ -155,7 +155,7 @@ function material() {
           s = max(s, smoothstep(0.62, 0.95, wd + br * 0.25 + (sp - 0.5) * 0.5) * vSnowK * 0.7);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.84, 0.88, 0.97), s);
         }`)
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * 0.5;');      // (lit a little from within, as everything out of doors is here)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * (vSnowK < 0.0 ? 0.95 : 0.5);');      // (lit a little from within, as everything out of doors is here; the frosted twigs more, as frost is under a night sky: a crown reads white from the air)
   };
   m.customProgramCacheKey = () => 'grounds-trees';
   return m;
@@ -292,7 +292,7 @@ export function buildTrees(museum, plan, group = museum.group) {
       tube(c.near, pts, l.order === 0 ? (hgt > 6 ? 8 : 6) : l.order === 1 ? 4 : 3, T.bark, T.tint, load * thin);
       if (l.order < 2) tube(c.far, l.order === 0 ? pts.filter((_, i) => i % 2 === 0 || i === pts.length - 1) : [pts[0], pts[pts.length - 1]], l.order === 0 ? 5 : 3, T.bark, T.tint, load * thin);
     }
-    const tv = 0.92 + 0.16 * T.load, tw = [tv, tv, tv * 1.03];
+    const tv = 1.0 + 0.2 * T.load, tw = [tv, tv, tv * 1.04];
     T.cards.forEach((k, i) => { const p = at(k.p); card(c.near, p, k.d, k.len * hgt, k.w * hgt, k.roll, 0, k.col, tw, -1 - load, k.droop, k.flat ? 1 : 2); if (i % 3 !== 2 || k.flat) card(c.far, p, k.d, k.len * hgt * 1.08, k.w * hgt * 1.15, k.roll, 0, k.col, tw, -1 - load, k.droop, 1); });
     stats.trees++; stats.kinds[sp] = (stats.kinds[sp] || 0) + 1;
   };
@@ -305,7 +305,7 @@ export function buildTrees(museum, plan, group = museum.group) {
   // ---- shrubs
   const DARKG = [0.75, 0.82, 0.78];
   for (const s of D.shrubs) {
-    const r = rng(s.seed), c = chunk(s.x, s.z), x = s.x - c.cx, z = s.z - c.cz, y = streetY(plan, s.x, s.z) - 0.03, load = clamp(0.35 + 0.6 * r(), 0, 1), a0 = r() * TAU, tint = [0.85 + r() * 0.3, 0.85 + r() * 0.3, 0.85 + r() * 0.3];
+    const r = rng(s.seed), c = chunk(s.x, s.z), x = s.x - c.cx, z = s.z - c.cz, y = streetY(plan, s.x, s.z) - 0.03, load = clamp(0.35 + 0.6 * r(), 0, 1), a0 = r() * TAU, tint = [0.56 + r() * 0.18, 0.56 + r() * 0.18, 0.56 + r() * 0.18];      // (a card is lit from within more than wood is: a shrub's own colour is kept down to match)
     if (s.k === 'yew' || s.k === 'arbor') {
       const rings = s.k === 'yew' ? [[0, 0.62], [0.14, 0.9], [0.4, 1], [0.66, 0.86], [0.86, 0.56], [0.97, 0.24], [1, 0.02]] : [[0, 0.5], [0.07, 0.84], [0.22, 1], [0.45, 0.9], [0.68, 0.66], [0.86, 0.38], [0.96, 0.16], [1, 0.02]];
       const R = rings.map(([v, k]) => [v * s.h, k * s.r]);
@@ -316,7 +316,7 @@ export function buildTrees(museum, plan, group = museum.group) {
       continue;
     }
     // (a card is as wide as its picture makes it: half its height, a little more for the bushier kinds; a wide clump is three of them side by side)
-    if (s.k === 'grass') { tint[0] *= 0.72; tint[1] *= 0.72; tint[2] *= 0.72; }
+    if (s.k === 'grass') { tint[0] *= 0.78; tint[1] *= 0.78; tint[2] *= 0.78; }
     const col = SHRUB[s.k] ?? 1, n = 3, lean = s.k === 'rose' || s.k === 'grass' ? 0.1 : 0.05, w = clamp(s.r * 2.3, s.h * 0.5, s.h * 0.78), off = Math.max(0, s.r - w * 0.45);
     for (let i = 0; i < n; i++) { const a = a0 + i * Math.PI / n, d = turn([0, 1, 0], lean * r(), r() * TAU), ox = Math.cos(a * 2 + 1) * off, oz = Math.sin(a * 2 + 1) * off; card(c.near, [x + ox, y, z + oz], d, s.h * (0.88 + 0.24 * r()), w, a, 2, col, tint, -1 - load, 0, 1); if (i < 2) card(c.far, [x + ox, y, z + oz], [0, 1, 0], s.h, w * 1.1, a, 2, col, tint, -1 - load, 0, 1); }
   }
