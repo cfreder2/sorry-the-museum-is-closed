@@ -51,3 +51,4 @@ import './64729-early-morning-tarpon-springs.js'; // 161  Inness, Early Morning,
 import './27307-madame-de-pastoret.js'; // 218  David, Madame de Pastoret and Her Son: thread
 import './23333-pastoral-scene.js';   // 217  Piazzetta, Pastoral Scene: paddle
 import './62371-madame-cezanne-yellow-chair.js'; // 248  Cezanne, Madame Cezanne in a Yellow Chair: trace
+import './4796-fishing-boats-hucksters.js'; // 220  Turner, Fishing Boats with Hucksters Bargaining for Fish: bargain
