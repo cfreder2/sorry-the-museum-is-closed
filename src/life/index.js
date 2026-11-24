@@ -45,3 +45,4 @@ import './64818-end-of-summer.js';      // 243  Monet, Stacks of Wheat (End of S
 import './4788-lady-sarah-bunbury.js';   // 218  Reynolds, Lady Sarah Bunbury Sacrificing to the Graces: wreath
 import './16487-bay-of-marseille.js'; // 248  Cézanne, The Bay of Marseille, Seen from L'Estaque: card
 import './44892-fish-still-life.js';  // 222  Manet, Fish (Still Life): gleam
+import './23333-pastoral-scene.js';   // 217  Piazzetta, Pastoral Scene: paddle
