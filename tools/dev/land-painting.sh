@@ -11,7 +11,7 @@ if '<<<<<<<' in s:
     s=re.sub(r'<<<<<<< [^\n]*\n(.*?)=======\n(.*?)>>>>>>> [^\n]*\n', lambda m: m.group(1)+m.group(2), s, flags=re.S); open(p,'w').write(s)
 PY
 git add src/life/index.js; git commit -q --no-edit 2>/dev/null
-if [ -n "$(git status --short | grep -v '^??')" ]; then echo "MERGE NOT CLEAN"; git status --short | grep -v '^??'; exit 1; fi
+if [ -n "$(git status --short | grep -v '^??' | grep -v 'tools/dev/queue')" ]; then echo "MERGE NOT CLEAN"; git status --short | grep -v '^??'; exit 1; fi      # (the queue's own state rides along with the bump)
 R=$(node tools/lifesheet.mjs "$2" --port 8871 --no-sheet --out /tmp/lifecheck 2>&1 | grep -E "^guarantee" | cut -c1-80)
 [ -z "$R" ] && R=$(node tools/lifesheet.mjs "$2" --port 8871 --no-sheet --out /tmp/lifecheck 2>&1 | grep -E "^guarantee" | cut -c1-80)
 echo "$R"
