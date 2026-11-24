@@ -300,13 +300,12 @@ void main() {
   },
 
   // The sound, on the show's own clock: a warm held chord as the dusk comes, hardly there; one far bell when the shadow
-  // stops, and another further off; then, while you stay, the far bell again now and then. `slow` stretches it all.
+  // stops, and another further off, each struck once and no more (a bell that went on would be a knell). `slow` stretches it all.
   band(L, slow, calm) {
     const s = score(L), k = calm ? 0.6 : 1;
     for (const [f, v] of [[146.83, 0.011], [220, 0.008], [369.99, 0.004]]) s.note(0.3 * slow, f, 5.6 * slow, { type: 'sine', vol: v * k, attack: (calm ? 2.6 : 1.7) * slow });
     const bell = (t, f, vol, decay) => PARTIALS.map(([mul, g, d]) => ({ t, f: f * mul, d: decay * d, vol: vol * g * k, type: 'sine', attack: calm ? (mul < 1 ? 0.6 : 0.4) : (mul < 1 ? 0.05 : 0.022) }));
     for (const e of [...bell(T_REST * slow, 220, 0.02, 6.5), ...bell((T_REST + 3.0) * slow, 293.66, 0.0075, 5)]) s.note(e.t, e.f, e.d, e);
-    s.loop((T_REST + 21) * slow, 23 * slow, bell(0, 220, 0.012, 6.5));
     return s.done();
   },
 

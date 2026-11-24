@@ -236,6 +236,7 @@ const radialTex = () => canvasTex(64, 64, (c, w, h) => { const g = c.createRadia
 // ---------------------------------------------------------------- the feature
 feature({
   id: 'warminghut',
+  lazy: { x: 430, z: 236, r: 140 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['hutcat', 'The hut cat']],
   init(k) {
     if (!k.plan.lakefront) return;
