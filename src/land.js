@@ -42,6 +42,7 @@ export const FLAT = [
   [391, 395.5, 7.5, 11.5],        // its sign
   [300, 386, 110, 214],           // the sled hill, which has its own ground (parkplay.js / sledland.js)
   [390, 468, 134, 208],           // the ballpark, wall to wall, and its dugouts (ballpark.js)
+  [440.5, 445, 209, 213.5],       // and the mast that stands beyond its centre field
   [449, 473, 109, 133], [388.5, 410, 219, 243], [451, 473, 219, 243],      // the three other diamonds' infields, backstops and benches (butlerfield.js)
   [438.8, 441.2, 114.8, 117.2], [464.8, 467.2, 140.8, 143.2], [419.8, 422.2, 234.8, 237.2], [393.8, 396.2, 208.8, 211.2], [438.8, 441.2, 234.8, 237.2], [464.8, 467.2, 208.8, 211.2],      // their foul markers
   [450.6, 453.4, 212.6, 215.4], [410.6, 413.4, 217.6, 220.4], [457.6, 460.4, 123.6, 126.4], [399.6, 402.4, 226.6, 229.4], [456.6, 459.4, 227.6, 230.4], [419.6, 422.4, 203.6, 206.4],      // the snowmen in the outfields
@@ -56,7 +57,8 @@ const LEVEL = [[390, 472, -18, 47], [385, 476, 105, 246]];
 // fountain, which eastside.js lays against the walls east and south of it after the land is made.
 // The paved way in to the Columbus Drive entrance, under its canopy (eastside.js, the same). And the ground the Stock
 // Exchange arch stands on, and three metres round it: no drift lies against a work of art.
-const SMOOTH = [[405, 455, 60, 110], [8, 65, -18, 55], [9, 73, 166, 242], [126, 152, 79, 100.5], [260.5, 271.5, 96.5, 107.5], [257, 275, -25, -3]];
+const SMOOTH = [[405, 455, 60, 110], [8, 65, -18, 55], [9, 73, 166, 242], [126, 152, 79, 100.5], [260.5, 271.5, 96.5, 107.5], [257, 275, -25, -3],
+  [193, 196.5, 189.8, 193], [73.2, 76.8, -6, -3], [257.4, 260.5, 93.8, 96.8], [312.5, 317.5, 105.8, 108.4]];      // (four places where the faint rim of a pool of light, drawn 1.4 to 5 cm over the street, reached out past the flat ground under it)
 
 // The wind is off the lake, from the east-north-east: (x, z) of the way it blows. Drifts lie across it.
 export const WIND = [-0.9435, 0.3313];
@@ -81,8 +83,9 @@ export const SPRUCES = [
 export const PONDS = [[397, 57, 2.4], [431, 123, 2.2]];      // (both in the park east of Columbus Drive: one by the jump park, one in the outfield north of the ballpark)
 
 // The lamps down the park's paths east of Columbus Drive, and the benches (with a bin each) between them: butlerfield.js
-// stands them up, and the drifts keep clear of each post and each seat. (Not of a lamp's pool of light: the banks stand
-// up through it, and are lit by it all the same: snowfield.js.) F: the field, {x0, x1, z0, z1}.
+// stands them up, and the drifts keep clear of each post. (Not of a lamp's pool of light: the banks stand up through
+// it, and are lit by it all the same: snowfield.js. Nor of the seats: the bank runs on behind and under them.)
+// F: the field, {x0, x1, z0, z1}.
 export function parkLamps(F) {
   const lamps = [];
   for (let z = F.z0 + 12; z < F.z1 - 8; z += 22) lamps.push([z % 44 < 22 ? 384.6 : 389.4, z]);
@@ -278,7 +281,8 @@ function buildDrifts(open, flat0, detail, X0, Z0) {
   // bins down them are listed one by one here instead), and what the drifts alone keep off.
   const paths = detail.paths || [], F = detail.field, flat = flat0.filter(q => q.r != null || !paths.some(p => Math.abs(q.x0 - p.x0 + 6) < 0.01 && Math.abs(q.x1 - p.x1 - 6) < 0.01 && Math.abs(q.z0 - p.z0 + 6) < 0.01 && Math.abs(q.z1 - p.z1 - 6) < 0.01));
   for (const q of SMOOTH) flat.push({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] });
-  if (F) { const lamps = parkLamps(F); for (const [x, z] of lamps) flat.push({ x, z, r: 0.45 }); for (const [x, z, alongZ] of parkSeats(lamps)) flat.push(alongZ ? { x0: x - 0.7, x1: x + 0.7, z0: z - 1.4, z1: z + 2.2 } : { x0: x - 1.4, x1: x + 2.2, z0: z - 0.7, z1: z + 0.7 }); flat.push({ x0: 389.8, x1: 393.2, z0: 104.3, z1: 107.7 }); }
+  if (F) { for (const [x, z] of parkLamps(F)) flat.push({ x, z, r: 0.45 }); flat.push({ x0: 389.8, x1: 393.2, z0: 104.3, z1: 107.7 }); }      // (the benches and bins stand on the street as they did, and the bank runs on behind and under them: they are in it to the shins)
+  for (const [x, z] of SPRUCES) flat.push({ x, z, r: 0.3 });           // under a spruce's boughs no snow reaches the ground: a well round the trunk
   // How far each point of the grid is from flat ground (in points, squared).
   const f = new Float32Array(N * (nz + 1));
   for (const q of open) { const i0 = cl(Math.ceil(I(q[0])), nx), i1 = cl(Math.floor(I(q[1])), nx), j0 = cl(Math.ceil(J(q[2])), nz), j1 = cl(Math.floor(J(q[3])), nz); for (let j = j0; j <= j1; j++) f.fill(BIG, j * N + i0, j * N + i1 + 1); }

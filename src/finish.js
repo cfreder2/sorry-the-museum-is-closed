@@ -288,18 +288,24 @@ export function snowLook(mat, opts = {}) {
           float dr = texture2D(uDrift, vSnowW * 0.017 + 0.31).r;      // (one read where there were two: the finer unevenness is the ridges' now)
           // down the wind and across it; the tile at 13 m, then at 2 m, turned and nudged by the first so the two never line up
           vec2 wu = vec2(-0.9435 * vSnowW.x + 0.3313 * vSnowW.y, -0.3313 * vSnowW.x - 0.9435 * vSnowW.y);
-          vec4 d2 = texture2D(uSnowD, wu * vec2(0.077, 0.063) + 0.37);
-          vec4 d1 = texture2D(uSnowD, mat2(0.9, 0.31, -0.31, 0.9) * wu * 0.52 + (d2.xy - 0.5) * 0.05);
+          // (stretched and squeezed along the wind from place to place, so the ridges are closer here and wider there)
+          vec2 wq = wu + vec2(3.2 * sin(wu.x * 0.11 + wu.y * 0.045) + 1.6 * sin(wu.y * 0.19), 1.4 * sin(wu.x * 0.15));
+          vec4 d2 = texture2D(uSnowD, wq * vec2(0.077, 0.063) + 0.37);
+          vec4 d1 = texture2D(uSnowD, mat2(0.9, 0.31, -0.31, 0.9) * (wu + (wq - wu) * 0.3) * 0.52 + (d2.xy - 0.5) * 0.05);
           float up = clamp(sn.y * 1.6 - 0.6, 0.0, 1.0), crust = smoothstep(0.44, 0.6, dr);
+          // where there are ripples at all (in patches: smooth powder between), and how sharp: more on a face turned up
+          // the wind, dying out in the lee of whatever the snow lies against
+          float pm = sin(vSnowW.x * 0.093 + 2.0 * sin(vSnowW.y * 0.071)) * sin(vSnowW.y * 0.117 + 1.7 * sin(vSnowW.x * 0.053));
+          float rip = smoothstep(-0.32, 0.38, pm + (dr - 0.5) * 1.6) * clamp(0.75 + dot(sn.xz, vec2(0.9435, -0.3313)) * 5.0, 0.12, 1.7) * up * uSnowQ.x;
           // how far each turns the snow's face to the moon (the moon's bearing, down the wind and across it)
           vec2 mu = vec2(-0.9435 * uMoonDir.x + 0.3313 * uMoonDir.z, -0.3313 * uMoonDir.x - 0.9435 * uMoonDir.z);
           float far = 1.0 - smoothstep(40.0, 110.0, length(vViewPosition));      // (from a drone's height the ridges would show their repeat: they go)
-          float sl = -(dot(d2.xy - 0.5, mu) * 0.8 * far + dot(d1.xy - 0.5, mat2(0.9, 0.31, -0.31, 0.9) * mu) * 0.85 * (1.0 - 0.5 * crust)) * up * uSnowQ.x;
+          float sl = -(dot(d2.xy - 0.5, mu) * 0.95 * far * rip + dot(d1.xy - 0.5, mat2(0.9, 0.31, -0.31, 0.9) * mu) * 0.85 * (1.0 - 0.5 * crust) * (0.25 * up * uSnowQ.x + 0.75 * rip));
           vec3 lit = outgoingLight * (mix(1.0, 0.93, step(0.01, uSnowK.x)) * (1.0 + (dr - 0.5) * uSnowK.x));
           // the moon low in the east: slopes that face it are brighter, slopes turned from it fall into blue shade (flat snow unchanged)
           float mo = clamp(dot(sn, uMoonDir) - uMoonDir.y, -0.5, 0.6) * uSnowK.y + sl;
           lit *= (1.0 + max(mo, 0.0)) * mix(vec3(1.0), vec3(0.52, 0.64, 0.9), clamp(-mo * 1.25, 0.0, 0.8));
-          lit *= 1.0 + (d2.b * 0.6 * far + d1.b * 0.4 - 0.3) * 0.3 * up * uSnowQ.x;      // shadow in the hollows
+          lit *= 1.0 + (d2.b * 0.6 * far + d1.b * 0.4 - 0.3) * 0.3 * rip;      // shadow in the hollows
           float fres = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 4.0);
           lit += MOON * fres * uSnowK.z * mix(0.8, 1.45, crust * up);
           // glitter: each grain shows only from certain directions

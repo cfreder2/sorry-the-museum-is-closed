@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { onSnow, heightOf, carve } from './plan.js';
-import { landAt } from './land.js';
+import { landAt, WIND } from './land.js';
 import { snowLook } from './finish.js';
 
 export function buildWinter(museum, plan) {
@@ -53,10 +53,11 @@ export function buildWinter(museum, plan) {
     const mat = std({ map: pv, roughness: 0.85, emissiveMap: pv, emissive: new THREE.Color(0.34, 0.38, 0.5), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     add(paths.mesh(mat), ridge.mesh(snow));
     // No shovel leaves a ruled edge: along both sides of every path (these, and the park's east of Columbus Drive) the
-    // snow runs a hand or two in over the paving, ragged, thin at its lip, with the odd clod kicked further out. One
-    // strip of the snow's own material down each edge, cut out by a small mask; it lies on the path, 1 cm over it.
+    // snow runs in over the paving, thinning to nothing: translucent at its lip, drawn out in streaks down the wind, and
+    // the stone dark and wet for a hand's width beyond it. One strip of the snow's own material down each edge, blended
+    // (no cut-out: a cut-out edge is a row of teeth); it lies on the path, 1 cm over it.
     {
-      const edge = new Geo(), W = 0.62, LAP = 0.12, Y = 0.019;
+      const edge = new Geo(), LAP = 0.12, Y = 0.019;
       const all = [...openPaths, ...((plan.lakefront && plan.lakefront.paths) || [])];
       const snowy = (x, z) => onSnow(plan, x, z);
       for (const q of all) {
@@ -68,26 +69,36 @@ export function buildWinter(museum, plan) {
             const ok = u <= b && (alongX ? snowy(u, e - s * 0.3) : snowy(e - s * 0.3, u));
             if (ok && from === null) from = u;
             if (!ok && from !== null) {
-              const to = u - 0.5, o = e - s * LAP, i = e + s * W, u0 = from / 2.3 + e * 0.37, u1 = to / 2.3 + e * 0.37;
-              if (to - from > 0.4) { if (alongX) edge.quad([from, Y, o], [to, Y, o], [to, Y, i], [from, Y, i], [0, 1, 0], [[u0, 1], [u1, 1], [u1, 0], [u0, 0]]); else edge.quad([o, Y, from], [o, Y, to], [i, Y, to], [i, Y, from], [0, 1, 0], [[u0, 1], [u1, 1], [u1, 0], [u0, 0]]); }      // (the mask's top row is the lawn side)
+              // (wider on the edge the wind blows in over: the snow is carried further across the stone from there)
+              const to = u - 0.5, W = 0.7 + 0.75 * Math.max(0, s * (alongX ? WIND[1] : WIND[0])), o = e - s * LAP, i = e + s * W, w = W + LAP;
+              if (to - from > 0.4) { if (alongX) edge.quad([from, Y, o], [to, Y, o], [to, Y, i], [from, Y, i], [0, 1, 0], [[w, 1], [w, 1], [w, 0], [w, 0]]); else edge.quad([o, Y, from], [o, Y, to], [i, Y, to], [i, Y, from], [0, 1, 0], [[w, 1], [w, 1], [w, 0], [w, 0]]); }
               from = null;
             }
           }
         }
       }
       if (!edge.empty) {
-        const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64; const c = cv.getContext('2d'), r = TX.rng(4471);
-        c.fillStyle = '#000'; c.fillRect(0, 0, 512, 64);
-        // (v = 0 is the lawn side: solid there, then a ragged lip, in two frequencies that both close over the tile's width)
-        c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, 0);
-        const lip = x => 26 + 9 * Math.sin(x / 512 * 6.2832 * 3 + 1) + 6 * Math.sin(x / 512 * 6.2832 * 7 + 2.3) + 4 * Math.sin(x / 512 * 6.2832 * 17 + 0.4) + 2.5 * Math.sin(x / 512 * 6.2832 * 41);
-        for (let x = 0; x <= 512; x += 2) c.lineTo(x, lip(x)); c.lineTo(512, 0); c.fill();
-        for (let k = 0; k < 70; k++) { const x = r() * 512, y = lip(x) + 2 + r() * r() * 26, s = 1 + r() * 2.6; c.globalAlpha = 0.55 + r() * 0.45; c.beginPath(); c.ellipse(x, y, s * (1 + r()), s, r() * 3, 0, 7); c.fill(); }      // clods
-        c.globalAlpha = 1; c.filter = 'blur(1.2px)'; c.drawImage(cv, 0, 0); c.filter = 'none';
-        const am = new THREE.CanvasTexture(cv); am.wrapS = THREE.RepeatWrapping; am.colorSpace = THREE.NoColorSpace; am.anisotropy = 4;
         const st = snowTex.clone(); st.needsUpdate = true;
-        const em = std({ map: st, roughness: 0.95, emissiveMap: st, emissive: new THREE.Color(0.2, 0.25, 0.4), emissiveIntensity: 0.55, alphaMap: am, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-        add(edge.mesh(em));
+        const em = snowLook(std({ map: st, roughness: 0.95, emissiveMap: st, emissive: new THREE.Color(0.2, 0.25, 0.4), emissiveIntensity: 0.55, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+        // How much snow lies at each point of the strip is worked out there, from how far in over the paving it is (uv:
+        // x, the strip's whole width in metres; y, 1 at its outer edge) and from the snow shader's own wind-laid tile
+        // read lengthwise down the wind, so the lip is drawn out in streaks that way. Past the last of the snow, wet stone.
+        const prev = em.onBeforeCompile;
+        em.onBeforeCompile = (sh, r) => {
+          prev.call(em, sh, r);
+          sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `{
+              float dm = (1.0 - vMapUv.y) * vMapUv.x, reach = vMapUv.x - 0.37;
+              vec2 wq = vec2(-0.9435 * vSnowW.x + 0.3313 * vSnowW.y, -0.3313 * vSnowW.x - 0.9435 * vSnowW.y);
+              float fine = texture2D(uSnowD, vec2(wq.y * 0.83, wq.x * 0.11)).b, broad = texture2D(uSnowD, vec2(wq.y * 0.19 + 0.4, wq.x * 0.027)).b;
+              float s = (0.13 + reach * (0.15 + 0.95 * broad) - dm) * (1.8 / max(reach, 0.2)) + (fine - 0.45) * 2.1;
+              float snowA = clamp(s, 0.0, 1.0) * 0.97, wet = clamp(s * 1.3 + 0.6, 0.0, 1.0) * 0.5, a = max(snowA, wet);
+              outgoingLight = mix(vec3(0.004, 0.006, 0.012), outgoingLight, clamp(snowA / max(a, 0.001), 0.0, 1.0));
+              diffuseColor.a = a;
+            }
+            #include <opaque_fragment>`);
+        };
+        em.customProgramCacheKey = () => 'snowlook-pathedge';
+        const em2 = edge.mesh(em); em2.renderOrder = 1; add(em2);
       }
     }
     // Hollows where meltwater stood and froze (land.js PONDS): black ice with the snow blown thin over its edges. The

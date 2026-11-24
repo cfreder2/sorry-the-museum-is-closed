@@ -55,6 +55,32 @@ function printAtlas() {
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
+// A spruce's cards, the trunk end of each at the bottom: two boughs of needles seen from above (a stem, side twigs
+// swept towards the tip, widest a third of the way out), the snow that lies along one (clumps, bluer round their edges
+// where they are thin and in their own shade), and a blank.
+function boughAtlas() {
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256; const c = cv.getContext('2d'), r = rng(311);
+  c.lineCap = 'round';
+  const half = s => 104 * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.62)), 0.8) * (1 - 0.25 * s) + 5;      // the bough's half width, s from trunk to tip
+  for (let v = 0; v < 2; v++) {
+    const ox = v * 256 + 128;
+    c.fillStyle = 'rgb(16,36,28)'; c.beginPath(); c.moveTo(ox, 256); for (let s = 0; s <= 1.001; s += 0.05) c.lineTo(ox - half(s) * 0.5, 256 - s * 240); for (let s = 1; s >= -0.001; s -= 0.05) c.lineTo(ox + half(s) * 0.5, 256 - s * 240); c.fill();
+    for (let pass = 0; pass < 2; pass++) for (let s = 0.03; s < 1; s += 0.035 + r() * 0.02) for (const side of [-1, 1]) {
+      if (r() < 0.08) continue;
+      const y = 256 - s * 240, L = half(s) * (0.72 + r() * 0.34), a = 0.5 + r() * 0.35 + s * 0.3, x1 = ox + side * Math.sin(Math.PI / 2 - a) * L, y1 = y - Math.cos(Math.PI / 2 - a) * L * 0.9, g = 44 + Math.round(r() * 44) + pass * 14;
+      c.strokeStyle = `rgb(${Math.round(g * 0.34)},${g},${Math.round(g * 0.62)})`; c.lineWidth = (pass ? 5 : 11) + r() * 6; c.beginPath(); c.moveTo(ox + side * 2, y); c.quadraticCurveTo(ox + side * L * 0.5, y - L * 0.1, x1, y1); c.stroke();
+      c.lineWidth = 1.6; for (let k = 0; k < 7; k++) { const t = 0.25 + r() * 0.75, px = ox + side * 2 + (x1 - ox - side * 2) * t, py = y + (y1 - y) * t, na = r() * 6.283, nl = 5 + r() * 7; c.beginPath(); c.moveTo(px, py); c.lineTo(px + Math.cos(na) * nl, py + Math.sin(na) * nl); c.stroke(); }      // needles standing out of the mass
+    }
+    c.strokeStyle = 'rgb(46,36,28)'; c.lineWidth = 5; c.beginPath(); c.moveTo(ox, 256); c.lineTo(ox, 60); c.stroke();
+  }
+  for (const [col, grow, dy] of [['rgb(132,156,200)', 1.16, 3], ['rgb(236,242,252)', 1, 0]]) {
+    c.fillStyle = col; const q = rng(977);
+    for (let k = 0; k < 30; k++) { const s = 0.02 + q() * 0.92, w = half(s) * (0.36 + q() * 0.46), x = 512 + 128 + (q() - 0.5) * half(s) * 0.7, y = 256 - s * 240; c.beginPath(); c.ellipse(x, y + dy, w * grow, (10 + q() * 22) * grow, (q() - 0.5) * 0.8, 0, 7); c.fill(); }
+  }
+  c.fillStyle = '#fff'; c.fillRect(768, 0, 256, 256);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
 // Give an instanced material a card of a four-card atlas per instance (attribute aCell: 0 to 3).
 function cells(mat) {
   mat.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aCell;').replace('#include <uv_vertex>', '#include <uv_vertex>\nvMapUv.x = (vMapUv.x + aCell) * 0.25;'); };
@@ -98,32 +124,63 @@ feature({
     }
 
     // ---------------------------------------------------------------- spruces
-    // One shape, turned on a lathe and then pulled a little out of round: six tiers of drooping boughs, each loaded with
-    // snow on top and dark underneath (by which way its surface faces). Stood only where the land is the wind's own
-    // (a place something else was built on is flat: left empty), each with a trunk the car is stopped by and a crown
-    // the drone is; the car goes under the tips of the lowest boughs.
+    // Each one built bough by bough and no two alike, all in one mesh: a trunk, a dark heart, and eight to eleven whorls of
+    // boughs, each a bent card of needles (cut out, so the outline is ragged) that rises a little from the trunk and
+    // droops to its tip, longer on one side of the tree than the other, a few missing; over most of them a second card
+    // of the snow lying on it, short of the tip where it has slid off, so the green shows at the ends and from
+    // underneath. It leans a little. Under it the snow has not reached the ground (land.js): a well, with grass and
+    // litter in it. Stood only where the ground is free; the trunk stops the car, which goes under the lowest boughs,
+    // and the crown stops the drone.
     {
-      const spots = SPRUCES.filter(([x, z]) => at(x, z) > 0.01 && onSnow(plan, x, z) && !plan.obstacles.some(o => o.y0 < 3 && x > o.x0 - 1.2 && x < o.x1 + 1.2 && z > o.z0 - 1.2 && z < o.z1 + 1.2));
+      const spots = SPRUCES.filter(([x, z]) => Math.max(at(x + 2.4, z), at(x - 2.4, z), at(x, z + 2.4), at(x, z - 2.4)) > 0.01 && onSnow(plan, x, z) && !plan.obstacles.some(o => o.y0 < 3 && x > o.x0 - 1.2 && x < o.x1 + 1.2 && z > o.z0 - 1.2 && z < o.z1 + 1.2));
       if (spots.length) {
-        const pts = [new THREE.Vector2(0.001, 0), new THREE.Vector2(0.028, 0), new THREE.Vector2(0.026, 0.1)], N = 6;
-        for (let i = 0; i < N; i++) { const y = 0.12 + i * 0.138, R = 0.37 * (1 - i / (N + 0.4)); pts.push(new THREE.Vector2(R * 0.5, y + 0.005), new THREE.Vector2(R * 0.92, y - 0.034), new THREE.Vector2(R, y - 0.03), new THREE.Vector2(R * 0.9, y + 0.012), new THREE.Vector2(R * 0.42, y + 0.118)); }
-        pts.push(new THREE.Vector2(0.02, 0.97), new THREE.Vector2(0.001, 1));
-        const geo = new THREE.LatheGeometry(pts, 20), P = geo.attributes.position;
-        for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i), a = Math.atan2(z, x), k = y < 0.11 ? 1 : 1 + 0.13 * Math.sin(a * 3 + y * 11) + 0.07 * Math.sin(a * 7 - y * 23) + 0.04 * Math.sin(a * 11 + y * 40); P.setXYZ(i, x * k, y + (k - 1) * 0.03, z * k); }
-        geo.computeVertexNormals();
-        const Nn = geo.attributes.normal, C = new Float32Array(P.count * 3);
-        for (let i = 0; i < P.count; i++) { const y = P.getY(i), up = Math.max(0, Math.min(1, (Nn.getY(i) - 0.12) / 0.4)), trunk = y < 0.1; C[i * 3] = trunk ? 0.16 : 0.035 + up * 0.62; C[i * 3 + 1] = trunk ? 0.11 : 0.085 + up * 0.6; C[i * 3 + 2] = trunk ? 0.08 : 0.07 + up * 0.7; }
-        geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
-        const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
-        mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * 0.55;'); };
-        mat.customProgramCacheKey = () => 'parkkit-spruce';
-        const m = new THREE.InstancedMesh(geo, mat, spots.length);
-        spots.forEach(([x, z, h], i) => {
-          m.setMatrixAt(i, M.compose(V.set(x, at(x, z) - 0.06, z), Q.setFromEuler(E.set((r() - 0.5) * 0.05, r() * 6.283, (r() - 0.5) * 0.05, 'YXZ')), S.set(h, h, h)));
+        const pos = [], nor = [], uv = [], col = [], idx = [], TAU = Math.PI * 2;
+        // A card of the atlas (cell 0 to 3), bent: four rows out from (ox, oy, oz) along (ca, sa) for a length L, rising a
+        // little and then drooping, three points across with the edges hanging lower; leaning with the tree.
+        const card = (cell, ox, oy, oz, ca, sa, L, wd, rise, droop, lean, v0 = 0, v1 = 1, tint = 1, heap = 0) => {      // heap: how high its middle stands over its edges (the snow is piled along the bough's spine)
+          const b = pos.length / 3;
+          for (let k = 0; k <= 3; k++) for (let c = -1; c <= 1; c++) {
+            const s = k / 3, out = L * s, lat = c * wd / 2, y = oy + L * (rise * s - droop * s * s) - Math.abs(c) * wd * 0.13 + (1 - Math.abs(c)) * heap * (1 - 0.6 * s);
+            pos.push(ox + ca * out - sa * lat + lean[0] * y * y, y, oz + sa * out + ca * lat + lean[1] * y * y);
+            nor.push(ca * 0.35, 0.94, sa * 0.35); uv.push((cell + (c + 1) / 2) / 4, v0 + (v1 - v0) * s); col.push(tint, tint, tint);
+          }
+          for (let k = 0; k < 3; k++) for (let c = 0; c < 2; c++) { const a = b + k * 3 + c; idx.push(a, a + 1, a + 3, a + 1, a + 4, a + 3); }      // (its face is its upper side)
+        };
+        // A card standing up: the leader at the very top.
+        const spire = (ox, oy, oz, a, hgt, wd, lean) => {
+          const b = pos.length / 3, ca = Math.cos(a) * wd / 2, sa = Math.sin(a) * wd / 2;
+          for (const [s, t] of [[-1, 0], [1, 0], [1, 1], [-1, 1]]) { const y = oy + hgt * t; pos.push(ox + ca * s + lean[0] * y * y, y, oz + sa * s + lean[1] * y * y); nor.push(0, 1, 0); uv.push((s + 1) / 8, t); col.push(0.9, 0.9, 0.9); }
+          idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+        };
+        // A plain tapering column, from the atlas's blank card, in a colour of its own: the trunk, and the dark heart of the tree.
+        const column = (ox, oz, y0, y1, r0, r1, n, c, lean) => {
+          const b = pos.length / 3;
+          for (let k = 0; k <= 1; k++) for (let j = 0; j <= n; j++) { const a = j / n * TAU, y = k ? y1 : y0, rr = k ? r1 : r0; pos.push(ox + Math.cos(a) * rr + lean[0] * y * y, y, oz + Math.sin(a) * rr + lean[1] * y * y); nor.push(Math.cos(a) * 0.8, 0.6, Math.sin(a) * 0.8); uv.push(0.875, 0.5); col.push(c[0], c[1], c[2]); }
+          for (let j = 0; j < n; j++) { const a = b + j, d = a + n + 1; idx.push(a, d, a + 1, a + 1, d, d + 1); }
+        };
+        for (const [x, z, h] of spots) {
+          const y0 = at(x, z) - 0.04, la = r() * TAU, lk = (0.006 + r() * 0.02) / h, lean = [Math.cos(la) * lk, Math.sin(la) * lk], lop = r() * TAU, tiers = 8 + Math.floor(r() * 4), full = 0.3 + r() * 0.1;
+          column(x, z, y0, y0 + h * 0.5, h * 0.03, h * 0.012, 7, [0.2, 0.15, 0.11], lean);
+          column(x, z, y0 + h * 0.2, y0 + h * 0.99, h * 0.11, 0.004, 8, [0.03, 0.07, 0.055], lean);
+          for (let i = 0; i < tiers; i++) {
+            const t = i / (tiers - 1), yT = y0 + h * (0.15 + 0.78 * t), R = h * (full * Math.pow(1 - t, 0.8) + 0.035), n = Math.max(3, Math.round(7.5 - 4 * t)), a0 = r() * TAU;
+            for (let j = 0; j < n; j++) {
+              if (r() < 0.07) continue;                                        // a bough gone
+              const a = a0 + (j + (r() - 0.5) * 0.6) / n * TAU, ca = Math.cos(a), sa = Math.sin(a), L = R * (0.75 + r() * 0.45) * (1 + 0.24 * Math.cos(a - lop)), wd = L * (0.52 + r() * 0.22), droop = 0.16 + 0.3 * (1 - t) + r() * 0.14, y = yT + (r() - 0.5) * h * 0.035;
+              card(r() < 0.5 ? 0 : 1, x, y, z, ca, sa, L, wd, 0.1, droop, lean, 0, 1, 0.8 + r() * 0.3);
+              if (r() < 0.88) { const part = 0.66 + r() * 0.34; card(2, x, y + h * 0.012, z, ca, sa, L * part, wd * 0.96, 0.1, droop * part, lean, 0, 1, 1, h * 0.03); }      // the snow on it, where it has not slid off the end
+            }
+          }
+          { const a = r() * 3; spire(x, y0 + h * 0.84, z, a, h * 0.2, h * 0.11, lean); spire(x, y0 + h * 0.84, z, a + 1.57, h * 0.2, h * 0.11, lean); }      // the leader
           plan.obstacles.push({ x0: x - 0.14, x1: x + 0.14, z0: z - 0.14, z1: z + 0.14, y0: 0, y1: 0.4 }, { x0: x - h * 0.2, x1: x + h * 0.2, z0: z - h * 0.2, z1: z + h * 0.2, y0: 0.4, y1: h * 0.85 });
-          for (let j = 0; j < 5; j++) { const a = r() * 6.283, d = h * (0.12 + r() * 0.22); tuft(x + Math.cos(a) * d - wx * 0.3, z + Math.sin(a) * d - wz * 0.3, r() < 0.35 ? 3 : 0, 0.12 + r() * 0.14); }
-        });
-        m.computeBoundingSphere(); g.add(m); this.spruces = spots.length;
+          for (let j = 0; j < 7; j++) { const a = r() * 6.283, d = 0.15 + r() * h * 0.24; tufts.push([x + Math.cos(a) * d, y0 - 0.005, z + Math.sin(a) * d, r() < 0.3 ? 3 : r() < 0.5 ? 2 : 0, 0.1 + r() * 0.14, 0.1 + r() * 0.14, r() * Math.PI]); }      // in the well: grass, twigs, needles
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx);
+        const mat = new THREE.MeshStandardMaterial({ map: boughAtlas(), alphaTest: 0.4, side: THREE.DoubleSide, vertexColors: true, roughness: 0.95 });
+        mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * (gl_FrontFacing ? 0.55 : 0.3);'); };      // (lit a little from within, less from underneath)
+        mat.customProgramCacheKey = () => 'parkkit-spruce';
+        const m = new THREE.Mesh(geo, mat); m.matrixAutoUpdate = false; g.add(m); this.spruces = spots.length; this.spruceTris = idx.length / 3;
       }
     }
 
