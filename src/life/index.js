@@ -24,3 +24,4 @@ import './14620-cliff-walk-at-pourville.js'; // hall Monet, Cliff Walk at Pourvi
 import './81533-races-at-longchamp.js'; // 225  Manet, The Races at Longchamp: thunder
 import './95998-old-man-gold-chain.js'; // hall Rembrandt, Old Man with a Gold Chain: glint
 import './20579-hercules-and-the-hydra.js'; // 223  Moreau, Hercules and the Lernaean Hydra: hiss
+import './87045-still-life-with-geranium.js'; // 391  Matisse, Still Life with Geranium: bloom
