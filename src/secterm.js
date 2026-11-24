@@ -166,7 +166,8 @@ Tab finishes a name. Up: the last command.`);
         if (!rows.length) return say('ROBOTS: all units docked.', 'd');
         say('UNIT      LVL  ROOM            STATE', 'h');
         for (const b of rows) say(`${pad(b.id, 9)} ${pad(b.level, 4)} ${pad(b.room, 15)} ${b.state}`, b.hot ? 'e' : b.warm ? 'w' : '');
-        say(`${rows.length} units. None below level 1: they will not go.`, 'd');
+        const low = rows.filter(b => String(b.level) === 'LL');
+        say(low.length ? `${rows.length} units. ${low.map(b => b.id).join(', ')} below level 1, which they never are. Somebody said "donuts".` : `${rows.length} units. None below level 1: they will not go.`, 'd');
       },
       mice: () => {
         const rows = this.env.mice ? this.env.mice() : [];
