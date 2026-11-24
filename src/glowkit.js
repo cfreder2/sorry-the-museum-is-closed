@@ -1,9 +1,10 @@
 // The drawing kit for lights out of doors (butlerfield.js, lightshow.js): bulbs in one instanced mesh, figures drawn in
 // glowing wire, and the strokes of the figures themselves. Colours above 1 glow under the bloom.
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 import { fitText } from './textures.js';
 export const TAU = Math.PI * 2;
-export const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+export const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(shrink(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 export const lit = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, emissive: new THREE.Color(color).multiplyScalar(0.3), ...o });
 
 // ---------------------------------------------------------------- bulbs

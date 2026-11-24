@@ -41,5 +41,6 @@ export class Geo {
     g.setIndex(this.idx);
     return g;
   }
-  mesh(mat) { const m = new THREE.Mesh(this.build(), mat); m.matrixAutoUpdate = false; return m; }
+  // (the builder's own lists are let go once the mesh is made: a building's worth of them was tens of megabytes kept for nothing)
+  mesh(mat) { const m = new THREE.Mesh(this.build(), mat); m.matrixAutoUpdate = false; this.p = []; this.n = []; this.uv = []; this.idx = []; this.c = []; return m; }      // (its copy in memory is kept: stream.js sends it up again after letting it go from the graphics card)
 }

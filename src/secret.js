@@ -21,6 +21,7 @@
 // read. A new game shuts it again. The trophies and the toy it unlocks are kept for good.
 
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Geo } from './geo.js';
 import { wallPoint } from './plan.js';
@@ -345,6 +346,6 @@ function labelSheet() {
     cells[k] = { u0: x / SW, u1: (x + w) / SW, v0: 1 - (y + h) / SH, v1: 1 - y / SH, w, h };
     x += w;
   });
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const tex = new THREE.CanvasTexture(shrink(cv, 256, 1024)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   return { tex, cells };
 }

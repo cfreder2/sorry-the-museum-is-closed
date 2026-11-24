@@ -1,6 +1,7 @@
 // The few small makings the Level 3 files share (level3.js, level3-terrace.js, level3-back.js): materials that read
 // at night, a canvas texture, a turned (lathe) shape, a soft glow, a clear spot on a room's floor, a solid box in the plan.
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 import { freeFloor } from './placing.js';
 
 export const TAU = Math.PI * 2;
@@ -11,7 +12,7 @@ export const glowMat = (color, o = {}) => new THREE.MeshBasicMaterial({ color, t
 
 export function canvasTex(w, h, draw, { srgb = true, repeat = null } = {}) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(shrink(c)); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
   return t;
 }

@@ -7,6 +7,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
+import { LOWMEM } from './budget.js';
+import { Streamer } from './stream.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
@@ -144,7 +146,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.24.35';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.24.37';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -222,6 +224,9 @@ function loading(pct, step, to = pct) {
 // that pays for it: the shaders compiled (in parallel, where the browser can: KHR_parallel_shader_compile) as they
 // will be drawn, into a target rather than the screen; and every texture sent to the graphics card, a few at a time.
 async function prepare(from, to, step) {
+  // Not on a phone: there, sending every texture and compiling every shader at once is the very peak that kills the page
+  // as the bar reaches the end. What is in view is made ready when it is first drawn, and the rest when you get to it.
+  if (LOWMEM) { await loading(to, step, to); return; }
   const was = renderer.getRenderTarget();
   renderer.setRenderTarget(composer.readBuffer);
   let compiled = null;
@@ -354,6 +359,13 @@ async function boot() {
   garage.portraits(renderer);
   await loading(95, 'Turning on the lights', 99);
   await prepare(95, 99, 'Turning on the lights');
+  // Streaming (stream.js): only what is near you is kept on the graphics card; a phone keeps a tighter circle.
+  { const art = new WeakSet(); for (const a of G.museum.arts || []) { if (a.mesh) art.add(a.mesh); if (a.obj) a.obj.traverse && a.obj.traverse(o => art.add(o)); }
+    const P = G.plan, inRoom = (x, z, y) => { const r = roomAt(P, x, z, y + 0.3); return !!r; };
+    G.stream = new Streamer(renderer, G.museum.group, { near: LOWMEM ? 70 : 170, far: LOWMEM ? 85 : 195, out: LOWMEM ? 220 : 900, skip: o => art.has(o),
+      inside: b => inRoom((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, b.min.y) && b.max.x - b.min.x < 40 && b.max.z - b.min.z < 40,
+      indoors: p => !!G.roomId || inRoom(p.x, p.z, p.y) });
+    G.stream.register(); }
 
   $('status').textContent = '';
   // The bar's last stretch: the screen goes once the first frame has been drawn behind it (tick), since that frame
@@ -1622,6 +1634,7 @@ function tick(now) {
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
   lampNear(dt);
   fitNear();
+  if (G.stream) { G.stream.update(dt, camera.position); if ((G._reg = (G._reg || 0) + 1) % 600 === 0) G.stream.register(); }      // (and whatever was built since)
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
 }
