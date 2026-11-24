@@ -22,15 +22,21 @@
 // as long as you keep looking: they breathe, the brush works, now and then one glances at the other. When you stop
 // she gets up, they go out the way they came, and the room is rubbed off the wall behind them.
 //
-// How they are made: his paint is thin and flat, scrubbed over the weave, and everything is held in a dark, slow line.
-// So each of them is a set of soft rounded forms in his close tones (maroon, slate, the terracotta of his flesh; her
-// black, her white collar, a paler flesh with his rose on the cheeks), every form mottled and laid over with broad
-// thin scrubs of nearly the same colour, and bounded by a blue-black contour that swells and thins as the form turns.
-// The faces are his few lines: the brows running into the nose, a small mouth, dark almond eyes; nothing is enlarged,
-// lengthened or made fun of. The room on the wall is flat paint, with ragged dry edges and the gallery wall showing
-// through. One rig (the two of them and the stool), one flat mesh on the wall (the room and the lettering), and the
-// soft shadows at their feet: three draw calls. Nothing is solid, nothing stays out after the look, and nothing stands
-// higher than 0.8 m, well under every frame on this wall and to the right of the floor Matisse's geranium uses.
+// How they are made: of paint, with no bare form showing. His paint is thin and flat, scrubbed over the weave, and
+// everything is held in a dark, slow line. So under each form (they stand about seven and a half heads; shoulders that
+// slope, sleeves and legs that taper, a skirt in long folds) is a core a little smaller and darker than the form, and
+// what the eye sees is his scrubs lying over it in close tones: every one a ribbon with a brush's own print on it
+// (bristles, a ragged dry end, gaps where the thin paint ran out), tilted a little about its length so that they
+// overlap and the edge of a form is their ragged ends. Maroon, the grey-green jersey up to his chin, the terracotta
+// of his flesh; her blue-black, her white collar in round touches (one to a scallop), a paler flesh. Round each form
+// goes his blue-black line, which swells, thins and is lost, as it is in the picture. The faces are planes first (the
+// forehead in what light he gives it, the sockets, the shade he draws down one side of the nose and under it, his
+// rose on her cheeks) and then his own few marks laid on them, each a single touch of the brush: a brow, a dark
+// almond for an eye, the nose's one line, a small mouth. Nothing is enlarged, lengthened or made fun of. The room on
+// the wall is flat paint, with ragged dry edges and the gallery wall showing through. One rig (the two of them and
+// the stool), one flat mesh on the wall (the room and the lettering), and the soft shadows at their feet: three draw
+// calls. Nothing is solid, nothing stays out after the look. He stands 0.69 m and the room on the wall 0.85 m, well
+// under every frame on this wall and to the right of the floor Matisse's geranium uses.
 //
 // No tune: a sitting is quiet. Steps, the stool, a brush on canvas, and two plain notes, his and hers (E and the G
 // sharp above it, in the key the geranium next door rings in). With "Reduce motion and flashing" on, nothing settles
@@ -43,7 +49,7 @@
 // of them, followed quietly, because they were real people and these are their faces.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape, canvasTexture } from '../paintlife.js';
-import { score, inked, Bones, hump, turnTo } from './stagecraft.js';
+import { score, Bones, hump, turnTo } from './stagecraft.js';
 
 const PI = Math.PI, TAU = PI * 2;
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -58,11 +64,15 @@ const TILT = [4.45, 5.0];                               // she inclines her head
 const WRITE = [4.9, 6.25];                              // the name is lettered on the wall
 const EASE = [6.6, 7.3], AGAIN = [7.7, 8.15], TILT2 = [8.1, 8.65];      // done? no: again
 const IDLE = 9.2;
+// ---------------------------------------------------------------- how big: everything below is set out at a scale of
+// one (he stands 0.585 m) and shown at SC, about the wall's foot under the middle of the picture: he stands 0.69 m, so
+// that the two of them read from where the look camera has to stand to keep this small, high-hung picture whole.
+const SC = 1.18, sc2 = p => [p[0] * SC, p[1] * SC, p[2]];
 // ---------------------------------------------------------------- the floor (metres: along the wall, out from it)
-const DOOR = [0.66, -0.26];
-const B_STAND = [0.16, 0.61], J_STAND = [0.07, 0.37], STOOL = [0.16, 0.485];
-const B_WAY = [DOOR, [0.66, 0.14], [0.55, 0.5], [0.36, 0.64], [0.2, 0.62], B_STAND];
-const J_WAY = [DOOR, [0.66, 0.1], [0.5, 0.29], [0.28, 0.3], [0.11, 0.29], J_STAND];
+const DOOR = sc2([0.66, -0.26]);
+const B_STAND = sc2([0.16, 0.61]), J_STAND = sc2([0.085, 0.385]), STOOL = sc2([0.16, 0.485]);
+const B_WAY = [DOOR, ...[[0.66, 0.14], [0.55, 0.5], [0.36, 0.64], [0.2, 0.62]].map(sc2), B_STAND];
+const J_WAY = [DOOR, ...[[0.66, 0.1], [0.5, 0.29], [0.28, 0.31], [0.12, 0.305]].map(sc2), J_STAND];
 const J_YAW = 0.14, B_YAW = -0.04;                      // how they stand in the end, turned from square to the wall
 // ---------------------------------------------------------------- the room on the wall (metres along it, and up)
 const BU0 = -0.66, BU1 = 0.86, BW = BU1 - BU0, RW = 1024, RH = 544, PXM = RW / BW, BH = RH / PXM;
@@ -76,10 +86,46 @@ const GLYPH = {
   T: [0.74, [[0.04, 0.97], [0.96, 1]], [[0.5, 1], [0.52, 0]]],
   Z: [0.72, [[0.1, 0.98], [0.9, 1], [0.1, 0.02], [0.94, 0.05]]],
 };
-// ---------------------------------------------------------------- their bones (metres; he stands 0.57, she 0.52)
-const JK = { TH: 0.145, LEG: 0.275, HIP: 0.275, SH: [0.056, 0.166], NECK: [0.19, 0.004], AU: 0.105, AF: 0.103, STRIDE: 0.225, SWING: 0.42 };
-const BK = { TH: 0.125, KNEE: 0.145, SH: [0.047, 0.15], NECK: 0.172, AU: 0.085, AF: 0.082, STRIDE: 0.19 };
+// ---------------------------------------------------------------- their bones (metres, at a scale of one: he stands 0.585, she 0.535)
+const JK = { TH: 0.155, LEG: 0.3005, HIP: 0.3005, SH: [0.056, 0.178], NECK: [0.2, 0.004], AU: 0.108, AF: 0.106, STRIDE: 0.24, SWING: 0.42 };
+const BK = { TH: 0.127, KNEE: 0.148, SH: [0.044, 0.142], NECK: 0.165, AU: 0.086, AF: 0.082, STRIDE: 0.19 };
 const INK = '#1e2130';
+
+// A brush's own print, for every mark: two drags (bristle by bristle, fuller in the middle, ragged at both ends, the
+// second run dry), a soft round touch, and a plain patch for the cores and the line. Its colour is only the bristles'
+// light and dark; its alpha is the mark's shape.
+let PRINT = null;
+function brushPrint() {
+  if (PRINT) return PRINT;
+  const W = 256, mk = () => { const c = document.createElement('canvas'); c.width = c.height = W; return c.getContext('2d', { willReadFrequently: true }); }, gl = mk(), gm = mk();
+  gl.fillStyle = 'rgb(236,236,236)'; gl.fillRect(0, 0, W, W); gm.fillStyle = '#000'; gm.fillRect(0, 0, W, W);
+  let s = 27987; const r = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+  const cell = (x0, y0, fn) => { for (const g of [gl, gm]) { g.save(); g.beginPath(); g.rect(x0, y0, 128, 128); g.clip(); g.translate(x0, y0); g.lineCap = 'round'; } fn(); gl.restore(); gm.restore(); };
+  const hair = (v, w, xa, ya, xb, yb, bow) => { for (const [g, st] of [[gl, `rgb(${v},${v},${v})`], [gm, '#fff']]) { g.strokeStyle = st; g.lineWidth = w; g.beginPath(); g.moveTo(xa, ya); g.quadraticCurveTo((xa + xb) / 2, (ya + yb) / 2 + bow, xb, yb); g.stroke(); } };
+  const drag = dry => () => {
+    for (let i = 0; i < 34; i++) {
+      const y = 64 + (r() - 0.5) * 88, e = Math.pow(Math.abs(y - 64) / 46, 1.5), xa = 8 + e * 26 + r() * 12, xb = 120 - e * 30 - r() * (dry ? 44 : 14);
+      hair(190 + Math.floor(r() * 65), 4 + r() * 8, xa, y + (r() - 0.5) * 4, Math.max(xa + 8, xb), y + (r() - 0.5) * 6, (r() - 0.5) * 8);
+    }
+    gm.strokeStyle = '#000';      // where the thin paint gave out and the ground shows
+    for (let i = 0; i < (dry ? 14 : 5); i++) { const y = 20 + r() * 88, xa = (dry ? 30 : 58) + r() * 40; gm.lineWidth = 1.2 + r() * 2.6; gm.beginPath(); gm.moveTo(xa, y); gm.lineTo(124, y + (r() - 0.5) * 7); gm.stroke(); }
+  };
+  cell(0, 0, drag(false)); cell(128, 0, drag(true));
+  cell(0, 128, () => {
+    for (let i = 0; i < 12; i++) { const a = r() * TAU, rr = Math.sqrt(r()) * 20, v = 206 + Math.floor(r() * 49), x = 64 + Math.cos(a) * rr * 1.3, y = 64 + Math.sin(a) * rr, rx = 15 + r() * 10, ry = 12 + r() * 8, ro = r() * 3; for (const [g, st] of [[gl, `rgb(${v},${v},${v})`], [gm, '#fff']]) { g.fillStyle = st; g.beginPath(); g.ellipse(x, y, rx, ry, ro, 0, TAU); g.fill(); } }
+    for (let i = 0; i < 8; i++) { const y = 64 + (r() - 0.5) * 54; hair(212 + Math.floor(r() * 43), 4 + r() * 5, 26 + r() * 20, y, 102 - r() * 22, y + (r() - 0.5) * 8, 0); }
+  });
+  for (const g of [gl, gm]) { g.fillStyle = '#fff'; g.fillRect(128, 128, 128, 128); }
+  const a = gl.getImageData(0, 0, W, W).data, m = gm.getImageData(0, 0, W, W).data, out = new Uint8Array(W * W * 4);
+  for (let i = 0; i < W * W * 4; i += 4) { out[i] = a[i]; out[i + 1] = a[i + 1]; out[i + 2] = a[i + 2]; out[i + 3] = m[i]; }
+  PRINT = new THREE.DataTexture(out, W, W, THREE.RGBAFormat);
+  PRINT.generateMipmaps = true; PRINT.minFilter = THREE.LinearMipmapLinearFilter; PRINT.magFilter = THREE.LinearFilter; PRINT.anisotropy = 4; PRINT.needsUpdate = true;
+  return PRINT;
+}
+// Where a mark's corners are in the print (k: which mark; s along it, t across), the plain patch, and his line (its v
+// past the print's edge is how the shader knows it).
+const UVQ = (k, s, t) => { const m = 0.05; return [((k % 2) * 128 + 128 * (m + s * (1 - 2 * m))) / 256, ((k >> 1) * 128 + 128 * (m + t * (1 - 2 * m))) / 256]; };
+const UV_SOLID = [0.75, 0.75], UV_LINE = [0.75, 2.75];
 
 // A way over the floor, by arc length: w.at(s 0..1, o) fills o.u, o.out and the heading o.du, o.dout; w.steps is how
 // many steps it takes (a whole number, so a walk along it ends with the feet together).
@@ -96,20 +142,35 @@ lifeFor(27987, {
   title: /^Jacques and Berthe Lipchitz/,
   word: 'sitting',
   // (a small work hung high: the kit keeps the whole of it in view over the two of them at the foot of the wall)
-  stage: { out: 1.1, half: 1.05, cam: { dist: 2.3, side: 0.14, height: 0.85, fov: 58, lookU: 0.12, lookOut: 0.4, lookH: 0.9, floorOut: 0.8 } },
+  stage: { out: 1.3, half: 1.2, cam: { dist: 2.3, side: 0.16, height: 0.85, fov: 58, lookU: 0.14, lookOut: 0.4, lookH: 0.9, floorOut: 0.95 } },
   wake: 2, ret: 2.6,
 
   build(L) {
     const P = L.pal, col = (h, a = 0.14) => P.near(h, a), rand = L.rand;
-    const SET = (a, b, c, f = 34) => ({ c: [col(a), col(b), col(c)], f });
-    const MAROON = SET('#5c2b27', '#6f342c', '#43201f'), SLATE = SET('#54666a', '#63777a', '#45565b'), TROU = SET('#2d2628', '#382d2e', '#221d20');
-    const FLESH_J = SET('#c57a56', '#d0875f', '#b66a4b', 24), HAIR_J = SET('#472223', '#572a2a', '#371b1d');
-    const DRESS = SET('#21232b', '#2b2e39', '#191a20'), FLESH_B = SET('#dc966e', '#e5a47c', '#d08864', 24), HAIR_B = SET('#1d1819', '#2b2325', '#141112');
-    const COLLAR = SET('#c6cdcb', '#dae0de', '#afb9ba', 70), WOOD = SET('#8d6030', '#a47436', '#72481f'), SHOE = SET('#1a1718', '#252021', '#121011');
-    this.V = { v: V3(), w: V3(), d: V3(), p: V3(), el: V3(), tip: V3(), a: V3(), b: V3(), pole: V3(), q: new THREE.Quaternion(), one: V3(1, 1, 1), down: V3(0, -1, 0), m: new THREE.Matrix4(), s: V3() };
+    // ---------------------------------------------------------- his colours, each mass in three close tones
+    const C = (list, a = 0.12) => list.map(h => col(h, a));
+    const set = (hi, mid, lo) => ({ hi: C(hi), mid: C(mid), lo: C(lo) });
+    const MAROON = set(['#77392f', '#6f352d', '#7d4034'], ['#5f2c28', '#652f29', '#582926'], ['#45201f', '#3d1c1c']);
+    const SLATE = set(['#638080', '#5c7878'], ['#4f6968', '#4a6363', '#546e6b'], ['#3d5356', '#374b4f']);
+    const TROU = set(['#40343a', '#3a3034'], ['#2e2629', '#2a2226', '#32292b'], ['#201a1e', '#1b161a']);
+    const FLJ = set(['#d68c62', '#d28659'], ['#c67b56', '#c17550', '#c98059'], ['#ab6346', '#a25c42']);
+    const HRJ = set(['#5c2c2a', '#643230'], ['#482324', '#422021', '#4e2727'], ['#331a1c', '#2c1618']);
+    const DRESS = set(['#30343f', '#2b303c'], ['#22252d', '#1f2129', '#262a33'], ['#17181e', '#131419']);
+    const FLB = set(['#eaae84', '#e6a67c'], ['#dc986f', '#d8926a', '#df9d75'], ['#c47f5e', '#bb7757']);
+    const HRB = set(['#2f2728', '#342a2c'], ['#1e191a', '#1a1516', '#231c1e'], ['#131011', '#0f0d0e']);
+    const WHITE = set(['#e2e6e3', '#dadfdc', '#e8ebe7'], ['#c7cecc', '#bfc7c6', '#ccd2ce'], ['#a5afb1', '#9aa5a8']);
+    const WOOD = set(['#aa7a3a', '#a27234'], ['#8d6030', '#86592b', '#936633'], ['#6c441e', '#603b1a']);
+    const SHOE = set(['#2b2526'], ['#1c1819', '#211c1d'], ['#121011']);
+    const INKC = col(INK, 0.05);
+    this.V = { v: V3(), w: V3(), d: V3(), p: V3(), el: V3(), tip: V3(), a: V3(), b: V3(), pole: V3(), q: new THREE.Quaternion(), sc: V3(SC, SC, SC), down: V3(0, -1, 0), m: new THREE.Matrix4(), s: V3() };
     this.B = new Bones();
 
-    // ---------------------------------------------------------- his marks: a form, its scrubs, its line
+    // ---------------------------------------------------------- his marks. Nothing bare shows: under each form is a
+    // core a little smaller and darker than the form; over it, his scrubs, each a ribbon with a brush's own print
+    // (bristles, a ragged dry end, gaps where the thin paint ran out), tilted a little about its length so that they
+    // overlap as feathers do and a form's edge is their ragged ends; and round the form his blue-black line, which
+    // swells, thins and is lost, as it is in the picture.
+    const pick = (list, r) => list[Math.min(list.length - 1, Math.floor(r * list.length))];
     const h3 = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s); };
     const vn = (x, y, z) => {
       const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z); let fx = x - xi, fy = y - yi, fz = z - zi;
@@ -118,257 +179,324 @@ lifeFor(27987, {
       const b = lerp(lerp(h3(xi, yi, zi + 1), h3(xi + 1, yi, zi + 1), fx), lerp(h3(xi, yi + 1, zi + 1), h3(xi + 1, yi + 1, zi + 1), fx), fy);
       return lerp(a, b, fz);
     };
-    const part = (d = 0.0032) => ({ solids: [], mp: [], mn: [], mc: [], d });
-    const tc = new THREE.Color();
-    // A solid's colour: his thin paint, never one flat tone: three close tones run into each other in soft patches.
-    const tint = (g, S, seed) => {
-      const p = g.attributes.position, n = g.attributes.normal, c = g.attributes.color, f = S.f;
-      for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-        const a = vn(x * f + seed, y * f * 0.55 + seed * 1.7, z * f + 3.1), b = vn(x * f * 2.2 + 9.1 + seed, y * f * 1.3, z * f * 2.2 + seed);
-        tc.copy(S.c[0]).lerp(S.c[1], smooth(a, 0.38, 0.72)).lerp(S.c[2], smooth(b, 0.5, 0.86) * 0.55).multiplyScalar(1 + 0.05 * n.getY(i));
-        c.setXYZ(i, tc.r, tc.g, tc.b);
+    const KEY = V3(-0.42, 0.74, 0.52).normalize();           // what light he gives a form: a little, from the upper left
+    const tcol = new THREE.Color();
+    // The tone of a mass where it faces that light (his modelling is slight: a form is nearly one flat tone).
+    const under = S => n => { const k = n.dot(KEY); return tcol.copy(S.mid[0]).lerp(S.hi[0], 0.7 * smooth(k, 0.15, 0.9)).lerp(S.lo[0], 0.7 * smooth(-k, 0.0, 0.85)); };
+    // A scrub's colour on it: that tone, leaning to one of the mass's own, with a little of the luck of the brush.
+    const mixer = (S, amt = 0.45, v = 0.1) => { const u = under(S), all = [...S.hi, ...S.mid, ...S.mid, ...S.lo]; return (n, r) => new THREE.Color().copy(u(n)).lerp(pick(all, (r * 7.31) % 1), amt * (0.5 + ((r * 3.17) % 1))).multiplyScalar(1 + (r - 0.5) * v); };
+    const part = () => ({ pos: [], nor: [], col: [], uv: [] });
+    const vert = (Pt, p, n, c, uv) => { Pt.pos.push(p.x, p.y, p.z); Pt.nor.push(n.x, n.y, n.z); Pt.col.push(c.r, c.g, c.b); Pt.uv.push(uv[0], uv[1]); };
+    const sv = V3(), sn = V3(), sc = new THREE.Color();
+    // A core: g, painted paint(normal, where) and darkened.
+    const core = (Pt, g, paint, dark) => { const p = g.attributes.position, n = g.attributes.normal; for (let i = 0; i < p.count; i++) { sv.fromBufferAttribute(p, i); sn.fromBufferAttribute(n, i); sc.copy(paint(sn, sv)).multiplyScalar(dark); vert(Pt, sv, sn, sc, UV_SOLID); } };
+    // His line round a form: the form's own surface turned inside out and pushed out d where the line is found (and not
+    // at all where it is lost), in his blue-black; only its far side is drawn, so it shows round the form's edge.
+    let lineSeed = 0;
+    const contour = (Pt, g, d) => {
+      const p = g.attributes.position, n = g.attributes.normal, sd = (lineSeed += 5.3), q = V3(), nn = V3();
+      for (let f = 0; f < p.count; f += 3) for (const j of [0, 2, 1]) {
+        q.fromBufferAttribute(p, f + j); nn.fromBufferAttribute(n, f + j);
+        const k = smooth(vn(q.x * 36 + sd, q.y * 30 + sd * 0.7, q.z * 36), 0.36, 0.62);
+        q.addScaledVector(nn, d * (0.12 + 0.88 * k)); vert(Pt, q, nn.negate(), INKC, UV_LINE);
       }
     };
-    let seedN = 1;
-    const ell = (Pt, c, r, S, { rot = null, detail = 2 } = {}) => {
-      const g = shape.move(shape.ball(1, 0xffffff, detail), c[0], c[1], c[2], rot ? rot[0] : 0, rot ? rot[1] : 0, rot ? rot[2] : 0, r[0], r[1], r[2]);
-      tint(g, S, seedN++ * 3.7); Pt.solids.push(g);
+    // A rounded form (an ellipsoid). Returns what the scrubs need to lie on it.
+    const ell = (Pt, c, r, paint, { detail = 2, shrink = 0.93, dark = 0.8, line = 0.003, rot = null } = {}) => {
+      const mk = (k, dt = detail) => shape.move(shape.ball(1, 0xffffff, dt), c[0], c[1], c[2], rot ? rot[0] : 0, rot ? rot[1] : 0, rot ? rot[2] : 0, r[0] * k, r[1] * k, r[2] * k);
+      core(Pt, mk(shrink), paint, dark); if (line) contour(Pt, mk(1, Math.min(detail, 3)), line);
       const q = rot ? new THREE.Quaternion().setFromEuler(new THREE.Euler(rot[0], rot[1], rot[2], 'YXZ')) : null;
-      return { ell: true, c: V3(...c), r: V3(...r), q, qi: q ? q.clone().invert() : null };
+      return { c: V3(...c), r: V3(...r), q, qi: q ? q.clone().invert() : null };
     };
-    const limb = (Pt, a, b, r0, r1, S, { seg = 12, caps = 3, detail = 1 } = {}) => {
-      const A = V3(...a), Bv = V3(...b), ax = Bv.clone().sub(A), len = ax.length(); ax.normalize();
-      const g = shape.cyl(r0, r1, len, seg, 0xffffff); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), ax));
-      const m = A.clone().add(Bv).multiplyScalar(0.5); g.translate(m.x, m.y, m.z); const sd = seedN++ * 3.7; tint(g, S, sd); Pt.solids.push(g);
-      if (caps & 1) { const e = shape.move(shape.ball(r0, 0xffffff, detail), A.x, A.y, A.z); tint(e, S, sd); Pt.solids.push(e); }
-      if (caps & 2) { const e = shape.move(shape.ball(r1, 0xffffff, detail), Bv.x, Bv.y, Bv.z); tint(e, S, sd); Pt.solids.push(e); }
-      return { ell: false, a: A, b: Bv, ax, len, r0, r1 };
+    // Where on an upright ellipsoid a point of it is, as a direction from its middle (the unit ball it was made from).
+    const dirOn = (s, p, out = V3()) => out.set((p.x - s.c.x) / s.r.x, (p.y - s.c.y) / s.r.y, (p.z - s.c.z) / s.r.z).normalize();
+    const onEll = (s, u, grow, oP, oN) => { oP.set(u.x * s.r.x * grow, u.y * s.r.y * grow, u.z * s.r.z * grow); oN.set(u.x / s.r.x, u.y / s.r.y, u.z / s.r.z).normalize(); if (s.q) { oP.applyQuaternion(s.q); oN.applyQuaternion(s.q); } oP.add(s.c); };
+    // A form hanging down a part's own -y from y0 (a sleeve, a leg, a skirt): rad(t, ph) its radius, t 0..1 down its
+    // length, ph round it; xf sets it somewhere else (the stool's legs).
+    const loft = (Pt, len, rad, paint, { seg = 12, rows = 4, shrink = 0.9, dark = 0.8, line = 0.003, y0 = 0, xf = null, caps = true } = {}) => {
+      const at = (t, ph, out = V3(), k = 1) => { const r = rad(clamp01(t), ph) * k; out.set(Math.cos(ph) * r, y0 - t * len, Math.sin(ph) * r); return xf ? out.applyMatrix4(xf) : out; };
+      const pa = V3(), pb = V3(), pc = V3(), pd = V3(), ax = V3();
+      const normal = (t, ph, out = V3()) => { at(t, ph + 0.03, pa); at(t, ph - 0.03, pb); at(t + 0.02, ph, pc); at(t - 0.02, ph, pd); out.crossVectors(pa.sub(pb), pc.sub(pd)).normalize(); at(t, ph, pa); ax.set(0, y0 - t * len, 0); if (xf) ax.applyMatrix4(xf); if (out.dot(pa.sub(ax)) < 0) out.negate(); return out; };
+      const mesh = k => {
+        const P = [], N = [], g = new THREE.BufferGeometry(), a = V3(), b = V3(), c = V3(), d = V3(), na = V3(), nb = V3(), nc = V3(), nd = V3();
+        const push = (p, n) => { P.push(p.x, p.y, p.z); N.push(n.x, n.y, n.z); };
+        for (let j = 0; j < rows; j++) for (let i = 0; i < seg; i++) {
+          const t0 = j / rows, t1 = (j + 1) / rows, p0 = i / seg * TAU, p1 = (i + 1) / seg * TAU;
+          at(t0, p0, a, k); at(t0, p1, b, k); at(t1, p1, c, k); at(t1, p0, d, k); normal(t0, p0, na); normal(t0, p1, nb); normal(t1, p1, nc); normal(t1, p0, nd);
+          // (wound so that its front is its outside)
+          e1.copy(b).sub(a); e2.copy(d).sub(a); e3.crossVectors(e1, e2);
+          if (e3.dot(na) >= 0) { push(a, na); push(b, nb); push(c, nc); push(a, na); push(c, nc); push(d, nd); } else { push(a, na); push(c, nc); push(b, nb); push(a, na); push(d, nd); push(c, nc); }
+        }
+        if (caps) for (const [t, s] of [[0, 1], [1, -1]]) {
+          ax.set(0, y0 - t * len, 0); if (xf) ax.applyMatrix4(xf); const nn = V3(0, s, 0); if (xf) nn.transformDirection(xf);
+          for (let i = 0; i < seg; i++) { at(t, i / seg * TAU, a, k); at(t, (i + 1) / seg * TAU, b, k); e1.copy(a).sub(ax); e2.copy(b).sub(ax); e3.crossVectors(e1, e2); if (e3.dot(nn) >= 0) { push(ax, nn); push(a, nn); push(b, nn); } else { push(ax, nn); push(b, nn); push(a, nn); } }
+        }
+        g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); return g;
+      };
+      core(Pt, mesh(shrink), paint, dark); if (line) contour(Pt, mesh(1), line);
+      return { at, normal, len };
     };
-    // The nearest point of a form's surface to p (through the middle of an ellipsoid, or out from a limb's axis),
-    // lifted off it, and the normal there.
-    const ta = V3(), tb = V3(), tp = V3();
-    const snap = (s, p, lift, oP, oN) => {
-      if (s.ell) {
-        ta.copy(p).sub(s.c); if (s.qi) ta.applyQuaternion(s.qi);
-        ta.set(ta.x / s.r.x, ta.y / s.r.y, ta.z / s.r.z).normalize();
-        oN.set(ta.x / s.r.x, ta.y / s.r.y, ta.z / s.r.z).normalize(); oP.set(ta.x * s.r.x, ta.y * s.r.y, ta.z * s.r.z);
-        if (s.q) { oP.applyQuaternion(s.q); oN.applyQuaternion(s.q); }
-        oP.add(s.c).addScaledVector(oN, lift);
-      } else {
-        ta.copy(p).sub(s.a); const t = clamp01(ta.dot(s.ax) / s.len); tb.copy(s.a).addScaledVector(s.ax, t * s.len);
-        oN.copy(p).sub(tb); if (oN.lengthSq() < 1e-12) oN.set(s.ax.y, -s.ax.x, 0); oN.normalize();
-        oP.copy(tb).addScaledVector(oN, lerp(s.r0, s.r1, t) + lift);
+    const e1 = V3(), e2 = V3(), e3 = V3(), side = V3(), d2 = V3(), cl = V3(), ca = new THREE.Color(), cb = new THREE.Color();
+    // A ribbon of paint through six points lying on a form (Ps, the form's normal at each, Ns), w wide, with the brush's
+    // print on it (cell: 0 a drag, 1 a dry one, 2 a soft round touch): close on the form where the brush set down, its
+    // dry end lifted a little and one long edge too.
+    const ribbon = (Pt, Ps, Ns, w, c, { lift = 0.0016, tip = 0.0032, ridge = 0.05, cell = -1, tilt = 0.3 } = {}) => {
+      const k = cell < 0 ? (rand() < 0.5 ? 0 : 1) : cell, flip = rand() < 0.5, A = [], Bq = [], ua = [], ub = [], m = Ps.length - 1;
+      const ta = tilt * (0.5 + rand()) * (rand() < 0.5 ? -1 : 1), cw = Math.cos(ta) * w / 2, sw = Math.sin(ta) * w / 2;
+      for (let i = 0; i <= m; i++) {
+        d2.copy(Ps[Math.min(m, i + 1)]).sub(Ps[Math.max(0, i - 1)]); side.crossVectors(Ns[i], d2); if (side.lengthSq() < 1e-16) return; side.normalize();
+        const s = flip ? 1 - i / m : i / m;
+        cl.copy(Ps[i]).addScaledVector(Ns[i], lift + tip * s * s);
+        A.push(cl.clone().addScaledVector(side, -cw).addScaledVector(Ns[i], -sw)); Bq.push(cl.clone().addScaledVector(side, cw).addScaledVector(Ns[i], sw)); ua.push(UVQ(k, s, 0)); ub.push(UVQ(k, s, 1));
       }
+      ca.copy(c).multiplyScalar(1 + ridge); cb.copy(c).multiplyScalar(1 - ridge * 0.7);
+      for (let i = 0; i < m; i++) { vert(Pt, A[i], Ns[i], cb, ua[i]); vert(Pt, Bq[i + 1], Ns[i + 1], ca, ub[i + 1]); vert(Pt, Bq[i], Ns[i], ca, ub[i]); vert(Pt, A[i], Ns[i], cb, ua[i]); vert(Pt, A[i + 1], Ns[i + 1], cb, ua[i + 1]); vert(Pt, Bq[i + 1], Ns[i + 1], ca, ub[i + 1]); }
     };
-    // The front of an upright ellipsoid at (x, y): the point of it you see from in front.
-    const front = (s, x, y) => { const fx = x / s.r.x, fy = (y - s.c.y) / s.r.y; return V3(s.c.x + x, y, s.c.z + s.r.z * Math.sqrt(Math.max(0.02, 1 - fx * fx - fy * fy))); };
-    const face = (s, fx, fy) => front(s, fx * s.r.x, s.c.y + fy * s.r.y);
-    const e1 = V3(), e2 = V3(), e3 = V3();
-    const tri = (Pt, a, b, c, n, ca, cb, cc) => {
-      e1.copy(b).sub(a); e2.copy(c).sub(a); e3.crossVectors(e1, e2);
-      const o = e3.dot(n) >= 0 ? [a, b, c, ca, cb, cc] : [a, c, b, ca, cc, cb];
-      for (let i = 0; i < 3; i++) { Pt.mp.push(o[i].x, o[i].y, o[i].z); Pt.mn.push(n.x, n.y, n.z); Pt.mc.push(o[i + 3].r, o[i + 3].g, o[i + 3].b); }
-    };
-    // A ribbon of paint along points on a form, each edge laid on the form itself: his scrubs, and his lines.
-    const ribbon = (Pt, s, pts, wid, c, lift, ridge = 0) => {
-      const n = pts.length, Lp = [], Rp = [], N = [], tan = V3(), side = V3(), p = V3(), nn = V3();
-      for (let i = 0; i < n; i++) {
-        snap(s, pts[i], lift, p, nn); tan.copy(pts[Math.min(n - 1, i + 1)]).sub(pts[Math.max(0, i - 1)]);
-        side.crossVectors(nn, tan); if (side.lengthSq() < 1e-14) side.set(1, 0, 0); side.normalize();
-        const w = typeof wid === 'number' ? wid : wid(i / (n - 1)), l = V3(), r = V3(), ln = V3();
-        snap(s, tp.copy(p).addScaledVector(side, -w), lift, l, ln); snap(s, tp.copy(p).addScaledVector(side, w), lift, r, ln);
-        Lp.push(l); Rp.push(r); N.push(nn.clone());
-      }
-      const ca = ridge ? c.clone().multiplyScalar(1 + ridge) : c, cb = ridge ? c.clone().multiplyScalar(1 - ridge * 0.7) : c;
-      for (let i = 0; i < n - 1; i++) { tri(Pt, Lp[i], Rp[i], Rp[i + 1], N[i], cb, ca, ca); tri(Pt, Lp[i], Rp[i + 1], Lp[i + 1], N[i], cb, ca, cb); }
-    };
-    const SCRUB = [0.5, 0.88, 1, 0.97, 0.82, 0.46];
-    const scrub = (Pt, s, p0, dir, l, w, c, lift = 0.0035, bend = 0) => {
-      const pts = [], n0 = V3(), q = V3(), sd = V3(); snap(s, p0, 0, q, n0); sd.crossVectors(n0, dir).normalize();
-      for (let i = 0; i < 6; i++) { const t = i / 5 - 0.5; pts.push(p0.clone().addScaledVector(dir, t * l).addScaledVector(sd, bend * l * (1 - 4 * t * t))); }
-      ribbon(Pt, s, pts, t => (w / 2) * SCRUB[Math.round(t * 5)], c, lift, 0.05);
-    };
-    // A coat of scrubs over a form: n of them, running along `flow` (laid into the surface, turned a little).
     const tq = new THREE.Quaternion();
-    const coat = (Pt, s, n, S, { l = [0.04, 0.07], w = [0.018, 0.03], flow = V3(0, -1, 0), jit = 0.7, keep = null, lift = 0.0035, tones = null } = {}) => {
-      const p = V3(), nn = V3(), d = V3(), q = V3();
-      for (let i = 0, tries = 0; i < n && tries < n * 8; tries++) {
-        if (s.ell) { const yy = 1 - 2 * rand(), ph = rand() * TAU, r = Math.sqrt(Math.max(0, 1 - yy * yy)); q.set(r * Math.cos(ph) * s.r.x, yy * s.r.y, r * Math.sin(ph) * s.r.z); if (s.q) q.applyQuaternion(s.q); q.add(s.c); }
-        else { const t = 0.06 + 0.88 * rand(), ph = rand() * TAU; e1.crossVectors(s.ax, Math.abs(s.ax.y) < 0.9 ? V3(0, 1, 0) : V3(1, 0, 0)).normalize(); e2.crossVectors(s.ax, e1); q.copy(s.a).addScaledVector(s.ax, t * s.len).addScaledVector(e1, Math.cos(ph)).addScaledVector(e2, Math.sin(ph)); }
-        snap(s, q, 0, p, nn); if (keep && !keep(p, nn)) continue;
-        d.copy(flow).addScaledVector(nn, -flow.dot(nn)); if (d.lengthSq() < 1e-4) d.set(nn.y, -nn.x, 0); d.normalize().applyQuaternion(tq.setFromAxisAngle(nn, (rand() - 0.5) * jit));
-        const list = tones || S.c, c = list[Math.floor(rand() * list.length * 0.999)].clone().lerp(S.c[0], 0.5).multiplyScalar(0.97 + 0.09 * rand());
-        scrub(Pt, s, p.clone(), d.clone(), lerp(l[0], l[1], rand()), lerp(w[0], w[1], rand()), c, lift, (rand() - 0.5) * 0.14); i++;
+    const along = (n, flow, jit) => { const d = flow.clone().addScaledVector(n, -flow.dot(n)); if (d.lengthSq() < 1e-4) d.set(n.y, -n.x, 0); if (d.lengthSq() < 1e-6) d.set(1, 0, 0); return d.normalize().applyQuaternion(tq.setFromAxisAngle(n, (rand() - 0.5) * jit)); };
+    // A scrub lying on an ellipsoid as an arc of it, through the direction u0, running d (a direction on the unit ball), len long.
+    const arc = (Pt, s, u0, d, len, w, c, o = {}) => {
+      const Rm = (s.r.x + s.r.y + s.r.z) / 3, g = o.grow || 1, Ps = [], Ns = [], m = len < 0.017 ? 2 : len < 0.03 ? 3 : 5;      // (a short mark bends little: fewer points)
+      for (let k = 0; k <= m; k++) { const al = (k / m - 0.5) * len / Rm, u = u0.clone().multiplyScalar(Math.cos(al)).addScaledVector(d, Math.sin(al)).normalize(), p = V3(), n = V3(); onEll(s, u, g, p, n); Ps.push(p); Ns.push(n); }
+      ribbon(Pt, Ps, Ns, w, c, o);
+    };
+    // A coat of n scrubs over an ellipsoid; tn(normal, luck, direction on the ball) the colour of each; keep(u, p) to leave some out.
+    const coat = (Pt, s, n, tn, { l = [0.03, 0.05], w = [0.014, 0.022], flow = V3(0, -1, 0), jit = 0.6, keep = null, ...o } = {}) => {
+      const p = V3(), nn = V3();
+      for (let i = 0, tries = 0; i < n && tries < n * 12; tries++) {
+        const yy = 1 - 2 * rand(), ph = rand() * TAU, r = Math.sqrt(Math.max(0, 1 - yy * yy)), u0 = V3(r * Math.cos(ph), yy, r * Math.sin(ph));
+        onEll(s, u0, 1, p, nn); const r1 = rand(), r2 = rand(), r3 = rand();
+        if (keep && !keep(u0, p)) continue;
+        arc(Pt, s, u0, along(u0, typeof flow === 'function' ? flow(u0) : flow, jit), lerp(l[0], l[1], r1), lerp(w[0], w[1], r2), tn(nn, r3, u0), o); i++;
       }
     };
-    // His line: through points on a form, fuller in the middle and thinning to its ends.
-    const line = (Pt, s, pts, w, c, lift = 0.0045, n = 0) => {
-      const cv = new THREE.CatmullRomCurve3(pts, false, 'centripetal').getPoints(n || Math.max(6, pts.length * 4));
-      ribbon(Pt, s, cv, t => (w / 2) * (0.42 + 0.58 * Math.sin(PI * Math.min(1, Math.max(0, t * 0.92 + 0.04)))), c, lift);
-    };
-    // A patch of flat colour lying on a form: fn(s, t) -> a point near the form, for s, t in 0..1.
-    const patch = (Pt, s, fn, ns, nt, cf, lift = 0.002) => {
-      const G = [], N = [], C = [], p = V3(), nn = V3();
-      for (let j = 0; j <= nt; j++) for (let i = 0; i <= ns; i++) { const a = V3(); snap(s, fn(i / ns, j / nt), lift, a, nn); G.push(a); N.push(nn.clone()); C.push(typeof cf === 'function' ? cf(i / ns, j / nt, a) : cf); }
-      const id = (i, j) => j * (ns + 1) + i;
-      for (let j = 0; j < nt; j++) for (let i = 0; i < ns; i++) {
-        const a = id(i, j), b = id(i + 1, j), c = id(i + 1, j + 1), d = id(i, j + 1);
-        tri(Pt, G[a], G[b], G[c], N[a], C[a], C[b], C[c]); tri(Pt, G[a], G[c], G[d], N[a], C[a], C[c], C[d]);
+    // A scrub on a loft: from t - dt / 2 to t + dt / 2 down it, drifting dph round it.
+    const lay = (Pt, s, t, ph, dt, dph, w, c, o) => { const Ps = [], Ns = [], m = dt * s.len < 0.03 ? 2 : 4; for (let k = 0; k <= m; k++) { const q = k / m - 0.5; Ps.push(s.at(t + q * dt, ph + q * dph)); Ns.push(s.normal(clamp01(t + q * dt), ph + q * dph)); } ribbon(Pt, Ps, Ns, w, c, o); };
+    // A coat of n scrubs down a loft; tn(normal, luck, t, ph).
+    const drape = (Pt, s, n, tn, { l = [0.04, 0.07], w = [0.014, 0.022], drift = 0.5, t0 = 0, t1 = 1, keep = null, ...o } = {}) => {
+      for (let i = 0, tries = 0; i < n && tries < n * 12; tries++) {
+        const len = lerp(l[0], l[1], rand()), dt = Math.min(0.9, len / s.len), t = lerp(t0 + dt / 2, t1 - dt / 2, rand()), ph = rand() * TAU, r2 = rand(), r3 = rand(), dph = (rand() - 0.5) * drift;
+        if (keep && !keep(t, ph)) continue;
+        lay(Pt, s, t, ph, dt, dph, lerp(w[0], w[1], r2), tn(s.normal(t, ph), r3, t, ph), o); i++;
       }
     };
-    // An almond lying on a face at (fx, fy), w wide and h high (in the face's own halves).
-    const almond = (Pt, s, fx, fy, w, h, c, lift, tilt = 0) => patch(Pt, s, (a, b) => { const x = (a - 0.5) * w, y = (b - 0.5) * h * (1 - Math.pow(Math.abs(2 * a - 1), 1.7)); return face(s, fx + x, fy + y + x * tilt); }, 8, 2, c, lift);
-    // A part, finished: its solids in his line, and the marks laid on them.
-    const finish = Pt => {
-      const g = inked(shape.merge(Pt.solids), Pt.d, col(INK, 0.05));
-      if (!Pt.mp.length) return g;
-      const m = new THREE.BufferGeometry();
-      m.setAttribute('position', new THREE.Float32BufferAttribute(Pt.mp, 3)); m.setAttribute('normal', new THREE.Float32BufferAttribute(Pt.mn, 3)); m.setAttribute('color', new THREE.Float32BufferAttribute(Pt.mc, 3));
-      return shape.merge([g, m]);
+    // One mark of the brush on an ellipsoid, through points given as directions on its ball (his line, where it is a line).
+    const mark = (Pt, s, us, w, c, o = {}) => {
+      const cv = new THREE.CatmullRomCurve3(us, false, 'centripetal').getPoints(5), Ps = [], Ns = [];
+      for (const u of cv) { const p = V3(), n = V3(); onEll(s, u.normalize(), o.grow || 1, p, n); Ps.push(p); Ns.push(n); }
+      ribbon(Pt, Ps, Ns, w, c, { tilt: 0.06, tip: 0.0004, lift: 0.0032, ridge: 0, ...o });
     };
-    const DARK = col('#231a1c', 0.05), LINE = col(INK, 0.05);
-    const DOWNISH = V3(0.25, -1, 0).normalize(), ACROSS = V3(1, 0.1, 0).normalize();
+    // A direction on a head's ball from where it is on the face (fx across, fy up, in halves of the face).
+    const fdir = (fx, fy) => V3(fx, fy, Math.sqrt(Math.max(0.02, 1 - fx * fx - fy * fy)));
+    const gz = (u, fx, fy, sx, sy) => (u.z < -0.05 ? 0 : Math.exp(-Math.pow((u.x - fx) / sx, 2) - Math.pow((u.y - fy) / sy, 2)));
+    const DOWNISH = V3(0.25, -1, 0).normalize(), ACROSS = V3(1, 0.1, 0).normalize(), DOWN = V3(0, -1, 0);
+    const DRAG = { tip: 0.0022, tilt: 0.22 }, CLOSE = { tip: 0.0012, tilt: 0.16, lift: 0.0012, ridge: 0.03 };
+    const lin = (a, b) => t => lerp(a, b, t);
 
     // ---------------------------------------------------------- Jacques: the jacket, the slate jersey up to his chin
-    const jTor = part(0.0036);
+    const jTor = part();
     {
-      const t = ell(jTor, [0, 0.078, 0], [0.07, 0.122, 0.05], MAROON, { detail: 3 });
-      const vw = y => lerp(0.002, 0.033, Math.pow(clamp01((y - 0.03) / 0.16), 0.85));       // the jersey showing in the V of the jacket
-      const SL = SLATE.c;
-      patch(jTor, t, (a, b) => { const y = lerp(0.192, 0.03, b); return front(t, (a - 0.5) * 2 * vw(y), y); }, 6, 12, (a, b) => SL[0].clone().lerp(SL[1], 0.5 + 0.5 * Math.sin(a * 5 + b * 9)).lerp(SL[2], 0.4 * b), 0.0022);
-      coat(jTor, t, 44, MAROON, { l: [0.05, 0.085], w: [0.02, 0.034], flow: DOWNISH, jit: 0.9, keep: p => p.z < 0.01 || p.y < 0.03 || Math.abs(p.x) > vw(p.y) + 0.012 });
-      coat(jTor, t, 7, SLATE, { l: [0.03, 0.045], w: [0.012, 0.018], flow: V3(0, -1, 0), jit: 0.4, lift: 0.0042, keep: p => p.z > 0.02 && p.y > 0.06 && p.y < 0.17 && Math.abs(p.x) < vw(p.y) - 0.008 });
-      for (const sd of [-1, 1]) line(jTor, t, [0.19, 0.15, 0.1, 0.06, 0.03].map(y => front(t, sd * (vw(y) + 0.001), y)), 0.0046, LINE, 0.0052, 18);      // the lapels
-      line(jTor, t, [front(t, 0.002, 0.03), front(t, 0.006, 0.0), front(t, 0.012, -0.036)], 0.004, LINE, 0.0052);      // the jacket's front edge, below the button
-      patch(jTor, t, (a, b) => { const an = a * TAU, r = 0.0042 * b; return front(t, 0.005 + Math.cos(an) * r, 0.022 + Math.sin(an) * r); }, 8, 1, LINE, 0.0056);      // the button
-      line(jTor, t, [front(t, -0.058, 0.022), front(t, -0.046, 0.012), front(t, -0.034, 0.008)], 0.003, LINE, 0.0052);      // the pocket his hand goes to
-      const roll = limb(jTor, [0, 0.174, 0.004], [0, 0.204, 0.008], 0.0325, 0.0295, SLATE, { seg: 16, detail: 2 });
-      coat(jTor, roll, 9, SLATE, { l: [0.03, 0.045], w: [0.01, 0.015], flow: ACROSS, jit: 0.3 });
-      line(jTor, roll, Array.from({ length: 9 }, (_, i) => { const a = -1.9 + i * 0.475; return V3(Math.sin(a) * 0.04, 0.189 + 0.003 * Math.cos(a * 2), 0.006 + Math.cos(a) * 0.04); }), 0.003, LINE, 0.004, 26);      // the fold of the roll
+      // (the jersey shows in the V of the jacket, from the roll at his chin down to the top button)
+      const VB = 0.074, vw = y => lerp(0.003, 0.029, Math.pow(clamp01((y - VB) / 0.125), 0.8));
+      const inV = (p, m = 0) => p.z > 0 && p.y > VB && Math.abs(p.x) < vw(p.y) + m, chest = p => p.z > 0.012 && p.y > 0.05 && Math.abs(p.x) < 0.052;
+      const uM = under(MAROON), uS = under(SLATE), tM = mixer(MAROON), tS = mixer(SLATE, 0.22, 0.06);
+      const t = ell(jTor, [0, 0.085, 0], [0.068, 0.128, 0.048], (n, p) => (inV(p) ? uS(n) : uM(n)), { detail: 4, line: 0.0036 });
+      coat(jTor, t, 140, tM, { l: [0.04, 0.075], w: [0.016, 0.027], flow: DOWNISH, jit: 0.9, keep: (u, p) => !chest(p), ...DRAG });
+      // (the jacket's fronts, laid close and straight down beside the opening, so its edge is clean)
+      coat(jTor, t, 60, tM, { l: [0.022, 0.034], w: [0.012, 0.017], flow: DOWN, jit: 0.3, keep: (u, p) => chest(p) && !inV(p, 0.007), ...CLOSE, lift: 0.002 });
+      // (the jersey: short touches laid across, close in tone: knitted stuff, flat)
+      coat(jTor, t, 46, tS, { l: [0.012, 0.02], w: [0.009, 0.013], flow: V3(1, 0, 0), jit: 0.3, keep: (u, p) => p.z > 0.01 && p.y > VB + 0.008 && p.y < 0.205 && Math.abs(p.x) < vw(p.y) - 0.005, cell: 2, ...CLOSE, tip: 0.0004, lift: 0.0024 });
+      // (the lapels: his line, in three marks a side; the front edge below the button; the button; the pocket his hand goes to)
+      const fr = (x, y) => dirOn(t, V3(x, y, t.c.z + t.r.z * Math.sqrt(Math.max(0.02, 1 - Math.pow(x / t.r.x, 2) - Math.pow((y - t.c.y) / t.r.y, 2)))));
+      for (const sd of [-1, 1]) for (const [ya, yb] of [[0.2, 0.158], [0.156, 0.114], [0.112, VB - 0.002]]) mark(jTor, t, [0, 0.5, 1].map(q => { const y = lerp(ya, yb, q); return fr(sd * (vw(y) + 0.0015), y); }), 0.0056, INKC, { cell: 0, lift: 0.0046 });
+      mark(jTor, t, [fr(0.002, VB - 0.004), fr(0.005, 0.03), fr(0.011, -0.025)], 0.0042, INKC, { cell: 1, lift: 0.0042 });
+      mark(jTor, t, [fr(0.0015, VB - 0.012), fr(0.0055, VB - 0.012), fr(0.0095, VB - 0.012)], 0.0075, INKC, { cell: 2, lift: 0.0046 });
+      mark(jTor, t, [fr(-0.056, 0.024), fr(-0.044, 0.013), fr(-0.032, 0.009)], 0.0032, INKC, { cell: 1, lift: 0.0042 });
+      // the roll of the jersey, thick and turned over, up to his chin
+      const roll = ell(jTor, [0, 0.2, 0.005], [0.031, 0.021, 0.031], uS, { detail: 3, line: 0.003 });
+      coat(jTor, roll, 44, tS, { l: [0.02, 0.034], w: [0.008, 0.012], flow: V3(1, 0, 0), jit: 0.16, ...CLOSE, tip: 0.0005 });
+      for (const [y, w] of [[0.16, 0.003], [-0.42, 0.0026]]) for (const sd of [-1, 1]) mark(jTor, roll, [V3(sd * 0.05, y, 1), V3(sd * 0.6, y - 0.04, 0.8), V3(sd * 0.98, y - 0.02, 0.15)], w, INKC, { cell: 1, lift: 0.003 });      // its folds
     }
-    const jHead = part(0.0024);
+    const jHead = part();
     {
-      limb(jHead, [0, -0.014, 0], [0, 0.022, 0.002], 0.02, 0.019, FLESH_J, { caps: 0 });
-      const hd = ell(jHead, [0, 0.05, 0.006], [0.04, 0.047, 0.041], FLESH_J, { detail: 3 });
-      const hair = ell(jHead, [0, 0.07, -0.003], [0.0405, 0.034, 0.0425], HAIR_J, { detail: 3 });
-      ell(jHead, [0, 0.046, -0.011], [0.0365, 0.042, 0.0345], HAIR_J, { detail: 2 });                                             // (down the nape, into his collar)
-      for (const sd of [-1, 1]) { ell(jHead, [sd * 0.0405, 0.045, 0.0], [0.0058, 0.0118, 0.008], FLESH_J, { detail: 1 }); ell(jHead, [sd * 0.0372, 0.06, 0.008], [0.0048, 0.012, 0.009], HAIR_J, { detail: 1 }); }
-      coat(jHead, hair, 12, HAIR_J, { l: [0.025, 0.04], w: [0.01, 0.016], flow: V3(0.2, -0.5, -1).normalize(), jit: 0.6, lift: 0.003, keep: p => p.y > 0.068 && p.z < 0.024 });
-      coat(jHead, hd, 6, FLESH_J, { l: [0.018, 0.03], w: [0.009, 0.014], flow: V3(0.1, -1, 0).normalize(), jit: 0.5, lift: 0.0012, tones: [FLESH_J.c[0], FLESH_J.c[0].clone().lerp(FLESH_J.c[1], 0.5)], keep: p => p.z > 0.022 && p.y < 0.07 && p.y > 0.012 });
-      const F = (x, y) => face(hd, x, y), shade = col('#b3623f', 0.1), lip = col('#b0523d', 0.1), eye = col('#55697a', 0.1);
+      const uF = under(FLJ), uH = under(HRJ), tH = mixer(HRJ, 0.5, 0.16), c = new THREE.Color();
+      const SOCK = col('#a85f43', 0.1), SHADE = col('#9a5238', 0.1), LIP = col('#a94a38', 0.1), EYE = col('#3b4a59', 0.08), BROW = col('#3a2220', 0.06);
+      loft(jHead, 0.04, lin(0.0165, 0.0175), n => uF(n), { y0: 0.022, line: 0, seg: 12, rows: 3, caps: false, shrink: 1, dark: 0.9 });
+      // his face: planes first (the forehead in what light there is, the far side and the jaw going down in tone, the
+      // sockets, the shade he draws down one side of the nose and under it, the mouth), and then his few marks on them
+      const facep = u => {
+        c.copy(FLJ.mid[0]).lerp(FLJ.hi[0], 0.6 * smooth(u.y, 0.15, 0.8) * smooth(u.z, 0.2, 0.8)).lerp(FLJ.lo[0], 0.55 * smooth(-u.x, 0.3, 0.95)).lerp(FLJ.lo[0], 0.5 * smooth(-u.y, 0.6, 1));
+        for (const sd of [-1, 1]) c.lerp(SOCK, 0.62 * gz(u, sd * 0.37, 0.12, 0.21, 0.1));
+        c.lerp(SHADE, 0.62 * gz(u, 0.13, -0.02, 0.045, 0.27)).lerp(SHADE, 0.5 * gz(u, 0.02, -0.365, 0.13, 0.035)).lerp(SHADE, 0.28 * gz(u, 0.02, -0.5, 0.15, 0.03));
+        return c.lerp(LIP, 0.7 * gz(u, 0.02, -0.615, 0.15, 0.05)).lerp(SHADE, 0.3 * gz(u, 0.02, -0.76, 0.14, 0.04));
+      };
+      const hd = ell(jHead, [0, 0.045, 0.005], [0.031, 0.0375, 0.033], (n, p) => facep(dirOn({ c: V3(0, 0.045, 0.005), r: V3(0.031 * 0.97, 0.0375 * 0.97, 0.033 * 0.97) }, p)), { detail: 6, shrink: 0.97, dark: 0.96, line: 0.0024 });
+      const nose = ell(jHead, [0.001, 0.0415, 0.0345], [0.0048, 0.0125, 0.0068], n => c.copy(uF(n)).lerp(FLJ.hi[0], 0.3), { detail: 2, shrink: 1, dark: 0.98, line: 0 });
+      const feature = u => Math.max(gz(u, 0.4, 0.2, 0.32, 0.17), gz(u, -0.4, 0.2, 0.32, 0.17), gz(u, 0.02, -0.615, 0.24, 0.08), gz(u, 0.15, 0, 0.07, 0.3));
+      coat(jHead, hd, 120, (n, r, u) => facep(u).clone().multiplyScalar(0.975 + 0.05 * r), { l: [0.006, 0.01], w: [0.005, 0.008], jit: 2.4, keep: u => u.z > 0.12 && u.y < 0.62 && feature(u) < 0.35, cell: 2, tip: 0.0006, lift: 0.0009, ridge: 0.02, tilt: 0.12 });
+      arc(jHead, nose, V3(-0.25, 0.1, 1).normalize(), V3(0, 1, 0), 0.016, 0.0046, FLJ.hi[0], { cell: 2, lift: 0.0006, tip: 0, tilt: 0.05, ridge: 0.02 });      // the light down his nose
       for (const sd of [-1, 1]) {
-        line(jHead, hd, [F(sd * 0.16, 0.27), F(sd * 0.42, 0.33), F(sd * 0.7, 0.24)], 0.002, DARK, 0.0022);                           // the brows
-        almond(jHead, hd, sd * 0.37, 0.07, 0.26, 0.085, eye, 0.0018, -sd * 0.1);
-        line(jHead, hd, [F(sd * 0.24, 0.1), F(sd * 0.37, 0.12), F(sd * 0.5, 0.072)], 0.0015, DARK, 0.0024);                          // and the lids
+        mark(jHead, hd, [fdir(sd * 0.16, 0.27), fdir(sd * 0.42, 0.335), fdir(sd * 0.7, 0.25)], 0.0046, BROW, { cell: 2 });                     // a brow: one mark
+        mark(jHead, hd, [fdir(sd * 0.24, 0.095), fdir(sd * 0.37, 0.09), fdir(sd * 0.52, 0.07)], 0.0062, EYE, { cell: 2 });        // an eye: one small touch, blue-grey
       }
-      const nose = ell(jHead, [0.001, 0.047, 0.006 + 0.041 - 0.0035], [0.0062, 0.0155, 0.0085], FLESH_J, { detail: 2 });
-      line(jHead, hd, [F(0.16, 0.27), F(0.17, 0.17)], 0.002, DARK, 0.0022, 5);                                                         // the nose, in one line from the brow
-      line(jHead, nose, [V3(0.02, 0.058, 0.05), V3(0.02, 0.047, 0.055), V3(0.02, 0.038, 0.055), V3(0.018, 0.033, 0.05)], 0.0019, DARK, 0.001, 10);
-      line(jHead, nose, [V3(-0.012, 0.0325, 0.05), V3(0.0, 0.031, 0.06), V3(0.014, 0.033, 0.05)], 0.0016, DARK, 0.001, 8);
-      line(jHead, hd, [F(-0.13, -0.5), F(0.02, -0.485), F(0.17, -0.5)], 0.0024, shade.clone().multiplyScalar(0.86), 0.0018);          // a little moustache, hardly there
-      almond(jHead, hd, 0.02, -0.61, 0.34, 0.1, lip, 0.0018);
-      line(jHead, hd, [F(-0.15, -0.61), F(0.02, -0.62), F(0.19, -0.605)], 0.0013, DARK, 0.0024);
+      mark(jHead, hd, [fdir(0.16, 0.26), fdir(0.15, 0.02), fdir(0.15, -0.27)], 0.0026, BROW.clone().lerp(SHADE, 0.3), { cell: 0, lift: 0.0026 });      // the nose: his line down one side of it, from the brow
+      mark(jHead, hd, [fdir(-0.14, -0.61), fdir(0.02, -0.62), fdir(0.2, -0.605)], 0.0058, LIP.clone().multiplyScalar(0.9), { cell: 2, lift: 0.0026 });
+      mark(jHead, hd, [fdir(-0.12, -0.615), fdir(0.02, -0.625), fdir(0.16, -0.61)], 0.0018, BROW, { cell: 2, lift: 0.0034 });
+      // his hair: a dark cap, brushed back, its edge the ragged ends of the strokes
+      const hair = ell(jHead, [0, 0.0605, -0.003], [0.0318, 0.0275, 0.0348], uH, { detail: 3, line: 0.0026 });
+      const nape = ell(jHead, [0, 0.04, -0.0095], [0.0285, 0.034, 0.0285], uH, { detail: 2, line: 0 });
+      coat(jHead, hair, 84, tH, { l: [0.018, 0.03], w: [0.009, 0.014], flow: u => V3(u.x * 0.6, -0.5, -1), jit: 0.6, keep: (u, p) => p.z < 0.004 || p.y > 0.079, grow: 1.02, tip: 0.0014 });
+      coat(jHead, hair, 26, tH, { l: [0.009, 0.014], w: [0.007, 0.01], flow: u => V3(Math.sign(u.x || 1), 0.1, -0.5), jit: 0.5, keep: (u, p) => p.z >= 0.004 && p.y > 0.0705 && p.y <= 0.079, grow: 1.02, tip: 0.0008, tilt: 0.14 });      // (along his hairline, not down over his brow)
+      coat(jHead, nape, 26, tH, { l: [0.016, 0.026], w: [0.009, 0.013], flow: DOWN, jit: 0.5, keep: u => u.z < -0.25, grow: 1.02, tip: 0.002 });
+      for (const sd of [-1, 1]) {
+        const ear = ell(jHead, [sd * 0.0312, 0.041, 0.001], [0.0046, 0.0096, 0.0066], n => c.copy(uF(n)).lerp(FLJ.lo[0], 0.4), { detail: 2, shrink: 1, dark: 0.96, line: 0.0016 });
+        arc(jHead, ear, V3(sd, 0.1, 0.3).normalize(), V3(0, 1, 0), 0.012, 0.006, FLJ.mid[1], { cell: 2, lift: 0.0006, tip: 0, tilt: 0.05 });
+        arc(jHead, hair, V3(sd * 0.93, -0.3, 0.32).normalize(), V3(0, -1, 0.2).normalize(), 0.02, 0.008, HRJ.mid[0], { cell: 1, grow: 1.03, tip: 0.002 });      // the hair before his ear
+      }
     }
+    const tT = mixer(TROU, 0.5, 0.14), uT = under(TROU), tSh = mixer(SHOE, 0.4), uSh = under(SHOE);
     const jArmU = part(), jArmF = part(), jThigh = part(), jShin = part();
     {
-      ell(jArmU, [0, -0.002, 0], [0.0275, 0.029, 0.0275], MAROON, { detail: 2 });
-      const u = limb(jArmU, [0, 0, 0], [0, -JK.AU, 0], 0.0245, 0.0215, MAROON, { caps: 2 });
-      coat(jArmU, u, 9, MAROON, { l: [0.045, 0.07], w: [0.016, 0.024], jit: 0.5 });
-      const f = limb(jArmF, [0, 0, 0], [0, -0.088, 0], 0.021, 0.0175, MAROON, { caps: 3 });
-      coat(jArmF, f, 8, MAROON, { l: [0.04, 0.06], w: [0.014, 0.022], jit: 0.5 });
-      const hand = ell(jArmF, [0, -JK.AF, 0.001], [0.0125, 0.018, 0.0095], FLESH_J, { detail: 2 });
-      coat(jArmF, hand, 3, FLESH_J, { l: [0.014, 0.02], w: [0.007, 0.01], jit: 0.4, lift: 0.0015 });
-      const th = limb(jThigh, [0, 0, 0], [0, -JK.TH, 0], 0.034, 0.028, TROU, { caps: 3 });
-      coat(jThigh, th, 7, TROU, { l: [0.05, 0.08], w: [0.016, 0.024], jit: 0.4 });
-      const sh = limb(jShin, [0, 0, 0], [0, -0.114, 0], 0.027, 0.022, TROU, { caps: 1 });
-      coat(jShin, sh, 6, TROU, { l: [0.045, 0.07], w: [0.014, 0.02], jit: 0.4 });
-      ell(jShin, [0, -0.118, 0.014], [0.0185, 0.012, 0.034], SHOE, { detail: 2 });
+      const uM = under(MAROON), tM = mixer(MAROON), uF = under(FLJ), tF = mixer(FLJ, 0.3, 0.06);
+      const sh = ell(jArmU, [0, -0.003, 0], [0.026, 0.027, 0.026], uM, { detail: 2 });
+      coat(jArmU, sh, 26, tM, { l: [0.022, 0.036], w: [0.012, 0.018], keep: u => u.y > -0.2, ...DRAG });
+      const u = loft(jArmU, JK.AU, lin(0.0245, 0.0205), uM);
+      drape(jArmU, u, 34, tM, { l: [0.04, 0.065], w: [0.013, 0.02], ...DRAG });
+      const el = ell(jArmF, [0, 0, 0], [0.0205, 0.0205, 0.0205], uM, { detail: 2, line: 0 });
+      coat(jArmF, el, 12, tM, { l: [0.018, 0.028], w: [0.01, 0.015], ...DRAG });
+      const f = loft(jArmF, 0.092, lin(0.0205, 0.0165), uM);
+      drape(jArmF, f, 30, tM, { l: [0.035, 0.058], w: [0.012, 0.018], ...DRAG });
+      const hand = ell(jArmF, [0, -JK.AF, 0.001], [0.0115, 0.017, 0.009], uF, { detail: 2, shrink: 0.95, dark: 0.92, line: 0.0018 });
+      coat(jArmF, hand, 22, tF, { l: [0.008, 0.013], w: [0.006, 0.009], cell: 2, ...CLOSE });
+      const hip = ell(jThigh, [0, 0, 0], [0.034, 0.034, 0.034], uT, { detail: 2, line: 0 });
+      coat(jThigh, hip, 10, tT, { l: [0.02, 0.03], w: [0.012, 0.018], ...DRAG });
+      const th = loft(jThigh, JK.TH, lin(0.034, 0.0275), uT);
+      drape(jThigh, th, 34, tT, { l: [0.05, 0.085], w: [0.015, 0.023], drift: 0.35, ...DRAG });
+      const kn = ell(jShin, [0, 0, 0], [0.0275, 0.0275, 0.0275], uT, { detail: 2, line: 0 });
+      coat(jShin, kn, 8, tT, { l: [0.018, 0.028], w: [0.011, 0.016], ...DRAG });
+      const shin = loft(jShin, 0.128, t => lerp(0.0275, 0.022, Math.min(1, t * 1.2)) + 0.003 * smooth(t, 0.75, 1), uT, { rows: 5 });
+      drape(jShin, shin, 30, tT, { l: [0.045, 0.075], w: [0.014, 0.021], drift: 0.35, ...DRAG });
+      const shoe = ell(jShin, [0, -0.133, 0.014], [0.019, 0.0125, 0.035], uSh, { detail: 2, line: 0.002 });
+      coat(jShin, shoe, 16, tSh, { l: [0.016, 0.028], w: [0.009, 0.014], flow: V3(0, 0, 1), jit: 0.5, keep: u => u.y > -0.2, ...CLOSE });
     }
 
     // ---------------------------------------------------------- Berthe: the dark dress, the wide white collar
-    const bTor = part(0.0034);
+    const bTor = part();
     {
-      const t = ell(bTor, [0, 0.082, 0], [0.055, 0.1, 0.04], DRESS, { detail: 3 });
-      ell(bTor, [0, 0.004, 0], [0.054, 0.046, 0.05], DRESS, { detail: 2 });
-      coat(bTor, t, 18, DRESS, { l: [0.04, 0.07], w: [0.018, 0.028], flow: DOWNISH, jit: 0.9, keep: p => p.y < 0.115 });
-      // (round the top of an upright ellipsoid: th down from its crown, ph round from the front)
-      const top = (th, ph) => V3(t.c.x + t.r.x * Math.sin(th) * Math.sin(ph), t.c.y + t.r.y * Math.cos(th), t.c.z + t.r.z * Math.sin(th) * Math.cos(ph));
-      const TH0 = 0.26, gap = b => lerp(0.7, 0.06, Math.pow(b, 0.8)), edge = ph => 0.98 + 0.09 * Math.abs(Math.sin(ph * 3.5)) + 0.08 * Math.cos(ph);      // (scalloped; a little deeper in front)
-      const CL = COLLAR.c, cph = (a, b) => lerp(gap(b), TAU - gap(b), a);
-      patch(bTor, t, (a, b) => { const ph = cph(a, b); return top(lerp(TH0, edge(ph), b), ph); }, 60, 5, (a, b, p) => CL[0].clone().lerp(CL[1], smooth(vn(p.x * 90, p.y * 90, p.z * 90), 0.3, 0.7)).lerp(CL[2], 0.5 * smooth(b, 0.55, 1)), 0.0032);
-      line(bTor, t, Array.from({ length: 61 }, (_, i) => { const ph = cph(i / 60, 1); return top(edge(ph) + 0.012, ph); }), 0.0022, col('#59636b', 0.1), 0.004, 120);      // the collar's edge, lost and found
-      for (const sd of [-1, 1]) line(bTor, t, [0, 0.35, 0.7, 1].map(b => top(lerp(TH0, edge(gap(b)), b), sd * (gap(b) - 0.02))), 0.003, LINE, 0.0046, 14);      // where it opens at her throat
-      patch(bTor, t, (a, b) => top(lerp(0.2, 1.04, b), lerp(-gap(b), gap(b), a)), 4, 7, FLESH_B.c[0], 0.0018);
+      const uD = under(DRESS), uW = under(WHITE), uF = under(FLB), tD = mixer(DRESS, 0.5, 0.16), tW = mixer(WHITE, 0.45, 0.08), tF = mixer(FLB, 0.3, 0.05);
+      // (round the top of the ball: th down from its crown, ph round from the front; the collar's scalloped edge, and
+      // the V it opens in at her throat)
+      const TH0 = 0.24, edge = ph => 0.88 + 0.07 * Math.abs(Math.sin(ph * 3.5)) + 0.07 * Math.cos(ph), gapAt = th => lerp(0.8, 0.16, Math.pow(clamp01((th - TH0) / (0.95 - TH0)), 0.8));
+      const zone = u => { const th = Math.acos(Math.max(-1, Math.min(1, u.y))), ph = Math.atan2(u.x, u.z); return th > edge(ph) + 0.02 ? 0 : Math.abs(ph) < gapAt(th) ? 2 : 1; };      // dress, collar, throat
+      const TC = [0, 0.078, 0], TR = [0.05, 0.095, 0.038], tb = { c: V3(...TC), r: V3(TR[0] * 0.93, TR[1] * 0.93, TR[2] * 0.93) };
+      const t = ell(bTor, TC, TR, (n, p) => { const z = zone(dirOn(tb, p)); return z === 1 ? uW(n) : z === 2 ? uF(n) : uD(n); }, { detail: 4, line: 0.0034 });
+      const hipb = ell(bTor, [0, 0.004, 0], [0.05, 0.044, 0.046], uD, { detail: 2, line: 0 });
+      coat(bTor, t, 84, tD, { l: [0.035, 0.06], w: [0.015, 0.024], flow: DOWNISH, jit: 0.9, keep: u => zone(u) === 0 && u.y < 0.7, ...DRAG });
+      coat(bTor, hipb, 22, tD, { l: [0.03, 0.05], w: [0.015, 0.022], flow: ACROSS, jit: 0.8, keep: u => u.y < 0.3, ...DRAG });
+      // the collar: his whites dragged out from her neck over the shoulders, and a round touch for each scallop
+      coat(bTor, t, 70, tW, { l: [0.016, 0.028], w: [0.01, 0.015], flow: u => V3(u.z, 0, -u.x), jit: 0.5, keep: u => { const th = Math.acos(u.y), ph = Math.atan2(u.x, u.z); return zone(u) === 1 && th > TH0 + 0.04 && th < edge(ph) - 0.1 && Math.abs(ph) > gapAt(th) + 0.2; }, cell: 2, ...CLOSE, tip: 0.0005, lift: 0.0028 });
+      for (let i = 0; i < 26; i++) { const ph = lerp(0.42, TAU - 0.42, (i + 0.5) / 26), th = edge(ph) - 0.06, u = V3(Math.sin(th) * Math.sin(ph), Math.cos(th), Math.sin(th) * Math.cos(ph)); arc(bTor, t, u, V3(Math.cos(ph), 0, -Math.sin(ph)), 0.013, 0.011, tW(u, rand()), { cell: 2, lift: 0.003, tip: 0.0005, tilt: 0.1, ridge: 0.03 }); }
+      for (const sd of [-1, 1]) for (const th of [0.42, 0.6, 0.78]) { const ph = sd * (gapAt(th) + 0.13), u = V3(Math.sin(th) * Math.sin(ph), Math.cos(th), Math.sin(th) * Math.cos(ph)); arc(bTor, t, u, V3(0, -1, 0.3).normalize(), 0.016, 0.01, tW(u, rand()), { cell: 2, lift: 0.003, tip: 0.0005, tilt: 0.1 }); }      // its two fronts, either side of the V
+      coat(bTor, t, 44, tF, { l: [0.009, 0.015], w: [0.007, 0.011], jit: 1.2, keep: u => zone(u) === 2 && Math.acos(u.y) > 0.2, cell: 2, ...CLOSE, lift: 0.003 });
+      for (const sd of [-1, 1]) mark(bTor, t, [0.3, 0.6, 0.98].map(th => V3(Math.sin(th) * Math.sin(sd * gapAt(th)), Math.cos(th), Math.sin(th) * Math.cos(gapAt(th)))), 0.003, INKC, { cell: 0, lift: 0.0042 });      // where it opens at her throat
     }
-    const bHead = part(0.0022);
+    const bHead = part();
     {
-      limb(bHead, [0, -0.014, 0], [0, 0.036, 0.002], 0.0135, 0.0125, FLESH_B, { caps: 0 });
-      const hd = ell(bHead, [0, 0.07, 0.005], [0.03, 0.04, 0.033], FLESH_B, { detail: 3 });
-      const hair = ell(bHead, [0, 0.082, -0.004], [0.0336, 0.034, 0.036], HAIR_B, { detail: 3 });
-      for (const sd of [-1, 1]) ell(bHead, [sd * 0.0255, 0.064, -0.005], [0.0105, 0.023, 0.021], HAIR_B, { detail: 2 });        // drawn down over her ears
-      ell(bHead, [0, 0.066, -0.036], [0.015, 0.0145, 0.012], HAIR_B, { detail: 2 });                                             // and knotted behind
-      coat(bHead, hair, 10, HAIR_B, { l: [0.022, 0.036], w: [0.009, 0.014], flow: V3(0.5, -1, -0.3).normalize(), jit: 0.5, lift: 0.003, keep: p => p.y > 0.088 || p.z < 0 });
-      coat(bHead, hd, 4, FLESH_B, { l: [0.016, 0.026], w: [0.008, 0.012], flow: V3(0.1, -1, 0).normalize(), jit: 0.5, lift: 0.0011, tones: [FLESH_B.c[0], FLESH_B.c[0].clone().lerp(FLESH_B.c[1], 0.5)], keep: p => p.z > 0.02 && p.y < 0.062 && p.y > 0.036 });
-      const F = (x, y) => face(hd, x, y), rose = col('#dc6a58', 0.1), lip = col('#b53a2c', 0.08), flesh = FLESH_B.c[0], eye = col('#1f191b', 0.04);
+      const uF = under(FLB), uH = under(HRB), tH = mixer(HRB, 0.5, 0.2), c = new THREE.Color();
+      const ROSE = col('#de6b58', 0.08), SOCK = col('#c0805e', 0.1), SHADE = col('#b2704f', 0.1), LIP = col('#b53a2c', 0.08), EYE = col('#201a1c', 0.04), BROW = col('#2a1c1c', 0.05);
+      const nk = loft(bHead, 0.05, lin(0.0122, 0.0134), n => uF(n), { y0: 0.036, line: 0.0016, seg: 12, rows: 4, caps: false, shrink: 0.97, dark: 0.94 });
+      drape(bHead, nk, 20, mixer(FLB, 0.25, 0.05), { l: [0.014, 0.024], w: [0.007, 0.011], cell: 2, ...CLOSE });
+      // her face: planes (the forehead, his rose on both cheeks, the sockets, the shade down one side of the nose and
+      // under it, the mouth), and his few marks
+      const facep = u => {
+        c.copy(FLB.mid[0]).lerp(FLB.hi[0], 0.55 * smooth(u.y, 0.2, 0.85) * smooth(u.z, 0.2, 0.8)).lerp(FLB.lo[0], 0.4 * smooth(-u.x, 0.4, 0.95)).lerp(FLB.lo[0], 0.45 * smooth(-u.y, 0.62, 1));
+        for (const sd of [-1, 1]) c.lerp(ROSE, 0.66 * gz(u, sd * 0.55, -0.1, 0.25, 0.21)).lerp(SOCK, 0.42 * gz(u, sd * 0.43, 0.33, 0.24, 0.1));
+        c.lerp(SHADE, 0.5 * gz(u, 0.1, 0.12, 0.04, 0.3)).lerp(SHADE, 0.42 * gz(u, 0.01, -0.225, 0.12, 0.032));
+        return c.lerp(LIP, 0.8 * gz(u, 0, -0.5, 0.18, 0.055)).lerp(SHADE, 0.28 * gz(u, 0, -0.65, 0.14, 0.04));
+      };
+      const HC = [0, 0.058, 0.004], HR = [0.0265, 0.034, 0.029];
+      const hd = ell(bHead, HC, HR, (n, p) => facep(dirOn({ c: V3(...HC), r: V3(HR[0] * 0.97, HR[1] * 0.97, HR[2] * 0.97) }, p)), { detail: 6, shrink: 0.97, dark: 0.96, line: 0.0022 });
+      const nose = ell(bHead, [0.0005, 0.0605, 0.0306], [0.0038, 0.0112, 0.0056], n => c.copy(uF(n)).lerp(FLB.hi[0], 0.3), { detail: 2, shrink: 1, dark: 0.98, line: 0 });
+      const feature = u => Math.max(gz(u, 0.44, 0.42, 0.34, 0.2), gz(u, -0.44, 0.42, 0.34, 0.2), gz(u, 0, -0.5, 0.28, 0.09), gz(u, 0.12, 0.2, 0.07, 0.34));
+      coat(bHead, hd, 120, (n, r, u) => facep(u).clone().multiplyScalar(0.975 + 0.05 * r), { l: [0.0055, 0.009], w: [0.0045, 0.007], jit: 2.4, keep: u => u.z > 0.12 && u.y < 0.72 && feature(u) < 0.35, cell: 2, tip: 0.0006, lift: 0.0009, ridge: 0.02, tilt: 0.12 });
+      arc(bHead, nose, V3(-0.25, 0.1, 1).normalize(), V3(0, 1, 0), 0.015, 0.0038, FLB.hi[0], { cell: 2, lift: 0.0006, tip: 0, tilt: 0.05, ridge: 0.02 });
       for (const sd of [-1, 1]) {
-        patch(bHead, hd, (a, b) => { const an = a * TAU, r = 0.25 * b; return F(sd * 0.55 + Math.cos(an) * r, -0.1 + Math.sin(an) * r * 0.9); }, 12, 3, (a, b) => rose.clone().lerp(flesh, smooth(b, 0.25, 1)), 0.0012);      // his rose on her cheeks
-        line(bHead, hd, [F(sd * 0.15, 0.53), F(sd * 0.42, 0.575), F(sd * 0.72, 0.43)], 0.0015, DARK, 0.0022);
-        almond(bHead, hd, sd * 0.43, 0.29, 0.38, 0.105, eye, 0.0018, -sd * 0.16);
+        mark(bHead, hd, [fdir(sd * 0.15, 0.53), fdir(sd * 0.42, 0.58), fdir(sd * 0.72, 0.45)], 0.0034, BROW, { cell: 2 });
+        mark(bHead, hd, [fdir(sd * 0.27, 0.305), fdir(sd * 0.43, 0.295), fdir(sd * 0.6, 0.26)], 0.0054, EYE, { cell: 2 });       // her dark eyes: one almond touch each
       }
-      const nose = ell(bHead, [0.0005, 0.0745, 0.005 + 0.033 - 0.003], [0.0046, 0.0135, 0.0068], FLESH_B, { detail: 2 });
-      line(bHead, hd, [F(0.15, 0.53), F(0.13, 0.42)], 0.0015, DARK, 0.0022, 5);
-      line(bHead, nose, [V3(0.02, 0.085, 0.04), V3(0.02, 0.075, 0.045), V3(0.02, 0.067, 0.045), V3(0.016, 0.0625, 0.04)], 0.0016, DARK, 0.001, 10);
-      line(bHead, nose, [V3(-0.01, 0.0622, 0.04), V3(0.0, 0.061, 0.05), V3(0.012, 0.0625, 0.04)], 0.0013, DARK, 0.001, 8);
-      almond(bHead, hd, 0.0, -0.5, 0.44, 0.13, lip, 0.0018, 0.03);
-      line(bHead, hd, [F(-0.2, -0.505), F(0.0, -0.52), F(0.22, -0.485)], 0.0011, col('#55201c', 0.05), 0.0024);
+      mark(bHead, hd, [fdir(0.15, 0.52), fdir(0.12, 0.2), fdir(0.115, -0.13)], 0.002, BROW.clone().lerp(SHADE, 0.35), { cell: 0, lift: 0.0026 });
+      mark(bHead, hd, [fdir(-0.17, -0.5), fdir(0, -0.51), fdir(0.2, -0.485)], 0.0056, LIP, { cell: 2, lift: 0.0026 });
+      mark(bHead, hd, [fdir(-0.15, -0.505), fdir(0, -0.515), fdir(0.17, -0.49)], 0.0016, col('#55201c', 0.05), { cell: 2, lift: 0.0034 });
+      // her hair: dark, parted, drawn down over her ears and knotted behind
+      const hair = ell(bHead, [0, 0.0685, -0.004], [0.0296, 0.0295, 0.0318], uH, { detail: 3, line: 0.0024 });
+      coat(bHead, hair, 78, tH, { l: [0.016, 0.028], w: [0.008, 0.013], flow: u => V3(Math.sign(u.x || 1) * 0.9, -1, -0.35), jit: 0.5, keep: (u, p) => p.z < 0.002 || p.y > 0.093, grow: 1.02, tip: 0.0014 });
+      coat(bHead, hair, 30, tH, { l: [0.008, 0.013], w: [0.006, 0.009], flow: u => V3(Math.sign(u.x || 1), -0.45, -0.3), jit: 0.4, keep: (u, p) => p.z >= 0.002 && p.y > 0.0855 && p.y <= 0.093, grow: 1.02, tip: 0.0008, tilt: 0.14 });      // (from her parting out along the hairline)
+      for (const sd of [-1, 1]) { const lobe = ell(bHead, [sd * 0.0222, 0.052, -0.004], [0.0094, 0.021, 0.019], uH, { detail: 2, line: 0.002 }); coat(bHead, lobe, 26, tH, { l: [0.014, 0.024], w: [0.008, 0.012], flow: DOWN, jit: 0.5, keep: u => u.x * sd > -0.2, grow: 1.03, tip: 0.002 }); }
+      const bun = ell(bHead, [0, 0.055, -0.032], [0.0135, 0.013, 0.011], uH, { detail: 2, line: 0.002 });
+      coat(bHead, bun, 22, tH, { l: [0.012, 0.02], w: [0.007, 0.011], flow: ACROSS, jit: 1.2, grow: 1.03, tip: 0.002 });
     }
-    const bArmU = part(), bArmF = part(), bSkU = part(), bSkL = part(), bShoe = part(0.0022);
+    const bArmU = part(), bArmF = part(), bSkU = part(), bSkL = part(), bShoe = part();
     {
-      ell(bArmU, [0, 0, 0], [0.0215, 0.0215, 0.0215], DRESS, { detail: 2 });
-      const u = limb(bArmU, [0, 0, 0], [0, -BK.AU, 0], 0.0195, 0.0165, DRESS, { caps: 2 });
-      coat(bArmU, u, 6, DRESS, { l: [0.035, 0.055], w: [0.013, 0.02], jit: 0.5 });
-      const f = limb(bArmF, [0, 0, 0], [0, -0.068, 0], 0.016, 0.013, DRESS, { caps: 3 });
-      coat(bArmF, f, 5, DRESS, { l: [0.03, 0.045], w: [0.011, 0.016], jit: 0.5 });
-      ell(bArmF, [0, -BK.AF, 0.001], [0.0095, 0.0135, 0.0075], FLESH_B, { detail: 2 });
-      const a = limb(bSkU, [0, 0, 0], [0, -BK.TH, 0], 0.05, 0.056, DRESS, { seg: 18, caps: 3, detail: 2 });
-      coat(bSkU, a, 22, DRESS, { l: [0.05, 0.085], w: [0.02, 0.032], jit: 0.5 });
-      const b = limb(bSkL, [0, 0, 0], [0, -0.103, 0], 0.056, 0.074, DRESS, { seg: 18, caps: 1, detail: 2 });
-      coat(bSkL, b, 26, DRESS, { l: [0.055, 0.09], w: [0.02, 0.034], jit: 0.4 });
-      limb(bShoe, [0, 0.05, -0.004], [0, 0.016, 0], 0.0085, 0.0075, SHOE, { caps: 0, seg: 8 });
-      ell(bShoe, [0, 0.0115, 0.01], [0.0125, 0.0115, 0.026], SHOE, { detail: 2 });
+      const uD = under(DRESS), tD = mixer(DRESS, 0.5, 0.16), uF = under(FLB), tF = mixer(FLB, 0.3, 0.05), cF = new THREE.Color();
+      const sh = ell(bArmU, [0, -0.002, 0], [0.0195, 0.0205, 0.0195], uD, { detail: 2 });
+      coat(bArmU, sh, 22, tD, { l: [0.018, 0.03], w: [0.01, 0.015], keep: u => u.y > -0.2, ...DRAG });
+      const u = loft(bArmU, BK.AU, lin(0.0182, 0.0152), uD);
+      drape(bArmU, u, 26, tD, { l: [0.03, 0.05], w: [0.011, 0.017], ...DRAG });
+      const el = ell(bArmF, [0, 0, 0], [0.0152, 0.0152, 0.0152], uD, { detail: 2, line: 0 });
+      coat(bArmF, el, 8, tD, { l: [0.014, 0.022], w: [0.009, 0.013], ...DRAG });
+      const f = loft(bArmF, 0.071, lin(0.0152, 0.0118), uD);
+      drape(bArmF, f, 24, tD, { l: [0.028, 0.045], w: [0.01, 0.015], ...DRAG });
+      const hand = ell(bArmF, [0, -BK.AF, 0.001], [0.0085, 0.0125, 0.007], uF, { detail: 2, shrink: 0.95, dark: 0.92, line: 0.0016 });
+      coat(bArmF, hand, 18, tF, { l: [0.007, 0.011], w: [0.005, 0.008], cell: 2, ...CLOSE });
+      // the skirt: long folds that deepen to the hem, lighter along their tops and dark in the hollows
+      const fold = ph => Math.cos(7 * ph + 0.7 * Math.sin(3 * ph + 1));
+      const foldTone = (S, amt) => { const m = mixer(S, 0.5, 0.16); return (n, r, t, ph) => m(n, r).lerp(fold(ph) > 0 ? S.hi[0] : S.lo[0], amt * Math.abs(fold(ph)) * (0.3 + 0.7 * t)); };
+      const hipj = ell(bSkU, [0, 0, 0], [0.046, 0.046, 0.046], uD, { detail: 2, line: 0 });
+      coat(bSkU, hipj, 20, tD, { l: [0.025, 0.04], w: [0.014, 0.02], ...DRAG });
+      const a = loft(bSkU, BK.TH, (t, ph) => lerp(0.046, 0.052, t) * (1 + 0.025 * t * fold(ph)), (n, p) => uD(n), { seg: 24, rows: 4 });
+      drape(bSkU, a, 60, foldTone(DRESS, 0.3), { l: [0.05, 0.085], w: [0.016, 0.026], drift: 0.25, ...DRAG });
+      const kn = ell(bSkL, [0, 0, 0], [0.052, 0.05, 0.052], uD, { detail: 2, line: 0 });
+      coat(bSkL, kn, 22, tD, { l: [0.025, 0.04], w: [0.014, 0.02], keep: u => u.y > 0.1, ...CLOSE });
+      const SK = (t, ph) => lerp(0.052, 0.071, Math.pow(t, 0.8)) * (1 + (0.02 + 0.085 * t) * fold(ph));
+      const b = loft(bSkL, 0.108, SK, (n, p) => { const ph = Math.atan2(p.z, p.x), t = clamp01(-p.y / 0.108); return cF.copy(uD(n)).lerp(fold(ph) > 0 ? DRESS.hi[0] : DRESS.lo[1], 0.5 * Math.abs(fold(ph)) * (0.3 + 0.7 * t)); }, { seg: 35, rows: 5, line: 0.0034 });
+      drape(bSkL, b, 116, foldTone(DRESS, 0.55), { l: [0.045, 0.085], w: [0.012, 0.02], drift: 0.12, ...DRAG });
+      loft(bShoe, 0.036, lin(0.0085, 0.0075), n => uSh(n), { y0: 0.05, line: 0, seg: 8, rows: 2, shrink: 1 });
+      const shoe = ell(bShoe, [0, 0.0115, 0.01], [0.0125, 0.0115, 0.026], uSh, { detail: 2, line: 0.0018 });
+      coat(bShoe, shoe, 12, tSh, { l: [0.012, 0.02], w: [0.007, 0.011], flow: V3(0, 0, 1), jit: 0.5, keep: u => u.y > -0.2, ...CLOSE });
     }
-    // ---------------------------------------------------------- the stool (ours: the picture stops above it)
-    const stool = part(0.0028);
+    // ---------------------------------------------------------- the stool (ours: the picture stops above it), in the
+    // ochre of his panel, dragged along the grain
+    const stool = part();
     {
-      { const g = shape.lathe([[0.001, 0.088], [0.056, 0.088], [0.062, 0.096], [0.057, 0.104], [0.001, 0.104]], 20, 0xffffff); tint(g, WOOD, 5.1); stool.solids.push(g); }
-      for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const lg = limb(stool, [sx * 0.036, 0.09, sz * 0.036], [sx * 0.05, 0.004, sz * 0.05], 0.0072, 0.006, WOOD, { caps: 2, seg: 8 }); coat(stool, lg, 2, WOOD, { l: [0.03, 0.05], w: [0.007, 0.009], jit: 0.2, lift: 0.002 }); }
+      const uW = under(WOOD), tW = mixer(WOOD, 0.5, 0.14);
+      const seat = ell(stool, [0, 0.097, 0], [0.06, 0.0095, 0.06], uW, { detail: 3, line: 0.0026, shrink: 0.95 });
+      coat(stool, seat, 34, tW, { l: [0.03, 0.055], w: [0.011, 0.017], flow: V3(1, 0, 0.2), jit: 0.35, keep: u => u.y > 0.25, ...CLOSE, lift: 0.0018 });
+      coat(stool, seat, 18, tW, { l: [0.02, 0.034], w: [0.007, 0.01], flow: ACROSS, jit: 0.3, keep: u => Math.abs(u.y) < 0.25, ...CLOSE });
+      for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const top = V3(sx * 0.036, 0.094, sz * 0.036), foot = V3(sx * 0.05, 0.0, sz * 0.05), ax = foot.clone().sub(top), len = ax.length();
+        const xf = new THREE.Matrix4().compose(top, new THREE.Quaternion().setFromUnitVectors(V3(0, -1, 0), ax.normalize()), V3(1, 1, 1));
+        const lg = loft(stool, len, lin(0.0078, 0.0062), n => uW(n), { xf, seg: 8, rows: 3, line: 0.0018, shrink: 0.92 });
+        drape(stool, lg, 7, tW, { l: [0.03, 0.05], w: [0.006, 0.009], drift: 0.2, ...CLOSE });
+      }
     }
 
     // ---------------------------------------------------------- the rig: the two of them and the stool, one draw call
-    const geos = { stool: finish(stool), jTor: finish(jTor), jHead: finish(jHead), jArmU: finish(jArmU), jArmF: finish(jArmF), jThigh: finish(jThigh), jShin: finish(jShin),
-      bTor: finish(bTor), bHead: finish(bHead), bArmU: finish(bArmU), bArmF: finish(bArmF), bSkU: finish(bSkU), bSkL: finish(bSkL), bShoe: finish(bShoe) };
-    let total = 0; for (const g of Object.values(geos)) total += g.attributes.position.count;
-    const pm = L.paint({ rough: 0.95, glow: 0.52 }); pm.color.setScalar(0.6);       // (flat, as his paint is: mostly its own colour, a little of the room's light)
-    // And scrubbed: the drag of a nearly dry brush down every form, and the weave under it, in each part's own space
-    // (so it stays with the form as the figure moves).
-    { const prev = pm.onBeforeCompile, key = pm.customProgramCacheKey();
-      pm.onBeforeCompile = (sh, r) => {
-        prev(sh, r);
-        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vOwn;').replace('#include <begin_vertex>', '#include <begin_vertex>\n  vOwn = position;');
-        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vOwn; float dragK = 1.0;
-float dH(vec3 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973)); p += dot(p, p.yxz + 33.33); return fract((p.x + p.y) * p.z); }
-float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(mix(dH(i), dH(i + vec3(1, 0, 0)), f.x), mix(dH(i + vec3(0, 1, 0)), dH(i + vec3(1, 1, 0)), f.x), f.y),
-             mix(mix(dH(i + vec3(0, 0, 1)), dH(i + vec3(1, 0, 1)), f.x), mix(dH(i + vec3(0, 1, 1)), dH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }`)
-          .replace('#include <color_fragment>', `#include <color_fragment>
-  { float a = dN(vOwn * vec3(230.0, 34.0, 230.0)), b = dN(vOwn * vec3(90.0, 18.0, 90.0) + 7.0), w = sin(vOwn.y * 2100.0) * sin((vOwn.x + vOwn.z) * 2100.0);
-    dragK = 0.87 + 0.2 * a + 0.12 * (b - 0.5) + 0.02 * w; diffuseColor.rgb *= dragK; }`)
-          .replace('totalEmissiveRadiance *= vColor.rgb;', 'totalEmissiveRadiance *= vColor.rgb * dragK;');
-      };
-      pm.customProgramCacheKey = () => key + '|modigliani-drag'; }
-    const rig = this.rig = L.rig(24, total + 64, pm), gid = {}; for (const [k, g] of Object.entries(geos)) gid[k] = rig.geo(g);
+    const parts = { stool, jTor, jHead, jArmU, jArmF, jThigh, jShin, bTor, bHead, bArmU, bArmF, bSkU, bSkL, bShoe };
+    let total = 0; for (const p of Object.values(parts)) total += p.pos.length / 3;
+    // (flat, as his paint is: mostly its own colour, a little of the room's light; the brush's print is its bristles
+    // and its edge. His line is only ever seen from inside: its far side, round the form.)
+    const pm = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x9c9c9c, map: brushPrint(), alphaTest: 0.34, roughness: 0.95, metalness: 0, emissive: 0xffffff, emissiveIntensity: 0.5, side: THREE.DoubleSide });
+    pm.onBeforeCompile = sh => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  if (vMapUv.y > 1.5 && !gl_FrontFacing) discard;')
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= vColor.rgb;\n#ifdef USE_MAP\n  totalEmissiveRadiance *= sampledDiffuseColor.rgb;\n#endif');
+    };
+    pm.customProgramCacheKey = () => 'modigliani-sitters';
+    const rig = this.rig = L.rig(24, total + 64, pm), gid = {};
+    for (const [k, p] of Object.entries(parts)) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(p.pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(p.nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(p.col, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(p.uv, 2));
+      gid[k] = rig.geo(g); p.pos = p.nor = p.col = p.uv = null;
+    }
     const I = this.I = { stool: rig.add(gid.stool), jTor: rig.add(gid.jTor), jHead: rig.add(gid.jHead), jAU: [rig.add(gid.jArmU), rig.add(gid.jArmU)], jAF: [rig.add(gid.jArmF), rig.add(gid.jArmF)],
       jTh: [rig.add(gid.jThigh), rig.add(gid.jThigh)], jSh: [rig.add(gid.jShin), rig.add(gid.jShin)],
       bTor: rig.add(gid.bTor), bHead: rig.add(gid.bHead), bAU: [rig.add(gid.bArmU), rig.add(gid.bArmU)], bAF: [rig.add(gid.bArmF), rig.add(gid.bArmF)], bSkU: rig.add(gid.bSkU), bSkL: rig.add(gid.bSkL), bSh: [rig.add(gid.bShoe), rig.add(gid.bShoe)] };
@@ -382,7 +510,7 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     this.blobs = L.blobs(3, { y: L.y + 0.012, fade: true }); this.blobs.renderOrder = 6;
 
     // ---------------------------------------------------------- their ways in, and the sound
-    this.bWay = way(B_WAY, BK.STRIDE); this.jWay = way(J_WAY, JK.STRIDE);
+    this.bWay = way(B_WAY, BK.STRIDE * SC); this.jWay = way(J_WAY, JK.STRIDE * SC);
     this.J = this.newState(); this.Bs = this.newState(); this.J0 = this.newState(); this.B0 = this.newState(); this.o = {};
     this.band = this.makeScore(L);
     this.hideAll(); this.T = 0;
@@ -485,7 +613,7 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     mat.customProgramCacheKey = () => 'modigliani-room';
     const m = this.room = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), mat); m.name = 'room';
     // (a flat standing just clear of the skirting, which is 3.5 cm proud of the wall, and in front of the lamp's wash)
-    L.at((BU0 + BU1) / 2, L.y + BH / 2 - L.cy, -L.wall + 0.046, m.position); m.rotation.y = L.yawOut; m.renderOrder = 5;
+    L.at((BU0 + BU1) / 2 * SC, L.y + BH * SC / 2 - L.cy, -L.wall + 0.046, m.position); m.rotation.y = L.yawOut; m.scale.set(SC, SC, 1); m.renderOrder = 5;
     L.add(m);
   },
 
@@ -522,7 +650,7 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   back(L) {
     this.bT = this.T || 0;
     Object.assign(this.J0, this.J); Object.assign(this.B0, this.Bs);
-    const home = (s, via, stride) => (s.vis ? way(s.u < 0.5 && s.out > 0.12 ? [[s.u, s.out], ...via, [0.66, 0.1], DOOR] : [[s.u, s.out], [lerp(s.u, 0.66, 0.6), lerp(s.out, DOOR[1], 0.5)], DOOR], stride) : null);
+    const home = (s, via, stride) => (s.vis ? way(s.u < 0.5 * SC && s.out > 0.12 * SC ? [[s.u, s.out], ...via.map(sc2), sc2([0.66, 0.1]), DOOR] : [[s.u, s.out], [lerp(s.u, DOOR[0], 0.6), lerp(s.out, DOOR[1], 0.5)], DOOR], stride * SC) : null);
     this.jHome = home(this.J0, [[0.36, 0.28]], JK.STRIDE); this.bHome = home(this.B0, [[0.4, 0.6]], BK.STRIDE);
     this.show0 = this.ru.uShow.value; this.write0 = this.ru.uWrite.value;
     if (!L.quiet && L.voice().ctx) { const v = L.voice(); v.note(415.3, 0.9, { at: 0.15, vol: 0.014, type: 'triangle', attack: 0.03 }); v.note(164.81, 1.2, { at: 0.55, vol: 0.018, type: 'triangle', attack: 0.03 }); }
@@ -594,8 +722,8 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     const x = (a * a - b * b + dist * dist) / (2 * dist), h = Math.sqrt(Math.max(0, a * a - x * x));
     V.p.copy(pole).addScaledVector(V.d, -pole.dot(V.d)); if (V.p.lengthSq() < 1e-8) V.p.set(1, 0, 0); V.p.normalize();
     V.el.copy(S).addScaledVector(V.d, x).addScaledVector(V.p, h); V.tip.copy(S).addScaledVector(V.d, dist);
-    M1.compose(S, V.q.setFromUnitVectors(V.down, V.w.copy(V.el).sub(S).normalize()), V.one);
-    M2.compose(V.el, V.q.setFromUnitVectors(V.down, V.w.copy(V.tip).sub(V.el).normalize()), V.one);
+    M1.compose(S, V.q.setFromUnitVectors(V.down, V.w.copy(V.el).sub(S).normalize()), V.sc);
+    M2.compose(V.el, V.q.setFromUnitVectors(V.down, V.w.copy(V.tip).sub(V.el).normalize()), V.sc);
   },
 
   poseB(L, s) {
@@ -603,7 +731,7 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     for (const i of this.bParts) rig.show(i, s.vis);
     if (!s.vis) return;
     const th = 1.5 * s.sit, sn = Math.sin(s.ph), walk = s.amp * (1 - clamp01(s.sit * 3)), bob = -0.005 * Math.abs(sn) * walk, br = 0.0012 * Math.sin(s.breath * 1.9);
-    L.floor(s.u, s.out, V.v); B.set(M.bRoot, V.v.x, V.v.y, V.v.z, s.yaw, 0, 0);
+    L.floor(s.u, s.out, V.v); B.set(M.bRoot, V.v.x, V.v.y, V.v.z, s.yaw, 0, 0, SC);
     const hy = BK.KNEE + BK.TH * Math.cos(th) + bob, hz = -BK.TH * Math.sin(th);
     B.child(M.bTor, M.bRoot, 0, hy + br, hz, 0, s.lean, s.sway + 0.03 * sn * walk);
     B.child(M.bHead, M.bTor, 0, BK.NECK, 0, s.hy, s.hp, s.hr);
@@ -611,17 +739,17 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     B.child(M.bSkL, M.bRoot, 0, BK.KNEE + bob, 0, 0, 0.05 * sn * walk, 0);
     for (let k = 0; k < 2; k++) {
       const side = k ? 1 : -1;
-      B.child(M.bSh[k], M.bRoot, side * 0.023, 0, 0.012 + side * sn * 0.045 * walk + 0.012 * s.sit, side * 0.12, 0, 0);
+      B.child(M.bSh[k], M.bRoot, side * 0.021, 0, 0.012 + side * sn * 0.045 * walk + 0.012 * s.sit, side * 0.12, 0, 0);
       // her arms: at her sides as she walks; her hands together in her lap when she sits
       V.a.set(side * BK.SH[0], BK.SH[1], 0).applyMatrix4(M.bTor);
-      this.hang.set(side * 0.068, hy - 0.006, 0.012 - side * sn * 0.03 * walk).applyMatrix4(M.bRoot);
-      this.tg.set(side * 0.012, 0.062, 0.083).applyMatrix4(M.bTor); this.tg.lerpVectors(this.hang, this.tg, s.lap);
+      this.hang.set(side * 0.06, hy - 0.018, 0.012 - side * sn * 0.03 * walk).applyMatrix4(M.bRoot);
+      this.tg.set(side * 0.011, 0.058, 0.078).applyMatrix4(M.bTor); this.tg.lerpVectors(this.hang, this.tg, s.lap);
       V.pole.set(side * 1, -0.25, -0.7).transformDirection(M.bRoot);
-      this.arm(V.a, this.tg, V.pole, BK.AU, BK.AF, M.bAU[k], M.bAF[k]);
+      this.arm(V.a, this.tg, V.pole, BK.AU * SC, BK.AF * SC, M.bAU[k], M.bAF[k]);
       rig.mat(I.bAU[k], M.bAU[k]); rig.mat(I.bAF[k], M.bAF[k]); rig.mat(I.bSh[k], M.bSh[k]);
     }
     rig.mat(I.bTor, M.bTor); rig.mat(I.bHead, M.bHead); rig.mat(I.bSkU, M.bSkU); rig.mat(I.bSkL, M.bSkL);
-    this.shoulder.set(BK.SH[0] - 0.004, BK.SH[1] + 0.029, 0.006).applyMatrix4(M.bTor);      // where his hand will lie
+    this.shoulder.set(BK.SH[0] - 0.004, BK.SH[1] + 0.028, 0.006).applyMatrix4(M.bTor);      // where his hand will lie
   },
 
   poseJ(L, s) {
@@ -629,7 +757,7 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     for (const i of this.jParts) rig.show(i, s.vis);
     if (!s.vis) return;
     const A = JK.SWING * s.amp, sn = Math.sin(s.ph), cs = Math.cos(s.ph), dy = JK.LEG * (Math.cos(A * Math.abs(sn)) - 1), br = 0.0014 * Math.sin(s.breath * 1.6 + 1);
-    L.floor(s.u, s.out, V.v); B.set(M.jRoot, V.v.x, V.v.y, V.v.z, s.yaw, 0, 0);
+    L.floor(s.u, s.out, V.v); B.set(M.jRoot, V.v.x, V.v.y, V.v.z, s.yaw, 0, 0, SC);
     B.child(M.jTor, M.jRoot, 0, JK.HIP + dy + br, 0, 0.08 * sn * s.amp, s.lean + 0.04 * Math.abs(sn) * s.amp, s.sway);
     B.child(M.jHead, M.jTor, 0, JK.NECK[0], JK.NECK[1], s.hy, s.hp, s.hr);
     for (let k = 0; k < 2; k++) {
@@ -639,14 +767,14 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       rig.mat(I.jTh[k], M.jTh[k]); rig.mat(I.jSh[k], M.jSh[k]);
       // his arms: swinging as he walks; then the right to his pocket, and the left to her shoulder
       V.a.set(side * JK.SH[0], JK.SH[1], 0).applyMatrix4(M.jTor);
-      this.hang.set(side * 0.082, JK.HIP + dy - 0.034, 0.012 - side * sn * 0.05 * s.amp).applyMatrix4(M.jRoot);
-      if (k === 0) { this.tg.set(-0.062, 0.006, 0.03).applyMatrix4(M.jTor); this.tg.lerpVectors(this.hang, this.tg, s.pocket); V.pole.set(-1, -0.1, -0.9); }
+      this.hang.set(side * 0.08, JK.HIP + dy - 0.026, 0.012 - side * sn * 0.05 * s.amp).applyMatrix4(M.jRoot);
+      if (k === 0) { this.tg.set(-0.058, 0.004, 0.03).applyMatrix4(M.jTor); this.tg.lerpVectors(this.hang, this.tg, s.pocket); V.pole.set(-1, -0.1, -0.9); }
       else {
-        const r = s.reach; this.tg.copy(this.shoulder); this.tg.y += s.hov; this.sh.set(-0.3, 0, -0.5).transformDirection(M.jRoot); this.tg.addScaledVector(this.sh, s.hov * 0.5);
-        this.tg.lerpVectors(this.hang, this.tg, r); this.tg.y += 0.035 * Math.sin(PI * r); V.pole.set(0.7, -0.35, -0.7);
+        const r = s.reach; this.tg.copy(this.shoulder); this.tg.y += s.hov * SC; this.sh.set(-0.3, 0, -0.5).transformDirection(M.jRoot); this.tg.addScaledVector(this.sh, s.hov * 0.5 * SC);
+        this.tg.lerpVectors(this.hang, this.tg, r); this.tg.y += 0.035 * SC * Math.sin(PI * r); V.pole.set(0.7, -0.35, -0.7);
       }
       V.pole.transformDirection(M.jRoot);
-      this.arm(V.a, this.tg, V.pole, JK.AU, JK.AF, M.jAU[k], M.jAF[k]);
+      this.arm(V.a, this.tg, V.pole, JK.AU * SC, JK.AF * SC, M.jAU[k], M.jAF[k]);
       rig.mat(I.jAU[k], M.jAU[k]); rig.mat(I.jAF[k], M.jAF[k]);
     }
     rig.mat(I.jTor, M.jTor); rig.mat(I.jHead, M.jHead);
@@ -664,7 +792,7 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     // the stool stands up out of the floor, and goes back into it last
     const sk = (calm ? ease.out : ease.outBack)(ramp(T, 0.12, 0.5)) * (back ? 1 - ease.in(ramp(r, 0.5, 0.74)) : 1);
     this.rig.show(this.I.stool, sk > 0.01);
-    L.floor(STOOL[0], STOOL[1], V.v); this.B.set(this.M.stool, V.v.x, V.v.y, V.v.z, L.yawOut + 0.5, 0, 0, V.s.set(0.6 + 0.4 * sk, sk, 0.6 + 0.4 * sk)); this.rig.mat(this.I.stool, this.M.stool);
+    L.floor(STOOL[0], STOOL[1], V.v); this.B.set(this.M.stool, V.v.x, V.v.y, V.v.z, L.yawOut + 0.5, 0, 0, V.s.set((0.6 + 0.4 * sk) * SC, sk * SC, (0.6 + 0.4 * sk) * SC)); this.rig.mat(this.I.stool, this.M.stool);
     // the room on the wall: scrubbed on, the ochre panel first; rubbed off again the other way. The name is written
     // while they hold still.
     this.room.visible = true;
@@ -672,10 +800,10 @@ float dN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     else { ru.uShow.value = this.show0 * (1 - ease.inOut(ramp(r, 0.5, 1))); ru.uWrite.value = this.write0 * (1 - ramp(r, 0, 0.3)); }
     // soft shadows at their feet
     let n = 0; const bl = this.blobs;
-    if (sk > 0.01) { L.floor(STOOL[0], STOOL[1], V.v); bl.set(n++, V.v.x, V.v.z, 0.085 * sk, 0.4 * sk); }
-    if (Bs.vis && Bs.out > 0.02) { V.v.set(0, 0, -0.05 * Bs.sit).applyMatrix4(this.M.bRoot); bl.set(n++, V.v.x, V.v.z, 0.1, 0.5 * smooth(Bs.out, 0.02, 0.2)); }
-    if (J.vis && J.out > 0.02) { V.v.set(0, 0, 0.005).applyMatrix4(this.M.jRoot); bl.set(n++, V.v.x, V.v.z, 0.085, 0.5 * smooth(J.out, 0.02, 0.2)); }
+    if (sk > 0.01) { L.floor(STOOL[0], STOOL[1], V.v); bl.set(n++, V.v.x, V.v.z, 0.085 * SC * sk, 0.4 * sk); }
+    if (Bs.vis && Bs.out > 0.02) { V.v.set(0, 0, -0.05 * Bs.sit).applyMatrix4(this.M.bRoot); bl.set(n++, V.v.x, V.v.z, 0.1 * SC, 0.5 * smooth(Bs.out, 0.02, 0.2)); }
+    if (J.vis && J.out > 0.02) { V.v.set(0, 0, 0.005).applyMatrix4(this.M.jRoot); bl.set(n++, V.v.x, V.v.z, 0.085 * SC, 0.5 * smooth(J.out, 0.02, 0.2)); }
     bl.count = n;
-    L.voice().place();
+    const voice = L.voice(); voice.level = calm ? 0.6 : 1; voice.place();
   },
 });
