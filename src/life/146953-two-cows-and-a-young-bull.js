@@ -30,7 +30,8 @@
 // hip bones, the deep belly, the brisket), under a coat of soft dabs laid the way the hair runs (a close undercoat of
 // broad ones, finer hairs over it), short and flat on the red and white cow, long and lifted on the bull, each dab
 // toned by his light from the upper left and by the coat's own markings, so that a patch's edge is ragged hair and
-// never a line. Legs are two bones each, placed by where the foot stands (so no foot slides while it is down); the
+// never a line. The smooth form is only a core, a shade darker than the paint over it; the face, the muzzle, the
+// horns, the shanks and the hooves are under touches too, so no bare surface shows. Legs are two bones each, placed by where the foot stands (so no foot slides while it is down); the
 // jaw, the lids, the ears and the tail are their own parts. The rig's shader also makes the flakes: near the wall they
 // come through (while they are coming) and outside the shrinking round of earth at the end, a pixel is kept or dropped
 // by a small hash of where it is. The third call is the soft shadows under them. Nothing is solid, the toy cannot
