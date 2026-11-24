@@ -26,8 +26,9 @@
 // the wheels, and a grounded boat rocks up off its bilge and settles again when the toy goes by.
 //
 // It is the only sea here that goes away. The Gauguin's tide (Gallery 247) is a flat pool of pattern that laps in and
-// out; the Homer's (161) is a heaped swell coming on; the Cliff Walk's is wind. Here the water is flat and plain, and
-// the show is the land it leaves and two things with weight being set down on it.
+// out; the Homer's (161) is a heaped swell coming on; the Turner's (220) a storm sea that two boats bargain across;
+// the Cliff Walk's is wind. Here the water is flat and plain, and the show is the land it leaves and two things with
+// weight being set down on it.
 // The Manet beside it (The Races at Longchamp, on the next wall of the same corner) runs its course over the same
 // floor. Only one of the two is ever looked at; the kit sends the other home as this one begins; and nothing here is
 // solid or stands more than half a metre high, so the worst that can meet is a field going home through a sea coming
@@ -55,27 +56,27 @@ import { strokes as floorStrokes } from './brush.js';
 // The shore, in the stage's terms (u along the wall to the viewer's right, out from it): the water's edge at low water
 // passes through P0; NL points up the beach (away from the sea), TS along the shore. As in the picture the sea is to
 // the right and beyond, and the shore runs down from the far left to the near right.
-const P0 = [0.6, 0.6], NL = [-0.5, 0.866], TS = [0.866, 0.5];
+const P0 = [0.5, 0.62], NL = [-0.5, 0.866], TS = [0.866, 0.5];
 const XL = (u, o) => (u - P0[0]) * NL[0] + (o - P0[1]) * NL[1];          // how far up the beach a point is (metres)
 const X_IN = -1.0, X_HIGH = 1.25, X_LOW = 0;                               // the tide line: all in the wall; high water; low
-const T_FLOOD = 1.9, T_EBB = 2.4, T_OUT = 7.6;                            // it comes out; it turns; it is out
+const T_FLOOD = 1.9, T_EBB = 2.2, T_OUT = 7.4;                            // it comes out; it turns; it is out
 const LAP = 1.5;                                                          // seconds between the small waves
 const NSH = 5, NMARK = 120, NPEB = 16;
 const DRAFT = 0.04;
 // The boats: where each takes the ground (u, out), the way its bow points, its size, how far it heels, and how deep
 // the water over its place must be (as metres of beach still covered above it) for it to float, and to let it go.
 const BOATS = [
-  { id: 'tar', u: -0.42, o: 0.72, bow: [-0.8, -0.6], len: 0.74, beam: 0.25, depth: 0.15, rake: 0.035, heel: 0.38, touch: 0.3, go: 0.05, t0: 0.3, t1: 1.95, swing: 0.5 },
-  { id: 'blue', u: 0.52, o: 0.7, bow: [0.95, 0.3], len: 0.62, beam: 0.22, depth: 0.14, rake: 0.04, heel: 0.12, touch: 0.13, go: 0.02, t0: 0.6, t1: 2.1, swing: 0.45 },
+  { id: 'tar', u: -0.26, o: 0.8, bow: [0.5, -0.87], len: 0.74, beam: 0.25, depth: 0.15, rake: 0.035, heel: 0.38, touch: 0.3, go: 0.05, t0: 0.3, t1: 1.95, swing: -0.5 },
+  { id: 'blue', u: 0.36, o: 0.72, bow: [0.9, 0.44], len: 0.62, beam: 0.22, depth: 0.14, rake: 0.04, heel: 0.12, touch: 0.13, go: 0.02, t0: 0.6, t1: 2.1, swing: 0.45 },
 ];
 // The far sails, as they stand in the picture from left to right: where, how big, and each sail [along, height, width, lean].
 const LUGGERS = [
-  { u: 0.2, o: 0.1, k: 0.45, sails: [[0, 0.33, 0.3, -0.04]] },
-  { u: 0.74, o: 0.22, k: 0.62, sails: [[0.01, 0.4, 0.31, -0.03]] },
-  { u: 1.16, o: 0.62, k: 0.82, sails: [[-0.14, 0.22, 0.19, -0.05], [0.0, 0.34, 0.3, -0.02], [0.145, 0.2, 0.17, 0.3]] },
+  { u: 0.03, o: 0.1, k: 0.45, sails: [[0, 0.33, 0.3, -0.04]] },
+  { u: 0.6, o: 0.2, k: 0.62, sails: [[0.01, 0.4, 0.31, -0.03]] },
+  { u: 1.14, o: 0.6, k: 0.82, sails: [[-0.14, 0.22, 0.19, -0.05], [0.0, 0.34, 0.3, -0.02], [0.145, 0.2, 0.17, 0.3]] },
 ];
 // Where the two baskets come to rest (u, out), as they lie in the picture: one standing, one on its side.
-const BASKETS = [{ u: -0.43, o: 1.2, lie: 0 }, { u: -0.16, o: 1.24, lie: 1 }];
+const BASKETS = [{ u: -0.03, o: 1.2, lie: 0 }, { u: 0.16, o: 1.32, lie: 1 }];
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const hash = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
@@ -169,9 +170,9 @@ function markMesh(n, tex) {
 lifeFor(14598, {
   title: /^The Beach at Sainte-Adresse/,
   word: 'ebb',
-  // (a small work hung high: the kit keeps all of it in view. The camera stands low on the beach and to the left, looking
-  // along it as he did, the sea to the right and beyond)
-  stage: { out: 2.2, half: 1.4, cam: { dist: 2.3, height: 0.5, side: -0.35, fov: 62, lookU: 0.1, lookOut: 0.7, lookH: 0.6, floorOut: 1.35 } },
+  // (a small work hung high: the kit keeps all of it in view. The camera stands low on the beach, square to the wall, the
+  // sea to the right and beyond as he has it; the two boats and the baskets lie within the strip a phone held upright shows)
+  stage: { out: 2.2, half: 1.4, cam: { dist: 2.8, height: 0.5, side: 0.05, fov: 60, lookU: 0.05, lookOut: 0.7, lookH: 0.62, floorOut: 1.5 } },
   wake: 2, ret: 2.6,
   linger: { near: 4, max: 30 },
 
@@ -213,6 +214,7 @@ varying vec3 vW; vec3 gCol; float gA;`)
 {
   vec2 r = vW.xz - uO.xz, q = vec2(dot(r, uAx.xy), dot(r, uAx.zw));
   float xl = dot(q - vec2(${P0[0].toFixed(3)}, ${P0[1].toFixed(3)}), vec2(${NL[0].toFixed(3)}, ${NL[1].toFixed(3)})), al = dot(q - vec2(${P0[0].toFixed(3)}, ${P0[1].toFixed(3)}), vec2(${TS[0].toFixed(3)}, ${TS[1].toFixed(3)})), tm = uBeach.w;
+  if (xl > max(uBeach.x, uTide.x + uTide.z) + 0.09) discard;          // (beyond anything the sea has reached)
   vec4 sh = texture2D(tShingle, q * 0.95 + vec2(0.13, 0.31)); float id = sh.a;
   // the water's edge: the tide, and the small wave on it (running up quickly, draining back slowly, a little later
   // further along the shore), never quite straight
@@ -276,7 +278,7 @@ varying vec3 vW; vec3 gCol; float gA;`)
         if (kind === 2) c.copy(k.rail);
         else if (kind === 1) { mix3(k.in0, k.in1, (g - 0.25) / 0.6, c); if (!blue && i % 3 === 0 && g > 0.2) c.lerp(k.in1, 0.5); }
         else if (blue) { if (g < 0.4) mix3(k.low, k.mid, g / 0.4, c); else mix3(k.mid, k.top, (g - 0.62) / 0.3, c); }
-        else { mix3(k.low, k.mid, g / 0.45, c); if (g > 0.66 && g < 0.9) c.lerp(k.stripe, 0.85); else if (g >= 0.9) c.copy(k.top); if (k.patch && s < -0.78 && g > 0.5) c.lerp(k.patch, 0.9); }
+        else { mix3(k.low, k.mid, g / 0.45, c); if (g > 0.66 && g < 0.9) c.lerp(k.stripe, 0.85); else if (g >= 0.9) c.copy(k.top); if (k.patch && s < -0.72 && g > 0.6) c.lerp(k.patch, 0.9); }
         c.multiplyScalar(j);
       });
       const parts = [...H.geo];
@@ -309,7 +311,7 @@ varying vec3 vW; vec3 gCol; float gA;`)
         } else {
           [[-0.8, -0.42], [-0.36, 0.04], [0.1, 0.5], [0.54, 0.9]].forEach(([a, b], i) => plank(a, b, 0.79, side, i % 2 ? (def.id === 'tar' ? '#b4b9be' : '#a9aeb3') : (def.id === 'tar' ? '#9299a0' : '#8f959b'), 0.015, i % 2 ? 0 : 3, 0.92));
           [[-0.55, -0.1], [0.05, 0.5]].forEach(([a, b], i) => plank(a, b, 0.4, side, def.id === 'tar' ? (i ? '#4a3227' : '#3a2a25') : '#2f2926', 0.022, 3, 0.8));
-          if (def.id === 'tar') plank(-0.97, -0.8, 0.72, side, '#dcc640', 0.03, 0, 0.95, 0.08);
+          if (def.id === 'tar') plank(-0.95, -0.74, 0.78, side, '#dcc640', 0.026, 0, 0.95, 0.08);
         }
       }
       return B;
@@ -510,7 +512,7 @@ varying vec3 vW; vec3 gCol; float gA;`)
         } else if (ret) {
           // the water takes them where they lie: they float, and go in with the boats
           const q = L.local(K.r0.x, K.r0.z), fk = ease.smooth(ramp(X - XL(q.u, q.out), 0, 0.08)), hk = ease.inOut(ramp(R, 0.5, 0.95));
-          K.pos.lerpVectors(K.r0, L.floor(K.d.u - 0.3 + 0.2 * j, this.HOME, this.w), hk);
+          K.pos.lerpVectors(K.r0, L.floor(K.d.u - 0.25, this.HOME, this.w), hk);
           K.pos.y = lerp(K.r0.y, y0 + (lie ? 0.024 : -0.02) + 0.006 * Math.sin(tw * 3 + j), fk);
           K.pitch = K.p0 + 0.12 * Math.sin(tw * 2.3 + j * 2) * fk; shd = 0.42 * (1 - fk);
         } else {
