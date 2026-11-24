@@ -1022,3 +1022,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 239
 
 > Ship it (the El Greco). Reshoot the trailer. I am not sure what to do about the flowers or the haystack hiccup gag; just take a look. What is your recommendation? ... I take your recommendation.
+
+## 240
+
+> Okay, we are going to keep animating until we have them all done. So keep going. Do not compromise on quality. The reviewer should still review and send back for feedback and improvement.
