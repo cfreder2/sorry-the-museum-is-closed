@@ -79,6 +79,7 @@ import './finalelaunch.js';      // the five notes, the tractor beam and the lau
 import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
 import './racespots.js';         // rival toys waiting about the building and the grounds, each with a course to race them round
 import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
+import './secdesk.js';           // the computers in the security control rooms: a terminal, the robot tracker, a donut game
 import './life/index.js';        // paintings that come alive while you look at them (src/paintlife.js, docs/PAINTING-ANIMATIONS.md)
 import './look.js';              // the look pass over the finished world: the snow's drifts, soft shadows under what moves (last: src/finish.js)
 
@@ -630,7 +631,7 @@ addEventListener('keydown', e => {
 input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
-upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study')) pause(); });
+upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study') && !document.body.classList.contains('sd-open')) pause(); });      // (not at the security desk's computer, which works either way up, and is easier to type at upright: src/secdesk.js)
 document.addEventListener('visibilitychange', () => { if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
 
 const toasts = [];
