@@ -77,6 +77,10 @@ The game is played by children, classrooms and people of every background and fa
   neon edge), the action too small to read, or the payoff above the top of the frame. Set `stage.cam` explicitly, check
   what is in frame at the payoff, and keep the whole work in view.
 - **Point sprites** slip past the guard in the check: use quads.
+- **A floor or wall mesh washed pale**: the gallery's own lamp pools and wall washes are additive at renderOrder 4,
+  so a transparent mesh drawn at 4 or below is bleached by them. Draw yours at 5 or above.
+- **Neighbours hung low**: a tall portrait next door can come down to 0.8 m, and anything of yours in front of it
+  from a low side camera is cut by the guard. Keep the scene small or to the clear side.
 - **Lovely from one camera only**: check the low (toy's-eye) and wide room views too.
 - Toy-like figures: stripes too bold and regular, flat cartoon faces. Model softly, as the painter did.
 
