@@ -60,3 +60,4 @@ import './869-watermill-great-red-roof.js'; // 213  Hobbema, The Watermill with 
 import './14598-beach-at-sainte-adresse.js'; // 225  Monet, The Beach at Sainte-Adresse: ebb
 import './4758-stoke-by-nayland.js';   // 220  Constable, Stoke-by-Nayland: dew
 import './90048-distant-view-of-niagara.js'; // 161  Cole, Distant View of Niagara Falls: spray
+import './120154-strawberries-nuts.js'; // 161  Peale, Still Life—Strawberries, Nuts, &c.: ring
