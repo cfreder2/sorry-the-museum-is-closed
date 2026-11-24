@@ -18,6 +18,7 @@ import LAYOUT from './layout.js';
 import { buildLand, landAt, FLAT as LIE_FLAT } from './land.js';
 import { harbourEdge } from './harbourplan.js';
 import { addFinale } from './finaleplan.js';
+import { shapeHill } from './hillshape.js';      // the hills' shapes (kit helper): off-centre summits, spurs, a sled chute
 
 export const T = 1;            // wall thickness, for the outside of a building
 export const HW = HALL_HW();    // Griffin Court's half-width
@@ -1479,6 +1480,7 @@ function addLand(plan) {
     if (!clear(cx - r, cx + r, cz - rz, cz + rz)) return;
     const s = { skin: 'hill', hill: true, axis: 'hill', cx, cz, rx: r, rz, H, x0: cx - r, x1: cx + r, z0: cz - rz, z1: cz + rz, h0: 0, h1: H, thick: 0 };
     if (H >= 5) { s.bump = 0.9; s.br = 2.6; }
+    shapeHill(s);      // its own lie (hillshape.js sets s.fn, which heightOf reads first): no longer a plain cosine cone
     S.push(s); plan.hills.push(s);
   };
   // The ski jump: a long bank of packed snow run up against the north wall of the galleries over the

@@ -8,6 +8,9 @@ import { feature } from './features.js';
 import { heightOf } from './plan.js';
 import { TAU, C, Bulbs, Wire, canvasTex, lit, signBoard, mergeAll } from './glowkit.js';
 import { ParkFurniture } from './streetscape.js';
+import { shapeHill } from './hillshape.js';
+import { buildHills } from './hills.js';
+import { snowGeometry, snowKitMaterial } from './kitlook.js';      // cut and groomed snow, as the humps on the paths are (museum.js)
 import './ballpark.js';           // the north-west diamond is a lit ballpark with a wall and a Home Run Derby (ballpark.js)
 import './warminghut.js';         // the warming hut by Jackson Drive, between the two southern diamonds: drive in and warm up (warminghut.js)
 
@@ -45,11 +48,11 @@ feature({
   // The ploughs pile the snow from Columbus Drive here: a mountain to climb, a kicker over a gap, a long table-top with a
   // lip, a run of rollers, and a quarter pipe at the end of it all. Real surfaces: the car leaves the ground off them.
   _jumpPark(k, snowM) {
-    const S = k.plan.surfaces, g = this.g;
+    const S = k.plan.surfaces, g = this.g, pieces = [];
     const B0 = this.bulbs, edgeCol = [C.orange, C.blue, C.gold, C.ice];
     // each piece of snow, drawn, with lights along both its long edges so the lines read at night
     const add = s => {
-      S.push({ skin: 'snow', thick: 0, ...s }); const q = S[S.length - 1]; g.add(this._snowMesh(q, snowM));
+      S.push({ skin: 'snow', thick: 0, ...s }); const q = S[S.length - 1]; pieces.push(q);
       const col = edgeCol[S.length % edgeCol.length];
       for (let x = q.x0 + 0.3; x < q.x1; x += 0.8) for (const z of [q.z0 + 0.12, q.z1 - 0.12]) B0.add(x, heightOf(q, x, z) + 0.09, z, col, x * 0.3, 2, 0.085);
       if (q.axis === null || q.h1 > 1.5 || q.h0 > 1.5) this.glow.push([(q.x0 + q.x1) / 2, (q.z0 + q.z1) / 2, Math.max(q.x1 - q.x0, q.z1 - q.z0) * 0.8, col, 0.1]);
@@ -71,7 +74,9 @@ feature({
     add({ x0: 448, x1: 453, z0: 31, z1: 44, axis: 'x', h0: 0, h1: 3.0, curve: 5.67 });
     add({ x0: 453, x1: 455.5, z0: 31, z1: 44, axis: null, h0: 3.0, h1: 3.0 });
     // the mountain the ploughs left, with a kicker of packed snow on its top
-    { const s = { skin: 'hill', hill: true, axis: 'hill', cx: 440, cz: -6, rx: 15, rz: 10, H: 5.5, bump: 0.9, br: 2.6, x0: 425, x1: 455, z0: -16, z1: 4, h0: 0, h1: 5.5, thick: 0 }; S.push(s); if (k.plan.hills) k.plan.hills.push(s); g.add(this._snowMesh(s, snowM, 1)); }
+    { const s = { skin: 'hill', hill: true, axis: 'hill', cx: 440, cz: -6, rx: 15, rz: 10, H: 5.5, bump: 0.9, br: 2.6, x0: 425, x1: 455, z0: -16, z1: 4, h0: 0, h1: 5.5, thick: 0 }; shapeHill(s); S.push(s); if (k.plan.hills) k.plan.hills.push(s); g.add(buildHills([s], k.museum.snowTex, k.museum)); }      // (its lumps are in its shape now, hillshape.js: they used to be drawn and not felt)
+    // every piece of the park as one mesh of cut snow: rounded shoulders, battered sides, corduroy, a dyed line on each take-off
+    { const m = new THREE.Mesh(snowGeometry(pieces), snowKitMaterial(k.museum.snowTex)); m.name = 'jumppark-snow'; m.matrixAutoUpdate = false; g.add(m); }
     // marker poles and a painted sign, so the lines read from a distance
     const B = this.bulbs;
     for (const [x, z] of [[412, z0 - 0.6], [412, z1 + 0.6], [418.2, z0 - 0.6], [418.2, z1 + 0.6], [421.5, z0 - 0.6], [421.5, z1 + 0.6], [453, z0 - 0.6], [453, z1 + 0.6], [457.5, z0 - 0.6], [457.5, z1 + 0.6]]) {
@@ -83,23 +88,6 @@ feature({
     for (const dx of [-1.5, 1.5]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6), lit(0x3a2a1a)); post.position.set(393 + Math.cos(th) * dx, 1.3, 9.5 - Math.sin(th) * dx); g.add(post); }
     k.plan.obstacles.push({ x0: 392.6, x1: 393.4, z0: 8.4, z1: 10.6, y0: 0, y1: 2.6 });
   },
-  // A sheet of snow over a surface, following its height (a hill, a slope, a skate ramp), with sides down to the ground.
-  _snowMesh(s, mat, bumpy = 0) {
-    const nx = Math.max(2, Math.min(64, Math.ceil((s.x1 - s.x0) / 0.5))), nz = Math.max(2, Math.min(64, Math.ceil((s.z1 - s.z0) / 0.5)));
-    const pos = [], uv = [], idx = [];
-    const H = (x, z) => heightOf(s, x, z) + (bumpy ? Math.max(0, Math.sin(x * 1.7) * Math.cos(z * 1.3) * 0.08 * Math.min(1, heightOf(s, x, z))) : 0);
-    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = s.x0 + (s.x1 - s.x0) * i / nx, z = s.z0 + (s.z1 - s.z0) * j / nz; pos.push(x, H(x, z) + 0.01, z); uv.push(x / 4, z / 4); }
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
-    if (!s.hill) {
-      // sides: down from each edge to the ground
-      const edge = (pts) => { const base = pos.length / 3; pts.forEach(([x, z]) => { pos.push(x, H(x, z) + 0.01, z, x, 0, z); uv.push(x / 4, H(x, z) / 4, x / 4, 0); }); for (let i = 0; i < pts.length - 1; i++) { const a = base + i * 2; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); } };
-      const xs = Array.from({ length: nx + 1 }, (_, i) => s.x0 + (s.x1 - s.x0) * i / nx), zs = Array.from({ length: nz + 1 }, (_, j) => s.z0 + (s.z1 - s.z0) * j / nz);
-      edge(xs.map(x => [x, s.z0])); edge(xs.map(x => [x, s.z1]).reverse()); edge(zs.map(z => [s.x0, z]).reverse()); edge(zs.map(z => [s.x1, z]));
-    }
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
-    const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.matrixAutoUpdate = false; return m;
-  },
-
   // ============================================================ the softball diamonds
   // Four diamonds in the south-east quarter, home plates in the corners, foul lines along the field's own lines. The
   // north-west one is the ballpark, drawn in ballpark.js: only its bases are kept here, for running round them.
