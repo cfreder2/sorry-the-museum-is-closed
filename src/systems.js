@@ -14,10 +14,12 @@
 //             floor is wet (the car's own wet-floor model: plan.puddles), and stays wet for a while after. A robot in the
 //             rain breaks off, leaves for a dry room on its patch and stays out until the floor has dried.
 // firetest    The galleries' suppression test, the safe one: inert gas, not water. Amber beacons over the doorways, a light
-//             curtain across each (solid while it is drawn; lean on it and the test aborts, so nothing is ever shut in), a
-//             low white vapour along the floor that stays under the lowest picture, robots in the room frozen, then rebooting.
-// lights      A room's lamps on or off, through src/lights.js. lift: call one to a floor. doors: honest about the locks.
-// pa          The public address chime, the words as a caption, and every robot stops to listen. `pa donuts`.
+//             curtain across each (solid while it is drawn; lean on it and the test aborts, so nothing is ever shut in),
+//             cold grey gas lying on the floor, never as high as the lowest picture, robots in the room frozen, then rebooting.
+// lights      A room's lamps on or off, through src/lights.js, for tonight only. lift: call one to a floor. doors: honest
+//             about the locks.
+// pa          The public address chime, the words as a caption, and every robot stops to listen. `pa donuts`: one comes to
+//             the control room, off duty, and takes no notice of the toy.
 //
 // The hardest rule in this building is that nothing is ever drawn over a work of art. Three things keep it:
 //   * Everything see-through here (rain, ripples, sheen, mist, vapour, beacons, the curtain) is added with artSafe(): its
@@ -26,12 +28,13 @@
 //   * Mist and vapour never stand higher than the eye of the camera that is drawing them (worked out in their vertex
 //     shader, so it holds for any camera), and never higher than 20 cm under the lowest work in the room. No line of
 //     sight through them can rise to a picture: they are below it, as seen as well as in fact.
-//   * The fire test's beacons and beams are thrown away, pixel by pixel, wherever they would lie in front of a work in
-//     the room under test or the rooms through its doorways (the test paintlife.js makes, with its own list of works).
+//   * The fire test's beacons and beams are thrown away, pixel by pixel, wherever they would lie in front of a work:
+//     any work with a line of sight to one of the room's doorways, through however many doorways (_seenFrom).
 // G.systems.artCheck(views) renders with and without all of it and counts.
 //
 // Cost: with nothing on, update() is a counter and, a few times a second, one comparison for each patch of sprinkler
-// heads. A room that is raining is three draw calls (rain, floor, mist), built when the camera first comes near.
+// heads. A room that is raining is three draw calls (rain, floor, mist), built when the camera first comes near; a
+// gallery under test is two (its lights, its vapour).
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -172,18 +175,21 @@ const FLOOR_F = /* glsl */`
   uniform float uTime, uGrow, uWet, uRain, uDripK, uR; uniform vec4 uGrid; uniform vec3 uCol;
   ${LAMP_PARS} ${NOISE}
   varying vec3 vW; varying vec4 vRefl;
-  // Rings where drops are landing: a grid of cells, some of them struck just now, each with a ring running out from a
-  // point somewhere in it. Returns the way the water's surface leans (xy) and how bright the ring's crest is (z).
+  // Where drops land: each cell of a grid is struck now and then, and a soft ripple runs out from a point in it and is
+  // gone in under half a second. Nothing is drawn for it: it is the lean of the water's surface (xy), which bends what
+  // the floor mirrors and scatters the headlamp's glint; and a very little light where the drop itself lands (z).
   vec3 rings(vec2 p, float scale, float seed, float gate) {
     vec2 g = p * scale + seed * 13.7, id = floor(g), f = fract(g) - 0.5;
     float h = h21(id + seed);
-    float per = 0.5 + 0.55 * h21(id + 3.1), cyc = uTime / per + h * 9.0, ph = fract(cyc);
-    float hit = step(h21(id + floor(cyc) * 0.37 + 1.7), gate);        // which cells a drop is landing in this time round
-    vec2 d = f - (vec2(h21(id + 11.3 + floor(cyc)), h21(id + 5.7 + floor(cyc))) - 0.5) * 0.4;
-    float r = length(d), w = (r - ph * 0.3) * 24.0;
-    float crest = exp(-w * w) * (1.0 - ph) * (1.0 - ph) * hit;
-    float dot0 = exp(-r * r * 900.0) * (1.0 - smoothstep(0.0, 0.18, ph)) * hit;      // the splash itself, where it lands
-    return vec3(d / max(r, 1e-3) * crest * -w, crest + dot0 * 2.0);
+    float per = 0.34 + 0.3 * h21(id + 3.1), cyc = uTime / per + h * 9.0, ph = fract(cyc), k = floor(cyc);
+    float hit = step(h21(id + k * 0.37 + 1.7), gate);                 // which cells a drop is landing in this time round
+    vec2 d = f - (vec2(h21(id + 11.3 + k), h21(id + 5.7 + k)) - 0.5) * 0.4;
+    float r0 = max(length(d), 1e-3), ang = atan(d.y, d.x);
+    float r = r0 * (1.0 + 0.16 * sin(ang * 3.0 + h * 40.0 + k) + 0.09 * sin(ang * 5.0 - k * 1.7));      // never quite round
+    float w = (r - ph * 0.3) * 11.0;                                  // one broad soft swell, not a line
+    float fade = (1.0 - ph) * (1.0 - ph) * (1.0 - ph) * hit;
+    float splash = exp(-r0 * r0 * 420.0) * (1.0 - smoothstep(0.0, 0.22, ph)) * hit;
+    return vec3(d / r0 * (-2.0 * w * exp(-w * w)) * fade, splash);
   }
   void main() {
     vec2 p = vW.xz;
@@ -197,11 +203,11 @@ const FLOOR_F = /* glsl */`
     float lod = 1.0 - smoothstep(6.0, 20.0, dist);
     float gate = uRain * 0.75 + uDripK * 0.06;
     vec3 rg = (rings(p, 5.3, 1.0, gate) + rings(p, 8.1, 2.0, gate)) * lod;
-    vec2 lean = rg.xy * 0.55 + (vec2(vn(p * 5.0 + uTime * 0.25), vn(p * 5.0 - uTime * 0.21 + 3.0)) - 0.5) * (0.035 + 0.05 * uRain);
+    vec2 lean = rg.xy * 0.5 + (vec2(vn(p * 5.0 + uTime * 0.25), vn(p * 5.0 - uTime * 0.21 + 3.0)) - 0.5) * (0.035 + 0.05 * uRain);
     vec3 N = normalize(vec3(lean.x, 1.0, lean.y));
     float ndv = clamp(dot(N, V), 0.0, 1.0), fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
     float level = reflOn * (1.0 - step(0.08, abs(uFloor - reflY)));
-    vec2 ruv = vRefl.xy / vRefl.w + lean * 0.09;
+    vec2 ruv = vRefl.xy / vRefl.w + lean * 0.13;
     vec3 rc = min(texture2D(tRefl, ruv, 0.4).rgb, vec3(3.0));
     vec3 col = rc * fres * level * 1.1;
     // (with no mirror to read, on another level or with the polish switched off for speed, the room's own light does the work)
@@ -210,13 +216,13 @@ const FLOOR_F = /* glsl */`
     vec3 L = uLampPos - vW; float ld = length(L); L /= max(ld, 1e-3);
     float nh = max(dot(N, normalize(L + V)), 0.0), lamp = lampAt(vW);
     col += vec3(1.0, 0.92, 0.78) * lamp * (pow(nh, 320.0) * 5.0 + pow(nh, 40.0) * 0.5);
-    col += (uCol * 0.9 + rc * 0.5 + vec3(1.0, 0.92, 0.78) * lamp * 1.5) * rg.z * 0.22;
+    col += (uCol * 0.5 + rc * 0.4 + vec3(1.0, 0.92, 0.78) * lamp) * rg.z * 0.12;
     gl_FragColor = vec4(col * wet, 1.0);
   }`;
 
-// Mist, and the fire test's vapour seen from low down: soft sheets that stand upright facing the camera, each drifting
-// out from where it began and fading. Never higher than uTop over the floor, and never through a wall: its middle is
-// kept its own half-width inside the room. (From above they are edge-on and fade out: the carpet below takes over.)
+// The mist under the rain: soft sheets that stand upright facing the camera, each drifting out from where it began and
+// fading. Never higher than uTop over the floor, nor than the eye that sees it, and never through a wall: its middle
+// is kept its own half-width inside the room. (From above they are edge-on and fade out.)
 const PUFF_V = /* glsl */`
   attribute vec4 aA; attribute vec4 aS;
   uniform float uTime, uK, uFloor, uTop, uSpeed, uLife, uWide, uFront; uniform vec2 uLo, uHi;
@@ -249,56 +255,93 @@ const PUFF_F = /* glsl */`
     gl_FragColor = vec4((uCol + vec3(1.0, 0.93, 0.8) * vLamp * 0.9) * a * a * vA, 1.0);
   }`;
 
-// The vapour seen from above: two sheets over the whole floor, one a little over the other, with slow cloud drifting
-// across them. It comes in from the walls (where the vents are) and closes over the middle. Seen edge-on it fades out.
-const CARPET_V = /* glsl */`uniform float uFloor, uTop; varying vec3 vW; varying float vLay; varying float vEye;
-  void main() { float top = min(uTop, cameraPosition.y - uFloor - 0.03); vEye = smoothstep(0.05, 0.17, top); vLay = position.y;
-    vW = vec3(position.x, uFloor + 0.02 + max(top - 0.04, 0.0) * mix(0.4, 0.9, position.y), position.z); gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0); }`;
-const CARPET_F = /* glsl */`
-  uniform vec2 uLo, uHi; uniform float uTime, uK, uFront; uniform vec3 uCol;
-  ${LAMP_PARS} ${NOISE}
-  varying vec3 vW; varying float vLay; varying float vEye;
-  float fbm(vec2 p) { return vn(p) * 0.55 + vn(p * 2.1 + 3.7) * 0.3 + vn(p * 4.3 + 9.1) * 0.15; }
+// The fire test's vapour: cold, heavy gas lying on the floor. Not cards: one box over the room's floor, as high as the
+// gas may stand, and every pixel of it walks its own line of sight through that layer and adds up the gas it passes
+// (a few steps: the layer is thin). So there is no surface to it and no edge: it thins to nothing at its top, at the
+// doorways, and wherever there is none. The gas is heaped in a tongue at each vent and thins outwards (uVent, a little
+// map of the room made once: r, how much reaches here; g, 0 at a doorway), rolls out from the walls in long slow
+// folds (uNoise, a tiling cloud), stands higher and lower as swells pass through it, and leaves clear floor between.
+// It is added, never laid over (artSafe), grey rather than white, and held well under what the bloom picks up.
+// The top of the box is never higher than the eye of the camera drawing it (so no line of sight through it rises),
+// nor than uTop (20 cm under the lowest work in the room).
+const FOG_V = /* glsl */`
+  uniform float uFloor, uTop; uniform vec2 uLo, uHi;
+  varying vec3 vW; varying float vTop;
   void main() {
-    vec2 p = vW.xz; float lay = step(0.5, vLay), t = uTime * 0.2;
-    float dWall = min(min(p.x - uLo.x, uHi.x - p.x), min(p.y - uLo.y, uHi.y - p.y));
-    float n = fbm(p * 0.5 + vec2(t, t * 0.6) + lay * 5.3), n2 = vn(p * 1.6 + vec2(-t * 0.8, t * 0.5) + lay * 2.0);
-    float reach = uFront * (0.5 * min(uHi.x - uLo.x, uHi.y - uLo.y) + 2.0);
-    float n3 = vn(p * 4.1 + vec2(t * 1.3, -t) + lay * 7.0);
-    float dens = smoothstep(reach, reach - 1.8, dWall + (n - 0.5) * 2.0) * min(1.0, 1.5 * n * n2 * smoothstep(0.12, 0.5, n) + 0.2 * n3 * n * n2) * smoothstep(0.0, 0.9, dWall) * mix(1.0, 0.6, lay);      // (cloud and clear floor between: an even veil shows the sheet's edge)
-    vec3 toCam = cameraPosition - vW; float dist = length(toCam), up = abs(toCam.y) / dist;
-    // (thin close to: a flat sheet seen close is a flat sheet. And thinner looked straight down through than along.)
-    float a = dens * uK * vEye * smoothstep(0.1, 0.4, up) * (1.0 - 0.65 * smoothstep(0.35, 0.95, up)) * smoothstep(1.2, 5.0, dist) * 0.22;
-    // (the headlamp through it: a soft-edged wedge, not the hard cone it throws on a floor)
-    vec3 ld = vW - uLampPos; float ll = length(ld), lamp = uLampK * smoothstep(uLampCos - 0.2, uLampCos + 0.25, dot(ld / max(ll, 1e-3), uLampDir)) / (1.0 + ll * ll * 0.1);
-    gl_FragColor = vec4((uCol + vec3(1.0, 0.93, 0.8) * lamp * 0.3) * a, 1.0);
+    float top = min(uTop, cameraPosition.y - uFloor - 0.03);
+    vTop = top;
+    vW = vec3(mix(uLo.x, uHi.x, position.x), uFloor + 0.012 + max(top - 0.012, 0.0) * position.y, mix(uLo.y, uHi.y, position.z));
+    gl_Position = top < 0.07 ? vec4(2.0, 2.0, 2.0, 1.0) : projectionMatrix * viewMatrix * vec4(vW, 1.0);
+  }`;
+const FOG_F = /* glsl */`
+  uniform sampler2D uNoise, uVent; uniform float uTime, uK, uFront, uFloor, uSteps, uShimmer; uniform vec2 uLo, uHi; uniform vec3 uCol;
+  varying vec3 vW; varying float vTop;
+  // The gas over one spot is thickest on the floor and gone at height h. This is how much of it lies below y, so a
+  // stretch of a line of sight can be given its exact share however steeply it comes down through the layer.
+  float below(float y, float h) { float a = 0.2 * h; y = clamp(y, 0.0, h); return y < a ? y : a + (h * (y - a) - 0.5 * (y * y - a * a)) / (0.8 * h); }
+  void main() {
+    vec3 ro = cameraPosition, rd = normalize(vW - ro);
+    rd += (1.0 - step(1e-5, abs(rd))) * 1e-5;
+    // the stretch of this line of sight that lies in the layer
+    vec3 bmin = vec3(uLo.x, uFloor + 0.012, uLo.y), bmax = vec3(uHi.x, uFloor + vTop, uHi.y);
+    vec3 ta = (bmin - ro) / rd, tb = (bmax - ro) / rd, tn = min(ta, tb), tf = max(ta, tb);
+    float t0 = max(max(tn.x, tn.y), max(tn.z, 0.0)), t1 = min(tf.x, min(tf.y, tf.z));
+    if (t1 <= t0) discard;
+    float len = min(t1 - t0, 18.0), dt = len / uSteps, od = 0.0, tm = uTime;
+    float jit = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + fract(tm * 7.13) * uShimmer);      // (where each step is taken: a different place in every pixel, and every frame)
+    vec2 size = uHi - uLo; float reach = uFront * (0.5 * min(size.x, size.y) + 3.0);
+    for (int i = 0; i < 12; i++) {
+      if (float(i) >= uSteps) break;
+      float ts = t0 + float(i) * dt;
+      vec3 p = ro + rd * (ts + (0.2 + 0.6 * jit) * dt);
+      vec2 q = p.xz, vd = texture2D(uVent, (q - uLo) / size).rg;
+      // slow cloud, curled a little as it drifts; and a finer one across it
+      vec2 curl = 0.5 * vec2(sin(q.y * 0.9 + tm * 0.21), cos(q.x * 0.8 - tm * 0.17));
+      float n = texture2D(uNoise, (q + curl) * 0.085 + vec2(tm * 0.006, -tm * 0.004)).r;
+      float fine = texture2D(uNoise, q * 0.27 + vec2(-tm * 0.019, tm * 0.015) + 0.5).r;
+      float edge = min(min(q.x - uLo.x, uHi.x - q.x), min(q.y - uLo.y, uHi.y - q.y));
+      float front = smoothstep(reach, reach - 2.4, edge + (n - 0.5) * 2.6);                   // it comes in from the walls
+      // the tongue out of a vent: it breathes, a little longer and a little shorter
+      float tongue = smoothstep(0.08, 0.6, vd.r + 0.22 * (fine - 0.5) + 0.05 * sin(tm * 0.35 + n * 6.0));
+      // how high it stands here: heaped at a vent, lower out in the room, with slow swells (wisps that rise and fall back)
+      float h = vTop * clamp(0.22 + 0.55 * tongue + 0.6 * (n - 0.3) + 0.2 * (fine - 0.5), 0.1, 1.0);
+      float amount = 0.16 + tongue + smoothstep(0.32, 0.72, n) * (0.4 + 0.9 * fine);            // clear floor between the clouds
+      float ya = ro.y + rd.y * ts - uFloor, yb = ya + rd.y * dt, dy = abs(ya - yb);
+      float share = dy > 1e-3 ? abs(below(ya, h) - below(yb, h)) / dy : clamp((h - 0.5 * (ya + yb)) / (0.8 * h), 0.0, 1.0);
+      od += share * amount * front * vd.g * dt;
+    }
+    // (grey, and never more than this much of it: it stays under what the bloom picks up, and the boards show through)
+    float alpha = (1.0 - exp(-2.0 * od)) * 0.6 * uK * smoothstep(0.07, 0.2, vTop);
+    gl_FragColor = vec4(uCol * alpha, 1.0);
   }`;
 
 // Lit things in a fire test: the beacon over a doorway, the beams of the light curtain across it, the slit of a vent.
 // They are in doorways and on walls, where a picture may be behind them from somewhere: so each pixel asks whether it lies
 // in front of a work, seen from this camera (a canvas: a rectangle on its wall; a thing on a plinth: an upright drum
-// round it), and is thrown away if it does. uG: three vec4 to a work (centre and kind; along and out of the wall; half sizes).
-const MAXG = 56;
+// round it), and is thrown away if it does. The works are every one that has a line of sight to one of the room's
+// doorways (_seenFrom, below): uG, a texture three wide, a row to a work (centre and kind; along and out of the wall; half sizes).
+const MAXG = 240;
 const GLOW_V = /* glsl */`
   attribute vec4 aC; varying vec2 vQ; varying vec4 vC; varying vec3 vWp;
   void main() { vQ = position.xy * 2.0; vC = aC; vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0); vWp = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const GLOW_F = /* glsl */`
   uniform float uTime, uK, uCurtain, uCalm; varying vec2 vQ; varying vec4 vC; varying vec3 vWp;
-  uniform vec4 uG[${MAXG * 3}]; uniform int uGN;
+  uniform sampler2D uG; uniform int uGN;
   bool overArt(vec3 E, vec3 P) {
     float grow = 0.03 + 0.004 * distance(E, P);
     for (int i = 0; i < ${MAXG}; i++) {
       if (i >= uGN) break;
-      vec4 C = uG[i * 3], A = uG[i * 3 + 1], H = uG[i * 3 + 2];
+      vec4 C = texelFetch(uG, ivec2(0, i), 0);
       if (C.w > 0.5) {
         vec2 e = C.xz - E.xz, d = P.xz - E.xz; float q = dot(e, d) / max(dot(d, d), 1e-6);
         if (q <= 1.0) continue;                                        // the thing is not beyond this pixel
-        vec3 at = E + (P - E) * q;
+        vec3 at = E + (P - E) * q; vec4 H = texelFetch(uG, ivec2(2, i), 0);
         if (distance(at.xz, C.xz) < H.x + grow * q && abs(at.y - C.y) < H.y + grow * q) return true;
       } else {
+        vec4 A = texelFetch(uG, ivec2(1, i), 0);
         float s = dot(E.xz - C.xz, A.zw), f = dot(P.xz - C.xz, A.zw);
         if (s <= 0.0 || f <= 0.0 || f >= s) continue;                  // seen from behind, or the pixel is not between
-        float q = s / max(s - f, 1e-4); vec3 at = E + (P - E) * q;
+        float q = s / max(s - f, 1e-4); vec3 at = E + (P - E) * q; vec4 H = texelFetch(uG, ivec2(2, i), 0);
         if (abs(dot(at.xz - C.xz, A.xy)) < H.x + grow * q && abs(at.y - C.y) < H.y + grow * q) return true;
       }
     }
@@ -355,6 +398,18 @@ function instanced(base, attrs, count) {
 function dice(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 function hash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
+// A tiling cloud, for the vapour: three octaves of value noise that repeat at the edges.
+let _cloud = null;
+function cloudTex() {
+  if (_cloud) return _cloud;
+  const N = 128, data = new Uint8Array(N * N);
+  const lattice = (cells, seed) => { const rnd = dice(seed), g = new Float32Array(cells * cells); for (let i = 0; i < g.length; i++) g[i] = rnd(); return (u, v) => { const x = u * cells, y = v * cells, i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), at = (a, b) => g[(b % cells) * cells + (a % cells)]; return at(i, j) * (1 - sx) * (1 - sy) + at(i + 1, j) * sx * (1 - sy) + at(i, j + 1) * (1 - sx) * sy + at(i + 1, j + 1) * sx * sy; }; };
+  const o1 = lattice(3, 911), o2 = lattice(6, 1723), o3 = lattice(12, 3037);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const u = (i + 0.5) / N, v = (j + 0.5) / N, n = 0.55 * o1(u, v) + 0.3 * o2(u, v) + 0.15 * o3(u, v); data[j * N + i] = Math.round(255 * clamp((n - 0.5) * 1.7 + 0.5, 0, 1)); }
+  const t = new THREE.DataTexture(data, N, N, THREE.RedFormat, THREE.UnsignedByteType); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.minFilter = t.magFilter = THREE.LinearFilter; t.needsUpdate = true;
+  return (_cloud = t);
+}
+
 const say = (ok, ...lines) => ({ ok, lines: lines.flat().filter(l => l != null) });
 const LIST = [
   { id: 'sprinklers', name: 'Sprinklers', usage: 'sprinklers <zone|all> on|off', about: 'Wet-pipe sprinklers in public and back-of-house zones; never in a gallery.' },
@@ -373,6 +428,17 @@ const S = feature({
     this.t = 0; this.tick = 0; this.live = false;
     this.root = new THREE.Group(); this.root.name = 'building systems'; k.group.add(this.root);
     this.fx = new THREE.Group(); this.root.add(this.fx);
+    // The frame's alpha is 0 on a work and 1 elsewhere, until one of the game's own lights is added over a place (a
+    // picture lamp's pool on the floor, its wash on the wall, a searchlight): each is a rectangle that adds its alpha
+    // too, and the frame is floating point, so inside it the alpha stands at 2 or 3, and whatever is weighted by it
+    // afterwards comes out two or three times as bright, in the shape of the rectangle. So, once, just before
+    // anything of this file's is drawn: every pixel's alpha is brought down to 1 at most. (Colour is not touched, and
+    // a work's 0 stays 0.)
+    const level = new THREE.Mesh(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3)), new THREE.ShaderMaterial({
+      vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: 'void main() { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }',
+      transparent: true, depthTest: false, depthWrite: false, fog: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.ZeroFactor, blendDst: THREE.OneFactor,
+      blendEquationAlpha: THREE.MinEquation, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor }));
+    level.frustumCulled = false; level.renderOrder = 4.5; level.visible = false; level.name = 'alpha levelled'; this.fx.add(level); this.level = level;
     // Uniforms every effect shares: the clock, and the toy's headlamp.
     this.U = { uTime: { value: 0 }, uLampPos: { value: new THREE.Vector3() }, uLampDir: { value: new THREE.Vector3(0, 0, 1) }, uLampK: { value: 0 }, uLampCos: { value: 0.8 } };
     this.wet = new Map();           // room id -> its rain and its wet floor, while there is any
@@ -623,10 +689,10 @@ const S = feature({
     if (!L.active) return say(false, 'Lighting is locked out just now.');
     const set = this.resolve(what); if (!set) return say(false, `No such zone: ${what}.`);
     let n = 0;
-    for (const r of set.rooms) { if (!M.rooms[r.id] || L.isOn(r.id) === (want === 'on')) continue; L.set(r.id, want === 'on'); L.saved[r.id] = want === 'on' ? 1 : 0; n++; }
-    if (n) { L._save(); const snd = this.k.sound; if (snd && snd.tick) { snd.tick(0.14, 1500, 0.018); snd.tick(0.1, 650, 0.035, 0.06); } }
+    for (const r of set.rooms) { if (!M.rooms[r.id] || L.isOn(r.id) === (want === 'on')) continue; L.set(r.id, want === 'on'); n++; }      // (not kept between visits, as a thrown wall switch is: a command from the desk is for tonight)
+    if (n) { const snd = this.k.sound; if (snd && snd.tick) { snd.tick(0.14, 1500, 0.018); snd.tick(0.1, 650, 0.035, 0.06); } }
     return say(true, `${set.label}: ${n} room${n === 1 ? '' : 's'} switched ${want}.${n < set.rooms.length ? ` ${set.rooms.length - n} already ${want}.` : ''}`,
-      want === 'on' ? 'Patrol units see by their own lamps. Room lighting does not change what they see.' : 'The works are still there. They are simply not lit.');
+      want === 'on' ? 'Patrol units see by their own lamps. Room lighting does not change what they see.' : 'The works are still there. They are simply not lit.', 'Override holds until morning.');
   },
 
   _lift(a) {
@@ -684,7 +750,7 @@ const S = feature({
       if (c && free.length) {
         const b = free.reduce((m, q) => (Math.hypot(q.x - c.x, q.z - c.z) + Math.abs(q.fy - c.y) * 4 < Math.hypot(m.x - c.x, m.z - c.z) + Math.abs(m.fy - c.y) * 4 ? q : m));
         b.sys = { kind: 'donuts', stage: 'called', t: this.t, g0: b.g, fy0: b.fy, c }; this.busy.add(b);
-        lines.push(`Unit ${String(b.P.id).toUpperCase()} is on its way to the control room. Its patch (${b.P.rooms.join(', ')}) is unattended.`);
+        lines.push(`Unit ${String(b.P.id).toUpperCase()} has gone off duty and is on its way to the control room. Its patch (${b.P.rooms.join(', ')}) is unattended.`, 'A unit off duty takes no notice of anything but donuts.');
       } else lines.push('No unit is free to come. There are no donuts.');
     }
     return say(true, lines);
@@ -716,6 +782,7 @@ const S = feature({
     if ((this.tick = (this.tick + 1) % 12) === 0) this._headsNear(cam);
     if (!this.live) return;
     const U = this.U, slow = this.tick % 12 === 0;
+    this._made = false;
     U.uTime.value = this.t;
     const v = k.v, L = G.lamp;
     if (L && v) { const s = Math.sin(v.yaw), c = Math.cos(v.yaw); U.uLampPos.value.set(v.pos.x + s * 0.2, v.pos.y + (v.kind === 'drone' ? 0 : 0.14), v.pos.z + c * 0.2); U.uLampDir.value.set(s, -0.06, c).normalize(); U.uLampK.value = L.intensity > 0.5 ? Math.min(1, L.intensity / 70) : 0; U.uLampCos.value = Math.cos(Math.min(1.2, (L.angle || 0.6) * 0.95)); }
@@ -762,6 +829,7 @@ const S = feature({
       if (dark && b.pool) b.pool.visible = false;
     }
     this.live = this.wet.size > 0 || this.tests.size > 0 || this.busy.size > 0 || this.calls.length > 0 || this.pa.until > this.t || this.sprayLive > 0;
+    this.level.visible = this.live;
     if (!this.live) this._hiss(0, true);
   },
   _hiss(k, stop) {
@@ -783,6 +851,7 @@ const S = feature({
     for (let i = 0; i < n; i++) { const h = Math.floor(i / per) * 2; aHead[i * 3] = L.heads[h]; aHead[i * 3 + 1] = L.y - 0.14; aHead[i * 3 + 2] = L.heads[h + 1]; for (let q = 0; q < 4; q++) aSeed[i * 4 + q] = rnd(); }
     const rainU = { uOn: { value: w.tOn }, uOff: { value: w.tOff }, uFloor: { value: r.y }, uR: { value: SPRAY }, uDrip: { value: DRIP_FOR }, uLo: { value: lo }, uHi: { value: hi }, uCol: { value: col } };
     const rain = new THREE.Mesh(instanced(QUAD, [['aHead', aHead, 3], ['aSeed', aSeed, 4]], n), this._mat(RAIN_V, RAIN_F, rainU));
+    rain.renderOrder = 5;                 // (all of it after the game's own added lights, renderOrder 4, and after the alpha is levelled, 4.5)
     // the floor
     const pos = [], idx = [], y = r.y + 0.016;
     for (const c of carve(r, this.k.plan.wells.filter(q => Math.abs(q.y - r.y) < 0.02))) { const o = pos.length / 3; pos.push(c.x0, y, c.z0, c.x1, y, c.z0, c.x1, y, c.z1, c.x0, y, c.z1); idx.push(o, o + 2, o + 1, o, o + 3, o + 2); }
@@ -791,7 +860,7 @@ const S = feature({
     const floorU = { tRefl: { value: M ? M.rt.texture : null }, reflMatrix: { value: M ? M.matrix : new THREE.Matrix4() }, reflOn: M ? M.strength : { value: 0 }, reflY: M ? M.level : { value: 0 }, uHide: { value: 0 }, uFloor: { value: r.y },
       uGrow: { value: 0 }, uWet: { value: 0 }, uRain: { value: 0 }, uDripK: { value: 0 }, uR: { value: SPRAY }, uGrid: { value: new THREE.Vector4(r.x0, r.z0, L.cw, L.cd) }, uCol: { value: col } };
     const floor = new THREE.Mesh(fg, this._mat(FLOOR_V, FLOOR_F, floorU));
-    floor.material.polygonOffset = true; floor.material.polygonOffsetFactor = -1; floor.material.polygonOffsetUnits = -1; floor.renderOrder = 3;
+    floor.material.polygonOffset = true; floor.material.polygonOffsetFactor = -1; floor.material.polygonOffsetUnits = -1; floor.renderOrder = 5;
     if (M) floor.onBeforeRender = renderer => { floorU.uHide.value = renderer.getRenderTarget() === M.rt ? 1 : 0; floor.material.uniformsNeedUpdate = true; };      // not in the floor's own mirror
     // mist
     const area = (r.x1 - r.x0) * (r.z1 - r.z0), wide = Math.min(1, (Math.min(r.x1 - r.x0, r.z1 - r.z0) - 0.3) / 2.6), m = clamp(Math.round(area / (PHONE ? 5 : 3)), 8, PHONE ? 60 : 110);
@@ -804,7 +873,7 @@ const S = feature({
     this.fx.add(group);
     w.fx = { group, col, rain: { mesh: rain, ...rainU }, floor: { mesh: floor, ...floorU }, mist: { mesh: mist, ...mistU } };
   },
-  _dispose(fx) { fx.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); this.fx.remove(fx.group); },
+  _dispose(fx) { fx.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } }); for (const t of fx.textures || []) if (t) t.dispose(); this.fx.remove(fx.group); },
 
   // Spray off the wheels of a car on a wet floor: a few dozen short streaks thrown up behind it.
   _spray(dt, v) {
@@ -816,7 +885,7 @@ const S = feature({
       const mesh = new THREE.Mesh(g, this._mat(/* glsl */`attribute vec3 aP; attribute vec3 aV; attribute float aL; varying vec2 vQ; varying float vA; varying float vLamp; ${LAMP_PARS}
         void main() { vQ = position.xy; vec3 d = normalize(aV + vec3(0.0, 1e-4, 0.0)); vec3 toCam = cameraPosition - aP; float dist = length(toCam); vec3 side = normalize(cross(d, toCam));
           vec3 wp = aP - d * clamp(length(aV) * 0.03, 0.02, 0.12) * position.y + side * max(0.005, dist * 0.001) * position.x; vA = aL; vLamp = lampAt(aP); gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0); }`, RAIN_F, { uCol: { value: new THREE.Color(0.5, 0.58, 0.7) } }));
-      mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; this.fx.add(mesh);
+      mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; mesh.renderOrder = 5; this.fx.add(mesh);
       this.spray = { mesh, p, vel, a, life: new Float32Array(n), i: 0, acc: 0, n };
     }
     const s = this.spray; let alive = 0;
@@ -890,10 +959,10 @@ const S = feature({
     if (slow) {
       const dx = Math.max(r.x0 - cam.x, 0, cam.x - r.x1), dz = Math.max(r.z0 - cam.z, 0, cam.z - r.z1);
       ft.near = dx * dx + dz * dz < 40 * 40 && cam.y > r.y - 6 && cam.y < r.y + r.h + 7;
-      if (ft.near && !ft.fx) this._testFx(ft);
-      if (ft.fx) { ft.fx.group.visible = ft.near; const st = k.museum.rooms[r.id], lum = st ? Math.max(st.work || 0, st.wake || 0) : 0; if (ft.fx.vap) ft.fx.vap.uCol.value.setRGB(0.2 + 0.42 * lum, 0.22 + 0.44 * lum, 0.26 + 0.46 * lum); }
+      if (ft.near && !ft.fx && !this._made) { this._made = true; this._testFx(ft); }      // (one room a tick: finding what each doorway can see takes a few milliseconds)
+      if (ft.fx) { ft.fx.group.visible = ft.near; const st = k.museum.rooms[r.id], g = 0.3 + 0.7 * (st ? Math.max(st.work || 0, st.wake || 0) : 0); if (ft.fx.vap) ft.fx.vap.uCol.value.setRGB(0.47 * g, 0.5 * g, 0.55 * g); }
     }
-    if (ft.fx && ft.near) { const f = ft.fx; f.glow.uK.value = ft.stage === 'run' ? 1 : ft.k; f.glow.uCurtain.value = ft.curtain; f.glow.uCalm.value = k.G.set.reduce ? 1 : 0; if (f.vap) { f.vap.uK.value = (ft.stage === 'wait' ? 0 : ft.k) * 0.55; f.vap.uFront.value = ft.stage === 'run' ? Math.min(1, (this.t - ft.t0) / 7) : ft.stage === 'wait' ? 0 : f.vap.uFront.value; f.vap.mesh.visible = f.vap.carpet.visible = f.vap.uK.value > 0.002; } }
+    if (ft.fx && ft.near) { const f = ft.fx; f.glow.uK.value = ft.stage === 'run' ? 1 : ft.k; f.glow.uCurtain.value = ft.curtain; f.glow.uCalm.value = k.G.set.reduce ? 1 : 0; if (f.vap) { f.vap.uK.value = ft.stage === 'wait' ? 0 : ft.k; f.vap.uFront.value = ft.stage === 'run' ? Math.min(1, (this.t - ft.t0) / 9) : ft.stage === 'wait' ? 0 : f.vap.uFront.value; f.vap.uShimmer.value = k.G.set.reduce ? 0 : 1; f.vap.mesh.visible = f.vap.uK.value > 0.002; } }
   },
   _endTest(ft, why) {
     const P = this.k.plan;
@@ -929,42 +998,94 @@ const S = feature({
       for (let i = 0; i < n; i++) { const u = sg.lo + len * (i + 0.5) / n, x = w.horiz ? u : w.fixed + w.nx * 0.03, z = w.horiz ? w.fixed + w.nz * 0.03 : u; vents.push({ x, z, nx: w.nx, nz: w.nz }); if (ft.cap >= 0.12) put(x, r.y + 0.1, z, Math.atan2(w.nx, w.nz), 0.42, 0.07, PALE, 2); }
     }
     const glowU = { uK: { value: 0 }, uCurtain: { value: 0 }, uCalm: { value: 0 } };
-    // The works these could be seen in front of: this room's first, then those in line with one of its doorways (galleries
-    // stand in a row, and a picture can be seen through three doorways), then the nearest, out to three rooms away.
-    const M3 = this.k.museum, guard = [], seen = new Set(), next = id => P.doorsOf(id).filter(d => !d.hidden && !d.vent).map(d => (d.a === id ? d.b : d.a));
-    const one = next(r.id), two = one.flatMap(next), ids = [r.id, ...one, ...two, ...two.flatMap(next)];
-    const inLine = a => { let best = 1e3; for (const d of ft.doors) { const x = d.along === 'x', mx = (d.x0 + d.x1) / 2, mz = (d.z0 + d.z1) / 2, along = Math.abs(x ? a.x - mx : a.z - mz), across = Math.abs(x ? a.z - mz : a.x - mx), half = (x ? d.z1 - d.z0 : d.x1 - d.x0) / 2; best = Math.min(best, across < half + 0.6 * along + a.w / 2 ? 1 + along * 0.01 : 10 + Math.hypot(along, across)); } return best; };
-    for (const id of ids) { if (seen.has(id) || !M3.rooms[id]) continue; seen.add(id); for (const a of M3.rooms[id].arts) guard.push({ a, d: a.room === r.id ? 0 : inLine(a) }); }
-    guard.sort((p, q) => p.d - q.d);
-    const uG = Array.from({ length: MAXG * 3 }, () => new THREE.Vector4()), list = guard.slice(0, MAXG);
-    list.forEach(({ a }, i) => {
-      if (a.obj) { const half = Math.max(a.w / 2, a.half || 0); uG[i * 3].set(a.x, a.y, a.z, 1); uG[i * 3 + 2].set(half, a.h / 2, 0, 0); }
-      else { uG[i * 3].set(a.x, a.y, a.z, 0); uG[i * 3 + 1].set(Math.cos(a.rot), -Math.sin(a.rot), a.nx, a.nz); uG[i * 3 + 2].set(a.w / 2, a.h / 2, 0, 0); }
+    // The works these could be seen in front of: every one with a line of sight to one of this room's doorways.
+    const list = this._seenFrom(r, ft.doors).slice(0, MAXG), gd = new Float32Array(Math.max(1, list.length) * 12);
+    list.forEach((a, i) => {
+      const o = i * 12;
+      if (a.obj) { gd.set([a.x, a.y, a.z, 1], o); gd.set([Math.max(a.w / 2, a.half || 0), a.h / 2, 0, 0], o + 8); }
+      else { gd.set([a.x, a.y, a.z, 0], o); gd.set([Math.cos(a.rot), -Math.sin(a.rot), a.nx, a.nz], o + 4); gd.set([a.w / 2, a.h / 2, 0, 0], o + 8); }
     });
-    ft.guarded = list.length; ft.unguarded = guard.length - list.length;
-    glowU.uG = { value: uG }; glowU.uGN = { value: list.length };
+    const gt = new THREE.DataTexture(gd, 3, Math.max(1, list.length), THREE.RGBAFormat, THREE.FloatType); gt.minFilter = gt.magFilter = THREE.NearestFilter; gt.needsUpdate = true;
+    ft.guarded = list.length; ft.unguarded = this._seenFrom(r, ft.doors).length - list.length;
+    glowU.uG = { value: gt }; glowU.uGN = { value: list.length };
     const glow = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), this._mat(GLOW_V, GLOW_F, glowU), quads.length);
     const aC = new Float32Array(quads.length * 4); quads.forEach((q, i) => { glow.setMatrixAt(i, q.m); aC.set(q.c, i * 4); });
     glow.geometry.setAttribute('aC', new THREE.InstancedBufferAttribute(aC, 4)); glow.frustumCulled = false; glow.renderOrder = 6; group.add(glow);
-    // The vapour, if there is room for it under the lowest work: upright puffs rolling out of the vents, and the carpet.
+    // The vapour, if there is room for it under the lowest work: one box over the floor (FOG_V, FOG_F).
     let vap = null;
     if (ft.cap >= 0.12 && vents.length) {
-      const per = clamp(Math.round((PHONE ? 120 : 280) / vents.length), 3, 12), m = vents.length * per, aA = new Float32Array(m * 4), aS = new Float32Array(m * 4);
-      for (let i = 0; i < m; i++) { const q = vents[Math.floor(i / per)]; aA[i * 4] = q.x; aA[i * 4 + 1] = q.z; aA[i * 4 + 2] = q.nx; aA[i * 4 + 3] = q.nz; for (let j = 0; j < 4; j++) aS[i * 4 + j] = rnd(); }
-      const span = Math.min(r.x1 - r.x0, r.z1 - r.z0), wide = Math.min(1.5, (span - 0.3) / 2.6), life = 11;
-      const lo = new THREE.Vector2(r.x0 + 0.1, r.z0 + 0.1), hi = new THREE.Vector2(r.x1 - 0.1, r.z1 - 0.1), col = new THREE.Color(0.62, 0.66, 0.72);
-      const vapU = { uK: { value: 0 }, uFront: { value: 0 }, uFloor: { value: r.y }, uTop: { value: ft.cap }, uSpeed: { value: Math.min(0.6, span / 2 / life) }, uLife: { value: life }, uWide: { value: wide }, uLo: { value: lo }, uHi: { value: hi }, uCol: { value: col } };
-      const mesh = new THREE.Mesh(instanced(QUAD2, [['aA', aA, 4], ['aS', aS, 4]], m), this._mat(PUFF_V, PUFF_F, vapU));
-      mesh.geometry.boundingSphere = sphere; mesh.matrixAutoUpdate = false; mesh.renderOrder = 5; group.add(mesh);
-      const pos = [], idx = [];
-      for (const y of [0, 1]) { const o = pos.length / 3; pos.push(lo.x, y, lo.y, hi.x, y, lo.y, hi.x, y, hi.y, lo.x, y, hi.y); idx.push(o, o + 2, o + 1, o, o + 3, o + 2); }      // (y: which sheet; the shader sets its height)
-      const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); cg.setIndex(idx); cg.boundingSphere = sphere;
-      const carpU = { uK: vapU.uK, uFront: vapU.uFront, uFloor: vapU.uFloor, uTop: vapU.uTop, uLo: { value: lo }, uHi: { value: hi }, uCol: { value: col } };
-      const carpet = new THREE.Mesh(cg, this._mat(CARPET_V, CARPET_F, carpU)); carpet.matrixAutoUpdate = false; carpet.renderOrder = 5; group.add(carpet);
-      vap = { mesh, carpet, ...vapU };
+      const lo = new THREE.Vector2(r.x0 + 0.1, r.z0 + 0.1), hi = new THREE.Vector2(r.x1 - 0.1, r.z1 - 0.1);
+      // The little map of the room: a tongue of gas out from each vent, and nothing at a doorway (it does not spill, and it has no cut edge there).
+      const N = 64, md = new Uint8Array(N * N * 4), sm = (a, b, v) => smooth((v - a) / (b - a));
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const x = lo.x + (i + 0.5) / N * (hi.x - lo.x), z = lo.y + (j + 0.5) / N * (hi.y - lo.y);
+        let tongue = 0, open = 1;
+        for (const q of vents) { const ox = x - q.x, oz = z - q.z, out = ox * q.nx + oz * q.nz; if (out < -0.2) continue; const lat = oz * q.nx - ox * q.nz, wd = 0.55 + 0.22 * Math.max(0, out); tongue = Math.max(tongue, Math.exp(-lat * lat / (wd * wd)) * Math.exp(-Math.max(0, out) / 3.4)); }
+        for (const d of ft.doors) { const cx = clamp(x, d.x0, d.x1), cz = clamp(z, d.z0, d.z1); open = Math.min(open, sm(0.3, 1.8, Math.hypot(x - cx, z - cz))); }
+        const o = (j * N + i) * 4; md[o] = Math.round(tongue * 255); md[o + 1] = Math.round(open * 255); md[o + 3] = 255;
+      }
+      const map = new THREE.DataTexture(md, N, N, THREE.RGBAFormat, THREE.UnsignedByteType); map.minFilter = map.magFilter = THREE.LinearFilter; map.needsUpdate = true;
+      const vapU = { uK: { value: 0 }, uFront: { value: 0 }, uFloor: { value: r.y }, uTop: { value: ft.cap }, uSteps: { value: PHONE ? 6 : 12 }, uShimmer: { value: 1 }, uLo: { value: lo }, uHi: { value: hi }, uCol: { value: new THREE.Color(0.3, 0.32, 0.35) }, uNoise: { value: cloudTex() }, uVent: { value: map } };
+      const box = new THREE.BoxGeometry(1, 1, 1); box.translate(0.5, 0.5, 0.5); box.boundingSphere = sphere;
+      // (Its far faces are the ones drawn, the floor of the box and the sides beyond: each line of sight leaves by one of them, once.
+      // The near ones would do as well, but the top is a hand's breadth under a low camera and inside its near plane. And so
+      // what stands in the gas hides the gas behind it, as it should, rather than being veiled by it.)
+      const mat = this._mat(FOG_V, FOG_F, vapU); mat.side = THREE.BackSide;
+      const mesh = new THREE.Mesh(box, mat); mesh.matrixAutoUpdate = false; mesh.renderOrder = 5; group.add(mesh);
+      vap = { mesh, map, ...vapU };
     }
     this.fx.add(group);
-    ft.fx = { group, glow: { mesh: glow, ...glowU }, vap };
+    ft.fx = { group, glow: { mesh: glow, ...glowU }, vap, textures: [gt, vap && vap.map] };
+  },
+
+  // ---------------------------------------------------------------- what a doorway can see
+  // The walls of one level, in order, each with the stretches of it that are open (its doorways).
+  _wallsAt(y) {
+    const key = Math.round(y * 2), all = this._wl || (this._wl = new Map()); let W = all.get(key); if (W) return W;
+    W = { H: [], V: [] };
+    for (const w of this.k.plan.walls) {
+      const q = w.room; if (!q || q.secret || y < q.y - 0.6 || y > q.y + q.h - 0.6) continue;
+      const gaps = (w.openings || []).filter(o => !o.door.hidden && !o.door.vent && q.y + o.y < y + 1.2 && q.y + o.y + o.h > y + 0.6).map(o => [o.lo - 0.15, o.hi + 0.15]);
+      (w.horiz ? W.H : W.V).push({ at: w.fixed, lo: w.lo, hi: w.hi, gaps });
+    }
+    W.H.sort((a, b) => a.at - b.at); W.V.sort((a, b) => a.at - b.at); all.set(key, W); return W;
+  },
+  // Does the straight line a to b (a0, a1 across these walls; b0, b1 along them) pass every wall it crosses at a doorway?
+  _cross(list, a0, a1, b0, b1) {
+    const lo = Math.min(a0, a1), hi = Math.max(a0, a1); if (hi - lo < 1e-6) return true;
+    let i = 0, j = list.length; while (i < j) { const m = (i + j) >> 1; if (list[m].at <= lo) i = m + 1; else j = m; }
+    for (; i < list.length && list[i].at < hi; i++) {
+      const w = list[i], u = b0 + (b1 - b0) * (w.at - a0) / (a1 - a0); if (u < w.lo || u > w.hi) continue;
+      let open = false; for (const g of w.gaps) if (u > g[0] && u < g[1]) { open = true; break; }
+      if (!open) return false;
+    }
+    return true;
+  },
+  // Every work that can be seen through one of a room's doorways, from either side: its own, those of the rooms through
+  // its doorways, and any other on the level with a clear line (through however many doorways) from some part of it to
+  // some part of one of these openings. Galleries stand in rows: a picture can be seen through three doorways and more.
+  _seenFrom(r, doors) {
+    if (r._sysSeen) return r._sysSeen;
+    const W = this._wallsAt(r.y + 0.1), out = [], beside = new Set([r.id, ...doors.map(d => (d.a === r.id ? d.b : d.a))]);
+    const U = [0, -0.92, 0.92, -0.46, 0.46], Vv = [0, -1, 1, -0.5, 0.5];
+    for (const a of this.k.museum.arts) {
+      if (Math.abs((a.fy || 0) - r.y) > 0.6) continue;
+      if (beside.has(a.room)) { out.push([a, a.room === r.id ? -1 : 0]); continue; }
+      const tx = Math.cos(a.rot || 0), tz = -Math.sin(a.rot || 0), hw = a.obj ? Math.max(a.w / 2, a.half || 0.3) : a.w / 2, ox = a.obj ? 0 : a.nx * 0.08, oz = a.obj ? 0 : a.nz * 0.08;
+      let best = Infinity;
+      for (const d of doors) {
+        const x = d.along === 'x', mx = (d.x0 + d.x1) / 2, mz = (d.z0 + d.z1) / 2, dist = Math.hypot(a.x - mx, a.z - mz);
+        if (dist > 60 || dist >= best) continue;
+        if (!a.obj && (mx - a.x) * a.nx + (mz - a.z) * a.nz < 0.05) continue;                // it has its back to this doorway
+        const half = (x ? d.z1 - d.z0 : d.x1 - d.x0) / 2 - 0.06;
+        let ok = false;
+        for (let m = 0; m < 5 && !ok; m++) { const px = a.x + tx * hw * U[m] + ox, pz = a.z + tz * hw * U[m] + oz; for (let n = 0; n < 5 && !ok; n++) { const qx = x ? mx : mx + half * Vv[n], qz = x ? mz + half * Vv[n] : mz; ok = this._cross(W.H, pz, qz, px, qx) && this._cross(W.V, px, qx, pz, qz); } }
+        if (ok) best = dist;
+      }
+      if (best < Infinity) out.push([a, best]);
+    }
+    out.sort((p, q) => p[1] - q[1]);
+    return (r._sysSeen = out.map(p => p[0]));
   },
 
   // ---------------------------------------------------------------- the robots
@@ -986,9 +1107,10 @@ const S = feature({
     const mx = (d.x0 + d.x1) / 2, mz = (d.z0 + d.z1) / 2, longZ = hall.z1 - hall.z0 > hall.x1 - hall.x0;
     // It turns up some way down the corridor, and comes in by the door.
     let far = -1; for (const s of [9, -9, 6, -6]) { far = nearestOpen(g, longZ ? (hall.x0 + hall.x1) / 2 : clamp(mx + s, hall.x0 + 0.6, hall.x1 - 0.6), longZ ? clamp(mz + s, hall.z0 + 0.6, hall.z1 - 0.6) : (hall.z0 + hall.z1) / 2, ROOM, 1.5); if (far >= 0) break; }
-    const spot = nearestOpen(g, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, ROOM + 0.2, 3);
-    if (far < 0 || spot < 0) return (this._ctrlMade = null);
-    return (this._ctrlMade = { room: r, g, y: r.y, x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, far: cxy(far), spot: cxy(spot) });
+    // Where it stands to look about: the middle of the room, or towards either end of it (whichever is not where the toy is).
+    const lx = r.x1 - r.x0 > r.z1 - r.z0, spots = [0, -0.3, 0.3].map(u => nearestOpen(g, (r.x0 + r.x1) / 2 + (lx ? u * (r.x1 - r.x0) : 0), (r.z0 + r.z1) / 2 + (lx ? 0 : u * (r.z1 - r.z0)), ROOM + 0.2, 3)).filter(c => c >= 0).map(cxy);
+    if (far < 0 || !spots.length) return (this._ctrlMade = null);
+    return (this._ctrlMade = { room: r, g, y: r.y, x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, far: cxy(far), spot: spots[0], spots });
   },
   // A dry place on a robot's own floor to wait out the rain: the nearest room of its patch that is not wet.
   _refuge(b, gf) {
@@ -1061,13 +1183,13 @@ const S = feature({
     const t = this.t, k = this.k, c = s.c;
     if (s.stage === 'called') {
       // It finishes what it is doing, then goes: when nobody is near enough to watch it leave its patch.
-      b.v = 0; b.sus = 0; b.look = turn(b.look, b.yaw + Math.PI, 3 * dt);
-      if (!s.said && b.near) { s.said = true; k.callout('DONUTS?'); }
+      b.v = 0; b.sus = 0; b.heard = null; b.look = turn(b.look, b.yaw + Math.PI, 3 * dt);
+      if (!s.said && b.near) { s.said = true; k.callout('OFF DUTY: DONUTS'); }
       if (!b.near || t - s.t > 5) { s.stage = 'travel'; s.t = t; s.wait = clamp((Math.hypot(b.x - c.x, b.z - c.z) + Math.abs(b.fy - c.y) * 5) / 9, 7, 20); b.fy = PARK; }
       return true;
     }
     if (s.stage === 'travel') {
-      if (t - s.t > s.wait) { b.g = c.g; b.fy = c.y; b.x = c.far.x; b.z = c.far.z; b.mode = 'patrol'; b.mt = 0; b.v = 0; b.sus = 0; gf._plan(b, c.spot.x, c.spot.z); b.yaw = b.look = b.pn > 1 ? Math.atan2(b.path[2] - b.x, b.path[3] - b.z) : 0; s.stage = b.pn ? 'come' : 'back'; s.t = t; s.px = b.x; s.pz = b.z; this.event('A patrol unit has arrived at the control room.', false); }
+      if (t - s.t > s.wait) { const toy = k.pos, clear = q => Math.hypot(q.x - toy.x, q.z - toy.z); c.spot = c.spots.find(q => clear(q) > 2) || c.spots.reduce((m, q) => (clear(q) > clear(m) ? q : m)); b.g = c.g; b.fy = c.y; b.x = c.far.x; b.z = c.far.z; b.mode = 'patrol'; b.mt = 0; b.v = 0; b.sus = 0; gf._plan(b, c.spot.x, c.spot.z); b.yaw = b.look = b.pn > 1 ? Math.atan2(b.path[2] - b.x, b.path[3] - b.z) : 0; s.stage = b.pn ? 'come' : 'back'; s.t = t; s.px = b.x; s.pz = b.z; this.event('A patrol unit has arrived at the control room.', false); }
       return true;
     }
     if (s.stage === 'home') {
@@ -1076,14 +1198,15 @@ const S = feature({
     }
     // In the control room. If it was put back on its beat meanwhile (a chase given up with no way home), it is home already.
     if (cellAt(c.g, b.x, b.z) < 0 || b.g !== c.g) { this._free(b); return false; }
-    if (!beat) return false;                                             // it has found something more interesting than donuts
-    if (b.mode !== 'patrol') { b.mode = 'patrol'; b.mt = 0; if (s.stage === 'come') gf._plan(b, c.spot.x, c.spot.z); else { s.stage = 'back'; gf._plan(b, c.far.x, c.far.z); } }
+    // Off duty. It takes no notice of the toy at all, whatever it has just seen or heard: nothing builds up, and it is never after you.
+    b.sus = 0; b.heard = null; b.seen = false; b.cool = 1;
+    if (b.mode !== 'patrol') { b.mode = 'patrol'; b.mt = 0; if (s.stage === 'come') gf._plan(b, c.spot.x, c.spot.z); else if (s.stage === 'back') gf._plan(b, c.far.x, c.far.z); }
     if (this.rainAt(b.x, b.z, b.fy) && s.stage !== 'back') { s.stage = 'back'; gf._plan(b, c.far.x, c.far.z); if (b.near) k.callout('MOISTURE DETECTED'); }
     if (s.stage === 'come') { if (!b.pn || gf._follow(b, BOT.look, dt)) { s.stage = 'sniff'; s.t = t; b.v = 0; } b.look = turn(b.look, b.yaw, 4 * dt); }
     else if (s.stage === 'sniff') {
       b.v = 0; b.look = turn(b.look, b.yaw + Math.sin((t - s.t) * 1.4) * 1.5, 3 * dt);
-      if (t - s.t > 2 && !s.asked) { s.asked = true; if (b.near) k.callout('DONUTS?'); gf.sfx.query(); }
-      if (t - s.t > 9) { s.stage = 'back'; gf._plan(b, c.far.x, c.far.z); if (b.near) { k.callout('NO DONUTS FOUND'); gf.sfx.giveUp(); } }
+      if (t - s.t > 2 && !s.asked) { s.asked = true; if (b.near) k.callout('OFF DUTY. DONUTS?'); gf.sfx.query(); }
+      if (t - s.t > 9) { s.stage = 'back'; gf._plan(b, c.far.x, c.far.z); if (b.near) { k.callout('NO DONUTS. BACK ON DUTY SOON'); gf.sfx.giveUp(); } }
     } else {
       if (!b.pn || gf._follow(b, BOT.walk * 1.3, dt)) { s.stage = 'home'; s.t = t; s.wait = 8; b.fy = PARK; b.v = 0; s.px = undefined; }
       b.look = turn(b.look, b.yaw, 4 * dt);
@@ -1142,7 +1265,7 @@ const S = feature({
     const gf = this._guards(); for (const b of (gf && gf.bots) || []) if (b.sys) this._free(b);
     this.busy.clear(); this.pa = { until: 0, text: '' };
     if (this.spray) { this.spray.life.fill(0); this.spray.mesh.visible = false; } this.sprayLive = 0;
-    this._hiss(0, true); this.live = false;
+    this._hiss(0, true); this.live = false; this.level.visible = false;
   },
 });
 export default S;

@@ -829,13 +829,16 @@ comes back as lines, in the voice of a building management system),
   and this is its 20-second test. Amber beacons over the doorways, a light
   curtain across each (solid while it is drawn; it is a sensor, so leaning on
   it aborts the test and nothing is ever shut in; a test asked for while the
-  toy is in the room waits until it has left), a low white vapour along the
-  floor, robots in the room halted and then restarting for a few seconds.
-- `lights <zone|room|all> on|off` throws switches (`src/lights.js`), `lift call
-  <floor>` calls and holds a lift, `doors status` is honest about the locks
-  (the vents are "not on the system"), and `pa <message>` chimes, shows the
-  words and makes every robot stop to listen. `pa donuts` sends one to the
-  control room, which is where you are.
+  toy is in the room waits until it has left), cold grey gas lying on the
+  floor, heaped at the skirting vents and thinning out across the room, robots
+  in the room halted and then restarting for a few seconds.
+- `lights <zone|room|all> on|off` throws switches (`src/lights.js`) for tonight
+  only (a wall switch is remembered between visits; a command from the desk is
+  not), `lift call <floor>` calls and holds a lift, `doors status` is honest
+  about the locks (the vents are "not on the system"), and `pa <message>`
+  chimes, shows the words and makes every robot stop to listen. `pa donuts`
+  sends one to the control room, which is where you are: it is off duty, takes
+  no notice of the toy, looks about and goes back.
 
 Nothing is ever drawn over a work of art, and this is held three ways. All of
 it that is see-through (rain, ripples, the wet sheen, mist, vapour, beacons,
@@ -844,8 +847,13 @@ work (`keepTrue`, `src/finish.js`), so a canvas pixel cannot change from any
 camera. Mist and vapour never stand higher than the eye of the camera drawing
 them, nor within 20 cm of the lowest work in the room, so no line of sight
 through them rises to a picture. And the test's beacons and beams are thrown
-away pixel by pixel wherever they would lie in front of a work in that room or
-the rooms through its doorways. `__ah.systems.artCheck(views)` renders with and
+away pixel by pixel wherever they would lie in front of a work: any work with
+a line of sight to one of the room's doorways, through however many doorways
+(the walls and their openings are walked for each). One more thing keeps the
+weighting honest: the game's own added lights (a picture lamp's pool and wash,
+a searchlight) each add to the frame's alpha too, so inside their rectangles
+it stands at 2 or 3; it is brought back to 1 at most, once, before anything
+here is drawn. `__ah.systems.artCheck(views)` renders with and
 without everything here and counts the pixels of works that differ;
 `node tools/systems_check.mjs` does that from 118 cameras, with every valve open
 and two wings under test.
@@ -853,7 +861,8 @@ and two wings under test.
 With nothing switched on it costs a counter a frame. A raining room is three
 draw calls (rain as instanced streaks worked out in the vertex shader, the wet
 floor, mist), made when the camera first comes within 36 m; a gallery under
-test is three more.
+test is two (its lights; and its vapour, one box over the floor whose every
+pixel adds up the gas along its own line of sight through the layer).
 
 ## The conservation line
 

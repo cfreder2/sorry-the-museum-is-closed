@@ -8,9 +8,10 @@
 // then renders from a camera at every doorway between a raining room and a room with works in it (both ways), and
 // from three cameras inside each of fourteen galleries under test: once with everything src/systems.js draws hidden,
 // once with it shown (__ah.systems.artCheck). It prints how many pixels of works were looked at and how many changed:
-//   true    a work shown exactly (alpha 0 in the frame, src/finish.js keepTrue): must be 0 changed, and the run fails otherwise
+//   true    a work shown exactly (alpha 0 in the frame, src/finish.js keepTrue)
 //   veiled  a work seen through something of the game's own that already adds light over it (the glass of a case, a
-//           picture lamp's wash across a doorway): reported
+//           picture lamp's wash across a doorway)
+// Both must be 0 changed, and the run fails otherwise.
 // Puppeteer: the copy inside mermaid-cli (see tools/lifesheet.mjs), or $PUPPETEER.
 
 import fs from 'node:fs';
@@ -84,8 +85,8 @@ try {
   const by = l => { const q = rows.filter(r => r.label.startsWith(l)); const s2 = k => q.reduce((a, r) => a + r[k], 0); return { views: q.length, truePx: s2('truePx'), trueChanged: s2('trueChanged'), veiledPx: s2('veiledPx'), veiledChanged: s2('veiledChanged'), effectPx: s2('effectPx'), worstVeiled: Math.max(0, ...q.map(r => r.worstVeiled)) }; };
   console.log('doorways (rain)', JSON.stringify(by('doors'))); console.log('galleries (fire test)', JSON.stringify(by('test')));
   const bad = rows.filter(r => r.trueChanged > 0 || r.veiledChanged > 0); console.log('views with any change on a work:', bad.length); for (const r of bad.slice(0, 14)) console.log(JSON.stringify(r));
-  failed = sum('trueChanged') > 0;
-  console.log(failed ? 'FAIL: pixels of a work shown true have changed' : 'PASS: not one pixel of a work shown true has changed');
+  failed = sum('trueChanged') > 0 || sum('veiledChanged') > 0;
+  console.log(failed ? 'FAIL: pixels of a work have changed' : 'PASS: not one pixel of a work has changed, shown true or veiled');
 } finally {
   if (errors.length) { console.log('page errors:\n' + [...new Set(errors)].join('\n')); failed = true; }
   await browser.close();
