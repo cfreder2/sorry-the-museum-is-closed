@@ -28,7 +28,9 @@
 // measurements below, so its edges are clean at any distance. The positions, the lines' widths (the right upright is
 // the thinnest, the lower bar the thickest; they differ by a millimetre and a half) and the colours are measured from
 // the museum's photograph: the yellow, the blue, the vermilion red, two whites and a grey, the ivory of the strip
-// frame. Two draw calls: the canvas, and its shadow on the floor. Nothing is solid; the toy drives through.
+// frame. The canvas that comes out is the real one's size, 60 cm a side (the photograph hangs here 60 cm across its
+// grey margins, so the picture on the wall is the smaller of the two). Two draw calls: the canvas, and its shadow
+// on the floor. Nothing is solid; the toy drives through.
 // With "Reduce motion and flashing" on, the canvas comes up onto its point and leans without any rocking, the
 // tinkering is halved, and the sounds are softer; nothing here flashes.
 //
