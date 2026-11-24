@@ -16,6 +16,8 @@
 import * as THREE from 'three';
 
 const HIDDEN = 7;                          // the layer the camera does not draw
+// Is every array of this geometry still in memory, so that three.js can send it up again after a dispose()?
+const held = g => { for (const k in g.attributes) { const a = g.attributes[k]; if (!(a.data ? a.data.array : a.array)) return false; } return !g.index || !!g.index.array; };
 
 export class Streamer {
   // inside(box): is this thing inside a room (true) or out of doors / on the outside of the building (false)?
@@ -67,11 +69,13 @@ export class Streamer {
       const d = this._dist(it.box, cam), r = it.inner ? reach.inner : reach.outer;
       if (it.on && d > r + gap) { it.on = false; it.o.layers.set(HIDDEN); gone.push(it); }
       else if (!it.on && d < r) { it.on = true; it.o.layers.set(0); }
-      if (it.on) { keepG.add(it.o.geometry); for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture) keepT.add(x); } }
     }
-    // Let go of what only far things use.
+    // Let go of what only far things use (worked out only when something has gone: it is a walk over every material).
+    if (gone.length) for (const it of this.items) if (it.on) { keepG.add(it.o.geometry); for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture) keepT.add(x); } }
     for (const it of gone) {
-      const g = it.o.geometry; if (g && !keepG.has(g)) g.dispose();
+      // A geometry whose copy in memory has been let go (museum.js, lights.js, budget.js do that once it is on the
+      // graphics card) cannot be sent up again: it stays on the card, hidden. Disposing it made every later frame throw.
+      const g = it.o.geometry; if (g && !keepG.has(g) && held(g)) g.dispose();
       for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && !keepT.has(x)) x.dispose(); }
     }
     this.out = this.items.length - this.items.filter(i => i.on).length;

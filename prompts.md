@@ -1026,3 +1026,12 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 240
 
 > Okay, we are going to keep animating until we have them all done. So keep going. Do not compromise on quality. The reviewer should still review and send back for feedback and improvement.
+
+## 241
+
+> I have people saying that the paintings that are zapped with green goo can sort of run around the museum and cause chaos. From a technical standpoint, is this feasible, to have so many things perpetually in the museum, alive so to speak? Right now they are just neat animations that come and go.
+
+## 242
+
+> Okay, so the robots will zap them and that puts them back in the painting. Goya + ram please, by the way. So if stuff gets "out" then the robots clean it up. Painting people will "run" or "scatter" from the robot. Once it's zapped the world fades away. You'll have to evaluate how that works. Sometimes you just zap the "effect", like the girl in the window that is a shadow, or the water with a bobber. So each would require a plan. First do the planning for what is built. Then we will test it with a few different scenarios to build the rule, before applying it going forward. This makes the world and mystery more alive. Agree or disagree. Give a prior reviewer this knowledge and ask them what they think of the "game" mechanic.
+
