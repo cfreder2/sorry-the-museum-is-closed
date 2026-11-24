@@ -20,6 +20,7 @@ import { harbourEdge } from './harbourplan.js';
 import { addFinale } from './finaleplan.js';
 import { addStaffVent } from './ventplan.js';
 import { shapeHill } from './hillshape.js';      // the hills' shapes (kit helper): off-centre summits, spurs, a sled chute
+import { dressGrounds } from './groundsplan.js';   // what grows and stands in the grounds: trees by kind, shrubs, hedges, the park's furniture
 
 export const T = 1;            // wall thickness, for the outside of a building
 export const HW = HALL_HW();    // Griffin Court's half-width
@@ -257,6 +258,7 @@ export function buildPlan() {
   { const tm = massOf.G211 || masses.find(m => m.room && m.room.sky && m.room.kind === 'gallery'); if (tm) plan.terrace = { room: tm.room.id, x: (tm.x0 + tm.x1) / 2 + 0.6, z: (tm.z0 + tm.z1) / 2, top: tm.top }; }
   addRoofs(plan);
   addNests(plan);
+  dressGrounds(plan, groundOpenings(plan));          // the planting and the park's furniture, wherever everything above has left room (src/groundsplan.js)
   addLie(plan);            // last: the land rolls only where nothing above needs it flat
   return plan;
 }
@@ -1523,7 +1525,7 @@ function addLie(plan) {
   each(plan.paved); each(plan.ice, 0, 0.4); each(G.plazas, c => c.r); each(groundOpenings(plan), 0, 1.5);
   rect({ x0: G.rail.x0 - 2, x1: G.rail.x1 + 2, z0: B.z0, z1: B.z1 }); rect(plan.cut && { x0: plan.cut.x0, x1: plan.cut.x1, z0: B.z0, z1: B.z1 });
   for (const s of plan.surfaces) rect(s, 0.3);                                            // the kit, the hills, the hedges' tops, the planters
-  const trunk = new Set(G.trees.map(t => Math.round(t.x * 10) + ',' + Math.round(t.z * 10)));    // trees ride the land
+  const trunk = new Set([...G.trees, ...((plan.dress && plan.dress.ride) || [])].map(t => Math.round(t.x * 10) + ',' + Math.round(t.z * 10)));    // trees ride the land (and shrubs and boulders: groundsplan.js)
   for (const o of plan.obstacles) if (o.y0 < 0.6 && !trunk.has(Math.round((o.x0 + o.x1) * 5) + ',' + Math.round((o.z0 + o.z1) * 5))) rect(o, 0.3);
   for (const t of G.trees) if (t.kind === 'hawthorn') rect({ x0: t.x - 1, x1: t.x + 1, z0: t.z - 1, z1: t.z + 1 });      // the South Garden's hawthorns stand in stone planters (eastside.js)
   each(G.snowmen, 1.5); each(G.fountains, f => f.r + 2); each(G.parcels, 1.2); each(G.hedges, 0, 0.3);
@@ -1539,7 +1541,7 @@ function addLie(plan) {
     if (mw.length) rect({ x0: Math.min(...mw.map(m => m.x0)) - 9, x1: Math.max(...mw.map(m => m.x1)) + 9, z0: G.monroe.z1, z1: Math.max(...mw.map(m => m.z1)) + 9 }); }
   for (const q of LIE_FLAT) rect({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] });
   { const s = G.silo; if (s) { if (s.x0 != null) rect(s, 2); else if (s.x != null) { const h = (s.half || (s.size || s.w || 32) / 2) + 2; rect({ x0: s.x - h, x1: s.x + h, z0: s.z - h, z1: s.z + h }); } } }     // a silo in the ball field's centre field, if there is one
-  plan.land = buildLand(B, open, flat, { paths: [...G.paths, ...(L ? L.paths : [])], hedges: G.hedges, trees: G.trees, field: L && L.field });      // (the last: what the wind's drifts lie against, land.js)
+  plan.land = buildLand(B, open, flat, { paths: [...G.paths, ...(L ? L.paths : [])], hedges: G.hedges, trees: G.trees, field: L && L.field, keep: plan.dress && plan.dress.flat });      // (the last: what the wind's drifts lie against, land.js)
 }
 
 // ------------------------------------------------------------------ the roofs --

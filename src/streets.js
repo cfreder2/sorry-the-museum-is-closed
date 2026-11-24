@@ -232,7 +232,8 @@ export function buildStreets(museum, plan) {
   }
   // ------------------------------------------------------------------ medians
   // A raised planter down the middle: stone kerb, soil, clipped evergreens, a small bare tree now and then, snow lying on it.
-  const twig = []; const treeAt = (x, y, z, s = 1) => { const k = (r0, r1, len, rx, rz, yy) => { const c = new THREE.CylinderGeometry(r1, r0, len, 5); c.translate(0, len / 2, 0); c.rotateX(rx); c.rotateZ(rz); c.scale(s, s, s); c.translate(x, y + yy * s, z); twig.push(c); }; k(0.07, 0.045, 1.5, 0, 0, 0); for (let i = 0; i < 5; i++) { const a = i * 1.26 + x; k(0.035, 0.012, 1.3, Math.cos(a) * 0.7, Math.sin(a) * 0.7, 1.35); } };
+  const twig = []; const treeAt = (x, y, z, s = 1) => { (G.medianTrees || (G.medianTrees = [])).push({ x, y, z }); if (plan.dress) return;      // (a small crabapple or hawthorn of trees.js's stands in each pit now; the sticks below only without it)
+    const k = (r0, r1, len, rx, rz, yy) => { const c = new THREE.CylinderGeometry(r1, r0, len, 5); c.translate(0, len / 2, 0); c.rotateX(rx); c.rotateZ(rz); c.scale(s, s, s); c.translate(x, y + yy * s, z); twig.push(c); }; k(0.07, 0.045, 1.5, 0, 0, 0); for (let i = 0; i < 5; i++) { const a = i * 1.26 + x; k(0.035, 0.012, 1.3, Math.cos(a) * 0.7, Math.sin(a) * 0.7, 1.35); } };
   const median = (along, a, b, c, hw, y) => {
     const KH = 0.2, box = (q, p0, p1, y0, y1, w) => along === 'z' ? q.box(c - w, c + w, y0, y1, p0, p1) : q.box(p0, p1, y0, y1, c - w, c + w);
     const rect = (p0, p1, w) => along === 'z' ? { x0: c - w, x1: c + w, z0: p0, z1: p1 } : { x0: p0, x1: p1, z0: c - w, z1: c + w };
@@ -450,6 +451,10 @@ export function buildStreets(museum, plan) {
   lay(roadMk, roadMarkMaterial(), -4); lay(paintW, paintMaterial(false), -3); lay(paintY, paintMaterial(true), -3);
   const wet = lay(trackG, trackMaterial(museum.mirror), -2); if (wet) museum.floors.push(wet);      // (kept out of its own reflection)
   lay(walkMk, walkMarkMaterial(), -2);
+  // The gardens' and the paths' own benches and bins (groundsplan.js). A bench stands only where the ground under its
+  // length is level to a hand's width: where the lawn rolls under one, it is left out.
+  if (plan.dress) { plan.dress.benches = plan.dress.benches.filter(b => { const e = b.fx ? [0, 0.9] : [0.9, 0], ys = [-1, 0, 1].map(k => streetY(plan, b.x + e[0] * k, b.z + e[1] * k)); return Math.max(...ys) - Math.min(...ys) < 0.05 && Math.max(...ys) < 0.06; });
+    for (const b of plan.dress.benches) bench(b.x, b.z, b.fx, b.fz); for (const [x, z] of plan.dress.bins) bin(x, z); }
   for (const m of PF.meshes(mat.snow)) add(m);
   for (const m of PK.meshes(mat.snow)) add(m);
 }
