@@ -50,8 +50,8 @@ const PI = Math.PI, TAU = PI * 2, RAD = PI / 180;
 const NX = 12, NY = 12;                                           // a card's grid: across a leaf, and along it
 const TOP = 0.86;                                                 // nothing stands higher than this (m): under every picture on the wall
 const CURL = 10.5;                                                // how tightly a fern's crozier is rolled (radians a frond)
-// The sun, in the stage's terms (along the wall, up, out from it): high, and from behind the wall, as his is from behind
-// the palms. So shadows fall out into the room and a little to the left.
+// The way to the sun, in the stage's terms (along the wall, up, out from it): fifty degrees up, and behind the wall, as
+// his is behind the palms. So shadows fall out into the room and a little to the left.
 const SUN = new THREE.Vector3(0.16, 0.766, -0.62).normalize();
 // Mendelssohn, Auf Fluegeln des Gesanges, Op. 34 No. 2 (1834), in A flat, 6/8. E8: a quaver. The tune enters on the
 // second bar. [quavers from that bar's first beat, note, length in quavers]
@@ -65,10 +65,11 @@ const TONIC = ['C4', 'Eb4', 'Ab4', 'C5'], DOM = ['Db4', 'Eb4', 'G4', 'Bb4'];
 const HARM = [['Ab2', TONIC], ['Ab2', ['C4', 'Ab4', 0, 'C4']], ['Ab2', TONIC], ['Ab2', TONIC], ['G2', DOM], ['G2', DOM], ['G2', DOM], ['G2', DOM], ['Ab2', TONIC], ['Ab2', ['C4', 'Eb4', 'Ab4', 'Eb4']]];
 const T_GREAT = T_A + 6 * E8, T_FLOWER = T_A + 12 * E8, T_AIR = T_A + 12 * E8;      // the top of the run; the next bar: the flower, and a breath of air
 
-// The two palms: where each stands (u along the wall from the middle of the picture, out from it), and its leaves: the
+// The three palms: where each stands (u along the wall from the middle of the picture, out from it), and its leaves: the
 // stalk (which way it leans: degrees round from the viewer's right, 90 is out into the room; how steeply it starts;
-// how far it bows, radians; its length), the fan (its radius; how far round it opens, degrees; how much its tips
-// droop; a turn about its own stalk), and when it opens.
+// how far it bows, radians; its length), the fan (its radius; how steeply its middle rib stands and which way it
+// faces once open, degrees; how far round it opens, degrees; how much its tips droop; a turn in its own plane), and
+// when it opens. The great fan is the third leaf of the middle palm.
 const PALMS = [
   { u: -1.0, out: 0.22, fans: [
     { yaw: 160, e0: 70, bend: 0.5, len: 0.42, R: 0.3, ea: 58, face: 116, spread: 240, droop: 0.2, turn: -0.15, t: T_A },
@@ -138,7 +139,7 @@ lifeFor(144969, {
   title: /^The Interior of the Palm House/,
   word: 'dapple',
   stage: { out: 1.5, half: 1.7, cam: { dist: 3.0, height: 0.66, side: 0.3, fov: 60, lookU: 0.02, lookOut: 0.4, lookH: 0.75, whole: false } },
-  wake: 2.4, ret: 2.6,
+  wake: 2.4, ret: 2.2,
   linger: { near: 4, max: 30 },
 
   build(L) {
@@ -150,16 +151,16 @@ lifeFor(144969, {
     // ---------------------------------------------------------- what there is
     // the palms: a stalk and a fan to each leaf
     this.fans = [];
-    PALMS.forEach((p, pi) => p.fans.forEach((f, k) => {
+    PALMS.forEach(p => p.fans.forEach((f, k) => {
       const t0 = born(p.u, p.out) + 0.12 * k;
       const stalk = inst({ kind: K_STALK, u: p.u + 0.03 * Math.cos(f.yaw * RAD), out: p.out + 0.03 * Math.sin(f.yaw * RAD), yaw: f.yaw * RAD, e0: f.e0 * RAD, bend: f.bend, len: f.len, wid: 0.016 + 0.012 * f.R, roll: 0, cup: 0.3, t0, dur: 1.15, c: col('#4c5220'), c2: col('#a39a54') });
       const fan = inst({ kind: K_FAN, R: f.R, ea: f.ea * RAD, face: f.face * RAD, spread: f.spread * RAD, droop: f.droop, turn: f.turn, t: f.t, great: !!f.great, stalk, t0: t0 + 0.35, dur: 1.0,
-        c: col(f.great ? '#252b0c' : '#2a3010'), c2: col(f.great ? '#84913a' : '#77852f', 0.15), k: this.fans.length, u: p.u });
+        c: col(f.great ? '#252b0c' : '#2a3010'), c2: col(f.great ? '#7d8c30' : '#6f7e2a', 0.12), k: this.fans.length, u: p.u });
       this.fans.push(fan);
     }));
     // the ferns
     this.ribs = [];
-    TUFTS.forEach((t, ti) => {
+    TUFTS.forEach(t => {
       for (let j = 0; j < t.n; j++) {
         const a = (j + 0.5 * rnd()) / t.n * TAU, la = t.lean * RAD;
         // (a shuttlecock, leaning: its fronds fan out all round, more of them and longer towards where it leans)
@@ -350,6 +351,8 @@ float pShade(vec3 P0, vec4 Hh, vec4 Aa, vec4 Ss, float jn, float px) {
   float si, f, d = pFan(th / (2.0 * hf), r, Ss.w, jn, si, f), pen = max(0.004 + 0.02 * t, px);      // (the higher the leaf, the softer its shadow; never finer than a pixel)
   float segw = max(r * Hh.w * 2.0 * hf / pSegs(Ss.w), 0.002);
   float sh = d < -0.9 ? 1.0 : 1.0 - smoothstep(-pen, pen, d * segw);
+  // (a leaf still folded, or far off: its segments are finer than the shadow's own softness, and run together)
+  sh = mix(1.0 - smoothstep(0.38 * jn, 0.95, r), sh, smoothstep(0.5, 1.6, segw / pen));
   return sh * smoothstep(0.0, pen, (hf - abs(th)) * max(r * Hh.w, 0.01));
 }
 vec3 palmC; float palmA;`)
@@ -392,7 +395,7 @@ vec3 palmC; float palmA;`)
     }
 
     // ---------------------------------------------------------- scratch
-    this.v = new THREE.Vector3(); this.a = new THREE.Vector3(); this.s = new THREE.Vector3(); this.n = new THREE.Vector3(); this.e = { u: 0, h: 0, out: 0, el: 0 };
+    this.a = new THREE.Vector3(); this.s = new THREE.Vector3(); this.n = new THREE.Vector3(); this.e = { u: 0, h: 0, out: 0, el: 0 };
     this.T = 0; this.off = 0; this.calm = false;
     this.hide();
   },
@@ -450,7 +453,7 @@ vec3 palmC; float palmA;`)
     if (showing) this.T = L.t + this.off; else this.T += dt;
     const T = this.T, R = back ? L.ret : 0, gone = (a, b) => (back ? ease.inOut(ramp(R, a, b)) : 0);
     if (showing && this.sc) this.sc.play(L.t);
-    const A = this.aA.array, S = this.aS.array, B = this.aBase.array, M = this.aAnim.array, a = this.a, s = this.s, n = this.n, v = this.v, e = this.e;
+    const A = this.aA.array, S = this.aS.array, B = this.aBase.array, M = this.aAnim.array, a = this.a, s = this.s, n = this.n, e = this.e;
     const tx = L.tx, tz = L.tz, nx = L.nx, nz = L.nz;
     // a direction in the stage's terms (along the wall, up, out), into the world
     const world = (i4, arr, x, y, z, w) => { arr[i4] = tx * x + nx * z; arr[i4 + 1] = y; arr[i4 + 2] = tz * x + nz * z; arr[i4 + 3] = w; };
