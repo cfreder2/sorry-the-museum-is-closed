@@ -7,8 +7,9 @@
 // the water, the reflection, which the museum singles out ("the ominously shaped reflection"). A song, and a mirror:
 // the word is echo, which is a sound's reflection.
 //
-// Look at it and his sea runs out over the floor from the foot of the wall under the picture: glass, grey and cream
-// with the sky in it far off, green where you look down into it, level streaks of jade. The water lifts, and the harp
+// Look at it and his sea runs out over the floor from the foot of the wall under the picture: deep glass, jade and
+// emerald where you look down into it, the pale sky held only in a far strip by the wall, level streaks of lighter
+// green; it has no edge, only thinning to wet boards. The water lifts, and the harp
 // comes up out of it, cap first, streaming, and rides there; its image stands under it in the water, upside down,
 // dark emerald, as he paints what water holds (a true mirror image, worked out from wherever the eye is). Then it
 // plays, by itself: Schubert's "Auf dem Wasser zu singen" (To be sung on the water, D. 774, 1823; Stolberg's poem,
@@ -29,7 +30,7 @@
 //
 // The neighbour: Munch's Girl by the Window (src/life/154235-girl-by-the-window.js), 1.3 m to the right, is light on
 // the floor and a quiet piano piece. This is water, a standing thing and a song; its sea keeps to the left of Munch's
-// window (it ends 1.2 m right of this picture's middle, where his panes begin), and the kit sends one home when
+// window (it thins out 1.2 m right of this picture's middle, where his panes begin), and the kit sends one home when
 // the other begins, so they are never out together for more than the moment of handing over.
 // (Turner's fishing boats, in Gallery 220, bargain in two voices that hail each other across a sea. Here there is one
 // voice, and the water gives it back.)
@@ -54,7 +55,7 @@ import { strokes } from './brush.js';
 
 const TAU = Math.PI * 2;
 const SURF = 0.016;                               // the water lies this far above the boards
-const SEA = { u: -0.08, a: 1.3, b: 1.95 };          // the sea: its middle along the wall, its reach along and out
+const SEA = { u: -0.08, a: 1.45, b: 2.2 };          // the sea: its middle along the wall, its reach along and out
 const HARP = { u: -0.4, o: 0.36, yaw: -0.08, size: 1.14 };      // where the harp's foot stands in it, how it is turned, how big it is
 const DEEP = 1.08;                                // how far under it waits
 const BAR = 2.0, SX = BAR / 12, T0 = 1.6, CYCLE = 6 * BAR;      // Schubert's bar (two dotted crotchets), a semiquaver, the first bar line
@@ -93,8 +94,8 @@ float bN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
 float seaD(vec2 st) { vec2 e = vec2((st.x - uSea.x) / uSea.y, st.y / uSea.z); float a = atan(e.y, e.x);
   return length(e) / (1.0 + 0.05 * sin(3.0 * a + 0.6) + 0.035 * sin(5.0 * a + 2.1) + 0.02 * sin(9.0 * a + 0.9)); }
 // how far inside the water's edge (in the shape's own measure; negative: dry)
-float seaEdge(vec2 st) { float n1 = bN(st * 3.3), n2 = bN(st * 11.0 + 4.7);
-  return uSea.w - (seaD(st) + (n1 - 0.5) * (0.06 + 0.3 * (1.0 - uSea.w)) + (n2 - 0.5) * 0.015); }
+float seaEdge(vec2 st) { float n1 = bN(st * 2.3 + 1.7), n2 = bN(st * 7.0 + 4.7);
+  return uSea.w - (seaD(st) + (n1 - 0.5) * (0.09 + 0.3 * (1.0 - uSea.w)) + (n2 - 0.5) * 0.035); }
 `;
 
 // Everything of the harp in one geometry: solids, and marks the shader lays out (strings, the cord's tassel, the tuft
@@ -174,7 +175,7 @@ lifeFor(110507, {
 
   // ---------------------------------------------------------------- the sea: calm, pale, the sky in it
   buildSea(L, col, sh) {
-    const F = (u, o) => L.floor(u, o, V3()).setY(this.Y0).toArray(), x0 = SEA.u - SEA.a - 0.25, x1 = SEA.u + SEA.a + 0.25, o0 = -L.wall + 0.012, o1 = SEA.b + 0.3;
+    const F = (u, o) => L.floor(u, o, V3()).setY(this.Y0).toArray(), x0 = SEA.u - SEA.a - 0.45, x1 = SEA.u + SEA.a + 0.45, o0 = -L.wall + 0.012, o1 = SEA.b + 0.45;
     const a = F(x0, o0), b = F(x1, o0), c = F(x1, o1), d = F(x0, o1);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([...a, ...b, ...c, ...a, ...c, ...d], 3));
     // his water's paint: long level drags of grey, cream and a little jade
@@ -184,7 +185,7 @@ lifeFor(110507, {
       angle: (x, y, r) => (r() - 0.5) * 0.1 });
     const u = this.su = {
       ...sh, uTime: { value: 0 }, uCalm: { value: 0 }, uToy: { value: new THREE.Vector4(9, 9, 0, 0.3) }, uSheen: { value: new THREE.Vector4(0, 0.5, 0, 0) }, uFoot: { value: new THREE.Vector4(HARP.u, HARP.o, 0, 0) }, uRefA: { value: new THREE.Vector4() }, uRefB: { value: new THREE.Vector4() }, tPaint: { value: paint },
-      cSky: { value: col('#aeb0a1', 0.2) }, cGrey: { value: col('#6c716c', 0.2) }, cBlue: { value: col('#5f6e77', 0.15) }, cJade: { value: col('#265e53', 0.12) }, cTurq: { value: col('#4f9a8c', 0.08) }, cCream: { value: col('#c9c5ae', 0.12) },
+      cSky: { value: col('#aeb0a1', 0.2) }, cGrey: { value: col('#6c716c', 0.2) }, cBlue: { value: col('#5f6e77', 0.15) }, cJade: { value: col('#2f6359', 0.14) }, cTurq: { value: col('#4f9a8c', 0.08) }, cCream: { value: col('#c9c5ae', 0.12) },
       tRefl: { value: null }, reflMatrix: { value: new THREE.Matrix4() }, reflOn: { value: 0 }, reflY: { value: L.y },
     };
     const m = this.seaM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
@@ -201,8 +202,11 @@ vec3 fCol; float fA;`)
 {
   vec2 lq = lifeP.xz - uO.xz, st = vec2(dot(lq, uAx.xy), dot(lq, uAx.zw)); float su = st.x, so = st.y;
   float edge = seaEdge(st);
-  if (edge < -0.004 || uSea.w < 0.002) discard;
-  float water = smoothstep(0.0, 0.01, edge), brim = water * (1.0 - smoothstep(0.012, 0.05, edge));
+  if (edge < -0.09 || uSea.w < 0.002) discard;
+  // (it thins to nothing over a soft, uneven margin; beyond it the boards are only wet)
+  float e2 = edge + (bN(st * 5.0 + 9.0) - 0.5) * 0.07 + (bN(st * 17.0) - 0.5) * 0.03;
+  float water = smoothstep(0.0, 0.24, e2); water *= water * (3.0 - 2.0 * water);
+  float wet = smoothstep(-0.08, 0.05, e2) * (1.0 - water);
   // rings: each a short train of ripples widening from where it began
   float rip = 0.0; vec2 grad = vec2(0.0);
   for (int i = 0; i < ${NR}; i++) {
@@ -217,19 +221,24 @@ vec3 fCol; float fA;`)
   vec3 V = normalize(cameraPosition - lifeP); float cosT = clamp(V.y, 0.0, 1.0);
   vec2 vh = vec2(dot(V.xz, uAx.xy), dot(V.xz, uAx.zw)); vh /= length(vh) + 1e-4;
   // glass: far off it holds the sky; under the eye you look down into the green
-  float mirr = clamp(mix(0.16, 1.0, smoothstep(0.84, 0.38, cosT)) + dot(g, vh) * 0.5, 0.0, 1.0);
+  // glass: it holds the pale sky only in a far strip by the wall, and where the eye skims it; everywhere else you
+  // look down into the green
+  float far = 1.0 - smoothstep(0.06, 0.72, so + 0.16 * (bN(vec2(su * 1.3 + uTime * 0.01, 3.0)) - 0.5));
+  float mirr = clamp(0.07 + 0.8 * far + 0.45 * smoothstep(0.4, 0.12, cosT) + dot(g, vh) * 0.4, 0.0, 1.0);
   // his sky in it: grey and cream cloud, long along the wall, drifting
   vec2 cp = vec2(su * 0.8 + uTime * 0.016, so * 1.5) + g * 0.07;
   float cl = bN(cp * 1.7) * 0.58 + bN(cp * 4.1 + 3.0) * 0.3 + bN(cp * 9.3 + 1.0) * 0.12;
   vec3 sky = mix(cGrey, cSky, smoothstep(0.3, 0.6, cl)); sky = mix(sky, cCream, smoothstep(0.55, 0.8, cl) * 0.7); sky = mix(sky, cBlue, smoothstep(0.34, 0.16, cl) * 0.45);
   vec4 pt = texture2D(tPaint, vec2(su / 2.6 + uTime * 0.003, so / 1.3) + g * 0.02, 1.4);
   sky = mix(sky, pt.rgb, 0.16);
-  vec3 deep = mix(cJade, cEmer, smoothstep(0.3, 0.95, cosT));
+  vec3 deep = mix(cJade, cEmer, 0.25 + 0.6 * smoothstep(0.22, 0.75, cosT)) * (0.72 + 0.6 * cl);        // (the cloud is a tone in the green)
+  float hd = length((st - uFoot.xy - vec2(0.12, 0.3)) * vec2(1.0, 0.75));
+  deep = mix(deep, cEmer * 0.8, 0.6 * exp(-hd * hd / 0.4));                                           // (dark depths beside the harp)
   vec3 c = mix(deep, sky, mirr);
   // level streaks of jade, as he draws still water
   float lv = bN(vec2(su * 1.1 + 3.0, so * 40.0 + rip * 1.5)), lv2 = bN(vec2(su * 0.7 - uTime * 0.015, so * 9.0 + 9.0));
   float streak = smoothstep(0.66, 0.84, lv) * smoothstep(0.5, 0.75, lv2);
-  c = mix(c, mix(cJade, cTurq, 0.35), streak * 0.36);
+  c = mix(c, mix(cJade, cTurq, 0.75), streak * 0.3);
   // the lit wall and the foot of the frame upside down in it, bent by the rings
   vec4 rp = reflMatrix * vec4(lifeP, 1.0); vec2 ruv = rp.xy / rp.w + g * 0.03;
   float on = reflOn * (1.0 - step(0.08, abs(lifeP.y - reflY)));
@@ -237,11 +246,11 @@ vec3 fCol; float fA;`)
   c = mix(c, c * 0.8 + refl * 0.2, on * mirr * 0.7);
   // a ripple's lit face and its dark one
   float lit = dot(grad, vec2(-0.62, 0.78));
-  c += cCream * max(lit, 0.0) * 0.42; c *= 1.0 - 0.36 * clamp(-lit, 0.0, 1.0);
+  c += mix(cCream, cTurq, 0.45) * max(lit, 0.0) * 0.3; c *= 1.0 - 0.4 * clamp(-lit, 0.0, 1.0);
   // the light that opens on it at the end of the phrase, going out from the wall
   float band = exp(-pow((so - uSheen.x) / uSheen.y, 2.0)) * uSheen.z;
   float glit = mix(0.55 + 0.45 * sin(uTime * 5.0 + bN(vec2(su * 3.0, so * 40.0)) * 30.0), 0.7, uCalm) * smoothstep(0.55, 0.85, bN(vec2(su * 4.0 + uTime * 0.2, so * 55.0)));
-  c += cCream * band * (0.2 + 0.5 * glit);
+  c += mix(cCream, cTurq, 0.3) * band * (0.14 + 0.45 * glit);
   // where the harp stands in it, and where the toy does: the green of something dark above the water
   {
     vec2 cq = cameraPosition.xz - uO.xz, eye = vec2(dot(cq, uAx.xy), dot(cq, uAx.zw)); float eyeH = cameraPosition.y - uO.y;
@@ -260,10 +269,9 @@ vec3 fCol; float fA;`)
     float under = exp(-dot(st - uToy.xy, st - uToy.xy) / 0.05);
     c = mix(c, cEmer * 1.2, max(tm * 0.74, under * 0.6) * uToy.z);
   }
-  // its brim on the boards: a pale line, and the thin dark of wet wood beyond it
-  c = mix(c, cCream, brim * 0.5 * (0.6 + 0.4 * bN(st * 17.0)));
-  fCol = c * 0.5; fA = max(water * 0.97, (1.0 - water) * 0.3 * smoothstep(-0.004, 0.0, edge));
-  if (water < 0.5) fCol = mix(vec3(0.05, 0.07, 0.06), fCol, water * 2.0);
+  // no brim: thin water over the boards, and a faint wet sheen where it has just been
+  fCol = c * 0.56; fA = water * 0.97 + wet * 0.2;
+  fCol = mix(vec3(0.02, 0.03, 0.026) + refl * 0.05 * on, fCol, water / max(fA, 1.0e-3) * 0.97);
 }`)
         .replace('#include <opaque_fragment>', '  outgoingLight = fCol; diffuseColor.a = fA;\n#include <opaque_fragment>');
     };
@@ -491,7 +499,7 @@ vec3 hC; float hA;`)
   else { hC = mix(body, cGold * 0.6, gl * 0.9); hA = 1.0; }
   if (uMir > 0.5) {
     vec2 lq = lifeP.xz - uO.xz, st = vec2(dot(lq, uAx.xy), dot(lq, uAx.zw));
-    if (seaEdge(st) < 0.006) discard;
+    float fe = smoothstep(0.02, 0.24, seaEdge(st)); if (fe < 0.02) discard;
     if (spark || halo) hC = hC.r * cMGlow / 1.9;
     else if (!drop) {
       // darker and greener than the thing itself, as he paints what the water holds; fainter far from the waterline
@@ -499,6 +507,7 @@ vec3 hC; float hA;`)
       hC = mix(hC, cMGlow * 0.62, gl * 0.92);
       hA = 1.0 - 0.55 * smoothstep(0.3, 0.8, vH); hC *= hA;
     }
+    hC *= fe; hA *= fe;
   }
 }`)
           .replace('#include <opaque_fragment>', '  outgoingLight = hC; diffuseColor.a = hA;\n#include <opaque_fragment>');
