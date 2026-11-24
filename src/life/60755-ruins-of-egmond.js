@@ -49,7 +49,7 @@
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape, canvasTexture, flight, hop } from '../paintlife.js';
 import { strokes } from './brush.js';
-import { score, hump } from './stagecraft.js';
+import { score, hump, turnTo } from './stagecraft.js';
 
 const TAU = Math.PI * 2;
 const Z = 1.14;                                  // the scene is laid out in its own units: this many metres to one
@@ -109,7 +109,7 @@ lifeFor(60755, {
     this.lu = {
       uO: { value: L.floor(0, 0) }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uTime: { value: 0 }, uRise: { value: 0 },
       uStorm: { value: 0 }, uSunK: { value: 0 }, uSunF: { value: 9 }, uShade: { value: new THREE.Vector4(0, 0, 0, 0) }, uWind: { value: new THREE.Vector4(0, 0, -9, 0) },
-      cAmb: { value: new THREE.Color(0.6, 0.64, 0.72) }, cSun: { value: new THREE.Color(1.2, 1.04, 0.78) },
+      cAmb: { value: new THREE.Color(0.6, 0.64, 0.72) }, cSun: { value: new THREE.Color(1.14, 1.02, 0.84) },
       uTowLo: { value: new THREE.Vector3(TOWER.u0, -0.1, TOWER.o0) }, uTowHi: { value: new THREE.Vector3(TOWER.u1, 0.6, TOWER.o1) }, uFoot: { value: new THREE.Vector2(FOOT[0], FOOT[1]) },
       tNoise: { value: noise },
     };
@@ -256,10 +256,11 @@ vec2 lq = lifeP.xz - uO.xz; float su = dot(lq, uAx.xy) / uZ, so = dot(lq, uAx.zw
 if (vKind > 0.5) {
   // the wall under the picture: his sky, a cloud that heaps up from the floor behind the ruin, its head catching the light
   float h = (lifeP.y - uO.y) / uZ; vec2 q = vec2(su, h);
-  vec4 cl = cloud(q);
   float wob = texture2D(tNoise, q * 0.31 + vec2(-uCloudT * 0.012, 0.0)).r - 0.5, wob2 = texture2D(tNoise, q * 0.9 + vec2(-uCloudT * 0.02, 0.3)).g - 0.5;
   float ex = 1.0 - smoothstep(0.6, 1.75, abs(su + 0.1)), ey = 1.0 - smoothstep(0.3, 1.0, h + 0.1 * abs(su + 0.1));
   float field = ex * ey + wob * 0.55 + wob2 * 0.16 + 0.09 * uStorm - (1.0 - uVeil) * 1.3 * (0.3 + h);
+  if (field < 0.2 || uVeil < 0.001) discard;                 // (most of the wall: no cloud, nothing to work out)
+  vec4 cl = cloud(q);
   float body = smoothstep(0.2, 0.3, field), rim = body * (1.0 - smoothstep(0.3, 0.5, field)) * smoothstep(0.1, 0.5, h);
   fCol = mix(cl.rgb, cCloudLit, rim * (0.3 + 0.45 * smoothstep(0.6, -1.0, su)) * (1.0 - 0.65 * uStorm));
   fA = body * mix(0.86, 0.98, cl.a) * step(0.001, uVeil);
@@ -273,19 +274,22 @@ if (vKind > 0.5) {
   float pond = (1.0 - smoothstep(0.97, 1.0, r + (bk.a - 0.6) * 0.04)) * grow;
   float edge = (1.0 - smoothstep(1.01, 1.07, r + (bk.a - 0.55) * 0.1)) * grow * step(0.4, bk.a);
   float gloom = (0.1 + 0.36 * uStorm) * (1.0 - smoothstep(0.95, 2.1, r + (nz - 0.5) * 0.5)) * grow * (1.0 - 0.6 * sunAt(su));
+  if (r > 2.4 || grow < 0.001) discard;                      // (most of the floor: nothing there, nothing to work out)
+  vec3 c = cDeep;
+  if (pond > 0.002) {
   // the water: what it reflects from where you stand, bent by the ripples, the rain's rings and the wind
   vec3 V = normalize(lifeP - cameraPosition), Vs = vec3(dot(V.xz, uAx.xy), V.y, dot(V.xz, uAx.zw));
   float wnd = windAt(su), amp = 0.018 + 0.2 * wnd;
   vec2 slope = ((texture2D(tNoise, st * 1.3 + uTime * vec2(0.021, 0.013)).rg - 0.5) + (texture2D(tNoise, st * 3.7 - uTime * vec2(0.05, 0.017)).ba - 0.5) * 0.6) * amp;
   float ring = 0.0;
-  for (int i = 0; i < ${N_DROP}; i++) {
+  if (uRain > 0.01) for (int i = 0; i < ${N_DROP}; i++) {
     vec3 dr = uDrop[i]; if (dr.z < 0.0) continue;
     vec2 dd = st - dr.xy; float dl = length(dd), rad = 0.008 + dr.z * 0.15, w = exp(-pow((dl - rad) / 0.007, 2.0)) * (1.0 - dr.z / 0.7) * uRain;
     slope += dd / max(dl, 1.0e-3) * w * 0.4; ring += w;
   }
   vec3 D = reflect(Vs, normalize(vec3(-slope.x, 1.0, -slope.y * 2.2))); D.y = abs(D.y) + 1.0e-4; D.xz += 1.0e-5;
   vec3 refl = scene(vec3(su, 0.0, so), D);
-  vec3 c = mix(cDeep, refl, mix(0.92, 0.6, clamp(-Vs.y, 0.0, 1.0)));
+  c = mix(cDeep, refl, mix(0.92, 0.6, clamp(-Vs.y, 0.0, 1.0)));
   // the wind takes the mirror away: matt grey water, streaked the way it blows, paler along the front of the gust
   vec3 matt = mix(cCloudMid, cCloudDark, 0.3 + 0.5 * uStorm) * (0.75 + 0.6 * texture2D(tNoise, vec2(su * 0.8 - uTime * 0.22, so * 5.0)).a);
   float ruf = clamp(wnd * 1.25 - 0.22, 0.0, 1.0);
@@ -293,6 +297,7 @@ if (vKind > 0.5) {
   c = mix(c, matt * 1.3, uWind.y * exp(-pow((su - uWind.z + 0.25) / 0.22, 2.0)) * 0.55);
   c += cCloudLit * ring * 0.09;
   c = mix(c, bk.rgb * 0.5, smoothstep(0.86, 1.0, r) * 0.55);                 // shallow and weedy at the edge
+  }
   vec3 mud = bk.rgb * 0.6 * (cAmb * mix(1.0, 0.5, uStorm) + cSun * sunAt(su) * 0.5);
   float aw = pond * 0.96, ae = edge * 0.95 * (1.0 - aw);
   fA = 1.0 - (1.0 - gloom) * (1.0 - ae) * (1.0 - aw);
@@ -501,7 +506,7 @@ varying vec3 vN; varying vec4 vInfo; varying vec2 vUv2; vec3 fCol;`)
     // brick: his dabs in courses, streaked dark by eighty winters, green and damp at the foot
     alb *= texture2D(tBrick, vUv2).rgb * (0.72 + 0.56 * texture2D(tNoise, vUv2 * vec2(0.9, 0.16)).r);
     alb = mix(alb, alb * vec3(0.6, 0.72, 0.5), (1.0 - smoothstep(0.02, 0.12, Ps.y - 0.03)) * 0.55);
-  } else if (vInfo.x < 1.5) alb *= texture2D(tBank, vUv2).rgb * 1.15;
+  } else if (vInfo.x < 1.5) alb *= texture2D(tBank, vUv2).rgb * 0.95;
   else alb *= 0.8 + 0.4 * texture2D(tNoise, vUv2 * 0.6 + Ps.xy * 3.0).g;
   alb *= 1.0 - 0.16 * uWet * step(vInfo.x, 3.5);
   fCol = lightOn(alb, ns, Ps);
@@ -571,9 +576,9 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
   float kd = vInfo.x; vec2 cell = kd < 0.5 ? vec2(0.0, 1.0) : kd < 1.5 ? vec2(1.0, 1.0) : kd < 2.5 ? vec2(0.0, 0.0) : vec2(1.0, 0.0);
   vec4 tx = texture2D(tAtlas, (clamp(vQ, 0.02, 0.98) + cell) * 0.5);
   vec3 lc = cAmb * mix(1.0, 0.5, uStorm) + cSun * vSun * vInfo.w * (0.25 + 0.75 * tx.r), c; float a;
-  if (kd < 0.5) { c = vCol * (0.42 + 0.95 * tx.r) * lc; a = smoothstep(0.3, 0.6, tx.a) * vInfo.y; }
+  if (kd < 0.5) { c = vCol * (0.42 + 0.95 * tx.r) * lc; a = smoothstep(0.12, 0.8, tx.a) * vInfo.y; }
   else if (kd < 1.5) { c = vCol * (0.55 + 0.7 * tx.r) * lc; a = smoothstep(0.25, 0.55, tx.a) * vInfo.y; }
-  else if (kd < 2.5) { c = mix(vCol * (0.42 + 0.95 * tx.r), cBlossom, tx.g) * lc; a = smoothstep(0.3, 0.6, tx.a) * vInfo.y; }
+  else if (kd < 2.5) { c = mix(vCol * (0.42 + 0.95 * tx.r), cBlossom, tx.g) * lc; a = smoothstep(0.12, 0.8, tx.a) * vInfo.y; }
   else { c = vCol; a = tx.a * vInfo.y; }
   if (a < 0.01) discard;
   diffuseColor = vec4(c, a);
@@ -712,15 +717,16 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
     } else if (t < tH0) {
       // the gust has them: beating hard, going nowhere, carried back and down
       const k = (t - tS) / (tH0 - tS), a = this.stall[i], b = this.blown[i], e = ease.out(Math.min(1, k * 1.5));
-      p.lerpVectors(a, b, e); p.y += 0.035 * Math.sin(t * 9 + i * 2) * (1 - 0.5 * k) + 0.05 * Math.sin(Math.PI * k);
-      o.yaw = into + 0.25 * Math.sin(t * 5 + i * 1.7); o.pitch = -0.5 + 0.2 * Math.sin(t * 7 + i); o.roll = 0.4 * Math.sin(t * 6.3 + i * 2.3);
+      const hit = Math.min(1, k * 7);
+      p.lerpVectors(a, b, e); p.y += (0.035 * Math.sin(t * 9 + i * 2) + 0.05) * Math.sin(Math.PI * k);
+      o.yaw = into + 0.25 * Math.sin(t * 5 + i * 1.7) * hit; o.pitch = (-0.5 + 0.2 * Math.sin(t * 7 + i)) * hit; o.roll = 0.4 * Math.sin(t * 6.3 + i * 2.3) * hit;
       o.flap = Math.sin(t * TAU * (calm ? 4 : 7.5) + i) * 1.1;
     } else if (t < tL) {
       // under it, low over the water, and in through the broken side
       const x = (t - tH0) / (tL - tH0), s = x < 0.8 ? ease.in(x / 0.8) * 0.45 + (x / 0.8) * 0.4 : 0.85 + 0.15 * ease.out((x - 0.8) / 0.2);
       const F = this.home[i]; F.at(s, p); F.dir(s, d); o.yaw = Math.atan2(d.x, d.z); o.pitch = -Math.asin(Math.max(-1, Math.min(1, d.y))) * 0.6; o.roll = -F.bank(s) * 0.6;
       o.flap = Math.sin(t * TAU * 6 + i) * 0.9;
-      if (x > 0.82) { const f = (x - 0.82) / 0.18; o.pitch = lerp(o.pitch, -0.55, f); o.flap = 0.55 + Math.sin(t * 34) * 0.4; }      // flaring to land
+      if (x > 0.82) { const f = (x - 0.82) / 0.18; o.pitch = lerp(o.pitch, -0.55, f); o.flap = 0.55 + Math.sin(t * 34) * 0.4; o.yaw = turnTo(o.yaw, L.yawOut + 0.35 - i * 0.5, f); o.roll *= 1 - f; }      // flaring to land, turning to face out
     } else if (t < tT) {
       // on the ledge, wings shut, close together; when the light comes, a shake
       p.copy(this.ledge[i]); const set = ease.out(ramp(t, tL, tL + 0.35));
@@ -735,7 +741,7 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
         o.flap = Math.sin(t * TAU * 7) * 0.9; o.fold = 0; o.pitch = -0.4 * Math.sin(Math.PI * e); o.yaw = L.yawOut + 0.35 - i * 0.5;
       } else {
         p.copy(this.tops[i]); const set = ease.out(ramp(k, 1, 1.5)); o.fold = set; o.flap = 0.4 * (1 - set);
-        o.yaw = L.yawOut + (i ? -0.9 : 0.5) + 0.3 * Math.sin(t * 0.55 + i * 2.2) + 0.12 * Math.sin(t * 1.7 + i); o.pitch = 0.05 * Math.sin(t * 1.3 + i * 3);
+        o.yaw = lerp(L.yawOut + 0.35 - i * 0.5, L.yawOut + (i ? -0.9 : 0.5) + 0.3 * Math.sin(t * 0.55 + i * 2.2) + 0.12 * Math.sin(t * 1.7 + i), set); o.pitch = 0.05 * Math.sin(t * 1.3 + i * 3);
         // now and then it opens its wings to the sun and settles them again
         const st = hump((t + i * 5.5) % 11, 9.3, 10.3); if (st > 0) { o.fold = 1 - 0.8 * st; o.flap = 0.25 * st; }
       }
