@@ -3,44 +3,46 @@
 // "What say you to a summer morning?" he wrote of it: "July or August, at eight or nine o'clock, after a slight shower
 // during the night, to enhance the dews in the shadowed part of the picture." It is a full-size sketch, laid in as much
 // with the palette knife as the brush, and the wet is the knife's doing: flecks of white dragged over everything (his
-// "snow", the critics called it). The left half is open sky over the church and the village; the right half is the
-// shadowed part, a lane going in under tall trees, and in it a black cart-horse with white feathered feet stands
-// harnessed to a tumbril, waiting, beside a puddle that holds the sky. The museum's own note points at the great tree
-// in the middle: it "droops from the weight of rainwater".
+// "snow", people called it). The left half is open sky over the church and the village; the right half is the shadowed
+// part, a lane going in under tall trees, and in it a black cart-horse with white feathered feet stands harnessed to
+// a cart, waiting, by a puddle that holds the sky. The museum's own note points at the great tree in the middle: it
+// "droops from the weight of rainwater".
 //
-// So what comes out is the shadowed part, and what happens in it is what a wet bough does. Look, and the lane comes
-// out over the floor from under the picture, and everything in it arrives the way dew does: as flecks of white out of
-// nothing, each fleck spreading into its own touch of paint: the trunk and the crown against the wall under the frame,
-// one long bough reaching out over the lane, the horse and the cart under it, the hedge, the grass, the puddle. Then
-// the dew itself: white beads gather on the hanging leaves, one after another, and swell; the grass whitens. The bough
-// takes the weight. It sinks a hand's breadth, slowly, and a first drop lets go and rings in the puddle (the horse's
-// near ear turns to it), then another, then a third, the bough lower each time, until it hangs at its lowest and
-// holds there. Then the drop at its very tip falls, and that is one too many: the whole bough lets go from the tip
-// inwards, a shower of white flecks coming down past the cart into the puddle, which rings all over; and the bough,
-// with the weight gone, springs up past where it started and bobs there, its leaves swinging. A few drops come down on
-// the horse. It puts its head up, shakes its mane, blows, and looks round at the puddle; then its head goes down
-// again and it goes back to waiting. While you keep looking the dew gathers again and the bough fills and lets go
-// again, more gently. When you stop, the dew lifts off as the morning warms, a thin mist that goes up and thins away,
-// and the lane goes back under the picture touch by touch.
+// So what comes out is the shadowed part, and what happens in it is what a wet bough does. Look, and the dew comes
+// first: flecks of white on the bare floor and in the air under the picture, in the shape of things not yet there.
+// Then each fleck's place fills with paint, and it is the lane: two dark stems and the crown against the wall under
+// the frame, one long golden bough reaching out over the lane, the horse and the cart under it, the hedge, an elder
+// in flower, the grass, the puddle. White beads gather on the bough's hanging leaves, one after another, and swell;
+// his white comes out on the leaves and the grass. The bough takes the weight. It sinks a hand's breadth, slowly; a
+// first drop lets go and rings in the puddle (the horse's near ear turns to it), then another, then a third, and at
+// that one the horse looks round. The bough hangs at its lowest and holds there. Then the drop at its very tip falls,
+// and that is one too many: the whole bough lets go from the tip inwards, a shower of white coming down past the cart
+// into the puddle, which rings all over; and the bough, with the weight gone, springs up past where it started and
+// bobs there, its leaves swinging, shaken clean of white. A few drops come down on the horse. It puts its head up,
+// shakes its mane, blows, and looks round at the puddle; then its head goes down and it goes back to waiting. While
+// you keep looking the dew gathers again and the bough fills and lets go again, more gently (the horse shakes at
+// every other one). When you stop, the morning has warmed: the dew lifts off the grass fleck by fleck, everything
+// thins back to flecks of white, and those go too.
 //
-// The only sounds are the drops (each a small plink, pitched by its size, no tune), the leaves, and the horse.
-// No music: the picture is a quiet one.
+// The only sounds are the drops (a plink for each one in the puddle, pitched by where it hangs, a tick for each on
+// the ground; no tune), the leaves as the bough comes up, and the horse. No music: it is a quiet picture.
 //
-// Nothing is ever in front of a picture. The tree is 0.87 m high at the wall and the bough comes lower the further out
-// it reaches (0.53 m at its tip, 0.8 m out), all of it under the rail of this frame and of Turner's beside it, so the
-// guard has next to nothing to cut from any of the check's cameras. Turner's sea (src/life/4796-fishing-boats-hucksters.js)
-// comes out on the floor to the right of this one and its moment is a sun breaking through; this one has no sun, no
-// wind and no sea: its water is a puddle and a bough-full of drops, and it keeps to the left of Turner's canvas.
-// Nothing is solid and nothing stays out after the look. Three draw calls: the ground (one sheet: his earth, grass,
-// puddle, its rings and the dew on the grass, one shader), one rig (trunk, limbs, the bough's three joints, the horse,
-// the cart; every part condenses in its shader) and his touches (leaves, hanging drags, beads, drops, mane and tail,
-// hedge, mist: knife marks that face you, one instanced shader).
+// Nothing is ever in front of a picture. The tree is under 0.9 m at the wall and the bough comes lower the further out
+// it reaches (0.5 m at its tip, 0.8 m out), all of it under the rail of this frame and of Turner's beside it: the look
+// camera's guard has nothing to cut. Turner's sea (src/life/4796-fishing-boats-hucksters.js) comes out on the floor
+// to the right of this one and its moment is the sun breaking through; this one has no sun, no wind and no sea (its
+// water is a puddle and a bough-full of drops), and it keeps to the left of Turner's canvas. Nothing is solid and
+// nothing stays out after the look. Three draw calls: the ground (one sheet: his earth, the grass, the puddle and its
+// rings, the dew on the grass, one shader), one rig (the stems, the bough's three lengths, the horse, the cart; every
+// part condenses in its shader) and his touches (leaves, hanging drags, beads, drops, mane and tail, the hedge: knife
+// marks that face you, one instanced shader).
 // With "Reduce motion and flashing": the bough comes up slowly with no bounce and no tremble, the horse's shake is
-// half as fast and half as far, nothing glints faster than a slow shimmer, and every sound is eased in.
+// half as fast and half as far, the leaves swing a third as much, nothing glints (the dew only shimmers, slowly), and
+// every sound is eased in.
 //
 // What it does not do: the woman at the gate and the man resting by the plough stay in the picture (they are farm
 // people having a rest, and nothing here makes them perform), the church is not built or moved, and the horse is
-// only rained on by a few drops, as horses are; it is not startled, struck or made a joke of.
+// only rained on by a few drops, as horses are: it is not startled, struck or made a joke of.
 
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape, canvasTexture } from '../paintlife.js';
@@ -59,7 +61,7 @@ const S_EQ = 0.02, S_MAX = 0.36;                      // the sag (radians at the
 const HORSE = { u: -0.02, o: 0.56, du: -0.853, dv: 0.522 };      // where the horse stands, and the way it faces
 const HS = 1.14;                                      // the horse and the cart: this many times the size they are modelled at
 const WAG = 0.36 * HS;                                // the cart, this far behind the horse's middle
-const PUD = [0.3, 0.9, 0.37, 0.17];               // the puddle: u, o, half length, half width
+const PUD = [0.25, 0.86, 0.38, 0.19];               // the puddle: u, o, half length, half width
 // ---------------------------------------------------------------- the clock
 // The first filling: beads from T_BEAD, three single drops, the bough lets go at T_SHED. Then again every P_LOOP.
 const T_BEAD = 1.6, T_SHED = 4.55, T_LOOP = 8.6, P_LOOP = 8.4, D_SHED = 5.4;
@@ -200,6 +202,9 @@ lifeFor(4758, {
     this.poseNow = this.newPose(); this.poseTmp = this.newPose(); this.cy = { k: 0, S: 0, H: 0 }; this.cyNow = { k: 0, S: 0, H: 0 };
     this.calm = false; this.bT = 0; this.g0 = 1;
     this.buildGround(L, col); this.buildRig(L, col); this.buildCards(L, col);
+    // the three single drops: big early beads, out towards the tip, that hang over the puddle when the bough is low
+    this.singles = this.beads.filter(b => { if (b.tipmost || b.kind) return false; this.beadAt(b, T_SHED - 0.6, false, this.poseTmp, this.v); return inPud(this.v.x, this.v.z) && Math.hypot((this.v.x - PUD[0]) / PUD[2], (this.v.z - PUD[1]) / PUD[3]) < 0.6; }).sort((a, b) => b.along - a.along).slice(1, 6).filter((b, i) => i % 2 === 0);
+    this.singles.forEach((b, i) => { b.single = i; b.ap = [0.0, 0.12, 0.3][i]; b.sz = 0.022; });
     this.bands = [this.makeScore(L, false), this.makeScore(L, true)]; this.band = this.bands[0];
     this.hideAll();
   },
@@ -338,12 +343,12 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     float g = uGrow * 1.7 - 0.3 - far - 0.16 * n1 - 0.1 * vn3(vLp * 31.0);
     // (before a part has come, the dew that will lie on it: flecks of white in the air, in its shape)
     if (g < 0.0 && (uGrow1 * 1.7 - 0.3 - far < 0.12 || n1 < 0.69)) discard;
-    float k1 = vn3(vLp * vec3(46.0, 17.0, 46.0) + 3.1), k2 = vn3(vLp * vec3(150.0, 60.0, 150.0));
-    diffuseColor.rgb *= 0.62 + 0.62 * k1 + 0.3 * (k2 - 0.5);
-    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.5 + vec3(0.02, 0.018, 0.012), smoothstep(0.66, 0.8, k1) * smoothstep(0.4, 0.6, k2));
-    diffuseColor.rgb = mix(cDew * 0.92, diffuseColor.rgb, smoothstep(0.0, 0.035, g));
     vec2 hq = uo - vec2(${GL(HORSE.u)}, ${GL(HORSE.o)}); float ha = dot(hq, vec2(${GL(HORSE.du)}, ${GL(HORSE.dv)})), hc = dot(hq, vec2(${GL(-HORSE.dv)}, ${GL(HORSE.du)}));
     float notHorse = 1.0 - (1.0 - smoothstep(${GL(0.26 * HS)}, ${GL(0.3 * HS)}, abs(ha))) * (1.0 - smoothstep(${GL(0.1 * HS)}, ${GL(0.13 * HS)}, abs(hc)));
+    float k1 = vn3(vLp * vec3(46.0, 17.0, 46.0) + 3.1), k2 = vn3(vLp * vec3(150.0, 60.0, 150.0)), kk = mix(0.4, 1.0, notHorse);
+    diffuseColor.rgb *= 1.0 + kk * (0.62 * k1 - 0.38 + 0.3 * (k2 - 0.5));
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.5 + vec3(0.02, 0.018, 0.012), smoothstep(0.66, 0.8, k1) * smoothstep(0.4, 0.6, k2) * kk);
+    diffuseColor.rgb = mix(cDew * 0.92, diffuseColor.rgb, smoothstep(0.0, 0.035, g));
     float up = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));
     float fk = smoothstep(0.3, 0.8, up) * smoothstep(0.86 - 0.14 * uDewR, 0.9 - 0.14 * uDewR, vn3(vLp * 82.0 + 9.0)) * step(0.001, uDewR) * notHorse;
     diffuseColor.rgb = mix(diffuseColor.rgb, cDew, fk * 0.9); }`)
@@ -406,21 +411,21 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       const LH = LS.clone().applyAxisAngle(this.UP, -yawH);
       const hide = (p, n, c) => { c.copy(coat).lerp(coatW, 0.5 + 0.5 * Math.sin(p.x * 70 + p.y * 40)).lerp(coatL, clamp01((n.dot(LH) - 0.4) * 1.5)).multiplyScalar(lit(n, LH)); };
       // (white feather from the fetlock down, ragged at its top)
-      const leg = (p, n, c) => { hide(p, n, c); const f = 1 - sm(p.y + 0.012 * Math.sin(p.x * 300 + p.z * 240), 0.045, 0.08); c.lerp(k2.copy(white).multiplyScalar(lit(n, LH) * 0.96), f); };
+      const leg = (p, n, c) => { hide(p, n, c); const f = 1 - sm(p.y + 0.012 * Math.sin(p.x * 300 + p.z * 240), 0.04, 0.072); c.lerp(k2.copy(white).multiplyScalar(lit(n, LH) * 0.96), f); };
       const body = loft([[-0.176, 0.224, 0, 0.004], [-0.168, 0.224, 0, 0.04, 0.045], [-0.146, 0.222, 0, 0.064, 0.064], [-0.112, 0.219, 0, 0.074, 0.073], [-0.065, 0.213, 0, 0.076, 0.07], [-0.015, 0.207, 0, 0.078, 0.069], [0.035, 0.208, 0, 0.076, 0.071], [0.078, 0.215, 0, 0.069, 0.076], [0.112, 0.219, 0, 0.058, 0.069], [0.137, 0.216, 0, 0.042, 0.052], [0.15, 0.213, 0, 0.004]], 18, Y, hide, 2);
-      const fore = z => loft([[0.104, 0.2, z, 0.004], [0.105, 0.19, z, 0.031], [0.106, 0.13, z, 0.025], [0.108, 0.086, z, 0.02], [0.108, 0.045, z, 0.017], [0.11, 0.024, z, 0.024], [0.114, 0.005, z, 0.03], [0.114, 0, z, 0.02]], 10, Z, leg, 2);
-      const hindR = loft([[-0.105, 0.215, 0.045, 0.004], [-0.11, 0.2, 0.045, 0.047, 0.04], [-0.125, 0.15, 0.045, 0.035, 0.03], [-0.146, 0.1, 0.045, 0.021], [-0.136, 0.046, 0.045, 0.017], [-0.13, 0.024, 0.045, 0.025], [-0.125, 0.005, 0.045, 0.031], [-0.125, 0, 0.045, 0.02]], 10, Z, leg, 2);
+      const fore = z => loft([[0.104, 0.2, z, 0.004], [0.105, 0.19, z, 0.031], [0.106, 0.135, z, 0.025], [0.109, 0.09, z, 0.021], [0.107, 0.055, z, 0.015], [0.109, 0.028, z, 0.022], [0.114, 0.007, z, 0.031], [0.114, 0, z, 0.022]], 10, Z, leg, 2);
+      const hindR = loft([[-0.105, 0.215, 0.045, 0.004], [-0.11, 0.2, 0.045, 0.047, 0.04], [-0.125, 0.15, 0.045, 0.035, 0.03], [-0.146, 0.1, 0.045, 0.022], [-0.136, 0.055, 0.045, 0.015], [-0.13, 0.028, 0.045, 0.023], [-0.125, 0.007, 0.045, 0.032], [-0.125, 0, 0.045, 0.022]], 10, Z, leg, 2);
       // the near hind leg at rest: the hock dropped, the hoof tipped on to its toe
-      const hindL = loft([[-0.105, 0.212, -0.045, 0.004], [-0.108, 0.198, -0.045, 0.047, 0.04], [-0.117, 0.148, -0.045, 0.035, 0.03], [-0.13, 0.104, -0.046, 0.021], [-0.108, 0.052, -0.047, 0.017], [-0.1, 0.03, -0.047, 0.024], [-0.09, 0.01, -0.047, 0.027], [-0.086, 0.002, -0.047, 0.016]], 10, Z, leg, 2);
+      const hindL = loft([[-0.105, 0.212, -0.045, 0.004], [-0.108, 0.198, -0.045, 0.047, 0.04], [-0.117, 0.148, -0.045, 0.035, 0.03], [-0.13, 0.104, -0.046, 0.022], [-0.108, 0.058, -0.047, 0.015], [-0.1, 0.032, -0.047, 0.023], [-0.09, 0.011, -0.047, 0.028], [-0.086, 0.002, -0.047, 0.017]], 10, Z, leg, 2);
       // the collar: a red ring round the root of the neck, a brass tip to each hame
       const ring = Array.from({ length: 9 }, (_, i) => [0.06 + 0.013 * Math.cos(i / 8 * TAU), 0.013 * Math.sin(i / 8 * TAU)]);
       const collar = tint(shape.move(shape.lathe(ring, 18), 0.114, 0.23, 0, 0, 0, -0.9, 1, 1, 0.84), (p, n, c) => c.copy(red).lerp(brass, sm(p.y, 0.278, 0.292)).multiplyScalar(lit(n, LH)));
       this.gBody = rig.geo(shape.merge([body, fore(0.04), fore(-0.04), hindR, hindL, collar]));
-      this.gNeck = rig.geo(loft([[-0.034, -0.012, 0, 0.004], [-0.024, -0.01, 0, 0.05, 0.07], [0.02, 0.0, 0, 0.044, 0.064], [0.06, 0.008, 0, 0.036, 0.053], [0.1, 0.01, 0, 0.03, 0.043], [0.128, 0.006, 0, 0.026, 0.034], [0.14, 0.002, 0, 0.004]], 14, Y, hide, 2));
+      this.gNeck = rig.geo(loft([[-0.04, -0.016, 0, 0.004], [-0.03, -0.014, 0, 0.055, 0.08], [0.015, -0.002, 0, 0.049, 0.072], [0.058, 0.008, 0, 0.04, 0.06], [0.1, 0.011, 0, 0.033, 0.048], [0.128, 0.006, 0, 0.028, 0.037], [0.14, 0.002, 0, 0.004]], 14, Y, hide, 2));
       // the head: a white blaze down the face, a grey muzzle
-      this.gHead = rig.geo(loft([[-0.016, 0.002, 0, 0.004], [-0.008, 0.002, 0, 0.027, 0.031], [0.02, 0, 0, 0.03, 0.036], [0.05, -0.004, 0, 0.025, 0.03], [0.083, -0.008, 0, 0.019, 0.022], [0.106, -0.009, 0, 0.02, 0.021], [0.117, -0.009, 0, 0.004]], 14, Y, (p, n, c) => {
-        hide(p, n, c); c.lerp(k2.copy(muzzle).multiplyScalar(lit(n, LH)), sm(p.x, 0.084, 0.108));
-        c.lerp(k2.copy(white).multiplyScalar(lit(n, LH)), sm(n.y, 0.45, 0.75) * sm(p.x, 0.004, 0.02) * (1 - sm(p.x, 0.09, 0.106)) * (1 - sm(Math.abs(p.z), 0.007, 0.014)));
+      this.gHead = rig.geo(loft([[-0.016, 0.002, 0, 0.004], [-0.008, 0.002, 0, 0.029, 0.034], [0.022, -0.001, 0, 0.032, 0.04], [0.054, -0.005, 0, 0.026, 0.033], [0.09, -0.009, 0, 0.02, 0.024], [0.114, -0.01, 0, 0.021, 0.022], [0.126, -0.01, 0, 0.004]], 14, Y, (p, n, c) => {
+        hide(p, n, c); c.lerp(k2.copy(muzzle).multiplyScalar(lit(n, LH)), sm(p.x, 0.092, 0.116));
+        c.lerp(k2.copy(white).multiplyScalar(lit(n, LH)), sm(n.y, 0.45, 0.75) * sm(p.x, 0.004, 0.02) * (1 - sm(p.x, 0.096, 0.112)) * (1 - sm(Math.abs(p.z), 0.007, 0.014)));
       }, 2));
       this.gEar = rig.geo(loft([[0, -0.004, 0, 0.004], [0, 0, 0, 0.011, 0.007], [0, 0.015, 0, 0.009, 0.005], [0, 0.032, 0, 0.003, 0.002], [0, 0.037, 0, 0.001]], 8, [1, 0, 0], hide));
       this.iBody = rig.add(this.gBody); this.iNeck = rig.add(this.gNeck); this.iHead = rig.add(this.gHead); this.iEar = [rig.add(this.gEar), rig.add(this.gEar)];
@@ -475,7 +480,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const C = this.crown = [];
     MASS.forEach(([u, h, o, ru, rh, tn], mi) => {
       // (its dark body first, then the touches over it, lighter up and to the left where the sky is)
-      for (let i = 0; i < 2; i++) C.push({ u: u + (i - 0.5) * ru * 0.9, h: Math.min(0.77, h + RR(-0.3, 0.3) * rh), o: o - 0.018, s: ru * RR(1.2, 1.45), slot: BODY, len: RR(0.66, 0.84), a: RR(-0.5, 0.5), c: tone(tn - 0.3, new THREE.Color()), k: 0.8, ph: R() * TAU, r: R() * 0.5, under: true });
+      for (let i = 0; i < 2; i++) C.push({ u: u + (i - 0.5) * ru * 0.8, h: Math.min(0.75, h + RR(-0.3, 0.2) * rh), o: o - 0.018, s: ru * RR(1.0, 1.2), slot: BODY, len: RR(0.66, 0.84), a: RR(-0.5, 0.5), c: tone(tn - 0.3, new THREE.Color()), k: 0.8, ph: R() * TAU, r: R() * 0.5, under: true });
       for (let i = 0; i < 7; i++) { const a = R() * TAU, r = Math.sqrt(R()), c = tone(tn + RR(-0.2, 0.16) - 0.16 * Math.cos(a) * r + 0.12 * Math.sin(a) * r, new THREE.Color()); if (R() < 0.1) c.lerp(leafG, 0.5); C.push({ u: u + Math.cos(a) * r * ru, h: Math.min(0.79, h + Math.sin(a) * r * rh), o: o + RR(-0.012, 0.02), s: RR(0.12, 0.18), slot: CLUMP + Math.floor(R() * 3), len: 1.2, a: RR(-0.7, 0.5), c, k: RR(0.85, 1.12), ph: R() * TAU, r: R() }); }
       if (mi >= 5 && mi <= 7) for (let i = 0; i < 3; i++) C.push({ u: u + RR(-ru, ru) * 0.8, h: h - rh * RR(0.2, 0.8), o: o + 0.025, s: RR(0.03, 0.042), slot: DRAG, len: RR(4.5, 7), a: RR(-0.12, 0.22), c: tone(tn + RR(-0.3, 0.0), new THREE.Color()), k: RR(0.9, 1.1), ph: R() * TAU, r: R(), hang: true });
     });
@@ -487,6 +492,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       tone(lerp(0.5, 0.12, under) + RR(-0.15, 0.2), c); if (R() < right * 0.75) c.lerp(cBank, 0.55); else if (R() < 0.3 * (1 - under)) c.lerp(cStraw, 0.6);
       HG.push({ u, h: RR(0.035, 0.15) * (1 - 0.35 * under) * (1 - 0.45 * right), o: RR(0.035, 0.085), s: RR(0.1, 0.15), slot: CLUMP + i % 3, len: 1.2, a: RR(-0.8, 0.4), c, k: RR(0.8, 1.05), ph: R() * TAU, r: R() });
     }
+    for (let i = 0; i < 9; i++) { const u = -1.08 + 1.95 * (i + R() * 0.6) / 9; HG.unshift({ u, h: RR(0.03, 0.07), o: 0.03, s: RR(0.24, 0.3), slot: BODY, len: RR(0.42, 0.55), a: Math.PI / 2 + RR(-0.2, 0.2), c: tone(RR(0.02, 0.2), new THREE.Color()), k: 0.8, ph: 0, r: R() * 0.5, under: true }); }
     // an elder in flower beside the trunk, as he has one
     for (let i = 0; i < 4; i++) HG.push({ u: -0.86 + RR(-0.09, 0.09), h: 0.19 + RR(-0.05, 0.08), o: 0.1 + RR(0, 0.03), s: RR(0.11, 0.14), slot: CLUMP + i % 3, len: 1.2, a: RR(-0.8, 0.4), c: tone(RR(0.2, 0.45), new THREE.Color()), k: 0.95, ph: R() * TAU, r: R() });
     for (let i = 0; i < 4; i++) HG.push({ u: -0.86 + RR(-0.09, 0.09), h: 0.2 + RR(-0.05, 0.08), o: 0.13 + RR(0, 0.02), s: RR(0.034, 0.048), slot: BLOSSOM, len: 1.1, a: RR(-0.5, 0.5), c: col('#d9d4c2', 0.1), k: 0.95, ph: R() * TAU, r: R() });
@@ -499,7 +505,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       .map(([seg, f, side, up, nd], ci, all) => {
         const along = (seg + Math.min(f, 1)) / 3, tn = lerp(0.56, 0.94, along), last = ci === all.length - 1;
         return {
-          seg, f, side, up, along, last, under: { s: RR(0.15, 0.19), a: RR(-0.4, 0.4), c: tone(tn - 0.42, new THREE.Color()), r: R() * 0.5 },
+          seg, f, side, up, along, last, under: { s: RR(0.13, 0.16), a: RR(-0.4, 0.4), c: tone(tn - 0.42, new THREE.Color()), r: R() * 0.5 },
           clumps: Array.from({ length: 3 }, (_, i) => ({ slot: CLUMP + (ci + i) % 3, du: RR(-0.05, 0.05), dh: RR(-0.02, 0.035) - 0.012 * i, dv: RR(-0.04, 0.04), s: RR(0.11, 0.15), a: RR(-0.9, 0.1), c: tone(tn + RR(-0.22, 0.06) - 0.16 * (2 - i), new THREE.Color()), k: RR(0.9, 1.12), r: R() })),
           dab: { slot: CLUMP + (ci + 1) % 3, du: RR(-0.03, 0.03), dh: RR(0.015, 0.04), dv: RR(0, 0.03), s: RR(0.07, 0.09), a: RR(-0.7, 0.3), c: tone(tn + 0.1, new THREE.Color()).lerp(leafG, R() * 0.3), k: 1.08, r: R() },
           drags: Array.from({ length: nd }, (_, i) => ({ du: RR(-0.055, 0.055), dh: RR(-0.04, -0.01), dv: RR(-0.05, 0.05), len: RR(0.08, 0.125) + 0.085 * along * R() + (last && i === 0 ? 0.05 : 0), w: RR(0.022, 0.032), c: tone(tn + RR(-0.34, 0.08), new THREE.Color()), k: RR(0.9, 1.12), ph: R() * TAU, r: R() })),
@@ -516,12 +522,10 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       b.rel = new THREE.Vector3(); b.relK = -1; b.F = 0; b.land = 0; b.y1 = 0; b.where = 0;
       b.late = b.tipmost ? 0 : 0.03 + 0.92 * Math.pow(1 - b.along, 0.85) + 0.1 * b.jit;       // the bough lets go from the tip inwards
     }
-    // (the three single drops: big early beads, over the puddle)
-    B.filter(b => b.kind === 0 && !b.tipmost && b.c.seg === 2 && b.c.f > 0.7).slice(0, 3).forEach((b, i) => { b.single = i; b.ap = [0.0, 0.12, 0.3][i]; b.sz = 0.022; });
     this.still = Array.from({ length: 14 }, () => { const m = MASS[Math.floor(R() * 8)]; return { u: m[0] + RR(-1, 1) * m[3], h: m[1] + RR(-1, 0.6) * m[4], o: m[2] + 0.03, sz: RR(0.009, 0.014), ap: R(), ph: R() * TAU }; });
     this.mist = Array.from({ length: 30 }, (_, i) => ({ u: -1.05 + 1.8 * (i + R()) / 30, o: RR(0.2, 1.2), s: RR(0.008, 0.015), ph: R() * TAU, r: R() }));
     // ---- the horse's touches: mane, forelock, tail, the light along its back
-    this.cCoatL = col('#4c3c2e', 0.18); this.cHair = col('#120e0a'); this.cHairL = col('#4c3b2c'); this.cWhite = col('#d6cfbc', 0.08);
+    this.cCoatL = col('#4c3c2e', 0.18); this.cHair = col('#120e0a'); this.cHairL = col('#2b2019');
     this.mane = [0.0, 0.028, 0.056, 0.084, 0.11].map(x => ({ x, len: RR(0.06, 0.085) * HS, w: RR(0.024, 0.03) * HS, r: R(), ph: R() * TAU }));
     this.tail = Array.from({ length: 4 }, (_, i) => ({ len: RR(0.16, 0.2) * HS, w: RR(0.026, 0.034) * HS, z: (i - 1.5) * 0.012, r: R(), ph: R() * TAU }));
     this.spray = Array.from({ length: 12 }, (_, i) => ({ burst: i % 3, a: R() * TAU, up: RR(0.25, 0.7), sp: RR(0.25, 0.5), r: R() }));
@@ -681,7 +685,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const sp = calm ? 0.5 : 1, x0 = sinceH - 0.75, shE = shaker ? Math.pow(hump(x0, 0, 1.0 / sp), 0.7) : 0, shA = (calm ? 0.2 : 0.42) * shE, shake = shA * Math.sin(TAU * 4.6 * sp * x0), shakeV = shA * Math.cos(TAU * 4.6 * sp * x0);
     // (it hears each single drop: the near ear turns, and at the third it looks round)
     let ear = 0, look = 0;
-    for (let i = 0; i < 3; i++) { const b = this.singles ? this.singles[i] : null, x = t - (b ? b.land : S + SINGLES[i] * (H - S) + 0.3); ear = Math.max(ear, hump(x, 0.02, 0.5)); if (i === 2) look = hump(x, 0.05, 1.2); }
+    for (let i = 0; i < 3; i++) { const b = this.singles[i], x = t - (b && b.relK === k ? b.land : S + SINGLES[i] * (H - S) + 0.3); ear = Math.max(ear, hump(x, 0.02, 0.5)); if (i === 2) look = hump(x, 0.05, 1.2); }
     const up = shaker ? sm(sinceH, 0.42, 0.75) * (1 - sm(sinceH, 2.3, 3.5)) : 0.35 * sm(sinceH, 0.5, 0.9) * (1 - sm(sinceH, 1.6, 2.6));
     const after = sm(sinceH, 1.9, 2.3) * (1 - sm(sinceH, 2.9, 3.6)) * (shaker ? 1 : 0.6);       // it looks round at the puddle
     const breathe = Math.sin(t * 1.3);
@@ -699,7 +703,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const put = this.put.bind(this), breath = calm ? 0.5 : 1;
     // (his white on the leaves: it comes with the dew; and the bough's goes when the bough lets go)
     const dew = sm(t, 1.5, 4) * (1 - lift), wet = this.wet = (t >= H ? 1 - sm(t, H, H + 1.0) : t < S ? 0 : sm(t, S, H - 0.3)) * (1 - lift);
-    for (const q of this.hedge) this.mark(q.u, q.h, q.o, Math.sin(q.a), Math.cos(q.a), 0, q.s * q.len, q.s, q.slot, q.c, q.k, q.r, dew);
+    for (const q of this.hedge) this.mark(q.u, q.h, q.o, Math.sin(q.a), Math.cos(q.a), 0, q.s * q.len, q.s, q.slot, q.c, q.k, q.r, q.under ? 0 : dew);
     for (const q of this.crown) {
       const du = 0.004 * breath * Math.sin(t * 0.7 + q.ph), dh = 0.003 * breath * Math.sin(t * 0.9 + q.ph * 1.7);
       if (q.hang) { const sw = 0.05 * breath * Math.sin(t * 0.8 + q.ph); this.mark(q.u + du + sw * q.s * q.len * 0.5, q.h - q.s * q.len * 0.5, q.o, q.a + sw, -1, 0.05, q.s * q.len, q.s, DRAG, q.c, q.k, q.r, dew); }
@@ -709,13 +713,12 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const dewAl = 1 - lift;
     for (const q of this.still) { const g = sm(t, 1.8 + q.ap * 2.2, 2.9 + q.ap * 2.2) * this.came(q.u, q.h, q.o, 0); if (g > 0) put(q.u, q.h + lift * 0.1, q.o, 0, -1, 0, q.sz * 1.2 * g, q.sz * g, FLECK, 0.2, dewAl, this.cDew, this.glint(t, q.ph, calm)); }
     // the clusters on the first length of the bough stand behind the horse
-    this.leaves(0, 2, o, t, calm);
-    this.horseMarks(L, t, calm, sinceH, shaker, shake, shakeV, x0, sp);
-    this.leaves(2, this.clusters.length, o, t, calm);
+    this.leaves(0, 2, o, t);
+    this.horseMarks(t, calm, sinceH, shaker, shakeV, x0, sp);
+    this.leaves(2, this.clusters.length, o, t);
 
     // ---- the beads, the drops, the rings in the puddle
     const rings = this.rings; for (const r of rings) { r.age = 9; r.amp = 0; }
-    if (!this.singles) this.singles = this.beads.filter(b => b.single >= 0).sort((a, b) => a.single - b.single);
     for (const b of this.beads) {
       this.fallOf(b, c, calm);
       const g = clamp01((t - b.A) / 1.3);
@@ -754,7 +757,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   glint(t, ph, calm) { return 0.9 + 0.1 * Math.sin(t * 1.7 + ph) + (calm ? 0 : 0.4 * Math.pow(Math.max(0, Math.sin(t * 2.9 + ph * 3)), 12)); },
 
   // the bough's clusters from a to b: clumps, a lit dab, and the drags hanging under them
-  leaves(a, b, o, t, calm) {
+  leaves(a, b, o, t) {
     const v = this.v, d = this.v2, w = this.wet;
     for (let i = a; i < b; i++) {
       const c = this.clusters[i]; this.clusterAt(c, o, v); const x = v.x, y = v.y, z = v.z;
@@ -766,7 +769,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   },
 
   // the horse's touches, on its bones
-  horseMarks(L, t, calm, sinceH, shaker, shake, shakeV, x0, sp) {
+  horseMarks(t, calm, sinceH, shaker, shakeV, x0, sp) {
     const v = this.v, d = this.v2, hd = HORSE;
     const a = this.came(hd.u, 0.2, hd.o, 0.8); if (a <= 0) return;
     const cut = lerp(0.93, 0.2, a), w2s = this.w2s || (this.w2s = new THREE.Matrix4().copy(this.M0).invert());
