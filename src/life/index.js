@@ -50,3 +50,4 @@ import './4081-gian-lodovico-madruzzo.js'; // 206  Moroni, Gian Lodovico Madruzz
 import './64729-early-morning-tarpon-springs.js'; // 161  Inness, Early Morning, Tarpon Springs: daybreak
 import './27307-madame-de-pastoret.js'; // 218  David, Madame de Pastoret and Her Son: thread
 import './23333-pastoral-scene.js';   // 217  Piazzetta, Pastoral Scene: paddle
+import './14598-beach-at-sainte-adresse.js'; // 225  Monet, The Beach at Sainte-Adresse: ebb
