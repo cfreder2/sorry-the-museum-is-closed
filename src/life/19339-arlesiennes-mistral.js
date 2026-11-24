@@ -28,7 +28,10 @@
 //
 // Two draw calls: the ground (one flat mesh, painted in its shader) and one rig of flat painted marks (every straw,
 // plume, leaf, stroke of the bush and picket). The cones tower over the toy, as they tower over the women (0.86 m at
-// most), and still stand well under the frame's bottom rail from where you look.
+// most), and still stand well under the frame's bottom rail from where you look. Things are drawn his way: the
+// pickets and rails are flat cards of one vermilion fenced by his dark blue-violet contour, each cut a little
+// differently and leaning its own way; the bush is a dark mass inside an inked contour, with the lighter comma
+// strokes only where the light falls; the cones have a thin contour of their own.
 //
 // With "Reduce motion and flashing" on: no shiver, flutter or rattle, the gusts lean things half as far and they come
 // upright once, slowly; the clacks and the rustle are dropped for soft single sounds.
@@ -39,7 +42,7 @@
 // against, not them; and no farandole or other "Provençal" tune is played to stand for Arles.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape } from '../paintlife.js';
-import { score, hz } from './stagecraft.js';
+import { score, hz, inked } from './stagecraft.js';
 import { parse } from '../carols.js';
 
 const TAU = Math.PI * 2;
@@ -55,7 +58,7 @@ const NO = 24, NI = 12, NT = 8;               // a cone: outer straws, inner (da
 const NECK = 0.85, RN = 0.016, RL = 0.07;     // the tie (part of the height); the neck's radius tied, and loose
 const FENCE = { u0: -0.12, o: 1.3, n: 9, pitch: 0.112, h: 0.32, w: 0.078, from: 0.3, t0: 0.3, each: 0.08, slide: 0.45, up: 0.2 };
 // The big green bush of the picture's near corner: where, its half sizes (along, up, out), when it swells up.
-const BUSH = { u: -0.82, o: 1.1, a: 0.36, h: 0.4, b: 0.27, t0: 0.85, rows: [[0.22, 7], [0.52, 14], [0.82, 21], [1.1, 27], [1.36, 31]] };
+const BUSH = { u: -0.82, o: 1.1, a: 0.36, h: 0.4, b: 0.27, t0: 0.85, rows: [[0.2, 7], [0.48, 15], [0.76, 22], [1.04, 28], [1.3, 32]] };
 const F_END = FENCE.t0 + (FENCE.n - 1) * FENCE.each + FENCE.slide + FENCE.up;
 const T_COLD = 1.9, T_G = 5.6, GP = 7.2;      // the first cold breath; the mistral; and a smaller gust every so often
 const E8 = 0.6;                               // a quaver of the Largo (s)
@@ -78,15 +81,33 @@ const trap = (t, a, b, c, d) => ease.smooth(ramp(t, a, b)) * (1 - ease.smooth(ra
 // A flat mark with a ridge down its middle, lying along +y from 0 to 1 and one wide at its widest: a straw of the
 // wrapping (tapering to its top), a plume, a leaf. Its two long facets catch the light differently, and each length of
 // it is a little lighter or darker, so a cone of them is streaked the way he streaked his.
-function blade(seed, width, nl) {
+function blade(seed, width, nl, vary = 0.16) {
   const pos = [], col = [];
   const P = (i, j) => { const y = i / nl, w = width(y); return [(j - 1) * 0.5 * w, y, j === 1 ? -0.17 * w : 0]; };
   for (let i = 0; i < nl; i++) for (let j = 0; j < 2; j++) {
-    const y = (i + 0.5) / nl, s = (j ? 0.88 : 1) * (0.84 + 0.16 * _f(i + seed * 7.3, j + 0.5)) * (0.8 + 0.2 * ease.smooth(y / 0.3));
+    const y = (i + 0.5) / nl, s = (j ? 1 - vary * 0.75 : 1) * (1 - vary + vary * _f(i + seed * 7.3, j + 0.5)) * (0.8 + 0.2 * ease.smooth(y / 0.3));
     for (const p of [P(i, j), P(i, j + 1), P(i + 1, j + 1), P(i, j), P(i + 1, j + 1), P(i + 1, j)]) { pos.push(p[0], p[1], p[2]); col.push(s, s, s); }
+    for (const p of [P(i, j), P(i + 1, j + 1), P(i, j + 1), P(i, j), P(i + 1, j), P(i + 1, j + 1)]) { pos.push(p[0], p[1], p[2]); col.push(s * 0.9, s * 0.9, s * 0.9); }      // (its other side)
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals(); return g;
+}
+// A flat card cut to an outline ([[x, y], ...], anticlockwise), coloured in and fenced by a dark contour of its own
+// (ix, iy wide), as he draws a thing: both sides, no thickness, so there is no lit edge to make it look manufactured.
+function card(pts, fill, ink, ix, iy) {
+  let cx = 0, cy = 0; for (const q of pts) { cx += q[0] / pts.length; cy += q[1] / pts.length; }
+  const inn = pts.map(([x, y]) => [x - Math.sign(Math.round((x - cx) * 5)) * ix, y - (Math.abs(x - cx) < 0.2 ? 1.7 : 1) * Math.sign(y - cy) * iy]);
+  const pos = [], col = [], tri = (a, b, c, k) => { for (const q of [a, b, c, a, c, b]) { pos.push(q[0], q[1], 0); col.push(k.r, k.g, k.b); } };
+  for (let i = 0; i < pts.length; i++) { const j = (i + 1) % pts.length; tri(pts[i], pts[j], inn[j], ink); tri(pts[i], inn[j], inn[i], ink); tri([cx, cy], inn[i], inn[j], fill); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals(); return g;
+}
+// A geometry with its faces turned inside out (a contour hull: drawn front faces only, it shows round a shape).
+function inside(g) {
+  const p = g.attributes.position.array, n = g.attributes.normal.array, c = g.attributes.color.array;
+  for (let f = 0; f < p.length; f += 9) for (const a of [p, n, c]) for (let k = 0; k < 3; k++) { const x = a[f + 3 + k]; a[f + 3 + k] = a[f + 6 + k]; a[f + 6 + k] = x; }
+  for (let i = 0; i < n.length; i++) n[i] = -n[i];
+  return g;
 }
 // A round, tapering stem through some points, smooth, shaded from c0 at its foot to c1 at its tip.
 function stem(pts, r0, r1, c0, c1, seg = 6, n = 10) {
@@ -121,43 +142,29 @@ lifeFor(19339, {
     this.wall = L.wall;
 
     // ------------------------------------------------------------ the marks
-    const rig = this.rig = L.rig(300, 9000, L.paint({ rough: 0.85, glow: 0.52, side: THREE.DoubleSide }));
+    const rig = this.rig = L.rig(300, 9000, L.paint({ rough: 0.9, glow: 0.55 }));
     const taper = y => 1 - 0.84 * y;
     const G = {
       straw: [0, 1, 2].map(k => rig.geo(blade(k + 1, y => taper(y) * (1 + 0.1 * Math.sin(y * 9 + k * 2)), 5))),
       plume: rig.geo(blade(5, y => (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, y * 1.6))) * (1 - y * y * 0.9), 3)),
-      stroke: rig.geo(blade(7, y => 0.35 + 0.65 * Math.pow(Math.sin(Math.PI * (0.06 + 0.9 * y)), 0.5), 5)),
+      stroke: rig.geo(blade(7, y => 0.35 + 0.65 * Math.pow(Math.sin(Math.PI * (0.06 + 0.9 * y)), 0.5), 5, 0.07)),
       leaf: rig.geo(blade(9, y => Math.pow(Math.sin(Math.PI * (0.04 + 0.92 * y)), 0.75), 4)),
-      band: rig.geo(shape.lathe([[1, -0.5], [1.05, 0], [1, 0.5]], 18, col('#a04a1c'))),
+      band: rig.geo(shape.merge([shape.lathe([[1, -0.5], [1.05, 0], [1, 0.5]], 18, col('#8a3a20')), inside(shape.lathe([[1, -0.5], [1.05, 0], [1, 0.5]], 18, col('#8a3a20')))])),
     };
     // the young tree: a pale trunk and four thin drooping branches (unit: its own height)
     const trunkC = [col('#9c8f96', 0.15), col('#c2b6b4', 0.15)], twigC = [col('#b08a52', 0.15), col('#c98f3c', 0.15)];
     G.trunk = rig.geo(stem([[0, 0, 0], [0.025, 0.3, 0.012], [-0.012, 0.66, -0.008], [0.014, 1, 0]], 0.036, 0.014, trunkC[0], trunkC[1]));
     G.twig = rig.geo(stem([[0, 0, 0], [0.1, 0.13, 0], [0.24, 0.2, 0], [0.36, 0.14, 0], [0.42, 0.03, 0]], 0.014, 0.006, twigC[0], twigC[1], 5, 8));
     this.tip = new THREE.Vector3(0.42, 0.03, 0);
-    // a picket of the fence: a flat red board with a pointed top (he drew it flat), with the two rails' stubs to the
-    // next one; the last has none
-    const red = col('#c8371f', 0.18), redD = col('#a52a1c', 0.18), redL = col('#dc5a34', 0.18);
-    const picket = stubs => {
-      const w = FENCE.w, h = FENCE.h, th = 0.014, ns = 6, top = x => h - 0.05 * Math.abs(x) / (w / 2), pos = [], cl = [], K = new THREE.Color();
-      const quad = (a, b, c, d, k) => { for (const p of [a, b, c, a, c, d]) { pos.push(p[0], p[1], p[2]); cl.push(k.r, k.g, k.b); } };
-      for (let i = 0; i < ns; i++) {
-        const x0 = -w / 2 + w * i / ns, x1 = x0 + w / ns;
-        for (let j = 0; j < 3; j++) {
-          // (painted in upright streaks, lighter and darker, not one flat red)
-          const r = _f(i * 3.1 + (stubs ? 0 : 5), Math.floor(j / 2) * 1.7); K.copy(r < 0.3 ? redD : r > 0.7 ? redL : red).multiplyScalar(0.9 + 0.2 * _f(i, j + 9));
-          const a0 = top(x0) * j / 3, a1 = top(x0) * (j + 1) / 3, b0 = top(x1) * j / 3, b1 = top(x1) * (j + 1) / 3;
-          quad([x0, a0, th / 2], [x1, b0, th / 2], [x1, b1, th / 2], [x0, a1, th / 2], K); quad([x1, b0, -th / 2], [x0, a0, -th / 2], [x0, a1, -th / 2], [x1, b1, -th / 2], K);
-        }
-        quad([x0, top(x0), th / 2], [x1, top(x1), th / 2], [x1, top(x1), -th / 2], [x0, top(x0), -th / 2], redD);
-      }
-      for (const sx of [-1, 1]) quad([sx * w / 2, 0, sx * th / 2], [sx * w / 2, 0, -sx * th / 2], [sx * w / 2, top(w / 2), -sx * th / 2], [sx * w / 2, top(w / 2), sx * th / 2], redD);
-      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); g.computeVertexNormals();
-      const list = [g];
-      for (const y of [h * 0.66, h * 0.17]) list.push(shape.move(shape.box(stubs ? FENCE.pitch + 0.004 : w - 0.004, 0.03, 0.009, y > 0.1 ? red : redD), stubs ? FENCE.pitch / 2 : 0, y, th / 2 + 0.004));
-      return shape.merge(list);
-    };
-    G.picket = rig.geo(picket(true)); G.last = rig.geo(picket(false));
+    // the fence, as he draws it: flat vermilion, coloured in inside his dark blue-violet contour. Each picket is a
+    // card cut by hand (three cuts, none quite true), and the two rails are cards of their own
+    const red = col('#c63a22', 0.12), redR = col('#b93320', 0.12), ink = col('#23264e', 0.25), IX = 0.0048 / FENCE.w, IY = 0.0048 / FENCE.h;
+    G.picket = [[0.02, 0.85, 0.87, 0.04], [-0.03, 0.88, 0.84, -0.05], [0.0, 0.83, 0.86, 0.07]].map(([lean, sl, sr, apex], k) =>
+      rig.geo(card([[-0.5, 0], [0.5, 0], [0.5 + lean, sr], [apex, 1], [-0.5 + lean, sl]], k === 1 ? redR : red, ink, IX, IY)));
+    G.rail = rig.geo(card([[0, -0.5], [1, -0.5], [1, 0.5], [0, 0.5]], redR, ink, 0.004, 0.16));
+    // the cones' own contour, lightly: a shell a finger outside the straw, turned inside out, so only its rim shows
+    const rim = col('#5a2c30', 0.2);
+    G.hull = CONES.map(c => rig.geo(inside(shape.lathe([[c.R * 1.05 + 0.009, -0.002], [RN + 0.011, c.H * NECK + 0.004]], 22, rim))));
 
     // ------------------------------------------------------------ the straw of each cone
     const straws = [['#eaae2c', 5], ['#f1c44c', 3], ['#dc8c1f', 5], ['#c9691c', 3], ['#a94c1e', 1.2], ['#a8923a', 0.8]].map(([c, w]) => [col(c, 0.15), w]);
@@ -183,30 +190,35 @@ lifeFor(19339, {
       // the tree inside, its branches and the last leaves on them
       const tree = { trunk: rig.add(G.trunk), twigs: [], leaves: [] };
       [[0.42, 0.4], [0.58, 2.7], [0.74, 4.5], [0.9, 1.6]].forEach(([h, yaw], j) => { tree.twigs.push({ id: rig.add(G.twig), h, yaw: yaw + ci * 1.3, s: 0.85 + 0.3 * L.rand() }); tree.leaves.push({ id: rig.add(G.leaf), torn: j % 2 === 0 ? T_COLD + 0.18 + 0.16 * j + 0.1 * ci : 0, ph: L.rand() * TAU }); });
-      return { c, Hn, list, plumes, tree, band: rig.add(G.band) };
+      return { c, Hn, list, plumes, tree, band: rig.add(G.band), hull: rig.add(G.hull[ci]) };
     });
     const leafC = ['#e0902a', '#d8b03a', '#c85a24', '#e6a23c', '#b8742a'].map(h => col(h, 0.15));
     for (const s of this.S) s.tree.leaves.forEach((l, j) => rig.mesh.setColorAt(l.id, leafC[j % leafC.length]));
 
     // ------------------------------------------------------------ the bush: a dark mound thatched with his long green strokes
     {
-      const dark = col('#2e5f38', 0.15), body = shape.ball(1, dark, 3), bp = body.attributes.position, bn = body.attributes.normal;
-      // (a smooth mound: flat underneath, its normals the ellipsoid's own, so no facet shows between the strokes)
+      const dark = col('#1f4a3c', 0.2), body = shape.ball(1, dark, 3), bp = body.attributes.position, bn = body.attributes.normal;
+      // (a smooth mound: flat underneath, its normals the ellipsoid's own, so no facet shows between the strokes; and
+      // his contour round it, an inked shell)
       for (let i = 0; i < bp.count; i++) { if (bp.getY(i) < 0) bp.setY(i, 0); const x = bp.getX(i) / BUSH.a, y = Math.max(0.05, bp.getY(i)) / BUSH.h, z = bp.getZ(i) / BUSH.b, l = Math.hypot(x, y, z); bn.setXYZ(i, x / l, y / l, z / l); }
-      const greens = [['#6f9a36', 4], ['#8aa83a', 3], ['#4e8038', 3], ['#a9b440', 1.5], ['#c79a30', 0.8], ['#2f6f44', 1.5]].map(([c, w]) => [col(c, 0.15), w]);
+      // the strokes: dark greens close to the mound's own, lying close and overlapping; the lighter commas only where
+      // the light falls (from the left and above, as on his)
+      const greens = [['#2c6440', 4], ['#35743e', 3], ['#27583c', 3], ['#3f7f3a', 1.5]].map(([c, w]) => [col(c, 0.18), w]), lights = ['#7fa23a', '#a3b040', '#8fae3e', '#c39a34'].map(c => col(c, 0.15));
       let gt = 0; for (const g of greens) gt += g[1];
-      const B = this.Bush = { body: rig.add(rig.geo(body)), list: [] };
+      const B = this.Bush = { body: rig.add(rig.geo(inked(body, 0.06, '#' + ink.getHexString()))), list: [] };
       for (const [th, n] of BUSH.rows) for (let i = 0; i < n; i++) {
-        const id = rig.add(G.stroke); let r = L.rand() * gt, c = greens[0][0]; for (const g of greens) if ((r -= g[1]) <= 0) { c = g[0]; break; }
-        rig.mesh.setColorAt(id, C.copy(c).multiplyScalar(0.8 + 0.3 * Math.cos(th) + 0.2 * L.rand()));
-        B.list.push({ id, th: th + (L.rand() - 0.5) * 0.16, ph: (i + L.rand() * 0.7) / n * TAU, len: 0.2 + 0.1 * L.rand(), w: 0.036 + 0.024 * L.rand(), lift: 0.02 + 0.12 * L.rand(), f: L.rand() * TAU });
+        const id = rig.add(G.stroke), ph = (i + L.rand() * 0.7) / n * TAU; let r = L.rand() * gt, c = greens[0][0]; for (const g of greens) if ((r -= g[1]) <= 0) { c = g[0]; break; }
+        const lit = -0.62 * Math.sin(th) * Math.cos(ph) + 0.5 * Math.cos(th) + 0.3 * Math.sin(th) * Math.sin(ph), comma = lit > 0.3 && L.rand() < 0.42;
+        rig.mesh.setColorAt(id, comma ? C.copy(lights[Math.floor(L.rand() * lights.length)]) : C.copy(c).multiplyScalar(0.86 + 0.2 * Math.max(0, lit) + 0.12 * L.rand()));
+        B.list.push({ id, th: th + (L.rand() - 0.5) * 0.16, ph, len: (comma ? 0.1 : 0.13) + 0.06 * L.rand(), w: (comma ? 0.034 : 0.05) + 0.022 * L.rand(), lift: 0.05 * L.rand(), f: L.rand() * TAU });
       }
     }
 
     // ------------------------------------------------------------ the fence
     this.F = [];
-    for (let i = 0; i < FENCE.n; i++) this.F.push({ id: rig.add(i === FENCE.n - 1 ? G.last : G.picket), u: FENCE.u0 + i * FENCE.pitch, tl: FENCE.t0 + i * FENCE.each });
-    const FU1 = FENCE.u0 + (FENCE.n - 1) * FENCE.pitch;
+    // (no two pickets quite alike: a little wider or narrower, taller or shorter, leaning its own way)
+    for (let i = 0; i < FENCE.n; i++) this.F.push({ id: rig.add(G.picket[(i * 2 + (i > 4 ? 1 : 0)) % 3]), u: FENCE.u0 + i * FENCE.pitch + (L.rand() - 0.5) * 0.014, tl: FENCE.t0 + i * FENCE.each, sx: FENCE.w * (0.86 + 0.26 * L.rand()), sy: FENCE.h * (0.9 + 0.17 * L.rand()), roll: (L.rand() - 0.5) * 0.11, ph: L.rand() * TAU });
+    this.rails = [FENCE.h * 0.64, FENCE.h * 0.16].map(y => ({ id: rig.add(G.rail), y }));
 
     // ------------------------------------------------------------ the leaves the wind carries
     // each: when it sets off (tl; for a passer, after each gust begins), how long it flies, from where to where it comes
@@ -238,7 +250,7 @@ lifeFor(19339, {
     const lu = this.lu = {
       uO: { value: L.floor(0, 0) }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uC: { value: 0 }, uFence: { value: new THREE.Vector3(FENCE.u0 - 0.03, FENCE.u0 - 0.03, FENCE.o) },
       uRing: { value: CONES.map(c => new THREE.Vector3(c.u, c.o, 0)) }, uSh: { value: CONES.map(c => new THREE.Vector3(c.u, c.o, 0)) },
-      uCol: { value: [col('#2a8a55', 0.12), col('#1d6b4e', 0.12), col('#74b04e', 0.12), col('#e3c84e', 0.12), col('#cfa93a', 0.12), col('#5a74c8', 0.12), col('#7f74ba', 0.12), col('#d8603a', 0.12), col('#c9a391', 0.1), col('#b58f88', 0.1), col('#b47a62', 0.12), col('#93604c', 0.12)] },
+      uCol: { value: [col('#2a8a55', 0.12), col('#1d6b4e', 0.12), col('#74b04e', 0.12), col('#e3c84e', 0.12), col('#cfa93a', 0.12), col('#5a74c8', 0.12), col('#7f74ba', 0.12), col('#d8603a', 0.12), col('#a48d88', 0.1), col('#917c7c', 0.1), col('#b47a62', 0.12), col('#93604c', 0.12)] },
     };
     const lm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false });
     lm.onBeforeCompile = sh => {
@@ -261,10 +273,11 @@ vec3 lwCol; float lwA;`)
   float body = smoothstep(0.0, 0.22, f.x) * smoothstep(1.0, 0.78, f.x) * smoothstep(0.0, 0.1, f.y) * smoothstep(1.0, 0.9, f.y);
   // the shapes: the path on the left (it cuts across, as in the picture), the pond by the wall, the yellow band, the lawn
   float eL = q.x - (-1.0 + 0.44 * q.y + wy);
-  vec2 bx = max(abs(q - vec2(-0.2, 0.84)) - vec2(0.7, 0.54), 0.0); float eB = 0.3 - length(bx) + 0.2 * (lwN(q * 2.1 + 1.7) - 0.5) + wx;
+  vec2 bx = max(abs(q - vec2(-0.12, 0.84)) - vec2(0.62, 0.54), 0.0); float eB = 0.3 - length(bx) + 0.2 * (lwN(q * 2.1 + 1.7) - 0.5) + wx;
   float pond = 0.17 + wx * 0.8, yel = pond + 0.3 * smoothstep(-0.7, 0.15, q.x) + 0.02 * sin(q.x * 9.0 + 1.0);
   vec3 c;
-  if (eL + j < 0.0) c = mix(uCol[8], uCol[9], h2);
+  float onPath = step(eL + j * 4.5, 0.0);      // (the lawn's strokes and the path's are laid in among each other)
+  if (onPath > 0.5) c = mix(uCol[8], uCol[9], h2);
   else if (q.y + j < pond) c = h < 0.14 ? uCol[7] : mix(uCol[5], uCol[6], step(0.55, h2));
   else if (q.y + j < yel) c = mix(uCol[3], uCol[4], step(0.62, h2));
   else c = mix(mix(uCol[0], uCol[1], smoothstep(0.38, 0.68, lwN(q * 3.1 + 4.0) + (h2 - 0.5) * 0.3)), uCol[2], step(0.93, h) * 0.8);
@@ -279,6 +292,8 @@ vec3 lwCol; float lwA;`)
   c *= 1.0 - 0.3 * smoothstep(0.03, 0.0, abs(q.y - uFence.z - 0.004)) * step(uFence.x, q.x) * step(q.x, uFence.y);
   // its edge is broken stroke by stroke; it comes out from the wall stroke by stroke
   float edge = min(eB, q.y - 0.015);
+  // (the path has no edge of its own: its strokes thin away to the floor)
+  if (onPath > 0.5) edge = min(edge, 0.15 + eL * 0.4);
   edge = min(edge, uC * 2.2 - lwH(vec2(lane, 9.1)) * 0.3 - q.y);
   float fade = smoothstep(0.15, 0.0, edge);
   lwA = step(0.0, edge) * clamp((h - fade) * 5.0 + 0.5 * (1.0 - fade), 0.0, 1.0);
@@ -287,7 +302,7 @@ vec3 lwCol; float lwA;`)
         .replace('#include <opaque_fragment>', '  outgoingLight = lwCol; diffuseColor.a = lwA;\n#include <opaque_fragment>');
     };
     lm.customProgramCacheKey = () => 'mistral-lawn';
-    this.lawn = L.decal({ w: 2.3, d: 1.85, u: -0.2, out: 0.9, material: lm });
+    this.lawn = L.decal({ w: 2.3, d: 1.85, u: -0.12, out: 0.9, material: lm });
     this.lawn.renderOrder = 5;
 
     // ------------------------------------------------------------ sound
@@ -371,7 +386,7 @@ vec3 lwCol; float lwA;`)
       const B = this.Bush, cb = showing ? t : Math.min(this.hold, BUSH.t0 + 0.95) * (1 - ease.smooth(ramp(R, 0.1, 0.85))), k = ramp(cb, BUSH.t0, BUSH.t0 + 0.75), on = k > 0;
       const sc = Math.max(0.001, calm ? ease.out(k) : ease.outBack(k)), open = ease.smooth(ramp(cb, BUSH.t0 + 0.2, BUSH.t0 + 0.95));
       rig.show(B.body, on);
-      if (on) this.put(B.body, V.m.makeTranslation(BUSH.u, 0, BUSH.o).scale(V.s.set(BUSH.a * sc * 0.93, BUSH.h * sc * 0.93, BUSH.b * sc * 0.93)));
+      if (on) this.put(B.body, V.m.makeTranslation(BUSH.u, 0, BUSH.o).scale(V.s.set(BUSH.a * sc * 0.975, BUSH.h * sc * 0.975, BUSH.b * sc * 0.975)));
       for (let i = 0; i < B.list.length; i++) {
         const q = B.list[i]; rig.show(q.id, on); if (!on) continue;
         const st = Math.sin(q.th), ct = Math.cos(q.th), cp = Math.cos(q.ph), sp = Math.sin(q.ph), px = BUSH.a * st * cp, py = BUSH.h * ct, pz = BUSH.b * st * sp;
@@ -380,24 +395,34 @@ vec3 lwCol; float lwA;`)
         let dx = ny * nx, dy = ny * ny - 1, dz = ny * nz; const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
         // (the wind presses the strokes flat on the side it comes from, and lifts and streams them over the top and in the lee)
         const w = this.wind(t, BUSH.u + px, BUSH.o + pz) * still, lee = Math.max(0, nx * W.u + nz * W.o) + 0.6 * ny;
-        const lift = q.lift * open + (1 - open) * 0.45 + w * lee * (0.34 + (calm ? 0 : 0.2 * Math.sin(t * 12 + q.f))), cl = Math.cos(lift), sl = Math.sin(lift), blow = w * (0.2 + 0.42 * lee);
+        const lift = q.lift * open + (1 - open) * 0.3 + w * lee * (0.26 + (calm ? 0 : 0.16 * Math.sin(t * 12 + q.f))), cl = Math.cos(lift), sl = Math.sin(lift), blow = w * (0.14 + 0.34 * lee);
         V.y.set(dx * cl + nx * sl + W.u * blow, dy * cl + ny * sl + 0.25 * blow, dz * cl + nz * sl + W.o * blow).normalize(); V.x.set(-sp, 0, cp);
         // (a dab lies along the mound, its upper end fixed, a centimetre proud of it)
         const hl = q.len * 0.5 * open;
-        this.frame(V.m, BUSH.u + (px - dx * hl + nx * 0.012) * sc, (py - dy * hl + ny * 0.012) * sc, BUSH.o + (pz - dz * hl + nz * 0.012) * sc, V.x, V.y, q.w * sc, q.len * sc * (0.4 + 0.6 * open)); this.put(q.id, V.m);
+        this.frame(V.m, BUSH.u + (px - dx * hl + nx * 0.005) * sc, (py - dy * hl + ny * 0.005) * sc, BUSH.o + (pz - dz * hl + nz * 0.005) * sc, V.x, V.y, q.w * sc, q.len * sc * (0.4 + 0.6 * open)); this.put(q.id, V.m);
       }
     }
 
-    // ---- the fence: dealt out from under the picture, each picket standing up as it arrives; it rewinds to go home
+    // ---- the fence: dealt out from under the picture, each picket standing up as it arrives, the rails running out
+    // along them; it rewinds to go home. In the wind the whole fence leans as one (rails and pickets together), and
+    // each picket only shivers about its nail in the top rail.
     const cf = showing ? t : Math.min(this.hold, F_END) * (1 - ease.smooth(ramp(R, 0.04, 0.9)));
-    let fu = FENCE.u0 - 0.03;
+    const fmid = FENCE.u0 + (FENCE.n - 1) * FENCE.pitch / 2, fw = this.wind(t, fmid, FENCE.o) * still, fg = Math.max(0, this.gust(t, fmid, FENCE.o, false)) * still, flean = 0.06 * fw + 0.1 * fg;
+    let fu = FENCE.u0 - 0.03, rail = FENCE.u0 - 0.06;
     for (let i = 0; i < this.F.length; i++) {
       const p = this.F[i], on = cf > p.tl; rig.show(p.id, on); if (!on) continue;
       const e = ease.out(ramp(cf, p.tl, p.tl + FENCE.slide)), k = ramp(cf, p.tl + FENCE.slide - 0.03, p.tl + FENCE.slide + FENCE.up), up = calm ? ease.smooth(k) : ease.outBack(k);
-      const u = lerp(FENCE.from, p.u, e), o = lerp(-0.07, FENCE.o, e), w = this.wind(t, p.u, FENCE.o) * still, g = Math.max(0, this.gust(t, p.u, FENCE.o, false)) * still;
-      V.e.set(-Math.PI / 2 * (1 - up) + (0.07 * w + 0.11 * g) * up, Math.atan2(p.u - FENCE.from, FENCE.o + 0.07) * (1 - ease.smooth(k)), (-0.05 * w - 0.07 * g + (calm ? 0 : 0.05 * g * Math.sin(t * 37 + i * 2.1))) * up, 'YXZ');
-      this.put(p.id, V.m.compose(V.p.set(u, 0.008 * (1 - up), o), V.q.setFromEuler(V.e), V.s.set(1, 1, 1)));
+      const u = lerp(FENCE.from, p.u, e), o = lerp(-0.07, FENCE.o, e), sh = calm ? 0 : 0.05 * fg * Math.sin(t * 37 + p.ph) * up, yr = this.rails[0].y;
+      V.e.set(-Math.PI / 2 * (1 - up) + flean * up, Math.atan2(p.u - FENCE.from, FENCE.o + 0.07) * (1 - ease.smooth(k)), p.roll * up, 'YXZ');
+      V.m.compose(V.p.set(u, 0.006 * (1 - up), o), V.q.setFromEuler(V.e), V.s.set(1, 1, 1));
+      V.a.makeRotationZ(sh).setPosition(Math.sin(sh) * yr, yr - Math.cos(sh) * yr, 0).scale(V.s.set(p.sx, p.sy, 1));
+      this.put(p.id, V.m.multiply(V.a));
       if (k > 0.5) fu = p.u + 0.04;
+      if (k > 0) rail = Math.max(rail, lerp(p.u - FENCE.pitch * 0.6, p.u + 0.055, ease.smooth(k)));
+    }
+    for (const r of this.rails) {
+      const len = rail - (FENCE.u0 - 0.055), on = len > 0.02; rig.show(r.id, on); if (!on) continue;
+      this.put(r.id, V.m.makeTranslation(FENCE.u0 - 0.055, 0, FENCE.o).multiply(V.a.makeRotationX(flean)).multiply(V.b.makeTranslation(0, r.y, 0.004).scale(V.s.set(len, 0.034, 1))));
     }
     lu.uFence.value.y = fu;
 
@@ -439,6 +464,10 @@ vec3 lwCol; float lwA;`)
       const rp = ramp(t, c.tie - 0.36, c.tie), lam = 1 - ease.smooth(rp), hr = Hn * lerp(0.14, 1, ease.inOut(rp)), bandOn = t > c.tie - 0.36;
       rig.show(s.band, bandOn);
       if (bandOn) { const rr = lerp(c.R, lerp(RN, RL, lam), hr / Hn) + 0.005; this.put(s.band, V.m.makeTranslation(0, hr, 0).scale(V.s.set(rr, 0.016, rr)).premultiply(V.c)); }
+
+      // its contour comes with the tie
+      rig.show(s.hull, t > c.tie - 0.02);
+      if (t > c.tie - 0.02) { const hk = ease.out(ramp(t, c.tie - 0.02, c.tie + 0.16)); this.put(s.hull, V.m.makeScale(0.9 + 0.1 * hk, 1, 0.9 + 0.1 * hk).premultiply(V.c)); }
 
       // the straws: each slides out over the lawn, its foot leading, and stands up against the tree
       for (let i = 0; i < s.list.length; i++) {
