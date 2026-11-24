@@ -177,8 +177,8 @@ feature({
       this.trailGlow = new THREE.Points(gg, new THREE.PointsMaterial({ size: 1.1, map: TX.radial(0, 1.6), color: new THREE.Color(1.0, 0.62, 0.25), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false }));
       this.trailGlow.frustumCulled = false; g.add(this.trailGlow); }
     // The way across, lit along the ground: a line of small lights up the launch ramps, over the floes and up the slab to
-    // the breakwater, at the height of whatever is under each one (so over every ramp, never through anything). A pulse
-    // runs along it towards the light while the toy is near.
+    // the breakwater, at the height of whatever is under each one (so over every ramp, never through anything). They
+    // burn steadily while the toy is near (no pulse runs along them: nothing on the ground points the way but the lit route).
     { const pts = [];
       for (let i = 0; i + 1 < L.way.length; i++) {
         const [xa, za] = L.way[i], [xb, zb] = L.way[i + 1], n = Math.max(1, Math.round(Math.hypot(xb - xa, zb - za) / 0.45));
@@ -190,8 +190,8 @@ feature({
       const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
       const lum = new Float32Array(pts.length / 3).map((_, i) => i); gg.setAttribute('lum', new THREE.BufferAttribute(lum, 1));
       this.wayM = new THREE.ShaderMaterial({
-        uniforms: { uT: { value: 0 }, uOn: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-        vertexShader: 'uniform float uT; uniform float uOn; attribute float lum; varying float vA; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); float i = lum; float p = 0.5 + 0.5 * sin(i * 0.55 - uT * 7.0); vA = uOn * (0.35 + 0.65 * p * p * p); gl_PointSize = clamp(90.0 / -mv.z, 2.0, 14.0); gl_Position = projectionMatrix * mv; }',
+        uniforms: { uOn: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+        vertexShader: 'uniform float uOn; attribute float lum; varying float vA; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vA = uOn * (0.52 + 0.1 * sin(lum * 2.4)); gl_PointSize = clamp(90.0 / -mv.z, 2.0, 14.0); gl_Position = projectionMatrix * mv; }',
         fragmentShader: 'varying float vA; void main(){ vec2 c = gl_PointCoord - 0.5; float d = dot(c, c); if (d > 0.25) discard; gl_FragColor = vec4(vec3(0.62, 0.92, 1.0) * vA * (1.0 - d * 4.0), 1.0); }',
       });
       this.way = new THREE.Points(gg, this.wayM); this.way.frustumCulled = false; g.add(this.way); }
@@ -272,7 +272,7 @@ feature({
   update(dt, k) {
     const L = this.L, v = k.v, G = k.G;
     this.t += dt;
-    if (this.wayM) { const d = Math.hypot(v.pos.x - (L.way[0][0] + 10), v.pos.z - 64), want = d < 34 ? 1 : 0, u = this.wayM.uniforms; u.uT.value = this.t; u.uOn.value += (want - u.uOn.value) * Math.min(1, dt * 2); this.way.visible = u.uOn.value > 0.01; }
+    if (this.wayM) { const d = Math.hypot(v.pos.x - (L.way[0][0] + 10), v.pos.z - 64), want = d < 34 ? 1 : 0, u = this.wayM.uniforms; u.uOn.value += (want - u.uOn.value) * Math.min(1, dt * 2); this.way.visible = u.uOn.value > 0.01; }
     this.water.material.uniforms.uT.value = this.t;
     if ((this.lodT = (this.lodT || 0) - dt) <= 0) { this.lodT = 0.3; this._lod(k); }
     this._float(dt, v);
