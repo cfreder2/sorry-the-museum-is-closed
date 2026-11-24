@@ -25,7 +25,7 @@ import { lifeFor, ease, ramp, clamp01, lerp, shape } from '../paintlife.js';
 import { score, hump, hz } from './stagecraft.js';
 
 const TAU = Math.PI * 2;
-const SC = 1.65;                                // the dog: about 0.68 m to the top of its head (it is the whole show)
+const SC = 1.65;                                // the dog: about 0.64 m to the top of its head (it is the whole show)
 const HOME = 0.38;                              // where it comes out from under the picture, along the wall: under the dog in it
 const P = 0.42, NARROW = 0.145;                 // the pavement: one repeat, and its narrow band (a big olive square, a small
                                                 // terracotta one, cream oblongs between), at the dog's scale
@@ -46,9 +46,9 @@ const T0 = 0.8;
 const GROUND = [[0, [55, 62, 67, 70]], [1, [53, 60, 65, 69]], [2, [55, 62, 67, 70]], [3, [50, 57, 62, 66]], [4, [58, 65, 70, 74]], [5, [53, 60, 65, 69]], [6, [55, 62, 67, 70]], [6.5, [50, 57, 62, 66]], [7, [43, 55, 62, 67]]];
 // The dog, in its own metres (from the hips; +z the way it faces, +x its left): where its legs join it, the lengths of
 // them, and where each foot stands under it.
-const JF = [0.04, -0.045, 0.245], JH = [0.042, -0.005, -0.01], NECK = [0, 0.022, 0.285], NL = 0.085, TAILB = [0, 0.04, -0.082];
-const AF = 0.068, BF = 0.142, AH = 0.112, BH = 0.115, MT = 0.062, PAWH = 0.02;
-const FOOT = [[0.044, 0.251], [-0.044, 0.251], [0.048, -0.05], [-0.048, -0.05]];      // (to its left, forward of the hips): fore left and right, hind left and right
+const JF = [0.046, -0.045, 0.245], JH = [0.045, -0.005, -0.01], NECK = [0, 0.02, 0.283], NL = 0.078, HS = 0.247, TAILB = [0, 0.04, -0.082];
+const AF = 0.061, BF = 0.128, AH = 0.101, BH = 0.104, MT = 0.056, PAWH = 0.022;
+const FOOT = [[0.05, 0.251], [-0.05, 0.251], [0.052, -0.05], [-0.052, -0.05]];      // (to its left, forward of the hips): fore left and right, hind left and right
 
 const smooth = ease.smooth, wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const win = (t, a, b, e = 0.3) => smooth(ramp(t, a, a + e)) * (1 - smooth(ramp(t, b - e, b)));      // 1 between a and b, eased at both ends
@@ -226,30 +226,30 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     {
       // the body, from the hips: one skin from the rump to the breast. The quarters broad, the loin narrow and tucked up,
       // the chest deep between the elbows; the coat over it running back and down, long and wavy on the breast and under it
-      const BODY = [[-0.098, 0.004, 0, 0, 0, 2], [-0.085, 0.004, 0.026, 0.028, 0.032, 2], [-0.05, 0.002, 0.047, 0.05, 0.056, 2], [-0.01, 0, 0.056, 0.058, 0.064, 2.1], [0.045, 0.004, 0.05, 0.057, 0.05, 2.1], [0.1, 0.004, 0.051, 0.058, 0.056, 2.1],
-        [0.16, 0.002, 0.056, 0.058, 0.074, 2.1], [0.215, 0, 0.06, 0.057, 0.092, 2.1], [0.262, 0, 0.057, 0.056, 0.09, 2.1], [0.298, 0.006, 0.042, 0.047, 0.066, 2.1], [0.318, 0.012, 0, 0, 0, 2]];
-      const at = skinAt(BODY), ws = coatSkin(at, 640);
-      ws.push(...coatSkin(at, 170, { f: [0.78, 0.985], keep: (p, n) => n.z > 0.1 || n.y < -0.45, flow: V3(0, -1, 0.05), l: [0.03, 0.05], w: [0.009, 0.015], lift: [0.03, 0.16], lean: 0.32, tip: 0.4, warm: 0.15 }));
-      ws.push(...coatSkin(at, 80, { f: [0.3, 0.82], keep: (p, n) => n.y < -0.72, flow: V3(0, -1, -0.3), l: [0.022, 0.036], w: [0.008, 0.013], lift: [0.2, 0.5], lean: 0.25 }));
+      const BODY = [[-0.098, 0.004, 0, 0, 0, 2], [-0.085, 0.004, 0.028, 0.028, 0.034, 2], [-0.05, 0.002, 0.05, 0.05, 0.058, 2], [-0.01, 0, 0.06, 0.058, 0.066, 2.1], [0.045, 0.004, 0.054, 0.057, 0.056, 2.1], [0.1, 0.004, 0.057, 0.058, 0.064, 2.1],
+        [0.16, 0.002, 0.063, 0.058, 0.084, 2.1], [0.215, 0, 0.068, 0.058, 0.102, 2.1], [0.262, 0, 0.065, 0.057, 0.099, 2.1], [0.298, 0.006, 0.05, 0.049, 0.076, 2.1], [0.32, 0.012, 0, 0, 0, 2]];
+      const at = skinAt(BODY), ws = coatSkin(at, 760, { l: [0.024, 0.04], w: [0.012, 0.019], lift: [0.05, 0.17] });
+      ws.push(...coatSkin(at, 300, { f: [0.76, 0.985], keep: (p, n) => n.z > 0.1 || n.y < -0.4, flow: V3(0, -1, 0.05), l: [0.038, 0.064], w: [0.01, 0.016], lift: [0.06, 0.24], lean: 0.36, tip: 0.4, warm: 0.15 }));
+      ws.push(...coatSkin(at, 170, { f: [0.25, 0.82], keep: (p, n) => n.y < -0.66, flow: V3(0, -1, -0.3), l: [0.03, 0.05], w: [0.009, 0.014], lift: [0.25, 0.6], lean: 0.28, tip: 0.3 }));
       this.gBody = rig.geo(shape.merge([vpaint(loft(BODY, Wh.mid, 30, 22), (v, n) => white(n)), dabs(ws)]));
     }
     {
       // the neck, from its base along +z to the head: short, thick where it leaves the shoulders, the coat running down it
       const wn = whiteAt(-0.65);
-      const ws = fringe([0, 0, 0.005], [0, 0, NL], 0.046, 0.036, 150, { flow: V3(0, -0.45, -1), tone: wn, l: [0.018, 0.03], w: [0.01, 0.016] });
-      ws.push(...fringe([0, 0, 0.0], [0, 0, NL * 0.8], 0.047, 0.038, 40, { keep: (t, n) => n.y < -0.4, flow: V3(0, -0.5, -1), tone: wn, l: [0.024, 0.04], w: [0.009, 0.014], lift: [0.05, 0.2], lean: 0.3, tip: 0.35, warm: 0.1 }));
-      this.gNeck = rig.geo(shape.merge([wl([0, 0, 0], [0, 0, NL + 0.003], 0.047, 0.035, 10, 2, wn), wf([0, -0.004, 0.002], [0.047, 0.045, 0.045], 2, wn), wf([0, 0.003, NL], [0.035, 0.035, 0.028], 2, wn), dabs(ws)]));
+      const ws = fringe([0, 0, 0.005], [0, 0, NL], 0.053, 0.041, 180, { flow: V3(0, -0.45, -1), tone: wn, l: [0.022, 0.036], w: [0.011, 0.017], lift: [0.05, 0.16] });
+      ws.push(...fringe([0, 0, 0.0], [0, 0, NL * 0.85], 0.054, 0.043, 80, { keep: (t, n) => n.y < -0.3, flow: V3(0, -0.5, -1), tone: wn, l: [0.024, 0.04], w: [0.009, 0.014], lift: [0.05, 0.2], lean: 0.3, tip: 0.35, warm: 0.1 }));
+      this.gNeck = rig.geo(shape.merge([wl([0, 0, 0], [0, 0, NL + 0.003], 0.054, 0.04, 10, 2, wn), wf([0, -0.006, 0.002], [0.054, 0.052, 0.05], 2, wn), wf([0, 0.002, NL], [0.04, 0.04, 0.03], 2, wn), dabs(ws)]));
     }
     {
       // the head, from where it joins the neck: one skin, a broad white dome, the brown round each eye running back to the
       // ear, a long soft muzzle deeper than it is wide, a liver nose; amber eyes under heavy lids
-      const HEAD = [[-0.027, 0.012, 0, 0, 0, 2], [-0.02, 0.012, 0.024, 0.022, 0.022, 2], [0.0, 0.013, 0.038, 0.036, 0.034, 2], [0.022, 0.013, 0.042, 0.04, 0.04, 2], [0.044, 0.011, 0.0395, 0.0365, 0.041, 2.1],
-        [0.06, 0.008, 0.034, 0.029, 0.04, 2.2], [0.074, 0.003, 0.0245, 0.0175, 0.036, 2.4], [0.09, 0.0, 0.0195, 0.0132, 0.0315, 2.7], [0.11, -0.001, 0.0185, 0.0122, 0.029, 2.8], [0.128, -0.002, 0.0172, 0.0115, 0.0255, 2.7], [0.139, -0.003, 0.0135, 0.009, 0.019, 2.3], [0.1445, -0.004, 0, 0, 0, 2]];
+      const HEAD = [[-0.027, 0.012, 0, 0, 0, 2], [-0.02, 0.012, 0.027, 0.022, 0.022, 2], [0.0, 0.013, 0.042, 0.036, 0.034, 2], [0.022, 0.013, 0.047, 0.04, 0.04, 2], [0.044, 0.011, 0.0435, 0.0365, 0.041, 2.1],
+        [0.06, 0.008, 0.0365, 0.029, 0.04, 2.2], [0.074, 0.003, 0.0255, 0.0175, 0.036, 2.4], [0.09, 0.0, 0.0195, 0.0132, 0.0315, 2.7], [0.11, -0.001, 0.0185, 0.0122, 0.029, 2.8], [0.128, -0.002, 0.0172, 0.0115, 0.0255, 2.7], [0.139, -0.003, 0.0135, 0.009, 0.019, 2.3], [0.1445, -0.004, 0, 0, 0, 2]];
       // (where the skin of it is, over a point: for setting the eyes into the face)
       const zAt = z => { let lo = 0, hi = HEAD.length - 1; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (station(HEAD, m)[0] < z) lo = m; else hi = m; } return station(HEAD, lo); };
       const topY = (x, z) => { const [, y, w, hu, , e] = zAt(z), k = Math.abs(x) / w; return k >= 1 ? -1 : y + hu * Math.pow(1 - Math.pow(k, e), 1 / e); };
-      const EX = 0.0232, EY = 0.0175; let EZ = 0.06; for (let i = 0, lo = 0.05, hi = 0.085; i < 30; i++) { EZ = (lo + hi) / 2; if (topY(EX, EZ) > EY) lo = EZ; else hi = EZ; }
-      const EYE = s => V3(s * EX, EY, EZ - 0.0012), EARB = s => V3(s * 0.041, 0.012, 0.006);
+      const EX = 0.0248, EY = 0.0175; let EZ = 0.06; for (let i = 0, lo = 0.05, hi = 0.085; i < 30; i++) { EZ = (lo + hi) / 2; if (topY(EX, EZ) > EY) lo = EZ; else hi = EZ; }
+      const EYE = s => V3(s * EX, EY, EZ - 0.0012), EARB = s => V3(s * 0.045, 0.012, 0.006);
       const seg = new THREE.Line3(), near = V3();
       const patch = v => {          // how brown it is here (0 white .. 1 brown)
         const s = v.x < 0 ? -1 : 1; seg.set(EYE(s), EARB(s)); seg.closestPointToPoint(v, true, near);
@@ -309,10 +309,10 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     }
     {
       // the tail, in two lengths, each from its own joint back along -z: a soft plume hanging under it
-      const plume = (len, ra, rb, lt) => dabs([...fringe([0, 0, 0], [0, 0, -len], ra, rb, 70, { flow: V3(0, -1, -0.7), lt, w: [0.008, 0.013], lift: [0.0, 0.05], keep: (t, n) => n.y < 0.1, lean: 0.18, tip: 0.3, warm: 0.15 }), ...fringe([0, 0, 0], [0, 0, -len], ra, rb, 24, { flow: V3(0, -0.3, -1), keep: (t, n) => n.y >= 0.1, l: [0.016, 0.026], w: [0.008, 0.012] })]);
+      const plume = (len, ra, rb, lt) => dabs([...fringe([0, 0, 0], [0, 0, -len], ra, rb, 110, { flow: V3(0, -1, -0.7), lt, w: [0.009, 0.014], lift: [0.0, 0.05], keep: (t, n) => n.y < 0.1, lean: 0.18, tip: 0.3, warm: 0.15 }), ...fringe([0, 0, 0], [0, 0, -len], ra, rb, 24, { flow: V3(0, -0.3, -1), keep: (t, n) => n.y >= 0.1, l: [0.016, 0.026], w: [0.008, 0.012] })]);
       this.gTail = [
-        rig.geo(shape.merge([wl([0, 0, 0.012], [0, 0, -0.098], 0.015, 0.0105, 8, 2), plume(0.098, 0.015, 0.0105, t => [0.02 + 0.016 * t, 0.03 + 0.022 * t])])),
-        rig.geo(shape.merge([wl([0, 0, 0.004], [0, 0, -0.1], 0.0105, 0.004, 8, 2), wf([0, 0, -0.1], [0.004, 0.004, 0.006], 1), plume(0.1, 0.0105, 0.0045, t => [0.036 - 0.022 * t, 0.05 - 0.032 * t])])),
+        rig.geo(shape.merge([wl([0, 0, 0.012], [0, 0, -0.098], 0.015, 0.0105, 8, 2), plume(0.098, 0.015, 0.0105, t => [0.028 + 0.02 * t, 0.042 + 0.028 * t])])),
+        rig.geo(shape.merge([wl([0, 0, 0.004], [0, 0, -0.1], 0.0105, 0.004, 8, 2), wf([0, 0, -0.1], [0.004, 0.004, 0.006], 1), plume(0.1, 0.0105, 0.0045, t => [0.048 - 0.028 * t, 0.068 - 0.042 * t])])),
       ];
     }
     this.len = { AF: AF * SC, BF: BF * SC, AH: AH * SC, BH: BH * SC, MT: MT * SC, PAWH: PAWH * SC };
@@ -320,19 +320,19 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       // the legs, each length from its own joint down -y, slim. Fore: the arm, lying in the coat of the chest down to the
       // elbow; the long straight forearm, feathered behind. Hind: a flat broad thigh against the flank, the second
       // thigh down to the point of the hock, the pastern.
-      const back = (t, n) => n.z < -0.2, feather = { keep: back, flow: V3(0, -1, -0.5), l: [0.022, 0.036], w: [0.007, 0.011], lift: [0.06, 0.24], tip: 0.3, warm: 0.1 };
-      this.gArm = rig.geo(shape.merge([wl([0, 0.004, 0], [0, -AF, 0], 0.022, 0.0165, 8, 1), wf([0, -AF, 0], [0.0165, 0.0165, 0.0165], 1)]));
-      this.gFore2 = rig.geo(shape.merge([lathe([[0.0102, -BF], [0.0098, -0.125], [0.011, -0.095], [0.0138, -0.05], [0.0162, -0.015], [0.0165, 0.002]]), wf([0, -BF, 0], [0.0102, 0.0102, 0.0102], 1),
-        dabs([...fringe([0, -0.004, 0], [0, -BF * 0.9, 0], 0.0162, 0.0102, 46, feather), ...fringe([0, 0, 0], [0, -BF, 0], 0.016, 0.0102, 24, { keep: (t, n) => n.z > 0, flow: V3(0, -1, 0), l: [0.016, 0.026], w: [0.008, 0.012], lift: [0.01, 0.05] })])]));
-      const HAUNCH = [[0.002, -0.046, 0.0], [0.021, 0.07, 0.046]], wt = whiteAt(-0.4);
-      this.gThigh = [1, -1].map(s => rig.geo(shape.merge([wf([s * HAUNCH[0][0], HAUNCH[0][1], HAUNCH[0][2]], HAUNCH[1], 3, wt), wl([0, -0.05, 0], [0, -AH - 0.002, 0], 0.023, 0.0168, 8, 1, wt), wf([0, -AH, 0], [0.0168, 0.019, 0.0168], 1, wt),
-        dabs([...coat([s * HAUNCH[0][0], HAUNCH[0][1], HAUNCH[0][2]], HAUNCH[1], 90, { keep: (p, n) => n.x * s > -0.2, flow: V3(0, -1, -0.45), tone: wt }), ...coat([s * HAUNCH[0][0], HAUNCH[0][1], HAUNCH[0][2]], HAUNCH[1], 40, { keep: (p, n) => n.z < -0.45, flow: V3(0, -1, -0.7), l: [0.026, 0.042], w: [0.008, 0.013], lift: [0.08, 0.3], lean: 0.25, tip: 0.3, tone: wt, warm: 0.1 })])])));
-      this.gShank = rig.geo(shape.merge([lathe([[0.0105, -BH], [0.0105, -0.095], [0.0125, -0.06], [0.0165, -0.025], [0.0172, 0.002]]), wf([0, -BH, 0.001], [0.0112, 0.0125, 0.013], 1),
-        dabs([...fringe([0, 0, 0], [0, -BH * 0.8, 0], 0.017, 0.0115, 34, { ...feather, l: [0.02, 0.032] }), ...fringe([0, 0, 0], [0, -BH, 0], 0.017, 0.0105, 20, { keep: (t, n) => n.z > 0, flow: V3(0, -1, 0), l: [0.016, 0.026], w: [0.008, 0.012], lift: [0.01, 0.05] })])]));
-      this.gFoot = rig.geo(shape.merge([wl([0, 0, 0], [0, -MT, 0], 0.0102, 0.0094, 8, 1), wf([0, -MT, 0], [0.0098, 0.0098, 0.0098], 1)]));
-      // a paw, from its joint (PAWH above the ground): small, the four toes told apart
-      const paw = [wl([0, 0.004, 0], [0, -0.01, 0.005], 0.0102, 0.0125, 8, 1), wf([0, -0.0108, 0.011], [0.0165, 0.0092, 0.022], 2)];
-      for (const [x, z] of [[-0.0118, 0.0265], [-0.004, 0.031], [0.004, 0.031], [0.0118, 0.0265]]) paw.push(vpaint(ell([x, -0.0125, z], [0.0046, 0.0072, 0.0086], Wh.mid, 1), (v, n) => white(n, 0.12)));
+      const back = (t, n) => n.z < -0.2, feather = { keep: back, flow: V3(0, -1, -0.5), l: [0.028, 0.046], w: [0.008, 0.012], lift: [0.12, 0.38], tip: 0.3, warm: 0.1 };
+      this.gArm = rig.geo(shape.merge([wl([0, 0.004, 0], [0, -AF, 0], 0.025, 0.02, 8, 1), wf([0, -AF, 0], [0.02, 0.02, 0.02], 1)]));
+      this.gFore2 = rig.geo(shape.merge([lathe([[0.0128, -BF], [0.0124, -BF * 0.88], [0.0136, -BF * 0.67], [0.0166, -BF * 0.35], [0.0196, -BF * 0.1], [0.02, 0.002]]), wf([0, -BF, 0], [0.0128, 0.0128, 0.0128], 1),
+        dabs([...fringe([0, -0.004, 0], [0, -BF * 0.9, 0], 0.0196, 0.0128, 72, feather), ...fringe([0, 0, 0], [0, -BF, 0], 0.0196, 0.0128, 30, { keep: (t, n) => n.z > 0, flow: V3(0, -1, 0), l: [0.016, 0.026], w: [0.008, 0.012], lift: [0.01, 0.05] })])]));
+      const HAUNCH = [[0.002, -0.042, 0.0], [0.023, 0.066, 0.05]], wt = whiteAt(-0.4);
+      this.gThigh = [1, -1].map(s => rig.geo(shape.merge([wf([s * HAUNCH[0][0], HAUNCH[0][1], HAUNCH[0][2]], HAUNCH[1], 3, wt), wl([0, -0.045, 0], [0, -AH - 0.002, 0], 0.026, 0.019, 8, 1, wt), wf([0, -AH, 0], [0.019, 0.021, 0.019], 1, wt),
+        dabs([...coat([s * HAUNCH[0][0], HAUNCH[0][1], HAUNCH[0][2]], HAUNCH[1], 90, { keep: (p, n) => n.x * s > -0.2, flow: V3(0, -1, -0.45), tone: wt }), ...coat([s * HAUNCH[0][0], HAUNCH[0][1], HAUNCH[0][2]], HAUNCH[1], 70, { keep: (p, n) => n.z < -0.4, flow: V3(0, -1, -0.7), l: [0.034, 0.054], w: [0.009, 0.014], lift: [0.12, 0.38], lean: 0.25, tip: 0.3, tone: wt, warm: 0.1 })])])));
+      this.gShank = rig.geo(shape.merge([lathe([[0.012, -BH], [0.012, -BH * 0.83], [0.0142, -BH * 0.52], [0.0185, -BH * 0.2], [0.0192, 0.002]]), wf([0, -BH, 0.001], [0.0126, 0.0138, 0.0142], 1),
+        dabs([...fringe([0, 0, 0], [0, -BH * 0.8, 0], 0.019, 0.013, 54, { ...feather, l: [0.024, 0.04] }), ...fringe([0, 0, 0], [0, -BH, 0], 0.019, 0.012, 24, { keep: (t, n) => n.z > 0, flow: V3(0, -1, 0), l: [0.016, 0.026], w: [0.008, 0.012], lift: [0.01, 0.05] })])]));
+      this.gFoot = rig.geo(shape.merge([wl([0, 0, 0], [0, -MT, 0], 0.0118, 0.011, 8, 1), wf([0, -MT, 0], [0.0114, 0.0114, 0.0114], 1)]));
+      // a paw, from its joint (PAWH above the ground): broad, as he painted it, the four toes told apart
+      const paw = [wl([0, 0.004, 0], [0, -0.011, 0.006], 0.0124, 0.0148, 8, 1), wf([0, -0.012, 0.0125], [0.0192, 0.0104, 0.0255], 2)];
+      for (const [x, z] of [[-0.0138, 0.0305], [-0.0047, 0.0358], [0.0047, 0.0358], [0.0138, 0.0305]]) paw.push(vpaint(ell([x, -0.014, z], [0.0054, 0.0082, 0.0098], Wh.mid, 1), (v, n) => white(n, 0.12)));
       this.gPaw = rig.geo(shape.merge(paw));
     }
     const add = g => { const i = rig.add(g); rig.show(i, false); return i; };
@@ -500,8 +500,8 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       const sq = showing ? hump(t, T_SIT[1] - 0.1, T_SIT[1] + 0.14) : 0, chest = showing ? smooth(ramp(t, T_SIT[1] - 0.04, T_SIT[1] + 0.26)) : 1, bounce = showing ? hump(t, T_SIT[1] + 0.2, T_SIT[1] + 0.44) : 0;
 
       // ---- the body, from the hips: their height and the shoulders', and so how it is pitched
-      const yH = lerp(0.27, 0.113, sit) + 0.005 * m - 0.008 * sq - 0.008 * gather;
-      const yS = 0.27 + 0.005 * m - 0.05 * sniff - 0.006 * liftK - 0.008 * gather + sit * (0.006 - 0.014 * chest) - 0.005 * bounce + 0.003 * sit * Math.sin(TAU * 0.42 * t);
+      const yH = lerp(HS, 0.11, sit) + 0.005 * m - 0.008 * sq - 0.008 * gather;
+      const yS = HS + 0.005 * m - 0.045 * sniff - 0.006 * liftK - 0.008 * gather + sit * (0.018 - 0.014 * chest) - 0.005 * bounce + 0.003 * sit * Math.sin(TAU * 0.42 * t);
       const pitch = -Math.asin(Math.max(-0.9, Math.min(0.9, (yS - yH) / 0.26)));
       // (sitting, the shoulders stay over the forefeet and the hips come in under)
       const shift = (0.26 * (1 - Math.cos(pitch)) - 0.022 * gather + 0.02 * liftK) * SC, hu = q.hu + du * shift, ho = q.ho + dout * shift;
@@ -519,15 +519,15 @@ float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       const lead = c.g.kind === 'turn' ? Math.sign(c.g.th) * 0.6 * Math.sin(Math.PI * Math.min(1, c.x * 1.1 + 0.05)) : 0;      // (its head goes first into a turn)
       const look = Math.max(-2.5, Math.min(2.5, us * Math.max(-1.9, Math.min(1.9, dUs)) + hand * Math.max(-2.5, Math.min(2.5, dHand)) + lead * (1 - hand) + 0.2 * sniff * Math.sin(t * 5.2)));
       const ny = Math.max(-1.05, Math.min(1.05, look * 0.45)), hyaw = Math.max(-1.45, Math.min(1.45, look - ny));
-      const neckP = Math.max(-1.2, Math.min(1.1, -0.42 + 1.42 * sniff - 0.4 * alert * (1 - hand) - 0.55 * hand - 0.34 * sit * (1 - hand) + 0.1 * gather + 0.05 * m + 0.05 * sniff * Math.sin(t * 9)));
-      const headP = Math.max(-0.95, Math.min(1.3, 0.2 + 1.04 * sniff - us * (elUs + 0.04) - hand * (elHand * 0.8 + 0.1) + 0.16 * sit * (1 - hand) + 0.04 * m));
+      const neckP = Math.max(-1.2, Math.min(1.1, -0.42 + 1.42 * sniff - 0.4 * alert * (1 - hand) - 0.3 * hand - 0.34 * sit * (1 - hand) + 0.1 * gather + 0.05 * m + 0.05 * sniff * Math.sin(t * 9)));
+      const headP = Math.max(-0.95, Math.min(1.3, 0.2 + 1.04 * sniff - us * (elUs + 0.04) - hand * (elHand * 0.86 + 0.12) + 0.16 * sit * (1 - hand) + 0.04 * m));
       this.world(M.neck, nbv.x, nbv.y, nbv.z, yaw + ny, neckP, 0); rig.mat(I.neck, M.neck);
       this.w.set(0, 0, NL).applyMatrix4(M.neck);
       this.e.set(headP, yaw + ny + hyaw, tilt, 'YXZ'); M.head.compose(this.w, this.q.setFromEuler(this.e), this.s3.set(SC, SC, SC)); rig.mat(I.head, M.head);
       // its ears hang as the head turns under them, lift a little when it attends, bounce at the trot and as it sits down
       for (let k = 0; k < 2; k++) {
         const s = k ? -1 : 1, flap = 0.1 + 0.2 * alert + 0.1 * us * sit + 0.2 * F[k].h + 0.34 * sq + 0.2 * bounce;
-        this.child(M.ear[k], M.head, s * 0.0395, 0.016, 0.006, 0, -headP * 0.82 + 0.1 * alert, s * flap - tilt * 0.8);
+        this.child(M.ear[k], M.head, s * 0.0438, 0.016, 0.006, 0, -headP * 0.82 + 0.1 * alert, s * flap - tilt * 0.8);
         rig.mat(I.ear[k], M.ear[k]);
         this.child(M.tmp, M.head, s * this.eye[0], this.eye[1], this.eye[2] - 0.0028, s * this.eyeTurn[0], this.eyeTurn[1], -s * 0.12);
         this.child(M.lid[k], M.tmp, 0, 0, 0, 0, 1.25 * blink - 0.14 * alert - 0.1 * hand - 0.12 * sit * us, 0);
