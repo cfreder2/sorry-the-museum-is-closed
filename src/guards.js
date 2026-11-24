@@ -784,7 +784,7 @@ feature({
         k.callout('THROWN OUT');
         if (S.why === 'heist') {
           // Out of the heist's cage: it costs nothing but the heist, and the way back to the button is right in front.
-          if (!G.told.has('binned-heist')) k.once('binned-heist', `Caged, carried out and binned. It cost you nothing but the heist.${vent ? ' The vent hood in front of you goes straight back down to security.' : ''}`, 8, true);
+          if (!G.told.has('binned-heist')) k.once('binned-heist', `Caged, carried out and binned. It cost you nothing but the heist, and the room is waiting as you left it.${vent ? ' The vent hood in front of you goes straight back down to security.' : ''}`, 8, true);
         } else {
           // The first time, a line to say what that was: a light setback. You keep everything, and there is a way back in.
           if (!G.told.has('binned')) k.once('binned', `Dumped. The bots don\u2019t like visitors.${fined ? ` (They kept ${fine} chips.)` : ''} Everything you found is still yours.${vent ? ' The vent hood in front of you is a way back in.' : ''}`, 7, true);      // (at once, ahead of anything queued)

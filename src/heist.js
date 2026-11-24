@@ -7,7 +7,9 @@
 // lie low across the way and have to be hopped. Touch one, once, and a cage drops: the alarm, the
 // robot's voice, and you wake up in the dumpster round the back (src/guards.js does the carrying; the
 // vent beside the dumpster goes straight back down to the button, src/staffvent.js). It is theatre:
-// the real picture never leaves the wall, and being caged costs nothing but the heist.
+// the real picture never leaves the wall, and being caged costs nothing but the heist. And the room
+// is kept: after a cage the next press of either button offers the same gallery and the same beams,
+// for another go, until it is won, the clock runs out on it, or it is turned down.
 //
 // src/heistplan.js decides the room, the route, the clock and the beams, and proves a car can get
 // through them; this file draws them, runs the clock and keeps the score.
@@ -203,7 +205,9 @@ export class Heist {
   constructor(G, ui) {
     this.G = G; this.ui = ui; this.plan = G.plan; this.state = 'idle'; this.briefing = false;
     this.attempts = 0; this.completed = 0; this.clean = 0; this.caught = 0; this.best = {}; this.taught = false;
-    try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); this.attempts = s.attempts | 0; this.completed = s.completed | 0; this.clean = s.clean | 0; this.caught = s.caught | 0; this.taught = !!s.taught; Object.assign(this.best, s.best || {}); } catch { /* no storage */ }
+    this.retry = null;            // { room, seed, lv }: the room a cage came down in, to be offered again as it was dealt
+    this.avoid = null;            // and, once that has been turned down, the room not to offer next
+    try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); this.attempts = s.attempts | 0; this.completed = s.completed | 0; this.clean = s.clean | 0; this.caught = s.caught | 0; this.taught = !!s.taught; Object.assign(this.best, s.best || {}); if (s.again && s.again.room) this.retry = { room: String(s.again.room), seed: s.again.seed | 0, lv: s.again.lv | 0 }; } catch { /* no storage */ }
     this.consoles = (G.plan.heistConsoles || []).map(c => ({ ...c, sx: c.x + c.fx * 1.3, sz: c.z + c.fz * 1.3 }));
     const g = this.group = new THREE.Group(); G.museum.group.add(g);
     // The button on each console: the one thing in the room that pulses.
@@ -227,13 +231,13 @@ export class Heist {
     this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.42, 0.31, 0.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); this.halo.scale.set(0.8, 0.8, 1);
     t.add(this.frame, this.picA, this.picB, this.halo); g.add(t);
     this.o = {}; this.prev = new THREE.Vector3(); this.sets = []; this.cage = null;
-    document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-heist]'); if (!b || !this.briefing) return; e.stopPropagation(); if (b.dataset.heist === 'go') this.go(); else this.decline(); }, true);
-    addEventListener('keydown', e => { if (!this.briefing || e.repeat) return; if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyE') { e.preventDefault(); this.go(); } else if (e.code === 'Escape') { e.preventDefault(); this.decline(); } });
+    document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-heist]'); if (!b || !this.briefing) return; e.stopPropagation(); if (b.dataset.heist === 'go') this.go(); else this.decline(true); }, true);
+    addEventListener('keydown', e => { if (!this.briefing || e.repeat) return; if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyE') { e.preventDefault(); this.go(); } else if (e.code === 'Escape') { e.preventDefault(); this.decline(true); } });
   }
   // Under way: on the way there, on the way back, or in the cage. (The security robots look the other way meanwhile.)
   get active() { return this.state === 'in' || this.state === 'out' || this.state === 'caged'; }
   get level() { return level(this.completed); }
-  _save() { try { localStorage.setItem(KEY, JSON.stringify({ attempts: this.attempts, completed: this.completed, clean: this.clean, caught: this.caught, taught: this.taught, best: this.best })); } catch { /* fine */ } }
+  _save() { try { localStorage.setItem(KEY, JSON.stringify({ attempts: this.attempts, completed: this.completed, clean: this.clean, caught: this.caught, taught: this.taught, best: this.best, again: this.retry })); } catch { /* fine */ } }
   _tell(event, more) { try { window.dispatchEvent(new CustomEvent('museum:heist', { detail: { event, room: this.target ? this.target.id : null, time: +(this.elapsed || 0).toFixed(1), trips: this.trips || 0, ...more } })); } catch { /* fine */ } }
   // The security robots' own kit (src/guards.js): their voice, their dumpster.
   get guards() { return this._guards || (this._guards = features.find(f => f.id === 'guards') || null); }
@@ -261,22 +265,29 @@ export class Heist {
       const k = rt.pts.findIndex(p => p.door && p.room === r.id && Math.abs(p.door.y - r.y) < 0.3); if (k < 0) continue;
       list.push({ r, rt, k });
     }
-    c.reach = list.length;
+    c.reach = list.length; c.all = list;
     return (c.pool = pool(list));
   }
   // Tonight's target: a gallery for this attempt (the same one until the attempt is used), a route to it, a picture in it,
   // and the clock. `skip`: rooms that turned out not to take the beams.
   _pick(c, skip) {
-    const list = this.routes(c).filter(q => !(c.bad && c.bad.has(q.r.id)) && !(skip && skip.has(q.r.id)));
+    const near = this.routes(c), R = this.retry;
+    // Caged last time: the same gallery again, the same picture and the same beams, from whichever button this is.
+    if (R) {
+      const q = c.all.find(q => q.r.id === R.room && !(c.bad && c.bad.has(q.r.id)));
+      if (q) { const rnd = dice(hash('heist') + R.seed * 7919); rnd(); return { ...this._job(q, rnd, R.lv), again: true, seed: R.seed }; }      // (the dice as they fell then: one throw for the room, the next for the picture)
+    }
+    let list = near.filter(q => !(c.bad && c.bad.has(q.r.id)) && !(skip && skip.has(q.r.id)));
+    if (this.avoid && list.some(q => q.r.id !== this.avoid)) list = list.filter(q => q.r.id !== this.avoid);
     if (!list.length) return null;
     const rnd = dice(hash('heist') + this.attempts * 7919);
     return this._job(list[Math.floor(rnd() * list.length) % list.length], rnd);
   }
   // The job in one of a button's rooms (`q`, from routes()): which picture, how hard, and the clock.
-  _job(q, rnd = dice(hash('heist') + this.attempts * 7919)) {
+  _job(q, rnd = dice(hash('heist') + this.attempts * 7919), lv = this.level) {
     const arts = this.G.museum.rooms[q.r.id].arts.filter(a => !a.mini), flat = arts.filter(a => !a.obj);
     const art = (flat.length ? flat : arts)[Math.floor(rnd() * (flat.length || arts.length)) % (flat.length || arts.length)];
-    const lv = this.level, rings = lasers(this.plan, q.r, 0, false, { level: lv }).rings.length;
+    const rings = lasers(this.plan, q.r, 0, false, { level: lv }).rings.length;
     return { ...q, art, level: lv, par: pars(q.rt, rings, this.completed) };
   }
 
@@ -293,26 +304,35 @@ export class Heist {
   _card(p) {
     const w = p.art.work, P = p.par;
     $('hbTitle').textContent = roomName(p.r);
-    $('hbText').textContent = `Tonight's treasure is “${w.t}”${w.a ? ', ' + w.a : ''}. A toy-sized copy of it stands on a plinth in the middle of ${roomName(p.r)}, on ${LEVEL[p.r.floor] || 'another floor'}. The real one stays on the wall. Fetch the copy and bring it back to this button.`;
+    const over = $('heistBrief').querySelector('.over'); if (over) over.textContent = p.again ? 'In case of heist \u00a0·\u00a0 back for another go' : "In case of heist \u00a0·\u00a0 tonight's target";
+    $('hbText').textContent = `${p.again ? 'The cage got you in there. It is all as it was: the same room, the same beams. The' : 'Tonight\u2019s'} treasure is “${w.t}”${w.a ? ', ' + w.a : ''}. A toy-sized copy of it stands on a plinth in the middle of ${roomName(p.r)}, on ${LEVEL[p.r.floor] || 'another floor'}. The real one stays on the wall. Fetch the copy and bring it back to this button.`;
     const more = [this.completed ? `HEISTS DONE ${this.completed}` : '', this.best[p.r.id] ? `BEST HERE ${clock(this.best[p.r.id])}` : ''].filter(Boolean).join(' · ');
     $('hbFacts').innerHTML = `ABOUT ${Math.round(p.rt.len / 10) * 10} M AWAY · ON THE CLOCK <b>${clock(P.total)}</b><br>PAR OUT ${clock(P.out)} · THE ROOM ${clock(P.in + P.leave)} · BACK ${clock(P.back)}<br>LASERS: THE LOW ONES CAN BE HOPPED<br>ONE TOUCH AND THE CAGE DROPS` + (more ? '<br>' + more : '');
   }
-  decline() { this.briefing = false; this.pending = null; $('heistBrief').hidden = true; }
+  // Shut the card. `no`: the player said "Not tonight" (rather than the heist starting, or the game closing it): a room
+  // offered for another go is given up, and the next press moves on to a new one.
+  decline(no) {
+    if (no && this.pending && this.pending.again && this.retry) { this.avoid = this.retry.room; this.retry = null; this._save(); }
+    this.briefing = false; this.pending = null; $('heistBrief').hidden = true;
+  }
 
   go() {
     let p = this.pending; const G = this.G, plan = this.plan; if (!p) return this.decline();
     const c = p.console, v = G.vehicle, drone = !!v && v.kind === 'drone';
     this.decline();
     // Deal the room. One that will not take the beams (something stands where they must go) is never offered again, and another is tried.
-    const seed = this.attempts; let set = null, door = null;
+    // (Another go at a room: the seed it was dealt from then. Otherwise this attempt's own.)
+    let seed = p.again ? p.seed : this.attempts, set = null, door = null;
     for (let n = 0; n < 4 && p; n++) {
       door = p.rt.pts[p.k].door;
       set = deal(plan, p.r, seed, false, door, { level: p.level, drone });
       if (set) break;
       (c.bad || (c.bad = new Set())).add(p.r.id);
+      if (p.again) this.retry = null;                  // (it cannot be dealt from this button's door: let go of it)
+      seed = this.attempts;
       const q = this._pick(c); p = q ? { ...q, console: c } : null;
     }
-    this.attempts++; this._save();
+    this.attempts++; this.avoid = null; this._save();
     if (!set || !p) { this.ui.say('The lasers would not come on. Try the button again.', 0, 5); return; }
     this.seed = seed; this.target = p.r; this.door = door; this.art = p.art; this.console = c; this.route0 = p.rt; this.lv = p.level; this.kind = v ? v.kind : 'car';
     this.par = p.par; this.limit = p.par.total; this.left = this.limit; this.elapsed = 0; this.trips = 0; this.now = 0; this.safeUntil = 0; this.dim = 0;
@@ -438,7 +458,7 @@ export class Heist {
   // A beam is touched. The alarm, and a cage out of the ceiling; no second chances.
   _trip(v) {
     const G = this.G;
-    this.trips++; this.caught++; this._save(); this._tell('trip');
+    this.trips++; this.caught++; this.retry = { room: this.target.id, seed: this.seed, lv: this.lv }; this._save(); this._tell('trip');      // (the room is kept as it is, for another go)
     this.state = 'caged'; this.held = 0; this.handed = false; this.spoke = false;
     const r = roomAt(this.plan, v.pos.x, v.pos.z, v.pos.y), fy = r ? r.y : this.sets[0].rect.y;
     v.vel.multiplyScalar(0.25); if (typeof v.speed === 'number') v.speed *= 0.25;
@@ -486,7 +506,7 @@ export class Heist {
 
   _win() {
     const G = this.G, id = this.target.id, time = this.elapsed, was = this.best[id], f = this.left / this.limit;
-    this.completed++; this.clean++;
+    this.completed++; this.clean++; this.retry = null;                      // (won: on to another room)
     const record = !(was > 0) || time < was; if (record) this.best[id] = +time.toFixed(1);
     const rank = (RANKS.find(q => f >= q[0]) || RANKS[RANKS.length - 1])[1];
     this._save(); this._tell('win', { rank, ghost: rank === RANKS[0][1], left: +this.left.toFixed(1) });
@@ -495,6 +515,7 @@ export class Heist {
     this._end();
   }
   _lose(why) {
+    this.retry = null; this._save();                 // (the clock ran out: that room has had its chance)
     this._tell('lose', { why });
     this.ui.callout('THE HEIST IS OFF');
     this.ui.say('The clock ran out. The lasers go dark, the copy goes back on its plinth, and the guards never knew.', 0.8, 9);
