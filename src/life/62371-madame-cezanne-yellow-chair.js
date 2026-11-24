@@ -1,7 +1,7 @@
 // Paul Cezanne, Madame Cezanne in a Yellow Chair (1888–90), Gallery 248. The word: trace.
 //
-// One of four portraits of his wife, Hortense Fiquet, in the same red dress; in this one she sits in a yellow
-// armchair covered in a leafy damask. The museum's note says two things about it. Technical examination suggests he
+// One in a series of four portraits he made of his wife, Hortense Fiquet; in this one she sits, hands folded, in a
+// yellow armchair covered in a leafy damask. The museum's note says two things about it. Technical examination suggests he
 // did not paint it from life: he traced it, the second in the series, from the first, which he did. And the
 // dark-blue outlines he used to sketch out the forms "remain visible in the final work". So this picture is a line
 // that was carried from one canvas to another, with colour laid into it afterwards in his slanting touches, which do
@@ -40,7 +40,7 @@ import { score } from './stagecraft.js';
 
 const TAU = Math.PI * 2;
 const SC = 1.12;                                     // the size of it all (what follows is in its own metres)
-const TILE = 0.5;                                   // the damask repeats every so many metres
+const TILE = 0.5;                                    // the damask repeats every so many metres
 // Where each chair stands (u along the wall, z out from it), how it is turned, how it leans (its top goes this far
 // sideways for each metre of height: his chair's sides lean about eleven degrees), and its own shift of the damask.
 // Both keep to the right of where the Bay of Marseille, next along the wall, deals its cards on the floor.
@@ -56,7 +56,7 @@ const DOWN = i => TRACE[i] + RUN + PEEL[0] + PEEL[1] + WAIT + CARRY[i];
 const DONE = i => (i ? DOWN(i) + LEAN + FILL : FILL_A[1]);
 const T_IDLE = DONE(NC - 1) + 2.6, IDLE_EVERY = 6, IDLE_RUN = 1.7;       // afterwards: a line looks for an edge again
 const NOTES = [293.66, 440];                         // D, and the A above it
-const CH = 0.3, TOP = 0.64;                                      // the middle of a chair, above the floor
+const CH = 0.3, TOP = 0.64;                          // the middle of a chair above the floor, and its top
 const _h = (a, b = 0) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
 
 // ------------------------------------------------------------------ the damask, painted once --
@@ -300,9 +300,9 @@ function drawing(rand, pal) {
 lifeFor(62371, {
   title: /^Madame Cezanne in a Yellow Chair/,
   word: 'trace',
-  // (a small work: the kit keeps the whole of it in view. The camera stands low, about at the height of a chair's
-  // arm, so the chair that leans is seen square on, right under the chair that leans in the picture)
-  stage: { out: 1.9, half: 1.3, cam: { dist: 2.75, height: 0.36, side: 0.25, fov: 50, lookU: 0.02, lookOut: 0.5, lookH: 0.95, floorOut: 1.7 } },
+  // (a small work: the kit keeps the whole of it in view. The camera stands low, at the height of a chair's arm, and
+  // nearly square to the wall, so the chair that leans is seen face on, right under the chair that leans in the picture)
+  stage: { out: 1.9, half: 1.3, cam: { dist: 3.0, height: 0.3, side: 0.15, fov: 50, lookU: 0.08, lookOut: 0.5, lookH: 0.95, floorOut: 1.55 } },
   wake: 2, ret: 2.4,
 
   build(L) {
@@ -377,13 +377,13 @@ lifeFor(62371, {
   // (fill), and whether it is out at all.
   pose(i, c, calm, o) {
     const T = this.T, S = SEATS[i];
-    o.on = false; o.tail = 0; o.head = 1; o.fill = 0; o.down = 0; o.wet = 0;
+    o.on = false; o.tail = 0; o.head = 1; o.fill = 0; o.wet = 0;
     if (i === 0) {
       if (c < T_IN) return o;
       o.on = true;
       if (c < T_OUT) return this.inWall(o, ease.out(ramp(c, T_IN, T_OUT)));
       if (c < T_DOWN) return this.fly(this.inWall(T.p, 1), this.seat(0, T.q), ramp(c, T_OUT, T_DOWN), o, 0, calm ? 0.04 : 0.1);
-      this.seat(0, o); o.down = 1;
+      this.seat(0, o);
       const tau = c - T_DOWN; if (!calm && tau < 1) o.lean = 0.035 * Math.exp(-tau * 6) * Math.sin(tau * 15);       // (set down: it rocks once and stands)
       o.fill = ramp(c, FILL_A[0], FILL_A[1]);
       return o;
@@ -400,11 +400,11 @@ lifeFor(62371, {
     if (c < td) {
       this.seat(i - 1, T.p); T.p.y += PEEL_UP; T.p.z += PEEL_OUT;
       this.seat(i, T.q); T.q.lean = 0;
-      this.fly(T.p, T.q, ramp(c, t2, td), o, 0.06, calm ? 0.035 : 0.09); o.wet = 1;
+      this.fly(T.p, T.q, ramp(c, t2, td), o, 0.03, calm ? 0.035 : 0.09); o.wet = 1;
       return o;
     }
     // set down, upright; a moment; and then it leans: over, too far, and back, and holds (and the line dries)
-    this.seat(i, o); o.down = 1;
+    this.seat(i, o);
     const tau = Math.max(0, c - td - 0.12);
     o.lean = S.lean * (calm ? ease.smooth(tau / 1.3) : 1 - Math.exp(-tau * 2.4) * Math.cos(tau * 5.0));
     o.wet = 1 - ease.smooth((c - td) / 2.2);
@@ -470,7 +470,8 @@ lifeFor(62371, {
         line.setMatrixAt(NC, this.place(o, T.m, T.p)); run.setXYZ(NC, Math.max(0, k * 1.3 - 0.3), Math.min(1, k * 1.3), 1); idle = true;
       }
     }
-    if (!idle) line.setMatrixAt(NC, T.zero);
+    // (only the instances in use are drawn: the second chair's once it is being traced, the third line only as it runs)
+    line.count = idle ? NC + 1 : last + 1; body.count = last + 1;
     B.count = NC;
     body.instanceMatrix.needsUpdate = line.instanceMatrix.needsUpdate = true; chair.needsUpdate = run.needsUpdate = true;
     if (!showing && L.ret >= 1) this.hide();
