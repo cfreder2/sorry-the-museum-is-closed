@@ -1,22 +1,23 @@
 // Edgar Degas, Henri Degas and His Niece Lucie Degas (The Artist's Uncle and Cousin) (1875-76), Gallery 226.
 // The word: rustle.
 //
-// Naples, a house in mourning. An old man has lowered his newspaper to look up; a girl in black stands behind his
-// chair with her hands on its back; behind them a glazed door, its panes butter yellow between red-brown bars; and
-// at the foot of the picture, between them and the painter, a round table with papers on it. Nobody is speaking. The
-// only sound the picture has is the one that has just stopped: the newspaper. So what comes out is the room's quiet,
-// and the paper in it. Nothing else.
+// Naples, most likely, and a house in mourning. An old man has lowered his newspaper to look up; a girl in black
+// stands behind his chair with her hands on its back; behind them a glazed door, its panes butter yellow between
+// red-brown bars; and at the foot of the picture, between them and the painter, a round table with papers on it.
+// Nobody is speaking. The only sound the picture has is the one that has just stopped: the newspaper. So what comes
+// out is the room's quiet, and the paper in it. Nothing else.
 //
-// Look, and the door's light is laid on the gallery floor in his scumbled yellows, pane by pane, the bars between
-// them; and in it the table is brushed in, thinly at first, as he left much of this picture: the red-brown top, the
-// papers as they lie at the foot of the picture (the salmon portfolio with its wad of white leaves, an olive sheet, a
-// brown one, cream, pale green and white), and the newspaper, white and grey-blue, lying over the table's edge and
-// hanging from it. Then a latch gives, somewhere in the picture. The door comes ajar: a blade of clear light opens
-// across the floor and the table, the bars lean, and the air comes in after it. The corners of the papers lift, one
-// after another. The hanging half of the newspaper fills and swings out; it creeps, stops at the brink, and then its
-// own weight takes it: it runs off the table, pours down onto the floor and lays itself out there, its tail floating
-// down last. One white sheet, uncovered, lifts off the table, climbs like a kite, and comes down the way a sheet of
-// paper falls, sliding one way and then the other, to lie in the light. The door eases to. The corners lie down. And
+// Look, and the door's light falls on the gallery floor, warm and scumbled as his yellow is, pane by pane with the
+// bars between; and in it the table is brushed in, thinly at first, as he left much of this picture: the red-brown
+// top, the papers as they lie at the foot of the picture (the salmon portfolio with its wad of white leaves, an olive
+// sheet, a brown one, cream, pale green and white), and the newspaper, lying over the table's edge and hanging from it
+// in long soft folds (its print is the grey hatching he gave the newspaper in his Cotton Office of 1873: columns, a
+// title, nothing to read). Then a latch gives, somewhere in the picture. The door comes ajar: a blade of clear light
+// opens across the floor, the bars lean, and the air comes in after it. The corners of the papers lift. The hanging
+// half of the newspaper fills and swings out; it creeps, stops at the brink, and then its own weight takes it: it
+// runs off the table, pours down onto the floor and lays itself out there, its two leaves slewing apart, its tail
+// floating down last. One white sheet lifts off the table, hangs, and comes down the way a sheet of paper falls, sliding one
+// way and then the other, its shadow closing on it, to lie in the light. The door eases to. The corners lie down. And
 // then nothing moves, which is the picture. While you keep looking, the door breathes now and then and the papers stir
 // and settle. When you stop, it all thins away again, stroke by stroke, and the light draws back under the picture.
 //
@@ -24,12 +25,13 @@
 // latch, and the draught, hardly there.
 //
 // Nothing is solid. While the toy is near, it all stays out after the look: driving past the table stirs the papers,
-// the papers on the floor slide out of the toy's way, and the toy throws its shadow in the door's light. With "Reduce
-// motion and flashing" on, everything goes at six tenths of the speed, the papers do not tremble, and the sounds are
-// softer; nothing here flashes. Three draw calls: the light on the floor (one shader: the door, the shadows), the
-// table with everything on it (one mesh; the papers are strips bent along their length, as paper bends, laid again
-// each frame), and the shadow of the flying sheet on the table. Everything keeps under 0.8 m, below every frame in
-// the room, so from the checks' nine cameras the guard has nothing to cut.
+// the two on the floor slide a little out of the toy's way, and the toy throws its shadow in the door's light. With
+// "Reduce motion and flashing" on, everything goes at six tenths of the speed, the papers do not tremble, and the
+// sounds are softer; nothing here flashes. Three draw calls: the light on the floor (one shader: the door, and the
+// shadows of what stands in it), the table with everything on it (one mesh, one texture; the papers are strips bent
+// along their length, as paper bends, laid again each frame), and the shadow of the flying sheet on the table.
+// Everything keeps under 0.7 m, below every frame in the room, and the sheet that flies stays low enough to pass
+// under the picture from a toy's eye as well; from the checks' nine cameras the guard has next to nothing to cut.
 //
 // What it does not do: the uncle and the girl stay in their picture, in every form (no figure, no hand to hold the
 // paper, no shadow of anyone), and so does the chair she holds, because an empty chair in a house in mourning would
@@ -67,7 +69,7 @@ const SHEETS = [
   { x: 0.13, z: 0.225, a: 0.12, len: 0.23, wid: 0.3, cols: ['#ebe7dc', '#f4f1e8', '#cfd0cc'], lay: 6, amp: 0.09, flies: true },  // the white one that flies
 ];
 const FLY = SHEETS.findIndex(s => s.flies);
-const APEX = { u: -0.27, out: 0.94, h: 0.67 }, LAND = { u: -0.12, out: 1.36 };      // how high it climbs, and where it comes down
+const APEX = { u: -0.27, out: 0.8, h: 0.57 }, LAND = { u: -0.12, out: 1.36 };      // where it hangs before it falls (low: under the picture from a toy's eye too), and where it comes down
 
 const DOOR_GLSL = /* glsl */`
 uniform sampler2D tPane; uniform vec4 uDoor; uniform vec4 uDisc[2]; uniform vec4 uCapA[4]; uniform vec4 uCapK[4]; uniform vec3 uBar, uGapC, uUmber; uniform float uGain;
@@ -222,7 +224,7 @@ lifeFor(14574, {
       this.light = new THREE.Mesh(g, fm); this.light.renderOrder = 5; this.light.name = 'the door’s light'; root.add(this.light);
     }
     L.add(root);
-    this.blobs = L.blobs(1, { y: L.y + TH + 0.011 });
+    this.blobs = L.blobs(1, { y: L.y + TH + 0.011, fade: true });
     this.air = L.k.loop({ lp: 420, hp: 90 });
     this.V = new THREE.Vector3();
     this.push = [{ u: 0, o: 0, vu: 0, vo: 0 }, { u: 0, o: 0, vu: 0, vo: 0 }];      // the papers on the floor, shoved by the toy: the newspaper, the sheet
