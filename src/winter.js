@@ -14,6 +14,7 @@ import { Geo } from './geo.js';
 import { onSnow, heightOf, carve } from './plan.js';
 import { landAt, WIND } from './land.js';
 import { snowLook } from './finish.js';
+import { buildHills, hillMap } from './hills.js';      // the hills, drawn from their own shapes (hillshape.js)
 
 export function buildWinter(museum, plan) {
   const G = plan.grounds, B = plan.bounds, group = museum.group;
@@ -128,7 +129,10 @@ export function buildWinter(museum, plan) {
   }
 
   // ------------------------------------------------------------------ hills
+  // Shaped hills (hillshape.js) are one mesh, drawn by hills.js: scoured crests, soft hollows, the sled chute, bare ribs.
+  group.add(buildHills(plan.hills || [], snowTex, museum));
   for (const h of plan.hills || []) {
+    if (h.form) continue;                                 // (any left that is still a plain cosine mound)
     const n = Math.max(24, Math.round(h.rx * 3.2)), geo = new THREE.PlaneGeometry(h.rx * 2, h.rz * 2, n, n); geo.rotateX(-Math.PI / 2);
     const p = geo.attributes.position, uv = geo.attributes.uv;
     for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), d = Math.hypot(x / h.rx, z / h.rz); p.setY(i, d >= 1 ? -0.02 : heightOf(h, h.cx + x, h.cz + z) + 0.004); uv.setXY(i, (h.cx + x) / 6, (h.cz + z) / 6); }
@@ -201,6 +205,7 @@ export function buildWinter(museum, plan) {
     if (LD) for (let j = 0; j < LH; j++) for (let i = 0; i < LW; i++) d[j * LW + i] = Math.round(Math.min(1, landAt(LD, LR.x0 + i * LS, LR.z0 + j * LS) / 2) * 255);
     const t = new THREE.DataTexture(d, LW, LH, THREE.RedFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.colorSpace = THREE.NoColorSpace; t.unpackAlignment = 1; t.needsUpdate = true; return t;
   })(), landB = LD ? new THREE.Vector4(LR.x0, LR.z0, LW, LH) : new THREE.Vector4(0, 0, 1, 1);
+  const HMAP = hillMap(HILLS, heightOf);
   let glints;
   {
     // Where there is snow to glitter: not in buildings, not on the streets, the paths, the ice or the kit.
@@ -219,12 +224,12 @@ export function buildWinter(museum, plan) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
     glints = new THREE.Points(g, new THREE.ShaderMaterial({
-      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE }, uHill: { value: HILLS.map(h => new THREE.Vector4(h.cx, h.cz, h.rx, h.rz)) }, uHillH: { value: HILLS.map(h => h.H) }, uHillB: { value: HILLS.map(h => new THREE.Vector2(h.bump || 0, h.br || 1)) }, uLand: { value: landTex }, uLandB: { value: landB } },
-      vertexShader: `attribute float aSeed; uniform vec4 uHill[${HILLS.length}]; uniform float uHillH[${HILLS.length}]; uniform vec2 uHillB[${HILLS.length}]; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask, uLand; uniform vec4 uB, uLandB; varying float vA;
+      uniforms: { uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uMask: { value: mask }, uB: { value: new THREE.Vector4(B.x0, B.z0, 1 / (B.x1 - B.x0), 1 / (B.z1 - B.z0)) }, uTile: { value: TILE }, uHillMap: { value: HMAP.tex }, uHillBox: { value: HMAP.box }, uLand: { value: landTex }, uLandB: { value: landB } },
+      vertexShader: `attribute float aSeed; uniform sampler2D uHillMap; uniform vec4 uHillBox; uniform vec3 uCam; uniform float uT, uTile; uniform sampler2D uMask, uLand; uniform vec4 uB, uLandB; varying float vA;
         void main() {
           vec2 w = uCam.xz + mod(position.xz - uCam.xz + uTile * 0.5, uTile) - uTile * 0.5;
-          float gy = 0.0;
-          for (int i = 0; i < ${HILLS.length}; i++) { float hd = length((w - uHill[i].xy) / uHill[i].zw); if (hd < 1.0) { float hh = uHillH[i] * (cos(hd * 3.14159265) + 1.0) * 0.5, bd = length(w - uHill[i].xy) / uHillB[i].y; if (bd < 1.0) hh += uHillB[i].x * (cos(bd * 3.14159265) + 1.0) * 0.5; gy = max(gy, hh); } }
+          vec2 hq = (w - uHillBox.xy) * uHillBox.zw;              // the hills, as hills.js baked them (they have shapes of their own now)
+          float gy = hq.x > 0.0 && hq.x < 1.0 && hq.y > 0.0 && hq.y < 1.0 ? texture2D(uHillMap, hq).r : 0.0;
           gy = max(gy, texture2D(uLand, ((w - uLandB.xy) / ${LS.toFixed(1)} + 0.5) / uLandB.zw).r * 2.0);
           vec4 mv = viewMatrix * vec4(w.x, gy + 0.03, w.y, 1.0); float d = -mv.z;
           float m = texture2D(uMask, (w - uB.xy) * uB.zw).r;
