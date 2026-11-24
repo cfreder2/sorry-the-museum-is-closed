@@ -54,3 +54,4 @@ import './62371-madame-cezanne-yellow-chair.js'; // 248  Cezanne, Madame Cezanne
 import './4796-fishing-boats-hucksters.js'; // 220  Turner, Fishing Boats with Hucksters Bargaining for Fish: bargain
 import './60755-ruins-of-egmond.js';  // 213  van Ruisdael, Landscape with the Ruins of the Castle of Egmond: shelter
 import './150054-mrs-beatty-and-susan.js'; // 161  Johnson, Mrs. Beatty and Her Daughter Susan: strawberry
+import './90048-distant-view-of-niagara.js'; // 161  Cole, Distant View of Niagara Falls: spray
