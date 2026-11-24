@@ -209,7 +209,8 @@ feature({
   open(d) {
     const k = this.k, G = k.G; if (this.on) return;
     this.on = true; this.cur = d; this._dom();
-    k.hold(() => {});                                         // the toy stands still; the building does not
+    k.hold(() => {});                                         // the toy stands still; the building does not (the game stays in 'play': the sprinklers, the tests and the robots all carry on)
+    this._listen();
     k.find('secdesk');
     if (!this.save.seen[d.n]) { this.save.seen[d.n] = true; this._keep(); }
     this.host.textContent = `SECDESK-0${d.n + 1} · nightshift`;
@@ -299,10 +300,28 @@ feature({
     if (!top && /^Digit[1-4]$/.test(e.code)) { e.preventDefault(); this._show(APPS[+e.code.slice(5) - 1][0]); }
   },
 
+  // The building's systems say things later, by themselves (a valve timing out, a fire test ending): G.systems.onEvent
+  // (src/systems.js). They are printed in the terminal as they come, as on any building management console; if the
+  // terminal has never been opened they are kept for when it is.
+  _listen() {
+    const S = this.k.G.systems; if (!S || typeof S !== 'object') return;
+    this.wired = this.wired || new WeakSet(); if (this.wired.has(S)) return; this.wired.add(S);
+    const prev = typeof S.onEvent === 'function' ? S.onEvent : null;
+    try { S.onEvent = (...a) => { if (prev) { try { prev(...a); } catch { /* theirs */ } } this._late(a[0]); }; } catch { /* not ours to set */ }
+  },
+  _late(ev) {
+    const lines = typeof ev === 'string' ? [ev] : Array.isArray(ev) ? ev : ev && Array.isArray(ev.lines) ? ev.lines : ev && (ev.line || ev.text || ev.message) ? [ev.line || ev.text || ev.message] : [];
+    if (!lines.length) return;
+    const out = lines.map(t => ({ t: String(t), c: ev && ev.ok === false ? 'w' : 'h' }));
+    if (!this.out || !this.booted) { this.lateBuf = (this.lateBuf || []).concat(out).slice(-20); return; }
+    this._print(out); if (this.on && this.top === 'term') this._blip('key');
+  },
+
   // ---------------------------------------------------------------- the terminal
   _boot() {
     if (this.booted) return; this.booted = true;
     this._print([{ t: `WATCHMAN 4.1 · SECDESK-0${this.cur.n + 1} · night profile`, c: 'h' }, { t: 'Last login: tonight 22:00, from this chair.', c: 'd' }, { t: 'You have 3 mails. None of them is good news.', c: 'd' }, { t: '' }, { t: `Type  help.  Or ${document.body.classList.contains('touch') ? 'tap' : 'click'} one of the words below.` }, { t: '' }]);
+    if (this.lateBuf && this.lateBuf.length) this._print(this.lateBuf.splice(0));
   },
   _print(lines) {
     const o = this.out, f = document.createDocumentFragment();
@@ -313,6 +332,7 @@ feature({
   _focusLine() { if (!document.body.classList.contains('touch')) this.line.focus({ preventScroll: true }); },      // (on glass the keyboard only comes when the line itself is tapped)
   async _enter(text) {
     if (this.busy) return;
+    this._listen();
     const T = this.term, line = text != null ? text : this.line.value, secret = T.mode === 'password';
     this.line.value = ''; this.hi = null;
     this._print([{ t: T.prompt + (secret ? '•'.repeat(line.length) : line), c: 'p' }]);
@@ -455,7 +475,7 @@ feature({
     // the tracker
     { const b = win('tracker', 'Tracker · live'), tabs = el('div', 'sd-tabs'), stage = el('div', 'sd-stage'), cv = el('canvas'), key = el('div', 'sd-key');
       for (const [col, name] of [['#7dffa0', 'robot'], ['#ffc23a', 'alert'], ['#ff4636', 'pursuit'], ['#b8ffcc', 'mouse'], ['#ffe08a', 'you']]) { const s = el('span'); const i = el('i'); i.style.background = col; s.append(i, name); key.append(s); }
-      key.append(el('span', '', '◇ unknown contact'), el('span', '', 'tap the plan to look closer'));
+      key.append(el('span', '', '◇ unknown contact'), el('span', '', '◌ on a wet floor'), el('span', '', 'tap the plan to look closer'));
       cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(), p = this.tracker.at(e.clientX - r.left, e.clientY - r.top); this.view = this.view || !p || this.level.restricted ? null : { cx: p.x, cz: p.z, zoom: 2.6 }; this.trT = 1; });
       stage.append(cv); b.append(tabs, stage, key); this.T = { tabs, cv }; }
     // the game

@@ -92,8 +92,11 @@ sys = { list: () => [{ id: 'sprinklers', name: 'Sprinklers', usage: 'sprinklers 
   run: (id, args) => (id === 'lift' ? new Promise(r => setTimeout(() => r({ ok: true, lines: ['Lift called to ' + args[0] + '.'], sound: 'ding' }), 5)) : { ok: args[0] !== 'bad', lines: ['Sprinklers ' + (args[0] || 'status') + '.'] }) };
 has(await run('systems'), /sprinklers <on\|off\|status>/); has(await run('sprinklers on lobby'), /Sprinklers on\./); has(await run('lift 3'), /Lift called to 3/); has(await run('run lift 2'), /Lift called to 2/);
 has(await run('firetest'), /system offline/);
+has(await run('help sprinklers'), /sprinklers <on\|off\|status> \[zone\]/); has(await run('help lift'), /Up and down/); has(await run('help'), /help <system>/);
+sys.zones = () => ['lobby', { id: 'dock' }, 'lower level']; sys.wings = () => ['north'];
+assert.deepEqual(T.chips('sprinklers ').map(c => c.label), ['enter', 'on', 'off', 'status', 'lobby', 'dock', 'lower level']); assert.equal(T.chips('sprinklers on lo').find(c => c.label === 'lower level').text, 'sprinklers on "lower level"');
+has(await run('sprinklers on "lower level"'), /Sprinklers on\./);
 assert.ok(T.commands().includes('sprinklers') && T.commands().includes('lift'));
-assert.deepEqual(T.chips('sprinklers ').map(c => c.label), ['enter', 'on', 'off', 'status']);
 sys = { list: () => { throw new Error('boom'); }, run: () => { throw new Error('boom'); } }; has(await run('systems'), /link down/);
 
 // Tab, and the row to tap

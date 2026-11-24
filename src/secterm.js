@@ -80,7 +80,10 @@ export class Term {
     };
     const ro = what => say(`${cmd}: ${what} The night shift has a read-only night. (Two files can be changed: open notes.txt)`, 'e');
     const C = {
-      help: () => say(`WATCHMAN 4.1 · what it understands
+      help: () => {
+        const one = names.length && this.sysList().find(q => String(q.id).toLowerCase() === names[0].toLowerCase());
+        if (one) { say(`${one.id} · ${one.name || 'building system'}`, 'h'); say(` ${one.usage || one.id}`); if (one.about) say(` ${one.about}`, 'd'); return; }
+        say(`WATCHMAN 4.1 · what it understands
  ls, dir          what is in this folder
  cd <folder>      go in.  cd ..  back out
                   cd /  the top.  cd ~  home
@@ -95,7 +98,9 @@ export class Term {
  systems          the building's switches
  login            clearance 9, if you know it
  whoami  date  history  clear  exit
-Tab finishes a name. Up: the last command.`),
+ help <system>    how one of them is worked
+Tab finishes a name. Up: the last command.`);
+      },
       pwd: () => say(this.cwd),
       ls: () => {
         const n = names.length ? at(names[0]) : at('.');
@@ -269,9 +274,13 @@ Tab finishes a name. Up: the last command.`),
       // what its usage line offers: <on|off|status>
       const u = String(sys.usage || ''), opts = new Set();
       for (const g of u.match(/[<\[][^>\]]+[>\]]/g) || []) if (g.includes('|')) for (const w of g.slice(1, -1).split('|')) if (/^[\w-]+$/.test(w.trim())) opts.add(w.trim());      // (a choice is offered; a <name> is not)
+      // and the places it can be pointed at, if it says what they are (zones for the sprinklers, wings for the fire test and the lights)
+      const places = fn => { try { const S = this.sys(); return (S && typeof S[fn] === 'function' ? S[fn]() || [] : []).map(q => String(q && typeof q === 'object' ? q.id || q.name || '' : q)).filter(Boolean); } catch { return []; } };
+      if (/zone/i.test(u) || sys.id === 'sprinklers') for (const w of places('zones')) opts.add(w);
+      if (/wing/i.test(u) || sys.id === 'firetest' || sys.id === 'lights') for (const w of places('wings')) opts.add(w);
       out.push({ label: 'enter', text, run: true });
       const stem = argPart.split(/\s+/).pop().toLowerCase();
-      for (const w of opts) if (w.toLowerCase().startsWith(stem)) out.push({ label: w, text: text.slice(0, text.length - stem.length) + w, run: true });
+      for (const w of opts) if (w.toLowerCase().startsWith(stem)) out.push({ label: w, text: text.slice(0, text.length - stem.length) + (/\s/.test(w) ? `"${w}"` : w), run: true });
       return out;
     }
     if (cmd === 'grep' || cmd === 'find') { for (const w of ['green', 'grate', 'lift', 'label', 'crate', 'Director', 'notes', 'donut']) out.push({ label: w, text: `${cmd} ${w}`, run: true }); return out; }

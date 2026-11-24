@@ -92,8 +92,11 @@ export class Tracker {
       c.beginPath(); c.moveTo(x, z); c.arc(x, z, reach, a - HALF, a + HALF); c.closePath(); c.fill();
       c.strokeStyle = b.mood === 2 ? 'rgba(255,70,54,.7)' : b.mood === 1 ? 'rgba(255,194,58,.6)' : 'rgba(170,255,200,.4)'; c.lineWidth = 1; c.stroke();
     }
+    const S = G.systems, wet = S && typeof S.wetAt === 'function' ? (x, z, y) => { try { return !!S.wetAt(x, z, y); } catch { return false; } } : null;      // (src/systems.js: the sprinklers)
+    const damp = (x, z, r) => { c.strokeStyle = '#6fc3ff'; c.lineWidth = 1.5; c.setLineDash([3, 3]); c.beginPath(); c.arc(x, z, r, 0, TAU); c.stroke(); c.setLineDash([]); };
     for (const b of bots) {
       const x = X(b.x), z = Z(b.z), col = TINT[b.mood];
+      if (wet && wet(b.x, b.z, b.y)) damp(x, z, r0 * 2.6);
       if (b.mood) { c.strokeStyle = col; c.lineWidth = 1.5; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 9); c.beginPath(); c.arc(x, z, r0 * 2.1, 0, TAU); c.stroke(); c.globalAlpha = 1; }
       c.fillStyle = '#020a06'; c.beginPath(); c.arc(x, z, r0 + 2, 0, TAU); c.fill(); c.fillStyle = col; c.beginPath(); c.arc(x, z, r0, 0, TAU); c.fill(); c.fillStyle = '#f4fff6'; c.beginPath(); c.arc(x, z, r0 * 0.4, 0, TAU); c.fill();
       if (!small && (zoom > 1.6 || W > 620)) { c.font = mono(10, 700); c.textAlign = 'left'; c.lineWidth = 3; c.strokeStyle = '#020a06'; const id = b.id.replace('BOT-', ''); c.strokeText(id, x + r0 + 4, z - r0 - 3); c.fillStyle = b.mood ? col : '#d6ffd9'; c.fillText(id, x + r0 + 4, z - r0 - 3); }
@@ -116,6 +119,7 @@ export class Tracker {
     const v = G.vehicle;
     if (v && this.levelOf(v.pos.y).id === level.id) {
       const x = X(v.pos.x), z = Z(v.pos.z), r = small ? 4 : 6.5;
+      if (wet && wet(v.pos.x, v.pos.z, v.pos.y)) damp(x, z, r * 2.2);
       c.save(); c.translate(x, z); c.rotate(Math.PI - (v.yaw || 0)); c.fillStyle = '#020a06'; c.beginPath(); c.arc(0, 0, r + 2.5, 0, TAU); c.fill();
       c.fillStyle = '#ffe08a'; c.beginPath(); c.moveTo(0, -r); c.lineTo(r * 0.72, r * 0.8); c.lineTo(0, r * 0.4); c.lineTo(-r * 0.72, r * 0.8); c.closePath(); c.fill(); c.restore();
       if (!small) { c.font = mono(9, 700); c.textAlign = 'left'; c.fillStyle = '#ffe08a'; c.fillText('TOY (NOT OURS)', x + r + 5, z + 1); }
