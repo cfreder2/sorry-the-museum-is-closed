@@ -21,3 +21,4 @@ import './109780-love-of-winter.js';    // 272  Bellows, Love of Winter: skate
 import './8991-improvisation-30.js';    // 392  Kandinsky, Improvisation No. 30 (Cannons): boom
 import './76571-view-of-cotopaxi.js';   // 161  Church, View of Cotopaxi: erupt
 import './14620-cliff-walk-at-pourville.js'; // 240  Monet, Cliff Walk at Pourville: gust
+import './81533-races-at-longchamp.js'; // 225  Manet, The Races at Longchamp: thunder
