@@ -613,16 +613,19 @@ class Life {
   get calm() { const m = this.k && this.k.museum; return !!(m && m.calm); }
   // Soft contact shadows on the floor under things that sit or roll there: b = L.blobs(n); b.set(i, x, z, radius,
   // darkness 0..1) each frame for the ones in use, b.count = how many. One draw call.
-  blobs(n, { y = this.y + 0.011 } = {}) {
+  // (fade: true makes a blob's darkness follow the k given to set(); without it every blob is full strength, which is
+  // what the first shows were tuned with.)
+  blobs(n, { y = this.y + 0.011, fade = false } = {}) {
     const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2);
     const m = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: radialTexture(), transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, fog: false }), n);
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.renderOrder = 2; this.add(m);
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.renderOrder = 2;
     const M = new THREE.Matrix4(), V = new THREE.Vector3(), S = new THREE.Vector3(), Q = new THREE.Quaternion(), C = new THREE.Color();
     m.set = (i, x, z, r, k = 1) => { m.setMatrixAt(i, M.compose(V.set(x, y, z), Q, S.set(r * 2, 1, r * 2))); m.setColorAt(i, C.setScalar(k)); m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; };
     // (darkness rides on the instance colour: black times k is still black, so it scales the alpha instead)
-    m.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n#ifdef USE_INSTANCING_COLOR\n  diffuseColor.a *= vColor.r;\n  diffuseColor.rgb = vec3(0.0);\n#endif'); };
-    m.material.customProgramCacheKey = () => 'lifeblobs';
-    protectArt(m.material, this.art);
+    m.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n#if defined( USE_COLOR ) && defined( LIFE_BLOB_FADE )\n  diffuseColor.a *= vColor.r;\n  diffuseColor.rgb = vec3(0.0);\n#endif'); };
+    if (fade) m.material.defines = { ...(m.material.defines || {}), LIFE_BLOB_FADE: '' };
+    m.material.customProgramCacheKey = () => 'lifeblobs' + (fade ? 'f' : '');
+    this.add(m);      // (after its own shader patch, so the guard wraps it: set the other way round, the patch replaced the guard)
     m.setColorAt(0, C.setScalar(1));
     return m;
   }

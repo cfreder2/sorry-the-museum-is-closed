@@ -79,6 +79,8 @@ The game is played by children, classrooms and people of every background and fa
 - **Point sprites** slip past the guard in the check: use quads.
 - **A floor or wall mesh washed pale**: the gallery's own lamp pools and wall washes are additive at renderOrder 4,
   so a transparent mesh drawn at 4 or below is bleached by them. Draw yours at 5 or above.
+- **Soft floor shadows**: `L.blobs(n, { fade: true })` if you want a blob's darkness to follow the `k` you pass to
+  `set()` (without `fade` every blob is full strength). Blobs are guarded like everything added with `L.add`.
 - **Neighbours hung low**: a tall portrait next door can come down to 0.8 m, and anything of yours in front of it
   from a low side camera is cut by the guard. Keep the scene small or to the clear side.
 - **Lovely from one camera only**: check the low (toy's-eye) and wide room views too.
