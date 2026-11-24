@@ -57,3 +57,4 @@ import './150054-mrs-beatty-and-susan.js'; // 161  Johnson, Mrs. Beatty and Her 
 import './111610-garden-of-palazzo-contarini.js'; // 217  Guardi, The Garden of Palazzo Contarini dal Zaffo: parterre
 import './110507-in-the-sea.js';       // 245  Böcklin, In the Sea: echo
 import './869-watermill-great-red-roof.js'; // 213  Hobbema, The Watermill with the Great Red Roof: turn
+import './14598-beach-at-sainte-adresse.js'; // 225  Monet, The Beach at Sainte-Adresse: ebb
