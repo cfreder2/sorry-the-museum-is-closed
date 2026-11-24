@@ -57,4 +57,8 @@ import './150054-mrs-beatty-and-susan.js'; // 161  Johnson, Mrs. Beatty and Her 
 import './111610-garden-of-palazzo-contarini.js'; // 217  Guardi, The Garden of Palazzo Contarini dal Zaffo: parterre
 import './110507-in-the-sea.js';       // 245  Böcklin, In the Sea: echo
 import './869-watermill-great-red-roof.js'; // 213  Hobbema, The Watermill with the Great Red Roof: turn
+import './14598-beach-at-sainte-adresse.js'; // 225  Monet, The Beach at Sainte-Adresse: ebb
+import './4758-stoke-by-nayland.js';   // 220  Constable, Stoke-by-Nayland: dew
+import './90048-distant-view-of-niagara.js'; // 161  Cole, Distant View of Niagara Falls: spray
+import './16146-equestrienne-cirque-fernando.js'; // 242  Toulouse-Lautrec, Equestrienne (At the Cirque Fernando): hoop
 import './146953-two-cows-and-a-young-bull.js'; // 213  Potter, Two Cows and a Young Bull beside a Fence in a Meadow: cud

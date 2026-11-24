@@ -796,10 +796,10 @@ feature({
         if (L.made !== true) continue;
         const far = Math.hypot(p.x - L.cx, p.z - L.cz) > 45 || Math.abs(p.y - L.y) > 3;
         if (!far || L.state !== 'off') L.usedAt = now;
-        else if (now - (L.usedAt || 0) > 20000) { L.release(); continue; }
+        else if (LOWMEM && now - (L.usedAt || 0) > 20000) { L.release(); continue; }      // (only where memory is short: on a computer a show stays built, so coming back to it does not stall)
         built.push(L);
       }
-      const CAP = LOWMEM ? 4 : 10;
+      const CAP = LOWMEM ? 4 : 1e9;
       if (built.length > CAP) for (const L of built.sort((a, b) => a.usedAt - b.usedAt).slice(0, built.length - CAP)) if (L !== seen) L.release();
     }
     if (this.exposed) { this.glowT = (this.glowT || 0) + dt; this.exposed.material.opacity = k.museum.calm ? GLOW : GLOW * (0.8 + 0.2 * Math.sin(this.glowT * 1.1)); }
