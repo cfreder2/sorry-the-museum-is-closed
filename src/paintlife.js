@@ -356,7 +356,7 @@ const _ra = new THREE.Vector3(), _rq = new THREE.Quaternion();
 class Rollers {
   constructor(L, n, { r = 0.05, bounce = 0.42, roll = 0.55, push = true, onBounce = null, ground = null } = {}) {
     this.L = L; this.o = { bounce, roll, push, onBounce, ground };
-    this.items = Array.from({ length: n }, () => ({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r, q: new THREE.Quaternion(), on: false, still: 0, air: false }));
+    this.items = Array.from({ length: n }, (_, i) => ({ i, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r, q: new THREE.Quaternion(), on: false, still: 0, air: false }));
     const room = L.room, plan = L.k.plan;
     this.box = { x0: room.x0, x1: room.x1, z0: room.z0, z1: room.z1 };
     this.solid = plan.obstacles.filter(o => o.y0 < room.y + 0.3 && o.y1 > room.y && o.x1 > room.x0 - 1 && o.x0 < room.x1 + 1 && o.z1 > room.z0 - 1 && o.z0 < room.z1 + 1);

@@ -216,7 +216,7 @@ feature({
     const k = this.k;
     this.save.card = true; this._store();
     if (this.cardMesh) this.cardMesh.visible = this.cardHalo.visible = false;
-    k.sound.bell(659.25, 0, 0.06, 1.6); k.sound.bell(987.77, 0.12, 0.05, 1.8);
+    k.sound.bell(659.25, 0, 0.06, 1.6); k.sound.bell(987.77, (k.sound.ctx ? k.sound.ctx.currentTime : 0) + 0.12, 0.05, 1.8);      // (bell takes a time on the audio clock)
     k.callout('KEYCARD');
     k.say('A keycard. PROJECT GREEN CHEESE, it says. And a map of a tunnel, going east.', 0.3, 7);
     this._blastAt(this.blastK || 0);
