@@ -38,6 +38,16 @@
 // Three draw calls: the ground (the sea, its edge and foam, the stones wet and dry, the shadows: one sheet, one
 // shader), a rig (the two boats, the log, the baskets: smooth bodies with brushwork in their paint), and his marks
 // (the strokes along the planking, the far hulls, sails and reflections, the stones that skip).
+// The ground is laid in deep (the renderer's film curve nearly doubles what it is given). The sea is broken level
+// touches of milky green and grey-blue with the sky's cream among them, darker green in slow bands, his short green
+// dashes close in and white touches where the small wave turns over; it is only as wide as the ebb and the two boats
+// need, its edge wanders and curves round to the wall on the right, and a thin line of foam runs up it and back and
+// leaves a film on the stones. The stones are small round dabs, each with its lit side and its own shadow: pale and
+// warm when dry (white, cream, buff, pink; blue-grey only in the shadows), dark and cool while wet; two loose runs of
+// darker bits lie where a wave stopped; and at the top of the beach and towards the doorway they thin out to single
+// whole stones on the boards. The boats' own colours lie broken on the water while they float.
+// The tarred boat's yellow patch is on its near end. At the end where the picture has it (the right-hand, far one) the
+// planking faces away from the look camera and the toy's eye, and it could not be seen at all once the boat is down.
 // The sound is only what a shingle beach has: the water, the stones each wave drags back, wood on stone. No tune.
 // With "Reduce motion and flashing": the waves and the rocking go at half speed and smaller, the boat lies down slowly
 // and does not bounce, the baskets are set down without tumbling, no stones skip, and the crunch and the knock are
@@ -57,16 +67,17 @@ import { strokes as floorStrokes } from './brush.js';
 // passes through P0; NL points up the beach (away from the sea), TS along the shore. As in the picture the sea is to
 // the right and beyond, and the shore runs down from the far left to the near right.
 const P0 = [0.5, 0.62], NL = [-0.5, 0.866], TS = [0.866, 0.5];
-const XL = (u, o) => (u - P0[0]) * NL[0] + (o - P0[1]) * NL[1];          // how far up the beach a point is (metres)
-const X_IN = -1.0, X_HIGH = 1.25, X_LOW = 0;                               // the tide line: all in the wall; high water; low
-const T_FLOOD = 1.9, T_EBB = 2.2, T_OUT = 7.4;                            // it comes out; it turns; it is out
+const BEND = 0.5, BEND_U = 0.55;                                          // (the shore curves round to the wall on the right)
+const XL = (u, o) => (u - P0[0]) * NL[0] + (o - P0[1]) * NL[1] + BEND * Math.max(0, u - BEND_U) ** 2;      // how far up the beach a point is (metres)
+const X_IN = -1.0, X_HIGH = 0.92, X_LOW = 0;                               // the tide line: all in the wall; high water; low
+const T_FLOOD = 1.9, T_EBB = 3.3, T_OUT = 7.3;                            // it comes out; it turns; it is out
 const LAP = 1.5;                                                          // seconds between the small waves
-const NSH = 5, NMARK = 120, NPEB = 16;
+const NSH = 5, NMARK = 128, NPEB = 16;
 const DRAFT = 0.04;
 // The boats: where each takes the ground (u, out), the way its bow points, its size, how far it heels, and how deep
 // the water over its place must be (as metres of beach still covered above it) for it to float, and to let it go.
 const BOATS = [
-  { id: 'tar', u: -0.26, o: 0.8, bow: [0.5, -0.87], len: 0.74, beam: 0.25, depth: 0.15, rake: 0.035, heel: 0.38, touch: 0.3, go: 0.05, t0: 0.3, t1: 1.95, swing: -0.5 },
+  { id: 'tar', u: -0.26, o: 0.8, bow: [0.5, -0.87], len: 0.74, beam: 0.25, depth: 0.15, rake: 0.035, heel: 0.38, touch: 0.22, go: 0.05, t0: 0.3, t1: 1.95, swing: -0.5 },
   { id: 'blue', u: 0.36, o: 0.72, bow: [0.9, 0.44], len: 0.62, beam: 0.22, depth: 0.14, rake: 0.04, heel: 0.12, touch: 0.13, go: 0.02, t0: 0.6, t1: 2.1, swing: 0.45 },
 ];
 // The far sails, as they stand in the picture from left to right: where, how big, and each sail [along, height, width, lean].
@@ -76,7 +87,7 @@ const LUGGERS = [
   { u: 1.14, o: 0.6, k: 0.82, sails: [[-0.14, 0.22, 0.19, -0.05], [0.0, 0.34, 0.3, -0.02], [0.145, 0.2, 0.17, 0.3]] },
 ];
 // Where the two baskets come to rest (u, out), as they lie in the picture: one standing, one on its side.
-const BASKETS = [{ u: -0.03, o: 1.2, lie: 0 }, { u: 0.16, o: 1.32, lie: 1 }];
+const BASKETS = [{ u: -0.03, o: 1.17, lie: 0 }, { u: 0.16, o: 1.28, lie: 1 }];
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const hash = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
@@ -132,6 +143,35 @@ function loft(o, paint) {
   return { geo: [shell(0), shell(0.11), rail(-1), rail(1)], pt, lift, ys, yk, bs };
 }
 
+// His shingle: small rounded dabs, each with the lit side of its paint and a soft shadow under it, laid so that a
+// higher-numbered stone always lies over a lower one. The alpha holds each stone's number (0 between the stones; 0.31
+// to 1), its shadow included, so the beach can end in whole single stones, each with its shadow, and dry a stone at a time.
+function stones({ size = 512, n = 8600, seed = 1, base = '#bbb', shade = '#8d97a6', colors }) {
+  const W = size, rand = rng(seed), mk = () => { const c = document.createElement('canvas'); c.width = c.height = W; return c.getContext('2d', { willReadFrequently: true }); };
+  const g = mk(), gi = mk(); g.fillStyle = base; g.fillRect(0, 0, W, W); gi.fillStyle = '#000'; gi.fillRect(0, 0, W, W);
+  let total = 0; for (const c of colors) total += c[1];
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    let r = rand() * total, c = colors[0]; for (const q of colors) if ((r -= q[1]) <= 0) { c = q; break; }
+    const k = c[2] || 1; list.push({ x: rand() * W, y: rand() * W, rx: (3 + 3.6 * rand()) * k, ry: (2.2 + 2.4 * rand()) * k, a: (rand() - 0.5) * 1.2, c: c[0], id: 80 + Math.floor(rand() * 176) });
+  }
+  list.sort((p, q) => p.id - q.id);
+  const ell = (ctx, x, y, rx, ry, a, style, alpha) => { ctx.globalAlpha = alpha; ctx.fillStyle = style; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, a, 0, 6.2832); ctx.fill(); };
+  for (const s of list) for (const ox of [-W, 0, W]) for (const oy of [-W, 0, W]) {
+    const x = s.x + ox, y = s.y + oy; if (x < -14 || x > W + 14 || y < -14 || y > W + 14) continue;
+    ell(g, x + 1.2, y + 1.6, s.rx + 0.8, s.ry + 0.8, s.a, shade, 0.42);
+    ell(g, x, y, s.rx, s.ry, s.a, s.c, 1);
+    ell(g, x - s.rx * 0.16, y - s.ry * 0.28, s.rx * 0.62, s.ry * 0.5, s.a, '#ffffff', 0.22);
+    ell(gi, x + 0.6, y + 0.8, s.rx + 1.3, s.ry + 1.3, s.a, `rgb(${s.id},${s.id},${s.id})`, 1);
+  }
+  const c = g.getImageData(0, 0, W, W).data, d = gi.getImageData(0, 0, W, W).data, out = new Uint8Array(W * W * 4);
+  for (let i = 0; i < W * W * 4; i += 4) { out[i] = c[i]; out[i + 1] = c[i + 1]; out[i + 2] = c[i + 2]; out[i + 3] = d[i]; }
+  const t = new THREE.DataTexture(out, W, W, THREE.RGBAFormat);
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.flipY = false;
+  t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 4; t.needsUpdate = true;
+  return t;
+}
+
 // ---- his marks: quads in one instanced mesh, each lying along its own axis in the world, its width either given
 // (a plank's stroke, a stone on the floor) or turned to face the eye (a sail, a far hull).
 function markMesh(n, tex) {
@@ -171,8 +211,9 @@ lifeFor(14598, {
   title: /^The Beach at Sainte-Adresse/,
   word: 'ebb',
   // (a small work hung high: the kit keeps all of it in view. The camera stands low on the beach, square to the wall, the
-  // sea to the right and beyond as he has it; the two boats and the baskets lie within the strip a phone held upright shows)
-  stage: { out: 2.2, half: 1.4, cam: { dist: 2.8, height: 0.5, side: 0.05, fov: 60, lookU: 0.05, lookOut: 0.7, lookH: 0.62, floorOut: 1.5 } },
+  // sea to the right and beyond as he has it; the two boats and the baskets lie within the strip a phone held upright shows,
+  // all but the tip of the blue boat's bow and its spar)
+  stage: { out: 2.2, half: 1.4, cam: { dist: 3.0, height: 0.5, side: 0.05, fov: 60, lookU: 0.05, lookOut: 0.7, lookH: 0.62, floorOut: 1.5 } },
   wake: 2, ret: 2.6,
   linger: { near: 4, max: 30 },
 
@@ -188,19 +229,19 @@ lifeFor(14598, {
     this.uLo = uLo; this.uHi = uHi;
 
     // ---------------------------------------------------------- the ground: the sea and what it uncovers, one sheet
-    // his stones: short loaded dabs of white, cream, pink and blue-grey, a ridge of lighter paint along each
-    const tShingle = floorStrokes({ size: 512, base: css('#b9bec3'), n: 2500, len: [13, 30], width: [8, 15], bend: 0.22, seed: 14598, lift: 0.3, angle: (x, y, r) => (r() - 0.5) * 1.3,
-      colors: [[css('#efece4'), 4], [css('#e2dfd8'), 4], [css('#cdd1d6'), 3], [css('#aebccc'), 3], [css('#e2c9ba'), 2.2], [css('#a1a8b0'), 1.2], [css('#dbcdae'), 1.2], [css('#6c6866', 0.1), 0.3]] });
-    // his sea: long level strokes of milky green, a few paler
-    const tSea = floorStrokes({ size: 256, base: css('#84c3b8', 0.16), n: 520, len: [26, 72], width: [5, 10], bend: 0.05, seed: 145981, lift: 0.1, angle: (x, y, r) => (r() - 0.5) * 0.07,
-      colors: [[css('#93cdc2', 0.16), 4], [css('#7abdb1', 0.16), 3], [css('#a6d7cc', 0.16), 3], [css('#c6e6de', 0.16), 1.3], [css('#70b5a9', 0.16), 2]] });
+    // his stones: pale and warm (white, cream, buff, pink), blue-grey only in their shadows, a few dark bits
+    const tShingle = stones({ size: 512, n: 8600, seed: 14598, base: css('#b4b9c0', 0.1), shade: css('#8a94a4', 0.1),
+      colors: [[css('#f1eee6', 0.1), 5], [css('#ebe3d2', 0.1), 4.5], [css('#e6d5c8', 0.1), 3], [css('#dccdb0', 0.1), 2.2], [css('#dcdad3', 0.1), 3], [css('#c3cad2', 0.1), 1], [css('#f4f2ec', 0.05), 0.5, 1.6], [css('#565c66', 0.1), 0.22, 0.6]] });
+    // his sea: broken level touches of milky green and grey-blue, the sky's cream among them, darker green, a little white
+    const tSea = floorStrokes({ size: 512, base: css('#7ba5a0', 0.1), n: 1500, len: [22, 64], width: [6, 12], bend: 0.06, seed: 145981, lift: 0.12, angle: (x, y, r) => (r() - 0.5) * 0.09,
+      colors: [[css('#8fbbb2', 0.1), 4], [css('#7eb0a7', 0.1), 3.5], [css('#869fab', 0.1), 3], [css('#a2b5ba', 0.1), 1.8], [css('#cbd3c6', 0.1), 2.2], [css('#b2d1c7', 0.1), 2], [css('#5a9486', 0.1), 2.2], [css('#48857a', 0.1), 1.2], [css('#e6e9e1', 0.05), 0.4]] });
     const gp = [], O_IN = -L.wall + 0.004, O_OUT = 2.6;
     for (const [u, o] of [[uLo, O_IN], [uHi, O_IN], [uLo, O_OUT], [uHi, O_OUT]]) { const p = L.floor(u, o); gp.push(p.x, y0, p.z); }
     const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3)); gg.setIndex([0, 2, 1, 1, 2, 3]);
     const gu = this.gu = {
       tShingle: { value: tShingle }, tSea: { value: tSea }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uO: { value: L.floor(0, 0) },
       uTide: { value: new THREE.Vector4(X_IN, 0, 0, 0) }, uBeach: { value: new THREE.Vector4(X_IN, 9, 1, 0) }, uSh: { value: Array.from({ length: NSH * 2 }, () => new THREE.Vector4()) },
-      uLim: { value: uLo + 0.12 }, uGain: { value: new THREE.Vector3(0.6, 0.62, 0.66) },
+      uLim: { value: uLo + 0.1 }, uGain: { value: new THREE.Vector3(0.42, 0.42, 0.42) },      // (the renderer's film curve nearly doubles what it is given)
     };
     const gm = this.gmat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
     gm.onBeforeCompile = sh => {
@@ -212,43 +253,56 @@ uniform sampler2D tShingle, tSea; uniform vec4 uAx, uTide, uBeach; uniform vec3 
 varying vec3 vW; vec3 gCol; float gA;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
-  vec2 r = vW.xz - uO.xz, q = vec2(dot(r, uAx.xy), dot(r, uAx.zw));
-  float xl = dot(q - vec2(${P0[0].toFixed(3)}, ${P0[1].toFixed(3)}), vec2(${NL[0].toFixed(3)}, ${NL[1].toFixed(3)})), al = dot(q - vec2(${P0[0].toFixed(3)}, ${P0[1].toFixed(3)}), vec2(${TS[0].toFixed(3)}, ${TS[1].toFixed(3)})), tm = uBeach.w;
-  if (xl > max(uBeach.x, uTide.x + uTide.z) + 0.09) discard;          // (beyond anything the sea has reached)
+  vec2 r = vW.xz - uO.xz, q = vec2(dot(r, uAx.xy), dot(r, uAx.zw)), p0 = vec2(${P0[0].toFixed(3)}, ${P0[1].toFixed(3)});
+  float bend = max(0.0, q.x - ${BEND_U.toFixed(2)}), xl = dot(q - p0, vec2(${NL[0].toFixed(3)}, ${NL[1].toFixed(3)})) + ${BEND.toFixed(2)} * bend * bend, al = dot(q - p0, vec2(${TS[0].toFixed(3)}, ${TS[1].toFixed(3)})), tm = uBeach.w;
+  if (xl > max(uBeach.x, uTide.x + uTide.z) + 0.2) discard;          // (beyond anything the sea has reached)
   vec4 sh = texture2D(tShingle, q * 0.95 + vec2(0.13, 0.31)); float id = sh.a;
   // the water's edge: the tide, and the small wave on it (running up quickly, draining back slowly, a little later
-  // further along the shore), never quite straight
+  // further along the shore); it wanders, and is never straight
   float ph = fract(uTide.y - al * 0.16), sw = ph < 0.3 ? 1.0 - pow(1.0 - ph / 0.3, 3.0) : 1.0 - smoothstep(0.0, 1.0, (ph - 0.3) / 0.7);
-  float edge = uTide.x + uTide.z * (sw - 0.4) + 0.022 * sin(al * 6.0 + tm * 0.7) + 0.014 * sin(al * 13.0 - tm * 1.1);
-  float d = edge - xl;
-  // his stones lie only where the sea has been; the top of the beach is ragged, a dab at a time
-  float beach = smoothstep(-0.012, 0.012, uBeach.x + (id - 0.95) * 0.28 + 0.03 * sin(al * 4.3) - xl) * uBeach.z;
-  // wet below the drying line: darker, cooler, and here and there a stone catches the sky
+  float wob = 0.05 * sin(al * 2.3 + 0.7 + tm * 0.05) + 0.028 * sin(al * 5.6 - tm * 0.5) + 0.015 * sin(al * 12.0 + tm * 0.9);
+  float edge = uTide.x + uTide.z * (sw - 0.4) + wob, d = edge - xl;
+  // his stones lie only where the sea has been. Towards the top of the beach, and towards the doorway, they thin out to
+  // single stones on the boards, each whole, each with its shadow (the highest-numbered last)
+  float rag = 0.035 * sin(al * 4.3) + 0.02 * sin(al * 9.7 + 1.3), top = uBeach.x + 0.04 + rag;
+  float s = clamp(min((top - xl) / 0.15, (q.x - uLim) / 0.26), 0.0, 1.0), th = 0.3 + 0.7 * pow(1.0 - s, 0.8);
+  float beach = (id > 0.27 ? smoothstep(th - 0.015, th + 0.015, id) * step(0.001, s) : smoothstep(0.5, 0.9, s)) * uBeach.z;
+  // dry: his warm white. Wet, below the drying line: much darker and cooler, and here and there a stone catches the sky
   float wet = smoothstep(-0.05, 0.05, uBeach.y + (id - 0.62) * 0.3 - xl);
-  vec3 dry = sh.rgb, wc = dry * vec3(0.47, 0.55, 0.64);
-  wc += vec3(0.2, 0.23, 0.24) * smoothstep(0.88, 1.0, id) * (0.55 + 0.45 * sin(tm * 1.3 + id * 60.0));
+  vec3 dry = sh.rgb * vec3(1.06, 1.0, 0.92), wc = sh.rgb * vec3(0.38, 0.46, 0.56);
+  wc += vec3(0.3, 0.34, 0.36) * smoothstep(0.88, 1.0, id) * (0.55 + 0.45 * sin(tm * 1.3 + id * 60.0));
   vec3 col = mix(dry, wc, wet);
+  // the tide lines: darker bits left where a wave stopped (at the top of the beach, and one lower down)
+  float bit = step(0.56, fract(id * 13.7)) * step(0.27, id) * smoothstep(-0.5, 0.4, sin(al * 3.1 + 1.0) + 0.6 * sin(al * 7.7));      // (in loose runs, with gaps)
+  float tl = exp(-pow((xl - (uBeach.x - 0.1 + rag)) / 0.036, 2.0)) + 0.7 * exp(-pow((xl - (0.5 * uBeach.x + 0.6 * rag + 0.02 * sin(al * 7.0))) / 0.03, 2.0));
+  col = mix(col, vec3(0.16, 0.17, 0.2), clamp(tl, 0.0, 1.0) * bit * 0.92);
+  // the film each small wave leaves on the stones as it drains
+  float emax = uTide.x + uTide.z * 0.6 + wob, film = smoothstep(emax + 0.012, emax - 0.03, xl) * (1.0 - 0.55 * ph);
+  col = mix(col, col * 0.75 + vec3(0.3, 0.36, 0.38), film * 0.5);
   col *= 0.93 + 0.09 * sin(q.x * 1.3 + q.y * 0.9 - tm * 0.13);          // the cloud's light, going over
   float shade = 1.0;
   for (int i = 0; i < ${NSH}; i++) { vec4 A = uSh[i * 2], B = uSh[i * 2 + 1]; if (B.z <= 0.0) continue; vec2 e = vW.xz - A.xy; vec2 l = vec2(dot(e, A.zw), dot(e, vec2(-A.w, A.z))) / B.xy; shade *= 1.0 - B.z * exp(-dot(l, l) * 1.5); }
   col *= shade;
-  // the sea: level strokes, deeper in colour further from the edge, a pale band of light far out, and close in his
-  // short dark green dashes
-  float wa = smoothstep(0.0, 0.014, d);
-  vec4 se = texture2D(tSea, vec2(q.x * 0.55 + 0.012 * sin(tm * 0.6 + q.y * 9.0), q.y * 1.1 + 0.004 * sin(tm * 0.9 + q.x * 5.0)));
-  vec3 sea = se.rgb * mix(1.06, 0.9, smoothstep(0.0, 1.0, d));
-  sea = mix(sea, vec3(0.74, 0.9, 0.86), 0.3 * exp(-pow((q.y - 0.2) / 0.13, 2.0)));
-  float dash = step(0.95, texture2D(tSea, q * vec2(2.1, 3.3) + 0.4).a) * (1.0 - smoothstep(0.2, 0.75, d)) * smoothstep(0.04, 0.13, d);
-  sea = mix(sea, vec3(0.13, 0.45, 0.38), dash * 0.8);
+  // the sea: broken level touches; green in the troughs of a swell too low to see, the sky's cream lying in a streak
+  // far out, his short dark green dashes close in, white touches where the small wave turns over
+  float wa = smoothstep(0.0, 0.012, d);
+  vec4 se = texture2D(tSea, vec2(q.x * 0.8 + 0.012 * sin(tm * 0.6 + q.y * 9.0), q.y * 1.3 + 0.004 * sin(tm * 0.9 + q.x * 5.0)));
+  float bn = 0.5 + 0.5 * sin(q.y * 6.5 + 1.6 * sin(q.x * 1.4 + tm * 0.06) + tm * 0.1);
+  vec3 sea = se.rgb * mix(0.9, 1.06, bn);
+  sea = mix(sea, vec3(0.2, 0.42, 0.37), 0.34 * smoothstep(0.55, 0.0, bn));
+  sea = mix(sea, vec3(0.5, 0.62, 0.68), 0.3 * smoothstep(0.45, 0.0, q.y) * (0.5 + 0.5 * step(0.6, se.a)));
+  sea = mix(sea, vec3(0.78, 0.8, 0.74), 0.42 * exp(-pow((q.y - 0.2 - 0.05 * sin(q.x * 2.1)) / 0.07, 2.0)) * (0.55 + 0.45 * step(0.5, se.a)));
+  sea *= mix(1.04, 0.9, smoothstep(0.0, 0.9, d));
+  float dash = step(0.95, texture2D(tSea, q * vec2(2.6, 3.6) + 0.4).a) * (1.0 - smoothstep(0.2, 0.7, d)) * smoothstep(0.04, 0.13, d);
+  sea = mix(sea, vec3(0.1, 0.36, 0.3), dash * 0.8);
+  sea = mix(sea, vec3(1.0, 1.03, 1.0), step(0.88, se.a) * (1.0 - smoothstep(0.02, 0.22, d)) * sw * 0.8);
   sea *= mix(1.0, shade, 0.55);
-  float aw = wa * mix(0.5, 0.97, smoothstep(0.0, 0.2, d));
-  float foam = wa * (1.0 - smoothstep(0.0, 0.028 + 0.03 * sw, d)) * (0.5 + 0.5 * step(0.5, id));
-  foam += 0.3 * wa * (1.0 - smoothstep(0.0, 0.012, abs(d - 0.075 - 0.02 * sin(al * 9.0 + tm)))) * step(0.55, se.a);
-  vec3 c = mix(col, sea, beach > 0.001 ? aw : 1.0);
-  c = mix(c, vec3(0.93, 0.96, 0.94), clamp(foam, 0.0, 1.0) * 0.85);
-  float a = beach + (1.0 - beach) * aw;
-  a *= smoothstep(uLim, uLim + 0.16, q.x + (id - 0.62) * 0.4);
-  gCol = c * uGain; gA = a;
+  float aw = wa * mix(0.4, 0.96, smoothstep(0.0, 0.16, d)) * smoothstep(uLim - 0.05, uLim + 0.2, q.x);
+  float foam = wa * (1.0 - smoothstep(0.003, 0.014 + 0.016 * sw, d));
+  foam += 0.35 * wa * (1.0 - smoothstep(0.0, 0.012, abs(d - 0.07 - 0.02 * sin(al * 9.0 + tm)))) * step(0.5, se.a);
+  vec3 c = mix(col * uGain, sea * 0.5, beach > 0.001 ? aw : 1.0);
+  c = mix(c, vec3(0.56, 0.59, 0.57), clamp(foam, 0.0, 1.0) * 0.9 * step(0.001, aw));
+  gCol = c; gA = beach + (1.0 - beach) * aw;
 }`)
         .replace('#include <opaque_fragment>', '  outgoingLight = gCol; diffuseColor.a = gA;\n#include <opaque_fragment>');
     };
@@ -351,6 +405,7 @@ varying vec3 vW; vec3 gCol; float gA;`)
     L.add(marks.mesh);
     this.sailCols = ['#40241f', '#4a2a22', '#36201c', '#523026', '#3c221d'].map(h => col(h, 0.1)); this.sailLit = col('#7a4a38', 0.1);
     this.hullCol = col('#262220'); this.hullStripe = col('#b9bcbd'); this.refl = col('#45ad92', 0.06); this.reflD = col('#5cb39c', 0.06);
+    this.reflBlue = col('#2c5cb8', 0.05); this.reflTar = col('#2b3c3b', 0.1);
     this.pebCols = ['#eeeae2', '#d5d8db', '#bfc7d0', '#e6d4c9', '#aeb3b8'].map(h => col(h));
     this.pebs = Array.from({ length: NPEB }, () => ({ t: -9, x: 0, z: 0, vx: 0, vz: 0, vy: 0, c: 0, s: 0.03 })); this.pi = 0;
 
@@ -427,7 +482,7 @@ varying vec3 vW; vec3 gCol; float gA;`)
     const lp = this.lapPh - Math.floor(this.lapPh), sw = lp < 0.3 ? 1 - Math.pow(1 - lp / 0.3, 3) : 1 - ease.smooth((lp - 0.3) / 0.7);
     if (!ret) this.mark = Math.max(this.mark, X + (ts < T_FLOOD ? 0 : this.lapA * 0.6));
     // the stones dry from the top of the beach down, behind the water
-    if (ret || ts < T_EBB + 1.0) this.dryF = 9; else this.dryF = Math.max(X + 0.24, this.mark + 0.2 - 0.22 * (ts - T_EBB - 1.0));
+    if (ret || ts < T_EBB + 0.8) this.dryF = 9; else this.dryF = Math.max(X + 0.24, this.mark + 0.2 - 0.22 * (ts - T_EBB - 0.8));
     gu.uTide.value.set(X, this.lapPh, this.lapA, 0);
     gu.uBeach.value.set(this.mark, this.dryF, this.shingle, tw);
 
@@ -446,7 +501,7 @@ varying vec3 vW; vec3 gCol; float gA;`)
       const al = clamp01((o + L.wall) / 0.05);
       if (al <= 0) continue;
       // its reflection: his dark green on the water under each, broken
-      for (let j = 0; j < 3; j++) { v.copy(base).addScaledVector(N, (0.07 + 0.09 * j) * k).addScaledVector(T, 0.012 * Math.sin(tw * 1.7 + j * 2.1 + i)); v.y = y0 + 0.003; M.put(v, a.copy(T).multiplyScalar((0.36 - 0.07 * j) * k), b.copy(N).multiplyScalar((0.13 - 0.02 * j) * k), 0, j ? 3 : 0, al * (0.7 - 0.17 * j) * (0.85 + 0.15 * Math.sin(tw * 2.3 + j + i)), j === 2 ? this.reflD : this.refl, 0.8); }
+      for (let j = 0; j < 4; j++) { v.copy(base).addScaledVector(N, (0.05 + 0.065 * j) * k).addScaledVector(T, (j % 2 ? 0.035 : -0.03) * k + 0.012 * Math.sin(tw * 1.7 + j * 2.1 + i)); v.y = y0 + 0.003; M.put(v, a.copy(T).multiplyScalar((0.34 - 0.06 * j) * k), b.copy(N).multiplyScalar((0.075 - 0.008 * j) * k), 0, j ? 3 : 0, al * (0.7 - 0.13 * j) * (0.8 + 0.2 * Math.sin(tw * 2.3 + j * 1.7 + i)), j > 1 ? this.reflD : this.refl, 0.8); }
       // sails (each a broad dark stroke and a drier, warmer one over it), then the hull across their feet
       const hx = b.copy(T).multiplyScalar(cr).addScaledVector(UP, -sr), up = this.a.copy(UP).multiplyScalar(cr).addScaledVector(T, sr);
       const hxx = hx.x, hxy = hx.y, hxz = hx.z, ux = up.x, uy = up.y, uz = up.z;
@@ -493,11 +548,13 @@ varying vec3 vW; vec3 gCol; float gA;`)
       B.cy = Math.cos(yaw); B.sy = Math.sin(yaw); B.heelNow = heel; B.yawNow = yaw;
       const vis = o > -L.wall - 0.02 ? 1 : 0;
       for (const s of B.strokes) M.put(v.copy(s.c).applyMatrix4(this.M), a.copy(s.a).applyMatrix3(this.M3), b.copy(s.b).applyMatrix3(this.M3), 0, s.slot, s.al * vis, s.col, 0.82);
+      // its own colour broken into the water while it floats
+      if (fl > 0.02 && vis) for (let j = 0; j < 3; j++) { v.copy(B.pos).addScaledVector(N, 0.12 + 0.075 * j); v.x += B.cy * (j - 1) * 0.05 + 0.01 * Math.sin(tw * 1.9 + j * 2 + bi); v.z -= B.sy * (j - 1) * 0.05; v.y = y0 + 0.003; M.put(v, a.set(B.cy, 0, -B.sy).multiplyScalar(d.len * (0.62 - 0.12 * j)), b.set(B.sy, 0, B.cy).multiplyScalar(0.075 - 0.012 * j), 0, j ? 3 : 0, fl * (0.75 - 0.15 * j) * (0.8 + 0.2 * Math.sin(tw * 2.1 + j + bi)), blue ? this.reflBlue : this.reflTar, 0.8); }
       // its shadow on the stones (and on the water, fainter)
       const S = gu.uSh.value; S[bi * 2].set(B.pos.x + N.x * 0.02, B.pos.z + N.z * 0.02, B.cy, -B.sy); S[bi * 2 + 1].set(d.len * 0.5, d.beam * 0.62, vis * (0.5 - 0.18 * fl), 0);
     }
     // the log, uncovered where the blue boat's bow will lie
-    { const B = this.boats[1], d = B.def, lu = d.u + d.bow[0] * 0.11, lo = d.o + d.bow[1] * 0.11, dep = X - XL(lu, lo), k = ease.smooth(ramp(dep, 0.1, -0.02)) * this.shingle;
+    { const B = this.boats[1], d = B.def, lu = d.u + d.bow[0] * 0.11, lo = d.o + d.bow[1] * 0.11, dep = X - XL(lu, lo), k = ease.smooth(ramp(dep, 0.1, -0.02)) * this.shingle * ramp(this.mark - XL(lu, lo), 0.12, 0.25);      // (only where the sea has been, and gone)
       L.floor(lu, lo, v); v.y = y0 + 0.016 - 0.07 * (1 - k); rig.put(this.log, v.x, v.y, v.z, B.yaw + 0.12, 0, 0, 1); rig.show(this.log, k > 0.01);
       const S = gu.uSh.value; S[4].set(v.x, v.z, Math.sin(B.yaw + 0.12), Math.cos(B.yaw + 0.12)); S[5].set(0.16, 0.05, 0.4 * k, 0); }
 
