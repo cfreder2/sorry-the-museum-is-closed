@@ -53,7 +53,10 @@ export class Streamer {
     const dy = Math.max(box.min.y - p.y, 0, p.y - box.max.y);
     return Math.hypot(dx, dz) + Math.max(0, dy - 3) * 6;
   }
+  // Keep a place loaded for a while whatever the camera does (it is on its way there): see prepareAt.
+  hold(point, secs) { this.heldAt = point.clone(); this.heldUntil = performance.now() + secs * 1000; }
   update(dt, cam) {
+    if (this.heldAt && performance.now() < this.heldUntil) cam = this.heldAt; else this.heldAt = null;
     this.t += dt;
     if (this.t < 0.4 && cam.distanceToSquared(this.at) < 4) return;
     this.t = 0; this.at.copy(cam);
@@ -72,6 +75,32 @@ export class Streamer {
       for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && !keepT.has(x)) x.dispose(); }
     }
     this.out = this.items.length - this.items.filter(i => i.on).length;
+  }
+  // Get a place ready before the toy is put there (thrown out of the building, a lift to another level): what is near it
+  // is switched on as if the camera were there, its textures sent up a few at a time, and its shaders compiled, so the
+  // first frame there does not stall the page for seconds. onProgress(0..1) as it goes; resolves when ready (or after
+  // `limit` seconds, whatever is left being sent as it is first drawn).
+  async prepareAt(point, camera, scene, onProgress = () => {}, limit = 12) {
+    const t0 = performance.now(), R = this.renderer;
+    this.hold(point, limit + 6); this.t = 1; this.update(0, point);                       // (as if the camera stood there now)
+    const tex = new Set();
+    for (const it of this.items) if (it.on) for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && x.version > 0 && !(R.properties.get(x) || {}).__webglTexture) tex.add(x); }
+    const list = [...tex]; let i = 0;
+    const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+    while (i < list.length && performance.now() - t0 < limit * 1000) {
+      const s = performance.now();
+      while (i < list.length && performance.now() - s < 24) { try { R.initTexture(list[i]); } catch { /* sent when first drawn */ } i++; }
+      onProgress(0.6 * i / list.length); await frame();
+    }
+    // the shaders: compiled from a camera standing at the place, in the browser's own time where it can
+    if (camera && scene && R.compileAsync) {
+      const c = camera.clone(); c.position.copy(point).add(this._v.set(0, 1.5, 0)); c.updateMatrixWorld();
+      let done = false; const p = R.compileAsync(scene, c).then(() => { done = true; }, () => { done = true; });
+      const left = Math.max(1, limit - (performance.now() - t0) / 1000), s = performance.now();
+      while (!done && performance.now() - s < left * 1000) { onProgress(0.6 + 0.4 * Math.min(0.95, (performance.now() - s) / (left * 1000))); await frame(); }
+      void p;
+    }
+    onProgress(1);
   }
   // Everything back on (a staged view or a cut scene that looks a long way off).
   all() { for (const it of this.items) if (!it.on) { it.on = true; it.o.layers.set(0); } this.at.set(1e9, 0, 0); }

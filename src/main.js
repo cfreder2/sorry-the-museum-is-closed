@@ -364,7 +364,7 @@ async function boot() {
     const P = G.plan, inRoom = (x, z, y) => { const r = roomAt(P, x, z, y + 0.3); return !!r; };
     G.stream = new Streamer(renderer, G.museum.group, { near: LOWMEM ? 70 : 170, far: LOWMEM ? 85 : 195, out: LOWMEM ? 220 : 900, skip: o => art.has(o),
       inside: b => inRoom((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, b.min.y) && b.max.x - b.min.x < 40 && b.max.z - b.min.z < 40,
-      indoors: p => !!G.roomId || inRoom(p.x, p.z, p.y) });
+      indoors: p => inRoom(p.x, p.z, p.y) || (p === camera.position && !!G.roomId) });
     G.stream.register(); }
 
   $('status').textContent = '';

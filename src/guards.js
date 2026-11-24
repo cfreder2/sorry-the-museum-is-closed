@@ -720,6 +720,25 @@ feature({
     return true;
   },
   // The screen: a flash, a fade to black and back.
+  // While you are carried out, the place you are carried to is made ready (stream.js): on a phone that can take a few
+  // seconds, and the screen says so rather than sitting black.
+  _prepare(k) {
+    const S = this.seq, G = k.G, B = this.bin; if (!S || !B || !G.stream) return;
+    S.prep = { p: 0, done: false, t0: performance.now() };
+    G.stream.prepareAt(new THREE.Vector3(B.x + B.nx * 2.5, 0.5, B.z + B.nz * 2.5), G.camera, G.scene, p => { S.prep.p = p; }).then(() => { S.prep.done = true; }, () => { S.prep.done = true; });
+  },
+  _msg(p) {
+    if (!this.fxEl) return;
+    let m = this.msgEl;
+    if (p == null) { if (m) m.hidden = true; return; }
+    if (!m) {
+      m = this.msgEl = document.createElement('div');
+      m.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(80vw,360px);text-align:center;color:#f3efe2;font:600 17px/1.4 system-ui,sans-serif';
+      m.innerHTML = '<div style="font:700 13px/1 system-ui,sans-serif;letter-spacing:.2em;color:#ff7a5a;margin-bottom:10px">CAUGHT</div><div>Being escorted out of the building\u2026</div><div style="margin-top:16px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden"><i style="display:block;height:100%;width:0;background:#e2cd94"></i></div>';
+      this.fxEl.append(m); this.barEl = m.querySelector('i');
+    }
+    m.hidden = false; this.barEl.style.width = Math.round(Math.max(0.04, p) * 100) + '%';
+  },
   _fx(alpha, colour) {
     if (!this.fxEl) { const el = this.fxEl = document.createElement('div'); el.id = 'guardFx'; el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:28;opacity:0;background:#000'; document.body.append(el); }
     if (colour) this.fxEl.style.background = colour;
@@ -732,7 +751,7 @@ feature({
     if (S.stage === 'fade') {
       // (carryOut: no bolt. The dark comes up where it stands, and from there it is the same.)
       hold(); this._fx(Math.min(1, t / 0.45), '#000');
-      if (t > 0.5) { S.stage = 'carried'; S.t = 1.6; this.sfx.carried(); }
+      if (t > 0.5) { S.stage = 'carried'; S.t = 1.6; this.sfx.carried(); this._prepare(k); }
       return;
     }
     if (S.stage === 'zap') {
@@ -746,7 +765,7 @@ feature({
       else this._fx(0);
       if (t > 1.6) {
         v.group.rotation.z = 0;
-        S.stage = 'carried'; this.sfx.carried();
+        S.stage = 'carried'; this.sfx.carried(); this._prepare(k);
         // Back on its beat, the one that did it.
         if (S.b) this._home(S.b, 0);
         if (!this.bin) { S.stage = 'done'; this._release(false); return; }
@@ -759,6 +778,9 @@ feature({
       // In the bin, out of sight, lid down.
       this._local(-DW / 4, 0.55, 0, v.pos); v.vel.set(0, 0, 0); v.yaw = B.yaw; v.sync(0); v.group.visible = false; if (v.shadow) v.shadow.visible = false;
       this._fx(1);
+      // (the place round the bin is still being made ready, on a phone: the dark holds, and says what is happening)
+      if (S.prep && !S.prep.done && t > 2.75) { S.t = 2.75; this._msg(S.prep.p); return; }
+      this._msg(null);
       if (t > 2.8) this._fx(1 - (t - 2.8) / 0.6);
       if (t > 3.55 && !S.jolt) { S.jolt = true; this.sfx.thump(); }
       if (!calm && S.jolt) this.binGroup.position.y = t < 3.75 ? Math.sin((t - 3.55) * 60) * 0.015 : 0;
