@@ -76,7 +76,7 @@ const JAW = [0, -0.03, 0.012], EAR = [0.054, 0.014, -0.004];
 const KEY_S = V3(-0.52, 0.76, 0.4).normalize();  // his light, in the stage's terms: high, from the left, a little from the room
 
 // ---- the stage (along the wall from the picture's middle, out from it)
-const SPOT = [0.1, 1.0], LAST = [-0.3, 1.18];     // where the red and white cow lies; and where her head is, the last of it to go
+const LAST = [-0.3, 1.18];                       // where the red and white cow's head is as she lies: the last of it to go
 const PATCH = { u: 0.1, out: 0.74, ru: 0.86, ro: 0.84, home: 0.3 };
 const U0 = -0.86, U1 = 0.965, OUT = 1.75;         // the floor the earth may cover (the doorway begins at 0.98)
 const WILLOW = [0.76, 0.2];
@@ -108,13 +108,13 @@ const fbm = (p, f) => 0.6 * n3(p.x * f, p.y * f, p.z * f) + 0.4 * n3(p.x * f * 2
 lifeFor(146953, {
   title: /^Two Cows and a Young Bull/,
   word: 'cud',
-  stage: { out: 1.7, half: 1.1, cam: { dist: 2.38, height: 0.32, side: -0.12, fov: 54, lookU: 0.08, lookOut: 0.75, floorOut: 1.3 } },
+  stage: { out: 1.7, half: 1.1, cam: { dist: 2.38, height: 0.32, side: -0.12, fov: 54, lookU: 0.08, lookOut: 0.75, floorOut: 1.45 } },
   wake: 2, ret: 2.3,
 
   build(L) {
     const P = L.pal, col = (h, a = 0.18) => P.near(h, a), R = () => L.rand();
     // ---------------------------------------------------------- scratch
-    this.s = { root: new THREE.Matrix4(), loc: new THREE.Matrix4(), body: new THREE.Matrix4(), head: new THREE.Matrix4(), t: new THREE.Matrix4(), t2: new THREE.Matrix4(), e: new THREE.Euler(), q: new THREE.Quaternion(),
+    this.s = { root: new THREE.Matrix4(), loc: new THREE.Matrix4(), body: new THREE.Matrix4(), head: new THREE.Matrix4(), t: new THREE.Matrix4(), t2: new THREE.Matrix4(), e: new THREE.Euler(),
       a: V3(), b: V3(), c: V3(), d: V3(), H: V3(), J: V3(), F: V3(), lat: V3(), fwd: V3(), x: V3(), y: V3(), z: V3(), sc: V3(), wo: { x: 0, z: 0, yaw: 0 }, w2: { x: 0, z: 0, yaw: 0 } };
 
     // ---------------------------------------------------------- his earth, spilled out under the picture
@@ -210,13 +210,12 @@ lifeFor(146953, {
     const mirror = g => { const o = g.clone(), p = o.attributes.position, n = o.attributes.normal, c = o.attributes.color; for (let i = 0; i < p.count; i++) { p.setX(i, -p.getX(i)); n.setX(i, -n.getX(i)); } for (const a of [p, n, c]) for (let i = 0; i < a.count; i += 3) { const x = a.getX(i + 1), y = a.getY(i + 1), z = a.getZ(i + 1); a.setXYZ(i + 1, a.getX(i + 2), a.getY(i + 2), a.getZ(i + 2)); a.setXYZ(i + 2, x, y, z); } return o; };
     // Dabs: soft lozenges of paint lying along the coat, each a little raised in the middle, its end lifted off the form
     // and a little lighter (the loaded brush). list: { p, n, dir, l, w, lift, lean, c, tip, tipTo }
-    const WHITE = new THREE.Color(1, 1, 1);
     const dabs = list => {
       const pos = [], nor = [], cl = [], side = V3(), cen = V3(), rim = Array.from({ length: 6 }, () => V3()), lc = new THREE.Color(), tc = new THREE.Color();
       // (round its rim: the heel, a side, a shoulder, the tip, the other shoulder, the other side: along, across, how far lifted)
       const RIM = [[-0.44, 0, 0], [-0.04, -0.5, 0.05], [0.42, -0.36, 0.6], [0.6, 0, 1], [0.42, 0.36, 0.6], [-0.04, 0.5, 0.05]];
-      for (const s of list) {
-        side.crossVectors(s.n, s.dir).normalize();
+      for (let q = list.length - 1; q >= 0; q--) {      // (the last laid, the hair, first: it lies outermost, and what is drawn first hides the rest from the graphics card)
+        const s = list[q]; side.crossVectors(s.n, s.dir).normalize();
         cen.copy(s.p).addScaledVector(s.dir, s.l * 0.08).addScaledVector(s.n, 0.0022 + s.lift * s.l * 0.2);
         RIM.forEach(([a, b, h], i) => rim[i].copy(s.p).addScaledVector(s.dir, s.l * a).addScaledVector(side, s.w * b + (s.lean || 0) * s.l * h).addScaledVector(s.n, 0.0005 + s.lift * s.l * h));
         lc.copy(s.c).multiplyScalar(1.03); if (s.tipTo) tc.copy(s.c).lerp(s.tipTo, s.tip == null ? 0.12 : s.tip); else tc.copy(s.c).multiplyScalar(1 + (s.tip == null ? 0.08 : s.tip));
@@ -268,9 +267,10 @@ lifeFor(146953, {
     const Nz = T4('#6c6058', '#3a302c', '#221b19', '#120e0d', 0.1);                                                            // a dark wet nose
     const TMP = new THREE.Color();
     const tone4 = (T, k, into) => (k < -0.25 ? into.copy(T.deep).lerp(T.lo, ss(k, -0.9, -0.25)) : k < 0.3 ? into.copy(T.lo).lerp(T.mid, ss(k, -0.25, 0.3)) : into.copy(T.mid).lerp(T.hi, ss(k, 0.3, 0.95)));
-    // A coat: two ramps and the marking that chooses between them (pat: 0 the first .. 1 the second), lit from key.
-    const coat = (A, B, pat, key) => (p, n, j = 0, pj = 0, into = new THREE.Color()) => {
-      const k = n.dot(key) * 0.92 + 0.1 * n.y + j; tone4(A, k, into);
+    // A coat: two ramps and the marking that chooses between them (pat: 0 the first .. 1 the second), lit from key; and
+    // never one even tone: broken a little everywhere, as he breaks it (the lie of the hair, the form under it).
+    const coat = (A, B, pat, key, mot = 0.34, f = 17) => (p, n, j = 0, pj = 0, into = new THREE.Color()) => {
+      const k = n.dot(key) * 0.92 + 0.1 * n.y + j + (n3(p.x * f + 3.1, p.y * f + 1.7, p.z * f + 5.3) - 0.5) * mot; tone4(A, k, into);
       if (B) { let q = pat(p, n); if (pj) q = ss(q + pj, 0.3, 0.7); if (q > 0.002) into.lerp(tone4(B, k, TMP), q); }
       return into;
     };
@@ -296,8 +296,9 @@ lifeFor(146953, {
         const flow = (p, n) => V3(0.25 * Math.sign(p.x) * Math.max(0, n.y), -0.5 - 0.5 * ss(-p.z, 0.12, 0.23), -1 + 0.8 * ss(-p.z, 0.14, 0.25));
         const at = skinAt(ST), ws = [];
         // (an undercoat of broad soft dabs that closes the form, then the hair over it: finer, lighter where it catches)
-        ws.push(...coatSkin(at, Math.round(1050 * nn), { tone: body, flow, l: lng(0.023, 0.036), w: [0.012, 0.018], lift: up(0.01, 0.07), swirl: 0.3 + 0.5 * sh, tip: 0.02 + 0.05 * sh, pj: PJ }));
-        ws.push(...coatSkin(at, Math.round(850 * nn), { tone: body, flow, l: lng(0.014, 0.026), w: [0.003, 0.006], lift: up(0.03, 0.16), swirl: 0.4 + 0.7 * sh, pj: PJ, shift: 0.05, jit: 0.2 + 0.08 * sh, tip: 0.1, keep: (p, n) => n.y > -0.75 || R() < 0.4 }));
+        const seenSide = (p, n) => !o.far || n.x * o.far < 0.35 || R() < 0.45;      // (fewer on the side it keeps turned to the wall)
+        ws.push(...coatSkin(at, Math.round(1050 * nn), { tone: body, flow, l: lng(0.023, 0.036), w: [0.012, 0.018], lift: up(0.01, 0.07), swirl: 0.3 + 0.5 * sh, tip: 0.02 + 0.05 * sh, pj: PJ, keep: seenSide }));
+        ws.push(...coatSkin(at, Math.round(850 * nn), { tone: body, flow, l: lng(0.014, 0.026), w: [0.003, 0.006], lift: up(0.03, 0.16), swirl: 0.4 + 0.7 * sh, pj: PJ, shift: 0.05, jit: 0.2 + 0.08 * sh, tip: 0.1, keep: (p, n) => (n.y > -0.75 || R() < 0.4) && seenSide(p, n) }));
         for (const [C, Rr] of bumps) ws.push(...coatEll(C, Rr, Math.round(30 * nn), { tone: body, flow, l: lng(0.02, 0.032), w: [0.008, 0.016], lift: up(0.01, 0.07), tip: 0.03, pj: PJ, keep: (p, n) => n.y > -0.3 }));
         // along the spine and under the belly the hair stands off the form: a soft broken edge against the wall
         ws.push(...coatSkin(at, Math.round(170 * nn), { tone: body, f: [0.08, 0.95], keep: (p, n) => n.y > 0.86, flow: V3(0, 0, -1), l: lng(0.016, 0.026), w: [0.004, 0.008], lift: up(0.12, 0.3), swirl: 0.5, pj: PJ }));
@@ -307,7 +308,7 @@ lifeFor(146953, {
           parts.push(vpaint(ell([0, -0.166, -0.12], [0.046, 0.03, 0.054]), ut));
           for (const [x, z] of [[0.022, -0.1], [-0.022, -0.1], [0.02, -0.14], [-0.02, -0.14]]) parts.push(vpaint(ell([x, -0.194, z], [0.006, 0.01, 0.006], GREY, 1), ut));
         }
-        parts.push(dabs(ws));
+        parts.unshift(dabs(ws));
         G.trunk = shape.merge(parts);
       }
       // ---- the neck, from where it leaves the shoulders, along +z to the poll: deep, the dewlap hanging under it
@@ -317,7 +318,7 @@ lifeFor(146953, {
         const ws = coatSkin(at, Math.round(260 * nn), { tone: tn, flow, l: lng(0.022, 0.034), w: [0.011, 0.018], lift: up(0.02, 0.12), swirl: 0.3 + 0.5 * sh });
         ws.push(...coatSkin(at, Math.round(220 * nn), { tone: tn, flow, l: lng(0.016, 0.028), w: [0.0035, 0.007], lift: up(0.05, 0.22), swirl: 0.5 + 0.6 * sh, shift: 0.05, jit: 0.2 + 0.08 * sh, tip: 0.1 }));
         ws.push(...coatSkin(at, Math.round(80 * nn), { tone: tn, f: [0.15, 0.9], keep: (p, n) => n.y < -0.7 || n.y > 0.88, flow: (p, n) => V3(0, Math.sign(n.y) * 0.6, -0.6), l: lng(0.02, 0.036), w: [0.005, 0.009], lift: up(0.2, 0.5), swirl: 0.5 }));
-        G.neck = shape.merge([vpaint(loft(ST, 16, 18), (v, n) => tn(v, n)), dabs(ws)]);
+        G.neck = shape.merge([dabs(ws), vpaint(loft(ST, 16, 18), (v, n) => tn(v, n))]);
       }
       // ---- the head, from the poll, +z down the face: a broad brow, the eyes out on its sides, a long nose, the wide
       // soft muzzle; the horns; and its forelock
@@ -332,7 +333,7 @@ lifeFor(146953, {
         for (const s of [-1, 1]) {
           parts.push(vpaint(ell([s * 0.054, 0.026, 0.04], [0.015, 0.009, 0.021]), (v, n) => ht(v, n, 0.1)));                                 // the brow over the eye
           parts.push(vpaint(ell([s * 0.054, 0.0085, 0.046], [0.0135, 0.0145, 0.0178]), (v, n) => ht(v, n, 0.05).clone().lerp(o.rim, o.rimK)));  // its socket, in the skin's own colour
-          parts.push(flat(ell([s * 0.0585, 0.0085, 0.047], [0.012, 0.013, 0.0155], GREY, 2), col('#150e0a', 0.05)));                         // the eye, dark and wet
+          parts.push(flat(ell([s * 0.0585, 0.0085, 0.047], [0.0112, 0.012, 0.0145], GREY, 2), col('#150e0a', 0.05)));                         // the eye, dark and wet
           parts.push(flat(ell([s * 0.0688, 0.0135, 0.052], [0.0024, 0.0028, 0.0032], GREY, 1), col('#d6cfc0', 0.05)));                         // and the light in it
           parts.push(flat(ell([s * 0.021 * mz, -0.016, 0.171], [0.009, 0.0065, 0.006], GREY, 1, 0, 0, s * 0.5), col('#1a1210', 0.05)));       // a nostril
           // a horn
@@ -345,13 +346,13 @@ lifeFor(146953, {
         ws.push(...coatSkin(at, Math.round(240 * nn), { tone: ht, flow, f: [0.05, 0.8], l: lng(0.01, 0.018), w: [0.003, 0.0055], lift: up(0.03, 0.14), swirl: 0.5 + 0.6 * sh, shift: 0.05, jit: 0.2 + 0.08 * sh, tip: 0.1 }));
         // the forelock: curls standing off the poll and the brow
         ws.push(...coatSkin(at, Math.round(o.lock * nn), { tone: ht, f: [0.04, 0.3], keep: (p, n) => n.y > 0.5, flow: () => V3(R() - 0.5, 0, R() - 0.2), l: [0.016, 0.03], w: [0.006, 0.011], lift: [0.25, 0.75], swirl: 1.4, shift: 0.1, jit: 0.3 }));
-        parts.push(dabs(ws));
+        parts.unshift(dabs(ws));
         G.head = shape.merge(parts);
         // the jaw, from its hinge under the ear: deep at the cheek, a soft chin
         const JS = [[-0.012, -0.012, 0, 0, 0, 2], [0, -0.02, 0.044, 0.024, 0.03, 2.2], [0.035, -0.022, 0.04, 0.022, 0.028, 2.2], [0.08, -0.021, 0.031, 0.016, 0.02, 2.2], [0.114, -0.019, 0.029 * mz, 0.013, 0.017, 2.4], [0.142, -0.018, 0.033 * mz, 0.012, 0.017, 2.7], [0.155, -0.018, 0.031 * mz, 0.011, 0.015, 2.7], [0.162, -0.018, 0, 0, 0, 2]];
         const jat = skinAt(JS), jt = o.jaw || ht, lip = v => ss(v.z, 0.118, 0.14) * ss(v.y, -0.03, -0.012);
         const js = coatSkin(jat, Math.round(130 * nn), { tone: jt, flow: V3(0, -0.5, -1), f: [0.08, 0.7], keep: (p, n) => n.y < -0.05, l: lng(0.012, 0.02), w: [0.007, 0.012], lift: up(0.0, 0.05), swirl: 0.4, tip: 0.03 });
-        G.jaw = shape.merge([vpaint(loft(JS, 16, 16), (v, n) => { const c = jt(v, n).clone(), q = lip(v); return q > 0 ? c.lerp(tone4(nose, n.dot(kh) * 0.8 - 0.1, TMP), q * o.lipK) : c; }), dabs(js)]);
+        G.jaw = shape.merge([dabs(js), vpaint(loft(JS, 16, 16), (v, n) => { const c = jt(v, n).clone(), q = lip(v); return q > 0 ? c.lerp(tone4(nose, n.dot(kh) * 0.8 - 0.1, TMP), q * o.lipK) : c; })]);
         // the lids, both: they come down over the eyes
         const lids = []; for (const s of [-1, 1]) lids.push(vpaint(ell([s * 0.0588, 0.0215, 0.047], [0.0134, 0.011, 0.0172], GREY, 2), (v, n) => ht(v, n, 0.04).clone().lerp(Pk.lo, o.lid)));
         G.lids = shape.merge(lids);
@@ -359,7 +360,7 @@ lifeFor(146953, {
         const ec = [0.04, 0, 0], er = [0.04, 0.021, 0.0075], et = o.ear || ht, inner = o.earIn;
         const es = coatEll(ec, er, Math.round(70 * nn), { tone: (p, n, j, pj) => (n.z > 0.2 ? tone4(inner, n.dot(kh) * 0.6 + 0.2 + j, new THREE.Color()) : et(p, n, j, pj)), flow: V3(1, -0.2, 0), l: lng(0.014, 0.024), w: [0.006, 0.01], lift: up(0.04, 0.2), swirl: 0.4 });
         es.push(...coatEll(ec, er, Math.round(46 * nn), { tone: (p, n, j) => tone4(inner, 0.3 + j, new THREE.Color()), keep: (p, n) => Math.abs(n.z) < 0.5, flow: (p, n) => V3(0.4, n.y, 0), l: [0.012, 0.022], w: [0.003, 0.006], lift: [0.2, 0.6], swirl: 0.5 }));
-        G.earL = shape.merge([vpaint(ell(ec, er), (v, n) => (n.z > 0.2 ? tone4(inner, n.dot(kh) * 0.6 + 0.1, new THREE.Color()) : et(v, n).clone())), dabs(es)]);
+        G.earL = shape.merge([dabs(es), vpaint(ell(ec, er), (v, n) => (n.z > 0.2 ? tone4(inner, n.dot(kh) * 0.6 + 0.1, new THREE.Color()) : et(v, n).clone()))]);
         G.earR = mirror(G.earL);
       }
       // ---- the legs, each bone from its own joint down -y. Fore: the forearm, muscled where it leaves the chest, and
@@ -374,7 +375,7 @@ lifeFor(146953, {
           for (const s of [-1, 1]) p.push(vpaint(ell([s * 0.009, y1 + 0.04, -0.017], [0.006, 0.008, 0.006], GREY, 1), hoof));                                                                              // the dew claws
           const ws = coatLimb([0, y0, 0], [0, y1 + 0.05, 0.002], 0.022, 0.0185, Math.round(46 * nn), { tone: lt.lo, l: lng(0.012, 0.02), w: [0.006, 0.01], lift: up(0.01, 0.08), swirl: 0.25 });
           ws.push(...coatLimb([0, y1 + 0.07, 0], [0, y1 + 0.028, 0.004], 0.021, 0.023, Math.round(34 * nn), { tone: lt.lo, keep: (q, n) => n.z < 0.4, l: lng(0.012, 0.02), w: [0.004, 0.007], lift: up(0.1, 0.4), swirl: 0.4 }));
-          p.push(dabs(ws)); return p;
+          p.unshift(dabs(ws)); return p;
         };
         // fore
         {
@@ -382,7 +383,7 @@ lifeFor(146953, {
           const p = [vpaint(limb([0, 0.03, -0.004], [0, -a, 0], 0.036, 0.022), (v, n) => f(v, n)), vpaint(ell([0, -0.012, -0.006], [0.034, 0.052, 0.042]), (v, n) => f(v, n)), vpaint(ell([0, -a, 0.004], [0.0225, 0.024, 0.0235], GREY, 1), (v, n) => f(v, n))];
           const ws = coatLimb([0, 0.03, -0.004], [0, -a, 0], 0.038, 0.023, Math.round(110 * nn), { tone: f, l: lng(0.016, 0.026), w: [0.007, 0.012], lift: up(0.02, 0.12), swirl: 0.3 + 0.4 * sh });
           ws.push(...coatLimb([0, 0.02, -0.004], [0, -a, 0], 0.039, 0.024, Math.round(60 * nn), { tone: f, l: lng(0.012, 0.022), w: [0.003, 0.006], lift: up(0.05, 0.2), swirl: 0.5, shift: 0.05, jit: 0.2 }));
-          p.push(dabs(ws)); G.upF = shape.merge(p);
+          p.unshift(dabs(ws)); G.upF = shape.merge(p);
           G.loF = shape.merge(foot(0, LEN[1][1]));
         }
         // hind
@@ -392,7 +393,7 @@ lifeFor(146953, {
           const ws = coatEll(...TH, Math.round(200 * nn), { tone: f, flow: V3(0, -1, -0.35), l: lng(0.02, 0.032), w: [0.01, 0.016], lift: up(0.02, 0.1), swirl: 0.3 + 0.4 * sh });
           ws.push(...coatEll(...TH, Math.round(150 * nn), { tone: f, flow: V3(0, -1, -0.35), l: lng(0.014, 0.026), w: [0.0035, 0.0065], lift: up(0.04, 0.2), swirl: 0.5, shift: 0.05, jit: 0.2 + 0.08 * sh, tip: 0.1 }));
           ws.push(...coatLimb([0, -0.1, 0.018], [0, -a, 0], 0.041, 0.022, Math.round(90 * nn), { tone: f, l: lng(0.014, 0.024), w: [0.006, 0.011], lift: up(0.02, 0.12), swirl: 0.3 + 0.4 * sh }));
-          p.push(dabs(ws)); G.upH = shape.merge(p);
+          p.unshift(dabs(ws)); G.upH = shape.merge(p);
           G.loH = shape.merge(foot(0, LEN[0][1]));
         }
       }
@@ -403,7 +404,7 @@ lifeFor(146953, {
         G.tail1 = seg(TLEN[0], 0.0135, 0.0095, 40); G.tail2 = seg(TLEN[1], 0.0095, 0.0075, 30);
         const st = (p, n, j) => tone4(sw, n.dot(key) * 0.7 + 0.15 + j, new THREE.Color());
         const ws = coatEll([0, -0.05, 0], [0.014, 0.05, 0.014], Math.round(90 * nn), { tone: st, flow: V3(0, -1, 0), l: [0.03, 0.055], w: [0.004, 0.008], lift: [0.05, 0.3], lean: 0.2, swirl: 0.25, jit: 0.3 });
-        G.tuft = shape.merge([vpaint(ell([0, -0.045, 0], [0.012, 0.046, 0.012]), (v, n) => st(v, n, 0)), dabs(ws)]);
+        G.tuft = shape.merge([dabs(ws), vpaint(ell([0, -0.045, 0], [0.012, 0.046, 0.012]), (v, n) => st(v, n, 0))]);
       }
       return G;
     };
@@ -433,13 +434,13 @@ lifeFor(146953, {
       const body = coat(Wh, Br, pat, key);
       const neckPat = p => ss(0.5 + (fbm(p, 14) - 0.5) * 1.2 + p.y * 9 - ss(p.z, 0.11, 0.17) * 0.9, 0.2, 0.45);        // red, going white under the throat and up to the cheek
       const legPat = (hi, lo, f) => p => ss((fbm(p, f) - 0.5) * 1.3 + ss(p.y, lo, hi) * 0.9, 0.2, 0.42);
-      const white = plain(Wh, key), whiteH = plain(Wh, keyHead);
-      defs.push({ id: 'pied', k: 1.2, n: 0.82, o: { key, keyHead, body, body2: body, shag: 0.08, bone: 0.6, belly: 1.03, chest: 1, neck: 1, udder: true, lock: 70, lid: 0.5, muzzle: 1, rim: Pk.mid, rimK: 0.5, lipK: 0.45, bag: Pk, pj: 0.5,
+      const whiteH = plain(Wh, keyHead), face = coat(Wh, Br, q => ss(-q.z + (fbm(q, 30) - 0.5) * 0.03, 0.006, 0.02) * ss(Math.abs(q.x), 0.02, 0.04) * 0.85, keyHead);
+      defs.push({ id: 'pied', k: 1.2, n: 0.82, o: { key, keyHead, body, body2: body, far: -1, shag: 0.08, bone: 0.6, belly: 1.03, chest: 1, neck: 1, udder: true, lock: 70, lid: 0.5, muzzle: 1, rim: Pk.hi, rimK: 0.4, lipK: 0.45, bag: Pk, pj: 0.5,
         neckCoat: coat(Wh, Br, neckPat, key), jaw: whiteH, nose: Pk,
         head: (p, n, j = 0, pj = 0, into = new THREE.Color()) => {
-          coat(Wh, Br, q => ss(-q.z + (fbm(q, 30) - 0.5) * 0.03, 0.006, 0.02) * ss(Math.abs(q.x), 0.02, 0.04) * 0.85, keyHead)(p, n, j, pj, into);
+          face(p, n, j, pj, into);
           const eye = 1 - ss(Math.hypot(Math.abs(p.x) - 0.057, p.y - 0.008, (p.z - 0.048) * 0.8), 0.012, 0.034), nz = ss(p.z, 0.1, 0.15) * ss(p.y, -0.02, 0.01) * (0.5 + 0.5 * fbm(p, 60));
-          return into.lerp(Pk.mid, Math.max(0.42 * eye, 0.3 * nz));
+          return into.lerp(Pk.hi, Math.max(0.3 * eye, 0.26 * nz));
         },
         ear: coat(Wh, Br, p => ss(p.x + (fbm(p, 40) - 0.5) * 0.03, 0.004, 0.02), keyHead), earIn: Wh,
         horn: { pts: [[0.038, 0.032, -0.014], [0.058, 0.044, -0.01], [0.066, 0.062, 0.004], [0.058, 0.076, 0.02]], r: 0.0095, len: 0.066, dark: 0.5 },
@@ -453,8 +454,9 @@ lifeFor(146953, {
       const body = coat(Bu, Bs, warm, key), bodyH = coat(Bu, Bs, (p, n) => clamp01((fbm(p, 22) - 0.3) * 1.3) * ss(n.dot(keyHead), -0.2, 0.7), keyHead);
       const blaze = p => Math.max(ss(p.y + (fbm(p, 60) - 0.5) * 0.02, 0.018, 0.03) * (1 - ss(Math.abs(p.x) + (fbm(p, 45) - 0.5) * 0.03 + Math.max(0, p.z - 0.02) * 0.32, 0.012, 0.03)) * (1 - ss(p.z, 0.09, 0.13)),
         p.x > 0.02 && p.z > 0.085 && p.z < 0.15 && p.y < 0 ? ss(n3(p.x * 90, p.y * 90, p.z * 90), 0.6, 0.72) : 0);
-      defs.push({ id: 'bull', k: 1.2, n: 0.64, o: { key, keyHead, body, body2: body, shag: 0.7, bone: 0, belly: 0.94, chest: 1.08, neck: 1.2, udder: false, lock: 150, lid: 0.1, muzzle: 1.06, rim: Bs.hi, rimK: 0.9, lipK: 0.8, bag: Bg, pj: 0.16,
-        neckCoat: body, head: (p, n, j = 0, pj = 0, into = new THREE.Color()) => { coat(Bu, Wh, blaze, keyHead)(p, n, j, pj, into); const m = Math.max(ss(p.z, 0.105, 0.14) * (1 - ss(p.z, 0.15, 0.162)), 1 - ss(Math.hypot(Math.abs(p.x) - 0.057, p.y - 0.008, (p.z - 0.048) * 0.8), 0.016, 0.036)); return m > 0 ? into.lerp(Bs.hi, 0.62 * m) : into; }, jaw: coat(Bu, Bs, p => ss(p.z, 0.07, 0.12), keyHead), nose: Nz, ear: bodyH, earIn: Bs,
+      const face = coat(Bu, Wh, blaze, keyHead);
+      defs.push({ id: 'bull', k: 1.2, n: 0.56, o: { key, keyHead, body, body2: body, far: 0, shag: 0.7, bone: 0, belly: 0.94, chest: 1.08, neck: 1.2, udder: false, lock: 150, lid: 0.1, muzzle: 1.06, rim: Bs.hi, rimK: 0.9, lipK: 0.8, bag: Bg, pj: 0.16,
+        neckCoat: body, head: (p, n, j = 0, pj = 0, into = new THREE.Color()) => { face(p, n, j, pj, into); const m = Math.max(ss(p.z, 0.105, 0.14) * (1 - ss(p.z, 0.15, 0.162)), 1 - ss(Math.hypot(Math.abs(p.x) - 0.057, p.y - 0.008, (p.z - 0.048) * 0.8), 0.016, 0.036)); return m > 0 ? into.lerp(Bs.hi, 0.62 * m) : into; }, jaw: coat(Bu, Bs, p => ss(p.z, 0.07, 0.12), keyHead), nose: Nz, ear: bodyH, earIn: Bs,
         horn: { pts: [[0.042, 0.032, -0.012], [0.07, 0.038, -0.014], [0.094, 0.052, -0.012], [0.108, 0.072, -0.006]], r: 0.0135, len: 0.085, dark: 0.7 },
         legs: { upF: body, lo: coat(Bu, Bs, p => 0.35, key), upH: body }, switch: Bu } });
     }
@@ -463,7 +465,7 @@ lifeFor(146953, {
       const [key, keyHead] = keyOf(ways.dark.yaw, -1.2, 0.5);
       const sheen = (p, n) => clamp01((fbm(p, 7) - 0.2) * 1.5) * ss(n.dot(key), 0.0, 0.75);
       const body = coat(Dc, Ds, sheen, key), bodyH = coat(Dc, Ds, (p, n) => 0.5 * ss(n.dot(keyHead), 0, 0.7), keyHead);
-      defs.push({ id: 'dark', k: 1.3, n: 0.56, o: { key, keyHead, body, body2: body, shag: 0.4, bone: 1, belly: 1.05, chest: 0.98, neck: 1, udder: true, lock: 50, lid: 0.1, muzzle: 1, rim: Ds.hi, rimK: 0.8, lipK: 0.6, bag: Hf, pj: 0.16,
+      defs.push({ id: 'dark', k: 1.3, n: 0.5, o: { key, keyHead, body, body2: body, far: 1, shag: 0.4, bone: 1, belly: 1.05, chest: 0.98, neck: 1, udder: true, lock: 50, lid: 0.1, muzzle: 1, rim: Ds.hi, rimK: 0.8, lipK: 0.6, bag: Hf, pj: 0.16,
         neckCoat: body, head: coat(Dc, Wh, p => ss(p.z + (fbm(p, 50) - 0.5) * 0.03, 0.115, 0.14), keyHead), jaw: coat(Dc, Wh, p => ss(p.z + (fbm(p, 50) - 0.5) * 0.03, 0.085, 0.115), keyHead), nose: Pk, ear: bodyH, earIn: Ds,
         horn: { pts: [[0.04, 0.032, -0.012], [0.076, 0.048, -0.014], [0.106, 0.076, -0.006], [0.112, 0.114, 0.012]], r: 0.012, len: 0.125, dark: 0.75 },
         legs: { upF: body, lo: coat(Dc, Ds, p => 0.3, key), upH: body }, switch: Dc } });
@@ -515,7 +517,7 @@ lifeFor(146953, {
         const nrm = V3(d.z, 0, -d.x).normalize().multiplyScalar(-1);
         for (let q = 0; q < 36; q++) { const t = R(), p = a.clone().lerp(b, t).add(V3(0, (R() - 0.5) * h * 0.9, 0)).addScaledVector(nrm, 0.0052), dd = dab(p, nrm, { ...D, tone: wood, flow: d, l: [0.02, 0.05], w: [0.005, 0.011], lift: [0, 0.05], swirl: 0.1, jit: 0.4, pj: 0.5, tip: 0.08 }); if (dd) ws.push(dd); }
       });
-      parts.push(dabs(ws));
+      parts.unshift(dabs(ws));
       gWillow = shape.merge(parts);
       // grass: tufts of blades round the edge of the earth and at the foot of the tree and the post
       const Gr = ['#7c7f4a', '#676c3c', '#8c8a54', '#575e36', '#99905c', '#716a40'].map(c => col(c, 0.2));
@@ -537,7 +539,7 @@ lifeFor(146953, {
     // ---------------------------------------------------------- one rig for all of it, in the stage's own terms
     let verts = gWillow.attributes.position.count + gGrass.attributes.position.count;
     for (const d of defs) for (const n of NAMES) verts += d.G[n].attributes.position.count;
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0, emissive: 0xffffff, emissiveIntensity: 0.36, side: THREE.DoubleSide });
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xffffff, emissiveIntensity: 0.36, side: THREE.DoubleSide });      // (a matt coat: plain diffuse light is all of it, and cheaper on a phone)
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { uO: this.gu.uO, uAx: this.gu.uAx, uIsle: this.gu.uIsle, uGa: this.gu.uGa, uGb: this.gu.uGb });
       sh.fragmentShader = sh.fragmentShader
@@ -568,7 +570,7 @@ lifeFor(146953, {
       const Ls = STRIDE * b.k; b.way.off = 0.012 - (b.way.len / Ls) % 1;
       b.P = { x: 0, z: 0, yaw: 0, bx: 0, by: HB, bz: 0, pitch: 0, roll: 0, sx: 1, sy: 1, feet: [V3(), V3(), V3(), V3()], pole: [V3(0, 0, -1), V3(0, 0, 1), V3(0, 0, -1), V3(0, 0, 1)],
         head: { x: 0, y: 0.4, z: 0.47, yaw: 0, pitch: 0.95, roll: 0 }, jaw: [0, 0], lid: 0, ear: [0, 0], tail: { sw: 0, lift: 0, lie: 0, flick: 0 }, vis: false };
-      b.stand = [V3(), V3(), V3(), V3()]; b.lastN = [0, 0, 0, 0]; b.h0 = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 }; b.h1 = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };
+      b.lastN = [0, 0, 0, 0];
       return b;
     });
     this.by = {}; for (const b of this.beasts) this.by[b.id] = b;
@@ -654,7 +656,7 @@ lifeFor(146953, {
     { const z = S.z.subVectors(PP, N0), len = z.length(); z.multiplyScalar(1 / len); const x = S.x.set(0, 1, 0).cross(z).normalize(), y = S.y.crossVectors(z, x);
       S.t.makeBasis(x, y, z).scale(S.sc.set(k, k, len / NL)).setPosition(N0); rig.mat(I.neck, S.t); }
     S.head.makeRotationFromEuler(S.e.set(hd.pitch, P.yaw + hd.yaw, hd.roll, 'YXZ')).scale(S.sc.setScalar(k * 1.1)).setPosition(PP); rig.mat(I.head, S.head);
-    S.t2.makeRotationFromEuler(S.e.set(P.jaw[1], P.jaw[0], 0, 'YXZ')).setPosition(JAW[0] + P.jaw[0] * 0.025, JAW[1], JAW[2]); rig.mat(I.jaw, S.t.multiplyMatrices(S.head, S.t2));
+    S.t2.makeRotationFromEuler(S.e.set(P.jaw[1], P.jaw[0], 0, 'YXZ')).setPosition(JAW[0] + P.jaw[0] * 0.01, JAW[1], JAW[2]); rig.mat(I.jaw, S.t.multiplyMatrices(S.head, S.t2));
     S.t2.makeTranslation(0, 0.004 - 0.0125 * P.lid, 0.0008 * P.lid); rig.mat(I.lids, S.t.multiplyMatrices(S.head, S.t2));
     for (const [i, s, e] of [[I.earL, 1, P.ear[0]], [I.earR, -1, P.ear[1]]]) { S.t2.makeRotationFromEuler(S.e.set(0.2 + 0.3 * e, s * (0.42 + 0.5 * e), s * (-0.16 + 0.3 * e), 'YXZ')).setPosition(s * EAR[0], EAR[1], EAR[2]); rig.mat(i, S.t.multiplyMatrices(S.head, S.t2)); }
     // the tail: hanging and swinging; lying, round her quarter on the ground
@@ -686,12 +688,12 @@ lifeFor(146953, {
     const setH = (x, y, z, yaw, pitch, roll = 0) => { H.x = x; H.y = y; H.z = z; H.yaw = yaw; H.pitch = pitch; H.roll = roll; };
     const toH = (q, x, y, z, yaw, pitch, roll = 0) => { if (q <= 0) return; H.x = lerp(H.x, x, q); H.y = lerp(H.y, y, q); H.z = lerp(H.z, z, q); H.yaw = lerp(H.yaw, yaw, q); H.pitch = lerp(H.pitch, pitch, q); H.roll = lerp(H.roll, roll, q); };
     setH(0, 0.395 + 0.011 * nod, 0.4 + 0.006 * nod, 0, 0.98 + 0.05 * nod);
-    toH(1 - sm(ramp(way === w ? inn : 1, -0.5 * k, 0.12 * k)), 0, 0.255, 0.4, 0, 1.26);
+    toH(1 - sm(ramp(way === w ? inn : 1, -0.62 * k, -0.22 * k)), 0, 0.255, 0.4, 0, 1.26);
     P.jaw[0] = 0; P.jaw[1] = 0; P.lid = 0.12; P.ear[0] = P.ear[1] = 0;
     const T = P.tail; T.lie = 0; T.lift = 0.03 * walk; T.flick = 0; T.sw = 0.2 * walk * s1;
     const flick = (t0, d = 0.3) => hump(t, t0, t0 + d / slow);
     const every = (per, off, d = 0.3) => { const q = ((t - off) % per + per) % per; return t > off ? hump(q, 0, d / slow) : 0; };
-    const chew = (t0, rate, amp) => { const a = TAU * rate * (t - t0); P.jaw[0] += amp * 0.12 * Math.sin(a); P.jaw[1] += amp * (0.035 + 0.035 * Math.cos(a)); H.roll += amp * 0.025 * Math.sin(a); };
+    const chew = (t0, rate, amp) => { const a = TAU * rate * (t - t0); P.jaw[0] += amp * 0.085 * Math.sin(a); P.jaw[1] += amp * (0.04 + 0.04 * Math.cos(a)); H.roll += amp * 0.025 * Math.sin(a); };
     const here = sm(clamp01(-tau / 0.5));           // it has stopped, and stands
 
     if (b.id === 'pied') {
