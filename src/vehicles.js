@@ -503,7 +503,9 @@ export class Car {
       const sheet = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.find(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1), icy = !!sheet;
       // (Big studded tyres, S.ice, bite into it: less wheelspin, more steering, and the slide is caught sooner. The
       // harbour's crusted lake ice is driven as if on studs: it still slides, but a toy can steer across it and line up a jump.)
-      if (icy) { const ice = sheet.crust ? Math.max(S.ice || 0, 0.85) : S.ice || 0; grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
+      // (A sheet may say how crusted it is at a spot, 0 glassy to 1 snowed over: crust(x, z). The harbour's does: src/icefield.js.)
+      const crust = !icy ? 0 : typeof sheet.crust === 'function' ? sheet.crust(this.pos.x, this.pos.z) : sheet.crust ? 0.85 : 0;
+      if (icy) { const ice = Math.max(S.ice || 0, crust); grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
       rate = this.steer * bite * 3.6 * S.steer / (1 + Math.abs(vf) / 13);
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);
