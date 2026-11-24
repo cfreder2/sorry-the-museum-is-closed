@@ -31,7 +31,9 @@
 // the floor and a quiet piano piece. This is water, a standing thing and a song; its sea keeps to the left of Munch's
 // window (it ends 1.2 m right of this picture's middle, where his panes begin), and the kit sends one home when
 // the other begins, so they are never out together for more than the moment of handing over.
-// Nothing is ever in front of a picture: the harp stands 0.83 m at its cap, 0.34 m from the wall, under frames hung
+// (Turner's fishing boats, in Gallery 220, bargain in two voices that hail each other across a sea. Here there is one
+// voice, and the water gives it back.)
+// Nothing is ever in front of a picture: the harp stands 0.77 m at its cap, 0.36 m from the wall, under frames hung
 // at 1.1 m and more; its sparks have faded before they are that high; from the checks' nine cameras the guard has
 // nothing to cut. Three draw calls: the sea (one flat mesh, one shader: sky, depth, rings, the dark and the light
 // under the image), the harp (one mesh: its solids, and its strings, cord, weed, sparks and drops laid out by the
@@ -140,7 +142,7 @@ const along = (g, a, b, z = 0) => g.applyMatrix4(_M.compose(V3(a[0], a[1], z), _
 lifeFor(110507, {
   title: /^In the Sea/,
   word: 'echo',
-  stage: { out: 1.9, half: 1.4, cam: { dist: 3.0, height: 1.05, side: 0.42, fov: 62, lookU: -0.05, lookOut: 0.7, lookH: 0.6, floorOut: 1.6 } },
+  stage: { out: 1.9, half: 1.4, cam: { dist: 2.85, height: 1.0, side: 0.2, fov: 62, lookU: -0.06, lookOut: 0.7, lookH: 0.6, floorOut: 1.58 } },
   wake: T0, ret: 2.6,
   linger: { near: 4, max: 30 },
 
@@ -289,7 +291,7 @@ vec3 fCol; float fA;`)
         const s = v.y / plen, a = Math.atan2(v.z, v.x), h = hash(Math.round(a * 6), Math.round(s * 9)), streak = hash(Math.round(a * 14), 3);
         const c = mixc(MAR, MARS, 0.25 * h + 0.3 * streak * streak);
         c.lerp(TAN, 0.8 * sst(0.56 - s, 0, 0.36) * (0.7 + 0.3 * streak));
-        return c.multiplyScalar(1 - 0.25 * sst(wet + 0.07 - v.y, 0, 0.06));
+        return c.multiplyScalar(1 - 0.25 * sst(wet + 0.03 - v.y, 0, 0.03));
       });
       G.solid(along(g, PA, PB));
     }
@@ -356,7 +358,7 @@ vec3 fCol; float fA;`)
     // the red cord: wound under the cap, down the pillar's side, and bound round the foot of the rod
     const turn = (s, R, r, c, wob = 0) => { const g = painted(new THREE.TorusGeometry(R, r, 8, 22).rotateX(Math.PI / 2).rotateZ(wob), (v, n) => mixc(c, REDL, 0.3 * hash(Math.round(Math.atan2(v.z, v.x) * 9), s * 100) + 0.3 * n.y)); const p = pax(s); G.solid(along(g, [p.x, p.y], [p.x + pdir.x, p.y + pdir.y])); };
     for (let i = 0; i < 5; i++) turn(plen - 0.024 - i * 0.0125, prad(plen) + 0.0045, 0.0068, i % 2 ? RED : mixc(RED, REDD, 0.4), (i - 2) * 0.05);
-    for (let i = 0; i < 4; i++) turn(wet + 0.022 + i * 0.013, prad(wet) + 0.0075, 0.0072, i % 2 ? mixc(RED, REDD, 0.5) : RED, (i - 1.5) * 0.07);
+    for (let i = 0; i < 4; i++) turn(wet + 0.022 + i * 0.013, prad(wet) + 0.0075, 0.0072, i % 2 ? mixc(RED, REDL, 0.3) : RED, (i - 1.5) * 0.07);
     {
       const sTop = plen - 0.08, sBot = wet + 0.068, pts = [];
       for (let i = 0; i <= 14; i++) { const q = i / 14, s = lerp(sTop, sBot, q), p = pax(s); pts.push(p.addScaledVector(pleft, (prad(s) + 0.004) * Math.cos(0.5 + 0.5 * Math.sin(q * 5))).add(V3(0, 0, (prad(s) + 0.004) * Math.sin(0.5 + 0.5 * Math.sin(q * 5))))); }
