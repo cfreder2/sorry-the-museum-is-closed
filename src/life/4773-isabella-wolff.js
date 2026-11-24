@@ -14,10 +14,14 @@
 // clothed, in a portrait she sat for, so she comes out, toy-sized, and the show is her gown.
 //
 // Look at it and her table comes out from the foot of the wall on the left, with the cushion, the open book and the
-// shawl on it (the cushion gives when the table stops), and her low red chair beside it. Then she walks out from under
-// the right of the picture, her hands together, and comes forward: at each step a knee fills the skirt, the folds
-// swing over, and a glint of white runs down them. She crosses the front and turns in towards her chair, and the gown
-// comes round after her, the hem a beat behind, the train laid out over the boards where she has been. She turns
+// shawl on it (the cushion gives when the table stops), and her low red chair beside it. Then she comes in on the right,
+// out of the corner of the room, and walks away from you on a shallow slant to her chair, her head already bowed: you
+// see the back of the gown, the nape, the gold silk and a shoulder. At each step a knee fills the skirt, the long
+// folds swing over, light slides down their tops and breaks, with dark hollows between, and the train is laid out
+// over the boards behind her, its sheen turning as she turns. (In this room her own wall is too near the chair for a
+// walk away from you to start there; hung with no wall close on her right, she comes out from under her picture and
+// round by the front instead.) Only at the chair does she turn
+// about, and sits:She turns
 // about, and sits: the skirt fills, spreads over her knees and pools round her feet, and as it settles the long
 // light comes, down the whole length of the gown from her shoulder to the hem, the room dipping a little round her
 // while it runs, to one soft chord. She has bent to the print by then; an elbow goes to the cushion, a hand to her
@@ -205,7 +209,7 @@ float dab(vec2 p, vec2 at, vec2 r) { vec2 d = (p - at) / r; return exp(-dot(d, d
 lifeFor(4773, {
   title: /^Isabella Wolff/,
   word: 'satin',
-  stage: { out: 1.6, half: 1.1, cam: { dist: 2.6, height: 0.8, side: -0.06, fov: 60, lookU: -0.06, lookOut: 0.45, lookH: 0.84 } },
+  stage: { out: 1.6, half: 1.1, cam: { dist: 2.6, height: 0.8, side: 0.72, fov: 60, lookU: 0.1, lookOut: 0.45, lookH: 0.84 } },      // (it stands to the right, to see her from behind as she goes)
   wake: 2, ret: 2.4,
 
   build(L) {
@@ -392,11 +396,15 @@ lifeFor(4773, {
       this.strokes = sh.marks(M.length, K.STROKE, M_HER); this.strokes.pal = M.map(m => m.pal);
     }
     // her road
-    this.road = new THREE.CatmullRomCurve3(ROAD.map(([x, z]) => V3(x, 0, z)), false, 'centripetal'); this.road.arcLengthDivisions = 300; this.road.updateArcLengths(); this.len = this.road.getLength();
+    // (in from the wall on her right, if there is one within reach: then she walks away from you all the way)
+    const R = L.room, far = !R ? 99 : Math.abs(L.tx) > 0.5 ? (L.tx > 0 ? R.x1 - L.cx : L.cx - R.x0) : (L.tz > 0 ? R.z1 - L.cz : L.cz - R.z0), edge = far / SC;
+    this.side = far > 0.9 && far < 1.9 ? edge : 99;
+    const way = this.side < 99 ? [[edge + 0.22, 0.9], [edge - 0.2, 0.83], [0.45, 0.62], PST] : ROAD;
+    this.road = new THREE.CatmullRomCurve3(way.map(([x, z]) => V3(x, 0, z)), false, 'centripetal'); this.road.arcLengthDivisions = 300; this.road.updateArcLengths(); this.len = this.road.getLength();
 
     const geo = sh.build();
     // ------------------------------------------------------------ his paint on all of it: one material, one draw call
-    const u = this.u = { uInv: { value: this.Binv }, uDesk: { value: V3() }, uStool: { value: V3() }, uSq: { value: 1 }, uWave: { value: new THREE.Vector2(0, 0) }, uWarm: { value: 0 }, uDim: { value: 0 } };
+    const u = this.u = { uInv: { value: this.Binv }, uDesk: { value: V3() }, uStool: { value: V3() }, uSq: { value: 1 }, uWave: { value: new THREE.Vector2(0, 0) }, uWarm: { value: 0 }, uDim: { value: 0 }, uSit: { value: 0 }, uRight: { value: this.side - 0.008 } };
     const sun = V3(...SUN).normalize();
     const tm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, fog: false });
     tm.onBeforeCompile = shd => {
@@ -415,10 +423,10 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;`)
   }
   vK = aK; vUv2 = aUv; vLP = transformed; vN = normal; vT = aT;`);
       shd.fragmentShader = shd.fragmentShader.replace('#include <common>', `#include <common>
-uniform mat4 uInv; uniform vec2 uWave; uniform float uWarm, uDim;
+uniform mat4 uInv; uniform vec2 uWave; uniform float uWarm, uDim, uSit, uRight;
 varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
         .replace('#include <opaque_fragment>', `{
-  if (vLP.z < -0.032) discard;                                   // (still in the wall)
+  if (vLP.z < -0.032 || vLP.x > uRight) discard;                 // (still in the wall)
   int kind = int(vK.x + 0.5); float part = vK.z;
   vec3 N = normalize(vN); if (!gl_FrontFacing && kind != ${K.STROKE}) N = -N;
   vec3 eye = (uInv * vec4(cameraPosition, 1.0)).xyz, Vd = normalize(eye - vLP);
@@ -564,7 +572,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     float wd = 0.5 * pow(max(sin(3.1416 * al), 0.0), 0.6) * (0.86 + 0.14 * sin(al * 7.0 + seed * 40.0));
     float edge = 1.0 - abs(ac + 0.06 * sin(al * 5.0 + seed * 23.0)) / max(wd, 1.0e-3);
     if (edge < 0.0) discard;
-    float jit = fract(seed * 7.31) - 0.5, jit2 = fract(seed * 3.7) - 0.5, tone = nl + 0.16 * jit;
+    float jit = fract(seed * 7.31) - 0.5, jit2 = fract(seed * 3.7) - 0.5, crest = (fract(seed * 11.3) < 0.5 ? 0.3 : -0.36) * (1.0 - uSit), tone = nl + 0.16 * jit + crest + 0.22 * (1.0 - uSit) * max(dot(N, Vd), 0.0);
     if (pal < 0.5) {
       float sinTH = sqrt(max(0.0, 1.0 - sq(dot(T, Hh))));
       float spec = pow(sinTH, 14.0) * smoothstep(0.0, 0.5, dot(N, Hh)) + 0.5 * pow(max(dot(N, Hh), 0.0), 8.0);
@@ -572,7 +580,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
       c = mix(c, ${glsl('#b9b19a', 0.05)}, smoothstep(-0.2, 0.2, tone));
       c = mix(c, ${glsl('#ded4ba')}, smoothstep(0.45, 0.95, tone));
       c = mix(c, ${glsl('#a3aba6', 0.03)}, 0.3 * smoothstep(0.0, -0.5, tone) * clamp(0.35 + 0.65 * N.x, 0.0, 1.0));
-      c = mix(c, ${glsl('#fdf9ea', 0.02)}, smoothstep(0.52, 0.7, spec + 0.85 * wave + 0.45 * jit2));
+      c = mix(c, ${glsl('#fdf9ea', 0.02)}, smoothstep(0.52, 0.7, spec + 0.85 * wave * (1.0 + 2.0 * max(crest, 0.0)) + 0.45 * jit2 + 0.5 * crest));
     } else if (pal < 1.5) {
       c = mix(${glsl('#5a3c14')}, ${glsl('#a98038')}, smoothstep(-0.4, 0.1, tone));
       c = mix(c, ${glsl('#dcbd76')}, smoothstep(0.15, 0.6, tone));
@@ -718,7 +726,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
       r.rf = lerp(a[1], s[1], q) * k; r.rb = lerp(a[2] * (1 + 0.5 * c.going * a[4]), s[2], q) * k; r.rs = lerp(a[3], s[3], q) * k; r.tf = s[5] * q; r.tb = s[6] * q; r.ts = i === 2 ? 0.03 * q : 0;
     }
     b.lap = q; b.knee = 0.024 * c.going * Math.abs(Math.sin(phi)) * (1 - q); b.kneeS = Math.sin(phi) >= 0 ? 1 : -1;
-    b.rip = lerp(0.13, 0.2, q) * (1 + 0.5 * bil); b.ph = 1.3 * Math.sin(phi - 0.6) * c.going + 1.6 * q + 0.5 * settle + 0.5 * c.pose;
+    b.rip = lerp(0.16, 0.2, q) * (1 + 0.5 * bil); b.ph = 1.3 * Math.sin(phi - 0.6) * c.going + 1.6 * q + 0.5 * settle + 0.5 * c.pose;
     // ---- the bodice, and her neck and shoulders
     const bo = b.bo;
     for (let i = 0; i < 4; i++) { const r = bo[i], a = BO[i]; r.c.copy(b.P).addScaledVector(b.d, a[0] * (i ? grow : 1)); r.f.copy(b.fT); r.s.copy(b.lT); r.rf = a[1] * (i === 1 ? 1 + 0.025 * breath : 1); r.rb = a[2]; r.rs = a[3]; }
@@ -751,7 +759,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
 
   // The toy is eased out of the way of anything of hers that stands where it is (never stopped: only moved aside).
   aside(L, toy, x, z, r, dt) {
-    if (z < 0.06) return;
+    if (z < 0.06 || x > this.side - 0.1) return;
     const p = L.floor(x * SC, z * SC, this.v.a), dx = toy.pos.x - p.x, dz = toy.pos.z - p.z, d = Math.hypot(dx, dz), reach = r * SC + (toy.radius || 0.16);
     if (d >= reach) return;
     const k = Math.min(reach - d, 0.9 * dt);
@@ -784,7 +792,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     let wv = 0, wy = 0, dim = 0;
     if (r == null) {
       const d = (T_WAVE[1] - T_WAVE[0]) / slow, q0 = (t - T_WAVE[0]) / d, fr = c.dist / STEP;
-      if (c.going > 0 && !calm) { const f = fr - Math.floor(fr); wv = 0.42 * c.going * Math.sin(PI * f); wy = lerp(0.36, 0.02, f); }
+      if (c.going > 0 && !calm) { const f = fr - Math.floor(fr); wv = 0.8 * c.going * Math.sin(PI * f); wy = lerp(0.38, 0.0, f); }
       else if (q0 > 0 && q0 < 1) { wv = Math.pow(Math.sin(PI * q0), 0.7) * (calm ? 0.7 : 1.3); wy = lerp(0.5, -0.03, ease.smooth(q0)); dim = Math.sin(PI * Math.min(1, q0 * 1.15)) * (calm ? 0.6 : 1); }
       else if (t > T_WAVE[0] + d + 1.6) { const per = calm ? 6.5 : 4.3, q1 = ((t - T_WAVE[0] - d - 1.6) % per) / (d * 1.1); if (q1 < 1) { wv = 0.4 * Math.sin(PI * q1) * (calm ? 0.6 : 1); wy = lerp(0.47, -0.02, q1); } }
     }
@@ -797,7 +805,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     const dz = -(TBL.z + TBL.hd + 0.12) * (1 - c.desk), ta = t - T_DESK[1], sx = SEAT[0], sz = lerp(-0.32, SEAT[1], c.chair);
     u.uDesk.value.set(0, 0, dz); u.uStool.value.set(sx, 0, sz);
     u.uSq.value = r == null && ta > 0 && ta < 1.2 && !calm ? 1 - 0.07 * Math.exp(-5 * ta) * Math.cos(15 * ta) : 1;
-    u.uWarm.value = c.desk;
+    u.uWarm.value = c.desk; u.uSit.value = c.sit;
     // the lamp's light, and the shadows (the largest of them is the room's light dipping round her)
     const lit = c.desk * (r == null ? 1 : 1 - ease.smooth(ramp(r, 0.7, 1)));
     this.light.set(0, lit * (1 - 0.55 * dim) * (calm ? 1 : 1 + 0.03 * Math.sin(t * 2.3) * Math.sin(t * 0.7))); this.light.set(1, lit * (0.6 + 1.3 * wv * c.sit));
@@ -806,8 +814,8 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     L.floor(hem.x * SC, hem.z * SC, V.a); bl.set(n++, V.a.x, V.a.z, 1.15, 0.45 * dim);
     L.floor(TBL.x * SC, (TBL.z + dz) * SC, V.a); bl.set(n++, V.a.x, V.a.z, 0.2 * SC, 0.5 * inRoom(TBL.z + dz));
     L.floor(sx * SC, sz * SC, V.a); bl.set(n++, V.a.x, V.a.z, 0.11 * SC, 0.6 * inRoom(sz));
-    L.floor(hem.x * SC, hem.z * SC, V.a); bl.set(n++, V.a.x, V.a.z, lerp(0.14, 0.2, c.sit) * SC, 0.62 * inRoom(hem.z));
-    L.floor(b.P.x * SC, b.P.z * SC, V.a); bl.set(n++, V.a.x, V.a.z, 0.09 * SC, 0.4 * inRoom(b.P.z));
+    L.floor(hem.x * SC, hem.z * SC, V.a); bl.set(n++, V.a.x, V.a.z, lerp(0.14, 0.2, c.sit) * SC, 0.62 * inRoom(hem.z) * inRoom(this.side - hem.x));
+    L.floor(b.P.x * SC, b.P.z * SC, V.a); bl.set(n++, V.a.x, V.a.z, 0.09 * SC, 0.4 * inRoom(b.P.z) * inRoom(this.side - b.P.x));
     bl.count = n;
     // she, her table and her chair are soft to the toy: it is moved aside, gently, and never held
     const toy = L.k.G.vehicle;
