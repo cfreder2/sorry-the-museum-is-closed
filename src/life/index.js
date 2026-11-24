@@ -64,3 +64,4 @@ import './16146-equestrienne-cirque-fernando.js'; // 242  Toulouse-Lautrec, Eque
 import './16488-armida-encounters-rinaldo.js'; // 215  Tiepolo, Armida Encounters the Sleeping Rinaldo: hush
 import './81512-interrupted-reading.js'; // 224  Corot, Interrupted Reading: pause
 import './4773-isabella-wolff.js';   // 220  Lawrence, Isabella Wolff: satin
+import './109926-window-overlooking-the-woods.js'; // 244  Vuillard, Landscape: Window Overlooking the Woods: verdure
