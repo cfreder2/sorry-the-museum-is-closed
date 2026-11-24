@@ -25,3 +25,4 @@ import './81533-races-at-longchamp.js'; // 225  Manet, The Races at Longchamp: t
 import './95998-old-man-gold-chain.js'; // hall Rembrandt, Old Man with a Gold Chain: glint
 import './20579-hercules-and-the-hydra.js'; // 223  Moreau, Hercules and the Lernaean Hydra: hiss
 import './87045-still-life-with-geranium.js'; // 391  Matisse, Still Life with Geranium: bloom
+import './154235-girl-by-the-window.js'; // 245  Munch, The Girl by the Window: moonbeam
