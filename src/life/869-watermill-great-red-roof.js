@@ -14,14 +14,18 @@
 // bearers and the boards of the flume drop onto them, the walls plank up, and the red roof is tiled course by course
 // from the eaves to the ridge. His trees feather in behind. Then the stream arrives: it runs down the flume from the
 // bank, finds the open spill and goes over, and for a moment it is the picture: the white fall, its rings going out
-// over the brown water, the ducks paddling clear of it. Then the gate drops. The fall is cut off and thins to a few
-// threads; the water runs on down the flume, over its end and onto the near wheel. The wheel takes the weight,
-// lurches, groans, sags back; and then it goes, slowly, and faster, the water coming off its floats in a bright
-// broken sheet and the wash rolling out across the pond so that the ducks ride over it one after another; and from
-// inside the mill the clack starts, slow, and quickens with the wheel until it is steady. While you keep looking the
-// wheel turns, the far wheel in the shade under the flume takes its share and joins it, and now and then a duck
-// goes bottom up. When you stop, the water is shut off, the wheels run down, and the mill is taken apart in the
-// order it was built and goes back under the picture with its pond.
+// over the brown water, the ducks paddling clear of it. Meanwhile the small figure he puts at the mill's door has
+// come out across the yard and along the landing to the post where the rope that holds the gate up is made fast: arms
+// up to it, a heave to free it, and it is let go. The gate drops. The fall is cut off and thins to a few threads; the
+// rope hangs slack; the water runs on down the flume, over its end and onto the near wheel. The keeper has turned to
+// watch, and leans to it. The wheel takes the weight, lurches, groans, sags back; and then it goes, slowly, and
+// faster, the water coming off its floats in a bright broken sheet and the wash rolling out across the pond so that
+// the ducks ride over it one after another; and from inside the mill the clack starts, slow, and quickens with the
+// wheel until it is steady. While you keep looking the
+// wheel turns, the keeper looks it over and goes back in to the stones, the far wheel in the shade under the flume
+// takes its share and joins in, and now and then a duck goes bottom up. When you stop, the keeper goes in, the water
+// is shut off, the wheels run down, and the mill is taken apart in the order it was built and goes back under the
+// picture with its pond.
 //
 // How it is made: three draw calls. The floor is one mesh with one shader: the pond (what it reflects is worked out
 // for each pixel from where you stand: the boarded wall, the red roof, the flume, the white of the fall, his woods
@@ -30,37 +34,44 @@
 // shadow): the banks, every post and board (weathered timber painted once in a texture, grey and silvered, green
 // where it stands in the water), the roof (his pantiles painted once in a texture, course by course in close
 // orange-reds, sooted and mossed, the ridge sagging), the trees' stems, the grass, the gate, the two wheels and the
-// three ducks; each piece is stood up, dropped in or tiled by the vertex shader at its own moment, and the wheels,
-// the gate and the ducks are moved by seven matrices. His foliage (masses and loose sprays of feathered touches at
-// several depths), the falling water (soft strands with the dark between them, as he painted it), the drops off the
-// wheel, the froth and the blossom on the bank are soft cards in a third. Nothing is solid and nothing stays out
-// after the look. The roof's ridge stands 0.71 m over the floor and the tallest tree about a metre, close to the wall
+// three ducks, the rope and the keeper; each piece is stood up, dropped in or tiled by the vertex shader at its own
+// moment, and the wheels, the gate, the ducks and the keeper (a body and two arms) are moved by nine matrices. His
+// foliage (masses and loose sprays of feathered touches at several depths), the falling water (soft strands with the
+// dark between them, as he painted it), the drops off the wheel, the froth and the blossom on the bank are soft cards
+// in a third. Nothing is solid and nothing stays out after the look. The roof's ridge stands 0.71 m over the floor and the tallest tree about a metre, close to the wall
 // and under the picture: from the look camera nothing comes in front of a canvas, and the kit's guard does the rest
 // (from one of the checks' nine cameras, low in the far corner, it trims a few pixels of the oaks' tops).
 //
 // Ruisdael's ruin (src/life/60755-ruins-of-egmond.js) reaches to about 0.37 m left of this picture's middle; this
 // scene's ground starts about there and its middle is 0.46 m to the right, under the mill's own side of the picture
-// (what matters in it, the fall and the near wheel, is within 0.6 m of the picture's middle), and it has no weather: no cloud on the
+// (what matters in it, the fall, the near wheel and the keeper at the rope, is between 0.3 and 0.9 m right of the
+// picture's middle, and the look camera is set a little to the right for it), and it has no weather: no cloud on the
 // wall, no storm, no rain, no light crossing, no birds on the wing. His is a ruin the weather passes over; this is a
 // working thing that starts. Neither stays out after its look, and the kit sends one home when the other begins.
-// With "Reduce motion and flashing" on, the wheels turn at half the speed (and the clack with them), the water's
-// strands and the froth move at half speed, nothing glitters, and the gate and the knocks land more quietly.
+// With "Reduce motion and flashing" on (read as the show runs), the wheels turn at half the speed (and the clack
+// with them), the water's strands and the froth move at half speed, the gate lands without its bounce, the rope does
+// not swing, and the gate and the knocks are quieter and eased in.
 //
 // There is no tune: the mill has its own, the clack, which keeps the wheel's time exactly.
 //
-// What it does not do: nobody comes out of the picture (not the man in the red coat on the path, the two walkers
-// beyond him or the figure in the mill's doorway: the miller's work is shown by his mill, and a working man is not a
-// prop), the ducks are not chased, splashed or startled (they are clear of the fall before it lands, and ride the
-// wash), and the mill's taking apart at the end is a rewind, not a ruin: nothing breaks or falls.
+// The keeper is the figure in the picture's doorway, built as he painted it (a dark bodice, a long russet skirt and
+// apron, a dark cap; no features) and given one plain job, the one the whole picture is waiting for. The museum does
+// not say who it is, and nor does this: it is whoever keeps the mill.
+//
+// What it does not do: the keeper only does the work (walks out, frees the rope, watches the wheel start, goes back
+// in: no dance, no bow, no joke); the man in the red coat on the path and the two well-dressed walkers beyond him
+// stay in the picture, because they are passing by and have no business at the mill; the ducks are not chased,
+// splashed or startled (they are clear of the fall before it lands, and ride the wash); and the mill's taking apart
+// at the end is a rewind, not a ruin: nothing breaks or falls.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape, canvasTexture } from '../paintlife.js';
 import { strokes } from './brush.js';
-import { score, hump } from './stagecraft.js';
+import { score, hump, turnTo } from './stagecraft.js';
 
 const TAU = Math.PI * 2, sm = ease.smooth;
 const X0 = 0.46, Z = 1.12;                       // the scene's middle, along the wall from the picture's (his mill is on the right); and its own units: this many metres to one
 // the timeline (seconds of show)
-const T_WATER = 1.9, T_SPILL = 2.38, T_LAND = 2.62, T_GATE = 3.72, T_SHUT = 3.9, T_HIT = 4.35, T_GO = 5.05, SPIN = 1.5, T_FAR = 11;
+const T_WATER = 1.9, T_SPILL = 2.38, T_LAND = 2.62, T_GATE = 4.0, T_SHUT = 4.18, T_HIT = 4.63, T_GO = 5.33, SPIN = 1.5, T_FAR = 11.5;
 const BUILT = 2.2;                               // by this much of the build clock every piece is in place
 // the mill, in the scene's own terms: along the wall (from X0), up from the floor, out from the wall (metres)
 const WH = [0.10, 0.145, 0.50], WH2 = [-0.36, 0.138, 0.50], WR = 0.135;
@@ -68,7 +79,10 @@ const FL = { x0: -0.56, x1: 0.135, z0: 0.455, z1: 0.545, bot: 0.3, top: 0.35 };
 const SPILL = [-0.19, -0.07], LIP = 0.312;
 const MILL = { x0: 0, x1: 0.5, z0: 0.10, z1: 0.43, eave: 0.31, ridge: 0.635, zr: 0.265 }, EXT = { x0: 0.5, x1: 0.68, z0: 0.12, z1: 0.41, eave: 0.24, ridge: 0.455 };
 const FOOT = [-0.13, 0.6], WASH = [0.215, 0.515];          // where the fall lands, and where the wheel's water does
-const N_CARD = 240, N_DROP = 16, N_PART = 8;
+const N_CARD = 240, N_DROP = 16, N_PART = 10;
+// the rope that holds the gate up: from the bar over the spill to a post at the yard's edge; and the keeper's way out to it
+const ROPE = [[-0.13, 0.492, 0.556], [0.36, 0.205, 0.572]], WAY = [[0.6, 0.395], [0.6, 0.46], [0.53, 0.55], [0.47, 0.602], [0.395, 0.604]], T_OUT = 1.2, T_POST = 3.5, T_IN = 10.5;
+const plank = x => 0.082 - 0.0314 * (x - 0.245);      // the top of the landing's boards
 // what the pond reflects: [lo (along, up, out), hi, kind (0 boards, 1 roof, 2 flume, 3 the fall)]
 const BOXES = [
   [[0, 0, 0.10], [0.5, 0.31, 0.43], 0], [[0.5, 0, 0.12], [0.68, 0.24, 0.41], 0],
@@ -80,7 +94,7 @@ const ground = (x, z) => {
   const side = (1 - sm(ramp(x, 0.68, 0.8))) * (1 - sm(ramp(-x, 0.56, 0.78)));
   const hill = 0.13 * Math.exp(-(((x + 0.54) / 0.24) ** 2)) * (1 - 0.5 * sm(ramp(z, 0.25, 0.7)));
   const h = 0.05 + hill + 0.03 * (1 - sm(ramp(z, 0, 0.4))) + 0.006 * Math.sin(x * 9 + z * 7);
-  return h * (1 - sm(ramp(z, shore(x) - 0.2, shore(x) + 0.02))) * side - 0.012;
+  return h * (1 - sm(ramp(z, shore(x) - lerp(0.2, 0.08, sm(ramp(x, 0.2, 0.4))), shore(x) + 0.02))) * side - 0.012;      // (the yard runs level to the water; the banks go down to it)
 };
 const hash = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
 // a wheel's angle: at rest until t0, then up to w radians a second over D seconds, and steady
@@ -96,7 +110,7 @@ float under(vec3 P) { return (1.0 - smoothstep(0.26, 0.31, P.y)) * smoothstep(0.
 vec3 lightOn(vec3 alb, vec3 n, vec3 P) {
   float lam = clamp(dot(n, SUN) * 0.75 + 0.25, 0.0, 1.0), sh = 1.0 - 0.74 * under(P);
   // (and the near wheel's own shadow on the boards behind it, and the flume's end's)
-  sh *= 1.0 - 0.5 * step(P.z, 0.445) * step(0.38, P.z) * (1.0 - smoothstep(0.1, 0.17, length(P.xy - vec2(0.135, 0.125)))) * step(P.x, 0.5);
+  sh *= 1.0 - 0.36 * step(P.z, 0.445) * step(0.38, P.z) * (1.0 - smoothstep(0.06, 0.2, length(P.xy - vec2(0.135, 0.125)))) * step(P.x, 0.5);
   return alb * (cAmb * (0.7 + 0.3 * n.y) * (0.5 + 0.5 * sh) + cSun * lam * lam * sh);
 }
 `;
@@ -104,7 +118,7 @@ vec3 lightOn(vec3 alb, vec3 n, vec3 P) {
 lifeFor(869, {
   title: /^The Watermill with the Great Red Roof/,
   word: 'turn',
-  stage: { out: 1.3, half: 1.3, cam: { dist: 2.5, height: 0.66, side: 0.12, fov: 54, lookU: 0.32, lookOut: 0.45, floorOut: 1.3 } },
+  stage: { out: 1.3, half: 1.3, cam: { dist: 2.5, height: 0.66, side: 0.16, fov: 54, lookU: 0.42, lookOut: 0.45, floorOut: 1.3 } },
   wake: 2, ret: 2.2,
 
   build(L) {
@@ -422,7 +436,7 @@ fCol = (mud * ae + c * aw) / max(fA, 1.0e-3);`)
       gable(M.x1, M.z0, M.z1, M.eave, M.ridge - 0.05, [1, 0, 0], wallDim, 0.66); gable(E.x1, E.z0, E.z1, E.eave - 0.012, E.ridge - 0.02, [1, 0, 0], wallDim, 0.78);
       // openings: soft-edged darks (the door stands open, as he has it, and nobody is in it)
       const mark = (x, y, w, h, z, born) => { grow = [born, 1, -0.012, 0.42]; quad([x - w / 2, y, z], [x + w / 2, y, z], [x + w / 2, y + h, z], [x - w / 2, y + h, z], [0, 0, 1], DARK, 5, [0, 0], [1, 0], [1, 1], [0, 1]); };
-      mark(0.6, 0.05, 0.05, 0.13, E.z1 + 0.0025, 0.68); mark(0.36, 0.16, 0.034, 0.04, M.z1 + 0.0025, 0.5); mark(0.45, 0.2, 0.02, 0.026, M.z1 + 0.0025, 0.5);
+      mark(0.6, 0.045, 0.06, 0.152, E.z1 + 0.0025, 0.68); mark(0.36, 0.16, 0.034, 0.04, M.z1 + 0.0025, 0.5); mark(0.45, 0.2, 0.02, 0.026, M.z1 + 0.0025, 0.5);
       // the roof: the great slope to the front, hipped at the left, the same behind; the lower roof on the right
       const roof = (e0, e1, r1, r0, ns, nt, born, dur, tint = WOOD) => {
         let n = norm(cross(sub(e1, e0), sub(mix3(r0, r1, 0.5), e0))); if (n[1] < 0) n = neg(n);
@@ -491,7 +505,15 @@ fCol = (mud * ae + c * aw) / max(fA, 1.0e-3);`)
       clump(0.56, 0.98, 10, 0.05, 0.04, 0.1); clump(0.7, 0.8, 8, 0.04, 0.04, 0.09); clump(-0.52, 0.7, 7, 0.03, 0.03, 0.08); clump(0.47, 0.64, 6, 0.03, 0.03, 0.07);
     }
 
-    // ---- the parts that move, each about its own origin: 1 the near wheel, 2 the far wheel, 3 the gate, 4 to 6 the ducks
+    // ---- the rope that holds the gate up, and the post it is made fast to (the rope hangs slack once it is let go: the shader)
+    {
+      grow = [1.36, 1, -0.012, 0.3]; beam([ROPE[1][0], -0.012, ROPE[1][2]], [ROPE[1][0] + 0.004, ROPE[1][1] + 0.006, ROPE[1][2]], 0.014, 0.014, tintOf(0.16)); knocks.push(1.6);
+      grow = [1.7, 2, 0, 0.26];
+      const A = ROPE[0], B = ROPE[1], NSEG = 12, rr = 0.0024, hemp = col('#8f8262', 0.25), at = (i, k) => { const q = mix3(A, B, i / NSEG), ph = k / 3 * TAU; return { p: [q[0], q[1] + Math.cos(ph) * rr, q[2] + Math.sin(ph) * rr], n: [0, Math.cos(ph), Math.sin(ph)], t: [i / NSEG, 0] }; };
+      for (let i = 0; i < NSEG; i++) for (let k = 0; k < 3; k++) for (const v of [at(i, k), at(i + 1, k), at(i + 1, k + 1), at(i, k), at(i + 1, k + 1), at(i, k + 1)]) vert(v.p, v.n, hemp, v.t, 2, 0, -1);
+    }
+    // ---- the parts that move, each about its own origin: 1 the near wheel, 2 the far wheel, 3 the gate, 4 to 6 the ducks,
+    // 8 the mill's keeper (9 and 10: the arms)
     grow = [0, 0, 0, 1];
     {
       // A wheel as he draws them: two rims of short felloes, two crossed arms a side, the floats between the rims
@@ -527,6 +549,20 @@ fCol = (mud * ae + c * aw) / max(fA, 1.0e-3);`)
           cl.push(kc.getX(i), kc.getY(i), kc.getZ(i)); uv.push(0, 0); inf.push(4, 0, part, 0); grw.push(0, 0, 0, 1);
         }
       };
+      // The figure he puts at the mill's door, as he puts it there: a dark bodice, a long russet skirt and apron, a
+      // dark cap; a few soft forms and no features (it is a dozen touches in the picture). It faces along the wall
+      // to the right until it is turned.
+      const push = (g, id) => { const q = g.attributes.position, nn = g.attributes.normal, kc = g.attributes.color; for (let i = 0; i < q.count; i++) { pos.push((L.tx * q.getX(i) + L.nx * q.getZ(i)) * Z, q.getY(i) * Z, (L.tz * q.getX(i) + L.nz * q.getZ(i)) * Z); nor.push(L.tx * nn.getX(i) + L.nx * nn.getZ(i), nn.getY(i), L.tz * nn.getX(i) + L.nz * nn.getZ(i)); cl.push(kc.getX(i), kc.getY(i), kc.getZ(i)); uv.push(0, 0); inf.push(4, 0, id, 0); grw.push(0, 0, 0, 1); } };
+      {
+        const skirt = col('#84553c', 0.25), apron = col('#9a7658', 0.25), bodice = col('#2b221b', 0.2), flesh = col('#a8805f', 0.2), cap = col('#241c17', 0.2), sleeve = col('#3a2e25', 0.2);
+        const body = shape.lathe([[0.001, 0], [0.027, 0.002], [0.0255, 0.012], [0.02, 0.034], [0.0145, 0.054], [0.0135, 0.06], [0.0158, 0.07], [0.0165, 0.079], [0.012, 0.086], [0.0052, 0.089], [0.0045, 0.093]], 22, skirt), fold = new THREE.Color();
+        // (the skirt hangs in folds, darker towards the hem; the apron down the front of it)
+        shape.paint(body, (c, n) => (c.y > 0.0585 ? bodice : fold.copy(n.x > 0.45 ? apron : skirt).multiplyScalar((0.84 + 0.2 * Math.sin(Math.atan2(c.z, c.x) * 9 + c.y * 30)) * (0.8 + 0.2 * sm(ramp(c.y, 0, 0.03))))));
+        const head = shape.move(shape.ball(0.0102, flesh, 2), 0.001, 0.099, 0), hat = shape.move(shape.ball(0.0112, cap, 2), -0.0018, 0.1012, 0);
+        shape.paint(hat, c => cap); { const q = hat.attributes.position; for (let i = 0; i < q.count; i++) if (q.getY(i) < 0.0985 && q.getX(i) > -0.004) q.setXYZ(i, -0.0018 + (q.getX(i) + 0.0018) * 0.7, 0.0985, q.getZ(i) * 0.9); }
+        push(shape.merge([body, head, hat]), 8);
+        for (const id of [9, 10]) push(shape.merge([shape.move(shape.cyl(0.0034, 0.0046, 0.04, 7, sleeve), 0, -0.02, 0), shape.move(shape.ball(0.0042, flesh, 1), 0, -0.042, 0)]), id);
+      }
       duck(4, col('#6f6a5c', 0.2), col('#a9a48f', 0.2), col('#1f2a22', 0.15), col('#b79a4c', 0.15));
       duck(5, col('#4f3f2b', 0.2), col('#7c6846', 0.2), col('#3b2e20', 0.2), col('#8a6a3a', 0.15));
       duck(6, col('#58462f', 0.2), col('#86714c', 0.2), col('#3e3122', 0.2), col('#8a6a3a', 0.15));
@@ -537,12 +573,12 @@ fCol = (mud * ae + c * aw) / max(fA, 1.0e-3);`)
     g.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); g.setAttribute('aUv', new THREE.Float32BufferAttribute(uv, 2));
     g.setAttribute('aInfo', new THREE.Float32BufferAttribute(inf, 4)); g.setAttribute('aGrow', new THREE.Float32BufferAttribute(grw, 4));
     this.parts = Array.from({ length: N_PART }, () => new THREE.Matrix4().makeScale(0, 0, 0));
-    const u = this.su = { ...this.lu, tWood: { value: this.tWood }, tTile: { value: this.tTile }, tBank: { value: this.tBank }, uPart: { value: this.parts }, uFront: { value: -9 }, uWet: { value: 0 }, cWater: { value: col('#8d8672', 0.25) }, cFoam: { value: col('#e4dcc6', 0.15) } };
+    const u = this.su = { ...this.lu, tWood: { value: this.tWood }, tTile: { value: this.tTile }, tBank: { value: this.tBank }, uPart: { value: this.parts }, uFront: { value: -9 }, uWet: { value: 0 }, uSag: { value: 0 }, cWater: { value: col('#8d8672', 0.25) }, cFoam: { value: col('#e4dcc6', 0.15) } };
     const m = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, fog: false, side: THREE.DoubleSide });
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, u);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-attribute vec4 aInfo, aGrow; attribute vec2 aUv; uniform mat4 uPart[${N_PART}]; uniform float uTime, uBuild;
+attribute vec4 aInfo, aGrow; attribute vec2 aUv; uniform mat4 uPart[${N_PART}]; uniform float uTime, uBuild, uSag;
 varying vec3 vN; varying vec4 vInfo, vGrow; varying vec2 vUv2; varying float vK;`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
   vec3 nn = normal; float gk = 1.0;
@@ -553,6 +589,7 @@ varying vec3 vN; varying vec4 vInfo, vGrow; varying vec2 vUv2; varying float vK;
     else { float q = 1.0 - k; transformed.y += q * q * 0.11; }                                                                                  // dropped into place
     if (aInfo.y > 0.0) { float ph = position.x * 31.0 + position.z * 17.0; transformed.xz += vec2(0.7, 0.3) * (0.05 * sin(uTime * 1.3 + ph * 0.3) + 0.02 * sin(uTime * 3.1 + ph)) * aInfo.w * aInfo.y * aInfo.y; }
   }
+  if (aInfo.w < -0.5) transformed.y -= uSag * 4.0 * aUv.x * (1.0 - aUv.x);      // the rope, let go
   vN = nn; vInfo = aInfo; vGrow = aGrow; vUv2 = aUv; vK = gk;`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
@@ -700,8 +737,8 @@ uniform sampler2D tAtlas, tNoise; uniform vec3 cAmb, cSun; uniform float uTime; 
     mass(-0.3, 0.1, 0.26, 0.24, 0.5, 9, 0.15, 0.24, blue, 0.8, { sun: 0.5, depth: 0.08 }); mass(-0.1, 0.08, 0.24, 0.26, 0.56, 9, 0.15, 0.24, olive, 0.85, { sun: 0.9, depth: 0.06 });      // the wood behind the flume
     mass(-0.2, 0.07, 0.2, 0.42, 0.6, 5, 0.13, 0.2, mid, 0.9, { sun: 0.8, depth: 0.04 });
     mass(0.4, 0.49, 0.18, 0.36, 0.6, 9, 0.1, 0.17, pale, 1.2, { sun: 1, depth: 0.05, kind: 3 });                                       // the pale tree in front of the roof
-    mass(0.65, 0.5, 0.15, 0.68, 0.9, 10, 0.11, 0.2, blue, 1.1, { sun: 0.85, depth: 0.06, edge: 0.55 }); mass(0.66, 0.5, 0.12, 0.76, 0.9, 4, 0.09, 0.13, mid, 1.2, { sun: 1, kind: 3 });
-    mass(0.612, 0.5, 0.07, 0.52, 0.64, 4, 0.09, 0.13, blue, 1.15, { sun: 0.7, depth: 0.04, kind: 3 }); mass(0.7, 0.5, 0.06, 0.58, 0.68, 3, 0.08, 0.11, mid, 1.3, { kind: 3 });      // the tall thin one in the yard
+    mass(0.65, 0.5, 0.2, 0.62, 0.9, 14, 0.13, 0.22, blue, 1.1, { sun: 0.85, depth: 0.06, edge: 0.5 }); mass(0.64, 0.5, 0.16, 0.74, 0.9, 5, 0.1, 0.15, mid, 1.2, { sun: 1, kind: 3 });
+    mass(0.7, 0.5, 0.07, 0.56, 0.66, 3, 0.09, 0.12, blue, 1.3, { kind: 3 });      // the tall thin one in the yard
     mass(0.74, 0.07, 0.1, 0.2, 0.42, 5, 0.12, 0.18, blue, 0.9, { sun: 0.5, depth: 0.04 });                                              // far trees beyond the mill
     // bushes on the bank and at the yard's edge, two of them in blossom; grass along the water
     const bush = (x, z, y, s, cols, born, flower) => {
@@ -716,7 +753,7 @@ uniform sampler2D tAtlas, tNoise; uniform vec3 cAmb, cSun; uniform float uTime; 
     this.px = new Float32Array(n); this.py = new Float32Array(n); this.pz = new Float32Array(n); this.ps = new Float32Array(n); this.pq = new Float32Array(n);
     this.pk = new Float32Array(n); this.pw = new Float32Array(n); this.pa = new Float32Array(n); this.pr = new Float32Array(n); this.pc = new Float32Array(n * 3); this.dep = new Float32Array(n);
     this.order = Array.from({ length: n }, (_, i) => i); this.byDepth = (a, b) => this.dep[b] - this.dep[a];
-    this.M = new THREE.Matrix4(); this.Q = new THREE.Quaternion(); this.Q2 = new THREE.Quaternion(); this.S = new THREE.Vector3(); this.axis = new THREE.Vector3(L.nx, 0, L.nz); this.up = new THREE.Vector3(0, 1, 0);
+    this.M = new THREE.Matrix4(); this.Q = new THREE.Quaternion(); this.Q2 = new THREE.Quaternion(); this.S = new THREE.Vector3(); this.axis = new THREE.Vector3(L.nx, 0, L.nz); this.up = new THREE.Vector3(0, 1, 0); this.Q3 = new THREE.Quaternion(); this.v2 = new THREE.Vector3();
     this.dk = [{}, {}, {}];
   },
 
@@ -729,6 +766,7 @@ uniform sampler2D tAtlas, tNoise; uniform vec3 cAmb, cSun; uniform float uTime; 
     for (let i = 0; i < 15; i++) s.hit(1.08 + i * 0.052 + 0.02 * hash(i, 9), { d: 0.03, vol: 0.0045 * q, bp: 2600 + 900 * hash(i, 3), q: 5, attack: 0.002 });      // tiles
     // the stream arriving, and landing
     s.hit(T_LAND - 0.02, { d: 0.6, vol: 0.016 * q, lp: 3200, hp: 500, attack: calm ? 0.2 : 0.06 });
+    s.hit(T_GATE, { d: 0.17, vol: 0.006 * q, bp: 1300, q: 3, attack: 0.02 });      // the rope running over the bar
     // the gate: wood on wood, low
     s.note(T_SHUT, 104, 0.14, { type: 'sine', vol: 0.03 * q, to: 66, attack: calm ? 0.03 : 0.006 }); s.hit(T_SHUT, { d: 0.08, vol: 0.016 * q, lp: 1700, hp: 260, attack: 0.004 }); knock(T_SHUT + 0.13, 0.6, 210);
     // the water on the wheel; the wheel taking the weight: a long groan, twice, the second rising as it goes
@@ -782,6 +820,7 @@ uniform sampler2D tAtlas, tNoise; uniform vec3 cAmb, cSun; uniform float uTime; 
     const t = showing ? L.t : this.bT, K = back ? 1 - sm(ramp(ret, 0, 0.3)) : 1, runDown = back ? 1.1 * (1 - (1 - ramp(L.r, 0, 1.1)) ** 2) / 2 : 0;
     const build = showing ? t : Math.min(this.bT, BUILT) * (1 - ease.inOut(ramp(ret, 0.2, 1)));
     const f = this.flow(t);
+    { const band = this.bands[calm ? 1 : 0]; if (band !== this.band) { this.band = band; band.from(t); } }      // (the setting changed as it ran)
     lu.uTime.value = (calm ? 0.5 : 1) * (t + (back ? L.r : 0)); lu.uBuild.value = build;
     fu.uSpread.value = showing ? ease.out(ramp(t, 0.05, 1.6)) : ease.out(ramp(Math.min(this.bT, 1.6), 0.05, 1.6)) * (1 - ease.inOut(ramp(ret, 0.45, 1)));
     fu.uBuilt.value = sm(ramp(build, 0.9, 1.9));
@@ -801,6 +840,21 @@ uniform sampler2D tAtlas, tNoise; uniform vec3 cAmb, cSun; uniform float uTime; 
       const kG = ease.out(ramp(build, 1.3, 1.55)), hitch = 0.012 * hump(t, T_GATE - 0.22, T_GATE + 0.04), drop = Math.min(1, ((t - T_GATE) / (T_SHUT - T_GATE)) ** 2) * (t > T_GATE ? 1 : 0);
       const bounce = t > T_SHUT ? 0.012 * Math.exp(-(t - T_SHUT) * 9) * Math.abs(Math.sin((t - T_SHUT) * 16)) : 0;
       this.W((SPILL[0] + SPILL[1]) / 2, 0.333 + 0.105 * (1 - drop) + hitch + (calm ? 0 : bounce), 0.5475, v); M.compose(v, this.Q.identity(), this.S.set(kG, kG, kG)); P[2].copy(M);
+    }
+    // ---- the rope: taut while it holds the gate; let go, it hangs and swings a little and is still
+    { const d = t - T_GATE; this.su.uSag.value = d < 0 ? 0.003 : 0.036 * (1 - Math.exp(-d * 7)) + (calm ? 0 : 0.007 * Math.exp(-d * 2.2) * Math.sin(d * 13)); }
+    // ---- the keeper
+    {
+      const o = this.keeper(t, this.ko || (this.ko = {})), Zs = Z;
+      let k = 1.22 * o.k * sm(ramp(build, 1.2, 1.4));      // (a little over the picture's size, to carry from where you stand)
+      if (back) { const e = ease.inOut(ramp(ret, 0, 0.5)); o.x = lerp(o.x, WAY[0][0], e); o.z = lerp(o.z, WAY[0][1], e); o.y = lerp(o.y, 0.05, e); o.armL *= 1 - e; o.armR *= 1 - e; k *= 1 - sm(ramp(ret, 0.38, 0.52)); }
+      this.W(o.x, o.y, o.z, v); this.Q.setFromAxisAngle(this.up, -o.yaw).multiply(this.Q2.setFromAxisAngle(this.axis, o.lean));
+      M.compose(v, this.Q, this.S.set(k, k, k)); P[7].copy(M);
+      for (const [i, side, a] of [[8, 1, o.armL], [9, -1, o.armR]]) {
+        this.Q3.copy(this.Q).multiply(this.Q2.setFromAxisAngle(this.axis, a));
+        this.v2.set((L.tx * 0.002 + L.nx * side * 0.0185) * Zs, 0.0805 * Zs, (L.tz * 0.002 + L.nz * side * 0.0185) * Zs).applyQuaternion(this.Q).multiplyScalar(k).add(v);
+        M.compose(this.v2, this.Q3, this.S.set(k, k, k)); P[i].copy(M);
+      }
     }
     // ---- the ducks: out from under the flume, clear of where the fall will land, then round and round; they ride the rings
     for (let i = 0; i < 3; i++) {
@@ -873,6 +927,33 @@ uniform sampler2D tAtlas, tNoise; uniform vec3 cAmb, cSun; uniform float uTime; 
     this.churn.set(near * (0.012 * f.feed + 0.028 * spinA));
   },
 
+  // The keeper at show-time t: out of the door and across the yard to the post; arms up to the rope, a heave to free
+  // it, and it is let go; then stood watching the wheel, leaning to it while it hangs, straight again when it goes;
+  // and after a while back in to the stones. (k: how much of them is there; lean: forwards; arms: 0 hanging, up is pi.)
+  keeper(t, o) {
+    const along = (s, out) => {
+      const n = WAY.length - 1, x = clamp01(s) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i; out.x = lerp(WAY[i][0], WAY[i + 1][0], f); out.z = lerp(WAY[i][1], WAY[i + 1][1], f);
+      // (the heading eased from one leg of the way into the next; and up onto the landing's boards for the last of it)
+      const hd = j => Math.atan2(WAY[j + 1][1] - WAY[j][1], WAY[j + 1][0] - WAY[j][0]); out.h = i < n - 1 ? turnTo(hd(i), hd(i + 1), sm(ramp(f, 0.55, 1))) : hd(i);
+      out.y = lerp(Math.max(0, ground(out.x, out.z)), plank(out.x), sm(ramp(x, 2.35, 2.9))); return out;
+    };
+    const going = t < T_IN, s = going ? ease.inOut(ramp(t, T_OUT, T_POST)) : 1 - ease.inOut(ramp(t, T_IN + 0.35, T_IN + 1.85)), walking = going ? (t > T_OUT && t < T_POST) : (t > T_IN + 0.35 && t < T_IN + 1.85);
+    along(s, o);
+    const step = s * 9.5 * Math.PI, post = -2.37, watch = Math.PI + 0.06;      // (headings: to the post, and along the wall to the wheel)
+    o.yaw = going ? turnTo(turnTo(o.h, post, sm(ramp(t, T_POST - 0.35, T_POST + 0.1))), watch, sm(ramp(t, T_GATE + 0.35, T_GATE + 0.95))) : turnTo(watch, o.h + Math.PI, sm(ramp(t, T_IN, T_IN + 0.45)));
+    o.y += walking ? 0.0022 * Math.abs(Math.sin(step)) : 0;
+    o.k = sm(ramp(t, T_OUT, T_OUT + 0.3)) * (going ? 1 : 1 - sm(ramp(t, T_IN + 1.6, T_IN + 1.85)));
+    const sw = walking ? 0.4 * Math.sin(step) : 0;
+    // at the post: up to the rope, the heave (back and down a little), let go, arms down
+    const reach = sm(ramp(t, T_POST - 0.05, T_POST + 0.22)) * (1 - sm(ramp(t, T_GATE + 0.12, T_GATE + 0.6))), heave = hump(t, T_GATE - 0.24, T_GATE + 0.03), fling = hump(t, T_GATE, T_GATE + 0.3);
+    o.armL = sw + reach * (2.45 - 0.3 * heave + 0.45 * fling); o.armR = -sw + reach * (2.3 - 0.3 * heave + 0.55 * fling);
+    // watching: leaning to the wheel while it hangs, then straight; a little weight from foot to foot
+    const peer = sm(ramp(t, T_HIT - 0.1, T_HIT + 0.3)) * (1 - sm(ramp(t, T_GO + 0.3, T_GO + 1.1)));
+    o.lean = (walking ? -0.07 : 0) + 0.14 * heave - 0.2 * peer - 0.02 * Math.sin(t * 0.9) * (t > T_GATE + 0.6 && going ? 1 : 0);
+    if (t > T_GO + 1.2 && going) { const e = sm(ramp(t, T_GO + 1.2, T_GO + 1.7)); o.armL += 0.5 * e; o.armR += 0.42 * e; o.yaw += 0.1 * Math.sin(t * 0.5) * e; }      // hands to the hips, more or less; looking it over
+    return o;
+  },
+
   // Duck i at show-time t: where it is on the pond, which way it heads, how the water lifts and tips it.
   duckAt(i, t, f, wash, calm, o) {
     const C = [[-0.24, 0.87, 0.12, 0.055, 0.34, 0.6], [-0.03, 0.95, 0.1, 0.05, -0.3, 2.4], [-0.36, 0.97, 0.075, 0.04, 0.4, 4.1]][i], S = [[-0.3, 0.55], [-0.26, 0.5], [-0.34, 0.52]][i];
@@ -885,7 +966,7 @@ uniform sampler2D tAtlas, tNoise; uniform vec3 cAmb, cSun; uniform float uTime; 
     // the rings under it: from the fall, and the wheel's wash (the same waves the pond's shader draws)
     const wave = (c, k, kk, sp, reach, len) => { const l = Math.hypot(o.x - c[0], o.z - c[1]); return l > reach ? 0 : k * Math.sin(kk * l - (calm ? 0.5 : 1) * t * sp) * Math.exp(-l / len) * sm(ramp(reach - l, 0, 0.14)); };
     const h = wave(FOOT, f.landed * (f.fall + f.leak * 0.6), 64, 8.5, f.ring, 0.34) + wave(WASH, wash, 52, 7.5, Math.max(0, t - T_HIT - 0.1) * 0.2, 0.42);
-    o.y = 0.0045 * h + 0.0012 * Math.sin(t * 2.1 + i * 2); o.pitch = 0.2 * h + 0.03 * Math.sin(t * 1.7 + i);
+    o.y = 0.0045 * h + 0.0012 * Math.sin(t * 2.1 + i * 2); o.pitch = 0.12 * h + 0.03 * Math.sin(t * 1.7 + i);
     // now and then, while you keep looking, one goes bottom up
     const dab = i === 1 ? hump((t + 3) % 13, 11, 12.8) : i === 2 ? hump((t + 8) % 17, 15, 16.8) : 0;
     if (dab > 0 && t > 9) { const e = sm(Math.min(1, dab * 1.6)); o.pitch -= 1.25 * e; o.y -= 0.012 * e; }
