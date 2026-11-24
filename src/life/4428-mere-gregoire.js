@@ -9,29 +9,31 @@
 //
 // A corner of the grey marble slides out from the foot of the wall (his marble: dark, with pale paint dragged over
 // it by the knife), the carafe riding on it, the water in it rocking when the slab stops. Then the flowers come, each
-// stem out from under the frame, straight below where it is painted, head first; it swings upright over the
-// carafe and slides in, the glass rings, and the stems already there shift to make room: the ivy, two sprays of
+// stem out from under the frame, straight below where it is painted, head first; it swings round and upright over
+// the carafe and slides in, the glass rings, and the stems already there shift to make room: the ivy, two sprays of
 // may, the leaves, the honeysuckle, the lily. The peony comes last and is heavy: the carafe rocks on the marble,
 // tick, tick, quicker and smaller, and stands. A hush. Then, from under the frame on the right, below the hand that
 // holds it, the little sprig comes down turning, as a flower turns when it is rolled between finger and thumb,
 // crosses under the label and tucks itself into the heart of the bouquet, between the white lily and the red peony:
-// blue, white and red together, which the museum reads as his quiet tricolour. One long note on the glass; a petal
-// of may lets go. While you keep looking the bouquet stirs a little and a petal falls now and then onto the marble.
-// When you stop, the stems lift out, last in first out, and go back under the frame, and the marble slides home.
+// blue, white and red together (the museum's note reads the sprig's colours as the flag's). One long note on the
+// glass; a petal of may lets go. While you keep looking the bouquet stirs a little and a petal falls now and then
+// onto the marble. When you stop, the stems lift out, last in first out, and go back under the frame, and the marble
+// slides home.
 //
 // Everything in the bouquet is a mark of paint (one draw call of brush dabs that face you, each lying along its own
 // stalk or petal in space, lit from the upper left as he lit them, darker towards the back and at its own edge, as
 // paint laid on a dark ground is); the carafe is glass with his scraped highlight down its left side, and water in it
 // that stays level; the marble is a slab with a painted top; the shadows (on the floor, on the marble, on the wall
-// behind) are in the glass's draw call. Three draw calls. Nothing is solid and nothing is left behind. The only music
-// is the glass: the picture's own song (Béranger's "Madame Grégoire", of the 1820s) is a drinking song with ribald
-// verses, and is not played here. With "Reduce motion and flashing" on, the carafe barely rocks, the sprig turns at
-// half speed, nothing overshoots, and nothing brightens quickly.
+// behind) are in the glass's draw call. Three draw calls, about 250 dabs. Nothing is solid and nothing is left behind.
+// The only music is the glass, a note to each stem: the picture's own song (Béranger's "Madame Grégoire", of the
+// 1820s) is about her house, and the museum calls his lyrics ribald, so it is not played here. With "Reduce motion and
+// flashing" on, the carafe barely rocks, the sprig turns at half speed, the stems settle more gently, and
+// nothing brightens quickly.
 //
 // What it does not do: the woman stays in her picture (no figure, no hand, no face, and nothing made of her age or
-// her size, which her first critics mocked), and the coins, the ledger and the bell on her counter, which are the
-// business of her house, stay there with her; nor is the sprig held out to the toy or to you. The show keeps to the
-// flowers because they are the part of this picture that is for everyone.
+// her size), and the coins, the ledger and the bell on her counter, which are the business of her house, stay there
+// with her; nor is the sprig held out to the toy or to you, because the show keeps to the flowers, the part of this
+// picture that is for everyone.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, canvasTexture, rng } from '../paintlife.js';
 import { score, noise } from './stagecraft.js';
@@ -61,7 +63,7 @@ const STEMS = [
   { name: 'peony', in: 5.35, fly: 1.15, us: -0.28, lean: [0.3, 1], twist: 0.6, note: 'D4' },
 ];
 const G_SPRIG = STEMS.length, T_ROCK = STEMS[7].in, T_SPRIG = [6.0, 7.8];
-const START_H = 0.7, START_OUT = -0.64, TILT0 = 1.85, TILT_A = 0.62, S_A = 0.7, INSERT = 0.13;
+const START_H = 0.8, START_OUT = -0.64, TILT0 = 1.85, TILT_A = 0.62, S_A = 0.7, INSERT = 0.13;
 const NFALL = 6, FALL_AT = [T_ROCK + 0.18, T_ROCK + 0.5, T_SPRIG[1] + 0.25];
 // when the nth petal lets go: two as the carafe rocks, one as the sprig goes in, then one every few seconds
 const fallAt = m => (m < FALL_AT.length ? FALL_AT[m] : T_SPRIG[1] + 2.6 + (m - FALL_AT.length) * 3.1);
