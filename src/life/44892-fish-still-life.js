@@ -23,16 +23,19 @@
 // the lid shivers. Drive off, and the lemon rolls home under the wall, the pot and the cloth are unpainted, last
 // stroke first.
 //
-// Everything is at about his own size and a fifth over (the picture is nearly life-size). The white is one flat
-// painted ground with broken ends, in his cloth's colours, no bigger than the lemon's road; the pot, the lemon, the
-// knife and the parsley are one smooth mesh, painted in a shader (no room light on them: his light, from the upper
-// left, is in the paint). Two draw calls, and one soft shadow for the lemon when the toy has it out on the bare
-// boards. Nothing stands higher than 40 cm, under a picture hung at 1.25 m, so from the checks' cameras the guard has
-// next to nothing to cut. No music: brush on the floor, the lemon's knocks, and one long soft note from the copper.
-// It keeps to its own two metres of wall: Courbet's dark (src/life/4428-mere-gregoire.js) is three metres to the
-// left, and Breton's dawn (src/life/94841-song-of-the-lark.js) begins a metre to the right of the cloth's end.
-// With "Reduce motion and flashing" on, the lemon tumbles and rocks half as much, the blaze comes up twice as slowly
-// and does not breathe, the lid barely stirs and everything is quieter.
+// Everything is about a third larger than he painted it (the picture is nearly life-size). The white is one flat
+// painted ground, in his cloth's colours, every stroke with its own ragged end, no bigger than the lemon's road; the
+// pot, the lemon, the knife and the parsley are one smooth mesh, painted in a shader (no room light on them: his
+// light, from the upper left, is in the paint, and the gleam is worked out from where you stand, so it moves on the
+// copper as you drive round it too). The brushing-in is only the first second, the setting of the table; the show is
+// the lemon and the copper. Two draw calls, and one soft shadow for the lemon when the toy has it out on the bare
+// boards. Nothing stands higher than 45 cm, under a picture hung at 1.25 m and between two that hang to a metre, so
+// from the checks' cameras the guard has nothing to cut. No music: brush on the floor, the lemon's knocks, and one
+// long soft note from the copper as the blaze comes up. It keeps to its own stretch of wall: Courbet's dark and
+// counter (src/life/4428-mere-gregoire.js) are a metre and a half to the left of the cloth's end, and Breton's dawn
+// (src/life/94841-song-of-the-lark.js) begins about where it ends on the right; neither stays out after its look,
+// and this one goes home when either begins. With "Reduce motion and flashing" on, the lemon tumbles and rocks half as
+// much, the blaze comes up twice as slowly and does not breathe, the lid barely stirs and everything is quieter.
 //
 // What it does not do: the carp, the gurnard, the eel and the oysters stay in the picture. They are a fishmonger's
 // catch, dead on a cloth; they are not modelled, moved, cooked or brought back to swim here, because a dead animal is
@@ -129,7 +132,7 @@ function paintCloth(col) {
     [0.18, 1.32, 1.08, 1.22, 0.34], [0.86, 1.2, 1.78, 1.15, 0.32], [1.8, 1.38, 0.96, 1.48, 0.32], [1.16, 1.5, 0.4, 1.55, 0.3], [0.72, 1.7, 1.66, 1.6, 0.22]];
   rows.forEach(([x0, y0, x1, y1, w], i) => { const t = Math.floor(i / 2) * 0.105 + (i % 2) * 0.07; add(x0, y0, x1, y1, (i % 4 < 2 ? 1 : -1) * (0.02 + 0.03 * r()), w, t, t + 0.12); });
   // and across them, slanting, as his cloth is brushed
-  [[0.34, 0.4, 0.82, 0.96, 0.24], [1.2, 0.86, 1.7, 1.3, 0.22], [1.0, 1.18, 0.6, 1.66, 0.22], [1.28, 0.2, 1.72, 0.56, 0.2], [0.3, 1.0, 0.56, 1.42, 0.2]]
+  [[0.34, 0.4, 0.82, 0.96, 0.24], [1.2, 0.86, 1.7, 1.3, 0.22], [1.0, 1.18, 0.6, 1.66, 0.22], [1.28, 0.2, 1.72, 0.56, 0.2], [0.3, 1.0, 0.56, 1.42, 0.2], [0.58, 1.28, 1.12, 1.44, 0.24], [1.3, 0.96, 1.78, 1.06, 0.22]]
     .forEach(([x0, y0, x1, y1, w], i) => add(x0, y0, x1, y1, 0.06 * (r() - 0.5), w, 0.5 + i * 0.05, 0.64 + i * 0.05));
   const NB = S.length;
   // the greys of its folds, and the lights loaded on top: soft, into the wet white
@@ -202,7 +205,7 @@ lifeFor(44892, {
   title: /^Fish \(Still Life\)/,
   word: 'gleam',
   // (a small work: the kit keeps the whole of it in view, in the upper part, with the cloth and the pot below)
-  stage: { out: 1.7, half: 1.0, cam: { dist: 2.5, side: 0.3, height: 0.98, fov: 58, lookU: -0.05, lookOut: 0.6, lookH: 0.8, floorOut: 1.7 } },
+  stage: { out: 1.7, half: 1.0, cam: { dist: 2.5, side: 0.12, height: 0.98, fov: 58, lookU: -0.02, lookOut: 0.6, lookH: 0.8, floorOut: 1.7 } },
   wake: 2, ret: 2.4,
   linger: { near: 4, max: 30 },
 
