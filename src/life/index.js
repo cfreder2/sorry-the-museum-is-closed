@@ -36,3 +36,4 @@ import './43145-view-of-delphi.js';   // 209  Claude Lorrain, View of Delphi wit
 import './11723-woman-at-her-toilette.js'; // 201  Morisot, Woman at Her Toilette: powder
 import './4428-mere-gregoire.js';     // 222  Courbet, Mère Grégoire: bouquet
 import './93900-man-in-costume.js';   // 216  Fragonard, Portrait of a Man in Costume: flourish
+import './44892-fish-still-life.js';  // 222  Manet, Fish (Still Life): gleam
