@@ -9,6 +9,9 @@ import { Geo } from './geo.js';
 import { landable } from './plan.js';
 import { asphaltMaterial, walkMaterial, paintMaterial, ParkFurniture } from './streetscape.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { iceMaterial } from './icelook.js';
+import { HSTEP } from './icefield.js';
+import { canGeo, bollardGeo, boatGeo, kitMaterial } from './harbourkit.js';
 import './harbour.js';         // the open water, the floes, the light's lamp, and going in (a feature: features.js)
 
 export function buildLakefront(museum, plan) {
@@ -123,6 +126,18 @@ export function buildLakefront(museum, plan) {
   // ---- the breakwater, and its light: a red and white tower on a plinth, a gallery with a rail round it, and the
   // lantern up top (the lamp in it, and its beam, are harbour.js's: they turn)
   { const b = L.breakwater; stone.box(b.x0, b.x1, WY - 0.3, 1.2, b.z0, b.z1, 1.4); snow.box(b.x0 + 0.04, b.x1 - 0.04, 1.2, 1.27, b.z0 + 0.04, b.z1 - 0.04);      // (the snow from end to end and edge to edge: it is the top the toy drives on, plan.js)
+    // the snow on it rolls over its edges a little, and at the waterline the spray has frozen onto the stone in a
+    // ragged white foot (nothing a toy can reach: it stands in open water)
+    { const lips = [], rr = TX.rng(5521);
+      for (const [x, za, zb] of [[b.x0, b.z0, b.z1], [b.x1, b.z0, b.z1]]) lips.push(new THREE.CylinderGeometry(0.05, 0.05, zb - za, 10, 1, true).rotateX(Math.PI / 2).translate(x, 1.222, (za + zb) / 2));
+      for (const z of [b.z0, b.z1]) lips.push(new THREE.CylinderGeometry(0.05, 0.05, b.x1 - b.x0, 10, 1, true).rotateZ(Math.PI / 2).translate((b.x0 + b.x1) / 2, 1.222, z));
+      L.bwLips = mergeGeometries(lips);
+      const foot = (xa, za, xb, zb, nx, nz) => { const len = Math.hypot(xb - xa, zb - za), n = Math.ceil(len / 0.7); let pw = 0.2 + rr() * 0.25, ph = 0.1 + rr() * 0.3;
+        for (let i = 0; i < n; i++) { const w = 0.14 + rr() * 0.4, h = 0.06 + rr() * 0.36, t0 = i / n, t1 = (i + 1) / n, x0 = xa + (xb - xa) * t0, z0 = za + (zb - za) * t0, x1 = xa + (xb - xa) * t1, z1 = za + (zb - za) * t1;
+          if (!(L.ramp && nx < 0 && Math.max(z0, z1) > L.ramp.z0 - 0.3 && Math.min(z0, z1) < L.ramp.z1 + 0.3))
+            sq(slab, [[x0, WY + ph, z0], [x1, WY + h, z1], [x1 + nx * w, WY + 0.02, z1 + nz * w], [x0 + nx * pw, WY + 0.02, z0 + nz * pw]], [nx * 0.6, 1, nz * 0.6], [[t0 * len / 2.6, 0], [t1 * len / 2.6, 0], [t1 * len / 2.6, 0.2], [t0 * len / 2.6, 0.2]], [SNOW, SNOW, ICE_HI, ICE_HI]);
+          pw = w; ph = h; } };
+      foot(b.x0, b.z0, b.x0, b.z1, -1, 0); foot(b.x1, b.z0, b.x1, b.z1, 1, 0); foot(b.x0, b.z0, b.x1, b.z0, 0, -1); foot(b.x0, b.z1, b.x1, b.z1, 0, 1); }
     const t = L.light; stone.box(t.x - 0.9, t.x + 0.9, 1.2, 1.66, t.z - 0.9, t.z + 0.9, 1.4); snow.box(t.x - 0.86, t.x + 0.86, 1.66, 1.7, t.z - 0.86, t.z + 0.86);
     const stripes = (() => { const cv = document.createElement('canvas'); cv.width = 8; cv.height = 64; const c = cv.getContext('2d'); for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#f2f0ea' : '#c4202a'; c.fillRect(0, i * 16, 8, 16); } const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.magFilter = THREE.NearestFilter; return tx; })();
     const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.56, 3.3, 24, 1, true), new THREE.MeshStandardMaterial({ map: stripes, roughness: 0.55, emissiveMap: stripes, emissive: 0xffffff, emissiveIntensity: 0.32 }));
@@ -146,37 +161,41 @@ export function buildLakefront(museum, plan) {
   {
     const r = TX.rng(4471), at = [], b = L.breakwater;
     for (let i = 0; i < 14; i++) { const x = b.x1 + 4 + r() * 12, z = b.z0 + r() * (b.z1 - b.z0); if (!L.bits.some(q => Math.hypot(q.x - x, q.z - z) < q.rad + 0.6) && !L.floes.some(f => Math.hypot(f.hx - x, f.hz - z) < f.reach + f.drift + 0.6)) at.push([x, z, 0.8]); }
-    const ball = new THREE.InstancedMesh(new THREE.SphereGeometry(0.42, 10, 8), new THREE.MeshStandardMaterial({ color: 0xf2efe8, roughness: 0.6, emissive: 0x596078, emissiveIntensity: 0.7 }), at.length);
-    const band = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.435, 0.435, 0.16, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.25, 0.7) }), at.length), M = new THREE.Matrix4();
-    at.forEach(([x, z, s], i) => { ball.setMatrixAt(i, M.makeScale(s, s, s).setPosition(x, WY + 0.12, z)); band.setMatrixAt(i, M.makeScale(s, s, s).setPosition(x, WY + 0.22, z)); });
-    ball.frustumCulled = band.frustumCulled = false; group.add(ball, band);
+    // (and the moorings frozen into the sheet, harbourplan.js: the same cans, standing in the ice, each a little askew as the ice took it)
+    const moor = L.moorings || [], n = at.length + moor.length;
+    const ball = new THREE.InstancedMesh(canGeo(), new THREE.MeshStandardMaterial({ color: 0xf2efe8, roughness: 0.6, emissive: 0x596078, emissiveIntensity: 0.7 }), n);
+    const band = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.435, 0.435, 0.16, 20), new THREE.MeshBasicMaterial({ color: 0xffffff }), n), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V = new THREE.Vector3(), Sc = new THREE.Vector3();
+    const blue = new THREE.Color(0.05, 0.13, 0.4), red = new THREE.Color(0.3, 0.035, 0.03);
+    at.forEach(([x, z, s], i) => { ball.setMatrixAt(i, M.makeScale(s, s, s).setPosition(x, WY + 0.12, z)); band.setMatrixAt(i, M.makeScale(s, s, s).setPosition(x, WY + 0.22, z)); band.setColorAt(i, blue); });
+    moor.forEach((q, k) => { const i = at.length + k, s = q.s; Q.setFromEuler(E.set(q.tip, q.yaw, q.tip * 0.6)); Sc.set(s, s, s);
+      ball.setMatrixAt(i, M.compose(V.set(q.x, 0.12 * s, q.z), Q, Sc)); band.setMatrixAt(i, M.compose(V.set(0, 0.1 * s, 0).applyQuaternion(Q).add(new THREE.Vector3(q.x, 0.12 * s, q.z)), Q, Sc)); band.setColorAt(i, q.red ? red : blue); });
+    ball.computeBoundingSphere(); band.computeBoundingSphere(); group.add(ball, band);      // (culled as one when the harbour is behind you)
+  }
+  // ---- the boats frozen in by the shore, and the bollards along the revetment (harbourkit.js; solid: harbourplan.js)
+  { const km = kitMaterial({ side: THREE.DoubleSide });
+    for (const q of L.boats || []) { const m = new THREE.Mesh(boatGeo(q.hull), km); m.rotation.set(0, q.dir > 0 ? 0 : Math.PI, q.heel); m.position.set(q.x, -0.075, q.z); add(m); }
+    const bl = L.bollards || [];
+    if (bl.length) { const im = new THREE.InstancedMesh(bollardGeo(), kitMaterial(), bl.length), M = new THREE.Matrix4(); bl.forEach((q, i) => im.setMatrixAt(i, M.makeRotationY(i * 1.3).setPosition(q.x, q.y, q.z))); im.computeBoundingSphere(); group.add(im); } }
+  // ---- the stakes down both sides of the marked way over the ice (harbourplan.js): a lath, its top third orange, a
+  // band of reflector under that, and a scrap of orange rag tied on. One mesh.
+  if (L.stakes && L.stakes.length) {
+    const parts = [], col = (g, r, gg, b) => { const n = g.attributes.position.count, c = new Float32Array(n * 3); for (let i = 0; i < n; i++) { c[i * 3] = r; c[i * 3 + 1] = gg; c[i * 3 + 2] = b; } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g.index ? g.toNonIndexed() : g; };
+    for (const q of L.stakes) {
+      const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(q.lean, q.yaw, q.lean * 0.5)).setPosition(q.x, 0, q.z);
+      parts.push(col(new THREE.CylinderGeometry(0.013, 0.016, 0.52, 6).translate(0, 0.26, 0), 0.2, 0.15, 0.1).applyMatrix4(m));
+      parts.push(col(new THREE.CylinderGeometry(0.0145, 0.0145, 0.07, 6).translate(0, 0.555, 0), 2.6, 2.6, 2.4).applyMatrix4(m));
+      parts.push(col(new THREE.CylinderGeometry(0.012, 0.013, 0.2, 6).translate(0, 0.69, 0), 1.5, 0.42, 0.06).applyMatrix4(m));
+      const rag = new THREE.BufferGeometry(); rag.setAttribute('position', new THREE.Float32BufferAttribute([0.012, 0.76, 0, 0.012, 0.66, 0, 0.17, 0.69, 0.02, 0.012, 0.76, 0, 0.17, 0.69, 0.02, 0.012, 0.66, 0], 3)); rag.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1], 3)); rag.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(12).fill(0), 2));
+      parts.push(col(rag, 1.3, 0.34, 0.05).applyMatrix4(m));
+    }
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, emissive: 0xffffff, emissiveIntensity: 0.3 });
+    m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;'); };
+    add(new THREE.Mesh(mergeGeometries(parts), m));
   }
 
   // ---- materials
-  // The sheet's own picture, one tile to 22 m: broad, faint swells of clearer and whiter ice and drifts of snow blown
-  // along it, drawn wrapped so the tile has no seams. Over it, at a scale that never lines up with it (5.9 m), the fine
-  // grain: frost, trapped bubbles, the odd scuff. (The cracks are geometry: L.cracks.)
-  const wrapDraw = (S, x, y, rad, draw) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) if (x + ox > -rad && x + ox < S + rad && y + oy > -rad && y + oy < S + rad) draw(x + ox, y + oy); };
-  const iceT = (() => { const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d'), r = TX.rng(88); c.fillStyle = '#c6d8ec'; c.fillRect(0, 0, S, S);
-    for (let i = 0; i < 70; i++) { const x = r() * S, y = r() * S, rad = 30 + r() * 110, light = r() < 0.55, a = 0.06 + r() * 0.08;
-      wrapDraw(S, x, y, rad, (px, py) => { const g = c.createRadialGradient(px, py, 0, px, py, rad); g.addColorStop(0, light ? `rgba(236,244,255,${a})` : `rgba(120,150,190,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(px - rad, py - rad, rad * 2, rad * 2); }); }
-    c.save(); for (let i = 0; i < 26; i++) { const x = r() * S, y = r() * S, l = 60 + r() * 160, w = 6 + r() * 16, a = 0.05 + r() * 0.07;      // snow blown along the ice in streaks
-      wrapDraw(S, x, y, l, (px, py) => { c.setTransform(1, 0, -0.35, 1, px, py); const g = c.createLinearGradient(0, -w, 0, w); g.addColorStop(0, 'rgba(240,246,255,0)'); g.addColorStop(0.5, `rgba(240,246,255,${a})`); g.addColorStop(1, 'rgba(240,246,255,0)'); c.fillStyle = g; c.fillRect(-l / 2, -w, l, w * 2); }); }
-    c.restore();
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; })();
-  const iceD = (() => { const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d'), r = TX.rng(311); c.fillStyle = '#808080'; c.fillRect(0, 0, S, S);
-    for (let i = 0; i < 9000; i++) { const v = r() < 0.5 ? 255 : 40; c.fillStyle = `rgba(${v},${v},${v},${0.04 + r() * 0.07})`; c.fillRect(r() * S, r() * S, 1 + r() * 2.5, 1 + r() * 2.5); }      // frost and grain
-    for (let i = 0; i < 420; i++) { const x = r() * S, y = r() * S, rad = 0.8 + r() * 2.6; wrapDraw(S, x, y, rad, (px, py) => { c.fillStyle = `rgba(255,255,255,${0.18 + r() * 0.3})`; c.beginPath(); c.arc(px, py, rad, 0, 7); c.fill(); }); }      // bubbles caught in it
-    c.lineCap = 'round'; for (let i = 0; i < 30; i++) { const x = r() * S, y = r() * S, a = r() * 6.28, l = 10 + r() * 40; wrapDraw(S, x, y, l, (px, py) => { c.strokeStyle = `rgba(255,255,255,${0.08 + r() * 0.1})`; c.lineWidth = 0.7 + r(); c.beginPath(); c.moveTo(px, py); c.quadraticCurveTo(px + Math.cos(a) * l * 0.5 + (r() - 0.5) * 8, py + Math.sin(a) * l * 0.5 + (r() - 0.5) * 8, px + Math.cos(a) * l, py + Math.sin(a) * l); c.stroke(); }); }      // scuffs
-    c.filter = 'blur(0.6px)'; c.drawImage(cv, 0, 0); c.filter = 'none';
-    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; })();
-  const iceM = new THREE.MeshStandardMaterial({ map: iceT, roughness: 0.18, metalness: 0.1, emissiveMap: iceT, emissive: new THREE.Color(0.2, 0.26, 0.4), emissiveIntensity: 0.68, ...off(-1) });
-  iceM.onBeforeCompile = sh => {
-    sh.uniforms.uIceD = { value: iceD };
-    sh.fragmentShader = 'uniform sampler2D uIceD;\n' + sh.fragmentShader
-      .replace('#include <map_fragment>', '#include <map_fragment>\n\tfloat iceK = 0.72 + 0.56 * texture2D(uIceD, vMapUv * 3.73 + vec2(0.31, 0.17)).r;\n\tdiffuseColor.rgb *= iceK;')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= iceK;');
-  };
+  // The ice (src/icelook.js): looked into, mirroring, with the snow lying on it where the ice field (icefield.js) has it.
+  const iceM = L.iceField ? iceMaterial({ field: L.iceField, mirror: museum.mirror, params: off(-1) }) : new THREE.MeshStandardMaterial({ color: 0xc6d8ec, roughness: 0.18, emissive: new THREE.Color(0.2, 0.26, 0.4), emissiveIntensity: 0.6, ...off(-1) });
   add(road.mesh(asphaltMaterial()), walk.mesh(walkMaterial()));
   { const pm = paint.mesh(paintMaterial(false)); pm.renderOrder = -3; for (let i = 0, uv = pm.geometry.attributes.uv; i < uv.count; i++) uv.setXY(i, 0.25, uv.getY(i) + uv.getX(i)); add(pm); }      // (the middle of the fresh half of the paint)
   // The revetment, the slipway's walls, the breakwater and the light's plinth: big dressed blocks of limestone, laid in
@@ -205,15 +224,39 @@ export function buildLakefront(museum, plan) {
   add(stone.mesh(new THREE.MeshStandardMaterial({ map: blockT, roughness: 0.9, emissiveMap: blockT, emissive: new THREE.Color(0.42, 0.45, 0.58), emissiveIntensity: 0.58 })));
   add(dark.mesh(new THREE.MeshStandardMaterial({ color: 0x23262d, roughness: 0.7, emissive: 0x0e1016, emissiveIntensity: 0.6 })));
   add(white.mesh(new THREE.MeshStandardMaterial({ color: 0xd9dbe0, roughness: 0.6, metalness: 0.15, emissive: 0x565c70, emissiveIntensity: 0.6, side: THREE.DoubleSide })));
-  { const m = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 }); add(snow.mesh(m), ...PF.meshes(m)); }
-  add(ice.mesh(iceM));
+  { const m = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.95, emissiveMap: snowTex, emissive: new THREE.Color(0.25, 0.3, 0.45), emissiveIntensity: 0.5 }); add(snow.mesh(m), ...PF.meshes(m)); if (L.bwLips) add(new THREE.Mesh(L.bwLips, m)); }
+  // (It takes the floor mirror, so it goes in with the floors: reflect.js leaves them out of what they reflect. Its
+  // geometry is given a kind of its own, as is the heave's below, because lights.js takes every plain BufferGeometry among the floors for a room's
+  // floor and wraps its material for the room's lights: once is harmless out here, once a mesh for nine meshes of one material does not compile.)
+  { const m = ice.mesh(iceM); add(m); if (museum.floors && L.iceField) { m.geometry.type = 'HarbourIce'; museum.floors.push(m); } }
+  // The heave of the ice: the pressure ridges and the deep drifts, drawn from the very curve the wheels ride
+  // (icefield.js heaveAt), in the ice's own material (it is snow all over, by the zone map, and
+  // shaded from the moon by its slope). In bands along the shore, so what is behind you is not drawn.
+  if (L.iceField) {
+    const F = L.iceField, hv = F.heave, D = HSTEP / 2, BAND = 50, bands = new Map(), at = F.heaveAt;
+    const quad = (i, j, n) => {        // the square from lattice point (i, j), n steps of 20 cm on a side
+      const xa = hv.x0 + i * D, za = hv.z0 + j * D, c = [[xa, za, i, j], [xa + D * n, za, i + n, j], [xa + D * n, za + D * n, i + n, j + n], [xa, za + D * n, i, j + n]], hs = c.map(([x, z]) => at(x, z));
+      if (!hs.some(Boolean)) return;
+      const key = Math.floor(za / BAND); let b = bands.get(key); if (!b) bands.set(key, b = { p: [], n: [], idx: [], ix: new Map() });
+      const v = c.map(([x, z, ci, cj], k) => { const id = ci + ',' + cj; let q = b.ix.get(id); if (q === undefined) { const e = 0.08, gx = (at(x + e, z) - at(x - e, z)) / (2 * e), gz = (at(x, z + e) - at(x, z - e)) / (2 * e), l = Math.hypot(gx, 1, gz); q = b.p.length / 3; b.p.push(x, hs[k] + 0.012, z); b.n.push(-gx / l, 1 / l, -gz / l); b.ix.set(id, q); } return q; });
+      b.idx.push(v[0], v[2], v[1], v[0], v[3], v[2]);
+    };
+    // (a point every 20 cm where it stands up, the ridges; every 40 where it lies low, the drifts and the feet of things)
+    for (let j = 0; j < hv.nz; j++) for (let i = 0; i < hv.nx; i++) {
+      if (!hv.cells[j * hv.nx + i]) continue;
+      let top = 0; for (let b = 0; b <= 2; b++) for (let a = 0; a <= 2; a++) top = Math.max(top, at(hv.x0 + (i * 2 + a) * D, hv.z0 + (j * 2 + b) * D));
+      if (top < 0.04) quad(i * 2, j * 2, 2); else for (let b = 0; b < 2; b++) for (let a = 0; a < 2; a++) quad(i * 2 + a, j * 2 + b, 1);
+    }
+    const hm = iceMaterial({ field: F, mirror: museum.mirror, params: off(-2) });      // (the mirror too: its feet are bare ice, level with the sheet; so, like the sheet, it is left out of what the mirror sees)
+    for (const b of bands.values()) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(b.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(b.n, 3)); g.setIndex(b.idx); g.computeBoundingSphere(); g.type = 'HarbourIce'; const m = new THREE.Mesh(g, hm); add(m); if (museum.floors) museum.floors.push(m); L.heaveTris = (L.heaveTris || 0) + b.idx.length / 3; }
+  }
   // the edge: its snowy lip, its raw face, the slabs and blocks along it, the cracks back from it
   { const m = new THREE.MeshStandardMaterial({ map: snowTex, roughness: 0.9, emissiveMap: snowTex, emissive: new THREE.Color(0.32, 0.38, 0.55), emissiveIntensity: 0.6, ...off(-3) }); add(rim.mesh(m)); }
   add(face.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, emissive: new THREE.Color(0.18, 0.32, 0.42), emissiveIntensity: 1 })));
   { const m = new THREE.MeshStandardMaterial({ map: snowTex, vertexColors: true, roughness: 0.4, emissiveMap: snowTex, emissive: new THREE.Color(0.3, 0.37, 0.55), emissiveIntensity: 0.6 });
     m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;'); };      // (the raw ice glows its own blue, the snow white)
     add(slab.mesh(m)); }
-  add(crack.mesh(new THREE.MeshBasicMaterial({ color: 0x2c3d60, ...off(-4) })));
+  // (the cracks back from the edge are in the ice now: icelook.js)
   { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 4; const c = cv.getContext('2d'), gr = c.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(20,48,74,0)'); gr.addColorStop(1, 'rgba(20,48,74,0.55)'); c.fillStyle = gr; c.fillRect(0, 0, 64, 4);
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     const m = wet.mesh(new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, ...off(-2) })); m.renderOrder = 1; add(m); }
