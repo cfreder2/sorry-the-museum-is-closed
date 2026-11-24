@@ -519,5 +519,5 @@ export function createLandway(plan) {
     get built() { return T.built; }, get ms() { return T.ms; }, reset() { T.built = false; T.phase = 0; T.row = 1; T.col = 1; T.k = 0; T.ms = 0; T.open = null; spots.clear(); },
     forget() { spots.clear(); },
     get stats() { return { cells: NC, spots: spots.n, leaps: leaps.length, explored: T.ex, exploreMs: +T.exMs.toFixed(1), worstTick: +T.worst.toFixed(1), longestStep: T.step.map(v => +v.toFixed(1)), buildMs: +T.ms.toFixed(1), bytes: H.byteLength + K.byteLength + C.byteLength + D.byteLength + CC.byteLength + gC.byteLength + pd.byteLength + st.byteLength }; },
-    _dbg: { H, K, C, D, NX, NZ, X0, Z0, spots, leaps, cellOf, step, W, explore, costOf } };
+    debug: { H, K, C, D, NX, NZ, X0, Z0, spots, leaps, cellOf, costOf } /* for a picture of it from above: tools/dev/routedrive.mjs */ };
 }
