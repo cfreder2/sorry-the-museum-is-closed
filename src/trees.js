@@ -284,16 +284,25 @@ export function buildTrees(museum, plan, group = museum.group) {
   const hash = (x, z) => (Math.imul(Math.round(x * 10), 73856093) ^ Math.imul(Math.round(z * 10), 19349663)) >>> 0;
   const snowBand = (x, z) => 0.5 + 0.5 * Math.sin(x * 0.043 + 1.3) * Math.sin(z * 0.057 + 0.4);        // whole stretches of the park caught more of the fall than others
 
+  // Nothing that grows out of doors comes through the building's walls: a limb stops short of a wall, and a spray of
+  // twigs or a shrub's card that would reach into a room is left off. (A room is solid from its floor to its roof; a
+  // gallery that bridges open ground has the ground under it left alone.)
+  const MASS = plan.masses || [], PAD = 0.22;
+  const wallsBy = (x, z, reach) => MASS.filter(m => x > m.x0 - reach && x < m.x1 + reach && z > m.z0 - reach && z < m.z1 + reach);
+  const within = (walls, wx, y, wz, pad = PAD) => { for (const m of walls) if (wx > m.x0 - pad && wx < m.x1 + pad && wz > m.z0 - pad && wz < m.z1 + pad && y < m.top + pad && y > (m.room ? m.room.y - 0.45 : -2) - pad) return true; return false; };
+  const cardIn = (walls, c, p, d, len, w) => { if (!walls.length) return false; const pad = PAD + w * 0.5; for (const t of [0, 0.5, 1]) if (within(walls, c.cx + p[0] + d[0] * len * t, p[1] + d[1] * len * t, c.cz + p[2] + d[2] * len * t, pad)) return true; return false; };
   const tree = (x, y0, z, sp, hgt, seed) => {
     const T = grow(sp, seed), c = chunk(x, z), ox = x - c.cx, oz = z - c.cz, load = clamp(0.38 + 0.4 * T.load + 0.35 * snowBand(x, z), 0.3, 1);
     const at = p => [ox + p[0] * hgt, y0 + p[1] * hgt, oz + p[2] * hgt, Math.max(0.006, p[3] * hgt)];
+    const walls = wallsBy(x, z, hgt * 1.1 + 1), inWall = p => within(walls, c.cx + p[0], p[1], c.cz + p[2], PAD + p[3]);
     for (const l of T.limbs) {
-      const pts = l.pts.map(at), thin = l.order === 0 ? 1 : l.order === 1 ? 0.92 : 0.7;
+      let pts = l.pts.map(at); const thin = l.order === 0 ? 1 : l.order === 1 ? 0.92 : 0.7;
+      if (walls.length) { const k = pts.findIndex(inWall); if (k >= 0) { if (k < 2) { if (l.order > 0) continue; } else pts = pts.slice(0, k); } }
       tube(c.near, pts, l.order === 0 ? (hgt > 6 ? 8 : 6) : l.order === 1 ? 4 : 3, T.bark, T.tint, load * thin);
       if (l.order < 2) tube(c.far, l.order === 0 ? pts.filter((_, i) => i % 2 === 0 || i === pts.length - 1) : [pts[0], pts[pts.length - 1]], l.order === 0 ? 5 : 3, T.bark, T.tint, load * thin);
     }
     const tv = 1.0 + 0.2 * T.load, tw = [tv, tv, tv * 1.04];
-    T.cards.forEach((k, i) => { const p = at(k.p); card(c.near, p, k.d, k.len * hgt, k.w * hgt, k.roll, 0, k.col, tw, -1 - load, k.droop, k.flat ? 1 : 2); if (i % 3 !== 2 || k.flat) card(c.far, p, k.d, k.len * hgt * 1.08, k.w * hgt * 1.15, k.roll, 0, k.col, tw, -1 - load, k.droop, 1); });
+    T.cards.forEach((k, i) => { const p = at(k.p); if (cardIn(walls, c, p, k.d, k.len * hgt, k.w * hgt)) return; card(c.near, p, k.d, k.len * hgt, k.w * hgt, k.roll, 0, k.col, tw, -1 - load, k.droop, k.flat ? 1 : 2); if (i % 3 !== 2 || k.flat) card(c.far, p, k.d, k.len * hgt * 1.08, k.w * hgt * 1.15, k.roll, 0, k.col, tw, -1 - load, k.droop, 1); });
     stats.trees++; stats.kinds[sp] = (stats.kinds[sp] || 0) + 1;
   };
   for (const t of G.trees) {
@@ -321,7 +330,9 @@ export function buildTrees(museum, plan, group = museum.group) {
     for (let i = 0; i < n; i++) { const a = a0 + i * Math.PI / n, d = turn([0, 1, 0], lean * r(), r() * TAU), ox = Math.cos(a * 2 + 1) * off, oz = Math.sin(a * 2 + 1) * off; card(c.near, [x + ox, y, z + oz], d, s.h * (0.88 + 0.24 * r()), w, a, 2, col, tint, -1 - load, 0, 1); if (i < 2) card(c.far, [x + ox, y, z + oz], [0, 1, 0], s.h, w * 1.1, a, 2, col, tint, -1 - load, 0, 1); }
   }
   // ---- ivy on the wall's foot, and groundcover before it
+  const inRoom = (wx, y, wz) => MASS.some(m => m.room && wx > m.room.x0 && wx < m.room.x1 && wz > m.room.z0 && wz < m.room.z1 && y > m.room.y - 0.1 && y < m.room.top);
   for (const [wx, wz, nx, nz] of D.cover) {
+    if (inRoom(wx + nx * 0.02, 0.2, wz + nz * 0.02)) continue;                             // (a wall the planting took for an outside one)
     const c = chunk(wx, wz), x = wx - c.cx, z = wz - c.cz, r = rng(hash(wx, wz)), y = streetY(plan, wx + nx * 0.4, wz + nz * 0.4) - 0.02, w = 1.25, h = 0.55 + r() * 0.7, lo = 0.6 + r() * 0.4;
     if (r() < 0.75) card(c.near, [x + nx * 0.02, y, z + nz * 0.02], [nx * 0.05, 1, nz * 0.05], h, w, nx ? Math.PI / 2 : 0, 1, IVY, [0.9, 1, 0.9], -1 - lo, 0, 1);
     card(c.near, [x + nx * 0.05, y + 0.05, z + nz * 0.05], [nx * 0.96, 0.28, nz * 0.96], 0.5 + r() * 0.5, w, nx ? Math.PI / 2 : 0, 2, SHRUB.cover, [0.9, 1, 0.9], -1 - lo, 0, 1);
