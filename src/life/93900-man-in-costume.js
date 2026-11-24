@@ -90,7 +90,7 @@ const PICT = pose({ psi: -0.42, sp: -0.08, sr: 0.04, sy: -0.08, hy: 0.6, hr: -0.
 lifeFor(93900, {
   title: /^Portrait of a Man in Costume/,
   word: 'flourish',
-  stage: { out: 1.2, half: 1.0, cam: { dist: 2.3, height: 0.66, side: 0.2, fov: 58, lookU: -0.1, lookOut: 0.4, lookH: 0.95, floorOut: 0.78 } },
+  stage: { out: 1.2, half: 1.0, cam: { dist: 2.3, height: 0.66, side: -0.06, fov: 58, lookU: -0.1, lookOut: 0.4, lookH: 0.95, floorOut: 0.78 } },
   wake: 2, ret: 2.2,
 
   build(L) {
@@ -370,7 +370,8 @@ lifeFor(93900, {
     this.child(M[B_LW], C, AL.S[0], AL.S[1], 0, 0, -p.Lf * 0.2, Math.max(0, p.La) * 0.4); this.child(M[B_RW], C, AR.S[0], AR.S[1], 0, 0, -p.Rf * 0.2, -Math.max(0, p.Ra) * 0.4);
     // the light, in each bone's own space (so a normal at rest can be lit without turning it)
     const lb = this.lb, l = this.light;
-    for (let b = 0; b < NB; b++) { const m = M[b], k = 1 / SC; lb[b * 3] = (m[0] * l.x + m[4] * l.y + m[8] * l.z) * k; lb[b * 3 + 1] = (m[1] * l.x + m[5] * l.y + m[9] * l.z) * k; lb[b * 3 + 2] = (m[2] * l.x + m[6] * l.y + m[10] * l.z) * k; }
+    const k = 1 / SC;
+    for (let b = 0; b < NB; b++) { const m = M[b]; lb[b * 3] = (m[0] * l.x + m[4] * l.y + m[8] * l.z) * k; lb[b * 3 + 1] = (m[1] * l.x + m[5] * l.y + m[9] * l.z) * k; lb[b * 3 + 2] = (m[2] * l.x + m[6] * l.y + m[10] * l.z) * k; }
   },
   // out = parent · (a turn about the pivot: yaw, then pitch, then roll), lifted `up` along its own y afterwards
   child(out, par, px, py, pz, yaw, pitch, roll, up = 0) {
@@ -408,7 +409,7 @@ lifeFor(93900, {
       const c = v * 4; cl[c] = B.col[k] * lit; cl[c + 1] = B.col[k + 1] * lit; cl[c + 2] = B.col[k + 2] * lit; cl[c + 3] = al;
     }
     // ---- the strokes
-    const cam = L.k.G.camera.position, F = this.f, S = this.S, NP = K + 1, o3 = this.o3;
+    const cam = L.k.G.camera.position, F = this.f, S = this.S, NP = K + 1;
     const railH = this.railH, sC = this.sC, sN = this.sN, sBn = this.sB, sSkin = this.sSkin, sH = this.sH;
     const X0 = L.cx, Z0 = L.cz, Y0 = L.y, tx = L.tx, tz = L.tz, nx = L.nx, nz = L.nz;
     const spinSlow = calm ? 0.28 : 0.56, spinFast = calm ? 3.6 : 7.2;
@@ -416,11 +417,10 @@ lifeFor(93900, {
       const st = S[i], T2 = calm && st.T2C != null ? st.T2C : st.T2, turn = calm && st.T2C != null ? st.turnC : st.turn, te = t - (calm && st.eC != null ? st.eC : st.e);
       if (te <= 0) { if (!this.hidden[i]) { this.hidden[i] = 1; for (let j = 0; j < NP * 2; j++) cl[(nB + i * NP * 2 + j) * 4 + 3] = 0; } continue; }
       this.hidden[i] = 0;
-      const land = st.kind === 0 || st.kind === 3, hemR = st.r;
+      const land = st.kind === 0 || st.kind === 3;
       // where it comes out from under the frame, and where it joins the whirl
       const p0u = st.u0, p0h = railH - 0.02, p0o = -0.07, ca = Math.cos(st.a0), sa = Math.sin(st.a0);
       const p3u = CU + RE * ca, p3h = 0.06, p3o = CO + RE * sa, p2u = p3u + 0.26 * sa, p2h = 0.17, p2o = p3o - 0.26 * ca, p1u = st.u0, p1h = railH - 0.45, p1o = 0.11;
-      let anyFlight = false;
       for (let j = 0; j < NP; j++) {
         const s = j / K, tau = te - s * st.lag, k3 = (i * NP + j) * 3;
         let m = 0, vis = tau > 0 ? 1 : 0, u = p0u, h = p0h, o = p0o;
@@ -438,7 +438,7 @@ lifeFor(93900, {
           u = CU + r * Math.cos(a); o = CO + r * Math.sin(a); h = lerp(0.06, st.hT, Math.pow(k, 1.25));
           m = sm(ramp(tau, T1 + T2 - 0.2, T1 + T2 + 0.02));
         } else m = 1;
-        if (m < 1) { F.x[j] = X0 + tx * u + nx * o; F.y[j] = Y0 + Math.max(0.012, h); F.z[j] = Z0 + tz * u + nz * o; anyFlight = true; }
+        if (m < 1) { F.x[j] = X0 + tx * u + nx * o; F.y[j] = Y0 + Math.max(0.012, h); F.z[j] = Z0 + tz * u + nz * o; }
         // ---- where it belongs
         let lit = 1;
         if (m > 0) {
@@ -458,7 +458,7 @@ lifeFor(93900, {
             lit = (0.55 + 0.72 * Math.pow(0.5 + 0.5 * d, 1.3) + 0.6 * st.bright * Math.max(0, d)) * (1.06 - 0.16 * s);
           } else {
             // (in the whirl: round the foot of the costume, fast as it arrives and slowing to a turn)
-            const th = Math.max(0, te - T1), om = spinFast * (1 - Math.exp(-th / 0.8)) * 0.8 * st.sp + spinSlow * st.sp * th, r = hemR * (1 + 0.04 * Math.sin(t * 0.9 + st.ph)), a = st.a0 + om - s * st.len / r;
+            const th = Math.max(0, te - T1), om = spinFast * (1 - Math.exp(-th / 0.8)) * 0.8 * st.sp + spinSlow * st.sp * th, r = st.r * (1 + 0.04 * Math.sin(t * 0.9 + st.ph)), a = st.a0 + om - s * st.len / r;
             const flat = st.kind === 2, hh = st.h + st.rise * s + (flat ? 0 : 0.012 * Math.sin(a * 2 + st.ph + t)), cu = Math.cos(a), so = Math.sin(a);
             const uu = CU + (p.dU * 0.5) + r * cu, oo = CO + r * so, hw = st.hw * (0.6 + 0.4 * Math.sin(Math.PI * Math.min(1, s * 1.2 + 0.1)));
             F.tx[j] = X0 + tx * uu + nx * oo; F.ty[j] = Y0 + hh; F.tz[j] = Z0 + tz * uu + nz * oo;
