@@ -15,8 +15,8 @@ import { STEP, FINE, landAt } from './land.js';
 import { snowLook } from './finish.js';
 
 const B = 16;                     // cells to a block, each way
-const BACK = 46;                  // metres: beyond this a block is drawn at 1 m
-const TOL = 0.008;                // metres: the most a cell's drawing may differ from the land
+const BACK = 40;                  // metres: beyond this a block is drawn at 1 m
+const TOL = 0.01;                 // metres: the most a cell's drawing may differ from the land
 const Y = -0.03;                  // the snow is drawn this far below what the wheels are on, as the flat sheet is
 
 export function buildSnowfield(museum, ground) {
