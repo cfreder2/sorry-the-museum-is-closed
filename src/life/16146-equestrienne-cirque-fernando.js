@@ -148,7 +148,7 @@ lifeFor(16146, {
       return c;
     };
     const BODY = [[-0.226, 0.02, 0.004, 0.006], [-0.214, 0.02, 0.05, 0.066], [-0.17, 0.016, 0.079, 0.098], [-0.11, 0.01, 0.083, 0.1], [-0.04, 0.0, 0.075, 0.088], [0.04, -0.005, 0.079, 0.094], [0.11, 0.0, 0.077, 0.1], [0.165, 0.005, 0.067, 0.095], [0.2, 0.01, 0.046, 0.07], [0.216, 0.012, 0.004, 0.006]];
-    const body = loft(BODY, bodyPaint, { around: 40, sub: 6 });
+    const body = loft(BODY, bodyPaint, { around: 34, sub: 5 });
     // the pad she rides on, green with his gold scribble, hanging down the shoulder; and the white girth
     const over = (z0, z1, d) => { const a = [], n = 5; for (let i = 0; i <= n; i++) { const z = lerp(z0, z1, i / n); let j = 0; while (j < BODY.length - 2 && BODY[j + 1][0] < z) j++; const t = (z - BODY[j][0]) / (BODY[j + 1][0] - BODY[j][0]), q = k => cr(BODY[Math.max(0, j - 1)][k], BODY[j][k], BODY[j + 1][k], BODY[Math.min(BODY.length - 1, j + 2)][k], t); a.push([z, q(1), q(2) + d, q(3) + d]); } return a; };
     const padPaint = (z0, z1, A) => (p, n) => { const a = Math.abs(Math.atan2(p.x, p.y)), trim = a > A - 0.17 || p.z < z0 + 0.012 || p.z > z1 - 0.012, dab = Math.sin(p.z * 210 + a * 3) * Math.sin(a * 13 + p.z * 40) > 0.62; return trim || dab ? mix(gold, padG, trim ? 0.05 : 0.2) : mix(padG, padG2, clamp01(0.5 - n.y * 0.6 + 0.3 * Math.sin(a * 4 + p.z * 30))); };
@@ -273,7 +273,7 @@ lifeFor(16146, {
     // ---------------------------------------------------------- the sawdust: one mesh, one shader
     // His ring floor: pale, warm grey and lilac, brushed thin and round the ring; it runs to the kerb behind and at the
     // sides and breaks up stroke by stroke towards you. The grey's shadow and the stool's lie on it in his lilac.
-    const saw = floorStrokes({ size: 512, seed: 16146, n: 2500, len: [16, 46], width: [2.5, 6], bend: 0.3, lift: 0.1, base: col('#c6beb7', 0.35).getStyle(),
+    const saw = floorStrokes({ size: 256, seed: 16146, n: 1100, len: [9, 25], width: [1.6, 3.6], bend: 0.3, lift: 0.1, base: col('#c6beb7', 0.35).getStyle(),
       colors: [['#d3ccc3', 3], ['#bcb4b1', 3], ['#c8bfc6', 2], ['#dcd5c8', 1.4], ['#aba3a6', 1], ['#cfc3b2', 1]].map(([c, w]) => [col(c, 0.35).getStyle(), w]),
       angle: (x, y, r) => Math.atan2(y - 0.5, x - 0.5) + Math.PI / 2 + (r() - 0.5) * 0.55 });
     {
@@ -604,18 +604,19 @@ lifeFor(16146, {
       const G = V.set(Math.cos(ga) * HR, Math.sin(ga) * HR, 0).applyMatrix4(HM);
       this.arm(C.arms[s], S, G);
     }
-    // the paper: whole, then flaps blown open the way the grey goes, three of them torn away
-    const burst = tau >= 0, n = burst ? Math.floor(tau / LAP) : 0, x = burst ? tau - n * LAP : 0;
+    // the paper: whole, then flaps blown open the way the grey goes, some of them torn away (it gives a moment before
+    // the beat, as its nose touches it)
+    const tf = tau + 0.05, burst = tf >= 0, n = burst ? Math.floor(tf / LAP) : 0, x = burst ? tf - n * LAP : 0;
     const pass = burst ? ramp(x, 0, 0.1) * (1 - ease.smooth(ramp(x, 0.62, 1.0))) : 0, wf = calm ? 5 : 10;
     for (const f of this.flaps) {
       const vis = !(burst && f.torn); r.show(f.inst, vis); if (!vis) continue;
       let phi = 0;
       if (burst) phi = (n ? f.rest : f.rest * ease.out(ramp(x, 0, 0.14))) + (1.5 - f.rest) * pass * (n ? 0.8 : 1) + (x > 0.62 ? 0.22 * Math.exp(-2.4 * (x - 0.62)) * Math.sin(wf * (x - 0.62) + f.seed) : 0) + 0.04 * Math.sin(t * (calm ? 1.6 : 3.1) + f.seed);
-      this.m1.makeRotationZ(f.a + Math.PI / 2); this.m2.makeRotationX(phi); this.m1.multiply(this.m2); if (burst) this.m1.multiply(this.m2.makeScale(1, lerp(1, f.len, ramp(tau, 0, 0.06)), 1));
+      this.m1.makeRotationZ(f.a + Math.PI / 2); this.m2.makeRotationX(phi); this.m1.multiply(this.m2); if (burst) this.m1.multiply(this.m2.makeScale(1, lerp(1, f.len, ramp(tf, 0, 0.06)), 1));
       this.m1.setPosition(Math.cos(f.a) * (HR - 0.004), Math.sin(f.a) * (HR - 0.004), 0);
       r.mat(f.inst, this.m2.multiplyMatrices(HM, this.m1));
     }
-    this.scrapsFly(L, tau, showing, Rr, calm);
+    this.scrapsFly(L, tf, showing, Rr, calm);
   },
   // An arm from shoulder S to the hand's place G (it is a loose sleeve: it reaches).
   arm(inst, S, G) {
@@ -633,7 +634,7 @@ lifeFor(16146, {
     for (const s of this.scraps) {
       const vis = on && gone > 0.02; r.show(s.inst, vis); if (!vis) continue;
       // (in the hoop's plane: across it is the way to the ring's middle, and up)
-      const x = Math.min(tau, s.land), e = (1 - Math.exp(-s.k * x)) / s.k, ca = Math.cos(s.a), sa = Math.sin(s.a), air = 1 - ease.smooth(ramp(tau, s.land - 0.12, s.land + 0.05));
+      const x = Math.min(tau, s.land), e = (1 - Math.exp(-s.k * x)) / s.k, ca = Math.cos(s.a), air = 1 - ease.smooth(ramp(tau, s.land - 0.12, s.land + 0.05));
       const across = ca * s.rad + (0.42 + 0.6 * ca) * s.side * e + s.sway * Math.sin(x * 4.2 + s.spin[2]) * Math.min(1, x * 2) * air, fwd = 0.04 + s.fwd * e;
       const u = hc[0] + ru * across + hu * fwd, out = hc[1] + ro * across + ho * fwd, y = Math.max(0.006, s.y0 + (s.up + s.vt) * e - s.vt * x - 0.006);
       L.floor(u, out, this.V);
