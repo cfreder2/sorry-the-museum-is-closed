@@ -990,3 +990,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 231
 
 > We need another set of subagents to improve the grounds, parks, snow, and the shaders that affect the ice in that area. Some sections are extremely flat, lacking any variation, so you just drive on boring, featureless roads. It feels odd, not like a real place, more like Roblox.
+
+## 232
+
+> I need all the sounds you play recorded as MP3s so I can listen to them. Wherever there is music or sound, we need MP3 versions created because I am not sure they all sound good, and I want to be able to listen quickly. We need a tool that lets me play them directly in the browser, such as a sound-reviewer HTML document.
