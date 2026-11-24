@@ -29,7 +29,7 @@ async function drive(f, t, fps, trace) {
   const gy = (x, z) => { const u = P.under, g = planM.groundAt(P, x, z, 3); P.under = u; return g; };
   v.place(f[0], f[1], 0, (f[2] ?? 0) + 0.05);
   if (!G.nav.goTo({ x: t[0], y: t[2] ?? gy(t[0], t[1]), z: t[1], label: 'test' })) return { fps, none: true };
-  const way = G.nav.path, pts = way.runs.flat(), n = pts.length;
+  const way = G.nav.path, pts = way.runs.flat(), n = pts.length; window.__way = pts;      // (kept for the picture: the game rubs the way out on arrival)
   if (way.runs.length > 1) return { fps, lift: true };                 // (a lift on the way: not driven here)
   { const a = pts[0], c = pts[Math.min(n - 1, 6)]; v.place(a.x, a.z, Math.atan2(c.x - a.x, c.z - a.z), a.y + 0.05); }
   G.state = 'paused';                                                 // the game's own loop leaves the car alone
@@ -70,7 +70,7 @@ async function drive(f, t, fps, trace) {
 }
 // (in the page) the field, the spots, the way and the car's line, from above
 function picture(log) {
-  const G = window.__ah, L = G.nav.land, d = L.debug, P = G.plan, pts = G.nav.path.runs.flat(), all = [...pts.map(q => [q.x, q.z]), ...log];
+  const G = window.__ah, L = G.nav.land, d = L.debug, P = G.plan, pts = window.__way, all = [...pts.map(q => [q.x, q.z]), ...log];
   const x0 = Math.min(...all.map(q => q[0])) - 4, x1 = Math.max(...all.map(q => q[0])) + 4, z0 = Math.min(...all.map(q => q[1])) - 4, z1 = Math.max(...all.map(q => q[1])) + 4, ppm = Math.max(4, Math.min(40, 1600 / Math.max(x1 - x0, z1 - z0)));
   const cv = document.createElement('canvas'); cv.width = Math.round((x1 - x0) * ppm); cv.height = Math.round((z1 - z0) * ppm); const c = cv.getContext('2d'), X = x => (x - x0) * ppm, Z = z => (z - z0) * ppm;
   c.fillStyle = '#000'; c.fillRect(0, 0, cv.width, cv.height);

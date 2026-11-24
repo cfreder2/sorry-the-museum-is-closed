@@ -35,7 +35,7 @@ const RAD = 0.32;                // a way is planned for something this wide: th
 const SUB = 0.125;               // a step is tried in lengths of this
 const SIDE = 0.24;               // and this far to either side of it nothing may stand taller than a wheel climbs
 export const CLIMB = 0.85;       // the steepest the plain car climbs from a standing start at half throttle (1.2 m/s at 0.8, a stall at 1.0)
-const KEEP = 0.7;                // nearer than this to something solid costs
+const KEEP = 1.2;                // nearer than this to something solid costs (out of doors there is room: the way keeps a good metre off a wall unless it has to squeeze)
 const MASS = 1, OBST = 2, KIT = 4, RING = 8, WET = 16, WALL = 32, EDGE = 64, ANCH = 128;
 const SOLID = MASS | OBST | WET | WALL, SPOT = KIT | RING;
 const UNIT = 40;                 // a cell's cost: this many to the metre
@@ -163,7 +163,7 @@ export function createLandway(plan) {
   // that and what is underfoot, what a metre of it costs. A row at a time: the brink of every drop is found, the
   // distances are swept forwards and then back, and the costs are written. `w`: only this much of the field (after a change).
   const A = 10, G2 = 14, lo = (c, v) => { if (v < D[c]) D[c] = v; };
-  const near = new Uint8Array(256); for (let d = 0; d < 256; d++) { const m = d * 0.05; near[d] = m >= KEEP ? 0 : Math.round(((KEEP - m) / KEEP) ** 2 * 2.6 * UNIT); }
+  const near = new Uint8Array(256); for (let d = 0; d < 256; d++) { const m = d * 0.05; near[d] = m >= KEEP ? 0 : Math.round(((KEEP - m) / KEEP) ** 2 * 5 * UNIT); }
   const costOf = c => CC[c] * INV;
   const steep = (c, n, h) => !(K[n] & MASS) && Math.abs(H[n] - h) > 0.9;
   function brinkRow(j, i0, i1, edge) {
@@ -437,7 +437,15 @@ export function createLandway(plan) {
     return true;
   }
   // Metres from (x, z), at height y, to the nearest thing a car cannot be in (a guess of plenty where the field does not say).
-  function room(x, z) { const c = cellOf(x, z); return c < 0 ? 0 : (K[c] & SOLID) ? 0 : D[c] * 0.05; }
+  // (A cell is clear if its middle is; a point of a line drawn across it need not be. So near anything, the plan itself is asked, at a few widths.)
+  const ROOMS = [0.6, 0.45, 0.32, 0.25];
+  function roomy(sub, x, y, z, r) { if (!clear(sub, x, y, z, r)) return false; for (let k = 0; k < 8; k++) if (wallAt(sub, x + DX[k] * r * (k < 4 ? 1 : 0.7), z + DZ[k] * r * (k < 4 ? 1 : 0.7), y)) return false; return true; }
+  function room(x, z) {
+    const c = cellOf(x, z); if (c < 0 || (K[c] & SOLID)) return 0;
+    const d = D[c] * 0.05; if (d >= 1.15) return d - 0.35;
+    const sub = subAt(x, z); for (const r of ROOMS) if (roomy(sub, x, H[c], z, r)) return r;
+    return 0;
+  }
   const street = (x, z) => { const c = cellOf(x, z); return c >= 0 && !(K[c] & (MASS | SPOT)) ? H[c] : null; };
 
   // ---- the search ------------------------------------------------------------------------------
@@ -470,7 +478,7 @@ export function createLandway(plan) {
     for (let m = 0; m < nv; m++) { const a = anchor[m]; if (a < 0) continue; if (back.has(a)) back.get(a).push(m); else back.set(a, [m]); if (a < NC) K[a] |= ANCH; }
     const crow = (x, z) => Math.sqrt((x - tx) * (x - tx) + (z - tz) * (z - tz));
     // How far there still is to go, at the least: the straight line; or, with a guide, what the coarse look made of it from that part of the field (less a block's width, which is all it is good to).
-    const hOf = far ? (x, z) => { const c = cellOf(x, z), l = c < 0 ? 0 : lab[c], d = l ? far.land[blockOf(c) * 8 + l - 1] : Infinity, e = crow(x, z) * EPS, f = (d - SLACK) * EPS; return d < Infinity && f > e ? f : e; } : (x, z) => crow(x, z) * EPS;
+    const hOf = far ? (x, z) => { const c = cellOf(x, z), l = c < 0 ? 0 : lab[c], d = l ? far.land[blockOf(c) * 8 + l - 1] : Infinity, e = crow(x, z) * EPS, f = (d - SLACK) * FAR; return d < Infinity && f > e ? f : e; } : (x, z) => crow(x, z) * EPS;
     const hWay = far ? m => { const p = o.at(m), e = crow(p.x, p.z) * 0.85, d = far.ways[m] - SLACK; return d < Infinity && d > e ? d : e; } : m => { const p = o.at(m); return crow(p.x, p.z) * 0.85; };
     pm.clear();
     const relax = (v, g, from, k = 255) => {
@@ -522,7 +530,7 @@ export function createLandway(plan) {
   // (a fence through a block, the brink of the cutting, make two): each such part is one place, joined to the parts
   // of the blocks round it that a car can cross into. From the far end of a way, over these and the building's own
   // ways (taken either way round), how far it is to everywhere: a few thousand places, not a million.
-  const SLACK = 4;
+  const SLACK = 4, FAR = 1.25;      // (the coarse look is good to a block's width; and on a long way round it is trusted a quarter over, or the search looks at everything within a few metres' detour of a way hundreds of metres long)
   function guide(o) {
     if (!coarse.ready) { for (let bj = 0; bj < nbZ; bj++) parts(bj); for (let bj = 0; bj < nbZ; bj++) joins(bj); coarse.ready = true; }
     const nv = o.n, land = coarse.far.fill(Infinity), ways = new Float32Array(nv).fill(Infinity) /* (as the heap keeps its keys: a key must compare equal to what it was pushed for) */, und = Array.from({ length: nv }, () => []);
@@ -531,6 +539,9 @@ export function createLandway(plan) {
     for (let m = 0; m < nv; m++) { const a = o.anchor[m]; if (a < 0) continue; const c = a < NC ? a : cellOf(spots.x[a - NC], spots.z[a - NC]); if (c < 0 || !lab[c] || (a >= NC && Math.abs(spots.y[a - NC] - H[c]) > 0.6)) continue; const n = blockOf(c) * 8 + lab[c] - 1; at[m] = n; if (from.has(n)) from.get(n).push(m); else from.set(n, [m]); }
     hn = 0; ways[o.T] = 0; push(0, NCN + o.T);
     const go = (v, d) => { if (v >= NCN) { if (d < ways[v - NCN]) { ways[v - NCN] = d; push(d, v); } } else if (d < land[v]) { land[v] = d; push(d, v); } };
+    // The end is up on something (a deck, a roof, the breakwater) that the blocks do not know: the look starts from the ground round about it instead, each part as far off as it is.
+    if (o.anchor[o.T] >= 0 && at[o.T] < 0) { const t = o.at(o.T), R = 40, bi0 = Math.max(0, Math.floor((t.x - R - X0) / 4)), bi1 = Math.min(nbX - 1, Math.floor((t.x + R - X0) / 4)), bj0 = Math.max(0, Math.floor((t.z - R - Z0) / 4)), bj1 = Math.min(nbZ - 1, Math.floor((t.z + R - Z0) / 4));
+      for (let bj = bj0; bj <= bj1; bj++) for (let bi = bi0; bi <= bi1; bi++) { const d = Math.hypot(X0 + bi * 4 + 2 - t.x, Z0 + bj * 4 + 2 - t.z); if (d < R) for (let k = 0; k < 8; k++) { const n = (bj * nbX + bi) * 8 + k; if (coarse.min[n] < 255) go(n, d); } } }
     while (hn) {
       const d0 = hk[0], u = pop();
       if (u >= NCN) { const m = u - NCN; if (d0 > ways[m]) continue; const e = und[m]; for (let i = 0; i < e.length; i += 2) go(NCN + e[i], d0 + e[i + 1]); if (at[m] >= 0) go(at[m], d0 + (o.reach ? o.reach[m] : 0)); }
@@ -547,8 +558,9 @@ export function createLandway(plan) {
     const straight = (a, b, budget) => {
       const ax = xOf(a), az = zOf(a), bx = xOf(b), bz = zOf(b), d = Math.hypot(bx - ax, bz - az), m = Math.max(1, Math.ceil(d / (CELL * 0.5))), ds = d / m; let cost = 0, ph = H[a], pc = fly ? 1 : costOf(a);
       for (let i = 1; i <= m; i++) {
-        const c = cellOf(ax + (bx - ax) * i / m, az + (bz - az) * i / m); if (c < 0 || (K[c] & (fly ? MASS : SOLID | SPOT))) return false;
+        const x = ax + (bx - ax) * i / m, z = az + (bz - az) * i / m, c = cellOf(x, z); if (c < 0 || (K[c] & (fly ? MASS : SOLID | SPOT))) return false;
         if (fly) { cost += ds; continue; }
+        if (D[c] < 20 && !roomy(subAt(x, z), x, H[c], z, 0.3)) return false;      // (beside something: is the line itself clear of it, not only the middles of the cells it crosses?)
         const dh = H[c] - ph, cc = costOf(c); if (dh > ds * CLIMB || dh < -ds * 1.1) return false;
         cost += ds * (pc + cc) * 0.5 + slope(dh, ds); if (cost > budget) return false; ph = H[c]; pc = cc;
       }
