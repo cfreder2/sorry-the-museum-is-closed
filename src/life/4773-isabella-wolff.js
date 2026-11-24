@@ -33,13 +33,17 @@
 // hers are laid again every frame from her bones (the gown is one skin over five rings, from under the bust to the
 // hem, with her knees, the stepping knee and the folds worked in; the lower rings are where she was a beat ago and
 // face the way she faced then, which is the swing). Nothing takes the room's light: his light, from the upper left,
-// is in the paint, which is worked out in one shader. The forms are soft underbodies in his tones (for the satin:
-// pearl, a cool and a warm half tone, umber in the hollows, a pearly light given back into the shadows, an edge that
-// is lost and found); and on them lie his strokes, about a hundred and ninety loaded ribbons of paint along the folds
-// of the gown and round the sleeves, each a step lighter or darker than what it lies on, the lights turning white
-// where a fold turns to the light: they slide and break as she moves, or as you do. The velvet is dark, lightest
-// where it turns away. The shawls are a ground crowded with small dabs. Her face is three or four soft touches (the
-// shade under her brow where her eyes are lowered, the cheek in the light with the bloom he gave it, a mouth barely
+// is in the paint, which is worked out in one shader. Of her, the forms are only the dark underneath (in his tones,
+// their edge broken); what you see is his strokes on them, some three hundred and seventy ribbons of paint that stand
+// a little proud of the form and turn their faces to you, so that her outline is theirs, lost and found: long loaded
+// ones down the gown, short curved ones round the sleeves and shoulders, gold ones for the silk round her head, a few
+// dark ones for her hair where it comes over the edge of her face. Each takes the tone of the form where it lies
+// (pearl, a cool and a warm half tone, umber in the hollows, a pearly light given back into the shadows) and a
+// little of the luck of the brush, and the lights turn white where a fold turns to the light: they slide and break
+// as she moves, or as you do. She is seven and a half heads tall. The velvet is dark, lightest where it turns away;
+// her chair is a seat and an arched back in it, on dark legs, with a lit edge. The shawls are a ground crowded with
+// small dabs. Her face is planes, not features (the shade under her brow where her eyes are lowered, the forehead
+// and the cheek in the light with the bloom he gave it, a soft shade under the nose and the lower lip, a mouth barely
 // there); nothing in it is drawn. The other two calls are the lamp's warm light on the boards (it is in the room,
 // not on any picture) and the soft shadows, one of which is the room's light dipping round her. She stands 0.73 m
 // and sits under 0.6 m, all of it below the rail of the frame and well clear of the Constable round the corner: from
@@ -88,10 +92,10 @@ const HOME = [0.4, -0.27], ROUND = [0.34, 0.44];      // going home: to here, by
 const STEP = 0.19, LAG = 0.28;                        // a step; and how long the hem is behind her (seconds)
 // ---- her measures (she stands about 0.6 m)
 const PEL_STAND = 0.325, PEL_SIT = 0.188, BUST = 0.105, TORSO = 0.165, SH_W = 0.047, NECK = 0.026, UPPER = 0.098, FORE = 0.09;
-const HEAD = { s: 0.031, y: 0.043, f: 0.037 };
+const HEAD = { s: 0.0275, y: 0.039, f: 0.0335 };      // (she is seven and a half of these tall)
 // ---- her gown, ring by ring below the bust. Standing: height, front, back, side, and how far it trails behind her.
 // Sitting: height, front, back, side, how far forward its middle lies, and how far its front and its back are lifted.
-const ST = [[0, 0.042, 0.048, 0.056, 0], [0.19, 0.048, 0.058, 0.062, 0.12], [0.09, 0.056, 0.08, 0.072, 0.5], [0.004, 0.07, 0.125, 0.086, 1]];
+const ST = [[0, 0.044, 0.05, 0.06, 0], [0.19, 0.054, 0.064, 0.072, 0.12], [0.09, 0.068, 0.094, 0.092, 0.5], [0.004, 0.088, 0.145, 0.118, 1]];
 const SI = [[0, 0.066, 0.05, 0.067, 0.012, 0, 0], [0.208, 0.122, 0.124, 0.088, 0.076, 0.01, 0.04], [0.105, 0.128, 0.126, 0.1, 0.082, 0, 0], [0.004, 0.16, 0.13, 0.13, 0.09, 0, 0]];
 // her bodice (how far up her back, front, back, side) and her neck (how far along it, front and back, side)
 const BO = [[BUST, 0.034, 0.032, 0.044], [0.126, 0.041, 0.033, 0.047], [0.146, 0.034, 0.032, 0.051], [0.159, 0.027, 0.026, 0.045]];
@@ -119,8 +123,8 @@ class Sheets {
     const n = this.nv; this.pos = new Float32Array(n * 3); this.nor = new Float32Array(n * 3); this.tan = new Float32Array(n * 3);
     const uv = new Float32Array(n * 2), ak = new Float32Array(n * 3), idx = new Uint16Array(this.ni); let w = 0;
     for (const s of this.list) {
-      if (s.marks) {
-        for (let m = 0; m < s.marks; m++) for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) { const k = s.off + m * 6 + r * 2 + c; uv[k * 2] = c; uv[k * 2 + 1] = r / 2; ak[k * 3] = s.kind; ak[k * 3 + 1] = s.move; ak[k * 3 + 2] = (m * 0.6180339 + 0.137) % 1; }
+      if (s.marks) {      // (each knows which paint it is, and its own luck: the whole and the fraction of one number)
+        for (let m = 0; m < s.marks; m++) for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) { const k = s.off + m * 6 + r * 2 + c; uv[k * 2] = c; uv[k * 2 + 1] = r / 2; ak[k * 3] = s.kind; ak[k * 3 + 1] = s.move; ak[k * 3 + 2] = s.pal[m] + 0.999 * ((m * 0.6180339 + 0.137) % 1); }
         for (let m = 0; m < s.marks; m++) for (let r = 0; r < 2; r++) { const a = s.off + m * 6 + r * 2, b = a + 1, c = a + 3, d = a + 2; idx[w++] = a; idx[w++] = b; idx[w++] = d; idx[w++] = b; idx[w++] = c; idx[w++] = d; }
         continue;
       }
@@ -262,19 +266,18 @@ lifeFor(4773, {
         o.set(xe + 0.3 * fold + 0.02 * (u - 0.5) * -sstep(0.02, 0.2, fall), top + 0.003 - fall, edge + 0.008 * (1 - Math.exp(-fall / 0.015)) + fold + 0.01 * sstep(0.08, 0.2, fall));
       } });
     }
-    // ------------------------------------------------------------ the chair that follows her: low, all red velvet, a rounded back
+    // ------------------------------------------------------------ her chair: a seat and a back in his red velvet, the top rail arched, on dark legs
     {
-      const R = 0.092, SEATH = 0.158, yaw = YSEAT, cy = Math.cos(yaw), sy = Math.sin(yaw);
-      sh.add(40, 16, K.VELVET, M_STOOL, { wrap: true, part: 1, f: (u, v, o) => {
-        const th = u * TAU + PI, cs = Math.cos(th), sn = Math.sin(th), e = 2 / 2.8, x = Math.sign(cs) * Math.pow(Math.abs(cs), e), z = Math.sign(sn) * Math.pow(Math.abs(sn), e);
-        const w = sstep(0.3, 0.9, (1 - cs) / 2), top = SEATH + 0.14 * w * (1 - 0.1 * sn * sn);
-        let r, y;
-        if (v < 0.5) { const t = v / 0.5; r = R * (0.86 + 0.14 * sstep(0, 0.3, t) + 0.06 * w * t * t); y = t * top; }
-        else if (v < 0.75) { const t = (v - 0.5) / 0.25; r = R * (1 + 0.06 * w) - 0.026 * sstep(0, 0.5, t) * (0.3 + 0.7 * w); y = top + 0.012 * w * Math.sin(PI * Math.min(1, t * 2)) - sstep(0.25, 1, t) * (top - SEATH); }
-        else { const t = (v - 0.75) / 0.25; r = (R - 0.026) * (1 - t) + 0.0005; y = SEATH + 0.007 * Math.sin(PI * t * 0.5) * (1 - w * (1 - t)); }
-        const fx = r * x, sx = r * z;      // (forward, and to its left)
-        o.set(sy * fx + cy * sx, y, cy * fx - sy * sx);
-      } });
+      const turn = m4().makeRotationY(YSEAT), R = (x, y, z, rf, rs, o) => Object.assign(still(x, y, z, rf, rs, 4), o || {});
+      const seat = [R(0, 0.118, 0, 0.001, 0.001), R(0, 0.118, 0, 0.074, 0.08), R(0, 0.14, 0, 0.08, 0.086), R(0, 0.156, 0, 0.072, 0.078), R(0, 0.162, 0, 0.001, 0.001)];
+      sh.add(28, 8, K.VELVET, M_STOOL, { wrap: true, part: 1, f: placed((u, v, o) => loft(seat, u * TAU + PI, v, o), turn) });
+      // the back: a padded panel, raked a little and bowed round her
+      const back = [R(0, 0.15, -0.066, 0.011, 0.07), R(0, 0.2, -0.074, 0.014, 0.076), R(0, 0.29, -0.088, 0.014, 0.08, { ts: 0.012 }), R(0, 0.345, -0.097, 0.011, 0.074, { ts: 0.028 }), R(0, 0.356, -0.099, 0.002, 0.05, { ts: 0.03 })];
+      sh.add(28, 10, K.VELVET, M_STOOL, { wrap: true, part: 2, f: placed((u, v, o) => { loft(back, u * TAU + PI, v, o); o.z += 2.5 * o.x * o.x; }, turn) });
+      for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+        const x = sx * 0.064, z = sz * 0.058, out = sz < 0 ? -0.016 : 0.006, leg = [R(x, 0.122, z, 0.0085, 0.0085), R(x + sx * 0.002, 0.06, z + out * 0.5, 0.007, 0.007), R(x + sx * 0.004, 0, z + out, 0.0055, 0.0055)];
+        sh.add(8, 4, K.WOOD, M_STOOL, { wrap: true, part: 1, f: placed((u, v, o) => loft(leg, u * TAU + PI, v, o, true), turn) });
+      }
     }
 
     // ------------------------------------------------------------ her: every part is laid again each frame, from her bones
@@ -329,7 +332,7 @@ lifeFor(4773, {
       f += 0.0115 * gss(th, 0.23) * gss(ph + 0.17, 0.17);                                              // the nose
       f += 0.003 * gss(th, 0.3) * gss(ph + 0.6, 0.1);                                                  // the mouth
       f += 0.006 * front * front * gss(ph + 0.95, 0.26) - 0.007 * front * low;                       // the chin; the jaw falls back under it
-      f += 0.002 * front * gss(ph - 0.27, 0.16) - 0.0028 * gss(Math.abs(th) - 0.38, 0.2) * gss(ph - 0.07, 0.12);      // the brow; the eyes set in under it
+      f += 0.0036 * front * gss(ph - 0.27, 0.14) - 0.003 * gss(Math.abs(th) - 0.38, 0.2) * gss(ph - 0.07, 0.12);      // the brow; the eyes set in under it
       return o.copy(b.Hc).addScaledVector(b.fH, f * k).addScaledVector(b.lH, s * k).addScaledVector(b.uH, y * k);
     };
     her.head = [sh.add(24, 14, K.HEAD, M_HER, { wrap: true }), (u, v, o) => headAt((u - 0.5) * TAU, (v - 0.5) * PI, 1, o)];
@@ -369,14 +372,23 @@ lifeFor(4773, {
       if (v > 0.72) { const k = (v - 0.72) / 0.28; o.y -= 0.105 * k; o.x += (b.lT.x * 0.01 - b.lag.x * 0.4) * k * k + 0.006 * Math.sin(u * 7 + k * 5) * k; o.z += (b.lT.z * 0.01 - b.lag.z * 0.4) * k * k; if (o.y < 0.01) o.y = 0.01; }
     }];
 
-    // his strokes on the satin: about two hundred, each lying along a fold of the gown (or round a sleeve), lifted a
-    // hair off it; half of them lights and half of them darks for the hollows (the shader says which each one is, now)
+    // his strokes: what the eye sees of her is these, some three hundred and seventy ribbons of paint that lie along her
+    // forms, stand a little proud of them and turn their faces to you; the forms themselves are only the dark underneath
     {
       const M = this.marks = [], rnd = L.rand, sk = her.skirt[0], pick = (a, b) => a + Math.floor(rnd() * (b - a + 1));
-      for (let m = 0; m < 150; m++) { const n = pick(2, 3); M.push({ s: sk, along: true, i: pick(0, sk.nu - 1), j: pick(2, sk.nv - 2 * n - 1), n, w: 0.006 + 0.006 * rnd(), flip: -1 }); }
-      for (const sl of [her.slL[0], her.slR[0]]) for (let m = 0; m < 14; m++) M.push({ s: sl, along: false, i: pick(0, sl.nu - 1), j: pick(2, sl.nv - 3), n: pick(1, 2), w: 0.003 + 0.003 * rnd(), flip: 1 });
-      for (let m = 0; m < 12; m++) M.push({ s: her.bodice[0], along: true, i: pick(0, 23), j: pick(0, 3), n: 1, w: 0.004 + 0.003 * rnd(), flip: 1 });
-      this.strokes = sh.marks(M.length, K.STROKE, M_HER);
+      const mark = (s, along, i, j, n, w, flip, pal) => M.push({ s, along, i, j, n, w, flip, pal });
+      // long loaded strokes down the gown: a course to every column of it, four deep, and more thrown over them
+      for (let i = 0; i < sk.nu; i++) for (let k = 0; k < 4; k++) { const n = pick(2, 3); mark(sk, true, i, Math.min(sk.nv - 2 * n, k * 5 + pick(0, 2)), n, 0.85 + 0.5 * rnd(), -1, 0); }
+      for (let m = 0; m < 60; m++) { const n = pick(2, 4); mark(sk, true, pick(0, sk.nu - 1), pick(1, sk.nv - 2 * n), n, 0.6 + 0.6 * rnd(), -1, 0); }
+      // short curved ones round the sleeves and over the shoulders
+      for (const sl of [her.slL[0], her.slR[0]]) for (let j = 0; j <= 12; j += 2) for (let k = 0; k < 4; k++) mark(sl, false, (k * 4 + pick(0, 2)) % sl.nu, Math.min(12, j + pick(0, 1)), 2, 0.5 + 0.3 * rnd(), 1, 0);
+      // the bodice
+      for (let i = 0; i < 24; i += 2) for (let k = 0; k < 2; k++) mark(her.bodice[0], true, i + pick(0, 1), k ? 2 : pick(0, 1), 1, 0.55 + 0.3 * rnd(), 1, 0);
+      // the gold silk round her head, the white scarf across it, and her hair where it shows, coming over the edge of her face
+      for (let j = 1; j <= 6; j++) for (let k = 0; k < 4; k++) mark(her.cap[0], false, (k * 6 + pick(0, 4)) % 22, j, pick(1, 2), 0.4 + 0.2 * rnd(), 1, 1);
+      for (let m = 0; m < 6; m++) mark(her.roll[0], true, pick(0, 15), pick(0, 4), 1, 0.4, 1, 3);
+      for (const [i, j] of [[4, 9], [5, 9], [17, 9], [18, 9], [2, 7], [3, 6], [20, 6], [21, 7]]) mark(her.head[0], false, i, j, 1, 0.32, 1, 2);
+      this.strokes = sh.marks(M.length, K.STROKE, M_HER); this.strokes.pal = M.map(m => m.pal);
     }
     // her road
     this.road = new THREE.CatmullRomCurve3(ROAD.map(([x, z]) => V3(x, 0, z)), false, 'centripetal'); this.road.arcLengthDivisions = 300; this.road.updateArcLengths(); this.len = this.road.getLength();
@@ -389,11 +401,17 @@ lifeFor(4773, {
     tm.onBeforeCompile = shd => {
       Object.assign(shd.uniforms, u);
       shd.vertexShader = shd.vertexShader.replace('#include <common>', `#include <common>
-attribute vec3 aK, aT; attribute vec2 aUv; uniform vec3 uDesk, uStool; uniform float uSq;
+attribute vec3 aK, aT; attribute vec2 aUv; uniform vec3 uDesk, uStool; uniform float uSq; uniform mat4 uInv;
 varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;`)
         .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
   if (aK.y > 1.5) transformed += uStool;
   else if (aK.y > 0.5) { if (transformed.y > ${TBL.top.toFixed(3)}) transformed.y = ${TBL.top.toFixed(3)} + (transformed.y - ${TBL.top.toFixed(3)}) * uSq; transformed += uDesk; }
+  if (aK.x > 12.5) {
+    // a stroke: a ribbon along aT, spread across your line of sight and lifted a little towards you
+    vec3 toEye = normalize((uInv * vec4(cameraPosition, 1.0)).xyz - transformed), ac = cross(aT, toEye); float cl = length(ac), sd = fract(aK.z);
+    if (cl > 1.0e-4) transformed += ac / cl * (aUv.x - 0.5) * 2.0 * mix(0.009, 0.016, fract(sd * 5.3)) * length(normal);
+    transformed += toEye * (0.003 + 0.004 * fract(sd * 9.7));
+  }
   vK = aK; vUv2 = aUv; vLP = transformed; vN = normal; vT = aT;`);
       shd.fragmentShader = shd.fragmentShader.replace('#include <common>', `#include <common>
 uniform mat4 uInv; uniform vec2 uWave; uniform float uWarm, uDim;
@@ -401,7 +419,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
         .replace('#include <opaque_fragment>', `{
   if (vLP.z < -0.032) discard;                                   // (still in the wall)
   int kind = int(vK.x + 0.5); float part = vK.z;
-  vec3 N = normalize(vN); if (!gl_FrontFacing) N = -N;
+  vec3 N = normalize(vN); if (!gl_FrontFacing && kind != ${K.STROKE}) N = -N;
   vec3 eye = (uInv * vec4(cameraPosition, 1.0)).xyz, Vd = normalize(eye - vLP);
   vec3 Lk = vec3(${sun.x.toFixed(4)}, ${sun.y.toFixed(4)}, ${sun.z.toFixed(4)}), Hh = normalize(Lk + Vd), T = normalize(vT);
   float nl = dot(N, Lk), key = ${KEY.toFixed(2)}; vec2 uv = vUv2; vec3 c = vec3(0.5);
@@ -410,7 +428,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
   if (kind == ${K.SATIN} || kind == ${K.ROLL}) {
     // his satin: pearl, the half tones a cool grey and a warm one, the shadows thin and brown; and over it the lights,
     // loaded strokes of near white that run along the folds where they turn to the light, ragged at both ends
-    if (dot(N, Vd) < 0.3 * rag - 0.02) discard;                                    // (its edge broken, as a brush leaves it)
+    if (dot(N, Vd) < 0.45 * rag + 0.04) discard;                                    // (its edge broken, as a brush leaves it)
     vec3 Bt = normalize(cross(N, T)); float x = uv.x * 6.2832, fu = 16.0, an = 1.0;
     if (kind == ${K.ROLL}) { fu = 9.0; an = 0.3; }
     else if (part < 0.5) { float a = smoothstep(0.04, 0.4, uv.y); N = normalize(N - Bt * 0.85 * a * (0.5 * cos(13.0 * x + 3.0 * uv.y + 1.0) + 0.42 * cos(21.0 * x - 4.0 * uv.y + 2.0) + 0.3 * cos(34.0 * x + 7.0 * uv.y))); }      // folds too fine to model
@@ -432,6 +450,7 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     c = mix(c, ${glsl('#faf5e4', 0.02)}, 0.97 * smoothstep(0.5, 0.7, s) * (0.5 + 0.5 * smoothstep(0.3, 0.6, fine)));
     c = mix(c, ${glsl('#faf5e4', 0.02)}, 0.45 * clamp(wave - 0.25, 0.0, 1.0) * smoothstep(-0.3, 0.4, nl));
     c *= mix(vec3(1.0), vec3(1.1, 0.92, 0.84), 0.5 * smoothstep(0.2, -0.2, tone));        // (the red of the velvet, in its shadows)
+    if (kind == ${K.SATIN}) c *= vec3(0.8, 0.77, 0.72);                                  // (the form is only the dark under his strokes)
     if (kind == ${K.ROLL}) c = mix(c, ${glsl('#8d7a5c')}, 0.5 * smoothstep(0.55, 0.8, fract(uv.y * 7.0 + uv.x)));      // (twisted)
     else if (part > 1.5 && uv.y > 0.925) {
       // the cuff: lace, a few white touches with the dark between
@@ -444,15 +463,17 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     float tone = nl + 0.1 * (soft - 0.5);
     c = mix(${glsl('#8a5c40')}, ${glsl('#cfa07e')}, smoothstep(-0.3, 0.25, tone));
     c = mix(c, ${glsl('#ecd3b8')}, smoothstep(0.25, 0.8, tone));
+    c = mix(c, ${glsl('#6e4a34')}, 0.55 * smoothstep(0.05, -0.55, nl));                 // (the far side lost into shade)
     if (kind == ${K.HEAD}) {
       float a = (uv.x - 0.5) * 6.2832, f = uv.y;
-      // a few soft touches and no drawing: the shadow under her brow where her eyes are lowered, the cheek in the
-      // light with the bloom he gave it, a mouth that is barely there, a little shade under the nose and the chin
-      c = mix(c, ${glsl('#8a644a')}, 0.5 * dab(vec2(abs(a), f), vec2(0.4, 0.545), vec2(0.17, 0.028)));
-      c = mix(c, ${glsl('#f3dcc4', 0.03)}, 0.5 * dab(vec2(abs(a), f), vec2(0.7, 0.46), vec2(0.3, 0.05)) * smoothstep(0.0, 0.6, tone));
-      c = mix(c, ${glsl('#dd7a6c', 0.04)}, 0.6 * dab(vec2(abs(a), f), vec2(0.86, 0.39), vec2(0.36, 0.07)));
-      c = mix(c, ${glsl('#b8625a', 0.04)}, 0.55 * dab(vec2(a, f), vec2(0.0, 0.29), vec2(0.13, 0.016)));
-      c = mix(c, ${glsl('#a97658')}, 0.4 * dab(vec2(a, f), vec2(0.0, 0.365), vec2(0.1, 0.014)));
+      // planes and no drawing: the shade under her brow, where her eyes are lowered to the page; the forehead and the
+      // cheek in the light, with the bloom he gave it; a soft shade under the nose and under the lower lip; a mouth barely there
+      c = mix(c, ${glsl('#9a745a')}, 0.4 * smoothstep(0.59, 0.565, f) * smoothstep(0.505, 0.535, f) * smoothstep(0.95, 0.5, abs(a)));
+      c = mix(c, ${glsl('#f3dcc4', 0.03)}, 0.45 * (dab(vec2(abs(a), f), vec2(0.7, 0.45), vec2(0.3, 0.05)) + dab(vec2(a, f), vec2(0.0, 0.645), vec2(0.55, 0.035))) * smoothstep(0.0, 0.6, tone));
+      c = mix(c, ${glsl('#dd7a6c', 0.04)}, 0.58 * dab(vec2(abs(a), f), vec2(0.86, 0.39), vec2(0.36, 0.07)));
+      c = mix(c, ${glsl('#b8625a', 0.04)}, 0.5 * dab(vec2(a, f), vec2(0.0, 0.292), vec2(0.13, 0.014)));
+      c = mix(c, ${glsl('#a17052')}, 0.45 * dab(vec2(a, f), vec2(0.0, 0.365), vec2(0.11, 0.015)));
+      c = mix(c, ${glsl('#a17052')}, 0.4 * dab(vec2(a, f), vec2(0.0, 0.248), vec2(0.12, 0.013)));
       c = mix(c, ${glsl('#9a6a4e')}, 0.45 * smoothstep(0.2, 0.08, f));
       // her hair: dark, curling onto the brow and in front of the ear
       float curl = wN(vec2(uv.x * 30.0, uv.y * 22.0), 30.0);
@@ -477,17 +498,17 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
   } else if (kind == ${K.VELVET}) {
     if (dot(N, Vd) < 0.22 * rag - 0.03) discard;
     float nz = wN(vec2(uv.x * 26.0, uv.y * 9.0), 26.0), nb = wN(vec2(uv.x * 7.0, uv.y * 3.0 + 2.0), 7.0);
-    if (part > 0.5) { vec3 Bt = normalize(cross(N, T)); float x = uv.x * 6.2832; N = normalize(N - Bt * 0.35 * (0.6 * cos(9.0 * x + 2.0 * uv.y) + 0.4 * cos(17.0 * x - 3.0 * uv.y + 1.0))); nl = dot(N, Lk); }      // (its nap brushed in broad strokes)
-    float tone = (part > 0.5 ? 0.62 * nl - 0.12 + 0.3 * smoothstep(0.74, 0.8, uv.y) : nl - 0.12) + 0.4 * (nb - 0.5);
+    if (part > 1.5) { N = normalize(N + T * 0.5 * (wN(vec2(uv.x * 5.0, uv.y * 2.0), 5.0) - 0.5) + cross(N, T) * 0.7 * (wN(vec2(uv.x * 7.0 + 3.0, uv.y * 3.0), 7.0) - 0.5)); nl = dot(N, Lk); }      // (its nap brushed in broad strokes)
+    float tone = (part > 0.5 ? 0.85 * nl - 0.1 : nl - 0.12) + 0.4 * (nb - 0.5);
     c = mix(${glsl('#1e0706')}, ${glsl('#5c110b')}, smoothstep(-0.3, 0.3, tone));
     c = mix(c, ${glsl('#8f2416')}, smoothstep(0.3, 0.75, tone));
     c = mix(c, ${glsl('#b8442a')}, smoothstep(0.72, 1.0, tone) * (0.35 + 0.65 * nz));
     float rimL = pow(1.0 - max(dot(N, Vd), 0.0), 2.5);
     c = mix(c, ${glsl('#c7684a')}, 0.35 * rimL * smoothstep(0.0, 0.6, tone));                 // (velvet is lightest where it turns away)
     c *= 0.84 + 0.3 * nz;
-    float cord = part < 0.5 ? smoothstep(0.04, 0.015, abs(uv.y - 0.5)) : smoothstep(0.022, 0.008, abs(uv.y - 0.515));
+    float cord = part < 0.5 ? smoothstep(0.04, 0.015, abs(uv.y - 0.5)) : part < 1.5 ? smoothstep(0.05, 0.02, abs(uv.y - 0.5)) : 0.0;
+    if (part > 1.5) c = mix(c, ${glsl('#c2573a')}, 0.55 * max(smoothstep(0.045, 0.012, min(abs(uv.x - 0.25), abs(uv.x - 0.75))), smoothstep(0.86, 0.96, uv.y)) * smoothstep(-0.2, 0.5, tone));      // (its lit edge)
     c = mix(c, mix(${glsl('#5a3d12')}, ${glsl('#d6b25e')}, step(0.5, fract(uv.x * 46.0 + uv.y * 8.0)) * (0.35 + 0.65 * smoothstep(0.0, 0.7, tone))), cord);
-    if (part > 0.5) { c *= 0.55 + 0.45 * smoothstep(0.0, 0.3, uv.y); c = mix(c, ${glsl('#160d08')}, smoothstep(0.045, 0.025, uv.y)); }         // (darker towards the floor; its dark feet)
   } else if (kind == ${K.SHAWL}) {
     // the shawl: a pale gold ground crowded with small dabs of red, dark blue and black, a border down each side, a fringe
     float tone = clamp(0.3 + 0.75 * nl, 0.0, 1.0);
@@ -536,24 +557,31 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     c = mix(c, ${glsl('#f3b0ba', 0.04)}, smoothstep(0.62, 0.85, tone + 0.3 * (sw - 0.5)));
   }
   else if (kind == ${K.STROKE}) {
-    // one loaded stroke: tapered, ragged at both ends, a ridge down one edge; a light laid on a fold, or a dark dragged
-    // into a hollow, each a step away from the tone it lies on
-    float seed = part, al = uv.y, ac = uv.x - 0.5;
-    float wd = 0.5 * pow(max(sin(3.1416 * al), 0.0), 0.6) * (0.72 + 0.28 * sin(al * 9.0 + seed * 40.0));
-    if (abs(ac + 0.08 * sin(al * 5.0 + seed * 23.0)) > wd) discard;
-    float lightOne = step(seed, 0.6);
-    float sinTH = sqrt(max(0.0, 1.0 - sq(dot(T, Hh))));
-    float spec = pow(sinTH, 14.0) * smoothstep(0.0, 0.5, dot(N, Hh)) + 0.5 * pow(max(dot(N, Hh), 0.0), 8.0);
-    float jit = 0.3 * (fract(seed * 7.31) - 0.5);
-    if (lightOne < 0.5 && (nl + jit > 0.08 || wave > 0.25)) discard;   // (a dark only where there is a hollow for it)
-    if (lightOne > 0.5 && nl + jit < 0.1) discard;                     // (and a light only where the light can reach)
-    float tone = nl + mix(-0.22, 0.3, lightOne) + jit;
-    c = mix(${glsl('#5a452b')}, ${glsl('#8d7a58')}, smoothstep(-0.7, -0.25, tone));
-    c = mix(c, ${glsl('#a99a7c')}, smoothstep(-0.25, 0.1, tone));
-    c = mix(c, ${glsl('#c3c0ab', 0.05)}, smoothstep(0.1, 0.4, tone));
-    c = mix(c, ${glsl('#ebe2ca')}, smoothstep(0.4, 0.8, tone));
-    c = mix(c, ${glsl('#fdf9ea', 0.02)}, lightOne * smoothstep(0.42, 0.6, spec + 0.8 * wave + 0.3 * (fract(seed * 3.7) - 0.5)));
-    c *= 1.0 + 0.1 * smoothstep(0.05, 0.3, ac);
+    // one loaded stroke: tapered, soft at its edge, a ridge down one side; its tone is the tone of the form where it lies
+    // (and a little of the luck of the brush), its white the light of a fold that has turned to the light
+    float pal = floor(part + 0.001), seed = fract(part), al = uv.y, ac = uv.x - 0.5;
+    float wd = 0.5 * pow(max(sin(3.1416 * al), 0.0), 0.55) * (0.8 + 0.2 * sin(al * 9.0 + seed * 40.0));
+    float edge = 1.0 - abs(ac + 0.06 * sin(al * 5.0 + seed * 23.0)) / max(wd, 1.0e-3);
+    if (edge < 0.32 * wH(gl_FragCoord.xy * 0.731 + seed * 91.0)) discard;
+    float jit = fract(seed * 7.31) - 0.5, jit2 = fract(seed * 3.7) - 0.5, tone = nl + 0.34 * jit;
+    if (pal < 0.5) {
+      float sinTH = sqrt(max(0.0, 1.0 - sq(dot(T, Hh))));
+      float spec = pow(sinTH, 14.0) * smoothstep(0.0, 0.5, dot(N, Hh)) + 0.5 * pow(max(dot(N, Hh), 0.0), 8.0);
+      c = mix(${glsl('#5a452b')}, ${glsl('#907d5b')}, smoothstep(-0.6, -0.2, tone));
+      c = mix(c, ${glsl('#b9b19a', 0.05)}, smoothstep(-0.2, 0.2, tone));
+      c = mix(c, ${glsl('#ded4ba')}, smoothstep(0.45, 0.95, tone));
+      c = mix(c, ${glsl('#a3aba6', 0.03)}, 0.3 * smoothstep(0.0, -0.5, tone) * clamp(0.35 + 0.65 * N.x, 0.0, 1.0));
+      c = mix(c, ${glsl('#fdf9ea', 0.02)}, smoothstep(0.52, 0.7, spec + 0.85 * wave + 0.45 * jit2));
+    } else if (pal < 1.5) {
+      c = mix(${glsl('#5a3c14')}, ${glsl('#a98038')}, smoothstep(-0.4, 0.1, tone));
+      c = mix(c, ${glsl('#dcbd76')}, smoothstep(0.15, 0.6, tone));
+      c = mix(c, ${glsl('#f6e9bd', 0.03)}, smoothstep(0.75, 0.95, tone + 0.4 * jit2));
+    } else if (pal < 2.5) {
+      c = mix(${glsl('#1e120b')}, ${glsl('#5c3d27')}, smoothstep(0.0, 0.7, tone + 0.5 * jit2));
+    } else {
+      c = mix(${glsl('#8d7a5c')}, ${glsl('#f1ead8', 0.02)}, smoothstep(-0.2, 0.5, tone));
+    }
+    c *= 1.0 + 0.12 * smoothstep(0.05, 0.3, ac) - 0.08 * smoothstep(-0.05, -0.3, ac);
   }
   c *= mix(vec3(1.0), vec3(1.06, 1.0, 0.9), uWarm);
   c *= 1.0 - 0.34 * uDim * (1.0 - clamp(wave * 1.4, 0.0, 1.0) * (kind == ${K.SATIN} || kind == ${K.STROKE} ? 1.0 : 0.0));
@@ -648,8 +676,8 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
     const cp = Math.cos(pitH), sp = Math.sin(pitH);
     b.fH.set(Math.sin(yawH) * cp, -sp, Math.cos(yawH) * cp); b.lH.set(Math.cos(yawH), 0, -Math.sin(yawH)); b.uH.crossVectors(b.fH, b.lH);
     V.a.copy(b.uH).multiplyScalar(Math.cos(rolH)).addScaledVector(b.lH, -Math.sin(rolH)); b.lH.multiplyScalar(Math.cos(rolH)).addScaledVector(b.uH, Math.sin(rolH)); b.uH.copy(V.a);
-    b.Hc.copy(b.Nb).addScaledVector(b.d, NECK).addScaledVector(b.uH, 0.034).addScaledVector(b.fH, 0.007);
-    b.Hb.copy(b.Hc).addScaledVector(b.uH, 0.043).addScaledVector(b.fH, 0.024).addScaledVector(b.lH, -0.014);
+    b.Hc.copy(b.Nb).addScaledVector(b.d, NECK).addScaledVector(b.uH, 0.031).addScaledVector(b.fH, 0.007);
+    b.Hb.copy(b.Hc).addScaledVector(b.uH, 0.039).addScaledVector(b.fH, 0.022).addScaledVector(b.lH, -0.013);
     // her arms: where the elbow and the hand are wanted, for each thing she does; mixed, then made her own length
     const wPose = c.pose, wLap = q * (1 - c.pose), wWalk = Math.max(0, 1 - wPose - wLap);
     for (let i = 0; i < 2; i++) {
@@ -706,14 +734,14 @@ varying vec3 vK, vLP, vN, vT; varying vec2 vUv2;${NOISE}`)
       const i1 = k.along ? (s.off + (k.j + k.n) * W + k.i) * 3 : (s.off + k.j * W + (k.i + k.n) % s.nu) * 3;
       const i2 = k.along ? (s.off + (k.j + 2 * k.n) * W + k.i) * 3 : (s.off + k.j * W + (k.i + 2 * k.n) % s.nu) * 3;
       let ax = pos[i2] - pos[i0], ay = pos[i2 + 1] - pos[i0 + 1], az = pos[i2 + 2] - pos[i0 + 2]; const al = Math.hypot(ax, ay, az) || 1; ax /= al; ay /= al; az /= al;
-      const nx = nor[i1] * k.flip, ny = nor[i1 + 1] * k.flip, nz = nor[i1 + 2] * k.flip;
-      let cx = ay * nz - az * ny, cy = az * nx - ax * nz, cz = ax * ny - ay * nx; const cl = Math.hypot(cx, cy, cz) || 1; cx *= k.w / cl; cy *= k.w / cl; cz *= k.w / cl;
+      // (the middle line of the ribbon, the way it runs, and the form's own facing, as long as the ribbon is wide: the
+      // vertex shader spreads it across your line of sight)
+      const f = k.flip * k.w, nx = nor[i1] * f, ny = nor[i1 + 1] * f, nz = nor[i1 + 2] * f;
       for (let r = 0; r < 3; r++) {
-        const ii = r === 0 ? i0 : r === 1 ? i1 : i2, lift = 0.0035;
+        const ii = r === 0 ? i0 : r === 1 ? i1 : i2;
         for (let side = 0; side < 2; side++) {
-          const p = o + (r * 2 + side) * 3, sg = side ? 1 : -1;
-          pos[p] = pos[ii] + nx * lift + cx * sg; pos[p + 1] = pos[ii + 1] + ny * lift + cy * sg; pos[p + 2] = pos[ii + 2] + nz * lift + cz * sg;
-          nor[p] = nx; nor[p + 1] = ny; nor[p + 2] = nz; tan[p] = ax; tan[p + 1] = ay; tan[p + 2] = az;
+          const p = o + (r * 2 + side) * 3;
+          pos[p] = pos[ii]; pos[p + 1] = pos[ii + 1]; pos[p + 2] = pos[ii + 2]; nor[p] = nx; nor[p + 1] = ny; nor[p + 2] = nz; tan[p] = ax; tan[p + 1] = ay; tan[p + 2] = az;
         }
       }
     }
