@@ -48,3 +48,4 @@ import './44892-fish-still-life.js';  // 222  Manet, Fish (Still Life): gleam
 import './19339-arlesiennes-mistral.js'; // 241  Gauguin, Arlésiennes (Mistral): wrap
 import './4081-gian-lodovico-madruzzo.js'; // 206  Moroni, Gian Lodovico Madruzzo: stay
 import './64729-early-morning-tarpon-springs.js'; // 161  Inness, Early Morning, Tarpon Springs: daybreak
+import './150054-mrs-beatty-and-susan.js'; // 161  Johnson, Mrs. Beatty and Her Daughter Susan: strawberry
