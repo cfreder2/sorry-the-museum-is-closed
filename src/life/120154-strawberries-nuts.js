@@ -51,7 +51,7 @@
 // slowly, and everything is quieter; nothing flashes at any setting.
 //
 // Where it stands. The shelf is 1.48 m wide and comes 0.9 m out from the wall; nothing on it stands higher than
-// 0.88 m (the lid, lifted, 1.0 m), under a picture whose frame begins at 1.35 m, between the Cotopaxi
+// 0.89 m (the lid's ball; lifted, 1.01 m), under a picture whose frame begins at 1.35 m, between the Cotopaxi
 // (src/life/76571-view-of-cotopaxi.js, 1.75 m to the left, its frame from 1.23 m) and Hannah Skeele's Fruit Piece
 // (1.58 m to the right, no show yet). In the kit's check (nine cameras, eight moments) the guard has nothing to cut.
 // His dark is paint on the wall behind the pictures, on the skirting and on the floor, fading out within four
@@ -224,6 +224,7 @@ lifeFor(120154, {
     parts.push(surf(1, 1, (u, v, o) => o.p.set(lerp(-SX, SX, u), lerp(-0.004, TH, v), Z1), K_SLAB, M_STILL, 1));
     parts.push(surf(1, 1, (u, v, o) => o.p.set(SX, lerp(-0.004, TH, v), lerp(Z1, Z0, u)), K_SLAB, M_STILL, 2));
     parts.push(surf(1, 1, (u, v, o) => o.p.set(-SX, lerp(-0.004, TH, v), lerp(Z0, Z1, u)), K_SLAB, M_STILL, 2));
+    parts.push(surf(1, 1, (u, v, o) => o.p.set(lerp(-SX, SX, u), 0.002, lerp(Z0, Z1, v)), K_SLAB, M_STILL, 3));      // (its underside: the polished floor shows what is under things)
 
     // ------------------------------------------------------------ the bowl of nuts: porcelain, its rim gently waved
     {
@@ -234,7 +235,7 @@ lifeFor(120154, {
       parts.push(place(turned([[0.298, 0.152], [0.28, 0.142], [0.22, 0.168], [0.14, 0.212], [0.06, 0.244], [0.001, 0.25]], 36, 6, K_HEAP, M_STILL, 0), m));
       // the nuts: filberts on the left of the heap, almonds in their shells on the right, the orange's place left empty
       const nuts = [], RB = 0.273;
-      for (let tries = 0; tries < 14000 && nuts.length < 128; tries++) {
+      for (let tries = 0; tries < 14000 && nuts.length < 112; tries++) {
         const a = rnd() * TAU, r = RB * Math.sqrt(rnd()), x = r * Math.cos(a), z = r * Math.sin(a);
         const hazel = x < 0.015 + 0.05 * Math.sin(z * 14), need = hazel ? 0.041 : 0.056;
         if (Math.hypot(x - (ORANGE[0] - bx), z - (ORANGE[1] - bz)) < 0.09 + (hazel ? 0 : 0.012)) continue;
@@ -247,12 +248,12 @@ lifeFor(120154, {
         if (n.hazel) {
           // a filbert: round, a little pointed, the pale flat scar at its base; lying any way up
           const R = 0.0225 + 0.004 * rnd(), h = 0.046 + 0.006 * rnd();
-          const g = surf(9, 6, (u, v, o) => { const t = 0.002 + 0.996 * v, ph = u * TAU, rr = R * Math.pow(Math.sin(PI * t), 0.56) * (1.1 - 0.22 * t); o.p.set(rr * Math.sin(ph), (Math.pow(t, 1.12) - 0.47) * h, rr * Math.cos(ph)); o.c.setRGB(vr, 0, 0); }, K_HAZEL, M_NUT);
+          const g = surf(12, 8, (u, v, o) => { const t = 0.002 + 0.996 * v, ph = u * TAU, rr = R * Math.pow(Math.sin(PI * t), 0.56) * (1.1 - 0.22 * t); o.p.set(rr * Math.sin(ph), (Math.pow(t, 1.12) - 0.47) * h, rr * Math.cos(ph)); o.c.setRGB(vr, 0, 0); }, K_HAZEL, M_NUT);
           parts.push(place(g, turn(rnd() * TAU, rnd() < 0.2 ? 1.5 + 0.6 * rnd() : 0.15 + 1.3 * rnd(), 0, bx + n.x, y + R * 0.7, bz + n.z), seed));
         } else {
           // an almond in its shell: long, flattened, pointed at one end, a seam along its edge
           const LL = 0.082 + 0.016 * rnd(), wd = 0.027 + 0.004 * rnd(), th = 0.0175 + 0.003 * rnd();
-          const g = surf(9, 6, (u, v, o) => { const t = 0.002 + 0.996 * v, ph = -u * TAU, w = Math.pow(Math.sin(PI * t), 0.62) * (1.12 - 0.42 * t); o.p.set((t - 0.5) * LL, w * th * Math.sin(ph), w * wd * Math.cos(ph)); o.c.setRGB(vr, 0, 0); }, K_ALMOND, M_NUT);
+          const g = surf(11, 8, (u, v, o) => { const t = 0.002 + 0.996 * v, ph = -u * TAU, w = Math.pow(Math.sin(PI * t), 0.62) * (1.12 - 0.42 * t); o.p.set((t - 0.5) * LL, w * th * Math.sin(ph), w * wd * Math.cos(ph)); o.c.setRGB(vr, 0, 0); }, K_ALMOND, M_NUT);
           parts.push(place(g, turn(rnd() * TAU, (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 1.3, bx + n.x, y + th * 0.9, bz + n.z), seed));
         }
       });
@@ -341,7 +342,7 @@ lifeFor(120154, {
           for (const q of set) { const d = Math.hypot(x - q[0], y - q[1], z - q[2]); if (d < 0.034) { x += (x - q[0] + 0.004) * (0.034 - d) / Math.max(d, 0.004); z += (z - q[2] + 0.004) * (0.034 - d) / Math.max(d, 0.004); } }
           set.push([x, y, z]);
           const k1 = bi * 3 + j;
-          const g = surf(8, 6, (u, v, o) => {
+          const g = surf(10, 7, (u, v, o) => {
             const t = 0.002 + 0.996 * v, ph = -u * TAU, w = Math.pow(Math.sin(PI * t), 0.7) * (1 + 0.17 * Math.sin(ph * 3 + k1) * Math.sin(PI * t) + 0.11 * Math.sin(ph * 5 + t * 9 + k1 * 2));
             o.p.set((t - 0.5) * LL, w * R * 0.8 * Math.sin(ph), w * R * Math.cos(ph)); o.c.setRGB(vr, 0, 0);
           }, K_RAISIN, M_HANG);
@@ -351,7 +352,6 @@ lifeFor(120154, {
         }
       });
     }
-    this.lying = lying;
 
     // ------------------------------------------------------------ his paint on them: one material, one draw call
     const med = this.med = canvasTexture(256, 256, medallion); med.anisotropy = 4;
@@ -412,16 +412,18 @@ vec4 berry(vec2 p) {
 // One strawberry of the heap at p: its colour, and how much of it is there (a). Tn, Bt, N: the heap's own directions.
 vec4 strawberry(vec2 p, vec3 Tn, vec3 Bt, vec3 N, vec3 Lk, vec3 Hh, float nl) {
   vec4 b = berry(p); float id2 = fract(b.w * 7.7), id3 = fract(b.w * 13.3), rad = 0.41 + 0.1 * id3;
+  float tw = (id2 - 0.5) * 1.9, ct = cos(tw), st = sin(tw);
   vec2 dv = b.xy / rad; dv.y *= 0.9; float rr = length(dv), zz = sqrt(max(1.0 - min(rr * rr, 1.0), 0.0));
+  vec2 dr = vec2(ct * dv.x - st * dv.y, st * dv.x + ct * dv.y);      // (in the berry's own frame: its cap at the top)
   vec3 Nb = normalize(Tn * dv.x + Bt * dv.y + N * (zz + 0.1));
   float nlb = 0.85 * dot(Nb, Lk) + 0.3 * nl, litb = smoothstep(-0.3, 0.8, nlb);
   vec3 body = mix(${C('#9a1f12', 0.03)}, ${C('#c9361c', 0.03)}, b.w), lightc = mix(${C('#d8401e', 0.03)}, ${C('#ef6c36', 0.03)}, id3);
   vec3 c = mix(${C('#3d0a07')}, body, smoothstep(-0.6, 0.2, nlb)); c = mix(c, lightc, smoothstep(0.15, 0.9, nlb));
-  vec2 sf = fract(dv * 2.6 + b.w * 7.0) - 0.5; float pip = smoothstep(0.2, 0.08, length(sf)) * smoothstep(0.92, 0.6, rr);
+  vec2 sf = fract(dr * (2.3 + 1.1 * rr * rr) + b.w * 7.0) - 0.5; float pip = smoothstep(0.17, 0.07, length(sf)) * smoothstep(0.95, 0.7, rr);
   c = mix(c, mix(${C('#6d190d')}, ${C('#f2cc80')}, litb), 0.6 * pip);
-  if (id2 > 0.6) { vec2 q = dv - vec2(0.6 * (id2 - 0.8), 0.52); float a = atan(q.y, q.x), star = 0.46 * (0.5 + 0.5 * cos(a * 5.0 + b.w * 9.0)); c = mix(c, mix(${C('#182a10')}, ${C('#4d7230')}, litb), smoothstep(star, star - 0.14, length(q))); }
+  if (id3 > 0.55) { vec2 q = dr - vec2(0.0, 0.55); float a = atan(q.y, q.x), star = 0.46 * (0.5 + 0.5 * cos(a * 5.0 + b.w * 9.0)); c = mix(c, mix(${C('#182a10')}, ${C('#4d7230')}, litb), smoothstep(star, star - 0.14, length(q))); }
   c += ${C('#ffe0c8', 0)} * 0.3 * smoothstep(0.5, 0.95, pow(max(dot(Nb, Hh), 0.0), 24.0));
-  c *= 0.55 + 0.45 * smoothstep(1.0, 0.55, rr);
+  c *= 0.42 + 0.58 * smoothstep(1.0, 0.5, rr);
   return vec4(c, 1.0 - smoothstep(0.88, 1.0, rr));
 }`)
         .replace('#include <opaque_fragment>', `{
@@ -454,7 +456,8 @@ vec4 strawberry(vec2 p, vec3 Tn, vec3 Bt, vec3 N, vec3 Lk, vec3 Hh, float nl) {
         float lum = dot(texture2D(uArt, vec2(mix(0.628, 0.965, sg.x), 1.0 - mix(0.9455, 0.99, sg.y))).rgb, vec3(0.3, 0.6, 0.1));
         c = mix(c, c * 0.08, 0.92 * uSig * smoothstep(0.03, 0.009, lum) * smoothstep(0.0, 0.04, sg.x) * smoothstep(1.0, 0.96, sg.x));
       }
-    } else c = ${C('#2b281d')} * (0.75 + 0.4 * cloud) * (N.x < 0.0 ? 1.3 : 0.75);
+    } else if (sub == 2) c = ${C('#2b281d')} * (0.75 + 0.4 * cloud) * (N.x < 0.0 ? 1.3 : 0.75);
+    else c = ${C('#0c0b08')};
   } else if (kind == ${K_PORC}) {
     // porcelain: a white that is all greys. Warm where the light is, a grey-olive shade turning away from it, darkest
     // just past the turn, and the shelf's light coming back up into the shadow; then the glaze's one wet light
@@ -527,14 +530,14 @@ vec4 strawberry(vec2 p, vec3 Tn, vec3 Bt, vec3 N, vec3 Lk, vec3 Hh, float nl) {
     c *= mix(0.3, 1.0, smoothstep(-0.6, 0.45, nl)) * mix(0.55, 1.0, smoothstep(${f3(TH + 0.27)}, ${f3(TH + 0.5)}, vOP.y));
     c *= 1.0 + 0.55 * uPulse; key *= 1.08;
   } else if (kind == ${K_HAZEL}) {
-    float st = mN(vec2(vUv2.x * 26.0 + var * 9.0, vUv2.y * 3.0)), bl = mN(vUv2 * vec2(5.0, 4.0) + var * 20.0);
-    vec3 base = mix(${C('#4a1f0c')}, ${C('#733a16')}, var); base = mix(base, ${C('#34150a')}, 0.5 * smoothstep(0.5, 0.75, st));
-    float tone = nl + 0.2 * (bl - 0.5);
-    c = mix(${C('#140703')}, base, smoothstep(-0.55, 0.2, tone)); c = mix(c, mix(${C('#96541f')}, ${C('#b97a34')}, var), 0.8 * smoothstep(0.25, 0.95, tone));
+    float st = mN(vec2(vUv2.x * 30.0 + var * 9.0, vUv2.y * 2.6)), bl = mN(vUv2 * vec2(5.0, 4.0) + var * 20.0);
+    vec3 base = mix(${C('#4a1f0c')}, ${C('#6e3513')}, var); base = mix(base, ${C('#2e1208')}, 0.6 * smoothstep(0.45, 0.72, st));
+    float tone = nl + 0.24 * (bl - 0.5) + 0.1 * (st - 0.5);
+    c = mix(${C('#120603')}, base, smoothstep(-0.5, 0.3, tone)); c = mix(c, mix(${C('#8a4c1e')}, ${C('#a8672c')}, var), 0.8 * smoothstep(0.42, 1.0, tone));
     float scar = smoothstep(0.2, 0.13, vUv2.y + 0.06 * (mN(vec2(vUv2.x * 9.0, var * 5.0)) - 0.5));
     c = mix(c, mix(${C('#2b2317')}, ${C('#8d7954')}, smoothstep(-0.3, 0.8, tone)) * (0.85 + 0.3 * mN(vUv2 * 40.0)), scar);
     float sp = pow(max(dot(N, Hh), 0.0), 150.0); c = mix(c, ${C('#e6c08a', 0)}, (0.25 + 0.5 * var) * smoothstep(0.3, 0.9, sp * (0.6 + 0.8 * bl)) * (1.0 - scar));
-    c = mix(c, ${C('#b97a34')}, 0.25 * pow(max(dot(N, Hh), 0.0), 12.0) * (1.0 - scar));
+    c = mix(c, ${C('#a8672c')}, 0.22 * pow(max(dot(N, Hh), 0.0), 14.0) * (1.0 - scar));
     c += ${C('#4a2a10')} * 0.16 * max(-N.y, 0.0);
   } else if (kind == ${K_ALMOND}) {
     float pit = mN(vUv2 * vec2(44.0, 30.0) + var * 7.0), grain = mN(vec2(vUv2.x * 6.0, vUv2.y * 46.0)), bl = mN(vUv2 * vec2(4.0, 3.0) + var * 20.0);
@@ -604,7 +607,7 @@ vec4 strawberry(vec2 p, vec3 Tn, vec3 Bt, vec3 N, vec3 Lk, vec3 Hh, float nl) {
       deep = Math.min(deep, (Math.abs(L.nx) > 0.5 ? Math.max((R.x0 - L.cx) * L.nx, (R.x1 - L.cx) * L.nx) : Math.max((R.z0 - L.cz) * L.nz, (R.z1 - L.cz) * L.nz)) - 0.05);
       up = Math.min(up, (R.ceil || R.h || 4) - 0.25);
     }
-    soft.push(surf(1, 1, (uu, vv, o) => o.p.set(lerp(-left, right, uu), 0.013, lerp(deep, -wall + 0.01, vv)), P_FLOOR));
+    soft.push(surf(1, 1, (uu, vv, o) => o.p.set(lerp(-left, right, uu), 0.022, lerp(deep, -wall + 0.01, vv)), P_FLOOR));      // (2 cm up: nearer the boards, a line of lit floor showed at the shelf's foot from the toy's eye)
     soft.push(surf(1, 1, (uu, vv, o) => o.p.set(lerp(-left, right, uu), lerp(0.012, up, vv), -wall + 0.006), P_DARK));
     soft.push(surf(1, 1, (uu, vv, o) => o.p.set(lerp(-left, right, uu), lerp(0.012, 0.44, vv), 0.04), P_DARK));      // (the skirting stands out from the wall: it is shaded too)
     // (the wall labels keep their light, and a little of the wall's round them)
@@ -663,7 +666,7 @@ vec3 gCol, gAdd; float gA;`)
     if (vLP.z < -uWall) discard;
     vec3 eye = (uInv * vec4(cameraPosition, 1.0)).xyz, Vd = normalize(eye - vLP), N = normalize(vN); if (dot(N, Vd) < 0.0) N = -N;
     float nv = dot(N, Vd), rim = pow(1.0 - nv, 2.2), solid = diffuseColor.b, red = diffuseColor.g, win = diffuseColor.r;
-    float shim = 1.0 + uShim * 0.6 * sin(uT * 61.0 + vOP.y * 140.0);
+    float shim = 1.0 + uShim * 0.3 * sin(uT * 61.0 + vOP.y * 140.0);
     gA = 0.03 + 0.3 * rim + 0.22 * solid * (0.4 + 0.6 * rim); gCol = ${C('#0d0c0a')};
     vec3 hair = mix(${C('#b9bdb6')}, ${C('#8a4a34')}, 0.5 * red);
     gAdd = hair * (0.3 * smoothstep(0.55, 0.97, rim) * shim * (part == ${P_LID} ? 0.55 : 1.0) + 0.06 * solid);
@@ -844,7 +847,8 @@ vec3 gCol, gAdd; float gA;`)
     const rings = gu.uRing.value, bright = hard * (calm ? 0.6 : 1);
     rings[0].set(age, bright, 0.206, 0.36); rings[1].set(age - AFTER.bowl, 0.6 * bright, 0.312, 0.2); rings[2].set(age - AFTER.cup, 0.7 * bright, 0.103, 0.17); rings[3].set(age - AFTER.jug, 0.65 * bright, 0.12, 0.17);
 
-    // ---- the lid: lifted by its ball, tipped a little to the light while it hangs
+    // ---- the lid: lifted by its ball, its top tipped towards you while it hangs (so its front edge dips: from low at
+    // one side that keeps it clear of the next picture along)
     const tip = sstep(0, 0.11, lidY), bx = URN[0], by = TH + RIM, bz = URN[1];
     V.q.setFromEuler(V.e.set(0.22 * tip, 0, 0.07 * tip, 'YXZ'));
     V.a.makeTranslation(-bx, -by, -bz); V.b.compose(V.v.set(bx, by + lidY, bz), V.q, V.one); gu.uLid.value.multiplyMatrices(V.b, V.a);
