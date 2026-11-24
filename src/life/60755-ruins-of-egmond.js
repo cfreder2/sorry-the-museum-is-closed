@@ -15,11 +15,10 @@
 // birds slip out from behind the frame's left side, at the height he painted them, come down the bare wall and go
 // round over the water, calling. Then the weather turns: the cloud swells and darkens, its shadow comes over the
 // water from the right, the wind gets up in the reeds, and far off it thunders. For a moment the air goes slack and
-// the water holds the tower whole. Then the gust comes over the pool from the left, flattening the reeds, tearing
-// leaves out of the wood and wiping the reflection away, and it catches the two of them in the open, beside the
-// tower: they hang in it, beating, going nowhere, and are carried back; then they come in under it and through the
-// broken side of the tower as the first drops ring the water, and settle on a ledge inside, out of the wind, close
-// together. It rains. Then the cloud breaks on the left, as it does in the picture, and the light comes across the
+// the water holds the tower whole. Then the gust comes over the pool from the left, flattening the reeds and wiping
+// the reflection away, and it catches the two of them in the open, beside the tower: they hang in it, beating, going
+// nowhere, and are carried back; then they come in under it and through the broken side of the tower as the first
+// drops ring the water, and settle on a ledge inside, out of the wind, close together. It rains. Then the cloud breaks on the left, as it does in the picture, and the light comes across the
 // water and up the brick: the tower stands red against the dark, with its reflection lying under it again. One bird
 // shakes the rain off, hops up onto the broken top into the sun and calls, and the other follows. While you keep
 // looking they sit there, the reeds stir, and now and then the shadow of a cloud goes over. When you stop, they fly
@@ -32,12 +31,12 @@
 // mesh with its own light (overcast, storm, the sun from the left, the tower's own shadow): the ground, the
 // brickwork in courses of short dabs, the stones, every reed (the wind bends them in the shader), and the two
 // birds, whose bodies and wings are parts of the same mesh moved by six matrices. His foliage, the plaster and moss
-// on the brick, the flying leaves and the rain are soft cards in a third. Nothing is solid and nothing stays out
+// on the brick and the rain are soft cards in a third. Nothing is solid and nothing stays out
 // after the look. The tower stands 0.75 m at its highest, close under the picture: from the look camera nothing
 // comes in front of a canvas (the birds come down the bare wall to the left of the frame, and keep below its rail
 // while they are in front of it), and the kit's guard does the rest.
-// With "Reduce motion and flashing" on, the gust is half as strong and crosses at half the speed, the reeds and the
-// leaves move at half speed, the light and the cloud's shadow take about twice as long to cross, the bird does not
+// With "Reduce motion and flashing" on, the gust is half as strong and crosses at half the speed, the reeds shiver
+// at half speed, the light and the cloud's shadow take about twice as long to cross, the bird does not
 // shake itself, and the thunder is quieter and comes up more slowly. There is no lightning at any setting.
 //
 // The birds are too small in the picture to name; they are built dark and grey at the nape, like the jackdaws that
@@ -59,7 +58,7 @@ const T_OUT = 0.9, T_TURN = 2.2, T_THUNDER = 2.9, T_LULL = 3.5, T_GUST = 3.9, T_
 const TOWER = { u0: -0.175, u1: 0.035, o0: 0.28, o1: 0.44, th: 0.02 };
 const FOOT = [-0.07, 0.47];                      // where the tower meets the water: everything spreads from here
 const LEDGE = 0.405;                             // the ledge inside the tower (its top)
-const N_RAIN = 34, N_DROP = 14, N_LEAF = 16, N_CARD = 200;
+const N_RAIN = 34, N_DROP = 14, N_CARD = 184;
 // the boxes the pool reflects: [lo (along, up, out), hi, kind (0 brick, 1 the dark inside)]
 const BOXES = [
   [[-0.175, 0, 0.28], [-0.06, 0.63, 0.44], 0], [[-0.06, 0, 0.28], [0.035, 0.59, 0.3], 1], [[-0.06, 0, 0.3], [0.035, 0.22, 0.44], 0],
@@ -609,8 +608,6 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
     for (const [u, o, h] of [[-0.62, 0.356, 0.36], [-0.66, 0.358, 0.27], [-0.58, 0.354, 0.26], [-0.45, 0.19, 0.37], [-0.2, 0.42, 0.365], [-0.3, 0.41, 0.135], [-0.8, 0.368, 0.18]]) F.push({ k: 1, u, o, h, s: 0.024 + 0.01 * R(), q: 1.5, c: R() < 0.5 ? moss : pick(bricks), sun: 0.55, sway: 0, ph: 0, spin: (R() - 0.5) * 0.6 });
     for (const f of F) f.d = Math.hypot(f.u - FOOT[0], f.o - FOOT[1]);
     this.rainC = col('#c9d0d6', 0.15);
-    // the leaves the gust tears from the wood on the left and carries across
-    this.leaves = Array.from({ length: N_LEAF }, (_, i) => ({ u: -1.0 + 0.5 * R(), o: 0.12 + 0.5 * R(), h: 0.24 + 0.24 * R(), v: 1.3 + 0.9 * R(), a: R(), b: R(), s: 0.016 + 0.014 * R(), c: R() < 0.35 ? col('#8a7a3c', 0.3) : pick(mid) }));
     // scratch: one row per card, then drawn far to near
     this.px = new Float32Array(n); this.py = new Float32Array(n); this.pz = new Float32Array(n); this.ps = new Float32Array(n); this.pq = new Float32Array(n);
     this.pk = new Float32Array(n); this.pw = new Float32Array(n); this.pa = new Float32Array(n); this.pr = new Float32Array(n); this.pc = new Float32Array(n * 3); this.dep = new Float32Array(n);
@@ -793,10 +790,6 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
       const r = clamp01(rise * 1.75 - f.d * 0.6), k = sm(clamp01((r * 0.8 - f.h + f.s * 0.3) / 0.12)); if (k <= 0.01) continue;
       const wl = w.wind + w.gust * sm(clamp01((w.gustF + 0.15 - f.u) / 0.65)), sw = f.sway * (wl * 2.2 * (1 + 0.3 * Math.sin(tw * 5.3 + f.ph)) + 0.5 * Math.sin(tw * 1.1 + f.ph));
       put(f.u + sw, f.o, f.h - 0.04 * (1 - k), f.s * (0.7 + 0.3 * k), f.q || 1, f.k, k, f.spin + sw * 2.5, f.sun, f.c);
-    }
-    for (const f of this.leaves) {
-      const sp = calm ? 0.5 : 1, tau = (t - T_GUST - (f.u + 2.0) / 3.4 / sp - 0.25 * f.a) * sp; if (tau <= 0 || tau > 1.5) continue;
-      put(f.u + f.v * tau, f.o + 0.25 * f.b * tau, f.h + 0.1 * Math.sin(tau * 7 + f.a * 6) - 0.12 * tau * tau, f.s, 0.7, 1, K * sm(tau / 0.12) * (1 - sm(ramp(tau, 1.0, 1.5))), tau * (calm ? 4 : 9) + f.a * 6, 0.6, f.c);
     }
     if (w.rain > 0.02) for (let i = 0; i < N_RAIN; i++) {
       const per = 0.36 + 0.1 * hash(i, 5), x = t / per + i * 0.618, cyc = Math.floor(x), k = x - cyc, slant = 0.25 + 0.5 * (w.wind + w.gust);
