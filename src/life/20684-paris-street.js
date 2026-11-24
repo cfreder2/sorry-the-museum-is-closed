@@ -382,6 +382,6 @@ float lPud, lDry;`)
       L.add(pivot, L.fixed);
       this.brollies.push({ pivot, can, ph: L.rand() * 6 });
     }
-    if (n) k.plan.obstacles.push({ x0: ux0 - 0.28, x1: ux1 + 0.28, z0: r.z1 - 0.48, z1: r.z1, y0: y + 0.04, y1: y + 0.86 });
+    if (n && !L.room._hooksSolid && (L.room._hooksSolid = true)) k.plan.obstacles.push({ x0: ux0 - 0.28, x1: ux1 + 0.28, z0: r.z1 - 0.48, z1: r.z1, y0: y + 0.04, y1: y + 0.86 });
   },
 });
