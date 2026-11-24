@@ -29,8 +29,10 @@
 // rain's rings and the gust), its muddy edge, the storm's shadow on the floorboards, and his sky on the wall (soft
 // masses, with his billows painted once in a texture, which drift, thicken and break). Everything solid is a second
 // mesh with its own light (overcast, storm, the sun from the left, the tower's own shadow): the ground, the
-// brickwork in courses of short dabs, the stones, every reed (the wind bends them in the shader), and the two
-// birds, whose bodies and wings are parts of the same mesh moved by six matrices. His foliage, the plaster and moss
+// brickwork (fine uneven courses painted once in a texture, weathered grey in patches and damp at the foot in the
+// shader, the tops of the walls broken lines with bites out of them), the stones, the trees' stems, every reed (the wind bends them in
+// the shader), and the two birds, whose bodies and wings are parts of the same mesh moved by six matrices. His
+// foliage (masses of feathered cards at several depths, their small light touches taking the sun), the weeds, plaster and moss
 // on the brick and the rain are soft cards in a third. Nothing is solid and nothing stays out
 // after the look. The tower stands 0.75 m at its highest, close under the picture: from the look camera nothing
 // comes in front of a canvas (the birds come down the bare wall to the left of the frame, and keep below its rail
@@ -58,7 +60,7 @@ const T_OUT = 0.9, T_TURN = 2.2, T_THUNDER = 2.9, T_LULL = 3.5, T_GUST = 3.9, T_
 const TOWER = { u0: -0.175, u1: 0.035, o0: 0.28, o1: 0.44, th: 0.02 };
 const FOOT = [-0.07, 0.47];                      // where the tower meets the water: everything spreads from here
 const LEDGE = 0.405;                             // the ledge inside the tower (its top)
-const N_RAIN = 34, N_DROP = 14, N_CARD = 184;
+const N_RAIN = 34, N_DROP = 14, N_CARD = 224;
 // the boxes the pool reflects: [lo (along, up, out), hi, kind (0 brick, 1 the dark inside)]
 const BOXES = [
   [[-0.175, 0, 0.28], [-0.06, 0.63, 0.44], 0], [[-0.06, 0, 0.28], [0.035, 0.59, 0.3], 1], [[-0.06, 0, 0.3], [0.035, 0.22, 0.44], 0],
@@ -324,36 +326,84 @@ if (vKind > 0.5) {
     const quad = (a, b, c, d, n, k, tex, ta, tb, tc, td) => { vert(a, n, k, ta, tex); vert(b, n, k, tb, tex); vert(c, n, k, tc, tex); vert(a, n, k, ta, tex); vert(c, n, k, tc, tex); vert(d, n, k, td, tex); };
     const C = (r, g, b) => new THREE.Color(r, g, b);
     const WHITE = C(1, 1, 1), SLATE = C(0.36, 0.38, 0.43), CAP = C(0.74, 0.8, 0.6), PLASTER = C(1.5, 1.6, 1.7), DIM = C(0.8, 0.78, 0.76);
-    const TS = 0.2, R = () => L.rand();
-    // his brick: courses of short dabs, red, orange and brown, a little pale mortar, darker where it is weathered
-    this.tBrick = strokes({
-      size: 256, seed: 6075, n: 4200, len: [7, 13], width: [2.2, 3.4], bend: 0.05, lift: 0.07, base: col('#8f4f37', 0.2).getStyle(),
-      colors: [['#a45a3d', 4], ['#b0633f', 3], ['#96513a', 3], ['#b9714a', 1.2], ['#84493a', 1.4], ['#c79a78', 0.22], ['#a06a4e', 1]].map(([c, w]) => [col(c, 0.2).getStyle(), w]),
-      angle: (x, y, r) => (r() - 0.5) * 0.1,
+    const TS = 0.3, R = () => L.rand(), TOPC = col('#5e5240', 0.3);          // (the broken tops: old mortar, earth and moss, not brick faces)
+    // His brick, painted once (it tiles): thin courses of uneven height, each a run of small bricks of different
+    // lengths in close reds and browns, laid a little out of true, their joints only hinted at here and there (never a
+    // ruled grid); then, soft over it all, patches of pale mortar and old plaster, of weathered grey, and dark runs.
+    const rgbOf = hex => { const k = col(hex, 0.2).clone().convertLinearToSRGB(); return [k.r, k.g, k.b].map(v => Math.round(255 * clamp01(v))).join(','); };
+    this.tBrick = canvasTexture(512, 512, (g, w, h) => {
+      const tones = ['#a45a3d', '#ad6240', '#96513a', '#b56c47', '#84493a', '#9c6048', '#7a4636', '#a8684c', '#a05a44'].map(c => col(c, 0.2).getStyle());
+      g.fillStyle = col('#935239', 0.2).getStyle(); g.fillRect(0, 0, w, h);
+      const pale = rgbOf('#d2baa0'), dark = rgbOf('#4a2a22'), grey = rgbOf('#746c66');
+      for (let y = 0; y < h;) {
+        const ch = Math.min(h - y, 5 + Math.floor(R() * 4));
+        for (let x = -R() * 20; x < w;) {
+          const bl = 9 + R() * 16, tilt = (R() - 0.5) * 1.8;
+          g.globalAlpha = 0.45 + 0.5 * R(); g.fillStyle = tones[Math.floor(R() * tones.length)];
+          for (const ox of [0, -w]) { g.beginPath(); g.moveTo(x + ox, y + 0.5 + tilt * 0.5); g.lineTo(x + ox + bl - 0.8, y + 0.5 - tilt * 0.5); g.lineTo(x + ox + bl - 0.8, y + ch - 0.3 - tilt * 0.5); g.lineTo(x + ox, y + ch - 0.3 + tilt * 0.5); g.fill(); }
+          x += bl + (R() < 0.3 ? 1.4 : 0.3);
+        }
+        // a joint, where it still shows: a short pale or dark line, broken
+        g.lineWidth = 1;
+        for (let x = R() * 30; x < w; x += 14 + R() * 46) { if (R() < 0.45) continue; g.globalAlpha = 0.16 + 0.24 * R(); g.strokeStyle = `rgb(${R() < 0.5 ? pale : dark})`; g.beginPath(); g.moveTo(x, y + 0.5); g.lineTo(x + 6 + R() * 26, y + 0.5 + (R() - 0.5) * 1.5); g.stroke(); }
+        y += ch;
+      }
+      const patch = (x, y, rx, ry, rgb, a) => {
+        for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
+          const X = x + ox, Y = y + oy; if (X < -rx || X > w + rx || Y < -ry || Y > h + ry) continue;
+          g.save(); g.translate(X, Y); g.rotate((R() - 0.5) * 0.5); g.scale(rx, ry);
+          const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(0.6, `rgba(${rgb},${a * 0.55})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+          g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore();
+        }
+      };
+      g.globalAlpha = 1;
+      for (let i = 0; i < 18; i++) patch(R() * w, R() * h, 14 + R() * 34, 8 + R() * 20, pale, 0.2 + 0.28 * R());
+      for (let i = 0; i < 14; i++) patch(R() * w, R() * h, 18 + R() * 44, 12 + R() * 30, grey, 0.2 + 0.28 * R());
+      for (let i = 0; i < 12; i++) patch(R() * w, R() * h, 9 + R() * 20, 22 + R() * 50, dark, 0.16 + 0.2 * R());
     });
+    this.tBrick.wrapS = this.tBrick.wrapT = THREE.RepeatWrapping; this.tBrick.anisotropy = 4;
     const lin = pts => s => { for (let i = 1; i < pts.length; i++) if (s <= pts[i][0]) { const a = pts[i - 1], b = pts[i]; return a[1] + (b[1] - a[1]) * clamp01((s - a[0]) / (b[0] - a[0])); } return pts[pts.length - 1][1]; };
-    // A wall from (u0, o0) to (u1, o1), th thick to the right of the way it runs, in columns each with its own top
-    // (broken brickwork goes down in steps).
-    const wall = (u0, o0, u1, o1, th, top, { cols = 10, bot = -0.03, out = WHITE, inn = SLATE, cap = CAP, jit = 0.012 } = {}) => {
+    // A wall from (u0, o0) to (u1, o1), th thick to the right of the way it runs. Its top is a broken line, never a
+    // row of steps: the profile, shaken a little, and bitten into at a few places by bites of different widths and
+    // depths, some V-shaped, some sheer on one side and sloping on the other. lean tips the whole piece over as it
+    // rises. It gives back at(s): where its top is at s along it (for what sits on it: a weed, a loose brick, a bird).
+    const wall = (u0, o0, u1, o1, th, top, { cols = 10, bot = -0.03, out = WHITE, inn = SLATE, jit = 0.005, bite = 0.03, bites = 3, lean = 0 } = {}) => {
       const len = Math.hypot(u1 - u0, o1 - o0), du = (u1 - u0) / len, dz = (o1 - o0) / len, nu = dz, no = -du, uo = R() * 3;
+      const hv = Array.from({ length: cols + 1 }, (_, j) => top(j / cols) + (R() - 0.5) * 2 * jit), hl = hv.slice(0, cols), hr = hv.slice(1);
+      for (let b = 0; b < bites && cols > 5; b++) {
+        const half = 1 + Math.floor(R() * Math.max(1.01, cols * 0.11)), c = half + Math.floor(R() * (cols + 1 - 2 * half)), kind = R(), deep = Math.min(bite, 0.34 * (top(c / cols) - Math.max(bot, 0))) * (0.4 + 0.6 * R());
+        const d = j => { const x = (j - c) / half; return Math.abs(x) > 1 ? 0 : deep * (kind < 0.4 ? 1 - Math.abs(x) : kind < 0.7 ? (1 - x) / 2 : (1 + x) / 2); };
+        for (let j = Math.max(0, c - half); j < Math.min(cols, c + half); j++) { hl[j] -= d(j); hr[j] -= d(j + 1); }
+      }
+      const P = (p, hh) => [p[0] + nu * lean * Math.max(0, hh), p[1] + no * lean * Math.max(0, hh), hh];
       for (let j = 0; j < cols; j++) {
-        const s0 = j / cols, s1 = (j + 1) / cols, ht = top((s0 + s1) / 2) + (R() - 0.5) * 2 * jit; if (ht <= bot) continue;
+        const s0 = j / cols, s1 = (j + 1) / cols, h0 = hl[j], h1 = hr[j]; if (Math.max(h0, h1) <= bot) continue;
         const a0 = [u0 + du * len * s0, o0 + dz * len * s0], a1 = [u0 + du * len * s1, o0 + dz * len * s1], b0 = [a0[0] + nu * th, a0[1] + no * th], b1 = [a1[0] + nu * th, a1[1] + no * th];
-        const x0 = uo + s0 * len / TS, x1 = uo + s1 * len / TS, y0 = bot / TS, y1 = ht / TS, tw = th / TS;
-        quad([...a0, bot], [...a1, bot], [...a1, ht], [...a0, ht], [-nu, 0, -no], out, 0, [x0, y0], [x1, y0], [x1, y1], [x0, y1]);
-        quad([...b1, bot], [...b0, bot], [...b0, ht], [...b1, ht], [nu, 0, no], inn, 0, [x1 + 0.37, y0], [x0 + 0.37, y0], [x0 + 0.37, y1], [x1 + 0.37, y1]);
-        quad([...a0, ht], [...a1, ht], [...b1, ht], [...b0, ht], [0, 1, 0], cap, 0, [x0, y1], [x1, y1], [x1, y1 + tw], [x0, y1 + tw]);
-        quad([...b0, bot], [...a0, bot], [...a0, ht], [...b0, ht], [-du, 0, -dz], out, 0, [x0 - tw, y0], [x0, y0], [x0, y1], [x0 - tw, y1]);
-        quad([...a1, bot], [...b1, bot], [...b1, ht], [...a1, ht], [du, 0, dz], out, 0, [x1, y0], [x1 + tw, y0], [x1 + tw, y1], [x1, y1]);
+        const x0 = uo + s0 * len / TS, x1 = uo + s1 * len / TS, y0 = bot / TS, tw = th / TS, sl = (h1 - h0) / (len / cols), nl = Math.hypot(sl, 1);
+        quad(P(a0, bot), P(a1, bot), P(a1, h1), P(a0, h0), [-nu, 0, -no], out, 0, [x0, y0], [x1, y0], [x1, h1 / TS], [x0, h0 / TS]);
+        quad(P(b1, bot), P(b0, bot), P(b0, h0), P(b1, h1), [nu, 0, no], inn, 0, [x1 + 0.37, y0], [x0 + 0.37, y0], [x0 + 0.37, h0 / TS], [x1 + 0.37, h1 / TS]);
+        quad(P(a0, h0), P(a1, h1), P(b1, h1), P(b0, h0), [-sl * du / nl, 1 / nl, -sl * dz / nl], TOPC, 2, [x0, h0 / TS], [x1, h1 / TS], [x1, h1 / TS + tw], [x0, h0 / TS + tw]);
+        quad(P(b0, bot), P(a0, bot), P(a0, h0), P(b0, h0), [-du, 0, -dz], out, 0, [x0 - tw, y0], [x0, y0], [x0, h0 / TS], [x0 - tw, h0 / TS]);
+        quad(P(a1, bot), P(b1, bot), P(b1, h1), P(a1, h1), [du, 0, dz], out, 0, [x1, y0], [x1 + tw, y0], [x1 + tw, h1 / TS], [x1, h1 / TS]);
+      }
+      return { at(s) { const x = clamp01(s) * cols, j = Math.min(cols - 1, Math.floor(x)), hh = hl[j] + (hr[j] - hl[j]) * (x - j); return [u0 + du * len * s + nu * (th / 2 + lean * hh), o0 + dz * len * s + no * (th / 2 + lean * hh), hh]; } };
+    };
+    // What sits on the broken tops: weeds (soft cards, made later), dabs that soften the line, a loose brick or two.
+    const weeds = this.weeds = [], dabs = this.capDabs = [];
+    const dress = (wl, n, { weed = 0.4, loose = 0.15, s0 = 0.04, s1 = 0.96 } = {}) => {
+      for (let i = 0; i < n; i++) {
+        const p = wl.at(s0 + (s1 - s0) * (i + R()) / n), k = R();
+        if (k < weed) weeds.push(p); else if (k < weed + loose) block([p[0], p[1], p[2] + 0.003], [0.018 + 0.01 * R(), 0.007, 0.012], [R() * 3, (R() - 0.5) * 0.3, (R() - 0.5) * 0.5], WHITE, CAP); else dabs.push(p);
       }
     };
-    // Something dark let into a wall's face: a window, a putlog hole, a doorway (round-headed if arch).
+    // Something dark let into a wall's face: a window, a putlog hole, a doorway (round-headed if arch). Its own kind
+    // of surface: soft at the edges and darkest under its head, so it reads as depth, not as a black patch.
     const DARK = col('#1d1612', 0.2), DARK2 = col('#2a211c', 0.2);
     const mark = (u0, o0, u1, o1, s, h, w, hh, arch = false, k = DARK) => {
-      const len = Math.hypot(u1 - u0, o1 - o0), du = (u1 - u0) / len, dz = (o1 - o0) / len, nu = -dz, no = du, e = 0.0016;
-      const at = (x, y) => [u0 + du * (s + x) + nu * e, o0 + dz * (s + x) + no * e, h + y], n = [nu, 0, no];
-      quad(at(-w / 2, 0), at(w / 2, 0), at(w / 2, hh), at(-w / 2, hh), n, k, 2, [0, 0], [1, 0], [1, 1], [0, 1]);
-      if (arch) for (let i = 0; i < 6; i++) { const a0 = Math.PI * i / 6, a1 = Math.PI * (i + 1) / 6; vert(at(0, hh), n, k, [0, 0], 2); vert(at(Math.cos(a0) * w / 2, hh + Math.sin(a0) * w / 2), n, k, [0, 0], 2); vert(at(Math.cos(a1) * w / 2, hh + Math.sin(a1) * w / 2), n, k, [0, 0], 2); }
+      const len = Math.hypot(u1 - u0, o1 - o0), du = (u1 - u0) / len, dz = (o1 - o0) / len, nu = -dz, no = du, e = 0.0016, H = hh + (arch ? w / 2 : 0);
+      const at = (x, y) => [u0 + du * (s + x) + nu * e, o0 + dz * (s + x) + no * e, h + y], n = [nu, 0, no], tc = (x, y) => [x / w + 0.5, y / H];
+      quad(at(-w / 2, 0), at(w / 2, 0), at(w / 2, hh), at(-w / 2, hh), n, k, 5, tc(-w / 2, 0), tc(w / 2, 0), tc(w / 2, hh), tc(-w / 2, hh));
+      if (arch) for (let i = 0; i < 6; i++) { const a0 = Math.PI * i / 6, a1 = Math.PI * (i + 1) / 6, q = a => [Math.cos(a) * w / 2, hh + Math.sin(a) * w / 2]; for (const [x, y] of [[0, hh], q(a0), q(a1)]) vert(at(x, y), n, k, tc(x, y), 5); }
     };
     // A block, turned and tipped (fallen masonry, a ledge): centre [u, o, h], size [along, up, out].
     const M4 = new THREE.Matrix4(), E = new THREE.Euler(), V = new THREE.Vector3(), NN = new THREE.Vector3();
@@ -380,15 +430,18 @@ if (vKind > 0.5) {
     // ---- the tower: a shell of brick, whole on the left and to the top, broken open at the front right corner
     {
       const T = TOWER;
-      wall(T.u0, T.o1, T.u1, T.o1, T.th, lin([[0, 0.6], [0.1, 0.585], [0.2, 0.61], [0.3, 0.63], [0.42, 0.655], [0.5, 0.645], [0.545, 0.62], [0.56, 0.46], [0.62, 0.4], [0.7, 0.31], [0.8, 0.25], [0.9, 0.2], [1, 0.17]]), { cols: 36, jit: 0.005 });
-      wall(T.u1, T.o1, T.u1, T.o0, T.th, lin([[0, 0.17], [0.3, 0.2], [0.5, 0.3], [0.65, 0.42], [0.8, 0.52], [1, 0.57]]), { cols: 22, out: DIM, jit: 0.006 });
-      wall(T.u1, T.o0, T.u0, T.o0, T.th, lin([[0, 0.57], [0.3, 0.6], [0.6, 0.635], [1, 0.61]]), { cols: 28, jit: 0.006 });
-      wall(T.u0, T.o0, T.u0, T.o1, T.th, lin([[0, 0.61], [0.5, 0.6], [1, 0.6]]), { cols: 22, jit: 0.006 });
+      const front = wall(T.u0, T.o1, T.u1, T.o1, T.th, lin([[0, 0.585], [0.08, 0.6], [0.16, 0.578], [0.24, 0.615], [0.33, 0.632], [0.42, 0.657], [0.5, 0.64], [0.545, 0.615], [0.57, 0.47], [0.63, 0.43], [0.68, 0.33], [0.76, 0.3], [0.83, 0.22], [0.92, 0.2], [1, 0.15]]), { cols: 44, bites: 6, bite: 0.034 });
+      const right = wall(T.u1, T.o1, T.u1, T.o0, T.th, lin([[0, 0.15], [0.22, 0.21], [0.4, 0.24], [0.52, 0.35], [0.66, 0.4], [0.8, 0.53], [1, 0.57]]), { cols: 26, out: DIM, bites: 3 });
+      const back = wall(T.u1, T.o0, T.u0, T.o0, T.th, lin([[0, 0.57], [0.3, 0.6], [0.45, 0.59], [0.6, 0.635], [0.8, 0.6], [1, 0.615]]), { cols: 32, bites: 4, bite: 0.034 });
+      const left = wall(T.u0, T.o0, T.u0, T.o1, T.th, lin([[0, 0.615], [0.3, 0.59], [0.6, 0.61], [1, 0.585]]), { cols: 26, bites: 3 });
       block([(T.u0 + T.u1) / 2, T.o0 + T.th + 0.03, LEDGE - 0.01], [T.u1 - T.u0 - 2 * T.th, 0.02, 0.06], [0, 0, 0], SLATE, C(0.55, 0.52, 0.5));      // the ledge inside
       block([(T.u0 + T.u1) / 2, (T.o0 + T.o1) / 2, 0.07], [T.u1 - T.u0 - 2 * T.th, 0.02, T.o1 - T.o0 - 2 * T.th], [0, 0, 0], SLATE, C(0.3, 0.32, 0.28));      // and its floor, dark
-      // the lower block against its left side, and the thin slab of an upper wall still standing behind it
-      wall(-0.235, 0.42, T.u0, 0.42, 0.12, lin([[0, 0.33], [0.5, 0.37], [1, 0.36]]), { cols: 9, jit: 0.006 });
-      wall(-0.228, 0.32, -0.196, 0.32, 0.02, lin([[0, 0.5], [1, 0.47]]), { cols: 2, out: PLASTER, jit: 0.006 });
+      // the lower block against its left side, and the thin slab of an upper wall still standing behind it, leaning
+      const annex = wall(-0.235, 0.42, T.u0, 0.42, 0.12, lin([[0, 0.31], [0.35, 0.37], [0.7, 0.345], [1, 0.36]]), { cols: 14, bites: 2 });
+      wall(-0.228, 0.32, -0.196, 0.32, 0.02, lin([[0, 0.5], [0.5, 0.485], [1, 0.45]]), { cols: 6, out: PLASTER, bites: 1, bite: 0.02, lean: 0.05 });
+      dress(front, 9, { s1: 0.54 }); dress(front, 6, { s0: 0.57, weed: 0.5 }); dress(back, 5); dress(left, 4); dress(right, 4, { weed: 0.5 }); dress(annex, 4, { weed: 0.6 });
+      // (where the birds will stand: on the lit wall's highest part, and on the back wall, seen through the break)
+      this.perch = [front.at(0.395), back.at(0.262)];
       // his openings: the square window high in the lit face, the two round-headed ones at the foot, putlog holes
       mark(T.u0, T.o1, T.u1, T.o1, 0.068, 0.315, 0.03, 0.04, false);
       mark(T.u0, T.o1, T.u1, T.o1, 0.078, 0.075, 0.024, 0.036, true); mark(T.u0, T.o1, T.u1, T.o1, 0.142, 0.045, 0.02, 0.022, true, DARK2);
@@ -396,14 +449,15 @@ if (vKind > 0.5) {
       mark(T.u0, T.o0, T.u0, T.o1, 0.09, 0.3, 0.02, 0.03, false); mark(-0.235, 0.42, T.u0, 0.42, 0.03, 0.2, 0.018, 0.026, false, DARK2);
     }
     // ---- the ruins to the left: the low wall with its blind arch, the gable, the far wall and its doorway, the arches up the slope
-    wall(-0.47, 0.415, -0.235, 0.405, 0.022, lin([[0, 0.09], [0.3, 0.1], [0.6, 0.13], [1, 0.15]]), { cols: 30, jit: 0.006 });
+    const low = wall(-0.47, 0.415, -0.235, 0.405, 0.022, lin([[0, 0.085], [0.15, 0.11], [0.3, 0.095], [0.5, 0.13], [0.7, 0.12], [0.85, 0.155], [1, 0.15]]), { cols: 34, bites: 5 });
     mark(-0.47, 0.415, -0.235, 0.405, 0.15, 0.06, 0.022, 0.03, true, DARK2);
-    wall(-0.69, 0.36, -0.55, 0.35, 0.03, lin([[0, 0.2], [0.15, 0.27], [0.3, 0.36], [0.42, 0.37], [0.55, 0.3], [0.7, 0.22], [0.85, 0.16], [1, 0.12]]), { cols: 24, jit: 0.005 });
-    wall(-0.9, 0.37, -0.69, 0.365, 0.025, lin([[0, 0.11], [0.4, 0.17], [0.8, 0.18], [1, 0.2]]), { cols: 22, jit: 0.006 });
+    const gable = wall(-0.69, 0.36, -0.55, 0.35, 0.03, lin([[0, 0.19], [0.12, 0.25], [0.22, 0.27], [0.32, 0.36], [0.42, 0.372], [0.5, 0.31], [0.62, 0.285], [0.72, 0.21], [0.85, 0.17], [1, 0.11]]), { cols: 30, bites: 4, bite: 0.036, lean: -0.04 });
+    const far = wall(-0.9, 0.37, -0.69, 0.365, 0.025, lin([[0, 0.1], [0.25, 0.15], [0.45, 0.175], [0.6, 0.15], [0.8, 0.185], [1, 0.2]]), { cols: 28, bites: 4 });
     mark(-0.9, 0.37, -0.69, 0.365, 0.1, 0.04, 0.05, 0.07, true);
-    for (let k = 0; k < 3; k++) wall(-0.525 + k * 0.062, 0.18, -0.503 + k * 0.062, 0.18, 0.03, () => 0.315, { cols: 1, bot: 0.08, out: DIM, jit: 0 });
-    wall(-0.53, 0.18, -0.372, 0.18, 0.03, lin([[0, 0.36], [0.5, 0.375], [1, 0.35]]), { cols: 20, bot: 0.3, out: DIM, jit: 0.006 });
-    wall(-0.372, 0.18, -0.31, 0.19, 0.03, lin([[0, 0.3], [1, 0.2]]), { cols: 8, bot: 0.05, out: DIM, jit: 0.006 });
+    for (let k = 0; k < 3; k++) wall(-0.525 + k * 0.062, 0.18, -0.503 + k * 0.062, 0.18, 0.03, () => 0.315, { cols: 2, bot: 0.08, out: DIM, jit: 0, lean: (k - 1) * 0.02 });
+    const arches = wall(-0.53, 0.18, -0.372, 0.18, 0.03, lin([[0, 0.355], [0.3, 0.378], [0.6, 0.36], [1, 0.345]]), { cols: 24, bot: 0.3, out: DIM, bites: 3, bite: 0.02 });
+    wall(-0.372, 0.18, -0.31, 0.19, 0.03, lin([[0, 0.3], [0.5, 0.27], [1, 0.19]]), { cols: 10, bot: 0.05, out: DIM, bites: 2 });
+    dress(low, 8, { weed: 0.55 }); dress(gable, 6); dress(far, 6, { weed: 0.55 }); dress(arches, 5, { weed: 0.5, loose: 0.1 });
     // ---- fallen masonry on the slope, going green
     const DULL = C(0.62, 0.58, 0.56), DULLER = C(0.5, 0.52, 0.44);
     for (const [c, sz, r] of [[[-0.36, 0.475, 0.05], [0.085, 0.045, 0.055], [0.5, 0.25, 0.42]], [[-0.29, 0.505, 0.028], [0.065, 0.04, 0.048], [-0.4, 0.12, -0.5]], [[-0.44, 0.488, 0.038], [0.058, 0.036, 0.046], [1.1, -0.35, 0.22]], [[-0.5, 0.452, 0.066], [0.072, 0.044, 0.05], [0.2, 0.5, 0.55]], [[-0.2, 0.512, 0.02], [0.048, 0.028, 0.038], [2.0, 0.12, 0.18]]]) block(c, sz, r, DULL, DULLER);
@@ -418,6 +472,17 @@ if (vKind > 0.5) {
     };
     stone(0.2, 0.97, 0.085, 0.036, 0.055, 0.4, col('#6f5a44', 0.3), col('#35291f', 0.3));
     stone(0.31, 1.01, 0.035, 0.016, 0.028, 2.2, col('#6f5a44', 0.3), col('#35291f', 0.3));
+    // ---- the trees' stems: thin, dark, a little bent, going up into their crowns (the crowns are soft cards, made later)
+    {
+      const bark = col('#2a2219', 0.3), barkLit = col('#4a3c2a', 0.3), cc = new THREE.Color();
+      const stem = (u, o, h1, r, lean, bend) => {
+        const NR = 5, NS = 5, h0 = ground(u, o) - 0.01, ax = t => [u + lean * t + bend * Math.sin(t * Math.PI), o, h0 + (h1 - h0) * t], ring = [];
+        for (let i = 0; i <= NR; i++) { const t = i / NR, a = ax(t), rr = r * (1 - 0.6 * t); ring.push(Array.from({ length: NS + 1 }, (_, j) => { const ph = j / NS * TAU; return { p: [a[0] + Math.cos(ph) * rr, a[1] + Math.sin(ph) * rr, a[2]], n: [Math.cos(ph), 0.1, Math.sin(ph)] }; })); }
+        for (let i = 0; i < NR; i++) for (let j = 0; j < NS; j++) for (const v of [ring[i][j], ring[i][j + 1], ring[i + 1][j + 1], ring[i][j], ring[i + 1][j + 1], ring[i + 1][j]]) { cc.copy(bark).lerp(barkLit, clamp01(-v.n[0] * 0.6 + 0.3)); vert(v.p, v.n, cc, [j, i], 2); }
+      };
+      stem(0.85, 0.1, 0.36, 0.009, 0.012, 0.012); stem(1.01, 0.1, 0.32, 0.008, 0.008, -0.01);
+      stem(-0.27, 0.13, 0.31, 0.007, 0.015, -0.008); stem(-0.8, 0.11, 0.3, 0.009, -0.02, 0.01); stem(-0.98, 0.11, 0.24, 0.008, 0.02, 0.008); stem(-0.63, 0.11, 0.26, 0.008, 0.015, -0.01);
+    }
     // ---- reeds: in the shallows in front, round the stone, and under the tower. Each blade is three joints; the
     // wind bends it in the shader, further the higher up the blade (sway), by its own length (lever).
     {
@@ -495,7 +560,7 @@ varying vec3 vN; varying vec4 vInfo; varying vec2 vUv2; vec3 fCol;`)
 {
   vec2 lq = lifeP.xz - uO.xz; vec3 Ps = vec3(dot(lq, uAx.xy), lifeP.y - uO.y, dot(lq, uAx.zw)) / uZ;
   // it stands up out of the water: nearest the tower first, from the ground up, the edge ragged
-  if (vInfo.x < 3.5) {
+  if (vInfo.x < 3.5 || vInfo.x > 4.5) {
     float r = clamp(uRise * 1.75 - length(Ps.xz - uFoot) * 0.6, 0.0, 1.0);
     if (r < 1.0 && Ps.y > r * 0.8 - 0.03 + (texture2D(tNoise, vec2(Ps.x * 2.3 + Ps.z, Ps.y * 2.3 + Ps.z * 1.7)).a - 0.5) * 0.09) discard;
   }
@@ -503,11 +568,18 @@ varying vec3 vN; varying vec4 vInfo; varying vec2 vUv2; vec3 fCol;`)
   vec3 ns = vec3(dot(n.xz, uAx.xy), n.y, dot(n.xz, uAx.zw));
   vec3 alb = vColor;
   if (vInfo.x < 0.5) {
-    // brick: his dabs in courses, streaked dark by eighty winters, green and damp at the foot
-    alb *= texture2D(tBrick, vUv2).rgb * (0.72 + 0.56 * texture2D(tNoise, vUv2 * vec2(0.9, 0.16)).r);
-    alb = mix(alb, alb * vec3(0.6, 0.72, 0.5), (1.0 - smoothstep(0.02, 0.12, Ps.y - 0.03)) * 0.55);
+    // brick: his fine uneven courses, streaked dark by eighty winters, gone grey in broad patches where the weather
+    // has had it longest, dark, damp and green at the foot (and that line is ragged too)
+    float strk = texture2D(tNoise, vUv2 * vec2(1.35, 0.24)).r, wth = texture2D(tNoise, vUv2 * vec2(0.33, 0.17) + 0.4).g;
+    alb *= texture2D(tBrick, vUv2).rgb * (0.74 + 0.52 * strk);
+    alb = mix(alb, vec3(dot(alb, vec3(0.42))) * vec3(1.03, 1.0, 0.95), smoothstep(0.5, 0.8, wth) * 0.5);
+    alb = mix(alb, alb * vec3(0.46, 0.56, 0.38), (1.0 - smoothstep(0.0, 0.1, Ps.y - 0.035 + (strk - 0.5) * 0.09)) * 0.72);
   } else if (vInfo.x < 1.5) alb *= texture2D(tBank, vUv2).rgb * 0.95;
-  else alb *= 0.8 + 0.4 * texture2D(tNoise, vUv2 * 0.6 + Ps.xy * 3.0).g;
+  else if (vInfo.x > 4.5) {
+    // an opening: the brick's own shadow round its edge, going down into the dark, darkest under its head
+    vec2 e = min(vUv2, 1.0 - vUv2); float inn = smoothstep(0.0, 0.34, min(e.x, e.y * 0.8));
+    alb = mix(vColor * 5.0 + vec3(0.05, 0.028, 0.02), vColor * mix(1.7, 0.5, vUv2.y), inn);
+  } else alb *= 0.8 + 0.4 * texture2D(tNoise, vUv2 * 0.6 + Ps.xy * 3.0).g;
   alb *= 1.0 - 0.16 * uWet * step(vInfo.x, 3.5);
   fCol = lightOn(alb, ns, Ps);
 }`)
@@ -523,31 +595,34 @@ varying vec3 vN; varying vec4 vInfo; varying vec2 vUv2; vec3 fCol;`)
     const atlas = canvasTexture(512, 512, (g, w, h) => {
       g.clearRect(0, 0, w, h); g.scale(2, 2);
       const clip = (x, y, f) => { g.save(); g.beginPath(); g.rect(x, y, 128, 128); g.clip(); f(x + 64, y + 64); g.restore(); };
-      // 0: a mass of his leaves: many small dabs heaped in a mound, lit on the upper left (red: lit to dark)
-      const leaves = (cx, cy, ink) => {
-        const sub = Array.from({ length: 6 }, () => [cx + (L.rand() - 0.5) * 64, cy + (L.rand() - 0.5) * 42, 15 + L.rand() * 14]); sub.push([cx, cy + 6, 24]);
-        g.globalAlpha = 0.9; g.fillStyle = ink(40); for (const q of sub) { g.beginPath(); g.ellipse(q[0], q[1], q[2] * 0.8, q[2] * 0.68, 0, 0, TAU); g.fill(); } g.globalAlpha = 1;
-        for (let i = 0; i < 900; i++) {
-          const s = sub[Math.floor(L.rand() * sub.length)], a = L.rand() * TAU, rr = Math.sqrt(L.rand()) * s[2], x = s[0] + Math.cos(a) * rr, y = s[1] + Math.sin(a) * rr * 0.85;
-          if (Math.abs(x - cx) > 58 || Math.abs(y - cy) > 58) continue;
-          const lit = clamp01(0.3 - (x - s[0]) / (s[2] * 2.6) - (y - s[1]) / (s[2] * 2.0) + (L.rand() - 0.5) * 0.5), v = Math.floor(45 + 200 * lit * lit);
-          g.fillStyle = ink(v); g.beginPath(); g.ellipse(x, y, 1.2 + L.rand() * 1.5, 0.9 + L.rand() * 0.9, L.rand() * Math.PI, 0, TAU); g.fill();
+      // Every touch here is soft: a spot of paint that feathers out to nothing (no edge anywhere in the atlas, so no
+      // card can show a hard or stepped edge at any distance). v: light to dark (red); gb: the blossom's channel.
+      const touch = (x, y, rx, ry, rot, v, a, gb = v) => {
+        g.save(); g.translate(x, y); g.rotate(rot); g.scale(rx, ry);
+        const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(${v},${gb},${gb},${a})`); gr.addColorStop(0.5, `rgba(${v},${gb},${gb},${a * 0.72})`); gr.addColorStop(1, `rgba(${v},${gb},${gb},0)`);
+        g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore();
+      };
+      // 0: a mass of his foliage. A soft, dark, rounded body in a few lobes; over it many small touches, lighter on
+      // the upper left where his light is; and round it loose touches standing clear of the body, with the sky between.
+      const leaves = (cx, cy, mono) => {
+        const R = () => L.rand(), sub = Array.from({ length: 5 }, () => [cx + (R() - 0.5) * 44, cy + (R() - 0.5) * 30, 16 + R() * 11]); sub.push([cx, cy + 3, 26]);
+        for (const q of sub) touch(q[0], q[1], q[2] * 1.2, q[2] * 1.05, 0, 34, 0.96, mono ? 34 : 0);
+        for (let i = 0; i < 620; i++) {
+          const s = sub[Math.floor(R() * sub.length)], a = R() * TAU, loose = R() < 0.3, rr = (loose ? 0.82 + 0.5 * R() : Math.sqrt(R()) * 0.9) * s[2], x = s[0] + Math.cos(a) * rr * 1.1, y = s[1] + Math.sin(a) * rr * 0.9;
+          if (Math.abs(x - cx) > 55 || Math.abs(y - cy) > 55) continue;
+          const lit = clamp01(0.2 - (x - s[0]) / (s[2] * 2.4) - (y - s[1]) / (s[2] * 1.9) + (R() - 0.5) * 0.55), v = Math.floor(30 + 46 * R() + (lit > 0.42 ? 190 * (lit - 0.42) / 0.58 : 0));
+          touch(x, y, 2.3 + R() * 2.6, 1.6 + R() * 1.6, R() * Math.PI, v, loose ? 0.8 : 0.62, mono ? v : 0);
         }
       };
-      clip(0, 0, (cx, cy) => leaves(cx, cy, v => `rgb(${v},${v},${v})`));
-      // 1: one dab of paint, a few loaded strokes over each other, ragged at the ends
+      clip(0, 0, (cx, cy) => leaves(cx, cy, true));
+      // 1: one dab of paint: a few long soft touches laid over each other
       clip(128, 0, (cx, cy) => {
-        g.lineCap = 'round';
-        for (let i = 0; i < 14; i++) {
-          const y = cy + (L.rand() - 0.5) * 56, half = 40 * Math.sqrt(Math.max(0.05, 1 - Math.pow((y - cy) / 30, 2) * 0.8)), x0 = cx - half * (0.7 + 0.3 * L.rand()), x1 = cx + half * (0.7 + 0.3 * L.rand());
-          const v = Math.floor(110 + 145 * clamp01(0.55 - (y - cy) / 70 + (L.rand() - 0.5) * 0.4));
-          g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 7 + L.rand() * 7; g.beginPath(); g.moveTo(x0, y); g.quadraticCurveTo(cx, y - 4 + L.rand() * 8, x1, y + (L.rand() - 0.5) * 6); g.stroke();
-        }
+        for (let i = 0; i < 11; i++) { const y = cy + (L.rand() - 0.5) * 34; touch(cx + (L.rand() - 0.5) * 22, y, 26 + L.rand() * 16, 5 + L.rand() * 5, (L.rand() - 0.5) * 0.3, Math.floor(110 + 145 * clamp01(0.55 - (y - cy) / 50 + (L.rand() - 0.5) * 0.4)), 0.8); }
       });
-      // 2: the elder by the tower: leaves, and its flat heads of white blossom (green: where the blossom is)
+      // 2: the elder by the tower: its leaves, and its flat heads of white blossom (green: where the blossom is)
       clip(0, 128, (cx, cy) => {
-        leaves(cx, cy, v => `rgb(${v},0,0)`);
-        for (let k = 0; k < 9; k++) { const a = L.rand() * TAU, rr = Math.sqrt(L.rand()) * 38, x = cx + Math.cos(a) * rr, y = cy - 4 + Math.sin(a) * rr * 0.7; for (let i = 0; i < 9; i++) { g.fillStyle = 'rgb(255,255,255)'; g.beginPath(); g.arc(x + (L.rand() - 0.5) * 13, y + (L.rand() - 0.5) * 5, 1.3 + L.rand() * 1.1, 0, TAU); g.fill(); } }
+        leaves(cx, cy, false);
+        for (let k = 0; k < 9; k++) { const a = L.rand() * TAU, rr = Math.sqrt(L.rand()) * 36, x = cx + Math.cos(a) * rr, y = cy - 4 + Math.sin(a) * rr * 0.7; for (let i = 0; i < 9; i++) touch(x + (L.rand() - 0.5) * 13, y + (L.rand() - 0.5) * 5, 1.9 + L.rand() * 1.2, 1.7 + L.rand(), 0, 255, 0.95, 255); }
       });
       // 3: a streak of rain
       clip(128, 128, (cx, cy) => { const gr = g.createLinearGradient(cx, cy - 60, cx, cy + 60); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0.2)'); g.strokeStyle = gr; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx, cy - 56); g.lineTo(cx, cy + 56); g.stroke(); });
@@ -575,11 +650,14 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
         .replace('#include <map_fragment>', `{
   float kd = vInfo.x; vec2 cell = kd < 0.5 ? vec2(0.0, 1.0) : kd < 1.5 ? vec2(1.0, 1.0) : kd < 2.5 ? vec2(0.0, 0.0) : vec2(1.0, 0.0);
   vec4 tx = texture2D(tAtlas, (clamp(vQ, 0.02, 0.98) + cell) * 0.5);
-  vec3 lc = cAmb * mix(1.0, 0.5, uStorm) + cSun * vSun * vInfo.w * (0.25 + 0.75 * tx.r), c; float a;
-  if (kd < 0.5) { c = vCol * (0.42 + 0.95 * tx.r) * lc; a = smoothstep(0.12, 0.8, tx.a) * vInfo.y; }
-  else if (kd < 1.5) { c = vCol * (0.55 + 0.7 * tx.r) * lc; a = smoothstep(0.25, 0.55, tx.a) * vInfo.y; }
-  else if (kd < 2.5) { c = mix(vCol * (0.42 + 0.95 * tx.r), cBlossom, tx.g) * lc; a = smoothstep(0.12, 0.8, tx.a) * vInfo.y; }
-  else { c = vCol; a = tx.a * vInfo.y; }
+  // (his leaves: the body dark; the small touches lighter, a little warmer, and the ones that take the sun when it comes)
+  float tone = smoothstep(0.14, 0.8, tx.r), amb = mix(1.0, 0.5, uStorm), a = min(1.0, tx.a * 1.12) * vInfo.y;
+  vec3 lc = cAmb * amb + cSun * vSun * vInfo.w * (0.25 + 0.75 * tx.r), ll = cAmb * amb + cSun * vSun * vInfo.w * (0.1 + 1.0 * tone), c;
+  vec3 leaf = vCol * (0.55 + 0.85 * tone) * mix(vec3(1.0), vec3(1.1, 1.0, 0.8), tone) * ll;
+  if (kd < 0.5) c = leaf;
+  else if (kd < 1.5) c = vCol * (0.55 + 0.7 * tx.r) * lc;
+  else if (kd < 2.5) c = mix(leaf, cBlossom * lc, tx.g);
+  else c = vCol;
   if (a < 0.01) discard;
   diffuseColor = vec4(c, a);
 }`);
@@ -591,15 +669,23 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
     // ---- where they are: [kind, along, out, up (middle), size, colour, how much sun it takes, how far the wind moves it]
     const R = () => L.rand(), F = this.F = [];
     const pick = a => a[Math.floor(R() * a.length)];
-    const deep = ['#1f2a18', '#263220', '#2c381f', '#1b2216', '#323d22'].map(c => col(c, 0.3)), mid = ['#3a4724', '#445028', '#4d5a2c', '#33401f'].map(c => col(c, 0.3)), olive = ['#4a4f28', '#575a2e', '#404a26', '#63602f'].map(c => col(c, 0.3));
-    const mass = (uc, oc, w, h0, h1, n, s0, s1, cols, sun = 0.7) => { for (let i = 0; i < n; i++) { const u = uc + (R() - 0.5) * w, o = oc + (R() - 0.5) * 0.08, hh = h0 + (h1 - h0) * R(); F.push({ k: 0, u, o, h: hh, s: s0 + (s1 - s0) * R(), q: 1.1 + 0.5 * R(), c: pick(cols), sun: sun * (0.5 + 0.5 * (hh - h0) / Math.max(0.01, h1 - h0)), sway: 0.012 + 0.012 * R(), ph: R() * TAU, spin: (R() - 0.5) * 0.5 }); } };
-    mass(-0.84, 0.09, 0.5, 0.15, 0.46, 21, 0.17, 0.26, deep);               // the wood on the left
-    mass(-0.45, 0.07, 0.42, 0.28, 0.44, 10, 0.13, 0.2, mid, 0.9);           // the hillside behind the arches, greener
-    mass(-0.27, 0.13, 0.12, 0.2, 0.44, 6, 0.11, 0.17, deep);                // the tree between the gable and the tower
-    mass(0.36, 0.14, 0.6, 0.09, 0.26, 14, 0.15, 0.23, deep, 0.5);           // the far bank, right of the tower
-    mass(0.93, 0.1, 0.4, 0.1, 0.3, 10, 0.17, 0.25, deep, 0.6);              // the tall trees at the right: their dark feet
-    mass(0.93, 0.07, 0.42, 0.26, 0.5, 16, 0.16, 0.25, olive, 0.8);          // and their heads, paler
-    mass(0.7, 0.38, 0.14, 0.07, 0.15, 3, 0.12, 0.15, [col('#7a6a34', 0.3), col('#6a6230', 0.3)], 0.8);      // the ochre bush at the water
+    const deep = ['#1f2a18', '#263220', '#2c381f', '#1b2216', '#323d22'].map(c => col(c, 0.3)), mid = ['#3a4724', '#445028', '#4d5a2c', '#33401f'].map(c => col(c, 0.3)), olive = ['#44482a', '#4f4f2c', '#3c4426', '#57522e'].map(c => col(c, 0.3));
+    // (a mass is many cards at several depths, each turned and flipped its own way: thick and large in the middle,
+    // where they close into one dark body, smaller and thinner towards its edge, where the sky comes through)
+    const G = () => (R() + R() + R() - 1.5) / 1.5;
+    const mass = (uc, oc, w, h0, h1, n, s0, s1, cols, sun = 0.7, deepth = 0.14) => {
+      for (let i = 0; i < n; i++) {
+        const gu = G(), gh = G(), far = Math.min(1, Math.hypot(gu, gh) * 1.5), u = uc + gu * w * 0.5, o = Math.max(0.025, oc + (R() - 0.5) * deepth), hh = (h0 + h1) / 2 + gh * (h1 - h0) * 0.55;
+        F.push({ k: 0, u, o, h: hh, s: s1 + (s0 - s1) * far, q: (R() < 0.5 ? -1 : 1) * (1.1 + 0.4 * R()), c: pick(cols), sun: sun * (0.55 + 0.45 * clamp01((hh - h0) / Math.max(0.01, h1 - h0))), sway: 0.012 + 0.012 * R(), ph: R() * TAU, spin: (R() - 0.5) * 1.1 });
+      }
+    };
+    mass(-0.99, 0.1, 0.26, 0.15, 0.38, 8, 0.15, 0.27, deep); mass(-0.8, 0.1, 0.3, 0.2, 0.47, 10, 0.16, 0.29, deep); mass(-0.63, 0.1, 0.26, 0.17, 0.4, 8, 0.15, 0.27, deep);      // the wood on the left: three crowns
+    mass(-0.45, 0.07, 0.5, 0.28, 0.44, 12, 0.14, 0.22, mid, 0.9, 0.08);     // the hillside behind the arches, greener
+    mass(-0.27, 0.13, 0.14, 0.2, 0.44, 7, 0.12, 0.19, deep, 0.7, 0.08);     // the tree between the gable and the tower
+    mass(0.2, 0.14, 0.32, 0.09, 0.24, 8, 0.14, 0.24, deep, 0.5); mass(0.5, 0.14, 0.36, 0.1, 0.27, 9, 0.15, 0.26, deep, 0.5);      // the far bank, right of the tower
+    mass(0.93, 0.11, 0.44, 0.1, 0.3, 11, 0.16, 0.27, deep, 0.6);            // the tall trees at the right: their dark feet
+    mass(0.84, 0.09, 0.28, 0.28, 0.5, 10, 0.15, 0.27, olive, 0.85); mass(1.02, 0.09, 0.26, 0.24, 0.45, 9, 0.14, 0.25, olive, 0.85);      // and their two heads, paler
+    mass(0.7, 0.38, 0.14, 0.07, 0.15, 3, 0.12, 0.15, [col('#7a6a34', 0.3), col('#6a6230', 0.3)], 0.8, 0.04);      // the ochre bush at the water
     for (let i = 0; i < 3; i++) F.push({ k: 2, u: 0.085 + i * 0.045, o: 0.385 + 0.03 * R(), h: 0.1 + 0.05 * i + 0.02 * R(), s: 0.13 + 0.03 * R(), c: pick(deep), sun: 0.7, sway: 0.01, ph: R() * TAU, spin: (R() - 0.5) * 0.4 });      // the elder in flower at the tower's foot
     // grass and weed along the bank, on the fallen blocks and round the walls' feet
     for (let i = 0; i < 16; i++) { const u = -0.95 + 1.9 * (i + R()) / 16, o = shore(u) - 0.05 - 0.1 * R(); F.push({ k: 0, u, o, h: ground(u, o) + 0.025, s: 0.07 + 0.04 * R(), c: pick(mid), sun: 0.9, sway: 0.006, ph: R() * TAU, spin: (R() - 0.5) * 0.6 }); }
@@ -609,8 +695,9 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
     // plaster still clinging, pale; and dabs of brick and moss that break the walls' hard tops
     const plaster = col('#8f8672', 0.3), bricks = ['#8e4a33', '#9a5639', '#7c4230', '#86543c'].map(c => col(c, 0.3)), moss = col('#465028', 0.3);
     for (const [u, o, h, s] of [[-0.37, 0.42, 0.105, 0.055], [-0.565, 0.368, 0.17, 0.05], [-0.212, 0.303, 0.44, 0.04], [0.005, 0.445, 0.13, 0.04], [-0.165, 0.445, 0.17, 0.035]]) F.push({ k: 1, u, o, h, s, q: 1.5, c: plaster, sun: 0.5, sway: 0, ph: 0, spin: (R() - 0.5) * 0.5 });
-    for (let i = 0; i < 12; i++) { const s = (i + R()) / 12, u = TOWER.u0 + s * (TOWER.u1 - TOWER.u0), h = s < 0.55 ? 0.6 + 0.05 * Math.sin(s * 5) : lerp(0.44, 0.17, (s - 0.55) / 0.45); F.push({ k: 1, u, o: TOWER.o1 - 0.004, h: h + 0.002, s: 0.022 + 0.01 * R(), q: 1.5, c: R() < 0.4 ? moss : pick(bricks), sun: 0.55, sway: 0, ph: 0, spin: (R() - 0.5) * 0.6 }); }
-    for (const [u, o, h] of [[-0.62, 0.356, 0.36], [-0.66, 0.358, 0.27], [-0.58, 0.354, 0.26], [-0.45, 0.19, 0.37], [-0.2, 0.42, 0.365], [-0.3, 0.41, 0.135], [-0.8, 0.368, 0.18]]) F.push({ k: 1, u, o, h, s: 0.024 + 0.01 * R(), q: 1.5, c: R() < 0.5 ? moss : pick(bricks), sun: 0.55, sway: 0, ph: 0, spin: (R() - 0.5) * 0.6 });
+    for (const [u, o, h] of this.capDabs) F.push({ k: 1, u, o, h: h + 0.001, s: 0.026 + 0.012 * R(), q: 1.5, c: R() < 0.45 ? moss : pick(bricks), sun: 0.55, sway: 0, ph: 0, spin: (R() - 0.5) * 0.7 });
+    // and the weeds that have rooted along them, as in the picture
+    for (const [u, o, h] of this.weeds) { const s = 0.04 + 0.03 * R(); F.push({ k: 0, u, o, h: h + s * 0.2, s, q: (R() < 0.5 ? -1 : 1) * (1 + 0.5 * R()), c: R() < 0.3 ? pick(olive) : pick(mid), sun: 0.9, sway: 0.004, ph: R() * TAU, spin: (R() - 0.5) * 0.8 }); }
     for (const f of F) f.d = Math.hypot(f.u - FOOT[0], f.o - FOOT[1]);
     this.rainC = col('#c9d0d6', 0.15);
     // scratch: one row per card, then drawn far to near
@@ -633,7 +720,7 @@ uniform sampler2D tAtlas; uniform vec3 cAmb, cSun, cBlossom; uniform float uStor
     // (in the scene's units: the ledge inside the tower, and the broken top)
     const lh = LEDGE + 0.019 * this.bScale / Z;
     this.ledge = [W(-0.044, 0.338, lh), W(0.0, 0.342, lh)];
-    this.tops = [W(-0.092, 0.432, 0.657 + 0.019 * this.bScale / Z), W(-0.02, 0.292, 0.6 + 0.019 * this.bScale / Z)];
+    this.tops = this.perch.map(p => W(p[0], p[1], p[2] + 0.019 * this.bScale / Z));
     this.blown = [W(0.46, 0.7, 0.54), W(0.52, 0.84, 0.6)];
     this.home = [
       flight([this.blown[0], W(0.28, 0.62, 0.44), W(0.12, 0.52, 0.45), W(0.03, 0.42, 0.47), this.ledge[0]], { closed: false, tension: 0.4 }),
