@@ -10,6 +10,7 @@ import { feature } from './features.js';
 import { floeTop, floeBox, WATER_Y } from './harbourplan.js';
 import { groundAt } from './plan.js';
 import { snowLook } from './finish.js';
+import { iceMoon, noises } from './icelook.js';
 
 const SECRET = 'harbourlight';
 
@@ -50,43 +51,42 @@ function floeGeo(poly, depth) {
   return g;
 }
 
-// The water: deep and dark, ripples that catch the moon in a road towards it, and slow pale bands of shimmer.
+// The water: deep and dark, out to the horizon. A slow swell under it (long bands that come and go), ripples that catch
+// the moon in a road towards it all the way out, and a cold shimmer near to. It reads the ice's small tile of noise
+// (icelook.js), which is mipmapped, so the far water is calm and never crawls. No fog on it: far out it goes over to
+// the colour of the lake painted on the horizon (skyline.js), so the sheet has no end.
 function waterMaterial() {
   return new THREE.ShaderMaterial({
-    fog: true,
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
-      uT: { value: 0 }, uMoon: { value: new THREE.Vector2(0.928, -0.373) },
-      uDeep: { value: new THREE.Color(0x0a1426) }, uSky: { value: new THREE.Color(0x2c3d66) }, uShim: { value: new THREE.Color(0xa8c8f0) },
-    }]),
+    uniforms: {
+      uT: { value: 0 }, uMoonAt: { value: new THREE.Vector3(631, 162, -90) }, uN: { value: noises() },
+      uDeep: { value: new THREE.Color(0x0a1426) }, uSky: { value: new THREE.Color(0x2c3d66) }, uShim: { value: new THREE.Color(0xa8c8f0) }, uFar: { value: new THREE.Color(0x1f2d4e).multiplyScalar(1.3) },
+    },
     vertexShader: `
       varying vec3 vW;
-      #include <fog_pars_vertex>
-      void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
-        #include <fog_vertex>
-      }`,
+      void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }`,
     fragmentShader: `
-      uniform float uT; uniform vec2 uMoon; uniform vec3 uDeep, uSky, uShim;
+      uniform float uT; uniform vec3 uMoonAt; uniform sampler2D uN; uniform vec3 uDeep, uSky, uShim, uFar;
       varying vec3 vW;
-      #include <fog_pars_fragment>
-      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
       void main() {
         vec2 p = vW.xz;
         vec3 V = cameraPosition - vW; float dist = length(V); V /= dist;
         float near = clamp(1.0 - dist / 140.0, 0.0, 1.0);
-        float rip = noise(p * vec2(1.3, 5.5) + vec2(uT * 0.3, uT * 0.1)) * 0.55 + noise(p * vec2(3.4, 9.0) - vec2(uT * 0.42, -uT * 0.2)) * 0.45;
+        float sw = texture2D(uN, p * vec2(0.0045, 0.014) + vec2(uT * 0.004, uT * 0.0017)).r;                        // the swell: 220 m by 70 m, rolling in slowly
+        float sw2 = texture2D(uN, p * vec2(0.013, 0.031) - vec2(uT * 0.006, uT * 0.003)).g;
+        float rip = texture2D(uN, p * vec2(0.05, 0.21) + vec2(uT * 0.011, uT * 0.004)).b * 0.55 + texture2D(uN, p * vec2(0.13, 0.35) - vec2(uT * 0.016, -uT * 0.008)).b * 0.45;
         float fres = pow(1.0 - max(V.y, 0.0), 5.0);
-        vec3 col = uDeep + uSky * fres * 0.55;
-        vec2 d = normalize(vW.xz - cameraPosition.xz + vec2(1e-4));
-        float road = pow(max(dot(d, uMoon), 0.0), 24.0);
-        float glint = smoothstep(0.74, 0.95, rip) * near;
-        col += uShim * glint * (0.06 + 1.3 * road);
-        col += vec3(0.02, 0.045, 0.06) * smoothstep(0.5, 0.95, noise(p * vec2(0.35, 0.6) + vec2(uT * 0.06, uT * 0.02)));
-        gl_FragColor = vec4(col, 1.0);
+        float heave = (sw - 0.5) * 1.3 + (sw2 - 0.5) * 0.7;                                                             // a swell's face towards you is darker, its back catches the sky
+        vec3 col = uDeep * (1.0 + 0.5 * heave) + uSky * fres * (0.5 + 0.55 * heave);
+        vec2 d = normalize(vW.xz - cameraPosition.xz + vec2(1e-4)), toM = normalize(uMoonAt.xz - cameraPosition.xz);
+        float road = pow(max(dot(d, toM), 0.0), 60.0);
+        float glint = smoothstep(0.54, 0.68, rip);
+        col += uShim * glint * (0.16 * near * near * (0.5 + sw2) + road * (0.5 + 1.5 * near) * (0.6 + heave));
+        col += uShim * road * 0.1 * smoothstep(60.0, 300.0, dist);                                                     // far out the glitter runs together into a road
+        col += vec3(0.02, 0.045, 0.06) * smoothstep(0.5, 0.9, sw2) * near;
+        col = mix(col, uFar * (0.9 + 0.5 * road), smoothstep(110.0, 330.0, dist));
+        gl_FragColor = vec4(max(col, 0.0), 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
-        #include <fog_fragment>
       }`,
   });
 }
@@ -109,9 +109,11 @@ feature({
     const L = k.plan.lakefront; if (!L || !L.floes) return;
     this.L = L; this.t = 0; this.M = new THREE.Matrix4(); this.Q = new THREE.Quaternion(); this.Qy = new THREE.Quaternion(); this.P = new THREE.Vector3(); this.S = new THREE.Vector3(); this.N = new THREE.Vector3(); this.UP = new THREE.Vector3(0, 1, 0);
     const g = this.g = new THREE.Group(); k.group.add(g);
+    if (k.museum && k.museum.moonAt) iceMoon(k.museum.moonAt);
     // the water
-    { const w = L.water, m = this.water = new THREE.Mesh(new THREE.PlaneGeometry(w.x1 - w.x0 + 1, w.z1 - w.z0 + 20), waterMaterial());
-      m.rotation.x = -Math.PI / 2; m.position.set((w.x0 + w.x1) / 2 - 0.5, WATER_Y, (w.z0 + w.z1) / 2); m.updateMatrix(); m.matrixAutoUpdate = false; m.frustumCulled = false; g.add(m); }
+    { const w = L.water, far = 480, m = this.water = new THREE.Mesh(new THREE.PlaneGeometry(w.x1 - w.x0 + 1, w.z1 - w.z0 + 20 + far * 2), waterMaterial());      // (well past both ends of the harbour: the lake)
+      m.rotation.x = -Math.PI / 2; m.position.set((w.x0 + w.x1) / 2 - 0.5, WATER_Y, (w.z0 + w.z1) / 2); m.updateMatrix(); m.matrixAutoUpdate = false; m.frustumCulled = false; g.add(m);
+      if (k.museum && k.museum.moonAt) m.material.uniforms.uMoonAt.value.copy(k.museum.moonAt); }
     // the floes: the chain's, one mesh each; the loose ones and the bits, instanced by outline
     const snowTex = k.museum && k.museum.snowTex;
     const iceM0 = new THREE.MeshStandardMaterial({ map: snowTex || null, vertexColors: true, roughness: 0.4, emissiveMap: snowTex || null, emissive: new THREE.Color(0.3, 0.37, 0.55), emissiveIntensity: 0.62 });
@@ -277,6 +279,7 @@ feature({
     if (this.show > 4.5 && Math.hypot(v.pos.x - L.light.x, v.pos.z - L.light.z) < 5) { const t = L.light; k.camClose = { at: { x: t.x - 2.6, y: 2.6, z: t.z + 6.2 }, look: { x: t.x, y: 4.4, z: t.z } }; }
     if (this.seq) return this._sequence(dt, k);
     if (v.kind !== 'car' || G.held || G.ride) return;
+    this._lie(dt, k);
     // Gone in? On the water (nothing under it but the lake) and down at its level.
     if (!v.air && v.pos.y < 0.025 && L.wet(v.pos.x, v.pos.z)) return this._fallIn(k);
     // At the light.
@@ -320,6 +323,27 @@ feature({
       M.compose(P.set(b.x, y, b.z), Q, S.set(b.rad, 1, b.rad)); b.inst.setMatrixAt(b.ix, M);
     }
     for (const m of this.bitInst) m.instanceMatrix.needsUpdate = true;
+  },
+
+  // The lie of the ice under the wheels (icefield.js). A deep drift drags: the toy is slowed, the more the deeper the
+  // snow, and throws it up behind (the same at any frame rate: a rate, not a step). And the first time in a while that
+  // it runs out onto a refrozen lead, the thin new ice there groans under it.
+  _lie(dt, k) {
+    const L = this.L, F = L.iceField, v = k.v; if (!F || v.air) return;
+    const x = v.pos.x, z = v.pos.z;
+    if (v.on === L.heave) {
+      const d = F.drift(x, z);
+      if (d > 0.008) {
+        const sp = Math.hypot(v.vel.x, v.vel.z), q = Math.exp(-Math.min(1, d / 0.05) * 1.5 * dt);
+        v.vel.x *= q; v.vel.z *= q;
+        if (sp > 1.5 && Math.random() < dt * sp * 5) this.splash.emit(x - v.vel.x / sp * 0.15, v.pos.y + 0.03, z - v.vel.z / sp * 0.15, 2, { spread: 0.12, up: 0.5 + sp * 0.12, life: 0.5, out: 0.5 });
+        if (!this.inDrift && sp > 3) k.synth.noise(0.22, { vol: Math.min(0.1, sp * 0.012), lp: 900 });
+        this.inDrift = true; return;
+      }
+    }
+    this.inDrift = false;
+    this.groan = Math.max(0, (this.groan || 0) - dt);
+    if (Math.abs(v.pos.y) < 0.05 && x < L.edgeX(z) && x > F.x0 && F.tex(x, z, 2) > 0.6) { if (!this.onLead && this.groan <= 0 && Math.hypot(v.vel.x, v.vel.z) > 1) { this._groan(k); this.groan = 5; } this.onLead = true; } else this.onLead = false;
   },
 
   // ---------------------------------------------------------------- going in
@@ -400,6 +424,16 @@ feature({
       g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(v, t0 + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.55);
       o.connect(g); g.connect(out); o.start(t0 + d); o.stop(t0 + d + 0.6);
     }
+  },
+
+  // Thin ice taking a weight: a dull knock, then the crack running off through the sheet.
+  _groan(k) {
+    const A = this._audio(k); k.synth.noise(0.07, { vol: 0.07, lp: 500 });
+    if (!A) return; const { c, out } = A, t0 = c.currentTime;
+    const o = c.createOscillator(), g = c.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(190, t0); o.frequency.exponentialRampToValueAtTime(58, t0 + 0.5);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + 0.65);
+    for (const d of [0.09, 0.2, 0.36]) { const p = c.createOscillator(), pg = c.createGain(); p.type = 'sine'; p.frequency.setValueAtTime(1900 - d * 1500, t0 + d); p.frequency.exponentialRampToValueAtTime(320, t0 + d + 0.22);
+      pg.gain.setValueAtTime(0.0001, t0 + d); pg.gain.exponentialRampToValueAtTime(0.02, t0 + d + 0.01); pg.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.24); p.connect(pg); pg.connect(out); p.start(t0 + d); p.stop(t0 + d + 0.26); }
   },
 
   reset(k) { if (this.seq) { const v = k.v; v.group.rotation.x = v.group.rotation.z = 0; if (v.shadow) v.shadow.visible = true; this.seq = null; k.G.held = false; } this._fx && this.fxEl && this._fx(0); this.show = 0; this.armed = true; },
