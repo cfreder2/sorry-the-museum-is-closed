@@ -69,6 +69,7 @@ import './bridgeplay.js';      // the toy track down the Nichols Bridgeway: a tr
 import './icefish.js';
 import './reading.js';
 import './guards.js';
+import './staffvent.js';        // the bin yard round the back and the vent down to the staff entrance (src/ventplan.js)
 import './lobby.js';
 import './giftshop.js';
 import './butlerfield.js';
@@ -330,7 +331,7 @@ async function boot() {
   G.repair = new Repair(G.museum, plan, sound, collection, stage);
   if (G.repair.at) secrets.add('repair', 'The conservation line');
   addEventListener('museum:repair', e => { const d = e.detail || {}; if (d.event !== 'end') return; tm.event('repair', null, { repaired: d.repaired, accuracy: Math.round(d.accuracy * 100), sent: !!d.sent }); if (d.repaired >= 50) trophies.flag('steady'); if (d.sent && d.repaired < 15) trophies.flag('remedial'); });
-  addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (!d.trips) trophies.flag('ghost'); } });
+  addEventListener('museum:heist', e => { const d = e.detail || {}; if (d.event === 'win') { trophies.flag('heist'); if (d.ghost) trophies.flag('ghost'); } });
   G.props.onHit = (p, sp) => {
     if (p.def.type !== 'snowman') { sound.knock(sp, p.def.type === 'sign'); return; }
     sound.poof(sp);

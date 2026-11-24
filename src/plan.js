@@ -18,6 +18,7 @@ import LAYOUT from './layout.js';
 import { buildLand, landAt, FLAT as LIE_FLAT } from './land.js';
 import { harbourEdge } from './harbourplan.js';
 import { addFinale } from './finaleplan.js';
+import { addStaffVent } from './ventplan.js';
 
 export const T = 1;            // wall thickness, for the outside of a building
 export const HW = HALL_HW();    // Griffin Court's half-width
@@ -250,6 +251,7 @@ export function buildPlan() {
   addFinale(plan);                                   // the base under Butler Field, its silo and its craft (src/finaleplan.js): before the snow hills, which keep off the silo
   addStunts(plan);
   addLand(plan);
+  addStaffVent(plan);                                // the bin yard round the back and the duct down to the staff entrance (src/ventplan.js): after everything else out of doors has its place
   // The roof of Gallery 211, at the top of the scaffold, is kept clear: there is a card game up there.
   { const tm = massOf.G211 || masses.find(m => m.room && m.room.sky && m.room.kind === 'gallery'); if (tm) plan.terrace = { room: tm.room.id, x: (tm.x0 + tm.x1) / 2 + 0.6, z: (tm.z0 + tm.z1) / 2, top: tm.top }; }
   addRoofs(plan);
@@ -661,6 +663,7 @@ export function groundOpenings(plan) {
   if (plan.lakefront && plan.lakefront.window) out.push({ ...plan.lakefront.window });
   if (plan.lakefront && plan.lakefront.water) out.push({ ...plan.lakefront.water });      // the open harbour, below the ice (harbourplan.js)
   if (plan.grounds && plan.grounds.silo && plan.finale) { const q = plan.grounds.silo; out.push({ x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1 }); }      // the silo in the ballfield: its doors lie over it (src/finaleplan.js)
+  if (plan.staffVent) out.push({ ...plan.staffVent.hole });                                // the mouth of the staff vent, under its hood (src/ventplan.js)
   // overlapping holes do not triangulate: run any that touch into one
   for (let again = true; again;) {
     again = false;
