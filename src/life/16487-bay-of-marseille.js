@@ -249,13 +249,12 @@ lifeFor(16487, {
     for (let i = 0; i < 4; i++) tick(T_PUFF - 0.32 + i * 0.075, 0.012, 1500);
     this.top = new V3(SMOKER.u, SMOKER.H + 0.012, SMOKER.z);
 
-    // ---- the trees: a dark green block, and his foliage dealt onto it: slanting touches, turned every way, lighter
-    // above and to the right where the sun is
+    // ---- the trees: his foliage dealt in a heap, slanting touches turned every way, lighter above and to the right
+    // where the sun is, over a dark green block that is the shade inside
     const leafD = ['#3f6f5a', '#4f7f5a', '#47785f'], leafM = ['#5f8f4f', '#6a9a58', '#4f8a5a'], leafL = ['#7fa24f', '#9aae52', '#8aa85a'];
     TREES.forEach(([u, z, size, t], ti) => {
       const R = 0.085 * size, Hh = 0.14 * size, mu = u * 0.35;
-      single({ qb: qe(new Qn(), ti * 1.3 + 0.6), post: new M4().makeScale(R * 1.05, Hh * 0.66, R * 1.05), col: col('#3a6a52', 0.3) }, { kind: 'deal', piv: new V3(u, Hh * 0.33 + 0.002, z), t0: t, dur: 0.5, mu, turns: 1, yaw0: ti * 1.3 + 0.6 });
-      s.hit(t + 0.5, { d: 0.04, vol: 0.016, lp: 1100 });
+      single({ qb: qe(new Qn(), ti * 1.3 + 0.6), post: new M4().makeScale(R * 1.05, Hh * 0.66, R * 1.05), col: col('#3a6a52', 0.3) }, { kind: 'grow', piv: new V3(u, Hh * 0.33 + 0.002, z), t0: t + 0.52, dur: 0.3 });      // (the dark inside of it fills in as the first cards land)
       for (let k = 0; k < 8; k++) {
         // five leaning in round it, their feet on the floor, and three laid over the top, as slates lie on a dome
         const low = k < 5, phi = low ? k * TAU / 5 + ti * 0.9 + (rand() - 0.5) * 0.3 : k * TAU / 3 + ti + (rand() - 0.5) * 0.5, el = low ? 0.42 + rand() * 0.16 : 1.0 + rand() * 0.22;
@@ -330,6 +329,7 @@ lifeFor(16487, {
       return;
     }
     if (g.kind === 'rise') { P.copy(g.piv); P.z -= 0.14 * (1 - ease.out(k)); Q.identity(); return; }
+    if (g.kind === 'grow') { P.copy(g.piv); Q.identity(); return; }
     const a = 0.15, C = this.T.c, zf = this.zFront, y0 = this.railY - g.drop, tx = g.piv.x + g.cen.x, ty = g.piv.y + g.cen.y, tz = g.piv.z + g.cen.z;
     let s = 0;
     if (k < a) C.set(g.mu, y0, -0.12 + (zf + 0.12) * ease.out(k / a));
@@ -390,7 +390,7 @@ lifeFor(16487, {
       const p = T.v.copy(cd.off).applyQuaternion(q).add(cd.rel);
       if (g.fly) p.sub(g.cen).applyQuaternion(g.Q).add(g.cen); else p.applyQuaternion(g.Q);
       p.add(g.P); q.premultiply(g.Q);
-      mesh.setMatrixAt(cd.i, T.m.compose(p, q, T.one).multiply(cd.post));
+      mesh.setMatrixAt(cd.i, T.m.compose(p, q, g.kind === 'grow' && g.fly ? T.w.setScalar(ease.out((c - g.t0) / g.dur)) : T.one).multiply(cd.post));
     }
     if (dirty) mesh.instanceMatrix.needsUpdate = true;
 
