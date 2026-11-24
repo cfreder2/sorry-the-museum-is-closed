@@ -4,7 +4,7 @@
 // A mother and her small daughter, painted in Baltimore, sit very still on a green sofa and look at us. Everything in
 // the picture is held: the pose, the curtain and its white tassel, the row of brass tacks. One thing in it is
 // happening, and it is the one bright colour he used: the mother has a sprig of strawberries in her hand, crisp dark
-// leaves and four or five salmon-red berries, and the child has one of them in hers. The museum's note calls the
+// leaves and four or five warm red berries, and the child has one of them in hers. The museum's note calls the
 // strawberry "a delicacy often featured in the artist's portraits": it is as much his mark as the tacks are. The two
 // sitters stay in their picture. What comes out is the strawberry.
 //
@@ -16,11 +16,14 @@
 // each roots where it stops and puts up a crown of its own, and there is a strawberry bed under the picture, about
 // twice the size of life, so that the toy looks up at the leaves. Then the fruit: stalks arch out from under the
 // leaves of each crown and a berry swells on the end of each, pale green, and its weight bows the stalk down. Then
-// they ripen, crown by crown, through cream to his salmon red, each berry settling lower as it colours: the bright
-// thing among the dark leaves that it is in the picture. The last and largest hangs in the middle at the front,
-// nearest you. While you keep looking the bed stands ripe and the leaves stir a little. When you stop, the stalks
-// draw in, the leaves fold, the runners draw home, and one berry is left on the floor; it goes back up the way it
-// came and in under the frame.
+// they ripen, crown by crown, through cream to his clear warm red, each berry settling lower as it colours: the
+// bright thing among the dark leaves that it is in the picture. No two are quite alike (some long, some
+// heart-shaped, some lopsided); each has its pale seeds, a paler shoulder under its green cap, a deeper red at the
+// tip and one soft light on the upper left, where his light is. The last and largest hangs in the middle at the
+// front, nearest you; it is the reddest, and its stalk bows furthest as it settles. Everything is painted plainly,
+// as he painted: matt, evenly lit, clean at the edge. While you keep looking the bed stands ripe and the leaves stir a
+// little. When you stop, the stalks draw in, the leaves fold, the runners draw home, and one berry is left on the
+// floor; it goes back up the way it came and in under the frame.
 //
 // Music, quietly: the first four bars of Mozart's Sonata in C, K. 545 (1788), which he entered in his own list as
 // "for beginners" and which was first printed in 1805, about when this was painted: the piece a child at a parlour
@@ -86,7 +89,7 @@ const FRUIT = [
   [3, -104, 0.36, 0.068, 11], [3, -64, 0.38, 0.074, 11.33], [3, -26, 0.35, 0.066, 11.67],
   [4, 26, 0.36, 0.07, 12], [4, 66, 0.38, 0.072, 12.33], [4, 106, 0.36, 0.066, 12.67],
   [0, -36, 0.37, 0.066, 13], [0, 34, 0.37, 0.068, 13.5],
-  [0, -1, 0.47, 0.09, 14],
+  [0, -1, 0.47, 0.098, 14],
 ];
 const NSEG = 12;                               // a runner's pieces
 let TOLD = false;                              // its one line has been said tonight (kept here: the kit lets a far-off show go and builds it again)
@@ -118,7 +121,7 @@ function leafletGeo(cBody, cDark, cEdge, cVein) {
   const Y = (x, s) => FOLD * Math.abs(x) - DROOP * s * s;
   const push = (x, s, c, lift = 0, side = Math.sign(x) || 1) => {
     pos.push(x, Y(x, s) + lift, s);
-    const nx = -side * FOLD, ny = 1, nz = 2 * DROOP * s, l = Math.hypot(nx, ny, nz); nor.push(nx / l, ny / l, nz / l);
+    const nx = -side * FOLD * 0.3, ny = 1, nz = 0.6 * DROOP * s, l = Math.hypot(nx, ny, nz); nor.push(nx / l, ny / l, nz / l);      // (flatter than the leaf is: he lit them plainly)
     col.push(c.r, c.g, c.b);
   };
   for (const sd of [-1, 1]) for (let k = 0; k < N; k++) {
@@ -155,6 +158,55 @@ function stemGeo(e0, e1, pw, r0, r1, c0, c1, sides = 6, segs = 9) {
   return { g: build(pos, nor, col), ty: tip.y, tz: tip.z };
 }
 
+// The rig's paint: the kit's own (vertex colours, which also glow a little in the dark galleries), but matt and
+// evenly lit, as he painted: no gloss, little modelling. And one thing more. A berry's colour is its instance's
+// (unripe, cream, ripe), and its vertices carry numbers in place of a colour: blue 2 marks its skin (red: how light the
+// paint is there, green: how pale), blue 3 a seed (red: its lightness, green: straw to ochre). So the pale shoulder,
+// the deeper tip and the one soft light keep their place whatever colour the berry is, and the seeds stay pale as
+// it reddens.
+function plainPaint(glow) {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, emissive: 0xffffff, emissiveIntensity: glow, side: THREE.DoubleSide });
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', `#include <color_vertex>
+#if defined( USE_COLOR ) && defined( USE_BATCHING_COLOR )
+  if (color.b > 1.5) {
+    vec3 own = batchingColor;                                                   // the instance's colour
+    float red = clamp((own.r - own.g) / max(own.r, 0.001), 0.0, 1.0);
+    if (color.b > 2.5) vColor.rgb = mix(mix(vec3(0.84, 0.7, 0.38), vec3(0.56, 0.37, 0.13), color.g), own, 0.3 * (1.0 - red)) * color.r;
+    else { vec3 c = own * color.r; vColor.rgb = mix(c, mix(vec3(0.95, 0.93, 0.8), vec3(0.93, 0.5, 0.38), red), color.g); }
+  }
+#endif`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= vColor.rgb;');
+  };
+  m.customProgramCacheKey = () => 'life-johnson-plain';
+  return m;
+}
+// A berry hanging from the origin, one long: prof is its outline from the tip up ([radius, height]); wx and wz
+// squeeze it (a strawberry is seldom round), bend hooks its tip to one side and cheek makes one side fuller. Its
+// skin is smooth and coded as plainPaint reads it: paler at the shoulder under the cap, deeper at the tip, one soft
+// light on the upper left; and the seeds are set in it, small pale flecks in rows that are not quite rows.
+function berryGeo(prof, wx, wz, bend, cheek, rnd) {
+  const g = shape.lathe(prof, 18, 0xffffff), p = g.attributes.position, n = g.attributes.normal, c = g.attributes.color;
+  const hl = new THREE.Vector3(-0.52, 0.34, 0.78).normalize(), sh = new THREE.Vector3(0.55, -0.4, -0.73).normalize(), v = new THREE.Vector3();
+  const dx = (x, y) => (x > 0 ? x * (1 + cheek) : x * (1 - 0.5 * cheek)) * wx + bend * y * y;
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(n, i);
+    const y = p.getY(i), h = ease.smooth(ramp(v.dot(hl), 0.4, 0.98)), d = ease.smooth(ramp(v.dot(sh), -0.1, 0.9)), top = ease.smooth(ramp(y, -0.36, -0.05)), tip = ease.smooth(ramp(-y, 0.5, 1));
+    c.setXYZ(i, 1.04 - 0.34 * tip - 0.14 * d + 0.04 * h, Math.max(0.02, Math.min(0.6, 0.3 * h + 0.3 * top * (1 - 0.4 * h))), 2);
+    p.setXYZ(i, dx(p.getX(i), y), y, p.getZ(i) * wz);
+  }
+  const R = y => { for (let i = 1; i < prof.length; i++) if (y <= prof[i][1]) { const a = prof[i - 1], b = prof[i]; return lerp(a[0], b[0], (y - a[1]) / (b[1] - a[1])); } return 0; };
+  const pos = [], nor = [], col = [], y0 = prof[0][1], N = 58;
+  for (let k = 0; k < N; k++) {
+    const y = lerp(y0 * 0.95, -0.13, (k + 0.5) / N) + (rnd() - 0.5) * 0.03, phi = k * 2.39996 + (rnd() - 0.5) * 0.5, r = R(y), dr = (R(y + 0.012) - R(y - 0.012)) / 0.024, l = Math.hypot(1, dr);
+    const cp = Math.cos(phi), sp = Math.sin(phi), Nn = [cp / l, -dr / l, sp / l], T = [dr * cp / l, 1 / l, dr * sp / l], S = [-sp, 0, cp];
+    const a = 0.025 * (0.75 + 0.6 * rnd()), b = 0.015 * (0.75 + 0.5 * rnd()), P = [r * cp + Nn[0] * 0.017, y + Nn[1] * 0.017, r * sp + Nn[2] * 0.017], light = 0.82 + 0.3 * rnd(), och = 0.05 + 0.55 * rnd() * rnd();
+    const at = (t, sd) => [P[0] + T[0] * t + S[0] * sd, P[1] + T[1] * t + S[1] * sd, P[2] + T[2] * t + S[2] * sd];
+    for (const q of [at(a * 0.7, 0), at(0, b), at(-a * 1.3, 0), at(a * 0.7, 0), at(-a * 1.3, 0), at(0, -b)]) { pos.push(dx(q[0], q[1]), q[1], q[2] * wz); nor.push(...Nn); col.push(light, och, 3); }
+  }
+  return shape.merge([g, build(pos, nor, col)]);
+}
+
 lifeFor(150054, {
   title: /^Elizabeth Grant Bankson Beatty/,
   word: 'strawberry',
@@ -167,7 +219,7 @@ lifeFor(150054, {
     this.M = new THREE.Matrix4(); this.Mb = new THREE.Matrix4(); this.Mc = new THREE.Matrix4(); this.bones = new Bones();
     this.railH = L.rail - L.y;
     const rnd = () => L.rand();
-    const rig = this.rig = L.rig(360, 6000, L.paint({ glow: 0.3, rough: 0.72, side: THREE.DoubleSide }));
+    const rig = this.rig = L.rig(360, 8000, plainPaint(0.46));
 
     // ---- the parts
     const gLeaf = rig.geo(leafletGeo(col('#667f45', 0.18), col('#4f6937', 0.2), col('#93aa64', 0.15), col('#7f9658', 0.15)));
@@ -175,29 +227,24 @@ lifeFor(150054, {
     const gPet = rig.geo(pet.g); this.pet = pet;
     const stk = stemGeo(72 * RAD, -62 * RAD, 1.25, 0.012, 0.008, col('#66793f', 0.3), col('#8a7a4a', 0.3), 6, 12);
     const gStalk = rig.geo(stk.g); this.stk = stk; this.stkA = Math.atan2(stk.ty, stk.tz); this.stkR = Math.hypot(stk.ty, stk.tz);
-    // a berry, hanging from the origin: long and blunt-pointed as his are, smooth, paler where the light is (its
-    // colour is the instance's: unripe to ripe)
+    // the berries: three shapes (long and blunt-pointed, as most of his are; broad-shouldered, a heart; and lopsided,
+    // one cheek fuller and the tip hooked over)
+    this.gBerry = [
+      berryGeo([[0.001, -1], [0.1, -0.975], [0.21, -0.9], [0.31, -0.77], [0.39, -0.6], [0.44, -0.42], [0.45, -0.27], [0.4, -0.13], [0.3, -0.045], [0.16, -0.008], [0.001, 0]], 0.94, 0.86, 0, 0, rnd),
+      berryGeo([[0.001, -0.92], [0.09, -0.9], [0.22, -0.82], [0.36, -0.67], [0.47, -0.5], [0.53, -0.33], [0.53, -0.2], [0.46, -0.09], [0.33, -0.03], [0.17, -0.006], [0.001, 0]], 1, 0.8, 0, 0, rnd),
+      berryGeo([[0.001, -0.97], [0.1, -0.945], [0.22, -0.87], [0.33, -0.74], [0.42, -0.57], [0.47, -0.4], [0.48, -0.26], [0.42, -0.12], [0.31, -0.04], [0.16, -0.008], [0.001, 0]], 0.96, 0.84, 0.13, 0.17, rnd),
+    ].map(g => rig.geo(g));
+    // its green cap: five pointed sepals, a collar whose points stand out past the shoulder (so it reads from across
+    // the room), and the little stem it hangs by
     {
-      const g = shape.lathe([[0.001, -1], [0.1, -0.975], [0.21, -0.9], [0.31, -0.77], [0.39, -0.6], [0.44, -0.42], [0.45, -0.27], [0.4, -0.13], [0.3, -0.045], [0.16, -0.008], [0.001, 0]], 18, 0xffffff);
-      const n = g.attributes.normal, c = g.attributes.color, hl = new THREE.Vector3(-0.5, 0.3, 0.81).normalize(), sh = new THREE.Vector3(0.55, -0.45, -0.7).normalize(), v = new THREE.Vector3();
-      for (let i = 0; i < n.count; i++) {
-        v.fromBufferAttribute(n, i);
-        // (his berries are two tones: a pale pink where the light is, upper left, and a deeper red away from it)
-        const h = ease.smooth(ramp(v.dot(hl), 0.25, 0.95)), d = ease.smooth(ramp(v.dot(sh), -0.1, 0.9)), top = ease.smooth(ramp(g.attributes.position.getY(i), -0.3, -0.02)), m = 0.92 + 0.2 * h - 0.24 * d + 0.08 * top;
-        c.setXYZ(i, m, m * (1 + 0.42 * h - 0.1 * d), m * (1 + 0.5 * h - 0.12 * d));
-      }
-      this.gBerry = rig.geo(g);
-    }
-    // its green cap: five pointed sepals lying back over the shoulder, and the little stem it hangs by
-    {
-      const pos = [], nor = [], cl = [], c0 = col('#5a7a3c', 0.2), c1 = col('#8aa65c', 0.2);
+      const pos = [], nor = [], cl = [], c0 = col('#4f7a34', 0.15), c1 = col('#86ad52', 0.12);
       for (let i = 0; i < 5; i++) {
-        const a = i / 5 * TAU + 0.3, w = 0.44, ca = Math.cos(a), sa = Math.sin(a);
+        const a = i / 5 * TAU + 0.3, w = 0.62, ca = Math.cos(a), sa = Math.sin(a);
         const pt = (r, y, da) => [Math.cos(a + da) * r, y, Math.sin(a + da) * r];
-        const A = pt(0.02, 0.016, 0), Bq = pt(0.24, -0.006, -w), Cq = pt(0.6, -0.1, 0), D = pt(0.24, -0.006, w);
-        for (const [p, c] of [[A, c0], [Bq, c0], [Cq, c1], [A, c0], [Cq, c1], [D, c0]]) { pos.push(...p); nor.push(ca * 0.45, 0.85, sa * 0.45); cl.push(c.r, c.g, c.b); }
+        const A = pt(0.02, 0.03, 0), Bq = pt(0.3, 0.004, -w), Cq = pt(0.64, -0.11, 0), D = pt(0.3, 0.004, w);
+        for (const [p, c] of [[A, c0], [Bq, c0], [Cq, c1], [A, c0], [Cq, c1], [D, c0]]) { pos.push(...p); nor.push(ca * 0.3, 0.92, sa * 0.3); cl.push(c.r, c.g, c.b); }
       }
-      const cap = build(pos, nor, cl), stem = shape.move(shape.cyl(0.03, 0.022, 0.16, 6, col('#6f7c44', 0.3)), 0, 0.075, 0);
+      const cap = build(pos, nor, cl), stem = shape.move(shape.cyl(0.03, 0.022, 0.16, 6, col('#6f7c44', 0.3)), 0, 0.085, 0);
       this.gCap = rig.geo(shape.merge([cap, stem]));
     }
     // a piece of runner: a thin rod along +z, one long
@@ -226,7 +273,7 @@ lifeFor(150054, {
     this.fruit = FRUIT.map(([ci, deg, len, bl, bt], i) => {
       const c = this.crowns[ci], a = deg * RAD, big = i === FRUIT.length - 1;
       const f = { c, yaw: L.yawOf(Math.sin(a), Math.cos(a)), len: len * c.sc, bl: bl * 1.4, big, tR: beat(bt), dur: big ? 0.55 : 0.5,
-        tS: Math.max(c.t + 0.5, beat(4.5)) + 0.07 * (i % 3) + (ci === 4 ? 0.1 : 0), ph: rnd() * TAU, is: rig.add(gStalk), ib: rig.add(this.gBerry), ic: rig.add(this.gCap) };
+        tS: Math.max(c.t + 0.5, beat(4.5)) + 0.07 * (i % 3) + (ci === 4 ? 0.1 : 0), ph: rnd() * TAU, spin: (rnd() - 0.5) * 0.7, is: rig.add(gStalk), ib: rig.add(this.gBerry[big ? 1 : [0, 2, 1, 0, 0, 2][i % 6]]), ic: rig.add(this.gCap) };
       rig.mesh.setColorAt(f.is, tint.setRGB(1, 1, 1)); rig.mesh.setColorAt(f.ic, tint.setRGB(1, 1, 1));
       return f;
     });
@@ -242,8 +289,8 @@ lifeFor(150054, {
       return { segs, t1: c.t, t0: Math.max(T0 + 0.28, c.t - 0.8) };
     });
     // the first berry
-    this.i0 = rig.add(this.gBerry); this.c0 = rig.add(this.gCap); rig.mesh.setColorAt(this.c0, tint.setRGB(1, 1, 1));
-    this.unripe = col('#c9d29c', 0.15); this.cream = col('#f0d6b4', 0.15); this.ripe = col('#ea7c66', 0.12);
+    this.i0 = rig.add(this.gBerry[1]); this.c0 = rig.add(this.gCap); rig.mesh.setColorAt(this.c0, tint.setRGB(1, 1, 1));
+    this.unripe = col('#c9d29c', 0.15); this.cream = col('#f0d6b4', 0.15); this.ripe = col('#dc4c32', 0.06); this.ripest = col('#cf3620', 0.04);      // (his clear warm red; the last berry the reddest)
     rig.mesh.setColorAt(this.i0, this.ripe);
 
     // ---- the fall, worked out from the height it really falls (so the third touch is the downbeat)
@@ -381,9 +428,11 @@ lifeFor(150054, {
       bn.set(M, f.c.base.x, f.c.base.y + 0.01, f.c.base.z, f.yaw, pitch, 0, f.len * ks); rig.mat(f.is, M);
       v.set(0, this.stk.ty, this.stk.tz).applyMatrix4(M);
       const sz = lerp(0.2, 1, swell) * ks, sway = 0.05 * Math.sin(tt * 1.3 + f.ph) * stir, swing = tau > 0 && !calm ? 0.24 * Math.exp(-3.2 * tau) * Math.sin(11 * tau) : 0;
-      bn.set(M, v.x, v.y, v.z, f.yaw, -0.2 + swing + sway, 0, f.bl * sz); rig.mat(f.ib, M);
-      bn.set(M, v.x, v.y, v.z, f.yaw, -0.2 + swing + sway, 0, f.bl * Math.max(sz, 0.55 * ks)); rig.mat(f.ic, M);
-      this.C.copy(this.unripe).lerp(this.cream, ease.smooth(ramp(r, 0, 0.45))).lerp(this.ripe, ease.smooth(ramp(r, 0.25, 1)));
+      // (it hangs tilted the way its stalk arches, but turned on its own stem so that its lit side is the picture's: upper left)
+      bn.set(Mb, v.x, v.y, v.z, f.yaw, -0.2 + swing + sway, 0, 1);
+      bn.child(M, Mb, 0, 0, 0, L.yawOut - f.yaw + f.spin, 0, 0, f.bl * sz); rig.mat(f.ib, M);
+      bn.child(M, Mb, 0, 0, 0, L.yawOut - f.yaw + f.spin, 0, 0, f.bl * Math.max(sz, 0.55 * ks)); rig.mat(f.ic, M);
+      this.C.copy(this.unripe).lerp(this.cream, ease.smooth(ramp(r, 0, 0.45))).lerp(f.big ? this.ripest : this.ripe, ease.smooth(ramp(r, 0.25, 1)));
       rig.mesh.setColorAt(f.ib, this.C);
       if (swell > 0.3) this.shade.set(nb++, v.x, v.z, f.bl * 0.62 * sz, 0.5 * swell * ks);      // its own small shadow, close under it
     }
