@@ -30,3 +30,4 @@ import './25865-herring-net.js';      // 161  Homer, The Herring Net: haul
 import './16584-houses-of-parliament.js'; // 243  Monet, Houses of Parliament, London: toll
 import './69780-fountain-villa-torlonia.js'; // 273  Sargent, The Fountain, Villa Torlonia, Frascati, Italy: splash
 import './87479-assumption-of-the-virgin.js'; // 211  El Greco, The Assumption of the Virgin: rise
+import './11723-woman-at-her-toilette.js'; // 201  Morisot, Woman at Her Toilette: powder
