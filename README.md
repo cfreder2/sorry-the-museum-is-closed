@@ -40,7 +40,8 @@ building's own 246 m square.
 You get from one level to another the way a toy car would have to:
 
 - **Stairs with planks on them.** Somebody has been in here with plywood. Every
-  flight is real steps with a sheet laid up it, arrows running uphill, and a
+  flight is real steps with a sheet laid up it (grip tape down its edges,
+  hazard stripes at its foot and head; nothing on it points), and a
   rail down each side so it can be taken at speed. None is steeper than about
   one in three.
 - **The Grand Staircase** (Gallery 200) is one hall from the lobby floor to the
@@ -72,8 +73,8 @@ level can be driven to from the front door.
 You start outside on Michigan Avenue, between the lions, and the doors are
 locked: a sign on the front door says so. The way in is right at the door and
 hard to miss: for the car, an aluminium air duct at the foot of the wall just
-left of the doors, its grille swung open and arrows on the pavement running
-into it; for the drone, the fanlight over the doors standing open (a pane of
+left of the doors, its grille swung open and its light spilt on the
+pavement; for the drone, the fanlight over the doors standing open (a pane of
 the skylight over the Grand Staircase is open too). Both lead into the lobby
 on the first floor, with the Grand Staircase straight ahead. Once you are in,
 every outside door unlocks for good. Hints appear if you stay outside a while.

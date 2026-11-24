@@ -251,14 +251,15 @@ export function buildWinter(museum, plan) {
   // taken up to lay the newest, so there is always about three hundred metres of track on the ground.
   // A wheel presses a rut into the snow, it does not paint a stripe on it: the ribbon is a rut seen from above. A lip of
   // snow squeezed up along each side, pale; inside each lip the wall of the rut, in shadow, darkest at the top; and the
-  // packed floor between, a shade bluer than the snow, with the tread's chevrons pressed faintly into it.
+  // packed floor between, a shade bluer than the snow, with the back tyres' blocks pressed faintly into it (two staggered
+  // rows, as vehicles.js builds them: not chevrons, which would be a line of arrows along the ground).
   const rut = (() => {
     const cv = document.createElement('canvas'); cv.width = 64; cv.height = 128; const c = cv.getContext('2d');
     const g = c.createLinearGradient(0, 0, 64, 0);
     for (const [t, col] of [[0, 'rgba(226,235,250,0)'], [0.09, 'rgba(226,235,250,.14)'], [0.16, 'rgba(226,235,250,.2)'], [0.21, 'rgba(32,44,78,.7)'], [0.31, 'rgba(56,72,110,.5)'], [0.5, 'rgba(72,90,130,.4)'], [0.69, 'rgba(56,72,110,.5)'], [0.79, 'rgba(32,44,78,.7)'], [0.84, 'rgba(226,235,250,.2)'], [0.91, 'rgba(226,235,250,.14)'], [1, 'rgba(226,235,250,0)']]) g.addColorStop(t, col);
     c.fillStyle = g; c.fillRect(0, 0, 64, 128);
     c.fillStyle = 'rgba(30,40,68,.26)';
-    for (let y = 0; y < 128; y += 16) { c.beginPath(); c.moveTo(15, y + 9); c.lineTo(32, y + 2); c.lineTo(49, y + 9); c.lineTo(49, y + 13); c.lineTo(32, y + 6); c.lineTo(15, y + 13); c.fill(); }
+    for (let y = 0; y < 128; y += 16) { c.fillRect(16, y + 2, 14, 6); c.fillRect(34, y + 10, 14, 6); }
     c.fillStyle = 'rgba(232,240,252,.16)'; let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
     for (let i = 0; i < 40; i++) { const left = r() < 0.5; c.beginPath(); c.arc(left ? 2 + r() * 7 : 55 + r() * 7, r() * 128, 0.8 + r() * 1.8, 0, 7); c.fill(); }      // crumbs thrown out along the lips
     const t = new THREE.CanvasTexture(cv); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;

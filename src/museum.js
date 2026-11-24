@@ -960,7 +960,8 @@ export class Museum {
       this.group.add(hang);
     }
     // The way in for a car: an air duct through the foot of the wall beside the doors. Sheet aluminium,
-    // standing a little proud of the stone, its grille swung open on its hinges, arrows running into it.
+    // standing a little proud of the stone, its grille swung open on its hinges, its light spilt on the pavement and a
+    // strip of hazard tape across its sill. (No arrows run into it: the only arrows on the ground are the lit route's.)
     if (plan.vent) {
       const v = plan.vent, zc = (v.z0 + v.z1) / 2, SEC = 0.6, lip = 0.28, xm = v.x0 - lip, t = 0.05;
       const sheet = TX.duct();
@@ -999,10 +1000,9 @@ export class Museum {
         plan.obstacles.push({ x0: xm, x1: v.x0, z0: v.z0 - 0.07, z1: v.z0 - 0.01, y0: 0, y1: v.h + 0.1 }, { x0: xm, x1: v.x0, z0: v.z1 + 0.01, z1: v.z1 + 0.07, y0: 0, y1: v.h + 0.1 }); }
       const spill = new THREE.Mesh(new THREE.PlaneGeometry(5, 3), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.55, 0.8, 0.95), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
       spill.rotation.x = -Math.PI / 2; spill.position.set(xm - 1.9, 0.012, zc); spill.renderOrder = 4;
-      const arrows = new Geo(), ct = TX.chevrons(), ax0 = xm - 4.4, ax1 = xm - 0.3;
-      arrows.quad([ax0, 0.016, v.z0 + 0.15], [ax1, 0.016, v.z0 + 0.15], [ax1, 0.016, v.z1 - 0.15], [ax0, 0.016, v.z1 - 0.15], [0, 1, 0], [[0, 0], [0, 4], [1, 4], [1, 0]]);
-      const am = arrows.mesh(new THREE.MeshBasicMaterial({ map: ct, color: new THREE.Color(0.25, 0.95, 1.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
-      am.renderOrder = 6; this.ventArrows = ct;
+      const sill = new Geo(), ht = TX.hazard(), sx0 = xm - 0.34, sx1 = xm - 0.04;
+      sill.quad([sx0, 0.016, v.z0 - 0.05], [sx1, 0.016, v.z0 - 0.05], [sx1, 0.016, v.z1 + 0.05], [sx0, 0.016, v.z1 + 0.05], [0, 1, 0], [[0, 0], [0, 1], [(w + 0.1) / 0.3, 1], [(w + 0.1) / 0.3, 0]]);
+      const am = sill.mesh(new THREE.MeshStandardMaterial({ map: ht, roughness: 0.8, emissiveMap: ht, emissive: 0xffffff, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
       this.group.add(spill, am);
     }
     // The way in for a drone: one pane of the big skylight left propped open, and the light coming up out of it.
@@ -1519,7 +1519,7 @@ export class Museum {
   // lifts, and the guard rails round all of them. They are part of the building, so they stay when
   // the stunt kit is cleared away for a race.
   _buildLevels() {
-    const { plan } = this, stone = new Geo(), dress = new Geo(), ply = new Geo(), steel = new Geo(), arrows = new Geo();
+    const { plan } = this, stone = new Geo(), dress = new Geo(), steel = new Geo(), planks = [];
     const g = this.levels = new THREE.Group(); this.group.add(g);
     // A block of stone: its top is floor (the marble, inlays and all); its sides and underside are dressed stone, plain.
     // `under`: whether its underside can be seen (a deck's can; a tread standing on the floor's cannot).
@@ -1545,16 +1545,11 @@ export class Museum {
           if (alongX) slab(u0, u1, lo, top, q.z0 + IN, q.z1 - IN, false); else slab(q.x0 + IN, q.x1 - IN, lo, top, u0, u1, false);
         }
       }
-      // The plank: plywood, a hand narrower than the flight each side, with arrows running up it.
-      const m = q.stairs ? 0.3 : 0, e = 0.014, th = q.stairs ? 0.03 : 0.22, w = (alongX ? q.z1 - q.z0 : q.x1 - q.x0) - 2 * m, len = Math.hypot(b - a, rise), sl = (q.y1 - q.y0) / (b - a), nl = Math.hypot(sl, 1);
-      const P = alongX ? [[q.x0, q.y0, q.z0 + m], [q.x1, q.y1, q.z0 + m], [q.x1, q.y1, q.z1 - m], [q.x0, q.y0, q.z1 - m]] : [[q.x0 + m, q.y0, q.z0], [q.x1 - m, q.y0, q.z0], [q.x1 - m, q.y1, q.z1], [q.x0 + m, q.y1, q.z1]];
-      const nrm = alongX ? [-sl / nl, 1 / nl, 0] : [0, 1 / nl, -sl / nl], at = dy => P.map(c => [c[0], c[1] + dy, c[2]]);
-      const t = at(e), u = at(e - th);
-      ply.quad(t[0], t[1], t[2], t[3], nrm, alongX ? [[0, 0], [len / 1.2, 0], [len / 1.2, w / 1.2], [0, w / 1.2]] : [[0, 0], [w / 1.2, 0], [w / 1.2, len / 1.2], [0, len / 1.2]]);
-      ply.quad(u[0], u[1], u[2], u[3], nrm.map(v => -v));
-      const k2 = w * 0.3, L0 = a / 0.55, L1 = b / 0.55, r2 = at(e + 0.012);
-      if (alongX) { r2[0][2] += k2; r2[1][2] += k2; r2[2][2] -= k2; r2[3][2] -= k2; arrows.quad(r2[0], r2[1], r2[2], r2[3], nrm, up ? [[0, L0], [0, L1], [1, L1], [1, L0]] : [[0, -L0], [0, -L1], [1, -L1], [1, -L0]]); }
-      else { r2[0][0] += k2; r2[3][0] += k2; r2[1][0] -= k2; r2[2][0] -= k2; arrows.quad(r2[0], r2[1], r2[2], r2[3], nrm, up ? [[0, L0], [1, L0], [1, L1], [0, L1]] : [[0, -L0], [1, -L0], [1, -L1], [0, -L1]]); }
+      // The plank: plywood, a hand narrower than the flight each side. One of the kit's own pieces (kitlook.js): a sheet
+      // with a steel angle down each edge and a sill plate at the foot, a painted line inside each edge and hazard
+      // stripes under the head. Nothing on it points: the only arrows on a stair are the lit route's (map.js).
+      const m = q.stairs ? 0.3 : 0, e = 0.014, th = q.stairs ? 0.03 : 0.22;
+      planks.push({ skin: 'ply', axis: q.axis, x0: q.x0 + (alongX ? 0 : m), x1: q.x1 - (alongX ? 0 : m), z0: q.z0 + (alongX ? m : 0), z1: q.z1 - (alongX ? m : 0), h0: q.y0 + e, h1: q.y1 + e, thick: th, sill: true });
     }
     // The edge of the slab, wherever a floor has been cut for a stair or a lift.
     for (const w of plan.wells) {
@@ -1570,15 +1565,12 @@ export class Museum {
     }
     this._buildLifts(g);
     const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); g.add(m); return m; } };
-    const plyTex = TX.plywood();
+    { const KM = KL.kitMaterials(), kg = { top: new KL.KGeo(), frame: new KL.KGeo(), steel: new KL.KGeo(), stencil: new Geo() }; KL.plyPieces(plan, planks, kg); put(kg.top, KM.ply); put(kg.frame, KM.frame); put(kg.steel, KM.steel); const sm = put(kg.stencil, KM.stencil); if (sm) sm.renderOrder = 6; }
     const marble = TX.marble();
     put(stone, new THREE.MeshStandardMaterial({ map: marble, color: 0xc9c2b4, roughness: 0.5, emissiveMap: marble, emissive: new THREE.Color(0.6, 0.6, 0.62), emissiveIntensity: 0.3 }));
     const dressed = TX.dressedStone();
     put(dress, new THREE.MeshStandardMaterial({ map: dressed, color: 0xc9c2b4, roughness: 0.8, emissiveMap: dressed, emissive: new THREE.Color(0.6, 0.6, 0.62), emissiveIntensity: 0.28 }));
-    put(ply, new THREE.MeshStandardMaterial({ map: plyTex, roughness: 0.75, emissiveMap: plyTex, emissive: 0x8a7a66, emissiveIntensity: 0.16, side: THREE.DoubleSide }));
     put(steel, new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.45, metalness: 0.6, emissive: 0x15120e, emissiveIntensity: 0.6 }));
-    const am = put(arrows, new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-    if (am) am.renderOrder = 6;
   }
 
   // Lifts. A car in a glass shaft framed in steel. At each stop the shaft has one doorway, with a plate over it naming
@@ -1695,7 +1687,6 @@ export class Museum {
   // and everything else, which is cleared away while a race is on.
   _buildStunts() {
     this.kitLine = new THREE.Group(); this.group.add(this.kitLine);
-    this.arrowTex = TX.chevrons();
     this._kit(this.plan.surfaces.filter(s => !s.line && !s.fixed), this.kit, true);
     this._kit(this.plan.surfaces.filter(s => s.line), this.kitLine, false);
   }
@@ -1703,7 +1694,7 @@ export class Museum {
   _kit(surfaces, group, extras) {
     const { plan } = this;
     const stone = new Geo(), carpet = new Geo(), crate = new Geo(), wood = new Geo(), steel = new Geo();
-    const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo(), gold = new Geo();
+    const led = new Geo(), track = new Geo(), startLine = new Geo(), rail = new Geo(), wire = new Geo(), gold = new Geo();
     const lane = new Geo(), chrome = new Geo();
     const n3 = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
     const hungFrom = (x, y, z) => Math.min(ceilingAt(plan, x, z, y), y + 20);      // what a wire goes up to: the ceiling, or the underside of a bridge
@@ -1803,16 +1794,16 @@ export class Museum {
       if (o.rail && o.kit) { steel.box(o.x0, o.x1, o.y1 - 0.05, o.y1, o.z0, o.z1); steel.box(o.x0, Math.min(o.x1, o.x0 + 0.05), o.y0, o.y1, o.z0, Math.min(o.z1, o.z0 + 0.05)); }
     }
 
-    // Track laid flat on the floor: where to line up, and which way.
+    // Track laid flat on the floor: where to line up. A chequered line across the end you start from says which way;
+    // nothing on it points or moves.
     if (extras) for (const d of plan.decals) {
       const y = (d.y || 0) + 0.007, alongX = d.axis !== 'z', len = alongX ? d.x1 - d.x0 : d.z1 - d.z0, w = alongX ? d.z1 - d.z0 : d.x1 - d.x0;
-      const k = len / 0.6, m = w * 0.22, e = 0.004, v = len / 1.2;
+      const m = w * 0.1, e = 0.004, v = len / 1.2, sq = (w - 2 * m) / 6, a0 = d.dir < 0 ? len - sq * 1.5 - sq * 2 : sq * 1.5, a1 = a0 + sq * 2;
       const c = [[d.x0, y, d.z0], [d.x1, y, d.z0], [d.x1, y, d.z1], [d.x0, y, d.z1]];
       // Texture runs along the track: v follows x for one kind, z for the other.
-      const uv = (n, flip) => alongX ? (flip ? [[0, n], [0, 0], [1, 0], [1, n]] : [[0, 0], [0, n], [1, n], [1, 0]]) : (flip ? [[0, n], [1, n], [1, 0], [0, 0]] : [[0, 0], [1, 0], [1, n], [0, n]]);
-      track.quad(c[0], c[1], c[2], c[3], [0, 1, 0], uv(v, false));
-      const a = alongX ? [[d.x0, y + e, d.z0 + m], [d.x1, y + e, d.z0 + m], [d.x1, y + e, d.z1 - m], [d.x0, y + e, d.z1 - m]] : [[d.x0 + m, y + e, d.z0], [d.x1 - m, y + e, d.z0], [d.x1 - m, y + e, d.z1], [d.x0 + m, y + e, d.z1]];
-      trackArrows.quad(a[0], a[1], a[2], a[3], [0, 1, 0], uv(k, d.dir < 0));
+      track.quad(c[0], c[1], c[2], c[3], [0, 1, 0], alongX ? [[0, 0], [0, v], [1, v], [1, 0]] : [[0, 0], [1, 0], [1, v], [0, v]]);
+      const a = alongX ? [[d.x0 + a0, y + e, d.z0 + m], [d.x0 + a1, y + e, d.z0 + m], [d.x0 + a1, y + e, d.z1 - m], [d.x0 + a0, y + e, d.z1 - m]] : [[d.x0 + m, y + e, d.z0 + a0], [d.x1 - m, y + e, d.z0 + a0], [d.x1 - m, y + e, d.z0 + a1], [d.x0 + m, y + e, d.z0 + a1]];
+      startLine.quad(a[0], a[1], a[2], a[3], [0, 1, 0], alongX ? [[0, 0], [1, 0], [1, 3], [0, 3]] : [[0, 0], [3, 0], [3, 1], [0, 1]]);
     }
 
     // The loop: one ribbon of track taken right round, leaning sideways as it
@@ -1847,8 +1838,8 @@ export class Museum {
     const std = (o) => new THREE.MeshStandardMaterial({ side: D, ...o });
     const trackTex = TX.track(), crateTex = TX.crate();
     const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); group.add(m); return m; } };
-    // The plywood kit: its sheets, its framing and side panels, its steel, the chevrons painted on it and its stencils.
-    const KM = KL.kitMaterials(), kg = { top: new KL.KGeo(), frame: new KL.KGeo(), steel: new KL.KGeo(), arrows, stencil: new Geo() };
+    // The plywood kit: its sheets (and the paint on them), its framing and side panels, its steel and its stencils.
+    const KM = KL.kitMaterials(), kg = { top: new KL.KGeo(), frame: new KL.KGeo(), steel: new KL.KGeo(), stencil: new Geo() };
     KL.plyPieces(plan, plyList, kg);
     put(kg.top, KM.ply); put(kg.frame, KM.frame); put(kg.steel, KM.steel);
     { const m = put(kg.stencil, KM.stencil); if (m) m.renderOrder = 6; }
@@ -1867,9 +1858,7 @@ export class Museum {
     put(rail, std({ color: 0xc8501a, roughness: 0.5, emissive: 0xc8501a, emissiveIntensity: 0.35 }));
     put(led, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 1.25, 1.45), side: D }));
     put(gold, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.0, 0.22), side: D }));        // somewhere to land and look from
-    const arrowMat = new THREE.MeshBasicMaterial({ map: this.arrowTex, color: new THREE.Color(0.2, 0.75, 0.85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
-    const a1 = put(arrows, KM.arrows(this.arrowTex)), a2 = put(trackArrows, arrowMat);      // (painted on plywood; the toy track's own still glow)
-    for (const m of [a1, a2]) if (m) m.renderOrder = 6;
+    { const ct = TX.chequered(), m = put(startLine, std({ map: ct, roughness: 0.6, emissiveMap: ct, emissive: 0xffffff, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })); if (m) m.renderOrder = 6; }
 
     // Mopped floor: a patch that mirrors like nothing else in the building.
     if (extras) for (const p of plan.puddles) {
@@ -2079,8 +2068,6 @@ export class Museum {
     this.balloon.position.y = SPRING + VAULT_R - 0.42 + Math.sin(t * 0.7) * 0.015;
     this.balloon.rotation.z = Math.sin(t * 0.5) * 0.05;
     this.shaftMesh.material.opacity = 0.19 + Math.sin(t * 0.23) * 0.02;
-    if (!this.calm) this.arrowTex.offset.y = -(t * 0.9) % 1;
-    if (!this.calm && this.ventArrows) this.ventArrows.offset.y = -(t * 0.9) % 1;
     if (this.flagWave) this.flagWave(t, this.calm);       // the flags over the door (grounds.js)
     for (const h of this.hoops) {
       if (h.pop > 0) { h.pop = Math.max(0, h.pop - dt * 1.6); h.mesh.scale.setScalar(1 + (this.calm ? 0 : h.pop * 0.5)); }

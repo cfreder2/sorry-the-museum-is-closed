@@ -69,7 +69,7 @@ function layShadow(sh, plan, x, z, g, yaw, h, dt, spread, fade, floor) {
   _sf.set(Math.sin(yaw), 0, Math.cos(yaw)); _sf.addScaledVector(B.n, -_sf.dot(B.n)).normalize();
   _sr.crossVectors(B.n, _sf);
   _sm.makeBasis(_sr, B.n, _sf); sh.quaternion.setFromRotationMatrix(_sm);
-  sh.position.set(x + _sf.x * B.off, g + _sf.y * B.off, z + _sf.z * B.off).addScaledVector(B.n, 0.03);      // (3 cm up: a stair's plank and its arrows lie 1.4 and 2.6 cm over the line the ground is reckoned on)
+  sh.position.set(x + _sf.x * B.off, g + _sf.y * B.off, z + _sf.z * B.off).addScaledVector(B.n, 0.03);      // (3 cm up: a stair's plank lies 1.4 cm over the line the ground is reckoned on, and its steel edge 1.8)
   const k = 1 + Math.min(h, 4) * spread;
   sh.scale.set(B.w * k, 1, B.l * k);
   sh.material.opacity = B.op * Math.max(floor, 1 - h / fade) / Math.sqrt(k);

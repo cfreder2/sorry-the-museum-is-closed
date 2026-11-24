@@ -1318,7 +1318,7 @@ function addStunts(plan) {
 
   // ---- the Grand Staircase (Gallery 200) ----
   // The stair is the real one now (see addLevels). What the plywood adds: a kicker on the landing,
-  // aimed back down the middle flight, a hoop hung over the steps, and arrows on the floor at the foot.
+  // aimed back down the middle flight, a hoop hung over the steps, and a strip of track on the floor at the foot.
   const g200 = plan.byId.G200;
   if (g200) {
     const F = frame(g200); F.lanes = lanes(g200);

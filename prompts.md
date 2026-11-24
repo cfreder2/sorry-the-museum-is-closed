@@ -994,3 +994,23 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 ## 232
 
 > I need all the sounds you play recorded as MP3s so I can listen to them. Wherever there is music or sound, we need MP3 versions created because I am not sure they all sound good, and I want to be able to listen quickly. We need a tool that lets me play them directly in the browser, such as a sound-reviewer HTML document.
+
+## 233
+
+> Resume those not finished. Make sure that if you get a destination on the map that the route goes over hills and ramps properly.
+
+## 234
+
+> Should there be slightly more variation in the trees? Also bushes and shrubs? Benches, etc. What does this area of Chicago really look like, can you borrow some of those things and have them placed to make it less empty.
+
+## 235
+
+> A completed heist should give you some money.
+
+## 236
+
+> There are some routes with plywood on stairs that have arrows painted on them or even moving arrows (if I recall). We cannot have that because then when you do a route on the map, and they collide, it looks terrible. So no arrows on the ground moving unless it is the dynamic follow-the-path stuff.
+
+## 237
+
+> Please do another 10 paintings.

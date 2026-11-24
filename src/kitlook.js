@@ -5,8 +5,10 @@
 //   * plywood ramps: a sheet of birch ply on top (grain, seams every 1.22 m, screw heads, rubber scuffed down the
 //     middle), side panels cut to the profile, a steel angle down each edge, a steel threshold plate at the foot, a
 //     round steel coping on the lip of a skate ramp, and at an open high end the frame it stands on: studs, plates,
-//     a brace, dark inside. Painted chevrons instead of neon ones. Outdoors the same pieces are weathered grey and
-//     carry snow on the flats and along the edges.
+//     a brace, dark inside. What the prep shop paints on a piece points nowhere (the only arrows on a floor are
+//     the lit route's, map.js, and a painted one under them is a mess): a line down each edge of a ramp, hazard
+//     stripes under its lip, a box on a landing, a stencilled number. The planks laid up the building's stairs are
+//     the same pieces. Outdoors they are weathered grey and carry snow on the flats and along the edges.
 //   * the builders' scaffold: tubes with base plates, ledgers under the boards, braces between the standards.
 //   * snow features (the humps on the paths, the jump park's kickers, tables, rollers and quarter pipe): cut and
 //     groomed snow. Rounded shoulders, sides battered out to a lumpy foot, corduroy on the riding surface, a dyed
@@ -16,9 +18,9 @@
 //     with a stone coping, and board-marked concrete outside instead of tile.
 //
 // One material system: every material here is a MeshStandardMaterial taught a little more (kitLook), reading one
-// shared noise texture in world space and one small per-corner attribute (aKit: a number for the piece, indoors or
-// out, where across the piece, how far up it), so a hundred ramps are still three or four draw calls and no two look
-// stamped from the same sheet.
+// shared noise texture in world space and two small per-corner attributes (aKit: a number for the piece, indoors or
+// out, where across the piece, how far up it; aMark: where along the sheet, for its paint), so a hundred ramps are
+// still three or four draw calls and no two look stamped from the same sheet.
 
 import * as THREE from 'three';
 import { heightOf, roomAt } from './plan.js';
@@ -120,14 +122,15 @@ function stencilSheet() {
 
 // Quads with a normal at each corner (so a curve of short flats is shaded as one sweep) and the kit attribute.
 export class KGeo {
-  constructor() { this.p = []; this.n = []; this.uv = []; this.k = []; this.idx = []; }
-  // v: four corners in order round the quad; n: one normal or four; uv: four; k: one aKit or four.
-  quad(v, n, uv, k) {
+  constructor() { this.p = []; this.n = []; this.uv = []; this.k = []; this.m = []; this.idx = []; }
+  // v: four corners in order round the quad; n: one normal or four; uv: four; k: one aKit or four; mk: aMark, four (a
+  // riding sheet's paint) or none.
+  quad(v, n, uv, k, mk) {
     const one = typeof n[0] === 'number', kone = typeof k[0] === 'number', m = one ? n : [n[0][0] + n[1][0] + n[2][0] + n[3][0], n[0][1] + n[1][1] + n[2][1] + n[3][1], n[0][2] + n[1][2] + n[2][2] + n[3][2]];
     const e1 = [v[1][0] - v[0][0], v[1][1] - v[0][1], v[1][2] - v[0][2]], e2 = [v[3][0] - v[0][0], v[3][1] - v[0][1], v[3][2] - v[0][2]];
     const cx = e1[1] * e2[2] - e1[2] * e2[1], cy = e1[2] * e2[0] - e1[0] * e2[2], cz = e1[0] * e2[1] - e1[1] * e2[0];
     const o = cx * m[0] + cy * m[1] + cz * m[2] < 0 ? [0, 3, 2, 1] : [0, 1, 2, 3], i = this.p.length / 3;
-    for (const j of o) { this.p.push(v[j][0], v[j][1], v[j][2]); const nn = one ? n : n[j]; this.n.push(nn[0], nn[1], nn[2]); this.uv.push(uv ? uv[j][0] : 0, uv ? uv[j][1] : 0); const kk = kone ? k : k[j]; this.k.push(kk[0], kk[1], kk[2], kk[3]); }
+    for (const j of o) { this.p.push(v[j][0], v[j][1], v[j][2]); const nn = one ? n : n[j]; this.n.push(nn[0], nn[1], nn[2]); this.uv.push(uv ? uv[j][0] : 0, uv ? uv[j][1] : 0); const kk = kone ? k : k[j]; this.k.push(kk[0], kk[1], kk[2], kk[3]); if (mk) this.m.push(mk[j][0], mk[j][1], mk[j][2], mk[j][3]); else this.m.push(0, 0, 0, 0); }
     this.idx.push(i, i + 1, i + 2, i, i + 2, i + 3);
   }
   // A box; uv in metres over `s`, grain along its longest side.
@@ -157,7 +160,7 @@ export class KGeo {
   build() {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2)); g.setAttribute('aKit', new THREE.Float32BufferAttribute(this.k, 4));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2)); g.setAttribute('aKit', new THREE.Float32BufferAttribute(this.k, 4)); g.setAttribute('aMark', new THREE.Float32BufferAttribute(this.m, 4));
     g.setIndex(this.idx); return g;
   }
   mesh(mat) { const m = new THREE.Mesh(this.build(), mat); m.matrixAutoUpdate = false; return m; }
@@ -167,17 +170,17 @@ export class KGeo {
 
 const SNOW_E = 'vec3(0.30, 0.36, 0.52) * 0.5';        // what snow gives back of the night, as everywhere else here
 // Teach a standard material the kit's ways. `body`: GLSL run after the maps are read, with c (the colour so far),
-// nA, nB (noise at two scales), vKit, vKitW (world position), vKitN (world normal) to hand; it may change c, rough,
-// and glow (a multiplier on what the material gives off).
+// nA, nB (noise at two scales), vKit, vMark, vKitW (world position), vKitN (world normal) to hand; it may change c,
+// rough, and glow (a multiplier on what the material gives off).
 export function kitLook(mat, name, body) {
   const u = { uKitN: { value: kitNoise() } };
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec4 aKit;\nvarying vec4 vKit;\nvarying vec3 vKitW;\nvarying vec3 vKitN;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvKit = aKit;\nvKitW = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvKitN = normalize(mat3(modelMatrix) * objectNormal);');
+      .replace('#include <common>', '#include <common>\nattribute vec4 aKit;\nattribute vec4 aMark;\nvarying vec4 vKit;\nvarying vec4 vMark;\nvarying vec3 vKitW;\nvarying vec3 vKitN;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvKit = aKit;\nvMark = aMark;\nvKitW = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvKitN = normalize(mat3(modelMatrix) * objectNormal);');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D uKitN;\nvarying vec4 vKit;\nvarying vec3 vKitW;\nvarying vec3 vKitN;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uKitN;\nvarying vec4 vKit;\nvarying vec4 vMark;\nvarying vec3 vKitW;\nvarying vec3 vKitN;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         {
           vec3 kn = normalize(vKitN);
@@ -202,15 +205,42 @@ export function kitMaterials() {
   const ply = plySheet(), D = THREE.DoubleSide, std = o => new THREE.MeshStandardMaterial(o);
   const M = {};
   // the riding sheet: scuffed with rubber down the middle, each sheet its own shade; outdoors weathered, with snow lying
-  // wherever the wheels have not been and along the edges
+  // wherever the wheels have not been and along the edges. And what the shop marks it with, under the rubber and the
+  // snow (aMark: metres from the low end, metres from the high end, what it is, half its width): on a ramp (1) a strip of
+  // black grip tape down each edge and hazard stripes under the lip, on a long one (3: a stair's plank, a scaffold
+  // flight) hazard stripes over the sill as well, on a landing (2) a taped box. What it is carries the depth of the
+  // stripes in its fraction. All of it round the outside, none of it pointing: the middle is left bare for the wheels,
+  // and for the lit route when one is laid over it.
   M.ply = kitLook(std({ map: ply, roughness: 0.62, emissiveMap: ply, emissive: 0x9a8a74, emissiveIntensity: 0.4, side: D }), 'ply', `
     float lane = 1.0 - vKit.z * vKit.z;
     float rub = texture2D(uKitN, vec2(vMapUv.x * 5.0, vMapUv.y * 0.33) + vKit.x * 5.0).b;
     float scuff = smoothstep(0.5, 0.82, rub + lane * 0.16 - 0.08);
     c *= 0.88 + 0.24 * nA.r; c *= 1.0 + (fract(vKit.x * 13.7) - 0.5) * 0.12;
+    float tape = 0.0;
+    {
+      float cls = floor(vMark.z + 0.001), dep = max(fract(vMark.z + 0.001), 0.02), hw = vMark.w;
+      float isLong = step(2.5, cls), isBox = step(1.5, cls) * (1.0 - isLong), isRamp = step(0.5, cls) * (1.0 - isBox);
+      float eD = (1.0 - abs(vKit.z)) * hw, ac = (vKit.z + 1.0) * hw;                       // metres in from the nearer edge; metres across
+      float wE = fwidth(eD) + 0.0004, wX = fwidth(vMark.x) + 0.0004;
+      float inside = smoothstep(0.036 - wE, 0.036 + wE, eD);                                // (clear of the steel angle)
+      float e0 = clamp(hw * 0.1, 0.06, 0.13), e1 = e0 + clamp(hw * 0.13, 0.07, 0.17);       // the tape: a strip a little in from each edge, wider on a wide piece
+      float edge = smoothstep(e0 - wE, e0 + wE, eD) * (1.0 - smoothstep(e1 - wE, e1 + wE, eD));
+      float lip = (1.0 - smoothstep(dep - wX, dep + wX, vMark.y)) * inside;
+      float foot = isLong * smoothstep(0.15 - wX, 0.15 + wX, vMark.x) * (1.0 - smoothstep(0.15 + dep * 0.7 - wX, 0.15 + dep * 0.7 + wX, vMark.x)) * inside;
+      float band = max(lip, foot);
+      float pitch = clamp(dep * 1.3, 0.13, 0.26), sv = (ac + vMark.x) / pitch, sw = fwidth(sv), bar = smoothstep(0.5 - sw, 0.5 + sw, abs(fract(sv) - 0.5) * 2.0);
+      bar = mix(bar, 0.5, smoothstep(0.35, 0.8, sw));                                       // (too far off to draw: their average)
+      float d4 = min(eD, min(vMark.x, vMark.y)), w4 = fwidth(d4) + 0.0004;
+      float box = smoothstep(e0 - w4, e0 + w4, d4) * (1.0 - smoothstep(e0 + 0.07 - w4, e0 + 0.07 + w4, d4));
+      float chipped = 0.55 + 0.45 * smoothstep(0.3, 0.56, nB.b * 0.7 + nB.g * 0.25 + nA.g * 0.25);
+      vec3 grit = vec3(0.04, 0.04, 0.045) * (0.7 + 0.9 * nB.a), haz = mix(grit, vec3(0.95, 0.66, 0.08) * (0.85 + 0.25 * nB.g), bar);
+      tape = max(isRamp * edge * (1.0 - band), isBox * box) * (0.9 + 0.1 * chipped);
+      float pa = max(tape, isRamp * band * chipped * 0.94);
+      c = mix(c, mix(grit, haz, isRamp * band), pa);
+    }
     c = mix(c, c * vec3(0.3, 0.29, 0.3), scuff * 0.7);
     c = mix(c, dot(c, vec3(0.33)) * vec3(0.8, 0.84, 0.9), vKit.y * 0.55);                 // out in the weather: silvered
-    rough = mix(rough, 0.4, scuff * 0.6);
+    rough = mix(mix(rough, 0.4, scuff * 0.6), 0.95, tape);
     snow = vKit.y * smoothstep(0.5, 0.9, kn.y) * smoothstep(0.5, 0.78, nA.r * 0.6 + nB.b * 0.22 + nB.g * 0.12 + vKit.z * vKit.z * 0.34 - scuff * 0.3) * (0.75 + 0.25 * nB.g);
     float up = vKit.w; snow *= 0.3 + 0.7 * (1.0 - smoothstep(0.2, 0.7, up));       // less of it lies high on a steep ramp
   `);
@@ -236,13 +266,12 @@ export function kitMaterials() {
   `);
   M.steel.userData.metal = 1;
   MATS = M;
-  // painted chevrons and stencils: flat paint, worn. (Basic: they are meant to read in the dark, as the neon ones did.)
+  // stencils: flat paint, worn. (Basic: they are meant to read in the dark.)
   const worn = (m, name, k) => { const u = { uKitN: { value: kitNoise() } }; m.onBeforeCompile = sh => { Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vKitW;').replace('#include <project_vertex>', '#include <project_vertex>\nvKitW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uKitN;\nvarying vec3 vKitW;')
       .replace('#include <map_fragment>', `#include <map_fragment>\n{ vec4 w = texture2D(uKitN, (vKitW.xz + vKitW.y) * 1.7); diffuseColor.a *= ${k}; diffuseColor.a *= 0.55 + 0.45 * smoothstep(0.25, 0.6, w.b + w.g * 0.5); diffuseColor.rgb *= 0.8 + 0.3 * w.r; }`); };
     m.customProgramCacheKey = () => 'kitworn-' + name; return m; };
-  M.arrows = tex => worn(new THREE.MeshBasicMaterial({ map: tex, alphaMap: tex, color: new THREE.Color(0.66, 0.64, 0.55), transparent: true, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 'arrows', '0.92');
   M.stencil = worn(new THREE.MeshBasicMaterial({ map: stencilSheet(), color: new THREE.Color(0.03, 0.04, 0.08), transparent: true, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 'stencil', '1.0');
   return M;
 }
@@ -270,7 +299,7 @@ function shut(plan, s, run, e, dir, h, base) {
   return false;
 }
 
-// Every plywood piece in `list`, into G = { top, frame, steel, arrows (a Geo of museum.js's), stencil }.
+// Every plywood piece in `list`, into G = { top, frame, steel (KGeos), stencil (a Geo of museum.js's) }.
 export function plyPieces(plan, list, G) {
   for (const s of list) {
     const run = s.axis || s.run || (s.x1 - s.x0 >= s.z1 - s.z0 ? 'x' : 'z'), X = run === 'x';
@@ -291,10 +320,16 @@ export function plyPieces(plan, list, G) {
     const hTop = Math.max(Hh[0], Hh[n]), bLow = baseAt(Math.min(Hh[0], Hh[n])), across = X ? 'z' : 'x';
     const shutV0 = !s.thick && shut(plan, s, across, c0, -1, hTop, bLow), shutV1 = !s.thick && shut(plan, s, across, c0 + Wd, 1, hTop, bLow);
     const kTop = (v, i) => [seed, out, v, s.axis ? (Hh[i] - Math.min(Hh[0], Hh[n])) / Math.max(0.3, rise) * Math.min(1, rise / Math.max(0.1, L)) * 1.4 : 0];
+    // what it is marked with (the shader's, M.ply): a ramp's grip tape and the stripes under its lip, a landing's box;
+    // a hung board and a sliver carry none
+    const lipD = Math.max(0.08, Math.min(0.3, Arc[n] * 0.07));
+    const kind = Math.min(L, Wd) < 0.5 || s.hang ? 0 : s.axis ? (Arc[n] > 5 ? 3 : 1) + lipD : Math.max(Hh[0], Hh[n]) - floor0 > 0.15 ? 2 : 0;
+    const mTop = i => { const lo = hiEnd === n ? Arc[i] : Arc[n] - Arc[i]; return [lo, Arc[n] - lo, kind, Wd / 2]; };
     for (let i = 0; i < n; i++) {
       // the sheet
       G.top.quad([P(U[i], Hh[i], 0), P(U[i + 1], Hh[i + 1], 0), P(U[i + 1], Hh[i + 1], Wd), P(U[i], Hh[i], Wd)], [Nn[i], Nn[i + 1], Nn[i + 1], Nn[i]],
-        [[so, Arc[i] / 2.44 + so], [so, Arc[i + 1] / 2.44 + so], [so + Wd / 1.22, Arc[i + 1] / 2.44 + so], [so + Wd / 1.22, Arc[i] / 2.44 + so]], [kTop(-1, i), kTop(-1, i + 1), kTop(1, i + 1), kTop(1, i)]);
+        [[so, Arc[i] / 2.44 + so], [so, Arc[i + 1] / 2.44 + so], [so + Wd / 1.22, Arc[i + 1] / 2.44 + so], [so + Wd / 1.22, Arc[i] / 2.44 + so]], [kTop(-1, i), kTop(-1, i + 1), kTop(1, i + 1), kTop(1, i)],
+        kind ? [mTop(i), mTop(i + 1), mTop(i + 1), mTop(i)] : null);
       const b0 = baseAt(Hh[i]), b1 = baseAt(Hh[i + 1]);
       if (s.thick && s.onTop == null) G.frame.quad([P(U[i], b0, 0), P(U[i + 1], b1, 0), P(U[i + 1], b1, Wd), P(U[i], b0, Wd)], Nw(0, -1, 0), [[0, U[i] / 2.44], [0, U[i + 1] / 2.44], [Wd / 1.22, U[i + 1] / 2.44], [Wd / 1.22, U[i] / 2.44]], [seed, out, 0.5, 2]);
       // the side panels, cut to the profile
@@ -307,12 +342,6 @@ export function plyPieces(plan, list, G) {
       for (const [v, nv] of [[0, -1], [Wd, 1]]) {
         G.steel.quad([P(U[i], Hh[i] - 0.034, v + nv * 0.004), P(U[i + 1], Hh[i + 1] - 0.034, v + nv * 0.004), P(U[i + 1], Hh[i + 1] + 0.004, v + nv * 0.004), P(U[i], Hh[i] + 0.004, v + nv * 0.004)], Nw(0, 0, nv), null, kS);
         G.steel.quad([P(U[i], Hh[i] + 0.004, v + nv * 0.004), P(U[i + 1], Hh[i + 1] + 0.004, v + nv * 0.004), P(U[i + 1], Hh[i + 1] + 0.004, v - nv * 0.03), P(U[i], Hh[i] + 0.004, v - nv * 0.03)], [Nn[i], Nn[i + 1], Nn[i + 1], Nn[i]], null, kS);
-      }
-      // chevrons painted up anything that slopes
-      if (s.axis && G.arrows) {
-        const up = hiEnd === n, e = 0.012, m = Wd * 0.18, a0 = (o0 + U[i]) / 0.55, a1 = (o0 + U[i + 1]) / 0.55, q = (u, h, v, nn) => { const p = P(u, h, v); return [p[0] + nn[0] * e, p[1] + nn[1] * e, p[2] + nn[2] * e]; };
-        const c = [q(U[i], Hh[i], m, Nn[i]), q(U[i + 1], Hh[i + 1], m, Nn[i + 1]), q(U[i + 1], Hh[i + 1], Wd - m, Nn[i + 1]), q(U[i], Hh[i], Wd - m, Nn[i])];
-        G.arrows.quad(c[0], c[1], c[2], c[3], [0, 1, 0], up ? [[0, a0], [0, a1], [1, a1], [1, a0]] : [[0, -a0], [0, -a1], [1, -a1], [1, -a0]]);
       }
     }
     // the ends: a plain panel, or, where a ramp's high end stands open, the frame it is built on
@@ -335,7 +364,7 @@ export function plyPieces(plan, list, G) {
       }
     }
     // a steel threshold where a ramp meets the floor, and a round coping on the lip of a skate ramp
-    if (s.axis && Hh[loEnd] - baseAt(Hh[loEnd]) < 0.03 && !s.thick) {
+    if (s.axis && (s.sill || (Hh[loEnd] - baseAt(Hh[loEnd]) < 0.03 && !s.thick))) {
       const d = loEnd === 0 ? 1 : -1, u0 = U[loEnd], u1 = u0 + d * 0.13, h1 = hAt(u1), kS = [seed, out, 0, 0];
       G.steel.quad([P(u0, Hh[loEnd] + 0.005, 0.03), P(u1, h1 + 0.005, 0.03), P(u1, h1 + 0.005, Wd - 0.03), P(u0, Hh[loEnd] + 0.005, Wd - 0.03)], Nn[loEnd], null, kS);
     }
@@ -347,6 +376,13 @@ export function plyPieces(plan, list, G) {
       // text reads left to right for someone facing the panel: their right is up x outward
       const nw = Nw(0, 0, nv), rx = nw[2], rz = -nw[0], c = P(uc, hc, v), v0 = 1 - (row + 1) / 8, v1 = 1 - row / 8;
       if (Math.min(hAt(uc - w / 2), hAt(uc + w / 2)) - floor0 > hh * 2.4) G.stencil.quad([c[0] - rx * w / 2, hc - hh / 2, c[2] - rz * w / 2], [c[0] + rx * w / 2, hc - hh / 2, c[2] + rz * w / 2], [c[0] + rx * w / 2, hc + hh / 2, c[2] + rz * w / 2], [c[0] - rx * w / 2, hc + hh / 2, c[2] - rz * w / 2], nw, [[0, v0], [1, v0], [1, v1], [0, v1]]);
+    }
+    // and one on the sheet itself, low down and to one side, to be read on the way up it (indoors: outdoors there is snow on it)
+    if (G.stencil && s.axis && !out && !s.hang && L > 1.5 && Wd > 1.4 && (s.sill || hash1(seed, 11) < 0.6)) {
+      const f = hiEnd === n ? 1 : -1, rv = X ? f : -f, row = Math.floor(hash1(seed, 13) * 8) % 8, hh = Math.min(0.14, Wd * 0.07), w = hh * 6.4;
+      const uc = (loEnd === 0 ? 0 : L) + f * (0.34 + hh / 2), vc = hash1(seed, 15) < 0.5 ? 0.2 + w / 2 : Wd - 0.2 - w / 2, v0 = 1 - (row + 1) / 8, v1 = 1 - row / 8;
+      const at = (u, v) => { const i = Math.max(0, Math.min(n - 1, Math.floor(u / L * n))), q = P(u, hAt(u), v), nn = Nn[i]; return [q[0] + nn[0] * 0.006, q[1] + nn[1] * 0.006, q[2] + nn[2] * 0.006]; };
+      G.stencil.quad(at(uc - f * hh / 2, vc - rv * w / 2), at(uc - f * hh / 2, vc + rv * w / 2), at(uc + f * hh / 2, vc + rv * w / 2), at(uc + f * hh / 2, vc - rv * w / 2), [0, 1, 0], [[0, v0], [1, v0], [1, v1], [0, v1]]);
     }
     // the builders' scaffold: standards on base plates, a ledger under each edge of the boards, a brace in every bay
     if (s.posts) {
