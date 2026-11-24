@@ -108,6 +108,15 @@ The game is played by children, classrooms and people of every background and fa
   from a low side camera is cut by the guard. Keep the scene small or to the clear side.
 - **Lovely from one camera only**: check the low (toy's-eye) and wide room views too.
 - Toy-like figures: stripes too bold and regular, flat cartoon faces. Model softly, as the painter did.
+- **A person brought out as a smooth doll** (three in a row were sent back for it: tube arms, an egg for a head, a
+  blank or drawn face, a smooth bell of a skirt). A single figure seen close is the hardest thing in this game. Build
+  it this way: (1) proportion first (about seven and a half heads; a neck; sloping shoulders; limbs that taper), checked
+  as a silhouette; (2) no bare smooth mesh may show: keep the underbody as a dark, slightly smaller core and make
+  everything the eye sees from overlapping soft-edged stroke cards in the painter's own touch, so the outline is broken
+  and lost-and-found (`111559-boy-on-a-ram.js`, `69780-fountain-villa-torlonia.js`, `109780-love-of-winter.js`,
+  the crowns in `60755-ruins-of-egmond.js`); (3) the face is planes of light and shade (brow shadow, lit cheek, the far
+  side lost), never drawn features and never a blank; (4) judge it from the toy's eye, where it is largest. The same
+  goes for animals (the dog, the horses) and for furniture: a prop is paint too.
 - **A device already used.** Before you design, read the words in `src/life/index.js` and the header comments of any
   show that sounds like yours. Do not repeat another show's main moment. Used so far and now closed unless the picture
   truly demands it: a small table with papers that a draught blows to the floor (Degas 14574, Manet 14591); a picture
