@@ -9,17 +9,17 @@ import * as TX from './textures.js';
 import { feature } from './features.js';
 import { floeTop, floeBox, WATER_Y } from './harbourplan.js';
 import { groundAt } from './plan.js';
-import { snowLook } from './finish.js';
-import { iceMoon, noises } from './icelook.js';
+import { iceMoon, noises, iceBlockMaterial } from './icelook.js';
+import { dealLOD } from './harbourkit.js';
 
 const SECRET = 'harbourlight';
 
-// A floe: a snowy top over its outline, broken off unevenly round the lip, and raw ice down its sides: pale at the
-// top, going green-blue down into the water. The top is at 0 over the whole outline, as the solid is (harbourplan.js
+// A floe: a top over its outline (snow, with the ice showing where the wind has swept it), broken off unevenly round
+// the lip, and raw ice down its sides: thin and glowing at the lip, going dark green-blue down into the water. The top is at 0 over the whole outline, as the solid is (harbourplan.js
 // floeTop); only the lip, inside the outline's edge, falls away below it. UVs for the snow picture (the material's
 // map), colours for the ice.
 function floeGeo(poly, depth) {
-  const P = [], N = [], U = [], C = [], top = [1, 1, 1], lipC = [0.74, 0.86, 0.96], hi = [0.7, 0.87, 0.98], low = [0.16, 0.4, 0.5], BV = 0.05;
+  const P = [], N = [], U = [], C = [], top = [1, 0, 0], lipC = [0.45, 1, 0], hi = [0, 0.55, 0.1], low = [0, 0.12, 1], BV = 0.05;      // (red a top, green thin, blue deep: icelook.js iceBlockMaterial)
   let cu = 0, cv = 0; for (const [u, v] of poly) { cu += u; cv += v; } cu /= poly.length; cv /= poly.length;
   const tri = (a, b, c, ca, cb, cc, ua, ub, uc, want) => {
     const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
@@ -51,39 +51,57 @@ function floeGeo(poly, depth) {
   return g;
 }
 
-// The water: deep and dark, out to the horizon. A slow swell under it (long bands that come and go), ripples that catch
-// the moon in a road towards it all the way out, and a cold shimmer near to. It reads the ice's small tile of noise
-// (icelook.js), which is mipmapped, so the far water is calm and never crawls. No fog on it: far out it goes over to
-// the colour of the lake painted on the horizon (skyline.js), so the sheet has no end.
-function waterMaterial() {
+// The water: deep and dark, out to the horizon. A slow swell under it, in long bands lying along the shore that come in
+// dark and light; the moon's glitter, fine and soft (only where two trains of ripples cross), thick on the moon's own
+// bearing and next to nothing off it, running together far out into a road that narrows to the horizon. Against the
+// breakwater it lies glassy, with pancake ice crowded up to the stone and grease ice between the pancakes. It reads
+// the ice's small tile of noise (icelook.js), which is mipmapped, so the far water is calm and never crawls. No fog
+// on it: far out it goes over to the colour of the lake painted on the horizon (skyline.js), so the sheet has no end.
+function waterMaterial(bw) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uT: { value: 0 }, uMoonAt: { value: new THREE.Vector3(631, 162, -90) }, uN: { value: noises() },
+      uT: { value: 0 }, uMoonAt: { value: new THREE.Vector3(631, 162, -90) }, uN: { value: noises() }, uBW: { value: new THREE.Vector4(bw.x0, bw.x1, bw.z0, bw.z1) },
       uDeep: { value: new THREE.Color(0x0a1426) }, uSky: { value: new THREE.Color(0x2c3d66) }, uShim: { value: new THREE.Color(0xa8c8f0) }, uFar: { value: new THREE.Color(0x1f2d4e).multiplyScalar(1.3) },
     },
     vertexShader: `
       varying vec3 vW;
       void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }`,
     fragmentShader: `
-      uniform float uT; uniform vec3 uMoonAt; uniform sampler2D uN; uniform vec3 uDeep, uSky, uShim, uFar;
+      uniform float uT; uniform vec3 uMoonAt; uniform sampler2D uN; uniform vec3 uDeep, uSky, uShim, uFar; uniform vec4 uBW;
       varying vec3 vW;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main() {
         vec2 p = vW.xz;
         vec3 V = cameraPosition - vW; float dist = length(V); V /= dist;
         float near = clamp(1.0 - dist / 140.0, 0.0, 1.0);
-        float sw = texture2D(uN, p * vec2(0.0045, 0.014) + vec2(uT * 0.004, uT * 0.0017)).r;                        // the swell: 220 m by 70 m, rolling in slowly
-        float sw2 = texture2D(uN, p * vec2(0.013, 0.031) - vec2(uT * 0.006, uT * 0.003)).g;
-        float rip = texture2D(uN, p * vec2(0.05, 0.21) + vec2(uT * 0.011, uT * 0.004)).b * 0.55 + texture2D(uN, p * vec2(0.13, 0.35) - vec2(uT * 0.016, -uT * 0.008)).b * 0.45;
+        float dBW = length(max(max(uBW.xz - p, p - uBW.yw), 0.0)), glass = 1.0 - smoothstep(1.0, 9.0, dBW);           // how near the breakwater: in its lee the water lies still
+        float sw = texture2D(uN, p * vec2(0.013, 0.0042) + vec2(uT * 0.0045, uT * 0.001)).r;                           // the swell: 19 m from crest to crest, crests 60 m long, coming in
+        float sw2 = texture2D(uN, p * vec2(0.031, 0.011) + vec2(uT * 0.007, -uT * 0.002)).g;
+        float heave = clamp((sw - 0.5) * 2.3 + (sw2 - 0.5) * 0.9, -1.0, 1.0) * (1.0 - 0.6 * glass);
         float fres = pow(1.0 - max(V.y, 0.0), 5.0);
-        float heave = (sw - 0.5) * 1.3 + (sw2 - 0.5) * 0.7;                                                             // a swell's face towards you is darker, its back catches the sky
-        vec3 col = uDeep * (1.0 + 0.5 * heave) + uSky * fres * (0.5 + 0.55 * heave);
-        vec2 d = normalize(vW.xz - cameraPosition.xz + vec2(1e-4)), toM = normalize(uMoonAt.xz - cameraPosition.xz);
-        float road = pow(max(dot(d, toM), 0.0), 60.0);
-        float glint = smoothstep(0.54, 0.68, rip);
-        col += uShim * glint * (0.16 * near * near * (0.5 + sw2) + road * (0.5 + 1.5 * near) * (0.6 + heave));
-        col += uShim * road * 0.1 * smoothstep(60.0, 300.0, dist);                                                     // far out the glitter runs together into a road
-        col += vec3(0.02, 0.045, 0.06) * smoothstep(0.5, 0.9, sw2) * near;
-        col = mix(col, uFar * (0.9 + 0.5 * road), smoothstep(110.0, 330.0, dist));
+        vec3 col = uDeep * (1.0 + 0.45 * heave - 0.3 * glass) + uSky * fres * (0.5 + 0.5 * heave);                     // a swell's face is dark, its back takes the sky
+        vec2 d = normalize(p - cameraPosition.xz + vec2(1e-4)), toM = normalize(uMoonAt.xz - cameraPosition.xz);
+        float axis = max(dot(d, toM), 0.0);
+        vec2 q = vec2(dot(p, toM), dot(p, vec2(-toM.y, toM.x)));                                                       // down the moon's bearing, and across it
+        float ga = texture2D(uN, q * vec2(0.27, 0.075) + vec2(uT * 0.021, uT * 0.006), -1.0).b;
+        float gb = texture2D(uN, q * vec2(0.19, 0.052) - vec2(uT * 0.017, -uT * 0.004), -1.0).b;
+        float spark = max(ga + gb - 1.03, 0.0); spark = spark * spark * 30.0 * (1.0 - 0.85 * glass);
+        col += uShim * spark * (pow(axis, 26.0) + 0.004) * (0.8 + 0.6 * heave) * (0.45 + 1.5 * near);
+        col += uShim * pow(axis, 110.0) * 0.5 * (0.75 + 0.5 * heave) * smoothstep(40.0, 200.0, dist);
+        float pm = 1.0 - smoothstep(0.25, 2.2 + 1.8 * sw2, dBW);                                                       // pancake ice: thick against the stone, thinning out
+        if (pm > 0.0) {
+          vec2 wv = texture2D(uN, p * 0.13).rg - 0.5; vec3 pan = vec3(0.0); float cover = 0.0;
+          for (int k = 0; k < 2; k++) {                                                                                 // two sizes of them, the ground they are laid out on pulled about so no rows show
+            float cell = k == 0 ? 0.56 : 0.31; vec2 g = (p + wv * (k == 0 ? 1.3 : 0.8) + float(k) * 3.7) / cell, gi = floor(g); float h1 = hash(gi), h2 = hash(gi + 17.3);
+            vec2 c = fract(g) - 0.5 - (vec2(h1, h2) - 0.5) * 0.3; float r = length(c), rad = (0.2 + 0.14 * h2) * (1.0 + 0.13 * sin(atan(c.y, c.x) * 3.0 + h1 * 6.283));
+            float disc = (1.0 - smoothstep(rad - 0.05, rad, r)) * step(fract(h1 * 7.31), pm * (k == 0 ? 1.0 : 1.5) - 0.12);
+            vec3 pc = mix(vec3(0.075, 0.105, 0.15), vec3(0.16, 0.2, 0.275), smoothstep(rad - 0.13, rad - 0.045, r)) * (0.75 + 0.4 * h2);      // grey slush, its rim knocked up white
+            pan = mix(pan, pc, disc); cover = max(cover, disc);
+          }
+          col = mix(col, vec3(0.05, 0.075, 0.11), pm * pm * 0.65 * (0.5 + ga));                                        // grease ice between them
+          col = mix(col, pan, cover * (0.65 + 0.3 * pm));
+        }
+        col = mix(col, uFar * (0.9 + 0.5 * pow(axis, 60.0)), smoothstep(110.0, 330.0, dist));
         gl_FragColor = vec4(max(col, 0.0), 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -111,18 +129,16 @@ feature({
     const g = this.g = new THREE.Group(); k.group.add(g);
     if (k.museum && k.museum.moonAt) iceMoon(k.museum.moonAt);
     // the water
-    { const w = L.water, far = 480, m = this.water = new THREE.Mesh(new THREE.PlaneGeometry(w.x1 - w.x0 + 1, w.z1 - w.z0 + 20 + far * 2), waterMaterial());      // (well past both ends of the harbour: the lake)
+    { const w = L.water, far = 480, m = this.water = new THREE.Mesh(new THREE.PlaneGeometry(w.x1 - w.x0 + 1, w.z1 - w.z0 + 20 + far * 2), waterMaterial(L.breakwater));      // (well past both ends of the harbour: the lake)
       m.rotation.x = -Math.PI / 2; m.position.set((w.x0 + w.x1) / 2 - 0.5, WATER_Y, (w.z0 + w.z1) / 2); m.updateMatrix(); m.matrixAutoUpdate = false; m.frustumCulled = false; g.add(m);
       if (k.museum && k.museum.moonAt) m.material.uniforms.uMoonAt.value.copy(k.museum.moonAt); }
     // the floes: the chain's, one mesh each; the loose ones and the bits, instanced by outline
-    const snowTex = k.museum && k.museum.snowTex;
-    const iceM0 = new THREE.MeshStandardMaterial({ map: snowTex || null, vertexColors: true, roughness: 0.4, emissiveMap: snowTex || null, emissive: new THREE.Color(0.3, 0.37, 0.55), emissiveIntensity: 0.62 });
-    iceM0.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;'); };      // (as the slabs along the edge: lakefront.js)
-    const iceM = snowLook(iceM0, { drift: 0, moon: 0.5, sheen: 0.4 });      // (faces turned to the moon lit, the far ice catching it: src/finish.js; it chains the hook above)
+    // (src/icelook.js: broken ice. The loose floes are half swept bare; the chain's keep their snow, which is what the wheels grip on them.)
+    const iceM = iceBlockMaterial({ foot: -0.27, patch: 0.8, scale: 1.7 }), routeM = iceBlockMaterial({ foot: -0.27, patch: 0.2, scale: 1 });
     this.floes = L.floes;
     let ph = 1;
     for (const f of L.floes) { f.p1 = (ph = (ph * 7.13) % 6.283); f.p2 = (ph * 3.7) % 6.283; f.p3 = (ph * 5.3) % 6.283; f.p0 = (ph * 2.1) % 6.283; f.w1 = 1.1 + (ph % 0.5); }
-    for (const f of L.floes.filter(q => q.route)) { const m = f.mesh = new THREE.Mesh(floeGeo(f.poly, 0.36), iceM); m.matrixAutoUpdate = false; g.add(m); }
+    for (const f of L.floes.filter(q => q.route)) { const m = f.mesh = new THREE.Mesh(floeGeo(f.poly, 0.36), routeM); m.matrixAutoUpdate = false; g.add(m); }
     this.inst = L.floeShapes.map((sh, i) => {
       const list = L.floes.filter(f => !f.route && f.shape === i); if (!list.length) return null;
       const m = new THREE.InstancedMesh(floeGeo(sh, 0.36), iceM, list.length); m.frustumCulled = false; g.add(m); list.forEach((f, j) => { f.inst = m; f.ix = j; });
@@ -246,13 +262,19 @@ feature({
   },
 
   // The lakefront, and nowhere else: nothing here moves while the toy is away from it.
-  active(k) { return !!this.L && !k.room && k.pos.x > this.L.lsd.x0 - 10; },
+  // (When the toy has gone, everything that is drawn two ways is left the far way: once, as it goes.)
+  active(k) {
+    const on = !!this.L && !k.room && k.pos.x > this.L.lsd.x0 - 10;
+    if (!on && this.L && this.lodNear) { this.lodNear = false; if (this.L.lod) dealLOD(this.L.lod, 1e5, 0, 0); for (const b of this.L.heaveLOD || []) b.mesh.geometry = b.geos[2]; }
+    return on;
+  },
 
   update(dt, k) {
     const L = this.L, v = k.v, G = k.G;
     this.t += dt;
     if (this.wayM) { const d = Math.hypot(v.pos.x - (L.way[0][0] + 10), v.pos.z - 64), want = d < 34 ? 1 : 0, u = this.wayM.uniforms; u.uT.value = this.t; u.uOn.value += (want - u.uOn.value) * Math.min(1, dt * 2); this.way.visible = u.uOn.value > 0.01; }
     this.water.material.uniforms.uT.value = this.t;
+    if ((this.lodT = (this.lodT || 0) - dt) <= 0) { this.lodT = 0.3; this._lod(k); }
     this._float(dt, v);
     this.splash.update(dt); this.sparks.update(dt);
     if (this.ring.visible) { const r = this.ring; r.userData.t += dt; const u = r.userData.t / 1.1; r.scale.setScalar(1 + u * 5); r.material.opacity = 0.4 * (1 - u) * (1 - u); if (u >= 1) r.visible = false; }
@@ -323,6 +345,18 @@ feature({
       M.compose(P.set(b.x, y, b.z), Q, S.set(b.rad, 1, b.rad)); b.inst.setMatrixAt(b.ix, M);
     }
     for (const m of this.bitInst) m.instanceMatrix.needsUpdate = true;
+  },
+
+  // What stands about in numbers is drawn two ways, and the heave of the ice three (lakefront.js): three times a second,
+  // each can and bollard is dealt to its near mesh or its far one, and each band of the heave takes the geometry that suits
+  // how far off the camera is.
+  _lod(k) {
+    const L = this.L, c = k.G.camera.position; this.lodNear = true;
+    if (L.lod) dealLOD(L.lod, c.x, c.y, c.z);
+    for (const b of L.heaveLOD || []) {
+      const d = Math.hypot(Math.max(0, b.x0 - c.x, c.x - b.x1), c.y, Math.max(0, b.z0 - c.z, c.z - b.z1)), want = d < 26 ? 0 : d < 75 ? 1 : 2;
+      const g = b.geos[want] || b.geos[2]; if (g && b.mesh.geometry !== g) b.mesh.geometry = g;
+    }
   },
 
   // The lie of the ice under the wheels (icefield.js). A deep drift drags: the toy is slowed, the more the deeper the

@@ -5,7 +5,7 @@
 // keeps the floes' surfaces where it draws them). The water itself is not ground: a car that comes down on it has gone in
 // (harbour.js fishes it out).
 
-import { buildIceField, HSTEP } from './icefield.js';
+import { buildIceField, HSTEP, WAY } from './icefield.js';
 
 // Something solid with a top to land on (as plan.js landable, which cannot be imported here: plan.js imports this).
 const landable = (plan, x0, x1, z0, z1, top, base = 0) => { plan.surfaces.push({ skin: 'wall', fixed: true, x0, x1, z0, z1, axis: null, h0: top, h1: top, base }); plan.obstacles.push({ x0, x1, z0, z1, y0: base, y1: top - 0.08 }); };
@@ -207,13 +207,15 @@ export function harbourEdge(plan, L) {
   // Stakes with a reflector band stand down both sides of it, as on any road laid out over lake ice; nothing rises in
   // it (icefield.js keeps the ridges and the drifts out), so the crossing to the light is as it was.
   const sx = L.shore + 3.5, sz = (L.slip[0] + L.slip[1]) / 2;
-  const way = L.safeWay = [[sx, sz], [sx + 9, sz - 2], [sx + 20, sz - 12], [sx + 30, sz - 30], [RX - 7, 67.2], [RX - 3.2, 64.2]];
+  // (One long easy bend, the same way all the way round, that comes onto the chain's own line short of the edge: the last of it is a straight run at the first ramp.)
+  const way = L.safeWay = [[sx, sz], [sx + 5.5, sz - 7], [sx + 12, sz - 20], [sx + 18.5, sz - 31.5], [sx + 24.5, sz - 39.5], [RX - 10.5, 65.6], [RX - 7, 64.2], [RX - 3.2, 64.2]];
   const wayD = (x, z) => { let m = Infinity; for (let i = 0; i + 1 < way.length; i++) { const [ax, az] = way[i], [bx, bz] = way[i + 1], dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz))); m = Math.min(m, Math.hypot(x - ax - dx * t, z - az - dz * t)); } return m; };
   const stakes = L.stakes = [];
-  { let side = 1, carry = 2.5;
+  { let side = 1, next = 2.5, run = 0;
     for (let i = 0; i + 1 < way.length; i++) {
       const [ax, az] = way[i], [bx, bz] = way[i + 1], l = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / l, uz = (bz - az) / l;
-      for (let d = carry; d < l; d += 4.2) { const x = ax + ux * d - uz * 2.05 * side, z = az + uz * d + ux * 2.05 * side; if (wayD(x, z) > 1.8 && Math.hypot(x - RX, z - 64.2) > 3.4) stakes.push({ x, z, yaw: r() * 6.283, lean: (r() - 0.5) * 0.16 }); side = -side; carry = d + 4.2 - l; }
+      for (; next < run + l; next += 4.2, side = -side) { const d = next - run, x = ax + ux * d - uz * 2.05 * side, z = az + uz * d + ux * 2.05 * side; if (wayD(x, z) > 1.9 && Math.hypot(x - RX, z - 64.2) > 3.4) stakes.push({ x, z, yaw: r() * 6.283, lean: (r() - 0.5) * 0.16 }); }
+      run += l;
     } }
   for (const q of stakes) O.push({ x0: q.x - 0.04, x1: q.x + 0.04, z0: q.z - 0.04, z1: q.z + 0.04, y0: 0, y1: 0.8 });
   // The harbour's moorings, left out all winter and frozen in where they float: can buoys in their rows, each a thing
@@ -223,9 +225,9 @@ export function harbourEdge(plan, L) {
   // window in each. Solid as drawn (icefish.js draws them all).
   const shanties = L.shanties = L.fish ? [{ x: fish.x - 3.5, z: fish.z + 27, turn: 1 }, { x: fish.x + 5.2, z: fish.z + 33.5, turn: 3 }, { x: fish.x + 10.5, z: fish.z - 98, turn: 2 }] : [];
   for (const q of shanties) { const hw = q.turn % 2 ? 0.9 : 1.1, hd = q.turn % 2 ? 1.1 : 0.9; O.push({ x0: q.x - hw, x1: q.x + hw, z0: q.z - hd, z1: q.z + hd, y0: -0.3, y1: 2.6 }); }
-  for (const [k, mx] of [[0, 541], [1, 549.5], [2, 558.5], [3, 566.5]]) for (let z = B.z0 + 9 + (k % 2) * 7.5; z < B.z1 - 6; z += 15) {
-    const x = mx + (r() - 0.5) * 1.6, zz = z + (r() - 0.5) * 2.4;
-    if (x > edgeX(zz) - 6.5 || wayD(x, zz) < 3.6 || Math.hypot(x - fish.x, zz - fish.z) < 11 || Math.hypot(x - RX, zz - 64.2) < 8 || shanties.some(q => Math.hypot(x - q.x, zz - q.z) < 4)) continue;
+  for (const [k, mx] of [[0, 542.5], [1, 553], [2, 563.5]]) for (let z = B.z0 + 12 + (k % 2) * 11; z < B.z1 - 6; z += 22) {
+    const x = mx + (r() - 0.5) * 0.7, zz = z + (r() - 0.5) * 1.2;
+    if (x > edgeX(zz) - 6.5 || wayD(x, zz) < 6.5 || Math.hypot(x - fish.x, zz - fish.z) < 11 || Math.hypot(x - RX, zz - 64.2) < 8 || shanties.some(q => Math.hypot(x - q.x, zz - q.z) < 4)) continue;
     moor.push({ x, z: zz, s: 0.62 + r() * 0.16, yaw: r() * 6.283, tip: (r() - 0.5) * 0.3, red: r() < 0.3 });
   }
   for (const q of moor) { const a = 0.42 * q.s * 0.72; O.push({ x0: q.x - a, x1: q.x + a, z0: q.z - a, z1: q.z + a, y0: 0, y1: 0.42 * q.s + 0.1 }); }
@@ -249,7 +251,7 @@ export function harbourEdge(plan, L) {
   // Plates rafted up along the crests of the ridges (one end out of the snow: a ramp to hop the ridge from), and lumps
   // of broken ice thrown out beside them: low ones a wheel bumps over, taller ones to steer round. Drawn with the slabs
   // along the edge (lakefront.js), solid as drawn.
-  const clearOf = q => !moor.some(m => q.x0 < m.x + 0.7 && q.x1 > m.x - 0.7 && q.z0 < m.z + 0.7 && q.z1 > m.z - 0.7) && wayD((q.x0 + q.x1) / 2, (q.z0 + q.z1) / 2) > 3.2;
+  const clearOf = q => !moor.some(m => q.x0 < m.x + 0.7 && q.x1 > m.x - 0.7 && q.z0 < m.z + 0.7 && q.z1 > m.z - 0.7) && [[q.x0, q.z0], [q.x1, q.z0], [q.x0, q.z1], [q.x1, q.z1]].every(([x, z]) => wayD(x, z) > WAY);
   F.crests.forEach((c, i) => {
     if (i % 5 < 3) {
       const w = 0.7 + r() * 0.6, d = 0.9 + r() * 0.6, axis = r() < 0.5 ? 'x' : 'z', up = r() < 0.5 ? 1 : -1, hi = c.h + 0.1 + r() * 0.15, T = 0.1;
@@ -269,6 +271,9 @@ export function harbourEdge(plan, L) {
       if (!low) O.push({ ...q, y0: 0, y1: h - 0.08 });
     }
   });
+
+  // The look of it, now that everything standing on it is known: snow lies round the foot of each slab and in its lee.
+  F.paint(slabs.filter(q => !q.launch).map(q => ({ x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, h: q.kind === 'block' ? q.h : Math.max(q.h0, q.h1) })));
 
   // ---- where a toy that has gone in is put back: on the solid ice a few metres back from the edge, facing the shore,
   // or on top of the breakwater, facing the light

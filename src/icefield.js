@@ -21,6 +21,7 @@
 
 export const ZSTEP = 0.25;        // the look's grid, metres
 export const HSTEP = 0.4;         // the heave's
+export const WAY = 3.1;           // nothing rises, no lead lies and nothing solid stands this near the middle of the marked way (its stakes stand 2.05 m out: a metre clear beyond them)
 
 const sm = (a, b, t) => { t = (t - a) / (b - a); t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -87,7 +88,7 @@ export function buildIceField(o) {
   const open = (x, z) => {
     let k = sm(hx0, hx0 + 2, x) * sm(4.8, 6.5, edgeX(z) - x) * sm(pz0, pz0 + 2.5, z) * sm(pz1, pz1 - 2.5, z);
     if (!k) return 0;
-    if (way.length) k *= sm(2.3, 3.6, wayDist(way, x, z));
+    if (way.length) k *= sm(WAY, WAY + 1.1, wayDist(way, x, z));
     for (const q of keep) k *= sm(q.r, q.r + 1.6, Math.hypot(x - q.x, z - q.z));
     for (const q of posts) k *= sm(0.55, 1.3, Math.hypot(x - q.x, z - q.z));
     return k;
@@ -154,6 +155,9 @@ export function buildIceField(o) {
   // ---- the look, on its grid
   const nx = Math.ceil((x1 - x0) / ZSTEP), nz = Math.ceil((z1 - z0) / ZSTEP), data = new Uint8Array(nx * nz * 4);
   const byte = v => (v <= 0 ? 0 : v >= 1 ? 255 : Math.round(v * 255));
+  // `blocks`: what stands on the ice ([{ x0, x1, z0, z1, h }]: the slabs, plates and lumps, harbourplan.js), for the snow
+  // drifted up round the foot of each and lying in its lee.
+  const paint = (blocks = []) => {
   for (let j = 0; j < nz; j++) {
     const z = z0 + (j + 0.5) * ZSTEP, ex = edgeX(z), span = ex - x0;
     for (let i = 0; i < nx; i++) {
@@ -163,7 +167,8 @@ export function buildIceField(o) {
       // streaks down the wind; each plate a little more or less than its neighbours
       let snow = lerp(0.6, 0.2, sm(0.05, 0.2, t)); snow = lerp(snow, 0.5, sm(0.55, 0.78, t)); snow = lerp(snow, 0.36, sm(0.9, 1.0, t));
       snow += (fbm(n5, wu / 15, wv / 2.6) - 0.5) * 0.62 + (n2(wu / 5, wv / 0.9) - 0.5) * 0.16 + P.bias * 0.2;
-      const lead = jn.kind === 1 ? (1 - sm(0.3, 0.75 + 0.5 * n4(x / 4, z / 4), jn.d)) * jn.amt : 0;
+      let lead = jn.kind === 1 ? (1 - sm(0.3, 0.75 + 0.5 * n4(x / 4, z / 4), jn.d)) * jn.amt : 0;
+      if (lead && way.length) lead *= sm(WAY, WAY + 1.1, wayDist(way, x, z));          // (never across the marked way)
       const rdg = jn.kind === 0 ? (1 - sm(0.5, 2.6, jn.d)) * jn.amt : 0;
       snow = Math.max(snow, 0.42 + 0.3 * rdg);                       // snow catches along a ridge
       snow *= 1 - lead;                                              // and none lies on a lead, which froze after it fell
@@ -182,6 +187,18 @@ export function buildIceField(o) {
       data[k + 3] = byte(0.18 + 0.82 * Math.max((1 - sm(0.1, 1.7, jn.d)) * (jn.kind === 2 ? 0.75 : 1), rdg) + (n4(x / 3, z / 3) - 0.5) * 0.25 + 0.3 * (1 - sm(0.5, 5, x - x0)));
     }
   }
+  for (const q of blocks) {
+    const h = q.h || 0.2, len = 0.8 + 5 * Math.min(0.5, h), hw = Math.max(0.2, ((q.x1 - q.x0) * Math.abs(ACROSS[0]) + (q.z1 - q.z0) * Math.abs(ACROSS[1])) / 2), cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2;
+    const i0 = Math.max(0, Math.floor((q.x0 - 0.7 - len * 0.3 - x0) / ZSTEP)), i1 = Math.min(nx - 1, Math.ceil((q.x1 + 0.7 - x0) / ZSTEP)), j0 = Math.max(0, Math.floor((q.z0 - 0.7 - z0) / ZSTEP)), j1 = Math.min(nz - 1, Math.ceil((q.z1 + 0.7 + len - z0) / ZSTEP));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const x = x0 + (i + 0.5) * ZSTEP, z = z0 + (j + 0.5) * ZSTEP, dx = Math.max(q.x0 - x, 0, x - q.x1), dz = Math.max(q.z0 - z, 0, z - q.z1), d = Math.hypot(dx, dz);
+      const u = (x - cx) * WIND[0] + (z - cz) * WIND[1], v = (x - cx) * ACROSS[0] + (z - cz) * ACROSS[1];
+      const skirt = (1 - sm(0.05, 0.42 + 0.3 * n4(x * 2, z * 2), d)) * 0.92, tail = (1 - sm(hw * 0.5, hw * 1.05, Math.abs(v))) * sm(-0.2, 0.3, u) * (1 - sm(len * 0.35, len, u)) * 0.95;
+      const k = (j * nx + i) * 4, sn = Math.max(skirt, tail) * (1 - data[k + 2] / 255);
+      if (sn * 255 > data[k]) data[k] = byte(sn);
+    }
+  }
+  };
   const tex = (x, z, c) => {       // one of the four, read between the points exactly as the shader's sampler reads it
     let u = (x - x0) / ZSTEP - 0.5, v = (z - z0) / ZSTEP - 0.5; u = u < 0 ? 0 : u > nx - 1 ? nx - 1 : u; v = v < 0 ? 0 : v > nz - 1 ? nz - 1 : v;
     const i = Math.min(nx - 2, Math.floor(u)), j = Math.min(nz - 2, Math.floor(v)), fx = u - i, fz = v - j, a = (j * nx + i) * 4 + c;
@@ -199,6 +216,6 @@ export function buildIceField(o) {
     crests.push({ x, z, h: hv });
   }
 
-  return { x0, x1, z0, z1, nx, nz, data, tex, crust, heaveAt, drift, top, drifts, crests, sites,
+  return { x0, x1, z0, z1, nx, nz, data, tex, crust, paint, heaveAt, drift, top, drifts, crests, sites,
     heave: { x0: HX0, z0: HZ0, nx: hnx, nz: hnz, h, cells } };
 }

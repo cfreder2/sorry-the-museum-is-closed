@@ -184,3 +184,55 @@ export function iceMaterial(o = {}) {
   mat.customProgramCacheKey = () => 'icelook|' + (F ? 'z' : '') + (o.rim ? 'r' : '') + (M ? 'm' : '');
   return mat;
 }
+
+// Ice that has been broken off and stood up: the slabs and plates along the edge and rafted on the ridges, the lumps
+// thrown out beside them, the floes. The same family as the sheet (its cracks and bubbles, its snow), but seen from
+// the side. The geometry says what each point is, in its colour: red, how far it is a top that snow lies on; green,
+// how thin the ice is there (a broken lip: the light comes through it blue-green, strongest looked at towards the
+// moon); blue, how far down towards its foot (darker and greener, and wet where it meets the sheet or the water).
+// The pattern is laid in the piece's own space, so it rides with a floe as it turns.
+// o: { foot: the height (in the piece's own space) of what it stands in; patch: how much of a top the wind has swept
+//      bare (0 none, 1 about half); scale: the pattern's; snow: how bright its snow }
+export function iceBlockMaterial(o = {}) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, emissive: 0xffffff, emissiveIntensity: 1, vertexColors: true, ...(o.params || {}) });
+  const u = { uIceC: { value: cracks() }, uIceN: { value: noises() }, uIceMoon: MOON, uBlk: { value: new THREE.Vector4(o.foot == null ? 0 : o.foot, o.patch == null ? 0.3 : o.patch, o.scale || 1, o.snow == null ? 1 : o.snow) } };
+  mat.userData.iceBlock = u;
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBlkP;\nvarying vec3 vBlkN;\nvarying vec3 vBlkW;')
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        { vBlkP = transformed; vec3 bn = objectNormal; vec4 bw = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+            bn = mat3(instanceMatrix) * bn; bw = instanceMatrix * bw;
+          #endif
+          vBlkN = normalize(mat3(modelMatrix) * bn); vBlkW = (modelMatrix * bw).xyz; }`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uIceC, uIceN;\nuniform vec3 uIceMoon;\nuniform vec4 uBlk;\nvarying vec3 vBlkP;\nvarying vec3 vBlkN;\nvarying vec3 vBlkW;')
+      .replace('#include <color_fragment>', `
+        vec3 bN = normalize(vBlkN) * (gl_FrontFacing ? 1.0 : -1.0), bV = normalize(cameraPosition - vBlkW), bMoon = normalize(uIceMoon - vBlkW), bA = abs(bN);
+        vec2 bp = (bA.y > 0.55 ? vBlkP.xz : (bA.x > bA.z ? vBlkP.zy : vBlkP.xy)) * uBlk.z;
+        vec3 bc = texture2D(uIceC, bp * 0.31 + 0.13).rgb, bn = texture2D(uIceN, bp * 0.27).rgb;
+        float bTop = vColor.r, bThin = vColor.g, bDeep = vColor.b, bLie = smoothstep(0.35, 0.8, bN.y);
+        float bSnow = smoothstep(0.42, 0.6, bTop * bLie - (1.0 - bn.g) * uBlk.y * 1.2 + (bn.b - 0.5) * 0.25);
+        vec3 bIce = mix(vec3(0.042, 0.078, 0.108), vec3(0.01, 0.04, 0.055), bDeep);                               // a milky core, darker and greener towards its foot
+        bIce = mix(bIce, vec3(0.085, 0.12, 0.155), bn.r * bn.r * 0.85 * (1.0 - 0.6 * bDeep));
+        bIce += vec3(0.03, 0.15, 0.18) * bThin * (0.4 + 2.2 * pow(max(dot(-bV, bMoon), 0.0), 2.0)) * (0.5 + 0.95 * bn.b);      // thin: the light comes through, most of all looked at towards the moon
+        bIce += vec3(0.42, 0.58, 0.7) * (bc.r * 0.4 + bc.g * 0.12 * (1.0 - bThin));                                 // its fractures, the air in it
+        bIce *= 1.0 - 0.5 * bTop * bLie;                                                                           // a top swept bare: looked down into, it is dark
+        bIce *= (1.0 + 0.55 * clamp(dot(bN, bMoon), -0.35, 0.7)) * (1.0 - 0.7 * (1.0 - smoothstep(0.0, 0.045, vBlkP.y - uBlk.x)) * (1.0 - bLie));      // faces to the moon lit; wet and dark at the foot
+        float bFrost = (1.0 - bLie) * max(1.0 - smoothstep(0.08, 0.6, bDeep), smoothstep(0.1, 0.9, dot(bN, vec3(0.2425, 0.0, -0.9701)))) * (0.25 + 0.9 * bn.g);      // frost on the upper part of a broken face, and rime on the side the wind is from
+        vec3 bSnowCol = vec3(0.165, 0.2, 0.285) * uBlk.w * (0.76 + 0.3 * bn.r + 0.3 * (bn.b - 0.5) + 0.25 * bc.b) * (1.0 + 1.3 * clamp(dot(bN, bMoon) - bMoon.y, -0.5, 0.6));
+        bIce = mix(bIce, bSnowCol * 0.8, bFrost * 0.6);
+        diffuseColor.rgb = mix(bIce * 2.0, vec3(0.86, 0.9, 0.96), bSnow);`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = mix(0.08 + 0.3 * bc.b, 0.95, bSnow);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance = mix(bIce, bSnowCol, bSnow);')
+      .replace('#include <opaque_fragment>', `{
+          float fr = 0.02 + 0.98 * pow(1.0 - clamp(dot(bV, bN), 0.0, 1.0), 5.0); vec3 rd = reflect(-bV, bN);
+          outgoingLight += (mix(vec3(0.02, 0.03, 0.085), vec3(0.075, 0.085, 0.17), pow(1.0 - abs(rd.y), 3.0)) + vec3(1.5, 1.6, 1.9) * pow(max(dot(rd, bMoon), 0.0), 160.0)) * fr * (1.0 - bSnow) * 0.85;
+        }
+        #include <opaque_fragment>`);
+  };
+  mat.customProgramCacheKey = () => 'iceblock';
+  return mat;
+}
