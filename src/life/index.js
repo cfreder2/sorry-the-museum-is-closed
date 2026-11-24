@@ -63,3 +63,4 @@ import './90048-distant-view-of-niagara.js'; // 161  Cole, Distant View of Niaga
 import './16146-equestrienne-cirque-fernando.js'; // 242  Toulouse-Lautrec, Equestrienne (At the Cirque Fernando): hoop
 import './16488-armida-encounters-rinaldo.js'; // 215  Tiepolo, Armida Encounters the Sleeping Rinaldo: hush
 import './81512-interrupted-reading.js'; // 224  Corot, Interrupted Reading: pause
+import './15401-at-mouquins.js';      // 272  Glackens, At Mouquin's: mirror
