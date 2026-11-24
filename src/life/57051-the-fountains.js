@@ -54,7 +54,7 @@ const LOW = { h: 0.36, d: 0.27 }, DIE = { y1: 0.578, in: 0.05, d: 0.225 }, CAP =
 const BASIN = { z: 0.485, R: 0.232, rim: 0.17, floor: 0.058, r0: 0.172, r1: 0.199, full: 0.143 };
 const MASK = { y: 0.272, dx: 0.115 }, MOUTH = { y: 0.244, z: LOW.d + 0.034 };
 // The right-hand basin runs over, as his does, by a hole low in its wall into a shallow round pool on the ground.
-const SPOUT = { a: -0.5, y: 0.104, r: 0.207, v: 0.22 }, POOL = { x: 0.62, z: 0.762, R: 0.118, r: 0.097, y: 0.021 };
+const SPOUT = { a: -0.5, y: 0.104, r: 0.207, v: 0.22 }, POOL = { x: 0.62, z: 0.762, R: 0.118, r: 0.097, y: 0.027 };
 const G = 9.8, SPX = PED[1].cx + Math.sin(SPOUT.a) * SPOUT.r, SPZ = BASIN.z + Math.cos(SPOUT.a) * SPOUT.r, TFO = Math.sqrt(2 * (SPOUT.y - POOL.y) / G);      // (TFO: that thread's fall)
 const TRAIN = [BASIN.z + BASIN.R + 0.004, POOL.z + POOL.R + 0.004];   // a base and what stands before it, front to back
 const SLAB = { x: 0.12, y: 0.04, z: 0.8, yaw: 0.36, w: 0.27, h: 0.08, d: 0.15 };
@@ -231,9 +231,9 @@ lifeFor(57051, {
         // (the hole it runs over by, a worn lip under it; and the pool: a low ring of his pale stone)
         const lip = (dy, r, k) => { const g = new THREE.SphereGeometry(1, 8, 6); g.scale(r, r * 0.7, r); g.translate(SPX, SPOUT.y + dy, SPZ); solid(F, g, k, 3, (v, n) => _c.copy(k).multiplyScalar(0.75 + 0.4 * clamp01(n.y))); };
         lip(0.002, 0.01, BRONZED); lip(-0.01, 0.011, BOWL);
-        const g = new THREE.LatheGeometry([[POOL.R - 0.004, 0], [POOL.R, 0.01], [POOL.R - 0.002, 0.028], [POOL.R - 0.01, 0.034], [POOL.r + 0.003, 0.03], [POOL.r, 0.02], [POOL.r - 0.004, 0.012], [0.0001, 0.011]].map(([r, y]) => new THREE.Vector2(r, y)), 26);
+        const g = new THREE.LatheGeometry([[POOL.R - 0.004, 0], [POOL.R, 0.01], [POOL.R - 0.002, 0.032], [POOL.R - 0.01, 0.038], [POOL.r + 0.003, 0.035], [POOL.r, 0.028], [POOL.r - 0.004, 0.021], [0.0001, 0.02]].map(([r, y]) => new THREE.Vector2(r, y)), 26);
         g.translate(POOL.x, 0, POOL.z);
-        solid(F, g, GREY, 3, (v, n) => { const r = Math.hypot(v.x - POOL.x, v.z - POOL.z); return _c.copy(r < POOL.r + 0.002 ? BOWLIN : RIMC).lerp(GREY, 0.45).multiplyScalar(r < POOL.r + 0.002 ? 0.8 : 0.8 + 6 * Math.min(v.y, 0.034)); });
+        solid(F, g, GREY, 3, (v, n) => { const r = Math.hypot(v.x - POOL.x, v.z - POOL.z); return _c.copy(RIMC).lerp(GREY, 0.45).multiplyScalar(r < POOL.r + 0.002 ? 0.74 + 0.2 * r / POOL.r : 0.8 + 5 * Math.min(v.y, 0.038)); });
       }
       fount.push(F);
       const U = part(), u0 = x0 + DIE.in, u1 = x1 - DIE.in;
@@ -294,9 +294,9 @@ ${SUN_GLSL}`)
     alb *= mix(1.0, 0.88 + 0.24 * h1(row * 13.0 + floor(cx) * 5.3), up) * (1.0 - 0.36 * j * up * (0.5 + tx.a));
     alb *= mix(0.7, 1.0, smoothstep(0.0, 0.11, vRest.y));
     // the long dark stains under the masks, wetter once the water runs
-    for (int i = 0; i < 4; i++) {
+    if (rn.z > 0.5) for (int i = 0; i < 4; i++) {
       float below = uMask[i].y - 0.02 - vRest.y, dx = (vRest.x - uMask[i].x) / (0.02 + 0.07 * max(below, 0.0));
-      float s = exp(-dx * dx) * smoothstep(0.0, 0.03, below) * step(0.5, rn.z) * (0.5 + 0.9 * tx.a);
+      float s = exp(-dx * dx) * smoothstep(0.0, 0.03, below) * (0.5 + 0.9 * tx.a);
       alb = mix(alb, alb * vec3(0.4, 0.47, 0.36), clamp(s * (0.45 + 0.4 * uFlow[i]), 0.0, 0.85));
     }
   } else if (vMat > 1.5 && vMat < 2.5) alb = vColor.rgb * (0.85 + 0.3 * tx.a);
@@ -307,6 +307,7 @@ ${SUN_GLSL}`)
   vec3 C = alb * (mix(cLo, cHi, 0.5 + 0.5 * n.y) + cSun * sun * ndl + cBounce * bnc);
   // and light off the moving water, on the stone over a basin the sun is on
   for (int i = 0; i < 2; i++) {
+    if (uBasin[i].w < 0.01) continue;
     vec2 dq = p.xz - uBasin[i].xy; float lv = uBasin[i].z;
     float k = exp(-dot(dq, dq) / 0.05) * smoothstep(lv, lv + 0.02, p.y) * (1.0 - smoothstep(lv + 0.06, lv + 0.2, p.y)) * uBasin[i].w;
     if (k > 0.004) C += cCaus * smoothstep(0.16, 0.42, texture2D(tStone, vec2(p.x + p.z * 0.6, p.y * 0.8) * 2.6 + uTime * vec2(0.05, 0.12)).a * texture2D(tStone, vec2(p.x - p.z * 0.4, p.y) * 3.7 - uTime * vec2(0.08, 0.05)).a) * k * (0.35 + 0.65 * abs(n.z));
@@ -433,6 +434,7 @@ float boxD(vec2 q, vec2 c, vec2 h) { vec2 d = abs(q - c) - h; return length(max(
     vec4 gs = texture2D(tGround, q / 0.9); float ang = atan(q.y - 0.1, q.x + 0.02);
     vec2 e = (q - vec2(-0.02, 0.1)) / vec2(1.4, 1.02); e *= e;
     float r = sqrt(sqrt(dot(e, e))) / (1.0 + 0.05 * sin(ang * 3.0 + 0.6) + 0.04 * sin(ang * 5.0 + 2.1) + 0.03 * sin(ang * 9.0)) + (gs.a - 0.5) * 0.26;
+    if (r > 1.26) discard;
     float laid = smoothstep(0.0, 0.1, uC * 1.5 - 0.06 - q.y - (gs.a - 0.5) * 0.3);
     vec3 gc = gs.rgb * mix(vec3(1.0), cGreen * 0.8, smoothstep(-0.1, 0.9, q.x) * smoothstep(0.4, 0.95, q.y) * (0.3 + 1.0 * gs.a));
     float sun = sunAt(vec3(q.x, 0.0, q.y));
