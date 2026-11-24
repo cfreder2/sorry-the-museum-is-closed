@@ -227,19 +227,23 @@ float boxHit(vec3 P, vec3 D, vec3 lo, vec3 hi, out vec3 n) {
   n = a == tn.x ? vec3(-sign(D.x), 0.0, 0.0) : a == tn.y ? vec3(0.0, -sign(D.y), 0.0) : vec3(0.0, 0.0, -sign(D.z));
   return (a > b || a < 0.0) ? -1.0 : a;
 }
-// What the water shows along a ray from it (stage: along, up, out): the tower and the walls, the woods, the sky.
-vec3 scene(vec3 P, vec3 D) {
+// The ruin along one ray from the water (stage: along, up, out): its colour, and whether the ray meets it at all
+// (its tops are broken, and only as much of it is there as has come up). His openings are only hinted.
+vec4 ruin(vec3 P, vec3 D) {
   float best = 1.0e3; vec3 bn = vec3(0.0, 0.0, 1.0); int bi = -1;
   for (int i = 0; i < NB; i++) {
     vec3 n; float t = boxHit(P, D, uBoxLo[i], uBoxHi[i], n); if (t <= 0.0 || t >= best) continue;
-    vec3 H = P + D * t; if (H.y > uBoxHi[i].y - 0.09 * texture2D(tNoise, vec2(H.x * 2.6 + float(i) * 0.3, H.z * 2.6)).g) continue;      // (their tops are broken)
-    float rr = clamp(uRise * 1.75 - length(H.xz - uFoot) * 0.6, 0.0, 1.0); if (rr < 1.0 && H.y > rr * 0.8 - 0.03) continue;             // (and they are still coming up)
+    vec3 H = P + D * t; if (H.y > uBoxHi[i].y - 0.09 * texture2D(tNoise, vec2(H.x * 2.6 + float(i) * 0.3, H.z * 2.6)).g) continue;
+    float rr = clamp(uRise * 1.75 - length(H.xz - uFoot) * 0.6, 0.0, 1.0); if (rr < 1.0 && H.y > rr * 0.8 - 0.03) continue;
     best = t; bn = n; bi = i;
   }
-  if (bi >= 0) {
-    vec3 H = P + D * best; float mot = (0.72 + 0.56 * texture2D(tNoise, vec2(H.x + H.z, H.y * 0.3) * 4.0).r) * (0.85 + 0.3 * texture2D(tNoise, vec2(H.x + H.z, H.y) * 9.0).b);
-    return lightOn((bi == 1 ? cInner : cBrick) * mot, bn, H) * 0.8;
-  }
+  if (bi < 0) return vec4(0.0);
+  vec3 H = P + D * best; float mot = (0.72 + 0.56 * texture2D(tNoise, vec2(H.x + H.z, H.y * 0.3) * 4.0).r) * (0.85 + 0.3 * texture2D(tNoise, vec2(H.x + H.z, H.y) * 9.0).b);
+  if (bi == 0 && bn.z > 0.5) mot *= 1.0 - 0.4 * exp(-(pow((H.x + 0.107) / 0.022, 2.0) + pow((H.y - 0.335) / 0.03, 2.0))) - 0.35 * exp(-(pow((H.x + 0.097) / 0.02, 2.0) + pow((H.y - 0.1) / 0.04, 2.0)));
+  return vec4(lightOn((bi == 1 ? mix(cBrick * 0.5, cInner, 0.45) : cBrick) * mot, bn, H), 1.0);
+}
+// What the water shows along a ray from it: the woods and the sky, and the ruin lying in them.
+vec3 scene(vec3 P, vec3 D) {
   float t = D.z < -1.0e-3 ? (0.1 - P.z) / D.z : 40.0;
   vec2 q = vec2(P.x + D.x * t, D.y * t); float nq = texture2D(tNoise, q * 1.6).g;
   float trees = 0.2 + 0.09 * sin(q.x * 5.0 + 1.0) + 0.05 * sin(q.x * 11.0 + 0.3) + 0.2 * smoothstep(0.35, 1.0, abs(q.x + 0.05)) + (nq - 0.5) * 0.12;
@@ -251,7 +255,18 @@ vec3 scene(vec3 P, vec3 D) {
   float st = max(uStorm, uBreak.z * smoothstep(-0.95, -0.2, q.x)) * (1.0 - brk);
   float lum = clamp(mix(0.6, 0.4, smoothstep(0.3, 0.7, d)) * mix(1.0, 0.4, st) + brk * 0.5, 0.0, 1.0);
   vec3 sky = lum < 0.5 ? mix(cCloudDark, cCloudMid, lum * 2.0) : mix(cCloudMid, cCloudLit, lum * 2.0 - 1.0);
-  return mix(sky * 0.92, wood, tk);
+  vec3 bg = mix(sky * 0.92, wood, tk);
+  // The ruin in it, as his water holds it: darker and greyer than the brick above; pushed sideways by the ripples,
+  // differently from one level band of water to the next, so its sides are soft broken steps and never a straight
+  // edge (three rays a little apart, for the softness); gapped where a band lets the sky through; and fading as it
+  // comes towards the near bank.
+  float band = texture2D(tNoise, vec2(P.x * 0.3 + uTime * 0.008, P.z * 5.5 - uTime * 0.03)).g, fine = texture2D(tNoise, vec2(P.x * 0.8 - uTime * 0.01, P.z * 14.0 + uTime * 0.04)).b;
+  float wob = (band - 0.5) * 0.11 + (fine - 0.5) * 0.05; vec4 acc = vec4(0.0);
+  for (int k = 0; k < 3; k++) { vec3 Dk = D; Dk.x += wob + (float(k) - 1.0) * 0.022; vec4 h = ruin(P, Dk); acc += vec4(h.rgb, 1.0) * h.a; }
+  float cov = acc.a / 3.0; if (cov < 0.01) return bg;
+  vec3 rc = acc.rgb / acc.a; rc = mix(vec3(dot(rc, vec3(0.3, 0.5, 0.2))), rc, 0.68) * 0.62;
+  cov *= (0.66 + 0.34 * smoothstep(0.3, 0.62, fine + (band - 0.5) * 0.6)) * mix(1.0, 0.3, smoothstep(0.6, 1.08, P.z));
+  return mix(bg, rc, cov * 0.9);
 }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 vec2 lq = lifeP.xz - uO.xz; float su = dot(lq, uAx.xy) / uZ, so = dot(lq, uAx.zw) / uZ;
