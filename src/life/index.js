@@ -42,4 +42,5 @@ import './16298-jean-gros.js';        // 202  van der Weyden, Portrait of Jean G
 import './14574-uncle-and-niece.js';   // 226  Degas, Henri Degas and His Niece Lucie Degas: rustle
 import './14591-woman-reading.js';   // 201  Manet, Woman Reading: leaf
 import './64818-end-of-summer.js';      // 243  Monet, Stacks of Wheat (End of Summer): harvest
+import './4788-lady-sarah-bunbury.js';   // 218  Reynolds, Lady Sarah Bunbury Sacrificing to the Graces: wreath
 import './19339-arlesiennes-mistral.js'; // 241  Gauguin, Arlésiennes (Mistral): wrap
