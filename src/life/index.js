@@ -30,4 +30,8 @@ import './25865-herring-net.js';      // 161  Homer, The Herring Net: haul
 import './16584-houses-of-parliament.js'; // 243  Monet, Houses of Parliament, London: toll
 import './69780-fountain-villa-torlonia.js'; // 273  Sargent, The Fountain, Villa Torlonia, Frascati, Italy: splash
 import './87479-assumption-of-the-virgin.js'; // 211  El Greco, The Assumption of the Virgin: rise
+import './16551-beata-beatrix.js';     // 223  Rossetti, Beata Beatrix: hour
+import './84709-still-life-with-game-fowl.js'; // 211  Sánchez Cotán, Still Life with Game Fowl: still
+import './43145-view-of-delphi.js';   // 209  Claude Lorrain, View of Delphi with a Procession: glow
+import './11723-woman-at-her-toilette.js'; // 201  Morisot, Woman at Her Toilette: powder
 import './93900-man-in-costume.js';   // 216  Fragonard, Portrait of a Man in Costume: flourish
