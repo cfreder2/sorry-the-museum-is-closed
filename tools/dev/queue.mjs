@@ -26,8 +26,12 @@ else if (cmd === 'next') {
   const busy = new Set(Object.values(state.assigned).map(v => v.room)), out = [];
   const free = todo.filter(w => !state.assigned[w.id]);
   const perRoom = new Map(); for (const w of free) perRoom.set(w.room, (perRoom.get(w.room) || 0) + 1);
-  // highlights first; then the rooms with most left, so the big galleries fill steadily; a stable order within that
-  free.sort((p, q) => (q.b - p.b) || (perRoom.get(q.room) - perRoom.get(p.room)) || (p.room < q.room ? -1 : p.room > q.room ? 1 : q.w * q.h - p.w * p.h));
+  // Works that need the most care come last (sacred subjects, violence and death, the nude), when the brief has the most
+  // behind it: many of them will be light-only shows, or none. Then highlights first; then the rooms with most left, so
+  // the big galleries fill steadily; a stable order within that.
+  const GRAVE = /\b(Christ|Jesus|Virgin|Madonna|Saint|St\.|Holy|Crucifi|Lamentation|Entombment|Piet[aà]|Martyr|Flagellation|Mocked|Passion|Resurrection|Annunciation|Adoration|Nativity|Baptism|Assumption|Trinity|Apostle|Angel|Magdalen|Salome|Judith|Head of|Beheading|Massacre|Death|Dead|Dying|Corpse|Skull|Execution|Battle|Combat|Rape|Abduction|Slave|Nude|Bather|Venus|Susanna|Lucretia|Bathsheba|Diana|Nymph|Triptych|Altarpiece|Vision|Miracle|Temptation|Last Judgment|Ecce Homo|Man of Sorrows|God|Cupid|Chastis|Beat|Punish|Wound|Blood|Prophet|Moses|Abraham|David|Samson|Job|Lot)\b/i;
+  const grave = w => (GRAVE.test(w.t || '') ? 1 : 0);
+  free.sort((p, q) => (grave(p) - grave(q)) || (q.b - p.b) || (perRoom.get(q.room) - perRoom.get(p.room)) || (p.room < q.room ? -1 : p.room > q.room ? 1 : q.w * q.h - p.w * p.h));
   for (const w of free) {
     if (out.length >= Number(a1 || 1)) break; if (busy.has(w.room)) continue; busy.add(w.room);
     const port = state.port = state.port >= 8959 ? 8920 : state.port + 1;
