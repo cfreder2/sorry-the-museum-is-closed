@@ -393,7 +393,8 @@ export class Traffic {
 
   _place(v, dt) {
     const P = this.plan, K = v.K, g = v.B.g, a = K.wb[1], b = K.wb[0];
-    const yf = streetY(P, v.x + v.hx * a, v.z + v.hz * a), yr = streetY(P, v.x + v.hx * b, v.z + v.hz * b);
+    const rr = P.roadRelief || (() => 0);      // humps and washboard in the road (winterroads.js): the wheels ride over them
+    const yf = streetY(P, v.x + v.hx * a, v.z + v.hz * a) + rr(v.x + v.hx * a, v.z + v.hz * a), yr = streetY(P, v.x + v.hx * b, v.z + v.hz * b) + rr(v.x + v.hx * b, v.z + v.hz * b);
     v.y = (yf + yr) / 2;
     g.position.set(v.x, v.y - (a + b) / 2 * (yf - yr) / (a - b), v.z);
     const yaw = Math.atan2(v.hx, v.hz); let dy = yaw - g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); g.rotation.y += dt > 0 ? dy * Math.min(1, dt * 9) : dy;

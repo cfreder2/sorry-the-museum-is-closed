@@ -15,6 +15,7 @@ import { streetY, landable } from './plan.js';
 import { frostHedges, hedgeMaterial } from './frost.js';
 import { trafficLanes, STOP_BACK, TRACK_W, GeoLite, Kerbs, slabs, strip, fixture, FIX, hash, ParkFurniture, slabMaterial, walkMarkMaterial, roadMarkMaterial, paintMaterial, trackMaterial, fixtureMaterial } from './streetscape.js';
 import { ParkedCars } from './parked.js';
+import { buildWinterRoads } from './winterroads.js';
 
 const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
@@ -429,6 +430,9 @@ export function buildStreets(museum, plan) {
     bench(x0 + 0.42, (z0 + z1) / 2, 1, 0); sign(x1 + 0.6, z1 + 1.2, ['BUS', 'STOP', '6 · 146'], '#1f4f9a', 'z'); }
   for (const z of [30, 92, 150, 205]) if (clearX(C.x0 - 3.4, z)) bin(C.x0 - 3.4, z);
   for (const z of [44, 170]) hydrant(C.x1 + 0.9, z);
+
+  // The winter on all of it: the lamps and their light, the plough's windrows, washboard, the road works (winterroads.js).
+  buildWinterRoads(museum, plan, { parked, paintW });
 
   // ------------------------------------------------------------------ put it all in the world
   for (const [x, y, z] of bikeRow) bike(x, y, z, g.blue);
