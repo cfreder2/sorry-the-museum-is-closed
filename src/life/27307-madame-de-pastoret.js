@@ -28,7 +28,7 @@
 // the eight quick notes of "l'enfant dormira bien vite" are the gathering; the second half is the rocking. (Set down
 // from the score on the French Wikipedia page for the song; here a fourth higher, in F.)
 //
-// How it is made: three draw calls. The muslin is one mesh of about fourteen hundred points, moved along its way,
+// How it is made: three draw calls. The muslin is one mesh of about thirteen hundred points, moved along its way,
 // tucked over the needle, gathered and curled on the processor, and painted as he painted her whites (ivory lights,
 // cool grey half tones, shadows thin and warm, stippled where his ground would show through; an open weave when you
 // are near). The thread, the needle and its glint are one mesh (the thread a ribbon that faces you; under the cloth it
@@ -55,7 +55,7 @@ const HAND = { x: -0.26, y: 0.835 };                  // under her lifted finger
 const SLOT = { x: -0.17 };                            // under the hand that holds the work: where the work comes out, at the wall's foot
 const IN = 0.45;                                      // how much of its way is inside the wall
 const LC = 1.05, WC = 0.3, FLOOR = 0.009;            // the strip of muslin: its length, its width; how high it lies
-const NX = 160, NY = 8;                               // its grid: along, across
+const NX = 144, NY = 8;                               // its grid: along, across
 const VS = WC / 2 - 0.04;                             // the stitch line: this far from the middle, towards the wall
 const LN = 0.26;                                      // the needle, eye to point
 // The stitches, in metres along the strip: where the needle goes in, and where it comes up again.
@@ -181,6 +181,10 @@ ${NOISE_GLSL}`)
       m.customProgramCacheKey = () => 'david-muslin';
       this.cloth = L.add(new THREE.Mesh(g, m)); this.cloth.name = 'muslin';
       this.gl = new Float32Array(NX + 1); this.Gc = new Float32Array(NX + 1);
+      // (what never changes, worked out once: each row's terms, and how each point lies)
+      this.C1 = {}; this.R1 = {}; this.CC = {}; this.RR = []; this.LY = new Float32Array(nv); this.was = '';
+      for (let j = 0; j <= NY; j++) this.RR.push(this.rowAt(-WC / 2 + WC * j / NY, {}));
+      for (let i = 0; i <= NX; i++) for (let j = 0; j <= NY; j++) this.LY[i * (NY + 1) + j] = this.lying(LC * i / NX, -WC / 2 + WC * j / NY);
     }
 
     // ---------------------------------------------------------- the thread, the needle and its glint: one mesh
@@ -309,58 +313,79 @@ vec3 grC; float grA;`)
     return p;
   },
 
-  // The muslin now, at xi metres along it and v across (from its middle; towards the wall is positive): where that
-  // point of it is, into o. Leaves this.ch (how high a tuck stands there) and this.cao (how closed in it is).
-  // bare: without the tucks and the small pleats (what the needle and the thread ride on).
-  clothAt(xi, v, o, bare = false) {
-    const S = this.S, p = this.p, t = this.t, b = this.b, n = this.n;
-    const f = clamp01(xi / LC) * NX, i = Math.min(NX - 1, Math.floor(f)), k = f - i;
-    const gl = S.g > 0 ? this.gl[i] + (this.gl[i + 1] - this.gl[i]) * k : 0, Gc = S.g > 0 ? this.Gc[i] + (this.Gc[i + 1] - this.Gc[i]) * k : 0;
-    const sv = smooth(-WC / 2, VS, v);                                   // 0 at the free edge, 1 at the stitching
-    let sig = this.sRest + xi - lerp(K_FREE, K_ST, sv) * Gc - S.shift;
+  // The muslin, worked out in three parts so that the grid costs little: what depends only on how far along the strip
+  // a point is (colAt), what depends only on how far across (rowAt), and how it lies when nothing is done to it (lying).
+  // Along: xi metres from the end the thread holds.
+  colAt(xi, C) {
+    const S = this.S, f = clamp01(xi / LC) * NX, i = Math.min(NX - 1, Math.floor(f)), k = f - i;
+    C.xi = xi; C.me = 0.007 * Math.sin(xi * 6.1 + 0.8) + 0.004 * Math.sin(xi * 15.3 + 2.4);       // (its edges are never quite straight)
+    C.gl = S.g > 0 ? this.gl[i] + (this.gl[i + 1] - this.gl[i]) * k : 0; C.Gc = S.g > 0 ? this.Gc[i] + (this.Gc[i + 1] - this.Gc[i]) * k : 0;
+    // (the end beyond the first stitch is not drawn up, but it flutes a little too)
+    C.gp = xi < XK && S.g > 0 ? this.gl[Math.ceil(XK / LC * NX) + 1] * (0.35 + 0.65 * smooth(XK - 0.1, XK, xi)) : C.gl;
+    if (C.gp > 0.001) {
+      const xh = (xi - XK) / (XE - XK), fph = TAU * NF * xh + PH + 0.5 * Math.sin(xh * 4.3 + 1.1);
+      C.cf = 0.5 - 0.5 * Math.cos(fph); C.cs = 0.5 - 0.5 * Math.cos(2 * fph); C.sf = Math.sin(fph); C.vary = 0.75 + 0.4 * Math.sin(xh * 7.1 + 1.7);
+      C.rk = S.rock * 0.3 * Math.sin(TAU * 1.5 * xh - S.rockPh);                                 // (the frill breathes with the thread that holds it)
+    }
+    // moving, ripples run back along it
+    C.rip = S.ripple > 0.001 ? S.ripple * 0.006 * Math.sin(xi * 17 - S.T * 14) : 0;
+    // a tuck of it rides up on the needle, where the needle has gone under; where the thread runs under, a pucker stays
+    let tk = 0;
+    for (let s = 0; s < 5; s++) { const c = S.cover[s]; if (c > 0.001 && xi > PIN[s] - 0.02 && xi < POUT[s] + 0.02) tk += c * smooth(PIN[s] - 0.014, PIN[s] + 0.02, xi) * (1 - smooth(POUT[s] - 0.02, POUT[s] + 0.014, xi)); }
+    C.tk = tk; C.kw = S.lift > 0.0005 ? S.lift * Math.exp(-Math.abs(xi - XK) / 0.13) : 0;
+    return C;
+  },
+  // Across: v metres from its middle (towards the wall is positive; the stitching is at VS).
+  rowAt(v, R) {
+    const sv = R.sv = smooth(-WC / 2, VS, v);                            // 0 at the free edge, 1 at the stitching
+    R.v = v; R.kap = lerp(K_FREE, K_ST, sv); R.sd = Math.exp(-Math.pow((v - VS) / 0.021, 2));
+    R.as = 0.0085 * Math.exp(-Math.pow((v - VS) / 0.06, 2)); R.af = 0.034 * Math.pow(1 - sv, 1.1); R.a7 = Math.pow(1 - sv, 0.7); R.kl = 0.4 + 0.6 * sv;
+    return R;
+  },
+  // Lying there it is never quite flat: broad low swells, a few soft folds slanting across it, its edges a little lifted.
+  lying(xi, v) {
+    let w = 0.0035 * (1 + Math.sin(xi * 5.3 + v * 9 + 0.7)) + 0.0018 * (1 + Math.sin(xi * 12.7 - v * 19 + 2.1));
+    for (const fo of FOLDS) { const dd = (xi - fo[0] - fo[1] * v) / fo[2]; if (dd > -2.5 && dd < 2.5) w += fo[3] * Math.exp(-dd * dd) * (0.55 + 0.45 * Math.sin(v * fo[4] + fo[0] * 9)); }
+    return w + 0.0035 * Math.pow(Math.abs(v) / (WC / 2), 3) * (1 + Math.sin(xi * 8.3 + (v > 0 ? 1.9 : 0)));
+  },
+  // The point of it at that place along (C) and across (R), lying as w says: where it is now, into o. Leaves this.ch
+  // (how high a tuck stands there) and this.cao (how closed in it is). bare: without the tucks and the small pleats
+  // (what the needle rides on).
+  place(C, R, w, o, bare) {
+    const S = this.S, rp = this.rp, rb = this.rb;
+    let sig = this.sRest + C.xi - R.kap * C.Gc - S.shift;
     if (sig < IN - 0.03) sig = IN - 0.03 + (sig - IN + 0.03) * 0.02;                    // (what is still in the wall waits just inside its face)
-    this.routeAt(sig, p, t, b); n.crossVectors(t, b);
-    const air = smooth(0.03, 0.14, p.y), lie = 1 - air;
-    let h = 0, lean = 0, ao = 1, tuck = 0;
-    // lying there: never quite flat (broad low swells; a few soft folds slanting across it; its edges a little lifted)
-    if (lie > 0.01) {
-      let w = 0.0035 * (1 + Math.sin(xi * 5.3 + v * 9 + 0.7)) + 0.0018 * (1 + Math.sin(xi * 12.7 - v * 19 + 2.1));
-      for (const fo of FOLDS) { const dd = (xi - fo[0] - fo[1] * v) / fo[2]; if (dd > -2.5 && dd < 2.5) w += fo[3] * Math.exp(-dd * dd) * (0.55 + 0.45 * Math.sin(v * fo[4] + fo[0] * 9)); }
-      w += 0.0035 * Math.pow(Math.abs(v) / (WC / 2), 3) * (1 + Math.sin(xi * 8.3 + (v > 0 ? 1.9 : 0)));
-      h += lie * w * (1 - 0.8 * gl);
-    }
-    const me = 0.007 * Math.sin(xi * 6.1 + 0.8) + 0.004 * Math.sin(xi * 15.3 + 2.4);
-    if (!bare) {
-      // a tuck of it rides up on the needle, where the needle has gone under; where the thread runs under, a pucker stays
-      const sd = Math.exp(-Math.pow((v - VS) / 0.021, 2));
-      if (sd > 0.01) for (let s = 0; s < 5; s++) { const c = S.cover[s]; if (c > 0.001 && xi > PIN[s] - 0.02 && xi < POUT[s] + 0.02) tuck += c * smooth(PIN[s] - 0.014, PIN[s] + 0.02, xi) * (1 - smooth(POUT[s] - 0.02, POUT[s] + 0.014, xi)); }
-      tuck *= sd; h += tuck; ao -= 0.22 * Math.min(1, tuck / 0.02) * (1 - sd * 0.7);
-    }
+    // where its way is there, the way it runs, and the way its width lies (flat on the floor all the way)
+    const end = this.rn * this.DS, fr = Math.max(0, Math.min(this.rn - 1e-4, sig / this.DS)), ri = Math.floor(fr), rk = fr - ri, j = ri * 3;
+    let tx = rp[j + 3] - rp[j], tz = rp[j + 5] - rp[j + 2]; const tl = 1 / (Math.hypot(tx, tz) || 1); tx *= tl; tz *= tl;
+    let px = rp[j] + (rp[j + 3] - rp[j]) * rk, pz = rp[j + 2] + (rp[j + 5] - rp[j + 2]) * rk, bx = rb[j] + (rb[j + 3] - rb[j]) * rk, bz = rb[j + 2] + (rb[j + 5] - rb[j + 2]) * rk;
+    if (sig < 0) { px += tx * sig; pz += tz * sig; } else if (sig > end) { px += tx * (sig - end); pz += tz * (sig - end); }
+    let h = w * (1 - 0.8 * C.gl) + C.rip, lean = 0, ao = 1, tuck = 0;
+    if (!bare && C.tk > 0) { tuck = C.tk * R.sd; h += tuck; ao -= 0.22 * Math.min(1, tuck / 0.02) * (1 - R.sd * 0.7); }
     // gathered: small pleats along the stitching, running out into flutes that stand at the free edge
-    const gp = xi < XK && S.g > 0 ? this.gl[Math.ceil(XK / LC * NX) + 1] * (0.35 + 0.65 * smooth(XK - 0.1, XK, xi)) : gl;       // (the end beyond the first stitch is not drawn up, but it flutes a little too)
-    if (gp > 0.001) {
-      const xh = (xi - XK) / (XE - XK), fph = TAU * NF * xh + PH + 0.5 * Math.sin(xh * 4.3 + 1.1), cf = 0.5 - 0.5 * Math.cos(fph), cs = 0.5 - 0.5 * Math.cos(2 * fph);
-      const As = 0.0085 * Math.exp(-Math.pow((v - VS) / 0.06, 2)), Af = 0.034 * Math.pow(1 - sv, 1.1) * (0.75 + 0.4 * Math.sin(xh * 7.1 + 1.7));
-      h += gp * (Af * cf + (bare ? As * 0.6 : As * cs));
-      lean = gp * Af * 0.5 * Math.sin(fph);
-      ao -= gp * (0.26 * (1 - cf) * Math.pow(1 - sv, 0.7) + 0.2 * (1 - cs) * As / 0.0085);
-      // (the frill breathes with the thread that holds it)
-      h += S.rock * gp * Af * 0.3 * Math.sin(TAU * 1.5 * xh - S.rockPh);
+    if (C.gp > 0.001) {
+      const Af = R.af * C.vary;
+      h += C.gp * (Af * C.cf + R.as * (bare ? 0.6 : C.cs) + Af * C.rk);
+      lean = C.gp * Af * 0.5 * C.sf;
+      ao -= C.gp * (0.26 * (1 - C.cf) * R.a7 + 0.2 * (1 - C.cs) * R.as / 0.0085);
     }
     // gathered, it curls round towards the wall with the stitching on the inside of the turn, as a frill does
     const sk = sig - S.sigK;
     if (S.curl > 0 && sk > 0) {
-      const th = sk * S.curl, hf = th / 2, K0 = this.K0, kc = hf > 1e-4 ? Math.sin(hf) / hf : 1, c1 = Math.cos(hf), s1 = Math.sin(hf), c2 = Math.cos(th), s2 = Math.sin(th);
-      const dx = (p.x - K0.x) * kc, dz = (p.z - K0.z) * kc; p.x = K0.x + dx * c1 + dz * s1; p.z = K0.z - dx * s1 + dz * c1;
-      let x = b.x, z = b.z; b.x = x * c2 + z * s2; b.z = -x * s2 + z * c2; x = t.x; z = t.z; t.x = x * c2 + z * s2; t.z = -x * s2 + z * c2;
+      const hf = sk * S.curl / 2, K0 = this.K0, c1 = Math.cos(hf), s1 = Math.sin(hf), kc = hf > 1e-4 ? s1 / hf : 1, c2 = c1 * c1 - s1 * s1, s2 = 2 * s1 * c1;
+      const dx = (px - K0.x) * kc, dz = (pz - K0.z) * kc; px = K0.x + dx * c1 + dz * s1; pz = K0.z - dx * s1 + dz * c1;
+      let x = bx, z = bz; bx = x * c2 + z * s2; bz = -x * s2 + z * c2; x = tx; z = tz; tx = x * c2 + z * s2; tz = -x * s2 + z * c2;
     }
-    o.copy(p).addScaledVector(b, v + me).addScaledVector(n, h).addScaledVector(t, lean);
+    const off = R.v + C.me;
+    o.set(px + bx * off + tx * lean, FLOOR + h, pz + bz * off + tz * lean);
     // the taut thread lifts the end it holds, and draws it a little towards the wall
-    if (S.lift > 0.0005) { const w = Math.exp(-Math.abs(xi - XK) / 0.13) * (0.4 + 0.6 * sv); o.y += S.lift * w; o.z -= S.lift * 0.7 * w; o.x -= S.lift * 0.35 * w; }
-    if (lie > 0.5 && o.y < FLOOR) o.y = FLOOR;
+    if (C.kw > 0) { const k = C.kw * R.kl; o.y += k; o.z -= 0.7 * k; o.x -= 0.35 * k; }
+    if (o.y < FLOOR) o.y = FLOOR;
     this.ch = tuck; this.cao = Math.max(0.05, ao);
     return o;
   },
+  // The same for any one point: xi along it, v across.
+  clothAt(xi, v, o, bare = false) { return this.place(this.colAt(xi, this.C1), this.rowAt(v, this.R1), this.lying(xi, v), o, bare); },
 
   // How far out the work has come (0 in the wall, 1 lying in its place), at show-time t.
   cprog(t) { const q = ramp(t, T_C[0], T_C[1]); return 1 - Math.pow(1 - Math.pow(q, 1.7), 2); },
@@ -412,7 +437,7 @@ vec3 grC; float grA;`)
     return w;
   },
 
-  hide() { this.cloth.visible = false; this.sew.visible = false; this.ground.visible = false; },
+  hide() { this.cloth.visible = false; this.sew.visible = false; this.ground.visible = false; this.was = ''; },
   start(L) { this.T = L.t; this.pT = L.t; this.score.from(L.t); },
   back(L) { this.bT = this.T || 0; },
   end() { this.hide(); },
@@ -454,16 +479,26 @@ vec3 grC; float grA;`)
     for (let s = 0; s < 5; s++) S.cover[s] = sewn < 1 ? 0 : (0.024 * smooth(PIN[s] - 0.012, PIN[s] + 0.03, tip) * (1 - smooth(POUT[s] - 0.03, POUT[s] + 0.012, xe)) + 0.0045 * smooth(PIN[s], PIN[s] + 0.03, xe + 0.02));
     const E = this.e, D = this.d;
 
-    // ---- the muslin
+    // ---- the muslin (worked out again only when something about it has changed)
     this.cloth.visible = cp > 0.002;
-    if (this.cloth.visible) {
-      const CP = this.CP, CO = this.CO; let k = 0;
-      for (let i = 0; i <= NX; i++) for (let j = 0; j <= NY; j++, k++) {
-        this.clothAt(LC * i / NX, -WC / 2 + WC * j / NY, this.q); this.world(L, this.q, w);
-        CP[k * 3] = w.x; CP[k * 3 + 1] = w.y; CP[k * 3 + 2] = w.z; CO[k] = this.cao;
+    const now = this.cloth.visible ? [S.shift, S.g, S.lift, S.ripple > 0.001 ? S.T : 0, S.rock, S.curl, S.cover.join()].join() : '';
+    if (this.cloth.visible && now !== this.was) {
+      const CP = this.CP, CO = this.CO, LY = this.LY, C = this.CC, RR = this.RR, q = this.q, NR = NY + 1; let k = 0;
+      for (let i = 0; i <= NX; i++) {
+        this.colAt(LC * i / NX, C);
+        for (let j = 0; j <= NY; j++, k++) { this.place(C, RR[j], LY[k], q, false); this.world(L, q, w); CP[k * 3] = w.x; CP[k * 3 + 1] = w.y; CP[k * 3 + 2] = w.z; CO[k] = this.cao; }
       }
-      const geo = this.cloth.geometry; geo.attributes.position.needsUpdate = true; geo.attributes.aO.needsUpdate = true; geo.computeVertexNormals();
+      // its normals, from the grid itself (along it crossed with across it: the side that lies upwards)
+      const NA = this.cloth.geometry.attributes.normal.array;
+      for (let i = 0; i <= NX; i++) for (let j = 0; j <= NY; j++) {
+        const a = (Math.min(NX, i + 1) * NR + j) * 3, b = (Math.max(0, i - 1) * NR + j) * 3, c = (i * NR + Math.min(NY, j + 1)) * 3, d = (i * NR + Math.max(0, j - 1)) * 3, o = (i * NR + j) * 3;
+        const ax = CP[a] - CP[b], ay = CP[a + 1] - CP[b + 1], az = CP[a + 2] - CP[b + 2], bx = CP[c] - CP[d], by = CP[c + 1] - CP[d + 1], bz = CP[c + 2] - CP[d + 2];
+        const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx, nl = 1 / (Math.hypot(nx, ny, nz) || 1);
+        NA[o] = nx * nl; NA[o + 1] = ny * nl; NA[o + 2] = nz * nl;
+      }
+      const geo = this.cloth.geometry; geo.attributes.position.needsUpdate = true; geo.attributes.aO.needsUpdate = true; geo.attributes.normal.needsUpdate = true;
     }
+    this.was = now;
 
     // ---- the thread: from under her fingers down through the air, and then along the stitching to the needle's eye
     this.sew.visible = out; if (!out) this.cu.uNdK.value = 0;
