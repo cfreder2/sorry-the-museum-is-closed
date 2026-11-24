@@ -21,9 +21,13 @@
 // back to its line. When you stop, the grey canters back in under the picture, the clown bows, hops down and runs
 // home behind his hoop, the stool tumbles after him, the kerb sinks and the sawdust draws back.
 //
-// The horse, the clown, the stool, the kerb and the hoop are solid, softly modelled and outlined in his dark line, as
-// his neighbour At the Moulin Rouge is; the grey's dapples, the pad's gold and the clown's blue-green crescents are
-// painted on in soft touches. Never over the picture: nothing stands higher than the foot of the frame.
+// The grey is the picture's great shape, and is made as he drew it: a heavy horse, broad in the quarters and thick in
+// the neck, in flat greys (a light along the top, a lilac shade beneath) inside a dark blue-black contour wide enough
+// to read as drawn from where you stand; its dapples are loose dabs of paint lying on the hide, its long white tail
+// swings out to the off side as it does in the picture, and its hind legs are jointed as a horse's are (thigh, gaskin,
+// cannon), so they fold and reach through the canter's three beats and the moment in the air. The clown, the stool,
+// the kerb and the hoop are solid and outlined too, as his neighbour At the Moulin Rouge is. Never over the picture:
+// nothing stands higher than the foot of the frame.
 //
 // The music. Franz von Suppé, Leichte Kavallerie (Light Cavalry), overture (Vienna, 1866; an operetta about a troop of
 // hussars): no words are sung in the overture, and none are used here. The call is its first bar,
@@ -81,7 +85,7 @@ const HARM_A = [['A', 'A2'], ['A', 'A2'], ['A', 'A2'], ['D', 'A2'], ['E7', 'E7b'
 const HARM = [['A', 'A2'], ['A', 'A2'], ...HARM_A, ['E', 'B7'], ['E', 'E'], ...HARM_A, ['E7', 'E7b'], ['A', 'A']];
 
 // The grey's bones.
-const ROOT = 0, NECK = 1, HEAD = 2, FU = 3, FL = 5, HU = 7, HL = 9, T1 = 11, NBH = 14;
+const ROOT = 0, NECK = 1, HEAD = 2, FU = 3, FL = 5, HT = 7, HG = 9, HL = 11, T1 = 13, NBH = 16;
 // Its legs: side (+1: the near, left side), fore or hind, and when in the stride each comes down. The left lead, as it
 // must be on this hand: the off hind, then the near hind and off fore together, then the near fore, on the beat.
 const LEGS = [[1, 0, 0], [-1, 0, -1 / 6], [1, 1, -1 / 6], [-1, 1, -1 / 3]];
@@ -128,65 +132,89 @@ lifeFor(16146, {
     const P = L.pal, col = (h, a = 0.3) => P.near(h, a), mix = (a, b, k) => a.clone().lerp(b, k);
     const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z), M4 = () => new THREE.Matrix4();
     this.B = new Bones(); this.V = V3(); this.W = V3(); this.X = V3(); this.Y = V3(); this.Z = V3(); this.m1 = M4(); this.m2 = M4(); this.o = {}; this.o2 = {};
-    const ink = '#2b2c3b', soft = '#454257', INK = 0.0048, THIN = 0.0034;
+    const ink = '#2b2c3b', THIN = 0.0034, INK = 0.0048;
+    // his contour: the dark blue-black line he drew round the horse and round each of its forms, wide enough to read
+    // as drawn from where you stand to look
+    const line = '#1d2036', L_BODY = 0.0098, L_NECK = 0.0084, L_LEG = 0.0058, L_HEAD = 0.0056, L_TAIL = 0.0066;
 
     // ---------------------------------------------------------- the grey
-    const gLight = col('#e4e0d8', 0.2), gMid = col('#b3aeb1', 0.25), gShade = col('#857d92', 0.25), gDark = col('#544f5e', 0.25), gSpot = col('#32323e', 0.15);
-    const hoof = col('#cdb98f', 0.3), hoofS = col('#8f8168', 0.3), tailC = col('#ece8dc', 0.2), tailS = col('#b5afbb', 0.3);
+    const gLight = col('#e6e2da', 0.2), gMid = col('#aeaab0', 0.25), gShade = col('#7f7890', 0.25), gDark = col('#55505f', 0.25), gSpot = col('#2c2d3d', 0.12);
+    const hoof = col('#cdb98f', 0.3), hoofS = col('#8f8168', 0.3), tailC = col('#f0ece0', 0.2), tailS = col('#b9b3bf', 0.3);
     const padG = col('#2b4a37', 0.3), padG2 = col('#1f3a34', 0.3), gold = col('#d0ab3c', 0.3), white = col('#efece2', 0.2), red = col('#b03a2c', 0.35);
-    // his modelling: light along the top, a lilac shade underneath and on the side away from the lamps
-    const tone = (n, k = 1) => { const c = gMid.clone().lerp(gLight, clamp01(0.05 + 0.95 * n.y + 0.22 * n.x)); const s = clamp01(-n.y * 1.1 - 0.3 * n.x + 0.1); return s > 0 ? c.lerp(gShade, s * k) : c; };
-    // the dapples on its quarters and flank, as he dabbed them: [z, how far round from the spine, size, dark or pale]
-    const SPOTS = [];
-    for (const s of [1, -1]) {
-      SPOTS.push([-0.125, s * 1.02, 0.02, 1], [-0.088, s * 1.27, 0.016, 1], [-0.155, s * 1.33, 0.015, 1], [-0.108, s * 0.72, 0.013, 1], [-0.058, s * 1.02, 0.012, 1], [-0.178, s * 0.92, 0.014, 1]);
-      for (let i = 0; i < 26; i++) { const r1 = hash(i + (s > 0 ? 0 : 50), 1.3), r2 = hash(i + (s > 0 ? 0 : 50), 2.9), r3 = hash(i, 5.7), fore = i > 19; SPOTS.push([fore ? 0.1 + 0.09 * r1 : -0.2 + 0.21 * r1, s * (0.3 + 1.5 * r2), 0.007 + 0.008 * r3, i % 3 === 0 ? -1 : 1]); }
-    }
-    const bodyPaint = (p, n) => {
-      const c = tone(n), a = Math.atan2(p.x, p.y - 0.01);
-      for (const [z, as, r, k] of SPOTS) { const d = Math.hypot(p.z - z, (a - as) * 0.09); if (d < r * 1.4) c.lerp(k > 0 ? gSpot : gLight, (k > 0 ? 0.9 : 0.8) * (1 - ease.smooth(ramp(d, r * 0.55, r * 1.4)))); }
-      return c;
-    };
-    const BODY = [[-0.226, 0.02, 0.004, 0.006], [-0.214, 0.02, 0.05, 0.066], [-0.17, 0.016, 0.079, 0.098], [-0.11, 0.01, 0.083, 0.1], [-0.04, 0.0, 0.075, 0.088], [0.04, -0.005, 0.079, 0.094], [0.11, 0.0, 0.077, 0.1], [0.165, 0.005, 0.067, 0.095], [0.2, 0.01, 0.046, 0.07], [0.216, 0.012, 0.004, 0.006]];
-    const body = loft(BODY, bodyPaint, { around: 34, sub: 5 });
-    // the pad she rides on, green with his gold scribble, hanging down the shoulder; and the white girth
-    const over = (z0, z1, d) => { const a = [], n = 5; for (let i = 0; i <= n; i++) { const z = lerp(z0, z1, i / n); let j = 0; while (j < BODY.length - 2 && BODY[j + 1][0] < z) j++; const t = (z - BODY[j][0]) / (BODY[j + 1][0] - BODY[j][0]), q = k => cr(BODY[Math.max(0, j - 1)][k], BODY[j][k], BODY[j + 1][k], BODY[Math.min(BODY.length - 1, j + 2)][k], t); a.push([z, q(1), q(2) + d, q(3) + d]); } return a; };
+    // his flat greys: a light along the top, the grey of its side, a lilac shade underneath, with little between them
+    const tone = (n, k = 1) => { const t = n.y + 0.25 * n.x, c = gMid.clone().lerp(gLight, ease.smooth(ramp(t, 0.3, 0.5))); return c.lerp(gShade, k * ease.smooth(ramp(-t, 0.38, 0.58))); };
+    // a heavy horse, broad in the quarters, as he drew it
+    const BODY = [[-0.234, 0.02, 0.004, 0.006], [-0.223, 0.018, 0.062, 0.072], [-0.186, 0.014, 0.097, 0.105], [-0.12, 0.01, 0.103, 0.109], [-0.045, 0.0, 0.087, 0.095], [0.035, -0.006, 0.089, 0.101], [0.105, -0.002, 0.087, 0.107], [0.16, 0.004, 0.077, 0.101], [0.198, 0.01, 0.053, 0.075], [0.215, 0.012, 0.004, 0.006]];
+    const body = loft(BODY, (p, n) => tone(n), { around: 30, sub: 4 });
+    // (a place on its hide: z along it, a round it from the spine, d clear of it)
+    const hide = (z, a, d, into) => { let j = 0; while (j < BODY.length - 2 && BODY[j + 1][0] < z) j++; const t = (z - BODY[j][0]) / (BODY[j + 1][0] - BODY[j][0]), q = k => cr(BODY[Math.max(0, j - 1)][k], BODY[j][k], BODY[j + 1][k], BODY[Math.min(BODY.length - 1, j + 2)][k], t); return into.set(Math.sin(a) * (q(2) + d), q(1) + Math.cos(a) * (q(3) + d), z); };
+    const over = (z0, z1, d) => { const a = [], n = 5, v = V3(); for (let i = 0; i <= n; i++) { const z = lerp(z0, z1, i / n), top = hide(z, 0, d, v).y, side = hide(z, Math.PI / 2, d, v); a.push([z, side.y, side.x, top - side.y]); } return a; };
+    // The dapples, as he dabbed them on: loose touches of blue-black on the quarters, and of white along the flank.
+    // Each is a little patch of paint lying on the hide, with a ragged edge.
+    const dabs = (() => {
+      const pos = [], cols = [], c0 = V3(), a0 = V3(), b0 = V3(), n0 = V3(), e1 = V3(), e2 = V3();
+      const dab = (z, a, ra, rb, turn, c, seed) => {
+        const N = 9, rim = [], at = (dz, ds, out) => hide(z + dz, a + ds / 0.1, 0.0022, out);
+        at(0, 0, c0);
+        for (let i = 0; i < N; i++) { const t = i / N * TAU, k = 0.78 + 0.44 * hash(seed + i, 3.3), x = Math.cos(t) * ra * k, y = Math.sin(t) * rb * k; rim.push(at(x * Math.cos(turn) - y * Math.sin(turn), x * Math.sin(turn) + y * Math.cos(turn), V3())); }
+        for (let i = 0; i < N; i++) {
+          a0.copy(rim[i]); b0.copy(rim[(i + 1) % N]); n0.crossVectors(e1.subVectors(a0, c0), e2.subVectors(b0, c0));
+          const flip = n0.x * c0.x + n0.y * (c0.y - 0.01) < 0, A = flip ? b0 : a0, B2 = flip ? a0 : b0;
+          pos.push(c0.x, c0.y, c0.z, A.x, A.y, A.z, B2.x, B2.y, B2.z); for (let j = 0; j < 3; j++) cols.push(c.r, c.g, c.b);
+        }
+      };
+      for (const sd of [1, -1]) {
+        // the big dark touches on the hip, as in the picture; then smaller ones scattered round them
+        for (const [z, a, r] of [[-0.118, 1.0, 0.021], [-0.082, 1.26, 0.017], [-0.152, 1.3, 0.016], [-0.102, 0.7, 0.014], [-0.056, 1.0, 0.013], [-0.176, 0.9, 0.015]]) dab(z, sd * a, r, r * 0.62, 0.5 + z * 9, gSpot, z * 91 + sd);
+        for (let i = 0; i < 21; i++) {
+          const r1 = hash(i + (sd > 0 ? 0 : 50), 1.3), r2 = hash(i + (sd > 0 ? 0 : 50), 2.9), r3 = hash(i, 5.7), r4 = hash(i + 7, 8.1), fore = i > 18, pale = i % 3 === 0;
+          const z = fore ? 0.15 + 0.045 * r1 : -0.205 + 0.2 * r1, a = sd * (fore ? 0.9 + 0.8 * r2 : 0.3 + 1.5 * r2), ra = (fore ? 0.006 : pale ? 0.011 : 0.008) + (fore ? 0.004 : 0.008) * r3;
+          dab(z, a, ra, ra * (0.45 + 0.3 * r4), r4 * 3, pale ? gLight : mix(gSpot, gDark, fore ? 0.8 : 0.15 + 0.6 * r3), i * 13 + sd * 5);
+        }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); g.computeVertexNormals(); return g;
+    })();
+    // the pad she rides on, green trimmed with gold, hanging down the shoulder; and the white girth
     const padPaint = (z0, z1, A) => (p, n) => { const a = Math.abs(Math.atan2(p.x, p.y)), trim = a > A - 0.17 || p.z < z0 + 0.012 || p.z > z1 - 0.012, dab = Math.sin(p.z * 210 + a * 3) * Math.sin(a * 13 + p.z * 40) > 0.62; return trim || dab ? mix(gold, padG, trim ? 0.05 : 0.2) : mix(padG, padG2, clamp01(0.5 - n.y * 0.6 + 0.3 * Math.sin(a * 4 + p.z * 30))); };
     const pad = loft(over(-0.04, 0.082, 0.007), padPaint(-0.04, 0.2, 1.22), { around: 26, sub: 4, a0: -1.22, a1: 1.22 });
     const drape = loft(over(0.074, 0.142, 0.0075), padPaint(-0.2, 0.142, 1.95), { around: 34, sub: 3, a0: -1.95, a1: 1.95 });
     const girth = loft(over(0.04, 0.054, 0.0105), (p, n) => mix(white, gShade, clamp01(-n.y * 0.8)), { around: 20, sub: 1 });
-    const gBody = inked(shape.merge([body, pad, drape, girth]), INK, soft);
+    const gBody = shape.merge([inked(body, L_BODY, line), inked(shape.merge([pad, drape, girth]), THIN, line), dabs]);
 
-    const crest = col('#cfcac4', 0.2);
-    const neck = loft([[-0.03, -0.02, 0.045, 0.078], [0.02, -0.006, 0.046, 0.075], [0.075, 0.012, 0.038, 0.061], [0.13, 0.02, 0.032, 0.049], [0.175, 0.014, 0.029, 0.041], [0.192, 0.01, 0.014, 0.02]], (p, n) => tone(n), { around: 18, sub: 4 });
+    const crest = col('#d2cdc6', 0.2);
+    const neck = loft([[-0.03, -0.022, 0.056, 0.093], [0.02, -0.006, 0.056, 0.089], [0.075, 0.012, 0.046, 0.073], [0.13, 0.02, 0.038, 0.057], [0.172, 0.014, 0.033, 0.046], [0.19, 0.01, 0.015, 0.022]], (p, n) => tone(n), { around: 18, sub: 4 });
     // (its mane, hogged short: a pale ridge along the crest; and a forelock)
-    const mane = loft([[0.0, 0.06, 0.002, 0.004], [0.03, 0.076, 0.008, 0.012], [0.09, 0.077, 0.009, 0.014], [0.15, 0.062, 0.008, 0.012], [0.185, 0.048, 0.002, 0.004]], (p, n) => mix(crest, gShade, clamp01(0.3 - n.x * 0.4)), { around: 8, sub: 3 });
-    const gNeck = inked(shape.merge([neck, mane]), INK, soft);
+    const mane = loft([[0.0, 0.07, 0.002, 0.004], [0.03, 0.089, 0.009, 0.013], [0.09, 0.089, 0.01, 0.015], [0.15, 0.07, 0.009, 0.013], [0.183, 0.054, 0.002, 0.004]], (p, n) => mix(crest, gShade, clamp01(0.3 - n.x * 0.4)), { around: 8, sub: 3 });
+    const gNeck = shape.merge([inked(neck, L_NECK, line), inked(mane, THIN, line)]);
     const headPaint = (p, n) => { const c = tone(n, 0.8); return p.z > 0.12 ? c.lerp(gDark, 0.6 * ease.smooth(ramp(p.z, 0.12, 0.175))) : c; };
-    const skull = loft([[-0.02, 0.004, 0.006, 0.008], [-0.008, 0.004, 0.027, 0.031], [0.03, -0.007, 0.034, 0.046], [0.075, -0.005, 0.027, 0.035], [0.12, -0.001, 0.0215, 0.027], [0.165, 0.001, 0.0205, 0.024], [0.186, -0.001, 0.017, 0.019], [0.193, -0.002, 0.006, 0.007]], headPaint, { around: 16, sub: 3 });
-    const bits = [skull];
+    const skull = loft([[-0.02, 0.004, 0.006, 0.008], [-0.008, 0.004, 0.029, 0.033], [0.03, -0.008, 0.036, 0.049], [0.075, -0.006, 0.029, 0.037], [0.12, -0.001, 0.0225, 0.028], [0.165, 0.001, 0.0215, 0.025], [0.186, -0.001, 0.018, 0.02], [0.193, -0.002, 0.006, 0.007]], headPaint, { around: 16, sub: 3 });
+    const bits = [];
     for (const s of [1, -1]) {
-      bits.push(shape.move(shape.cone(0.0135, 0.052, 6, mix(gMid, gShade, 0.45)), s * 0.019, 0.05, -0.002, 0.3, 0, -s * 0.2));         // an ear
-      bits.push(shape.move(shape.ball(0.0066, gSpot, 1), s * 0.0295, 0.014, 0.042));                                                   // an eye
-      bits.push(shape.move(shape.ball(0.0045, gSpot, 0), s * 0.011, 0.006, 0.187));                                                    // a nostril
-      bits.push(shape.move(shape.ball(0.0062, red, 1), s * 0.0225, -0.012, 0.152, 0, 0, 0, 0.5, 1, 1));                                // the red rosette at the bit
-      bits.push(shape.move(shape.box(0.003, 0.0065, 0.12, white), s * 0.0295, -0.004, 0.074, 0.06, -s * 0.085, 0));                    // the cheek strap
+      bits.push(shape.move(shape.cone(0.0135, 0.052, 6, mix(gMid, gShade, 0.45)), s * 0.02, 0.052, -0.002, 0.3, 0, -s * 0.2));          // an ear
+      bits.push(shape.move(shape.ball(0.0068, gSpot, 1), s * 0.031, 0.015, 0.042));                                                    // an eye
+      bits.push(shape.move(shape.ball(0.0046, gSpot, 0), s * 0.0115, 0.006, 0.187));                                                   // a nostril
+      bits.push(shape.move(shape.ball(0.0062, red, 1), s * 0.0235, -0.012, 0.152, 0, 0, 0, 0.5, 1, 1));                                // the red rosette at the bit
+      bits.push(shape.move(shape.box(0.003, 0.0065, 0.12, white), s * 0.031, -0.004, 0.074, 0.06, -s * 0.085, 0));                     // the cheek strap
     }
-    bits.push(shape.move(shape.cone(0.011, 0.04, 6, crest), 0, 0.03, 0.02, 1.9));                                                       // the forelock
-    bits.push(shape.move(shape.cyl(0.0262, 0.0262, 0.0075, 12, white), 0, -0.002, 0.134, Math.PI / 2, 0, 0, 0.88, 1, 1.1));             // the noseband
-    bits.push(shape.move(shape.cyl(0.031, 0.031, 0.0065, 12, white), 0, 0.002, 0.008, Math.PI / 2, 0, 0, 1, 1, 1.14));                  // the browband
-    const gHead = inked(shape.merge(bits), THIN, soft);
+    bits.push(shape.move(shape.cone(0.011, 0.04, 6, crest), 0, 0.032, 0.02, 1.9));                                                      // the forelock
+    bits.push(shape.move(shape.cyl(0.0272, 0.0272, 0.0075, 12, white), 0, -0.002, 0.134, Math.PI / 2, 0, 0, 0.88, 1, 1.1));             // the noseband
+    bits.push(shape.move(shape.cyl(0.033, 0.033, 0.0065, 12, white), 0, 0.002, 0.008, Math.PI / 2, 0, 0, 1, 1, 1.14));                  // the browband
+    const gHead = shape.merge([inked(skull, L_HEAD, line), inked(shape.merge(bits), THIN, line)]);
 
-    const legPaint = (len, dark) => (p, n) => tone(n).lerp(gDark, dark * clamp01(0.1 + 0.9 * p.z / len));
-    const lowPaint = len => (p, n) => (p.z > len - 0.03 ? mix(hoof, hoofS, clamp01(0.4 - n.y * 0.6 + (p.z > len - 0.004 ? 0.6 : 0))) : tone(n).lerp(gDark, 0.7 + 0.2 * Math.sin(p.z * 60)));
-    const gFU = inked(limb([[-0.012, 0, 0.022, 0.03], [0.012, 0.002, 0.027, 0.037], [0.045, 0.002, 0.024, 0.031], [0.09, 0, 0.0175, 0.021], [0.128, 0, 0.0155, 0.0175], [0.142, 0, 0.012, 0.014]], legPaint(0.135, 0.7), { around: 10, sub: 3 }), THIN, soft);
-    const LOW = len => [[-0.006, 0, 0.012, 0.013], [0.004, 0, 0.0152, 0.0168], [len * 0.45, -0.001, 0.0118, 0.0132], [len - 0.042, 0.0, 0.0128, 0.0148], [len - 0.03, 0.004, 0.0138, 0.0165], [len - 0.016, 0.0075, 0.0172, 0.0212], [len - 0.001, 0.0095, 0.0195, 0.0245], [len, 0.0095, 0.004, 0.005]];
-    const gFL = inked(limb(LOW(0.125), lowPaint(0.125), { around: 10, sub: 2 }), THIN, soft);
-    const gHU = inked(limb([[-0.02, 0, 0.026, 0.04], [0.01, -0.002, 0.035, 0.052], [0.05, -0.005, 0.033, 0.046], [0.105, -0.004, 0.02, 0.027], [0.15, 0, 0.0158, 0.0188], [0.165, 0, 0.012, 0.014]], legPaint(0.155, 0.65), { around: 10, sub: 3 }), THIN, soft);
-    const gHL = inked(limb(LOW(0.14), lowPaint(0.14), { around: 10, sub: 2 }), THIN, soft);
-    const tailPaint = (p, n) => mix(tailC, tailS, clamp01(0.45 * (0.5 + 0.5 * Math.sin(Math.atan2(p.x, p.y) * 5 + p.z * 40)) + clamp01(-n.y) * 0.5));
-    const gT = [[[-0.01, 0, 0.008, 0.009], [0.01, 0, 0.017, 0.016], [0.06, 0.003, 0.026, 0.021], [0.135, 0.002, 0.029, 0.021]], [[-0.02, 0.002, 0.024, 0.018], [0.03, 0.003, 0.031, 0.021], [0.09, -0.002, 0.031, 0.02], [0.145, -0.002, 0.025, 0.016]], [[-0.02, -0.002, 0.021, 0.014], [0.05, 0.003, 0.026, 0.016], [0.12, -0.002, 0.016, 0.01], [0.185, 0.002, 0.002, 0.002]]]
-      .map(s => inked(limb(s, tailPaint, { around: 10, sub: 3 }), THIN, soft));
+    // Its legs. In front: the forearm, and the short cannon and hoof. Behind, in three, as a horse's hind leg is: the
+    // great thigh running forward to the stifle, the gaskin back to the hock, the cannon down to the hoof.
+    const legPaint = (len, d0, d1) => (p, n) => tone(n).lerp(gDark, clamp01(lerp(d0, d1, p.z / len)));
+    const lowPaint = len => (p, n) => (p.z > len - 0.03 ? mix(hoof, hoofS, clamp01(0.4 - n.y * 0.6 + (p.z > len - 0.004 ? 0.6 : 0))) : tone(n).lerp(gDark, 0.72));
+    const LOW = len => [[-0.008, 0, 0.014, 0.0155], [0.004, 0.001, 0.0185, 0.021], [0.022, 0, 0.0145, 0.0165], [len * 0.52, -0.001, 0.0132, 0.015], [len - 0.042, 0.0, 0.0148, 0.0172], [len - 0.03, 0.004, 0.0152, 0.018], [len - 0.016, 0.0075, 0.0185, 0.0226], [len - 0.001, 0.0095, 0.021, 0.0262], [len, 0.0095, 0.004, 0.005]];
+    const gFU = inked(limb([[-0.016, 0, 0.024, 0.032], [0.012, 0.002, 0.033, 0.044], [0.05, 0.002, 0.028, 0.036], [0.1, 0, 0.0195, 0.0235], [0.14, 0, 0.0175, 0.0205], [0.154, 0, 0.013, 0.015]], legPaint(0.15, 0.05, 0.6), { around: 10, sub: 3 }), L_LEG, line);
+    const gFL = inked(limb(LOW(0.11), lowPaint(0.11), { around: 10, sub: 2 }), L_LEG, line);
+    const gHT = inked(limb([[-0.035, 0.004, 0.03, 0.05], [0.0, 0.004, 0.05, 0.074], [0.045, 0.0, 0.046, 0.062], [0.085, -0.002, 0.033, 0.043], [0.106, 0, 0.022, 0.028]], legPaint(0.1, 0, 0.25), { around: 12, sub: 3 }), L_LEG, line);
+    const gHG = inked(limb([[-0.018, 0, 0.025, 0.033], [0.01, 0.001, 0.032, 0.043], [0.055, -0.002, 0.024, 0.031], [0.098, 0, 0.0185, 0.022], [0.116, 0, 0.014, 0.017]], legPaint(0.11, 0.25, 0.65), { around: 10, sub: 3 }), L_LEG, line);
+    const gHL = inked(limb(LOW(0.105), lowPaint(0.105), { around: 10, sub: 2 }), L_LEG, line);
+    // its tail, full and long
+    const tailPaint = (p, n) => mix(tailC, tailS, clamp01(0.4 * (0.5 + 0.5 * Math.sin(Math.atan2(p.x, p.y) * 5 + p.z * 40)) + clamp01(-n.y) * 0.45));
+    const gT = [[[-0.012, 0, 0.009, 0.011], [0.012, 0, 0.016, 0.02], [0.06, 0.003, 0.024, 0.03], [0.135, 0.002, 0.028, 0.032]], [[-0.022, 0.002, 0.023, 0.027], [0.03, 0.003, 0.029, 0.032], [0.09, -0.002, 0.03, 0.03], [0.145, -0.002, 0.025, 0.024]], [[-0.022, -0.002, 0.022, 0.021], [0.05, 0.003, 0.026, 0.024], [0.12, -0.002, 0.017, 0.015], [0.19, 0.002, 0.002, 0.002]]]
+      .map(s => inked(limb(s, tailPaint, { around: 10, sub: 3 }), L_TAIL, line));
 
     // ---------------------------------------------------------- the clown, his stool, the hoop
     const suit = col('#ebe6d8', 0.25), suitS = col('#b9b3c0', 0.3), teal = col('#3f8f88', 0.3), sockY = col('#d2b03a', 0.3), sockB = col('#2a2622', 0.2), shoe = col('#2a2420', 0.2);
@@ -244,10 +272,10 @@ lifeFor(16146, {
     const gFleck = shape.move(shape.ball(0.011, col('#d8d0c4', 0.3), 0), 0, 0, 0, 0, 0, 0, 1, 0.55, 1.2);
 
     // ---------------------------------------------------------- one rig for all of it
-    const rig = this.rig = L.rig(NBH + 6 + 2 + NF + TORN.length + NSCRAP + NFLECK + CURB, 96000, L.paint({ glow: 0.36, rough: 0.92 }));
+    const rig = this.rig = L.rig(NBH + 6 + 2 + NF + TORN.length + NSCRAP + NFLECK + CURB, 110000, L.paint({ glow: 0.5, rough: 1 }));
     const add = g => rig.add(rig.geo(g));
-    const gid = { fu: rig.geo(gFU), fl: rig.geo(gFL), hu: rig.geo(gHU), hl: rig.geo(gHL), arm: rig.geo(gArm), leg: rig.geo(gLeg), flap: rig.geo(flap), kerb: rig.geo(gKerb), fleck: rig.geo(gFleck) };
-    this.H = [add(gBody), add(gNeck), add(gHead), rig.add(gid.fu), rig.add(gid.fu), rig.add(gid.fl), rig.add(gid.fl), rig.add(gid.hu), rig.add(gid.hu), rig.add(gid.hl), rig.add(gid.hl), add(gT[0]), add(gT[1]), add(gT[2])];
+    const gid = { fu: rig.geo(gFU), fl: rig.geo(gFL), ht: rig.geo(gHT), hg: rig.geo(gHG), hl: rig.geo(gHL), arm: rig.geo(gArm), leg: rig.geo(gLeg), flap: rig.geo(flap), kerb: rig.geo(gKerb), fleck: rig.geo(gFleck) };
+    this.H = [add(gBody), add(gNeck), add(gHead), rig.add(gid.fu), rig.add(gid.fu), rig.add(gid.fl), rig.add(gid.fl), rig.add(gid.ht), rig.add(gid.ht), rig.add(gid.hg), rig.add(gid.hg), rig.add(gid.hl), rig.add(gid.hl), add(gT[0]), add(gT[1]), add(gT[2])];
     this.HM = Array.from({ length: NBH }, M4);
     this.C = { torso: add(gTorso), head: add(gCHead), arms: [rig.add(gid.arm), rig.add(gid.arm)], legs: [rig.add(gid.leg), rig.add(gid.leg)], M: Array.from({ length: 4 }, M4) };
     this.stool = add(gStool); this.rim = add(rimG); this.hoopM = M4();
@@ -293,8 +321,9 @@ lifeFor(16146, {
   vec4 s1 = texture2D(tSaw, p / 2.7 + 0.5), s2 = texture2D(tSaw, p / 1.15 + 0.37);
   float front = smoothstep(0.3, 0.85, p.y), jit = (s1.a - 0.55) * 0.3 + (s2.a - 0.55) * 0.2;
   // to the kerb behind and at the sides; a ragged edge towards you, the boards showing between the last strokes
-  float a = 1.0 - smoothstep(-0.012, 0.012, r - mix(uRing.x + 0.012, uRing.y + 0.07 * sin(atan(p.x, p.y) * 5.0 + 1.0), front) + jit * mix(0.04, 0.7, front));
-  a *= mix(1.0, smoothstep(0.3, 0.62, s2.a + (1.0 - smoothstep(0.72, 1.02, r)) * 0.7), front);
+  float a = 1.0 - smoothstep(-0.012, 0.012, r - mix(uRing.x + 0.012, uRing.y + 0.1 + 0.09 * sin(atan(p.x, p.y) * 5.0 + 1.0), front) + jit * mix(0.04, 0.9, front));
+  float thin = smoothstep(0.52, 1.12, r + 0.05 * sin(atan(p.x, p.y) * 7.0)), id = s1.a * 0.62 + s2.a * 0.38;
+  a *= mix(1.0, smoothstep(thin * 0.92 - 0.04, thin * 0.92 + 0.05, id), front);
   float grow = length(p - vec2(0.0, -uRing.w)) + (s1.a - 0.55) * 0.4;
   fA = a * smoothstep(0.0, 0.06, uSpread * 3.0 - grow) * 0.96;
   vec3 c = s1.rgb * (1.0 - 0.08 * exp(-pow((r - uRing.z) / 0.11, 2.0)) * (0.4 + s2.a));        // the track, a little churned
@@ -493,39 +522,45 @@ lifeFor(16146, {
   poseHorse(L, s, t) {
     const B = this.B, M = this.HM, a = TAU * s.ph, jw = s.jw, jt = s.jt, cw = 1 - jw, yaw = L.yawOf(s.hu, s.ho);
     const roll = -0.3 * s.lean * (1 - 0.6 * jw);
-    const rock = 0.07 * Math.cos(a - 0.2) * cw * s.amp + 0.24 * Math.sin(jt * Math.PI / 2) * jw;
-    const bob = 0.012 * Math.cos(a - TAU * 0.45) * cw;
+    // it rocks: down in front as the leading fore leg takes its weight, up as the hind legs come under it
+    const rock = 0.075 * Math.cos(a - 0.6) * cw * s.amp + 0.24 * Math.sin(jt * Math.PI / 2) * jw;
+    const bob = 0.011 * Math.cos(a - TAU * 0.48) * cw;
     L.floor(s.u, s.out, this.V);
     B.set(M[ROOT], this.V.x, L.y + H0 * Math.cos(roll) + bob * SC + s.h, this.V.z, yaw, rock, roll, SC);
     // the neck arched and the head tucked in, as he has it; stretched out over the leap
     const neckP = lerp(-1.0 - 0.55 * rock + 0.04 * Math.cos(a + 1), -0.5 - 0.5 * rock, jw);
-    B.child(M[NECK], M[ROOT], 0, 0.058, 0.158, 0.1 * s.lean * cw, neckP, 0);
-    B.child(M[HEAD], M[NECK], 0, 0.008, 0.172, 0.08 * s.lean * cw, lerp(2.05 + 0.05 * Math.sin(a + 0.6), 1.0, jw), 0);
+    B.child(M[NECK], M[ROOT], 0, 0.062, 0.16, 0.1 * s.lean * cw, neckP, 0);
+    B.child(M[HEAD], M[NECK], 0, 0.008, 0.17, 0.08 * s.lean * cw, lerp(2.05 + 0.05 * Math.sin(a + 0.6), 1.0, jw), 0);
     for (let i = 0; i < 4; i++) {
       const [side, hind, p] = LEGS[i], q = frac(s.ph - p), j = i & 1, lag = side > 0 ? 0 : 0.08;
-      let ang, fold;
       if (!hind) {
-        const D = 0.3;
-        if (q < D) { ang = lerp(-0.52, 0.44, q / D); fold = 0.04; }
-        else { const x = (q - D) / (1 - D); ang = lerp(0.44, -0.52, ease.smooth(x)) - 0.3 * Math.sin(Math.PI * x); fold = 1.55 * Math.pow(Math.sin(Math.PI * x), 0.9); }
-        const x = jt - lag, ja = lerp(-1.3, -0.72, ease.smooth(ramp(x, 0.25, 1))), jf = lerp(2.15, 0.12, ease.smooth(ramp(x, 0.3, 0.95)));
+        // a fore leg: straight under its weight, from reaching forward to well back; then the knee folds and it is
+        // carried forward, unfolding to reach again
+        const D = 0.3; let ang, fold;
+        if (q < D) { ang = lerp(-0.42, 0.4, q / D); fold = 0.02; }
+        else { const x = (q - D) / (1 - D); ang = lerp(0.4, -0.42, ease.smooth(x)) - 0.34 * Math.sin(Math.PI * x) * (1 - 0.4 * x); fold = 1.3 * Math.pow(Math.sin(Math.PI * Math.pow(x, 0.85)), 1.15); }
+        const x = jt - lag, ja = lerp(-1.15, -0.62, ease.smooth(ramp(x, 0.25, 1))), jf = lerp(1.9, 0.1, ease.smooth(ramp(x, 0.3, 0.95)));
         ang = lerp(ang * s.amp, ja, jw); fold = lerp(fold, jf, jw);
-        B.child(M[FU + j], M[ROOT], side * 0.05, -0.045, 0.14, 0, ang, 0); B.child(M[FL + j], M[FU + j], 0, -0.135, 0, 0, fold, 0);
+        B.child(M[FU + j], M[ROOT], side * 0.056, -0.045, 0.146, 0, ang, 0); B.child(M[FL + j], M[FU + j], 0, -0.15, 0, 0, fold, 0);
       } else {
-        const D = 0.32;
-        if (q < D) { ang = lerp(-0.48, 0.52, q / D); fold = 0; }
-        else { const x = (q - D) / (1 - D); ang = lerp(0.52, -0.48, ease.smooth(x)); fold = 1.25 * Math.sin(Math.PI * x) * (1 - 0.55 * x); }
-        const x = jt + lag, ja = x < 0 ? lerp(0.9, -0.3, ease.smooth(ramp(x, -0.85, 0))) : lerp(-0.3, -0.62, ease.smooth(ramp(x, 0.2, 1)));
-        const jf = x < 0 ? lerp(-0.05, 1.35, ease.smooth(ramp(x, -0.85, -0.05))) : lerp(1.35, 0.25, ease.smooth(ramp(x, 0.3, 1)));
-        ang = lerp(ang * s.amp, ja, jw); fold = lerp(fold, jf, jw);
-        B.child(M[HU + j], M[ROOT], side * 0.052, -0.014, -0.15, 0, 0.15 + ang, 0); B.child(M[HL + j], M[HU + j], 0, -0.155, 0, 0, -0.3 + fold, 0);
+        // a hind leg: sw is the whole leg's swing from the hip, fl how far stifle and hock are folded (the hoof
+        // drawn up under it), ex how far they are opened in the push
+        const D = 0.32; let sw, fl, ex;
+        if (q < D) { const x = q / D; sw = lerp(-0.4, 0.42, x); fl = 0.12 * (1 - x) * (1 - x); ex = ease.smooth(ramp(x, 0.45, 1)) * 0.75; }
+        else { const x = (q - D) / (1 - D); sw = lerp(0.42, -0.4, ease.smooth(x)); fl = Math.pow(Math.sin(Math.PI * Math.pow(x, 0.8)), 1.1) * 0.82 + 0.12 * ease.smooth(ramp(x, 0.85, 1)); ex = 0.75 * (1 - ease.smooth(ramp(x, 0, 0.2))); }
+        const x = jt + lag, js = x < 0 ? lerp(0.55, -0.1, ease.smooth(ramp(x, -0.85, 0))) : lerp(-0.1, -0.36, ease.smooth(ramp(x, 0.2, 1)));
+        const jf = x < 0 ? ease.smooth(ramp(x, -0.85, -0.05)) : lerp(1, 0.22, ease.smooth(ramp(x, 0.3, 1))), je = 1 - ease.smooth(ramp(x, -0.95, -0.5));
+        sw = lerp(sw * s.amp, js, jw); fl = lerp(fl, jf, jw); ex = lerp(ex, je, jw);
+        B.child(M[HT + j], M[ROOT], side * 0.063, -0.014, -0.155, 0, -0.45 + 0.92 * sw - 0.45 * fl + 0.1 * ex, 0);
+        B.child(M[HG + j], M[HT + j], 0, -0.1, 0, 0, 0.95 + 0.75 * fl - 0.35 * ex, 0);
+        B.child(M[HL + j], M[HG + j], 0, -0.11, 0, 0, -0.55 - 0.95 * fl + 0.3 * ex, 0);
       }
     }
-    // its long white tail, streaming
-    const tw = 0.1 * Math.sin(a * 0.5 + 1), up = 0.45 * jw * (1 - 0.4 * jt);
-    B.child(M[T1], M[ROOT], 0, 0.088, -0.208, tw, 1.0 + 0.1 * Math.sin(a - 1) + up, 0.2 * s.lean);
-    B.child(M[T1 + 1], M[T1], 0, -0.128, 0, tw * 1.2 + 0.06, -0.4 + 0.14 * Math.sin(a - 2.2) + up * 0.3, 0.12 * s.lean);
-    B.child(M[T1 + 2], M[T1 + 1], 0, -0.132, 0, -tw - 0.08, -0.34 + 0.2 * Math.sin(a - 3.3) + up * 0.2, 0.1 * s.lean);
+    // its tail: carried, full, streaming out behind and falling
+    const tw = 0.1 * Math.sin(a * 0.5 + 1), up = 0.4 * jw * (1 - 0.4 * jt);
+    B.child(M[T1], M[ROOT], 0, 0.092, -0.214, tw, 1.12 + 0.08 * Math.sin(a - 1) + up, -0.42 * s.lean - 0.05);
+    B.child(M[T1 + 1], M[T1], 0, -0.128, 0, tw * 1.2 + 0.06, -0.62 + 0.12 * Math.sin(a - 2.2) + up * 0.3, 0.2 * s.lean);
+    B.child(M[T1 + 2], M[T1 + 1], 0, -0.132, 0, -tw - 0.08, -0.4 + 0.18 * Math.sin(a - 3.3) + up * 0.2, 0.22 * s.lean);
     for (let i = 0; i < NBH; i++) this.rig.mat(this.H[i], M[i]);
   },
 
