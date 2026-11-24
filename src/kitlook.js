@@ -243,7 +243,7 @@ export function kitMaterials() {
       .replace('#include <map_fragment>', `#include <map_fragment>\n{ vec4 w = texture2D(uKitN, (vKitW.xz + vKitW.y) * 1.7); diffuseColor.a *= ${k}; diffuseColor.a *= 0.55 + 0.45 * smoothstep(0.25, 0.6, w.b + w.g * 0.5); diffuseColor.rgb *= 0.8 + 0.3 * w.r; }`); };
     m.customProgramCacheKey = () => 'kitworn-' + name; return m; };
   M.arrows = tex => worn(new THREE.MeshBasicMaterial({ map: tex, alphaMap: tex, color: new THREE.Color(0.66, 0.64, 0.55), transparent: true, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 'arrows', '0.92');
-  M.stencil = worn(new THREE.MeshBasicMaterial({ map: stencilSheet(), color: new THREE.Color(0.05, 0.07, 0.12), transparent: true, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 'stencil', '0.8');
+  M.stencil = worn(new THREE.MeshBasicMaterial({ map: stencilSheet(), color: new THREE.Color(0.03, 0.04, 0.08), transparent: true, depthWrite: false, side: D, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 'stencil', '1.0');
   return M;
 }
 
@@ -252,7 +252,8 @@ export function kitMaterials() {
 const hash1 = (a, b) => { const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return s - Math.floor(s); };
 const outdoors = (plan, s) => !roomAt(plan, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, Math.min(s.h0, s.h1) + 0.05) && !roomAt(plan, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, (s.base || 0) + 0.05);
 
-// Is the end of piece s at world coordinate `e` along its run (the side facing `dir`) shut in by another piece or a wall?
+// Is the face of piece s at world coordinate `e` along the axis `run` (the side facing `dir`) wholly behind another piece,
+// or hard against the wall of its room?
 function shut(plan, s, run, e, dir, h, base) {
   const a0 = run === 'x' ? s.z0 : s.x0, a1 = run === 'x' ? s.z1 : s.x1;
   for (const q of plan.surfaces) {
@@ -260,11 +261,12 @@ function shut(plan, s, run, e, dir, h, base) {
     const near = run === 'x' ? (dir > 0 ? q.x0 : q.x1) : (dir > 0 ? q.z0 : q.z1), far = run === 'x' ? (dir > 0 ? q.x1 : q.x0) : (dir > 0 ? q.z1 : q.z0);
     if (Math.abs(near - e) > 0.04 || (far - e) * dir < 0.05) continue;
     const b0 = run === 'x' ? q.z0 : q.x0, b1 = run === 'x' ? q.z1 : q.x1;
-    if (Math.min(a1, b1) - Math.max(a0, b0) < (a1 - a0) * 0.6) continue;
-    if (Math.max(q.h0, q.h1) >= h - 0.06 && (q.thick ? Math.max(q.h0, q.h1) - q.thick : q.base || 0) <= base + 0.12) return true;
+    if (Math.min(a1, b1) - Math.max(a0, b0) < (a1 - a0) * 0.98) continue;
+    const m = (Math.max(a0, b0) + Math.min(a1, b1)) / 2, hq = heightOf(q, run === 'x' ? near + dir * 0.01 : m, run === 'x' ? m : near + dir * 0.01);      // how high it stands where they meet
+    if (hq >= h - 0.02 && (q.thick ? hq - q.thick : q.base || 0) <= base + 0.02) return true;
   }
   const r = roomAt(plan, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, base + 0.05);
-  if (r) { const w = run === 'x' ? (dir > 0 ? r.x1 : r.x0) : (dir > 0 ? r.z1 : r.z0); if (Math.abs(w - e) < 0.12) return true; }
+  if (r) { const w = run === 'x' ? (dir > 0 ? r.x1 : r.x0) : (dir > 0 ? r.z1 : r.z0); if (Math.abs(w - e) < 0.03) return true; }
   return false;
 }
 
@@ -285,6 +287,9 @@ export function plyPieces(plan, list, G) {
       U.push(u); Hh.push(h); Nn.push(Nw(-sl / l, 1 / l, 0)); Arc.push(i ? Arc[i - 1] + Math.hypot(u - U[i - 1], h - Hh[i - 1]) : 0);
     }
     const rise = Math.abs(Hh[n] - Hh[0]), so = hash1(seed, 3) * 4, hiEnd = Hh[n] >= Hh[0] ? n : 0, loEnd = n - hiEnd;
+    // a face hard against a wall or wholly behind a neighbour is not drawn at all (two skins in one plane flicker)
+    const hTop = Math.max(Hh[0], Hh[n]), bLow = baseAt(Math.min(Hh[0], Hh[n])), across = X ? 'z' : 'x';
+    const shutV0 = !s.thick && shut(plan, s, across, c0, -1, hTop, bLow), shutV1 = !s.thick && shut(plan, s, across, c0 + Wd, 1, hTop, bLow);
     const kTop = (v, i) => [seed, out, v, s.axis ? (Hh[i] - Math.min(Hh[0], Hh[n])) / Math.max(0.3, rise) * Math.min(1, rise / Math.max(0.1, L)) * 1.4 : 0];
     for (let i = 0; i < n; i++) {
       // the sheet
@@ -293,7 +298,7 @@ export function plyPieces(plan, list, G) {
       const b0 = baseAt(Hh[i]), b1 = baseAt(Hh[i + 1]);
       if (s.thick && s.onTop == null) G.frame.quad([P(U[i], b0, 0), P(U[i + 1], b1, 0), P(U[i + 1], b1, Wd), P(U[i], b0, Wd)], Nw(0, -1, 0), [[0, U[i] / 2.44], [0, U[i + 1] / 2.44], [Wd / 1.22, U[i + 1] / 2.44], [Wd / 1.22, U[i] / 2.44]], [seed, out, 0.5, 2]);
       // the side panels, cut to the profile
-      if (Hh[i] - b0 > 0.011 || Hh[i + 1] - b1 > 0.011) for (const [v, nv] of [[0, -1], [Wd, 1]])
+      if (Hh[i] - b0 > 0.011 || Hh[i + 1] - b1 > 0.011) for (const [v, nv] of [[0, -1], [Wd, 1]]) if (!(nv < 0 ? shutV0 : shutV1))
         G.frame.quad([P(U[i], b0, v), P(U[i + 1], b1, v), P(U[i + 1], Hh[i + 1], v), P(U[i], Hh[i], v)], Nw(0, 0, nv),
           [[(b0 - floor0) / 1.22, (U[i] + so) / 2.44], [(b1 - floor0) / 1.22, (U[i + 1] + so) / 2.44], [(Hh[i + 1] - floor0) / 1.22, (U[i + 1] + so) / 2.44], [(Hh[i] - floor0) / 1.22, (U[i] + so) / 2.44]],
           [[seed, out, 0.92, b0 - floor0], [seed, out, 0.92, b1 - floor0], [seed, out, 0.92, Hh[i + 1] - floor0], [seed, out, 0.92, Hh[i] - floor0]]);
@@ -314,14 +319,16 @@ export function plyPieces(plan, list, G) {
     for (const i of [0, n]) {
       const h = Hh[i], b = baseAt(h), dir = i === n ? 1 : -1, u = U[i];
       if (h - b < 0.011) continue;
-      const open = s.axis && i === hiEnd && h - b > 0.3 && !s.thick && !shut(plan, s, run, o0 + u, dir, h, b);
+      const closed = shut(plan, s, run, o0 + u, dir, h, b);
+      if (closed) continue;
+      const open = s.axis && i === hiEnd && h - b > 0.3 && !s.thick;
       const kF = y => [seed, out, 0.92, y - floor0];
       if (!open) { G.frame.quad([P(u, b, 0), P(u, b, Wd), P(u, h, Wd), P(u, h, 0)], Nw(dir, 0, 0), [[(b - floor0) / 1.22, 0], [(b - floor0) / 1.22, Wd / 2.44], [(h - floor0) / 1.22, Wd / 2.44], [(h - floor0) / 1.22, 0]], [kF(b), kF(b), kF(h), kF(h)]); continue; }
       const kD = [seed, out, 0.16, 2], kB = [seed, out, 1.05, 0, floor0], in0 = u - dir * 0.06, bx = (u0, u1, y0, y1, v0, v1, k = kB) => { const a = P(Math.min(u0, u1), y0, v0), c = P(Math.max(u0, u1), y1, v1); G.frame.box(Math.min(a[0], c[0]), Math.max(a[0], c[0]), y0, y1, Math.min(a[2], c[2]), Math.max(a[2], c[2]), k); };
       G.frame.quad([P(in0, b, 0.02), P(in0, b, Wd - 0.02), P(in0, h - 0.02, Wd - 0.02), P(in0, h - 0.02, 0.02)], Nw(dir, 0, 0), [[0, 0], [0, Wd / 2.44], [h / 1.22, Wd / 2.44], [h / 1.22, 0]], kD);      // the dark inside
-      bx(u - dir * 0.05, u, h - 0.062, h - 0.02, 0, Wd); bx(u - dir * 0.05, u, b, b + 0.04, 0, Wd);                    // top and bottom plates
+      bx(u - dir * 0.05, u, h - 0.062, h - 0.02, 0.005, Wd - 0.005); bx(u - dir * 0.05, u, b, b + 0.04, 0.005, Wd - 0.005);                    // top and bottom plates
       const bays = Math.max(1, Math.round(Wd / 0.61));
-      for (let j = 0; j <= bays; j++) { const v = j === 0 ? 0.019 : j === bays ? Wd - 0.019 : Wd * j / bays; bx(u - dir * 0.09, u - dir * 0.001, b + 0.04, h - 0.062, v - 0.019, v + 0.019); }      // studs
+      for (let j = 0; j <= bays; j++) { const v = j === 0 ? 0.024 : j === bays ? Wd - 0.024 : Wd * j / bays; bx(u - dir * 0.09, u - dir * 0.001, b + 0.04, h - 0.062, v - 0.019, v + 0.019); }      // studs
       if (h - b > 0.55 && Wd > 1) {      // a brace let in across the back
         const v0 = 0.06, v1 = Wd - 0.06, y0 = b + 0.07, y1 = h - 0.09, len = Math.hypot(v1 - v0, y1 - y0), wv = 0.035 * (y1 - y0) / len, wy = 0.035 * (v1 - v0) / len, ub = u - dir * 0.035;
         G.frame.quad([P(ub, y0 - wy, v0 + wv), P(ub, y1 - wy, v1 + wv), P(ub, y1 + wy, v1 - wv), P(ub, y0 + wy, v0 - wv)], Nw(dir, 0, 0), [[0.3, 0], [0.3, len / 2.44], [0.36, len / 2.44], [0.36, 0]], [[seed, out, 1, y0 - floor0], [seed, out, 1, y1 - floor0], [seed, out, 1, y1 - floor0], [seed, out, 1, y0 - floor0]]);
@@ -334,9 +341,9 @@ export function plyPieces(plan, list, G) {
     }
     if (s.curve) { const r = 0.027, u = U[hiEnd], h = Hh[hiEnd] - r + 0.002; G.steel.tube(P(u, h, 0), P(u, h, Wd), r, [seed, out, 0, 0], 10); }
     // a stencil on one side panel of a piece big enough to carry it
-    if (G.stencil && L > 1.2 && Math.max(Hh[0], Hh[n]) - floor0 > 0.34 && !s.thick && !s.hang && hash1(seed, 9) < 0.75) {
-      const side = hash1(seed, 5) < 0.5 ? 0 : 1, v = side ? Wd + 0.006 : -0.006, nv = side ? 1 : -1, row = Math.floor(hash1(seed, 7) * 8) % 8;
-      const hh = Math.min(0.09, (Math.max(Hh[0], Hh[n]) - floor0) * 0.2), w = hh * 7, uc = hiEnd === n ? L - 0.16 - w / 2 : 0.16 + w / 2, hc = floor0 + (Math.min(hAt(uc - w / 2), hAt(uc + w / 2)) - floor0) * 0.5;
+    if (G.stencil && L > 1.2 && Math.max(Hh[0], Hh[n]) - floor0 > 0.34 && !s.thick && !s.hang && hash1(seed, 9) < 0.8 && !(shutV0 && shutV1)) {
+      const side = shutV0 ? 1 : shutV1 ? 0 : hash1(seed, 5) < 0.5 ? 0 : 1, v = side ? Wd + 0.006 : -0.006, nv = side ? 1 : -1, row = Math.floor(hash1(seed, 7) * 8) % 8;
+      const hh = Math.min(0.13, (Math.max(Hh[0], Hh[n]) - floor0) * 0.24), w = hh * 6.4, uc = hiEnd === n ? L - 0.16 - w / 2 : 0.16 + w / 2, hc = floor0 + (Math.min(hAt(uc - w / 2), hAt(uc + w / 2)) - floor0) * 0.5;
       // text reads left to right for someone facing the panel: their right is up x outward
       const nw = Nw(0, 0, nv), rx = nw[2], rz = -nw[0], c = P(uc, hc, v), v0 = 1 - (row + 1) / 8, v1 = 1 - row / 8;
       if (Math.min(hAt(uc - w / 2), hAt(uc + w / 2)) - floor0 > hh * 2.4) G.stencil.quad([c[0] - rx * w / 2, hc - hh / 2, c[2] - rz * w / 2], [c[0] + rx * w / 2, hc - hh / 2, c[2] + rz * w / 2], [c[0] + rx * w / 2, hc + hh / 2, c[2] + rz * w / 2], [c[0] - rx * w / 2, hc + hh / 2, c[2] - rz * w / 2], nw, [[0, v0], [1, v0], [1, v1], [0, v1]]);
