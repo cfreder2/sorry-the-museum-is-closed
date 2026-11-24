@@ -22,7 +22,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
-import { radial } from './textures.js';
+import { radial, plaster } from './textures.js';
 import { hash, ROAD, winterRoad, trafficLanes, asphaltMaterial, paintMaterial, bankMaterial, GeoLite } from './streetscape.js';
 
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -105,36 +105,88 @@ class Relief {
 const range = (a, b, step) => { const n = Math.max(1, Math.round((b - a) / step)), out = []; for (let i = 0; i <= n; i++) out.push(a + (b - a) * i / n); return out; };
 
 // ---------------------------------------------------------------------------------------------- furniture --
-// One street light: a tapered steel pole on a flanged base, a davit arm curving out over the road (one, or one each
-// way), a flat "cobra head" at the end of it. Built once along +x; every light in the world is an instance.
+// A geometry given one colour (or a colour worked out for each corner), with nothing but position, normal and colour.
+function tinted(geo, c) {
+  const q = geo.index ? geo.toNonIndexed() : geo; if (q.attributes.uv) q.deleteAttribute('uv');
+  const P = q.attributes.position, a = new Float32Array(P.count * 3);
+  for (let i = 0; i < P.count; i++) a.set(typeof c === 'function' ? c(P.getX(i), P.getY(i), P.getZ(i)) : c, i * 3);
+  q.setAttribute('color', new THREE.BufferAttribute(a, 3)); return q;
+}
+const STEEL = [0.2, 0.215, 0.24], ZINC = [0.42, 0.44, 0.47], DARK = [0.05, 0.052, 0.058], CONCRETE = [0.4, 0.39, 0.37], PLATE = [0.27, 0.235, 0.2];
+
+// One street light, built along +x: a tapered steel pole standing on a cast base (a plate on the footing, four anchor
+// nuts, the hand-hole's cover), a collar where the davit arm is clamped on, the arm curving out over the road (one, or
+// one each way), and at the end of it a flat "cobra head" with its glass underneath and the night's snow on its back.
 function lightGeo(H, reach, arms) {
-  const metal = [], lens = [];
-  const pole = new THREE.CylinderGeometry(0.07, 0.115, H - 0.9, 10, 1, true); pole.translate(0, (H - 0.9) / 2, 0); metal.push(pole);
-  const foot = new THREE.CylinderGeometry(0.15, 0.2, 0.42, 10); foot.translate(0, 0.21, 0); metal.push(foot);
+  const metal = [], lens = [], snow = [];
+  const at = (g, x, y, z) => { g.translate(x, y, z); return g; };
+  metal.push(tinted(at(new THREE.CylinderGeometry(0.07, 0.112, H - 1.45, 8, 1, true), 0, 0.5 + (H - 1.45) / 2, 0), STEEL));
+  metal.push(tinted(at(new THREE.CylinderGeometry(0.27, 0.27, 0.035, 8), 0, 0.0175, 0), ZINC));                                    // the plate on the footing
+  metal.push(tinted(new THREE.LatheGeometry([[0.2, 0.035], [0.2, 0.3], [0.18, 0.41], [0.112, 0.52]].map(([r, y]) => new THREE.Vector2(r, y)), 8), STEEL));      // the cast base
+  for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2; metal.push(tinted(at(new THREE.CylinderGeometry(0.022, 0.022, 0.05, 4, 1, true), Math.cos(a) * 0.235, 0.055, Math.sin(a) * 0.235), ZINC)); }
+  metal.push(tinted(at(new THREE.BoxGeometry(0.11, 0.17, 0.012), 0, 0.2, 0.201), DARK));                                          // the hand-hole
   for (let k = 0; k < arms; k++) {
     const s = k ? -1 : 1, curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, H - 0.95, 0), new THREE.Vector3(s * 0.25, H + 0.12, 0), new THREE.Vector3(s * reach, H, 0));
-    metal.push(new THREE.TubeGeometry(curve, 8, 0.045, 6, false));
-    const head = new THREE.SphereGeometry(1, 12, 6); head.scale(0.4, 0.09, 0.17); head.translate(s * (reach + 0.28), H - 0.01, 0); metal.push(head);
-    const glass = new THREE.SphereGeometry(1, 10, 5); glass.scale(0.27, 0.085, 0.125); glass.translate(s * (reach + 0.33), H - 0.075, 0); lens.push(glass);
+    metal.push(tinted(new THREE.TubeGeometry(curve, 7, 0.045, 5, false), STEEL));
+    const head = new THREE.SphereGeometry(1, 10, 5); head.scale(0.4, 0.09, 0.17); metal.push(tinted(at(head, s * (reach + 0.28), H - 0.01, 0), ZINC));
+    metal.push(tinted(at(new THREE.CylinderGeometry(0.032, 0.032, 0.05, 5), s * (reach + 0.2), H + 0.1, 0), DARK));                 // the photocell on its back
+    const glass = new THREE.SphereGeometry(1, 8, 4); glass.scale(0.27, 0.085, 0.125); lens.push(at(glass, s * (reach + 0.33), H - 0.075, 0));
+    const cap = new THREE.SphereGeometry(1, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2); cap.scale(0.36, 0.06, 0.15); snow.push(at(cap, s * (reach + 0.3), H + 0.055, 0));
   }
-  const strip = g => { const q = g.index ? g.toNonIndexed() : g; q.deleteAttribute('uv'); return q; };
-  return { metal: mergeGeometries(metal.map(strip)), lens: mergeGeometries(lens.map(strip)) };
+  metal.push(tinted(at(new THREE.CylinderGeometry(0.088, 0.092, 0.24, 8, 1, true), 0, H - 0.97, 0), ZINC));                               // the collar the arm is clamped in
+  metal.push(tinted(at(new THREE.SphereGeometry(0.075, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2), 0, H - 0.86, 0), STEEL));            // and the pole's cap
+  return { metal: mergeGeometries(metal), lens: mergeGeometries(lens.map(g => { const q = g.toNonIndexed(); q.deleteAttribute('uv'); return q; })), snow: mergeGeometries(snow.map(g => g.toNonIndexed())) };
 }
-// The orange drum of a road works: fat, with two reflective bands and a rubber foot. Vertex-coloured, one material.
+
+// A road-works drum, as they are moulded: a rubber tyre ring for a foot, a body in stepped tiers with a rib between
+// each (it is blown in one piece and the ribs stiffen it), two white and two orange bands of retroreflective sheeting
+// set into the tiers, a rounded shoulder, a recessed top with a carrying handle across it. Road salt and spray have
+// greyed the bottom third, and it is scuffed where it has been dragged. Turned on a lathe; coloured by the vertex
+// (the sheeting brighter than anything else here, so it throws the lamps back). Returns the drum, and the snow on it.
 function drumGeo() {
-  const parts = [], col = (g, c) => { const q = g.index ? g.toNonIndexed() : g; q.deleteAttribute('uv'); const n = q.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set(c, i * 3); q.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(q); };
-  const ORANGE = [0.95, 0.33, 0.04], WHITE = [0.92, 0.92, 0.9], BLACK = [0.03, 0.03, 0.035];
-  let y = 0.06; const band = (h, r0, r1, c) => { const g = new THREE.CylinderGeometry(r1, r0, h, 20, 1, true); g.translate(0, y + h / 2, 0); col(g, c); y += h; };
-  { const g = new THREE.CylinderGeometry(0.36, 0.38, 0.06, 20); g.translate(0, 0.03, 0); col(g, BLACK); }
-  band(0.22, 0.29, 0.285, ORANGE); band(0.13, 0.285, 0.28, WHITE); band(0.14, 0.28, 0.275, ORANGE); band(0.13, 0.275, 0.27, WHITE); band(0.2, 0.27, 0.262, ORANGE);
-  { const g = new THREE.SphereGeometry(0.262, 20, 6, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(1, 0.22, 1); g.translate(0, y, 0); col(g, ORANGE); }
-  return mergeGeometries(parts);
+  const SEG = 16, ORANGE = [0.86, 0.28, 0.035], WHITE_R = [1.55, 1.55, 1.5], ORANGE_R = [1.6, 0.56, 0.07], RUBBER = [0.035, 0.035, 0.04], SALT = [0.6, 0.6, 0.61], parts = [];
+  const turn = (pts, c, salty = 0) => parts.push(tinted(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), SEG), (x, y, z) => {
+    const a = Math.round(Math.atan2(z, x) * SEG / (2 * Math.PI)), k = salty * Math.max(0, 1 - y / 0.4) * (0.3 + 0.7 * hash(a, Math.round(y * 40), 7)), scuff = salty && hash(a * 3, Math.round(y * 25), 9) > 0.88 ? 0.55 : 1;
+    return [(c[0] + (SALT[0] - c[0]) * k) * scuff, (c[1] + (SALT[1] - c[1]) * k) * scuff, (c[2] + (SALT[2] - c[2]) * k) * scuff]; }));
+  const rib = (y, r0, r1) => turn([[r0, y], [r0 + 0.009, y + 0.005], [r0 + 0.009, y + 0.015], [r1, y + 0.022]], ORANGE, 1);
+  turn([[0.21, 0.004], [0.36, 0.004], [0.386, 0.03], [0.386, 0.072], [0.362, 0.1], [0.292, 0.1]], RUBBER, 0.16);
+  turn([[0.292, 0.1], [0.292, 0.16], [0.291, 0.22], [0.289, 0.285]], ORANGE, 1); rib(0.285, 0.289, 0.283);
+  turn([[0.283, 0.307], [0.281, 0.43]], WHITE_R, 0.6); rib(0.43, 0.281, 0.275);
+  turn([[0.275, 0.452], [0.273, 0.565]], ORANGE_R, 0.25); rib(0.565, 0.273, 0.267);
+  turn([[0.267, 0.587], [0.265, 0.7]], WHITE_R); rib(0.7, 0.265, 0.259);
+  turn([[0.259, 0.722], [0.257, 0.83]], ORANGE_R); rib(0.83, 0.257, 0.257);
+  turn([[0.257, 0.852], [0.252, 0.885], [0.234, 0.906], [0.205, 0.914], [0.196, 0.9], [0.001, 0.9]], ORANGE);
+  const handle = new THREE.TorusGeometry(0.075, 0.014, 5, 8, Math.PI); handle.translate(0, 0.9, 0); parts.push(tinted(handle, ORANGE));
+  const snow = new THREE.SphereGeometry(1, 14, 4, 0, Math.PI * 2, 0, Math.PI / 2); snow.scale(0.243, 0.07, 0.243); snow.translate(0, 0.903, 0);      // sitting on the top, lapping over the shoulder; the handle just shows
+  return { body: mergeGeometries(parts), snow: snow.toNonIndexed() };
 }
-// A concrete barrier, the real section (a wide foot, a slope, a tall narrow stem), `len` long along z.
-function barrierGeo(len) {
-  const prof = [[-0.3, 0], [-0.3, 0.08], [-0.17, 0.33], [-0.085, 0.81], [0.085, 0.81], [0.17, 0.33], [0.3, 0.08], [0.3, 0]];
-  const sh = new THREE.Shape(prof.map(([x, y]) => new THREE.Vector2(x, y)));
-  const g = new THREE.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false }); g.translate(0, 0, -len / 2); return g;
+
+// A concrete barrier, the real ("Jersey") section: 61 cm at the foot, a 7.5 cm upright lip, a slope of 55 degrees up
+// to 33 cm, then a near-upright stem to a 15 cm top at 81 cm. `len` long along z, cast in one, with two slots through
+// its foot (for the forks that lift it and the meltwater that runs under it) and a steel loop top and bottom at each
+// end for the pin that joins it to the next. Salt has whitened it as high as the spray reaches and the foot is dark
+// with slush; the snow lies along its top in a rounded strip, deeper here and there. Returns the barrier and its snow.
+function barrierGeo(len, seed) {
+  const prof = [[0.305, 0], [0.305, 0.075], [0.127, 0.33], [0.076, 0.81], [-0.076, 0.81], [-0.127, 0.33], [-0.305, 0.075], [-0.305, 0]], n = 8, P = [], N = [], C = [], z0 = -len / 2;
+  const tone = (i, j, y) => { const h = hash(i + seed * 13, j, 3), streak = y > 0.3 && hash(j, seed, 11) > 0.62 ? 0.74 : 1, k = (0.8 + 0.34 * h) * streak, salt = y < 0.02 ? 0 : y < 0.4 ? 0.75 * (0.35 + 0.65 * hash(j, i + seed, 5)) : 0, dirt = y < 0.02 ? 0.5 : 1; return CONCRETE.map(v => (v * k + (0.68 - v * k) * salt) * dirt); };      // (weathered, streaked where the melt runs down, white with salt as high as the spray reaches, dark at the foot)
+  const quad = (a, b, c, d, nrm, ca, cb, cc, cd) => { for (const [v, col] of [[a, ca], [c, cc], [b, cb], [a, ca], [d, cd], [c, cc]]) { P.push(...v); N.push(...nrm); C.push(...col); } };
+  for (let i = 0; i < prof.length - 1; i++) {
+    const [xa, ya] = prof[i], [xb, yb] = prof[i + 1], l = Math.hypot(xb - xa, yb - ya), nrm = [(yb - ya) / l, -(xb - xa) / l, 0];
+    for (let j = 0; j < n; j++) { const za = z0 + len * j / n, zb = z0 + len * (j + 1) / n; quad([xa, ya, za], [xa, ya, zb], [xb, yb, zb], [xb, yb, za], nrm, tone(i, j, ya), tone(i, j + 1, ya), tone(i + 1, j + 1, yb), tone(i + 1, j, yb)); }
+  }
+  for (const [z, d] of [[z0, -1], [z0 + len, 1]]) for (let i = 1; i < prof.length - 2; i++) {          // its two ends
+    const a = prof[0], b = prof[i], c = prof[i + 1], tri = d < 0 ? [a, c, b] : [a, b, c]; for (const q of tri) { P.push(q[0], q[1], z); N.push(0, 0, d); C.push(...tone(i, d + 3, q[1])); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  const parts = [g];
+  for (const sx of [-1, 1]) for (const zs of [-len * 0.27, len * 0.27]) { const slot = new THREE.BoxGeometry(0.008, 0.062, 0.3); slot.translate(sx * 0.3065, 0.033, zs); parts.push(tinted(slot, [0.012, 0.012, 0.014])); }
+  for (const d of [-1, 1]) for (const y of [0.24, 0.62]) { const loop = new THREE.TorusGeometry(0.032, 0.008, 4, 6, Math.PI); loop.rotateX(d * Math.PI / 2); loop.translate(0, y, d * len / 2); parts.push(tinted(loop, DARK)); }
+  // the snow along the top
+  const sp = [], si = [], m = 10, hw = [-0.082, -0.05, 0, 0.05, 0.082], up = [0, 0.78, 1, 0.78, 0];
+  for (let j = 0; j <= m; j++) { const z = z0 + len * j / m, e = Math.min(1, j / 1.2, (m - j) / 1.2), h = (0.04 + 0.05 * vn(j * 0.9, seed)) * e; for (let k = 0; k < 5; k++) sp.push(hw[k] * (0.75 + 0.25 * e), 0.805 + h * up[k], z); }
+  for (let j = 0; j < m; j++) for (let k = 0; k < 4; k++) { const a = j * 5 + k; si.push(a, a + 5, a + 1, a + 1, a + 5, a + 6); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3)); sg.setIndex(si); sg.computeVertexNormals();
+  return { body: mergeGeometries(parts), snow: sg.toNonIndexed() };
 }
 // Every kind of sign on one sheet, 128 px to a plate. Returns the texture and where each plate is on it.
 function plateSheet(kinds) {
@@ -161,7 +213,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   const M = G.michigan, MO = G.monroe, JA = G.jackson, C = G.columbus, R = G.rail, LSD = L.lsd, SX = plan.street.x, TL = trafficLanes(plan);
   const add = m => { if (!m) return null; m.matrixAutoUpdate = false; m.updateMatrix(); m.userData.winterRoads = true; group.add(m); return m; };
   // Everything hard that stands about (poles, posts, drums, barriers, plates), coloured by the vertex: one mesh.
-  const hard = [], STEEL = [0.2, 0.215, 0.24], ZINC = [0.42, 0.44, 0.47], CONCRETE = [0.56, 0.55, 0.52], PLATE = [0.27, 0.235, 0.2];
+  const hard = [], rel = new Relief(plan), signs = [];      // (rel: the relief, and the loose snow that lies on things)
   const put = (list, geo, c, m4) => { const q = geo.index ? geo.toNonIndexed() : geo.clone(); if (q.attributes.uv) q.deleteAttribute('uv'); if (m4) q.applyMatrix4(m4); if (c) { const n = q.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set(c, i * 3); q.setAttribute('color', new THREE.BufferAttribute(a, 3)); } list.push(q); };
   const mz = (MO.z0 + MO.z1) / 2, jz = (JA.z0 + JA.z1) / 2, FLAT0 = SX + 12;          // east of here the cross streets are level
   const blocked = (x, z, r = 0.7, tall = 0.3) => G.trees.some(t => Math.abs(t.x - x) < r + 0.5 && Math.abs(t.z - z) < r + 0.5) || O.some(o => o.y1 > tall && o.y0 < 2 && x > o.x0 - r && x < o.x1 + r && z > o.z0 - r && z < o.z1 + r) || (plan.lamps || []).some(l => Math.abs(l.x - x) < r + 0.3 && Math.abs(l.z - z) < r + 0.3);
@@ -202,7 +254,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
     let px = x, pz = z; for (let k = 0; k < 4 && blocked(px, pz, 0.5, tall); k++) { px += Math.abs(az) * 2.2; pz += Math.abs(ax) * 2.2; }      // step along the kerb past a tree or a post
     lights.push([px, pz, ax, az, arms, h, reach, ch]);
     O.push({ x0: px - 0.13, x1: px + 0.13, z0: pz - 0.13, z1: pz + 0.13, y0: 0, y1: h });
-    for (let k = 0; k < arms; k++) { const s = k ? -1 : 1; mask.lamp(ch, px + ax * s * (reach + 0.3), pz + az * s * (reach + 0.3), h, ch ? 1.05 : 1, ax ? 1.05 : 1.75, ax ? 1.75 : 1.05); }
+    for (let k = 0; k < arms; k++) { const s = k ? -1 : 1; mask.lamp(ch, px + ax * s * (reach + 0.3), pz + az * s * (reach + 0.3), h, ch ? 1.05 : 1, ax ? 1.0 : 1.4, ax ? 1.4 : 1.0); }
   };
   // Lake Shore Drive: sodium, 9.5 m up, on the park side and the lake side by turns.
   for (const z of [-22, 24, 68, 119, 164, 208, 241]) light(LSD.x0 - 0.75, z, 1, 0, 1, 9.5, 2.6, 0);
@@ -219,7 +271,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
     for (const [x, z, ax, az, arms, h, reach, ch] of lights) {
       const key = `${arms}|${h}|${reach}`, g = kinds.get(key) || (kinds.set(key, lightGeo(h, reach, arms)), kinds.get(key));
       M4.compose(P.set(x, 0, z), Q.setFromAxisAngle(UP, Math.atan2(-az, ax)), ONE);
-      put(hard, g.metal, STEEL, M4); put(lenses, g.lens, ch ? [3.4, 2.95, 2.3] : [4.2, 2.0, 0.55], M4);
+      put(hard, g.metal, null, M4); put(lenses, g.lens, ch ? [3.4, 2.95, 2.3] : [4.2, 2.0, 0.55], M4); rel.addGeometry('snow|bits', g.snow.clone().applyMatrix4(M4));
     }
     // The glare round each lamp: one cloud of points for all of them.
     { const p = [], c = []; for (const [x, z, ax, az, arms, h, reach, ch] of lights) for (let k = 0; k < arms; k++) { const s = k ? -1 : 1; p.push(x + ax * s * (reach + 0.33), h - 0.09, z + az * s * (reach + 0.33)); c.push(...(ch ? [0.34, 0.3, 0.24] : [0.46, 0.23, 0.07])); }
@@ -233,7 +285,6 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   // [a, b] its run along `axis`; it lies `behind` the face and `into` the road. `gaps` are kept clear (crossings,
   // parked cars, a hydrant somebody dug out): the ridge runs down to nothing over a metre either side, and is
   // heaped higher just beyond a crossing, where the driver lifted the blade.
-  const rel = new Relief(plan), signs = [];
   const DIRT = [0.5, 0.47, 0.43], CLEAN = [0.94, 0.96, 1.0];
   const windrow = ({ axis, k, d, a, b, H, behind = 0.42, into = 1.2, gaps = [], seed = 1, heaps = [], open = [false, false], piece }) => {
     const gs = gaps.filter(([g0, g1]) => g1 > a && g0 < b).sort((p, q) => p[0] - q[0]);
@@ -252,7 +303,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
     const fn = axis === 'z'
       ? (x, z) => { const u = (x - k) * d + behind; if (u <= 0 || u >= WMAX) return 0; const t = u / wide(z); if (t >= 1) return 0; const A = amp(z); return A ? A * (0.5 - 0.5 * Math.cos(2 * Math.PI * Math.pow(t, lean(z)))) : 0; }
       : (x, z) => { const u = (z - k) * d + behind; if (u <= 0 || u >= WMAX) return 0; const t = u / wide(x); if (t >= 1) return 0; const A = amp(x); return A ? A * (0.5 - 0.5 * Math.cos(2 * Math.PI * Math.pow(t, lean(x)))) : 0; };
-    const across = [0, 0.08, 0.18, 0.29, 0.41, 0.54, 0.7, 1].map(t => k + d * (t * WMAX - behind)); if (d < 0) across.reverse();
+    const across = [0, 0.1, 0.22, 0.36, 0.52, 0.72, 1].map(t => k + d * (t * WMAX - behind)); if (d < 0) across.reverse();
     const colour = (x, z, h) => { const u = ((axis === 'z' ? x : z) - k) * d, grit = smooth(0.1, into, u) * (0.55 + 0.45 * hash(x * 7, z * 7, 5)), q = Math.min(1, grit * 0.9 + (h < 0.03 ? 0.25 : 0)); return [CLEAN[0] + (DIRT[0] - CLEAN[0]) * q, CLEAN[1] + (DIRT[1] - CLEAN[1]) * q, CLEAN[2] + (DIRT[2] - CLEAN[2]) * q]; };
     // in lengths of 70 m or so, each its own piece of ground, skipping what the gaps leave empty
     for (let p0 = a; p0 < b - 0.01; p0 += 70) {
@@ -279,7 +330,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
     windrow({ axis: 'x', k: outer + sgn * 0.12, d: sgn, a: FLAT0 + 3, b: LSD.x0, H: 0.25, gaps: cross, heaps: [C.x0 - 8.2, C.x1 + 8.2], seed: 21 + sgn, piece });
     windrow({ axis: 'x', k: inner - sgn * 0.12, d: -sgn, a: FLAT0 + 3, b: LSD.x0, H: 0.25, gaps: [...cross, ...PARKED[inner].map(x => [x - 3.5, x + 3.5])], heaps: [C.x0 - 8.2, C.x1 + 8.2], seed: 25 + sgn, piece });
     // (the cars east of Columbus Drive are this file's: the plough's heap round each is parked.js's)
-    if (ctx.parked) for (const x of PARKED[inner]) if (x > C.x1) ctx.parked(x, inner - sgn * 1.0, sgn, 0, hash(x, sgn, 9) < 0.3 ? { scraped: true } : undefined);
+    if (ctx.parked) for (const x of PARKED[inner]) if (x > C.x1) ctx.parked(x, inner - sgn * 1.0, sgn, 0, { coarse: true, scraped: hash(x, sgn, 9) < 0.3 });
   }
 
   // ----------------------------------------------------------- washboard, heaves, the raised crosswalk
@@ -294,7 +345,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   const washboard = (axis, c0, c1, p0, p1, seed) => {          // across c0..c1, along p0..p1
     const lam = 0.42, A = 0.03, len = p1 - p0, w = c1 - c0;
     const f = (c, p) => { const e = smooth(0, 1.1, p - p0) * smooth(0, 1.1, p1 - p) * smooth(0, 0.5, c - c0) * smooth(0, 0.5, c1 - c); if (e <= 0) return 0; return A * e * (0.55 + 0.45 * vn(p / 1.9, seed)) * (0.5 - 0.5 * Math.cos(2 * Math.PI * (p - p0) / lam + Math.sin(c * 2.1 + seed) * 0.9)); };
-    const na = Math.round(len / (lam / 5)), nc = Math.max(4, Math.round(w / 0.5));
+    const na = Math.round(len / (lam / 5)), nc = 4;
     if (axis === 'z') bump(c0, c1, p0, p1, (x, z) => f(x, z), nc, na, A, 0.86); else bump(p0, p1, c0, c1, (x, z) => f(z, x), na, nc, A, 0.86);
   };
   { const sb = TL.ns.lsd[1], nb = TL.ns.lsd[-1], c1 = TL.ns.col[1][0], c2 = TL.ns.col[-1][0];
@@ -317,15 +368,15 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   heave('x', mz + TL.ew, 344, 3.2, 0.05, 6); heave('x', mz - TL.ew, 402, 3.2, 0.045, 7); heave('x', jz - TL.ew, 330, 3.2, 0.05, 8); heave('x', jz + TL.ew, 418, 3.2, 0.045, 9); heave('x', jz - TL.ew, 196, 3.2, 0.045, 10); heave('x', mz + TL.ew, 176, 3.2, 0.045, 11);
   heave('z', TL.ns.col[1][0], 158, 3.2, 0.045, 12); heave('z', TL.ns.col[-1][0], 66, 3.2, 0.045, 13);
   // Black ice on the bridges over the railway: meltwater frozen again where there is cold air under the road. A sheet in
-  // each lane, the eastbound's the longer; it is ice to the wheels (plan.ice) and a dark mirror to the eye.
+  // the eastbound lane of each (the westbound is always a grippy way across); ice to the wheels (plan.ice), a dark mirror to the eye.
   const iceG = new GeoLite();
-  for (const [zc, s] of [[mz, 1], [jz, -1]]) for (const [x0, x1, c] of [[R.x0 + 0.4, R.x1 - 0.4, zc + TL.ew], [R.x0 + 2.2, R.x1 - 1.6, zc - TL.ew + s * 0.2]]) {
+  for (const zc of [mz, jz]) for (const [x0, x1, c] of [[R.x0 + 0.4, R.x1 - 0.4, zc + TL.ew]]) {
     const z0 = c - 1.45, z1 = c + 1.45, e = 0.7, y = 0.0105;
     (plan.ice || (plan.ice = [])).push({ x0, x1, z0, z1 });
     iceG.quad([x0 - e, y, z0 - e], [x0 - e, y, z1 + e], [x1 + e, y, z1 + e], [x1 + e, y, z0 - e], [0, 1, 0]);
     mask.snow(x0 - 1, x1 + 1, z0 - 0.6, z1 + 0.6, 0.03);
   }
-  signs.push([R.x0 - 9, MO.z1 + 0.75, 'ice', -Math.PI / 2], [R.x1 + 9, MO.z0 - 0.75, 'ice', Math.PI / 2], [R.x0 - 9, JA.z1 + 0.75, 'ice', -Math.PI / 2], [R.x1 + 9, JA.z0 - 0.75, 'ice', Math.PI / 2]);
+  signs.push([R.x0 - 9, MO.z1 + 0.75, 'ice', -Math.PI / 2], [R.x0 - 9, JA.z1 + 0.75, 'ice', -Math.PI / 2]);
   // The raised crosswalk before the east door: a table the height of the kerb, 5.6 m long, a ramp of 1.6 m up to it each way.
   const TABLE = { z0: 107.2, z1: 112.8, ramp: 1.6, h: 0.085, x0: C.x0 + 0.24, x1: C.x1 - 0.24 };
   { const T = TABLE, f = (x, z) => T.h * smooth(T.z0 - T.ramp, T.z0, z) * smooth(T.z1 + T.ramp, T.z1, z);
@@ -348,15 +399,15 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   { const xk = LSD.x1 - 0.5, xl = LSD.x1 - 3.85;                                           // just off the kerb; the lane line
     mask.snow(xl + 0.2, LSD.x1, WORK[0] + 1, WORK[1] - 4, 0.62);
     for (let i = 0; i < 6; i++) drums.push([xk + (xl - xk) * i / 5, WORK[1] - 1 - i * 2.1]);     // the taper, where the northbound traffic meets it
-    for (const z of [151, 147, 143, 139]) drums.push([xl - 0.05, z]);
-    for (const zc of [163.5, 159.4, 155.3]) {
-      const g = barrierGeo(3.7); g.translate(xl, 0, zc); put(hard, g, CONCRETE);
-      const cap = new THREE.BoxGeometry(0.2, 0.05, 3.6); cap.translate(xl, 0.835, zc); rel.addGeometry('snow|LSD-S', cap);
-      plan.surfaces.push({ skin: 'wall', fixed: true, x0: xl - 0.11, x1: xl + 0.11, z0: zc - 1.85, z1: zc + 1.85, axis: null, h0: 0.86, h1: 0.86, base: 0 });      // its top, a rail to ride
-      O.push({ x0: xl - 0.3, x1: xl + 0.3, z0: zc - 1.85, z1: zc + 1.85, y0: 0, y1: 0.78 });
+    for (const z of [150.6, 147, 143, 139]) drums.push([xl - 0.05, z]);
+    for (let i = 0; i < 4; i++) {
+      const LEN = 3.05, zc = 164.2 - i * (LEN + 0.035), b = barrierGeo(LEN, i + 1);
+      put(hard, b.body.translate(xl, 0.004, zc)); rel.addGeometry('snow|bits', b.snow.translate(xl, 0.004, zc));
+      plan.surfaces.push({ skin: 'wall', fixed: true, x0: xl - 0.1, x1: xl + 0.1, z0: zc - LEN / 2, z1: zc + LEN / 2, axis: null, h0: 0.875, h1: 0.875, base: 0 });      // its top, snow and all: a rail to ride
+      O.push({ x0: xl - 0.3, x1: xl + 0.3, z0: zc - LEN / 2, z1: zc + LEN / 2, y0: 0, y1: 0.79 });
     }
     for (const [x0, x1, z0, z1, t] of [[xl + 0.55, xk - 0.25, 156.2, 158.75, 0.026], [xl + 0.65, xk - 0.15, 158.8, 161.35, 0.026], [xl + 0.5, xk - 0.3, 161.4, 163.95, 0.026]]) {
-      const y0 = 0.004, y1 = t + 0.004, g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0); g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); put(hard, g, PLATE);
+      const y0 = 0.004, y1 = t + 0.004, g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0, 4, 1, 4); g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); put(hard, tinted(g, (px, py, pz) => { const k = 0.75 + 0.5 * hash(px * 9, pz * 9, 4); return [PLATE[0] * k * 1.1, PLATE[1] * k, PLATE[2] * k * 0.9]; }));      // (rust, uneven)
       plan.surfaces.push({ skin: 'wall', fixed: true, x0, x1, z0, z1, axis: null, h0: y1, h1: y1, base: 0, roadwork: true });
       mask.snow(x0 - 0.4, x1 + 0.4, z0 - 0.4, z1 + 0.4, 0.2);
     }
@@ -365,8 +416,8 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
       rel.add('snow|LSD-S', range(cx - rx, cx + rx, 0.3), range(cz - rz, cz + rz, 0.3), f, { top: H, lift: 0.012, uv: 3, colour: (x, z, h) => { const q = 0.25 + 0.5 * hash(x * 5, z * 5, 3) * (1 - h / H); return [CLEAN[0] + (0.42 - CLEAN[0]) * q, CLEAN[1] + (0.36 - CLEAN[1]) * q, CLEAN[2] + (0.3 - CLEAN[2]) * q]; } }); }
     signs.push([LSD.x1 + 0.7, WORK[1] + 14, 'work', 0], [LSD.x1 + 0.7, WORK[1] + 40, 'workahead', 0]);      // (northbound traffic meets them coming up from the south)
   }
-  { const dg = drumGeo(), M4 = new THREE.Matrix4(), cap = new THREE.SphereGeometry(0.255, 14, 5, 0, Math.PI * 2, 0, Math.PI / 2); cap.scale(1, 0.3, 1);
-    for (const [x, z] of drums) { solid(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 1.0); put(hard, dg, null, M4.makeRotationY(hash(x, z, 1) * 6.28).setPosition(x, 0.004, z)); const c = cap.clone(); c.translate(x, 1.02, z); rel.addGeometry('snow|LSD-S', c); } }
+  { const dg = drumGeo(), M4 = new THREE.Matrix4();
+    for (const [x, z] of drums) { solid(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 0.97); M4.makeRotationY(hash(x, z, 1) * 6.28).setPosition(x, 0.004, z); put(hard, dg.body, null, M4); rel.addGeometry('snow|bits', dg.snow.clone().applyMatrix4(M4)); } }
 
   // ------------------------------------------------------------------------------------------- signs
   // [x, z, which, yaw]: a plate on a steel post, facing the traffic it is for (yaw 0 faces +z, towards northbound cars).
@@ -378,11 +429,18 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
     const sheet = plateSheet(KINDS), faces = [];
     for (const [x0, z0, kind, yaw] of signs) {
       let x = x0, z = z0; for (let k = 0; k < 4 && blocked(x, z, 0.35); k++) { x += Math.abs(Math.sin(yaw)) * 1.6; z += Math.abs(Math.cos(yaw)) * 1.6; }
-      const [, { diamond }, w, h] = KINDS[kind], top = 2.75, cy = top - h / 2 - 0.05, fx = Math.sin(yaw), fz = Math.cos(yaw), [u0, v0, du, dv] = sheet.cell[kind];
-      const post = new THREE.CylinderGeometry(0.03, 0.03, top, 8, 1, true); post.translate(x, top / 2, z); put(hard, post, ZINC);
+      const [, { diamond }, w, h] = KINDS[kind], top = 2.75, cy = top - h / 2 - 0.05, [u0, v0, du, dv] = sheet.cell[kind];
+      const M4 = new THREE.Matrix4().makeRotationY(yaw).setPosition(x, 0, z), local = g => g.applyMatrix4(M4);          // (built facing +z, then turned and stood in its place)
+      put(hard, local(new THREE.BoxGeometry(0.05, top, 0.05).translate(0, top / 2, 0)), ZINC);                                // a square steel post
+      put(hard, local(new THREE.CylinderGeometry(0.075, 0.09, 0.07, 8).translate(0, 0.035, 0)), CONCRETE);                    // in its collar of concrete
+      for (const dy of [-h * 0.22, h * 0.22]) put(hard, local(new THREE.BoxGeometry(0.09, 0.035, 0.05).translate(0, cy + dy, 0.03)), DARK);      // the two brackets the plate is bolted to
       const face = new THREE.PlaneGeometry(w, h), uv = face.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * du, v0 + uv.getY(i) * dv);
-      face.rotateY(yaw); face.translate(x + fx * 0.036, cy, z + fz * 0.036); faces.push(face);
-      const back = new THREE.PlaneGeometry(w * (diamond ? 0.68 : 0.76), h * (diamond ? 0.68 : 0.95)); if (diamond) back.rotateZ(Math.PI / 4); back.rotateY(yaw + Math.PI); back.translate(x + fx * 0.03, cy, z + fz * 0.03); put(hard, back, ZINC);
+      faces.push(local(face.translate(0, cy, 0.058)));
+      const back = new THREE.PlaneGeometry(w * (diamond ? 0.68 : 0.76), h * (diamond ? 0.68 : 0.95)); if (diamond) back.rotateZ(Math.PI / 4); back.rotateY(Math.PI); put(hard, local(back.translate(0, cy, 0.054)), ZINC);
+      // snow where it lodges: along the top edge (the two upper edges of a diamond), and a cap on the post
+      const bar = (len, bx, by, rz) => { const g = new THREE.CylinderGeometry(0.019, 0.019, len, 6); g.scale(1, 1, 1.5); g.rotateZ(Math.PI / 2 + rz); g.translate(bx, cy + by, 0.056); rel.addGeometry('snow|bits', local(g)); };
+      if (diamond) { for (const sx of [-1, 1]) bar(w * 0.36, sx * w * 0.17, h * 0.335, -sx * Math.PI / 4); } else bar(w * 0.74, 0, h * 0.475, 0);
+      rel.addGeometry('snow|bits', local(new THREE.SphereGeometry(0.036, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, top, 0)));
       solid(x - 0.04, x + 0.04, z - 0.04, z + 0.04, top);
     }
     if (faces.length) signFaces = add(new THREE.Mesh(mergeGeometries(faces), winterRoad(new THREE.MeshStandardMaterial({ map: sheet.map, roughness: 0.6, emissiveMap: sheet.map, emissive: new THREE.Color(0.3, 0.3, 0.3), emissiveIntensity: 1, alphaTest: 0.5 }))));
@@ -394,7 +452,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   const roadPiece = add(rel.mesh('road', asphaltMaterial()));
   // (the poles and the rest, glowing a little with their own colour as everything out here does, so the drums read orange in the dark)
   const hardM = winterRoad(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.2, emissive: 0xffffff, emissiveIntensity: 0.2 }));
-  hardM.onBeforeCompile = (prev => (sh, r) => { prev(sh, r); sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;'); })(hardM.onBeforeCompile); hardM.customProgramCacheKey = () => 'winter-hard';
+  hardM.onBeforeCompile = (prev => (sh, r) => { prev(sh, r); sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n{ vec3 wn = inverseTransformDirection(normal, viewMatrix); float form = clamp(0.5 + 0.34 * wn.y + 0.3 * normal.z, 0.12, 1.2); totalEmissiveRadiance *= vColor.rgb * form; diffuseColor.rgb *= 0.6 + 0.4 * form; }'); })(hardM.onBeforeCompile); hardM.customProgramCacheKey = () => 'winter-hard2';      // (round things read round: brighter above and face on, darker under and at the edge)
   const hardMesh = hard.length ? add(new THREE.Mesh(mergeGeometries(hard), hardM)) : null;
   if (lenses.length) add(new THREE.Mesh(mergeGeometries(lenses), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })));
   let iceMesh = null;
@@ -403,7 +461,8 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
     iceMesh = add(new THREE.Mesh(iceG.build(), winterRoad(im))); iceMesh.renderOrder = -1; }
 
   // The map, the mirror, and (below, once everything is built) the road meshes kept out of their own reflection (reflect.js).
-  ROAD.tRoadMask.value = mask.texture(); ROAD.uRoadK.value.set(1, 0.6, 0, 0);
+  ROAD.tRoadMask.value = mask.texture(); ROAD.uRoadK.value.set(1, 0.72, 0, 0);
+  ROAD.tRoadSnow.value = museum.snowTex; ROAD.tRoadDrift.value = plaster(); ROAD.tRoadDrift.value.wrapS = ROAD.tRoadDrift.value.wrapT = THREE.RepeatWrapping;
   const mirror = museum.mirror;
   if (mirror) { ROAD.tRoadRefl.value = mirror.rt.texture; ROAD.roadReflM.value = mirror.matrix; ROAD.roadReflOn = mirror.strength; ROAD.roadReflY = mirror.level; }
   const asphalt = asphaltMaterial(), hideRoads = root => root.traverse(o => { if (o.isMesh && o.material === asphalt && !museum.floors.includes(o)) museum.floors.push(o); });

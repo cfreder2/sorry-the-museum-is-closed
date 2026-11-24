@@ -410,6 +410,7 @@ export function slatMaterial() { return once('slat', () => { const t = woodMap()
 // Nothing runs per frame. With no map set (ROAD.uRoadK.x = 0) every material looks as it did.
 export const ROAD = {
   tRoadMask: { value: null }, tRoadGrain: { value: null }, uRoadBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uRoadK: { value: new THREE.Vector4(0, 1, 0, 0) },
+  tRoadSnow: { value: null }, tRoadDrift: { value: null },      // the ground's own snow texture and its drifts (museum.js, finish.js), so that snow on the road is the same snow
   tRoadRefl: { value: null }, roadReflM: { value: new THREE.Matrix4() }, roadReflOn: { value: 0 }, roadReflY: { value: 0 },
 };
 // Three channels of tileable noise, 256 px: broad, middling and fine.
@@ -424,15 +425,17 @@ function roadGrain() {
 const ROAD_GLSL = `
 uniform sampler2D tRoadMask; uniform sampler2D tRoadGrain; uniform vec4 uRoadBox; uniform vec4 uRoadK; varying vec3 vRoadW;
 vec4 roadMaskAt() { return texture2D(tRoadMask, (vRoadW.xz - uRoadBox.xy) * uRoadBox.zw); }
-vec3 roadLampOf(vec4 rm) { return (rm.r * rm.r * vec3(1.0, 0.57, 0.22) + rm.g * rm.g * vec3(1.0, 0.86, 0.68)) * uRoadK.y * (1.0 - smoothstep(4.0, 9.0, vRoadW.y)); }
-// How much snow lies here (x) and how much slush at its edge (y); z and w are grain for whoever wants it. The grain is
-// drawn out along the road (the map's fourth channel says which way it runs): snow on a road lies in streaks.
-vec4 roadSnowOf(vec4 rm) {
+vec3 roadLampOf(vec4 rm) { return (rm.r * rm.r * vec3(1.0, 0.62, 0.3) + rm.g * rm.g * vec3(1.0, 0.86, 0.68)) * uRoadK.y * (1.0 - smoothstep(4.0, 9.0, vRoadW.y)); }
+// What lies here: x snow you cannot see the road through; y slush, the snow thinning out to a grey film at its edge
+// (it runs on under the snow); z the dark wet rim of meltwater round that. grain: two grains for whoever wants
+// them. The grain is drawn out along the road (the map's fourth channel says which way it runs): snow on a road lies
+// in streaks.
+vec3 roadSnowOf(vec4 rm, out vec2 grain) {
   vec2 q = mix(vRoadW.xz, vRoadW.zx, step(0.5, rm.a));
   vec3 g1 = texture2D(tRoadGrain, q * vec2(0.21, 0.023)).rgb, g2 = texture2D(tRoadGrain, q * vec2(0.134, 0.0171) + 0.37).rgb, g3 = texture2D(tRoadGrain, vRoadW.xz * 0.61).rgb;
-  float cover = rm.b + (g1.r - 0.5) * 0.5 + (g2.g - 0.5) * 0.34 + (g3.b - 0.5) * 0.2;
-  float sn = smoothstep(0.52, 0.58, cover) * uRoadK.x;
-  return vec4(sn, smoothstep(0.36, 0.52, cover) * (1.0 - sn) * uRoadK.x, g2.b * 0.6 + g3.g * 0.4, g1.g * 0.5 + g2.r * 0.5);
+  float cover = rm.b + (g1.r - 0.5) * 0.5 + (g2.g - 0.5) * 0.34 + (g3.b - 0.5) * 0.16;
+  grain = vec2(g2.b * 0.6 + g3.g * 0.4, g1.g * 0.5 + g2.r * 0.5);
+  return vec3(smoothstep(0.545, 0.64, cover), smoothstep(0.43, 0.575, cover), smoothstep(0.34, 0.44, cover) * (1.0 - smoothstep(0.47, 0.57, cover))) * uRoadK.x;
 }`;
 // kind: 'road' the asphalt itself; 'mark' paint and marks lying on it (they fade under snow); 'lit' anything else the lamps shine on;
 // 'bank' ploughed snow: lit, and broken into the clods and crusts a plough throws up.
@@ -447,33 +450,40 @@ export function winterRoad(mat, kind = 'lit') {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vRoadW;\nuniform mat4 roadReflM;\nvarying vec4 vRoadRefl;')
       .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 rw = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nrw = instanceMatrix * rw;\n#endif\nrw = modelMatrix * rw; vRoadW = rw.xyz; vRoadRefl = roadReflM * rw; }');
-    let f = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + ROAD_GLSL + '\nuniform sampler2D tRoadRefl; uniform float roadReflOn; uniform float roadReflY; varying vec4 vRoadRefl;');
+    let f = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + ROAD_GLSL + '\nuniform sampler2D tRoadRefl; uniform sampler2D tRoadSnow; uniform sampler2D tRoadDrift; uniform float roadReflOn; uniform float roadReflY; varying vec4 vRoadRefl;');
     if (kind === 'lit') f = f.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * roadLampOf(roadMaskAt());');
     if (kind === 'bank') f = f
       .replace('#include <map_fragment>', '#include <map_fragment>\nfloat rdClod = 0.66 + 0.62 * (texture2D(tRoadGrain, vRoadW.xz * 0.47).b * 0.55 + texture2D(tRoadGrain, vRoadW.zx * 1.83 + vRoadW.y * 0.9).g * 0.45); rdClod = mix(1.0, rdClod, uRoadK.x); diffuseColor.rgb *= rdClod;')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= rdClod; totalEmissiveRadiance += diffuseColor.rgb * roadLampOf(roadMaskAt());');
     if (kind === 'mark') f = f
-      .replace('#include <map_fragment>', '#include <map_fragment>\nvec4 rdM = roadMaskAt(); vec4 rdS = roadSnowOf(rdM); diffuseColor.a *= 1.0 - rdS.x * 0.92;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\nvec4 rdM = roadMaskAt(); vec2 rdG; vec3 rdS = roadSnowOf(rdM, rdG); diffuseColor.a *= 1.0 - max(rdS.x, rdS.y * 0.55) * 0.94;')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * roadLampOf(rdM);');
     if (kind === 'road') f = f
       .replace('#include <map_fragment>', `#include <map_fragment>
-        vec4 rdM = roadMaskAt(); vec4 rdS = roadSnowOf(rdM);
-        float rdWet = (1.0 - rdS.x) * clamp(0.3 + rdS.y * 0.9 + (rdS.w - 0.5) * 1.5, 0.0, 1.0) * uRoadK.x;
-        float rdSalt = smoothstep(0.52, 0.8, rdS.z + (0.5 - rdS.w) * 0.7) * (1.0 - rdS.x) * (1.0 - rdWet) * uRoadK.x;
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.17, 0.18, 0.195), rdSalt * 0.34);
-        diffuseColor.rgb *= 1.0 - 0.4 * rdWet;
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.1, 0.092, 0.085) * (0.7 + rdS.z * 0.6), rdS.y * 0.8);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.34, 0.365, 0.42) * (0.62 + rdS.w * 0.5 + rdS.z * 0.28), rdS.x * 0.95);`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(mix(roughnessFactor, 0.16, rdWet * 0.9), 0.96, rdS.x);')
-      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(normal, nonPerturbedNormal, clamp(rdS.x * 0.75 + rdWet * 0.45, 0.0, 1.0)));')
+        vec4 rdM = roadMaskAt(); vec2 rdG; vec3 rdS = roadSnowOf(rdM, rdG);
+        float rdCov = max(rdS.x, rdS.y * 0.8);                       // how much of what shows is snow or slush
+        float rdWet = (1.0 - rdS.x) * clamp(0.3 + rdS.z * 0.8 + rdS.y * 0.3 + (rdG.y - 0.5) * 1.5, 0.0, 1.0) * uRoadK.x;
+        float rdSalt = smoothstep(0.52, 0.8, rdG.x + (0.5 - rdG.y) * 0.7) * (1.0 - rdCov) * (1.0 - rdWet) * uRoadK.x;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.13, 0.134, 0.14), rdSalt * 0.3);                       // salt: a neutral grey bloom on what is dry
+        diffuseColor.rgb *= 1.0 - 0.4 * rdWet - 0.3 * rdS.z;                                                    // wet is darker, and darkest in the rim round the snow
+        vec3 rdSnowC = texture2D(tRoadSnow, vRoadW.xz * 0.15).rgb * (0.94 + 0.06 * rdG.x);                      // the ground's own snow
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.115, 0.118, 0.125), rdSnowC * 0.6, rdS.y), rdS.y * 0.8);      // slush: a grey film, lighter and thicker towards the snow
+        diffuseColor.rgb = mix(diffuseColor.rgb, rdSnowC, rdS.x);`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(mix(roughnessFactor, 0.16, rdWet * 0.9), 1.0, rdCov);')
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(normal, nonPerturbedNormal, clamp(rdCov + rdWet * 0.45, 0.0, 1.0)));')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        totalEmissiveRadiance = mix(totalEmissiveRadiance, diffuseColor.rgb * vec3(0.25, 0.3, 0.45) * 0.9, rdS.x);
-        totalEmissiveRadiance += (diffuseColor.rgb * mix(2.3, 1.25, rdS.x) + 0.022 * (1.0 - rdS.x)) * roadLampOf(rdM);`)
+        totalEmissiveRadiance = mix(totalEmissiveRadiance, diffuseColor.rgb * vec3(0.2, 0.25, 0.4) * 0.55, rdCov);      // (the glow the ground's snow has: museum.js)
+        { vec3 lc = roadLampOf(rdM), grey = vec3(dot(lc, vec3(0.3, 0.5, 0.2)));
+          // On snow the lamp's colour is the lamp's; the dark road takes less of the tint (wet asphalt under sodium is grey-brown, not orange).
+          totalEmissiveRadiance += mix((diffuseColor.rgb * 2.2 + 0.03) * mix(grey, lc, 0.6), diffuseColor.rgb * lc, rdCov); }`)
       .replace('#include <opaque_fragment>', `{
           vec2 ruv = vRoadRefl.xy / vRoadRefl.w + (normal.xy - nonPerturbedNormal.xy) * 0.035;
-          float fres = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 3.0);
+          float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), fres = pow(1.0 - ndv, 3.0);
           vec3 rc = texture2D(tRoadRefl, ruv, 1.4).rgb * 0.5 + texture2D(tRoadRefl, ruv + vec2(0.0, 0.014), 2.6).rgb * 0.3 + texture2D(tRoadRefl, ruv - vec2(0.0, 0.03), 3.4).rgb * 0.2;
           outgoingLight += min(rc, vec3(3.0)) * (0.03 + 0.62 * fres) * rdWet * roadReflOn * (1.0 - step(0.08, abs(vRoadW.y - roadReflY)));
+          // Snow on the road is the snow beside it: the same drifts over it and the same sheen of the moon at a glance (finish.js snowLook).
+          float dr = texture2D(tRoadDrift, vRoadW.xz * 0.037).r * 0.55 + texture2D(tRoadDrift, vRoadW.xz * 0.011 + 0.31).r * 0.45;
+          outgoingLight = mix(outgoingLight, outgoingLight * 0.93 * (1.0 + (dr - 0.5) * 3.2) + vec3(0.13, 0.18, 0.32) * pow(1.0 - ndv, 4.0) * 0.55, rdCov);
         }
         #include <opaque_fragment>`);
     sh.fragmentShader = f;
