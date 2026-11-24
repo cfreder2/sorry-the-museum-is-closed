@@ -39,3 +39,4 @@ import './93900-man-in-costume.js';   // 216  Fragonard, Portrait of a Man in Co
 import './144969-palm-house.js';       // 221  Blechen, The Interior of the Palm House on the Pfaueninsel: dapple
 import './57051-the-fountains.js';     // 218  Robert, The Fountains: pour
 import './16298-jean-gros.js';        // 202  van der Weyden, Portrait of Jean Gros: thanks
+import './14574-uncle-and-niece.js';   // 226  Degas, Henri Degas and His Niece Lucie Degas: rustle
