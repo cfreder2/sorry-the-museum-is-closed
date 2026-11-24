@@ -1734,9 +1734,9 @@ export class Museum {
 
   _kit(surfaces, group, extras) {
     const { plan } = this;
-    const ply = new Geo(), stone = new Geo(), carpet = new Geo(), crate = new Geo(), wood = new Geo(), steel = new Geo();
+    const stone = new Geo(), carpet = new Geo(), crate = new Geo(), wood = new Geo(), steel = new Geo();
     const led = new Geo(), arrows = new Geo(), track = new Geo(), trackArrows = new Geo(), rail = new Geo(), wire = new Geo(), gold = new Geo();
-    const poolG = new Geo(), snowG = new Geo(), coping = new Geo(), lane = new Geo(), chrome = new Geo();
+    const lane = new Geo(), chrome = new Geo();
     const n3 = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
     const hungFrom = (x, y, z) => Math.min(ceilingAt(plan, x, z, y), y + 20);      // what a wire goes up to: the ceiling, or the underside of a bridge
 
@@ -1771,37 +1771,20 @@ export class Museum {
         poolList.push(s); continue;
       }
       if (s.skin === 'track') {
-        const isTrack = s.skin === 'track', isPool = s.skin === 'pool', isSnow = s.skin === 'snow', run = s.axis || s.run || 'x';
+        const run = s.axis || s.run || 'x';
         // Curves are cut into slices; straight pieces are one slab.
-        const n = s.curve || s.ease ? 14 : 1, geo = isTrack ? track : isPool ? poolG : isSnow ? snowG : ply;
+        const n = s.curve || s.ease ? 14 : 1;
         for (let i = 0; i < n; i++) {
           const a = i / n, b = (i + 1) / n;
           const rx0 = run === 'x' ? x0 + (x1 - x0) * a : x0, rx1 = run === 'x' ? x0 + (x1 - x0) * b : x1;
           const rz0 = run === 'z' ? z0 + (z1 - z0) * a : z0, rz1 = run === 'z' ? z0 + (z1 - z0) * b : z1;
-          const { top } = slab(geo, s, rx0, rx1, rz0, rz1, isTrack ? run : null);
-          // Light down both edges: a strip on plywood, a proper lip on track.
-          const lipH = isTrack ? 0.06 : 0.03, edges = run === 'x' ? [[0, 1, 0.012], [3, 2, -0.012]] : [[0, 3, 0.012], [1, 2, -0.012]];
-          if (!isSnow && !s.floor) for (const [i0, i1, off] of edges) {
+          const { top } = slab(track, s, rx0, rx1, rz0, rz1, run);
+          // A proper lip down both edges of the track (lit, where it hangs).
+          const lipH = 0.06, edges = run === 'x' ? [[0, 1, 0.012], [3, 2, -0.012]] : [[0, 3, 0.012], [1, 2, -0.012]];
+          for (const [i0, i1, off] of edges) {
             const p0 = top(i0), p1 = top(i1);
             if (run === 'x') { p0[2] += off; p1[2] += off; } else { p0[0] += off; p1[0] += off; }
-            (s.perch ? gold : isPool ? coping : isTrack && !s.lip ? rail : led).quad(p0, p1, [p1[0], p1[1] + lipH, p1[2]], [p0[0], p0[1] + lipH, p0[2]], run === 'x' ? [0, 0, 1] : [1, 0, 0]);
-          }
-          // Arrows running uphill on anything that slopes.
-          if (s.axis && !isTrack && !isPool && !isSnow) {
-            const up = h1 > h0, e = 0.014, t = [0, 1, 2, 3].map(k => { const q = top(k); q[1] += e; return q; });
-            const m = (run === 'x' ? z1 - z0 : x1 - x0) * 0.18, L0 = (run === 'x' ? rx0 : rz0) / 0.55, L1 = (run === 'x' ? rx1 : rz1) / 0.55;
-            if (run === 'x') { t[0][2] += m; t[1][2] += m; t[2][2] -= m; t[3][2] -= m; arrows.quad(t[0], t[1], t[2], t[3], [0, 1, 0], up ? [[0, L0], [0, L1], [1, L1], [1, L0]] : [[0, -L0], [0, -L1], [1, -L1], [1, -L0]]); }
-            else { t[0][0] += m; t[3][0] += m; t[1][0] -= m; t[2][0] -= m; arrows.quad(t[0], t[1], t[2], t[3], [0, 1, 0], up ? [[0, L0], [1, L0], [1, L1], [0, L1]] : [[0, -L0], [1, -L0], [1, -L1], [0, -L1]]); }
-          }
-        }
-        // Scaffolding: a tube down to the ground under every few planks, and a rail.
-        if (s.posts) {
-          const along = run === 'x' ? x1 - x0 : z1 - z0, count = Math.max(2, Math.round(along / 2.2) + 1);
-          for (let i = 0; i < count; i++) for (const side of [0, 1]) {
-            const t = i / (count - 1);
-            const wx = run === 'x' ? x0 + (x1 - x0) * t : (side ? x1 - 0.04 : x0 + 0.04), wz = run === 'z' ? z0 + (z1 - z0) * t : (side ? z1 - 0.04 : z0 + 0.04);
-            const y = heightOf(s, Math.min(x1, Math.max(x0, wx)), Math.min(z1, Math.max(z0, wz)));
-            if (y > 0.3) steel.box(wx - 0.03, wx + 0.03, 0, y + 0.02, wz - 0.03, wz + 0.03);
+            (s.perch ? gold : !s.lip ? rail : led).quad(p0, p1, [p1[0], p1[1] + lipH, p1[2]], [p0[0], p0[1] + lipH, p0[2]], run === 'x' ? [0, 0, 1] : [1, 0, 0]);
           }
         }
         // Hung from the ceiling on wires.
@@ -1894,14 +1877,13 @@ export class Museum {
 
     const D = THREE.DoubleSide;
     const std = (o) => new THREE.MeshStandardMaterial({ side: D, ...o });
-    const plyTex = TX.plywood(), trackTex = TX.track(), crateTex = TX.crate();
+    const trackTex = TX.track(), crateTex = TX.crate();
     const put = (geo, mat) => { if (!geo.empty) { const m = geo.mesh(mat); group.add(m); return m; } };
     // The plywood kit: its sheets, its framing and side panels, its steel, the chevrons painted on it and its stencils.
     const KM = KL.kitMaterials(), kg = { top: new KL.KGeo(), frame: new KL.KGeo(), steel: new KL.KGeo(), arrows, stencil: new Geo() };
     KL.plyPieces(plan, plyList, kg);
     put(kg.top, KM.ply); put(kg.frame, KM.frame); put(kg.steel, KM.steel);
     { const m = put(kg.stencil, KM.stencil); if (m) m.renderOrder = 6; }
-    void ply; void plyTex;
     put(stone, std({ color: 0xb7b0a3, roughness: 0.5, emissive: 0x39424f, emissiveIntensity: 0.22 }));
     put(carpet, std({ color: 0x7a1218, roughness: 0.95, emissive: 0x3a0508, emissiveIntensity: 0.3 }));
     put(crate, std({ map: crateTex, roughness: 0.85, emissiveMap: crateTex, emissive: 0x80705a, emissiveIntensity: 0.16 }));
@@ -1912,8 +1894,6 @@ export class Museum {
     const tile = TX.poolTile();
     if (poolList.length) { const pg = new KL.KGeo(); KL.poolPieces(plan, poolList, pg); put(pg, KL.poolMaterial(tile, plan.pool ? plan.pool.lip : 1.7)); }
     if (snowList.length) { const m = new THREE.Mesh(KL.snowGeometry(snowList), KL.snowKitMaterial(this.snowTex)); m.matrixAutoUpdate = false; group.add(m); }
-    void poolG; void snowG;
-    put(coping, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.97, 1.0), side: D }));
     put(lane, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.008, 0.014, 0.03), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     put(chrome, std({ color: 0xd8dde2, roughness: 0.2, metalness: 0.8, emissive: 0x596270, emissiveIntensity: 0.6 }));
     put(rail, std({ color: 0xc8501a, roughness: 0.5, emissive: 0xc8501a, emissiveIntensity: 0.35 }));
