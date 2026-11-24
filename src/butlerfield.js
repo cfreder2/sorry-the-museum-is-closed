@@ -6,10 +6,12 @@
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { heightOf } from './plan.js';
+import { parkLamps, parkSeats } from './land.js';
 import { TAU, C, Bulbs, Wire, canvasTex, lit, signBoard, mergeAll } from './glowkit.js';
 import { ParkFurniture } from './streetscape.js';
 import './ballpark.js';           // the north-west diamond is a lit ballpark with a wall and a Home Run Derby (ballpark.js)
-import './warminghut.js';         // the warming hut by Jackson Drive, between the two southern diamonds: drive in and warm up (warminghut.js)
+import './parkkit.js';            // snow fences, what pokes through the snow, and tracks across it (parkkit.js)
+import './warminghut.js';      // the warming hut by Jackson Drive, between the two southern diamonds: drive in and warm up (warminghut.js)
 
 // ---------------------------------------------------------------- the feature
 feature({
@@ -170,10 +172,7 @@ feature({
   // Park lamps down both sides of the paths, benches and bins between them, and the field's sign.
   _paths(k) {
     const O = k.plan.obstacles, g = this.g, B = this.bulbs, F = this.F;
-    const lamps = [];
-    for (let z = F.z0 + 12; z < F.z1 - 8; z += 22) lamps.push([z % 44 < 22 ? 384.6 : 389.4, z]);
-    for (let x = F.x0 + 14; x < F.x1 - 6; x += 22) { if (Math.abs(x - 387) < 4) continue; lamps.push([x, x % 44 < 22 ? 107.6 : 112.4]); }
-    for (let x = 334; x < 384; x += 22) lamps.push([x, 211.6]);
+    const lamps = parkLamps(F);                       // (where they stand is the land's business too: the drifts keep clear of them, land.js)
     const n = lamps.length;
     const postG = new THREE.CylinderGeometry(0.05, 0.07, 3.6, 8); postG.translate(0, 1.8, 0);
     const posts = new THREE.InstancedMesh(postG, lit(0x1c2126, { metalness: 0.5, roughness: 0.4 }), n);
@@ -186,16 +185,13 @@ feature({
       O.push({ x0: x - 0.07, x1: x + 0.07, z0: z - 0.07, z1: z + 0.07, y0: 0, y1: 3.7 });
     });
     for (const m of [posts, globes, pools]) m.frustumCulled = false; pools.renderOrder = 4;
+    if (k.museum.snowfield) k.museum.snowfield.lampLight(lamps, 5, pools.material.color);      // (the same light on the banks and drifts that stand up through those discs: snowfield.js)
     g.add(posts, globes, pools);
     // benches and bins between the lamps, facing the path
-    lamps.forEach(([x, z], i) => {
-      if (i % 2) return;
-      const alongZ = Math.abs(x - 387) < 4, bx = alongZ ? x + (x < 387 ? -0.9 : 0.9) : x + 6, bz = alongZ ? z + 6 : z + (z < 110 ? -0.9 : 0.9);
-      if (bx > 300 && bx < 384 && bz < 106 && bz > -20) return;        // not in the light show
-      if (bx > 298 && bx < 332 && bz > 99 && bz < 118) return;           // nor in front of its way in
+    for (const [bx, bz, alongZ, x, z] of parkSeats(lamps)) {
       if (alongZ) this.PF.bench(bx, 0, bz, x < 387 ? 1 : -1, 0); else this.PF.bench(bx, 0, bz, 0, z < 110 ? 1 : -1);
       this.PF.bin(alongZ ? bx : bx + 1.4, 0, alongZ ? bz + 1.4 : bz);
-    });
+    }
     // the field's own sign, where the paths cross
     { const s = signBoard(2.6, 0.9, [['BUTLER FIELD', 92, '#f4ecd0', 0.42], ['GRANT PARK', 40, '#b9d9b0', 0.76]], '#12301e'); s.position.set(391.5, 1.5, 106); s.rotation.y = Math.PI / 4; g.add(s);
       for (const d of [-1.1, 1.1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2, 6), lit(0x1c2126)); p.position.set(391.5 + d * 0.707, 1.0, 106 - d * 0.707); g.add(p); } O.push({ x0: 390.5, x1: 392.5, z0: 105, z1: 107, y0: 0, y1: 2 }); }

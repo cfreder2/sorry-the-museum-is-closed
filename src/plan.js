@@ -1534,7 +1534,7 @@ function addLie(plan) {
     if (mw.length) rect({ x0: Math.min(...mw.map(m => m.x0)) - 9, x1: Math.max(...mw.map(m => m.x1)) + 9, z0: G.monroe.z1, z1: Math.max(...mw.map(m => m.z1)) + 9 }); }
   for (const q of LIE_FLAT) rect({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] });
   { const s = G.silo; if (s) { if (s.x0 != null) rect(s, 2); else if (s.x != null) { const h = (s.half || (s.size || s.w || 32) / 2) + 2; rect({ x0: s.x - h, x1: s.x + h, z0: s.z - h, z1: s.z + h }); } } }     // a silo in the ball field's centre field, if there is one
-  plan.land = buildLand(B, open, flat);
+  plan.land = buildLand(B, open, flat, { paths: [...G.paths, ...(L ? L.paths : [])], hedges: G.hedges, trees: G.trees, field: L && L.field });      // (the last: what the wind's drifts lie against, land.js)
 }
 
 // ------------------------------------------------------------------ the roofs --
