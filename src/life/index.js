@@ -40,3 +40,4 @@ import './144969-palm-house.js';       // 221  Blechen, The Interior of the Palm
 import './57051-the-fountains.js';     // 218  Robert, The Fountains: pour
 import './16298-jean-gros.js';        // 202  van der Weyden, Portrait of Jean Gros: thanks
 import './14574-uncle-and-niece.js';   // 226  Degas, Henri Degas and His Niece Lucie Degas: rustle
+import './14591-woman-reading.js';   // 201  Manet, Woman Reading: leaf
