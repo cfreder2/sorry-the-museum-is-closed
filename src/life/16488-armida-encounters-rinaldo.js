@@ -41,11 +41,18 @@
 // its two companions either side of it. From a lower eye (the toy's) the mantle and the veil would cross the picture,
 // so from there they lie down along the cloud's back instead; the kit's guard is there for every camera, and from the
 // look it has nothing to cut at any moment of the show (checked every fifth of a second). Nothing is solid, and
-// nothing stays out after the look. Three draw calls: the ground (one flat mesh, one shader:
-// water, banks, shade), the things (one mesh, moved and painted on the processor: shield, wheel, rock, stones,
-// reeds, mantle, veil) and the cloud (soft round dabs in one instanced mesh, sorted far to near). The shield and the
-// wheel are painted, not lit: the shield shows a little picture of what is round it (sky, haze, the cloud, the
-// orange), worked out for each point of its face from where the eye is.
+// nothing stays out after the look.
+//
+// Three draw calls: the ground (one flat mesh, one shader), the things (one mesh, moved and painted on the
+// processor: shield, wheel, rock, stones, reeds, mantle, veil) and the cloud (soft round dabs in one instanced mesh,
+// sorted far to near; they part round the shield when it is taken, so none stands through its face). All of it is
+// painted, not lit. The water is his: dark green-brown glass with the sky's pale blue lying in it in long soft
+// touches, no brim, and no mirror: what it holds (the far bank and the reeds, the cloud upside down with its smoke,
+// the orange, the wheel's gold ring) is laid in by the shader where a mirror would put it for the eye, so nothing of
+// the room is in it; the wind breaks those images up and in the hush they come back whole. The shield is steel in
+// broad strokes: a cool dark field, one soft sweep of sky light on the side his light is, the boss and the rim a
+// few warm touches. The mantle is crumpled silk, apricot and rose, warm in the hollows of a few big broken folds
+// with a sharp light on their tops; the veil is a twist of gauze you can half see through.
 // With "Reduce motion and flashing" on: the wind is half as strong and its sound lower, nothing flutters, the shield
 // tips over once, slowly, without a rattle (the cloud is under it in good time), and the first notes are eased in.
 //
@@ -85,10 +92,15 @@ const ROLLED = (ARC.o - ARC.from + ARC.r * Math.PI / 2) / SH_R;      // how far 
 const LEAN = 74 * DEG, FLAT = 21 * DEG;            // how it stands against the rock; how low it has got when it is caught
 const TURNS = 2;                                   // times round as it goes down (one, with motion reduced)
 const WH_R = 0.22, WHEEL = [-0.5, 0.225, 0.29];    // the wheel: its radius, and where it rides in the cloud
-const M_AT = [-0.24, 0.38, -0.03], V_AT = [-0.36, 0.42, -0.07];      // where the mantle and the veil are made fast
-const M_LEN = 0.45, M_W = 0.3, V_LEN = 1.05, V_W = 0.034;
-const MS = 16, MW = 15, VS = 32, VW = 3;            // the cloths' grids
+const M_AT = [-0.22, 0.38, -0.03], V_AT = [-0.36, 0.42, -0.07];      // where the mantle and the veil are made fast
+const M_LEN = 0.43, M_W = 0.26, V_LEN = 1.05, V_W = 0.034;
+const MS = 22, MW = 21, VS = 40, VW = 5;            // the cloths' grids
 const NP = 168;                                    // dabs of cloud, at most
+// the reeds' tufts: [along, out, blades, length, spread]
+const TUFTS = [[0.3, 0.33, 9, 0.44, 0.13], [1.05, 0.4, 6, 0.4, 0.1], [-1.3, 0.17, 7, 0.4, 0.2], [-0.28, 0.15, 5, 0.3, 0.12], [0.5, 0.6, 4, 0.26, 0.06]];
+// the cloud's masses, in its own measure (x the way it is going, y up, z across): middle, half sizes, how light (for
+// the dabs, and for its image in the water)
+const MASS = [[-0.05, 0.23, 0, 0.52, 0.25, 0.36, 0.5], [-0.22, 0.33, -0.04, 0.3, 0.18, 0.26, 0.55], [0.4, 0.15, 0.03, 0.33, 0.15, 0.3, 0.63], [-0.6, 0.16, 0.05, 0.33, 0.16, 0.28, 0.14]];
 
 // Jean-Baptiste Lully, Armide (1686), Act II scene 3, the prelude to "Plus j'observe ces lieux" (Lentement, "il faut
 // jouer ceci avec des sourdines"), bars 1 to 20, from Nicolas Sceaux's edition of the 1686 print (the nenuvar
@@ -114,7 +126,9 @@ function merged(list) {
   return out;
 }
 // The shield, lying face up (its face towards +y): a shallow polished dome with a gilt boss, a rolled rim, a plain back.
-const SHIELD_PROF = [[0.0004, 0.046], [0.016, 0.045], [0.032, 0.041], [0.046, 0.034], [0.054, 0.027], [0.059, 0.0255], [0.085, 0.0225], [0.115, 0.017], [0.14, 0.011], [0.155, 0.0065], [0.16, 0.0085], [0.168, 0.011], [0.176, 0.008], [0.18, 0.0], [0.172, -0.006], [0.1, -0.004], [0.0004, -0.003]].map(p => [p[0] * SH_R / 0.18, p[1] * SH_R / 0.18]);
+const SHIELD_PROF = [], SHIELD_KIND = [];           // [radius, height] from its middle out and round to the back; and what each ring is
+{ const raw = [[0.0004, 0.046, 0], [0.016, 0.045, 0], [0.032, 0.041, 0], [0.046, 0.034, 0], [0.054, 0.027, 0], [0.059, 0.0255, 1], [0.085, 0.0225, 1], [0.115, 0.017, 1], [0.14, 0.011, 1], [0.155, 0.0065, 1], [0.16, 0.0085, 2], [0.168, 0.011, 2], [0.176, 0.008, 2], [0.18, 0.0, 2], [0.172, -0.006, 3], [0.1, -0.004, 3], [0.0004, -0.003, 3]];
+  raw.forEach((q, i) => { const n = i && q[2] === 1 && raw[i - 1][2] === 1 ? 4 : 1, a = raw[i - 1] || q; for (let j = 1; j <= n; j++) { SHIELD_PROF.push([lerp(a[0], q[0], j / n) * SH_R / 0.18, lerp(a[1], q[1], j / n) * SH_R / 0.18]); SHIELD_KIND.push(q[2]); } }); }
 function shieldGeo() {
   const g = new THREE.LatheGeometry(SHIELD_PROF.map(p => new THREE.Vector2(p[0], p[1])), 40); g.computeVertexNormals();
   // (outwards: up on its face)
@@ -164,10 +178,18 @@ class Bits {
   }
   mesh() {
     const g = new THREE.BufferGeometry();
-    this.pos = new Float32Array(this.nv * 3); this.col = new Float32Array(this.nv * 3);
+    this.pos = new Float32Array(this.nv * 3); this.col = new Float32Array(this.nv * 3); this.alp = new Float32Array(this.nv).fill(1);
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
     g.setIndex(this.ix); this.geo = g;
-    return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false }));
+    g.setAttribute('aA', new THREE.BufferAttribute(this.alp, 1).setUsage(THREE.DynamicDrawUsage));
+    // (solid, all but the veil: that is gauze, and what is behind it shows through)
+    const m = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, transparent: true, depthWrite: true });
+    m.onBeforeCompile = sh => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aA; varying float vA;').replace('#include <begin_vertex>', '#include <begin_vertex>\n  vA = aA;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vA;').replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.a *= vA; if (diffuseColor.a < 0.02) discard;');
+    };
+    m.customProgramCacheKey = () => 'tiepolo-armida-things';
+    return new THREE.Mesh(g, m);
   }
 }
 
@@ -188,25 +210,29 @@ lifeFor(16488, {
     this.shd = { u: 0, o: 0, h: 0, g: LEAN, f: Math.PI / 2, spin: 0, on: false };      // the shield now: its middle, its tilt (g) towards f, its turn
     // the colours (his, lifted a little: the galleries are dark at night)
     this.C = {
-      steel: col('#b9b3a3', 0.12), zen: col('#7f9097', 0.15), haze: col('#9d937f', 0.15), under: col('#342c26', 0.2), cream: col('#ded3be', 0.1), orange: col('#d96f33', 0.15),
-      gilt: col('#a8853f', 0.2), giltD: col('#5e431f', 0.2), giltL: col('#e6cd88', 0.12), rim: col('#6f3f2c', 0.2), back: col('#6a4a36', 0.2),
+      stD: col('#1f2528', 0.12), stM: col('#3f4c51', 0.12), stL: col('#a3b7bc', 0.1), orange: col('#d96f33', 0.15),
+      gilt: col('#94763a', 0.2), giltD: col('#3f2f18', 0.2), giltL: col('#dcbc76', 0.12), rimD: col('#463c35', 0.2), rimL: col('#b08a5a', 0.15), back: col('#6a4a36', 0.2),
       wood: col('#a17d42', 0.2), woodD: col('#553a20', 0.2), woodL: col('#d9bb78', 0.12),
       rockT: col('#8c7d69', 0.2), rockM: col('#685746', 0.2), rockD: col('#3b3028', 0.2), peb: col('#7d4a30', 0.2),
       reedD: col('#2f3a20', 0.2), reedM: col('#55622f', 0.2), reedL: col('#8b9146', 0.15),
-      manD: col('#ad4d22', 0.15), manM: col('#e67f45', 0.12), manL: col('#fbc394', 0.1),
-      veilD: col('#5d684a', 0.2), veilM: col('#8f9c79', 0.15), veilL: col('#c1c9a6', 0.1),
+      man: [col('#8c4527', 0.15), col('#cf7350', 0.12), col('#ee9c69', 0.1), col('#f8c398', 0.08)], white: col('#fff3df', 0.04),      // his mantle: warm shadow, rose, apricot, pale; and the lights
+      veil: [col('#5f6d55', 0.15), col('#8c9d7e', 0.12), col('#aebca0', 0.1), col('#d3dcc3', 0.08)],
     };
     this.buildGround(L, col); this.buildThings(L); this.buildCloud(L, col);
     this.sc = this.makeScore(L);
-    this.S0 = { t: 0 }; this.mk = 0; this.mc = [0, 0, 0]; this.wasCalm = L.calm;
+    this.S0 = { t: 0 }; this.mk = 0; this.mup = 1; this.mc = [0, 0, 0]; this.eyeS = [0, 1.6, 4]; this.wasCalm = L.calm;
     this.leanAt = { u: ARC.u, o: ARC.o + ARC.r - SH_R * Math.cos(LEAN) };
     this.hide();
   },
 
   // ---------------------------------------------------------------- his water and his bank, on the floor
   buildGround(L, col) {
-    const F = (u, o) => L.floor(u, o, V3()).setY(L.y + SURF).toArray(), a = F(-2.45, -L.wall + 0.012), b = F(1.75, -L.wall + 0.012), c = F(1.75, 2.1), d = F(-2.45, 2.1);
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([...a, ...b, ...c, ...a, ...c, ...d], 3));
+    // (a mesh of 7 cm squares: the cloud's image in the water is worked out at their corners, which costs a phone
+    // next to nothing; worked out for every pixel it cost eight milliseconds a frame)
+    const NU = 60, NO = 30, pos = [], ix = [], o0 = -L.wall + 0.012;
+    for (let j = 0; j <= NO; j++) for (let i = 0; i <= NU; i++) { const q = L.floor(lerp(-2.45, 1.75, i / NU), lerp(o0, 2.1, j / NO), V3()); pos.push(q.x, L.y + SURF, q.z); }
+    for (let j = 0; j < NO; j++) for (let i = 0; i < NU; i++) { const a = j * (NU + 1) + i, b = a + 1, c = a + NU + 1, d = c + 1; ix.push(a, c, b, b, c, d); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(ix);
     const hex = k => '#' + k.getHexString();
     // his bank: warm sand and red earth, dragged level
     const sand = strokes({ size: 256, seed: 16488, n: 1200, len: [26, 80], width: [6, 16], bend: 0.12, lift: 0.08, base: hex(col('#a9795a', 0.25)),
@@ -219,15 +245,39 @@ lifeFor(16488, {
       uCl: { value: new THREE.Vector4(9, 9, 0.5, 0) },            // the cloud's: where its nose is
       uRk: { value: new THREE.Vector4(ROCK.u + 0.04, ROCK.o + 0.03, 0, 0) },      // the rock's shade (z: how much of the rock is up)
       tSand: { value: sand },
-      cDeep: { value: col('#1d1e18', 0.2) }, cGreen: { value: col('#3a4031', 0.2) }, cPale: { value: col('#7d8a78', 0.2) }, cEarth: { value: col('#5e3a28', 0.25) }, cSand: { value: col('#9a7052', 0.25) },
+      cDeep: { value: col('#25251a', 0.2) }, cGreen: { value: col('#4b4a30', 0.2) }, cSky: { value: col('#8097a0', 0.15) }, cEarth: { value: col('#5e3a28', 0.25) }, cSand: { value: col('#9a7052', 0.25) },
+      // what the water holds: the cloud (light, and its smoke), the mantle, the wheel, the reeds
+      cCream: { value: col('#d9cdb6', 0.1) }, cSmoke: { value: col('#4a3d33', 0.2) }, cOrange: { value: col('#e2824c', 0.12) }, cGold: { value: col('#a8853f', 0.2) }, cReed: { value: col('#232a19', 0.2) },
+      uLobe: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uLobeR: { value: Array.from({ length: 6 }, () => new THREE.Vector4(1, 1, 1, 0)) },
+      uTuft: { value: [0, 2, 3].map(i => new THREE.Vector4(TUFTS[i][0], TUFTS[i][1], TUFTS[i][3] * 0.8, 0)) }, uWheel: { value: new THREE.Vector4(0, 0, 0, WH_R - 0.02) }, uWheelS: { value: 0 },
       tRefl: { value: null }, reflMatrix: { value: new THREE.Matrix4() }, reflOn: { value: 0 }, reflY: { value: L.y },
     };
     const m = this.groundM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide });
     m.onBeforeCompile = s => {
       Object.assign(s.uniforms, u);
+      // What the water holds of the cloud is painted, not mirrored: each mass's image is laid where a mirror would
+      // put it for this eye (the eye's line, turned up off the water, and what it passes), at each corner of the mesh.
+      s.vertexShader = s.vertexShader
+        .replace('#include <common>', `#include <common>
+uniform vec3 uO, cCream, cSmoke, cOrange; uniform vec4 uAx, uShow, uGust, uLobe[6], uLobeR[6]; varying vec4 vHeld;
+void held(vec4 Lc, vec4 Lr, vec3 P, vec3 d, inout vec3 rc, inout float ra) {
+  vec3 q = (Lc.xyz - P) / Lr.xyz, dd = d / Lr.xyz; float t = dot(q, dd) / dot(dd, dd);
+  float a = (1.0 - smoothstep(0.42, 1.0, length(q - dd * max(t, 0.0)))) * Lc.w;
+  rc = mix(rc, mix(mix(cSmoke, cCream, min(Lr.w, 1.0)), cOrange, step(1.5, Lr.w)), a); ra += a * (1.0 - ra);
+}`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+  { vec2 lq = position.xz - uO.xz, st = vec2(dot(lq, uAx.xy), dot(lq, uAx.zw)), eq = cameraPosition.xz - uO.xz;
+    vec3 E = vec3(dot(eq, uAx.xy), max(0.05, cameraPosition.y - uO.y), dot(eq, uAx.zw));
+    float ruf = uGust.y * (1.0 - smoothstep(-0.3, 0.3, st.x - uGust.x));      // (the wind pulls the image about)
+    vec3 P = vec3(st.x + 0.015 * ruf * sin(st.y * 31.0 + uShow.y * 5.0), 0.0, st.y + 0.07 * ruf * sin(st.x * 17.0 - uShow.y * 4.0 + st.y * 7.0)), d = vec3(P.x - E.x, E.y, P.z - E.z);
+    vec3 rc = vec3(0.0); float ra = 0.0;
+    held(uLobe[0], uLobeR[0], P, d, rc, ra); held(uLobe[1], uLobeR[1], P, d, rc, ra); held(uLobe[2], uLobeR[2], P, d, rc, ra);
+    held(uLobe[3], uLobeR[3], P, d, rc, ra); held(uLobe[4], uLobeR[4], P, d, rc, ra); held(uLobe[5], uLobeR[5], P, d, rc, ra);
+    vHeld = vec4(rc * ra, ra); }`);
       s.fragmentShader = s.fragmentShader
         .replace('#include <common>', `#include <common>
-uniform vec3 uO, cDeep, cGreen, cPale, cEarth, cSand; uniform vec4 uAx, uShow, uGust, uSh, uCl, uRk; uniform sampler2D tSand;
+varying vec4 vHeld;
+uniform vec3 uO, cDeep, cGreen, cSky, cEarth, cSand, cCream, cSmoke, cOrange, cGold, cReed; uniform vec4 uAx, uShow, uGust, uSh, uCl, uRk, uWheel, uTuft[3]; uniform float uWheelS; uniform sampler2D tSand;
 uniform sampler2D tRefl; uniform mat4 reflMatrix; uniform float reflOn, reflY;
 float bH(vec2 p) { p = fract(p * vec2(127.1, 311.7)); p += dot(p, p + 19.19); return fract(p.x * p.y); }
 float bN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -253,25 +303,43 @@ vec3 fCol; float fA;`)
   float wd = 1.0 - length(e) * (1.0 + 0.06 * sin(3.0 * ea + 0.6) + 0.03 * sin(7.0 * ea + 2.0)) - (n1 - 0.5) * 0.16 - (n2 - 0.5) * 0.05;
   float water = smoothstep(0.0, 0.22, wd); water *= water * (3.0 - 2.0 * water);
   float wet = smoothstep(-0.09, 0.04, wd) * (1.0 - water);
-  // still and dark under the banks, paler towards you; level streaks, as he lays still water
-  vec3 c = mix(cDeep, cGreen, 0.25 + 0.5 * n1);
-  c = mix(c, cPale, 0.34 * smoothstep(0.35, 1.6, so) + 0.1 * smoothstep(-0.4, -1.8, su));
-  c *= mix(0.55, 1.0, smoothstep(0.1, 0.55, so)) * (1.0 - 0.4 * smoothstep(0.3, 0.0, shore - su));
-  float lv = bN(vec2(su * 1.1 + 3.0, so * 40.0)), lv2 = bN(vec2(su * 0.7 + time * 0.01, so * 9.0 + 9.0));
-  c = mix(c, cPale, smoothstep(0.66, 0.9, lv) * smoothstep(0.45, 0.75, lv2) * 0.2 * uShow.z);
+  // still and dark: green-brown glass, darkest under the banks
+  vec3 c = vec3(0.0);
+  if (wd > -0.01 && bank < 0.99) {      // (only where there is water to be seen)
+  c = mix(cDeep, cGreen, 0.2 + 0.55 * n1);
+  c *= mix(0.62, 1.0, smoothstep(0.1, 0.6, so)) * (1.0 - 0.4 * smoothstep(0.3, 0.0, shore - su));
   // the wind on it: behind the gust's front the surface is roughened, and what it holds is broken up
-  float ruf = uGust.y * (1.0 - smoothstep(-0.3, 0.3, su - uGust.x));
-  float rp = smoothstep(0.42, 0.8, bN(vec2(su * 5.0 - time * 2.8, so * 84.0))) * bN(vec2(su * 2.2 - time * 1.4, so * 5.0 + 5.0));
-  // what the polished floor mirrors, the water holds better: the cloud and the orange upside down, the lit wall
-  vec4 rq = reflMatrix * vec4(lifeP, 1.0); vec2 ruv = rq.xy / rq.w + vec2(0.004, 0.026) * (rp - 0.3) * ruf + vec2(0.0, 0.0018) * sin(so * 30.0 + time * 0.9) * (1.0 - ruf);
-  float on = reflOn * (1.0 - step(0.08, abs(lifeP.y - reflY)));
-  vec3 refl = min(texture2D(tRefl, ruv, 2.6 + 1.4 * ruf).rgb, vec3(0.85));
-  float cosT = clamp(normalize(cameraPosition - lifeP).y, 0.0, 1.0);
-  float mir = (0.5 + 0.3 * smoothstep(0.55, 0.15, cosT)) * (1.0 - 0.6 * ruf) * on;
-  c = mix(c, refl * vec3(0.5, 0.54, 0.46), mir);
-  c *= 1.0 - 0.15 * ruf; c += cPale * ruf * rp * 0.2 * smoothstep(0.3, 0.7, bN(vec2(su * 1.6 - time * 0.9, so * 2.4 + 2.0)));
-  fCol = c * 0.8; fA = water * 0.97 + wet * 0.22;
-  fCol = mix(vec3(0.02, 0.022, 0.02) + refl * 0.05 * on, fCol, water / max(fA, 1.0e-3) * 0.97);
+  float ruf = uGust.y * (1.0 - smoothstep(-0.3, 0.3, su - uGust.x)), glass = 1.0 - ruf;
+  float rp = 0.0, wb = 0.0;
+  if (ruf > 0.004) { rp = smoothstep(0.42, 0.8, bN(vec2(su * 5.0 - time * 2.8, so * 84.0))) * bN(vec2(su * 2.2 - time * 1.4, so * 5.0 + 5.0)); wb = (bN(vec2(su * 3.0 - time * 1.5, so * 30.0)) - 0.5) * ruf; }
+  // (what it holds is painted, not mirrored, so nothing of the room is in it)
+  vec2 eq = cameraPosition.xz - uO.xz; vec3 E = vec3(dot(eq, uAx.xy), max(0.05, cameraPosition.y - uO.y), dot(eq, uAx.zw));
+  vec2 wob = vec2(0.02, 0.11) * wb + vec2(0.0, 0.005) * sin(so * 26.0 + time * 0.9) * glass;
+  vec3 P = vec3(su + wob.x, 0.0, so + wob.y), d = vec3(P.x - E.x, E.y, P.z - E.z);
+  // the sky's pale blue lying in it in long soft touches, more of them towards you
+  float t1 = smoothstep(0.48, 0.92, bN(vec2(P.x * 1.1 + 1.0, P.z * 10.0)) * 0.8 + 0.2 * n2), t2 = smoothstep(0.35, 0.8, bN(vec2(P.x * 0.45 + 5.0 + time * 0.006, P.z * 1.7)));
+  c = mix(c, cSky, (0.06 + 0.5 * t1 * t2) * (0.35 + 0.65 * smoothstep(0.2, 1.4, so)) * (0.15 + 0.85 * glass));
+  // the far bank's red earth, and the reeds, long and dark, towards you
+  c = mix(c, cEarth * 0.45, (1.0 - smoothstep(0.1, 0.4 + 0.12 * n2, so)) * 0.7);
+  for (int i = 0; i < 3; i++) {
+    vec4 T = uTuft[i]; if (T.w <= 0.01) continue;
+    vec2 te = E.xz - T.xy; float D = length(te) + 1.0e-3; te /= D; vec2 v = P.xz - T.xy;
+    float al = dot(v, te), ac = dot(v, vec2(-te.y, te.x)), len = T.z * T.w * D / E.y; if (al < -0.03 || al > len || abs(ac) > 0.45) continue;
+    float wd2 = 0.03 + 0.34 * T.z * clamp(al / len, 0.0, 1.0);
+    float m = exp(-ac * ac / (wd2 * wd2)) * smoothstep(-0.02, 0.05, al) * (1.0 - smoothstep(len * 0.3, len, al)) * (0.5 + 0.5 * bN(vec2(ac * 70.0 + float(i) * 7.0, al * 2.5)));
+    c = mix(c, cReed, m * 0.8 * (0.4 + 0.6 * glass));
+  }
+  // the cloud upside down in it, its smoke, the orange over it; and the wheel's gold
+  float ra = 0.0; vec3 rc = vec3(0.0);
+  rc = vHeld.rgb / max(vHeld.a, 1.0e-3); ra = vHeld.a;
+  if (uWheelS > 0.01) { float t = (uWheel.z - P.z) / (d.z - 1.0e-3); vec3 h = P + d * t; float rr = (length(h.xy - uWheel.xy) - uWheel.w) / 0.03;
+    float ring = max(exp(-rr * rr), 0.8 * exp(-dot(h.xy - uWheel.xy, h.xy - uWheel.xy) / 0.0016)) * step(0.0, t) * uWheelS;
+    rc = mix(rc, cGold, ring); ra += ring * (1.0 - ra); }
+  c = mix(c, rc * 0.62 + cGreen * 0.14, ra * (0.9 - 0.55 * ruf) * (1.0 - 0.5 * ruf * rp));
+  c *= 1.0 - 0.15 * ruf; c += cSky * ruf * rp * 0.24 * smoothstep(0.3, 0.7, n1);
+  }
+  fCol = c * 0.86; fA = water * 0.98 + wet * 0.2;
+  fCol = mix(vec3(0.02, 0.022, 0.02), fCol, water / max(fA, 1.0e-3) * 0.98);
   // the earth and the sand, and the shade of what stands on them
   vec3 er = cEarth * (0.5 + 0.6 * sd.g) * (0.7 + 0.5 * n2);
   fCol = mix(fCol, er, far); fA = max(fA, far * 0.96);
@@ -297,9 +365,9 @@ vec3 fCol; float fA;`)
   // ---------------------------------------------------------------- the shield, the wheel, the rock, the reeds, the two cloths
   buildThings(L) {
     const B = this.bits = new Bits(), R = L.rand;
-    // the shield: what each ring of it is (0 the gilt boss, 1 polished steel, 2 the rolled rim, 3 the back)
+    // the shield: what each ring of it is (0 the gilt boss, 1 the steel, 2 the rolled rim, 3 the back)
     const np = SHIELD_PROF.length;
-    this.pShield = B.add(shieldGeo(), (x, y, z, i) => { const j = i % np; return j <= 4 ? 0 : j <= 9 ? 1 : j <= 13 ? 2 : 3; });
+    this.pShield = B.add(shieldGeo(), (x, y, z, i) => SHIELD_KIND[i % np]);
     this.pWheel = B.add(wheelGeo());
     this.pRock = B.add(stoneGeo(ROCK.a, ROCK.h, ROCK.b, 1.3, 0.6));
     // smaller stones at the water's edge, two of them his red ones: [u, o, half sizes, seed, red]
@@ -308,7 +376,7 @@ vec3 fCol; float fA;`)
     // the reeds: tufts of long blades that arch over, as his do
     this.reeds = [];
     const tuft = (u, o, n, len, spread) => { for (let i = 0; i < n; i++) { const a = R() * TAU, d = Math.sqrt(R()) * spread; this.reeds.push({ u: u + Math.cos(a) * d, o: o + Math.sin(a) * d * 0.6, len: len * (0.6 + 0.6 * R()), az: a + (R() - 0.5), lean: 0.25 + 0.55 * R(), droop: 0.5 + 1.1 * R(), w: 0.011 + 0.008 * R(), ph: R() * TAU, tone: R(), part: B.grid(6, 2), late: R() }); } };
-    tuft(0.3, 0.33, 9, 0.44, 0.13); tuft(1.05, 0.4, 6, 0.4, 0.1); tuft(-1.3, 0.17, 7, 0.4, 0.2); tuft(-0.28, 0.15, 5, 0.3, 0.12); tuft(0.5, 0.6, 4, 0.26, 0.06);
+    for (const q of TUFTS) tuft(q[0], q[1], q[2], q[3], q[4]);
     this.pMantle = B.grid(MS, MW); this.pVeil = B.grid(VS, VW);
     this.things = B.mesh(); this.things.renderOrder = 6; L.add(this.things);
     this.lightS = V3(-0.5, 0.74, 0.46).normalize();      // the painter's light, in the stage's own measure (along, up, out)
@@ -446,7 +514,7 @@ float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     const wk = calm ? 0.5 : 1;
     const wind = (0.16 * sm(t, T_AIR, T_AIR + 0.4) + 0.84 * sm(t, T_CLOUD + 0.5, T_GUST + 0.1)) * (1 - 0.95 * sm(t, T_CATCH - 0.1, T_CATCH + 0.3)) * (1 - sm(r, 0, 0.3)) * wk + 0.3 * hump(r, 0.1, 0.9) * wk;
     const front = lerp(-2.6, 1.6, sm(t, T_CLOUD + 0.2, T_GUST + 0.1));
-    const rough = sm(t, T_CLOUD + 0.3, T_CLOUD + 1.0) * (1 - sm(t, T_CATCH + 0.1, T_CATCH + 2.2)) * wk;
+    const rough = sm(t, T_CLOUD + 0.3, T_CLOUD + 1.0) * (1 - sm(t, T_CATCH + 0.15, T_CATCH + 1.7)) * wk;      // (and in the hush it goes back to glass)
     const G = this.gu;
     G.uShow.value.set(spread, time, 1 - 0.8 * rough, 0); G.uGust.value.set(front, Math.max(rough, 0.5 * hump(r, 0.1, 0.9) * wk), 0, 0);
     this.groundM.visible = spread > 0.002;
@@ -465,7 +533,7 @@ float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     const sh = this.shd; this.poseShield(L, t, r, calm, breath);
 
     // ---- the cloud's dabs
-    let n = 0; const pp = this.pp, pi = this.pi, pt = this.pt, np = this.np, wallO = -L.wall;
+    let n = 0; const pp = this.pp, pi = this.pi, pt = this.pt, np = this.np, wallO = -L.wall, nest = sh.on ? sm(t, T_CATCH - 0.14, T_CATCH + 0.25) * (1 - sm(r, 0.05, 0.3)) : 0;
     if (cl.k > 0 && spread > 0.01) for (let i = 0; i < np; i++) {
       const p = this.puffs[i]; let x = p.x, y = p.y, z = p.z, s = p.s, a = p.a;
       if (p.kind === 5) {
@@ -476,7 +544,12 @@ float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
         const g = 1 + 0.07 * cl.gather; x += p.orb * Math.cos(churn + p.ph); y = y * g * (1 + 0.035 * breath) + p.orb * 0.7 * Math.sin(churn + p.ph); s *= 1 + 0.04 * Math.sin(time * 0.8 + p.ph);
         if (p.kind === 2) x += 0.05 * cl.nose;      // (the shelf leans into it)
       }
-      const u = cl.u + x * cl.cs - z * cl.sn, o = cl.o + x * cl.sn + z * cl.cs;
+      let u = cl.u + x * cl.cs - z * cl.sn, o = cl.o + x * cl.sn + z * cl.cs;
+      if (nest > 0) {
+        // (round the shield, not through it: a flat dab standing through its face would show as a stripe across it)
+        const dx = u - sh.u, dz = o - sh.o, dd = Math.hypot(dx, dz), need = SH_R * 0.95 + s * 0.75;
+        if (dd < need) { const k = lerp(1, need / Math.max(dd, 0.03), nest); u = sh.u + dx * k; o = sh.o + dz * k; y = lerp(y, Math.min(y, 0.11), nest); }
+      }
       a *= clamp01((o - wallO - 0.02) / 0.22) * clamp01(spread * 3);      // (it gathers out of the wall)
       if (a < 0.02) continue;
       L.floor(u, o, this.v);
@@ -508,14 +581,24 @@ float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
         const w = wind * lee * (1 + 0.16 * flut * Math.sin(time * 11 + rd.ph)) + 0.5 * wk * lee * (1 - still) * sm(t, T_CATCH - 0.1, T_CATCH + 0.3) * (1 - sm(r, 0, 0.3)) + 0.03 * Math.sin(time * 0.9 + rd.ph);
         this.putReed(L, rd, grow, w);
       }
+      this.eyeS[0] = eu; this.eyeS[1] = eh; this.eyeS[2] = eo;
       this.putShield(L, eu, eh, eo);
       this.putWheel(L, eu, eh, eo, t, r);
       this.putCloths(L, t, r, time, calm, eh, eo);
-      B.geo.attributes.position.needsUpdate = true; B.geo.attributes.color.needsUpdate = true;
+      B.geo.attributes.position.needsUpdate = true; B.geo.attributes.color.needsUpdate = true; B.geo.attributes.aA.needsUpdate = true;
     }
     // the shade under the shield, and under the lap of cloud
     G.uSh.value.set(sh.u, sh.o, 0.12 + 0.5 * sh.h, sh.on ? clamp01(1.1 - sh.h * 3.2) * (1 - sm(r, 0.5, 0.8)) : 0);
     G.uCl.value.set(cl.u + 0.84 * cl.cs, cl.o + 0.84 * cl.sn, 0.3, 0.8 * cl.nose);
+    // what the water holds of them: the smoke, the body, the mound, the mantle, the shelf, the lap; the wheel; the reeds
+    { const LB = G.uLobe.value, LR = G.uLobeR.value, out = cl.k * clamp01(spread * 3);
+      const put = (i, x, y, z, rx, ry, rz, tone, k) => { const o = cl.o + x * cl.sn + z * cl.cs; LB[i].set(cl.u + x * cl.cs - z * cl.sn, y, o, k * out * clamp01((o + 0.1) / 0.4)); LR[i].set(Math.hypot(rx * cl.cs, rz * cl.sn) * 0.94, ry * 0.94, Math.hypot(rx * cl.sn, rz * cl.cs) * 0.94, tone); };
+      const M = MASS; put(0, M[3][0], M[3][1], M[3][2], M[3][3], M[3][4], M[3][5], 0.1, 1); put(1, M[0][0], M[0][1], M[0][2], M[0][3], M[0][4], M[0][5], 0.72, 1); put(2, M[1][0], M[1][1], M[1][2], M[1][3], M[1][4], M[1][5], 0.82, 1);
+      LB[3].set(this.mc[0], this.mc[1], this.mc[2], 0.9 * this.mk * this.mup); LR[3].set(0.2, 0.2, 0.1, 2);
+      put(4, M[2][0], M[2][1], M[2][2], M[2][3], M[2][4], M[2][5], 0.92, 1); put(5, 0.9, 0.07, 0.02, 0.32, 0.1, 0.26, 0.86, cl.nose);
+      const wu = cl.u + WHEEL[0] * cl.cs - WHEEL[2] * cl.sn, wo = cl.o + WHEEL[0] * cl.sn + WHEEL[2] * cl.cs;
+      G.uWheel.value.set(wu, WHEEL[1], wo, WH_R - 0.02); G.uWheelS.value = out * clamp01((wo - 0.1) / 0.4) * cl.cs * cl.cs;
+      for (let i = 0; i < 3; i++) G.uTuft.value[i].w = ease.out(ramp(t, 0.5, 1.5)) * (1 - ease.inOut(ramp(r, 0.3, 0.72))) * (1 - 0.45 * Math.min(1, wind)); }
 
     if (showing) this.sc.play(L.t);
     L.voice().place();
@@ -566,36 +649,45 @@ float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     A[6] = -e1x * sn + e2x * cs; A[7] = e2y * cs; A[8] = -e1z * sn + e2z * cs;
     return A;
   },
+  // The shield is painted, not mirrored: a cool dark field of steel, one soft sweep of the sky's light across it on
+  // the side the light is, a breath of the mantle's warmth when that is near; the boss and the rim a few warm touches.
   putShield(L, eu, eh, eo) {
     const sh = this.shd, pt = this.pShield, P = pt.P, N = pt.N, K = pt.K, pos = this.bits.pos, colr = this.bits.col, C = this.C, cl = this.cl;
     if (!sh.on) { this.collapse(pt); return; }
     const A = this.axes(sh.g, sh.f, sh.spin), tx = L.tx, tz = L.tz, nx = L.nx, nz = L.nz, Ls = this.lightS;
-    // what it has to show: the cloud's bright body and the orange over it, from where the shield is
-    let cu = cl.u + 0.1 * cl.cs - sh.u, ch = 0.3 - sh.h, co = cl.o + 0.1 * cl.sn - sh.o; const cd = Math.hypot(cu, ch, co) || 1; cu /= cd; ch /= cd; co /= cd;
-    const cOn = cl.k * sm(cl.o, -0.2, 0.6), cW = 0.07 + 0.22 * clamp01(1.6 - cd);
+    // towards the eye, from its middle; the way half between that and the light; and that way laid in the disc's own plane
+    let vu = eu - sh.u, vh = eh - sh.h, vo = eo - sh.o; const vl = Math.hypot(vu, vh, vo) || 1; vu /= vl; vh /= vl; vo /= vl;
+    let hu = Ls.x + vu, hh = Ls.y + vh, ho = Ls.z + vo; const hl = Math.hypot(hu, hh, ho) || 1; hu /= hl; hh /= hl; ho /= hl;
+    const face = hu * A[3] + hh * A[4] + ho * A[5];                 // how squarely its face meets that
+    let su = hu - face * A[3], sv = hh - face * A[4], so = ho - face * A[5]; const sl = Math.hypot(su, sv, so) || 1; su /= sl; sv /= sl; so /= sl;
+    const lit = clamp01(0.3 + 0.9 * Math.abs(face));
+    // the mantle's warmth, when it is up and near
     let mu = this.mc[0] - sh.u, mh = this.mc[1] - sh.h, mo = this.mc[2] - sh.o; const md = Math.hypot(mu, mh, mo) || 1; mu /= md; mh /= md; mo /= md;
-    const mOn = cOn * this.mk, mW = 0.03 + 0.07 * clamp01(1.5 - md);
+    const warm = 0.14 * this.mk * this.mup * clamp01(1.7 - md) * clamp01(0.3 + mu * A[3] + mh * A[4] + mo * A[5]);
     for (let i = 0, o = pt.o * 3; i < pt.n; i++, o += 3) {
       const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2], a = N[i * 3], b = N[i * 3 + 1], c = N[i * 3 + 2];
-      const pu = sh.u + x * A[0] + y * A[3] + z * A[6], ph = sh.h + x * A[1] + y * A[4] + z * A[7], po = sh.o + x * A[2] + y * A[5] + z * A[8];
+      const du = x * A[0] + y * A[3] + z * A[6], dh = x * A[1] + y * A[4] + z * A[7], dout = x * A[2] + y * A[5] + z * A[8];
+      const pu = sh.u + du, ph = sh.h + dh, po = sh.o + dout;
       const nu = a * A[0] + b * A[3] + c * A[6], nh = a * A[1] + b * A[4] + c * A[7], no = a * A[2] + b * A[5] + c * A[8];
       pos[o] = L.cx + tx * pu + nx * po; pos[o + 1] = L.y + Math.max(ph, 0.004) + SURF; pos[o + 2] = L.cz + tz * pu + nz * po;
-      const k = K[i]; let R, G, Bl;
-      if (k >= 2) {
-        const d = clamp01(0.5 + 0.55 * (nu * Ls.x + nh * Ls.y + no * Ls.z)), base = k === 2 ? C.rim : C.back;
-        R = base.r * (0.45 + 0.9 * d); G = base.g * (0.45 + 0.9 * d); Bl = base.b * (0.45 + 0.9 * d);
-      } else {
-        // the eye's line off the polish, and what lies that way
-        let vu = pu - eu, vh = ph - eh, vo = po - eo; const vl = Math.hypot(vu, vh, vo) || 1; vu /= vl; vh /= vl; vo /= vl;
-        const dn = 2 * (vu * nu + vh * nh + vo * no), ru = vu - dn * nu, rh = vh - dn * nh, ro = vo - dn * no;
-        const sky = clamp01(rh * 1.5 + 0.12), gnd = Math.max(clamp01(-rh * 3.2), 0.55 * Math.exp(-rh * rh / 0.02));
-        R = lerp(C.haze.r, C.zen.r, sky); G = lerp(C.haze.g, C.zen.g, sky); Bl = lerp(C.haze.b, C.zen.b, sky);
-        R = lerp(R, C.under.r, gnd); G = lerp(G, C.under.g, gnd); Bl = lerp(Bl, C.under.b, gnd);
-        const wc = cOn * Math.exp(-(1 - (ru * cu + rh * ch + ro * co)) / cW); R = lerp(R, C.cream.r, wc); G = lerp(G, C.cream.g, wc); Bl = lerp(Bl, C.cream.b, wc);
-        const wm = mOn * Math.exp(-(1 - (ru * mu + rh * mh + ro * mo)) / mW); R = lerp(R, C.orange.r, wm); G = lerp(G, C.orange.g, wm); Bl = lerp(Bl, C.orange.b, wm);
-        if (k === 1) { R *= C.steel.r * 1.12; G *= C.steel.g * 1.12; Bl *= C.steel.b * 1.12; }
-        else { const lum = 0.3 * R + 0.59 * G + 0.11 * Bl, ray = 0.82 + 0.18 * Math.cos(Math.atan2(z, x) * 20), gl = (0.42 + 0.95 * lum) * ray; R = lerp(C.giltD.r, C.gilt.r, gl) + C.giltL.r * 0.3 * lum * lum; G = lerp(C.giltD.g, C.gilt.g, gl) + C.giltL.g * 0.3 * lum * lum; Bl = lerp(C.giltD.b, C.gilt.b, gl) + C.giltL.b * 0.3 * lum * lum; }
-      }
+      const k = K[i], dl = clamp01(0.5 + 0.6 * (nu * Ls.x + nh * Ls.y + no * Ls.z)); let R, G, Bl;
+      // across the face, towards the light (-1 to 1), and how far off that line
+      const ax = (du * su + dh * sv + dout * so) / SH_R, ay2 = Math.max(0, (du * du + dh * dh + dout * dout) / (SH_R * SH_R) - ax * ax);
+      if (k === 1) {
+        // dark, then the sweep (a little bowed), then dark again at the edge
+        const q = ax - 0.34 + 0.34 * ay2, sweep = Math.exp(-q * q / 0.07) * lit, field = clamp01(0.4 + 0.36 * ax);
+        R = lerp(lerp(C.stD.r, C.stM.r, field), C.stL.r, 0.75 * sweep); G = lerp(lerp(C.stD.g, C.stM.g, field), C.stL.g, 0.75 * sweep); Bl = lerp(lerp(C.stD.b, C.stM.b, field), C.stL.b, 0.75 * sweep);
+        const w = warm * (0.4 + 0.6 * clamp01(0.5 - ax));           // (the warmth lies in the dark of it)
+        R = lerp(R, C.orange.r, w); G = lerp(G, C.orange.g, w); Bl = lerp(Bl, C.orange.b, w);
+      } else if (k === 0) {
+        // the boss: dull gilt laid nearly flat, its rays a little darker and lighter, one warm touch on the side of the light
+        const ray = 0.82 + 0.18 * Math.cos(Math.atan2(z, x) * 20), g = clamp01(0.3 + 1.7 * ax) * ray, qx = ax - 0.1, touch = Math.exp(-(qx * qx + ay2) / 0.004) * 0.5 * lit;
+        R = lerp(C.giltD.r, C.gilt.r, g) + C.giltL.r * touch; G = lerp(C.giltD.g, C.gilt.g, g) + C.giltL.g * touch; Bl = lerp(C.giltD.b, C.gilt.b, g) + C.giltL.b * touch;
+      } else if (k === 2) {
+        // the rim: dark, with two or three warm touches where it turns to the light
+        const an = Math.atan2(z, x), touch = clamp01(ax * 1.6 - 0.5) * (0.5 + 0.5 * Math.cos(an * 3 + 1.3 + 2 * ax)) * lit;
+        R = lerp(C.rimD.r, C.rimL.r, touch); G = lerp(C.rimD.g, C.rimL.g, touch); Bl = lerp(C.rimD.b, C.rimL.b, touch);
+      } else { R = C.back.r * (0.45 + 0.9 * dl); G = C.back.g * (0.45 + 0.9 * dl); Bl = C.back.b * (0.45 + 0.9 * dl); }
       colr[o] = R; colr[o + 1] = G; colr[o + 2] = Bl;
     }
   },
@@ -666,61 +758,78 @@ float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     // How high a cloth may stand here and still be under the pictures' feet, from this eye. From the look it is all the
     // room they want; from a low eye (the toy's) it is not, and rather than be cut off they lie down along the cloud.
     const room = eo > mo + 0.2 ? 0.66 + (eh - 0.66) * mo / eo : 2, up = ease.smooth((room - 0.46) / 0.42) * (1 - sm(r, 0, 0.26));      // (and going home they lie down first, then are drawn in)
-    { // the mantle: streaming flat out behind; over the top as the cloud pulls up; hanging filled, as he painted it
+    this.mup = up;
+    { // the mantle: streaming flat out behind; over the top as the cloud pulls up; hanging filled, as he painted it:
+      // a sail of silk standing up off the cloud, broad at the foot, its upper corner peaked, a few big folds in it
+      // that break and change direction, sharp lights on their tops
       const tau = Math.max(0, t - T_SWING), z = calm ? 3.2 : 2.2, w = calm ? 2.6 : 4.0;
-      const th = lerp(6, 52 + 108 * Math.exp(-z * tau) * Math.cos(w * tau), up) * DEG + 0.03 * idle * Math.sin(time * 0.7);
-      const kap = up * lerp(-24, 28, sm(tau, 0, 0.75)) * DEG + 0.05 * idle * Math.sin(time * 0.55 + 1);
+      const th = lerp(6, 64 + 96 * Math.exp(-z * tau) * Math.cos(w * tau), up) * DEG + 0.03 * idle * Math.sin(time * 0.7);
+      const kap = up * lerp(-24, 18, sm(tau, 0, 0.75)) * DEG + 0.05 * idle * Math.sin(time * 0.55 + 1);
       const belly = lerp(0.03, 0.17, sm(tau, 0.12, 0.7)) * (1 + 0.1 * idle * Math.sin(time * 0.8));
+      const zig = x => Math.abs((((x % 1) + 1) % 1) - 0.5) * 2, ridge = x => 1 - 2 * Math.abs(Math.sin(x));
       this.mk = out;
       this.sheet(L, this.pMantle, mu, M_AT[1] + 0.01 * Math.sin(time * 0.9), mo, {
-        len: M_LEN * out, th, kap, belly: belly * out, flut: (0.5 * moving + 0.03 * idle) * fk + 0.12 * moving * (1 - fk), fs: calm ? 5 : 13, time, slant: 0.12 * up,
-        half: s => M_W * (0.34 + 0.66 * Math.pow(Math.min(1, s * 1.5), 0.6)) * (1 - 0.1 * s * s), skew: s => 0.16 * M_W * s * s, twist: up < 0.999 ? () => (1 - up) * 1.4 : null, hem: 0.018,
-        fold: (s, w) => (0.008 + 0.042 * Math.pow(s, 0.7)) * Math.sin(w * 4.7 + 0.6 + 1.2 * Math.sin(2.6 * s + 0.5)) + 0.016 * s * Math.sin(w * 9.5 + 3 * s + 1) + 0.009 * Math.sin(w * 6.1 - 11 * s + 2) * Math.sin(Math.PI * s),
-        lo: C.manD, mid: C.manM, hi: C.manL, root: 0.6, gain: 0.95,
+        len: M_LEN * out, th, kap, belly: belly * out, flut: (0.5 * moving + 0.03 * idle) * fk + 0.12 * moving * (1 - fk), fs: calm ? 5 : 13, time, slant: 0.14 * up,
+        half: s => M_W * (0.56 + 0.44 * Math.pow(Math.min(1, s * 1.6), 0.6)) * (1 - 0.12 * s * s), skew: s => 0.12 * M_W * s * s, twist: up < 0.999 ? () => (1 - up) * 1.4 : null, hem: 0.02,
+        fold: (s, w) => (0.012 + 0.038 * Math.pow(s, 0.7)) * ridge(w * 3.3 + 0.5 + 1.3 * zig(s * 1.1 + 0.2)) + 0.011 * Math.sin(Math.PI * s) * ridge(w * 1.6 - 4.5 * s + 1.1) + 0.004 * Math.sin(w * 13 + s * 17),
+        ramp: C.man, white: C.white, root: 0.62, gain: 0.9, deep: 0.05, shine: 48, gloss: 0.6, base: 0.43, alpha: null,
       }, this.mc);
     }
-    { // the veil: a long thin one, later and lighter; it comes down last, in a loop over to the left
+    { // the veil: a twist of thin gauze, later and lighter; it comes down last, in a loop over to the left
       const vu = cl.u + V_AT[0] * cl.cs - V_AT[2] * cl.sn, vo = cl.o + V_AT[0] * cl.sn + V_AT[2] * cl.cs;
       const tau = Math.max(0, t - T_SWING - 0.12), z = calm ? 2.4 : 1.5, w = calm ? 2.0 : 3.0;
       const th = lerp(170, 104 + 58 * Math.exp(-z * tau) * Math.cos(w * tau), up) * DEG;
       const kap = lerp(-12, lerp(-8, 172, ease.out(ramp(tau, 0, calm ? 1.3 : 0.9))), up) * DEG + 0.09 * idle * up * Math.sin(time * 0.6);
       this.sheet(L, this.pVeil, vu, V_AT[1] + 0.01 * Math.sin(time * 0.9), vo, {
         len: V_LEN * out, th, kap, belly: 0, flut: (0.42 * moving + 0.05 * idle) * fk + 0.1 * moving * (1 - fk), fs: calm ? 4.5 : 11, time, slant: 0, pw: 1.3,
-        half: s => V_W * (0.45 + 0.75 * Math.sin(Math.PI * Math.pow(s, 0.8)) + 0.5 * s * s), skew: () => 0,
-        twist: s => 0.5 + 2.5 * s + 0.35 * Math.sin(time * 0.6 * (calm ? 0.5 : 1) + 5 * s),
-        fold: (s, w) => 0.012 * Math.sin(s * 15 + w * 2), lo: C.veilD, mid: C.veilM, hi: C.veilL, root: 0.75, gain: 0.7,
+        half: s => V_W * (0.4 + 0.75 * Math.sin(Math.PI * Math.pow(s, 0.8)) + 0.55 * s * s), skew: () => 0,
+        twist: s => 0.35 + 3.3 * s + 0.4 * Math.sin(time * 0.6 * (calm ? 0.5 : 1) + 5 * s),
+        fold: (s, w) => 0.01 * Math.sin(s * 15 + w * 2) + 0.012 * (1 - 2 * Math.abs(Math.sin(w * 2.4 + 6 * s))),
+        ramp: C.veil, white: C.white, root: 0.8, gain: 0.7, deep: 0.02, shine: 24, gloss: 0.3, base: 0.42,
+        // (thin where you look through one fold of it, denser where it is gathered or turned edge on, and at its edges)
+        alpha: (s, w, tw) => clamp01(0.3 + 0.3 * Math.abs(Math.sin(tw)) + 0.26 * w * w * w * w + 0.1 * Math.sin(s * 15 + w * 2)) * Math.min(1, s * 6 + 0.4),
       }, null);
     }
   },
   // A sheet of cloth in the plane of the wall: its middle line runs from (u, h, o) at angle th (from "to the right",
   // anticlockwise), curling by kap along its length; it is `half` wide either side, bellied out towards you, folded,
-  // or (a ribbon) twisted about its own length. Painted by how each part of it faces the light.
+  // or (a ribbon) twisted about its own length. Painted as silk: by how each part faces his light, warm and dark in
+  // the hollows of the folds, a sharp light where a fold's top turns the light to the eye.
   sheet(L, pt, u0, h0, o0, o, mid) {
-    const S = pt.S, ns = pt.ns, nw = pt.nw, pos = this.bits.pos, colr = this.bits.col, Ls = this.lightS, tx = L.tx, tz = L.tz, nx = L.nx, nz = L.nz;
+    const S = pt.S, ns = pt.ns, nw = pt.nw, pos = this.bits.pos, colr = this.bits.col, alp = this.bits.alp, Ls = this.lightS, E = this.eyeS, tx = L.tx, tz = L.tz, nx = L.nx, nz = L.nz;
     if (o.len < 0.02) { this.collapse(pt); return; }
-    let cu = u0, ch = h0; const ds = o.len / (ns - 1);
+    const F = pt.F || (pt.F = new Float32Array(ns * nw)), TW = pt.T || (pt.T = new Float32Array(ns));
+    let cu = u0, ch = h0; const ds = o.len / (ns - 1), full = Math.min(1, o.len / 0.25);
     for (let i = 0; i < ns; i++) {
       const s = i / (ns - 1), ang = o.th + o.kap * (o.pw ? Math.pow(s, o.pw) : s) + o.flut * s * Math.sin(7 * s - o.fs * o.time);
       if (i) { cu += Math.cos(ang) * ds; ch += Math.sin(ang) * ds; }
       const tu = Math.cos(ang), tv = Math.sin(ang);
-      const ax = -Math.sin(ang), ah = Math.cos(ang), half = o.half(s) * Math.min(1, o.len / 0.25), sk = o.skew(s), tw = o.twist ? o.twist(s) : 0, ct = Math.cos(tw), stw = Math.sin(tw);
+      const ax = -Math.sin(ang), ah = Math.cos(ang), half = o.half(s) * full, sk = o.skew(s), tw = o.twist ? o.twist(s) : 0, ct = Math.cos(tw), stw = Math.sin(tw);
+      TW[i] = tw;
       for (let j = 0; j < nw; j++) {
-        const w = nw === 1 ? 0 : j / (nw - 1) * 2 - 1, off = w * half + sk, q = (i * nw + j) * 3;
-        const bo = o.belly * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.85)), 0.8) * (1 - w * w) + o.fold(s, w) * Math.min(1, o.len / 0.25) + o.flut * 0.05 * s * Math.sin(9 * s - o.fs * o.time + 2 * w);
-        const sl = (o.slant * w + (o.hem ? o.hem / o.len * Math.cos(w * 4.7 + 0.6) * s * s : 0)) * s * o.len;      // (its end is cut on the slant: one corner flies higher; and the hem is scalloped by its folds)
+        const w = nw === 1 ? 0 : j / (nw - 1) * 2 - 1, off = w * half + sk, q = (i * nw + j) * 3, f = o.fold(s, w) * full;
+        const bo = o.belly * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.85)), 0.8) * (1 - w * w) + f + o.flut * 0.05 * s * Math.sin(9 * s - o.fs * o.time + 2 * w);
+        const sl = (o.slant * w + (o.hem ? o.hem / o.len * Math.cos(w * 7 + 0.5) * s * s : 0)) * s * o.len;      // (its end is cut on the slant: one corner flies higher; and the hem is scalloped by its folds)
+        F[i * nw + j] = f;
         S[q] = cu + ax * off * ct + tu * sl; S[q + 1] = Math.max(0.02, ch + ah * off * ct + tv * sl); S[q + 2] = o0 + bo + off * stw;
       }
     }
     if (mid) { const q = (Math.floor(ns * 0.55) * nw + (nw >> 1)) * 3; mid[0] = S[q]; mid[1] = S[q + 1]; mid[2] = S[q + 2]; }
+    const R4 = o.ramp, W = o.white;
     for (let i = 0; i < ns; i++) for (let j = 0; j < nw; j++) {
       const q = (i * nw + j) * 3, a = ((i ? i - 1 : i) * nw + j) * 3, b = ((i < ns - 1 ? i + 1 : i) * nw + j) * 3, c = (i * nw + (j ? j - 1 : j)) * 3, d = (i * nw + (j < nw - 1 ? j + 1 : j)) * 3;
       const sx = S[b] - S[a], sy = S[b + 1] - S[a + 1], sz = S[b + 2] - S[a + 2], wx = S[d] - S[c], wy = S[d + 1] - S[c + 1], wz = S[d + 2] - S[c + 2];
       let n0 = sy * wz - sz * wy, n1 = sz * wx - sx * wz, n2 = sx * wy - sy * wx; const nl = Math.hypot(n0, n1, n2) || 1; n0 /= nl; n1 /= nl; n2 /= nl;
-      if (n2 < 0) { n0 = -n0; n1 = -n1; n2 = -n2; }      // (the side towards the room)
-      const s = i / (ns - 1), lit = clamp01(0.5 + o.gain * (n0 * Ls.x + n1 * Ls.y + n2 * Ls.z - 0.42) + 0.1 - 0.3 * (1 - n2)) * lerp(o.root, 1, Math.min(1, s * 3));
-      const lo = lit < 0.5 ? o.lo : o.mid, hi = lit < 0.5 ? o.mid : o.hi, e = lit < 0.5 ? lit * 2 : (lit - 0.5) * 2, p = (pt.o + i * nw + j) * 3;
-      colr[p] = lerp(lo.r, hi.r, e); colr[p + 1] = lerp(lo.g, hi.g, e); colr[p + 2] = lerp(lo.b, hi.b, e);
+      let vu = E[0] - S[q], vh = E[1] - S[q + 1], vo = E[2] - S[q + 2]; const vl = Math.hypot(vu, vh, vo) || 1; vu /= vl; vh /= vl; vo /= vl;
+      if (n0 * vu + n1 * vh + n2 * vo < 0) { n0 = -n0; n1 = -n1; n2 = -n2; }      // (the side towards the eye)
+      let hx = Ls.x + vu, hy = Ls.y + vh, hz = Ls.z + vo; const hl = Math.hypot(hx, hy, hz) || 1; hx /= hl; hy /= hl; hz /= hl;
+      const s = i / (ns - 1), hol = clamp01(-F[i * nw + j] / o.deep), top = clamp01(F[i * nw + j] / o.deep);
+      const lit = clamp01(o.base + o.gain * (n0 * Ls.x + n1 * Ls.y + n2 * Ls.z - 0.4) - 0.3 * hol + 0.08 * top) * lerp(o.root, 1, Math.min(1, s * 3));
+      const sp = Math.pow(clamp01(n0 * hx + n1 * hy + n2 * hz), o.shine) * o.gloss * (0.25 + 0.75 * top) * Math.min(1, s * 4);
+      const x = lit * 3, k = x < 1 ? 0 : x < 2 ? 1 : 2, e = x - k, lo = R4[k], hi = R4[k + 1], p = (pt.o + i * nw + j) * 3;
+      colr[p] = lerp(lo.r, hi.r, e) + (W.r - lo.r) * sp; colr[p + 1] = lerp(lo.g, hi.g, e) + (W.g - lo.g) * sp; colr[p + 2] = lerp(lo.b, hi.b, e) + (W.b - lo.b) * sp;
       pos[p] = L.cx + tx * S[q] + nx * S[q + 2]; pos[p + 1] = L.y + SURF + S[q + 1]; pos[p + 2] = L.cz + tz * S[q] + nz * S[q + 2];
+      if (o.alpha) alp[pt.o + i * nw + j] = o.alpha(s, nw === 1 ? 0 : j / (nw - 1) * 2 - 1, TW[i]);
     }
   },
 });
