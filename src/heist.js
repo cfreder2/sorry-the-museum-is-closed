@@ -32,6 +32,10 @@ const clock = s => { s = Math.max(0, s); const m = Math.floor(s / 60), r = Math.
 const LEVEL = { LL: 'the lower level', 1: 'the first floor', 2: 'the second floor', 3: 'the third floor' };
 // How it went, by how much of the clock was left at the button.
 const RANKS = [[0.25, 'A GHOST'], [0.15, 'CAT BURGLAR'], [0.07, 'LIGHT FINGERS'], [0, 'BY A WHISKER']];
+// What a finished heist pays, in chips (the game's money: the shop, the card table). The job itself, more for a harder
+// room, and a bonus for the rank: time left on the clock. A cage or the clock running out pays nothing and costs nothing.
+const PAY = { job: 100, perLevel: 25, rank: [75, 50, 25, 0] };
+const payFor = (lv, rankIndex) => PAY.job + PAY.perLevel * Math.max(0, lv | 0) + (PAY.rank[rankIndex] || 0);
 const roomName = r => (r.kind === 'hall' ? 'Griffin Court' : String(r.gallery || r.id).replace(/^Galleries /, 'Gallery '));
 
 // Every beam in play, as one mesh: a strip for each, turned to face the camera, bright down the
@@ -307,7 +311,7 @@ export class Heist {
     const over = $('heistBrief').querySelector('.over'); if (over) over.textContent = p.again ? 'In case of heist \u00a0·\u00a0 back for another go' : "In case of heist \u00a0·\u00a0 tonight's target";
     $('hbText').textContent = `${p.again ? 'The cage got you in there. It is all as it was: the same room, the same beams. The' : 'Tonight\u2019s'} treasure is “${w.t}”${w.a ? ', ' + w.a : ''}. A toy-sized copy of it stands on a plinth in the middle of ${roomName(p.r)}, on ${LEVEL[p.r.floor] || 'another floor'}. The real one stays on the wall. Fetch the copy and bring it back to this button.`;
     const more = [this.completed ? `HEISTS DONE ${this.completed}` : '', this.best[p.r.id] ? `BEST HERE ${clock(this.best[p.r.id])}` : ''].filter(Boolean).join(' · ');
-    $('hbFacts').innerHTML = `ABOUT ${Math.round(p.rt.len / 10) * 10} M AWAY · ON THE CLOCK <b>${clock(P.total)}</b><br>PAR OUT ${clock(P.out)} · THE ROOM ${clock(P.in + P.leave)} · BACK ${clock(P.back)}<br>LASERS: THE LOW ONES CAN BE HOPPED<br>ONE TOUCH AND THE CAGE DROPS` + (more ? '<br>' + more : '');
+    $('hbFacts').innerHTML = `ABOUT ${Math.round(p.rt.len / 10) * 10} M AWAY · ON THE CLOCK <b>${clock(P.total)}</b><br>PAR OUT ${clock(P.out)} · THE ROOM ${clock(P.in + P.leave)} · BACK ${clock(P.back)}<br>LASERS: THE LOW ONES CAN BE HOPPED<br>ONE TOUCH AND THE CAGE DROPS<br>THE JOB PAYS <b>${payFor(p.level, 3)}</b> CHIPS, UP TO ${payFor(p.level, 0)} WITH TIME TO SPARE` + (more ? '<br>' + more : '');
   }
   // Shut the card. `no`: the player said "Not tonight" (rather than the heist starting, or the game closing it): a room
   // offered for another go is given up, and the next press moves on to a new one.
@@ -508,10 +512,12 @@ export class Heist {
     const G = this.G, id = this.target.id, time = this.elapsed, was = this.best[id], f = this.left / this.limit;
     this.completed++; this.clean++; this.retry = null;                      // (won: on to another room)
     const record = !(was > 0) || time < was; if (record) this.best[id] = +time.toFixed(1);
-    const rank = (RANKS.find(q => f >= q[0]) || RANKS[RANKS.length - 1])[1];
-    this._save(); this._tell('win', { rank, ghost: rank === RANKS[0][1], left: +this.left.toFixed(1) });
-    this.ui.callout(`HEIST COMPLETE\n${rank}`); G.sound.finish();
-    this.ui.say(`“${this.art.work.t}”, out of ${roomName(this.target)} in ${clock(time)}, with ${clock(this.left)} still on the clock and not a beam touched.${record && was ? ' A new best for that room.' : ''} The copy goes in the lost property box.`, 1.2, 10);
+    const ri = Math.max(0, RANKS.findIndex(q => f >= q[0])), rank = RANKS[ri][1];
+    const pay = payFor(this.lv, ri), P = G.poker, paid = !!(P && (P.earn || P.spend));
+    if (paid) { if (P.earn) P.earn(pay); else P.spend(-pay); }
+    this._save(); this._tell('win', { rank, ghost: rank === RANKS[0][1], left: +this.left.toFixed(1), pay: paid ? pay : 0 });
+    this.ui.callout(`HEIST COMPLETE\n${rank}${paid ? `\n+${pay} CHIPS` : ''}`); G.sound.finish();
+    this.ui.say(`“${this.art.work.t}”, out of ${roomName(this.target)} in ${clock(time)}, with ${clock(this.left)} still on the clock and not a beam touched.${record && was ? ' A new best for that room.' : ''}${paid ? ` The job pays ${pay} chips.` : ''} The copy goes in the lost property box.`, 1.2, 10);
     this._end();
   }
   _lose(why) {
