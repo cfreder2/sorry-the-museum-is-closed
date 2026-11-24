@@ -61,7 +61,7 @@ const T_DARK = [0.0, 1.5], T_SLIDE = [0.3, 1.4];
 // (metres along the wall from the picture's middle), which way its head leans as it comes ([along, out]), how far it
 // turns on its own stalk on the way, the note the glass gives, and how long it hangs over the lip before it goes in.
 const STEMS = [
-  { name: 'ivy', in: 2.05, fly: 1.15, us: -0.24, lean: [0.2, 1], twist: -0.9, note: 'D5', tall: true },
+  { name: 'ivy', in: 2.05, fly: 1.15, us: -0.2, lean: [0.2, 1], twist: -0.9, note: 'D5', tall: true },
   { name: 'may', in: 2.5, fly: 1.1, us: -0.36, lean: [-0.35, 1], twist: 0.8, note: 'F#5' },
   { name: 'leaves', in: 2.9, fly: 1.05, us: -0.34, lean: [-0.25, 1], twist: 0.7, note: 'E5' },
   { name: 'may2', in: 3.3, fly: 1.1, us: -0.22, lean: [0.4, 1], twist: -0.8, note: 'A5', tall: true },
@@ -207,8 +207,9 @@ lifeFor(4428, {
     // the flights: from in the wall under the frame, out and over, to a point above the lip, and in
     this.fl = STEMS.map(s => {
       // (its head comes out of the wall pointing into the room, and swings round to lean along the wall as it stands up,
-      // so that nothing tall leans out towards you over the foot of the picture; the tall sprays to the left)
-      const l = Math.hypot(s.lean[0], s.lean[1]), dx = s.lean[0] / l, dz = s.lean[1] / l, ex = (s.tall ? -1 : Math.sign(s.lean[0])) * 0.9, ez = 0.436;
+      // so that nothing leans far out towards you over the foot of the picture; the tall sprays a little to the left,
+      // short of the Beggar's corner and clear of the label)
+      const l = Math.hypot(s.lean[0], s.lean[1]), dx = s.lean[0] / l, dz = s.lean[1] / l, ex = s.tall ? -0.55 : Math.sign(s.lean[0]) * 0.9, ez = s.tall ? 0.835 : 0.436;
       const S = new THREE.Vector3(s.us - U0, START_H - CH, START_OUT - OUT0), M = new THREE.Vector3(0, MOUTH, 0);
       const A = new THREE.Vector3(Math.sin(TILT_A) * ex, Math.cos(TILT_A), Math.sin(TILT_A) * ez).multiplyScalar(INSERT).add(M);
       const C = new THREE.Vector3(S.x + (A.x - S.x) * 0.6, S.y + 0.03, 0.2), hang = s.hang || 0.12;
