@@ -583,7 +583,8 @@ lifeFor(44018, {
   // the stroke: a full, dry TOCK, and Haydn's chord on it
   tock(L) {
     const v = L.voice();
-    v.note(640, 0.12, { vol: 0.07, type: 'sine', attack: 0.001, to: 560 }); v.note(1720, 0.05, { vol: 0.03, type: 'sine', attack: 0.001 }); this.burst(L, { dur: 0.035, f: 2200, q: 0.9, vol: 0.06 });
+    const c = L.calm ? 0.45 : 1, at = L.calm ? 0.02 : 0.001;                             // with Reduce motion on, no sudden loud sound
+    v.note(640, 0.12, { vol: 0.07 * c, type: 'sine', attack: at, to: 560 }); v.note(1720, 0.05, { vol: 0.03 * c, type: 'sine', attack: at }); this.burst(L, { dur: 0.035, f: 2200, q: 0.9, vol: 0.06 * c });
     for (const n of [196, 246.9, 293.7, 392, 98]) v.note(n, 0.9, { vol: n < 100 ? 0.04 : 0.028, type: n < 100 ? 'sine' : 'triangle', attack: 0.004 });
   },
   clack(L, s = 1) { const v = L.voice(); v.note(520, 0.09, { vol: 0.05 * s, type: 'sine', attack: 0.001 }); v.note(1340, 0.05, { vol: 0.02 * s, type: 'sine', attack: 0.001 }); this.burst(L, { dur: 0.03, f: 1800, q: 1.2, vol: 0.04 * s }); },

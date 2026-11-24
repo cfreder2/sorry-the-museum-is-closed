@@ -33,12 +33,18 @@ nothing) before you start.
    read its file so the two never collide (the kit sends a lingering show home when another begins).
 6. From the work, never mocking it; and the **Care** rules below, which are not optional.
 
-## Care (from an independent sensitivity review of the first twenty-one; these are rules)
+## Care (from two independent sensitivity reviews, of the first twenty-one and the next thirty-two; these are rules)
 The game is played by children, classrooms and people of every background and faith, under real artists' names.
 1. **Ask first: who is in this picture, and whose is it?** If the answer is a sacred figure, a people other than the
    artist's own, a child, a nude, a person at the edge of harm, or someone suffering, do not animate that figure. Find
    the thing beside them (the water, the light, the cloth, the bird, the tools) and animate that. It has never made a
    weaker show: Gauguin's shows only the pool, Cassatt's only the basin and bubbles, Breton's the lark and the dawn.
+   **But do not leave everyone out by habit.** The second review found the rule over-learnt: almost no show has a
+   person in it, and four hundred pictures must not teach a child that paintings are about things. A clothed adult who
+   is not on the list above may come out, doing in the room the ordinary thing he or she does in the picture, modelled
+   softly and well (Sargent's two painters, Turner's hucksters, the skaters and the strollers are the models). And
+   when the person does stay in the picture, the show should send the eye back up to them (David's thread ends under
+   her lifted hand; Moroni's dog looks up at the pointing finger).
 2. **Sacred figures do not move, and sacred things are not toys.** No holy figure of any faith, angel, saint, deity,
    ancestor or spirit is built or moved, in any form, however stylised. No sacred object can be pushed, collected,
    scored with or driven through, and there is no `linger` play on a religious or funerary work. What may come out:
@@ -47,24 +53,41 @@ The game is played by children, classrooms and people of every background and fa
    never on a music box, sped up, or as a sting; never one faith's music under another's picture.
 4. **The word must fit the room the work was made for.** For a religious or grave work: rise, light, hush, breath.
 5. **No stand-in for a people.** No music, costume, movement, prop or flower used because it "says" a place or a race.
-   A person of another culture than the artist's, if shown, does an ordinary thing in an ordinary way, modelled with
-   the painter's care, never as the comic or the servant of the scene.
+   The rule is about unequal power and exoticising (a European painter's fantasy of "the East", Gauguin's Tahiti), not
+   about a Frenchman painting Romans. A person of another culture than the artist's, if shown, does an ordinary thing
+   in an ordinary way, modelled with the painter's care, never as the comic or the servant of the scene. Guard against
+   the opposite failure too: when a picture shows a person of colour with dignity, the default is to show them,
+   ordinary and careful (Cotopaxi's paddler), not to leave them out; say so in your report so a second reader can look.
 6. **Children and bodies.** No unclothed or partly clothed figure is ever modelled, of any age, whatever the picture
    shows. No child alone with nothing to do but be looked at. Nothing a floor-level camera can see under. If the
    subject is a private moment (washing, dressing, sleeping, a girl at a window), the show is the room, not the person.
 7. **Work and hardship keep their weight.** A labourer's show is the labour's world, not the labourer dancing. Nobody
    poor, old, disabled, drunk or foreign is the joke.
 8. **Danger without injury.** Grand, even a little frightening, but nobody is shown hurt, falling, drowning, struck or
-   killed. Monsters menace; they are not butchered, and they do not strike at the toy or the camera.
+   killed. Monsters menace; they are not butchered, and they do not strike at the toy or the camera. **Common fears**
+   (snakes, spiders, swarms, faces in the dark, anything that watches or follows the player): give distance, keep
+   mouths shut once the timed show is over, and do not let such a thing linger with the toy.
 9. **Animals** are never struck, whipped, hooked, netted, caged or killed on screen, nor frightened for fun.
 10. **Check the whole tune**, not the phrase: title, words, origin, later use. Never a minstrel or "plantation" song
     (Camptown Races, Oh! Susanna, Dixie, Turkey in the Straw and their like), an anthem or hymn as a joke, or
-    mock-"Oriental", mock-"Indian" or mock-"African" scales or drums.
-11. **Words.** Captions describe what happens; they do not wink. No dialect, no nickname about a real person's body.
-    Read each caption as the least charitable informed adult would. Give no sitter an identity the museum does not.
+    mock-"Oriental", mock-"Indian" or mock-"African" scales or drums. **Read the words even when no words are sung**:
+    a wordless tune carries its title into the sound book and into a teacher's search. A lament under a portrait of an
+    old man, or a song that daydreams of the East under a colonial picture, is a choice; make it knowingly or not at all.
+11. **Words.** Captions describe what happens; no joke at anyone's expense and no second meaning (warmth is fine). No
+    dialect, no nickname about a real person's body. Read each caption as the least charitable informed adult would.
+    Give no sitter an identity the museum does not. **A caption is as sure as the museum is, and no surer**: its
+    "probably" stays "probably", and if the show adds something that is not in the picture the caption must not
+    present it as the picture's.
 12. **Honour "Reduce motion and flashing".** When `L.calm` is true: no flash, no pulse of brightness faster than about
-    one a second, spins and whirls at half speed, no sudden loud first sound. Build it in from the start.
+    one a second, spins and whirls at half speed, no sudden loud sound at any point. Build it in from the start, and
+    read `L.calm` as the show runs, not only once when it starts, so a change of the setting takes effect at once.
 13. **Say what you left out.** End your file's header comment with one sentence on what the show does not do, and why.
+14. **A memorial to a real person does not act out the death.** No knell (a bell struck once, never repeating), no
+    stopped clock with a caption that explains it, never the means of death.
+15. **No stand-in for a missing person in a picture of grief or illness**: no empty chair, bed, cradle, shoes or
+    clothes. (An empty chair under a portrait whose sitter is plainly there above it is not this.)
+16. **Nothing weapon-like is ever aimed at, or fired toward, a picture** of a holy figure, a person at prayer, a
+    memorial, a child or a private moment, by the show or by anything the show invites the player to do.
 
 ## What failed in review on the first twenty (avoid up front)
 - **Faceted low-poly objects.** Use a smooth underbody with a shell of soft painted dab cards (the haystacks, the ram,

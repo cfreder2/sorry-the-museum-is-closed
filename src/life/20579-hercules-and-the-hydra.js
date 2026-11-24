@@ -722,7 +722,9 @@ lifeFor(20579, {
       fy = Math.max(-0.62, Math.min(0.5, fy)); const f2 = Math.hypot(fx, fy, fz); N.F[0] = fx / f2; N.F[1] = fy / f2; N.F[2] = fz / f2;
       // the tongue: a flick now and then, each in its own time
       const tp = ((T * (0.5 + 0.07 * i) + i * 0.37) % 1.9), fk = tp < 0.4 ? Math.sin(Math.PI * tp / 0.4) : 0;
-      N.tongue = jaw > 0.3 || g < 0.9 ? 0 : fk; N.jaw = jaw + 0.06 * N.tongue; N.tilt = tilt;
+      const shut = linger ? Math.max(this.toyK, N.watch) : 0;                         // a head that watches the toy keeps its mouth shut and its tongue still: open jaws belong to the timed show only
+      jaw = lerp(jaw, 0.02, Math.min(1, shut * 1.6));
+      N.tongue = jaw > 0.3 || g < 0.9 || shut > 0.15 ? 0 : fk; N.jaw = jaw + 0.06 * N.tongue; N.tilt = tilt;
       this.lay(N, T, g, sp.from === 'b' ? Math.min(1, 0.3 + 0.7 * ease.out(g * 1.5)) : 1);
       // its sounds: its own note as it rises, and again in the chord when they all turn
       if (crossed(sp.rise[0] + 0.1)) this.hiss(L, sp.hz, i ? 0.8 : 1.0, 1.4);
