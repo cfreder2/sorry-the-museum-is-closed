@@ -65,7 +65,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const L = landOf();
     for (const d of p.doors) {
       if (d.secret && !(found() && shown(p.byId[d.a]) && shown(p.byId[d.b]))) continue;                 // no way through a wall that has not opened
-      if (p.locked && d.out) continue;                                                                   // nor through a locked door, nor by a way in that has yet to be found (the building opens the first time you are inside it)
+      if (p.locked && d.out && d !== p.vent) continue;      // nor through a locked door, nor by a way in that has yet to be found. The front vent is always a way: lit, open, the way in (src/plan.js)
       const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
       const side = id => {
         if (id === 'out') return 'OUT';
