@@ -23,3 +23,4 @@ import './76571-view-of-cotopaxi.js';   // 161  Church, View of Cotopaxi: erupt
 import './14620-cliff-walk-at-pourville.js'; // hall Monet, Cliff Walk at Pourville: gust
 import './81533-races-at-longchamp.js'; // 225  Manet, The Races at Longchamp: thunder
 import './95998-old-man-gold-chain.js'; // hall Rembrandt, Old Man with a Gold Chain: glint
+import './25865-herring-net.js';      // 161  Homer, The Herring Net: haul
