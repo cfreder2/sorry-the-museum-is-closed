@@ -1,0 +1,78 @@
+// Streaming: only what is near is on the graphics card.
+//
+// The whole museum, the streets, the park and the lake are built at start-up, but a phone cannot hold all of it on its
+// graphics card at once (it gives the page a fixed allowance and kills it past that). So every fixed thing in the world
+// is given the box it stands in, and a few times a second each is checked against where the camera is:
+//   * near (within `near` metres, on or about the camera's level): drawn as usual;
+//   * far (past `far`): put on a layer the camera does not draw, and its geometry and textures are released from the
+//     graphics card (unless something near shares them). They are sent up again, by three.js, the first time they
+//     are drawn after you come back, from the copies still held in memory.
+// Nothing about a feature changes: `visible` is left to the features themselves; this uses the layer only.
+//
+// What is not streamed: anything bigger than a city block (the ground, the sky, the lake), anything that moves about
+// the world (it is not under the museum's group, or says userData.always), and the works of art (museum.js loads
+// and lets go of their pictures itself, by distance).
+
+import * as THREE from 'three';
+
+const HIDDEN = 7;                          // the layer the camera does not draw
+
+export class Streamer {
+  // inside(box): is this thing inside a room (true) or out of doors / on the outside of the building (false)?
+  // indoors(point): is the camera in a room? Then: in a room, rooms near you and only the outside close by; out of doors,
+  // the outside a long way off and a room's insides only when you are near (through a door or a window).
+  constructor(renderer, root, { near = 80, far = 95, out = 220, big = 150, skip = () => false, inside = () => true, indoors = () => true } = {}) {
+    this.renderer = renderer; this.root = root; this.near = near; this.far = far; this.outR = out; this.big = big; this.skip = skip; this.inside = inside; this.indoors = indoors;
+    this.items = []; this.t = 0; this.at = new THREE.Vector3(1e9, 0, 0); this.out = 0;
+    this._box = new THREE.Box3(); this._v = new THREE.Vector3();
+  }
+  // Every mesh, line, point cloud and sprite under the root, with the box it stands in. Call once the world is built
+  // (and again for anything added later: things already known are passed over).
+  register() {
+    const known = this._known || (this._known = new WeakSet()), b = this._box;
+    this.root.updateMatrixWorld(true);
+    this.root.traverse(o => {
+      if (known.has(o) || !(o.isMesh || o.isLine || o.isPoints || o.isSprite) || !o.geometry) return;
+      known.add(o);
+      if (o.userData.always || this.skip(o)) return;
+      for (let p = o; p; p = p.parent) if (p.userData && p.userData.always) return;
+      try {
+        if (o.isInstancedMesh) { if (!o.boundingBox) o.computeBoundingBox(); b.copy(o.boundingBox).applyMatrix4(o.matrixWorld); }
+        else { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); b.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); }
+      } catch { return; }
+      if (b.isEmpty() || !isFinite(b.min.x) || !isFinite(b.max.x)) return;
+      const sx = b.max.x - b.min.x, sz = b.max.z - b.min.z;
+      if (sx > this.big || sz > this.big) return;          // the ground, the sky, the lake: always
+      this.items.push({ o, box: b.clone(), on: true, inner: !!this.inside(b) });
+    });
+  }
+  // How far the camera is from a box: across the ground, with a level's difference in height counted as a long way
+  // (the galleries upstairs are no use to you in the basement).
+  _dist(box, p) {
+    const dx = Math.max(box.min.x - p.x, 0, p.x - box.max.x), dz = Math.max(box.min.z - p.z, 0, p.z - box.max.z);
+    const dy = Math.max(box.min.y - p.y, 0, p.y - box.max.y);
+    return Math.hypot(dx, dz) + Math.max(0, dy - 3) * 6;
+  }
+  update(dt, cam) {
+    this.t += dt;
+    if (this.t < 0.4 && cam.distanceToSquared(this.at) < 4) return;
+    this.t = 0; this.at.copy(cam);
+    const gone = [], keepG = new Set(), keepT = new Set(), inRoom = this.indoors(cam), gap = this.far - this.near;
+    // how near a thing must be to be drawn, by where you are and where it is
+    const reach = inRoom ? { inner: this.near, outer: this.near * 0.8 } : { inner: this.near * 0.55, outer: this.outR };
+    for (const it of this.items) {
+      const d = this._dist(it.box, cam), r = it.inner ? reach.inner : reach.outer;
+      if (it.on && d > r + gap) { it.on = false; it.o.layers.set(HIDDEN); gone.push(it); }
+      else if (!it.on && d < r) { it.on = true; it.o.layers.set(0); }
+      if (it.on) { keepG.add(it.o.geometry); for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture) keepT.add(x); } }
+    }
+    // Let go of what only far things use.
+    for (const it of gone) {
+      const g = it.o.geometry; if (g && !keepG.has(g)) g.dispose();
+      for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && !keepT.has(x)) x.dispose(); }
+    }
+    this.out = this.items.length - this.items.filter(i => i.on).length;
+  }
+  // Everything back on (a staged view or a cut scene that looks a long way off).
+  all() { for (const it of this.items) if (!it.on) { it.on = true; it.o.layers.set(0); } this.at.set(1e9, 0, 0); }
+}

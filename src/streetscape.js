@@ -14,11 +14,16 @@
 // shared materials for what they draw themselves.
 
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { rng } from './textures.js';
 
 const memo = {};
-const once = (k, f) => memo[k] || (memo[k] = f());
+// (and once a set of maps is made, the scratch canvases it was drawn on are let go at once, not whenever the garbage is
+// collected: a phone counts every canvas still alive against the page)
+const SCRATCH = [], KEEP = new Set();
+let depth = 0;      // (one set can be made inside another: the scratch is only let go when the outermost is done)
+const once = (k, f) => memo[k] || (memo[k] = (() => { depth++; let out; try { out = f(); } finally { depth--; } if (!depth) { for (const c of SCRATCH) if (!KEEP.has(c)) c.width = c.height = 0; SCRATCH.length = 0; } return out; })());
 
 // ---------------------------------------------------------------------------------------------- the lanes --
 // Where the traffic drives (traffic.js reads this, and the paint and the tracks are laid to it). Each street's lanes
@@ -36,9 +41,10 @@ export function trafficLanes(plan) {
 export const STOP_BACK = 5.0;          // how far short of a cross street the stop bar is painted (and the traffic stops): room for the crosswalk
 
 // ------------------------------------------------------------------------------------------- canvas kit --
-function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d', { willReadFrequently: true })]; }
+function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; SCRATCH.push(c); return [c, c.getContext('2d', { willReadFrequently: true })]; }
 function tx(c, { srgb = true, wrap = true } = {}) {
-  const t = new THREE.CanvasTexture(c);
+  const im = shrink(c); KEEP.add(im);
+  const t = new THREE.CanvasTexture(im);      // (smaller on a phone: budget.js)
   if (wrap) t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.anisotropy = 16;                   // (clamped to what the device has)

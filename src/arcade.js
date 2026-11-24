@@ -15,6 +15,7 @@
 
 import { roomAt } from './plan.js';
 import * as THREE from 'three';
+import { LOWMEM } from './budget.js';
 import * as TX from './textures.js';
 import { GAMES, banner, INK } from './arcadegames.js';
 
@@ -57,14 +58,14 @@ export class Arcade {
       m.position.set(a.x + a.fx * 0.4, a.y + 0.3, a.z + a.fz * 0.4); m.rotation.y = Math.atan2(a.fx, a.fz);
       const put = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); m.add(o); return o; };
       put(body, shell, 0, 0.25, 0); put(back, shell, 0, 0.24, -0.27); put(bezel, dark, 0, 0.26, 0.222);
-      const cv = document.createElement('canvas'); cv.width = 640; cv.height = 480;      // drawn as if 160 by 120; big enough to play on when the camera comes close
+      const Q = LOWMEM ? 2 : 4, cv = document.createElement('canvas'); cv.width = 160 * Q; cv.height = 120 * Q;      // (half the pixels on a phone: budget.js)      // drawn as if 160 by 120; big enough to play on when the camera comes close
       const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
       put(face, new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.7, 1.7, 1.7) }), 0, 0.26, 0.234);
       // The light it throws on the floor in front of it: nothing else in the room does that.
       const glow = put(pool, new THREE.MeshBasicMaterial({ map: TX.radial(0, 1), color: new THREE.Color(0.1, 0.42, 0.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 0, -0.285, 1.0);
       glow.rotation.x = -Math.PI / 2; glow.renderOrder = 4;
       g.add(m);
-      const c2 = cv.getContext('2d'); c2.scale(4, 4);
+      const c2 = cv.getContext('2d'); c2.scale(Q, Q);
       const it = { ...a, id: Game.id, Game, cv, c: c2, tex, glow, sx: a.x + a.fx * 1.35, sz: a.z + a.fz * 1.35 };
       this._attract(it, 0);
       return it;

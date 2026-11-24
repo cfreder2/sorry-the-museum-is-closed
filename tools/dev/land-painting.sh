@@ -3,6 +3,9 @@
 #   tools/dev/land-painting.sh <branch> <work id> "<commit subject after the build number>"   (serve the repo on 8871 first)
 set -u
 cd "$(git rev-parse --show-toplevel)"
+# Another session may have pushed to main since the last landing: take its work first, or the push at the end is refused.
+git fetch -q origin
+if ! git merge -q --ff-only origin/main 2>/dev/null && ! git merge-base --is-ancestor origin/main HEAD; then echo "NOT LANDED: origin/main has moved and local main has commits of its own; merge them by hand first"; exit 1; fi
 git merge -q --no-edit "$1" >/dev/null 2>&1
 python3 - <<'PY'
 import re

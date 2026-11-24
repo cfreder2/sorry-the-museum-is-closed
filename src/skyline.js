@@ -7,6 +7,7 @@
 // Every building is drawn here by hand: silhouettes and lit windows, nothing copied from a photograph.
 
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 import { rng } from './textures.js';
 
 export const SPAN = 330, BELOW = 9;
@@ -85,7 +86,7 @@ export function panorama() {
   // Out on the water: the breakwater's light, and the far shore's, round to the south-east.
   for (const [b, c] of [[104, '#58e08a']]) { g.fillStyle = c; g.fillRect(px(b) - 2, py(3.2), 4, 4); }      // (the breakwater's own light is built, and lit: harbour.js. A red one painted far off was taken for something to drive to.)
   for (let d = 128; d < 168; d += 0.5 + r()) { g.fillStyle = `rgba(255,210,150,${0.25 + r() * 0.4})`; g.fillRect(px(d), py(1.2 + r()), 2, 2); }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(shrink(cv, 256, 2048)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
   return t;
 }
 
