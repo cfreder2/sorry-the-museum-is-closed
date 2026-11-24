@@ -804,6 +804,57 @@ boxes, one mesh to a 32 m patch, drawn only near the camera. It is all in
 `src/lights.js`. A switch plate keeps within half a metre of its door jamb
 and never sits over a picture, a label, another doorway or furniture.
 
+## The building's systems
+
+What a security officer could switch on from the control room (the terminal
+there types at it; from a console, `__ah.systems.run('sprinklers', ['lobby', 'on'])`).
+It is all in `src/systems.js`: `G.systems.list()`, `.run(id, args)` (the reply
+comes back as lines, in the voice of a building management system),
+`.zones()` and `.state()`.
+
+- `sprinklers <zone|all> on|off`: ceiling heads rain in a zone until shut off,
+  or for 90 seconds ("valve closed, tank low"). The zones are public and
+  back-of-house rooms worked out from the plan by use and name: the lobby, the
+  shops, the cafés, corridors, kitchens, plant, loading, the security rooms
+  themselves. **Never a gallery, a store of works, or anywhere a work hangs**:
+  any room with a work in it, or with one within reach of one of its doorways,
+  is struck off whatever the plan calls it, and asking for one gets a refusal
+  ("Zone G201 is a GALLERY. There is a Renoir in there. Request logged. Request
+  reported."). The floor is wet: the car slides, on the same wet-floor model as
+  the mopped patch in Gallery 200 (`plan.puddles`), while it rains and for most
+  of a minute after. A robot in the rain breaks off whatever it was doing,
+  leaves for a dry room on its patch and stays out until the floor has dried:
+  a way to clear a room, at the price of a slippery one.
+- `firetest <gallery|wing>`: the galleries' suppression is inert gas, not water,
+  and this is its 20-second test. Amber beacons over the doorways, a light
+  curtain across each (solid while it is drawn; it is a sensor, so leaning on
+  it aborts the test and nothing is ever shut in; a test asked for while the
+  toy is in the room waits until it has left), a low white vapour along the
+  floor, robots in the room halted and then restarting for a few seconds.
+- `lights <zone|room|all> on|off` throws switches (`src/lights.js`), `lift call
+  <floor>` calls and holds a lift, `doors status` is honest about the locks
+  (the vents are "not on the system"), and `pa <message>` chimes, shows the
+  words and makes every robot stop to listen. `pa donuts` sends one to the
+  control room, which is where you are.
+
+Nothing is ever drawn over a work of art, and this is held three ways. All of
+it that is see-through (rain, ripples, the wet sheen, mist, vapour, beacons,
+beams) is added with a blend weighted by the frame's alpha, which is 0 on a
+work (`keepTrue`, `src/finish.js`), so a canvas pixel cannot change from any
+camera. Mist and vapour never stand higher than the eye of the camera drawing
+them, nor within 20 cm of the lowest work in the room, so no line of sight
+through them rises to a picture. And the test's beacons and beams are thrown
+away pixel by pixel wherever they would lie in front of a work in that room or
+the rooms through its doorways. `__ah.systems.artCheck(views)` renders with and
+without everything here and counts the pixels of works that differ;
+`node tools/systems_check.mjs` does that from 118 cameras, with every valve open
+and two wings under test.
+
+With nothing switched on it costs a counter a frame. A raining room is three
+draw calls (rain as instanced streaks worked out in the vertex shader, the wet
+floor, mist), made when the camera first comes within 36 m; a gallery under
+test is three more.
+
 ## The conservation line
 
 In a conservation studio there is a long low table with a belt across the
@@ -1000,6 +1051,7 @@ in `src/garage.js`, such as `truck`, which opens that one), `?auto`
 lets a test driver run whatever race is under way (`__ah.raceSpots.at(id)` puts the toy at a spot, `.go(id)` starts it). The game object is `window.__ah`; a test can
 drive by setting its `testInput` (what the sticks would send) and look from
 anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
+`?sys=sprinklers+lobby+on;lights+lobby+on` runs building-system commands a moment after the start (src/systems.js).
 
 ## Layout
 
@@ -1042,6 +1094,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/repairgame.js         its rules (no three.js, no DOM)
     src/heist.js              the heist: the button, the beams, the clock
     src/guards.js             the security robots, the bolt, the dumpster
+    src/systems.js            the building's systems: sprinklers, the fire suppression test, lights, lifts, doors, the PA
     src/guardplan.js          their beats, the floor they can drive, what they can see, the way they find (no three.js, no DOM)
     src/whiteboards.js        the whiteboards: the writing on them, and reading one
     src/boardtext.js          what each of them says (no three.js, no DOM)
