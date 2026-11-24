@@ -259,7 +259,7 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
   float sun = uSun.w * (1.0 - smoothstep(uSun.z * 0.5, uSun.z * 1.1, sd + (t2.a - 0.62) * 0.3));
   // in the storm's light: umber and olive, going down into the dark on the right, as his sea does
   float right = smoothstep(0.1, 1.35, p.x - 0.3 * p.y);
-  vec3 storm = mix(cDeep, c * 0.9, 0.2 + 0.8 * sh) * mix(1.0, 0.66, right);
+  vec3 storm = mix(cDeep, c * 0.9, 0.36 + 0.64 * sh) * mix(1.0, 0.66, right);
   vec3 lit = mix(c * 1.02, mix(c * 1.5, cGold, 0.3), sh);
   float lk = sun * (1.0 - 0.55 * right);
   c = mix(storm, lit, lk);
@@ -273,7 +273,7 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
   // the thick paint: in the sun, dots and drags of it stand up cream all over the lit water
   float tw = mix(1.0, 0.75 + 0.25 * sin(uT * 2.1 + fuv.x * 23.0 + fuv.y * 17.0), uGlint);
   c = mix(c, cFroth, 0.2 * patchy * crest * lk);
-  c = mix(c, cFroth * 1.04, fa * smoothstep(0.64, 0.84, t2.a + 0.2 * sh) * lk * 0.72 * tw);
+  c = mix(c, cFroth * 1.04, fa * smoothstep(0.66, 0.86, t2.a + 0.2 * sh) * lk * 0.64 * tw);
   // the far water going under the storm at the wall
   c = mix(c, cHaze, (1.0 - smoothstep(0.0, 0.42, p.y)) * mix(0.7, 0.45, lk));
   // the first water over the floor, and the sea's edge: thin, darker, with a lace of froth that breaks up
