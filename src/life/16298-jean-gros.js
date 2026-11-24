@@ -10,26 +10,30 @@
 // thanks be to God. Front and back say one thing, the front with his hands and the back in writing. So the show is
 // the back of the picture, come round into the room, and it ends on his word.
 //
-// Look at it and the wall under the picture goes to the blue-black of his ground, as the back of the panel is black.
-// Two gold tassels slip out from under the frame and float down side by side. One stays; the other darts off and
-// draws the cord after it through the air as a pen draws a flourish: up the left side and round in a love-knot, where
-// the J writes itself in gold; over the top and through an iron ring, and the gold device comes forward out of the
-// dark on the ring, and under it, on its straps, the blue shield; down the right side and round again, where the G
-// is written; and along the bottom to its place. Then the scroll, which has come out of the dark rolled up, unrolls
-// from left to right across the top, behind the device, and the words come with it, one at a time: GRACES, A, DIEV,
-// each to a plain note (a fifth, then the octave: three notes, not a tune and not a chant). The gold warms a little.
-// After that nothing happens: it floats there, breathing, as it floats on the black of the panel, for as long as you
-// look. When you stop, the scroll rolls up, the cord runs home, everything goes back into the dark and the two
-// tassels go up under the frame again.
+// Look at it and the wall under the picture goes to the blue-black of his ground, as the back of the panel is dark:
+// a pool of shade, in which the pictures keep their own light. Two gold tassels slip out from under the frame and
+// float down side by side. One stays; the other darts off and draws the cord after it through the air as a pen draws
+// a flourish: up the left side and round in a love-knot, where the J writes itself in gold; over the top and through
+// an iron ring, and the gold device comes forward out of the dark on the ring, and under it, on its straps, the blue
+// shield; down the right side and round again, where the G is written; and along the bottom to its place. Then the
+// scroll, which has come out of the dark rolled up, unrolls from left to right across the top, behind the device, and
+// the words come with it, one at a time: GRACES, A, DIEV, each to a plain note (a fifth, then the octave: three notes,
+// not a tune and not a chant). The wall behind them warms a little, as gold gives light back. After that nothing
+// happens: it floats there, breathing, as it floats on the black of the panel, for as long as you look. When you
+// stop, the scroll rolls up, the cord runs home, everything goes back into the dark and the two tassels go up under
+// the frame again.
 //
 // How it is made: three draw calls. The dusk is one mesh on the wall and the floor at its foot (flat against the
-// wall, behind every canvas and label). The cord, tassels, ring, device, straps, shield and initials are one rig with
-// one shader: his gold is painted gold, ochre with brown hatching in the shade, not metal; the initials and the
-// shield are flat, drawn once into a texture, and the initials are shown in the order a pen would write them. The
-// scroll is one strip, laid along its path up to where the roll has got to and wound in a spiral beyond. Everything
-// hangs in the air at toy height, below the frame and below the picture next door, so from the look camera and the
-// toy's eye the guard has nothing to cut. Nothing is solid and nothing stays out after the look. With "Reduce motion
-// and flashing" on, the whole story runs at six tenths of the speed, the breathing at half, and the notes are softer;
+// wall, behind every canvas and label; it stops at the door). The cord, tassels, ring, device, straps, shield and
+// initials are one rig with one shader: his gold is painted gold, ochre with brown hatching in the shade, not metal;
+// the initials and the shield are flat, drawn once into a texture, and the initials are shown in the order a pen
+// would write them (they are mine, in his manner: a bold stroke with a pale edge and a hatched one, hairline
+// flourishes, lozenges). The scroll is one strip, laid along its way up to where the roll has got to and wound in a
+// spiral beyond; its capitals are a broad pen's, as the museum transcribes the words. Everything floats at toy
+// height, under the frame and lower than the picture next door (Jean Hey's Annunciation, a hand's width to the left),
+// so from the look camera the guard has nothing to cut; from the floor, looking up, it dissolves the top of the cord
+// where that would cross a picture. Nothing is solid and nothing stays out after the look. With "Reduce motion and
+// flashing" on, the whole story runs at six tenths of the speed, the breathing at half, and the sounds are softer;
 // there is no flash in it.
 //
 // What it does not do: the man stays in his picture and at his prayer, and neither he nor his hands nor the Virgin
@@ -106,7 +110,7 @@ const moved = (g, m) => { g.applyMatrix4(m); return g; };
 // Kinds (aK.x): 0 plain, 1 gold (painted: ochre, lighter where the light is, brown hatching where it is not), 2 an
 // initial (from the atlas, shown as far as the pen has got), 3 the shield (from the atlas), 4 the cord (two colours
 // twisted; shown from one end to wherever the tassel is), 5 the scroll (the atlas on its face, bare parchment on its
-// back), 6 a tassel (gold, in strands). Parts (aK.y) each come forward out of the dark on their own (uShow).
+// back), 6 a tassel (gold, in strands). aK.y says which part it is (which initial the pen is on).
 function armsPaint(u) {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false });
   m.onBeforeCompile = sh => {
@@ -198,7 +202,6 @@ function drawAtlas(P) {
     const c = Math.cos(turn), s = Math.sin(turn), p = (u, v) => [x + u * c - v * s, y + u * s + v * c];
     pen(ox, oy, [p(0, -b), p(a * 0.5, -b * 0.42), p(a, 0), p(a * 0.5, b * 0.42), p(0, b), p(-a * 0.5, b * 0.42), p(-a, 0), p(-a * 0.5, -b * 0.42)], { w0: 6.5, o0, o1, closed: true });
   };
-  const liss = (cx, cy, a, b, turn, n = 22) => { const out = [], c = Math.cos(turn), s = Math.sin(turn); for (let i = 0; i < n; i++) { const f = i / n * TAU + 0.4, u = a * Math.sin(2 * f), v = b * Math.sin(f); out.push([cx + u * c - v * s, cy + u * s + v * c]); } return out; };
 
   // ---- the J
   {
@@ -425,7 +428,6 @@ lifeFor(16298, {
       for (let i = 0; i < W * H * 4; i += 4) { m[i] = v[i]; m[i + 1] = o[i]; m[i + 2] = 0; m[i + 3] = 255; }
       const tex = (data, srgb) => { const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 4; t.needsUpdate = true; return t; };
       this.tCol = tex(new Uint8Array(c.buffer.slice(0)), true); this.tMask = tex(m, false);
-      this._dbg = A.cc;
     }
 
     // ------------------------------------------------------------ the rig: everything but the scroll, one draw call
@@ -494,7 +496,7 @@ lifeFor(16298, {
     // ------------------------------------------------------------ when things happen (story seconds)
     this.tJ = this.tAt(this.sJ) - 0.05; this.tG = this.tAt(this.sG) - 0.05; this.tR = this.tAt(this.sR);
     // where the tassels come from: under the frame, in the wall (design metres, as the cord's way is)
-    this.from = new THREE.Vector3(TAIL[0] + 0.012, railH - DY - 0.04, -Z0 - 0.025);
+    this.from = new THREE.Vector3(TAIL[0] + 0.012, railH - DY - 0.105, -Z0 - 0.025);      // (low enough that a skirt trailing above never reaches the picture)
 
     // ------------------------------------------------------------ the sounds: silk, parchment, and three plain notes
     const s = this.sc = score(L), tWord = this.sWord.map(sw => this.tUnroll(sw + 0.02));
@@ -526,7 +528,7 @@ lifeFor(16298, {
   story(t, o = {}) {
     o.dusk = ease.smooth(ramp(t, T.dusk[0], T.dusk[1]));
     o.fall = ramp(t, T.fall[0], T.fall[1]); o.part = ease.smooth(ramp(t, T.part[0], T.part[1]));
-    o.head = this.head(t); o.flown = ramp(t, T.fly[0], T.fly[1]);
+    o.head = this.head(t);
     o.penJ = ramp(t, this.tJ, this.tJ + 1.05); o.penG = ramp(t, this.tG, this.tG + 1.05);
     // (each of these runs evenly from 0 to 1; it is eased where it is used, quick out of the wall and slow into place)
     o.ring = ramp(t, this.tR - 0.65, this.tR - 0.1); o.device = ramp(t, this.tR - 0.35, this.tR + 0.4);
@@ -558,7 +560,7 @@ lifeFor(16298, {
     else {
       const h = this.hold || this.story(t, {}), r = L.ret;
       o.q = lerp(h.q, S.q0, ease.inOut(ramp(r, 0, 0.36))); o.roll = h.roll * (1 - ease.in(ramp(r, 0.34, 0.52)));
-      o.head = lerp(h.head, S_HEAD0, ease.inOut(ramp(r, 0.06, 0.66))); o.flown = h.flown;
+      o.head = lerp(h.head, S_HEAD0, ease.inOut(ramp(r, 0.06, 0.66)));
       o.penJ = h.penJ * (1 - ease.smooth(ramp(r, 0.3, 0.6))); o.penG = h.penG * (1 - ease.smooth(ramp(r, 0.08, 0.36)));
       const sink = 1 - ease.in(ramp(r, 0.14, 0.44));
       o.ring = h.ring * sink; o.device = h.device * sink; o.straps = h.straps * sink; o.shield = h.shield * sink;
