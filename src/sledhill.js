@@ -15,6 +15,7 @@
 // The ground is one heightfield (sledland.js): the car drives on exactly the triangles that are drawn. The hill is one
 // mesh, the props another, the bulbs one instanced mesh, the wires one more; the poles and the penguins are instanced.
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 import { feature } from './features.js';
 import { groundAt, confine, GRAVITY } from './plan.js';
 import { buildLand, TOP, RUN_W, RUN_LIP, PATH_W, FINISH_S, TUNNEL, KICKERS, STAIR } from './sledland.js';
@@ -464,13 +465,14 @@ feature({
     // packed and a little icy-blue down the run, trodden grey up the path
     const band = (P, wide, style) => { c.lineWidth = wide * ppm; c.strokeStyle = style; c.beginPath(); c.moveTo(px(P[0].x), pz(P[0].z)); for (const p of P) c.lineTo(px(p.x), pz(p.z)); c.stroke(); };
     c.save(); c.globalCompositeOperation = 'multiply'; band(run, RUN_W * 2, 'rgb(208,224,255)'); band(L.path, PATH_W * 2, 'rgb(236,234,236)'); c.restore();
-    const macro = new THREE.CanvasTexture(cv); macro.colorSpace = THREE.NoColorSpace; macro.flipY = false; macro.anisotropy = 4;
+    const macro = new THREE.CanvasTexture(shrink(cv)); macro.colorSpace = THREE.NoColorSpace; macro.flipY = false; macro.anisotropy = 4;
     // the normal map, from the dents
     const src = d.getImageData(0, 0, TW, TH).data, out = new Uint8Array(TW * TH * 4), Hh = (x, y) => src[((y < 0 ? 0 : y >= TH ? TH - 1 : y) * TW + (x < 0 ? 0 : x >= TW ? TW - 1 : x)) * 4] / 255;
     for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
       const gx = (Hh(x + 1, y) - Hh(x - 1, y)) * 3.2, gy = (Hh(x, y + 1) - Hh(x, y - 1)) * 3.2, l = Math.hypot(gx, gy, 1), o = (y * TW + x) * 4;
       out[o] = (0.5 - gx / l * 0.5) * 255; out[o + 1] = (0.5 - gy / l * 0.5) * 255; out[o + 2] = (0.5 + 0.5 / l) * 255; out[o + 3] = 255;
     }
+    hv.width = hv.height = 0;      // (only read for the normals: let it go)
     const norm = new THREE.DataTexture(out, TW, TH, THREE.RGBAFormat); norm.channel = 1; norm.wrapS = norm.wrapT = THREE.ClampToEdgeWrapping;
     norm.generateMipmaps = true; norm.minFilter = THREE.LinearMipmapLinearFilter; norm.magFilter = THREE.LinearFilter; norm.anisotropy = 4; norm.needsUpdate = true;
     return { macro, norm };

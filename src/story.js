@@ -27,6 +27,7 @@
 // goes on the rings over the silo, as for the light over the lake.
 
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 import { feature, features } from './features.js';
 import { groundAt } from './plan.js';
 import { mice, mouseGeometry, pawTexture } from './mice.js';
@@ -113,7 +114,7 @@ function ringTexture() {
     g.strokeStyle = 'rgba(70,96,128,.6)'; g.lineWidth = 10; g.beginPath(); g.moveTo(c + Math.cos(a) * 345, c + Math.sin(a) * 345); g.lineTo(c + Math.cos(a) * 395, c + Math.sin(a) * 395); g.stroke();
   }
   g.fillStyle = 'rgba(70,96,128,.5)'; g.beginPath(); g.arc(c, c, 36, 0, 7); g.fill();
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  const t = new THREE.CanvasTexture(shrink(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
 // The grate: iron bars over slots, the slots lit from beneath.

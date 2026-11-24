@@ -2,6 +2,7 @@
 // Nothing is downloaded but the art.
 
 import * as THREE from 'three';
+import { shrink } from './budget.js';
 
 function canvas(w, h) {
   const c = document.createElement('canvas');
@@ -10,7 +11,7 @@ function canvas(w, h) {
 }
 
 function tex(c, { repeat = false, srgb = true } = {}) {
-  const t = new THREE.CanvasTexture(c);
+  const t = new THREE.CanvasTexture(shrink(c));      // (smaller on a phone: budget.js)
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.anisotropy = 8;

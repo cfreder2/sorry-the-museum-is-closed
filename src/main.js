@@ -7,6 +7,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
+import { sweep as sweepGeometry } from './budget.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
@@ -140,7 +141,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.23.8';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.24.1';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -1618,6 +1619,8 @@ function tick(now) {
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
   lampNear(dt);
   fitNear();
+  // (on a phone: static geometry already on the graphics card lets go of its copy in memory, budget.js)
+  if (G.state === 'play' && (G._swept = (G._swept || 0) + 1) % 300 === 0) sweepGeometry();
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
 }

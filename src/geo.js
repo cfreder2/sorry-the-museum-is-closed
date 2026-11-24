@@ -1,6 +1,7 @@
 // A small builder of flat-sided geometry: quads and boxes, with normals, UVs and optional colour.
 
 import * as THREE from 'three';
+import { LOWMEM, releasable } from './budget.js';
 
 export class Geo {
   constructor() { this.p = []; this.n = []; this.uv = []; this.idx = []; this.c = []; this.col = null; }
@@ -41,5 +42,6 @@ export class Geo {
     g.setIndex(this.idx);
     return g;
   }
-  mesh(mat) { const m = new THREE.Mesh(this.build(), mat); m.matrixAutoUpdate = false; return m; }
+  // (the builder's own lists are let go once the mesh is made: a building's worth of them was tens of megabytes kept for nothing)
+  mesh(mat) { const m = new THREE.Mesh(this.build(), mat); m.matrixAutoUpdate = false; this.p = []; this.n = []; this.uv = []; this.idx = []; this.c = []; if (LOWMEM) releasable(m.geometry); return m; }
 }
