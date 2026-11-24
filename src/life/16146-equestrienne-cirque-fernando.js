@@ -23,9 +23,10 @@
 //
 // The grey is the picture's great shape, and is made as he drew it: a heavy horse, broad in the quarters and thick in
 // the neck, in flat greys (a light along the top, a lilac shade beneath) inside a dark blue-black contour wide enough
-// to read as drawn from where you stand; its dapples are loose dabs of paint lying on the hide, its long white tail
-// swings out to the off side as it does in the picture, and its hind legs are jointed as a horse's are (thigh, gaskin,
-// cannon), so they fold and reach through the canter's three beats and the moment in the air. The clown, the stool,
+// to read as drawn from where you stand; its dapples are loose dabs of paint lying on the hide; its white tail, full
+// at the dock and breaking into strands, is carried up and out to the off side as it is in the picture and follows
+// the horse a moment late; and its hind legs are jointed as a horse's are (thigh, gaskin, cannon), so they fold and
+// reach through the canter's three beats and the moment in the air. The clown, the stool,
 // the kerb and the hoop are solid and outlined too, as his neighbour At the Moulin Rouge is. Never over the picture:
 // nothing stands higher than the foot of the frame.
 //
@@ -85,7 +86,7 @@ const HARM_A = [['A', 'A2'], ['A', 'A2'], ['A', 'A2'], ['D', 'A2'], ['E7', 'E7b'
 const HARM = [['A', 'A2'], ['A', 'A2'], ...HARM_A, ['E', 'B7'], ['E', 'E'], ...HARM_A, ['E7', 'E7b'], ['A', 'A']];
 
 // The grey's bones.
-const ROOT = 0, NECK = 1, HEAD = 2, FU = 3, FL = 5, HT = 7, HG = 9, HL = 11, T1 = 13, NBH = 16;
+const ROOT = 0, NECK = 1, HEAD = 2, FU = 3, FL = 5, HT = 7, HG = 9, HL = 11, T1 = 13, T2 = 14, TS = 15, NSTR = 5, NBH = TS + NSTR;
 // Its legs: side (+1: the near, left side), fore or hind, and when in the stride each comes down. The left lead, as it
 // must be on this hand: the off hind, then the near hind and off fore together, then the near fore, on the beat.
 const LEGS = [[1, 0, 0], [-1, 0, -1 / 6], [1, 1, -1 / 6], [-1, 1, -1 / 3]];
@@ -211,10 +212,24 @@ lifeFor(16146, {
     const gHT = inked(limb([[-0.035, 0.004, 0.03, 0.05], [0.0, 0.004, 0.05, 0.074], [0.045, 0.0, 0.046, 0.062], [0.085, -0.002, 0.033, 0.043], [0.106, 0, 0.022, 0.028]], legPaint(0.1, 0, 0.25), { around: 12, sub: 3 }), L_LEG, line);
     const gHG = inked(limb([[-0.018, 0, 0.025, 0.033], [0.01, 0.001, 0.032, 0.043], [0.055, -0.002, 0.024, 0.031], [0.098, 0, 0.0185, 0.022], [0.116, 0, 0.014, 0.017]], legPaint(0.11, 0.25, 0.65), { around: 10, sub: 3 }), L_LEG, line);
     const gHL = inked(limb(LOW(0.105), lowPaint(0.105), { around: 10, sub: 2 }), L_LEG, line);
-    // its tail, full and long
-    const tailPaint = (p, n) => mix(tailC, tailS, clamp01(0.4 * (0.5 + 0.5 * Math.sin(Math.atan2(p.x, p.y) * 5 + p.z * 40)) + clamp01(-n.y) * 0.45));
-    const gT = [[[-0.012, 0, 0.009, 0.011], [0.012, 0, 0.016, 0.02], [0.06, 0.003, 0.024, 0.03], [0.135, 0.002, 0.028, 0.032]], [[-0.022, 0.002, 0.023, 0.027], [0.03, 0.003, 0.029, 0.032], [0.09, -0.002, 0.03, 0.03], [0.145, -0.002, 0.025, 0.024]], [[-0.022, -0.002, 0.022, 0.021], [0.05, 0.003, 0.026, 0.024], [0.12, -0.002, 0.017, 0.015], [0.19, 0.002, 0.002, 0.002]]]
-      .map(s => inked(limb(s, tailPaint, { around: 10, sub: 3 }), L_TAIL, line));
+    // Its tail: no longer than from the dock to the hock, full at the dock, spreading into a fan and breaking into
+    // five strands, in his grey-white strokes. His dark line runs only round the outside of it: round the dock and
+    // the fan (not across the fan's end, where the strands leave it) and down the outer edge of the two outer strands.
+    const edged = (g, d, keep) => {            // (the kit's inked line, kept only where keep(the middle of a face of it) says)
+      const n = g.attributes.position.count, k = inked(g, d, line), P = k.attributes.position, out = new THREE.BufferGeometry(), idx = [], c = V3();
+      for (let f = 0; f < n; f += 3) idx.push(f, f + 1, f + 2);
+      for (let f = n; f < 2 * n; f += 3) { c.set(0, 0, 0); for (let j = 0; j < 3; j++) { c.x += P.getX(f + j) / 3; c.y += P.getY(f + j) / 3; c.z += P.getZ(f + j) / 3; } if (keep(c)) idx.push(f, f + 1, f + 2); }
+      for (const name of ['position', 'normal', 'color']) { const A = k.attributes[name].array, a = new Float32Array(idx.length * 3); idx.forEach((v, i) => { a[i * 3] = A[v * 3]; a[i * 3 + 1] = A[v * 3 + 1]; a[i * 3 + 2] = A[v * 3 + 2]; }); out.setAttribute(name, new THREE.BufferAttribute(a, 3)); }
+      return out;
+    };
+    const tailPaint = (p, n) => mix(tailC, tailS, clamp01(0.75 * Math.pow(0.5 + 0.5 * Math.sin(Math.atan2(p.x, p.y) * 7 + p.z * 22), 2.2) + clamp01(-n.y) * 0.3));
+    const gT1 = inked(limb([[-0.012, 0, 0.009, 0.011], [0.01, 0, 0.018, 0.02], [0.045, 0.002, 0.028, 0.027], [0.092, 0.002, 0.034, 0.026]], tailPaint, { around: 12, sub: 3 }), L_TAIL, line);
+    const gT2 = edged(limb([[-0.022, 0.002, 0.028, 0.022], [0.02, 0.002, 0.037, 0.024], [0.058, 0, 0.042, 0.02], [0.088, 0, 0.038, 0.014], [0.1, 0, 0.022, 0.007]], tailPaint, { around: 14, sub: 3 }), L_TAIL, c => c.y > -0.074);
+    const STRANDS = [[-0.028, 0.36, 0.118, 0.2], [-0.014, 0.17, 0.098, 0.65], [0, 0, 0.126, 0], [0.014, -0.17, 0.104, 0.5], [0.028, -0.36, 0.112, 0.3]];     // [where on the fan's end, how far it leans out, how long, how grey]
+    const gStr = STRANDS.map(([x, , len, grey], i) => {
+      const tint = mix(tailC, tailS, grey), g = limb([[-0.026, 0, 0.007, 0.006], [0.004, 0, 0.0135, 0.0095], [len * 0.5, 0.003, 0.012, 0.008], [len * 0.85, 0.001, 0.007, 0.005], [len, 0, 0.001, 0.001]], (p, n) => mix(tint, tailS, clamp01(-n.y * 0.5 + 0.25 * Math.sin(p.z * 60 + i))), { around: 8, sub: 3 });
+      return i === 0 || i === NSTR - 1 ? edged(g, L_TAIL * 0.8, c => c.x * x > 0.0015 && c.y < -0.012) : g;
+    });
 
     // ---------------------------------------------------------- the clown, his stool, the hoop
     const suit = col('#ebe6d8', 0.25), suitS = col('#b9b3c0', 0.3), teal = col('#3f8f88', 0.3), sockY = col('#d2b03a', 0.3), sockB = col('#2a2622', 0.2), shoe = col('#2a2420', 0.2);
@@ -275,8 +290,8 @@ lifeFor(16146, {
     const rig = this.rig = L.rig(NBH + 6 + 2 + NF + TORN.length + NSCRAP + NFLECK + CURB, 110000, L.paint({ glow: 0.5, rough: 1 }));
     const add = g => rig.add(rig.geo(g));
     const gid = { fu: rig.geo(gFU), fl: rig.geo(gFL), ht: rig.geo(gHT), hg: rig.geo(gHG), hl: rig.geo(gHL), arm: rig.geo(gArm), leg: rig.geo(gLeg), flap: rig.geo(flap), kerb: rig.geo(gKerb), fleck: rig.geo(gFleck) };
-    this.H = [add(gBody), add(gNeck), add(gHead), rig.add(gid.fu), rig.add(gid.fu), rig.add(gid.fl), rig.add(gid.fl), rig.add(gid.ht), rig.add(gid.ht), rig.add(gid.hg), rig.add(gid.hg), rig.add(gid.hl), rig.add(gid.hl), add(gT[0]), add(gT[1]), add(gT[2])];
-    this.HM = Array.from({ length: NBH }, M4);
+    this.H = [add(gBody), add(gNeck), add(gHead), rig.add(gid.fu), rig.add(gid.fu), rig.add(gid.fl), rig.add(gid.fl), rig.add(gid.ht), rig.add(gid.ht), rig.add(gid.hg), rig.add(gid.hg), rig.add(gid.hl), rig.add(gid.hl), add(gT1), add(gT2), ...gStr.map(add)];
+    this.HM = Array.from({ length: NBH }, M4); this.strands = STRANDS;
     this.C = { torso: add(gTorso), head: add(gCHead), arms: [rig.add(gid.arm), rig.add(gid.arm)], legs: [rig.add(gid.leg), rig.add(gid.leg)], M: Array.from({ length: 4 }, M4) };
     this.stool = add(gStool); this.rim = add(rimG); this.hoopM = M4();
     this.flaps = Array.from({ length: NF }, (_, i) => ({ inst: rig.add(gid.flap), a: (i + 0.5) / NF * TAU, torn: TORN.includes(i), rest: 0.75 + 0.5 * hash(i, 3.1), len: 0.62 + 0.36 * hash(i, 9.3), seed: hash(i, 7.7) * TAU }));
@@ -465,7 +480,7 @@ lifeFor(16146, {
     let hs = null;
     if (showing) {
       const H = this.horseAt(L, t, o);
-      if (H.vis) { const J = this.jump(t); hs = this.hs || (this.hs = {}); hs.u = H.u; hs.out = H.out; hs.hu = H.hu; hs.ho = H.ho; hs.lean = H.lean; hs.ph = (t - T0) / BEAT; hs.h = J.h; hs.jw = J.w; hs.jt = J.t; hs.amp = 1; }
+      if (H.vis) { const J = this.jump(t); hs = this.hs || (this.hs = {}); hs.u = H.u; hs.out = H.out; hs.hu = H.hu; hs.ho = H.ho; hs.lean = H.lean; hs.ph = (t - T0) / BEAT; hs.h = J.h; hs.jw = J.w; hs.jt = J.t; hs.amp = 1; hs.slow = 0; }
     } else if (this.home) {
       const hm = this.home, k = ease.inOut(ramp(Rr, 0.02, 0.86)), c = hm.c, k2 = Math.min(1, k + 0.07), fall = 1 - ease.smooth(ramp(Rr, 0, 0.14));
       if (k < 0.995) {
@@ -473,7 +488,7 @@ lifeFor(16146, {
         hs = this.hs || (this.hs = {}); hs.u = V.x; hs.out = V.z; hs.hu = this.W.x; hs.ho = this.W.z;
         if (this.toy) { const du = hs.u - this.toy.u, dout = hs.out - this.toy.out, d = Math.hypot(du, dout) || 1e-3; if (d < CLEAR) { const push = (CLEAR - d) * ease.smooth(ramp(d, 0, 0.12) + 0.5); hs.u += du / d * push; hs.out += dout / d * push; } }
         hs.lean = Math.max(-1, Math.min(1, lerp((this.W.z * this.X.x - this.W.x * this.X.z) * 3.2, hm.lean, fall)));
-        hs.ph = hm.ph + k * hm.len / (SPEED * BEAT); hs.h = hm.h * fall; hs.jw = hm.jw * fall; hs.jt = hm.jt; hs.amp = 0.9;
+        hs.ph = hm.ph + k * hm.len / (SPEED * BEAT); hs.h = hm.h * fall; hs.jw = hm.jw * fall; hs.jt = hm.jt; hs.amp = 0.9; hs.slow = k;
       }
     }
     const hOn = !!hs && hs.out > -L.wall - 0.5;
@@ -556,11 +571,17 @@ lifeFor(16146, {
         B.child(M[HL + j], M[HG + j], 0, -0.11, 0, 0, -0.55 - 0.95 * fl + 0.3 * ex, 0);
       }
     }
-    // its tail: carried, full, streaming out behind and falling
-    const tw = 0.1 * Math.sin(a * 0.5 + 1), up = 0.4 * jw * (1 - 0.4 * jt);
-    B.child(M[T1], M[ROOT], 0, 0.092, -0.214, tw, 1.12 + 0.08 * Math.sin(a - 1) + up, -0.42 * s.lean - 0.05);
-    B.child(M[T1 + 1], M[T1], 0, -0.128, 0, tw * 1.2 + 0.06, -0.62 + 0.12 * Math.sin(a - 2.2) + up * 0.3, 0.2 * s.lean);
-    B.child(M[T1 + 2], M[T1 + 1], 0, -0.132, 0, -tw - 0.08, -0.4 + 0.18 * Math.sin(a - 3.3) + up * 0.2, 0.22 * s.lean);
+    // Its tail: carried a little up and out to the off side, as he has it. It follows the horse a moment late, each
+    // part after the one above it: streaming back in the canter, lifting and opening in the leap, and settling as it
+    // goes home.
+    const stream = 1 - 0.55 * (s.slow || 0), lift = jw * (1 - 0.35 * jt), late = jw * (1 - 0.35 * Math.max(-1, jt - 0.45)), tw = 0.09 * Math.sin(a * 0.5 + 1);
+    B.child(M[T1], M[ROOT], 0, 0.094, -0.214, tw, 0.42 + 0.56 * stream + 0.07 * Math.sin(a - 0.9) * stream + 0.4 * lift, -0.3 * s.lean * stream - 0.05);
+    B.child(M[T2], M[T1], 0, -0.086, 0, tw * 1.1 + 0.05, -0.34 + 0.13 * Math.sin(a - 1.9) * stream + 0.2 * late, 0.08 * s.lean);
+    for (let i = 0; i < NSTR; i++) {
+      const [x, out] = this.strands[i], k = i - (NSTR - 1) / 2, lag = 2.9 + 0.33 * Math.abs(k) + 0.2 * i;
+      B.child(M[TS + i], M[T2], x, -0.08, 0.002 * (i % 2 ? 1 : -1), 0.1 * Math.sin(a * 0.5 - lag) * stream,
+        -0.3 + 0.24 * Math.sin(a - lag) * stream + 0.3 * late - 0.04 * Math.abs(k), -out * (1 + 0.3 * Math.sin(a - lag + 1) * stream + 0.7 * late) + 0.06 * s.lean);
+    }
     for (let i = 0; i < NBH; i++) this.rig.mat(this.H[i], M[i]);
   },
 
