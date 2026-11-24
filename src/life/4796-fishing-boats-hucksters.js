@@ -28,6 +28,14 @@
 // thunder: his storm stays where he left it, over the left of the picture, and the squall, the strokes wheeling round
 // the frame and the lightning belong to the other Turner in the building (src/life/109938-valley-of-aosta.js).
 //
+// The boats and the people are taken from the canvas. Her hull is warm and mid-toned, a dark wale along a strong
+// sheer, a belly that is cream only amidships where his light lies and brown to the bluff bow and the stern, an
+// orange-brown strake at the water, wet lights along the seams, a stem, a rudder and the leeboard on our side; she
+// sits down in the sea with the water broken white round her, most under her bow. The rowing boat is a low dark
+// sliver with a lit rail. The people are huddles of loaded touches in his colours (two white shirts, ochre, dull
+// reds, browns, dark heads), each its own height and lean, some down behind the gunwale or each other: one hails,
+// one answers, two bend to the oars, one hauls on the whip. None has a face.
+//
 // Nothing here is ever in front of a picture: the fishing boat lies 56 cm out from the wall and her masthead flag
 // stands about 62 cm over the floor, under the rail of the frame, so that from the look camera and from the toy's eye
 // the whole sail is seen against the wall and not the canvas (the kit's guard is there for every other camera).
@@ -72,19 +80,29 @@ const BUOY = [0.8, 0.94];
 // who 0: the hucksters (low, coming up); who 1: the fishing boat (high, coming down). They meet on F.
 const CALLS = [{ t: 1.95, who: 0, n: 'C4' }, { t: 2.6, who: 1, n: 'A4' }, { t: 3.2, who: 0, n: 'D4' }, { t: 3.8, who: 1, n: 'G4' }, { t: 4.4, who: 0, n: 'E4' }, { t: 5.0, who: 1, n: 'F4', d: 0.55 }];
 const T_DEAL = 5.75;                       // the unison; everything after it is on the deal's own clock (seconds after it):
-const D_FILL = 0.2, D_LIFT = 0.25, D_SWING = 0.75, D_LAND = 1.45, D_COIN = [1.68, 1.92, 2.16], COIN_FLY = 0.36;
+const D_FILL = 0.2, D_LIFT = 0.25, D_SWING = 0.75, D_LAND = 1.45, D_COIN = [1.68, 2.02, 2.36], COIN_FLY = 0.44;
 const LOOP = { t: 9.6, P: 8.4, deal: 2.0, calls: [{ t: 0.9, who: 0, n: 'F4', d: 0.3 }, { t: 1.4, who: 1, n: 'F4', d: 0.3 }] };
 // the oars: each stroke takes them this much of the way (the first three bring them out of the distance; then one
 // after each of their calls, and the last brings them alongside on the deal)
 const STROKES = [{ t: 0.75, d: 0.42, to: 0.17 }, { t: 1.17, d: 0.42, to: 0.33 }, { t: 1.59, d: 0.42, to: 0.47 }, { t: 2.3, d: 0.5, to: 0.63 }, { t: 3.5, d: 0.5, to: 0.8 }, { t: 4.7, d: 0.5, to: 0.93 }, { t: 5.8, d: 0.5, to: 1 }];
 const R_STROKES = [0.08, 0.5, 0.92, 1.34, 1.76];      // going home (seconds into the Return)
 const N_HAZE = 12, N_SMOKE = 5, N_SPARK = 22, N_SPRAY = 10, N_SPLASH = 7, N_FOAM = 14;
-// the fishing boat's people (x, z, colour, size, how tall they stand): a row beyond the mast, then a row at her near rail
-const CREW = [[0.125, 0.04, 4, 1, 1.05], [0.065, 0.045, 1, 1.05, 1.25], [0.005, 0.04, 4, 1.1, 1.0], [-0.055, 0.045, 2, 1, 1.2], [-0.12, 0.04, 3, 1, 1.1],
-  [0.15, -0.035, 0, 0.9, 0.8], [0.095, -0.05, 3, 1.1, 0.95], [0.04, -0.055, 0, 1.15, 0.75], [-0.015, -0.05, 2, 0.95, 1.0], [-0.06, -0.055, 0, 1.1, 0.8], [-0.155, -0.03, 4, 0.95, 0.9]];
-const ANSWER = [-0.1, -0.08];            // the one who answers, at her near rail
-const ROWERS = [[0.07, 0], [0.02, 1], [0.115, 2], [-0.115, 2]];      // seated in the rowing boat (the first two at the oars)
-const STAND = -0.065;                      // the man standing in it
+// The people, each a cluster of touches: where they are in the boat (x along her, z across: our side is -z), how tall
+// the touch of their body is and how wide, how they lean (radians, towards the bow), their body's colour and their
+// head's, and how far down behind the gunwale they sit. No two alike; none has a face.
+const CREW = [
+  // beyond the mast, standing behind the others (laid in first, a little duller)
+  [0.13, 0.04, 0.085, 0.044, -0.25, 3, 4, 0], [0.07, 0.045, 0.112, 0.044, 0.2, 2, 4, 0], [0.0, 0.04, 0.1, 0.046, -0.15, 0, 3, 0], [-0.065, 0.045, 0.108, 0.044, 0.25, 3, 4, 0], [-0.135, 0.035, 0.08, 0.046, -0.3, 1, 4, 0],
+  // at her near rail: one in white bent over at the bow and one huddled to him; one in yellow standing, and the one
+  // facing him, who hauls; one in white sitting bent; the one who answers; one in ochre crouched at the stern
+  [0.158, -0.035, 0.068, 0.046, -0.55, 0, 2, 0.002], [0.112, -0.05, 0.074, 0.044, 0.4, 5, 3, 0.004], [0.058, -0.05, 0.108, 0.046, -0.16, 1, 4, 0], [0.018, -0.045, 0.098, 0.044, 0.2, 3, 4, 0],
+  [-0.036, -0.055, 0.07, 0.052, -0.32, 0, 3, 0.004], [-0.1, -0.078, 0.094, 0.046, 0.08, 2, 4, 0], [-0.162, -0.03, 0.056, 0.046, 0.42, 1, 4, 0.01],
+  // and two more between, half behind the others
+  [0.088, -0.028, 0.078, 0.044, 0.12, 0, 4, 0.004], [-0.068, -0.036, 0.082, 0.044, -0.14, 3, 2, 0.002]];
+const HAUL = 8, ANS = 10, ANSWER = [CREW[ANS][0], CREW[ANS][1]];
+// in the rowing boat: one crouched in the bow, two at the oars, one sitting low, the man standing, one aft in the light
+const HUCK = [[0.118, 0.006, 0.042, 0.04, -0.3, 2, 1], [0.07, -0.004, 0.06, 0.042, 0, 0, 2], [0.02, 0.006, 0.056, 0.042, 0, 1, 2], [-0.022, -0.008, 0.036, 0.042, 0.3, 2, 0], [-0.065, 0, 0.108, 0.04, 0.16, 4, 2], [-0.118, 0.004, 0.052, 0.044, 0.25, 3, 2]];
+const STAND = HUCK[4][0];
 
 const bz2 = (a, c, b, q, o) => { const k = 1 - q, du = 2 * k * (c[0] - a[0]) + 2 * q * (b[0] - c[0]), dv = 2 * k * (c[1] - a[1]) + 2 * q * (b[1] - c[1]), l = Math.hypot(du, dv) || 1; o.u = k * k * a[0] + 2 * k * q * c[0] + q * q * b[0]; o.o = k * k * a[1] + 2 * k * q * c[1] + q * q * b[1]; o.du = du / l; o.dv = dv / l; return o; };
 const bz3 = (a, c1, c2, b, q, o) => {
@@ -130,14 +148,15 @@ function join(list) {
 }
 // Each point of a shape its own colour, from where it is.
 function tint(g, fn) { const p = g.attributes.position, c = g.attributes.color, k = new THREE.Color(), v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { fn(v.fromBufferAttribute(p, i), k); c.setXYZ(i, k.r, k.g, k.b); } return g; }
-// An open boat: bluff at both ends, the sheer rising to them; x forward, y up (0 at the waterline), z across.
-function hull({ len, beam, free, draft, bow = 0.03, stern = 0.02, full = 2.6, nu = 28, nv = 12 }, paint, inside) {
-  const half = s => beam / 2 * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(2 * s - 1), full)), 0.5);
-  const top = s => free + (s > 0.5 ? bow : stern) * Math.pow(Math.abs(2 * s - 1), 2.2);
+// An open boat: x forward, y up (0 at the waterline), z across. Her bow is fuller than her stern (fullBow, fullStern)
+// and her sheer rises to both, higher forward.
+function hull({ len, beam, free, draft, bow = 0.03, stern = 0.02, fullBow = 2.6, fullStern = 2.6, rise = 2.2, nu = 28, nv = 12 }, paint, inside) {
+  const half = s => beam / 2 * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(2 * s - 1), s > 0.5 ? fullBow : fullStern)), 0.5);
+  const top = s => free + (s > 0.5 ? bow : stern) * Math.pow(Math.abs(2 * s - 1), rise);
   const skin = surf(nu, nv, (a, b, p) => {
     const e = Math.abs(2 * a - 1), ang = b * Math.PI, c = Math.cos(ang), t = top(a);
     p.set((a - 0.5) * len, t - (t + draft * (1 - 0.55 * e * e)) * Math.pow(Math.sin(ang), 0.8), half(a) * Math.sign(c) * Math.pow(Math.abs(c), 0.55));
-  }, (a, b, p, c) => paint(a, (p.y + draft) / (top(a) + draft), c), (p, r) => r.set(0, p.y - free * 0.4, p.z));
+  }, (a, b, p, c) => paint(a, (p.y + draft) / (top(a) + draft), c, p), (p, r) => r.set(0, p.y - free * 0.4, p.z));
   const well = surf(Math.round(nu / 2), 4, (a, b, p) => { const s = 0.04 + 0.92 * a; p.set((s - 0.5) * len, top(s) - free * 0.24, (b * 2 - 1) * half(s) * 0.9); }, (a, b, p, c) => inside(a, b, c), (p, r) => r.set(0, 1, 0));
   return { skin, well, top };
 }
@@ -212,6 +231,7 @@ lifeFor(4796, {
     froth.wrapS = froth.wrapT = THREE.RepeatWrapping; froth.anisotropy = 4;
     const u = this.su = {
       uT: { value: 0 }, uGrow: { value: 0 }, uAmp: { value: 0 }, uBore: { value: 0 }, uSun: { value: new THREE.Vector4(-1.2, 1.3, 0.4, 0) }, uGlint: { value: 1 }, tPaint: { value: paint }, tFroth: { value: froth },
+      uB1: { value: new THREE.Vector4(0, 0, 1, 0) }, uB2: { value: new THREE.Vector4(0, 0, 1, 0) }, uBr: { value: new THREE.Vector4(1, 1, 1, 1) }, uBk: { value: new THREE.Vector2() },
       cGold: { value: col('#d0a65e', 0.2) }, cFroth: { value: col('#ecdfc0', 0.12) }, cFrothS: { value: col('#978c73', 0.2) }, cHaze: { value: col('#2f2b24', 0.2) }, cDeep: { value: col('#443b2e', 0.2) },
     };
     const v2 = d => `vec2(${GL(d[0])}, ${GL(d[1])})`;
@@ -238,7 +258,10 @@ float seaH(vec2 p, out float m) {
   float hu = seaH(aUO + vec2(0.03, 0.0), hm2), ho = seaH(aUO + vec2(0.0, 0.03), hm2);
   transformed.y += h0; vUO = aUO; vSea = vec4(h0, (hu - h0) / 0.03, (ho - h0) / 0.03, hm);`);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>${HEAD}
-uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cDeep; vec3 hCol; float hA;`)
+uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cDeep; uniform vec4 uB1, uB2, uBr; uniform vec2 uBk; vec3 hCol; float hA;
+// the water broken white round a hull that sits in it (B: where she is and how she heads; r: her half length and beam),
+// most under her bow
+float hullFroth(vec4 B, vec2 r, vec2 p) { vec2 d = p - B.xy; vec2 l = vec2(dot(d, B.zw), dot(d, vec2(-B.w, B.z))) / r; float e = length(l); return smoothstep(0.7, 0.98, e) * (1.0 - smoothstep(1.02, 1.85, e)) * (0.6 + 0.4 * smoothstep(-0.4, 0.9, l.x / max(e, 0.01))); }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec2 p = vUO; float m = vSea.w;
@@ -268,12 +291,20 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
   float fa = texture2D(tFroth, fuv).a, fb = texture2D(tFroth, fuv * 0.57 + vec2(0.43, 0.11 + uT * 0.025)).a;
   float crest = smoothstep(0.1, 0.95, hgt) * uAmp, patchy = smoothstep(0.42, 0.75, t2.a);
   float fr = max(fa * smoothstep(0.35, 0.8, crest * (0.55 + 0.75 * patchy)), fb * smoothstep(0.6, 1.0, crest + 0.25 * patchy - 0.2));
-  vec3 fc = mix(cFrothS * mix(1.0, 0.55, right), cFroth, lk);
+  float hf = max(hullFroth(uB1, uBr.xy, p) * uBk.x, hullFroth(uB2, uBr.zw, p) * uBk.y);
+  fr = max(fr, hf * smoothstep(0.12, 0.55, max(fa, fb) + 0.35 * (t2.a - 0.55)));
+  vec3 fc = mix(cFrothS * mix(1.0, 0.55, right), cFroth, max(lk, 0.3 * hf));
   c = mix(c, fc, fr * mix(0.62, 0.95, lk));
-  // the thick paint: in the sun, dots and drags of it stand up cream all over the lit water
+  // the thick paint: in the sun, touches of it stand up cream on the lit water; big drags here, a scatter of small ones
+  // there laid another way, and stretches left bare, as he left them
   float tw = mix(1.0, 0.75 + 0.25 * sin(uT * 2.1 + fuv.x * 23.0 + fuv.y * 17.0), uGlint);
+  float fs = texture2D(tFroth, mat2(0.8, -0.6, 0.6, 0.8) * fuv * 1.67 + vec2(0.2, uT * 0.03)).a;
+  float n1 = 0.5 + 0.5 * sin(p.x * 2.9 + 1.6 * sin(p.y * 2.1 + 0.4) + uT * 0.06), n2 = 0.5 + 0.5 * sin(p.y * 3.4 - 1.3 * sin(p.x * 1.7 + 0.9) + 2.0);
+  float fleck = fa * smoothstep(0.64, 0.84, t2.a + 0.2 * sh) * smoothstep(0.2, 0.55, n1) * 0.7
+    + fb * smoothstep(0.5, 0.78, n2) * smoothstep(0.52, 0.74, tx.a) * 0.8
+    + fs * smoothstep(0.5, 0.8, 1.0 - n1) * smoothstep(0.5, 0.72, t2.a) * 0.6;
   c = mix(c, cFroth, 0.2 * patchy * crest * lk);
-  c = mix(c, cFroth * 1.04, fa * smoothstep(0.66, 0.86, t2.a + 0.2 * sh) * lk * 0.64 * tw);
+  c = mix(c, cFroth * 1.04, min(fleck, 0.85) * lk * tw);
   // the far water going under the storm at the wall
   c = mix(c, cHaze, (1.0 - smoothstep(0.0, 0.42, p.y)) * mix(0.7, 0.45, lk));
   // the first water over the floor, and the sea's edge: thin, darker, with a lace of froth that breaks up
@@ -297,7 +328,7 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     const ru = this.ru = {
       uT: { value: 0 }, uBelly: { value: 0 }, uShake: { value: 0 }, uFlag: { value: 0.007 }, uRate: { value: 13 }, uSun: this.su.uSun,
       uC: { value: new THREE.Vector2(L.cx, L.cz) }, uTN: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) },
-      uShade: { value: new THREE.Color(0.66, 0.68, 0.7) }, uLit: { value: new THREE.Color(1.18, 1.1, 0.96) },
+      uShade: { value: new THREE.Color(0.74, 0.71, 0.66) }, uLit: { value: new THREE.Color(1.18, 1.1, 0.96) },
     };
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0, emissive: 0xffffff, emissiveIntensity: 0.44, side: THREE.DoubleSide });
     mat.onBeforeCompile = sh => {
@@ -324,20 +355,30 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     const streak = (a, f, s) => 1 + s * Math.sin(a * f) * Math.sin(a * f * 2.7 + 1.3);
     const rigid = g => join([g]);
 
-    // ---- the fishing boat: tubby, banded cream, pink-brown and dark, as he painted her
+    // ---- the fishing boat: her hull as he painted it. Warm and mid-toned, not pale: a dark red-brown wale following a
+    // strong sheer, a belly that is cream only where the light lies amidships and goes brown to the bluff bow and
+    // darker to the stern, an orange-brown strake down at the water, the plank seams dark with a wet light along each;
+    // a stem, a rudder, and the leeboard hung on our side
     {
-      const wale = col('#4c3826'), cream = col('#dfcba6', 0.15), pink = col('#a27754'), buff = col('#c0a076'), wet = col('#4a3b2a'), well = col('#594630'), well2 = col('#735c40');
-      const h = hull({ len: 0.44, beam: 0.21, free: 0.088, draft: 0.04, bow: 0.03, stern: 0.022, full: 2.9, nu: 30, nv: 14 }, (a, v, c) => {
-        const w = v + 0.016 * Math.sin(a * 31) + 0.011 * Math.sin(a * 67 + 2);      // (no strake is ruled: each edge wanders)
-        c.copy(wet).lerp(buff, sm(w, 0.33, 0.41)).lerp(pink, sm(w, 0.5, 0.55) * (1 - sm(w, 0.62, 0.67))).lerp(cream, sm(w, 0.66, 0.71)).lerp(wale, sm(w, 0.86, 0.9));
-        c.multiplyScalar(streak(a, 23, 0.1) * (0.88 + 0.2 * a) * (1 + 0.07 * Math.sin(a * 140 + v * 9) * Math.sin(v * 60)));
+      const wale = col('#4a2e1a'), cream = col('#cdb086', 0.14), bowC = col('#7c5637'), sternC = col('#5f3d24'), sienna = col('#9c6030', 0.15), wet = col('#38261a'), hi = col('#f0e0be', 0.08), railC = col('#b38c5e'), well = col('#4a3826'), well2 = col('#665038');
+      const h = hull({ len: 0.44, beam: 0.2, free: 0.082, draft: 0.05, bow: 0.05, stern: 0.04, fullBow: 3.3, fullStern: 2.2, rise: 2.0, nu: 34, nv: 16 }, (a, v, c) => {
+        const w = v + 0.014 * Math.sin(a * 29) + 0.009 * Math.sin(a * 61 + 2), lit = Math.exp(-Math.pow((a - 0.52) / 0.34, 2));      // (no strake is ruled: each edge wanders)
+        c.copy(a < 0.5 ? sternC : bowC).lerp(cream, lit);
+        c.lerp(sienna, 0.85 * (1 - sm(w, 0.53, 0.61))).lerp(wet, 0.9 * (1 - sm(w, 0.4, 0.47)));
+        let k = streak(a, 23, 0.08) * (1 + 0.06 * Math.sin(a * 140 + v * 9) * Math.sin(v * 60));
+        for (const s0 of [0.62, 0.71, 0.8]) { k *= 1 - 0.42 * Math.exp(-Math.pow((w - s0) / 0.012, 2)); c.lerp(hi, 0.8 * Math.exp(-Math.pow((w - s0 - 0.03) / 0.016, 2)) * (0.2 + 0.8 * lit) * (0.45 + 0.55 * Math.sin(a * 37 + s0 * 50))); }
+        c.lerp(wale, sm(w, 0.885, 0.915)).lerp(railC, 0.75 * sm(v, 0.962, 0.99) * (0.4 + 0.6 * lit)).multiplyScalar(k);
       }, (a, b, c) => c.copy(well).lerp(well2, 0.5 + 0.5 * Math.sin(a * 17 + b * 3)));
       this.fTop = h.top;
+      const plank = (g, lo, hiC) => tint(g, (q, c) => c.copy(lo).lerp(hiC, clamp01(0.5 + q.y * 9 + 0.3 * Math.sin(q.y * 160))));
+      const stem = plank(shape.move(shape.box(0.011, 0.17, 0.012), 0.2185, 0.052, 0, 0, 0, -0.1), wet, bowC);
+      const rudder = plank(shape.move(shape.box(0.024, 0.13, 0.006), -0.228, 0.03, 0, 0, 0, 0.07), wet, sternC);
+      const lee = plank(shape.move(shape.box(0.023, 0.12, 0.006), 0.078, 0.03, -0.1035, 0.1, 0, 0.13), wale, sienna);
       const spar = col('#b48a5c'), sparD = col('#6f5236');
       const mast = tint(shape.move(shape.cyl(0.006, 0.0038, 0.37, 10), 0.04, 0.245, 0, 0, 0, -0.035), (p, c) => c.copy(sparD).lerp(spar, clamp01(0.5 - p.z / 0.008)));
       // the topmast, whipping aft, to carry the flag
       const top = tint(shape.move(shape.cyl(0.0032, 0.0016, 0.152, 8), 0.038, 0.496, 0, 0, 0, 0.11), (p, c) => c.copy(spar));
-      this.gFisher = rig.geo(join([h.skin, h.well, mast, top]));
+      this.gFisher = rig.geo(join([h.skin, h.well, mast, top, stem, rudder, lee]));
       // the great sail: from the mast aft, loose-footed, its leech a full round; cream where the light is on it,
       // browner and warmer to the luff, the foot and the leech
       const lit = col('#f2d5a0', 0.1), mid = col('#dcb686', 0.14), shade = col('#ad8159', 0.2), TACK = [0, 0.1], THROAT = [0, 0.37], PEAK = [-0.215, 0.468], CLEW = [-0.29, 0.122];
@@ -370,13 +411,18 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     // ---- the boat she tows: yellow, with green and white in her
     {
       const y1 = col('#d6a646', 0.15), y2 = col('#8b6532'), in1 = col('#b99555'), in2 = col('#6e5330');
-      const h = hull({ len: 0.17, beam: 0.07, free: 0.03, draft: 0.014, bow: 0.008, stern: 0.005, full: 2.3, nu: 18, nv: 9 }, (a, v, c) => c.copy(y2).lerp(y1, sm(v, 0.3, 0.7)).multiplyScalar(streak(a, 19, 0.06)), (a, b, c) => c.copy(in1).lerp(in2, Math.pow(Math.abs(Math.sin(a * Math.PI * 3)), 10)));
+      const h = hull({ len: 0.17, beam: 0.07, free: 0.028, draft: 0.016, bow: 0.011, stern: 0.007, fullBow: 2.4, fullStern: 2.0, nu: 18, nv: 9 }, (a, v, c) => c.copy(y2).lerp(y1, sm(v, 0.3, 0.7)).multiplyScalar(streak(a, 19, 0.06)), (a, b, c) => c.copy(in1).lerp(in2, Math.pow(Math.abs(Math.sin(a * Math.PI * 3)), 10)));
       this.gTender = rig.geo(join([h.skin, h.well]));
     }
-    // ---- the hucksters' boat: low, dark, red-brown
+    // ---- the hucksters' boat: low in the water and dark, a red-brown sliver with a lit rail, warmer aft where the
+    // light finds her
     {
-      const d1 = col('#3c2517'), d2 = col('#6a452a'), rail = col('#8a6240'), in1 = col('#4a3220'), in2 = col('#2c1c12');
-      const h = hull({ len: 0.3, beam: 0.086, free: 0.034, draft: 0.016, bow: 0.012, stern: 0.008, full: 2.1, nu: 22, nv: 9 }, (a, v, c) => c.copy(d1).lerp(d2, sm(v, 0.3, 0.75)).lerp(rail, sm(v, 0.9, 0.96)).multiplyScalar(streak(a, 21, 0.08)), (a, b, c) => c.copy(in1).lerp(in2, Math.pow(Math.abs(Math.sin(a * Math.PI * 4)), 8)));
+      const d1 = col('#2c1a10'), d2 = col('#5c3520'), warm = col('#8c572c', 0.15), rail = col('#a8743f', 0.15), in1 = col('#3d281a'), in2 = col('#24160e');
+      const h = hull({ len: 0.3, beam: 0.086, free: 0.027, draft: 0.022, bow: 0.016, stern: 0.012, fullBow: 2.5, fullStern: 1.9, rise: 2.0, nu: 24, nv: 10 }, (a, v, c) => {
+        const w = v + 0.02 * Math.sin(a * 23);
+        c.copy(d1).lerp(d2, sm(w, 0.4, 0.75)).lerp(warm, 0.6 * (1 - sm(a, 0.05, 0.4)) * sm(w, 0.45, 0.8));
+        c.multiplyScalar((1 - 0.3 * Math.exp(-Math.pow((w - 0.72) / 0.02, 2))) * streak(a, 21, 0.1)).lerp(rail, 0.85 * sm(v, 0.9, 0.97) * (0.55 + 0.45 * Math.sin(a * 19 + 1)));
+      }, (a, b, c) => c.copy(in1).lerp(in2, Math.pow(Math.abs(Math.sin(a * Math.PI * 4)), 8)));
       this.gHuck = rig.geo(join([h.skin, h.well]));
       // an oar: from the gunwale out along +z, a pale blade at its end
       const loom = col('#9a7a52'), blade = col('#cdb58c', 0.15);
@@ -445,7 +491,7 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
         poly(X, [[180, 448], [183, 352], [190, 352], [193, 448]], 0.85);
       });
     }, false);
-    const n = this.NC = 190;
+    const n = this.NC = 250;
     const geo = new THREE.PlaneGeometry(1, 1);
     this.aInfo = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(THREE.DynamicDrawUsage);
     this.aCol = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3).setUsage(THREE.DynamicDrawUsage);
@@ -475,7 +521,7 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
   if (kd < 0.5) a = smoothstep(0.0, 0.4, tx.a) * vInfo.y;                                                // haze, smoke
   else if (kd < 1.5) a = smoothstep(0.04, 0.8, tx.a) * vInfo.y;                                          // the far sail
   else if (kd < 2.5) a = smoothstep(0.3, 0.55, tx.a) * vInfo.y;                                          // a drop
-  else if (kd < 3.5) { c = vCol * (0.56 + 0.62 * tx.r); a = smoothstep(0.1, 0.62, tx.a) * vInfo.y; }    // a touch of paint
+  else if (kd < 3.5) { c = vCol * (0.52 + 0.68 * tx.r); a = smoothstep(0.06, 0.7, tx.a) * vInfo.y; }    // a touch of paint
   else if (kd < 4.5) a = smoothstep(0.04, 0.8, tx.a) * vInfo.y;                                          // the steamer
   else if (kd < 5.5) { c = vCol * (0.72 + 0.36 * tx.r); a = smoothstep(0.3, 0.6, tx.a) * vInfo.y; }     // froth, lying on the water
   else a = smoothstep(0.42, 0.6, tx.a) * vInfo.y;                                                         // a glint
@@ -494,12 +540,16 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     this.cGoldLo = col('#8a6a42', 0.2); this.cGoldHi = col('#e2b469', 0.12);
     this.cFar = col('#a88a68', 0.2); this.cSteam = col('#3d342a', 0.2); this.cSmoke = col('#a39680', 0.2);
     this.SMK = Array.from({ length: N_SMOKE }, (_, i) => ({ a: (i + R() * 0.5) / N_SMOKE, b: R(), ph: R() * TAU }));
-    // the people, a touch each: shirts, a blue coat, a red cap, ochre oilskins, brown
-    this.cShirt = [col('#cdb891', 0.16), col('#6f7a80', 0.25), col('#9a5238', 0.16), col('#c4a25c', 0.16), col('#6e543c', 0.18)];
-    this.cFace = col('#b98f68', 0.18); this.cHuck = [col('#7a3a26', 0.14), col('#5b3524', 0.15), col('#4a3a2c', 0.15)]; this.cHat = col('#3a2a1e', 0.15);
-    this.cWicker = col('#b08a50', 0.15); this.cGreen = col('#5f7b55', 0.12); this.cWhite = col('#e3dcc6', 0.08);
-    this.CW = CREW.map(() => ({ ph: R() * TAU, w: 0.6 + 0.6 * R() }));
-    this.cFroth = col('#efe2c4', 0.1); this.cFrothS = col('#8c836d', 0.2); this.cDrop = col('#f3ecd8', 0.06); this.cCoin = col('#f1cd76', 0.08); this.cSilver = col('#e4e6dc', 0.05);
+    // the people's colours, his: the one white shirt (two of them), ochre oilskin, dull red, browns, a flesh-pink; the
+    // hucksters' duller reds and browns, and the one orange-ochre that the light finds aft
+    this.cP = [col('#d6c8a8', 0.12), col('#bf974c', 0.14), col('#8a4630', 0.15), col('#6b4a31', 0.16), col('#34261c', 0.15), col('#b48a66', 0.15)];
+    this.cQ = [col('#7a3d28', 0.15), col('#5a3926', 0.15), col('#35261c', 0.15), col('#b47a32', 0.14), col('#6c3623', 0.15)];
+    this.cLight = col('#ead9b8', 0.1);
+    this.cHat = col('#34261c', 0.15); this.cWicker = col('#b08a50', 0.15); this.cGreen = col('#5c7150', 0.14); this.cWhite = col('#e0d7bd', 0.08);
+    this.CW = CREW.map(() => ({ ph: R() * TAU, w: 0.5 + 0.6 * R(), f: R() < 0.5 ? 1 : -1 })); this.HW = HUCK.map(() => ({ ph: R() * TAU, w: 0.5 + 0.6 * R(), f: R() < 0.5 ? 1 : -1 }));
+    this.WS = Array.from({ length: 14 }, () => ({ a: R(), b: R(), ph: R() * TAU }));
+    this.sh = { x: 0, y: 0, z: 0 };
+    this.cFroth = col('#efe2c4', 0.1); this.cFrothS = col('#8c836d', 0.2); this.cDrop = col('#f3ecd8', 0.06); this.cCoin = col('#f0c768', 0.08); this.cGlint = col('#fff4d0', 0.03); this.cSilver = col('#e4e6dc', 0.05);
     this.FM = Array.from({ length: N_FOAM }, (_, i) => ({ a: (i + R()) / N_FOAM * TAU, r: 0.8 + 0.5 * R(), s: 0.03 + 0.028 * R(), ph: R() * TAU }));
     this.SK = Array.from({ length: N_SPARK }, () => ({ u: -1.15 + 1.9 * R(), o: 0.45 + 1.15 * R(), s: 0.035 + 0.035 * R(), ph: R() * TAU, w: 0.8 + 0.8 * R(), r: (R() - 0.5) * 1.2 }));
     this.SP = Array.from({ length: N_SPRAY }, () => ({ a: R(), b: R(), c: R(), d: R() }));
@@ -665,12 +715,30 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     this.bill(v.x, v.y, v.z, sx * s, sy * s, kind, a, rot, c, k * B.lit);
   },
   // a limb: one long touch from a to b (in the boat), turned on the screen to lie along them
-  limb(L, B, ax, ay, az, bx, by, bz, wid, c) {
+  limb(L, B, ax, ay, az, bx, by, bz, wid, c, k = 1, flip = 1) {
     if (!B.on) return;
     const cam = L.k.G.camera, A = this.a.set(ax, ay, az).applyMatrix4(B.M), E = this.b.set(bx, by, bz).applyMatrix4(B.M), len = A.distanceTo(E);
     this.v.copy(A).add(E).multiplyScalar(0.5); const mx = this.v.x, my = this.v.y, mz = this.v.z;
     A.project(cam); E.project(cam);
-    this.bill(mx, my, mz, len * 1.25, wid * B.s, 3, 1, Math.atan2(E.y - A.y, (E.x - A.x) * (cam.aspect || 1.6)), c, B.lit);
+    this.bill(mx, my, mz, len * 1.28, wid * B.s * flip, 3, 1, Math.atan2(E.y - A.y, (E.x - A.x) * (cam.aspect || 1.6)), c, k * B.lit);
+  },
+  // a person, as he put one in: a loaded touch for the body, laid along the way it leans; a lighter one on its shoulder
+  // where the light is; a dab for the head, and no face. Leaves the shoulder in this.sh, for an arm.
+  fig(L, B, x, y0, z, h, w, lean, cb, ch, k, flip) {
+    const sx = Math.sin(lean) * h, cy = Math.cos(lean) * h, sh = this.sh;
+    this.limb(L, B, x, y0, z, x + sx, y0 + cy, z, w, cb, k, flip);
+    this.limb(L, B, x + sx * 0.4 + 0.006, y0 + cy * 0.45, z - 0.004, x + sx * 0.96 + 0.007, y0 + cy * 0.98, z - 0.004, w * 0.48, this.kc.copy(cb).lerp(this.cLight, 0.36), k, -flip);
+    this.dab(B, x + sx * 1.14, y0 + cy + 0.008, z, 0.025 * flip, 0.021, ch, 1, lean * 0.7, 3, k);
+    sh.x = x + sx * 0.9; sh.y = y0 + cy * 0.9; sh.z = z;
+  },
+  // the water white along a hull's near side where she sits in it: small upright touches, most at her bow
+  wash(B, n, len, z, a, t, calm) {
+    if (!B.on) return;
+    for (let i = 0; i < n; i++) {
+      const q = this.WS[i], f = (i + q.a) / n, x = (f - 0.5) * len * 1.06, bowK = 0.55 + 0.45 * f, bob = 0.004 * Math.sin(t * (calm ? 0.8 : 1.7) + q.ph);
+      this.kc.copy(this.cFrothS).lerp(this.cFroth, clamp01((B.lit - 0.62) * 2));
+      this.dab(B, x, 0.006 + 0.006 * q.b * bowK + bob, z * (1 - 0.5 * Math.pow(Math.abs(2 * f - 1), 2.4)) - 0.006, (0.03 + 0.03 * q.b) * bowK, (0.012 + 0.012 * q.a) * bowK, this.kc, a * (0.6 + 0.3 * Math.sin(t * 0.9 + q.ph * 2)), 0.3 * (q.b - 0.5), 3, 1 / Math.max(B.lit, 0.3));
+    }
   },
   // on the water at (u, out), heading (du, dv), len long and wid wide; true if there is water there
   afloat(L, u, o, du, dv, len, wid, lift, a, c, k = 1) {
@@ -741,7 +809,7 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     const shake = (1 - sail) * lerp(0.75 + 0.25 * Math.sin(t * 1.7), 0.05, clamp01(fill)) * (calm ? 0.45 : 1);
     const swing = lerp(lerp(0.1 + 0.035 * Math.sin(t * 2.1) * (calm ? 0.3 : 1), 0.3, clamp01(fill)), 0.42, sail);
     const heel = lerp(lerp(0.03, 0.085, clamp01(fill)), 0.16, sail);
-    this.ride(L, F, 0.12, 0.07, heel); F.lit = lerp(0.62, 1.12, this.sunAt(F.u, F.o));
+    this.ride(L, F, 0.12, 0.07, heel, -0.008); F.lit = lerp(0.62, 1.12, this.sunAt(F.u, F.o));      // (she sits down in the water)
     const ru = this.ru; ru.uT.value = t; ru.uBelly.value = 0.046 * belly * F.s; ru.uShake.value = 0.015 * shake * F.s; ru.uRate.value = calm ? 5.5 : 13; ru.uFlag.value = (calm ? 0.004 : 0.007) * F.s;
     this.part(this.iFisher, F);
     this.part(this.iMain, F, 0.04, 0, 0, -swing, 0, 0, lerp(lerp(0.9, 1.03, fill), 1.02, sail));      // (her clew swings to leeward: towards us)
@@ -784,9 +852,11 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     else this.huckAt(t, H);
     // (a basket aboard: she sits lower, and dips as it lands)
     const dipNow = first ? d - D_LAND : q - LOOP.deal - D_LAND;
-    const dip = (first && d < D_LAND ? 0 : -0.004) - (dipNow > 0 && dipNow < 1.6 ? 0.012 * Math.exp(-dipNow * 3) * Math.cos(dipNow * 9) * (calm ? 0.5 : 1) : 0);
+    const dip = -0.004 + (first && d < D_LAND ? 0 : -0.004) - (dipNow > 0 && dipNow < 1.6 ? 0.012 * Math.exp(-dipNow * 3) * Math.cos(dipNow * 9) * (calm ? 0.5 : 1) : 0);
     this.ride(L, H, 0.09, 0.03, 0, dip); H.lit = lerp(0.66, 1.12, this.sunAt(H.u, H.o));
     this.part(this.iHuck, H);
+    su.uB1.value.set(F.u, F.o, F.du, F.dv); su.uB2.value.set(H.u, H.o, H.du, H.dv); su.uBr.value.set(0.235 * Math.max(F.s, 0.05), 0.115 * Math.max(F.s, 0.05), 0.16 * Math.max(H.s, 0.05), 0.052 * Math.max(H.s, 0.05));
+    su.uBk.value.set(F.on ? sm(F.s, 0.25, 0.6) : 0, H.on ? 0.85 * sm(H.s, 0.3, 0.7) : 0);
     // the oars: forward and down for the catch, through the water, out and back to rest across the boat
     const pulling = row.pull >= 0, sweep = pulling ? lerp(0.55, -0.5, ease.smooth(row.pull)) : 0.55 * row.reach - 0.5 * row.fin, down = pulling ? 0.05 + 0.3 * Math.sin(Math.PI * clamp01(row.pull * 1.1)) : -0.12 - 0.1 * Math.max(row.reach, row.fin);
     for (let i = 0; i < 4; i++) { const side = i < 2 ? 1 : -1, x = i % 2 ? 0.02 : 0.07; this.part(this.iOar[i], H, x, 0.036, side * 0.039, side > 0 ? sweep : Math.PI - sweep, down, 0); }
@@ -841,39 +911,52 @@ uniform sampler2D tPaint, tFroth; uniform vec3 cGold, cFroth, cFrothS, cHaze, cD
     if (this.B.on) this.froth(L, this.B, 12, 2, 0.06, 0.06, 0.8 * out, t);
     // the towed boat's green and white
     this.dab(Tn, 0.02, 0.026, 0.004, 0.03, 0.02, this.cGreen, 1); this.dab(Tn, -0.02, 0.026, -0.004, 0.028, 0.018, this.cWhite, 1); this.dab(Tn, -0.05, 0.026, 0.006, 0.022, 0.016, this.cGreen, 1);
-    // the fishing boat's people, a crowd of touches over her rail, and her baskets; one of them answers, a hand up
+    // the fishing boat's people: a huddle of touches, each its own height and lean, some down behind the gunwale; the
+    // one who answers puts a hand up; the one by the mast hauls on the whip when the basket goes up
+    const dd = first ? d : q - LOOP.deal, sp = calm ? 0.5 : 1;
     if (F.on) {
-      const deck = this.fTop(0.5) - 0.014, aS = back ? 0 : this.armAt(t, 1);
-      // (the dark of the boat's inside behind them, so they stand as a crowd and not a row)
-      this.dab(F, 0.0, deck + 0.022, 0.0, 0.34, 0.06, this.cHat, 0.9, 0, 3, 1.5);
+      const deck = this.fTop(0.5) - 0.016, rail = this.fTop(0.5), aS = back ? 0 : this.armAt(t, 1), hK = back ? 0 : sm(dd, D_LIFT - 0.12, D_LIFT + 0.12) * (1 - sm(dd, D_LAND - 0.1, D_LAND + 0.25));
+      this.dab(F, 0.0, deck + 0.02, 0.0, 0.36, 0.06, this.cHat, 0.9, 0, 3, 1.4);                    // (the dark of her inside, behind them)
+      this.dab(F, 0.176, this.fTop(0.9) + 0.012, 0.01, 0.062, 0.056, this.cHat, 1, 0.3, 3, 1.5); this.dab(F, 0.176, this.fTop(0.9) + 0.012, 0.008, 0.03, 0.028, this.cP[3], 1, 0.3);      // the hoop in her bow
       for (let i = 0; i < CREW.length; i++) {
-        const [x, z, ci, sz, hh] = CREW[i], w = this.CW[i], sw = 0.006 * Math.sin(t * w.w * (calm ? 0.5 : 1) + w.ph), lean = -0.012 * aS * (z < 0 ? 1 : 0.4), k = z > 0 ? 0.78 : 1;
-        this.dab(F, x + sw, deck + 0.03 * hh, z + lean, 0.046 * sz, 0.074 * sz * hh, this.cShirt[ci], 1, 0.3 * Math.sin(w.ph * 3), 3, k);
-        this.dab(F, x + sw * 1.6, deck + 0.072 * hh, z + lean, 0.024, 0.024, i % 3 === 1 ? this.cHat : this.cFace, 1, 0, 3, k);
+        const c = CREW[i], w = this.CW[i], x = c[0], z = c[1];
+        let lean = c[4] + 0.07 * Math.sin(t * w.w * sp + w.ph);
+        if (i === ANS) lean -= 0.22 * aS; else if (i === HAUL) lean += hK * (0.28 + 0.1 * Math.sin(dd * (calm ? 5 : 13))); else if (z < 0) lean += 0.1 * aS * Math.sign(ANSWER[0] - x);      // (heads turn to the one calling)
+        this.fig(L, F, x, deck - c[7], z, c[2], c[3], lean, this.cP[c[5]], this.cP[c[6]], z > 0 ? 0.76 : 1, w.f);
+        const sh = this.sh;
+        if (i === ANS) this.limb(L, F, sh.x - 0.004, sh.y - 0.006, sh.z - 0.006, sh.x - 0.016 - 0.016 * aS, sh.y + lerp(-0.045, 0.05, aS), sh.z - 0.016 - 0.016 * aS, 0.018, this.cP[c[5]], 1.08);
+        else if (i === HAUL && hK > 0.02) this.limb(L, F, sh.x - 0.004, sh.y - 0.004, sh.z + 0.004, sh.x - 0.028, sh.y + lerp(-0.03, 0.05, hK) + 0.012 * Math.sin(dd * (calm ? 5 : 13)), sh.z + 0.008, 0.018, this.cP[c[5]], 1.08);
       }
-      this.dab(F, 0.068, this.fTop(0.5) + 0.012, -0.088, 0.05, 0.04, this.cWicker, 1); this.dab(F, -0.035, this.fTop(0.5) + 0.012, -0.094, 0.05, 0.04, this.cWicker, 1);
-      const [ax, az] = ANSWER;
-      this.dab(F, ax, deck + 0.036, az, 0.046, 0.082, this.cShirt[0], 1);
-      this.dab(F, ax, deck + 0.084, az, 0.025, 0.026, this.cFace, 1);
-      this.limb(L, F, ax - 0.004, deck + 0.062, az - 0.004, ax - 0.016 - 0.018 * aS, deck + lerp(0.02, 0.135, aS), az - 0.014 - 0.018 * aS, 0.017, this.cShirt[0]);
+      // what she carries along her near rail: a green net, a red float, a pale round basket
+      this.dab(F, 0.132, rail + 0.006, -0.088, 0.05, 0.022, this.cGreen, 1, 0.2); this.dab(F, 0.096, rail + 0.004, -0.094, 0.02, 0.018, this.cP[2], 1);
+      this.dab(F, -0.066, rail + 0.012, -0.093, 0.046, 0.038, this.cWhite, 1, 0.2); this.dab(F, -0.066, rail + 0.012, -0.095, 0.024, 0.02, this.cWicker, 1, 0.2);
+      this.wash(F, 9, 0.44, -0.1, 0.9 * out, t, calm);
     }
-    // the hucksters: two at the oars, bending to them; one in the bow, one aft; and the man standing, his arm up to call
+    // the hucksters: low in their boat, a huddle of dull reds and browns; two bend to the oars, forward for the catch
+    // and back through the stroke; the man standing leans to the other boat with his arm up to call
     if (H.on) {
-      const lean = row.pull >= 0 ? lerp(0.016, -0.014, ease.smooth(row.pull)) : 0.016 * row.reach - 0.014 * row.fin, aB = back ? 0 : this.armAt(t, 0);
-      for (let i = 0; i < ROWERS.length; i++) { const [x, ci] = ROWERS[i], l = i < 2 ? lean : 0; this.dab(H, x + l, 0.05, 0, 0.042, 0.056, this.cHuck[ci], 1); this.dab(H, x + l * 1.5, 0.083, 0, 0.022, 0.022, this.cFace, 1); this.dab(H, x + l * 1.5, 0.094, 0, 0.026, 0.012, this.cHat, 1); }
-      this.dab(H, STAND, 0.075, 0, 0.034, 0.094, this.cHuck[0], 1);
-      this.dab(H, STAND, 0.128, 0, 0.022, 0.023, this.cFace, 1); this.dab(H, STAND, 0.14, 0, 0.028, 0.012, this.cHat, 1);
-      this.limb(L, H, STAND + 0.004, 0.108, 0.002, STAND + 0.024 + 0.022 * aB, lerp(0.06, 0.172, aB), 0.004 + 0.014 * aB, 0.016, this.cHuck[0]);
+      const aB = back ? 0 : this.armAt(t, 0), bend = row.pull >= 0 ? lerp(-0.55, 0.38, ease.smooth(row.pull)) : -0.55 * row.reach + 0.38 * row.fin;
+      for (let i = 0; i < HUCK.length; i++) {
+        const c = HUCK[i], w = this.HW[i], oars = i === 1 || i === 2;
+        const lean = oars ? bend * (i === 1 ? 1 : 0.86) + 0.04 * Math.sin(t * w.w * sp + w.ph) : c[4] + 0.07 * Math.sin(t * w.w * sp + w.ph) + (i === 4 ? 0.12 * aB : 0);
+        this.fig(L, H, c[0], 0.014, c[1], c[2], c[3], lean, this.cQ[c[5]], this.cQ[c[6]], 1, w.f);
+        const sh = this.sh;
+        if (oars) this.limb(L, H, sh.x, sh.y - 0.006, sh.z, sh.x + Math.sin(lean) * 0.03 - 0.012, 0.04, sh.z - 0.012, 0.015, this.cQ[c[5]], 1.05);      // arms down to the oar
+        else if (i === 4) this.limb(L, H, sh.x + 0.004, sh.y - 0.006, sh.z + 0.002, sh.x + 0.02 + 0.02 * aB, sh.y + lerp(-0.045, 0.052, aB), sh.z + 0.012 + 0.012 * aB, 0.018, this.cQ[c[5]], 1.08);
+      }
+      this.wash(H, 5, 0.3, -0.043, 0.8 * out, t, calm);
     }
-    // silver on the basket in the air, catching the light; and the coins going back, one at a time
+    // silver on the basket in the air, catching the light; and the coins going back, one at a time: each tossed high
+    // out of his hand, with one clear glint as it turns at the top
     if (showing) {
-      const dd = first ? d : q - LOOP.deal;
       if (this.swung) this.bill(this.bx, this.by + 0.037 * H.s, this.bz, 0.026, 0.014, 6, (0.5 + 0.5 * sun.k) * (calm ? 0.8 : 0.7 + 0.3 * Math.sin(t * 9)), 0, this.cSilver, 1.15);
       if (F.on && H.on) for (let i = 0; i < 3; i++) {
         const e = (dd - D_COIN[i]) / COIN_FLY; if (e <= 0 || e >= 1) continue;
-        this.a.set(STAND + 0.046, 0.172, 0.018).applyMatrix4(H.M); this.b.set(ANSWER[0] - 0.02, this.fTop(0.5) + 0.09, ANSWER[1] - 0.02).applyMatrix4(F.M);
-        v.lerpVectors(this.a, this.b, e); v.y += 0.13 * Math.sin(Math.PI * e);
-        { const g = 0.022 + 0.012 * Math.sin(Math.PI * e); this.bill(v.x, v.y, v.z, g, g, 6, 1, 0, this.cCoin, calm ? 1.2 : 1.1 + 0.3 * Math.sin(e * 19)); }
+        this.a.set(STAND + 0.06, 0.2, 0.02).applyMatrix4(H.M); this.b.set(ANSWER[0] - 0.02, this.fTop(0.5) + 0.085, ANSWER[1] - 0.02).applyMatrix4(F.M);
+        v.lerpVectors(this.a, this.b, e); v.y += 0.17 * Math.sin(Math.PI * e);
+        const g = 0.032 + 0.008 * Math.sin(Math.PI * e), gl = calm ? 0.55 * Math.sin(Math.PI * e) : Math.exp(-Math.pow((e - 0.5) / 0.16, 2));
+        this.bill(v.x, v.y, v.z, g, g, 6, 1, 0, this.cCoin, 1.15);
+        this.bill(v.x, v.y, v.z, 0.11 * gl, 0.02 * gl, 6, gl, 0, this.cGlint, 1.3); this.bill(v.x, v.y, v.z, 0.02 * gl, 0.11 * gl, 6, gl, 0, this.cGlint, 1.3);
       }
       // drops where the basket comes down, and off the oars at each catch
       const la = dd - D_LAND; if (H.on && !calm) { v.set(-0.02, 0.01, 0).applyMatrix4(H.M); this.splash(v.x, v.y, v.z, la, 6, 0.8, 0.85); }
