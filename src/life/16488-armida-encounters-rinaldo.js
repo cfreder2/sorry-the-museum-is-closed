@@ -17,7 +17,7 @@
 // a dropped coin does, lower and faster, and everybody knows the noise that is coming. The cloud pulls up short, the
 // mantle swings over its head, and at the last instant a lap of vapour slides in under the shield and takes it. No
 // clang. For a breath nothing moves at all: the mantle hangs filled at the top of its swing, as he painted it, the
-// veil in its loop, the wheel stopped. Then, very quietly, muted strings begin, the veil comes down in its long arch,
+// veil in its loop, the wheel stopped. Then, very quietly, muted strings begin, the veil settles into its long arch,
 // the reeds stand up one by one, the water goes back to glass and holds the cloud and the orange upside down, and
 // the shield rides the cloud's breathing with the sky in its face. The cloud has stopped under the sleeper in the
 // picture; that is where the eye is sent.
@@ -193,7 +193,7 @@ lifeFor(16488, {
       wood: col('#a17d42', 0.2), woodD: col('#553a20', 0.2), woodL: col('#d9bb78', 0.12),
       rockT: col('#8c7d69', 0.2), rockM: col('#685746', 0.2), rockD: col('#3b3028', 0.2), peb: col('#7d4a30', 0.2),
       reedD: col('#2f3a20', 0.2), reedM: col('#55622f', 0.2), reedL: col('#8b9146', 0.15),
-      manD: col('#a23f17', 0.15), manM: col('#df7030', 0.12), manL: col('#f7b27a', 0.1),
+      manD: col('#ad4d22', 0.15), manM: col('#e67f45', 0.12), manL: col('#fbc394', 0.1),
       veilD: col('#5d684a', 0.2), veilM: col('#8f9c79', 0.15), veilL: col('#c1c9a6', 0.1),
     };
     this.buildGround(L, col); this.buildThings(L); this.buildCloud(L, col);
@@ -675,7 +675,7 @@ float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       this.sheet(L, this.pMantle, mu, M_AT[1] + 0.01 * Math.sin(time * 0.9), mo, {
         len: M_LEN * out, th, kap, belly: belly * out, flut: (0.5 * moving + 0.03 * idle) * fk + 0.12 * moving * (1 - fk), fs: calm ? 5 : 13, time, slant: 0.12 * up,
         half: s => M_W * (0.34 + 0.66 * Math.pow(Math.min(1, s * 1.5), 0.6)) * (1 - 0.1 * s * s), skew: s => 0.16 * M_W * s * s, twist: up < 0.999 ? () => (1 - up) * 1.4 : null, hem: 0.018,
-        fold: (s, w) => (0.008 + 0.042 * Math.pow(s, 0.7)) * Math.sin(w * 4.7 + 0.6 + 1.2 * Math.sin(2.6 * s + 0.5)) + 0.016 * s * Math.sin(w * 9.5 + 3 * s + 1),
+        fold: (s, w) => (0.008 + 0.042 * Math.pow(s, 0.7)) * Math.sin(w * 4.7 + 0.6 + 1.2 * Math.sin(2.6 * s + 0.5)) + 0.016 * s * Math.sin(w * 9.5 + 3 * s + 1) + 0.009 * Math.sin(w * 6.1 - 11 * s + 2) * Math.sin(Math.PI * s),
         lo: C.manD, mid: C.manM, hi: C.manL, root: 0.6, gain: 0.95,
       }, this.mc);
     }
