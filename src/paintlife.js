@@ -68,6 +68,7 @@ import * as THREE from 'three';
 import { feature } from './features.js';
 import { imageUrl } from './collection.js';
 import { parse } from './carols.js';
+import { LOWMEM } from './budget.js';
 
 const TAU = Math.PI * 2;
 const MARGIN = 0.03;                 // the guard keeps this much clear round the canvas (metres)
@@ -638,7 +639,8 @@ class Life {
       this.pal = await palette(this.art);
       this.group = new THREE.Group(); this.group.name = 'life:' + this.id; this.group.visible = false; this.k.group.add(this.group);
       this.fixed = new THREE.Group(); this.fixed.name = 'life-fixed:' + this.id; this.k.group.add(this.fixed);
-      try { this.spec.build(this); this.made = true; } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; return; }
+      if (!this._keys) this._keys = new Set(Object.keys(this.spec));      // (what the spec was before it built: release() clears the rest)
+      try { this.spec.build(this); this.made = true; this.usedAt = performance.now(); } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; return; }
       // Compile its shaders now, off the main thread where the browser can, so the first show does not stutter.
       const G = this.k.G, r = G.renderer;
       if (r && r.compileAsync && G.camera) { const v = this.group.visible; this.group.visible = true; r.compileAsync(this.group, G.camera, G.scene).catch(() => {}); this.group.visible = v; }
@@ -689,6 +691,23 @@ class Life {
     this.ms = this.ms * 0.9 + (performance.now() - t0) * 0.1;
   }
   get running() { return this.state !== 'off'; }
+  // Let it all go (meshes, materials, textures, and whatever the spec kept from its build): it is built again, the same
+  // way, the next time the toy comes near. Only while nothing of it is out (off).
+  release() {
+    if (this.made !== true || this.state !== 'off' || this.force != null) return false;
+    for (const grp of [this.group, this.fixed]) {
+      if (!grp) continue;
+      grp.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        for (const m of [].concat(o.material || [])) { for (const key in m) { const x = m[key]; if (x && x.isTexture) x.dispose(); } m.dispose(); }
+        if (o.isBatchedMesh || o.isInstancedMesh) o.dispose && o.dispose();
+      });
+      grp.removeFromParent();
+    }
+    if (this._keys) for (const key of Object.keys(this.spec)) if (!this._keys.has(key)) delete this.spec[key];
+    this.group = this.fixed = null; this.made = false; this._ready = null;
+    return true;
+  }
   reset() {
     if (this.made !== true) return;
     this.state = 'off'; this.phase = 'off'; this.group.visible = false; this.force = null; this.frozen = false;
@@ -768,6 +787,21 @@ feature({
       if (seen && seen.art.floorFrame) { const S = k.G.secret, clue = !!(S && S.enabled && !S.open && S.clue && S.clue.art === seen.art); if (seen.cam === undefined) seen.cam = seen.art.floorFrame.cam || null; seen.art.floorFrame.cam = clue ? null : seen.cam; }
     }
     for (const L of LIVES) if (L.state !== 'off' || L === seen || L.force != null) L.step(dt, L === seen);
+    // And the other way: a work's animation not seen for a while, far off or on another floor, is let go (built again
+    // when you come back); and only a few are kept built at once, the ones you were near most recently.
+    if ((this.relT = (this.relT || 0) + dt) > 2) {
+      this.relT = 0;
+      const p = k.G.vehicle.pos, now = performance.now(), built = [];
+      for (const L of LIVES) {
+        if (L.made !== true) continue;
+        const far = Math.hypot(p.x - L.cx, p.z - L.cz) > 45 || Math.abs(p.y - L.y) > 3;
+        if (!far || L.state !== 'off') L.usedAt = now;
+        else if (now - (L.usedAt || 0) > 20000) { L.release(); continue; }
+        built.push(L);
+      }
+      const CAP = LOWMEM ? 4 : 10;
+      if (built.length > CAP) for (const L of built.sort((a, b) => a.usedAt - b.usedAt).slice(0, built.length - CAP)) if (L !== seen) L.release();
+    }
     if (this.exposed) { this.glowT = (this.glowT || 0) + dt; this.exposed.material.opacity = k.museum.calm ? GLOW : GLOW * (0.8 + 0.2 * Math.sin(this.glowT * 1.1)); }
   },
   spots(k) {
