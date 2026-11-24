@@ -188,7 +188,7 @@ lifeFor(84709, {
   word: 'still',
   // (a small work: the kit keeps the whole of it in view, with the window under it; the camera a little to the left,
   // so the lit jamb on the right shows, and low enough to see the top of the sill as he does)
-  stage: { out: 0.9, half: 0.9, cam: { dist: 2.0, side: -0.34, height: 0.74, fov: 58, lookU: 0.12, lookOut: 0.1, lookH: 0.95, floorOut: 0.38 } },
+  stage: { out: 0.9, half: 0.9, cam: { dist: 2.0, side: -0.2, height: 0.74, fov: 58, lookU: 0, lookOut: 0.1, lookH: 0.95, floorOut: 0.38 } },
   wake: 2, ret: 2.4,
   linger: { near: 3.5, max: 28 },
 
@@ -264,7 +264,7 @@ lifeFor(84709, {
         [0.75, 1.4, 2.3, 0.04, 0.013, 0.25, 0.03], [2.85, 1.4, 2.24, 0.06, 0.016, 0.32, 0.03], [4.95, 1.35, 2.2, 0.05, 0.019, 0.38, 0.03],
         [3.35, 1.1, 1.3, 0.38, 0.024, 0.55, 0.13], [0.3, 0.75, 1.75, 0.7, 0.027, 0.7, 0.1], [5.1, 1.0, 1.5, 0.5, 0.03, 0.7, 0.1],
       ];
-      for (const [f0, wide, wrap, open, off, dark, ruf] of LEAVES) parts.push(surf(28, 26, (uu, v, o) => {
+      for (const [f0, wide, wrap, open, off, dark, ruf] of LEAVES) parts.push(surf(24, 22, (uu, v, o) => {
         const a = uu * 2 - 1, b = v, aa = Math.abs(a), th = 0.14 + b * wrap;
         const ph = f0 + a * wide * Math.pow(Math.sin(Math.PI * (0.07 + 0.86 * b)), 0.5);
         const edge = sstep(0.55, 1, Math.max(aa, b * b)), frill = Math.sin(11 * a + 5 * b + f0 * 3) * Math.sin(7 * b + 2 * a + f0) + 0.5 * Math.sin(17 * a * b + f0 * 2);
@@ -358,7 +358,7 @@ lifeFor(84709, {
     })();
 
     // ------------------------------------------------------------ the rig: every part, one draw call
-    const rig = this.rig = L.rig(12, 84000, cotanLight(u));
+    const rig = this.rig = L.rig(12, 72000, cotanLight(u));
     this.I = { niche: rig.add(rig.geo(niche)), dark: rig.add(rig.geo(dark)), quince: rig.add(rig.geo(quince)), cabbage: rig.add(rig.geo(cabbage)), melon: rig.add(rig.geo(melon)), slice: rig.add(rig.geo(slice)), citron: rig.add(rig.geo(citron)), cuke: rig.add(rig.geo(cuke)) };
     const sg = rig.geo(string); this.I.s0 = rig.add(sg); this.I.s1 = rig.add(sg);
     HUNG[0].id = this.I.quince; HUNG[0].sid = this.I.s0; HUNG[1].id = this.I.cabbage; HUNG[1].sid = this.I.s1;
