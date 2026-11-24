@@ -38,3 +38,4 @@ import './4428-mere-gregoire.js';     // 222  Courbet, Mère Grégoire: bouquet
 import './93900-man-in-costume.js';   // 216  Fragonard, Portrait of a Man in Costume: flourish
 import './144969-palm-house.js';       // 221  Blechen, The Interior of the Palm House on the Pfaueninsel: dapple
 import './57051-the-fountains.js';     // 218  Robert, The Fountains: pour
+import './4788-lady-sarah-bunbury.js';   // 218  Reynolds, Lady Sarah Bunbury Sacrificing to the Graces: wreath
