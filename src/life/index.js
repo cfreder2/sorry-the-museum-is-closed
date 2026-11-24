@@ -43,3 +43,4 @@ import './14574-uncle-and-niece.js';   // 226  Degas, Henri Degas and His Niece 
 import './14591-woman-reading.js';   // 201  Manet, Woman Reading: leaf
 import './64818-end-of-summer.js';      // 243  Monet, Stacks of Wheat (End of Summer): harvest
 import './4788-lady-sarah-bunbury.js';   // 218  Reynolds, Lady Sarah Bunbury Sacrificing to the Graces: wreath
+import './16487-bay-of-marseille.js'; // 248  Cézanne, The Bay of Marseille, Seen from L'Estaque: card
