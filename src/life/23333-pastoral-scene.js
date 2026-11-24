@@ -179,6 +179,7 @@ float poolD(vec2 q) { vec2 e = vec2((q.x - uPool.x) / uPool.z, (q.y - uPool.y) /
   vec2 lq = lifeP.xz - uO.xz; float su = dot(lq, uAx.xy), so = dot(lq, uAx.zw); vec2 st = vec2(su, so);
   vec4 bk = texture2D(tSand, st / 0.62), fine = texture2D(tSand, st / 0.34 + 0.31);
   float pd = poolD(st) + (bk.a - 0.55) * 0.05;
+  if (pd > 1.06 || uSpread < 0.001) discard;          // (nothing of it out here: no need to work the rings out)
   float water = 1.0 - smoothstep(0.965, 1.0, pd), margin = (1.0 - smoothstep(1.0, 1.05, pd)) * (1.0 - water);
   // the rings: each a short train of ripples widening from where it began
   float rip = 0.0; vec2 grad = vec2(0.0);
