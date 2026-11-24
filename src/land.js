@@ -141,7 +141,7 @@ function rolling() {
 // Build the land. `open` is where it may roll at all ([x0, x1, z0, z1] each); `flat` gives what needs flat ground, as
 // rectangles {x0, x1, z0, z1} and circles {x, z, r}.
 // `detail` is what the drifts lie against: { paths: the shovelled paths [{x0, x1, z0, z1}], hedges, trees: [{x, z, kind}],
-// field: the park east of Columbus Drive }.
+// field: the park east of Columbus Drive, keep: more that the drifts keep clear of (rectangles and circles) }.
 export function buildLand(bounds, open, flat0, detail = {}) {
   const ponds = PONDS.map(([x, z, r]) => ({ x, z, r }));
   const flat = [...flat0, ...LEVEL.map(q => ({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] })), ...ponds];
@@ -282,7 +282,9 @@ function buildDrifts(open, flat0, detail, X0, Z0) {
   const paths = detail.paths || [], F = detail.field, flat = flat0.filter(q => q.r != null || !paths.some(p => Math.abs(q.x0 - p.x0 + 6) < 0.01 && Math.abs(q.x1 - p.x1 - 6) < 0.01 && Math.abs(q.z0 - p.z0 + 6) < 0.01 && Math.abs(q.z1 - p.z1 - 6) < 0.01));
   for (const q of SMOOTH) flat.push({ x0: q[0], x1: q[1], z0: q[2], z1: q[3] });
   if (F) { for (const [x, z] of parkLamps(F)) flat.push({ x, z, r: 0.45 }); flat.push({ x0: 389.8, x1: 393.2, z0: 104.3, z1: 107.7 }); }      // (the benches and bins stand on the street as they did, and the bank runs on behind and under them: they are in it to the shins)
-  for (const [x, z] of SPRUCES) flat.push({ x, z, r: 0.3 });           // under a spruce's boughs no snow reaches the ground: a well round the trunk
+  for (const [x, z] of SPRUCES) flat.push({ x, z, r: 0.3 });
+  for (const q of detail.keep || []) flat.push(q);                    // what the grounds' dressing stands on open ground (groundsplan.js)
+  for (const t of detail.trees || []) if (t.kind !== 'hawthorn') flat.push({ x: t.x, z: t.z, r: 0.2 });      // and a well in the snow round every trunk           // under a spruce's boughs no snow reaches the ground: a well round the trunk
   // How far each point of the grid is from flat ground (in points, squared).
   const f = new Float32Array(N * (nz + 1));
   for (const q of open) { const i0 = cl(Math.ceil(I(q[0])), nx), i1 = cl(Math.floor(I(q[1])), nx), j0 = cl(Math.ceil(J(q[2])), nz), j1 = cl(Math.floor(J(q[3])), nz); for (let j = j0; j <= j1; j++) f.fill(BIG, j * N + i0, j * N + i1 + 1); }

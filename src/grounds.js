@@ -12,7 +12,8 @@ import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { relief } from './finish.js';
 import { T, streetY, landable } from './plan.js';
-import { winterTree, frostHedges, hedgeMaterial } from './frost.js';
+import { frostHedges, hedgeMaterial } from './frost.js';
+import { buildTrees } from './trees.js';
 import { buildBridgeway } from './bridgeway.js';
 import { buildEastSide } from './eastside.js';
 import { buildRailway } from './railway.js';
@@ -387,16 +388,7 @@ export function buildGrounds(museum, plan) {
 
   // ------------------------------------------------------------------- the gardens
   {
-    // Trees: one winter tree, drawn many times. Trunk and boughs with snow lying along them, and a crown of fine twigs, each white on top (frost.js).
-    const WT = winterTree();
-    const trees = new THREE.InstancedMesh(WT.wood, WT.woodMat, Math.max(1, G.trees.length)), twigs = new THREE.InstancedMesh(WT.twigs, WT.twigMat, Math.max(1, G.trees.length));
-    const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler();
-    G.trees.forEach((t, i) => {
-      const wide = t.kind === 'hawthorn';                // low and spreading; the street trees stand taller and narrower
-      M4.compose(new THREE.Vector3(t.x, streetY(plan, t.x, t.z), t.z), Q.setFromEuler(E.set(0, t.yaw, 0)), new THREE.Vector3(t.s * (wide ? 1.45 : 1.0), t.s * (wide ? 1.05 : 1.6), t.s * (wide ? 1.45 : 1.0)));
-      trees.setMatrixAt(i, M4); twigs.setMatrixAt(i, M4);
-    });
-    trees.frustumCulled = twigs.frustumCulled = false; group.add(trees, twigs);
+    // (The trees, each of its own kind, and the shrubs under them are trees.js's: built at the end, when the streets have said where their medians' trees stand.)
     // Hedges, with snow lying on top: unbroken round each garden, square where two sides meet at a corner.
     const hedge = new Geo();
     frostHedges(hedge, G.hedges, 0, 0.86);
@@ -440,4 +432,6 @@ export function buildGrounds(museum, plan) {
 
   // The Columbus Drive side, and the gardens as they lie from above.
   buildEastSide(museum, plan);
+  // Everything that grows: seven kinds of tree, no two alike, and the shrubs, grasses and ivy (trees.js; groundsplan.js says where).
+  buildTrees(museum, plan, group);
 }
