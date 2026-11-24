@@ -52,7 +52,7 @@ async function drive(f, t, fps, trace) {
     if (Math.abs(err) > 1.1) vd = 0.9;                                                         // a hairpin: at a crawl
     if (toAir < 9 && toAir > -0.5) vd = Math.max(vd, nextAir.v * 1.04);                        // a jump: at the speed it asks for
     else if (cum[n - 1] - cum[at] < 3) vd = Math.min(vd, Math.max(0.7, (cum[n - 1] - cum[at]) * 0.8));
-    { const a = pts[at], c = pts[Math.min(n - 1, at + 1)], tx = c.x - a.x, tz = c.z - a.z, tl = Math.hypot(tx, tz) || 1, cross = ((v.pos.x - a.x) * tz - (v.pos.z - a.z) * tx) / tl; if (!v.air) err += Math.max(-0.5, Math.min(0.5, -cross * 0.9)); }      // back onto the line
+    { const a = pts[at], c = pts[Math.min(n - 1, at + 1)], tx = c.x - a.x, tz = c.z - a.z, tl = Math.hypot(tx, tz) || 1, cross = ((v.pos.x - a.x) * tz - (v.pos.z - a.z) * tx) / tl; if (!v.air) err += Math.max(-0.7, Math.min(0.7, -cross * 1.5)); }      // back onto the line (a hillside pulls the car down it all the time)
     inp.steer = Math.max(-1, Math.min(1, -err * 2.6));
     inp.throttle = Math.max(-0.6, Math.min(1, (vd - sp) * 0.9 + 0.12));
     if (Math.abs(err) > 1.9 && sp < 0.5) inp.throttle = 0.5;

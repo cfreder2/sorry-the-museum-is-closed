@@ -270,7 +270,8 @@ export function createLandway(plan) {
     if (list) for (const e of list) if (Math.abs(spots.y[e] - y) < 0.3) return e;
     const e = spots.n++, c = cellOf(x, z), sub = subAt(x, z);
     spots.x[e] = x; spots.y[e] = y; spots.z[e] = z; spots.on[e] = on || null; spots.pl[e] = placeOf(sub, x, z, y); spots.out[e] = null; spots.st[e] = 0; spots.cell[e] = -1;
-    spots.cost[e] = (c >= 0 && !(K[c] & MASS) && Math.abs(H[c] - y) < 0.3 ? costOf(c) : 1.04) + (on && !on.hill ? brink(sub, x, z, y, on) : 0);      // (on the open ground the field has already counted the brinks)
+    // (What a metre of it costs: the field's own figure where it is the street's level; hard against a building, as much as the field asks beside one; up on something, a little over the least.)
+    spots.cost[e] = (c >= 0 && Math.abs(H[c] - y) < 0.3 ? (K[c] & MASS ? SNOW + near[6] * INV : costOf(c)) : 1.04) + (on && !on.hill ? brink(sub, x, z, y, on) : 0);      // (on the open ground the field has already counted the brinks)
     if (list) list.push(e); else spots.at.set(key, [e]);
     return e;
   }
@@ -466,7 +467,7 @@ export function createLandway(plan) {
     if (o.fly || o.bound) return seek(o, null, o.limit || 260000);
     // A short look first, by the straight line. If that is not enough (the way is a long way round: over a bridge,
     // round a building), the whole of it is looked at coarsely from the far end first, and the search follows that.
-    const r = seek(o, null, 9000); if (r || !T.capped) return r;
+    const r = seek(o, null, 20000); if (r || !T.capped) return r;
     return seek(o, guide(o), o.limit || 260000);
   }
   function seek(o, far, limit) {
@@ -478,7 +479,7 @@ export function createLandway(plan) {
     for (let m = 0; m < nv; m++) { const a = anchor[m]; if (a < 0) continue; if (back.has(a)) back.get(a).push(m); else back.set(a, [m]); if (a < NC) K[a] |= ANCH; }
     const crow = (x, z) => Math.sqrt((x - tx) * (x - tx) + (z - tz) * (z - tz));
     // How far there still is to go, at the least: the straight line; or, with a guide, what the coarse look made of it from that part of the field (less a block's width, which is all it is good to).
-    const hOf = far ? (x, z) => { const c = cellOf(x, z), l = c < 0 ? 0 : lab[c], d = l ? far.land[blockOf(c) * 8 + l - 1] : Infinity, e = crow(x, z) * EPS, f = (d - SLACK) * FAR; return d < Infinity && f > e ? f : e; } : (x, z) => crow(x, z) * EPS;
+    const hOf = far ? (x, z) => { const c = cellOf(x, z), l = c < 0 ? 0 : lab[c], d = l ? far.land[blockOf(c) * 8 + l - 1] : Infinity, e = crow(x, z) * EPS, f = (d - SLACK) * far.trust; return d < Infinity && f > e ? f : e; } : (x, z) => crow(x, z) * EPS;
     const hWay = far ? m => { const p = o.at(m), e = crow(p.x, p.z) * 0.85, d = far.ways[m] - SLACK; return d < Infinity && d > e ? d : e; } : m => { const p = o.at(m); return crow(p.x, p.z) * 0.85; };
     pm.clear();
     const relax = (v, g, from, k = 255) => {
@@ -530,7 +531,7 @@ export function createLandway(plan) {
   // (a fence through a block, the brink of the cutting, make two): each such part is one place, joined to the parts
   // of the blocks round it that a car can cross into. From the far end of a way, over these and the building's own
   // ways (taken either way round), how far it is to everywhere: a few thousand places, not a million.
-  const SLACK = 4, FAR = 1.25;      // (the coarse look is good to a block's width; and on a long way round it is trusted a quarter over, or the search looks at everything within a few metres' detour of a way hundreds of metres long)
+  const SLACK = 4, FAR = 1.2;      // (the coarse look is good to a block's width; and on a long way round it is trusted a quarter over, or the search looks at everything within a few metres' detour of a way hundreds of metres long)
   function guide(o) {
     if (!coarse.ready) { for (let bj = 0; bj < nbZ; bj++) parts(bj); for (let bj = 0; bj < nbZ; bj++) joins(bj); coarse.ready = true; }
     const nv = o.n, land = coarse.far.fill(Infinity), ways = new Float32Array(nv).fill(Infinity) /* (as the heap keeps its keys: a key must compare equal to what it was pushed for) */, und = Array.from({ length: nv }, () => []);
@@ -547,7 +548,7 @@ export function createLandway(plan) {
       if (u >= NCN) { const m = u - NCN; if (d0 > ways[m]) continue; const e = und[m]; for (let i = 0; i < e.length; i += 2) go(NCN + e[i], d0 + e[i + 1]); if (at[m] >= 0) go(at[m], d0 + (o.reach ? o.reach[m] : 0)); }
       else { if (d0 > land[u]) continue; const e = coarse.adj[u], cu = coarse.min[u]; if (e) for (let i = 0; i < e.length; i++) { const v = e[i] >> 1; go(v, d0 + (e[i] & 1 ? 5.66 : 4) * (cu + coarse.min[v]) * 0.5 * INV); } const ms = from.get(u); if (ms) for (const m of ms) go(NCN + m, d0 + (o.reach ? o.reach[m] : 0)); }
     }
-    return { land, ways };
+    return { land, ways, trust: at[o.T] >= 0 || o.anchor[o.T] < 0 ? FAR : EPS };      // (trusted less when it started from round about the end, not from it)
   }
   const gOf = n => (n >= NC ? spots.g[n - NC] : gC[n]);
   // A stretch of the way just found, over cells and spots, as points: pulled straight wherever the straight line costs
