@@ -6,16 +6,18 @@
 // touches of the brush, and yet it holds as solid as a wall. Nothing in it moves but one thing: the white plume from
 // the chimney on the right.
 //
-// Look at it and the picture is dealt out on the floor below, as cards, far to near. His mountains first: a rank of
-// cards lying along the foot of the wall, violet and grey-blue, stands up one card after another into his slanting
-// touches, low on the left and highest on the right. Then the bay: cards pour out from under the
+// Look at it and the picture is dealt out on the floor below, as cards, far to near. His mountains first: two ranks
+// of cards lying along the foot of the wall stand up one card after another, a paler violet range behind and a bluer,
+// lower one in front, their tops coming to his ridge: the low run on the left, the broad hump in the middle, the high
+// dark mass on the right. Then the bay: cards pour out from under the
 // frame and lay themselves across the floor in overlapping rows, as a dealer spreads a deck, blues with green and
 // violet among them, the pale line of Marseille along the far side, the ochre headland with its green fields coming in
 // from the left, and one pale card askew on the blue for the jetty. Then the village is dealt, card by card, spinning
 // flat out of the slot under the frame and landing on its edge: four walls, the gables, and two red cards slapped down
-// for each roof (each with a note, like a tile tapped); green cards are dealt in heaps between the houses for his
-// trees, lighter where the sun is; the tall brick chimney comes down end over end, lands upright and rocks until it is
-// still. The big house in the middle is roofed last. A pause; the short chimney on the right rattles. Then the one
+// for each roof (each with a note, like a tile tapped); a few green cards drop in a bundle between the houses and open
+// like a hand of cards held loosely, for each of his trees, lighter where the sun is; the tall brick chimney comes
+// down end over end, lands upright and rocks until it is still. The big house in the middle is last: its walls
+// stand, and wait, and then its red roof comes down. A pause; the short chimney on the right rattles. Then the one
 // thing in the picture that is not flat and not still: a puff, and his white plume leans out to the left over the
 // blue, in soft streaked touches, not a card in it.
 // While you keep looking the smoke goes on, and now and then a ripple runs along one row of the bay.
@@ -36,32 +38,36 @@ const TAU = Math.PI * 2, HALF = Math.PI / 2;
 const SC = 1.15;                                   // the size of it all (what follows is in its own metres)
 const TH = 0.003;                                  // a card's thickness
 // The bay: rows of cards, far to near (z: out from the wall), each spread across the floor one card over the last.
-const CW = 0.085, CL = 0.12, ROWS = 6, ROW0 = 0.27, ROW_D = 0.122, PITCH = 0.07, HALF_W = 0.98, TILT = 0.12;
+const CW = 0.088, CL = 0.12, ROWS = 6, ROW0 = 0.27, ROW_D = 0.122, PITCH = 0.074, HALF_W = 0.98, TILT = 0.12;
 const COAST = [-9, -9, -9, -0.62, -0.38, -0.12];   // in each row, the headland lies left of this
 const T_HILLS = 0.1, T_SEA = 0.45, ROW_GAP = 0.17, SWEEP = 0.42, FLY = 0.46;
-const T_PUFF = 5.6, T_BUILT = 6.0;
+const T_PUFF = 7.0, T_BUILT = 7.4;
 const SMOKE = 34, LIFE = 3.2;                      // the plume's dabs, and how long each lasts (s)
 const RIP0 = 9.5, RIP_EVERY = 5.5, RIP_STEP = 0.028, RIP_LEN = 0.55;       // a ripple along one row of the bay
 // The village. u (along the wall), z (out), yaw, w (along the ridge), d, h (walls), rise (roof), t (dealt at), and its
 // colours: the walls front, right, back, left; the roof towards you and away. slow: heavier cards (the last house).
 const HOUSES = [
-  { u: -0.82, z: 0.64, yaw: 0.2, w: 0.1, d: 0.075, h: 0.05, rise: 0.034, t: 2.1, y: 0.03, c: ['#e2c08c', '#c99a6a', '#b98a60', '#d8b07c', '#d8704c', '#c8603f'] },
-  { u: -0.62, z: 0.8, yaw: 0.15, w: 0.15, d: 0.1, h: 0.075, rise: 0.045, t: 2.3, y: 0.03, c: ['#d9b27c', '#e6cf9a', '#a57c5c', '#a8805e', '#d47a55', '#c4633f'] },
-  { u: -0.34, z: 0.9, yaw: -0.25, w: 0.13, d: 0.095, h: 0.07, rise: 0.04, t: 2.5, y: 0.03, c: ['#cfa070', '#e3c78f', '#a57c5c', '#9c7a62', '#d8805a', '#c66a44'] },
-  { u: 0.36, z: 1.02, yaw: 0.04, w: 0.36, d: 0.14, h: 0.1, rise: 0.055, t: 2.9, c: ['#b98a5a', '#cfa272', '#8f6a4c', '#96705a', '#b86a4a', '#a55a40'] },
-  { u: -0.6, z: 1.27, yaw: -0.05, w: 0.46, d: 0.19, h: 0.15, rise: 0.085, t: 3.3, c: ['#9a8a78', '#e6c98f', '#8d7a66', '#8a7868', '#e09a72', '#cf7a56'] },
-  { u: 0.56, z: 1.31, yaw: 0.03, w: 0.42, d: 0.17, h: 0.13, rise: 0.075, t: 3.7, win: true, c: ['#a9a6a6', '#e2c492', '#8f8478', '#90887e', '#e3a274', '#d28458'] },
-  { u: 0.0, z: 1.25, yaw: 0.9, w: 0.3, d: 0.21, h: 0.21, rise: 0.1, t: 4.15, slow: true, c: ['#dfc391', '#b99a78', '#8a7462', '#7d6a5c', '#dc6f4a', '#c95c3c'] },
+  { u: -0.82, z: 0.64, yaw: 0.2, w: 0.1, d: 0.075, h: 0.05, rise: 0.034, t: 2.15, y: 0.03, c: ['#e2c08c', '#c99a6a', '#b98a60', '#d8b07c', '#d8704c', '#c8603f'] },
+  { u: -0.62, z: 0.8, yaw: 0.15, w: 0.15, d: 0.1, h: 0.075, rise: 0.045, t: 2.45, y: 0.03, c: ['#d9b27c', '#e6cf9a', '#a57c5c', '#a8805e', '#d47a55', '#c4633f'] },
+  { u: -0.34, z: 0.9, yaw: -0.25, w: 0.13, d: 0.095, h: 0.07, rise: 0.04, t: 2.75, y: 0.03, c: ['#cfa070', '#e3c78f', '#a57c5c', '#9c7a62', '#d8805a', '#c66a44'] },
+  { u: 0.36, z: 1.02, yaw: 0.04, w: 0.36, d: 0.14, h: 0.1, rise: 0.055, t: 3.2, c: ['#b98a5a', '#cfa272', '#8f6a4c', '#96705a', '#b86a4a', '#a55a40'] },
+  { u: -0.6, z: 1.27, yaw: -0.05, w: 0.46, d: 0.19, h: 0.15, rise: 0.085, t: 3.7, c: ['#9a8a78', '#e6c98f', '#8d7a66', '#8a7868', '#e09a72', '#cf7a56'] },
+  { u: 0.56, z: 1.31, yaw: 0.03, w: 0.42, d: 0.17, h: 0.13, rise: 0.075, t: 4.25, win: true, c: ['#a9a6a6', '#e2c492', '#8f8478', '#90887e', '#e3a274', '#d28458'] },
+  { u: 0.0, z: 1.25, yaw: 0.9, w: 0.3, d: 0.21, h: 0.21, rise: 0.1, t: 4.85, slow: true, c: ['#dfc391', '#b99a78', '#8a7462', '#7d6a5c', '#dc6f4a', '#c95c3c'] },
 ];
 // The roofs, two notes each (D major pentatonic, climbing), and the last house low: D and A, which the puff's long notes fill out.
 const ROOF = [[587.33, 739.99], [659.25, 880], [739.99, 987.77], [880, 1174.66], [987.77, 1318.5], [880, 1174.66], [293.66, 440]];
-const STACK = { u: -0.5, z: 1.1, s: 0.05, H: 0.47, t: 2.5, dur: 0.75 };      // the tall brick chimney
-const SMOKER = { u: 0.578, z: 1.0, s: 0.036, H: 0.25, t: 3.2, dur: 0.6 };   // the one that smokes
-// The trees: u, z, size, t.
-const TREES = [[-0.3, 1.08, 0.7, 2.8], [0.25, 1.17, 1.0, 3.5], [0.5, 1.155, 0.9, 3.75], [0.9, 1.2, 1.25, 4.0], [-0.9, 1.4, 1.0, 3.9], [-0.22, 1.44, 0.85, 4.5]];
-// The mountains across the bay: how high the ridge stands at u (his three masses, the tallest to the right).
-const ridge = u => 0.075 + 0.075 * Math.exp(-(((u + 0.7) / 0.26) ** 2)) + 0.125 * Math.exp(-(((u - 0.02) / 0.3) ** 2)) + 0.2 * Math.exp(-(((u - 0.7) / 0.27) ** 2));
-const HILL_STEP = 0.055, HILL_LAG = 0.013, HILL_OPEN = 0.42;
+const STACK = { u: -0.5, z: 1.1, s: 0.05, H: 0.47, t: 2.75, dur: 0.75 };      // the tall brick chimney
+const SMOKER = { u: 0.578, z: 1.0, s: 0.036, H: 0.24, t: 3.55, dur: 0.6 };   // the one that smokes
+// The trees: u, z, size, t, and which way each faces (a turn from square to the wall).
+const TREES = [[-0.3, 1.08, 0.75, 3.0, 0.3], [0.25, 1.17, 1.0, 3.9, -0.25], [0.5, 1.155, 0.9, 4.15, 0.2], [0.9, 1.2, 1.25, 4.5, -0.35], [-0.9, 1.4, 1.05, 4.3, 0.4], [-0.22, 1.44, 0.9, 5.0, -0.15]];
+// The mountains across the bay, read off the canvas: how high each range stands (as a part of the highest) at u. The
+// far one: a low run on the left, a dip, the broad hump in the middle, a notch, and the high mass on the right. The
+// near one: lower, with its small knob left of the middle.
+const FAR = [[-1.08, 0.52], [-0.86, 0.68], [-0.72, 0.61], [-0.56, 0.66], [-0.42, 0.5], [-0.3, 0.45], [-0.18, 0.68], [-0.05, 0.84], [0.14, 0.81], [0.3, 0.86], [0.43, 0.78], [0.5, 0.66], [0.6, 0.9], [0.7, 1.0], [0.81, 0.98], [0.93, 0.88], [1.08, 0.8]];
+const NEAR = [[-1.08, 0.25], [-0.82, 0.31], [-0.6, 0.24], [-0.46, 0.36], [-0.36, 0.25], [-0.12, 0.33], [0.1, 0.43], [0.3, 0.36], [0.5, 0.42], [0.7, 0.33], [0.9, 0.4], [1.08, 0.35]];
+const HILL_H = 0.33, HILL_WAVE = 0.6, HILL_OPEN = 0.42;
+const prof = (P, u) => { let i = 1; while (i < P.length - 1 && u > P[i][0]) i++; const a = P[i - 1], b = P[i], k = Math.max(0, Math.min(1, (u - a[0]) / (b[0] - a[0]))); return (a[1] + (b[1] - a[1]) * k * k * (3 - 2 * k)) * HILL_H; };
 const _h = (a, b = 0) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
 
 // A card's paint: its own flat colour, laid in his short parallel touches on a slant (a little lighter or darker,
@@ -156,20 +162,27 @@ lifeFor(16487, {
     };
     const tick = (t, vol = 0.014, bp = 2400) => s.hit(t, { d: 0.028, vol, bp, q: 1.4 });
 
-    // ---- the mountains: a rank of cards laid along the foot of the wall, which stand up one after another into his
-    // slanting touches; the ridge is where their tops come to
-    const hillC = ['#7f86a3', '#9a8fa6', '#6f8a9a', '#8f9f9a', '#b3a3a8', '#8791ad'];
-    {
-      const g = group({ kind: 'rise', piv: new V3(0, 0.004, 0.058), t0: T_HILLS, dur: 0.3, open: T_HILLS + 0.3, openD: HILL_OPEN });
-      let n = 0;
-      for (let u = -1.06; u < 0.97; u += HILL_STEP * (0.9 + 0.2 * rand()), n++) {
-        const ang = -(0.52 + 0.24 * rand()), top = ridge(u + 0.09) * (0.93 + 0.14 * rand()), l = top / Math.cos(ang), deep = clamp01((top - 0.16) / 0.1);
-        card(g, { qb: new Qn(), ax: AX.z, ang, ang0: -1.5, fan: true, lag: n * HILL_LAG, rel: new V3(u, 0, (n % 6) * 0.003), off: new V3(0, l / 2, 0), w: 0.085, h: l, col: col(rand() < deep * 0.7 ? '#5f7390' : hillC[Math.floor(rand() * hillC.length)], 0.3) });
+    // ---- the mountains: two ranks of cards laid along the foot of the wall, which stand up one after another into
+    // his slanting touches; each card's top comes to the ridge where it stands, wider cards for the big masses, and
+    // each leans a little with the slope it is on. The far range paler (violet-grey on the left, mauve in the middle,
+    // deep blue-violet for the high mass on the right); the near one lower and bluer.
+    const farC = u => (u > 0.5 ? ['#5f6a8f', '#6b7397', '#56688a', '#7a7fa0'] : u > -0.25 ? ['#a393a8', '#b5a3aa', '#9a90aa', '#a99bb4'] : ['#9498b4', '#a7a2b8', '#8a93ad', '#b0a8b6']);
+    const nearC = ['#5f7a90', '#6f8a9a', '#587488', '#74908f', '#647f98'];
+    [[FAR, 0.056, 0, farC, 0.9], [NEAR, 0.082, 0.22, () => nearC, 1.15]].forEach(([Pf, z, wait, pick, step], ri) => {
+      const g = group({ kind: 'rise', piv: new V3(0, 0.004, z), t0: T_HILLS + wait, dur: 0.3, open: T_HILLS + wait + 0.3, openD: HILL_OPEN });
+      let n = 0, u = -1.08;
+      while (u < 1.0) {
+        const big = prof(Pf, u + 0.06) / HILL_H, w = (0.06 + 0.07 * big) * (0.9 + 0.2 * rand()) * (ri ? 1.1 : 1);
+        const slope = (prof(Pf, u + 0.14) - prof(Pf, u)) / 0.14, ang = -(0.34 + 0.2 * rand()) + 0.75 * Math.atan(slope * 1.6);
+        let l = prof(Pf, u); for (let i = 0; i < 5; i++) l = prof(Pf, u - l * Math.sin(ang)) / Math.cos(ang);      // (its top on the ridge)
+        l *= 0.95 + 0.1 * rand(); const cs = pick(u);
+        card(g, { qb: new Qn(), ax: AX.z, ang, ang0: -1.5, fan: true, lag: (u + 1.08) / 2.1 * HILL_WAVE, rel: new V3(u, 0, (n % 6) * 0.003), off: new V3(0, l / 2, 0), w, h: l, col: col(cs[Math.floor(rand() * cs.length)], 0.26) });
+        u += w * 0.62 * step; n++;
       }
-      g.tEnd = g.open + n * HILL_LAG + HILL_OPEN + 0.05;
-      for (let i = 0; i < 14; i++) tick(g.open + 0.1 + i * n * HILL_LAG / 14, 0.007 + 0.004 * (i % 2), 3000 + 60 * i);
-      s.hit(T_HILLS + 0.05, { d: 0.3, vol: 0.012, lp: 900, attack: 0.1 });
-    }
+      g.tEnd = g.open + HILL_WAVE + HILL_OPEN + 0.05;
+      for (let i = 0; i < 12; i++) tick(g.open + 0.1 + i * HILL_WAVE / 12, 0.006 + 0.004 * (i % 2), (ri ? 2600 : 3200) + 60 * i);
+    });
+    s.hit(T_HILLS + 0.05, { d: 0.3, vol: 0.012, lp: 900, attack: 0.1 });
 
     // ---- the far shore, the bay and the headland: rows spread across the floor, one card over the last
     const seaC = ['#3f5f86', '#4a6b8f', '#476a96', '#5a7a98', '#4b5a8a', '#4f7f80', '#6e8ea6'];
@@ -222,7 +235,7 @@ lifeFor(16487, {
       // the roof: two red cards, slapped down
       const sl = Math.hypot(H.d / 2, H.rise) + 0.022, pitch = -Math.atan2(H.d / 2, H.rise);
       [[Math.PI, 5], [0, 4]].forEach(([a, ci], k) => {
-        const qb = qe(new Qn(), H.yaw + a, pitch), t = H.t + 0.36 + k * (H.slow ? 0.16 : 0.1);
+        const qb = qe(new Qn(), H.yaw + a, pitch), t = H.t + (H.slow ? 0.98 + k * 0.24 : 0.36 + k * 0.1);       // (the last house stands roofless for a beat)
         const g = deal({ qb, off: new V3(0, -sl / 2, 0.0035), w: H.w + 0.03, h: sl, col: jit(C[ci]) }, t, 0.1, { piv: at(0, H.h + H.rise + 0.003, 0), yaw0: H.yaw + a });
         g.wax.set(1, 0, 0).applyAxisAngle(AX.y, H.yaw);
         // a tile tapped: a short clear note, and the card's own slap
@@ -249,23 +262,24 @@ lifeFor(16487, {
     for (let i = 0; i < 4; i++) tick(T_PUFF - 0.32 + i * 0.075, 0.012, 1500);
     this.top = new V3(SMOKER.u, SMOKER.H + 0.012, SMOKER.z);
 
-    // ---- the trees: his foliage dealt in a heap, slanting touches turned every way, lighter above and to the right
-    // where the sun is, over a dark green block that is the shade inside
-    const leafD = ['#3f6f5a', '#4f7f5a', '#47785f'], leafM = ['#5f8f4f', '#6a9a58', '#4f8a5a'], leafL = ['#7fa24f', '#9aae52', '#8aa85a'];
-    TREES.forEach(([u, z, size, t], ti) => {
-      const R = 0.085 * size, Hh = 0.14 * size, mu = u * 0.35;
-      single({ qb: qe(new Qn(), ti * 1.3 + 0.6), post: new M4().makeScale(R * 1.05, Hh * 0.66, R * 1.05), col: col('#3a6a52', 0.3) }, { kind: 'grow', piv: new V3(u, Hh * 0.33 + 0.002, z), t0: t + 0.52, dur: 0.3 });      // (the dark inside of it fills in as the first cards land)
+    // ---- the trees: a few green cards dropped in a bundle, which open like a hand of cards held loosely: four
+    // behind, longer, leaning back, in his dark blue-green; four in front, shorter, leaning out, in the sunlit greens;
+    // no two the same size, the outline rounded as his tree masses are
+    const leafD = ['#33604f', '#3f6f5a', '#2f5a52', '#47785f'], leafM = ['#5f8f4f', '#6a9a58', '#4f8a5a'], leafL = ['#7fa24f', '#9aae52', '#8aa85a'];
+    TREES.forEach(([u, z, size, t, face]) => {
+      const g = group({ kind: 'baton', piv: new V3(u, 0.003, z), t0: t, dur: 0.55, mu: u * 0.35, drop: 0.09, arc: 0.7, reach: 0.55, turns: 1, th0: HALF, bax: AX.x, open: t + 0.55, openD: 0.5, wob: 0.07, wobF: 13, wobD: 4.5 });
+      g.cen.set(0, 0.075 * size, 0); g.wax.set(Math.cos(face), 0, -Math.sin(face)); g.tEnd = t + 0.55 + 8 * 0.035 + 1.3;
       for (let k = 0; k < 8; k++) {
-        // five leaning in round it, their feet on the floor, and three laid over the top, as slates lie on a dome
-        const low = k < 5, phi = low ? k * TAU / 5 + ti * 0.9 + (rand() - 0.5) * 0.3 : k * TAU / 3 + ti + (rand() - 0.5) * 0.5, el = low ? 0.42 + rand() * 0.16 : 1.0 + rand() * 0.22;
-        const nx = Math.sin(phi) * Math.cos(el), ny = Math.sin(el), nz = Math.cos(phi) * Math.cos(el), sun = nx * 0.5 + ny * 0.6 + nz * 0.25 + (rand() - 0.5) * 0.3;
-        const tone = sun > 0.62 ? leafL : sun > 0.2 ? leafM : leafD, t1 = t + 0.14 + k * 0.04, h = (low ? 0.108 + rand() * 0.02 : 0.09 + rand() * 0.02) * size;
-        const rr = low ? R * 0.86 : R * 0.42, y = low ? h * 0.5 * Math.cos(el) + 0.005 : Hh * 0.74 + rand() * 0.012 * size;
-        single({ qb: qe(new Qn(), phi, -el, (rand() - 0.5) * (low ? 0.36 : 1.4)), w: (0.112 + rand() * 0.02) * size, h, col: col(tone[Math.floor(rand() * 3)], 0.3) },
-          { kind: 'deal', piv: new V3(u + Math.sin(phi) * rr, y, z + Math.cos(phi) * rr), t0: t1, dur: 0.45, mu: mu + (rand() - 0.5) * 0.08, turns: k % 2 ? 1.5 : -1.5, yaw0: phi });
-        if (k % 2 === 0) s.hit(t1 + 0.45, { d: 0.03, vol: 0.009, hp: 2600 });
+        const back = k < 4, i = k % 4, a = (back ? -1.1 + i * 0.72 : -0.78 + i * 0.6) + (rand() - 0.5) * 0.22;      // (from upright, to the right)
+        const round = 1 - 0.13 * a * a, l = (back ? 0.165 + rand() * 0.03 : 0.118 + rand() * 0.028) * size * round, w = (back ? 0.088 + rand() * 0.03 : 0.07 + rand() * 0.028) * size;
+        // sunlit to the right and on top, in shade to the left and behind
+        const sun = (back ? -0.25 : 0.3) + a * 0.32 + (rand() - 0.5) * 0.3, tone = sun > 0.38 ? leafL : sun > -0.05 ? leafM : leafD;
+        const yaw = face + (rand() - 0.5) * 0.5, lean = back ? -0.24 - rand() * 0.1 : 0.2 + rand() * 0.12;
+        card(g, { qb: qe(new Qn(), yaw, lean), ax: AX.z, ang: -a, fan: true, lag: (back ? i : 3.5 - i) * 0.035 + (back ? 0 : 0.06),
+          rel: new V3(a * 0.022 * size, 0, (back ? -0.012 : 0.012) * size).applyAxisAngle(AX.y, face), off: new V3(0, l / 2, (i - 1.5) * 0.0025), w, h: l, col: col(tone[Math.floor(rand() * tone.length)], 0.3) });
       }
-      this.shadows.push({ u, z, r: R * 1.35, t: t + 0.5 });
+      s.hit(t + 0.55, { d: 0.04, vol: 0.014, lp: 1200 }); for (let i = 0; i < 5; i++) tick(t + 0.6 + i * 0.045, 0.008, 3400 + 80 * i);
+      this.shadows.push({ u, z, r: 0.1 * size, t: t + 0.55 });
     });
 
     // ------------------------------------------------------------ one mesh for every card
@@ -329,7 +343,6 @@ lifeFor(16487, {
       return;
     }
     if (g.kind === 'rise') { P.copy(g.piv); P.z -= 0.14 * (1 - ease.out(k)); Q.identity(); return; }
-    if (g.kind === 'grow') { P.copy(g.piv); Q.identity(); return; }
     const a = 0.15, C = this.T.c, zf = this.zFront, y0 = this.railY - g.drop, tx = g.piv.x + g.cen.x, ty = g.piv.y + g.cen.y, tz = g.piv.z + g.cen.z;
     let s = 0;
     if (k < a) C.set(g.mu, y0, -0.12 + (zf + 0.12) * ease.out(k / a));
@@ -390,7 +403,7 @@ lifeFor(16487, {
       const p = T.v.copy(cd.off).applyQuaternion(q).add(cd.rel);
       if (g.fly) p.sub(g.cen).applyQuaternion(g.Q).add(g.cen); else p.applyQuaternion(g.Q);
       p.add(g.P); q.premultiply(g.Q);
-      mesh.setMatrixAt(cd.i, T.m.compose(p, q, g.kind === 'grow' && g.fly ? T.w.setScalar(ease.out((c - g.t0) / g.dur)) : T.one).multiply(cd.post));
+      mesh.setMatrixAt(cd.i, T.m.compose(p, q, T.one).multiply(cd.post));
     }
     if (dirty) mesh.instanceMatrix.needsUpdate = true;
 
@@ -410,10 +423,10 @@ lifeFor(16487, {
         const age = ts - born, k = age / LIFE;
         if (born < 0 || k >= 1) { sm.setMatrixAt(i, this.zero); continue; }
         const lean = 0.85 + 0.3 * Math.sin(born * 0.7 + 1), puff = born < 0.05 ? 1.5 : 1;       // the wind eases and freshens; the first puff is the biggest
-        const x = this.top.x - 0.165 * age * lean + d.side * 0.02 * age + 0.012 * Math.sin(age * 2.3 + d.ph) * age;
-        const y = this.top.y + 0.045 * (1 - Math.exp(-age * 2.6)) + 0.042 * age * (1.1 - 0.25 * lean) + d.up * 0.028 * age;
-        const z = this.top.z - 0.07 * age + d.side * 0.03 * age;
-        const size = (0.036 + 0.04 * age) * d.big * puff;
+        const x = this.top.x - (0.15 * age + 0.07 * (1 - Math.exp(-age * 2.4))) * lean + d.side * 0.02 * age + 0.012 * Math.sin(age * 2.3 + d.ph) * age;
+        const y = this.top.y + 0.03 * (1 - Math.exp(-age * 2.6)) + 0.014 * age * (1.1 - 0.25 * lean) + d.up * 0.02 * age;      // (it stays low, over the water, under the far ridge)
+        const z = this.top.z - 0.02 * age + d.side * 0.03 * age;
+        const size = (0.036 + 0.033 * age) * d.big * puff;
         const al = ramp(age, 0, 0.14) * (1 - ease.smooth(ramp(k, 0.4, 1))) * (0.9 - 0.4 * k) * (1 - gone);
         sm.setMatrixAt(i, T.m.compose(T.v.set(x, y, z), T.q.identity(), T.w.set(size * 1.45, size * 0.85, 1)));
         const turn = (TAU - 0.3 + (d.turn - Math.PI) * 0.22 + d.spin * age * (calm ? 0.5 : 1)) / TAU;
