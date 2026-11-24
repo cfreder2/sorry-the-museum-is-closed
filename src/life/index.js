@@ -46,3 +46,4 @@ import './4788-lady-sarah-bunbury.js';   // 218  Reynolds, Lady Sarah Bunbury Sa
 import './16487-bay-of-marseille.js'; // 248  Cézanne, The Bay of Marseille, Seen from L'Estaque: card
 import './44892-fish-still-life.js';  // 222  Manet, Fish (Still Life): gleam
 import './19339-arlesiennes-mistral.js'; // 241  Gauguin, Arlésiennes (Mistral): wrap
+import './4796-fishing-boats-hucksters.js'; // 220  Turner, Fishing Boats with Hucksters Bargaining for Fish: bargain
