@@ -3,36 +3,40 @@
 // He painted it in December, in the public garden across the street from the yellow house he was sharing with
 // Vincent in Arles, with the mistral blowing. Everything in it is wrapped against the cold: the women in their dark
 // shawls, hands holding them shut at the mouth, and, towering beside them, two orange-yellow cones, which the museum
-// reads as young plants bound up in straw against the frost. A red fence bars the way.
+// reads as probably hay coverings put over plants to shield them from the frost. A red fence bars the way, and a
+// big green bush fills the near corner.
 //
-// Look at it and a corner of that garden comes out from under the frame, toy-sized: his lawn, hatched in his thin
-// slanting strokes (the blue of the pond by the wall, the band of yellow, then the green), the red pickets dealt out
-// across it one by one and standing up with a clack, and two bare young trees with a last few orange leaves, like the
-// tree in the top corner of the picture. Then a cold breath comes across the floor. The trees lean and shiver and lose
-// leaves. So the straw comes: long streaks of his orange and yellow slide out from under the picture and stand up
-// against each tree, the back ones first, closing round the front like a shawl pulled shut, and the tree draws its
-// branches in. A cord slides up from the foot, gathering the straw to a neck, and the tops spring out above it in a
-// tuft: one cone, then the other, as they stand in the picture. On the first tie a violin begins the Largo of
-// Vivaldi's "Winter" (1725), whose sonnet has it: contented days by the fire while outside it pours.
+// Look at it and that corner of the garden comes out from under the frame, toy-sized: his ground in flat shapes,
+// hatched in his thin slanting strokes (the pale path, the blue of the pond by the wall, the band of yellow, the
+// green lawn); the bush swelling up out of the path, a dark mound thatched with his long green and yellow strokes;
+// the red pickets dealt out across the lawn one by one, each standing up with a clack; and two bare young trees with
+// a last few orange leaves, drawn like the tree in the top corner of the picture (what is under his straw he does not
+// show: these are ours). Then a cold breath crosses the floor. The trees lean and shiver and lose leaves. So the
+// straw comes: long streaks of his orange and yellow slide out from under the picture and stand up against each
+// tree, the back ones first, closing round the front like a shawl pulled shut, and the tree draws its branches in.
+// A cord slides up from the foot, gathering the straw to a neck, and the tops spring out above it in a tuft: one
+// cone, then the other, as they stand in the picture. On the first tie a violin begins the Largo of Vivaldi's
+// "Winter" (1725), whose sonnet has it: contented days by the fire while outside it pours.
 //
-// Then the hush, and the mistral proper: it crosses the floor from the left, the cones heel over one after the other
-// with their skirts lifting and their tufts laid flat, the fence rattles, and leaves come streaming out from under the
-// picture and fetch up against the pickets. The cones hold. It passes; they spring upright and settle, snug, and the
-// tune has not missed a note. While you keep looking a light air plays in the tufts and now and then a smaller gust
-// goes over. When you stop, the two cones glide home under the picture still wrapped, the leaves blow back, the fence
-// lies down picket by picket and the lawn draws in.
+// Then the hush, and the mistral proper: it crosses the floor from the left, the bush is combed over, the cones heel
+// one after the other with their skirts lifting and their tufts laid flat, the fence rattles, a few straws are
+// pulled out, and leaves come streaming from under the picture, catch between the pickets and on the bush. The
+// cones hold. It passes; they spring upright and settle, snug, and the tune has not missed a note. While you keep
+// looking a light air plays in the tufts and now and then a smaller gust goes over. When you stop, the two cones
+// glide home under the picture still wrapped, the leaves blow back, the fence lies down picket by picket, the bush
+// sinks and the ground draws in.
 //
-// Two draw calls: the lawn (one flat mesh, painted in its shader) and one rig of flat painted marks (every straw,
-// plume, leaf and picket). The cones tower over the toy, as they tower over the women (0.86 m at most), and still
-// stand well under the frame's bottom rail.
+// Two draw calls: the ground (one flat mesh, painted in its shader) and one rig of flat painted marks (every straw,
+// plume, leaf, stroke of the bush and picket). The cones tower over the toy, as they tower over the women (0.86 m at
+// most), and still stand well under the frame's bottom rail from where you look.
 //
 // With "Reduce motion and flashing" on: no shiver, flutter or rattle, the gusts lean things half as far and they come
 // upright once, slowly; the clacks and the rustle are dropped for soft single sounds.
 //
-// What it does not do: the four women stay in the picture and so does the face he hid in the bush (nobody is
-// modelled, walked about or blown at, and the cones are given no faces, steps or gestures), because the women are
-// private people going home in the cold, turned in on themselves, and the show is what they are wrapped against, not
-// them; and no farandole or other "Provençal" tune is played to stand for Arles.
+// What it does not do: the four women stay in the picture, and the face he hid in the bush is not put on ours
+// (nobody is modelled, walked about or blown at, and the cones are given no faces, steps or gestures), because the
+// women are private people going home in the cold, turned in on themselves, and the show is what they are wrapped
+// against, not them; and no farandole or other "Provençal" tune is played to stand for Arles.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape } from '../paintlife.js';
 import { score, hz } from './stagecraft.js';
@@ -107,7 +111,7 @@ lifeFor(19339, {
   // the right, where the fence is nearest, as he has it in the picture's corner, and low, so the cones tower as his
   // do; it is aimed by hand, to keep the whole work above and the fence's foot below without stepping back into the
   // case: whole: false)
-  stage: { out: 1.7, half: 1.15, cam: { dist: 2.5, side: 0.8, height: 0.55, fov: 60, lookU: -0.1, lookOut: 0.6, lookH: 0.7, whole: false } },
+  stage: { out: 1.7, half: 1.15, cam: { dist: 2.5, side: 0.65, height: 0.55, fov: 63, lookU: 0.1, lookOut: 0.6, lookH: 0.63, whole: false } },
   wake: 2, ret: 2.4,
 
   build(L) {
@@ -230,7 +234,7 @@ lifeFor(19339, {
     CONES.forEach((c, ci) => { for (let i = 0; i < 3; i++) leaf('gust', T_G + 0.45 + 0.2 * ci + 0.25 * i + 0.1 * L.rand(), [c.u + c.R * 0.8 * W.u, 0.1 + 0.25 * L.rand(), c.o + c.R * 0.8 * W.o], true); });
     for (let i = 0; i < 6; i++) leaf('pass', 0.1 + 0.9 * L.rand());
 
-    // ------------------------------------------------------------ the lawn: flat shapes of his colour, hatched
+    // ------------------------------------------------------------ the ground: flat shapes of his colour, hatched
     const lu = this.lu = {
       uO: { value: L.floor(0, 0) }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uC: { value: 0 }, uFence: { value: new THREE.Vector3(FENCE.u0 - 0.03, FENCE.u0 - 0.03, FENCE.o) },
       uRing: { value: CONES.map(c => new THREE.Vector3(c.u, c.o, 0)) }, uSh: { value: CONES.map(c => new THREE.Vector3(c.u, c.o, 0)) },
@@ -264,7 +268,7 @@ vec3 lwCol; float lwA;`)
   else if (q.y + j < pond) c = h < 0.14 ? uCol[7] : mix(uCol[5], uCol[6], step(0.55, h2));
   else if (q.y + j < yel) c = mix(uCol[3], uCol[4], step(0.62, h2));
   else c = mix(mix(uCol[0], uCol[1], smoothstep(0.38, 0.68, lwN(q * 3.1 + 4.0) + (h2 - 0.5) * 0.3)), uCol[2], step(0.93, h) * 0.8);
-  c *= 0.9 + 0.2 * h2; c = mix(c * 0.82, c, body);
+  c *= 0.93 + 0.14 * h2; c = mix(c * 0.88, c, body);
   for (int i = 0; i < 2; i++) {
     // the bare earth round each tree, and the dark under the cone
     float d = length((q - uRing[i].xy) / vec2(1.0, 0.8)) + j * 1.6;
@@ -376,7 +380,7 @@ vec3 lwCol; float lwA;`)
         let dx = ny * nx, dy = ny * ny - 1, dz = ny * nz; const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
         // (the wind presses the strokes flat on the side it comes from, and lifts and streams them over the top and in the lee)
         const w = this.wind(t, BUSH.u + px, BUSH.o + pz) * still, lee = Math.max(0, nx * W.u + nz * W.o) + 0.6 * ny;
-        const lift = q.lift * open + (1 - open) * 1.2 + w * lee * (0.34 + (calm ? 0 : 0.2 * Math.sin(t * 12 + q.f))), cl = Math.cos(lift), sl = Math.sin(lift), blow = w * (0.2 + 0.42 * lee);
+        const lift = q.lift * open + (1 - open) * 0.45 + w * lee * (0.34 + (calm ? 0 : 0.2 * Math.sin(t * 12 + q.f))), cl = Math.cos(lift), sl = Math.sin(lift), blow = w * (0.2 + 0.42 * lee);
         V.y.set(dx * cl + nx * sl + W.u * blow, dy * cl + ny * sl + 0.25 * blow, dz * cl + nz * sl + W.o * blow).normalize(); V.x.set(-sp, 0, cp);
         // (a dab lies along the mound, its upper end fixed, a centimetre proud of it)
         const hl = q.len * 0.5 * open;
