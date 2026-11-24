@@ -32,3 +32,4 @@ import './69780-fountain-villa-torlonia.js'; // 273  Sargent, The Fountain, Vill
 import './87479-assumption-of-the-virgin.js'; // 211  El Greco, The Assumption of the Virgin: rise
 import './16551-beata-beatrix.js';     // 223  Rossetti, Beata Beatrix: hour
 import './84709-still-life-with-game-fowl.js'; // 211  Sánchez Cotán, Still Life with Game Fowl: still
+import './144969-palm-house.js';       // 221  Blechen, The Interior of the Palm House on the Pfaueninsel: dapple
