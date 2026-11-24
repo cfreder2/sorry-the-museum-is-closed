@@ -31,4 +31,9 @@ import './16584-houses-of-parliament.js'; // 243  Monet, Houses of Parliament, L
 import './69780-fountain-villa-torlonia.js'; // 273  Sargent, The Fountain, Villa Torlonia, Frascati, Italy: splash
 import './87479-assumption-of-the-virgin.js'; // 211  El Greco, The Assumption of the Virgin: rise
 import './16551-beata-beatrix.js';     // 223  Rossetti, Beata Beatrix: hour
+import './84709-still-life-with-game-fowl.js'; // 211  Sánchez Cotán, Still Life with Game Fowl: still
+import './43145-view-of-delphi.js';   // 209  Claude Lorrain, View of Delphi with a Procession: glow
+import './11723-woman-at-her-toilette.js'; // 201  Morisot, Woman at Her Toilette: powder
+import './4428-mere-gregoire.js';     // 222  Courbet, Mère Grégoire: bouquet
+import './93900-man-in-costume.js';   // 216  Fragonard, Portrait of a Man in Costume: flourish
 import './57051-the-fountains.js';     // 218  Robert, The Fountains: pour
