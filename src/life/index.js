@@ -36,4 +36,10 @@ import './43145-view-of-delphi.js';   // 209  Claude Lorrain, View of Delphi wit
 import './11723-woman-at-her-toilette.js'; // 201  Morisot, Woman at Her Toilette: powder
 import './4428-mere-gregoire.js';     // 222  Courbet, Mère Grégoire: bouquet
 import './93900-man-in-costume.js';   // 216  Fragonard, Portrait of a Man in Costume: flourish
+import './144969-palm-house.js';       // 221  Blechen, The Interior of the Palm House on the Pfaueninsel: dapple
+import './57051-the-fountains.js';     // 218  Robert, The Fountains: pour
+import './16298-jean-gros.js';        // 202  van der Weyden, Portrait of Jean Gros: thanks
+import './14574-uncle-and-niece.js';   // 226  Degas, Henri Degas and His Niece Lucie Degas: rustle
+import './14591-woman-reading.js';   // 201  Manet, Woman Reading: leaf
+import './64818-end-of-summer.js';      // 243  Monet, Stacks of Wheat (End of Summer): harvest
 import './44892-fish-still-life.js';  // 222  Manet, Fish (Still Life): gleam
