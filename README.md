@@ -739,7 +739,10 @@ kind of room, add a line to the list.
   drops out of the ceiling: the alarm, the robot's voice, two and a half
   seconds to rattle the bars, and then you are carried out and wake up in the
   dumpster. It costs nothing but the heist, and the vent beside the dumpster
-  goes straight back down to the button. Take the copy (drive up to it, or
+  goes straight back down to the button. The room is kept as it was: the next
+  press of either button offers the same gallery and the same beams for
+  another go, until it is won, the clock runs out on it, or it is turned down
+  with *Not tonight* (which moves on to a new room). Take the copy (drive up to it, or
   come down on it from a hop) and the beams deal themselves again for the way
   out; get it back to the button before the clock runs out.
   The clock is made from the real car: a par for the drive out, an allowance
