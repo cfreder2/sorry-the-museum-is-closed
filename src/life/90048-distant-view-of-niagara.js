@@ -665,10 +665,11 @@ if (fA < 0.012) discard;`)
       if (kind === 4) { this.pc[n * 3] = sx; this.pc[n * 3 + 1] = sy; this.pc[n * 3 + 2] = c2; } else { this.pc[n * 3] = c.r; this.pc[n * 3 + 1] = c.g; this.pc[n * 3 + 2] = c.b; }
       n++;
     };
-    // the woods: up from the distance forward (springing, unless calm); going home, the right bank first (the
-    // strawberry bed next door can reach under that side)
+    // the woods: up with the ground, the far ones first (springing, unless calm); going home they go down with it,
+    // so the ground is never left bare, the right bank a little ahead (the strawberry bed next door can reach under
+    // that side)
     for (const f of this.T) {
-      const lr = clamp01((1.2 - f.u) / 2.4), q = ramp(t, f.t0, f.t0 + 0.75), down = 1 - ease.inOut(ramp(R, 0.8 + 0.4 * lr + 0.25 * (1 - clamp01(f.o / 1.1)), 1.6 + 0.4 * lr));
+      const lr = clamp01((1.2 - f.u) / 2.4), q = ramp(t, f.t0, f.t0 + 0.75), down = 1 - ease.inOut(ramp(R, 1.35 + 0.25 * lr, 2.3 + 0.25 * lr));
       const k = (calm ? sm(q) : ease.outBack(q)) * down; if (k <= 0.01) continue;
       const s = f.s * k, sway = (calm ? 0.012 : 0.025) * Math.sin(tt * 1.2 + f.ph);
       put(f.u + sway * s, f.g * rise + s * (f.conifer ? 0.62 : f.low ? 0.2 : 0.34), f.o, s * (f.conifer ? 0.8 : f.low ? 1.6 : 1.36 * f.ax), s * (f.conifer ? 1.7 : f.low ? 1.1 : 1.36 * f.ay), f.conifer ? 5 : 3, Math.min(1, k * 1.5) * (1 - 0.3 * f.far), f.spin + sway, f.c, litAt(f.u) * (1 - 0.4 * f.far) * (f.low ? 0.5 : 1));
