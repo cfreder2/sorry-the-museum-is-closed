@@ -1,7 +1,7 @@
 # Brief: make one painting come alive
 
 For a helper (an agent) asked to make ONE painting come alive in "Sorry, the Museum is Closed" (Three.js r170, plain ES
-modules, no build). Your work, its id, room, port and starting word are in your task message. Twenty are done; this is
+modules, no build). Your work, its id, room, port and starting word are in your task message. Thirty-one are done; this is
 what they taught.
 
 ## Before anything
@@ -85,6 +85,8 @@ The game is played by children, classrooms and people of every background and fa
 - Toy-like figures: stripes too bold and regular, flat cartoon faces. Model softly, as the painter did.
 
 ## How to work
+- To read what the museum says about your work: `curl -s -A "painting-notes/1.0" "https://api.artic.edu/api/v1/artworks/<id>?fields=title,artist_display,date_display,medium_display,description,short_description,subject_titles,style_title,term_titles"`
+  (plain curl with that generic User-Agent and no personal details; the site refuses headless Chrome). Don't batch or loop it.
 - Link the offline pictures (gitignored; do NOT copy):
   `ln -s /Users/cfreder2/Documents/personal/gamedev/sorry-the-museum-is-closed/data/img data/img`
 - Serve your worktree on YOUR port with the threaded server, in the background (stop it when you finish):
