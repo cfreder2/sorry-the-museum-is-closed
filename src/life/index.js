@@ -28,3 +28,4 @@ import './87045-still-life-with-geranium.js'; // 391  Matisse, Still Life with G
 import './154235-girl-by-the-window.js'; // 245  Munch, The Girl by the Window: moonbeam
 import './25865-herring-net.js';      // 161  Homer, The Herring Net: haul
 import './16584-houses-of-parliament.js'; // 243  Monet, Houses of Parliament, London: toll
+import './69780-fountain-villa-torlonia.js'; // 273  Sargent, The Fountain, Villa Torlonia, Frascati, Italy: splash
