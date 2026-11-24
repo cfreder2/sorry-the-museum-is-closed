@@ -12,7 +12,8 @@ import * as THREE from 'three';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { onSnow, heightOf, carve } from './plan.js';
-import { landAt, STEP as LAND_STEP } from './land.js';
+import { landAt } from './land.js';
+import { snowLook } from './finish.js';
 
 export function buildWinter(museum, plan) {
   const G = plan.grounds, B = plan.bounds, group = museum.group;
@@ -35,13 +36,15 @@ export function buildWinter(museum, plan) {
   {
     const pv = TX.paving(), S = 2.4, paths = new Geo(), ridge = new Geo();
     for (const q of openPaths) paths.quad([q.x0, 0.007, q.z0], [q.x1, 0.007, q.z0], [q.x1, 0.007, q.z1], [q.x0, 0.007, q.z1], [0, 1, 0], [[q.x0 / S, q.z0 / S], [q.x1 / S, q.z0 / S], [q.x1 / S, q.z1 / S], [q.x0 / S, q.z1 / S]]);
-    // What came off the path lies in a low bank down each side of it, wherever there is snow beside it.
+    // What came off the path lies in a bank down each side of it: on open ground that bank is part of the land (land.js:
+    // the wheels ride it), and elsewhere, in the gardens, it is a low kerb of snow drawn here.
+    const banked = (x, z) => landAt(plan.land, x, z) > 0.03;
     for (const q of openPaths) {
       const alongX = q.x1 - q.x0 > q.z1 - q.z0, a = alongX ? q.x0 : q.z0, b = alongX ? q.x1 : q.z1;
-      for (const edge of alongX ? [q.z0 - 0.16, q.z1 + 0.16] : [q.x0 - 0.16, q.x1 + 0.16]) {
+      for (const [edge, out] of alongX ? [[q.z0 - 0.16, q.z0 - 1.25], [q.z1 + 0.16, q.z1 + 1.25]] : [[q.x0 - 0.16, q.x0 - 1.25], [q.x1 + 0.16, q.x1 + 1.25]]) {
         let from = null;
         for (let u = a; u <= b + 0.26; u += 0.5) {
-          const ok = u <= b && (alongX ? onSnow(plan, u, edge) : onSnow(plan, edge, u));
+          const ok = u <= b && (alongX ? onSnow(plan, u, edge) && !banked(u, out) : onSnow(plan, edge, u) && !banked(out, u));
           if (ok && from === null) from = u;
           if (!ok && from !== null) { if (alongX) ridge.box(from, u - 0.5, 0, 0.075, edge - 0.16, edge + 0.16, 1.5); else ridge.box(edge - 0.16, edge + 0.16, 0, 0.075, from, u - 0.5, 1.5); from = null; }
         }
@@ -49,6 +52,62 @@ export function buildWinter(museum, plan) {
     }
     const mat = std({ map: pv, roughness: 0.85, emissiveMap: pv, emissive: new THREE.Color(0.34, 0.38, 0.5), emissiveIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     add(paths.mesh(mat), ridge.mesh(snow));
+    // No shovel leaves a ruled edge: along both sides of every path (these, and the park's east of Columbus Drive) the
+    // snow runs a hand or two in over the paving, ragged, thin at its lip, with the odd clod kicked further out. One
+    // strip of the snow's own material down each edge, cut out by a small mask; it lies on the path, 1 cm over it.
+    {
+      const edge = new Geo(), W = 0.62, LAP = 0.12, Y = 0.019;
+      const all = [...openPaths, ...((plan.lakefront && plan.lakefront.paths) || [])];
+      const snowy = (x, z) => onSnow(plan, x, z);
+      for (const q of all) {
+        const alongX = q.x1 - q.x0 > q.z1 - q.z0, a = alongX ? q.x0 : q.z0, b = alongX ? q.x1 : q.z1;
+        if ((alongX ? q.z1 - q.z0 : q.x1 - q.x0) < 1.6) continue;
+        for (const [e, s] of alongX ? [[q.z0, 1], [q.z1, -1]] : [[q.x0, 1], [q.x1, -1]]) {
+          let from = null;
+          for (let u = a; u <= b + 0.51; u += 0.5) {
+            const ok = u <= b && (alongX ? snowy(u, e - s * 0.3) : snowy(e - s * 0.3, u));
+            if (ok && from === null) from = u;
+            if (!ok && from !== null) {
+              const to = u - 0.5, o = e - s * LAP, i = e + s * W, u0 = from / 2.3 + e * 0.37, u1 = to / 2.3 + e * 0.37;
+              if (to - from > 0.4) { if (alongX) edge.quad([from, Y, o], [to, Y, o], [to, Y, i], [from, Y, i], [0, 1, 0], [[u0, 1], [u1, 1], [u1, 0], [u0, 0]]); else edge.quad([o, Y, from], [o, Y, to], [i, Y, to], [i, Y, from], [0, 1, 0], [[u0, 1], [u1, 1], [u1, 0], [u0, 0]]); }      // (the mask's top row is the lawn side)
+              from = null;
+            }
+          }
+        }
+      }
+      if (!edge.empty) {
+        const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64; const c = cv.getContext('2d'), r = TX.rng(4471);
+        c.fillStyle = '#000'; c.fillRect(0, 0, 512, 64);
+        // (v = 0 is the lawn side: solid there, then a ragged lip, in two frequencies that both close over the tile's width)
+        c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, 0);
+        const lip = x => 26 + 9 * Math.sin(x / 512 * 6.2832 * 3 + 1) + 6 * Math.sin(x / 512 * 6.2832 * 7 + 2.3) + 4 * Math.sin(x / 512 * 6.2832 * 17 + 0.4) + 2.5 * Math.sin(x / 512 * 6.2832 * 41);
+        for (let x = 0; x <= 512; x += 2) c.lineTo(x, lip(x)); c.lineTo(512, 0); c.fill();
+        for (let k = 0; k < 70; k++) { const x = r() * 512, y = lip(x) + 2 + r() * r() * 26, s = 1 + r() * 2.6; c.globalAlpha = 0.55 + r() * 0.45; c.beginPath(); c.ellipse(x, y, s * (1 + r()), s, r() * 3, 0, 7); c.fill(); }      // clods
+        c.globalAlpha = 1; c.filter = 'blur(1.2px)'; c.drawImage(cv, 0, 0); c.filter = 'none';
+        const am = new THREE.CanvasTexture(cv); am.wrapS = THREE.RepeatWrapping; am.colorSpace = THREE.NoColorSpace; am.anisotropy = 4;
+        const st = snowTex.clone(); st.needsUpdate = true;
+        const em = std({ map: st, roughness: 0.95, emissiveMap: st, emissive: new THREE.Color(0.2, 0.25, 0.4), emissiveIntensity: 0.55, alphaMap: am, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+        add(edge.mesh(em));
+      }
+    }
+    // Hollows where meltwater stood and froze (land.js PONDS): black ice with the snow blown thin over its edges. The
+    // plan is told, so a wheel slides on it and it takes no tyre tracks and no glitter.
+    for (const p of (plan.land && plan.land.ponds) || []) {
+      const k = p.r * 0.72; plan.ice.push({ x0: p.x - k, x1: p.x + k, z0: p.z - k, z1: p.z + k, pond: true });
+      const cv = document.createElement('canvas'); cv.width = cv.height = 256; const c = cv.getContext('2d'), r = TX.rng(Math.round(p.x * 7 + p.z));
+      const g = c.createRadialGradient(128, 128, 20, 128, 128, 128); g.addColorStop(0, '#0d1826'); g.addColorStop(0.75, '#152536'); g.addColorStop(1, '#2c4159'); c.fillStyle = g; c.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 26; i++) { c.fillStyle = `rgba(150,185,215,${0.03 + r() * 0.06})`; c.beginPath(); c.ellipse(r() * 256, r() * 256, 10 + r() * 40, 6 + r() * 22, r() * 3, 0, 7); c.fill(); }      // cloudy ice
+      c.strokeStyle = 'rgba(215,232,246,.5)'; c.lineWidth = 0.8;
+      for (let i = 0; i < 7; i++) { let x = 128 + (r() - 0.5) * 60, y = 128 + (r() - 0.5) * 60, a = r() * 6.28; c.beginPath(); c.moveTo(x, y); for (let s = 0; s < 9; s++) { a += (r() - 0.5) * 0.9; x += Math.cos(a) * (8 + r() * 14); y += Math.sin(a) * (8 + r() * 14); c.lineTo(x, y); } c.stroke(); }      // cracks
+      for (let i = 0; i < 90; i++) { c.fillStyle = `rgba(225,238,250,${0.15 + r() * 0.3})`; c.beginPath(); c.arc(r() * 256, r() * 256, 0.5 + r() * 1.3, 0, 7); c.fill(); }      // bubbles
+      for (let i = 0; i < 46; i++) { const a = r() * 6.28, d = 86 + r() * 44; c.fillStyle = `rgba(226,234,246,${0.25 + r() * 0.45})`; c.beginPath(); c.ellipse(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, 8 + r() * 26, 5 + r() * 10, a + 1.57, 0, 7); c.fill(); }      // snow blown over the rim
+      const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4;
+      const n = 40, geo = new THREE.CircleGeometry(1, n), P = geo.attributes.position, U = geo.attributes.uv;
+      for (let i = 1; i < P.count; i++) { const a = Math.atan2(P.getY(i), P.getX(i)), rr = (p.r + 0.35) * (1 + 0.07 * Math.sin(a * 3 + p.x) + 0.04 * Math.sin(a * 7 + p.z)); P.setXY(i, Math.cos(a) * rr, Math.sin(a) * rr); }
+      for (let i = 0; i < P.count; i++) U.setXY(i, 0.5 + P.getX(i) / (2.3 * p.r), 0.5 + P.getY(i) / (2.3 * p.r));
+      geo.rotateX(-Math.PI / 2); geo.translate(p.x, -0.012, p.z);
+      add(new THREE.Mesh(geo, snowLook(std({ map: tx, roughness: 0.2, emissiveMap: tx, emissive: new THREE.Color(0.55, 0.62, 0.8), emissiveIntensity: 0.42, polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -1.5 }), { drift: 0, moon: 0, sheen: 0.5 })));
+    }
     for (const c of G.plazas) {
       const g = new THREE.CircleGeometry(c.r, 48); g.rotateX(-Math.PI / 2); g.translate(c.x, 0.008, c.z);
       const p = g.attributes.position, uv = g.attributes.uv;
@@ -121,12 +180,16 @@ export function buildWinter(museum, plan) {
   // The hills, for the glints and the tyre tracks to follow. (One flat one if there are none, so the shader has something to read.)
   const HILLS = plan.hills && plan.hills.length ? plan.hills : [{ cx: 0, cz: 0, rx: 1, rz: 1, H: 0 }];
   const hillY = (x, z) => { let y = landAt(plan.land, x, z); for (const h of HILLS) if (h.H) y = Math.max(y, heightOf(h, x, z)); return y; };      // and the lie of the land (land.js)
+  // How high a mark on the snow is drawn at (x, z): `lift` over the wheels' ground, as on the flat, where the land is
+  // (the snow is drawn there to within a centimetre: snowfield.js); 2 cm clear on a hill, whose own mesh is coarser.
+  const markY = (x, z, lift) => { const l = landAt(plan.land, x, z); let hl = 0; for (const h of HILLS) if (h.H) hl = Math.max(hl, heightOf(h, x, z)); return hl > l ? hl + 0.02 : l + lift; };
   // The land's heights for the shader: its grid as a texture, 0 to 2 m in the red, read between the points.
-  const LD = plan.land && plan.land.top ? plan.land : null, landTex = (() => {
-    const W = LD ? LD.nx + 1 : 1, H = LD ? LD.nz + 1 : 1, d = new Uint8Array(W * H * 4);
-    if (LD) for (let k = 0; k < W * H; k++) { d[k * 4] = Math.round(Math.min(1, LD.h[k] / 2) * 255); d[k * 4 + 3] = 255; }
-    const t = new THREE.DataTexture(d, W, H, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true; return t;
-  })(), landB = LD ? new THREE.Vector4(LD.X0, LD.Z0, LD.nx + 1, LD.nz + 1) : new THREE.Vector4(0, 0, 1, 1);
+  // (every half metre over the part of it that is not flat, swells and drifts together)
+  const LD = plan.land && plan.land.top ? plan.land : null, LS = 0.5, LR = LD && LD.rolls, LW = LD ? Math.ceil((LR.x1 - LR.x0) / LS) + 1 : 1, LH = LD ? Math.ceil((LR.z1 - LR.z0) / LS) + 1 : 1, landTex = (() => {
+    const d = new Uint8Array(LW * LH);
+    if (LD) for (let j = 0; j < LH; j++) for (let i = 0; i < LW; i++) d[j * LW + i] = Math.round(Math.min(1, landAt(LD, LR.x0 + i * LS, LR.z0 + j * LS) / 2) * 255);
+    const t = new THREE.DataTexture(d, LW, LH, THREE.RedFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.colorSpace = THREE.NoColorSpace; t.unpackAlignment = 1; t.needsUpdate = true; return t;
+  })(), landB = LD ? new THREE.Vector4(LR.x0, LR.z0, LW, LH) : new THREE.Vector4(0, 0, 1, 1);
   let glints;
   {
     // Where there is snow to glitter: not in buildings, not on the streets, the paths, the ice or the kit.
@@ -151,7 +214,7 @@ export function buildWinter(museum, plan) {
           vec2 w = uCam.xz + mod(position.xz - uCam.xz + uTile * 0.5, uTile) - uTile * 0.5;
           float gy = 0.0;
           for (int i = 0; i < ${HILLS.length}; i++) { float hd = length((w - uHill[i].xy) / uHill[i].zw); if (hd < 1.0) { float hh = uHillH[i] * (cos(hd * 3.14159265) + 1.0) * 0.5, bd = length(w - uHill[i].xy) / uHillB[i].y; if (bd < 1.0) hh += uHillB[i].x * (cos(bd * 3.14159265) + 1.0) * 0.5; gy = max(gy, hh); } }
-          gy = max(gy, texture2D(uLand, ((w - uLandB.xy) / ${LAND_STEP.toFixed(1)} + 0.5) / uLandB.zw).r * 2.0);
+          gy = max(gy, texture2D(uLand, ((w - uLandB.xy) / ${LS.toFixed(1)} + 0.5) / uLandB.zw).r * 2.0);
           vec4 mv = viewMatrix * vec4(w.x, gy + 0.03, w.y, 1.0); float d = -mv.z;
           float m = texture2D(uMask, (w - uB.xy) * uB.zw).r;
           vec3 to = normalize(uCam - vec3(w.x, 0.0, w.y));
@@ -170,18 +233,32 @@ export function buildWinter(museum, plan) {
   // ------------------------------------------------------------------ tyre tracks
   // Two ribbons laid down behind the back wheels wherever the car is on snow. The oldest stretch is
   // taken up to lay the newest, so there is always about three hundred metres of track on the ground.
-  const NQ = 6000, HW = 0.034, TY = 0.004;
+  // A wheel presses a rut into the snow, it does not paint a stripe on it: the ribbon is a rut seen from above. A lip of
+  // snow squeezed up along each side, pale; inside each lip the wall of the rut, in shadow, darkest at the top; and the
+  // packed floor between, a shade bluer than the snow, with the tread's chevrons pressed faintly into it.
+  const rut = (() => {
+    const cv = document.createElement('canvas'); cv.width = 64; cv.height = 128; const c = cv.getContext('2d');
+    const g = c.createLinearGradient(0, 0, 64, 0);
+    for (const [t, col] of [[0, 'rgba(226,235,250,0)'], [0.09, 'rgba(226,235,250,.14)'], [0.16, 'rgba(226,235,250,.2)'], [0.21, 'rgba(32,44,78,.7)'], [0.31, 'rgba(56,72,110,.5)'], [0.5, 'rgba(72,90,130,.4)'], [0.69, 'rgba(56,72,110,.5)'], [0.79, 'rgba(32,44,78,.7)'], [0.84, 'rgba(226,235,250,.2)'], [0.91, 'rgba(226,235,250,.14)'], [1, 'rgba(226,235,250,0)']]) g.addColorStop(t, col);
+    c.fillStyle = g; c.fillRect(0, 0, 64, 128);
+    c.fillStyle = 'rgba(30,40,68,.26)';
+    for (let y = 0; y < 128; y += 16) { c.beginPath(); c.moveTo(15, y + 9); c.lineTo(32, y + 2); c.lineTo(49, y + 9); c.lineTo(49, y + 13); c.lineTo(32, y + 6); c.lineTo(15, y + 13); c.fill(); }
+    c.fillStyle = 'rgba(232,240,252,.16)'; let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 40; i++) { const left = r() < 0.5; c.beginPath(); c.arc(left ? 2 + r() * 7 : 55 + r() * 7, r() * 128, 0.8 + r() * 1.8, 0, 7); c.fill(); }      // crumbs thrown out along the lips
+    const t = new THREE.CanvasTexture(cv); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  })();
+  const NQ = 6000, HW = 0.044, TY = 0.004;
   const tp = new Float32Array(NQ * 12), tu = new Float32Array(NQ * 8), ti = new Uint16Array(NQ * 6);
   for (let q = 0; q < NQ; q++) ti.set([q * 4, q * 4 + 1, q * 4 + 2, q * 4, q * 4 + 2, q * 4 + 3], q * 6);
   const tg = new THREE.BufferGeometry(), tpa = new THREE.BufferAttribute(tp, 3), tua = new THREE.BufferAttribute(tu, 2);
   tpa.setUsage(THREE.DynamicDrawUsage); tua.setUsage(THREE.DynamicDrawUsage);
   tg.setAttribute('position', tpa); tg.setAttribute('uv', tua); tg.setIndex(new THREE.BufferAttribute(ti, 1));
-  const tracks = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: TX.tread(), transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  const tracks = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: rut, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   tracks.frustumCulled = false; tracks.renderOrder = 3; group.add(tracks);
   let head = 0;
   const last = [null, null];
   const lay = (i, x, z) => {
-    const L = last[i], hy = hillY(x, z), y1 = hy > 0.001 ? hy + 0.02 : TY;
+    const L = last[i], y1 = markY(x, z, TY);
     if (!L) { last[i] = { x, z, y: y1, d: 0, nx: 0, nz: 0, fresh: true }; return; }
     const dx = x - L.x, dz = z - L.z, d = Math.hypot(dx, dz);
     if (d < 0.07) return;
@@ -212,7 +289,7 @@ export function buildWinter(museum, plan) {
   ploughed.frustumCulled = false; ploughed.renderOrder = 2; group.add(ploughed);
   let phead = 0, plast = null;
   const plough = (x, z, hw) => {
-    const L = plast, hy = hillY(x, z), y1 = hy > 0.001 ? hy + 0.016 : TY * 0.6;
+    const L = plast, y1 = markY(x, z, TY * 0.6);
     if (!L) { plast = { x, z, y: y1, d: 0, nx: 0, nz: 0, fresh: true }; return; }
     const dx = x - L.x, dz = z - L.z, d = Math.hypot(dx, dz);
     if (d < 0.08) return;
@@ -226,18 +303,19 @@ export function buildWinter(museum, plan) {
   };
 
   // ------------------------------------------------------------------ snow thrown up
-  const NS = 220, sp = new Float32Array(NS * 3).fill(-99), sv = new Float32Array(NS * 3), sl = new Float32Array(NS), sa = new Float32Array(NS);
-  const sg = new THREE.BufferGeometry(), spa = new THREE.BufferAttribute(sp, 3), saa = new THREE.BufferAttribute(sa, 1);
-  spa.setUsage(THREE.DynamicDrawUsage); saa.setUsage(THREE.DynamicDrawUsage);
-  sg.setAttribute('position', spa); sg.setAttribute('aA', saa);
+  // Clods and powder: each bit has a size of its own (a few big ones among many fine), and the fine ones thin to nothing as they go.
+  const NS = 360, sp = new Float32Array(NS * 3).fill(-99), sv = new Float32Array(NS * 3), sl = new Float32Array(NS), sa = new Float32Array(NS), ss = new Float32Array(NS).fill(0.07);
+  const sg = new THREE.BufferGeometry(), spa = new THREE.BufferAttribute(sp, 3), saa = new THREE.BufferAttribute(sa, 1), ssa = new THREE.BufferAttribute(ss, 1);
+  spa.setUsage(THREE.DynamicDrawUsage); saa.setUsage(THREE.DynamicDrawUsage); ssa.setUsage(THREE.DynamicDrawUsage);
+  sg.setAttribute('position', spa); sg.setAttribute('aA', saa); sg.setAttribute('aS', ssa);
   const spray = new THREE.Points(sg, new THREE.ShaderMaterial({
-    vertexShader: `attribute float aA; varying float vA; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vA = aA; gl_PointSize = clamp(0.07 * projectionMatrix[1][1] * 400.0 / max(-mv.z, 0.05), 1.0, 16.0); gl_Position = projectionMatrix * mv; }`,
+    vertexShader: `attribute float aA; attribute float aS; varying float vA; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vA = aA; gl_PointSize = clamp(aS * projectionMatrix[1][1] * 400.0 / max(-mv.z, 0.05), 1.0, 22.0); gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying float vA; void main() { float a = smoothstep(0.5, 0.1, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(vec3(0.86, 0.9, 1.0), a * vA * 0.85); }`,
     transparent: true, depthWrite: false,
   }));
   spray.frustumCulled = false; group.add(spray);
-  let next = 0, live = 0;
-  const fling = (x, y, z, vx, vy, vz, life) => { const i = next; next = (next + 1) % NS; sp[i * 3] = x; sp[i * 3 + 1] = y; sp[i * 3 + 2] = z; sv[i * 3] = vx; sv[i * 3 + 1] = vy; sv[i * 3 + 2] = vz; sl[i] = life; live = Math.max(live, life); };
+  let next = 0, live = 0, owed = 0, airT = 0;
+  const fling = (x, y, z, vx, vy, vz, life, size = 0.07) => { const i = next; next = (next + 1) % NS; sp[i * 3] = x; sp[i * 3 + 1] = y; sp[i * 3 + 2] = z; sv[i * 3] = vx; sv[i * 3 + 1] = vy; sv[i * 3 + 2] = vz; sl[i] = life; ss[i] = size; ssa.needsUpdate = true; live = Math.max(live, life); };
 
   return {
     // A puff of snow, as when a snowman comes apart.
@@ -263,12 +341,21 @@ export function buildWinter(museum, plan) {
           if (v > 0.6 && !calm) for (let k = 0; k < 2; k++) { const ex = car.pos.x + s * B.z - c * B.hw, ez = car.pos.z + c * B.z + s * B.hw; fling(ex, car.pos.y + 0.06, ez, -c * (0.8 + v * 0.35) + (Math.random() - 0.5) * 0.4, 0.5 + Math.random() * (0.4 + v * 0.15), s * (0.8 + v * 0.35) + (Math.random() - 0.5) * 0.4, 0.6 + Math.random() * 0.5); }
         } else plast = null;
         // Snow off the back wheels when it is moving, more of it when the wheels are slipping.
-        const v = Math.hypot(car.vel.x, car.vel.z), slip = Math.abs(car.vel.x * c - car.vel.z * s);
-        if (v > 1.5 && !calm) for (let k = 0; k < (slip > 1.2 ? 3 : 1); k++) {
-          const side = Math.random() < 0.5 ? -1 : 1;
-          fling(bx + side * c * 0.135, car.pos.y + 0.03, bz - side * s * 0.135, -car.vel.x * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.5 + Math.random() * (0.6 + v * 0.12), -car.vel.z * 0.18 + (Math.random() - 0.5) * (0.6 + slip * 0.5), 0.3 + Math.random() * 0.3);
+        // A tail of it off each back wheel, thrown back and up, longer the faster the car goes; in a slide it goes out
+        // sideways, off the outside of the turn. So much a second, not so much a frame: the same at any frame rate.
+        const v = Math.hypot(car.vel.x, car.vel.z), side = car.vel.x * c - car.vel.z * s, slip = Math.abs(side), R = Math.random;
+        if (v > 1.2 && !calm) {
+          owed = Math.min(12, owed + dt * (14 + v * 9 + Math.min(1, slip / 2) * 70));
+          for (; owed >= 1; owed--) {
+            const w = R() < 0.5 ? -1 : 1, big = R() < 0.14, out = side * (0.25 + R() * 0.35), up = (0.5 + R() * (0.7 + v * 0.16)) * (big ? 0.7 : 1);
+            fling(bx + w * c * 0.135 + (R() - 0.5) * 0.04, car.pos.y + 0.03, bz - w * s * 0.135 + (R() - 0.5) * 0.04,
+              -car.vel.x * (0.1 + R() * 0.16) + c * out + (R() - 0.5) * 0.5, up, -car.vel.z * (0.1 + R() * 0.16) - s * out + (R() - 0.5) * 0.5, big ? 0.45 + R() * 0.3 : 0.25 + R() * 0.35, big ? 0.034 + R() * 0.022 : 0.011 + R() * 0.017);
+          }
         }
+        // Coming down off a jump, a puff of it from under the car.
+        if (airT > 0.3 && v > 1.5 && !calm) for (let i = 0, n = Math.min(34, 10 + airT * 30); i < n; i++) { const a = R() * 6.283, q = 0.5 + R() * 1.6; fling(car.pos.x + Math.cos(a) * 0.12, car.pos.y + 0.03, car.pos.z + Math.sin(a) * 0.12, Math.cos(a) * q + car.vel.x * 0.25, 0.6 + R() * 1.5, Math.sin(a) * q + car.vel.z * 0.25, 0.3 + R() * 0.4, 0.014 + R() * 0.03); }
       }
+      airT = car ? 0 : Math.min(3, airT + dt);
       if (!laid) { last[0] = last[1] = null; plast = null; }
       if (live > 0) {
         live -= dt;
