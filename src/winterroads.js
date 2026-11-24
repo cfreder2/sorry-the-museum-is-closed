@@ -10,7 +10,8 @@
 //   * Relief, all of it real ground (plan.surfaces, read by the car through groundAt): the plough's windrows along
 //     the kerbs and the Drive's median, lumpy, heaped higher where the blade was lifted at a crossing and broken
 //     where somebody dug through; washboard in the packed snow where everybody brakes for the lights; frost heaves;
-//     a raised crosswalk before the museum's east door; steel plates over a trench where the road is up.
+//     a raised crosswalk before the museum's east door; steel plates over a trench where the road is up. And black
+//     ice on the two bridges over the railway, which freeze before the road does (plan.ice: the car slides on it).
 //     Every piece is drawn from the same function the wheels ride on.
 //   * What stands about: the road works on the Drive (barrels, concrete barriers, plates, a sign), speed limits,
 //     warning signs, cars snowed in along Monroe and Jackson.
@@ -232,7 +233,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   // [a, b] its run along `axis`; it lies `behind` the face and `into` the road. `gaps` are kept clear (crossings,
   // parked cars, a hydrant somebody dug out): the ridge runs down to nothing over a metre either side, and is
   // heaped higher just beyond a crossing, where the driver lifted the blade.
-  const rel = new Relief(plan);
+  const rel = new Relief(plan), signs = [];
   const DIRT = [0.5, 0.47, 0.43], CLEAN = [0.94, 0.96, 1.0];
   const windrow = ({ axis, k, d, a, b, H, behind = 0.42, into = 1.2, gaps = [], seed = 1, heaps = [], open = [false, false], piece }) => {
     const gs = gaps.filter(([g0, g1]) => g1 > a && g0 < b).sort((p, q) => p[0] - q[0]);
@@ -314,6 +315,16 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   heave('z', TL.ns.lsd[1][0], 52, 3.6, 0.05, 1); heave('z', TL.ns.lsd[1][1], 139, 3.6, 0.045, 2); heave('z', TL.ns.lsd[-1][1], 88, 3.6, 0.05, 3); heave('z', TL.ns.lsd[-1][0], 214, 3.6, 0.045, 4); heave('z', LSD.x0 + 3.0, 186, 3.0, 0.055, 5);
   heave('x', mz + TL.ew, 344, 3.2, 0.05, 6); heave('x', mz - TL.ew, 402, 3.2, 0.045, 7); heave('x', jz - TL.ew, 330, 3.2, 0.05, 8); heave('x', jz + TL.ew, 418, 3.2, 0.045, 9); heave('x', jz - TL.ew, 196, 3.2, 0.045, 10); heave('x', mz + TL.ew, 176, 3.2, 0.045, 11);
   heave('z', TL.ns.col[1][0], 158, 3.2, 0.045, 12); heave('z', TL.ns.col[-1][0], 66, 3.2, 0.045, 13);
+  // Black ice on the bridges over the railway: meltwater frozen again where there is cold air under the road. A sheet in
+  // each lane, the eastbound's the longer; it is ice to the wheels (plan.ice) and a dark mirror to the eye.
+  const iceG = new GeoLite();
+  for (const [zc, s] of [[mz, 1], [jz, -1]]) for (const [x0, x1, c] of [[R.x0 + 0.4, R.x1 - 0.4, zc + TL.ew], [R.x0 + 2.2, R.x1 - 1.6, zc - TL.ew + s * 0.2]]) {
+    const z0 = c - 1.45, z1 = c + 1.45, e = 0.7, y = 0.0105;
+    (plan.ice || (plan.ice = [])).push({ x0, x1, z0, z1 });
+    iceG.quad([x0 - e, y, z0 - e], [x0 - e, y, z1 + e], [x1 + e, y, z1 + e], [x1 + e, y, z0 - e], [0, 1, 0]);
+    mask.snow(x0 - 1, x1 + 1, z0 - 0.6, z1 + 0.6, 0.03);
+  }
+  signs.push([R.x0 - 9, MO.z1 + 0.75, 'ice', -Math.PI / 2], [R.x1 + 9, MO.z0 - 0.75, 'ice', Math.PI / 2], [R.x0 - 9, JA.z1 + 0.75, 'ice', -Math.PI / 2], [R.x1 + 9, JA.z0 - 0.75, 'ice', Math.PI / 2]);
   // The raised crosswalk before the east door: a table the height of the kerb, 5.6 m long, a ramp of 1.6 m up to it each way.
   const TABLE = { z0: 107.2, z1: 112.8, ramp: 1.6, h: 0.085, x0: C.x0 + 0.24, x1: C.x1 - 0.24 };
   { const T = TABLE, f = (x, z) => T.h * smooth(T.z0 - T.ramp, T.z0, z) * smooth(T.z1 + T.ramp, T.z1, z);
@@ -333,7 +344,6 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   // The lake side of the Drive, its kerb lane shut: drums in a taper, concrete barriers along the lane line, a trench
   // under three steel plates (each 2.5 cm of plate to bump up onto), the spoil heaped at the end, and a sign before it all.
   const drums = [], solid = (x0, x1, z0, z1, y1) => O.push({ x0, x1, z0, z1, y0: 0, y1 });
-  const signs = [];
   { const xk = LSD.x1 - 0.5, xl = LSD.x1 - 3.85;                                           // just off the kerb; the lane line
     mask.snow(xl + 0.2, LSD.x1, WORK[0] + 1, WORK[1] - 4, 0.62);
     for (let i = 0; i < 6; i++) drums.push([xk + (xl - xk) * i / 5, WORK[1] - 1 - i * 2.1]);     // the taper, where the northbound traffic meets it
@@ -363,7 +373,7 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   signs.push([C.x0 - 0.75, TABLE.z0 - 13, 'hump', Math.PI], [C.x1 + 0.75, TABLE.z1 + 13, 'hump', 0], [C.x0 - 0.75, TABLE.z0 - 1.9, 'ped', Math.PI], [C.x1 + 0.75, TABLE.z1 + 1.9, 'ped', 0]);
   signs.push([344 - 7, MO.z1 + 0.75, 'bump', -Math.PI / 2], [330 + 7, JA.z0 - 0.75, 'bump', Math.PI / 2]);
   let signFaces = null;
-  { const KINDS = { speed: [['SPEED', 'LIMIT', '40'], { bg: '#f2f2ee', fg: '#111' }, 0.6, 0.75], hump: [['RAISED', 'CROSS', 'WALK'], { bg: '#f2c318', fg: '#111', diamond: true }, 0.86, 0.86], ped: [['STOP', 'FOR', 'PEOPLE'], { bg: '#f2c318', fg: '#111', diamond: true }, 0.7, 0.7], bump: [['BUMP'], { bg: '#f2c318', fg: '#111', diamond: true }, 0.8, 0.8], work: [['ROAD', 'WORK'], { bg: '#f47a16', fg: '#111', diamond: true }, 0.95, 0.95], workahead: [['RIGHT', 'LANE', 'CLOSED'], { bg: '#f47a16', fg: '#111', diamond: true }, 0.95, 0.95] };
+  { const KINDS = { speed: [['SPEED', 'LIMIT', '40'], { bg: '#f2f2ee', fg: '#111' }, 0.6, 0.75], hump: [['RAISED', 'CROSS', 'WALK'], { bg: '#f2c318', fg: '#111', diamond: true }, 0.86, 0.86], ped: [['STOP', 'FOR', 'PEOPLE'], { bg: '#f2c318', fg: '#111', diamond: true }, 0.7, 0.7], bump: [['BUMP'], { bg: '#f2c318', fg: '#111', diamond: true }, 0.8, 0.8], ice: [['BRIDGE', 'ICES', 'FIRST'], { bg: '#f2c318', fg: '#111', diamond: true }, 0.86, 0.86], work: [['ROAD', 'WORK'], { bg: '#f47a16', fg: '#111', diamond: true }, 0.95, 0.95], workahead: [['RIGHT', 'LANE', 'CLOSED'], { bg: '#f47a16', fg: '#111', diamond: true }, 0.95, 0.95] };
     const sheet = plateSheet(KINDS), faces = [];
     for (const [x0, z0, kind, yaw] of signs) {
       let x = x0, z = z0; for (let k = 0; k < 4 && blocked(x, z, 0.35); k++) { x += Math.abs(Math.sin(yaw)) * 1.6; z += Math.abs(Math.cos(yaw)) * 1.6; }
@@ -386,6 +396,10 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
   hardM.onBeforeCompile = (prev => (sh, r) => { prev(sh, r); sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;'); })(hardM.onBeforeCompile); hardM.customProgramCacheKey = () => 'winter-hard';
   const hardMesh = hard.length ? add(new THREE.Mesh(mergeGeometries(hard), hardM)) : null;
   if (lenses.length) add(new THREE.Mesh(mergeGeometries(lenses), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })));
+  let iceMesh = null;
+  if (!iceG.empty) { const im = new THREE.MeshStandardMaterial({ color: 0x0a121c, roughness: 0.07, transparent: true, opacity: 0.9, alphaMap: radial(0.25, 0.45), depthWrite: false, emissive: 0x0b1522, emissiveIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+    if (museum.mirror) museum.mirror.patch(im, [0.3, 0.6]);
+    iceMesh = add(new THREE.Mesh(iceG.build(), winterRoad(im))); iceMesh.renderOrder = -1; }
 
   // The map, the mirror, and (below, once everything is built) the road meshes kept out of their own reflection (reflect.js).
   ROAD.tRoadMask.value = mask.texture(); ROAD.uRoadK.value.set(1, 0.6, 0, 0);
@@ -402,6 +416,6 @@ export function buildWinterRoads(museum, plan, ctx = {}) {
       const snow = k.museum.snowTex && k.museum.snowTex.source; let n = 0;
       k.G.scene.traverse(o => { for (const m of [].concat(o.material || [])) if (m && m.isMeshStandardMaterial && !m.userData.winterRoad && snow && m.map && m.map.source === snow) { winterRoad(m, 'lit'); m.needsUpdate = true; n++; } });
       hideRoads(k.G.scene); this.snowMats = n;
-      for (const m of [...banks, hardMesh, signFaces]) if (m && !k.museum.floors.includes(m)) k.museum.floors.push(m);      // (the windrows, the poles and the signs too: none is missed in a wet road's reflection, where the lamps' glass and glare are what shows, and each would be drawn twice)
+      for (const m of [...banks, hardMesh, signFaces, iceMesh]) if (m && !k.museum.floors.includes(m)) k.museum.floors.push(m);      // (the windrows, the poles and the signs too: none is missed in a wet road's reflection, where the lamps' glass and glare are what shows, and each would be drawn twice)
     } }); }
 }
