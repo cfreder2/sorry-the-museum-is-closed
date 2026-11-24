@@ -85,6 +85,11 @@ The game is played by children, classrooms and people of every background and fa
   from a low side camera is cut by the guard. Keep the scene small or to the clear side.
 - **Lovely from one camera only**: check the low (toy's-eye) and wide room views too.
 - Toy-like figures: stripes too bold and regular, flat cartoon faces. Model softly, as the painter did.
+- **A device already used.** Before you design, read the words in `src/life/index.js` and the header comments of any
+  show that sounds like yours. Do not repeat another show's main moment. Used so far and now closed unless the picture
+  truly demands it: a small table with papers that a draught blows to the floor (Degas 14574, Manet 14591); a picture
+  brushed in stroke by stroke as its whole show (Morisot, Degas); things simply sliding out from under the frame and
+  standing there. Find what only this picture has.
 
 ## How to work
 - To read what the museum says about your work: `curl -s -A "painting-notes/1.0" "https://api.artic.edu/api/v1/artworks/<id>?fields=title,artist_display,date_display,medium_display,description,short_description,subject_titles,style_title,term_titles"`
