@@ -73,6 +73,7 @@ import './staffvent.js';        // the bin yard round the back and the vent down
 import './lobby.js';
 import './giftshop.js';
 import './butlerfield.js';
+import './parkdress.js';
 import './lightshow.js';
 import './bandshell.js';        // the band shell on Butler Field, and Snow Ball, the dance game on its stage
 import './finale.js';
@@ -360,7 +361,7 @@ async function boot() {
   // done while the bar is still seen to move.
   await loading(98, null, 99.5);
   $('source').innerHTML = (collection.live && !collection.stale ? 'Sourced from the live API.' : 'Sourced from a saved cache.')
-    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. The grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors).`;
+    + ` Images are public domain; data is CC0. A fan project, not affiliated with the museum. The grounds follow photographs and OpenStreetMap (\u00a9 OpenStreetMap contributors, ODbL).`;
   for (const b of document.querySelectorAll('button.big')) b.disabled = false;
   applySettings();
   trophies.setup(G.museum);

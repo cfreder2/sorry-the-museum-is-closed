@@ -192,6 +192,17 @@ map (OpenStreetMap), placed in the same frame as the galleries:
 - **The courtyard** that Griffin Court's south door opens on has the tree:
   eleven and a half metres of it, lit, with a star, and parcels underneath.
   The car fits under the lowest branches.
+- **What grows and what stands** (`src/groundsplan.js`, `src/trees.js`, `src/parkdress.js`;
+  `docs/GROUNDS-REAL.md` is the field guide to the real place). Seven kinds of tree, each with
+  its own habit and no two alike: American elms in rows, honey locusts with their pods still
+  on, lindens, a ginkgo or two, the South Garden's cockspur hawthorns, crabapples with fruit,
+  river birch in clumps; each carrying its own load of snow. Under them red-twig dogwood,
+  viburnum, roses with their hips, grasses and seed heads left standing, yew and arborvitae,
+  clipped hedges, ivy at the foot of the walls. And the park's furniture: twin-globe lamps,
+  benches, bare flagpoles, bagged drinking fountains, bicycle hoops, signs, posts and chains,
+  urns and a balustrade at the bridge over the railway, a shuttered kiosk, and by the harbour
+  three boats under shrink wrap, a rack of dinghies and life rings along the wall. West of
+  Columbus Drive the trees, benches, hedges and beds stand where the map has the real ones.
 - **Fountains are off for the winter**, each with a board saying so: the
   Fountain of the Great Lakes, Carl Milles's Fountain of the Tritons in the
   courtyard, and a bowl fountain in the North Garden. Snow lies where the water
@@ -1164,7 +1175,8 @@ The pictures of the Earth, the Moon, the planets, the galaxy and the lunar groun
 generated for this game with OpenAI's Codex image generation. Everything else in space is drawn in code.
 
 Artwork images and data: the Art Institute of Chicago, <https://api.artic.edu>.
-Positions of streets, gardens and the railway: © OpenStreetMap contributors.
+Positions of streets, gardens and the railway, and of the trees, benches, hedges and planted beds in the
+grounds (`src/groundsdata.js`, `tools/survey/grounds-osm.json`): © OpenStreetMap contributors, ODbL.
 Data is CC0; images used are those the museum marks public domain. This is a
 fan project and is not affiliated with or endorsed by the museum.
 
