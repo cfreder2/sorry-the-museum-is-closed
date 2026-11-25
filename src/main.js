@@ -146,7 +146,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.24.64';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.24.71';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -839,9 +839,13 @@ function chase(dt, snap) {
       }
     }
     // Never under the floor: whichever floor that is, on this level.
-    { const gy = groundAt(G.plan, want.x, want.z, Math.max(want.y, v.pos.y) + 0.3, 0); if (want.y < gy + 0.1) want.y = gy + 0.1; }
+    // (Out of doors the ground is hills and drifts: the highest of the ground under it and just round it, and well clear,
+    // or the snow a hand's breadth in front of the lens is cut away by the near plane.)
+    { const top = Math.max(want.y, v.pos.y) + 0.3, out = !G.roomId, gy = out ? groundRound(want, 0.4, top) : groundAt(G.plan, want.x, want.z, top, 0), up = out ? 0.26 : 0.1; if (want.y < gy + up) want.y = gy + up; }
     { const cc = G.features && G.features.kit.camClose; if (cc) { want.set(cc.at.x, cc.at.y, cc.at.z); tmp.set(cc.look.x, cc.look.y, cc.look.z); rate = 6; } }      // a feature can stand the camera somewhere (features.js k.camClose)
     camera.position.lerp(want, snap ? 1 : 1 - Math.exp(-dt * rate));
+    // ...and where it actually is, on its way there, as well as where it is going: it must not cut the corner through a crest.
+    if (!G.roomId) { const gy = groundRound(camera.position, 0.4, Math.max(camera.position.y, v.pos.y) + 0.3); if (camera.position.y < gy + 0.22) camera.position.y = gy + 0.22; }
     camLook.lerp(tmp, snap ? 1 : 1 - Math.exp(-dt * 14));
     camera.up.set(0, 1, 0);
     camera.lookAt(camLook);
@@ -856,6 +860,9 @@ function chase(dt, snap) {
 
 const movers = [], prev = new THREE.Vector3(0, -99, 0), here = new THREE.Vector3();
 const camFrom = new THREE.Vector3(), camTry = new THREE.Vector3(), camHit = new THREE.Vector3();
+// The highest ground under a point and at four places `r` round it (at or below `top`).
+const _ROUND = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+function groundRound(p, r, top) { const u = G.plan.under; let g = -1e9; for (const [dx, dz] of _ROUND) { const y = groundAt(G.plan, p.x + dx * r, p.z + dz * r, top, 0); if (y > g) g = y; } G.plan.under = u; return g; }
 // What the chase camera's boom must also stop at out of doors, besides the walls confine() finds: solid blocks taller
 // than 0.6 m and at least half a metre across (a lion's plinth, a planter: not a lamp post or a railing, which it may
 // pass), and the buildings (the front of the museum is a room's edge to confine(), and the camera went through it).
@@ -1679,6 +1686,7 @@ function fitNear() {
     const p = camera.position; let clear = 0;
     for (const m of [1.0, 0.6, 0.35]) { _np.copy(p); confine(G.plan, _np, m, true, null, true); if (_np.distanceToSquared(p) < 1e-6) { clear = m; break; } }
     n = Math.min(clear / 2.5, 0.3 * p.distanceTo(G.vehicle.pos));
+    if (!G.roomId) n = Math.min(n, 0.4 * (p.y - groundRound(p, 0.45, p.y + 0.3)));      // (and no further off than the ground it is skimming: the near plane must not slice a drift)
   } else if (G.state === 'title') n = 0.4;
   n = Math.max(0.03, Math.min(0.4, n));
   if (Math.abs(camera.near - n) > 0.003) { camera.near = n; camera.updateProjectionMatrix(); }

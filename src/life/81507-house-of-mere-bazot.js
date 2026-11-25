@@ -1,4 +1,4 @@
-// Charles François Daubigny, House of Mère Bazot (1874), Gallery 222. The word: home.
+// Charles François Daubigny, House of Mère Bazot (1874), Gallery 222. The word: dusk.
 //
 // The museum gives this picture a title, a date and a country, and nothing else: no note on the place, and not a
 // word about Mère Bazot. So everything here is from looking. Half the canvas is an evening sky, scumbled grey and
@@ -10,7 +10,10 @@
 // against the trees: the air is quite still, and somebody has a fire lit. And it is the hour when hens go in. A
 // string of them, two white and the rest dark, is walking along the track towards that end of the house; and out in
 // the grass, further from home than any of them, a cock with a pale neck and a red comb is still at it, with two
-// hens beside him. Everything in the picture that moves is on its way home, and one of them has not noticed yet.
+// hens beside him. Everything in the picture that moves is on its way in, and one of them has not noticed yet.
+// So the word is the picture's hour, dusk: the half hour in which the light goes, the fowl go in and a lamp is
+// lit. (Apollonio's Ulysses in Gallery 238 has the word home, and a ship that sails to it; nothing here travels
+// further than a yard's length, and what this show is about is the light going.)
 //
 // Look at it and his field comes out over the floor under the picture, laid in as he laid it in, the darks first:
 // the woods and the trees against the wall under the frame, the house in front of them, standing at an angle with
@@ -245,7 +248,7 @@ const woodTop = u => 0.37 + 0.02 * Math.sin(u * 9) + 0.34 * Math.exp(-Math.pow((
 
 lifeFor(81507, {
   title: /^House of M.re Bazot/,
-  word: 'home',
+  word: 'dusk',
   stage: { out: 1.7, half: 1.4, cam: { dist: 2.7, height: 0.86, side: -0.42, fov: 60, lookU: -0.34, lookOut: 0.55, lookH: 0.8, floorOut: 1.56 } },
   wake: 2, ret: 2.6,
 
