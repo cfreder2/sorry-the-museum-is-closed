@@ -6,36 +6,51 @@
 // name. So he is a man who draws with a pen, caught in the one moment a pen draughtsman of his time had to stop for:
 // the pen has gone soft and must be cut again. His right hand holds a small knife, its curved steel blade upright and
 // its ribbed bone handle below the fist; his left holds the long white quill, trimmed slim. On the grey table lie the
-// sheet, rolled up tight at one end, and a square ochre ink pot, black at the neck, ink run down its sides, its dark
-// stopper beside it. At the right is his window: a round green hill, a pale path, a band of trees, a rocky height.
+// sheet, warm white, an ochre line along its edge, rolled up tight at one end and greyer underneath; and his ink box:
+// long, square in section, ochre, lying on the table with a round boss in a sunk square on the end turned to us, a
+// black collar turned in ribs standing on its top, and the ink spilled round the collar and run down its sides. Its
+// stopper lies beside it: three black flanges and a gold knob. At the right is his window, tall and narrow: a round
+// hill fills its foot, dark on its left; a pale road climbs round the hill's left side; behind the hill a band of
+// trees (a tall one, a hedge, a round one) with a house wall at their right; a bare slope; and at the top two crags,
+// a pale one at the left and a dark one at the right, with water between them.
 //
 // What comes out, and why. The word is found in the picture: quill. Every other show that draws in this museum draws
 // with a line that makes itself; only this picture is about the tool, and about the moment before the line.
 //   1. His quill falls out from under the frame as a feather falls, rocking, and steadies over the floor, the pen end
-//      to the left as he holds it. His ink pot and its stopper are set down beside it.
+//      to the left as he holds it. His ink box and its stopper are set down beside it, as they lie on his table.
 //   2. His knife comes down, the blade upright as he holds it, and pares the pen: two long cuts, each lifting a curl
 //      of shaving that springs away and rocks on the floor; then the blade is set on the tip, lifted, and the tip is
 //      cut square with one small crisp sound. That is the moment of the show. The knife goes back up to him.
 //   3. A sheet of paper lets itself down the wall under him and out along the floor, and stops as his does, in a
-//      tight roll. The pen is dipped, a drop falls back into the pot, and it is tried at the sheet's edge as a new
-//      pen is tried (a zigzag, a row of loops, three flicks).
-//   4. Then it draws, in the pen line and slanting hatching of a South German sheet of 1500, the one thing in his
-//      room it can: the view out of his window. The hill, the path, the trees, the rocks, their shade hatched on the
-//      side away from the light. The ink goes down wet and dark and dries brown; the line thins as the pen empties,
-//      and it goes back to the pot. When the view is done a bird is added to the sky now and then, while you stay.
+//      tight roll. The pen is dipped, a drop falls back into the box, and it is tried at the sheet's top corner as a
+//      new pen is tried (a zigzag, a row of loops, three flicks), small and apart from what follows.
+//   4. Then it draws the one thing in his room it can: the view out of his window, as he painted it and as a pen
+//      draughtsman of his time and place would set it down. The window's own frame first; then the contours, in a
+//      line that swells on the downstroke and thins on the turn (the hill's profile, the road and its ruts, each tree
+//      where it stands and at its own size, the house wall, the slope, the two crags, the water); then the shade, in
+//      short parallel strokes laid on the sides away from the light and following the form (round the hill, down the
+//      crag), with a few shorter strokes across them where the picture is darkest (the hill's left flank, the dark
+//      crag); the lights are left as bare paper. The ink goes down wet and dark and dries brown; the line thins as
+//      the pen empties, and it goes back to the box. When all is drawn the pen is held aside, off the drawing.
 // When you look away the pen goes back up under the frame, and the sheet rolls itself up the wall and is gone.
 //
-// How it is made. Two draw calls. One mesh holds the sheet, the quill, the knife, the pot, the stopper, three shavings
+// How it is made. Two draw calls. One mesh holds the sheet, the quill, the knife, the box, the stopper, three shavings
 // and a drop of ink, each smooth (built from rules, not facets) and painted in the shader in his manner: one light
 // from the right, as from his window; a firm lit side and a firm shaded side; thin crisp lights along edges; every
-// colour taken from the picture's own palette. The sheet's roll is wound in the vertex shader from one number (how
-// much of it is let down), the pen's point is narrowed by another (how far it is cut). The drawing is two small
-// textures made once: how much ink lies at each point, and when the pen reached it; the sheet shows the ink the pen
-// has reached. A second mesh lays the shade things throw on the floor and wall. Calm mode: the feather falls without
-// its wide rocking, nothing springs or rebounds, the shavings turn at half speed, and every sound is quieter.
+// colour taken from the picture's own palette, and none laid flat (the box is mottled and worn at its edges, the
+// paper cockled, flecked and toned). The sheet's roll is wound in the vertex shader from one number (how much of it
+// is let down), the pen's point is narrowed by another (how far it is cut). The drawing is measured from the window
+// in the picture, point by point, and is two small textures made once: how much ink lies at each point, and when
+// the pen reached it; the sheet shows the ink the pen has reached. A second mesh lays the shade things throw on the
+// floor and wall, and the soft dark where the sheet lies on the boards. The pen is never stood so high over the
+// sheet that its feather would come between his picture and an eye on the floor: worked near the sheet's top it lies
+// over along the wall. Calm mode: the feather falls without its wide rocking, nothing springs or rebounds, the
+// shavings turn at half speed, every sound is quieter, and the shade is laid at under four strokes a second (the
+// drawing then takes about a minute and a half, its contours first).
 //
 // What it does not do: it does not draw the figure on his sheet (no unclothed figure is ever made here), it gives him
-// no name and does not bring him out of the picture, and the knife's blade only ever points up, never at a picture.
+// no name and does not bring him out of the picture, it sends nothing out of his window (no bird, no weather), and
+// the knife's blade only ever points up, never at a picture.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp } from '../paintlife.js';
 import { score } from './stagecraft.js';
@@ -668,7 +683,7 @@ float gA;`)
     if (o.pot > 0) p.lerp(V.c.set(MOUTH.x, MOUTH.y + lerp(0.065, -0.028, o.dip), MOUTH.z), o.pot);
     p.y += o.arc;
     if (o.cut > 0) p.lerp(CN, o.cut);
-    d.copy(D_PAPER).lerp(D_POT, o.pot).lerp(D_CUT, o.cut).normalize();
+    d.copy(D_PAPER).lerp(D_POT, o.pot).lerp(D_CUT, o.cut * (2 - o.cut)).normalize();      // (it is stood up only as it nears the box)
     return o;
   },
 
