@@ -89,6 +89,10 @@ const boot = async () => {
     const G = window.__ah, esc = window.__esc, F = G.escapes, gp = await import('/src/guardplan.js'), { features } = await import('/src/features.js');
     const TAU = Math.PI * 2, V = window.__virt, sleep = ms => (V.on ? V.sleep(ms) : new Promise(r => setTimeout(r, ms))), frame = () => new Promise(r => requestAnimationFrame(r));
     const T = window.__T = { G, esc, F, gp, sleep, frame, features };
+    // (the game fetches its pictures for the room the toy is in. The test's eye often stands in another, with the toy
+    // put out of the way, so while the eye is the test's the pictures are fetched for where it stands: what a player
+    // there would see. Nothing else of the game is touched.)
+    { const M = G.museum, was = M._stream; M._stream = function (pos, cam, room) { if (!G.testEye) return was.call(this, pos, cam, room); let best = null; for (const r of this.plan.rooms) { if (cam.x < r.x0 || cam.x > r.x1 || cam.z < r.z0 || cam.z > r.z1 || cam.y < r.y - 0.3 || cam.y > r.top + 0.3) continue; if (!best || r.y > best.y) best = r; } return best ? was.call(this, cam, cam, best.id) : was.call(this, pos, cam, room); }; }
     T.art = id => G.museum.arts.find(a => a.work.id === id);
     T.lights = (x, z, y, r = 40) => { for (const R of G.plan.rooms) if (Math.abs(R.y - y) < 0.2 && Math.hypot((R.x0 + R.x1) / 2 - x, (R.z0 + R.z1) / 2 - z) < r) try { if (!G.lights.isOn(R.id)) G.lights.set(R.id, true); } catch { /* a room with no switch */ } };
     T.open = (g, x, z, need = 0.5) => gp.cellAt(g, x, z) >= 0 && gp.clearAt(g, x, z) >= need;
@@ -377,7 +381,7 @@ if (FILM) {
       }
       const K = T.track; if (!K) return;
       const E = K.E, P = K.pt ? K.pt() : [E.x, E.z], g = F._grid(E); let c = K.c;
-      const d = c ? Math.hypot(c.x - P[0], c.z - P[1]) : 99, ok = c && d < (K.max || (K.o && K.o.d0 || 3) + 2.4) && d > 1.0 && gp.lineClear(g, c.x, c.z, P[0], P[1], 0.05);
+      const d = c ? Math.hypot(c.x - P[0], c.z - P[1]) : 99, ok = c && d < (K.max || (K.o && K.o.d0 || 3) + 1.9) && d > 1.0 && gp.lineClear(g, c.x, c.z, P[0], P[1], 0.05);
       K.bad = ok ? 0 : (K.bad || 0) + 1; K.age = (K.age || 0) + 1;
       if (!c || (K.bad > 9 && K.age > 36)) { const n = T.cam(E, K.also || [], { ...K.o, at: P }); if (n) { K.c = c = n; K.look = null; K.age = 0; K.bad = 0; } }
       if (!c) return;
@@ -410,7 +414,9 @@ if (FILM) {
       T.rec('1-out'); await T.wait(() => f.state === 'leaving' || E.state === 'out', 8); G.shell.endLook(); await T.wait(() => E.state === 'out' && E.body === true, 6);
       if (E.state !== 'out') return { error: 'the monkey did not slip its lead: the gallery’s is ' + f.state };
       T.track = { E, o: { ...t.eye, d0: t.eye.d0 + 0.5 }, lift: t.eye.lift, also: [[E.corner.x, E.corner.z]] };
-      await T.wait(() => E.cornered, 9); await sleep(1500);
+      await T.wait(() => E.cornered, 9);
+      { const n = T.cam(E, [], { ...t.eye, d0: Math.max(1.8, t.eye.d0 - 0.6) }); if (n) { T.track.c = n; T.track.look = null; T.track.age = 0; T.track.bad = 0; T.track.also = []; } }      // (a nearer eye on it in its corner)
+      await sleep(1500);
       const link = (F.adj.get(a.room) || []).find(l => !esc.quiet.includes(l.to)), R = link && G.plan.byId[link.to];
       if (R) { const g2 = gp.grid(G.plan, [a.room, link.to], y); T.toy(g2, link.x + Math.sign((R.x0 + R.x1) / 2 - link.x) * Math.min(3, Math.abs((R.x0 + R.x1) / 2 - link.x)), link.z + Math.sign((R.z0 + R.z1) / 2 - link.z) * Math.min(3, Math.abs((R.z0 + R.z1) / 2 - link.z)), y); }
       await T.wait(() => !E.hid, 6); o.how = 'its own way: the picture looked at, the lead slipped, the corner, and loose when the toy had left the room';
@@ -458,9 +464,10 @@ if (FILM) {
       if (E.state === 'out' && E.body !== true) { G.set.guards = false; esc.home('all'); return { retry: true, error: 'spoiled: a robot found the toy, and the thing lost its body' };  }
       if (o.lit == null && E.lit > 0.05) o.lit = s; if (o.warm == null && bt.warm > 0.5) o.warm = s; if (o.going == null && E.state === 'going') o.going = s;
       if (E.state === 'going') { T.track = null; c2 = T.homeward(E, c2, st, t.eye.d0 > 3 ? 1 : 0.72); }
-      if (E.state === 'home') { o.home = o.home == null ? s : o.home; if (++end > 4) break; }
+      if (E.state === 'going' && E.going.t > Math.max(E.going.flow * 1.15 + 0.5, E.going.T - 1.5)) break;      // (its last stroke is in: the wait after it, for the chime, is not filmed)
+      if (E.state === 'home') break;
     }
-    T.rec(''); o.state = E.state; o.bot = l.bot; G.set.guards = false; if (E.state !== 'home') esc.home(t.id, 'now'); return o;
+    T.rec(''); await T.wait(() => E.state !== 'going', 8); o.home = secs(); o.state = E.state; o.bot = l.bot; G.set.guards = false; if (E.state !== 'home') esc.home(t.id, 'now'); return o;
   };
   // the toy as sheepdog
   const segHerd = async t => {
@@ -475,13 +482,15 @@ if (FILM) {
     let dx = E.x - spot.x, dz = E.z - spot.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
     const off = Math.min(1.9, Math.max(1.6, (E.spec.herd || 1.5) * 0.2 + (E.spec.radius || 0.5) * 0.5 + 1.2)),      /* (it is led by a toy within 2.2 m of its middle) */ q = T.snap(g, E.x + dx * (off + 2.6), E.z + dz * (off + 2.6), 0.5, 2.5) || T.snap(g, E.x + dx * (off + 1), E.z + dz * (off + 1), 0.5, 2) || [E.x + dx * off, E.z + dz * off];
     T.toy(null, q[0], q[1], y, [E.x, E.z]);
-    const O = { ...t.eye, d0: t.eye.d0 + 1.0, h: t.eye.h + 0.25 }, c = T.cam(E, [foot], { ...O, at: [(E.x + spot.x) / 2, (E.z + spot.z) / 2] });      // (an eye by the way home: it comes on towards it)
-    T.track = { E, c, o: O, lift: t.eye.lift, also: [foot], max: 7.5, pt: () => { const v = G.vehicle.pos; return [E.x * 0.7 + v.x * 0.3, E.z * 0.7 + v.z * 0.3]; } };
+    // (an eye on the side it is going to, near enough to see what it is, with the toy behind it in the picture)
+    const O = { ...t.eye, d0: t.eye.d0 + 0.5, h: t.eye.h + 0.2 }, c = T.cam(E, [q], O);
+    T.track = { E, c, o: O, lift: t.eye.lift, also: [q], max: O.d0 + 2.3, pt: () => { const v = G.vehicle.pos; return [E.x * 0.75 + v.x * 0.25, E.z * 0.75 + v.z * 0.25]; } };
     await T.sharp(12); T.rec('5-herd'); await sleep(500); T.dog = { E, spot, x: q[0], z: q[1], yaw: Math.atan2(E.x - q[0], E.z - q[1]), t: 0, y, off };
     const t0 = V.t, secs = () => +((V.t - t0) / 1000).toFixed(1), st = {}; let end = 0;
     for (let i = 0; i < 600; i++) {
       await sleep(100); const s = secs(), by = E.build && E.build.boy;
       if (o.led == null && E.led > 0) o.led = s; if (o.going == null && E.state === 'going') o.going = s;
+      if (E.state === 'out' && T.track) T.track.also = [[G.vehicle.pos.x, G.vehicle.pos.z]];
       if (E.state === 'going') {
         if (E.going.over && by && by.x != null && by.state !== 'gone') { if (!st.boy) { st.boy = true; T.track = { E, o: { d0: 3.2, h: 1.25 }, lift: 0.55, also: [foot], pt: () => [by.x, by.z] }; } }
         else if (!st.two) { st.two = true; T.track = null; T.cam(E, [foot], { at: [spot.x, spot.z], d0: Math.max(2.4, t.eye.d0), h: 1.15, lift: 0.7, lean: 0.8 }); }
@@ -497,7 +506,7 @@ if (FILM) {
   for (const t of TESTS) {
     say(`\n== ${t.key.toUpperCase()}  ${t.id}  the film`);
     const beats = await p.evaluate(t => window.__T.beats(window.__esc.get(t.id)), t), dir = path.join(TMP, t.key), parts = [];
-    t.about = t.key === 'hats' ? 1.6 : 4; if (t.key === 'parasol') t.eye = { ...t.eye, d0: 2.5 };
+    t.about = t.key === 'hats' ? 1.6 : 4; if (t.key === 'parasol') t.eye = { ...t.eye, d0: 2.5 }; if (t.key === 'lambs') t.eye = { ...t.eye, d0: 2.2, h: 0.85 };      // (small things, filmed from nearer than the stills are taken)
     let r = await drive(path.join(dir, '1'), segOut, t); parts.push(['1', r]);
     say(`  getting out and about: ${r.error || `${(r.frames / FPS).toFixed(1)} s; let out ${r.how}; said ${JSON.stringify(r.said)}; ended in ${r.room}`}`);
     if (t.roost) { r = await drive(path.join(dir, '2'), segRoost, t); parts.push(['2', r]); say(`  the roost: ${r.error || `${(r.frames / FPS).toFixed(1)} s; set down in ${r.placed} (${r.reach ? 'a room they know from home' : 'NOT a room they know: only by the test'}) and sent to the bench (${r.go ? 'went' : 'no way'}); down on it: ${r.roosted}`}`); }

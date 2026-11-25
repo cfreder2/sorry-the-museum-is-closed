@@ -11,6 +11,7 @@
 //   rest: [a, b]         seconds it stays where it has got to, before it moves on
 //   react                in a robot's light: 'none' (does not care), 'still' (stops where it is), 'off' (ambles off)
 //   hold                 seconds a robot's lamp rests on it before the lamp goes warm (1.4 if not given)
+//   shade                how dark the lamp throws its shadow, as a multiple of the usual (1): more on a pale floor
 //   need                 metres of clear floor it keeps round its middle (0.42)
 //   where(E, k, g)       somewhere it would rather wander to ({ x, z }), or null: g is the floor it knows (guardplan)
 //   colors               hex colours of its strokes when it comes apart (the work's own palette is mixed in)
