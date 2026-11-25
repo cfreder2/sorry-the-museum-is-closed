@@ -162,6 +162,9 @@ escapeFor(14572, {
     }
   },
 
+  // (set down somewhere else by the test hook: the flock goes with its middle)
+  onPlace(E, dx, dz) { const B = E.build; if (!B || !B.h) return; for (const h of B.h) { h.x += dx; h.z += dz; h.perched = false; for (const tl of h.tails) tl.live = false; } for (const w of B.wake) { w.x = E.x; w.z = E.z; } B.roost = false; },
+
   // A bench to make for: the floor beside one, on this floor, in the rooms it knows (not the one it is at).
   where(E, k, g) {
     const need = 0.72, list = [];
