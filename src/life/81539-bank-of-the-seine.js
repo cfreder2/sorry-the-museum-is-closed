@@ -30,39 +30,53 @@
 // While the toy is near it all stays: drive into the river and the image goes to pieces round the toy and closes
 // behind it; the standing village does not stir, which is how to tell which of the two is the reflection.
 //
-// How it is made: three draw calls. The floor is one sheet and one shader: the water (level touches, each wholly one
-// flat colour: pale, lilac, cloud, blue), the far bank's image in it, and the grass. The image is not a mirror's (the
-// harp in Böcklin's sea, Glackens's looking-glass, Ruisdael's pool and the Water Lilies' pond are worked out from the
-// eye, and they answer whatever stands over them): it is paint lying on the water, the same from everywhere, which
-// is how he painted it, and it is there before the village is. The village is four flat painted sheets (the hill;
-// three lengths of houses and shore), drawn once on a canvas in broad flat touches with ragged ends, hinged along
-// the far shore just under the water, so each begins lying exactly on its own image and ends standing over it: the
-// reflection and the thing are one piece of painting, seen twice. (Cézanne's cards in Gallery 248 are dealt and
-// stood up one by one to build a place out of a pack; here nothing is dealt or built: an image that is already
-// whole gets up and leaves itself behind.) Everything on the near bank is a third call, built as Corot's reader is
-// (81512-interrupted-reading.js): under each form a core a little smaller and darker, and over it strokes with a
-// brush's own print on them, tilted so that they overlap and every edge is their ragged ends. They are his touches
-// of 1868, broad and flat and loaded, not the later feathery ones; each is drawn in from the end where the brush
-// was set down. She is about seven and a half heads, 0.44 m high as she sits; her face, turned away and in the shade
-// (it can be seen from the toy's eye on the far side), is planes of tone, the brow's shadow, a cheek, the far side
-// lost, and no drawn feature. Her head turns a little to follow what is coming up; nothing else of her moves but
-// her breathing.
+// How it is made: three draw calls. The floor is one sheet and one shader over three small paintings made once: his
+// water (rows of broad level touches, square and ragged at their ends, each wholly one flat colour: pale and warm
+// under the far bank, lilac and cloud in the middle, the sky's blue towards us), laid a row at a time, one row from
+// the left and the next from the right; his grass (short broad dark touches in the tree's shade, sunlit low on the
+// left, yellow and white dabs for the flowers), brushed outwards from the water's edge; and the far bank's own
+// painting, which the shader lays in the water upside down, a little greener and duller as he has it, cut by level
+// slits of the water's colour that slide when it is stirred. The image is not a mirror's (the harp in Böcklin's sea,
+// Glackens's looking-glass, Ruisdael's pool and the Water Lilies' pond are worked out from the eye, and they answer
+// whatever stands over them): it is paint lying on the water, the same from everywhere, which is how he painted it,
+// and it is there before the village is. It lies half as long again as the thing stands (his reflections are drawn
+// out down the canvas, and a floor is seen at a slant, so a true length would read as a sliver). The village is four
+// flat painted sheets (the hill; three lengths of houses and shore) from that same painting, hinged along the far
+// shore just under the water, so each begins lying exactly on its own image, drawn out as long, and comes to its own
+// height as it stands over it: the reflection and the thing are one piece of painting, seen twice. (Cézanne's cards
+// in Gallery 248 are dealt and stood up one by one to build a place out of a pack; here nothing is dealt or built:
+// an image that is already whole gets up and leaves itself behind.) Everything on the near bank is a third call,
+// built as Corot's reader is (81512-interrupted-reading.js): under each form a core a little smaller and darker, and
+// over it strokes with a brush's own print on them, tilted so that they overlap and every edge is their ragged ends.
+// They are his touches of 1868, broad and flat and loaded, not the later feathery ones; each is drawn in from the
+// end where the brush was set down. She sits as he has her, turned three-quarters away with her head towards the
+// right, about half life size (0.43 m to the top of her hair): the grey skirt spread on the grass in broad touches,
+// the loose jacket a sack of stripes, white and blue and grey, the dark hair drawn back into a knot. Her face is in
+// the shade and turned from us (it can be seen from the toy's eye out in the river): planes of tone, one dry band of
+// shade across the eyes, a light down the nose, a cheek, a touch of rose, the far side lost, and no drawn feature.
+// Her head turns to follow what is coming up, down at each image first and up with it; nothing else of her moves
+// but her breathing.
 //
 // Where it is (along the wall from the picture's middle, positive to the viewer's right; out from the wall): the
-// village stands 0.12 to 0.18 m out, 0.78 m to either side, the hill 0.59 m at its highest (the right) and the white
-// gable 0.36 m, under a frame whose foot is 1.13 m up. The water runs from the wall to between 1.3 m (left) and 1.5 m
-// (right) out, and from 1.03 m left to 0.95 m right, thinning to single touches at its ends. The bank lies beyond
-// it to 2.0 m out, 1.0 m left to 0.84 m right. She sits 0.42 m left of the middle, 1.6 m out; the boat lies to the
-// right, stern 1.0 m out, bow on the grass 1.72 m out and 0.6 m right. On the right the doorway to the stair hall
-// begins 1.23 m from the middle: the water stops 0.28 m short of it, nothing solid or soft is within 0.6 m of it,
+// village stands 0.08 to 0.15 m out, 0.78 m to either side, the hill 0.57 m at its highest (the right) and the white
+// gable 0.39 m, under a frame whose foot is 1.13 m up. Its image lies in front of it to 0.96 m out at the hill's
+// highest and 0.75 m under the white gable, and a sheet on its way up sweeps no further than that. The water runs
+// from the wall to the bank, 1.3 m out on the left and 1.5 m on the right, and from 1.0 m left to 0.9 m right, its
+// two ends ragged by a touch's length. The grass lies beyond it to 2.0 m out (1.9 m on the right), 1.0 m left to
+// 0.86 m right. She sits 0.44 m left of the middle and 1.62 m out, her skirt spread as far as 0.35 m round her; her
+// hat is on the grass 0.07 m left and 1.8 m out; the boat lies to the right, 0.84 m long, stern in the water 1.0 m
+// out and 0.16 m right, bow on the grass 1.72 m out and 0.6 m right. On the right the doorway to the stair hall
+// begins 1.23 m from the middle: the water stops 0.33 m short of it, nothing solid or soft is within 0.5 m of it,
 // and the way through is clear. On the left hangs Manet's Woman Reading, 1.0 m off (its canvas from 0.75 m, foot at
 // 1.32 m): its table comes out under it, 0.8 to 1.2 m to the left and within 0.6 m of the wall, where this show has
-// the last thin touches of its water and the low left end of its hill (0.25 m high there); Morisot's powder, beyond,
-// can dust the floor as far as 0.6 m left of this picture. The two are never out with this one (one show at a time
-// in a room; the kit sends a lingering one home when another begins). Paris Street, the acrobats and the two
-// sisters are on the opposite wall, thirteen metres away. Nothing here stands higher than 0.62 m, so from none of
+// the last ragged touches of its water and the low left end of its hill (0.2 m high there); Morisot's powder,
+// beyond, can dust the floor as far as 0.6 m left of this picture. The two are never out with this one (one show at
+// a time in a room; the kit sends a lingering one home when another begins). Paris Street, the acrobats and the two
+// sisters are on the opposite wall, thirteen metres away. Nothing here stands higher than 0.6 m, so from none of
 // the checks' cameras does anything come in front of a canvas. She and the boat are soft to the toy (it is eased
-// round them, never stopped dead); nothing else is solid.
+// round them, never stopped dead); nothing else is solid. A small work: the kit keeps the whole of it in view, so
+// from where you look the show is the lower middle of the frame, seen over her shoulder from behind and a little to
+// her right, as he stood.
 //
 // No tune. The two that fit were read first and put back: Offenbach's Barcarolle (written in 1864 for another opera)
 // is, in the words everyone knows, a song to a night of love, and "Bateau sur l'eau" is a lap game for a baby, with a
@@ -80,7 +94,6 @@
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, shape, canvasTexture } from '../paintlife.js';
 import { noise } from './stagecraft.js';
-import { strokes as floorStrokes } from './brush.js';
 
 const TAU = Math.PI * 2;
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -92,6 +105,8 @@ const PXM = 1024 / (2 * HALF);                              // its painting: pix
 const REG = { hill: [0, 0, 1024, 384], vil: [0, 400, 1024, 288] };      // where each sheet is painted on the canvas (x, y, w, h)
 const O_HILL = 0.08, O_VIL = 0.14, AX = 0.02;               // the shore each sheet is hinged along; how far under the water the hinge is
 const H_HILL = 384 / PXM, H_VIL = 288 / PXM;
+const STR = 1.5;                                            // the image lies half as long again as the thing stands (a floor is seen at a slant)
+const WU0 = -1.06, WU1 = 0.98, WO = 1.6, WROW = 44;         // the water's own painting: what it covers, and the height of a row of touches (pixels of 1024)
 // the sheets, back to front (a sheet never swings through one that already stands): when each starts up, how long it takes
 const PIECES = [
   { reg: 'hill', s0: 0, s1: 1, o: O_HILL, h: H_HILL, t0: 3.2, d: 1.4, hz: 146.83 },
@@ -102,19 +117,18 @@ const PIECES = [
 const NP = PIECES.length, NSH = 6;
 const T_ALL = PIECES[NP - 1].t0 + PIECES[NP - 1].d;         // the far bank is all up
 const RIP_V = 0.9;                                          // a ripple's speed over the water (m/s)
-const T_WATER = 1.7, T_BANK = [0.85, 1.75], T_BUILT = 2.75;  // the river is laid; the bank; she is all there
+const T_WATER = 1.3, T_BANK = [1.0, 1.7], T_BUILT = 2.75;  // the river is laid; the bank; she is all there
 const LAY_D = 0.2, BODY_D = 0.34;                           // one stroke drawn in; a body scumbled in under them
 const bankLine = u => 1.30 + 0.20 * sstep(u, -0.6, 0.7) + 0.02 * Math.sin(u * 7);
 // her, in her own frame (x to her left, y up, z the way she faces), SC to the metre
-const SC = 1.15, SIT = [-0.42, 1.6], FACE = Math.PI - 0.12;
+const SC = 1.15, SIT = [-0.44, 1.62], FACE = Math.PI - 0.4;
 const DIRK = [-0.55, 0.835];                                // the way her knees lie under the skirt: to her right, and forward
-const WAIST = [0, 0.112, 0.0], NECK = [0, 0.158, 0.004];
-const SH_R = [-0.079, 0.126, 0.002], SH_L = [0.079, 0.126, 0.002], L1 = 0.128, L2 = 0.14;
-const HEAD_REST = -0.52;                                    // her head, turned to her right as he has it
+const WAIST = [0, 0.112, 0.0], NECK = [0, 0.152, 0.004];
+const SH_R = [-0.052, 0.108, 0.004], SH_L = [0.052, 0.108, 0.004], L1 = 0.128, L2 = 0.14;
 // the boat: stern in the water, bow on the grass
 const BOAT = { stern: [0.16, 1.0], bow: [0.6, 1.72], beam: 0.3, depth: 0.125, rake: 0.03 };
 const HAT = [-0.07, 1.8];
-const SOFT = [[SIT[0] + 0.02, SIT[1] - 0.03, 0.27], [0.3, 1.24, 0.17], [0.5, 1.56, 0.17]];      // what the toy is eased round (u, o, reach)
+const SOFT = [[SIT[0] + 0.03, SIT[1] - 0.04, 0.3], [0.3, 1.24, 0.17], [0.5, 1.56, 0.17]];      // what the toy is eased round (u, o, reach)
 
 // ---------------------------------------------------------------- a brush's own print, for every mark on the near bank
 // (four cells: a loaded flat touch, square-ended; the same run dry; a round dab; a plain patch for the bodies under them.
@@ -149,6 +163,69 @@ function brushPrint() {
 const UVQ = (k, s, t) => { const m = 0.05; return [((k % 2) * 128 + 128 * (m + s * (1 - 2 * m))) / 256, ((k >> 1) * 128 + 128 * (m + t * (1 - 2 * m))) / 256]; };
 const UV_SOLID = [0.75, 0.75];
 
+// One flat touch of 1868 on a canvas: a loaded brush set down and dragged, square and ragged at both ends, one colour.
+function flatTouch(g, r, x, y, len, wid, ang, fill, rag = 0.3) {
+  g.save(); g.translate(x, y); g.rotate(-ang);
+  const hl = len / 2, hw = wid / 2, e = () => rag * wid * r();
+  g.fillStyle = fill; g.beginPath();
+  g.moveTo(-hl + e(), -hw + r() * 2); g.lineTo(-hl * 0.3, -hw - r() * 1.5); g.lineTo(hl * 0.4, -hw + r() * 1.5); g.lineTo(hl - e(), -hw + r() * 2);
+  g.lineTo(hl - e(), -hw * 0.35); g.lineTo(hl - e(), hw * 0.3); g.lineTo(hl - e(), hw - r() * 2);
+  g.lineTo(hl * 0.3, hw + r() * 1.5); g.lineTo(-hl * 0.4, hw - r() * 1.5); g.lineTo(-hl + e(), hw - r() * 2);
+  g.lineTo(-hl + e(), hw * 0.35); g.lineTo(-hl + e(), -hw * 0.3);
+  g.closePath(); g.fill();
+  g.lineCap = 'butt';      // the bristles' light and dark, faint: it is a flat touch
+  for (let i = 0; i < Math.max(2, wid / 6); i++) { const yy = (r() - 0.5) * wid * 0.78; g.globalAlpha = 0.04 + 0.07 * r(); g.strokeStyle = r() < 0.55 ? '#fff' : '#000'; g.lineWidth = 1 + r() * 2.4; g.beginPath(); g.moveTo(-hl * (0.55 + 0.3 * r()), yy); g.lineTo(hl * (0.55 + 0.3 * r()), yy + (r() - 0.5) * 2); g.stroke(); }
+  g.restore();
+}
+
+// ---------------------------------------------------------------- his river, painted once: rows of broad level touches
+// Pale and warm under the far bank, lilac and cloud in the middle, blue towards us (the sky, upside down); each touch
+// wholly one colour, and the river's two ends only the ends of its touches. Laid a row at a time in the shader.
+function paintWater(css) {
+  const tex = canvasTexture(1024, 1024, g => {
+    g.clearRect(0, 0, 1024, 1024);
+    let sd = 815391; const r = () => ((sd = (sd * 16807) % 2147483647) - 1) / 2147483646, pick = list => list[Math.min(list.length - 1, Math.floor(r() * list.length))];
+    const X = u => (u - WU0) / (WU1 - WU0) * 1024, rows = Math.ceil(1024 / WROW);
+    const FAR = ['#cfcbd0', '#d8d3d2', '#c6c5d0', '#dcd8d4', '#cdc8c8'], MID = ['#bcc0d2', '#b0b8d0', '#c6c6d4', '#a8b3cf', '#b8bbcf'], PALE = ['#cdced8', '#d6d5d8', '#c2c7d6'], NEAR = ['#86a2cf', '#7b9aca', '#90aad2', '#7393c6', '#9ab0d4'];
+    for (let pass = 0; pass < 2; pass++) for (let j = 0; j < rows; j++) {
+      const y = (j + 0.5) * WROW, o = y / 1024 * WO;
+      // (the river is a little longer on the right, where it runs on towards the door; its ends are ragged, a row at a time)
+      const xa = X(-1.0 + 0.1 * r() + (j % 3 === 1 ? 0.1 : 0)), xb = X(0.9 - 0.1 * r() - (j % 3 === 2 ? 0.09 : 0));
+      for (let x = xa + (pass ? 60 : 0); x < xb; ) {
+        const len = Math.min(120 + 170 * r(), xb - x + 20), oo = o + (r() - 0.5) * 0.16 - 0.1 * (x / 1024 - 0.5);
+        const cols = oo < 0.42 ? FAR : oo < 0.86 ? (r() < 0.2 ? PALE : MID) : oo < 1.0 ? (r() < 0.55 ? PALE : MID) : (r() < 0.1 ? MID : NEAR);
+        if (!pass || r() < 0.45) flatTouch(g, r, x + len / 2, y + (r() - 0.5) * 6, len, WROW * (1.12 + 0.14 * r()), (r() - 0.5) * 0.02, css(pick(cols)), 0.34);
+        x += len * (pass ? 1.6 : 0.86);
+      }
+    }
+  });
+  tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  return tex;
+}
+
+// ---------------------------------------------------------------- his grass, painted once: the near bank in the tree's shade
+// Short broad touches of dark green, a few lighter, sunlit low on the left where the light gets under the tree; yellow
+// and white dabs for the flowers. Its edges are the ends of its touches.
+const GO0 = 1.12, GPX = 1024 / (WU1 - WU0);
+function paintGrass(css) {
+  const tex = canvasTexture(1024, 1024, g => {
+    g.clearRect(0, 0, 1024, 1024);
+    let sd = 815392; const r = () => ((sd = (sd * 16807) % 2147483647) - 1) / 2147483646, pick = list => list[Math.min(list.length - 1, Math.floor(r() * list.length))];
+    const DK = ['#27351f', '#2f4024', '#1f2b1a', '#384a28', '#2b3a22', '#33442a'], MD = ['#40552c', '#4a6030', '#374b29', '#455a33'], LT = ['#5d7434', '#6d853a', '#58703a'], SUN = ['#8aa24a', '#9bb055', '#7c963f', '#a6b85e'];
+    const inside = (u, o) => Math.min((o - bankLine(u)) / 0.05, (2.0 - 0.1 * sstep(u, 0, 0.8) + 0.03 * Math.sin(u * 5 + 1) - o) / 0.1, (u + 1.0) / 0.1, (0.86 - u) / 0.1);
+    for (let pass = 0; pass < 3; pass++) for (let i = 0, n = [1100, 900, 420][pass]; i < n; i++) {
+      const u = lerp(-1.04, 0.9, r()), o = lerp(1.2, 2.06, r()), k = inside(u, o), sun = fall(u, -0.95, -0.25) * sstep(o, 1.62, 1.92), r1 = r(), r2 = r(), r3 = r(), r4 = r();
+      if (k < (pass ? 0.35 : -0.25) + 0.7 * r1) continue;
+      const cols = r2 < sun * 0.8 ? (pass ? SUN : LT) : pass === 0 ? DK : pass === 1 ? (r2 < 0.3 ? MD : DK) : (r2 < 0.4 ? LT : MD);
+      const big = [1, 0.72, 0.55][pass];
+      flatTouch(g, r, (u - WU0) * GPX, (o - GO0) * GPX, (44 + 34 * r3) * big, (22 + 9 * r4) * big, (r() - 0.5) * 1.5 + 0.55, css(pick(cols)), 0.4);
+    }
+    for (let i = 0; i < 70; i++) { const u = lerp(-0.94, 0.8, r()), o = lerp(1.3, 1.95, r()), y = r() < 0.72; if (inside(u, o) < 0.5) continue; flatTouch(g, r, (u - WU0) * GPX, (o - GO0) * GPX, 9 + 4 * r(), 8 + 3 * r(), r() * 3, css(y ? pick(['#e6cf4a', '#efd95a', '#dcc23c']) : pick(['#eef0e6', '#e2e8dc'])), 0.3); }
+  });
+  tex.needsUpdate = true;
+  return tex;
+}
+
 // ---------------------------------------------------------------- the far bank, painted once: two sheets on one canvas
 // Broad flat touches with ragged ends, as he laid them in 1868; a sheet's outline is only the ends of its touches.
 // css(hex) leans a colour a little towards the picture's own palette.
@@ -158,19 +235,9 @@ function paintBank(css) {
     let sd = 81539; const r = () => ((sd = (sd * 16807) % 2147483647) - 1) / 2147483646, pick = list => list[Math.min(list.length - 1, Math.floor(r() * list.length))];
     let Y0 = 0, HH = 0;
     // one touch: its middle (x, and y up from the sheet's foot), its length and width, the way it lies, its colour
-    const touch = (x, y, len, wid, ang, colr, rag = 0.3) => {
-      g.save(); g.translate(x, Y0 + HH - y); g.rotate(-ang);
-      const hl = len / 2, hw = wid / 2, e = () => rag * wid * r();
-      g.fillStyle = css(colr); g.beginPath();
-      g.moveTo(-hl + e(), -hw + r() * 2); g.lineTo(-hl * 0.3, -hw - r() * 1.5); g.lineTo(hl * 0.4, -hw + r() * 1.5); g.lineTo(hl - e(), -hw + r() * 2);
-      g.lineTo(hl - e(), -hw * 0.35); g.lineTo(hl - e(), hw * 0.3); g.lineTo(hl - e(), hw - r() * 2);
-      g.lineTo(hl * 0.3, hw + r() * 1.5); g.lineTo(-hl * 0.4, hw - r() * 1.5); g.lineTo(-hl + e(), hw - r() * 2);
-      g.lineTo(-hl + e(), hw * 0.35); g.lineTo(-hl + e(), -hw * 0.3);
-      g.closePath(); g.fill();
-      g.lineCap = 'butt';      // the bristles' light and dark, faint: it is a flat touch
-      for (let i = 0; i < Math.max(2, wid / 6); i++) { const yy = (r() - 0.5) * wid * 0.78; g.globalAlpha = 0.04 + 0.07 * r(); g.strokeStyle = r() < 0.55 ? '#fff' : '#000'; g.lineWidth = 1 + r() * 2.4; g.beginPath(); g.moveTo(-hl * (0.55 + 0.3 * r()), yy); g.lineTo(hl * (0.55 + 0.3 * r()), yy + (r() - 0.5) * 2); g.stroke(); }
-      g.restore();
-    };
+    const touch = (x, y, len, wid, ang, colr, rag = 0.3) => flatTouch(g, r, x, Y0 + HH - y, len, wid, ang, css(colr), rag);
+    // a pitched end wall: one clean shape (its two slopes), filled with level touches
+    const gable = (x0, x1, yb, ye, yt, cols, o) => { g.save(); g.beginPath(); const Yc = y => Y0 + HH - y; g.moveTo(x0, Yc(yb)); g.lineTo(x0 + 2 * r(), Yc(ye)); g.lineTo((x0 + x1) / 2 + 3 * (r() - 0.5), Yc(yt)); g.lineTo(x1 - 2 * r(), Yc(ye)); g.lineTo(x1, Yc(yb)); g.closePath(); g.clip(); block(x0 - 8, x1 + 8, yb, yt + 6, cols, o); g.restore(); };
     const sheet = ([x0, y0, w, h], fn) => { g.save(); g.beginPath(); g.rect(x0, y0, w, h); g.clip(); Y0 = y0; HH = h; fn(); g.restore(); };
     // a block: rows of level touches filling x0..x1, y0..y1
     const block = (x0, x1, y0, y1, cols, { wid = 34, len = 78, ang = 0, jit = 0.05 } = {}) => {
@@ -193,7 +260,7 @@ function paintBank(css) {
       { const f = ['#9db86a', '#6f9a52', '#4d7a48', '#b5c688', '#7aa458', '#b99d5c', '#5f8c4e', '#a9c07a', '#467244', '#8fb060']; let k = 0;      // the fields: strips, leaning a little
         for (let x = 610; x < 1040; x += 30 + 12 * r()) { const top = ridge(x) - 24, lo = 96 + 20 * r(); if (top - lo < 40) continue; const wd = 30 + 14 * r(); for (let y = lo; y < top; y += 60) touch(x + (y - lo) * 0.1, Math.min(y + 30, top - 14), 78, wd, Math.PI / 2 - 0.1 + (r() - 0.5) * 0.05, f[k % f.length], 0.22); k++; } }
       for (let x = 20; x < 1040; x += 58) { const y = ridge(x) - 9, sl = Math.atan2(ridge(x + 30) - ridge(x - 30), 60); touch(x, y, 84, 19 + 4 * r(), sl, x < 430 ? pick(['#a8a064', '#9c965a', '#b4aa6e']) : pick(['#c9a26a', '#d2ae78', '#bf9860', '#d8b888'])); }      // the ridge, sandy against the sky
-      for (let x = 470; x < 1020; x += 19 + 8 * r()) touch(x, ridge(x) + 6, 15 + 5 * r(), 7, Math.PI / 2 + (r() - 0.5) * 0.2, pick(['#d8c49a', '#cdb88a', '#e0cfa8']), 0.2);       // the pale line of things along it
+      for (let x = 470; x < 1020; x += 26 + 30 * r()) touch(x, ridge(x) + 3, 9 + 5 * r(), 7, Math.PI / 2 + (r() - 0.5) * 0.2, pick(['#d8c49a', '#cdb88a', '#e0cfa8']), 0.2);       // the pale line of things along it
     });
 
     // ---- the village on its shore
@@ -214,15 +281,15 @@ function paintBank(css) {
       for (let i = 0; i < 5; i++) touch(300 + 30 * r(), 64 + 46 * r(), 42, 26, (r() - 0.5) * 0.8, pick(['#4f6f3c', '#5d7f44', '#456636']));
       // in the middle: ochre walls, the long rose roofs one behind another, a gable; the big bush in front of them
       block(378, 566, 58, 124, OCHRE, { wid: 34, len: 70 }); block(366, 580, 120, 168, ROSE, { wid: 38, len: 88 }); block(446, 606, 166, 202, ['#a57f7f', '#b08a86', '#9c7878'], { wid: 32, len: 84 });
-      block(580, 694, 58, 150, OCHRE, { wid: 40, len: 60 }); touch(637, 166, 78, 30, 0, OCHRE[1]); touch(637, 186, 44, 22, 0, OCHRE[0]); touch(637, 200, 20, 14, 0, OCHRE[3]);
+      gable(580, 694, 56, 148, 212, OCHRE, { wid: 40, len: 84 });
       touch(618, 104, 24, 15, Math.PI / 2, DARK[0], 0.2); touch(660, 110, 14, 11, Math.PI / 2, DARK[1], 0.2); touch(637, 164, 11, 10, 0, DARK[2], 0.2);
       block(692, 716, 58, 122, ['#b7a274', '#a8946a'], { wid: 34, len: 30 });
       for (let i = 0; i < 16; i++) { const x = 430 + r() * 190, y = 58 + r() * 62; touch(x, y, 58 + 20 * r(), 34 + 8 * r(), (r() - 0.5) * 0.9, pick(BUSH)); }
       // on the right: a low blue-white wall under a rose roof, and the white gable with its dark door
       block(742, 826, 58, 116, ['#c9d2d6', '#d5dcdc', '#bfcad0'], { wid: 32, len: 62 }); block(736, 834, 112, 148, ROSE, { wid: 30, len: 76 });
-      block(836, 1000, 58, 196, WHITE, { wid: 46, len: 96 }); touch(918, 212, 112, 30, 0, WHITE[0]); touch(918, 232, 70, 22, 0, WHITE[2]); touch(918, 248, 34, 16, 0, WHITE[1]);
+      gable(836, 1000, 56, 186, 268, WHITE, { wid: 46, len: 118 });
       block(826, 848, 58, 180, ['#bdb6ae', '#b2aaa4'], { wid: 44, len: 24 });
-      touch(904, 108, 56, 17, Math.PI / 2, '#3a332c', 0.16); touch(960, 168, 20, 12, Math.PI / 2, DARK[0], 0.2); touch(918, 226, 11, 10, 0, DARK[1], 0.2);
+      touch(904, 108, 56, 17, Math.PI / 2, '#3a332c', 0.16); touch(960, 160, 20, 12, Math.PI / 2, DARK[0], 0.2); touch(918, 218, 11, 10, 0, DARK[1], 0.2);
       for (let i = 0; i < 4; i++) touch(998 + 16 * r(), 66 + 36 * r(), 34, 24, (r() - 0.5) * 0.8, pick(BUSH));
     });
   });
@@ -246,7 +313,7 @@ lifeFor(81539, {
   word: 'twice',
   // (the camera stands behind her and a little to her right, as he did, and looks over her shoulder across the water;
   // a small work: the kit keeps the whole of it in view above the far bank)
-  stage: { out: 2.05, half: 1.1, cam: { dist: 3.6, height: 1.08, side: 0.14, fov: 58, lookU: 0.0, lookOut: 0.75, lookH: 0.72, floorOut: 2.1 } },
+  stage: { out: 2.05, half: 1.1, cam: { dist: 3.3, height: 1.5, side: 0.3, fov: 58, lookU: -0.02, lookOut: 0.8, lookH: 0.5, floorOut: 2.05 } },
   wake: 2, ret: 2.6,
   linger: { near: 4, max: 30 },
 
@@ -260,24 +327,17 @@ lifeFor(81539, {
 
     // ---------------------------------------------------------- the floor: the river, the far bank's image in it, the grass
     const tBank = paintBank(css);
-    // his water: broad level touches (only their light and dark here; each takes one flat colour in the shader)
-    const tWater = floorStrokes({ size: 512, base: '#b4b4b4', n: 520, len: [70, 150], width: [20, 34], bend: 0.03, seed: 815391, lift: 0.1, angle: (x, y, r) => (r() - 0.5) * 0.07,
-      colors: [['#ffffff', 3], ['#eeeeee', 3], ['#dcdcdc', 3], ['#c8c8c8', 2]] });
-    // (a touch's number picks its colour, so the numbers must not be blended between neighbours)
-    tWater.generateMipmaps = false; tWater.minFilter = tWater.magFilter = THREE.NearestFilter; tWater.needsUpdate = true;
+    const tWater = paintWater(css);
     // his grass, in the tree's shade: dark greens in short broad touches, a few lighter, yellow and white for the flowers
-    const tGrass = floorStrokes({ size: 512, base: css('#2c4f2a'), n: 1500, len: [20, 46], width: [9, 17], bend: 0.12, seed: 815392, lift: 0.14, angle: (x, y, r) => (r() - 0.5) * 1.5 + 0.5,
-      colors: [[css('#2f5a2c'), 5], [css('#3a6a32'), 4], [css('#25482a'), 3.5], [css('#4c7c38'), 2.4], [css('#6f9a42'), 1.1], [css('#86ae4c'), 0.5], [css('#1f3b24'), 2]] });
+    const tGrass = paintGrass(css);
     const gp = [], U_LO = -1.12, U_HI = 1.02, O_IN = -L.wall + 0.004, O_OUT = 2.12;
     for (const [u, o] of [[U_LO, O_IN], [U_HI, O_IN], [U_LO, O_OUT], [U_HI, O_OUT]]) { const p = L.floor(u, o); gp.push(p.x, y0, p.z); }
     const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3)); gg.setIndex([0, 2, 1, 1, 2, 3]);
-    const lin = h => { const c = col(h, 0.1); return new THREE.Vector3(c.r, c.g, c.b); };
     const gu = this.gu = {
       tWater: { value: tWater }, tGrass: { value: tGrass }, tBank: { value: tBank }, uAx: { value: new THREE.Vector4(L.tx, L.tz, L.nx, L.nz) }, uO: { value: L.floor(0, 0) },
       uT: { value: 0 }, uFront: { value: -1 }, uBankK: { value: 0 }, uGain: { value: 0.5 },
       uRip: { value: new THREE.Vector4() }, uPc: { value: PIECES.map(() => new THREE.Vector4()) }, uToy: { value: new THREE.Vector4(0, 9, 0, 0) }, uSh: { value: Array.from({ length: NSH }, () => new THREE.Vector4()) },
-      uPale: { value: lin('#cfd0da') }, uBlue: { value: lin('#5f86c8') }, uLilac: { value: lin('#b3b0c6') }, uCloud: { value: lin('#e6e0e0') }, uDeep: { value: lin('#3f6fc0') },
-    };
+          };
     const F3 = x => x.toFixed(4), reg = a => `vec4(${a.map(v => v.toFixed(1)).join(', ')})`;
     const gm = this.gmat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
     gm.onBeforeCompile = sh => {
@@ -285,7 +345,7 @@ lifeFor(81539, {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW;').replace('#include <begin_vertex>', '#include <begin_vertex>\n  vW = (modelMatrix * vec4(position, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
-uniform sampler2D tWater, tGrass, tBank; uniform vec4 uAx, uRip, uToy; uniform vec3 uO, uPale, uBlue, uLilac, uCloud, uDeep; uniform float uT, uFront, uBankK, uGain;
+uniform sampler2D tWater, tGrass, tBank; uniform vec4 uAx, uRip, uToy; uniform vec3 uO; uniform float uT, uFront, uBankK, uGain;
 uniform vec4 uPc[${NP}]; uniform vec4 uSh[${NSH}];
 varying vec3 vW; vec3 gCol; float gA;
 // one of the far bank's sheets, s across it and v up it from its foot
@@ -294,39 +354,34 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
 {
   vec2 r = vW.xz - uO.xz, q = vec2(dot(r, uAx.xy), dot(r, uAx.zw));
   float ob = 1.30 + 0.20 * smoothstep(-0.6, 0.7, q.x) + 0.02 * sin(q.x * 7.0);
-  // his water: broad level touches, each wholly one colour
-  vec4 ws = texture2D(tWater, q * vec2(0.56, 0.62) + vec2(0.21, 0.37)); float id = ws.a;
+  // his water: rows of broad level touches, each wholly one colour
+  vec2 wuv = vec2((q.x - ${F3(WU0)}) / ${F3(WU1 - WU0)}, q.y / ${F3(WO)});
+  vec4 ws = texture2D(tWater, vec2(wuv.x, 1.0 - wuv.y));
   // what stirs it: the level bands of the image slide a little to and fro (more where a ripple is passing, where a
   // sheet is leaving the water, and round the toy)
-  float band = floor(q.y * 27.0 + 0.7 * sin(q.x * 2.3 + 1.0) + 2.0 * id), hb = fract(sin(band * 12.9898 + 4.1) * 43758.5453);
+  float band = floor(q.y * 24.0 + 0.6 * sin(q.x * 2.3 + 1.0)), hb = fract(sin(band * 12.9898 + 4.1) * 43758.5453);
   float amp = uRip.x + uRip.z * exp(-pow((q.y - uRip.y) / 0.2, 2.0));
-  for (int i = 0; i < ${NP}; i++) { vec4 pc = uPc[i]; amp += pc.w * smoothstep(pc.x - 0.12, pc.x + 0.04, q.x) * (1.0 - smoothstep(pc.y - 0.04, pc.y + 0.12, q.x)) * exp(-pow((q.y - pc.z) / 0.15, 2.0)); }
+  for (int i = 0; i < ${NP}; i++) { vec4 pc = uPc[i]; amp += pc.w * smoothstep(pc.x - 0.12, pc.x + 0.04, q.x) * (1.0 - smoothstep(pc.y - 0.04, pc.y + 0.12, q.x)) * exp(-pow((q.y - pc.z) / 0.2, 2.0)); }
   vec2 td = q - uToy.xy; amp += uToy.z * exp(-dot(td, td) / 0.07);
   float du = (hb - 0.5) * 2.0 * amp * sin(uT * (1.5 + 1.7 * hb) + hb * 31.0), dv = 0.3 * amp * sin(uT * 2.7 + q.x * 13.0 + hb * 9.0);
-  // the far bank in the water: its sheets lying where they would fold down along their shore
+  // the far bank in the water: its sheets lying where they would fold down along their shore, drawn out longer
   float s = (q.x + du + ${F3(HALF)}) / ${F3(2 * HALF)};
-  vec4 ch = lay(s, (q.y + dv - ${F3(O_HILL)}) / ${F3(H_HILL)}, ${reg(REG.hill)}), cv = lay(s, (q.y + dv - ${F3(O_VIL)}) / ${F3(H_VIL)}, ${reg(REG.vil)});
+  vec4 ch = lay(s, (q.y + dv - ${F3(O_HILL)}) / ${F3(H_HILL * STR)}, ${reg(REG.hill)}), cv = lay(s, (q.y + dv - ${F3(O_VIL)}) / ${F3(H_VIL * STR)}, ${reg(REG.vil)});
   float av = step(0.5, cv.a), ra = max(av, step(0.5, ch.a));
   vec3 refl = mix(ch.rgb, cv.rgb, av);
-  refl = mix(refl, refl * vec3(0.84, 0.9, 0.72) + vec3(0.015, 0.025, 0.0), 0.6);          // (greener and a little duller than the thing, as he has it)
-  // the sky in it: pale by the far bank, blue nearer, a touch at a time; lilac and cloud among them
-  float pk = fract(id * 7.31), zone = step(0.5, smoothstep(0.55, 1.2, q.y + (pk - 0.5) * 0.5 - 0.12 * q.x));
-  vec3 sky = mix(uPale, uBlue, zone);
-  sky = mix(sky, uLilac, step(0.7, fract(id * 3.7)) * 0.8);
-  sky = mix(sky, uCloud, step(0.86, fract(id * 5.3)) * (1.0 - zone));
-  sky = mix(sky, uDeep, step(0.74, fract(id * 9.1)) * zone);
-  vec3 water = mix(sky, refl, ra * (1.0 - 0.8 * step(0.94, fract(id * 4.3))));
-  water *= 0.82 + 0.26 * ws.r;
-  // it ends in whole touches, and is laid from the far side towards you
-  float sE = clamp(min((q.y - 0.012) / 0.07, (0.99 - abs(q.x + 0.04)) / 0.2), 0.0, 1.0), th = 0.3 + 0.7 * pow(1.0 - sE, 0.8);
-  float wm = smoothstep(th - 0.015, th + 0.015, id) * step(0.001, sE) * smoothstep(0.0, 0.03, uFront - q.y + (id - 0.6) * 0.22);
+  refl = mix(refl, refl * vec3(0.84, 0.9, 0.74) + vec3(0.02, 0.03, 0.01), 0.55);          // (greener and a little duller than the thing, as he has it)
+  // level slits of the sky's colour across it: an image in pieces (more of them where the water is stirred)
+  float brk = step(0.9 - 6.0 * amp, hb) * step(0.42, fract(q.x * 1.7 + hb * 7.0 + 0.3 * sin(uT * 0.4 + hb * 20.0)));
+  vec3 water = mix(ws.rgb, refl, ra * (1.0 - brk));
+  // it is laid a row at a time from the far side, each row drawn across (one from the left, the next from the right)
+  float row = floor(wuv.y * ${(1024 / WROW).toFixed(4)}), rowO = row * ${F3(WROW / 1024 * WO)}, odd = mod(row, 2.0);
+  float sweep = clamp((uFront - rowO) / 0.3, 0.0, 1.0) * 1.25 - mix(wuv.x, 1.0 - wuv.x, odd) - 0.06 * hb;
+  float wm = step(0.5, ws.a) * step(0.006, q.y) * step(0.0, sweep) * step(q.y, ob + 0.03);
   // the near bank: his grass, laid from the water's edge outwards, ragged all round
-  vec4 gs = texture2D(tGrass, q * 1.2 + vec2(0.4, 0.1)); float gid = gs.a;
-  float gin = smoothstep(-0.012, 0.012, q.y - ob + (gid - 0.6) * 0.08);
-  float oOut = 2.0 - 0.1 * smoothstep(0.0, 0.8, q.x) + 0.03 * sin(q.x * 5.0 + 1.0);
-  float sG = clamp(min(min((oOut - q.y) / 0.2, (q.x + 1.0) / 0.22), (0.84 - q.x) / 0.22), 0.0, 1.0), gth = 0.3 + 0.7 * pow(1.0 - sG, 0.8);
-  float gk = gin * smoothstep(gth - 0.015, gth + 0.015, gid) * step(0.001, sG) * smoothstep(0.0, 0.06, uBankK * 1.7 - (0.5 * (gid - 0.3) + clamp((q.y - ob) / 0.7, 0.0, 1.0)));
-  vec3 grass = gs.rgb * (0.9 + 0.35 * (1.0 - smoothstep(-0.9, 0.3, q.x)) * smoothstep(1.5, 1.95, q.y));      // (lighter where the sun gets under the tree, low on the left)
+  vec4 gs = texture2D(tGrass, vec2(wuv.x, 1.0 - (q.y - ${F3(GO0)}) * ${F3(GPX / 1024)}));
+  float gfront = uBankK * 1.5 - clamp((q.y - ob) / 0.75, 0.0, 1.0) - 0.22 * (0.5 + 0.5 * sin(q.x * 9.0 + 1.3) * sin(q.y * 13.0 + q.x * 4.0));
+  float gk = step(0.5, gs.a) * step(${F3(GO0 + 0.004)}, q.y) * step(0.0, gfront);
+  vec3 grass = gs.rgb;
   float shade = 1.0;
   for (int i = 0; i < ${NSH}; i++) { vec4 S = uSh[i]; if (S.w <= 0.0) continue; vec2 e = (q - S.xy) / S.z; shade *= 1.0 - S.w * exp(-dot(e, e) * 1.6); }
   vec3 c = mix(water * mix(1.0, shade, 0.45), grass * shade, gk);
@@ -356,12 +411,13 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
         Object.assign(sh.uniforms, fu);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\nattribute float aPc; uniform float uAng[${NP}]; varying float vUp;`)
           .replace('#include <begin_vertex>', `float lfTh = uAng[int(aPc + 0.5)], lfSn = sin(lfTh);
-  vec3 transformed = vec3(position.x, position.y * lfSn - ${F3(AX)}, position.z + position.y * cos(lfTh));
+  float lfLen = position.y * mix(${F3(STR)}, 1.0, smoothstep(0.0, 0.9, lfSn));      // (drawn out long while it lies, as its image is; its own height by the time it stands)
+  vec3 transformed = vec3(position.x, lfLen * lfSn - ${F3(AX)}, position.z + lfLen * cos(lfTh));
   vUp = lfSn;`);
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uGainF; varying float vUp;')
           // (wet, and the image's own colour, as it leaves the water; its own colour by the time it stands)
           .replace('#include <map_fragment>', `#include <map_fragment>
-  { vec3 wet = diffuseColor.rgb * vec3(0.84, 0.9, 0.72) + vec3(0.015, 0.025, 0.0); diffuseColor.rgb = mix(mix(diffuseColor.rgb, wet, 0.6), diffuseColor.rgb, smoothstep(0.12, 0.92, vUp)) * uGainF; }`);
+  { vec3 wet = diffuseColor.rgb * vec3(0.84, 0.9, 0.74) + vec3(0.02, 0.03, 0.01); diffuseColor.rgb = mix(mix(diffuseColor.rgb, wet, 0.55), diffuseColor.rgb, smoothstep(0.12, 0.92, vUp)) * uGainF; }`);
       };
       fm.customProgramCacheKey = () => 'bennecourt-sheets';
       const flats = this.flats = new THREE.Mesh(fg, fm); flats.matrixAutoUpdate = false; flats.matrix.copy(this.B); flats.matrixWorldNeedsUpdate = true;
@@ -373,19 +429,19 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
     const KEY = V3(-0.42, 0.72, 0.55).normalize();           // the light on her back: from our side, above, a little from the left
     const pick = (list, r) => list[Math.min(list.length - 1, Math.floor(r * list.length))];
     const set = (hi, mid, lo, deep, a) => ({ hi: C(hi, a), mid: C(mid, a), lo: C(lo, a), deep: C(deep, a) });
-    const GY = set(['#c9c8c8', '#c2c0c4', '#cfcdd0'], ['#a9a7ac', '#a2a0a7', '#afadb2'], ['#86848c', '#7f7d86'], ['#5f5d66', '#57555e']);                       // the skirt
+    const GY = set(['#bcbbbf', '#b5b3ba', '#c2c0c5'], ['#a09ea6', '#9997a0', '#a6a4ab'], ['#807e88', '#797781'], ['#63616b', '#5c5a64']);                       // the skirt
     const JK = set(['#e9eaea', '#e2e5e8'], ['#c3ccd6', '#bcc6d2'], ['#94a3b8', '#8c9bb0'], ['#66758e', '#5e6d86']);                                           // the jacket, under its stripes
-    const FL = set(['#cfa272', '#c99a6a'], ['#b88a5e', '#b28458', '#bb8d62'], ['#9a7050', '#946a4a'], ['#7a563c', '#725036']);                               // her skin, in the shade
+    const FL = set(['#d6ac86', '#d0a47e'], ['#b98e6c', '#b38866', '#bc9170'], ['#936b52', '#8d654c'], ['#6f4d3b', '#684736']);                               // her skin, in the shade
     const HR = set(['#4a3528', '#433024'], ['#30221a', '#2b1e17'], ['#211712', '#1d1410'], ['#150e0a']);                                                     // her hair
     const GN = set(['#7fb596', '#74ab8c'], ['#4f8f6c', '#488764', '#559572'], ['#2f6b4f', '#2a6348'], ['#1f4a38', '#1b4232']);                               // the boat's green
     const CRM = set(['#e0d6b4', '#d9cfac'], ['#c9bd98', '#c2b690'], ['#a69a78', '#9e9270'], ['#7c7258']);                                                    // its boards
     const STW = set(['#efe6a4', '#eadf98'], ['#dccd7c', '#d6c674'], ['#b9a85e', '#b0a058'], ['#8c7e46']);                                                    // the straw of the hat
     const GYH = C(['#c9c7ca', '#b3a9bb', '#a8a6ac', '#c2bac6', '#9a98a2', '#d2d0d2', '#8e8c96', '#bdb4c2'], 0.08);       // greys and lilacs
     const STRIPE = { w: C(['#eef0ef', '#e6eaec', '#f3f3f0'], 0.05), p: C(['#c5d3e2', '#b9cade', '#cdd8e4'], 0.08), b: C(['#8fa9cc', '#7f9bc2', '#9fb7d6'], 0.08), g: C(['#a9adb0', '#9ea3a8'], 0.08), d: C(['#4a5364', '#3f4858', '#566070'], 0.08) };
-    const HRH = C(['#2c2019', '#3a2a20', '#241a14', '#46342a'], 0.1), FLH = C(['#c29466', '#b88a5e', '#cc9e70', '#ad8056', '#be9064'], 0.1), HAIR_LIT = C(['#6a4e38', '#5c4432'], 0.1);
+    const HRH = C(['#2c2019', '#3a2a20', '#241a14', '#46342a'], 0.1), FLH = C(['#c2987a', '#b98e6c', '#cca284', '#ad8262', '#be9472'], 0.1), HAIR_LIT = C(['#6a4e38', '#5c4432'], 0.1);
     const GNH = C(['#4f8f6c', '#3f7f5e', '#63a07e', '#2f6b4f', '#74ab8c', '#3a765a'], 0.1), CRH = C(['#d9cfac', '#c9bd98', '#e4dbbc', '#b8ac88', '#d0c5a0'], 0.1), STH = C(['#efe6a4', '#e2d488', '#f3ecb6', '#d6c674', '#e9dd92'], 0.08);
-    const SOCK = col('#8a6046', 0.12), LOST = col('#80583e', 0.12), EYE = col('#5a3e2e', 0.12), CHEEK = col('#c08862', 0.08), ROSE = col('#a8684e', 0.1), BLUE_R = C(['#2f5fb5', '#3a6cc0', '#2852a2'], 0.06);
-    const GRASS = C(['#2f5a2c', '#3a6a32', '#4c7c38', '#25482a', '#6f9a42'], 0.1), YEL = C(['#e6cf4a', '#efd95a', '#dcc23c'], 0.06), WHT = C(['#eef0e6', '#e2e8dc'], 0.06);
+    const SOCK = col('#7c5642', 0.1), LOST = col('#7a5440', 0.1), EYE = col('#4c3428', 0.1), CHEEK = col('#d2a482', 0.08), ROSE = col('#9c5a4a', 0.1), BLUE_R = C(['#2f5fb5', '#3a6cc0', '#2852a2'], 0.06);
+    const GRASS = C(['#2c3d22', '#35492a', '#445a2e', '#222e1c', '#566b32'], 0.1), YEL = C(['#e6cf4a', '#efd95a', '#dcc23c'], 0.06), WHT = C(['#eef0e6', '#e2e8dc'], 0.06);
     // The tone of a form where it faces the light (run smoothly into each other, and kept close: his forms are flat);
     // and a stroke on it: that tone, leaning to one of the mass's own colours, a little of the luck of the brush.
     const under = S => { const c = new THREE.Color(); return n => { const k = n.dot(KEY); return c.copy(S.deep[0]).lerp(S.lo[0], sstep(k, -0.85, -0.35)).lerp(S.mid[0], sstep(k, -0.4, 0.1)).lerp(S.hi[1 % S.hi.length], sstep(k, 0.15, 0.7)).multiplyScalar(0.98); }; };
@@ -403,7 +459,7 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
     const world = (Pt, n) => nW.copy(n).transformDirection(Pt.rest);      // (a part's normal as it stands at rest, in the place's own frame)
     const solid = (Pt, g, t, paint = null) => {
       const p = g.attributes.position, n = g.attributes.normal, c = g.attributes.color, v = V3(), nn = V3(), cc = new THREE.Color();
-      for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); nn.fromBufferAttribute(n, i); if (paint) cc.copy(paint(world(Pt, nn), v, nn)); else cc.fromBufferAttribute(c, i); vert(Pt, v, nn, cc, UV_SOLID, t, 1); }
+      for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); nn.fromBufferAttribute(n, i); if (paint) cc.copy(paint(world(Pt, nn), v, nn)); else cc.fromBufferAttribute(c, i); vert(Pt, v, nn, cc, UV_SOLID, t + 0.2, 1); }
     };
     // A ribbon of paint through six points lying on a form (Ps, with the form's normal at each, Ns), w wide, with the
     // brush's print on it (cell: 0 a loaded touch, 1 a dry one, 2 a round dab): close on the form where the brush set
@@ -498,12 +554,12 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
     // water's edge and round whatever sits on it, the flowers, and her hat
     const TG = T_BANK[0] + 0.25, bank = part();
     {
-      const tuft = (u, o, t) => { const h = lerp(0.03, 0.062, R()), a = R() * TAU, n = V3(Math.sin(a) * 0.5, 0.25, Math.cos(a) * 0.5 + 0.7).normalize(); stroke(bank, V3(u, h * 0.42, o), n, V3((R() - 0.5) * 0.6, 1, (R() - 0.5) * 0.3).normalize(), h, lerp(0.012, 0.02, R()), pick(GRASS, R()), t, { cell: R() < 0.5 ? 0 : 1, lift: 0, tip: 0.004, tilt: 0.5, flip: false }); };
-      for (let i = 0; i < 46; i++) { const u = lerp(-0.92, 0.78, R()); tuft(u, bankLine(u) + 0.01 + 0.07 * R() * R(), TG + 0.5 * R()); }                   // along the water
-      for (let i = 0; i < 34; i++) { const a = R() * TAU, rr = 0.25 + 0.1 * R(), u = SIT[0] + 0.02 + Math.sin(a) * rr * 1.1, o = SIT[1] - 0.03 + Math.cos(a) * rr; if (o > bankLine(u) + 0.01) tuft(u, o, TG + 0.3 + 0.5 * R()); }      // round her skirt
-      for (let i = 0; i < 20; i++) { const k = R(), u = lerp(0.36, 0.68, k) + (R() < 0.5 ? -1 : 1) * (0.1 + 0.05 * R()), o = lerp(1.5, 1.8, k) + 0.06 * (R() - 0.5); if (o > bankLine(u) + 0.01) tuft(u, o, TG + 0.4 + 0.4 * R()); }       // round the boat's bow
-      for (let i = 0; i < 46; i++) {       // the flowers: yellow, a few white, a dab each
-        const u = lerp(-0.9, 0.74, R()), o = lerp(bankLine(u) + 0.04, 1.93, R()); if (Math.hypot(u - SIT[0], (o - SIT[1]) * 1.1) < 0.3 || Math.hypot(u - HAT[0], o - HAT[1]) < 0.11) continue;
+      const tuft = (u, o, t) => { const h = lerp(0.024, 0.046, R()), a = R() * TAU, n = V3(Math.sin(a) * 0.5, 0.25, Math.cos(a) * 0.5 + 0.7).normalize(); stroke(bank, V3(u, h * 0.42, o), n, V3((R() - 0.5) * 0.6, 1, (R() - 0.5) * 0.3).normalize(), h, lerp(0.016, 0.026, R()), pick(GRASS, R()), t, { cell: R() < 0.5 ? 0 : 1, lift: 0, tip: 0.004, tilt: 0.5, flip: false }); };
+      for (let i = 0; i < 26; i++) { const u = lerp(-0.92, 0.78, R()); tuft(u, bankLine(u) + 0.01 + 0.07 * R() * R(), TG + 0.5 * R()); }                   // along the water
+      for (let i = 0; i < 22; i++) { const a = R() * TAU, rr = 0.29 + 0.08 * R(), u = SIT[0] + 0.03 + Math.sin(a) * rr * 1.1, o = SIT[1] - 0.04 + Math.cos(a) * rr; if (o > bankLine(u) + 0.01) tuft(u, o, TG + 0.3 + 0.5 * R()); }      // round her skirt
+      for (let i = 0; i < 12; i++) { const k = R(), u = lerp(0.36, 0.68, k) + (R() < 0.5 ? -1 : 1) * (0.1 + 0.05 * R()), o = lerp(1.5, 1.8, k) + 0.06 * (R() - 0.5); if (o > bankLine(u) + 0.01) tuft(u, o, TG + 0.4 + 0.4 * R()); }       // round the boat's bow
+      for (let i = 0; i < 22; i++) {       // the flowers: yellow, a few white, a dab each
+        const u = lerp(-0.9, 0.74, R()), o = lerp(bankLine(u) + 0.04, 1.93, R()); if (Math.hypot(u - SIT[0] - 0.03, (o - SIT[1]) * 1.1) < 0.36 || Math.hypot(u - HAT[0], o - HAT[1]) < 0.11) continue;
         const h = 0.012 + 0.03 * R(), s = lerp(0.016, 0.026, R());
         stroke(bank, V3(u, h, o), V3((R() - 0.5) * 0.5, 0.8, 0.5).normalize(), ACROSS, s, s * 0.95, pick(R() < 0.72 ? YEL : WHT, R()), TG + 0.5 + 0.5 * R(), { cell: 2, lift: 0, tip: 0, tilt: 0.2, ridge: 0.08 });
       }
@@ -520,7 +576,7 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
 
     // ---------------------------------------------------------- the boat: lofted (bow at +x, keel's lowest point at the
     // origin), green outside and along the rail, pale boards and dark hollows inside, two thwarts, an oar shipped
-    const TBT = 1.15, boat = part(M.boat);
+    const TBT = 1.25, boat = part(M.boat);
     {
       const len = Math.hypot(BOAT.bow[0] - BOAT.stern[0], BOAT.bow[1] - BOAT.stern[1]), o = { len, ...BOAT };
       const bs = s => o.beam / 2 * (s >= 0 ? Math.pow(Math.max(0, 1 - Math.pow(s, 2.3)), 0.7) : Math.pow(Math.max(0, 1 - Math.pow(-s, 3.0)), 0.6));
@@ -570,12 +626,17 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
       const amp = v => (0.015 + 0.075 * Math.pow(1 - v, 1.2)) * fall(v, 0.8, 0.98), fl = (v, th) => 1 + amp(v) * Fd(v, th);
       const uS = under(GY), c = new THREE.Color(), HOLLOW = col('#5a5862', 0.1);
       const paint = (nw, v, th) => c.copy(uS(nw)).lerp(HOLLOW, 0.5 * fall(Fd(v, th), -0.7, 0.05) * sstep(amp(v), 0.01, 0.05)).multiplyScalar(0.76 + 0.24 * sstep(v, 0.01, 0.12));
-      const S = loft(skirt, [ring(0, 0.1, 0.262, 0.212), ring(0.012, 0.1, 0.25, 0.2), ring(0.04, 0.094, 0.226, 0.178), ring(0.07, 0.082, 0.192, 0.148), ring(0.092, 0.058, 0.15, 0.114), ring(0.104, 0.026, 0.104, 0.084), ring(0.112, 0.004, 0.074, 0.062), ring(0.118, 0, 0.062, 0.052)], TS, paint, { ax: DIRK, flute: fl, seg: 64, rows: 16, shrink: 0.965, dark: 0.84 });
-      const tn = mixer(GY, GYH, 0.5, 0.18), n = V3();
-      for (let i = 0; i < 150; i++) {      // broad flat touches down and across the mass
+      const S = loft(skirt, [ring(0, 0.125, 0.3, 0.226), ring(0.01, 0.125, 0.29, 0.216), ring(0.034, 0.115, 0.262, 0.19), ring(0.06, 0.098, 0.22, 0.158), ring(0.083, 0.066, 0.168, 0.122), ring(0.099, 0.03, 0.114, 0.092), ring(0.11, 0.006, 0.082, 0.068), ring(0.118, 0, 0.068, 0.056)], TS, paint, { ax: DIRK, flute: fl, seg: 64, rows: 16, shrink: 0.965, dark: 0.84 });
+      const tn = mixer(GY, GYH, 0.95, 0.3), n = V3();
+      for (let i = 0; i < 120; i++) {      // broad flat touches down and across the mass
         const dv = lerp(0.2, 0.36, R()), v = lerp(0.04 + dv / 2, 0.86 - dv / 2, Math.pow(R(), 1.1)), th = R() * TAU, f = Fd(v, th); S.normal(v, th, n);
         const c2 = tn(world(skirt, n).clone(), R()); if (f < -0.35) c2.lerp(HOLLOW, 0.3);
-        S.lay(v, th, dv * (R() < 0.75 ? 1 : 0.12), (R() - 0.5) * 0.1 + (R() < 0.25 ? 0.5 : 0), lerp(0.04, 0.064, R()) * (1 - 0.3 * v), c2, when(TS + 0.05, 0.4, yOf(skirt, S.at(v, th)), 0.14), { ridge: 0.06, tilt: 0.2, tip: 0.003 });
+        S.lay(v, th, dv * (R() < 0.75 ? 1 : 0.12), (R() - 0.5) * 0.1 + (R() < 0.25 ? 0.5 : 0), lerp(0.05, 0.082, R()) * (1 - 0.3 * v), c2, when(TS + 0.05, 0.4, yOf(skirt, S.at(v, th)), 0.14), { ridge: 0.07, tilt: 0.24, tip: 0.004 });
+      }
+      for (let i = 0; i < 11; i++) {       // the folds: long dark drags from her waist out to the hem, and a pale one beside some
+        const th = i / 11 * TAU + 0.3 * (R() - 0.5), v = lerp(0.36, 0.5, R());
+        S.lay(v, th, 0.5 + 0.2 * R(), 0.12 * (R() - 0.5), lerp(0.02, 0.034, R()), pick(GY.lo, R()).clone().lerp(GY.deep[0], 0.6 * R()), TS + 0.42 + 0.1 * R(), { cell: R() < 0.5 ? 0 : 1, ridge: 0.03, tilt: 0.2, tip: 0.003, lift: 0.003 });
+        if (R() < 0.6) S.lay(v + 0.04, th + 0.11, 0.4 + 0.2 * R(), 0.1 * (R() - 0.5), lerp(0.024, 0.036, R()), pick(GY.hi, R()).clone().multiplyScalar(1.04), TS + 0.5 + 0.1 * R(), { cell: 0, ridge: 0.05, tilt: 0.2, tip: 0.003, lift: 0.003 });
       }
       for (let i = 0; i < 34; i++) { const th = R() * TAU; S.normal(0.04, th, n); S.lay(0.035, th, 0.014, 0.2 + 0.16 * R(), 0.034, tn(world(skirt, n).clone(), R()).multiplyScalar(0.8), TS + 0.05 + 0.2 * R(), { cell: 1, tip: 0.001 }); }      // its hem, on the grass
     }
@@ -584,9 +645,9 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
     // hem over the skirt), her shoulders sloping into her neck (all one form), and its stripes laid one by one
     const TJ = 1.72, torso = part(M.torso), NST = 30;
     {
-      const TR = [[-0.032, 0.076, 0.064, 0.004], [-0.014, 0.068, 0.057, 0.002], [0.012, 0.063, 0.051, 0], [0.05, 0.069, 0.055, 0.002], [0.09, 0.077, 0.058, 0.003], [0.118, 0.082, 0.052, 0.001], [0.136, 0.066, 0.042, 0], [0.148, 0.038, 0.031, 0.002], [0.16, 0.022, 0.022, 0.004], [0.174, 0.0175, 0.0175, 0.004]];
+      const TR = [[-0.042, 0.097, 0.078, 0.012], [-0.022, 0.093, 0.073, 0.01], [0.012, 0.087, 0.066, 0.006], [0.05, 0.083, 0.061, 0.003], [0.082, 0.078, 0.056, 0.002], [0.104, 0.072, 0.05, 0.001], [0.122, 0.06, 0.043, 0], [0.137, 0.04, 0.034, 0.002], [0.149, 0.026, 0.025, 0.004], [0.158, 0.0195, 0.0195, 0.004], [0.172, 0.0185, 0.0185, 0.004]];
       const uJ = under(JK), uF = under(FL), c = new THREE.Color(), c2 = new THREE.Color();
-      const paint = (nw, v, th, p) => c.copy(uJ(nw)).lerp(c2.copy(uF(nw)), sstep(p.y, 0.147, 0.153));
+      const paint = (nw, v, th, p) => c.copy(uJ(nw)).lerp(c2.copy(uF(nw)), sstep(p.y, 0.146, 0.152));
       const S = loft(torso, TR.map(([y, r1, r2, z]) => ({ y, c: [0, z], r1, r2 })), TJ - 0.12, paint, { seg: 40, rows: 26, shrink: 0.93, dark: 0.82 });
       // the stripes: each a broad band or a narrow line from the shoulder down to the hem, in three overlapping lengths
       // that do not quite agree, closer together at the waist as the cloth is; never two alike side by side
@@ -611,49 +672,62 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
     }
 
     // ---------------------------------------------------------- her arms: striped sleeves, her hands together in her lap
-    const TA = 2.2, stripeTn = (nw, r, ph) => { const ks = ['w', 'p', 'w', 'b', 'w', 'g', 'p', 'd', 'w', 'b'], k = ks[Math.floor(((ph / TAU + 1) % 1) * ks.length) % ks.length]; return pick(STRIPE[k], r).clone().multiplyScalar(0.8 + 0.2 * sstep(nw.dot(KEY), -0.5, 0.5)); };
+    const TA = 2.2, stripeTn = (nw, r, ph) => { const ks = ['w', 'p', 'w', 'b', 'w', 'g', 'p', 'w', 'b', 'g'], k = ks[Math.floor(((ph / TAU + 1) % 1) * ks.length) % ks.length]; return pick(STRIPE[k], r).clone().multiplyScalar(0.8 + 0.2 * sstep(nw.dot(KEY), -0.5, 0.5)); };
     const bone = (S, dir) => new THREE.Matrix4().compose(V3(...S), new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), dir.clone().normalize()), V3(1, 1, 1));
     const AR = this.AR = {};
     const arm = (key, S, d1, d2) => {
       const el = V3(...S).addScaledVector(d1.clone().normalize(), L1);
       AR[key + 'u'] = bone(S, d1); AR[key + 'f'] = bone([el.x, el.y, el.z], d2);
       const up = part(new THREE.Matrix4().multiplyMatrices(M.torso, AR[key + 'u'])), fo = part(new THREE.Matrix4().multiplyMatrices(M.torso, AR[key + 'f']));
-      tube(up, [[0.026, -0.004], [0.0285, 0.03], [0.0265, 0.075], [0.0235, 0.11], [0.0225, L1]], JK, TA, 34, stripeTn, { l: [0.07, 0.11], w: [0.013, 0.02], tilt: 0.22, tip: 0.002, flip: false });
+      tube(up, [[0.016, 0.004], [0.024, 0.034], [0.0255, 0.075], [0.024, 0.11], [0.0225, L1]], JK, TA, 30, stripeTn, { l: [0.07, 0.11], w: [0.013, 0.02], tilt: 0.22, tip: 0.002, flip: false });
       tube(fo, [[0.0225, 0], [0.0235, 0.03], [0.0215, 0.07], [0.0185, 0.105], [0.0165, 0.116]], JK, TA + 0.08, 30, stripeTn, { l: [0.06, 0.1], w: [0.012, 0.018], tilt: 0.22, tip: 0.002, flip: false });
       const uF = under(FL), c = new THREE.Color(), tf = mixer(FL, FLH, 0.3, 0.07);
       ball(fo, [0, L2 - 0.004, 0.001], [0.0135, 0.021, 0.0105], nw => c.copy(uF(nw)), TA + 0.2, { detail: 3, dark: 0.95 });      // her hand
       coat(fo, [0, L2 - 0.004, 0.001], [0.0135, 0.021, 0.0105], 20, tf, TA + 0.22, { l: [0.012, 0.02], w: [0.008, 0.012], cell: 2, tip: 0.0008, ridge: 0.03, tilt: 0.16, span: 0.06 });
       return [up, fo];
     };
-    const [ru, rf] = arm('r', SH_R, V3(-0.1, -0.93, 0.36), V3(0.42, -0.2, 0.86)), [lu, lf] = arm('l', SH_L, V3(0.12, -0.93, 0.34), V3(-0.4, -0.22, 0.86));
+    const [ru, rf] = arm('r', SH_R, V3(-0.26, -0.86, 0.44), V3(0.44, -0.26, 0.86)), [lu, lf] = arm('l', SH_L, V3(0.27, -0.86, 0.43), V3(-0.42, -0.28, 0.86));
 
     // ---------------------------------------------------------- her head: no drawn feature (the shade her eyes lie in, a
     // cheek, the far side lost); her hair dark, drawn back and up into a knot
     const TH_ = 2.36, head = part(M.head);
-    { const NK = { hi: FL.mid, mid: FL.mid, lo: FL.lo, deep: FL.deep }; tube(head, [[0.0168, -0.018], [0.016, 0.0], [0.0155, 0.024]], NK, TH_, 14, mixer(NK, FLH, 0.25, 0.06), { l: [0.02, 0.03], w: [0.01, 0.014], cell: 2, tip: 0.001, tilt: 0.2, ridge: 0.03, dark: 0.95 }); }
+    { const NK = { hi: FL.mid, mid: FL.mid, lo: FL.lo, deep: FL.deep }; tube(head, [[0.0195, -0.018], [0.0185, 0.0], [0.0175, 0.024]], NK, TH_, 14, mixer(NK, FLH, 0.25, 0.06), { l: [0.02, 0.03], w: [0.01, 0.014], cell: 2, tip: 0.001, tilt: 0.2, ridge: 0.03, dark: 0.95 }); }
     {
       const uF = under(FL), uH = under(HR), c = new THREE.Color(), c3 = new THREE.Color();
-      const SKc = [0, 0.058, 0.004], SKr = [0.0335, 0.041, 0.036], HRc = [0, 0.071, -0.008], HRr = [0.0385, 0.037, 0.041], KNc = [0, 0.092, -0.036], KNr = [0.025, 0.022, 0.025];
-      const hairy = n => n.y > 0.56 - 0.25 * n.z || n.z < -0.02 || (Math.abs(n.x) > 0.8 && n.y > -0.3 && n.z < 0.4);
+      const SKc = [0, 0.058, 0.004], SKr = [0.0335, 0.041, 0.036], HRc = [0, 0.073, -0.011], HRr = [0.0385, 0.037, 0.041], KNc = [0, 0.092, -0.036], KNr = [0.025, 0.022, 0.025];
+      const hairy = n => n.y > 0.68 - 0.25 * n.z || n.z < -0.02 || (Math.abs(n.x) > 0.8 && n.y > -0.3 && n.z < 0.4);
       const gz = (n, x, y, z, rx, ry = rx) => { const k = 1 / Math.hypot(x, y, z), dx = (n.x - x * k) / rx, dy = (n.y - y * k) / ry, dz = (n.z - z * k) / rx; return Math.exp(-(dx * dx + dy * dy + dz * dz)); };
-      // her face is turned from the light: flat warm tone, darker under the brow and on the side away from us
+      // her face is turned from the light: a flat warm tone, the shade her eyes lie in, a cheek, the far side lost
       const face = (nw, v, nn) => {
         if (hairy(nn) && nn.z < 0.3) return c.copy(uH(nw));
-        c.copy(FL.mid[0]).lerp(FL.hi[0], 0.5 * sstep(nw.dot(KEY), -0.2, 0.6)).lerp(LOST, 0.42 * sstep(nn.x, 0.05, 0.85));      // (her left side, the far one, lost)
-        c.lerp(SOCK, 0.5 * gz(nn, 0, 0.16, 0.95, 0.55, 0.1));                                           // the shade under her brow, right across
-        for (const sx of [-1, 1]) c.lerp(SOCK, 0.7 * gz(nn, sx * 0.4, 0.08, 0.9, 0.24, 0.17)).lerp(EYE, 0.72 * gz(nn, sx * 0.4, 0.05, 0.9, 0.13, 0.075)).lerp(CHEEK, 0.24 * gz(nn, sx * 0.56, -0.3, 0.8, 0.2));
-        c.lerp(SOCK, 0.3 * gz(nn, 0.2, -0.1, 0.96, 0.09)).lerp(SOCK, 0.34 * gz(nn, 0.02, -0.31, 0.95, 0.1, 0.05));      // beside her nose, and under it
-        c.lerp(ROSE, 0.42 * gz(nn, 0, -0.52, 0.86, 0.15, 0.055)).lerp(SOCK, 0.26 * gz(nn, 0, -0.7, 0.72, 0.13, 0.08));  // her mouth, barely; the shade under her lip
-        return c.lerp(c3.copy(uH(nw)), sstep(nn.y - (0.56 - 0.25 * nn.z), -0.07, 0.05));
+        c.copy(FL.mid[0]).lerp(FL.hi[0], 0.6 * sstep(nw.dot(KEY), -0.3, 0.5)).lerp(LOST, 0.5 * sstep(nn.x, 0.05, 0.85));      // (her left side, the far one, lost)
+        c.lerp(SOCK, 0.6 * gz(nn, 0, 0.14, 0.95, 0.6, 0.12));                                           // the shade under her brow, right across
+        for (const sx of [-1, 1]) c.lerp(SOCK, 0.8 * gz(nn, sx * 0.4, 0.08, 0.9, 0.26, 0.18)).lerp(EYE, 0.4 * gz(nn, sx * 0.4, 0.07, 0.9, 0.24, 0.09)).lerp(CHEEK, 0.5 * gz(nn, sx * 0.56, -0.3, 0.8, 0.22));
+        c.lerp(CHEEK, 0.35 * gz(nn, 0, 0.42, 0.9, 0.3, 0.14));                                          // her forehead, under the hair
+        c.lerp(SOCK, 0.45 * gz(nn, 0.2, -0.1, 0.96, 0.1)).lerp(SOCK, 0.4 * gz(nn, 0.02, -0.36, 0.93, 0.11, 0.055));    // beside her nose, and under it
+        c.lerp(ROSE, 0.6 * gz(nn, 0, -0.54, 0.84, 0.16, 0.06)).lerp(SOCK, 0.4 * gz(nn, 0, -0.7, 0.72, 0.14, 0.07));     // her mouth, barely; the shade under her lip
+        return c.lerp(c3.copy(uH(nw)), sstep(nn.y - (0.68 - 0.25 * nn.z), -0.07, 0.05));
       };
       ball(head, SKc, SKr, face, TH_ + 0.02, { detail: 6, shrink: 0.95, dark: 0.95 });
-      ball(head, [0, 0.0478, 0.0352], [0.0036, 0.0072, 0.0042], nw => c.copy(FL.mid[0]), TH_ + 0.06, { detail: 2, shrink: 1, dark: 0.92 });      // her nose
-      const visage = (nw, r, nn) => face(nw, null, nn).clone().multiplyScalar(1 + (r - 0.5) * 0.06);
-      coat(head, SKc, SKr, 300, visage, TH_ + 0.1, { l: [0.01, 0.017], w: [0.009, 0.013], keep: (p, n) => !hairy(n) && n.z > -0.15 && n.y - (0.56 - 0.25 * n.z) < 0.02, flow: V3(0.2, -1, 0), jit: 1.4, cell: 2, tip: 0.0008, lift: 0.0012, ridge: 0.02, tilt: 0.14, span: 0.1 });
+      ball(head, [0, 0.0478, 0.0352], [0.0038, 0.0078, 0.0046], nw => c.copy(FL.mid[0]), TH_ + 0.06, { detail: 2, shrink: 1, dark: 0.94 });      // her nose
+      const visage = (nw, r, nn) => face(nw, null, nn).clone().multiplyScalar(1 + (r - 0.5) * 0.05);
+      coat(head, SKc, SKr, 190, visage, TH_ + 0.1, { l: [0.011, 0.018], w: [0.01, 0.014], keep: (p, n) => !hairy(n) && n.z > -0.15 && n.y - (0.68 - 0.25 * n.z) < 0.02, flow: V3(0.2, -1, 0), jit: 1.4, cell: 2, tip: 0.0008, lift: 0.0012, ridge: 0.02, tilt: 0.14, span: 0.1 });
+      // and over that its planes, a flat touch each (none of them a feature drawn): the shade across her eyes, her
+      // cheeks, the light down her nose and the dark under it, her mouth, her chin
+      const onSkull = (x, y, z) => { const k = 1 / Math.hypot(x, y, z), u = V3(x * k, y * k, z * k); return [V3(SKc[0] + u.x * SKr[0], SKc[1] + u.y * SKr[1], SKc[2] + u.z * SKr[2]), V3(u.x / SKr[0], u.y / SKr[1], u.z / SKr[2]).normalize()]; };
+      const plane = (x, y, z, dir, l, w, colr, dt, o = {}) => { const [p, n] = onSkull(x, y, z), lit = 0.9 + 0.16 * sstep(world(head, n).dot(KEY), -0.6, 0.3); stroke(head, p, n, dir, l, w, colr.clone().multiplyScalar(lit), TH_ + 0.22 + dt, { cell: 2, lift: 0.0018, tip: 0.0005, ridge: 0.02, tilt: 0.08, flip: false, ...o }); };
+      for (const sx of [-1, 1]) {
+        plane(sx * 0.2, 0.4, 0.9, ACROSS, 0.02, 0.012, FL.hi[0], 0);
+        plane(sx * 0.6, -0.3, 0.75, V3(sx * 0.3, -1, 0), 0.019, 0.0135, CHEEK, 0.05);
+      }
+      { const Ps = [], Ns = []; for (let k = 0; k < 6; k++) { const [p, n] = onSkull(lerp(-0.54, 0.54, k / 5), 0.09, 0.9); Ps.push(p); Ns.push(n); } ribbon(head, Ps, Ns, 0.0115, SOCK.clone().lerp(FL.lo[0], 0.35), TH_ + 0.25, { cell: 1, lift: 0.0018, tip: 0.0004, ridge: 0.02, tilt: 0.06, flip: false }); }
+      stroke(head, V3(0, 0.0492, 0.0402), V3(0, 0.15, 1).normalize(), DOWN, 0.015, 0.0058, FL.hi[1], TH_ + 0.3, { cell: 0, lift: 0.0006, tip: 0.0004, ridge: 0.02, tilt: 0.06, flip: false });
+      plane(0, -0.55, 0.84, ACROSS, 0.011, 0.0046, ROSE.clone().lerp(FL.mid[0], 0.25), 0.12, { cell: 0 });
+      plane(0, -0.86, 0.52, ACROSS, 0.013, 0.008, CHEEK, 0.14);
       // her hair: a dark mass close to her head, and the knot behind and above; a few warmer touches where the light is
       ball(head, HRc, HRr, nw => c.copy(uH(nw)), TH_ + 0.04, { detail: 3 });
       ball(head, KNc, KNr, nw => c.copy(uH(nw)), TH_ + 0.1, { detail: 3 });
-      const th = mixer(HR, HRH, 0.5, 0.3), HK = (p, n) => p.z < 0.006 || p.y > 0.098;
+      const th = mixer(HR, HRH, 0.5, 0.3), HK = (p, n) => p.z < 0.0 || p.y > 0.103;
       coat(head, HRc, HRr, 84, th, TH_ + 0.08, { l: [0.024, 0.038], w: [0.014, 0.021], grow: 1.02, keep: HK, flow: V3(0.1, 0.5, -1), jit: 0.9, tip: 0.003, span: 0.1 });
       coat(head, KNc, KNr, 30, th, TH_ + 0.16, { l: [0.02, 0.03], w: [0.012, 0.017], flow: ACROSS, jit: 1.6, tip: 0.004, span: 0.08 });
       coat(head, HRc, HRr, 18, (n, r) => pick(HAIR_LIT, r).clone(), TH_ + 0.22, { l: [0.016, 0.026], w: [0.006, 0.009], grow: 1.04, keep: (p, n) => HK(p, n) && world(head, n).dot(KEY) > 0.4, flow: V3(0.2, 0.5, -0.8), jit: 0.8, cell: 1, tip: 0.003, span: 0.06 });
@@ -701,7 +775,7 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
   pose(yaw, pitch, breath, roll) {
     const V = this.V, M = this.M;
     const eul = (m, x, y, z, yw, pt, rl) => m.compose(V.pos.set(x, y, z), V.q.setFromEuler(V.e.set(pt, yw, rl, 'YXZ')), V.one);
-    eul(V.l, WAIST[0], WAIST[1], WAIST[2], 0.06, 0.07 + 0.012 * breath, -0.03); M.torso.multiplyMatrices(this.FIG, V.l);
+    eul(V.l, WAIST[0], WAIST[1], WAIST[2], 0.06, 0.15 + 0.012 * breath, -0.03); M.torso.multiplyMatrices(this.FIG, V.l);
     eul(V.l, NECK[0], NECK[1], NECK[2], yaw, pitch, 0.03); M.head.multiplyMatrices(M.torso, V.l);
     // the boat: its keel along stern to bow, afloat at the stern, its bow up on the grass
     const s = BOAT.stern, b = BOAT.bow, mx = (s[0] + b[0]) / 2, mz = (s[1] + b[1]) / 2, yw = Math.atan2(-(b[1] - s[1]), b[0] - s[0]);
@@ -756,8 +830,8 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
     if (showing) this.sound(L, c0, c, calm);
 
     // ---- the river is laid; the bank; she is painted (and all of it unpainted again, going back)
-    const un = back ? 1 - ease.inOut(ramp(Rr, 0.3, 0.86)) : 1;                       // the near bank's paint
-    const front = back ? lerp(1.75, -0.2, ease.inOut(ramp(Rr, 0.5, 1.0))) : lerp(-0.1, 1.75, ease.out(ramp(c, 0, T_WATER)));
+    const un = back ? 1 - ease.inOut(ramp(Rr, 0.22, 0.62)) : 1;                      // the near bank's paint (all gone before the river draws back past it)
+    const front = back ? lerp(1.95, -0.2, ease.inOut(ramp(Rr, 0.5, 1.0))) : lerp(-0.1, 1.95, ramp(c, 0, T_WATER));
     gu.uFront.value = front; gu.uT.value = tw;
     gu.uBankK.value = back ? un : ease.smooth(ramp(c, T_BANK[0], T_BANK[1]));
     this.ru.uT.value = back ? Math.min(this.cBack, T_BUILT + 0.2) * un : c;
@@ -776,9 +850,9 @@ vec4 lay(float s, float v, vec4 rg) { if (s < 0.002 || s > 0.998 || v < 0.006 ||
       // what it does to the water: a shiver over its image before it lifts and while it does; then, as it stands, a
       // ripple going out from its shore
       const u0 = -HALF + 2 * HALF * p.s0, u1 = -HALF + 2 * HALF * p.s1, pre = ramp(c, p.t0 - 0.45, p.t0);
-      let oL = p.o + p.h * 0.5, a = 0;
-      if (back) { a = 0.02 * Math.sin(Math.PI * down); oL = p.o + p.h * 0.5; }
-      else if (k < 1) { a = 0.022 * pre * (1 - 0.6 * k); oL = p.o + p.h * (0.55 - 0.3 * k); }
+      let oL = p.o + p.h * STR * 0.5, a = 0;
+      if (back) { a = 0.02 * Math.sin(Math.PI * down); oL = p.o + p.h * STR * 0.5; }
+      else if (k < 1) { a = 0.022 * pre * (1 - 0.6 * k); oL = p.o + p.h * STR * (0.55 - 0.3 * k); }
       else { oL = p.o + 0.1 + RIP_V * after; a = 0.03 * Math.exp(-after * 1.5) * fall(oL, 1.0, 1.45); }
       pcs[i].set(u0, u1, oL, a * (calm ? 0.5 : 1));
       if (k > 0) lastUp = i;
