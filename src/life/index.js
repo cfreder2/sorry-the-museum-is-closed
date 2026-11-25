@@ -72,3 +72,4 @@ import './27987-jacques-and-berthe-lipchitz.js'; // 391  Modigliani, Jacques and
 import './109926-window-overlooking-the-woods.js'; // 244  Vuillard, Landscape: Window Overlooking the Woods: verdure
 import './28849-city-park.js';       // 161  Chase, A City Park: far
 import './65916-movement.js';         // 392  Hartley, Movement: orbit
+import './153798-woman-in-a-garden.js'; // 201  Morisot, Woman in a Garden: fan
