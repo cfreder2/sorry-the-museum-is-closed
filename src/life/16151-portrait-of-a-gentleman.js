@@ -440,3 +440,236 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
   }
 }
 // </paint>
+
+// ---------------------------------------------------------------- the window in the gallery wall
+const X0 = -0.66, X1 = -0.16, Y0 = 0.26, Y1 = 1.10;      // the opening: metres along the wall from the picture's middle, and up from the floor
+const WH = 1697, WXR = 907, S = (Y1 - Y0) / WH;           // the picture's window in its own measure (sill to top; its right jamb); metres to one point of it
+const THICK = 0.09;                                       // the wall's thickness, as the window shows it
+const EYE0 = [(X0 + X1) / 2, 0.8, 2.0];                   // where you stand to see the country exactly as he composed it
+const DEEP = { sky: 0.9, far: 0.62, wood: 0.44, land: 0.3, bank: 0.11, tree: 0.05 };    // how far behind the wall each sheet lies (it is a shallow box, not a mile)
+const KEY = 0.6;                                         // how bright the country is in the gallery's light
+const TREE_AT = [391, 10], TREE_K = 1.15;                // where the thin tree's sheet sits in the window, and its size
+const NS = 14;                                            // the pieces that move: farm, man, two cattle and their heads, herdsman and his arm; then the two birds, three pieces each
+const TAKE = 4.0, LOOP = 32;                              // the birds take wing at 4 s, and again every 32 s
+// their flight, as [seconds after taking wing, across, down, size, depth]: up from the water and across the window,
+// out past its left side; then small and far, over the hill to the mountains; and much later home again
+const OUT = [[0, 590, 1570, 0.2, 0.11], [0.35, 548, 1480, 0.38, 0.1], [0.7, 462, 1280, 0.8, 0.085], [1.0, 360, 1020, 1.25, 0.07], [1.35, 205, 740, 1.4, 0.07], [1.75, -60, 470, 1.3, 0.07], [2.15, -430, 300, 1.2, 0.07]];
+const AWAY = [[2.2, -470, 676, 0.36, 0.4], [2.6, -260, 700, 0.34, 0.4], [3.3, 110, 742, 0.28, 0.45], [4.0, 395, 800, 0.22, 0.5], [5.2, 615, 878, 0.13, 0.58], [6.6, 705, 915, 0.06, 0.62]];
+const HOME = [[17, 1010, 850, 0.06, 0.6], [18.2, 830, 950, 0.11, 0.5], [19.4, 700, 1230, 0.17, 0.3], [20.4, 615, 1490, 0.2, 0.15], [21, 590, 1570, 0.2, 0.11]];
+const BIRDS = [{ lag: 0, dx: 0, dy: 0, ax: 0, ay: 0, ph: 0, fx: 1 }, { lag: 0.28, dx: 35, dy: 28, ax: -44, ay: 20, ph: 1.9, fx: -1 }];
+const curveAt = (K, t, into) => {
+  let i = 0; while (i < K.length - 2 && t > K[i + 1][0]) i++;
+  const a = K[Math.max(0, i - 1)], b = K[i], c = K[i + 1], d = K[Math.min(K.length - 1, i + 2)], k = clamp01((t - b[0]) / (c[0] - b[0]));
+  for (let j = 1; j < 5; j++) into[j - 1] = 0.5 * (2 * b[j] + (c[j] - a[j]) * k + (2 * a[j] - 5 * b[j] + 4 * c[j] - d[j]) * k * k + (3 * b[j] - a[j] - 3 * c[j] + d[j]) * k * k * k);
+  return into;
+};
+
+lifeFor(16151, {
+  title: /^Portrait of a Gentleman/,
+  word: 'beyond',
+  // (a work under 1.2 m high: the kit keeps the whole of it in view; the window is low on the wall, beside and under it)
+  stage: { out: 0.6, half: 0.75, cam: { dist: 1.9, side: -0.41, height: 0.8, fov: 60, lookU: -0.3, lookOut: 0, lookH: 1.0, floorOut: 0.05 } },
+  wake: 2.4, ret: 2.4,
+  linger: { near: 3.5, max: 30 },
+
+  build(L) {
+    const P = L.pal;
+    const lin = h => { const c = new THREE.Color(h); return `vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)})`; };
+    // (L.pal.near gives a colour in three.js's working space; the canvas wants it as it is written)
+    const hexCol = h => { const c = P.near(h, 0.06); return [Math.round(255 * Math.pow(c.r, 1 / 2.2)), Math.round(255 * Math.pow(c.g, 1 / 2.2)), Math.round(255 * Math.pow(c.b, 1 / 2.2))]; };
+    this.B = new THREE.Matrix4().makeBasis(new THREE.Vector3(L.tx, 0, L.tz), new THREE.Vector3(0, 1, 0), new THREE.Vector3(L.nx, 0, L.nz)).setPosition(L.floor(0, 0));
+    this.Binv = this.B.clone().invert();
+    const K = LOWMEM ? 0.5 : 1, R = rng(16151);
+    let land = null;
+    const atlas = canvasTexture(AW * K, AH * K, g => { land = canvasTexture(1024 * K, 1024 * K, g2 => paintView(g, K, hexCol, R, CELL, g2, LAND, GUT)); });
+    for (const t of [atlas, land]) { t.premultiplyAlpha = true; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 4; t.needsUpdate = true; }
+    const zq = -L.wall + 0.004, geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([X0, Y0, zq, X1, Y0, zq, X1, Y1, zq, X0, Y1, zq], 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2)); geo.setIndex([0, 1, 2, 0, 2, 3]);
+    const u = this.u = {
+      uInv: { value: new THREE.Matrix4() }, uT: { value: 0 }, uTop: { value: Y0 }, uKey: { value: KEY }, uSway: { value: 1 }, uLand: { value: land },
+      uSA: { value: new Float32Array(NS * 4) }, uSM: { value: new Float32Array(NS * 4) }, uSC: { value: new Float32Array(NS * 4) }, uSP: { value: new Float32Array(NS * 2) },
+    };
+    const f = (x, n = 1) => x.toFixed(n), row = n => { const [r0, r1, y0, y1] = LAND[n]; return `vec4(${f(r0 + GUT)}, ${f(r1)}, ${f(y0)}, ${f(y1)})`; };
+    const SKY = [[20, '#2b4d43'], [150, '#306665'], [300, '#4c8486'], [450, '#6da4a4'], [600, '#8db7b1'], [700, '#a2c4ba'], [780, '#afc8b9'], [880, '#cdd3b8'], [945, '#e3dcb7']];
+    const m = new THREE.MeshBasicMaterial({ map: atlas, transparent: true, depthWrite: false, fog: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
+    m.landTex = land;
+    m.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, u);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 uInv; varying vec3 vLoc; varying vec3 vEye;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vLoc = transformed; vEye = (uInv * vec4(cameraPosition, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_pars_fragment>', `#include <map_pars_fragment>
+uniform float uT, uTop, uKey, uSway; uniform sampler2D uLand;
+uniform vec4 uSA[${NS}]; uniform vec4 uSM[${NS}]; uniform vec4 uSC[${NS}]; uniform vec2 uSP[${NS}];
+varying vec3 vLoc; varying vec3 vEye;
+vec3 gvOver(vec3 c, vec4 s) { return s.rgb + c * (1.0 - s.a); }
+float gvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float gvNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gvHash(i), gvHash(i + vec2(1.0, 0.0)), f.x), mix(gvHash(i + vec2(0.0, 1.0)), gvHash(i + vec2(1.0, 1.0)), f.x), f.y); }
+// his sky, from the deep blue-green at the top of the window down to the cream along the hills
+vec3 gvSky(vec2 q) {
+  vec3 c = ${lin(SKY[0][1])};
+${SKY.slice(1).map((s, i) => `  c = mix(c, ${lin(s[1])}, clamp((q.y - ${f(SKY[i][0])}) / ${f(s[0] - SKY[i][0])}, 0.0, 1.0));`).join('\n')}
+  return c * (0.95 + 0.07 * gvNoise(q / 23.0) + 0.04 * gvNoise(q / 6.0));
+}
+// a strip of the land, where the eye's line meets its sheet: it goes on, mirrored, past either end
+vec4 gvStrip(vec2 q, vec4 r) {
+  float tx = (q.x + 140.0) / 1198.0; tx = 1.0 - abs(mod(tx, 2.0) - 1.0);
+  float ty = (q.y - r.z) / (r.w - r.z);
+  float v = clamp(mix(r.x, r.y, ty), r.x + 0.5, r.y - 2.0) / 1024.0;
+  return texture2D(uLand, vec2(clamp(tx, 0.001, 0.999), 1.0 - v)) * step(0.0, ty);
+}
+// one of the pieces that move
+vec4 gvPiece(int i, vec2 Pw, vec2 D) {
+  vec4 a = uSA[i], mm = uSM[i], c = uSC[i];
+  vec2 d = Pw + D * a.z - a.xy, l = vec2(dot(mm.xy, d), dot(mm.zw, d)) + uSP[i];
+  float k = a.w * step(0.5, l.x) * step(l.x, c.z - 0.5) * step(0.5, l.y) * step(l.y, c.w - 0.5);
+  vec2 uv = (c.xy + clamp(l, vec2(0.5), c.zw - 0.5)) / vec2(${f(AW)}, ${f(AH)});
+  return texture2D(map, vec2(uv.x, 1.0 - uv.y)) * k;
+}`).replace('#include <map_fragment>', `
+  {
+    vec2 P = vLoc.xy;
+    float ez = max(vEye.z - vLoc.z, 0.05);
+    vec2 sl = (P - vEye.xy) / ez;                                   // the slope of the eye's line as it goes into the wall
+    vec2 dm = sl - (P - vec2(${f(EYE0[0], 3)}, ${f(EYE0[1], 3)})) / ${f(EYE0[2], 3)};
+    dm /= sqrt(1.0 + dot(dm, dm) / 0.36);                           // (from far to one side the country slides only so far)
+    vec2 D = vec2(dm.x, -dm.y * 0.3) / ${S.toFixed(7)};             // how far a sheet slides, in the picture's measure, for each metre it lies behind the wall
+    vec2 Pw = vec2((P.x - ${f(X1, 3)}) / ${S.toFixed(7)} + ${f(WXR)}, (${f(Y1, 3)} - P.y) / ${S.toFixed(7)});
+    vec3 c = gvSky(Pw + D * ${f(DEEP.sky, 2)});
+    c = gvOver(c, gvStrip(Pw + D * ${f(DEEP.far, 2)}, ${row('far')}));
+    c = gvOver(c, gvStrip(Pw + D * ${f(DEEP.wood, 2)}, ${row('wood')}));
+    c = gvOver(c, gvStrip(Pw + D * ${f(DEEP.land, 2)}, ${row('ground')}));
+    for (int i = 0; i < 8; i++) c = gvOver(c, gvPiece(i, Pw, D));
+    c = gvOver(c, gvStrip(Pw + D * ${f(DEEP.bank, 2)}, ${row('bank')}));
+    for (int i = 8; i < ${NS}; i++) c = gvOver(c, gvPiece(i, Pw, D));
+    {                                                               // the thin tree, nearest of all: its leaves stir, the top most
+      vec2 l = (Pw + D * ${f(DEEP.tree, 2)} - vec2(${f(TREE_AT[0])}, ${f(TREE_AT[1])})) / ${f(TREE_K, 3)};
+      float hk = smoothstep(1000.0, 80.0, l.y) * uSway;
+      l.x += hk * (4.5 * sin(uT * 1.1 + l.y * 0.004) + 2.2 * sin(uT * 2.7 + l.x * 0.021 + l.y * 0.013));
+      l.y += hk * 1.6 * sin(uT * 2.1 + l.x * 0.03);
+      float k = step(0.5, l.x) * step(l.x, ${f(CELL.tree[2] - 0.5)}) * step(0.5, l.y);
+      vec2 uv = clamp(l, vec2(0.5), vec2(${f(CELL.tree[2] - 0.5)}, ${f(CELL.tree[3] - 2)})) / vec2(${f(AW)}, ${f(AH)});
+      c = gvOver(c, texture2D(map, vec2(uv.x, 1.0 - uv.y)) * k);
+    }
+    // the wall's own thickness round the opening: jambs, sill and head, in the dark grey-brown of his room
+    vec2 th = sl * ${f(THICK, 3)}, lo = vec2(${f(X0, 3)}, ${f(Y0, 3)}), hi = vec2(${f(X1, 3)}, uTop);
+    float sx = th.x > 0.0 ? (hi.x - P.x) / max(th.x, 1.0e-5) : (P.x - lo.x) / max(-th.x, 1.0e-5);
+    float sy = th.y > 0.0 ? (hi.y - P.y) / max(th.y, 1.0e-5) : (P.y - lo.y) / max(-th.y, 1.0e-5);
+    float s = min(sx, sy);
+    vec3 rc = sx < sy ? (th.x > 0.0 ? ${lin('#4b4231')} : ${lin('#28231a')}) : (th.y > 0.0 ? ${lin('#1e1a13')} : ${lin('#5a4f39')});
+    rc *= (1.0 - 0.32 * clamp(s, 0.0, 1.0)) * (0.92 + 0.16 * gvNoise(P * 160.0));
+    c *= 1.0 - 0.3 * exp(-max(s - 1.0, 0.0) * 5.0);                // (a little of the wall's shade on the country, close in under its edges)
+    c = mix(c, rc, 1.0 - smoothstep(1.0 - clamp(fwidth(s) * 1.5, 0.0, 0.5), 1.0, s));
+    float a = 1.0 - smoothstep(uTop - fwidth(P.y) * 1.5, uTop, P.y);
+    diffuseColor = vec4(c * uKey * a, a);
+  }
+  diffuseColor *= lifeK;`);
+    };
+    m.customProgramCacheKey = () => 'ghirlandaio-window-1';
+    const mesh = this.mesh = new THREE.Mesh(geo, m);
+    mesh.matrixAutoUpdate = false; mesh.matrix.copy(this.B); mesh.matrixWorldNeedsUpdate = true; mesh.renderOrder = 6; mesh.visible = false; mesh.frustumCulled = false;
+    L.add(mesh);
+    this.tmp = [0, 0, 0, 0]; this.tmp2 = [0, 0, 0, 0];
+    this.clear();
+  },
+
+  hide() { if (this.mesh) this.mesh.visible = false; },
+  clear() { this.open = 0; this.T = 0; this.told = false; this.beat = [0, 0]; this.gust = 0; },
+  start(L, resumed) {
+    if (resumed) return;
+    this.clear();
+    const v = L.voice(); if (!L.quiet && v.ctx) noise(v, 0, { d: 2.2, vol: L.calm ? 0.004 : 0.008, lp: 300, attack: 0.6 });      // the air of outdoors, coming in
+  },
+  back() {},
+  end() { this.hide(); },
+  reset() { this.hide(); this.clear(); },
+
+  // put piece i: a cell of the sheet with its point (px, py) at (x, y) of the window, k of the window's points to one
+  // of its own (ky up and down), turned by th about that point, mirrored if fx is -1
+  put(i, name, x, y, deep, a, k, th = 0, px = 0, py = 0, fx = 1, ky = k) {
+    const c = Math.cos(th), s = Math.sin(th);
+    this.set(i, name, x, y, deep, a, fx * c / k, fx * s / k, -s / ky, c / ky, px, py);
+  },
+  set(i, name, x, y, deep, a, m00, m01, m10, m11, px, py) {
+    const u = this.u, C = CELL[name], j = i * 4;
+    u.uSA.value.set([x, y, deep, a], j); u.uSM.value.set([m00, m01, m10, m11], j); u.uSC.value.set(C, j); u.uSP.value[i * 2] = px; u.uSP.value[i * 2 + 1] = py;
+  },
+
+  update(L, dt) {
+    const ph = L.phase, showing = ph === 'wake' || ph === 'play', linger = ph === 'linger', back = ph === 'return';
+    if (!showing && !linger && !back) { this.hide(); return; }
+    const calm = L.calm, u = this.u, sp = calm ? 0.6 : 1, voice = L.voice(), loud = !L.quiet && voice.ctx;
+    // ---- the opening rises from the sill (and comes down again, from wherever it is)
+    this.open = back ? Math.max(0, this.open - dt / Math.max(0.6, L.retDur - 0.25)) : Math.min(1, this.open + dt * sp / 2.15);
+    u.uTop.value = lerp(Y0, Y1, ease.inOut(this.open));
+    this.T += dt * sp;
+    const T = this.T; u.uT.value = T; u.uInv.value.copy(this.Binv);
+    this.mesh.visible = this.open > 0.002;
+
+    // ---- the farm, and the small life of the yard
+    const DL = DEEP.land;
+    this.put(0, 'farm', 40, 1388, DL, 1, 0.743, 0, 30, 480, 1, 0.948);
+    { // the man with the straw on his shoulder goes along the front of the stack and in under the shed
+      const p = ((T - 1.5 + 45) % 45) / 15, x = lerp(58, 236, clamp01(p)), y = lerp(1402, 1393, clamp01(p));
+      this.put(1, Math.floor(T * 3.1) % 2 ? 'man1' : 'man2', x, y, DL, ramp(p, 0, 0.06) * (1 - ramp(p, 0.86, 1)), 0.3, 0, 46, 214);
+    }
+    { // the standing ox grazes, and lifts its head now and then; the one lying down turns its head
+      const up = ease.inOut(ramp(Math.sin(T * 0.55 + 0.6), 0.72, 0.96)), k = 0.5, x = 178, y = 1500;
+      this.put(2, 'ox1', x, y, DL, 1, k, 0, 38, 192);
+      this.put(3, 'ox1h', x + (236 - 38) * k, y + (70 - 192) * k, DL, 1, k, 0.78 - 0.5 * up + 0.025 * Math.sin(T * 5.2) * (1 - up), 24, 60);
+      const k2 = 0.55, x2 = 345, y2 = 1508;
+      this.put(4, 'ox2', x2, y2, DL, 1, k2, 0, 28, 168);
+      this.put(5, 'ox2h', x2 + (150 - 28) * k2, y2 + (98 - 168) * k2, DL, 1, k2, 0.1 * Math.sin(T * 0.43) + 0.05 * Math.sin(T * 1.3), 70, 120);
+    }
+    { // the herdsman shifts his stick
+      const k = 0.41, x = 562, y = 1525;
+      this.put(6, 'herd', x, y, DL, 1, k, 0, 66, 292);
+      this.put(7, 'arm', x + (40 - 66) * k, y + (78 - 292) * k, DL, 1, k, -0.26 + 0.07 * Math.sin(T * 0.6), 64, 150);
+    }
+
+    // ---- the two white birds by the water
+    const tau = T < TAKE || calm ? -1 : (T - TAKE) % LOOP, a4 = this.tmp, b4 = this.tmp2;
+    // (before they go, their necks come up: something has stirred; in a calm museum they only look up now and then)
+    const alert = calm ? ease.inOut(ramp(Math.sin(T * 0.5), 0.6, 0.95)) : T < TAKE ? ease.inOut(ramp(T, TAKE - 0.75, TAKE - 0.3)) : 0;
+    let near = 0;
+    BIRDS.forEach((b, n) => {
+      const i = 8 + n * 3, t = tau - b.lag;
+      let K = null, al = 1, ox = b.dx, oy = b.dy;
+      if (tau >= 0 && t >= 0 && t < 21) {
+        if (t < 2.15) { K = OUT; al = 1 - ramp(t, 1.9, 2.15); }
+        else if (t >= 2.2 && t < 6.6) { K = AWAY; al = ramp(t, 2.2, 2.5) * (1 - ramp(t, 5.8, 6.6)); ox = b.ax; oy = b.ay; }
+        else if (t >= 17) { K = HOME; al = ramp(t, 17, 17.6); }
+        else al = 0;
+      }
+      if (!K) {
+        if (al <= 0) { for (let j = 0; j < 3; j++) u.uSA.value[(i + j) * 4 + 3] = 0; return; }
+        // standing: the body, and the neck that comes up
+        const x = 590 + b.dx, y = 1588 + b.dy, k = 0.2, lift = n ? ease.inOut(ramp(alert, 0.25, 1)) : ease.inOut(ramp(alert, 0, 0.75));
+        const peck = (1 - lift) * (0.75 + 0.3 * Math.max(0, Math.sin(T * 2.3 + n * 2.4)) * Math.max(0, Math.sin(T * 0.37 + n)));
+        this.put(i, 'bird', x, y, DEEP.bank, 1, k, 0, 72, 121, b.fx);
+        this.put(i + 1, 'neck', x + b.fx * (108 - 72) * k, y + (48 - 121) * k, DEEP.bank, 1, k, b.fx * peck, 22, 112, b.fx);
+        u.uSA.value[(i + 2) * 4 + 3] = 0;
+        return;
+      }
+      curveAt(K, t, a4); curveAt(K, t + 0.04, b4);
+      const x = a4[0] + ox, y = a4[1] + oy, k = Math.max(0.03, a4[2]), deep = a4[3];
+      let vx = b4[0] - a4[0], vy = (b4[1] - a4[1]) * 0.45; const vl = Math.hypot(vx, vy) || 1; vx /= vl; vy /= vl;
+      const fl = vx >= 0 ? 1 : -1, yx = -vy * fl, yy = vx * fl;
+      const w = TAU * 3.4 * t + b.ph, lim = v => (v < 0 ? -1 : 1) * Math.max(0.12, Math.abs(v)), f1 = lim(Math.sin(w)), f2 = lim(Math.sin(w + 0.45));
+      // the far wing, the body, the near wing
+      this.set(i, 'wing', x + (vx * 16 + yx * -15) * k, y + (vy * 16 + yy * -15) * k, deep, al, vx / (k * 0.9), vy / (k * 0.9), yx / (k * 0.9 * f2), yy / (k * 0.9 * f2), 100, 250);
+      this.set(i + 1, 'fly', x, y, deep, al, vx / k, vy / k, yx / k, yy / k, 150, 80);
+      this.set(i + 2, 'wing', x + yx * -11 * k, y + yy * -11 * k, deep, al, vx / k, vy / k, yx / (k * f1), yy / (k * f1), 100, 250);
+      // each downstroke is heard, the louder the nearer they are
+      const was = this.beat[n]; this.beat[n] = Math.sin(w);
+      const nk = clamp01(k / 1.3) * al; if (K !== AWAY) near = Math.max(near, nk);
+      if (loud && was > 0 && this.beat[n] <= 0 && nk > 0.1 && K !== AWAY) noise(voice, 0, { d: 0.085, vol: 0.022 * nk, bp: 640 + 260 * n, q: 0.9, attack: 0.014 });
+    });
+    // ---- the air they move goes through the tree
+    this.gust += (Math.max(near * 1.6, calm ? 0 : ease.smooth(ramp(T, TAKE - 0.9, TAKE)) * (1 - ramp(T, TAKE + 1.5, TAKE + 4)) * 1.1) - this.gust) * Math.min(1, dt * 3);
+    u.uSway.value = (calm ? 0.5 : 1) + this.gust;
+
+    if (loud) { voice.level = calm ? 0.8 : 1; voice.place(L.cx + L.tx * EYE0[0], L.cz + L.tz * EYE0[0]); }
+    if (showing && !this.told && !L.quiet && this.open >= 1) { this.told = true; L.k.say('Behind his shoulder there is a window, and a country in it: hills, a thatched barn, two cattle and, by the water, two white birds, each a few millimetres of paint.', 6); }
+    if (back && L.ret >= 1) this.hide();
+  },
+});
