@@ -11,7 +11,7 @@
 // Look, and his strokes come down from under the frame and lay a corner of his shore in on the floor: pale dragged
 // sand, the white rock, the old trunk leaning out of the picture with ivy at its foot, and what waits at the trunk's
 // foot up there, a blue mantle thrown down and a gilt helmet with white plumes. The old man is laid in on the rock,
-// from his lap up: the mantle over his knees, one stockinged shin and a shoe, his body, the fall of silk from his
+// from his lap up: the mantle over his thighs and knees, one stockinged shin and a shoe, his body, the fall of silk from his
 // lifted arm, the hood, the beard; and last the shield in his right hand, its hollow side to us, brown leather, two
 // straps and a fringe, and the wand across his knee. He is looking at the shield. Then, without hurry, he brings the
 // wand up and over and sets its tip down on the leather, slowly at the last. A small clear note. Where the tip is,
@@ -347,9 +347,9 @@ lifeFor(16495, {
       }
       // the apron: a lower shelf of the same stone, running out to the left and forward (his foot is on it)
       const A = { x: -0.43, z: 0.61 }, ar = (y, k) => ({ y, c: [A.x, A.z], r1: 0.2 * k, r2: 0.13 * k });
-      const S2 = loft(rock, [ar(0, 1.05), ar(0.012, 1.0), ar(0.035, 0.9), ar(0.05, 0.7), ar(0.05, 0.4)], T_ROCK + 0.05, paint, { ax: [0.86, -0.5], pow: 2.6, flute: (v, th) => 1 + 0.1 * lump(th + 1.3), seg: 36, rows: 10, cap: true, shrink: 0.97, dark: 0.82 });
+      const S2 = loft(rock, [ar(0, 1.08), ar(0.01, 1.02), ar(0.026, 0.94), ar(0.036, 0.8), ar(0.04, 0.55), ar(0.04, 0.3)], T_ROCK + 0.05, paint, { ax: [0.86, -0.5], pow: 3.4, flute: (v, th) => 1 + 0.2 * lump(th + 1.3) + 0.08 * Math.sin(th * 7 + 1), seg: 40, rows: 10, cap: true, shrink: 0.97, dark: 0.78 });
       for (let i = 0; i < 46; i++) { const v = 0.1 + 0.5 * R(), th = R() * TAU; S2.normal(v, th, n); S2.lay(v, th, 0.3, (R() - 0.5) * 0.1, lerp(0.028, 0.045, R()), tn(n, R()), null, { ridge: 0.07, tip: 0.002 }); }
-      for (let i = 0; i < 26; i++) { const a = R() * TAU, d = Math.sqrt(R()) * 0.6, p = V3(A.x + Math.cos(a) * d * 0.16, 0.05, A.z + Math.sin(a) * d * 0.1); stroke(rock, p, V3(0, 1, 0), along(V3(0, 1, 0), V3(0.86, 0, -0.5), 0.8), lerp(0.045, 0.07, R()), lerp(0.02, 0.032, R()), pick(RK.hi, R()).clone().lerp(pick(RKH, R()), 0.3), when(T_ROCK + 0.12, 0.2, p.y), { cell: 0, tip: 0.001, tilt: 0.12 }); }
+      for (let i = 0; i < 26; i++) { const a = R() * TAU, d = Math.sqrt(R()) * 0.6, p = V3(A.x + Math.cos(a) * d * 0.15, 0.04, A.z + Math.sin(a) * d * 0.09); stroke(rock, p, V3(0, 1, 0), along(V3(0, 1, 0), V3(0.86, 0, -0.5), 0.8), lerp(0.045, 0.07, R()), lerp(0.02, 0.032, R()), pick(RK.mid, R()).clone().lerp(pick(RKH, R()), 0.5), when(T_ROCK + 0.12, 0.2, p.y), { cell: R() < 0.5 ? 0 : 1, tip: 0.001, tilt: 0.12 }); }
     }
 
     // ---------------------------------------------------------- his mantle over his knees: one great mass of gold
@@ -381,14 +381,21 @@ lifeFor(16495, {
         S.lay(v, th, v < 0.48 ? 0.14 : 0.03 * (R() - 0.5), v < 0.48 ? 0.03 : 0.28, lerp(0.018, 0.03, R()), pick(OC.hi, R()).clone().multiplyScalar(1.03), T_LAP + 0.36, { ridge: 0.12, lift: 0.003, cell: 0 });
       }
       for (let i = 0; i < 30; i++) { const th = R() * TAU; S.normal(0.03, th, n); S.lay(0.03, th, 0.012, 0.16 + 0.14 * R(), 0.02, tn(n, R()).multiplyScalar(0.72), null, { cell: 1, tip: 0.001 }); }      // its hem
+      // his two thighs under it, running out to his knees, the cloth sagging between them: so his lap is a lap
+      { const yaw = Math.atan2(-DIR[1], DIR[0]), rot = [0, yaw, -0.2], Rr = [0.125, 0.044, 0.056];
+        for (const sd of [-1, 1]) {
+          const Cc = [HIP[0] + DIR[0] * 0.1 - DIR[1] * 0.056 * sd, 0.246, HIP[1] + DIR[1] * 0.1 + DIR[0] * 0.056 * sd];
+          ball(lap, Cc, Rr, nw => c0.copy(uS(nw)), T_LAP + 0.2, { rot, detail: 3, dark: 0.84 });
+          coat(lap, Cc, Rr, 70, tn, T_LAP + 0.22, { rot, l: [0.06, 0.1], w: [0.022, 0.034], flow: V3(DIR[0], -0.25, DIR[1]), jit: 0.4, tip: 0.003, ridge: 0.08, tilt: 0.22, keep: (p, nn) => nn.y > -0.2 });
+        } }
     }
     // his leg, out from under it to the left: a white stocking; a tan shoe on the stone
-    const KNEE = V3(-0.3, 0.175, 0.615), ANKLE = V3(-0.365, 0.088, 0.69), T_LEG = 0.45;
+    const KNEE = V3(-0.3, 0.175, 0.615), ANKLE = V3(-0.365, 0.08, 0.69), T_LEG = 0.45;
     const leg = part(new THREE.Matrix4().compose(KNEE, new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), ANKLE.clone().sub(KNEE).normalize()), V3(1, 1, 1)));
     {
       const len = ANKLE.distanceTo(KNEE);
       tube(leg, [[0.028, 0], [0.027, 0.03], [0.022, len - 0.03], [0.019, len]], WH, T_LEG, 30, mixer(WH, WHH, 0.4, 0.12), { l: [0.04, 0.07], w: [0.016, 0.024], tip: 0.0015, ridge: 0.05, tilt: 0.24, dark: 0.92 });
-      const uS = under(SH), SHc = [ANKLE.x - 0.026, 0.068, ANKLE.z + 0.026], SHr = [0.047, 0.02, 0.025], rot = [0, 0.75, 0];
+      const uS = under(SH), SHc = [ANKLE.x - 0.026, 0.06, ANKLE.z + 0.026], SHr = [0.047, 0.02, 0.025], rot = [0, 0.75, 0];
       ball(lap, SHc, SHr, nw => c0.copy(uS(nw)), T_LEG + 0.1, { rot, detail: 3, dark: 0.9 });
       coat(lap, SHc, SHr, 26, mixer(SH, SHH, 0.4, 0.14), T_LEG + 0.12, { rot, l: [0.03, 0.045], w: [0.012, 0.018], flow: ACROSS, jit: 0.5, tip: 0.001, keep: (p, nn) => nn.y > -0.4 });
     }
@@ -453,6 +460,7 @@ lifeFor(16495, {
       for (const sx of [-1, 1]) {      // his brows: grey, heavy, each one soft touch over the dark of the eye
         const [p, n] = on(sx * 0.4, 0.2, 0.9, 1.05); stroke(head, p, n, V3(sx, -0.22, -0.1 * sx).normalize(), 0.019, 0.0062, pick(sx < 0 ? WH.mid : WH.lo, R()), T_HEAD + 0.42, { cell: 0, lift: 0.0006, tip: 0.0006, tilt: 0.1, ridge: 0.04 });
       }
+      for (const sx of [-1, 1]) { const [p, n] = on(sx * 0.4, 0.085, 0.9, 1.03); stroke(head, p, n, V3(sx, -0.1, 0).normalize(), 0.013, 0.0055, EYE, T_HEAD + 0.4, { cell: 2, lift: 0.0004, tip: 0, tilt: 0.05, ridge: 0 }); }      // the dark his eyes are in
       // the mantle drawn up over his head as a deep, loose hood: an open shell that closes over his brow and shades
       // it, stands wide of his cheeks and runs down into the collar on his shoulders (nothing is wound round his head)
       const th = mixer(OC, OCH, 0.42, 0.2), yT = 0.124, yB = -0.012;
@@ -568,12 +576,14 @@ lifeFor(16495, {
       const lit = (x, y, len, w, c, o = {}) => ds(x, y, hx, hy, len, w, c, Math.hypot(x - TOUCH[0], y - TOUCH[1]) / SPREAD + 0.12 * R(), { stay: true, lift: 0.0085, tip: 0.0008, ridge: 0.05, tilt: 0.12, cell: 0, ...o });
       const stops = [[-0.2, SEA[3]], [-0.07, SEA[1]], [-0.02, SEA[2]], [-0.005, GOLD[1]], [0.012, ROSE[0]], [0.04, GOLD[0]], [0.07, GOLD[2]], [0.105, SKY[2]], [0.14, SKY[0]], [0.22, SKY[1]]];
       const glow = (h, into) => { let i = 1; while (i < stops.length - 1 && h > stops[i][0]) i++; return into.copy(stops[i - 1][1]).lerp(stops[i][1], clamp01((h - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]))); };
-      { const g = 0.017, q = V3(), cc = new THREE.Color();      // (under the touches, the same light laid thin: small squares of the hollow itself, each opening in its turn)
+      KIND = 2;
+      { const g = 0.017, q = V3(), cc = new THREE.Color();      // (under the touches, the same light laid thin over the hollow itself, scumbled in a little after them)
         for (let gx = -8; gx <= 8; gx++) for (let gy = -13; gy <= 13; gy++) {
           const x = gx * g, y = gy * g; if (Math.hypot(x / HW, y / HL) > 0.95) continue;
-          const cen = V3(x, y, dz(x, y) + 0.0068), f = [0, 0, 0, Math.hypot(x - TOUCH[0], y - TOUCH[1]) / SPREAD], P4 = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => { const xx = x + i * g * 0.52, yy = y + j * g * 0.52; return [V3(xx, yy, dz(xx, yy) + 0.0068), dn(xx, yy, 1), glow((xx * upx + yy * upy) / hk, cc).clone().multiplyScalar(0.94 + 0.1 * R())]; });
+          const cen = V3(x, y, dz(x, y) + 0.0068), f = [0, 0, 0, Math.hypot(x - TOUCH[0], y - TOUCH[1]) / SPREAD + 0.16 + 0.2 * R()], P4 = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => { const xx = x + i * g * 0.52, yy = y + j * g * 0.52; return [V3(xx, yy, dz(xx, yy) + 0.0068), dn(xx, yy, 1), glow((xx * upx + yy * upy) / hk, cc).clone().multiplyScalar(0.94 + 0.1 * R())]; });
           for (const k of [0, 1, 2, 0, 2, 3]) vert(shield, P4[k][0], P4[k][1], P4[k][2], UV_SOLID, cen, f);
         } }
+      KIND = 1;
       for (let i = 0; i < 250; i++) {
         const [x, y] = inside(0.94), h = (x * upx + y * upy) / hk, r = Math.hypot(x / HW, y / HL), len = lerp(0.05, 0.09, R()) * (1 - 0.5 * r * r);
         const c = glow(h + 0.012 * (R() - 0.5), new THREE.Color()).lerp(h > 0.075 ? pick(SKY, R()) : h > 0.03 ? pick(GOLD, R()) : h > -0.01 ? pick(R() < 0.6 ? ROSE : GOLD, R()) : pick(SEA, R()), 0.5);
@@ -680,8 +690,12 @@ lifeFor(16495, {
     float b = (1.0 - k) * (0.8 + 1.3 * uTumble) * fl * sg * (0.5 + fract(aFly.w * 91.3)), cb = cos(b), sb = sin(b);
     rr = vec3(cb * rr.x - sb * rr.y, sb * rr.x + cb * rr.y, rr.z);
     transformed = aCen + rr * s + aFly.xyz * vec3(1.0 - eh, 1.0 - ev, 1.0 - eh) + vec3(0.03 * sg * sin(3.1416 * k) * fl * uTumble, 0.0, 0.0);
-    if (aKind > 0.5) {
-      // the light in the shield: each touch opens where it lies, when the light has come that far from the wand's tip
+    if (aKind > 1.5) {
+      // the light in the shield, its ground: scumbled in where it lies
+      float k2 = clamp((uC - aFly.w) / 0.5, 0.0, 1.0);
+      transformed = aCen + rel * step(1.0e-4, k2); vBody = k2; vConj = k2;
+    } else if (aKind > 0.5) {
+      // and its touches: each opens where it lies, when the light has come that far from the wand's tip
       float k2 = clamp((uC - aFly.w) / 0.7, 0.0, 1.0);
       transformed = aCen + rel * (k2 <= 0.0 ? 0.0 : 0.5 + 0.5 * (1.0 - (1.0 - k2) * (1.0 - k2)));
       vBody = 1.0; vConj = k2;
