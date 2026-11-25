@@ -74,3 +74,4 @@ import './28849-city-park.js';       // 161  Chase, A City Park: far
 import './65916-movement.js';         // 392  Hartley, Movement: orbit
 import './153798-woman-in-a-garden.js'; // 201  Morisot, Woman in a Garden: fan
 import './24684-francesco-de-medici.js'; // 205  Allori, Francesco de' Medici: cameo
+import './111317-comte-de-pastoret.js'; // 220  Ingres, Amédée-David, the Comte de Pastoret: likeness
