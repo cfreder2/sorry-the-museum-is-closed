@@ -35,15 +35,26 @@
 // How it is made: three draw calls. The floor and the wall are one mesh with one shader: his field in long level
 // drags of close greens, the track and the worn yard in broken browns, its edge the ragged ends of the strokes, the
 // shade under the house, the trees and each bird, the lamp's light lying on the ground; and on the wall his sky,
-// scumbled, with the yellow break and the rose, going down to slate as the evening goes. The house is a second
-// (one rig with the birds' small dark bodies): painted, not modelled, plaster, tile and thatch brushed in its
-// shader and nothing with a hard edge; the lit window is in that shader too. Everything else is his touch, soft
-// marks that face you and lie along their own direction, in one instanced mesh: the masses of the trees and the
-// feathered lights on them, the far woods, the garden's dark bushes and its few red and orange flowers, the grass,
-// the loaded lights on the gable and the wall and the drags on the roof (so the house's outline is lost in the trees
-// as his is, and found only at the gable), the smoke (long thin wisps, never a puff), and the birds: each a handful
-// of touches on a moving frame, as he made each of them from three or four. The birds are built a little smaller
-// as they near the house (0.62 of their size at the eave), as things are on a stage, so that the house can stand
+// scumbled, with the yellow break and the rose, going down to slate as the evening goes. The same mesh has a low
+// skirt of the field's own grass standing against the foot of the house's walls, ragged at its top: the gallery
+// lays a pool of light on the floor under every picture, drawn a hair in front of the floor, and it showed as a
+// pale line along the bottom of anything solid standing there; the skirt is drawn after it and covers it, so at
+// dusk nothing at the foot of the wall is brighter than the wall. The house is a second (one rig with the birds'
+// small dark bodies): painted, not modelled, the plaster and the thatch brushed into its colours and nothing with
+// a hard edge; the gable's loaded lights and the lit window are in that paint too. All its roofs are one thatch in
+// different light (the low wing by the gable in the last of the day, the long slope out of it), the long roof
+// hangs out over the wall with a ragged edge, and the chimneys are painted on all four sides. Everything else is
+// his touch, soft marks that face you and lie along their own direction, in one instanced mesh: the masses of the
+// trees and the feathered lights on them, the far woods, the garden's bushes (clumps of dabs standing out from the
+// wall, so its foot and its face are broken by them) and its few red and orange flowers, the grass, a broken line
+// of lighter thatch along the ridge and the eave (his own roof colours: it is what keeps the roof a roof against
+// the woods when both have gone dark), the dabs on the chimneys, the smoke (long thin wisps, never a puff), and
+// the birds: each a handful of touches on a moving frame, as he made each of them from three or four. (A mark
+// faces you, so one laid flat against a wall or a slope is cut along a straight line where it meets it: marks on
+// the house stand clear of it, at its edges.) A hen sits low and round over short legs, with a fan of a tail. No
+// bird slides: a step is a fixed part of the bird's own size, a foot that is down stays where it was put while the
+// body goes over it, and a bird that turns where it stands steps round. The birds are built a little smaller as
+// they near the house (0.62 of their size at the eave), as things are on a stage, so that the house can stand
 // small under the picture and the cock still be seen from across the room.
 //
 // Where it reaches. Nothing stays out after the look and nothing is solid. The field lies from 1.56 m left of the
@@ -777,8 +788,9 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     b.sc = b.S * far(b.o);
     b.speed = (q1 - q0) / 0.1 * b.qe * b.len;                         // metres a second, over the floor
     b.walk = sm(b.speed, 0.015, 0.07); b.run = b.kind ? sm(b.speed, 0.3, 0.46) : 0;
-    // standing, it faces its own way; it turns into its road as it sets off
-    b.th = Math.atan2(v.z, v.x) + b.turn * (1 - sm(q, 0.0, 0.1));
+    // standing, it faces its own way; it steps round into its road where it stands, and then sets off
+    b.tw = b.turn ? sm(t, b.keys[1][0] - (b.kind ? 0.4 : 0.5), b.keys[1][0] + 0.12) : 1;
+    b.th = Math.atan2(v.z, v.x) + b.turn * (1 - b.tw);
     { const g = clamp01(s) * 200, gi = Math.min(199, Math.floor(g)); b.gait = lerp(b.tab[gi], b.tab[gi + 1], g - gi); }      // steps taken
     b.inn = sm(q, 0.985, 1.12);                                      // under the eave, into the dark
     b.duck = sm(q, 0.86, 0.99);
@@ -835,8 +847,18 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       const sd = i ? 1 : -1, f = (b.gait * 0.5 + i * 0.5 + 0.25) % 1, A = b.A, hy = by - (cock ? 0.12 : 0.1); let x, lift = 0;
       if (f < 0.5) x = A * (1 - 4 * f); else { const w = (f - 0.5) * 2; x = A * (2 * ease.inOut(w) - 1); lift = b.walk * Math.sin(Math.PI * w) * (cock ? 0.07 + 0.08 * run + 0.1 * tall : 0.05); }
       if (x < 0 && b.walk < 1) { lift += 0.04 * Math.sin(Math.PI * b.walk); x *= lerp(0.25, 1, b.walk); }      // (stopping, it brings up the foot left behind)
-      const l = Math.hypot(x, hy - lift);
-      mark(x / 2, (hy + lift) / 2, sd * 0.07, x / l, (lift - hy) / l, 0, l + 0.06, cock ? 0.11 : 0.085, FEATH, C.leg, cock ? 0.9 : 0.66);
+      // turning where it stands, it steps round in four: each foot in turn is lifted and put down further round, and
+      // a foot that is down keeps its place on the ground (it is held at the heading it was put down at)
+      let zf = sd * 0.07;
+      if (b.tw > 0 && b.tw < 1) {
+        const seg = Math.min(3, Math.floor(b.tw * 4)), w = b.tw * 4 - seg, e = ease.inOut(w), x0 = x;
+        const st = i ? (seg === 0 ? 0 : seg === 1 ? 0.625 * e : seg === 2 ? 0.625 : 0.625 + 0.375 * e) : (seg === 0 ? 0.375 * e : seg === 1 ? 0.375 : seg === 2 ? 0.375 + 0.625 * e : 1);
+        const d = b.turn * (b.tw - st), cd = Math.cos(d), sn = Math.sin(d);
+        if ((seg & 1) === i) lift += 0.05 * Math.sin(Math.PI * w);
+        x = x0 * cd - zf * sn; zf = x0 * sn + zf * cd;
+      }
+      const dz = zf - sd * 0.07, l = Math.hypot(x, hy - lift, dz);
+      mark(x / 2, (hy + lift) / 2, (zf + sd * 0.07) / 2, x / l, (lift - hy) / l, dz / l, l + 0.06, cock ? 0.11 : 0.085, FEATH, C.leg, cock ? 0.9 : 0.66);
     }
     // ---- the body: the back, the breast, the saddle, the wing laid over them
     { const [x, y] = bp(-0.02, 0.0); mark(x, y, 0, cp, sp, 0, cock ? 0.92 : 1.0, cock ? 0.7 : 0.8, MASS, dk, 1); }
