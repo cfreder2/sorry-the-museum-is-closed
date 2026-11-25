@@ -69,3 +69,4 @@ import './120154-strawberries-nuts.js'; // 161  Peale, Still Life—Strawberries
 import './109819-lozenge-composition.js'; // 393  Mondrian, Lozenge Composition with Yellow, Black, Blue, Red, and Gray: balance
 import './15401-at-mouquins.js';      // 272  Glackens, At Mouquin's: mirror
 import './27987-jacques-and-berthe-lipchitz.js'; // 391  Modigliani, Jacques and Berthe Lipchitz: sitting
+import './111317-comte-de-pastoret.js'; // 220  Ingres, Amédée-David, the Comte de Pastoret: likeness
