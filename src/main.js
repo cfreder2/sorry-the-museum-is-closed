@@ -133,7 +133,7 @@ input.onGesture = () => sound.unlock();
 
 // Settings, kept between visits. Reduced motion starts on if the system asks for it.
 const SETTINGS = 'after-hours.settings';
-const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true,
+const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true, gentle1: true,
   autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
 
@@ -146,7 +146,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.3';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.4';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -615,7 +615,7 @@ function applySettings(save) {
   input.autogo = !!set.autogo;
   document.body.classList.toggle('autogo', !!set.autogo);
   tm.allowed = set.stats !== false;
-  tm.settings = { reduce: !!set.reduce, big: !!set.big, hold: !!set.hold, slowmo: !!set.slowmo, mirror: !!set.mirror, gentle: !!set.gentle };
+  tm.settings = { reduce: !!set.reduce, big: !!set.big, hold: !!set.hold, slowmo: !!set.slowmo, mirror: !!set.mirror, gentle: !!set.gentle, gentle1: !!set.gentle1 };
   if (G.museum) G.museum.calm = set.reduce;
   if (G.race) G.race.calm = set.reduce;
   if (G.car) G.car.calm = set.reduce;
@@ -1267,7 +1267,7 @@ function play(dt, real) {
   if (G.testInput) inp = G.testInput;
   if (v.kind === 'car') {
     if (inp.coast && !G.testInput && !G.ride) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
-    v.gentle = !!set.gentle;
+    v.gentle = !!(garage.sel.car === 'buggy' ? set.gentle1 : set.gentle);      // the red RC Car is gentle as it comes (Settings, Driving); the others only if asked
     if (set.assist && !(G.auto && racing) && !G.ride) steerHelp(v, inp, dt);
   }
   if ((racing && R.locked) || G.held) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };      // (G.held: a security robot has the toy, src/guards.js)

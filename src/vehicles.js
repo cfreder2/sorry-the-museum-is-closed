@@ -382,7 +382,18 @@ export class Car {
     this.pos.y = groundAt(this.plan, x, z, y + 0.3);
     this._unbox();
     this._hitchReset();
+    this.out = this._proud(roomAt(this.plan, this.pos.x, this.pos.z, this.pos.y));
     this.sync(0);
+  }
+
+  // Is what is drawn under the wheels here laid a little over the ground (sync)? Out of doors, yes: but not the open snow
+  // of the park, which is drawn from the land itself and under it (snowfield.js), only the paving that crosses it and the ice.
+  _proud(room) {
+    if (room) return false;
+    const P = this.plan, x = this.pos.x, z = this.pos.z, R = P.land && P.land.rolls;
+    if (!R || x <= R.x0 || x >= R.x1 || z <= R.z0 || z >= R.z1) return true;
+    for (const list of [P.paved, P.ice]) for (const q of list) if (x > q.x0 && x < q.x1 && z > q.z0 && z < q.z1) return true;
+    return false;
   }
 
   // A spot inside something solid (the hollow middle of a crate or a skate ramp, a block of furniture) would box the car in
@@ -496,6 +507,7 @@ export class Car {
       vf -= vf * 0.24 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 0.4 * dt);     // tops out near 9.5 m/s
       // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.
       const room = roomAt(this.plan, this.pos.x, this.pos.z, this.pos.y);
+      this.out = this._proud(room);
       let grip = !room ? 3.4 : room.kind === 'gallery' && room.floor !== '1' ? 9 : 5.2;
       // Gritted streets hold better than snow; the frozen pool does not hold at all.
       if (!room) { for (const q of this.plan.paved) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 6; for (const q of this.plan.ice) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 0.3; }
@@ -835,6 +847,13 @@ export class Car {
   sync(dt) {
     this.group.position.copy(this.pos);
     this.group.position.y -= this.squash * 0.018;
+    // Out of doors the paving, the grit and the snow on the lawns are drawn a few millimetres over the line the ground is
+    // reckoned on (4 to 8 mm: laid over the slab under them, so that the two do not fight), and the tread of the tyres
+    // was lost in them: the car looked a little sunk into the ground. It is drawn that much higher there (_proud). Floors
+    // indoors, and track and decks anywhere, are drawn where they are reckoned.
+    const seat = (this.on ? this.on.hill && !this.on.land : this.out) ? 0.007 : 0;      // (a hill's snow is laid over it too; the land's own is not)
+    this.seat = dt > 0 ? (this.seat || 0) + (seat - (this.seat || 0)) * Math.min(1, dt * 12) : seat;
+    this.group.position.y += this.seat;
     this.group.rotation.y = this.yaw;
     this.group.rotation.x = this.tilt;
     this.group.rotation.z = this.lean || 0;

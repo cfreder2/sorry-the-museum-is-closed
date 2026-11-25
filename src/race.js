@@ -53,6 +53,7 @@ function ribbonTexture(style, a, b) {
   return t;
 }
 
+const HARD = [1, 1], SOFT = [0.72, 0.88];      // rivals' pace on the straight and through a bend: as they are, and against the gentle car
 export class Race {
   constructor(scene, plan) {
     this.scene = scene;
@@ -359,7 +360,10 @@ export class Race {
       let k = 0;
       for (let d = 0; d <= 2 + sp * 0.9; d += 0.5) k = Math.max(k, this.at(b.s + d).k);
       const gap = b.prog - mine, band = b.done || !this.active ? 0.45 : gap > 20 ? 0.9 : gap < -20 ? 1.06 : 1;
-      const vt = Math.min(10 * (b.top || 1), Math.sqrt(5.6 * (b.grip || 1) / Math.max(k, 0.004))) * b.skill * band * (Math.abs(a) > 1 ? 0.5 : 1), vq = Math.min(vt, queue);
+      // Against the gentle car (Settings, and the red RC Car as it comes) they take it gently too: it tops out lower and
+      // comes round more slowly at speed, and nobody driving it could have won.
+      const soft = this.player.gentle ? SOFT : HARD;
+      const vt = Math.min(10 * (b.top || 1) * soft[0], Math.sqrt(5.6 * (b.grip || 1) / Math.max(k, 0.004)) * soft[1]) * b.skill * band * (Math.abs(a) > 1 ? 0.5 : 1), vq = Math.min(vt, queue);
       // Nose in to something: back off, turning away, then come on again.
       if (!b.at || Math.hypot(v.pos.x - b.at.x, v.pos.z - b.at.z) > 0.25 || b.backT > 0 || v.air) { b.at = { x: v.pos.x, z: v.pos.z }; b.stuckT = 0; }
       else b.stuckT += dt;
