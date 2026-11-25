@@ -113,6 +113,45 @@ export function take(L, insts, { useMap = false } = {}) {
 }
 // Dabs of paint: flat four-sided marks lying on a surface. list of { p: Vector3, n: Vector3 (out of the surface),
 // s (size, metres), l (how long for its width, 1 = round), c: THREE.Color, a (turned about n, radians) }.
+// A show's model, made light enough to walk about the building: its smooth bodies are kept; each soft dab of paint over
+// them (a little leaf of six triangles) becomes a kite of two, and only `dab` of them are kept (a little larger, to cover);
+// of the curls of light (twelve triangles) `curl` are kept as they are. R: a seeded random.
+export function thin(g, { dab = 0.7, curl = 0, R = Math.random, grow = null } = {}) {
+  const P = g.attributes.position.array, nt = P.length / 9, par = new Int32Array(nt), names = Object.keys(g.attributes), seen = new Map();
+  for (let i = 0; i < nt; i++) par[i] = i;
+  const find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  for (let t = 0; t < nt; t++) for (let v = 0; v < 3; v++) { const i = t * 9 + v * 3, key = Math.round(P[i] * 1e5) + ',' + Math.round(P[i + 1] * 1e5) + ',' + Math.round(P[i + 2] * 1e5), q = seen.get(key); if (q == null) seen.set(key, t); else { const a = find(q), b = find(t); if (a !== b) par[a] = b; } }
+  const groups = new Map(); for (let t = 0; t < nt; t++) { const r = find(t); let l = groups.get(r); if (!l) groups.set(r, l = []); l.push(t); }
+  const verts = [], N = g.attributes.normal && g.attributes.normal.array, gk = grow == null ? (dab < 1 ? 1 / Math.sqrt(Math.max(0.3, dab)) : 1) : grow;      // (vertex numbers, in threes; negative: a made vertex)
+  const made = [], D2 = (a, b) => (P[a * 3] - P[b * 3]) ** 2 + (P[a * 3 + 1] - P[b * 3 + 1]) ** 2 + (P[a * 3 + 2] - P[b * 3 + 2]) ** 2;
+  for (const tris of groups.values()) {
+    if (tris.length === 12) { if (R() < curl) for (const t of tris) verts.push(t * 3, t * 3 + 1, t * 3 + 2); continue; }
+    if (tris.length !== 6) { for (const t of tris) verts.push(t * 3, t * 3 + 1, t * 3 + 2); continue; }
+    if (R() >= dab) continue;
+    const vs = []; for (const t of tris) vs.push(t * 3, t * 3 + 1, t * 3 + 2);
+    let A = vs[0], B = vs[1], best = -1; for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) { const d = D2(vs[i], vs[j]); if (d > best) { best = d; A = vs[i]; B = vs[j]; } }
+    const ax = P[B * 3] - P[A * 3], ay = P[B * 3 + 1] - P[A * 3 + 1], az = P[B * 3 + 2] - P[A * 3 + 2], al = ax * ax + ay * ay + az * az || 1e-12;
+    const perp = v => { const x = P[v * 3] - P[A * 3], y = P[v * 3 + 1] - P[A * 3 + 1], z = P[v * 3 + 2] - P[A * 3 + 2], f = (x * ax + y * ay + z * az) / al; return [x - ax * f, y - ay * f, z - az * f]; };
+    let C = -1, cp = null, cb = 0; for (const v of vs) { const q = perp(v), d = q[0] * q[0] + q[1] * q[1] + q[2] * q[2]; if (d > cb) { cb = d; C = v; cp = q; } }
+    if (C < 0) continue;
+    let Dv = -1, db = 0; for (const v of vs) { const q = perp(v), d = q[0] * cp[0] + q[1] * cp[1] + q[2] * cp[2]; if (d < db) { db = d; Dv = v; } }
+    // (the kite, a little larger about its middle; wound as the dab was, so the light falls on it as it did)
+    const quad = Dv < 0 ? [A, C, B] : [A, C, B, Dv], cx = quad.reduce((s, v) => s + P[v * 3], 0) / quad.length, cy = quad.reduce((s, v) => s + P[v * 3 + 1], 0) / quad.length, cz = quad.reduce((s, v) => s + P[v * 3 + 2], 0) / quad.length;
+    const id = quad.map(v => { made.push({ v, x: cx + (P[v * 3] - cx) * gk, y: cy + (P[v * 3 + 1] - cy) * gk, z: cz + (P[v * 3 + 2] - cz) * gk }); return -made.length; });
+    const m = i => made[-id[i] - 1], e1 = [m(1).x - m(0).x, m(1).y - m(0).y, m(1).z - m(0).z], e2 = [m(2).x - m(0).x, m(2).y - m(0).y, m(2).z - m(0).z];
+    const flip = N ? (e1[1] * e2[2] - e1[2] * e2[1]) * N[A * 3] + (e1[2] * e2[0] - e1[0] * e2[2]) * N[A * 3 + 1] + (e1[0] * e2[1] - e1[1] * e2[0]) * N[A * 3 + 2] < 0 : false;
+    if (flip) verts.push(id[0], id[2], id[1]); else verts.push(id[0], id[1], id[2]);
+    if (id.length === 4) { if (flip) verts.push(id[0], id[3], id[2]); else verts.push(id[0], id[2], id[3]); }
+  }
+  const out = new THREE.BufferGeometry();
+  for (const name of names) {
+    const a = g.attributes[name], sz = a.itemSize, arr = new Float32Array(verts.length * sz);
+    for (let i = 0; i < verts.length; i++) { const v = verts[i], src = v < 0 ? made[-v - 1].v : v; for (let j = 0; j < sz; j++) arr[i * sz + j] = a.array[src * sz + j]; if (v < 0 && name === 'position') { const q = made[-v - 1]; arr[i * 3] = q.x; arr[i * 3 + 1] = q.y; arr[i * 3 + 2] = q.z; } }
+    out.setAttribute(name, new THREE.BufferAttribute(arr, sz));
+  }
+  return out;
+}
+
 const _t = new THREE.Vector3(), _b = new THREE.Vector3(), _n = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _x = new THREE.Vector3(1, 0, 0);
 export function dabs(list, lift = 0.003) {
   const n = list.length, P = new Float32Array(n * 18), N = new Float32Array(n * 18), C = new Float32Array(n * 18), U = new Float32Array(n * 12);

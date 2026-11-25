@@ -250,7 +250,7 @@ const F = {
       if (E.body !== 'pending') { dispose(g); return; }      // (sent home, or switched off, while it was being made)
       E.mats = [];
       g.traverse(o => {
-        for (const m of [].concat(o.material || [])) { protectArt(m, key, { soft: m.transparent ? 0.08 : 0.05 }); if (m.userData.u && m.userData.u.uGone) E.mats.push(m); }
+        for (const m of [].concat(o.material || [])) { protectArt(m, key, { soft: m.transparent ? 0.08 : 0.05 }); if (m.userData.u && m.userData.u.uGone && !m.userData.helper) E.mats.push(m); }
         o.frustumCulled = false; if (o.isMesh) { const was = o.onBeforeRender; o.onBeforeRender = (r, s, c, ...rest) => { this._px(key, r); was.call(o, r, s, c, ...rest); }; }
       });
       E.group = g; E.key = key; k.group.add(g); E.body = true;
@@ -416,7 +416,8 @@ const F = {
       if (_v.y > wall.y - wall.h / 2 - 0.04 && Math.hypot(_v.x - wall.x, _v.z - wall.z) < wall.w) continue;      // (belt and braces: never as high as the picture)
       this.marks.put(_v, _a, _b, s.w * size * (Q.happy ? 1.15 : 1), s.w * s.l * size, s.c);
     }
-    if (Q.t >= Q.T) this._arrive(E, Q.how, Q.b);
+    // (a helper that came out after it may have its own way home to make first: Goya's boy on his ram)
+    if (Q.t >= Q.T) { if (E.spec.linger && (Q.over = (Q.over || 0) + dt) < 40 && E.spec.linger(E, dt, k) === true) return; this._arrive(E, Q.how, Q.b); }
   },
 
   // ---------------------------------------------------------------- the robots (src/guards.js asks, for each of its robots) --
@@ -440,7 +441,7 @@ const F = {
     if (b.mode !== 'tend') { if (dToy < Math.hypot(E.x - b.x, E.z - b.z) && E.state !== 'going') { this._untend(b, gf, false); return false; } b.mode = 'tend'; }
     b.v = Math.max(0, b.v - dt * 4);
     const ang = Math.atan2(E.x - b.x, E.z - b.z);
-    if (E.state === 'home' || T.done) {
+    if (E.state === 'home' || T.done || (E.going && E.going.over)) {
       // It has gone home: the lamp rests where it was a moment, cools, and the robot goes back to its beat.
       T.done += dt; T.k = Math.max(0, T.k - dt * 0.7); look(T.ang, 2);
       if (T.done > 1.6) this._untend(b, gf, true);
