@@ -158,8 +158,8 @@ export class Piano {
       const c = this._centre(new THREE.Vector3()), n = new THREE.Vector3(0, 1, 0).addScaledVector(P.f, -0.2).normalize();
       this.stage.enter({ x: c.x, y: c.y, z: c.z, nx: n.x, ny: n.y, nz: n.z, w: 21 * WW, h: KL + 0.03, up: [P.f.x, 0, P.f.z] }, { el: this.pane, fill: 0.97 });
     }
-    // the toy is parked at the stool, under the camera: its aerial would stand across the keys
-    { const v = this.G.vehicle; if (v && v.group) { this._toy = v.group; this._toyWas = v.group.visible; v.group.visible = false; } }
+    // (the toy is parked at the stool, under the camera, and its aerial would stand across the keys: the stage puts it and its shadow away,
+    // and brings them back on the way out. It is not also hidden here: done after the stage had hidden it, that kept it hidden for good.)
     if (this.secrets) this.secrets.find(P.id);
     if (this.onPlay) this.onPlay(P);
   }
@@ -167,7 +167,6 @@ export class Piano {
     if (!this.on) return;
     this.on = false; this.auto = null; this.hush(); this.el.hidden = true; this.el.querySelector('[data-act=listen]').classList.remove('on');
     if (this.stage && this.stage.on) this.stage.leave();
-    if (this._toy) { this._toy.visible = this._toyWas !== false; this._toy = null; }
     if (this.resume) this.resume();
   }
   hush() { for (const [m, set] of this.held) { set.clear(); this._up(m); } this.held.clear(); this.ptr.clear(); this.keysDown.clear(); this.pedal(false); }
