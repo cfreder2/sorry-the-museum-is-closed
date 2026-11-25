@@ -1,0 +1,442 @@
+// Ridolfo Ghirlandaio, Portrait of a Gentleman (about 1505), Gallery 205. The word: beyond.
+//
+// HEADER TO BE WRITTEN LAST.
+
+import * as THREE from 'three';
+import { lifeFor, ease, ramp, clamp01, lerp, rng, canvasTexture } from '../paintlife.js';
+import { noise } from './stagecraft.js';
+import { LOWMEM } from '../budget.js';
+
+const PI = Math.PI, TAU = PI * 2;
+
+// ---------------------------------------------------------------- the painted sheet: where each thing is on it
+// (of 2048 by 1024; x, y, width, height), and how big it stands in the country beyond the window (metres there)
+const AW = 2048, AH = 1024;
+const CELL = {
+  tree: [0, 0, 560, 1024], farm: [564, 0, 920, 500], fly: [564, 504, 300, 150], wing: [868, 504, 200, 260],
+  ox1: [1492, 0, 300, 200], ox1h: [1796, 0, 140, 140], ox2: [1492, 204, 280, 180], ox2h: [1796, 144, 140, 140],
+  herd: [1596, 392, 128, 300], arm: [1728, 392, 128, 220], man1: [1860, 392, 90, 220], man2: [1952, 392, 90, 220],
+  bird: [1728, 616, 150, 130], neck: [1882, 616, 70, 130],
+};
+// the second sheet (1024 square): four strips of land, each [first row, last row, top, bottom] (the last two in the
+// measure of the picture's window), with a clear gutter above each
+const LAND = { far: [0, 170, 780, 1100], wood: [170, 400, 950, 1310], ground: [400, 700, 1050, 1590], bank: [700, 1024, 1280, 1760] }, GUT = 12;
+
+// <paint>
+// Everything beyond the window that has an edge, painted once: g is a 2D canvas of 2048 K by 1024 K; col(hex) gives a
+// colour as [r, g, b] (0..255), a little of the picture's own palette in it; R is a seeded random number.
+// His manner here is a miniaturist's: smooth, close-toned forms with the light from the upper left, and over them
+// small exact touches (a leaf, a straw, a horn), never a loaded brush.
+function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
+  let g = gA;
+  const TAU = Math.PI * 2, PI_ = Math.PI;
+  const jit = s => (R() - 0.5) * s, pick = l => l[Math.floor(R() * l.length) % l.length];
+  const css = (c, a = 1) => `rgba(${Math.round(Math.max(0, Math.min(255, c[0])))},${Math.round(Math.max(0, Math.min(255, c[1])))},${Math.round(Math.max(0, Math.min(255, c[2])))},${a})`;
+  const mix = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+  const cell = (name, fn) => { const [x, y, w, h] = CELL[name]; g.save(); g.setTransform(K, 0, 0, K, x * K, y * K); g.beginPath(); g.rect(0, 0, w, h); g.clip(); g.lineCap = 'round'; g.lineJoin = 'round'; fn(w, h); g.restore(); };
+  // a smooth closed shape through points
+  const shape = pts => {
+    const n = pts.length, P = i => pts[(i + n) % n], m = i => [(P(i)[0] + P(i + 1)[0]) / 2, (P(i)[1] + P(i + 1)[1]) / 2];
+    g.beginPath(); const m0 = m(-1); g.moveTo(m0[0], m0[1]);
+    for (let i = 0; i < n; i++) { const q = m(i); g.quadraticCurveTo(P(i)[0], P(i)[1], q[0], q[1]); }
+    g.closePath();
+  };
+  const poly = pts => { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); };
+  const fill = (pts, c, a = 1, smooth = true) => { (smooth ? shape : poly)(pts); g.globalAlpha = a; g.fillStyle = css(c); g.fill(); g.globalAlpha = 1; };
+  const within = (pts, fn, smooth = true) => { g.save(); (smooth ? shape : poly)(pts); g.clip(); fn(); g.restore(); };
+  const soft = (x, y, r, c, a, sx = 1, sy = 1) => { g.save(); g.translate(x, y); g.scale(sx, sy); const gr = g.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, css(c, a)); gr.addColorStop(0.5, css(c, a * 0.55)); gr.addColorStop(1, css(c, 0)); g.fillStyle = gr; g.fillRect(-r, -r, 2 * r, 2 * r); g.restore(); };
+  const lin = (x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); for (const [k, c, a = 1] of stops) gr.addColorStop(k, css(c, a)); return gr; };
+  const stroke = (pts, w, c, a = 1) => { g.globalAlpha = a; g.strokeStyle = css(c); g.lineWidth = w; g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.stroke(); g.globalAlpha = 1; };
+  const curve = (p0, c, p1, w, col_, a = 1) => { g.globalAlpha = a; g.strokeStyle = css(col_); g.lineWidth = w; g.beginPath(); g.moveTo(p0[0], p0[1]); g.quadraticCurveTo(c[0], c[1], p1[0], p1[1]); g.stroke(); g.globalAlpha = 1; };
+  const oval = (x, y, rx, ry, rot, c, a = 1) => { g.globalAlpha = a; g.fillStyle = css(c); g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, TAU); g.fill(); g.globalAlpha = 1; };
+  // a point on a smooth line through points, at s (0..1), and the way it heads
+  const along = (pts, s) => {
+    const n = pts.length - 1, f = Math.min(n - 1e-6, Math.max(0, s * n)), i = Math.floor(f), k = f - i;
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n, i + 2)];
+    const h = (a, b, c, d) => 0.5 * (2 * b + (c - a) * k + (2 * a - 5 * b + 4 * c - d) * k * k + (3 * b - a - 3 * c + d) * k * k * k);
+    const dh = (a, b, c, d) => 0.5 * ((c - a) + 2 * (2 * a - 5 * b + 4 * c - d) * k + 3 * (3 * b - a - 3 * c + d) * k * k);
+    return [h(p0[0], p1[0], p2[0], p3[0]), h(p0[1], p1[1], p2[1], p3[1]), dh(p0[0], p1[0], p2[0], p3[0]), dh(p0[1], p1[1], p2[1], p3[1])];
+  };
+  // a stem: a line that tapers, dark, with its light down the left side
+  const stem = (pts, w0, w1, dark, light, steps = 60) => {
+    for (const [c, off, wk, a] of [[dark, 0, 1, 1], [light, -0.3, 0.42, 0.75]]) {
+      for (let i = 0; i < steps; i++) {
+        const a0 = along(pts, i / steps), a1 = along(pts, (i + 1) / steps), w = lerp_(w0, w1, i / steps);
+        stroke([[a0[0] + off * w, a0[1]], [a1[0] + off * w, a1[1]]], Math.max(0.6, w * wk), c, a);
+      }
+    }
+  };
+  const lerp_ = (a, b, k) => a + (b - a) * k;
+
+  // ---- his colours (read off the picture; the palette is mixed into them a little)
+  const C = h => col(h);
+  const LEAF_D = C('#1a2010'), LEAF_M = C('#2e3a1a'), LEAF_L = C('#6f7234'), LEAF_G = C('#a39a48'), BARK = C('#2e2414'), BARK_L = C('#6e5e3a');
+  const THATCH = C('#6a5a30'), THATCH_L = C('#8e7a40'), THATCH_D = C('#3a301a'), DAUB = C('#4e3f26'), DAUB_L = C('#6e5a32'), DAUB_D = C('#2e2618'), TIMBER = C('#241a0e'), HOLE = C('#120c07');
+  const STACK = C('#7d5d26'), STACK_L = C('#a07c38'), STACK_D = C('#3e3018');
+  const OX = C('#533a24'), OX_L = C('#7a5a38'), OX_D = C('#2a1c14'), HORN = C('#d8ccac'), HOOF = C('#1e150e');
+  const WHITE = C('#e6e2d4'), WHITE_S = C('#8d978c'), BILL = C('#b89a5a');
+  const SKIN = C('#b08660'), SKIN_D = C('#6a4630'), TUNIC = C('#5a4522'), TUNIC_L = C('#8a6a34'), TUNIC_D = C('#2e2210'), HOSE = C('#8f8468'), HOSE_D = C('#4e4634'), HAT = C('#221a12'), JERKIN = C('#4a4a2a'), JERKIN_L = C('#6e6c3c'), JERKIN_D = C('#24260f'), STRAW = C('#a8934e');
+  const GRASS_D = C('#1e2414'), GRASS_M = C('#3a3a1e'), GRASS_L = C('#6a6a2c'), GRASS_G = C('#8f8238');
+  const WOOD_D = C('#182014'), WOOD_M = C('#253220'), WOOD_L = C('#3d5230'), WOOD_G = C('#5f7040');
+  const MT_L = C('#a6c4c0'), MT = C('#86b0ae'), FOOT = C('#3f716b'), FOOT_D = C('#2f4f42'), HILL_L = C('#86966c'), HILL = C('#74855f'), HILL_D = C('#55683f'), CAP = C('#3a3f2f'), CAP_L = C('#566040');
+  const FIELD = C('#4d5735'), FIELD_L = C('#66733f'), YARD = C('#765f27'), YARD_L = C('#93782f'), YARD_S = C('#382f1d'), PATH = C('#8a8050'), POOL = C('#1b1d15'), GROVE_D = C('#1c2218');
+
+  g.clearRect(0, 0, 2048 * K, 1024 * K);
+
+  // ------------------------------------------------------------ the tall thin tree: two stems, bare a long way up, then
+  // long twigs with their leaves in small level sprays, each leaf one touch: dark ones under, gold-green ones on top
+  cell('tree', (w, h) => {
+    const S1 = [[402, 1024], [398, 880], [403, 730], [398, 590], [389, 450], [376, 320], [361, 200], [348, 100], [340, 30]];
+    const S2 = [[427, 1024], [424, 900], [429, 760], [435, 620], [434, 490], [441, 360], [452, 240], [462, 140], [468, 60]];
+    const twigs = [];
+    const branch = (S, t, dirSign, len, rise, droop) => {
+      const a = along(S, t), ang = rise, ex = a[0] + dirSign * len * Math.cos(ang), ey = a[1] - len * Math.sin(ang) + droop;
+      const cx = a[0] + dirSign * len * 0.45 * Math.cos(ang), cy = a[1] - len * 0.62 * Math.sin(ang) - len * 0.1;
+      twigs.push({ p0: [a[0], a[1]], c: [cx, cy], p1: [ex, ey], w: lerp_(2.6, 1.2, t), leaf0: 0.3 });
+      // side twigs off it
+      const n = 1 + Math.floor(len / 70);
+      for (let i = 0; i < n; i++) {
+        const s = 0.3 + 0.55 * (i + R()) / n, q = 1 - s, bx = q * q * a[0] + 2 * q * s * cx + s * s * ex, by = q * q * a[1] + 2 * q * s * cy + s * s * ey;
+        const l2 = 26 + R() * 46, up = R() < 0.6 ? -1 : 1, a2 = 0.25 + R() * 0.7;
+        twigs.push({ p0: [bx, by], c: [bx + dirSign * l2 * 0.5, by + up * l2 * 0.5 * Math.sin(a2) - 4], p1: [bx + dirSign * l2 * Math.cos(a2 * 0.5), by + up * l2 * Math.sin(a2)], w: 1, leaf0: 0.15 });
+      }
+    };
+    // (from low to high: longer and more level below, short and steep at the top)
+    const B1 = [[0.36, -1, 64, 0.1, 14], [0.44, -1, 120, 0.05, 26], [0.5, -1, 235, 0.2, 30], [0.56, 1, 60, 0.5, 4], [0.6, -1, 270, 0.3, 26], [0.66, -1, 150, 0.55, 10], [0.7, -1, 300, 0.38, 30], [0.76, -1, 205, 0.62, 16], [0.8, -1, 285, 0.5, 34], [0.86, -1, 160, 0.8, 12], [0.9, -1, 215, 0.66, 30], [0.95, -1, 120, 0.95, 10], [0.99, -1, 70, 1.2, 4]];
+    const B2 = [[0.34, 1, 40, 0.3, 8], [0.42, -1, 34, 0.5, 4], [0.5, 1, 78, 0.35, 10], [0.6, -1, 46, 0.7, 0], [0.66, 1, 92, 0.5, 14], [0.74, 1, 70, 0.8, 6], [0.8, -1, 70, 1.0, 4], [0.86, 1, 84, 0.7, 12], [0.93, 1, 60, 1.0, 6], [0.99, -1, 50, 1.25, 2], [0.99, 1, 44, 1.1, 4]];
+    for (const b of B1) branch(S1, ...b);
+    for (const b of B2) branch(S2, ...b);
+    // the twigs, fine and dark
+    for (const t of twigs) curve(t.p0, t.c, t.p1, t.w, mix(BARK, LEAF_D, 0.4), 0.95);
+    // the leaves, in two passes: the dark of the spray, then its lights
+    const sprays = [];
+    for (const t of twigs) {
+      const L = Math.hypot(t.p1[0] - t.p0[0], t.p1[1] - t.p0[1]), n = Math.max(2, Math.round(L / 15));
+      for (let i = 0; i <= n; i++) {
+        const s = t.leaf0 + (1 - t.leaf0) * i / n, q = 1 - s;
+        const x = q * q * t.p0[0] + 2 * q * s * t.c[0] + s * s * t.p1[0], y = q * q * t.p0[1] + 2 * q * s * t.c[1] + s * s * t.p1[1];
+        const tx = 2 * q * (t.c[0] - t.p0[0]) + 2 * s * (t.p1[0] - t.c[0]), ty = 2 * q * (t.c[1] - t.p0[1]) + 2 * s * (t.p1[1] - t.c[1]);
+        sprays.push({ x, y, a: Math.atan2(ty, tx), k: 0.75 + 0.5 * s });
+      }
+    }
+    const leaf = (x, y, a, len, wid, c, al) => { g.save(); g.translate(x, y); g.rotate(a); g.globalAlpha = al; g.fillStyle = css(c); g.beginPath(); g.moveTo(-len / 2, 0); g.quadraticCurveTo(0, -wid, len / 2, 0); g.quadraticCurveTo(0, wid, -len / 2, 0); g.fill(); g.restore(); g.globalAlpha = 1; };
+    const leaves = [];
+    for (const s of sprays) {
+      const n = 5 + Math.floor(R() * 4);
+      for (let i = 0; i < n; i++) {
+        // (a spray lies nearly level, its leaves slanting a little down and out from the twig, like the teeth of a comb)
+        const d = (i / (n - 1) - 0.5) * 22 * s.k, a = (Math.cos(s.a) < 0 ? PI_ : 0) + jit(0.5) + (Math.cos(s.a) < 0 ? -1 : 1) * (0.25 + 0.5 * R()) * (R() < 0.75 ? 1 : -1);
+        const x = s.x + Math.cos(s.a) * d + jit(5), y = s.y + Math.sin(s.a) * d + jit(5) + 2;
+        leaves.push({ x, y, a, len: (10 + R() * 7) * s.k, wid: 2.3 + R() * 1.4, lit: R() });
+      }
+    }
+    for (const l of leaves) leaf(l.x, l.y + 1.5, l.a, l.len, l.wid, mix(LEAF_D, LEAF_M, 0.5 * R()), 0.96);
+    for (const l of leaves) if (l.lit > 0.56) leaf(l.x - 1.4, l.y - 1.6, l.a + jit(0.2), l.len * 0.8, l.wid * 0.66, mix(LEAF_L, LEAF_G, clamp_((l.lit - 0.56) * 2.6 + jit(0.3))), 0.92);
+    // the two stems over their own twigs
+    stem(S2, 6.5, 1.6, mix(BARK, HOLE, 0.2), BARK_L);
+    stem(S1, 8.5, 1.8, BARK, mix(BARK_L, LEAF_G, 0.25));
+  });
+  function clamp_(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+
+  // ------------------------------------------------------------ the farm: the round stack, the open shed, and the barn
+  // with its timbers and its great thatched roof (the ground line is at 480)
+  cell('farm', (w, h) => {
+    const base = 480;
+    const straws = (pts, n, ang, len, cols, lw = 1.1, a = 0.7) => within(pts, () => { for (let i = 0; i < n; i++) { const x = R() * w, y = R() * h, an = (typeof ang === 'function' ? ang(x, y) : ang) + jit(0.22), l = len * (0.5 + R()); stroke([[x, y], [x + Math.cos(an) * l, y + Math.sin(an) * l]], lw * (0.7 + 0.6 * R()), pick(cols), a * (0.5 + 0.5 * R())); } }, false);
+    // the stack: a beehive of straw, lit on its left
+    {
+      g.save(); g.translate(0, base); g.scale(1, 0.9); g.translate(0, -base);
+      const S = [[36, base], [30, 380], [44, 290], [84, 215], [128, 168], [150, 150], [172, 168], [216, 215], [256, 290], [270, 380], [264, base]];
+      shape(S); g.fillStyle = lin(30, 0, 270, 0, [[0, STACK_L], [0.3, STACK], [0.62, mix(STACK, STACK_D, 0.6)], [1, STACK_D]]); g.fill();
+      within(S, () => {
+        soft(96, 300, 150, STACK_L, 0.5, 0.7, 1.4); soft(240, 400, 130, HOLE, 0.45, 0.8, 1.5);
+        for (let i = 0; i < 900; i++) { const x = 30 + R() * 240, y = 150 + R() * 330, k = (x - 30) / 240, an = PI_ / 2 + (x - 150) / 240 * 0.5 + jit(0.2), l = 7 + R() * 12; stroke([[x, y], [x + Math.cos(an) * l, y + Math.sin(an) * l]], 0.9 + 0.5 * R(), k < 0.45 ? pick([STACK_L, STACK, THATCH_L]) : pick([STACK, STACK_D, THATCH_D]), 0.45); }
+        // (its thatch is laid in rings)
+        for (let j = 0; j < 5; j++) { const y = 230 + j * 52; curve([20, y - 6], [150, y + 16], [280, y - 6], 1.6, STACK_D, 0.35); curve([20, y - 9], [150, y + 13], [280, y - 9], 1.1, STACK_L, 0.3); }
+      });
+      stroke([[150, 152], [151, 128]], 2.4, TIMBER); stroke([[150, 150], [150.6, 130]], 1, BARK_L, 0.6);
+      g.restore();
+    }
+    // the barn's far side: the long roof going back to the right, and the wall under it in shade
+    {
+      const ROOF = [[545, 88], [650, 104], [838, 306], [712, 312]];
+      poly(ROOF); g.fillStyle = lin(545, 90, 800, 320, [[0, mix(THATCH, THATCH_L, 0.5)], [0.5, THATCH], [1, mix(THATCH, THATCH_D, 0.55)]]); g.fill();
+      straws(ROOF, 1500, (x, y) => 0.95, 16, [THATCH_L, THATCH, THATCH_D, mix(THATCH, GRASS_L, 0.3)], 1.1, 0.5);
+      within(ROOF, () => { for (let j = 1; j < 6; j++) { const k = j / 6, x0 = lerp_(545, 712, k), y0 = lerp_(88, 312, k), x1 = lerp_(650, 838, k), y1 = lerp_(104, 306, k); stroke([[x0, y0], [x1, y1]], 1.5, THATCH_D, 0.35); stroke([[x0, y0 - 2.5], [x1, y1 - 2.5]], 1, THATCH_L, 0.3); } soft(820, 300, 120, HOLE, 0.3); }, false);
+      const SIDE = [[704, 310], [832, 304], [830, 468], [704, base]];
+      poly(SIDE); g.fillStyle = lin(704, 0, 832, 0, [[0, mix(DAUB_D, HOLE, 0.25)], [1, mix(DAUB_D, HOLE, 0.5)]]); g.fill();
+      within(SIDE, () => { for (const x of [704, 746, 790, 830]) stroke([[x, 300], [x, base]], 3, mix(TIMBER, HOLE, 0.4), 0.9); stroke([[704, 392], [832, 384]], 2.5, mix(TIMBER, HOLE, 0.4), 0.9); for (let i = 0; i < 160; i++) oval(704 + R() * 128, 310 + R() * 170, 1 + R() * 2, 1 + R(), 0, pick([DAUB_D, DAUB, HOLE]), 0.25); fill([[704, 304], [836, 300], [836, 324], [704, 336]], HOLE, 0.45, false); }, false);
+    }
+    // its gable end, facing us, in the light: plaster the colour of the yard between dark timbers
+    {
+      const FRONT = [[400, base], [400, 302], [545, 92], [704, 308], [704, base]];
+      poly(FRONT); g.fillStyle = lin(400, 0, 704, 0, [[0, DAUB_L], [0.55, DAUB], [1, mix(DAUB, DAUB_D, 0.5)]]); g.fill();
+      within(FRONT, () => {
+        soft(470, 330, 150, DAUB_L, 0.35); soft(690, 460, 120, DAUB_D, 0.45);
+        for (let i = 0; i < 1400; i++) { const x = 400 + R() * 304, y = 92 + R() * 390; oval(x, y, 0.8 + R() * 2.2, 0.6 + R() * 1.2, jit(1), pick([DAUB_L, DAUB, DAUB_D, THATCH, mix(DAUB, TUNIC, 0.25)]), 0.22); }
+        // the timbers: posts, rails, and the braces of the gable
+        const T = (a, b, wd = 4.5) => { stroke([a, b], wd, TIMBER, 0.95); stroke([[a[0] - 1, a[1] - 1], [b[0] - 1, b[1] - 1]], 1, BARK_L, 0.28); };
+        for (const x of [402, 470, 545, 618, 702]) T([x, base], [x, x === 545 ? 96 : 300]);
+        T([400, 302], [704, 308], 5.5); T([400, 392], [704, 394]); T([470, 216], [628, 220], 4);
+        T([470, 300], [545, 220], 3.5); T([618, 302], [545, 220], 3.5); T([402, 392], [470, 302], 3); T([702, 394], [640, 308], 3);
+        // the door, the row of small lights beside it, the loft
+        fill([[588, 372], [644, 372], [644, base], [588, base]], HOLE, 1, false); fill([[588, 372], [600, 372], [600, base], [588, base]], mix(HOLE, DAUB_D, 0.5), 0.8, false);
+        for (const x of [480, 508, 554]) fill([[x, 350], [x + 20, 350], [x + 20, 378], [x, 378]], HOLE, 0.95, false);
+        fill([[514, 150], [548, 150], [548, 212], [514, 212]], HOLE, 0.92, false); fill([[572, 232], [600, 232], [600, 290], [572, 290]], mix(HOLE, DAUB_D, 0.3), 0.85, false);
+        fill([[414, 232], [450, 232], [450, 292], [414, 292]], mix(HOLE, DAUB_D, 0.35), 0.0, false);
+      }, false);
+      // the roof's near edge: the thatch seen end on, thick, down both slopes of the gable
+      const EDGE_L = [[545, 76], [556, 92], [398, 322], [378, 316]], EDGE_R = [[545, 76], [652, 92], [660, 108], [560, 96]];
+      poly(EDGE_L); g.fillStyle = lin(380, 320, 550, 80, [[0, THATCH], [1, THATCH_L]]); g.fill(); straws(EDGE_L, 260, 2.2, 9, [THATCH_L, THATCH, THATCH_D], 1, 0.6);
+      const EDGE_F = [[545, 78], [556, 92], [718, 318], [700, 322]];
+      poly(EDGE_F); g.fillStyle = css(mix(THATCH, THATCH_D, 0.45)); g.fill(); straws(EDGE_F, 260, 0.95, 9, [THATCH, THATCH_D, THATCH_L], 1, 0.55);
+      stroke([[545, 78], [652, 94]], 3, THATCH_L, 0.8);
+    }
+    // the open shed against the barn, in front of the stack: a thatched pent roof on posts, dark under it
+    {
+      fill([[250, 318], [404, 318], [404, base], [250, base]], mix(HOLE, DAUB_D, 0.25), 0.97, false);
+      within([[250, 318], [404, 318], [404, base], [250, base]], () => { soft(330, 470, 90, DAUB_D, 0.5, 1.4, 0.5); for (const x of [300, 350]) stroke([[x, 330], [x, base]], 2, HOLE, 0.5); }, false);
+      const PENT = [[228, 316], [258, 256], [410, 262], [410, 326]];
+      poly(PENT); g.fillStyle = lin(230, 320, 410, 260, [[0, THATCH_L], [1, THATCH]]); g.fill(); straws(PENT, 520, PI_ / 2 - 0.15, 12, [THATCH_L, THATCH, STACK_L, THATCH_D], 1, 0.55);
+      stroke([[228, 317], [410, 327]], 4, THATCH_D, 0.9); stroke([[228, 314], [410, 324]], 1.2, THATCH_L, 0.6);
+      for (const x of [254, 398]) { stroke([[x, 322], [x, base]], 5, TIMBER); stroke([[x - 1.5, 322], [x - 1.5, base]], 1.2, BARK_L, 0.35); }
+    }
+    // where it all meets the ground: a soft dark line, and a few weeds
+    for (let i = 0; i < 90; i++) { const x = 30 + R() * 810; stroke([[x, base + 2], [x + jit(4), base - 3 - R() * 7]], 1, pick([GRASS_M, GRASS_D, GRASS_L]), 0.7); }
+  });
+
+  // ------------------------------------------------------------ a white bird on the wing, heading right (its body,
+  // which turns about (150, 80)); and one wing, upright, which beats about its root at (100, 250)
+  const taper = (pts, w0, w1, c) => { for (let i = 0; i < 20; i++) { const a0 = along(pts, i / 20), a1 = along(pts, (i + 1) / 20); stroke([[a0[0], a0[1]], [a1[0], a1[1]]], lerp_(w0, w1, i / 20), c); } };
+  cell('fly', (w, h) => {
+    fill([[14, 72], [44, 66], [78, 68], [80, 86], [46, 86], [16, 82]], mix(WHITE, WHITE_S, 0.45));
+    for (let i = 0; i < 5; i++) stroke([[16 + i * 2, 73 + i * 2.2], [70, 70 + i * 3.4]], 0.9, WHITE_S, 0.6);
+    stroke([[70, 90], [38, 93]], 3, mix(BILL, HOLE, 0.4), 0.9);                       // its legs, trailed
+    taper([[186, 76], [212, 70], [238, 66], [248, 65]], 18, 11, mix(WHITE, WHITE_S, 0.22));
+    curve([190, 82], [216, 78], [246, 71], 3, WHITE_S, 0.55);
+    const B = [[56, 72], [84, 61], [124, 56], [164, 58], [194, 64], [202, 77], [188, 92], [150, 100], [108, 98], [76, 90]];
+    shape(B); g.fillStyle = lin(0, 56, 0, 100, [[0, WHITE], [0.5, mix(WHITE, WHITE_S, 0.3)], [1, WHITE_S]]); g.fill();
+    within(B, () => { soft(130, 62, 50, [250, 248, 238], 0.6, 1.5, 0.4); soft(130, 102, 60, mix(WHITE_S, HOLE, 0.35), 0.5, 1.5, 0.35); });
+    oval(254, 63, 12, 9, -0.1, WHITE); oval(255, 67, 9, 4.5, -0.1, WHITE_S, 0.5);
+    fill([[263, 58], [287, 65], [264, 70]], BILL, 1, false); stroke([[265, 64.5], [284, 65.2]], 0.8, mix(BILL, HOLE, 0.5), 0.8);
+    oval(258, 61, 1.8, 1.8, 0, HOLE);
+  });
+  cell('wing', (w, h) => {
+    const Wg = [[74, 250], [60, 196], [62, 140], [76, 82], [94, 32], [108, 8], [123, 40], [132, 108], [129, 180], [120, 250]];
+    shape(Wg); g.fillStyle = lin(60, 0, 134, 0, [[0, WHITE_S], [0.45, mix(WHITE, WHITE_S, 0.3)], [1, WHITE]]); g.fill();
+    within(Wg, () => {
+      soft(118, 120, 60, [250, 248, 238], 0.5, 0.4, 1.8); soft(96, 250, 46, mix(WHITE_S, HOLE, 0.3), 0.5);
+      // the flight feathers, fanned from the leading edge back and down
+      for (let i = 0; i < 15; i++) { const k = i / 14, y0 = lerp_(18, 236, k), x0 = 122 + 8 * Math.sin(k * PI_); curve([x0, y0], [x0 - 30, y0 + 14], [x0 - 66, y0 + 44 - 20 * k], 1.3, mix(WHITE_S, HOLE, 0.15), 0.5); }
+      for (let i = 0; i < 7; i++) { const k = i / 6, y0 = lerp_(60, 230, k); curve([124, y0], [108, y0 + 8], [92, y0 + 22], 1, WHITE_S, 0.4); }
+    });
+    for (let i = 0; i < 4; i++) stroke([[104 + i * 3, 10 + i * 5], [96 + i * 2, 34 + i * 8]], 1.6, mix(WHITE_S, HOLE, 0.3), 0.6);
+  });
+
+  // ------------------------------------------------------------ the two cattle. A beast is a smooth close-toned form:
+  // the back in the light, the belly and the far legs in the dark, the bones of hip and shoulder only just told.
+  const hide = (pts, x0, y0, x1, y1, fn) => { shape(pts); g.fillStyle = lin(x0, y0, x1, y1, [[0, OX_L], [0.38, OX], [1, OX_D]]); g.fill(); if (fn) within(pts, fn); };
+  const leg = (pts, w0, w1, c) => { for (let i = 0; i < 24; i++) { const a0 = along(pts, i / 24), a1 = along(pts, (i + 1) / 24); stroke([[a0[0], a0[1]], [a1[0], a1[1]]], lerp_(w0, w1, i / 24), c); } const e = pts[pts.length - 1]; fill([[e[0] - w1 * 0.7, e[1] - 5], [e[0] + w1 * 0.8, e[1] - 5], [e[0] + w1 * 0.9, e[1] + 1], [e[0] - w1 * 0.7, e[1] + 1]], HOOF, 1, false); };
+  cell('ox1', (w, h) => {              // standing, its head (another piece) to the right; feet at 192
+    oval(150, 192, 110, 5, 0, HOLE, 0.25);
+    leg([[84, 110], [80, 150], [88, 176], [86, 190]], 15, 7.5, mix(OX_D, HOLE, 0.25)); leg([[204, 112], [202, 152], [204, 178], [203, 190]], 13, 7, mix(OX_D, HOLE, 0.25));
+    const B = [[44, 62], [70, 50], [120, 50], [176, 46], [214, 44], [240, 52], [250, 80], [244, 112], [226, 130], [180, 134], [128, 130], [86, 124], [56, 118], [38, 96]];
+    hide(B, 100, 40, 150, 140, () => { soft(70, 66, 30, OX_L, 0.5); soft(214, 62, 34, OX_L, 0.45); soft(140, 60, 60, OX_L, 0.3, 1.6, 0.5); soft(150, 132, 70, HOLE, 0.5, 1.6, 0.4); soft(40, 100, 30, OX_D, 0.5); curve([196, 60], [188, 96], [200, 126], 2, OX_D, 0.3); curve([92, 62], [84, 92], [96, 120], 2, OX_D, 0.25); });
+    leg([[62, 104], [50, 148], [60, 176], [57, 190]], 17, 8, OX); leg([[226, 112], [228, 154], [226, 178], [226, 190]], 14, 7.5, mix(OX, OX_L, 0.2));
+    for (const [x0, y0, x1, y1] of [[58, 110, 50, 150], [224, 116, 225, 156]]) curve([x0 - 4, y0], [x1 - 6, (y0 + y1) / 2], [x1 - 4, y1], 2, OX_L, 0.4);
+    curve([42, 66], [26, 96], [30, 142], 3.2, OX_D); oval(30, 148, 4, 9, 0.1, HOLE, 0.9);
+  });
+  cell('ox1h', (w, h) => {             // its neck and head, held level; the shoulder it turns about is at (24, 60)
+    const N = [[6, 34], [40, 28], [78, 28], [96, 34], [98, 62], [74, 78], [40, 92], [8, 96]];
+    hide(N, 40, 26, 50, 96, () => { soft(50, 36, 34, OX_L, 0.4, 1.5, 0.6); soft(44, 90, 34, HOLE, 0.45, 1.5, 0.5); });
+    // the far horn and ear, behind the head
+    curve([92, 28], [82, 12], [88, 2], 3.2, mix(HORN, OX_D, 0.35));
+    const H = [[84, 30], [100, 24], [116, 34], [130, 54], [137, 68], [132, 78], [120, 78], [104, 70], [90, 64], [82, 48]];
+    hide(H, 100, 24, 112, 80, () => { soft(104, 36, 16, OX_L, 0.5); soft(108, 72, 20, HOLE, 0.35); });
+    oval(131, 70, 6, 7, 0.3, mix(OX_D, HOLE, 0.5), 0.9); oval(133, 67, 1.3, 1.6, 0, HOLE);
+    oval(108, 44, 2.6, 2.1, 0.3, HOLE); oval(107.4, 43.4, 0.8, 0.8, 0, HORN, 0.8);
+    fill([[90, 36], [78, 30], [70, 34], [80, 42]], OX_D); fill([[88, 37], [79, 33], [75, 35], [81, 40]], mix(OX, SKIN, 0.4), 0.8);
+    curve([100, 26], [104, 8], [116, 0], 4, HORN); curve([100, 26], [103, 10], [113, 3], 1.4, WHITE, 0.7); stroke([[114, 2], [116, 0]], 2, OX_D, 0.6);
+  });
+  cell('ox2', (w, h) => {              // lying down, turned towards us; its head (another piece) at the right
+    oval(140, 168, 120, 7, 0, HOLE, 0.3);
+    const B = [[28, 150], [30, 112], [56, 84], [104, 68], [160, 66], [208, 78], [240, 104], [252, 140], [240, 164], [150, 168], [56, 166]];
+    hide(B, 100, 60, 150, 172, () => { soft(84, 84, 46, OX_L, 0.5); soft(170, 78, 50, OX_L, 0.4); soft(140, 164, 110, HOLE, 0.5, 1.5, 0.35); soft(40, 140, 40, OX_D, 0.5); curve([120, 72], [108, 110], [124, 160], 2.2, OX_D, 0.28); });
+    // the legs folded under it: one knee forward, a hind hoof showing
+    fill([[176, 140], [226, 134], [246, 152], [236, 166], [186, 166]], mix(OX, OX_L, 0.3)); fill([[226, 150], [250, 150], [252, 164], [228, 166]], OX_D); fill([[244, 158], [258, 158], [258, 167], [244, 167]], HOOF, 1, false);
+    fill([[60, 150], [96, 146], [104, 162], [66, 166]], OX_D, 0.9); fill([[52, 158], [66, 158], [66, 167], [52, 167]], HOOF, 1, false);
+    curve([30, 116], [16, 140], [26, 160], 3, OX_D); oval(28, 162, 6, 3.5, 0, HOLE, 0.9);
+  });
+  cell('ox2h', (w, h) => {             // its head, facing us; the neck it turns about is at (70, 120)
+    fill([[40, 132], [46, 92], [70, 80], [96, 92], [102, 132], [70, 140]], OX_D);
+    const horn = s => { curve([70 + s * 22, 50], [70 + s * 50, 44], [70 + s * 56, 14], 5, HORN); curve([70 + s * 24, 48], [70 + s * 47, 42], [70 + s * 54, 18], 1.6, WHITE, 0.7); stroke([[70 + s * 56, 16], [70 + s * 56, 13]], 2.4, OX_D, 0.6); };
+    horn(-1); horn(1);
+    for (const s of [-1, 1]) { fill([[70 + s * 24, 60], [70 + s * 46, 58], [70 + s * 52, 66], [70 + s * 30, 72]], s < 0 ? OX : OX_D); fill([[70 + s * 28, 63], [70 + s * 44, 62], [70 + s * 47, 66], [70 + s * 31, 69]], mix(OX, SKIN, 0.4), 0.7); }
+    const F = [[44, 54], [58, 44], [82, 44], [96, 54], [94, 78], [88, 100], [80, 112], [60, 112], [52, 100], [46, 78]];
+    shape(F); g.fillStyle = lin(44, 0, 98, 0, [[0, OX_L], [0.45, OX], [1, OX_D]]); g.fill();
+    within(F, () => { soft(60, 56, 22, OX_L, 0.5); soft(70, 112, 22, HOLE, 0.4); });
+    oval(70, 104, 13, 8, 0, mix(OX_D, HOLE, 0.45), 0.95); oval(64, 104, 1.8, 2.4, 0, HOLE); oval(76, 104, 1.8, 2.4, 0, HOLE); oval(66, 99, 5, 2, 0, mix(OX, SKIN, 0.5), 0.5);
+    for (const s of [-1, 1]) { oval(70 + s * 15, 70, 3, 2.4, 0, HOLE); oval(70 + s * 15 - 0.8, 69.2, 0.9, 0.9, 0, HORN, 0.8); }
+  });
+
+  // ------------------------------------------------------------ the herdsman, standing with his stick (feet at 292);
+  // the arm that holds it is another piece. A face this size is its lit side and its shade, no more.
+  const person = (o) => {
+    const { x, foot, hgt, lean = 0, tunic, tunicL, tunicD, stride = 0 } = o, u = hgt / 280, X = d => x + d * u, Y = d => foot - d * u;
+    oval(x, foot, 30 * u, 4 * u, 0, HOLE, 0.3);
+    // the legs, in pale hose; shoes
+    const legp = (hip, sway, c) => { leg([[X(hip), Y(120)], [X(hip + sway * 0.5), Y(66)], [X(hip + sway), Y(8)], [X(hip + sway), Y(2)]], 15 * u, 8 * u, c); fill([[X(hip + sway - 8), Y(7)], [X(hip + sway + 12 * (o.face || -1)), Y(6)], [X(hip + sway + 14 * (o.face || -1)), Y(0)], [X(hip + sway - 8), Y(0)]], HAT, 1, false); };
+    legp(8, stride * -16, HOSE_D); legp(-8, stride * 16, HOSE);
+    // the tunic, belted, to the middle of the thigh
+    const T = [[X(-26 + lean), Y(218)], [X(0 + lean), Y(226)], [X(26 + lean), Y(218)], [X(30), Y(160)], [X(27), Y(128)], [X(32), Y(98)], [X(0), Y(92)], [X(-32), Y(98)], [X(-27), Y(128)], [X(-30), Y(160)]];
+    shape(T); g.fillStyle = lin(X(-32), 0, X(32), 0, [[0, tunicL], [0.45, tunic], [1, tunicD]]); g.fill();
+    within(T, () => { soft(X(-14), Y(196), 30 * u, tunicL, 0.4); for (const d of [-14, 2, 16]) curve([X(d), Y(126)], [X(d + 2), Y(110)], [X(d - 2), Y(96)], 1.6 * u, tunicD, 0.5); stroke([[X(-30), Y(130)], [X(30), Y(130)]], 4.5 * u, mix(tunicD, HOLE, 0.4), 0.9); });
+    // the near arm, hanging
+    if (!o.noArm) { leg([[X(-25 + lean), Y(212)], [X(-31), Y(172)], [X(-28), Y(134)], [X(-28), Y(130)]], 12 * u, 8.5 * u, mix(tunic, tunicL, 0.4)); oval(X(-28), Y(124), 6 * u, 7 * u, 0, SKIN); }
+    // neck, head, hat
+    fill([[X(-7 + lean), Y(232)], [X(7 + lean), Y(232)], [X(8 + lean), Y(218)], [X(-8 + lean), Y(218)]], SKIN_D, 1, false);
+    const hx = X(lean * 1.4), hy = Y(250);
+    oval(hx, hy, 15 * u, 18 * u, 0, SKIN); within([[hx - 16 * u, hy - 19 * u], [hx + 16 * u, hy - 19 * u], [hx + 16 * u, hy + 19 * u], [hx - 16 * u, hy + 19 * u]], () => { soft(hx + 9 * u, hy + 4 * u, 17 * u, SKIN_D, 0.75); soft(hx - 6 * u, hy - 2 * u, 9 * u, mix(SKIN, WHITE, 0.4), 0.5); oval(hx + (o.face || -1) * 4 * u, hy - 3 * u, 5 * u, 1.6 * u, 0, SKIN_D, 0.6); }, false);
+    fill([[hx - 22 * u, hy - 9 * u], [hx - 12 * u, hy - 24 * u], [hx + 10 * u, hy - 26 * u], [hx + 22 * u, hy - 10 * u], [hx, hy - 13 * u]], o.hat || HAT);
+    curve([hx - 21 * u, hy - 9 * u], [hx, hy - 15 * u], [hx + 21 * u, hy - 10 * u], 2.2 * u, mix(o.hat || HAT, SKIN, 0.3), 0.6);
+  };
+  cell('herd', (w, h) => person({ x: 66, foot: 292, hgt: 280, tunic: TUNIC, tunicL: TUNIC_L, tunicD: TUNIC_D, noArm: false, face: -1 }));
+  cell('arm', (w, h) => {              // his other arm, out to the side, and the long stick it holds upright; the shoulder is at (64, 150)
+    stroke([[26, 216], [34, 6]], 3.2, BARK); stroke([[25, 216], [33, 6]], 1, BARK_L, 0.6);
+    leg([[64, 150], [48, 142], [34, 124], [32, 120]], 12, 8.5, TUNIC); curve([62, 146], [48, 138], [36, 122], 2, TUNIC_L, 0.6);
+    oval(31, 116, 6.5, 7.5, 0, SKIN); oval(33, 118, 4, 5, 0, SKIN_D, 0.5);
+  });
+  // the man with a load on his shoulder, walking (two steps of his walk; feet at 214)
+  for (const [name, stride] of [['man1', 1], ['man2', -0.25]]) cell(name, (w, h) => {
+    person({ x: 46, foot: 214, hgt: 200, lean: 3, tunic: JERKIN, tunicL: JERKIN_L, tunicD: JERKIN_D, stride, noArm: true, face: 1, hat: mix(HAT, TUNIC, 0.4) });
+    const u = 200 / 280, X = d => 46 + d * u, Y = d => 214 - d * u;
+    // the load: a long bundle of straw across the shoulder, a hand up to steady it
+    g.save(); g.translate(X(-4), Y(240)); g.rotate(-0.3);
+    shape([[-52, -4], [-30, -13], [20, -14], [50, -7], [54, 4], [24, 12], [-28, 13], [-54, 6]].map(([a, b]) => [a * u * 1.15, b * u * 1.15])); g.fillStyle = lin(0, -12, 0, 12, [[0, STRAW], [1, mix(STRAW, STACK_D, 0.6)]]); g.fill();
+    for (let i = 0; i < 46; i++) { const y = jit(18) * u, x = jit(90) * u; stroke([[x, y], [x + (10 + R() * 14) * u, y + jit(2)]], 0.8, pick([STRAW, STACK_L, STACK_D, THATCH]), 0.6); }
+    for (const x of [-20, 22]) stroke([[x * u, -13 * u], [x * u, 13 * u]], 1.6, THATCH_D, 0.8);
+    g.restore();
+    leg([[X(20), Y(212)], [X(30), Y(232)], [X(18), Y(250)], [X(16), Y(252)]], 11 * u, 8 * u, JERKIN); oval(X(15), Y(254), 5.5 * u, 6 * u, 0, SKIN);
+  });
+
+  // ------------------------------------------------------------ a white bird of the yard (body; and its neck and head,
+  // another piece, which turns about (22, 112)). White is never white here: a cool grey underneath, cream above.
+  cell('bird', (w, h) => {
+    oval(72, 122, 44, 4, 0, HOLE, 0.3);
+    for (const [x, c] of [[80, mix(BILL, HOLE, 0.45)], [64, mix(BILL, HOLE, 0.2)]]) { stroke([[x, 86], [x - 1, 116]], 3.2, c); fill([[x - 6, 121], [x - 1, 113], [x + 12, 121]], c, 1, false); }
+    const B = [[8, 38], [22, 44], [44, 36], [78, 34], [108, 42], [124, 58], [120, 78], [98, 92], [64, 94], [36, 84], [20, 64]];
+    shape(B); g.fillStyle = lin(0, 34, 0, 96, [[0, WHITE], [0.5, mix(WHITE, WHITE_S, 0.35)], [1, WHITE_S]]); g.fill();
+    within(B, () => { soft(70, 44, 44, [255, 253, 244], 0.6, 1.4, 0.5); soft(80, 96, 50, mix(WHITE_S, HOLE, 0.3), 0.5, 1.4, 0.4); });
+    curve([30, 56], [64, 76], [104, 58], 1.6, WHITE_S, 0.8); curve([34, 52], [62, 66], [96, 52], 1.1, WHITE_S, 0.5); curve([10, 40], [20, 50], [36, 52], 1.4, WHITE_S, 0.7);
+  });
+  cell('neck', (w, h) => {
+    const N = [[14, 118], [12, 96], [20, 70], [30, 48], [34, 30], [46, 28], [44, 52], [36, 76], [34, 100], [36, 118]];
+    shape(N); g.fillStyle = lin(10, 0, 46, 0, [[0, WHITE], [1, WHITE_S]]); g.fill();
+    oval(41, 24, 10.5, 8.5, -0.2, WHITE); oval(43, 27, 8, 5, -0.2, mix(WHITE, WHITE_S, 0.6), 0.6);
+    fill([[49, 20], [66, 25], [50, 30]], BILL, 1, false); stroke([[51, 25.4], [64, 25.4]], 0.8, mix(BILL, HOLE, 0.5), 0.8);
+    oval(44, 21.5, 1.7, 1.7, 0, HOLE);
+  });
+
+  // ============================================================ the land, in four long strips (the second sheet), each
+  // painted in the picture's own measure (a point of its window: 960 across, 1760 down) and meeting its own mirror
+  // image at either end, so that there is always more of it past the window's edge
+  g = gB; g.clearRect(0, 0, 1024 * K, 1024 * K);
+  const WX0 = -140, WXN = 1198, XS = 1024 / WXN;
+  const strip = (name, fn) => { const [r0, r1, y0, y1] = LAND[name], ys = (r1 - r0 - GUT) / (y1 - y0); g.save(); g.setTransform(K * XS, 0, 0, K * ys, -WX0 * XS * K, (r0 + GUT - y0 * ys) * K); g.beginPath(); g.rect(WX0 - 4, y0, WXN + 8, y1 - y0); g.clip(); g.lineCap = 'round'; g.lineJoin = 'round'; fn(y0, y1); g.restore(); };
+  const pl = pts => { const f = x => { let i = 0; while (i < pts.length - 2 && x > pts[i + 1][0]) i++; const a = pts[i], b = pts[i + 1]; return a[1] + (b[1] - a[1]) * clamp_((x - a[0]) / (b[0] - a[0])); }; return x => (f(x - 14) + 2 * f(x) + f(x + 14)) / 4; };
+  const prof = (f, yb) => { const p = [[WX0 - 4, yb]]; for (let x = WX0 - 4; x <= WX0 + WXN + 4; x += 6) p.push([x, f(x)]); p.push([WX0 + WXN + 4, yb]); return p; };
+  const rx = () => WX0 + R() * WXN;
+  // a round head of leaves, lit from the upper left in small touches
+  const head = (x, y, r, dk, md, lt, gd, n = 14 + r) => { oval(x, y, r, r * 0.8, 0, mix(dk, md, 0.25 + 0.5 * R())); for (let j = 0; j < n; j++) { const a = R() * TAU, rr = Math.sqrt(R()) * r * 0.95, lit = clamp_(0.5 - (Math.cos(a) * 0.5 + Math.sin(a) * 0.8) * rr / r); oval(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8, 1.6 + R() * 2.4, 1.1 + R() * 1.3, jit(1), lit > 0.64 ? mix(lt, gd, R() * (lit - 0.5) * 1.8) : mix(dk, md, R()), 0.6); } };
+
+  // ---- the far country: the blue mountains, their foothills, and the pale hill with the dark wood on its top
+  strip('far', (y0, y1) => {
+    const mt = x => 948 - 24 * Math.exp(-(((x - 690) / 40) ** 2)) - 20 * Math.exp(-(((x - 470) / 85) ** 2)) - 9 * Math.exp(-(((x - 840) / 70) ** 2)) - 14 * Math.exp(-(((x + 30) / 120) ** 2)) + 4 * Math.sin(x / 41) + 2.5 * Math.sin(x / 17 + 1);
+    const M = prof(mt, y1); poly(M); g.fillStyle = lin(0, 922, 0, 1010, [[0, MT_L], [0.3, MT], [0.62, FOOT], [1, FOOT_D]]); g.fill();
+    within(M, () => { for (let i = 0; i < 220; i++) { const x = rx(), y = mt(x) + 1 + R() * 26; oval(x - 2, y, 5 + R() * 12, 1.4 + R() * 2.6, 0.25 + jit(0.3), R() < 0.6 ? mix(MT_L, [236, 240, 228], R() * 0.5) : mix(MT, FOOT, R()), 0.22); } }, false);
+    const ft = x => 974 + 7 * Math.sin(x / 63 + 2) + 4 * Math.sin(x / 23) - 10 * Math.exp(-(((x - 760) / 90) ** 2));
+    const F = prof(ft, y1); poly(F); g.fillStyle = lin(0, 966, 0, 1050, [[0, mix(FOOT, MT, 0.15)], [0.4, FOOT], [1, FOOT_D]]); g.fill();
+    within(F, () => { for (let i = 0; i < 500; i++) { const x = rx(), y = ft(x) + R() * 110; oval(x, y, 3 + R() * 6, 1.5 + R() * 2.5, jit(0.5), R() < 0.4 ? mix(FOOT, MT, 0.3 * R()) : mix(FOOT, FOOT_D, R()), 0.3); } }, false);
+    const hl = pl([[-160, 872], [-60, 862], [0, 853], [50, 846], [100, 829], [150, 818], [200, 828], [250, 858], [290, 893], [330, 905], [370, 916], [420, 941], [480, 985], [560, 1040], [640, 1078], [700, 1099], [760, 1112], [1080, 1112]]);
+    const H = prof(hl, y1); poly(H); g.fillStyle = lin(0, 840, 0, 1080, [[0, HILL_L], [0.45, HILL], [1, HILL_D]]); g.fill();
+    within(H, () => {
+      soft(60, 900, 120, HILL_L, 0.5, 1.6, 0.5); soft(330, 1010, 160, HILL_D, 0.45, 1.4, 0.6);
+      for (let i = 0; i < 700; i++) { const x = rx(), y = hl(x) + R() * 220; oval(x, y, 4 + R() * 12, 1.2 + R() * 2, jit(0.25) + 0.12, R() < 0.5 ? mix(HILL_L, [200, 206, 170], R() * 0.35) : mix(HILL, HILL_D, R()), 0.2); }
+    }, false);
+    const capLow = pl([[10, 852], [100, 848], [150, 850], [220, 868], [310, 897]]);
+    const capP = []; for (let x = 34; x <= 294; x += 6) capP.push([x, hl(x) - 1]); for (let x = 294; x >= 34; x -= 6) capP.push([x, Math.max(hl(x), capLow(x))]);
+    poly(capP); g.fillStyle = css(CAP); g.fill();
+    for (let i = 0; i < 46; i++) { const x = 40 + R() * 250, y = lerp_(hl(x) + 2, Math.max(hl(x) + 2, capLow(x)), R()); head(x, y, 5 + R() * 6, CAP, mix(CAP, CAP_L, 0.4), CAP_L, mix(CAP_L, HILL_L, 0.5), 9); }
+    // the one pale tree on its shoulder
+    const T0 = mix(FOOT, HILL, 0.5), T1 = mix(HILL, MT, 0.5), T2 = mix(MT_L, HILL_L, 0.5);
+    head(346, 900, 14, T0, T1, T2, MT_L, 24); head(394, 901, 15, T0, T1, T2, MT_L, 24); head(370, 893, 26, T0, T1, T2, MT_L, 60);
+  });
+
+  // ---- the wood behind the farm, and the grove at its right: round heads, one behind another
+  strip('wood', (y0, y1) => {
+    const wd = x => 998 + 6 * Math.sin(x / 53) + 4 * Math.sin(x / 19 + 2) - 14 * Math.exp(-(((x - 640) / 60) ** 2)) - 8 * Math.exp(-(((x - 860) / 70) ** 2));
+    poly(prof(x => wd(x) + 8, y1)); g.fillStyle = lin(0, 990, 0, 1310, [[0, WOOD_M], [0.2, WOOD_D], [1, GROVE_D]]); g.fill();
+    const hs = []; for (let i = 0; i < 230; i++) { const x = rx(), d = R(); hs.push([x, wd(x) + 10 + d * d * (x > 520 ? 300 : 80), 11 + R() * 15]); }
+    hs.sort((a, b) => a[1] - b[1]);
+    for (const [x, y, r] of hs) head(x, y, r, WOOD_D, WOOD_M, WOOD_L, WOOD_G, 12 + r * 0.8);
+    g.fillStyle = lin(0, 1120, 0, 1310, [[0, GROVE_D, 0], [1, GROVE_D, 0.55]]); g.fillRect(WX0 - 4, 1120, WXN + 8, 190);
+    // the pale track that goes up into the trees
+    for (let i = 0; i < 20; i++) { const k = i / 19; oval(lerp_(796, 752, k) + 10 * Math.sin(k * 5), lerp_(1312, 1244, k), lerp_(11, 3, k), lerp_(5, 2, k), -0.3, mix(PATH, GROVE_D, 0.15 + 0.3 * k), 0.8); }
+  });
+
+  // ---- the ground the farm stands on: the field behind, the bare yard in the light, the grass where the cattle are
+  strip('ground', (y0, y1) => {
+    const gr = pl([[-160, 1064], [300, 1062], [340, 1080], [400, 1150], [470, 1290], [560, 1332], [700, 1338], [1080, 1342]]);
+    const G = prof(gr, y1); poly(G); g.fillStyle = lin(0, 1060, 0, 1590, [[0, FIELD_L], [0.2, FIELD], [0.55, mix(FIELD, YARD_S, 0.5)], [0.75, mix(GRASS_M, YARD_S, 0.4)], [1, GRASS_D]]); g.fill();
+    within(G, () => {
+      for (let i = 0; i < 700; i++) { const x = WX0 + R() * 560, y = 1064 + R() * 250; oval(x, y, 5 + R() * 12, 1.2 + R() * 1.8, jit(0.2), R() < 0.5 ? mix(FIELD_L, GRASS_G, R() * 0.4) : mix(FIELD, GRASS_M, R()), 0.22); }
+      // the dark hedge at the left, and the lit slope under it
+      for (let i = 0; i < 40; i++) { const x = -150 + R() * 230, y = 1196 + R() * 90; head(x, y, 12 + R() * 14, WOOD_D, WOOD_M, WOOD_L, WOOD_G); }
+      fill([[-150, 1296], [50, 1288], [118, 1326], [112, 1392], [40, 1440], [-150, 1452]], mix(GRASS_L, FIELD, 0.4));
+      soft(20, 1340, 90, GRASS_G, 0.35, 1.5, 0.6);
+      // the yard: bare earth, gold where the light falls across it
+      fill([[70, 1412], [130, 1386], [400, 1380], [690, 1384], [812, 1394], [820, 1420], [700, 1446], [400, 1452], [150, 1448]], YARD);
+      soft(330, 1412, 40, YARD_L, 0.9, 6, 0.55); soft(620, 1414, 34, YARD_L, 0.6, 4.5, 0.5); soft(760, 1400, 60, YARD_S, 0.6, 1.2, 0.6);
+      for (let i = 0; i < 520; i++) { const x = 60 + R() * 770, y = 1378 + R() * 78; oval(x, y, 3 + R() * 9, 0.9 + R() * 1.4, jit(0.15), pick([YARD, YARD_L, YARD_L, YARD_S, mix(YARD, GRASS_L, 0.5)]), 0.3); }
+      // the grass below it, where the cattle are
+      soft(430, 1490, 60, mix(GRASS_L, GRASS_M, 0.5), 0.45, 5, 0.6);
+      for (let i = 0; i < 1100; i++) { const x = rx(), y = 1442 + R() * 150, l = 4 + R() * 7; stroke([[x, y + 2], [x + jit(4), y - l]], 0.9 + 0.5 * R(), pick([GRASS_M, GRASS_D, mix(GRASS_M, GRASS_L, 0.5), GRASS_L]), 0.5); }
+      // the track coming down out of the trees, and the dark under them
+      for (let i = 0; i < 14; i++) { const k = i / 13; oval(lerp_(798, 770, k) + 6 * Math.sin(k * 4), lerp_(1336, 1392, k), lerp_(12, 22, k), lerp_(5, 7, k), 0, mix(PATH, YARD, 0.3 + 0.4 * k), 0.75); }
+      soft(960, 1420, 150, GROVE_D, 0.8, 1, 0.8); soft(-150, 1500, 120, GRASS_D, 0.5);
+    }, false);
+  });
+
+  // ---- the near bank under the window: the lit rise at the left with its small flowers, the still water and its
+  // reeds, and the tall dark bush at the tree's foot
+  strip('bank', (y0, y1) => {
+    const bk = pl([[-160, 1418], [0, 1446], [150, 1486], [300, 1520], [380, 1535], [560, 1546], [700, 1542], [1080, 1540]]);
+    const B = prof(bk, y1); poly(B); g.fillStyle = lin(0, 1440, 0, 1760, [[0, GRASS_M], [0.35, mix(GRASS_M, GRASS_D, 0.6)], [1, GRASS_D]]); g.fill();
+    within(B, () => {
+      soft(130, 1560, 70, GRASS_L, 0.75, 3.2, 0.8); soft(90, 1540, 40, GRASS_G, 0.4, 3, 0.6);
+      const Pl = [[388, 1574], [460, 1556], [600, 1554], [720, 1562], [762, 1592], [706, 1630], [560, 1644], [440, 1632], [384, 1604]];
+      fill(Pl, POOL); within(Pl, () => { for (let i = 0; i < 26; i++) { const x = 400 + R() * 350, y = 1560 + R() * 80; stroke([[x, y], [x + 16 + R() * 40, y + jit(1.5)]], 1 + R(), pick([[58, 78, 72], [44, 56, 46], GRASS_M]), 0.3); } soft(560, 1556, 100, HOLE, 0.5, 2, 0.14); });
+      curve([400, 1620], [560, 1650], [720, 1626], 1.6, mix(GRASS_L, WHITE, 0.2), 0.35);
+    }, false);
+    // the grass, blade by blade: gold on the lit rise
+    for (let i = 0; i < 2400; i++) { const x = rx(), y = bk(x) - 2 + R() * R() * 230, l = 6 + R() * 12, lit = Math.exp(-(((x - 110) / 190) ** 2)) * Math.exp(-(((y - 1545) / 70) ** 2)); if (x > 380 && x < 770 && y > 1556 && y < 1640 && R() < 0.93) continue; stroke([[x, y + 2], [x + jit(5), y - l]], 1 + 0.6 * R(), lit > 0.25 && R() < 0.75 ? mix(GRASS_L, GRASS_G, R() * lit * 1.3) : pick([GRASS_M, GRASS_D, GRASS_M, mix(GRASS_M, GRASS_L, 0.4)]), 0.75); }
+    for (let i = 0; i < 38; i++) { const x = 612 + R() * 96, y = 1562 + jit(8), tp = 26 + R() * 44; curve([x, y], [x + jit(4), y - tp * 0.6], [x + jit(16), y - tp], 1.1 + 0.5 * R(), pick([GRASS_L, GRASS_G, GRASS_M, LEAF_L]), 0.85); }
+    for (let i = 0; i < 46; i++) { const x = -20 + R() * 330, y = 1560 + R() * 150; stroke([[x, y + 12], [x + jit(4), y]], 1, GRASS_L, 0.8); oval(x + jit(2), y - 1, 2, 2, 0, mix(WHITE, GRASS_G, 0.45), 0.8); if (R() < 0.5) oval(x + 5 + jit(2), y + 3, 1.6, 1.6, 0, mix(WHITE, GRASS_G, 0.55), 0.7); }
+    // the bush, leaf by leaf, its upper left side lit
+    fill([[738, 1560], [742, 1410], [772, 1318], [840, 1288], [900, 1302], [962, 1332], [1070, 1338], [1070, 1764], [738, 1764]], mix(LEAF_D, HOLE, 0.3));
+    const bush = (cx, cy, r, n) => { for (let i = 0; i < n; i++) { const a = R() * TAU, rr = Math.sqrt(R()) * r, x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 0.9, lit = clamp_(0.45 - (Math.cos(a) * 0.5 + Math.sin(a) * 0.8) * rr / r); oval(x, y, 3.4 + R() * 3.4, 1.8 + R() * 1.6, jit(1.6), lit > 0.62 ? mix(LEAF_M, LEAF_L, (lit - 0.5) * 1.5 * R()) : mix(LEAF_D, LEAF_M, R() * 0.7), 0.9); } };
+    for (const [cx, cy, r, n] of [[1010, 1420, 90, 380], [930, 1380, 70, 340], [820, 1350, 66, 400], [900, 1500, 80, 380], [800, 1460, 70, 460], [960, 1620, 100, 380], [850, 1570, 80, 480], [790, 1660, 70, 380]]) bush(cx, cy, r, n);
+    // a pale bent stem in front of it
+    curve([737, 1482], [752, 1690], [806, 1688], 2.6, mix(PATH, LEAF_L, 0.4), 0.55); curve([806, 1688], [856, 1680], [880, 1562], 2.2, mix(PATH, LEAF_L, 0.4), 0.45);
+    g.fillStyle = lin(0, 1650, 0, 1760, [[0, HOLE, 0], [1, HOLE, 0.6]]); g.fillRect(WX0 - 4, 1650, WXN + 8, 110);
+  });
+
+  // ------------------------------------------------------------ the tooth of old paint, over all of it
+  for (const [c, w, h, n] of [[gA, 2048, 1024, 22000], [gB, 1024, 1024, 14000]]) {
+    c.save(); c.setTransform(K, 0, 0, K, 0, 0); c.globalCompositeOperation = 'source-atop';
+    for (let i = 0; i < n; i++) { const d = R(); c.globalAlpha = d < 0.5 ? 0.07 : 0.05; c.fillStyle = d < 0.5 ? '#0c0a06' : '#f0e2b4'; c.beginPath(); c.ellipse(R() * w, R() * h, 0.8 + R() * 2.2, 0.6 + R() * 1.2, R() * 3, 0, TAU); c.fill(); }
+    c.restore();
+  }
+}
+// </paint>
