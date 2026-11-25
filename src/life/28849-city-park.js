@@ -617,7 +617,7 @@ lifeFor(28849, {
     const rm = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xa8a8a8, map: brushPrint(), alphaTest: 0.4, roughness: 0.92, metalness: 0, emissive: 0xffffff, emissiveIntensity: 0.5, side: THREE.DoubleSide });
     rm.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, ru_);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aCen; attribute vec4 aFly; uniform float uT; varying float vBody;')
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aCen; attribute vec4 aFly; uniform float uT; varying float vBody, vLit;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
   {
     // a stroke of the ground: it comes out along the path from the far end, small, and grows into its place;
@@ -626,10 +626,14 @@ lifeFor(28849, {
     float k = clamp((uT - aFly.w) / ${FLY.toFixed(2)}, 0.0, 1.0), fl = step(1.0e-6, dot(aFly.xyz, aFly.xyz));
     float e = 1.0 - (1.0 - k) * (1.0 - k);
     float s = fl > 0.5 ? (k <= 0.0 ? 0.0 : 0.2 + 0.8 * e) : 1.0;
-    vBody = fl > 0.5 ? 1.0 : k;
+    vBody = fl > 0.5 ? 1.0 : k; vLit = 1.0 - fl;
     transformed = aCen + rel * s + aFly.xyz * (1.0 - e);
   }`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vBody;')
+      // (the ground is most of what is on the screen, laid several touches deep: it is not put through the room's lamps,
+      // one by one, as the rest is, but glows evenly in its own colours, which is cheaper by far and is the look of
+      // sand in the sun)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vBody, vLit;')
+        .replace('#include <lights_fragment_begin>', 'if (vLit > 0.5) {\n#include <lights_fragment_begin>').replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n  } else totalEmissiveRadiance *= 1.36;')
         .replace('#include <map_fragment>', '#include <map_fragment>\n  if (vBody < 0.999) { vec2 bq = mod(floor(gl_FragCoord.xy), 4.0); float bt = (mod(bq.x + bq.y * 2.0, 4.0) * 4.0 + mod(bq.x * 3.0 + bq.y, 4.0) + 0.5) / 16.0; if (vBody < bt) discard; }')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance *= vColor.rgb;\n#ifdef USE_MAP\n  totalEmissiveRadiance *= sampledDiffuseColor.rgb;\n#endif');
     };
@@ -793,7 +797,7 @@ lifeFor(28849, {
     if (!back && !L.quiet && c > BUILT && dt > 0 && toy && toy.group.visible && Math.abs(toy.pos.y - L.y) < 0.4) {
       const lq = L.local(toy.pos.x, toy.pos.z), la = this.rutAt;
       if (!this.onSand(lq.u, lq.out)) this.rutAt = null;
-      else if (!la) this.rutAt = { x: lq.u, z: lq.out };
+      else if (!la || Math.hypot(lq.u - la.x, lq.out - la.z) > 0.4) this.rutAt = { x: lq.u, z: lq.out };      // (set down on the sand, or carried: no print between)
       else if (Math.hypot(lq.u - la.x, lq.out - la.z) > 0.085) {
         const r = this.ruts[this.rutN++ % this.ruts.length]; r.x = (lq.u + la.x) / 2; r.z = (lq.out + la.z) / 2; r.yaw = Math.atan2(lq.u - la.x, lq.out - la.z); r.on = true; la.x = lq.u; la.z = lq.out;
         if (voice.ctx && this.rutN % 2 === 0) noise(voice, 0, { d: 0.05, vol: calm ? 0.002 : 0.0035, bp: 1700, q: 0.6, attack: 0.006 });
