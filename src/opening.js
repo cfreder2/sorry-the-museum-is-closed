@@ -1,6 +1,6 @@
 // The opening of a new game, seen through the eyes of the child who will drive the toy. Her bedroom, high over Monroe
 // Street; the holiday lights on Butler Field below, and the museum beyond them. She sees lights that are not Christmas
-// lights, and penguins, and nobody will look. Told a line at a time, typed along the bottom, a key's click to every
+// lights, and penguins, and nobody will look. Told a line at a time, typed in a box along the bottom, a key's click to every
 // other letter and the wah-wah of whoever is speaking under it: a click, a tap, a key or the A button brings the next.
 // Then bed: her lamp clicks off, the television, the light in the hall, and the room is lit by the string of bulbs
 // round her window and the colours of the show in the park. She takes the handset and the car from her bookcase,
@@ -8,7 +8,9 @@
 // in her mittens, the toy waking in the snow below. It pulls away, and we go with it: out through the glass, down past
 // it, up over the lights and the park and the roofs of the museum, and round to the steps behind the toy, which is yours.
 //
-// Nobody's face is ever shown: her parents are voices from along the hall.
+// Nobody is ever seen in the room: her parents are voices from along the hall. What is said comes in a box along the
+// bottom with the speaker's name on it and, for her mother, her father and the television, a small drawn head that
+// talks while the line is typed. Her own lines have no head: they are yours.
 //
 // New games only (main.js decides: never on Continue, never with ?mode, ?voyage or ?noopen). The Skip button, Escape or
 // a pad's Start hands the toy over at once. With Reduce motion the camera cuts instead of moving and the lines are not
@@ -69,7 +71,51 @@ const CARDS = [
     { who: 'dad', text: 'It’s time for bed.' }] },
   { view: 'room', pre: 0.9, lines: [{ who: 'me', text: 'Fine.' }] },
 ];
-const NAMES = { mom: 'Mom', dad: 'Dad', tv: 'TV' };
+const NAMES = { me: 'You', mom: 'Mom', dad: 'Dad', tv: 'TV' };
+// The talking heads, drawn (100 by 100). `.shut` is the mouth at rest and `.open` the mouth that moves while a line is
+// typed; `.flick` is the television's picture jumping.
+const SVG = body => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${body}</svg>`;
+const HEADS = {
+  mom: SVG(`<rect width="100" height="100" fill="#3b2632"/><circle cx="50" cy="48" r="45" fill="#54323f"/>
+<circle cx="50" cy="13" r="11" fill="#8a4426"/><ellipse cx="50" cy="45" rx="28" ry="30" fill="#7c3c22"/>
+<path d="M4 100Q8 80 36 75L64 75Q92 80 96 100Z" fill="#2f7460"/><path d="M40 75.5L50 90L60 75.5Z" fill="#f3ead8"/>
+<rect x="43" y="62" width="14" height="17" rx="5" fill="#dfa385"/>
+<ellipse cx="50" cy="47" rx="20" ry="24" fill="#f2c5a6"/><path d="M50 23A20 24 0 0 1 50 71Z" fill="#e6b393" opacity=".55"/>
+<path d="M29 49Q26 23 50 21.5Q74 23 71 49Q68.5 37 59 31Q47 37.5 36 36.5Q31 41 29 49Z" fill="#8a4426"/>
+<circle cx="29.6" cy="57" r="2.1" fill="#e8c460"/><circle cx="70.4" cy="57" r="2.1" fill="#e8c460"/>
+<path d="M37 43.5Q41.5 41 46 43.5M54 43.5Q58.5 41 63 43.5" stroke="#6b3220" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+<ellipse cx="41.5" cy="49.5" rx="2.4" ry="2.9" fill="#2b1d1f"/><ellipse cx="58.5" cy="49.5" rx="2.4" ry="2.9" fill="#2b1d1f"/>
+<circle cx="42.3" cy="48.5" r=".8" fill="#fff"/><circle cx="59.3" cy="48.5" r=".8" fill="#fff"/>
+<circle cx="37" cy="57.5" r="4.2" fill="#f08f8f" opacity=".4"/><circle cx="63" cy="57.5" r="4.2" fill="#f08f8f" opacity=".4"/>
+<path d="M49.2 52Q48 56 50.6 56.6" stroke="#d39a7c" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<path class="shut" d="M44 62Q50 66.5 56 62" stroke="#a8443f" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+<ellipse class="open" cx="50" cy="63.6" rx="4.6" ry="4" fill="#7c2630"/>`),
+  dad: SVG(`<rect width="100" height="100" fill="#1f2a3e"/><circle cx="50" cy="48" r="45" fill="#2b3a55"/>
+<path d="M2 100Q6 79 34 74L66 74Q94 79 98 100Z" fill="#8d2f2f"/><path d="M41 74.5L50 86L59 74.5Z" fill="#e9e3d2"/>
+<rect x="42" y="62" width="16" height="17" rx="5" fill="#cf9572"/>
+<circle cx="28.5" cy="50" r="4.5" fill="#dba27e"/><circle cx="71.5" cy="50" r="4.5" fill="#dba27e"/>
+<rect x="29" y="21" width="42" height="52" rx="18" fill="#e6b28d"/><path d="M50 21h3a18 18 0 0 1 18 18v16a18 18 0 0 1-18 18h-3Z" fill="#d9a27c" opacity=".55"/>
+<path d="M28 45Q24.5 17 50 16Q75.5 17 72 45Q70 33 62 28Q50 25 38 28Q30 33 28 45Z" fill="#2f2622"/>
+<path d="M35 41.3L46 40.3M54 40.3L65 41.3" stroke="#2f2622" stroke-width="2.6" stroke-linecap="round"/>
+<rect x="33.5" y="43.5" width="14" height="11" rx="4" fill="#cfe3ff" fill-opacity=".16" stroke="#15171d" stroke-width="2"/>
+<rect x="52.5" y="43.5" width="14" height="11" rx="4" fill="#cfe3ff" fill-opacity=".16" stroke="#15171d" stroke-width="2"/>
+<path d="M47.5 48h5M33.5 47.500L29 46M66.5 47.500L71 46" stroke="#15171d" stroke-width="2" stroke-linecap="round"/>
+<circle cx="40.5" cy="49" r="2.1" fill="#221a1a"/><circle cx="59.5" cy="49" r="2.1" fill="#221a1a"/>
+<path d="M49 52Q47.5 57 51 57.5" stroke="#c48a68" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path class="shut" d="M45.5 65.800Q50 67.3 54.5 65.8" stroke="#8a4a3c" stroke-width="2" fill="none" stroke-linecap="round"/>
+<ellipse class="open" cx="50" cy="66.4" rx="4.2" ry="3.5" fill="#5c2026"/>
+<path d="M39.5 62.800Q50 55.5 60.5 62.800Q55 61.6 50 61.900Q45 61.6 39.5 62.800Z" fill="#2f2622"/>`),
+  tv: SVG(`<rect width="100" height="100" fill="#171a23"/><circle cx="50" cy="56" r="46" fill="#202635"/>
+<path d="M50 28L31 7M50 28L70 9" stroke="#b9bfcc" stroke-width="2" stroke-linecap="round"/><circle cx="31" cy="7" r="2.4" fill="#b9bfcc"/><circle cx="70" cy="9" r="2.4" fill="#b9bfcc"/>
+<rect x="18" y="84" width="9" height="6" fill="#3a2b20"/><rect x="73" y="84" width="9" height="6" fill="#3a2b20"/>
+<rect x="9" y="27" width="82" height="59" rx="9" fill="#6a4e36" stroke="#4a3524" stroke-width="2"/>
+<rect x="15" y="33" width="54" height="47" rx="7" fill="#14202e"/><rect x="17" y="35" width="50" height="43" rx="6" fill="#7fb4e6"/>
+<circle cx="42" cy="49" r="7.5" fill="#24415f"/><path d="M27 72Q29 59 42 59Q55 59 57 72Z" fill="#24415f"/>
+<rect x="17" y="64" width="50" height="8" fill="#c23b30"/><text x="20" y="70.4" font-family="monospace" font-size="6.5" font-weight="700" fill="#fff">NEWS</text><rect class="open" x="40" y="67" width="23" height="2" fill="#f6e2df"/>
+<path d="M21 39h13l-9 11h-4Z" fill="#fff" opacity=".2"/><rect class="flick" x="17" y="35" width="50" height="43" rx="6" fill="#fff"/>
+<circle cx="80" cy="43" r="5" fill="#d8cdb4"/><path d="M80 43V39" stroke="#6a4e36" stroke-width="1.6"/><circle cx="80" cy="57" r="5" fill="#d8cdb4"/><path d="M80 57L83 54.5" stroke="#6a4e36" stroke-width="1.6"/>
+<path d="M74.5 68h11M74.5 72h11M74.5 76h11" stroke="#3f2d1f" stroke-width="1.8" stroke-linecap="round"/>`),
+};
 const CPS = 30;                       // letters a second
 const STOP = 0.3, COMMA = 0.14;       // the breath after a sentence, and after a comma
 const TUNE = [0, 3, 5, 2, 0, -2, 3, 7, 5, 2];      // how a voice with no words in it goes up and down
@@ -86,7 +132,11 @@ const N = {
   up0: 18.0, up1: 18.7, sw: 19.1, lit: 19.4, go: 19.75, end: 20.5,      // the handset comes up; the switch; the toy's lamp; away
 };
 const WALKS = [[N.toShelf, N.shelf, 0.5], [N.lift + 0.15, N.door, 0.46], [N.thru, N.gone, 0.4], [N.back + 0.1, N.win + 0.4, 0.5]];      // when she is on her feet: from, to, seconds a step
-const FLY = 13.5, CALM_FLY = 4.6;                   // the flight from her window to the museum's steps
+const GRIP = 0.178;                                 // from the middle of the toy in her hands to the palm on its bumper
+// The flight from her window to the museum's steps: down to the toy, along behind it, then up and over the park.
+const SWOOP = 2.4, CHASE = 5, OVER = 11.5, FLY = SWOOP + CHASE + OVER, CALM_FLY = 4.6;
+const TOY = { v: 3.4, far: 30 };                    // how fast the toy goes over the snow, and how far: to the ring of lights round the Singing Tree
+const MOTOR = { kind: 'car', speed: TOY.v, throttle: 0.45, air: false };      // what the game's own motor sound is told while we are down beside it
 
 export class Opening {
   constructor(G, { THREE, scene, camera, sound }) {
@@ -120,35 +170,48 @@ export class Opening {
 #opening .fade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .9s ease; z-index: 1; }
 #opening .fade.quick { transition-duration: .3s; }
 #opening .fade.on { opacity: 1; } #opening .fade.cut { transition: none; }
-#opening .cap { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(9vh + 20px); width: min(38em, 90vw); display: flex; flex-direction: column; gap: .32em; z-index: 3;
-  font: 500 clamp(19px, min(2.9vw, 4.7vh), 44px)/1.28 var(--serif, Georgia, serif); color: var(--cream, #efe8d8); text-shadow: 0 1px 2px #000, 0 0 10px #000, 0 0 24px rgba(0,0,0,.9); }
-#opening .cap::before { content: ''; position: absolute; inset: -1.6em -3em -1.2em; background: radial-gradient(ellipse at 50% 58%, rgba(0,0,0,.78), rgba(0,0,0,.5) 45%, rgba(0,0,0,0) 72%); z-index: -1; }
-#opening .cap:empty::before { display: none; }
-#opening .cap p { margin: 0; opacity: .72; transition: opacity .35s ease; }
-#opening .cap p:last-child { opacity: 1; }
-#opening .cap p:nth-last-child(n+3) { display: none; }
-#opening .cap p.me { color: #fff; }
-#opening .cap p.tv { font-style: italic; color: #b4c3da; }
-#opening .cap p b { display: inline-block; font: 700 .5em var(--mono, monospace); letter-spacing: .12em; text-transform: uppercase; color: var(--gilt, #e2cd94); border: 1.5px solid currentColor; border-radius: 99px; padding: .3em .75em .24em; margin-right: .8em; vertical-align: .36em; background: rgba(0,0,0,.45); text-shadow: none; }
-#opening .cap p.mom b { color: #f7b9c6; } #opening .cap p.dad b { color: #a9cdf5; }
+#opening .box { --who: #e2cd94; position: absolute; left: 50%; bottom: calc(9vh + 24px); transform: translateX(-50%); box-sizing: border-box; width: min(33em, 92vw); min-height: 4.7em; padding: .8em 1.3em 1em; z-index: 3;
+  border: 2px solid var(--who); border-radius: .45em; background: rgba(11,12,19,.9); box-shadow: 0 .3em 1.6em rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.05);
+  font: 500 clamp(17px, min(2.3vw, 4.1vh), 36px)/1.3 var(--serif, Georgia, serif); color: var(--cream, #efe8d8); opacity: 0; visibility: hidden; transition: opacity .2s ease, border-color .2s ease, visibility 0s .2s; }
+#opening .box.on { opacity: 1; visibility: visible; transition-delay: 0s; }
+#opening .box.mom { --who: #f7b9c6; } #opening .box.dad { --who: #a9cdf5; } #opening .box.tv { --who: #a5b9d6; }
+#opening .box.head { padding-left: 6.6em; }
+#opening .face { display: none; position: absolute; left: .85em; bottom: .75em; width: 5em; height: 5em; box-sizing: border-box; border: 2px solid var(--who); border-radius: .4em; overflow: hidden; background: #14151c; box-shadow: 0 .2em .9em rgba(0,0,0,.7); }
+#opening .box.head .face { display: block; }
+#opening .face svg { display: block; width: 100%; height: 100%; animation: ophead .22s ease-out; }
+#opening .face .open, #opening .face .flick { display: none; }
+#opening .box.talk .face .open { display: inline; transform-box: fill-box; transform-origin: 50% 15%; animation: optalk .15s ease-in-out infinite alternate; }
+#opening .box.talk .face .shut { display: none; }
+#opening .box.talk .face .flick { display: inline; opacity: 0; animation: opflick .9s steps(1) infinite; }
+@keyframes optalk { from { transform: scaleY(.22); } to { transform: scaleY(1); } }
+@keyframes opflick { 0%, 100% { opacity: 0; } 35% { opacity: .1; } 60% { opacity: .03; } 80% { opacity: .13; } }
+@keyframes ophead { from { transform: translateY(18%) scale(.92); opacity: .3; } }
+#opening .name { position: absolute; top: 0; left: 1.6em; transform: translateY(-58%); font: 700 .5em var(--mono, monospace); letter-spacing: .14em; text-transform: uppercase; color: #14151c; background: var(--who); border-radius: .5em; padding: .42em .95em .34em; box-shadow: 0 .2em .8em rgba(0,0,0,.6); animation: opname .22s ease-out; }
+#opening .box.head .name { left: 13.2em; }
+@keyframes opname { from { transform: translateY(-20%); opacity: 0; } }
+#opening .cap p { margin: 0; }
+#opening .box.me .cap p { color: #fff; }
+#opening .box.tv .cap p { font-style: italic; color: #c3cfe2; }
 #opening .cap p em { font-size: .8em; opacity: .75; margin-right: .5em; }
 #opening .cap p u { text-decoration: none; opacity: 0; }
 #opening .cap p.typing span::after { content: ''; position: absolute; width: .09em; height: .95em; margin: .16em 0 0 .06em; background: currentColor; opacity: .8; }
-#opening .next { position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: calc(9vh + 14px); z-index: 3; font: 600 clamp(12px, 1.25vw, 16px) var(--mono, monospace); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt, #e2cd94); opacity: 0; transition: opacity .3s ease; text-shadow: 0 1px 4px #000, 0 0 10px #000; }
+#opening .next { position: absolute; right: 1.1em; bottom: 0; transform: translateY(50%); font: 700 .46em var(--mono, monospace); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; color: var(--gilt, #e2cd94); background: #14151c; border: 1.5px solid currentColor; border-radius: 99px; padding: .4em 1em .32em; opacity: 0; transition: opacity .3s ease; }
 #opening .next.on { opacity: 1; animation: opnext 1.5s ease-in-out infinite; }
-@keyframes opnext { 50% { opacity: .4; } }
+@keyframes opnext { 50% { opacity: .45; } }
 #opening .skipb { position: absolute; right: max(18px, env(safe-area-inset-right)); top: calc(9vh + 10px); z-index: 3; pointer-events: auto; cursor: pointer; font: clamp(12px, 1.1vw, 14px) var(--mono, monospace); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt-dim, #a8966a); background: rgba(10,11,16,.5); border: 1px solid rgba(168,150,106,.4); border-radius: 3px; padding: 9px 14px; }
 #opening .skipb:hover { color: var(--gilt, #e2cd94); border-color: var(--gilt, #e2cd94); }
-@media (max-width: 700px) { #opening .cap { bottom: calc(9vh + 34px); } }
-@media (max-height: 480px) { #opening .cap { font-size: clamp(16px, 2.4vw, 21px); bottom: calc(9vh + 6px); gap: .2em; } #opening .next { bottom: calc(9vh - 16px); z-index: 4; } }
-.reduce #opening i, .reduce #opening .fade, .reduce #opening .cap p { transition: none; } .reduce #opening .next.on { animation: none; }`;
+@media (max-width: 700px) { #opening .box { bottom: calc(9vh + 34px); padding: .7em 1em .95em; } #opening .box.head { padding-left: 5.5em; } #opening .face { left: .65em; width: 4.2em; height: 4.2em; } #opening .name { left: 1.3em; } #opening .box.head .name { left: 11em; } #opening .next { font-size: .6em; } }
+@media (max-height: 480px) { #opening .box { font-size: clamp(15px, 2.3vw, 20px); bottom: calc(9vh + 12px); min-height: 4.4em; padding-top: .7em; padding-bottom: .85em; } #opening .name { font-size: .58em; } #opening .next { font-size: .58em; } }
+.reduce #opening i, .reduce #opening .fade, .reduce #opening .box { transition: none; } .reduce #opening .next.on, .reduce #opening .face svg, .reduce #opening .name, .reduce #opening .box.talk .face .open, .reduce #opening .box.talk .face .flick { animation: none; }`;
     document.head.append(st);
     const el = this.el = document.createElement('div'); el.id = 'opening'; el.hidden = true;
-    el.innerHTML = '<div class="fade"></div><i class="t"></i><i class="b"></i><div class="cap" aria-live="polite"></div><div class="next" aria-hidden="true"></div><button class="skipb" type="button" tabindex="-1">Skip</button>';
+    el.innerHTML = '<div class="fade"></div><i class="t"></i><i class="b"></i><div class="box"><div class="face" aria-hidden="true"></div><b class="name"></b><div class="cap" aria-live="polite"></div><div class="next" aria-hidden="true"></div></div><button class="skipb" type="button" tabindex="-1">Skip</button>';
     document.body.append(el);
-    this.cap = el.querySelector('.cap'); this.next = el.querySelector('.next'); this.fade = el.querySelector('.fade');
+    this.box = el.querySelector('.box'); this.face = el.querySelector('.face'); this.name = el.querySelector('.name'); this.cap = el.querySelector('.cap'); this.next = el.querySelector('.next'); this.fade = el.querySelector('.fade');
     return el;
   }
+  // The box goes (what was in it fades with it, unless it must be gone at once).
+  _hush(now = false) { this.box.classList.remove('on', 'talk'); this.next.classList.remove('on'); if (now) { this.cap.textContent = ''; this.box.className = 'box'; this.who = null; } }
   _fade(on, cut = false, quick = false) { const c = this.fade.classList; c.toggle('cut', cut || this.calm); c.toggle('quick', quick); c.toggle('on', on); }
 
   begin(done) {
@@ -156,7 +219,7 @@ export class Opening {
     if (this.on || !G.plan || !G.plan.facade || !G.vehicle) { done(0); return; }
     this.done = done; this.on = true; this.t = 0; this.last = 0; this.frozen = false; this.fired = {};
     this.calm = !!G.set.reduce;
-    const el = this._overlay(); el.hidden = false; el.classList.remove('out'); this.cap.textContent = ''; this.next.classList.remove('on');
+    const el = this._overlay(); el.hidden = false; el.classList.remove('out'); this._hush(true);
     this._prompt();
     this._fade(true, true);
 
@@ -213,24 +276,29 @@ export class Opening {
     const c = CARDS[i];
     this.ci = i; this.li = -1; this.typing = false; this.waiting = false; this.n = 0;
     this.pre = this.calm ? Math.min(c.pre || 0.3, 1.2) : (c.pre || 0.3); this.view = c.view;
-    this.cap.textContent = ''; this.next.classList.remove('on');
+    this._hush();
     if (c.on) this[c.on]();
   }
+  // The next line, in its box: whose it is on the name plate and in the colour of the frame, and their head beside it.
   _line() {
-    const c = CARDS[this.ci], l = c.lines[++this.li];
-    const p = document.createElement('p'); p.className = l.who + ' typing';
-    if (NAMES[l.who]) { const b = document.createElement('b'); b.textContent = NAMES[l.who]; p.append(b); }
+    const c = CARDS[this.ci], l = c.lines[++this.li], who = l.who, box = this.box;
+    const p = document.createElement('p'); p.className = 'typing';
     if (l.note) { const em = document.createElement('em'); em.textContent = `(${l.note})`; p.append(em); }
     const shown = document.createElement('span'), rest = document.createElement('u'); rest.textContent = l.text; p.append(shown, rest);
-    this.cap.append(p); this.p = { p, shown, rest, l };
+    this.cap.replaceChildren(p); this.p = { p, shown, rest, l };
+    if (this.who !== who || !box.classList.contains('on')) {       // (somebody else: the head and the plate come in afresh)
+      this.who = who; this.face.innerHTML = HEADS[who] || '';
+      const n = this.name.cloneNode(false); n.textContent = NAMES[who]; this.name.replaceWith(n); this.name = n;
+    }
+    box.className = `box on talk ${who}${HEADS[who] ? ' head' : ''}`; this.next.classList.remove('on');
     this.n = 0; this.acc = 0; this.hold = 0; this.keyed = 0; this.typing = true;
     if (l.view) this.view = l.view;
     this.snd.tvLevel(l.who === 'tv' ? 1.5 : 0.4);
     if (this.calm) this._typed();
   }
   _typed() {
-    const { p, shown, rest, l } = this.p; shown.textContent = l.text; rest.textContent = ''; p.classList.remove('typing');
-    this.typing = false; this.gap = 0.9 + l.text.length * 0.03;
+    const { p, shown, rest, l } = this.p; shown.textContent = l.text; rest.textContent = ''; p.classList.remove('typing'); this.box.classList.remove('talk');
+    this.typing = false; this.gap = 1.1 + l.text.length * 0.035;      // (a line is gone when the next comes: time to read it)
     if (this.li >= CARDS[this.ci].lines.length - 1) { this.waiting = true; this.next.classList.add('on'); this.snd.tvLevel(1); }
   }
   // One more letter of the line: a key for every other one, and at the start of a word the voice that says it.
@@ -385,7 +453,7 @@ export class Opening {
   }
 
   _night() {
-    this.phase = 'night'; this.tB = 0; this.cap.textContent = ''; this.next.classList.remove('on'); this.snd.tvLevel(1);
+    this.phase = 'night'; this.tB = 0; this._hush(); this.snd.tvLevel(1);
     // Where she goes, from where she stands now: [seconds, where her eyes are (the room's metres), which way she
     // faces (0: the back of the room; a quarter turn: the bookcase; a half: the window), up or down, how wide].
     const set = this.set, K = this.keys = [], w = this._w;
@@ -461,11 +529,15 @@ export class Opening {
     if (T >= N.car0) {                                            // both hands for the car: round it, up, and carried
       const kl = span(T, N.car1 + 0.1, N.lift), kr = span(T, N.car0, N.car1), yaw = lerp(0.22, h - Math.PI / 2, kl);
       car.position.lerpVectors(this.carRest, this._body(0, -0.4 - this.bob * 0.006, 0.44, t1), kl); car.position.y += Math.sin(kl * Math.PI) * 0.06; car.rotation.y = yaw;
+      // (a mitten clasped over each end of it, nose and tail: the toy is GRIP from its middle to a bumper, and a
+      // mitten's palm is 8 cm on from its wrist. ax: along the car; px: across it, away from her.)
+      const ax = Math.sin(yaw), az = Math.cos(yaw), px = az, pz = -ax;
       for (const a of [al, ar]) {
         const sd = a.side;
-        t2.set(car.position.x + Math.sin(yaw) * sd * 0.262 - fx * 0.14, car.position.y + 0.07, car.position.z + Math.cos(yaw) * sd * 0.262 - fz * 0.14);
+        t2.set(car.position.x + ax * sd * GRIP - px * 0.07, car.position.y + 0.1, car.position.z + az * sd * GRIP - pz * 0.07);
         t0.lerpVectors(this._body(sd * 0.2, -0.62, 0.02, t1), t2, kr); t0.y += Math.sin(kr * Math.PI) * 0.07;
-        pose(a, t0, t3.set(fx * 0.95, -0.3, fz * 0.95), t4.set(rx * sd, 0.25, rz * sd));
+        const open = 1 - kr;                                      // (her hands come in open, and close on it)
+        pose(a, t0, t3.set(px * 0.95 - ax * sd * (0.3 - open * 0.3), -0.18 - open * 0.12, pz * 0.95 - az * sd * (0.3 - open * 0.3)), t4.set(ax * sd, 0.3, az * sd));
       }
     }
   }
@@ -516,11 +588,14 @@ export class Opening {
     if (T >= N.end && !this.frozen) this._fly();
   }
   // The toy pulls away over the snow towards the lights (s seconds since it set off).
+  _dist(s) { const d = s <= 0 ? 0 : s < 2 ? TOY.v / 4 * s * s : TOY.v * (s - 1), e = TOY.far - 2; return d < e ? d : TOY.far - 2 * Math.exp((e - d) / 2); }      // (it eases to a stop there)
   _drive(s) {
     const v = this.G.vehicle; if (this.home.back) return;
-    const d = s <= 0 ? 0 : Math.min(30, s < 2 ? 1.25 * s * s : 5 * s - 5);          // up to a toy's 5 m/s, and no further than the edge of the lights
-    if (d === this._drove) return; this._drove = d;
+    const d = this._dist(s);
+    if (d === this._drove) { v.speed = 0; return; }
+    const was = this._drove; this._drove = d;
     v.place(CAR.x + Math.sin(this.carYaw) * d, CAR.z + Math.cos(this.carYaw) * d, this.carYaw, v.pos.y);
+    v.speed = this.frozen || !(d > was) ? 0 : s < 2 ? TOY.v / 2 * s : Math.min(TOY.v, TOY.v * (TOY.far - d) / 2);          // (its wheels turn)
   }
   _home() {
     const v = this.G.vehicle, h = this.home; if (h.back) return; h.back = true;
@@ -529,38 +604,73 @@ export class Opening {
 
   // ------------------------------------------------------------------ the flight --
 
-  // Out through the glass after the toy, and over everything there is to drive through, to where the game will find it.
+  // Out through the glass and down to the toy, along behind it as it makes for the lights, then up over everything there
+  // is to drive through, to where the game will find it.
   _fly() {
     const THREE = this.THREE, h = this.home, fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), sx = -fz, sz = fx, cam = this.camera, V = (x, y, z) => new THREE.Vector3(x, y, z);
-    this.phase = 'fly'; this.tF = 0; this.len = this.calm ? CALM_FLY : FLY; this.fov0 = cam.fov;
+    this.phase = 'fly'; this.tF = 0; this.len = this.calm ? CALM_FLY : FLY; this.fov0 = cam.fov; this.w = 0;
+    this.from = cam.position.clone();
     const rel = (back, side, up) => V(h.x - fx * back + sx * side, h.y + up, h.z - fz * back + sz * side);
-    // (down the walk between the trees to the toy as it goes by, then up over the lights)
-    this.curve = new THREE.CatmullRomCurve3([cam.position.clone(), V(396, 11, -34), V(387.6, 3.2, -20), V(380, 6, -7), V(350, 27, 8), V(285, 36, 55),
-      V(170, 36, 100), V(60, 30, 110), rel(5, 12.6, 17), rel(26, 7.6, 7.5), rel(18, 1.8, 2.6), this.endAt.clone()], false, 'centripetal');
-    this.curve.arcLengthDivisions = 800;
+    // (It leaves the toy the way the toy is going, and no faster, and passes it on the left; round the tree and up over
+    // it; high over the museum's roofs, and over the top of its front, which stands 27 m; then down and round to the steps.)
+    const p = this._chase(SWOOP + CHASE, V()), ax = Math.sin(this.carYaw), az = Math.cos(this.carYaw);
+    const pts = [V(p.x - ax * 6, p.y, p.z - az * 6), p, V(p.x + ax * 6 + az * 1.2, p.y + 1.6, p.z + az * 6 - ax * 1.2), V(357, 12, 9), V(344, 27, 13), V(285, 36, 55),
+      V(170, 38, 100), V(74, 37, 113), V(24, 34, 119), V(-7, 20, 122), rel(30, 7.6, 8.6), rel(19, 1.8, 2.7), this.endAt.clone()];
+    this.curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    this.curve.arcLengthDivisions = 1200;
+    let run = 0; const a = V(), b = pts[0].clone(); for (let i = 1; i <= 24; i++) { this.curve.getPoint(i / 24 / (pts.length - 1), a); run += a.distanceTo(b); b.copy(a); }
+    const L = this.curve.getLength();
+    this.u0 = run / L;                                     // (the first stretch is only there to aim it)
+    this.s0 = TOY.v * OVER / (L - run);                    // the toy's speed, as a share of the way a second
     this.toy = V(h.x, h.y + 0.3, h.z);
-    if (!this.frozen) { this.snd.wind(0, this.len - 0.4); if (!this.calm) this.snd.motif(1.6, { beat: 1.0, gain: 0.05 }); }
+    if (!this.frozen) {
+      if (this.calm) this.snd.wind(0, this.len - 0.4);
+      else { this.snd.wind(0, SWOOP + 0.8); this.snd.wind(SWOOP + CHASE - 0.6, OVER + 0.2); this.snd.motif(SWOOP + CHASE + 0.4, { beat: 1.0, gain: 0.05 }); }
+    }
   }
-  // What the camera is turned to, u of the way along: the toy as it leaves, the tree, the park, the museum, the toy again.
-  _look(u, out) {
-    const v = this.G.vehicle, h = this.home, car = h.back ? [CAR.x, 0, CAR.z] : [v.pos.x, v.pos.y + 0.2, v.pos.z];
-    const K = [[0, car], [0.1, car], [0.2, [352, 15, -3]], [0.32, [250, 12, 60]], [0.52, [100, 10, 105]], [0.74, this.toy.toArray()], [0.94, this.toy.toArray()], [1, this.endLook.toArray()]];
-    let i = 0; while (i < K.length - 2 && u > K[i + 1][0]) i++;
-    const k = ease((u - K[i][0]) / (K[i + 1][0] - K[i][0]));
-    return out.set(lerp(K[i][1][0], K[i + 1][1][0], k), lerp(K[i][1][1], K[i + 1][1][1], k), lerp(K[i][1][2], K[i + 1][1][2], k));
+  // Where the camera rides behind the toy, T seconds into the flight: low at its shoulder, then back and up.
+  _chase(T, out) {
+    const d = this._dist(N.end - N.go + T), ax = Math.sin(this.carYaw), az = Math.cos(this.carYaw), k = span(T, SWOOP, SWOOP + CHASE);
+    // (On its right at first: a tree 15 m along hangs its branches low over the left. Once that is behind, across its tail to the left,
+    // the side the flight leaves by.)
+    const x = span(T, SWOOP + CHASE - 1.7, SWOOP + CHASE), back = lerp(1.7, 2.7, k), up = lerp(0.8, 1.25, x), side = lerp(lerp(-1.5, -1.0, k), 1.1, x);
+    return out.set(CAR.x + ax * (d - back) + az * side, this.carGround + up, CAR.z + az * (d - back) - ax * side);
+  }
+  // The camera T seconds into the flight: where it is (set), what it is turned to (into this._v), how wide (returned).
+  _pose(T) {
+    const cam = this.camera, ax = Math.sin(this.carYaw), az = Math.cos(this.carYaw), T1 = SWOOP + CHASE;
+    const d = this._dist(N.end - N.go + T), lead = lerp(0.3, 2.2, span(T, SWOOP * 0.5, SWOOP + 2));
+    const car = [CAR.x + ax * (d + lead), this.carGround + 0.3, CAR.z + az * (d + lead)];
+    let fov = 56;
+    if (T < T1) {
+      this.w = 0; this._chase(T, cam.position);
+      if (T < SWOOP) {                                         // (bowed down and a little north: there is a way through the branches there)
+        const f = this.from, k = ease(T / SWOOP), bow = Math.sin(Math.PI * k), dx = cam.position.x - f.x, dz = cam.position.z - f.z, l = Math.hypot(dx, dz) || 1;
+        cam.position.lerpVectors(f, cam.position, k); cam.position.x -= dz / l * 2.2 * bow; cam.position.y -= 2 * bow; cam.position.z += dx / l * 2.2 * bow;
+        fov = lerp(this.fov0, 56, span(T, 0, SWOOP * 0.7));
+      }
+      return this._v.fromArray(car), fov;
+    }
+    const x = Math.min(1, (T - T1) / OVER), s0 = this.s0, w = this.w = Math.min(1, s0 * x + (3 - 2 * s0) * x * x + (s0 - 2) * x * x * x);
+    this.curve.getPointAt(this.u0 + (1 - this.u0) * w, cam.position);
+    // the toy as we leave it, the tree, the park, the museum, the toy again
+    const toy = this.toy.toArray(), K = [[0, car], [0.025, car], [0.11, [352, 15, -3]], [0.25, [250, 12, 60]], [0.47, [100, 10, 105]], [0.71, toy], [0.93, toy], [1, this.endLook.toArray()]];
+    let i = 0; while (i < K.length - 2 && w > K[i + 1][0]) i++;
+    const k = ease((w - K[i][0]) / (K[i + 1][0] - K[i][0]));
+    this._v.set(lerp(K[i][1][0], K[i + 1][1][0], k), lerp(K[i][1][1], K[i + 1][1][1], k), lerp(K[i][1][2], K[i + 1][1][2], k));
+    return w < 0.9 ? lerp(56, 62, w / 0.9) : lerp(62, 70, ease((w - 0.9) / 0.1));
   }
   _flyFrame(dt) {
-    const set = this.set, cam = this.camera, T = this.tF, len = this.len;
-    let u, fov;
-    if (this.calm) {                                             // three still pictures, cut together
-      u = T < 1.5 ? 0.2 : T < 3.0 ? 0.62 : 1; fov = u < 1 ? 58 : 70;
-    } else { u = ease(T / len); fov = u < 0.08 ? lerp(this.fov0, 58, ease(u / 0.08)) : u < 0.9 ? lerp(58, 62, (u - 0.08) / 0.82) : lerp(62, 70, ease((u - 0.9) / 0.1)); }
-    this._drive(N.end - N.go + T);
-    if (u >= 0.45) this._home();
-    this.curve.getPointAt(Math.min(1, Math.max(0, u)), cam.position);
-    this._q.setFromRotationMatrix(this._m.lookAt(cam.position, this._look(u, this._v), this._up));
+    const set = this.set, cam = this.camera, T = this.tF, len = this.len, T1 = SWOOP + CHASE;
+    // (with less motion: three still pictures, cut together: the toy, the park, the steps)
+    const at = this.calm ? (T < 1.5 ? SWOOP + 2.5 : T < 3.0 ? T1 + OVER * 0.58 : FLY) : Math.min(T, FLY);
+    this._drive(N.end - N.go + at);
+    const fov = this._pose(at);
+    if (this.w >= 0.4) this._home();
+    this._motor = !this.calm && !this.frozen && this.G.vehicle.kind === 'car' && at > SWOOP * 0.6 && at < T1 + 1.3 ? MOTOR : null;
+    this._q.setFromRotationMatrix(this._m.lookAt(cam.position, this._v, this._up));
     if (this.calm || this.frozen || T < 0.02) this.cq.copy(this._q); else this.cq.slerp(this._q, 1 - Math.exp(-dt * 7));
-    if (u >= 0.999) this.cq.copy(this._q);
+    if (this.w >= 0.999) this.cq.copy(this._q);
     cam.quaternion.copy(this.cq);
     if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
     // through the glass: the frost and her breath clear, her hands drop away, then the room is behind us
@@ -595,14 +705,14 @@ export class Opening {
     if (G.museum) { G.museum.update(dt, cam.position, null, air); G.museum.winter.update(dt, G.t, cam.position, null, G.set.reduce); }
     if (G.features && !this.home.back) G.features.update(dt, true);
     if (G.vehicle) G.vehicle.sync(dt);
-    this.sound.update(null, false);
+    this.sound.update(this.phase === 'fly' ? this._motor : null, this.phase === 'fly' && !!this._motor);
   }
 
-  /** (tests) Stop the clock at t seconds of the night or the flight, or at card t with all its lines shown. */
-  seek(phase, t) {
+  /** (tests) Stop the clock at t seconds of the night or the flight, or at card t with its last line shown (or line `line`). */
+  seek(phase, t, line) {
     if (!this.on) return;
     this.frozen = true;
-    if (phase === 'room') { this.phase = 'room'; this._card(t); this.pre = 0; while (this.li < CARDS[t].lines.length - 1) { this._line(); this._typed(); } this._fade(false, true); return; }
+    if (phase === 'room') { this.phase = 'room'; this._card(t); this.pre = 0; const to = Math.min(line == null ? 99 : line, CARDS[t].lines.length - 1); while (this.li < to) { this._line(); this._typed(); } this._fade(false, true); return; }
     if (this.phase === 'room') this._night();
     if (phase === 'night') { this.tB = t; return; }
     this.tB = N.end; this._nightFrame(0); if (this.phase !== 'fly') this._fly(); this._fade(false, true); this.tF = t;
@@ -621,7 +731,7 @@ export class Opening {
     if (this.car) { this.car.removeFromParent(); this.car = null; for (const d of this.dim.values()) d.dispose(); this.dim.clear(); this.tint = []; }
     if (this.set) { this.set.dispose(); this.set = null; }
     this.curve = null; this.keys = null; this.pulses = [];
-    this.el.hidden = true; this.cap.textContent = ''; this._fade(false, true);
+    this.el.hidden = true; this._hush(true); this._fade(false, true);
     this.skipped = skipped;
     const took = this.t, done = this.done; this.done = null;
     if (done) done(took);
