@@ -416,7 +416,8 @@ function kitFor(o) {
     kit: k,
     // Called where main.js decides what the action button says. Returns { verb, hint, act } or null.
     near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } if (r) return r; } return null; },
-    update(dt) { k.camClose = null; wake(dt); for (const f of features) { if (f._broken || f._pending || !f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } } },
+    // (quiet: the opening runs the park from a window without waking what is still asleep in it)
+    update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending || !f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } } },
     look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
     spots() { return features.flatMap(f => { if (f._pending) return (f.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: f.lazy.x, y: 0, z: f.lazy.z })); try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset && !f._pending) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },

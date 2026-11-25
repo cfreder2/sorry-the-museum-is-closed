@@ -1,153 +1,604 @@
-// The cold open: five or six seconds before a new game hands over the toy. The museum at night across Michigan Avenue,
-// the lights in its windows going out one by one; the sign on the front door; then the camera swoops down to the toy on
-// the front terrace, its headlights click on, and it is yours.
+// The opening of a new game, seen through the eyes of the child who will drive the toy. Her bedroom, high over Monroe
+// Street; the holiday lights on Butler Field below, and the museum beyond them. She sees lights that are not Christmas
+// lights, and penguins, and nobody will look. Told a line at a time, typed along the bottom, a key's click to every
+// other letter and the wah-wah of whoever is speaking under it: a click, a tap, a key or the A button brings the next.
+// Then bed: her lamp clicks off, the television, the light in the hall, and the room is lit by the string of bulbs
+// round her window and the colours of the show in the park. She takes the handset and the car from her bookcase,
+// tiptoes out by the door, and (the stairs, the snow) comes back to the window: her breath on the glass, the handset
+// in her mittens, the toy waking in the snow below. Then a cut, to the museum's steps, behind the toy, which is yours.
 //
-// New games only (main.js decides: never on Continue, never with ?mode, ?voyage or ?noopen). Any key, click or tap skips
-// it. With Reduce motion the camera does not move: three still shots, cut together, and the lights fade rather than snap.
+// Nobody's face is ever shown: her parents are voices from along the hall.
 //
-// Nothing here is part of the building: the lit panes are laid in front of the wings' dark windows (src/grounds.js draws
-// those) for the length of the open, and taken away again after it.
+// New games only (main.js decides: never on Continue, never with ?mode, ?voyage or ?noopen). The Skip button, Escape or
+// a pad's Start hands the toy over at once. With Reduce motion the camera cuts instead of moving and the lines are not
+// typed.
 //
 //   const opening = new Opening(G, { THREE, scene, camera, sound });
 //   opening.begin(done)      starts it; done(seconds it took) once control is handed over (or at once if it cannot run)
 //   opening.frame(dt)        each frame while G.state === 'opening'
-//   opening.hold = t         (tests) stop the clock at t seconds
+//   opening.advance()        what a click does
+//   opening.seek(phase, t)   (tests) stop the clock at t seconds of 'night' or 'fly' (the arrival), or at card t of 'room'
+//
+// The set is src/openingset.js, the sounds src/openingsound.js.
 
-const LEN = 5.6, CALM_LEN = 4.4;
+import { buildSet, DOORWAY } from './openingset.js';
+import { OpeningSound } from './openingsound.js';
+
 const ease = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const lerp = (a, b, t) => a + (b - a) * t;
+const span = (t, a, b) => ease((t - a) / (b - a));
+const TAU = Math.PI * 2;
+
+// Where she lives: a flat across Monroe Street from the lights, eight floors up, its window looking south-west.
+const EYE = [415, 25, -50], AIM = [290, 4, 55];
+const TREE = [352, 12, -3], STAR = [352, 21.5, -3], INTO = [240, 11, 8];      // the Singing Tree; where the lights go in
+const MUSEUM = [234, 9, 12];
+const PENGUINS = { x: 371, z: -8 };
+const CAR = { x: 389.5, z: -21.5, to: [352, -5] };                                // where she sets the toy down, and the way it leaves
+const GLOWS = [[241, 9, 8, 15], [238, 14, 22, 12], [224, 14, -10, 14], [206, 16, -10, 12], [240, 5, -3, 10], [226, 20, 8, 46]];
+
+// What is said. who: me (the child), mom, dad, tv. A card is a click's worth.
+const CARDS = [
+  { view: 'room', pre: 1.5, lines: [
+    { who: 'tv', text: '…and the Art Institute stays closed tonight for renovations. Now, the weather…' },
+    { who: 'me', text: 'Hey, Mom, there are lights.', view: 'lights' },
+    { who: 'mom', text: 'Don’t be silly, honey. There are no lights.' }] },
+  { view: 'show', lines: [
+    { who: 'dad', text: 'Yeah, it’s just the Christmas lights across the street. Don’t scare your baby sister.' }] },
+  { view: 'penguin', pre: 2.2, lines: [
+    { who: 'me', text: 'Mom, I’m serious, there are penguins in the park.' },
+    { who: 'mom', text: 'That’s crazy, honey. There are no penguins in Chicago, right?' }] },
+  { view: 'penguin2', lines: [
+    { who: 'me', text: 'No, Mom, I swear. Look.' },
+    { who: 'mom', text: 'I’m not going to look, honey. Stop joking around and put on your pajamas.' }] },
+  { view: 'door', lines: [
+    { who: 'dad', text: 'Stop bothering your mother. It’s time for bed.' },
+    { who: 'me', text: 'But….', view: 'show' },
+    { who: 'dad', text: 'Don’t make me count to ten.' }] },
+  { view: 'orbs', pre: 6.6, on: '_lightsGo', lines: [
+    { who: 'me', text: 'Dad, the lights went into the museum. I want to go to the museum and see what’s happening.' },
+    { who: 'dad', text: 'Sorry, honey, the museum is closed.' }] },
+  { view: 'museum', lines: [
+    { who: 'me', text: 'Why is it closed?' },
+    { who: 'mom', text: 'I don’t know, honey, it’s just closed. We can talk about this tomorrow.' },
+    { who: 'dad', note: 'mutters', text: 'The news said it’s closed for renovations.' }] },
+  { view: 'museum2', pre: 1.6, on: '_flash', lines: [
+    { who: 'me', text: 'But Mom, I swear something’s happening at the museum. Green lights are flashing, right?' },
+    { who: 'mom', text: 'Honey, those are the Christmas lights.' },
+    { who: 'dad', text: 'It’s time for bed.' }] },
+  { view: 'room', pre: 0.9, lines: [{ who: 'me', text: 'Fine.' }] },
+];
+const NAMES = { mom: 'Mom', dad: 'Dad', tv: 'TV' };
+const CPS = 30;                       // letters a second
+const STOP = 0.3, COMMA = 0.14;       // the breath after a sentence, and after a comma
+const TUNE = [0, 3, 5, 2, 0, -2, 3, 7, 5, 2];      // how a voice with no words in it goes up and down
+// The night, in seconds from the last click.
+const N = {
+  lamp: 0.7, tv: 1.5, hall: 2.2,                    // her lamp clicks off; the television; the light in the hall
+  toShelf: 2.9, shelf: 4.5,                         // across the room to the bookcase
+  rem0: 4.6, rem1: 5.2, pocket: 5.85,               // the handset: reached for, taken, into her pocket
+  car0: 6.1, car1: 6.75, lift: 7.6,                 // the car: both hands round it, and up
+  turn: 8.6, door: 9.9, door0: 9.7, door1: 10.7,    // round, and over to the door, which she eases open
+  thru: 10.9, black: 11.3, gone: 12.1,              // out by it
+  set: 14.2, back: 14.9,                            // (the stairs, the street door, the snow; and back up)
+  win: 17.0, glass: 17.9, puff: 17.7, puff2: 18.8,  // to the window, her nose to the glass, her breath on it
+  up0: 18.0, up1: 18.7, sw: 19.1, lit: 19.4, go: 19.75, end: 21.7,      // the handset comes up; the switch; the toy's lamp; away
+};
+const WALKS = [[N.toShelf, N.shelf, 0.5], [N.lift + 0.15, N.door, 0.46], [N.thru, N.gone, 0.4], [N.back + 0.1, N.win + 0.4, 0.5]];      // when she is on her feet: from, to, seconds a step
+const FLY = 3.9, CALM_FLY = 1.6, FLY_FROM = 0.3;    // the arrival at the museum's steps
 
 export class Opening {
   constructor(G, { THREE, scene, camera, sound }) {
     this.G = G; this.THREE = THREE; this.scene = scene; this.camera = camera; this.sound = sound;
-    this.on = false; this.hold = null; this.t = 0;
-    this._skip = e => {
+    this.on = false; this.t = 0; this.frozen = false;
+    this.snd = new OpeningSound(sound);
+    this._input = e => {
       if (!this.on) return;
-      if (e.type === 'keydown' && (e.repeat || ['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key))) return;
-      // (No preventDefault: on a pointerdown it would cancel the focus a click gives, and in itch's frame the keys would never arrive.)
-      if (e.type !== 'keydown' && !document.hasFocus()) window.focus();
-      this.finish(true);
-    };
-  }
-
-  /** Lit panes in front of every window of the two wings: [{ mesh, at }] in the order they go out. */
-  _panes() {
-    const THREE = this.THREE, F = this.G.plan.facade, g = new THREE.Group(); g.name = 'opening-panes';
-    const geo = new THREE.PlaneGeometry(2.36, 3.66).rotateY(-Math.PI / 2);      // facing the avenue (-x)
-    const list = [];
-    for (const [a, b] of [[F.z0, F.cz - F.half], [F.cz + F.half, F.z1]]) {
-      const n = Math.max(3, Math.round((b - a) / 5.0)), step = (b - a) / n;       // as the wings are drawn (src/grounds.js)
-      for (let i = 0; i < n; i++) {
-        const zc = a + step * (i + 0.5), warm = 0.85 + ((i * 7 + Math.round(a)) % 5) * 0.04;
-        const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0 * warm, 0.62 * warm, 0.3 * warm).multiplyScalar(0.92), transparent: true, depthWrite: false, fog: true });
-        const m = new THREE.Mesh(geo, mat); m.position.set(F.FX + 0.24, 4.05, zc); m.renderOrder = 2;      // 4 cm in front of the dark glass
-        g.add(m); list.push({ mesh: m, z: zc });
+      if (e.type === 'keydown') {
+        if (e.repeat || ['Shift', 'Control', 'Alt', 'Meta', 'Tab', 'CapsLock'].includes(e.key) || e.ctrlKey || e.metaKey || e.altKey) return;
+        e.stopImmediatePropagation();                                                 // (or the same Esc that skips would go on to pause the game)
+        if (e.key === 'Escape' && this.G.input.padBtn !== 1) { e.preventDefault(); this.finish(true); return; }      // (a pad's B is Escape too, src/input.js: here it is only the next line, and Menu is the skip)
+        if (e.key === ' ' || e.key.startsWith('Arrow')) e.preventDefault();          // (the page must not scroll)
+        this.advance();
+        return;
       }
-    }
-    // Out from the far ends towards the door, the two wings in turn, as a guard going round would switch them off.
-    list.sort((p, q) => Math.abs(q.z - F.cz) - Math.abs(p.z - F.cz));
-    const calm = !!this.G.set.reduce, t0 = 0.35, t1 = 2.0;
-    list.forEach((p, i) => { p.at = t0 + (t1 - t0) * i / Math.max(1, list.length - 1) + (calm ? 0 : (i % 3) * 0.03); p.off = false; });
-    this.scene.add(g);
-    this.group = g; this.geo = geo;
-    return list;
+      // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive.)
+      if (!document.hasFocus()) window.focus();
+      if (e.target && e.target.closest && e.target.closest('.skipb')) { this.finish(true); return; }
+      this.advance();
+    };
   }
 
   _overlay() {
     if (this.el) return this.el;
     const st = document.createElement('style');
     st.textContent = `#opening { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
-#opening i { position: absolute; left: 0; right: 0; height: 9vh; background: #000; transition: transform .6s ease; }
+#opening i { position: absolute; left: 0; right: 0; height: 9vh; background: #000; transition: transform .7s ease; z-index: 2; }
 #opening i.t { top: 0; } #opening i.b { bottom: 0; }
 #opening.out i.t { transform: translateY(-100%); } #opening.out i.b { transform: translateY(100%); }
-#opening .skip { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: calc(9vh + 10px); font: 11px var(--mono, monospace); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt-dim, #a8966a); opacity: 0; transition: opacity .6s ease; text-shadow: 0 1px 4px #000; }
-#opening .skip.on { opacity: .85; }
-.reduce #opening i, .reduce #opening .skip { transition: none; }`;
+#opening .fade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .9s ease; z-index: 1; }
+#opening .fade.quick { transition-duration: .3s; }
+#opening .fade.on { opacity: 1; } #opening .fade.cut { transition: none; }
+#opening .cap { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(9vh + 20px); width: min(38em, 90vw); display: flex; flex-direction: column; gap: .32em; z-index: 3;
+  font: 500 clamp(19px, min(2.9vw, 4.7vh), 44px)/1.28 var(--serif, Georgia, serif); color: var(--cream, #efe8d8); text-shadow: 0 1px 2px #000, 0 0 10px #000, 0 0 24px rgba(0,0,0,.9); }
+#opening .cap::before { content: ''; position: absolute; inset: -1.6em -3em -1.2em; background: radial-gradient(ellipse at 50% 58%, rgba(0,0,0,.78), rgba(0,0,0,.5) 45%, rgba(0,0,0,0) 72%); z-index: -1; }
+#opening .cap:empty::before { display: none; }
+#opening .cap p { margin: 0; opacity: .72; transition: opacity .35s ease; }
+#opening .cap p:last-child { opacity: 1; }
+#opening .cap p:nth-last-child(n+3) { display: none; }
+#opening .cap p.me { color: #fff; }
+#opening .cap p.tv { font-style: italic; color: #b4c3da; }
+#opening .cap p b { display: inline-block; font: 700 .5em var(--mono, monospace); letter-spacing: .12em; text-transform: uppercase; color: var(--gilt, #e2cd94); border: 1.5px solid currentColor; border-radius: 99px; padding: .3em .75em .24em; margin-right: .8em; vertical-align: .36em; background: rgba(0,0,0,.45); text-shadow: none; }
+#opening .cap p.mom b { color: #f7b9c6; } #opening .cap p.dad b { color: #a9cdf5; }
+#opening .cap p em { font-size: .8em; opacity: .75; margin-right: .5em; }
+#opening .cap p u { text-decoration: none; opacity: 0; }
+#opening .cap p.typing span::after { content: ''; position: absolute; width: .09em; height: .95em; margin: .16em 0 0 .06em; background: currentColor; opacity: .8; }
+#opening .next { position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: calc(9vh + 14px); z-index: 3; font: 600 clamp(12px, 1.25vw, 16px) var(--mono, monospace); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt, #e2cd94); opacity: 0; transition: opacity .3s ease; text-shadow: 0 1px 4px #000, 0 0 10px #000; }
+#opening .next.on { opacity: 1; animation: opnext 1.5s ease-in-out infinite; }
+@keyframes opnext { 50% { opacity: .4; } }
+#opening .skipb { position: absolute; right: max(18px, env(safe-area-inset-right)); top: calc(9vh + 10px); z-index: 3; pointer-events: auto; cursor: pointer; font: clamp(12px, 1.1vw, 14px) var(--mono, monospace); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt-dim, #a8966a); background: rgba(10,11,16,.5); border: 1px solid rgba(168,150,106,.4); border-radius: 3px; padding: 9px 14px; }
+#opening .skipb:hover { color: var(--gilt, #e2cd94); border-color: var(--gilt, #e2cd94); }
+@media (max-width: 700px) { #opening .cap { bottom: calc(9vh + 34px); } }
+@media (max-height: 480px) { #opening .cap { font-size: clamp(16px, 2.4vw, 21px); bottom: calc(9vh + 6px); gap: .2em; } #opening .next { bottom: calc(9vh - 16px); z-index: 4; } }
+.reduce #opening i, .reduce #opening .fade, .reduce #opening .cap p { transition: none; } .reduce #opening .next.on { animation: none; }`;
     document.head.append(st);
-    const el = this.el = document.createElement('div'); el.id = 'opening'; el.hidden = true; el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = '<i class="t"></i><i class="b"></i><div class="skip"></div>';
+    const el = this.el = document.createElement('div'); el.id = 'opening'; el.hidden = true;
+    el.innerHTML = '<div class="fade"></div><i class="t"></i><i class="b"></i><div class="cap" aria-live="polite"></div><div class="next" aria-hidden="true"></div><button class="skipb" type="button" tabindex="-1">Skip</button>';
     document.body.append(el);
+    this.cap = el.querySelector('.cap'); this.next = el.querySelector('.next'); this.fade = el.querySelector('.fade');
     return el;
   }
+  _fade(on, cut = false, quick = false) { const c = this.fade.classList; c.toggle('cut', cut || this.calm); c.toggle('quick', quick); c.toggle('on', on); }
 
   begin(done) {
-    const G = this.G;
+    const G = this.G, THREE = this.THREE;
     if (this.on || !G.plan || !G.plan.facade || !G.vehicle) { done(0); return; }
-    this.done = done; this.on = true; this.t = 0; this.last = 0;
-    this.calm = !!G.set.reduce; this.len = this.calm ? CALM_LEN : LEN;
-    this.panes = this._panes();
-    const el = this._overlay(); el.hidden = false; el.classList.remove('out');
-    const touch = G.input && G.input.usedTouch || matchMedia('(pointer: coarse)').matches;
-    el.querySelector('.skip').textContent = touch ? 'Tap to skip' : 'Any key to skip';
-    el.querySelector('.skip').classList.remove('on');
-    G.lampOn = false; if (G.lamp) G.lamp.intensity = 0;
-    // Where it all ends: exactly where the camera behind the toy will be (main.js, chase), so the hand-over does not jump.
+    this.done = done; this.on = true; this.t = 0; this.last = 0; this.frozen = false; this.fired = {};
+    this.calm = !!G.set.reduce;
+    const el = this._overlay(); el.hidden = false; el.classList.remove('out'); this.cap.textContent = ''; this.next.classList.remove('on');
+    this._prompt();
+    this._fade(true, true);
+
+    // The toy: where the game will find it, and (for now) where she will set it down, across the street.
     const v = G.vehicle, fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), drone = v.kind === 'drone';
-    this.endAt = new this.THREE.Vector3(v.pos.x - fx * (drone ? 1.35 : 1.3), v.pos.y + (drone ? 0.34 : 0.46), v.pos.z - fz * (drone ? 1.35 : 1.3));
-    this.endLook = new this.THREE.Vector3(v.pos.x + fx * 2.2, v.pos.y + (drone ? 0 : 0.42), v.pos.z + fz * 2.2);
-    this.toy = v.pos.clone();
-    this._look = new this.THREE.Vector3(); this._at = new this.THREE.Vector3();
-    for (const k of ['keydown', 'pointerdown']) addEventListener(k, this._skip, { capture: true });
+    this.home = { x: v.pos.x, y: v.pos.y, z: v.pos.z, yaw: v.yaw, back: false };
+    this.endAt = new THREE.Vector3(v.pos.x - fx * (drone ? 1.35 : 1.3), v.pos.y + (drone ? 0.34 : 0.46), v.pos.z - fz * (drone ? 1.35 : 1.3));
+    this.endLook = new THREE.Vector3(v.pos.x + fx * 2.2, v.pos.y + (drone ? 0 : 0.42), v.pos.z + fz * 2.2);
+    G.lampOn = false; if (G.lamp) G.lamp.intensity = 0;
+
+    const set = this.set = buildSet(G, { eye: new THREE.Vector3(...EYE), aim: new THREE.Vector3(...AIM) });
+    // The car on her bookcase: the very toy, copied, at the size a toy is in a child's hands (its lamp left off: a new
+    // lamp would recompile the whole museum). Its paint is copied too, to be dimmed when the room is: ours to throw away.
+    const car = this.car = v.group.clone(true), lamps = [];
+    this.dim = new Map(); this.tint = []; this._c = new THREE.Color();
+    const own = m => {
+      if (!m || !m.color) return m;
+      if (!this.dim.has(m)) { const d = m.clone(), top = Math.max(m.color.r, m.color.g, m.color.b); if (m.isMeshBasicMaterial && top > 1.05) d.color.multiplyScalar(0.07 / top); this.dim.set(m, d); this.tint.push([d, d.color.clone()]); }
+      return this.dim.get(m);
+    };
+    car.traverse(o => { if (o.isLight) lamps.push(o); else if (o.material) o.material = Array.isArray(o.material) ? o.material.map(own) : own(o.material); }); for (const o of lamps) o.removeFromParent();
+    car.scale.setScalar(0.62); car.position.copy(set.carSpot); car.rotation.set(0, 0.22, 0); car.visible = true; set.room.add(car);
+    car.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(car);
+    car.position.y += set.L(set.carSpot.x, set.carSpot.y, set.carSpot.z).y - bb.min.y;          // its wheels on the shelf, whatever its build
+    this.carRest = car.position.clone();
+    this.carYaw = Math.atan2(CAR.to[0] - CAR.x, CAR.to[1] - CAR.z);
+    v.place(CAR.x, CAR.z, this.carYaw, 0); v.group.visible = false;
+    this.carGround = v.pos.y;
+
+    // out of doors
+    const py = set.ground(PENGUINS.x, PENGUINS.z);
+    set.pool.position.set(PENGUINS.x, py + 0.06, PENGUINS.z); set.pool.visible = true; set.pool.material.opacity = 0.2;
+    this.py = py;
+    GLOWS.forEach(([x, y, z, s], i) => { set.glows[i].position.set(x, y, z); set.glows[i].scale.setScalar(s); });
+    this.green = 0; this.greenTo = 0; this.pulses = []; this.trig = Infinity; this.gone = false;
+
+    // the camera's own state: a place in the room, a way of looking, a width
+    this.cp = new THREE.Vector3(); this.cq = new THREE.Quaternion(); this.cf = 50; this.snap = true;
+    this._v = new THREE.Vector3(); this._w = new THREE.Vector3(); this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._up = new THREE.Vector3(0, 1, 0);
+    this._iq = new THREE.Quaternion(); this._t = Array.from({ length: 8 }, () => new THREE.Vector3()); this.ch = Math.PI; this.lampK = 1; this.darkK = 0; this.keys = null;
+    this._air = new THREE.Vector3(); this._out = new THREE.Vector3(AIM[0] - EYE[0], 0, AIM[2] - EYE[2]).normalize();
+    this.phase = 'room'; this.tB = 0; this.tF = 0; this._bs = null; this.lastAdv = performance.now() + 500;
+    this._card(0);
+    for (const k of ['keydown', 'pointerdown']) addEventListener(k, this._input, { capture: true });
+    this.snd.tvOn();
+    setTimeout(() => { if (this.on && this.phase === 'room') this._fade(false); }, 150);
     this.frame(0);
   }
 
-  // The camera at time t: where it is, what it looks at, how wide.
-  _shot(t) {
-    const G = this.G, F = G.plan.facade, d = G.plan.front, cz = F.cz, sign = { x: d.x0 - 0.22, y: 2.0, z: (d.z0 + d.z1) / 2 };
-    const A = { at: [-22, 6.4, cz + 4], look: [F.FX, 7.2, cz], fov: 56 };
-    const A2 = { at: [-17.5, 5.6, cz + 2.5], look: [F.FX, 6.6, cz], fov: 56 };
-    const S = { at: [sign.x - 2.4, 2.25, sign.z - 0.9], look: [sign.x, sign.y, sign.z], fov: 46 };
-    const S2 = { at: [sign.x - 2.0, 2.2, sign.z - 0.7], look: [sign.x, sign.y, sign.z], fov: 46 };
-    const T = this.toy, U = { at: [T.x - 3.0, T.y + 2.8, T.z - 1.0], look: [T.x + 0.6, T.y + 0.15, T.z], fov: 58 };
-    const E = { at: this.endAt.toArray(), look: this.endLook.toArray(), fov: 70 };
-    const mix = (p, q, k) => ({ at: p.at.map((v, i) => lerp(v, q.at[i], k)), look: p.look.map((v, i) => lerp(v, q.look[i], k)), fov: lerp(p.fov, q.fov, k) });
-    if (this.calm) return t < 2.4 ? A : t < 3.6 ? S : E;                                          // three still shots, cut
-    if (t < 2.4) return mix(A, A2, ease(t / 2.4) * 0.9 + t / 2.4 * 0.1);                         // a slow push in, the lights going out
-    if (t < 3.5) { const k = ease((t - 2.4) / 1.1); const m = mix(A2, S, k); m.at[1] += Math.sin(k * Math.PI) * 4; return m; }       // across the avenue to the door, in an arc
-    if (t < 4.1) return mix(S, S2, (t - 3.5) / 0.6);                                              // the sign
-    if (t < 4.85) return mix(S2, U, ease((t - 4.1) / 0.75));                                      // up and over, looking down at the toy
-    return mix(U, E, ease((t - 4.85) / 0.6));                                                     // and down behind it
+  // ------------------------------------------------------------------ the lines --
+
+  _card(i) {
+    const c = CARDS[i];
+    this.ci = i; this.li = -1; this.typing = false; this.waiting = false; this.n = 0;
+    this.pre = this.calm ? Math.min(c.pre || 0.3, 1.2) : (c.pre || 0.3); this.view = c.view;
+    this.cap.textContent = ''; this.next.classList.remove('on');
+    if (c.on) this[c.on]();
   }
+  _line() {
+    const c = CARDS[this.ci], l = c.lines[++this.li];
+    const p = document.createElement('p'); p.className = l.who + ' typing';
+    if (NAMES[l.who]) { const b = document.createElement('b'); b.textContent = NAMES[l.who]; p.append(b); }
+    if (l.note) { const em = document.createElement('em'); em.textContent = `(${l.note})`; p.append(em); }
+    const shown = document.createElement('span'), rest = document.createElement('u'); rest.textContent = l.text; p.append(shown, rest);
+    this.cap.append(p); this.p = { p, shown, rest, l };
+    this.n = 0; this.acc = 0; this.hold = 0; this.keyed = 0; this.typing = true;
+    if (l.view) this.view = l.view;
+    this.snd.tvLevel(l.who === 'tv' ? 1.5 : 0.4);
+    if (this.calm) this._typed();
+  }
+  _typed() {
+    const { p, shown, rest, l } = this.p; shown.textContent = l.text; rest.textContent = ''; p.classList.remove('typing');
+    this.typing = false; this.gap = 0.9 + l.text.length * 0.03;
+    if (this.li >= CARDS[this.ci].lines.length - 1) { this.waiting = true; this.next.classList.add('on'); this.snd.tvLevel(1); }
+  }
+  // One more letter of the line: a key for every other one, and at the start of a word the voice that says it.
+  _letter(l, n, cps) {
+    const text = l.text, ch = text[n - 1];
+    if (!/[\w’']/.test(ch)) return;
+    if (this.keyed++ % 2 === 0) this.snd.key(l.who);
+    if (l.who === 'tv' || (n > 1 && /[\w’']/.test(text[n - 2]))) return;
+    const word = text.slice(n - 1).match(/^[\w’']+/)[0], after = text.slice(n - 1 + word.length);
+    const groups = (word.match(/[aeiouy]+/gi) || [1]).length, syl = Math.max(1, groups - (groups > 1 && /[^aeiou]e$/i.test(word) ? 1 : 0));
+    const each = Math.max(0.12, word.length / cps / syl), last = /^[.?!…]/.test(after) || !after, asks = /^\?/.test(after);
+    let hash = 0; for (let i = 0; i < word.length; i++) hash += word.charCodeAt(i);
+    for (let i = 0; i < syl; i++) {
+      const end = last && i === syl - 1;
+      this.snd.wah(l.who, i * each, Math.min(0.3, each * (end ? 1.5 : 0.96)), TUNE[(hash + i) % TUNE.length] - 3 * n / text.length - (end && !asks ? 2 : 0), end ? (asks ? 4 : -3) : 0);
+    }
+  }
+  _lines(dt) {
+    if (this.pre > 0) { this.pre -= dt; if (this.pre <= 0) this._line(); return; }
+    if (this.typing) {
+      const { shown, rest, l } = this.p, text = l.text, cps = CPS * (l.who === 'tv' ? 1.4 : 1), was = this.n;
+      if (this.hold > 0) { this.hold -= dt; return; }
+      this.acc += dt * cps;
+      while (this.acc >= 1 && this.n < text.length) {
+        this.acc -= 1; const ch = text[this.n++], nx = text[this.n];
+        this._letter(l, this.n, cps);
+        if (nx === ' ' && /[.?!…,]/.test(ch)) { this.hold = ch === ',' ? COMMA : STOP; this.acc = 0; break; }
+      }
+      if (this.n !== was) { shown.textContent = text.slice(0, this.n); rest.textContent = text.slice(this.n); }
+      if (this.n >= text.length) this._typed();
+    } else if (!this.waiting) { this.gap -= dt; if (this.gap <= 0) this._line(); }
+  }
+  // The word beside a finished line, for whatever was used last. A gamepad's buttons arrive here as keys (src/input.js: poll).
+  _prompt() {
+    const inp = this.G.input, pad = !!(inp && inp.pad), touch = !pad && (inp && inp.usedTouch || matchMedia('(pointer: coarse)').matches);
+    const w = pad ? 'A ▸' : touch ? 'Tap ▸' : 'Click ▸'; if (this.next.textContent !== w) this.next.textContent = w;
+  }
+  /** What a click, a tap, a key or the A button does. */
+  advance() {
+    if (!this.on || this.phase !== 'room') return;
+    this._prompt();
+    const now = performance.now(); if (now - this.lastAdv < 230) return; this.lastAdv = now;
+    if (this.pre > 0) { this.pre = 0; this._line(); }
+    else if (this.typing) this._typed();
+    else if (!this.waiting) this._line();
+    else if (this.ci + 1 < CARDS.length) this._card(this.ci + 1);
+    else this._night();
+  }
+  // ---------------------------------------------------------- the night outside --
+
+  // One of the lights that dance, at time t: round the Singing Tree, until they go (this.trig), then up its star and
+  // away into the museum. null once it is in.
+  _orb(i, t, out) {
+    const a = t * (0.5 + 0.07 * i) + i * 1.257, r = 9 + 5 * Math.sin(t * 0.31 + i * 1.7), y = TREE[1] + 1 + 5.5 * Math.sin(t * 0.43 + i * 2.1) + i * 0.7;
+    out.set(TREE[0] + Math.cos(a) * r * 1.5, y, TREE[2] + Math.sin(a) * r);
+    const s = t - this.trig - i * 0.24;
+    if (s <= 0) return out;
+    if (s < 2.2) { const k = ease(s / 2.2), a2 = a + s * s * 2.2, r2 = lerp(r, 1.3, k); return out.set(STAR[0] + Math.cos(a2) * r2 * lerp(1.5, 1, k), lerp(y, STAR[1], k), STAR[2] + Math.sin(a2) * r2); }
+    const u = (s - 2.2) / 3.3; if (u >= 1) return null;
+    const k = u * u * (3 - 2 * u), b = 1 - k, wig = Math.sin(u * 15 + i * 2) * 2.2 * (1 - u);
+    return out.set(b * b * STAR[0] + 2 * b * k * 300 + k * k * INTO[0], b * b * STAR[1] + 2 * b * k * (33 + i * 1.6) + k * k * INTO[1] + wig, b * b * STAR[2] + 2 * b * k * (i * 3 - 4) + k * k * INTO[2] + wig * 0.6);
+  }
+  _lightsGo() { if (this.trig === Infinity) this.trig = this.t + 0.5; }
+  _flash() {
+    this.greenTo = 0.42;
+    this.snd.motif(0.5, { beat: 0.34, gain: 0.05, onNote: i => this._pulse(i % 5, 1) });
+  }
+  _pulse(i, amp) { if (this.on) this.pulses.push({ i, amp, t: this.t }); }
+
+  _outside(dt) {
+    const set = this.set, t = this.t, v = this._v;
+    // penguins, going round in the lamplight
+    set.penguins.forEach((m, i) => {
+      const a = t * 0.085 + i * 0.62, x = PENGUINS.x + Math.cos(a) * 3.6, z = PENGUINS.z + Math.sin(a) * 2.2, w = t * 6.2 + i * 2;
+      m.visible = true; m.position.set(x, this.py + Math.abs(Math.sin(w)) * 0.025, z);
+      m.rotation.set(0, Math.atan2(-Math.sin(a) * 3.6, Math.cos(a) * 2.2), this.calm ? 0 : Math.sin(w) * 0.15);
+    });
+    // the lights
+    let alive = 0;
+    set.orbs.forEach((tail, i) => tail.forEach((s, j) => {
+      const p = this.gone ? null : this._orb(i, t - j * 0.055, v);
+      if (!p) { s.visible = false; if (!j && !this.fired['in' + i] && t > this.trig) { this.fired['in' + i] = 1; this._pulse(0, 1); this._pulse(1 + i % 4, 0.7); if (!this.frozen) this.snd.spark(0, [86, 91, 95, 93, 88][i], 0.03); } return; }
+      alive++; s.visible = true; s.position.copy(p);
+      const tw = j ? 1 : 1 + 0.16 * Math.sin(t * 9 + i * 3); s.scale.setScalar(s.userData.k * tw);
+    }));
+    if (!alive && t > this.trig && !this.gone) { this.gone = true; this.greenTo = Math.max(this.greenTo, 0.16); }
+    // the green in the museum
+    this.green += (this.greenTo - this.green) * Math.min(1, dt * 1.5);
+    if (this.phase === 'room' && this.ci === 7 && !this.calm && Math.random() < dt * 1.4) this._pulse(Math.floor(Math.random() * 5), 0.5 + Math.random() * 0.5);
+    this.pulses = this.pulses.filter(p => t - p.t < 2.2);
+    set.glows.forEach((s, i) => {
+      let k = this.green * (i === 5 ? 0.3 : 0.75 + 0.25 * Math.sin(t * 2.3 + i * 1.9));
+      for (const p of this.pulses) if (p.i === i || i === 5) k += p.amp * (i === 5 ? 0.13 : 1) * Math.exp(-(t - p.t) * (this.calm ? 1.2 : 3.4));
+      s.material.opacity = Math.min(1, k * 0.8); s.visible = k > 0.004;
+    });
+  }
+
+  // -------------------------------------------------------------- the camera --
+
+  // Where she is looking from and at: p in the room's own metres, look in the world (or, with `in`, in the room).
+  _view(name) {
+    const P = PENGUINS, py = this.py;
+    switch (name) {
+      case 'room': return { p: [-0.12, 1.26, 2.9], look: [318, 5, 32], fov: 50, rate: 1.7 };
+      case 'lights': return { p: [0.02, 1.2, 0.86], look: [346, 12, 2], fov: 36 };
+      case 'show': return { p: [0, 1.2, 1.0], look: [322, 6, 30], fov: 46 };
+      case 'penguin': return { p: [0.05, 1.25, 0.5], look: [P.x, py + 0.5, P.z], fov: 13, rate: 1.9 };
+      case 'penguin2': return { p: [0.05, 1.27, 0.42], look: [P.x, py + 0.55, P.z], fov: 7.2, rate: 1.9 };
+      case 'door': return { p: [-0.05, 1.2, 1.15], look: [-1.9, 1.05, 2.3], in: true, fov: 52, rate: 2.3 };
+      case 'orbs': { const o = this._orb(2, this.t - 0.25, this._w); return { p: [0.14, 1.2, 0.42], look: o ? [o.x, o.y - 1, o.z] : MUSEUM, fov: 27, rate: 2.0 }; }
+      case 'museum': return { p: [0.2, 1.2, 0.3], look: MUSEUM, fov: 24 };
+      case 'museum2': return { p: [0.22, 1.21, 0.26], look: [MUSEUM[0], MUSEUM[1] + 1, MUSEUM[2]], fov: 19 };
+      case 'shelf': return { p: [0.52, 1.24, 1.68], look: [1.7, 0.8, 1.06], in: true, fov: 40 };
+      case 'win': return { p: [0, 1.2, 0.95], look: [330, 6, 24], fov: 44, rate: 0.5 };
+      case 'down': return { p: [0, 1.31, 0.3], look: [CAR.x - 1, this.carGround, CAR.z - 1.5], fov: 26, rate: 2.2 };
+    }
+    return null;
+  }
+  _aim(dt, name, snap) {
+    const s = this._view(name), set = this.set, cam = this.camera;
+    const k = snap || this.calm || this.frozen ? 1 : 1 - Math.exp(-dt * (s.rate || 2.4));
+    this.cp.lerp(this._v.fromArray(s.p), k);
+    set.L(this.cp.x, this.cp.y, this.cp.z, cam.position);
+    if (s.in) set.L(s.look[0], s.look[1], s.look[2], this._w); else this._w.fromArray(s.look);
+    this._q.setFromRotationMatrix(this._m.lookAt(cam.position, this._w, this._up));
+    this.cq.slerp(this._q, k); this.cf = lerp(this.cf, s.fov, k);
+    cam.quaternion.copy(this.cq);
+    if (!this.calm && !this.frozen) { const t = this.t; cam.rotateX(Math.sin(t * 0.9) * 0.0028 + Math.sin(t * 0.37) * 0.002); cam.rotateY(Math.sin(t * 0.7 + 1) * 0.003); }
+    if (Math.abs(cam.fov - this.cf) > 0.01) { cam.fov = this.cf; cam.updateProjectionMatrix(); }
+  }
+  _once(key, at, T, fn) { if (T >= at && !this.fired[key]) { this.fired[key] = 1; if (!this.frozen) fn(); } }
+
+  // ------------------------------------------------------- when the house is asleep --
+
+  // The light in the room. T: seconds of the night (less than 0: before it, her lamp on).
+  _light(T) {
+    const U = this.set.U, night = T >= 0, w = this.calm ? 0 : this.t;
+    const lamp = !night || T < N.lamp ? 1 : 0.3 * (1 - span(T, N.lamp, N.lamp + 1.3));         // (a click, and the glow going out of it)
+    const hall = !night ? 1 : 1 - span(T, N.hall, N.hall + 0.45);
+    const dark = night ? span(T, N.lamp, N.hall + 1.8) : 0;                                    // her eyes getting used to it
+    U.uLamp.value.setRGB(1.7, 1.2, 0.72).multiplyScalar(lamp);
+    U.uWarm.value.setRGB(1.5, 0.95, 0.5).multiplyScalar((!night || T < N.tv ? this._tv : 0.8) * hall);
+    U.uCool.value.setRGB(0.36, 0.5, 0.95).multiplyScalar(1 - 0.5 * dark);
+    U.uAmb.value.setRGB(0.02, 0.024, 0.036).multiplyScalar(1 + dark);
+    U.uBulb.value = 0.8 + 0.5 * dark;
+    // the show in the park, on her ceiling: three colours that come and go
+    const k = 0.4 + 2.3 * dark, mix = (c, a, b, m, g) => c.value.setRGB(lerp(a[0], b[0], m), lerp(a[1], b[1], m), lerp(a[2], b[2], m)).multiplyScalar(k * g);
+    mix(U.uShowA, [1.0, 0.14, 0.08], [1.0, 0.6, 0.16], 0.5 + 0.5 * Math.sin(w * 0.43), 0.65 + 0.35 * Math.sin(w * 0.9 + 1));
+    mix(U.uShowB, [0.12, 0.9, 0.3], [1.0, 0.84, 0.52], 0.5 + 0.5 * Math.sin(w * 0.31 + 2), 0.65 + 0.35 * Math.sin(w * 0.7 + 3));
+    mix(U.uShowC, [0.18, 0.4, 1.0], [0.9, 0.2, 0.8], 0.5 + 0.5 * Math.sin(w * 0.37 + 4), 0.65 + 0.35 * Math.sin(w * 1.1 + 5));
+    this.lampK = lamp; this.darkK = dark;
+  }
+
+  _night() {
+    this.phase = 'night'; this.tB = 0; this.cap.textContent = ''; this.next.classList.remove('on'); this.snd.tvLevel(1);
+    // Where she goes, from where she stands now: [seconds, where her eyes are (the room's metres), which way she
+    // faces (0: the back of the room; a quarter turn: the bookcase; a half: the window), up or down, how wide].
+    const set = this.set, K = this.keys = [], w = this._w;
+    const key = (T, p, h, pit, fov, go = false) => K.push({ T, v: [p[0], p[1], p[2], h, pit, fov], go });
+    const facing = s => { w.fromArray(s.look); set.room.worldToLocal(w); const dx = w.x - s.p[0], dy = w.y - s.p[1], dz = w.z - s.p[2]; let h = Math.atan2(dx, dz); if (h < 0) h += TAU; return [h, Math.atan2(dy, Math.hypot(dx, dz))]; };
+    const R = this._view('room'), [hR, pR] = facing(R), D = this._view('down'), [hD, pD] = facing(D);
+    const f = this._v.set(0, 0, -1).applyQuaternion(this.cq).applyAxisAngle(this._up, -set.yaw);
+    let h0 = Math.atan2(f.x, f.z); while (h0 - hR > Math.PI) h0 -= TAU; while (h0 - hR < -Math.PI) h0 += TAU;
+    key(0, this.cp.toArray(), h0, Math.asin(Math.max(-1, Math.min(1, f.y))), this.cf);
+    key(0.6, R.p, hR, pR, 50); key(N.toShelf, R.p, hR, pR, 50);
+    key(N.shelf, [1.13, 1.2, 1.3], 1.62, -0.6, 54); key(N.rem1, [1.25, 1.17, 1.32], 1.63, -0.7, 54);
+    key(N.pocket, [1.16, 1.2, 1.2], 1.58, -0.62, 54, true);
+    key(N.car1, [1.3, 1.16, 1.06], 1.56, -0.72, 54); key(N.car1 + 0.12, [1.3, 1.16, 1.06], 1.56, -0.72, 54);
+    key(N.lift, [1.16, 1.2, 1.1], 1.45, -0.5, 54);
+    key(N.turn, [0.85, 1.2, 1.6], 0.1, -0.34, 54, true);
+    key(N.door, [-0.6, 1.2, 2.13], -1.5, -0.3, 54); key(N.thru, [-0.78, 1.2, 2.14], -1.57, -0.26, 54);
+    key(N.gone, [-2.3, 1.2, 2.15], -1.57, -0.2, 54); key(N.back - 0.3, [-2.3, 1.2, 2.15], -1.57, -0.2, 54);
+    key(N.back - 0.29, [-1.25, 1.2, 2.16], 2.62, -0.04, 52);
+    key(N.win, [0, 1.24, 0.8], Math.PI, -0.12, 46, true);
+    key(N.glass, D.p, hD, pD, D.fov); key(N.end + 1, D.p, hD, pD, D.fov);
+  }
+  // Where she is and which way she is looking, T seconds into the night.
+  _nightCam(T) {
+    const K = this.keys, set = this.set, cam = this.camera, o = this._o || (this._o = [0, 0, 0, 0, 0, 0]);
+    let i = 0; while (i < K.length - 2 && T >= K[i + 1].T) i++;
+    if (this.calm) { while (i > 0 && K[i].go) i--; for (let c = 0; c < 6; c++) o[c] = K[i].v[c]; }      // (cuts)
+    else {
+      const a = K[i], b = K[i + 1], D = b.T - a.T, s = Math.min(1, Math.max(0, (T - a.T) / D)), s2 = s * s, s3 = s2 * s;
+      const slope = (j, c) => (K[j].go && j > 0 && j < K.length - 1 ? (K[j + 1].v[c] - K[j - 1].v[c]) / (K[j + 1].T - K[j - 1].T) : 0);
+      for (let c = 0; c < 6; c++) o[c] = (2 * s3 - 3 * s2 + 1) * a.v[c] + (s3 - 2 * s2 + s) * D * slope(i, c) + (3 * s2 - 2 * s3) * b.v[c] + (s3 - s2) * D * slope(i + 1, c);
+    }
+    let bob = 0; if (!this.calm) for (const [t0, t1, gap] of WALKS) if (T > t0 && T < t1) bob = (1 - Math.cos(TAU * (T - t0) / gap)) / 2 * Math.min(1, (T - t0) * 3, (t1 - T) * 3);
+    this.bob = bob; this.cp.set(o[0], o[1] - bob * 0.017, o[2]); this.ch = o[3]; this.cf = o[5];
+    const h = o[3] + (this.calm ? 0 : Math.sin(T * TAU / 0.96) * 0.006 * Math.min(1, bob * 4)), cp = Math.cos(o[4]);
+    set.L(this.cp.x, this.cp.y, this.cp.z, cam.position);
+    set.L(this.cp.x + Math.sin(h) * cp, this.cp.y + Math.sin(o[4]), this.cp.z + Math.cos(h) * cp, this._w);
+    this.cq.setFromRotationMatrix(this._m.lookAt(cam.position, this._w, this._up)); cam.quaternion.copy(this.cq);
+    if (!this.calm && !this.frozen) { const t = this.t; cam.rotateX(Math.sin(t * 0.9) * 0.0028 + Math.sin(t * 0.37) * 0.002); cam.rotateY(Math.sin(t * 0.7 + 1) * 0.003); }
+    if (Math.abs(cam.fov - this.cf) > 0.01) { cam.fov = this.cf; cam.updateProjectionMatrix(); }
+  }
+  // A place measured from her eyes as she stands (the room's metres): to her right, up, in front of her.
+  _body(side, up, fwd, out) { const h = this.ch, p = this.cp; return out.set(p.x - Math.cos(h) * side + Math.sin(h) * fwd, p.y + up, p.z + Math.sin(h) * side + Math.cos(h) * fwd); }
+
+  // What she has hold of, and her arms. T: seconds of the night (less than 0: before it, everything in its place).
+  _props(T) {
+    const set = this.set, car = this.car, rem = set.remote, rig = set.rig, cam = this.camera, [t0, t1, t2, t3, t4, t5, t6, t7] = this._t;
+    set.door.rotation.y = lerp(DOORWAY.ajar, -1.32, T < 0 ? 0 : span(T, N.door0, N.door1));
+    // the light on the car, which the room's own shader does not paint
+    const lk = this.lampK * 0.72, dk = 1 + 0.3 * this.darkK; this._c.setRGB(lk + 0.22 * dk, lk + 0.27 * dk, lk + 0.38 * dk);
+    for (const [m, c] of this.tint) m.color.copy(c).multiply(this._c);
+    rig.visible = false; set.handset.visible = false; for (const a of set.arms) set.hideArm(a);
+    car.visible = T < N.gone; car.position.copy(this.carRest); car.rotation.y = 0.22;
+    rem.visible = T < N.pocket; rem.position.copy(set.remoteSpot);
+    if (T < N.rem0 || (T >= N.gone && T < N.up0)) return;
+    rig.visible = true; rig.position.copy(cam.position); rig.quaternion.copy(cam.quaternion); set.held.value = T >= N.up0 ? 0.5 : 0.6;
+    if (T >= N.up0) {                                             // at the window: the handset in both her mittens, held up into the bottom of the view
+      // (small and close, in front of the glass: it is the toy below that the long lens is on)
+      const k = span(T, N.up0, N.up1), dy = -0.34 * (1 - k), press = T >= N.sw && T < N.sw + 0.2 ? 1 : 0;
+      rig.scale.setScalar(0.26);
+      set.handset.visible = true; set.handset.position.set(0, -0.118 + dy, -1.0); set.handset.rotation.set(0.85, 0, 0);
+      for (const a of set.arms) {
+        const sd = a.side, dip = sd > 0 ? press * 0.006 : 0;
+        set.poseArm(a, t0.set(sd * 0.33, -0.47 + dy * 0.4, -0.6), t1.set(sd * 0.142, -0.178 + dy - dip, -0.925), t2.set(sd * 0.8, -0.6, 0.3), t3.set(-sd * 0.5, 0.5, -0.72), t4.set(sd * 0.75, 0.12, 0.62));
+      }
+      return;
+    }
+    rig.scale.setScalar(1); rig.updateMatrixWorld(true); this._iq.copy(cam.quaternion).invert();
+    const h = this.ch, fx = Math.sin(h), fz = Math.cos(h), rx = -Math.cos(h), rz = Math.sin(h);
+    const at = v => rig.worldToLocal(set.L(v.x, v.y, v.z, v)), way = v => v.applyAxisAngle(this._up, set.yaw).applyQuaternion(this._iq);
+    const pose = (a, wrist, fwd, up) => { const sd = a.side; set.poseArm(a, at(this._body(sd * 0.15, -0.21, -0.05, t5)), at(wrist), way(t6.set(rx * sd * 0.8 - fx * 0.3, -1, rz * sd * 0.8 - fz * 0.3)), way(fwd), way(up)); };
+    const [al, ar] = set.arms;
+    if (T < N.pocket) {                                           // her right hand, for the handset; and into her pocket with it
+      const took = T >= N.rem1, rs = set.remoteSpot, grab = t2.set(rs.x - 0.17, rs.y + 0.075, rs.z + 0.01), rest = this._body(0.2, -0.62, 0.02, t1);
+      let down = 0;
+      if (!took) { const k = span(T, N.rem0, N.rem1); t0.lerpVectors(rest, grab, k); t0.y += Math.sin(k * Math.PI) * 0.08; }
+      else {                                                      // (back off the shelf before it goes down: round by her chest)
+        const k = span(T, N.rem1 + 0.1, N.pocket), a = (1 - k) * (1 - k), b = 2 * k * (1 - k), near = lerp(1, 0.4, Math.min(1, k * 3));
+        this._body(0.2, -0.24, 0.16, t7); t0.set(grab.x * a + t7.x * b + rest.x * k * k, grab.y * a + t7.y * b + rest.y * k * k, grab.z * a + t7.z * b + rest.z * k * k); down = k;
+        rem.position.set(t0.x + fx * 0.17 * near, t0.y - 0.075 * near - down * 0.05, t0.z + fz * 0.17 * near - 0.01);
+      }
+      pose(ar, t0, t3.set(fx * 0.9, -0.42 - down * 0.9, fz * 0.9), t4.set(fx * 0.4, 1, fz * 0.4));
+    }
+    if (T >= N.car0) {                                            // both hands for the car: round it, up, and carried
+      const kl = span(T, N.car1 + 0.1, N.lift), kr = span(T, N.car0, N.car1), yaw = lerp(0.22, h - Math.PI / 2, kl);
+      car.position.lerpVectors(this.carRest, this._body(0, -0.4 - this.bob * 0.006, 0.44, t1), kl); car.position.y += Math.sin(kl * Math.PI) * 0.06; car.rotation.y = yaw;
+      for (const a of [al, ar]) {
+        const sd = a.side;
+        t2.set(car.position.x + Math.sin(yaw) * sd * 0.262 - fx * 0.14, car.position.y + 0.07, car.position.z + Math.cos(yaw) * sd * 0.262 - fz * 0.14);
+        t0.lerpVectors(this._body(sd * 0.2, -0.62, 0.02, t1), t2, kr); t0.y += Math.sin(kr * Math.PI) * 0.07;
+        pose(a, t0, t3.set(fx * 0.95, -0.3, fz * 0.95), t4.set(rx * sd, 0.25, rz * sd));
+      }
+    }
+  }
+
+  _nightFrame(dt) {
+    const G = this.G, set = this.set, T = this.tB, snd = this.snd, v = G.vehicle;
+    this._light(T);
+    // lights out
+    this._once('lamp', N.lamp, T, () => snd.flick(0)); this._once('tvoff', N.tv, T, () => snd.tvOff()); this._once('hall', N.hall, T, () => snd.flick(0, 0.03));
+    // on tiptoe: the bookcase, the handset, the car; the door
+    this._once('w1', N.toShelf, T, () => snd.tiptoe(0.2, 3, 0.5)); this._once('rem', N.rem1, T, () => snd.click(0, 0.03)); this._once('car', N.car1, T, () => snd.thud(0, 0.02));
+    this._once('w2', N.lift + 0.15, T, () => snd.tiptoe(0.2, 5, 0.46)); this._once('creak', N.door0, T, () => snd.creak(0, 0.95, 0.4)); this._once('w3', N.thru, T, () => snd.tiptoe(0.1, 3, 0.4));
+    // off stage, in the dark: the stairs, the street door, the snow, and back up
+    this._once('black', N.black, T, () => this._fade(true));
+    this._once('down', N.gone, T, () => snd.steps(0, 7, -1, 0.15)); this._once('out', N.gone + 1.1, T, () => snd.thud(0, 0.045)); this._once('snow', N.gone + 1.3, T, () => snd.crunch(0, 3));
+    this._once('set', N.set, T, () => snd.thud(0, 0.02)); this._once('up', N.set + 0.12, T, () => snd.steps(0, 5, 1, 0.13));
+    this._once('in', N.back, T, () => this._fade(false)); this._once('w4', N.back + 0.1, T, () => snd.tiptoe(0.25, 4, 0.5)); this._once('shut', N.back + 0.75, T, () => snd.click(0, 0.03));
+    if (this.frozen) this._fade(T > N.black + 0.45 && T < N.back + 0.45, true);
+    if (!this.home.back) v.group.visible = T >= N.set;
+    // back at the window: her breath on the glass, the handset in her hands, the toy waking in the snow below
+    this._once('b1', N.puff, T, () => snd.breath(0)); this._once('b2', N.puff2, T, () => snd.breath(0));
+    const puff = t0 => (T < t0 ? 0 : Math.min(1, (T - t0) / 0.55) * Math.exp(-Math.max(0, T - t0 - 0.55) / 2.4));
+    const fog = Math.min(1, puff(N.puff) * 0.75 + puff(N.puff2) * 0.6);
+    if (!this._bs) {                                                                   // where her line of sight to the toy meets the glass; she breathes just up and left of it
+      const d = this._view('down'), e = this._w.fromArray(d.look); set.room.worldToLocal(e);
+      const u = (0.009 - d.p[2]) / (e.z - d.p[2]); this._bs = [d.p[0] + (e.x - d.p[0]) * u - 0.068, d.p[1] + (e.y - d.p[1]) * u + 0.03];
+    }
+    set.breath.visible = fog > 0.01; set.breath.material.opacity = fog * 0.95; set.breath.position.set(this._bs[0], this._bs[1], 0.009); set.breath.scale.setScalar(0.2 + 0.07 * Math.min(1, Math.max(0, T - N.puff) / 2.5));
+    this._once('sw', N.sw, T, () => snd.click(0, 0.06)); this._once('pw', N.sw + 0.12, T, () => snd.powerUp(0));
+    set.led.material.color.setHex(T >= N.sw ? 0x4dff7a : 0x661414);
+    if (T >= N.lit && !G.lampOn) { G.lampOn = true; if (G.lamp) G.lamp.intensity = 70; const b = document.getElementById('bLights'); if (b) b.setAttribute('aria-pressed', 'true'); }
+    if (T < N.lit && G.lampOn && this.frozen) { G.lampOn = false; if (G.lamp) G.lamp.intensity = 0; }
+    this._drive(T - N.go);
+    this._nightCam(T); this._props(T);
+    if (T >= N.end && !this.frozen) this._fly();
+  }
+  // The toy pulls away over the snow towards the lights (s seconds since it set off).
+  _drive(s) {
+    const v = this.G.vehicle; if (this.home.back) return;
+    const d = s <= 0 ? 0 : Math.min(30, s < 2 ? 1.25 * s * s : 5 * s - 5);          // up to a toy's 5 m/s, and no further than the edge of the lights
+    if (d === this._drove) return; this._drove = d;
+    v.place(CAR.x + Math.sin(this.carYaw) * d, CAR.z + Math.cos(this.carYaw) * d, this.carYaw, v.pos.y);
+  }
+  _home() {
+    const v = this.G.vehicle, h = this.home; if (h.back) return; h.back = true;
+    v.place(h.x, h.z, h.yaw, h.y); v.group.visible = true;
+  }
+
+  // ------------------------------------------------------------------ the arrival --
+
+  // A cut: the museum's steps, coming down behind the toy where the game will find it. (The phase keeps its old name.)
+  _fly() {
+    const THREE = this.THREE, h = this.home, fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), sx = -fz, sz = fx;
+    this.phase = 'fly'; this.tF = 0; this.len = this.calm ? CALM_FLY : FLY;
+    const rel = (back, side, up) => new THREE.Vector3(h.x - fx * back + sx * side, h.y + up, h.z - fz * back + sz * side);
+    this.curve = new THREE.CatmullRomCurve3([rel(26, 7.6, 7.5), rel(18, 1.8, 2.6), this.endAt.clone()], false, 'centripetal');
+    this.toy = new THREE.Vector3(h.x, h.y + 0.3, h.z);
+    this._home(); this.set.room.visible = false; this.set.rig.visible = false; this.set.breath.visible = false;
+    this._fade(true, true);
+    if (!this.frozen) { this.snd.wind(0, this.len); if (!this.calm) this.snd.motif(0.3, { beat: 0.46, gain: 0.05 }); }
+  }
+  _flyFrame() {
+    const cam = this.camera, T = this.tF, len = this.len;
+    const x = this.calm ? 1 : Math.min(1, T / (len - 0.4)), u = FLY_FROM + (1 - FLY_FROM) * (1 - (1 - x) * (1 - x)), fov = lerp(60, 70, span(x, 0.45, 1));
+    this.curve.getPointAt(u, cam.position);
+    this._v.lerpVectors(this.toy, this.endLook, span(u, 0.74, 1));
+    this.cq.setFromRotationMatrix(this._m.lookAt(cam.position, this._v, this._up)); cam.quaternion.copy(this.cq);
+    if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    this._once('seen', 0.1, T, () => this._fade(false, false, true));
+    if (T > len - 0.8) this.el.classList.add('out');
+    if (T >= len && !this.frozen) this.finish(false);
+  }
+
+  // ------------------------------------------------------------------- each frame --
 
   frame(dt) {
     if (!this.on) return;
-    // On the wall clock, not the game's (which is capped at 50 ms a frame): on a slow phone it still lasts five seconds.
-    const now = performance.now(); this.t += Math.min(0.25, Math.max(dt, (now - (this.last || now)) / 1000)); this.last = now;
-    const G = this.G, t = this.hold != null ? this.hold : this.t;
-    // The lights go out.
-    for (const p of this.panes) {
-      const k = this.calm ? Math.max(0, Math.min(1, (t - p.at) / 0.35)) : t >= p.at ? Math.min(1, (t - p.at) / 0.09) : 0;
-      p.mesh.material.opacity = 1 - k; p.mesh.visible = k < 1;
-      if (k > 0 && !p.off) { p.off = true; if (this.hold == null) this.sound.tick(0.035, 240, 0.05); }
-    }
-    // The headlights, a moment before the hand-over.
-    const lampT = this.len - (this.calm ? 0.5 : 0.6);
-    if (t >= lampT && !G.lampOn) {
-      G.lampOn = true; if (G.lamp) G.lamp.intensity = 70;
-      const b = document.getElementById('bLights'); if (b) b.setAttribute('aria-pressed', 'true');
-      if (this.hold == null) { this.sound.tick(0.08, 2200, 0.03); this.sound.tick(0.05, 1400, 0.03, 0.05); }
-    }
-    if (t > 0.6) this.el.querySelector('.skip').classList.add('on');
-    if (t > this.len - 0.7) this.el.classList.add('out');
-    const s = this._shot(t), cam = this.camera;
-    cam.position.fromArray(s.at); cam.up.set(0, 1, 0); cam.lookAt(this._look.fromArray(s.look));
-    if (Math.abs(cam.fov - s.fov) > 0.01) { cam.fov = s.fov; cam.updateProjectionMatrix(); }
-    // The world goes on round it, as on the title screen.
-    if (G.museum) { G.museum.update(dt, cam.position, null, cam.position); G.museum.winter.update(dt, G.t, cam.position, null, G.set.reduce); }
+    // On the wall clock, not the game's (which is capped at 50 ms a frame): on a slow phone it lasts as long.
+    const now = performance.now(), d = Math.min(0.25, Math.max(dt, (now - (this.last || now)) / 1000)); this.last = now;
+    this.t += d;
+    const G = this.G, set = this.set, cam = this.camera;
+    cam.up.set(0, 1, 0);
+    // the television, flickering along the hall
+    const t = this.t; this._tv = this.calm ? 1 : 0.86 + 0.1 * Math.sin(t * 7.3) * Math.sin(t * 2.1) + 0.08 * Math.sign(Math.sin(t * 1.3 + Math.sin(t * 0.6) * 3));
+    if (this.phase === 'room') {
+      this._light(-1); this._lines(this.frozen ? 0 : d); this._aim(d, this.view, this.snap); this.snap = false; this._props(-1);
+    } else if (this.phase === 'night') { if (!this.frozen) this.tB += d; this._nightFrame(d); }
+    if (this.phase === 'fly') { if (!this.frozen) this.tF += d; this._flyFrame(); }
+    if (!this.on) return;
+    set.twinkle(this.calm ? 0 : t);
+    this._outside(d);
+    // The world goes on round it, as on the title screen; the park is awake because the toy is down there in it.
+    // (The snow falls in a block of air round the camera: while she is indoors, round a place out past the glass instead.)
+    const air = set.room.visible ? this._air.copy(cam.position).addScaledVector(this._out, 44) : cam.position;
+    if (G.museum) { G.museum.update(dt, cam.position, null, air); G.museum.winter.update(dt, G.t, cam.position, null, G.set.reduce); }
+    if (G.features && !this.home.back) G.features.update(dt, true);
     if (G.vehicle) G.vehicle.sync(dt);
     this.sound.update(null, false);
-    if (t >= this.len && this.hold == null) this.finish(false);
+  }
+
+  /** (tests) Stop the clock at t seconds of the night or the flight, or at card t with all its lines shown. */
+  seek(phase, t) {
+    if (!this.on) return;
+    this.frozen = true;
+    if (phase === 'room') { this.phase = 'room'; this._card(t); this.pre = 0; while (this.li < CARDS[t].lines.length - 1) { this._line(); this._typed(); } this._fade(false, true); return; }
+    if (this.phase === 'room') this._night();
+    if (phase === 'night') { this.tB = t; return; }
+    this.tB = N.end; this._nightFrame(0); if (this.phase !== 'fly') this._fly(); this._fade(false, true); this.tF = t;
   }
 
   /** Hand over: skipped or run to the end. */
   finish(skipped) {
     if (!this.on) return;
     this.on = false;
-    for (const k of ['keydown', 'pointerdown']) removeEventListener(k, this._skip, { capture: true });
+    for (const k of ['keydown', 'pointerdown']) removeEventListener(k, this._input, { capture: true });
     const G = this.G;
-    if (!G.lampOn) { G.lampOn = true; if (G.lamp) G.lamp.intensity = 70; const b = document.getElementById('bLights'); if (b) b.setAttribute('aria-pressed', 'true'); if (skipped) this.sound.tick(0.08, 2200, 0.03); }
-    if (this.group) { this.scene.remove(this.group); for (const p of this.panes) p.mesh.material.dispose(); this.geo.dispose(); this.group = null; this.panes = []; }
-    this.el.hidden = true;
+    this.snd.stop();
+    this._home();
+    if (!G.lampOn) { G.lampOn = true; if (G.lamp) G.lamp.intensity = 70; const b = document.getElementById('bLights'); if (b) b.setAttribute('aria-pressed', 'true'); }
+    if (skipped) this.sound.tick(0.08, 2200, 0.03);
+    if (this.car) { this.car.removeFromParent(); this.car = null; for (const d of this.dim.values()) d.dispose(); this.dim.clear(); this.tint = []; }
+    if (this.set) { this.set.dispose(); this.set = null; }
+    this.curve = null; this.keys = null; this.pulses = [];
+    this.el.hidden = true; this.cap.textContent = ''; this._fade(false, true);
     this.skipped = skipped;
     const took = this.t, done = this.done; this.done = null;
     if (done) done(took);
