@@ -124,7 +124,7 @@ class Shade {
     const s0 = lo < hl - 0.05 ? d * lo / (hl - lo) : 2.2, s1 = Math.min(2.4, hi < hl - 0.08 ? d * hi / (hl - hi) : 2.4) + r * 0.6;
     const a = Math.min(s0, s1) - r * 0.6, len = Math.max(r * 1.6, s1 - a), mid = a + len / 2, wide = r * 2 * (1 + mid / d) * 1.1;
     _m.set(dz * wide, 0, dx * len, x + dx * mid, 0, 1, 0, fy + 0.012, -dx * wide, 0, dz * len, z + dz * mid, 0, 0, 0, 1);
-    this.mesh.setMatrixAt(this.i, _m); this.a.array[this.i] = k * Math.min(1, 0.55 + 0.6 * r / Math.max(0.2, len)); this.i++;
+    this.mesh.setMatrixAt(this.i, _m); this.a.array[this.i] = Math.min(0.9, k * Math.min(1, 0.55 + 0.6 * r / Math.max(0.2, len))); this.i++;
   }
   begin() { this.i = 0; }
   end() { this.mesh.count = this.i; this.mesh.visible = this.i > 0; if (this.i) { this.mesh.instanceMatrix.needsUpdate = true; this.a.needsUpdate = true; } }
@@ -442,7 +442,7 @@ const F = {
       try { E.spec.pose(E, dt, k); } catch (e) { console.error('escapes: ' + E.spec.name + ': ' + (e && e.stack || e)); this._arrive(E, 'now'); E.body = 'broken'; continue; }
       // what the lamp throws behind it
       const lb = E.lit > 0.02 ? E.by || (E.going && E.going.b) : null;
-      if (lb && lb.fy != null && Math.abs(lb.fy - E.y) < 0.5) { const sk = Math.min(1, E.lit * 1.4) * (1 - E.gone) * Math.min(0.95, 0.62 * (E.spec.shade || 1)), ps = (E.spec.parts && E.spec.parts(E)) || null; if (ps) for (const q of ps) this.shade.put(q.x, q.y, q.z, q.sr || q.r, q.ry || q.r, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); else { const hh = (E.spec.height || 0.4) * 0.5, rr = Math.min(E.spec.radius || 0.4, hh); this.shade.put(E.x, E.y + hh, E.z, rr, hh, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); } }
+      if (lb && lb.fy != null && Math.abs(lb.fy - E.y) < 0.5) { const sk = Math.min(1, E.lit * 1.4) * (1 - E.gone) * 0.62 * (E.spec.shade || 1), ps = (E.spec.parts && E.spec.parts(E)) || null; if (ps) for (const q of ps) this.shade.put(q.x, q.y, q.z, q.sr || q.r, q.ry || q.r, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); else { const hh = (E.spec.height || 0.4) * 0.5, rr = Math.min(E.spec.radius || 0.4, hh); this.shade.put(E.x, E.y + hh, E.z, rr, hh, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); } }
       this._watch(E.key, this._arts(E.room === G.roomId || !G.roomId ? [E.room] : [E.room, G.roomId]), eye, E.x, E.y + (E.spec.height || 0.4) / 2, E.z, E.spec.radius || 0.6, E.y);
     }
     this.marks.end(); this.shade.end();
