@@ -154,7 +154,8 @@ const _m = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vect
 function placeGuard(art) {
   const u = guardOf(art), room = MUSEUM && MUSEUM.rooms && MUSEUM.rooms[art.room];
   const d2 = a => (a.x - art.x) ** 2 + (a.z - art.z) ** 2;      // (the nearest first, should a room ever hold more than MAXC)
-  u.arts = [art, ...((room && room.arts) || []).filter(a => a !== art && !a.obj && a.mesh).sort((a, b) => d2(a) - d2(b))].slice(0, MAXC);
+  if (art.roam) u.arts = (art.arts || []).slice(0, MAXC);      // (a roaming guard, see roamGuard below: its canvases are handed to it)
+  else u.arts = [art, ...((room && room.arts) || []).filter(a => a !== art && !a.obj && a.mesh).sort((a, b) => d2(a) - d2(b))].slice(0, MAXC);
   u.arts.forEach((a, i) => {
     const m = a.mesh, R = u.uLifeR.value;
     if (m) { m.updateMatrixWorld(); m.matrixWorld.decompose(_m, _q, _s); } else { _m.set(a.x, a.y, a.z); _s.set(a.w, a.h, 1); _q.setFromAxisAngle(_ax.set(0, 1, 0), a.rot); }
@@ -216,6 +217,14 @@ export function protectArt(mat, art, { soft = 0 } = {}) {
   mat.needsUpdate = true;
   return mat;
 }
+
+// A guard for something that leaves its room (src/escapes.js): the same guard, on a key that is not a work, over
+// whichever canvases it is handed (at most GUARD_MAX; whoever owns it picks them as the thing moves, the ones it could
+// be seen in front of first). key = roamGuard(); protectArt(material, key); placeRoam(key, arts) whenever it has moved.
+export const GUARD_MAX = MAXC;
+export function roamGuard() { return { roam: true, arts: [] }; }
+export function placeRoam(key, arts) { key.arts = arts; return placeGuard(key); }
+export function guardBlock(key) { return guardOf(key); }
 
 // The same test on the CPU: would a ball of radius r at (x, y, z) be seen in front of the work's canvas, or any other
 // in its room, from eye E? (only: 'work' tests the work's own canvas alone)
@@ -685,7 +694,7 @@ class Life {
     const t0 = performance.now();
     if (this.state === 'show') { this.t += dt; this.wake = ease.smooth(this.t / this.wakeDur); this.phase = this.t < this.wakeDur ? 'wake' : 'play'; }
     else if (this.state === 'return') { this.r += dt; this.ret = clamp01(this.r / this.retDur); }
-    try { if (sp.update) sp.update(this, dt); } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; this.group.visible = false; return; }
+    try { if (sp.update) sp.update(this, dt); if (this.after) this.after(this, dt); } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; this.group.visible = false; return; }
     if (this.state === 'return' && this.r >= this.retDur) this.finish();
     else if (this.state === 'after' && !(sp.keep && sp.keep(this))) { this.state = 'off'; this.phase = 'off'; this.group.visible = false; }
     this.ms = this.ms * 0.9 + (performance.now() - t0) * 0.1;
@@ -720,7 +729,7 @@ class Life {
 // faintly, round the edges of their wall labels, as if the card were lit from behind. Only the label: never the work.
 // A ring with the card’s own shape cut out of it, 1 cm in front of the card’s plane (clear of the wall: no shimmer), breathing slowly (still when
 // motion is reduced). It is there from the start, lit room or dark, so a sharp eye finds the living works before they move.
-const GLOW = 0.9, GLOW_RIM = 0.06;
+const GLOW = 0.9, GLOW_RIM = 0.06, WHITE = new THREE.Color(1, 1, 1), FLUT = new THREE.Color();
 function exposedCards(museum, arts) {
   const cards = museum && museum.cards; if (!cards || !arts.length) return null;
   const M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3();
@@ -729,6 +738,7 @@ function exposedCards(museum, arts) {
     cards.getMatrixAt(a.i, M); M.decompose(P, Q, S);
     if (S.x < 0.01) continue;                                   // a work with no card
     a.exposed = true; if (museum._paint) museum._paint(a);       // the card itself takes a green cast, dark or lit
+    a.glowI = pos.length;                                        // (which glow is this work's: flutter(), below)
     // Out into the room along the work's normal (the card is a hair off the wall; its own +z is no guide).
     pos.push([P.clone().add(new THREE.Vector3(a.nx, 0, a.nz).multiplyScalar(0.01)), Q.clone(), S.x, S.y]);
   }
@@ -746,7 +756,7 @@ function exposedCards(museum, arts) {
   // Normal blending, not additive: added to a lit cream wall a faint green vanishes into the white.
   const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.2, 1.0, 0.36), transparent: true, opacity: GLOW, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
   const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, pos.length);
-  pos.forEach(([p, q], i) => m.setMatrixAt(i, M.compose(p, q, S.set(W, H, 1))));
+  pos.forEach(([p, q], i) => { m.setMatrixAt(i, M.compose(p, q, S.set(W, H, 1))); m.setColorAt(i, WHITE); });
   m.frustumCulled = false; m.renderOrder = 5;
   museum.group.add(m);
   return m;
@@ -802,8 +812,22 @@ feature({
       const CAP = LOWMEM ? 4 : 1e9;
       if (built.length > CAP) for (const L of built.sort((a, b) => a.usedAt - b.usedAt).slice(0, built.length - CAP)) if (L !== seen) L.release();
     }
-    if (this.exposed) { this.glowT = (this.glowT || 0) + dt; this.exposed.material.opacity = k.museum.calm ? GLOW : GLOW * (0.8 + 0.2 * Math.sin(this.glowT * 1.1)); }
+    if (this.exposed) {
+      this.glowT = (this.glowT || 0) + dt; this.exposed.material.opacity = k.museum.calm ? GLOW : GLOW * (0.8 + 0.2 * Math.sin(this.glowT * 1.1));
+      // A work with something out of it (src/escapes.js): its label's glow flutters, paler and unsteady, till the thing is home.
+      if (this.fluttering.size || this.fluttered) {
+        const t = this.glowT; this.fluttered = this.fluttering.size > 0;
+        for (const L of LIVES) { const i = L.art.glowI; if (i == null) continue;
+          if (!this.fluttering.has(L.art)) { this.exposed.setColorAt(i, WHITE); continue; }
+          const f = k.museum.calm ? 0.5 : 0.5 + 0.5 * Math.sin(t * 9 + i) * Math.sin(t * 5.3 + i * 2) * (0.6 + 0.4 * Math.sin(t * 23 + i));
+          this.exposed.setColorAt(i, FLUT.setRGB(1 + 2.6 * f, 1, 1 + 1.4 * f)); }
+        this.exposed.instanceColor.needsUpdate = true;
+      }
+    }
   },
+  fluttering: new Set(), fluttered: false,
+  // flutter(art, on): the label of a work whose thing is out. (The glow is the label's alone: never the work.)
+  flutter(art, on) { if (on) this.fluttering.add(art); else this.fluttering.delete(art); },
   spots(k) {
     return LIVES.flatMap(L => (L.spec.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: L.cx + L.nx * 1.4, y: L.y, z: L.cz + L.nz * 1.4 })));
   },
@@ -813,7 +837,7 @@ feature({
 // ------------------------------------------------------------------ checks and test aids --
 // window.__life: list(), ready(id), pose(id, t, { ret }), free(id), cams(id), check(id), stats(id).
 const DT = 1 / 30;
-function lifeOf(id) { return LIVES.find(L => L.id === id); }
+export function lifeOf(id) { return LIVES.find(L => L.id === id); }
 function cameras(L, k) {
   const R = L.room, y = L.y, h = R ? (R.ceil || R.h || 4) : 4, P = (u, out, up) => { const p = L.floor(u, out); p.y = y + up; if (R) { p.x = Math.max(R.x0 + 0.2, Math.min(R.x1 - 0.2, p.x)); p.z = Math.max(R.z0 + 0.2, Math.min(R.z1 - 0.2, p.z)); } return p.toArray(); };
   const C = [L.cx, L.cy, L.cz], depth = R ? (Math.abs(L.nx) > 0.5 ? R.x1 - R.x0 : R.z1 - R.z0) : 6, width = R ? (Math.abs(L.nx) > 0.5 ? R.z1 - R.z0 : R.x1 - R.x0) : 6;

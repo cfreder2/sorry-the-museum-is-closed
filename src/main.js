@@ -85,6 +85,7 @@ import './racespots.js';         // rival toys waiting about the building and th
 import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
 import './secdesk.js';           // the computers in the security control rooms: a terminal, the robot tracker, a donut game
 import './life/index.js';        // paintings that come alive while you look at them (src/paintlife.js, docs/PAINTING-ANIMATIONS.md)
+import './escapes.js';           // what gets out of a living painting and wanders the building till it is sent or led home (docs/ESCAPES.md)
 import './systems.js';           // the building's systems, for the control room: sprinklers, the fire test, lights, lifts, doors, the PA (after guards.js: it takes robots over)
 import './look.js';              // the look pass over the finished world: the snow's drifts, soft shadows under what moves (last: src/finish.js)
 
@@ -133,7 +134,7 @@ input.onGesture = () => sound.unlock();
 
 // Settings, kept between visits. Reduced motion starts on if the system asks for it.
 const SETTINGS = 'after-hours.settings';
-const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true,
+const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true, escapes: true,
   autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
 
@@ -535,7 +536,7 @@ function newGame() {
   secrets.reset();
   G.presents.reset();
   if (G.features) G.features.fresh();
-  try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air', 'after-hours.voyage', 'after-hours.night']) localStorage.removeItem(k); } catch { /* fine */ }
+  try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air', 'after-hours.voyage', 'after-hours.night', 'after-hours.escapes']) localStorage.removeItem(k); } catch { /* fine */ }
 }
 // The title screen offers Continue only when there is a game to continue.
 function titleButtons() {

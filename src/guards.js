@@ -93,6 +93,8 @@ const EMIT = new THREE.Vector3(0.12, BOT.emitter, 0.14);        // where the pro
 const MOOD = {
   calm: new THREE.Color(0.25, 1.1, 1.6), wary: new THREE.Color(2.0, 1.15, 0.15), hunt: new THREE.Color(2.4, 0.18, 0.12),
   poolCalm: new THREE.Color(0.55, 0.72, 0.85), poolWary: new THREE.Color(0.9, 0.62, 0.18), poolHunt: new THREE.Color(1.0, 0.2, 0.14),
+  // Sending something home to its painting (src/escapes.js): the lamp goes from its search colour to a warm gallery white.
+  warm: new THREE.Color(1.9, 1.62, 1.18), poolWarm: new THREE.Color(1.0, 0.9, 0.7),
 };
 const moodOf = m => (m === 'chase' || m === 'charge' || m === 'hold' ? 'hunt' : m === 'alert' || m === 'search' ? 'wary' : 'calm');
 
@@ -569,6 +571,9 @@ feature({
     const atToy = () => Math.atan2(p.x - b.x, p.z - b.z);
     // The building's systems (src/systems.js) may have this robot for now: rained on, halted by a fire test, listening to the PA. True: it has been driven this time.
     if (G.systems && G.systems.guard(b, dt, this)) return;
+    // Something out of a painting, in its light (src/escapes.js): it stops, holds the lamp on it, and the lamp sends it home.
+    // The toy still comes first when it is the nearer (the looking above goes on as ever). True: it has been driven this time.
+    if (G.escapes && G.escapes.guard(b, dt, this, look, p)) return;
     switch (b.mode) {
       case 'patrol': {
         const P = b.P, tx = P.pts[b.k * 2], tz = P.pts[b.k * 2 + 1];
@@ -850,8 +855,9 @@ feature({
     const mood = moodOf(b.mode), col = MOOD[mood];
     // The beacon: a slow pulse on patrol, quick when wary, a hard flash when it is after you.
     const rate = mood === 'hunt' ? 7 : mood === 'wary' ? 3.5 : 0.8, ph = (now * rate + b.i * 0.3) % 1, pulse = mood === 'hunt' ? (ph < 0.5 ? 1 : 0.15) : 0.35 + 0.65 * Math.max(0, Math.sin(ph * TAU));
-    b.glowMat.color.copy(col);
-    b.beacon.material.color.copy(col).multiplyScalar(pulse * 0.9); const bs = 0.3 + pulse * 0.25; b.beacon.scale.set(bs, bs, 1);
+    const warm = b.tend ? b.tend.k : 0;      // (0 to 1: its lamp gone warm white, for what it is sending home)
+    b.glowMat.color.copy(col); if (warm > 0) b.glowMat.color.lerp(MOOD.warm, warm);
+    b.beacon.material.color.copy(b.glowMat.color).multiplyScalar(pulse * 0.9 + (0.9 - pulse * 0.9) * warm); const bs = 0.3 + (pulse + (0.6 - pulse) * warm) * 0.25; b.beacon.scale.set(bs, bs, 1);
     // The prong warms up before it fires.
     const ch = b.mode === 'charge' ? Math.min(1, b.mt / CHARGE) : 0;
     b.spark.material.opacity = ch ? 0.4 + ch * 0.6 + Math.random() * 0.2 : 0; const ss = 0.12 + ch * 0.4; b.spark.scale.set(ss, ss, 1);
@@ -879,6 +885,7 @@ feature({
       }
       b.pool.geometry.attributes.position.needsUpdate = true; b.pool.geometry.attributes.aT.needsUpdate = true;
       const u = b.pool.material.uniforms; u.uC.value.copy(mood === 'hunt' ? MOOD.poolHunt : mood === 'wary' ? MOOD.poolWary : MOOD.poolCalm); u.uK.value = mood === 'calm' ? 0.42 : 0.55;
+      if (warm > 0) { u.uC.value.lerp(MOOD.poolWarm, warm); u.uK.value += (0.66 - u.uK.value) * warm; }
     }
   },
 });
