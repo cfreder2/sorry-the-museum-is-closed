@@ -19,9 +19,9 @@
 // The music is Bach's two-part Invention in F (No. 8, BWV 779, 1723): one hand sets off alone and the other follows it
 // note for note, a bar behind, as the arrowheads follow the disc. The museum says Hartley sought to make his painting
 // more like music; the year before, in Paris, he had named a picture for Bach's preludes and fugues (Musical Theme
-// No. 2, 1912, now in Madrid). The red disc lands on the first bar's silent beat, the orange one sets off as the
-// second hand comes in, and it skims the floor on the first beat of the bar where both hands run. Once round is four
-// bars. (Bach's first Prelude is already van Gogh's, in Gallery 241.)
+// No. 2, 1912, now in Madrid). The red disc lands on the first bar's silent beat; the orange one comes out as it
+// lands, and skims the floor on the first beat of bar 3, where the second hand begins to run. Once round is three bars,
+// so the tune's twelve bars are four times round. (Bach's first Prelude is already van Gogh's, in Gallery 241.)
 //
 // When you stop looking it stays while the toy is near, and then the wake is the toy's as well: drive, and the ochre
 // band and the white arrowheads are painted on the floor behind the toy. The orange disc hops over the toy if it is
@@ -65,9 +65,9 @@ function part(bars, vol) {
 
 // ---------------------------------------------------------------- the timing (seconds of show)
 const T_MUSIC = 0.6;                                 // bar 1: the first hand, alone
-const T_SKIM = T_MUSIC + 3 * BAR;                    // bar 4, where both hands run: the orange disc skims the floor on its first beat
-const T_LAUNCH = T_SKIM - 3.296;                     // so it sets off this long before (top to bottom, with its easing in, takes 3.3 s): as the second hand comes in
-const T_ORB = 4 * BAR;                               // once round: four bars
+const T_SKIM = T_MUSIC + 2 * BAR;                    // bar 3, where the second hand begins to run: the orange disc skims the floor on its first beat
+const T_LAUNCH = T_SKIM - 2.496;                     // so it sets off this long before (top to bottom, with its easing in, takes 2.5 s)
+const T_ORB = 3 * BAR;                               // once round: three bars (so it skims on the first beat of bars 3, 6, 9 and 12, and the tune comes round with it)
 const RR = 0.3, RO = 0.18;                           // the red disc's radius, the orange one's (m): as 5 to 3, as he has them
 const G = 9.8, BOUNCE = t => G * t * t / 8;          // how high a bounce that lasts t seconds goes
 const TR0 = 0, TR2 = T_MUSIC, TR3 = T_MUSIC + QUAVER, TR4 = 1.95;        // the red disc: out, (falls,) lands on the bar's silent beat, lands again on its first note, in its place
@@ -371,10 +371,10 @@ ${GLSL_NOISE}`)
       }
       this.sfxT = T;
     }
-    if (!back) { const lap = s => Math.floor((s - ring.bottom) / ring.P); if (lap(this.S) > lap(this.sfxS)) { this.skimT = T; if (!L.quiet) this.knock(L, 'tok', 0.45, calm); } this.sfxS = this.S; }
+    if (!back) { if (Math.floor((this.S - ring.bottom) / ring.P) > Math.floor((this.sfxS - ring.bottom) / ring.P)) { this.skimT = T; if (!L.quiet) this.knock(L, 'tok', 0.45, calm); } this.sfxS = this.S; }
     const cam = L.k.G.camera, ce = cam.matrixWorld.elements, rx = ce[0], rz = ce[2];      // (the camera's right, for a disc's rolling)
     const toy = L.k.G.vehicle, tl = linger && toy && toy.group.visible && Math.abs(toy.pos.y - L.y) < 0.15 ? L.local(toy.pos.x, toy.pos.z) : null;      // (on this floor, not up on the stunt kit or in the air)
-    const SP = this.aP.array, SG = this.aG.array;
+    const SG = this.aG.array;
 
     // ---- the orange disc
     const o = this.orange(L, T, this.po); let near = 0, gone = 0;
@@ -405,11 +405,8 @@ ${GLSL_NOISE}`)
     this.aPos.needsUpdate = true; this.aSize.needsUpdate = true;
 
     // ---- under them: shadows that gather as they come down, and the red one's light
-    const sh = (i, p, rad, k) => { L.floor(p.u, p.out, this.v); SP[i * 4] = this.v.x; SP[i * 4 + 1] = this.v.z; SP[i * 4 + 2] = rad; SP[i * 4 + 3] = k; };
-    const down = (p, rad) => p.s * clamp01(1 - (p.h - rad) / 0.7);
-    sh(0, r, RR * 1.35, 0.5 * down(r, RR)); sh(1, o, RO * 1.5, 0.44 * down(o, RO));
-    sh(2, r, 0.95, 0); sh(3, o, 0.45, 0);
-    const gR = down(r, RR) * (0.2 + 0.16 * near), gO = down(o, RO) * 0.12;
+    const dR = this.down(r, RR), dO = this.down(o, RO), gR = dR * (0.2 + 0.16 * near), gO = dO * 0.12;
+    this.pool(L, 0, r, RR * 1.35, 0.5 * dR); this.pool(L, 1, o, RO * 1.5, 0.44 * dO); this.pool(L, 2, r, 0.95, 0); this.pool(L, 3, o, 0.45, 0);
     SG.fill(0, 0, 6); SG[6] = this.glowR.r * gR; SG[7] = this.glowR.g * gR; SG[8] = this.glowR.b * gR; SG[9] = this.glowO.r * gO; SG[10] = this.glowO.g * gO; SG[11] = this.glowO.b * gO;
     this.aP.needsUpdate = true; this.aG.needsUpdate = true;
 
@@ -445,6 +442,9 @@ ${GLSL_NOISE}`)
     AP[i * 4] = this.v.x; AP[i * 4 + 1] = this.v.y; AP[i * 4 + 2] = this.v.z; AP[i * 4 + 3] = st.roll + rock;
     AS[i * 4] = size * (1 + 0.55 * sq); AS[i * 4 + 1] = size * (1 - sq); AS[i * 4 + 2] = lit; AS[i * 4 + 3] = 0;
   },
+  // how near the floor a disc is (1: on it), for its shadow and its light; and one soft patch on the floor under it
+  down(p, rad) { return p.s * clamp01(1 - (p.h - rad) / 0.7); },
+  pool(L, i, p, rad, k) { const SP = this.aP.array; L.floor(p.u, p.out, this.v); SP[i * 4] = this.v.x; SP[i * 4 + 1] = this.v.z; SP[i * 4 + 2] = rad; SP[i * 4 + 3] = k; },
   // the toy's track (a ring of the points it has been through), and its wake painted on the floor along it
   track(L, tl, dt, WP, y, back) {
     const t = this.toy, U = this.uWake[1], W = WAKE[1], inside = tl && Math.abs(tl.u) < 2.6 && tl.out > 0.3 && tl.out < 3.6;
@@ -461,12 +461,11 @@ ${GLSL_NOISE}`)
     const fade = Math.max(clamp01((t.still - 1.4) / 1.2), back ? ramp(L.ret, 0, 0.3) : 0);
     if (fade >= 1) { t.n = 0; t.S = 0; }
     if (t.n < 3) { U.x = 0; return; }
-    // walk back along the track, laying a cross-section every so far
-    const base = (NSEG + 1) * 6; let k = (t.head + HP - 1) % HP, left = t.n - 1, d0 = 0, px = t.x[k], pz = t.z[k], seg = 1e-4, qx = px, qz = pz, tu = 0, tv = 1, total = 0;
-    const next = () => { if (left <= 0) return false; k = (k + HP - 1) % HP; left--; qx = px; qz = pz; px = t.x[k]; pz = t.z[k]; seg = Math.hypot(qx - px, qz - pz) || 1e-4; tu = (qx - px) / seg; tv = (qz - pz) / seg; d0 = total; total += seg; return true; };
-    next();
+    // walk back along the track (q the newer end of a stretch of it, p the older), laying a cross-section every so far
+    const base = (NSEG + 1) * 6; let k = (t.head + HP - 1) % HP, left = t.n - 1, d0 = 0, total = 0, seg = 1e-4, px = t.x[k], pz = t.z[k], qx = px, qz = pz, tu = 0, tv = 1;
     for (let i = 0; i <= NSEG; i++) {
-      const d = W[4] * i / NSEG; while (d > total && next());
+      const d = W[4] * i / NSEG;
+      while (d >= total && left > 0) { k = (k + HP - 1) % HP; left--; qx = px; qz = pz; px = t.x[k]; pz = t.z[k]; seg = Math.hypot(qx - px, qz - pz) || 1e-4; tu = (qx - px) / seg; tv = (qz - pz) / seg; d0 = total; total += seg; }
       const f = clamp01((d - d0) / seg), u = qx + (px - qx) * f, out = qz + (pz - qz) * f, hw = this.half(1, d), j = base + i * 6;
       L.floor(u - tv * hw, out + tu * hw, this.v); WP[j] = this.v.x; WP[j + 1] = y; WP[j + 2] = this.v.z;
       L.floor(u + tv * hw, out - tu * hw, this.v); WP[j + 3] = this.v.x; WP[j + 4] = y; WP[j + 5] = this.v.z;
