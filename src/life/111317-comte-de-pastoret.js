@@ -218,7 +218,7 @@ function paintAtlas(rand) {
     soft(X(-0.16), Yp(-0.86), 34, 20, '246,220,198', 0.5);                                    // the chin
     for (const sd of [-1, 1]) {
       soft(X(sd * 0.68), Yp(-0.2), 62, 48, '214,104,84', 0.5);                                // colour in the cheeks
-      soft(X(sd * 0.42), Yp(0.12), 56, 24, '128,80,62', 0.7);                                 // the shade his eyes lie in
+      soft(X(sd * 0.42), Yp(0.13), 56, 22, '128,80,62', 0.6);                                 // the shade his eyes lie in
       soft(X(sd * 0.2), Yp(0.12), 20, 20, '128,80,62', 0.45);
       soft(X(sd * 0.13), Yp(-0.385), 8, 4.5, '82,40,34', 0.75);                               // a nostril
       soft(X(sd * 0.21), Yp(-0.35), 9, 10, '170,104,86', 0.35, sd * 0.3);
@@ -232,25 +232,25 @@ function paintAtlas(rand) {
     { const gr = g.createLinearGradient(0, Yp(-0.86), 0, Yp(-1)); gr.addColorStop(0, 'rgba(130,84,64,0)'); gr.addColorStop(1, 'rgba(120,76,58,0.75)'); g.fillStyle = gr; g.fillRect(0, Yp(-0.86), AT, 40); }
     // his eyes: hooded, grey, level, and looking at you
     for (const sd of [-1, 1]) {
-      const ex = X(sd * 0.42), ey = Yp(0.07), hw = 33, almond = () => { g.beginPath(); g.moveTo(ex - hw, ey + 2); g.quadraticCurveTo(ex - 2 * sd, ey - 13, ex + hw, ey + 1); g.quadraticCurveTo(ex, ey + 12, ex - hw, ey + 2); g.closePath(); };
+      const ex = X(sd * 0.42), ey = Yp(0.07), hw = 33, almond = () => { g.beginPath(); g.moveTo(ex - hw, ey + 2); g.quadraticCurveTo(ex - 2 * sd, ey - 17, ex + hw, ey + 1); g.quadraticCurveTo(ex, ey + 14, ex - hw, ey + 2); g.closePath(); };
       g.save(); almond(); g.clip();
-      g.fillStyle = '#d9cdc2'; g.fillRect(ex - 40, ey - 20, 80, 40);
-      g.fillStyle = '#3a302a'; g.beginPath(); g.arc(ex, ey - 1, 13, 0, TAU); g.fill();
-      g.fillStyle = '#5e5045'; g.beginPath(); g.arc(ex, ey - 1, 10.6, 0, TAU); g.fill();
-      g.fillStyle = '#120d0b'; g.beginPath(); g.arc(ex, ey - 1, 4.6, 0, TAU); g.fill();
-      g.fillStyle = '#f6f1ea'; g.beginPath(); g.arc(ex - 4, ey - 4, 2, 0, TAU); g.fill();
-      { const gr = g.createLinearGradient(0, ey - 13, 0, ey + 2); gr.addColorStop(0, 'rgba(50,28,20,0.85)'); gr.addColorStop(0.5, 'rgba(60,36,26,0.4)'); gr.addColorStop(1, 'rgba(60,36,26,0)'); g.fillStyle = gr; g.fillRect(ex - 40, ey - 20, 80, 24); }
+      g.fillStyle = '#e6dcd2'; g.fillRect(ex - 40, ey - 20, 80, 40);
+      g.fillStyle = '#3a302a'; g.beginPath(); g.arc(ex, ey - 2, 14, 0, TAU); g.fill();
+      g.fillStyle = '#56483e'; g.beginPath(); g.arc(ex, ey - 2, 11.4, 0, TAU); g.fill();
+      g.fillStyle = '#120d0b'; g.beginPath(); g.arc(ex, ey - 2, 5.4, 0, TAU); g.fill();
+      g.fillStyle = '#f6f1ea'; g.beginPath(); g.arc(ex - 5, ey - 5, 2.4, 0, TAU); g.fill();
+      { const gr = g.createLinearGradient(0, ey - 15, 0, ey + 2); gr.addColorStop(0, 'rgba(50,28,20,0.8)'); gr.addColorStop(0.45, 'rgba(60,36,26,0.3)'); gr.addColorStop(1, 'rgba(60,36,26,0)'); g.fillStyle = gr; g.fillRect(ex - 40, ey - 20, 80, 24); }
       g.restore();
-      g.lineCap = 'round'; g.strokeStyle = '#1e100b'; g.lineWidth = 5.5; g.beginPath(); g.moveTo(ex - hw, ey + 2); g.quadraticCurveTo(ex - 2 * sd, ey - 13, ex + hw, ey + 1); g.stroke();      // the upper lid's edge
-      g.strokeStyle = 'rgba(118,72,56,0.8)'; g.lineWidth = 1.8; g.beginPath(); g.moveTo(ex - hw + 3, ey - 6); g.quadraticCurveTo(ex - 2 * sd, ey - 21, ex + hw - 2, ey - 7); g.stroke();      // its fold
-      g.strokeStyle = 'rgba(156,98,86,0.6)'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(ex - hw + 2, ey + 3); g.quadraticCurveTo(ex, ey + 12, ex + hw, ey + 1); g.stroke();
+      g.lineCap = 'round'; g.strokeStyle = '#1e100b'; g.lineWidth = 5.5; g.beginPath(); g.moveTo(ex - hw, ey + 2); g.quadraticCurveTo(ex - 2 * sd, ey - 17, ex + hw, ey + 1); g.stroke();      // the upper lid's edge
+      g.strokeStyle = 'rgba(118,72,56,0.8)'; g.lineWidth = 1.8; g.beginPath(); g.moveTo(ex - hw + 3, ey - 9); g.quadraticCurveTo(ex - 2 * sd, ey - 26, ex + hw - 2, ey - 9); g.stroke();      // its fold
+      g.strokeStyle = 'rgba(156,98,86,0.6)'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(ex - hw + 2, ey + 3); g.quadraticCurveTo(ex, ey + 14, ex + hw, ey + 1); g.stroke();
       // the brow: straight, heavy, low
       g.fillStyle = '#3c2416'; g.beginPath(); g.moveTo(X(sd * 0.11), Yp(0.205)); g.quadraticCurveTo(X(sd * 0.42), Yp(0.29), X(sd * 0.82), Yp(0.2)); g.quadraticCurveTo(X(sd * 0.44), Yp(0.195), X(sd * 0.11), Yp(0.14)); g.closePath(); g.fill();
       soft(X(sd * 0.36), Yp(0.2), 44, 9, '74,46,28', 0.55);
     }
     // his mouth: small, closed, firm
-    g.fillStyle = '#b25e56'; g.beginPath(); g.moveTo(X(-0.3), Yp(-0.612)); g.quadraticCurveTo(X(-0.12), Yp(-0.555), X(0), Yp(-0.582)); g.quadraticCurveTo(X(0.12), Yp(-0.555), X(0.3), Yp(-0.608)); g.quadraticCurveTo(X(0), Yp(-0.628), X(-0.3), Yp(-0.612)); g.fill();
-    g.fillStyle = '#c67468'; g.beginPath(); g.moveTo(X(-0.27), Yp(-0.618)); g.quadraticCurveTo(X(0), Yp(-0.628), X(0.27), Yp(-0.614)); g.quadraticCurveTo(X(0), Yp(-0.735), X(-0.27), Yp(-0.618)); g.fill();
+    g.fillStyle = '#a84a44'; g.beginPath(); g.moveTo(X(-0.3), Yp(-0.612)); g.quadraticCurveTo(X(-0.12), Yp(-0.555), X(0), Yp(-0.582)); g.quadraticCurveTo(X(0.12), Yp(-0.555), X(0.3), Yp(-0.608)); g.quadraticCurveTo(X(0), Yp(-0.628), X(-0.3), Yp(-0.612)); g.fill();
+    g.fillStyle = '#c0655a'; g.beginPath(); g.moveTo(X(-0.27), Yp(-0.618)); g.quadraticCurveTo(X(0), Yp(-0.628), X(0.27), Yp(-0.614)); g.quadraticCurveTo(X(0), Yp(-0.735), X(-0.27), Yp(-0.618)); g.fill();
     soft(X(-0.04), Yp(-0.662), 18, 5, '232,160,146', 0.6);
     g.strokeStyle = '#6a2e2a'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(X(-0.31), Yp(-0.606)); g.quadraticCurveTo(X(0), Yp(-0.63), X(0.31), Yp(-0.602)); g.stroke();
     // his whiskers: red-brown, down before the ear and along the jaw
@@ -542,12 +542,12 @@ float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   buildSilk(L, col) {
     const nu = 44, nv = 30, geo = new THREE.PlaneGeometry(1, 1, nu, nv), GLc = (h, a = 0.3) => { const c = col(h, a); return `vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)})`; };
     const top = Math.min(L.rail - 0.012, L.y + 1.02) - L.y, o = L.floor(SILK.u0, 0);
-    const u = this.su = { uO: { value: V3(o.x, L.y, o.z) }, uT: { value: V3(L.tx, 0, L.tz) }, uNn: { value: V3(L.nx, 0, L.nz) }, uDrop: { value: 0 }, uOpen: { value: 0 }, uSway: { value: new THREE.Vector2() }, uSun: { value: this.u.uSun.value } };
+    const u = this.su = { uO: { value: V3(o.x, L.y, o.z) }, uT: { value: V3(L.tx, 0, L.tz) }, uNn: { value: V3(L.nx, 0, L.nz) }, uDrop: { value: 0 }, uOpen: { value: 0 }, uBulge: { value: new THREE.Vector2() }, uSway: { value: new THREE.Vector2() }, uSun: { value: this.u.uSun.value } };
     const m = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, fog: false });
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, u);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-uniform vec3 uO, uT, uNn; uniform float uDrop, uOpen; uniform vec2 uSway; varying vec3 vSN, vSP; varying vec2 vS;
+uniform vec3 uO, uT, uNn; uniform float uDrop, uOpen; uniform vec2 uSway, uBulge; varying vec3 vSN, vSP; varying vec2 vS;
 // the cloth: s across it, v down it from under the frame
 vec3 silk(float s, float v) {
   float W = ${(SILK.u1 - SILK.u0).toFixed(3)}, H = ${top.toFixed(3)}, hangs = smoothstep(0.0, 0.3, v), bunch = 1.0 - uDrop;
@@ -557,6 +557,8 @@ vec3 silk(float s, float v) {
   // put aside from behind: its near edge is carried over to the right and out, the folds closing up
   float lw = pow(1.0 - s, 1.5);
   x += uOpen * lw * hangs * 0.25; z += uOpen * hangs * (0.05 * sin(3.1416 * clamp((1.0 - s) * 1.25, 0.0, 1.0)) + 0.02 * f1 * lw);
+  // someone behind it: it stands out over him, from his head down
+  float bx = (x - uBulge.x) / 0.105; z += uBulge.y * exp(-bx * bx) * smoothstep(0.17, 0.3, v) * (0.8 + 0.2 * smoothstep(1.0, 0.55, v));
   x += uSway.x * v * v * (0.05 + 0.05 * lw); z += uSway.y * v * v * 0.03 * (1.0 + 0.5 * f1);
   float y = H * (1.0 - v * uDrop) + 0.004 * f1 * bunch;
   // where it meets the boards it breaks a little
@@ -681,13 +683,13 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     // ---- the silk
     const su = this.su; let drop, open, sx = 0, sz = 0;
     const o = back ? this.bodyBack(tau, calm, this.o) : this.bodyShow(t, calm, this.o);
-    const through = sstep(o.out, -0.34, -0.14) * (1 - sstep(o.out, 0.24, 0.42));
+    const through = sstep(o.out, 0.0, 0.1) * (1 - sstep(o.out, 0.24, 0.42)), behind = sstep(o.out, -0.24, -0.07) * (1 - sstep(o.out, 0.03, 0.13));
     if (!back) {
       const d1 = calm ? T_DROP[1] + 0.5 : T_DROP[1], qd = ramp(t, T_DROP[0], d1); drop = qd * qd * (3 - 2 * qd) * 0.35 + 0.65 * qd * qd;
       if (!calm) { const a = t - d1, b = t - this.tThrough; if (a > 0) sz += 0.9 * Math.exp(-2.6 * a) * Math.sin(7.5 * a); if (b > 0) { sx += -1.0 * Math.exp(-2.4 * b) * Math.sin(6.5 * b); sz += 0.6 * Math.exp(-2.4 * b) * Math.sin(8 * b + 1); } sx += 0.06 * Math.sin(t * 0.9); }
     } else { drop = 1 - ease.inOut(ramp(tau, RET - 0.5, RET - 0.02)); if (!this.hold.vis || this.hold.out < 0) drop = Math.min(drop, 1 - ease.inOut(ramp(tau, 0.1, 0.9))); }
     open = through * (o.vis ? 1 : 0);
-    su.uDrop.value = drop; su.uOpen.value = open; su.uSway.value.set(sx, sz);
+    su.uDrop.value = drop; su.uOpen.value = open; su.uSway.value.set(sx, sz); su.uBulge.value.set(o.u - SILK.u0, 0.09 * behind * (o.vis ? 1 : 0) * drop);
     this.silk.visible = drop > 0.02; this.rig.mesh.visible = true; this.blobs.visible = true;
 
     // ---- him
@@ -702,7 +704,7 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       const dh = Math.hypot(ft.x - (f === 0 ? HIPW : -HIPW), ft.z), top = ft.y + Math.sqrt(Math.max(0.01, 0.832 * 0.832 - dh * dh));
       if (ft.lift < 0.004) hipY = Math.min(hipY, top);
     }
-    hipY -= 0.004 * o.going;
+    hipY = Math.max(HIP - 0.04, hipY) - 0.004 * o.going;
     const pos = L.floor(o.u, o.out, v.p);
     M.root.compose(pos.setY(L.y + 0.004), v.q.setFromEuler(v.e.set(0, L.yawOut + psi, 0)), v.s.setScalar(S));
     const set = (m, x, y, z, yaw, pitch, roll) => m.compose(v.tg.set(x, y, z), v.q.setFromEuler(v.e.set(pitch, yaw, roll)), v.s.setScalar(1));
@@ -718,8 +720,9 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       v.hip.set(sg * HIPW, 0, 0).applyMatrix4(M.pelvis); v.ank.set(ft.x, ft.y, ft.z);
       v.pole.set(Math.sin(ft.ry * 0.6), 0, Math.cos(ft.ry * 0.6));
       reach(v.hip, v.ank, THIGH, SHIN, v.pole, v.knee, v.end);
+      const heel = Math.min(0.5, 4 * v.end.distanceTo(v.ank)) * (ft.z < 0 ? 1 : -0.6);      // (a leg at full stretch: behind him the heel is up, before him the toe)
       put(I.thigh[f], hang(M.a, v.hip, v.knee, v.pole)); put(I.shin[f], hang(M.a, v.knee, v.end, v.pole));
-      put(I.shoe[f], set(M.a, v.end.x, v.end.y, v.end.z, ft.ry, ft.q > 0 ? 0.38 * Math.sin(TAU * ft.q) * (1 - 0.3 * ft.q) : 0, 0));
+      put(I.shoe[f], set(M.a, v.end.x, v.end.y, v.end.z, ft.ry, (ft.q > 0 ? 0.38 * Math.sin(TAU * ft.q) * (1 - 0.3 * ft.q) : 0) + heel, 0));
     }
     // his right arm: swinging as he walks; then the hand to his coat, thumb tucked in
     {
