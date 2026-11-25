@@ -73,3 +73,4 @@ import './109926-window-overlooking-the-woods.js'; // 244  Vuillard, Landscape: 
 import './28849-city-park.js';       // 161  Chase, A City Park: far
 import './65916-movement.js';         // 392  Hartley, Movement: orbit
 import './153798-woman-in-a-garden.js'; // 201  Morisot, Woman in a Garden: fan
+import './81539-bank-of-the-seine.js'; // 201  Monet, On the Bank of the Seine, Bennecourt: twice
