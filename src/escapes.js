@@ -242,6 +242,7 @@ const F = {
     const ok = id => !QUIET.has(id) || id === E.art.room, seen = new Map([[start, 0]]), q = [start], from = new Map();
     while (q.length) { const id = q.shift(), n = seen.get(id); if (n >= 5) continue; for (const l of this.adj.get(id) || []) if (!seen.has(l.to) && ok(l.to)) { seen.set(l.to, n + 1); from.set(l.to, id); q.push(l.to); } }
     const set = new Set([...seen].filter(([, n]) => n <= TUNE.hops).map(([id]) => id).slice(0, 9));
+    for (const w of E.spec.rooms || []) if (seen.get(w) <= TUNE.hops) for (let id = w; id && !set.has(id); id = from.get(id)) set.add(id);      // (a room it is known for, that the nine would have left out)
     for (let id = E.art.room; id && seen.has(id); id = from.get(id)) set.add(id);      // the way home, however it wandered here
     const ids = [...set].filter(id => Math.abs(P.byId[id].y - r0.y) < 0.06);
     E.grid = grid(P, ids, r0.y); E.homeSpot = undefined;

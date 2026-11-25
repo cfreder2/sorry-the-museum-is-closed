@@ -26,6 +26,8 @@
 //                        off the way it is going), jit (and how much that varies) }
 //   parts(E)             where it is, as balls in the room: [{ x, y, z, r, ry (half its height, r if not given) }]. Its strokes
 //                        are born on these when it comes apart, and a robot's lamp throws their shadows. One ball if not given.
+//   rooms: [ids]         rooms it is known for: kept among the rooms it knows when they are within its two doors (it
+//                        knows nine at most, the nearest first, and a room with many doors would crowd these out)
 //   may(E, k)            true if it may be out at all (never forced; asked again while it is out: not true, and it is home)
 // }
 //
