@@ -482,14 +482,17 @@ if (FILM) {
     T.lights(a.x, a.z, y); T.toy(F._grid(E), at[0] + a.nx * 1.5, at[1] + a.nz * 1.5, y); await sleep(1200); await T.hush();
     const w = await T.out(t.id, at); if (w !== true) return { error: w };
     await sleep(t.key === 'lambs' ? 5200 : 1000);
-    const g = F._grid(E); o.from = +Math.hypot(E.x - spot.x, E.z - spot.z).toFixed(1);
-    let dx = E.x - spot.x, dz = E.z - spot.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
-    const off = Math.min(1.9, Math.max(1.6, (E.spec.herd || 1.5) * 0.2 + (E.spec.radius || 0.5) * 0.5 + 1.2)),      /* (it is led by a toy within 2.2 m of its middle) */ q = T.snap(g, E.x + dx * (off + 2.6), E.z + dz * (off + 2.6), 0.5, 2.5) || T.snap(g, E.x + dx * (off + 1), E.z + dz * (off + 1), 0.5, 2) || [E.x + dx * off, E.z + dz * off];
+    const g = F._grid(E), was = [E.x, E.z]; o.from = +Math.hypot(E.x - spot.x, E.z - spot.z).toFixed(1);
+    const off = Math.min(1.9, Math.max(1.6, (E.spec.herd || 1.5) * 0.2 + (E.spec.radius || 0.5) * 0.5 + 1.2));      // (it is led by a toy within 2.2 m of its middle)
+    const behind = () => { let dx = E.x - spot.x, dz = E.z - spot.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; return T.snap(g, E.x + dx * (off + 2.6), E.z + dz * (off + 2.6), 0.5, 2.5) || T.snap(g, E.x + dx * (off + 1), E.z + dz * (off + 1), 0.5, 2) || [E.x + dx * off, E.z + dz * off]; };
+    let q = behind();
     // (an eye on the side it is going to, near enough to see what it is, with the toy behind it in the picture)
     const O = { ...t.eye, d0: t.eye.d0 + 0.5, h: t.eye.h + 0.2 }, c = T.cam(E, [q], O);
     T.track = { E, c, o: O, lift: t.eye.lift, also: [q], max: O.d0 + 2.3, pt: () => { const v = G.vehicle.pos; return [E.x * 0.75 + v.x * 0.25, E.z * 0.75 + v.z * 0.25]; } };
     // (it stays where it is while the pictures load, and the eye is put again if it has not)
-    E.pn = 0; esc.roam(t.id, 60); await T.sharp(12);
+    E.pn = 0; esc.roam(t.id, 2e6); await T.sharp(12);      // (so long a rest that the hats, who fly on after a moment with no bench by them, stay too)
+    // (whatever moved it on meanwhile (the boy shoos his lambs along), it is set back where it was before the film runs)
+    if (Math.hypot(E.x - was[0], E.z - was[1]) > 0.8) { esc.place(t.id, was[0], was[1]); E.pn = 0; esc.roam(t.id, 2e6); await sleep(300); q = behind(); T.track.also = [q]; const n = T.cam(E, [q], O); if (n) { T.track.c = n; T.track.look = null; T.track.age = 0; T.track.bad = 0; } await T.sharp(6); }
     if (Math.hypot(T.track.c.x - E.x, T.track.c.z - E.z) > O.d0 + 1.6) { const n = T.cam(E, [q], O); if (n) { T.track.c = n; T.track.look = null; T.track.age = 0; T.track.bad = 0; await T.sharp(6); } }
     esc.roam(t.id, 8); T.toy(null, q[0], q[1], y, [E.x, E.z]);      // (the toy only now: a toy that has just moved leads whatever is near it, and it would be half way home before the film ran)
     T.rec('5-herd'); await sleep(500); T.dog = { E, spot, x: q[0], z: q[1], yaw: Math.atan2(E.x - q[0], E.z - q[1]), t: 0, y, off };
@@ -513,7 +516,7 @@ if (FILM) {
   for (const t of TESTS) {
     say(`\n== ${t.key.toUpperCase()}  ${t.id}  the film`);
     const beats = await p.evaluate(t => window.__T.beats(window.__esc.get(t.id)), t), dir = path.join(TMP, t.key), parts = [];
-    t.about = t.key === 'hats' ? 1.6 : 4; if (t.key === 'parasol') t.eye = { ...t.eye, d0: 2.5 }; if (t.key === 'lambs') t.eye = { ...t.eye, d0: 2.2, h: 0.85 };      // (small things, filmed from nearer than the stills are taken)
+    t.about = t.key === 'hats' ? 1.6 : t.key === 'lambs' ? 6.5 : 4; if (t.key === 'lambs') t.from = 7;      /* (the lambs have no lamp scene: more of them about, and herded from farther) */ if (t.key === 'parasol') t.eye = { ...t.eye, d0: 2.5 }; if (t.key === 'lambs') t.eye = { ...t.eye, d0: 2.2, h: 0.85 };      // (small things, filmed from nearer than the stills are taken)
     let r = await drive(path.join(dir, '1'), segOut, t); parts.push(['1', r]);
     say(`  getting out and about: ${r.error || `${(r.frames / FPS).toFixed(1)} s; let out ${r.how}; said ${JSON.stringify(r.said)}; ended in ${r.room}`}`);
     if (t.roost) { r = await drive(path.join(dir, '2'), segRoost, t); parts.push(['2', r]); say(`  the roost: ${r.error || `${(r.frames / FPS).toFixed(1)} s; set down in ${r.placed} (${r.reach ? 'a room they know from home' : 'NOT a room they know: only by the test'}) and sent to the bench (${r.go ? 'went' : 'no way'}); down on it: ${r.roosted}`}`); }
