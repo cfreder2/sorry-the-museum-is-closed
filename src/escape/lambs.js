@@ -13,8 +13,9 @@
 import * as THREE from 'three';
 import { escapeFor, paint, take, thin, ballDabs, ball, merge, solid, batch, col, TAU } from './kit.js';
 import { rng } from '../paintlife.js';
-import { clearAt, lineClear, path as route, nearestOpen } from '../guardplan.js';
+import { cellAt, clearAt, lineClear, path as route, nearestOpen } from '../guardplan.js';
 import { Bones } from '../life/stagecraft.js';
+import { features } from '../features.js';
 
 const N = 3, K = 1.3, SC = 1.2 * K, LS = 1.42 * K, BOY = 1.1;      // (the show's own sizes, a little larger out on the floor)
 const T_BOY = 4.5;                                // seconds after the lambs before he rides out
@@ -24,12 +25,22 @@ const sm = x => { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _t = new THREE.Vector3(0, 1, 0), _c = new THREE.Color();
 const WOOL = ['#e9dfc8', '#d8cbb0', '#f3ecda', '#c7b99c'];
+const HEART = 0.3;                                // (radians) no lamp is held on the lambs while the boy is this near the middle of it
+// The robot whose lamp is on the lambs, or is coming round to them.
+function lampNear(E, k) {
+  if (E.by) return E.by;
+  if (k.G.set.guards === false) return null;
+  const gf = features.find(f => f.id === 'guards'); if (!gf || !gf.bots) return null;
+  let best = null, bd = 10;
+  for (const q of gf.bots) { if (q.lobby || q.fy == null || Math.abs(q.fy - E.y) > 0.5) continue; const d = Math.hypot(E.x - q.x, E.z - q.z); if (d < bd && q.g && cellAt(q.g, E.x, E.z) >= 0) { best = q; bd = d; } }
+  return best;
+}
 
 escapeFor(111559, {
   name: 'the lambs', tag: 'LAMBS',
   line: 'Three lambs have strayed out of Goya’s Boy on a Ram. The boy has ridden out after them.',
   back: 'The lambs are home, and the boy and his ram behind them.',
-  count: N, speed: 0.62, herd: 1.25, radius: 0.85, height: 0.5, need: 0.5, rest: [5, 10], react: 'off', hold: 2.2, chips: 35, stroke: 0.8, strokeLong: 1.7,
+  count: N, speed: 0.62, herd: 1.25, radius: 0.85, height: 0.5, need: 0.5, rest: [5, 10], react: 'off', hold: 3.2, chips: 35, stroke: 0.8, strokeLong: 1.7,
   colors: ['#e9dfc8', '#d8cbb0', '#f3ecda', '#c7b99c', '#b9a27a', '#8f9a6a', '#6f7f5a', '#5a4a3e'],
 
   async build(E, L, { group, pal }) {
@@ -109,7 +120,7 @@ escapeFor(111559, {
     const hx = a.x + a.nx * 0.95, hz = a.z + a.nz * 0.95, wx = a.x + a.nx * 0.2, wz = a.z + a.nz * 0.2;      // before his wall; at its foot
     if (b.state === 'in' && !going && E.outT > T_BOY) { b.state = 'coming'; b.k = 0; b.x = wx; b.z = wz; b.yaw = Math.atan2(a.nx, a.nz); if (E.d < 16) this.bell(k, 0.03 * (1 - E.d / 16)); }
     if (going && b.state === 'in') b.state = 'gone';      // (they were sent home before he had set out)
-    if (going && (b.state === 'out' || b.state === 'coming')) { b.state = 'home'; b.pn = 0; b.plan = 0; b.halt = 0.6; }
+    if (going && (b.state === 'out' || b.state === 'coming')) { b.state = 'home'; b.pn = 0; b.plan = 0; b.halt = 0.6; b.way = false; b.keep = null; b.stay = false; }
     const shown = b.state !== 'in' && b.state !== 'gone';
     for (const i of B.all) rb.show(i, shown);
     if (!shown) return;
@@ -120,12 +131,47 @@ escapeFor(111559, {
       let ax = E.x - hx, az = E.z - hz; const al = Math.hypot(ax, az); if (al > 0.5) { ax /= al; az /= al; } else { ax = -a.nx; az = -a.nz; }
       const off = lit ? 2.6 : E.led > 0 ? 1.5 : 1.25, sd = lit ? 1.6 : 0;
       want = { x: E.x + ax * off + az * sd, z: E.z + az * off - ax * sd }; speed = E.led > 0 ? 1.3 : 0.95;
+      // (a robot's lamp on his lambs, or coming round to them: he steps out of the way of it, as far to the side as the
+      // room lets him, and waits there; the robot does not hold its lamp on them until he has: shield(), below)
+      let q = g ? lampNear(E, k) : null; if (q) { b.keepQ = q; b.keepFor = 3; } else if ((b.keepFor = (b.keepFor || 0) - dt) > 0) q = b.keepQ; else b.keepQ = null;
+      if (q) {
+        if ((b.keepT = (b.keepT || 0) - dt) <= 0 || !b.keep) {
+          b.keepT = 0.6; const aim = Math.atan2(E.x - q.x, E.z - q.z); let best = null, bs = -1e9;
+          for (let i = 0; i < 16; i++) for (const r of [1.8, 2.4, 3.3, 4.2]) {
+            const x = E.x + Math.sin(i / 16 * TAU) * r, z = E.z + Math.cos(i / 16 * TAU) * r; if (clearAt(g, x, z) < 0.42 || Math.hypot(x - q.x, z - q.z) < 1.9) continue;
+            const offA = Math.abs(wrap(Math.atan2(x - q.x, z - q.z) - aim)), db = Math.hypot(x - b.x, z - b.z);
+            const sc = Math.min(offA, 0.8) * 12 - db * 0.7 + (b.keep && Math.hypot(x - b.keep.x, z - b.keep.z) < 0.5 ? 1.5 : 0);
+            if (sc > bs) { bs = sc; best = { x, z }; }
+          }
+          b.keep = best;
+        }
+        if (b.keep) { want = { x: b.keep.x, z: b.keep.z }; speed = 1.5; }
+      } else b.keep = null;
       const dl = Math.hypot(E.x - b.x, E.z - b.z); twistTo = wrap(Math.atan2(E.x - b.x, E.z - b.z) - b.yaw);
       // (he has come up behind them: they skip on, towards home as often as not)
       if (!lit && !(E.led > 0) && !moving && dl < 1.7 && (B.near += dt) > 2.2) { B.near = 0; B.shoo = true; E.rest = 0; if (E.d < 14) this.bell(k, 0.02 * (1 - E.d / 14)); } else if (dl >= 1.7 || moving) B.near = 0;
     } else if (b.state === 'home') {
       want = { x: hx, z: hz }; speed = 1.15;
-      if (Math.hypot(b.x - hx, b.z - hz) < 0.3 && b.halt <= 0) { b.state = 'in0'; b.k = 0; b.tip = 0; }
+      if (!b.way) {
+        // (the way his lambs' colours ran: over the floor to the place before his wall)
+        b.way = true; b.pn = 0; b.pk = 1; const Q = E.going, P = Q && !Q.far ? Q.pts : null;
+        if (P && g) {
+          let n = 0; const put = (x, z) => { b.path[n * 2] = x; b.path[n * 2 + 1] = z; n++; };
+          put(b.x, b.z); if (!lineClear(g, b.x, b.z, P[1].x, P[1].z, 0.3)) put(P[0].x, P[0].z);
+          for (let i = 1; i < P.length - 2 && n < 250; i++) put(P[i].x, P[i].z);
+          put(hx, hz); b.pn = n;
+          // (too far to trot while you wait, the long way round the quiet rooms: he sets off along it, lifts his hat, and is gone as their colours were)
+          let len = 0; for (let i = 1; i < n; i++) len += Math.hypot(b.path[i * 2] - b.path[i * 2 - 2], b.path[i * 2 + 1] - b.path[i * 2 - 1]);
+          b.stay = len > 32 && Q.how === 'light';      // (and not through the lamp that is on their colours: from where he stood aside)
+          b.leave = len > 32 ? (b.stay ? 3 : 5) : 0; if (b.stay) b.pn = 0;
+        } else { b.state = 'off0'; b.k = 0; }      // (no way over this floor: he turns his ram for home and is gone)
+      }
+      if (b.state === 'home' && b.leave > 0 && b.halt <= 0 && (b.leave -= dt) <= 0) { b.state = 'off0'; b.k = 0; }
+      if (b.state === 'home' && b.stay) { want = null; twistTo = wrap(Math.atan2(E.x - b.x, E.z - b.z) - b.yaw); }      // (he watches them go)
+      else if (b.state === 'home' && b.halt <= 0 && (Math.hypot(b.x - hx, b.z - hz) < 0.3 || b.pk >= b.pn)) { b.state = 'in0'; b.k = 0; b.tip = 0; }
+    } else if (b.state === 'off0') {
+      b.k += dt / 2.4; b.tip = sm(b.k * 2.5) * (1 - sm((b.k - 0.5) * 3)); b.v = 0;
+      if (b.k >= 1) { b.state = 'gone'; for (const i of B.all) rb.show(i, false); return; }
     } else if (b.state === 'in0') {
       // before his own wall: he lifts his hat, turns his ram to it, and goes in under the frame
       b.k += dt / (calm ? 2.6 : 2.2); b.tip = sm(b.k * 2.2) * (1 - sm((b.k - 0.55) * 3));
@@ -143,7 +189,7 @@ escapeFor(111559, {
     if (want && g) {
       const dw = Math.hypot(want.x - b.x, want.z - b.z);
       if (dw > 0.22) {
-        if ((b.plan -= dt) <= 0 || b.pk >= b.pn) {
+        if (b.state !== 'home' && ((b.plan -= dt) <= 0 || (b.pn > 0 && b.pk >= b.pn))) {
           b.plan = 1.2; b.pn = 0;
           if (clearAt(g, want.x, want.z) < 0.4) { const cc = nearestOpen(g, want.x, want.z, 0.4, 2.5); if (cc >= 0) { want.x = g.X0 + ((cc % g.nx) + 0.5) * g.C; want.z = g.Z0 + (Math.floor(cc / g.nx) + 0.5) * g.C; } }
           if (clearAt(g, b.x, b.z) < 0.34) { const cc = nearestOpen(g, b.x, b.z, 0.36, 3); if (cc >= 0 && b.state !== 'coming') { b.x = g.X0 + ((cc % g.nx) + 0.5) * g.C; b.z = g.Z0 + (Math.floor(cc / g.nx) + 0.5) * g.C; } }
@@ -161,7 +207,7 @@ escapeFor(111559, {
       } else { b.v = 0; b.pn = 0; if (b.state === 'out') b.yaw += wrap(Math.atan2(E.x - b.x, E.z - b.z) - b.yaw) * Math.min(1, dt * 1.5); }
     } else if (b.state !== 'in0') b.v = 0;
     // ---- the ram's trot, and the boy astride (src/life/111559-boy-on-a-ram.js's own rig)
-    const grow = b.state === 'coming' ? 0.05 + 0.95 * sm(b.k) : b.state === 'in0' ? 1 - 0.95 * sm((b.k - 0.45) / 0.55) : 1;
+    const grow = b.state === 'coming' ? 0.05 + 0.95 * sm(b.k) : b.state === 'in0' ? 1 - 0.95 * sm((b.k - 0.45) / 0.55) : b.state === 'off0' ? 1 - 0.97 * sm((b.k - 0.4) / 0.6) : 1;
     const amp = Math.min(1, b.v * 1.3), phi = b.dist / (0.27 * K) * TAU, bob = 0.011 * amp * Math.abs(Math.cos(phi));
     const tw = b.twist += (Math.max(-1, Math.min(1, twistTo)) * 0.7 - b.twist) * Math.min(1, dt * 3), sc = SC * grow;
     bn.set(M.root, b.x - E.x, bob * sc, b.z - E.z, b.yaw, 0.02 * amp, calm ? 0 : 0.02 * amp * Math.sin(phi), sc); rb.mat(b.body, M.root);
@@ -184,6 +230,13 @@ escapeFor(111559, {
     if (amp > 0.3 && !calm && E.d < 12) { const st = Math.floor(b.dist / 0.7); if (st !== b.st) { b.st = st; this.bell(k, 0.012 * (1 - E.d / 12)); } }
   },
   bell(k, vol) { k.synth.note(1180 + Math.random() * 30, 0.5, { type: 'sine', vol, attack: 0.002 }); k.synth.note(2365, 0.25, { type: 'sine', vol: vol * 0.4, attack: 0.002 }); },
+
+  // No lamp is held on the lambs while the boy is in the middle of it: the robot looks on, and waits for him to step aside.
+  shield(E, q) {
+    const b = E.build && E.build.boy; if (!b || (b.state !== 'out' && b.state !== 'coming')) return false;
+    const d = Math.hypot(b.x - q.x, b.z - q.z); if (d > 14) return false;
+    return Math.abs(wrap(Math.atan2(b.x - q.x, b.z - q.z) - Math.atan2(E.x - q.x, E.z - q.z))) < HEART;
+  },
 
   // The lambs stay "going home" until the boy has gone in after them.
   linger(E) { const b = E.build && E.build.boy; return !!b && b.state !== 'gone' && b.state !== 'in'; },

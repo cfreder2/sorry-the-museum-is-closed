@@ -349,7 +349,7 @@ const F = {
         if (play && !lit && d < TUNE.herd && !sacred && (this.still < 2 || E.led > 0)) { if (!E.led) E.pn = 0; E.led = 3; } else if (E.led > 0 && (d > TUNE.keep || lit)) { E.led = Math.max(0, E.led - dt); if (!E.led) E.pn = 0; }
         if (E.spec.helper) E.spec.helper(E, dt, k, this);
         if (lit && E.spec.react === 'still') E.v = 0;
-        else if (lit && E.spec.react === 'off') { if (!(E.pn > 1 && E.pk < E.pn)) this._off(E, E.by); this._move(E, dt, E.spec.speed * 0.8); }
+        else if (lit && E.spec.react === 'off') { if (!(E.pn > 1 && E.pk < E.pn) || (E.goal !== 'off' && (E.offT = (E.offT || 0) - dt) <= 0)) { E.offT = 0.5; this._off(E, E.by); } this._move(E, dt, E.spec.speed * 0.8); }      // (whatever way it was going, it turns from the lamp)
         else if (E.led > 0) {
           if (spot) {
             if (!(E.pn > 1) || E.goal !== 'home') { this._to(E, spot.x, spot.z, Math.min(E.spec.need || 0.42, 0.36)); E.goal = 'home'; }
@@ -358,7 +358,7 @@ const F = {
             else if (this._move(E, dt, E.spec.herd || E.spec.speed * 1.6) && Math.hypot(E.x - spot.x, E.z - spot.z) < 0.5) this.home(E, 'toy');
           } else { if (!(E.pn > 1 && E.pk < E.pn)) this._off(E, { x: p.x, z: p.z }); this._move(E, dt, E.spec.herd || E.spec.speed * 1.6); }
         } else {
-          if (E.goal === 'home') { E.goal = null; E.pn = 0; }
+          if (E.goal === 'home') { E.goal = null; E.pn = 0; } else if (E.goal === 'off') E.goal = null;
           if (E.pn > 1 && E.pk < E.pn && d < 2.4 && this._facing(E, p, d)) { E.v = 0; if ((E.balk = (E.balk || 0) + dt) > 2.5) { E.balk = 0; E.pn = 0; E.rest = 0.5; } }      // (the toy is in its way: it does not come up to it)
           else if (E.pn > 1 && E.pk < E.pn) { if (this._move(E, dt, E.spec.speed)) E.rest = E.spec.rest ? E.spec.rest[0] + Math.random() * (E.spec.rest[1] - E.spec.rest[0]) : 4; }
           else { E.v = 0; if ((E.rest -= dt) <= 0) { this._wander(E); if (!(E.pn > 1)) E.rest = 2; } }
@@ -463,6 +463,7 @@ const F = {
     if (d > TUNE.see * widen) return false;
     if (d > 1.2 && Math.abs(wrap(Math.atan2(dx, dz) - b.look)) > TUNE.half * widen) return false;
     if (cellAt(b.g, E.x, E.z) < 0 || this._quietNear(E.x, E.z, E.y)) return false;
+    if (E.spec.shield && E.body === true && E.spec.shield(E, b) === true) return false;      // (a helper in the way of the lamp: a person is never lit)
     return sight(b.g, b.x, b.z, E.x, E.z, !E.spec.tall);
   },
 
