@@ -112,13 +112,15 @@ composer.addPass(bloom);
 const finish = new FinishPass(bloom);
 composer.addPass(finish);
 
+const quality = { step: 0, slow: 0, since: 0 };      // what a slow machine has been let off (govern, below)
 function resize() {
-  const w = innerWidth, h = innerHeight, pr = Math.min(devicePixelRatio || 1, 1.75);
+  // (Sharpness is the first thing a slow machine gives up, and a window that changes size, or goes full screen, does not give it back.)
+  const w = innerWidth, h = innerHeight, pr = quality.step ? 1 : Math.min(devicePixelRatio || 1, 1.75);
   renderer.setPixelRatio(pr);
   renderer.setSize(w, h, false);
   composer.setPixelRatio(pr);
   composer.setSize(w, h);
-  mirror.setSize(w * pr, h * pr);
+  if (quality.step) mirror.setSize(w * 0.8, h * 0.8); else mirror.setSize(w * pr, h * pr);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
@@ -146,7 +148,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.5';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.6';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -442,14 +444,15 @@ function start(fresh = false) {
     G.outsideSince = G.t; G.hinted = 0;
     sound.musicOn = true;
     // The first things said: how to move, then where to go. Short, and in that order: you need the first to do the second.
-    const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
+    const touch = !input.pad && (input.usedTouch || matchMedia('(pointer: coarse)').matches);
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
     else {
-      say(touch ? (G.toy === 'drone' ? 'Left thumb flies. UP and DOWN on the right.' : set.autogo ? 'Hold a thumb down to go. Slide it to steer.' : 'Left thumb drives: push to go, lean to steer.')
+      say(input.pad ? (G.toy === 'drone' ? 'Left stick climbs and turns · right stick flies' : 'Right trigger to go · left stick to steer')
+        : touch ? (G.toy === 'drone' ? 'Left thumb flies. UP and DOWN on the right.' : set.autogo ? 'Hold a thumb down to go. Slide it to steer.' : 'Left thumb drives: push to go, lean to steer.')
         : G.toy === 'drone' ? 'W A S D to fly · arrows to climb' : 'W A S D or the arrows to drive', 0.4, 4.5);
       say(G.toy === 'drone' ? 'Locked. Follow the glowing pawprints to the air vent: fly in low.' : 'Locked. Follow the glowing pawprints to the air vent.', 5, 7);
     }
-    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 5); if (!touch) say('Space to jump. Steer in the air for tricks.', 24, 6); }
+    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 5); if (!touch) say(input.pad ? 'Either bumper to jump. Steer in the air for tricks.' : 'Space to jump. Steer in the air for tricks.', 24, 6); }
   }
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
@@ -757,12 +760,24 @@ function openNotebook() {
   show('notebook');
 }
 
+// The button a prompt names is the one on whatever is in your hands: E on a keyboard, A on a gamepad.
+const E = () => (input.pad ? 'A' : 'E');
+function keycaps() {
+  if (input.pad === keycaps.pad) return;
+  keycaps.pad = input.pad;
+  document.body.classList.toggle('pad', input.pad);
+  if (input.pad) document.body.classList.remove('touch');
+  for (const k of document.querySelectorAll('kbd[data-pad]')) k.textContent = input.pad ? k.dataset.pad : k.dataset.key;
+}
+
 // The controls, as a short list for whatever is in your hands.
 function controlsList() {
-  const touch = input.usedTouch || matchMedia('(pointer: coarse)').matches;
-  const rows = touch
+  const touch = !input.pad && (input.usedTouch || matchMedia('(pointer: coarse)').matches);
+  const rows = input.pad
+    ? [['Drive', 'Right trigger to go, left trigger to brake and reverse, left stick to steer. Or like a transmitter: left stick for the throttle, right stick to steer.'], ['Jump', 'Either bumper. Hold it in the air and steer to trick.'], ['Fly', 'Left stick climbs and turns, right stick flies. The triggers climb and sink too.'], ['Look closer', 'A. B steps back. D-pad left hides or shows the label.'], ['Camera', 'Y'], ['Swap toy', 'X'], ['Stop', 'B. In a race it puts you back on the course.'], ['Lights', 'D-pad down'], ['Map', 'D-pad up'], ['Notebook', 'View'], ['Race', 'A by a waiting car. A again to give up.'], ['Pause', 'Menu'], ['Menus', 'D-pad or left stick to move, A to choose, B to go back.']]
+    : touch
     ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Map', 'Touch the round map for the whole building. Tap a room, then Show the way.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP'], ['Race', 'RACE by a waiting car. Pause to leave.']]
-    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Map', 'M or Tab, or click the radar. Click a room, then Show the way.'], ['Notebook', 'N'], ['Race', 'E by a waiting car. E or Esc to give up.'], ['Pause', 'Esc'], ['Gamepad', 'Sticks to drive, RB to jump, A to look closer']];
+    : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Map', 'M or Tab, or click the radar. Click a room, then Show the way.'], ['Notebook', 'N'], ['Race', 'E by a waiting car. E or Esc to give up.'], ['Pause', 'Esc'], ['Gamepad', 'Press any button on it and this list changes to its buttons.']];
   $('ctlList').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
 }
 for (const b of document.querySelectorAll('button.big')) b.disabled = true;
@@ -1406,8 +1421,8 @@ function play(dt, real) {
     // A monitor with a game on it, or the button in the security control room, takes the same button.
     G.arcadeNear = G.pokerNear ? null : G.arcade.near(v);
     G.heistNear = G.pokerNear || G.arcadeNear ? null : G.heist.near(v);
-    if (G.arcade.justFound) { const a = G.arcade.justFound; G.arcade.justFound = null; callout(`ARCADE ${G.arcade.found.size} / ${G.arcade.total}`); sound.lap(); say(`Somebody has left ${a.Game.title} running on an old monitor. ${input.usedTouch ? 'PLAY' : 'E'} to have a go.`, 0.3, 7); }
-    if (G.heistNear) once('heist', `A big red button, and a sign: IN CASE OF HEIST. ${input.usedTouch ? 'HEIST' : 'E'} to press it.`, 7);
+    if (G.arcade.justFound) { const a = G.arcade.justFound; G.arcade.justFound = null; callout(`ARCADE ${G.arcade.found.size} / ${G.arcade.total}`); sound.lap(); say(`Somebody has left ${a.Game.title} running on an old monitor. ${input.usedTouch ? 'PLAY' : E()} to have a go.`, 0.3, 7); }
+    if (G.heistNear) once('heist', `A big red button, and a sign: IN CASE OF HEIST. ${input.usedTouch ? 'HEIST' : E()} to press it.`, 7);
     // So does the thing on the pedestal, and a whiteboard somebody has left written on.
     const busy = G.pokerNear || G.arcadeNear || G.heistNear;
     G.ufoNear = !busy && G.secret.nearUfo(v);
@@ -1415,8 +1430,8 @@ function play(dt, real) {
     const ufoTap = G.ufoNear && input.took('look'), boardTap = !!G.boardNear && input.took('look');      // asked for now, before a picture on the wall beside it can take the press
     // The headlamp is dipped while you are pulled up at a board, or the glare off it is all you would see.
     { const dip = !!G.boardNear; if (dip || G.dipped) { const to = G.lampOn ? (dip ? 14 : 70) : 0, at = G.lamp.intensity === G.lampSet ? (G.lampRaw ?? G.lamp.intensity) : G.lamp.intensity; G.lampRaw = at + (to - at) * Math.min(1, real * 6); G.dipped = dip || Math.abs(G.lampRaw - to) > 0.5; if (!G.dipped) G.lampRaw = to; G.lamp.intensity = G.lampSet = G.lampRaw * (G.lampK ?? 1); } }      // (on its own strength, G.lampRaw: lampNear turns it down by a wall)
-    if (G.boardNear) once('board', `A whiteboard somebody has left written on. ${input.usedTouch ? 'READ' : 'E'} to read it.`, 6);
-    if (G.ufoNear) once('ufo', `${input.usedTouch ? 'TAKE' : 'E'} to take it. Nobody is looking.`, 6);
+    if (G.boardNear) once('board', `A whiteboard somebody has left written on. ${input.usedTouch ? 'READ' : E()} to read it.`, 6);
+    if (G.ufoNear) once('ufo', `${input.usedTouch ? 'TAKE' : E()} to take it. Nobody is looking.`, 6);
     $('bLook').hidden = !(G.facing || busy || G.ufoNear || G.boardNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : G.ufoNear ? 'TAKE' : G.boardNear ? 'READ' : 'LOOK';
     if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.facing) beginStudy(G.facing); }
     if (ufoTap) G.secret.take(); else if (boardTap) beginBoard(G.boardNear);
@@ -1427,7 +1442,7 @@ function play(dt, real) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
       if (shopTap) G.shop.open();
     }
-    if (filmNear) { once('film', `The projector has been left running. ${input.usedTouch ? 'WATCH' : 'E'} to sit down.`, 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'WATCH'; if (filmTap) G.cinema.open(); }
+    if (filmNear) { once('film', `The projector has been left running. ${input.usedTouch ? 'WATCH' : E()} to sit down.`, 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'WATCH'; if (filmTap) G.cinema.open(); }
     if (vendNear) { once('vend', 'A vending machine, lit up. It sells spray paint, for chips. E to look.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'VEND'; if (vendTap) G.vending.open(vendNear); }
     if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
     if (pianoNear) { once('piano', 'A grand piano, lid up, stool out. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (pianoTap) G.piano.open(pianoNear); }
@@ -1448,11 +1463,11 @@ function play(dt, real) {
     if (setNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (setTap) lookAtEasel(setNear); }
     if (easelNear) { $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK'; if (easelTap) { secrets.find('dogs'); lookAtEasel(G.poker.easel); } }
     if (G.repairNear) {
-      secrets.find('repair'); once('repair', `A conveyor belt, a lamp, and a queue of paintings that need seeing to. ${input.usedTouch ? 'REPAIR' : 'E'} to clock on.`, 7);
+      secrets.find('repair'); once('repair', `A conveyor belt, a lamp, and a queue of paintings that need seeing to. ${input.usedTouch ? 'REPAIR' : E()} to clock on.`, 7);
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'REPAIR'; actPrompt('The Conservation Line', 'Paintings come down the belt. Mend what you can.', 'clock on');
       if (repairTap) beginRepair();
     } else if (G.switchNear) {
-      once('switch', `A light switch, with a second one at skirting height for people your size. ${input.usedTouch ? 'LIGHTS' : 'E'} works it.`, 7);
+      once('switch', `A light switch, with a second one at skirting height for people your size. ${input.usedTouch ? 'LIGHTS' : E()} works it.`, 7);
       if (switchTap) say(G.lights.toggle(G.switchNear) ? 'Lights on.' : 'Lights off.', 0, 1.6);
       const lit = G.lights.isOn(G.switchNear.room);
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LIGHTS'; actPrompt('Light switch', `${roomTitle(G.plan.byId[G.switchNear.room])} \u00b7 the lights are ${lit ? 'on' : 'off'}`, lit ? 'lights off' : 'lights on');
@@ -1538,7 +1553,6 @@ G.auto = params.has('auto');
 
 // If the machine cannot keep up, give things back in order of how little they
 // will be missed: sharpness first, then the glow, then the floor reflections.
-const quality = { step: 0, slow: 0, since: 0 };
 function govern(dt) {
   if (G.state !== 'play' || document.hidden) return;
   quality.since += dt;
@@ -1546,14 +1560,52 @@ function govern(dt) {
   quality.slow = G.fps < 38 ? quality.slow + dt : 0;
   if (quality.slow < 3 || quality.step >= 3) return;
   quality.step++; quality.slow = 0; quality.since = 0;
-  if (quality.step === 1) { renderer.setPixelRatio(1); composer.setPixelRatio(1); mirror.setSize(innerWidth * 0.8, innerHeight * 0.8); }
+  if (quality.step === 1) resize();
   else if (quality.step === 2) bloom.enabled = false;
   else { set.mirror = false; applySettings(); }
 }
 
+// ?diag: what this machine is really being given, in a corner of the screen, for when the game feels slow on something
+// we cannot hold ourselves. The graphics chip the browser is using, how many pixels are drawn, what the quality steps
+// have given back, how even the frames are, and what the machine was taken for. Click or tap it to copy it.
+const diag = params.has('diag') ? (() => {
+  const el = document.createElement('pre');
+  el.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99;margin:0;padding:6px 8px;font:11px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#cfe;background:rgba(0,0,0,.8);border-radius:4px;white-space:pre-wrap;max-width:calc(100vw - 12px);cursor:copy;user-select:text';
+  document.body.append(el);
+  el.addEventListener('click', () => { if (navigator.clipboard) navigator.clipboard.writeText(el.textContent).catch(() => {}); });
+  const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'), gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  // How fast plain JavaScript runs: a browser told to run it without its compiler (a security setting) is many times slower.
+  // (The best of five goes, once the game is up, so that a compiler that is there has had the chance to do its work.)
+  const spin = () => { const t0 = performance.now(); let x = 0; for (let i = 0; i < 3e6; i++) x = (Math.imul(x, 31) + i) | 0; return performance.now() - t0 + (x & 0); };
+  const mq = q => matchMedia(q).matches, ft = [], why = [mq('(pointer: coarse)') && 'coarse pointer', Math.min(screen.width, screen.height) < 600 && 'screen under 600', navigator.deviceMemory <= 4 && 'memory', params.has('lowmem') && '?lowmem'].filter(Boolean);
+  let hz = 0, hitches = 0, since = 0, js = 0;
+  renderer.info.autoReset = false;      // (so a frame's draw calls are all of its passes, not the last one)
+  return ms => {
+    ft.push(ms); if (ft.length > 240) ft.shift(); if (ms > 50) hitches++;
+    const calls = renderer.info.render.calls, tris = renderer.info.render.triangles; renderer.info.reset();
+    if ((since += ms) < 500) return;
+    since = 0;
+    if (!js && G.state !== 'loading' && G.state !== 'title') js = Math.min(spin(), spin(), spin(), spin(), spin());
+    const t = ft.slice().sort((a, b) => a - b), at = q => t[Math.min(t.length - 1, Math.floor(t.length * q))], pad = (navigator.getGamepads ? Array.from(navigator.getGamepads()) : []).find(g => g && g.connected);
+    hz = Math.max(hz, Math.round(1000 / at(0.05)));
+    el.textContent = [
+      `GPU      ${gpu}`,
+      `canvas   ${canvas.width}x${canvas.height} · pixel ratio ${renderer.getPixelRatio()} (device ${devicePixelRatio}) · window ${innerWidth}x${innerHeight} · screen ${screen.width}x${screen.height}`,
+      `frames   ${Math.round(1000 / at(0.5))} a second · ${at(0.5).toFixed(1)} ms usual · ${at(0.95).toFixed(1)} ms one in twenty · ${at(1).toFixed(0)} ms worst · ${hitches} over 50 ms · display at least ${hz} Hz`,
+      `drawn    ${calls} calls · ${(tris / 1e6).toFixed(2)} M triangles`,
+      `quality  step ${quality.step} of 3 · glow ${bloom.enabled ? 'on' : 'off'} · floor reflections ${mirror.enabled ? 'on' : 'off'}`,
+      `budget   ${LOWMEM ? 'phone (' + why.join(', ') + ')' : 'computer'} · memory reported ${navigator.deviceMemory || '?'} GB`,
+      `input    pointer ${mq('(pointer: coarse)') ? 'coarse' : 'fine'}${mq('(any-pointer: coarse)') ? ', a touchscreen' : ''}${mq('(any-pointer: fine)') ? ', a mouse' : ''} · thumb controls ${input.usedTouch ? 'on' : 'off'} · gamepad ${pad ? pad.id + ' [' + (pad.mapping || 'not standard') + ']' : 'none seen (press a button on it)'}`,
+      `script   ${js.toFixed(1)} ms for the test loop${js > 45 ? ' (slow: is the browser running JavaScript without its compiler?)' : ''}`,
+      `state    ${G.state} · ${G.roomId || 'outdoors'} · ${G.vehicle ? G.vehicle.kind : ''}`,
+    ].join('\n');
+  };
+})() : null;
+
 let last = performance.now();
 function tick(now) {
   requestAnimationFrame(tick);
+  if (diag) diag(now - last);
   G.fps = (G.fps || 60) * 0.95 + 0.05 * 1000 / Math.max(1, now - last);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -1564,6 +1616,10 @@ function tick(now) {
   govern(dt);
 
   input.capture = G.state === 'play' || G.state === 'study';
+  input.poll(input.capture || (G.state === 'voyage' && G.voyage && !G.voyage.open));      // a gamepad: its buttons drive here, and are keys everywhere else (src/input.js)
+  keycaps();
+  // The key that skips the opening is not also a key pressed in the game: Esc (or a pad's Menu) skipped it and then paused.
+  if (G.state !== tick.was) { if (tick.was === 'opening') input.endFrame(); tick.was = G.state; }
   if (G.state === 'voyage' && G.voyage) { G.voyage.frame(dt); input.endFrame(); return; }      // the voyage draws its own frame (src/voyage.js)
   // What the telemetry will say next time it reports: brought up to date once a second.
   if (G.state === 'play' || G.state === 'study' || G.state === 'poker' || G.state === 'arcade') tm.play += dt;
@@ -1590,7 +1646,7 @@ function tick(now) {
     if (input.took('info')) setLabel(!G.study.label);
     else if (G.study.label && G.study.t > G.study.hideAt) setLabel(false);
     // (A finger put down on the picture itself and not moved is a touch on the picture, not a push on the stick: src/secret.js.)
-    if (input.took('look') || input.took('pause') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8 && !G.secret.tapping) endStudy();
+    if (input.took('look') || input.took('pause') || input.took('back') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8 && !G.secret.tapping) endStudy();
     else { studyCam(dt); G.museum.update(dt, G.vehicle.pos, G.roomId, camera.position); }
     G.secret.update(dt, G.vehicle, G.roomId, camera.position);
     sound.update(G.vehicle, false);

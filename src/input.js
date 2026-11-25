@@ -9,6 +9,14 @@ const KEYS = {
   look: ['KeyE', 'Enter', 'KeyF'], info: ['KeyI'], camera: ['KeyC'], swap: ['KeyV'], pause: ['Escape', 'KeyP'],
   reset: ['KeyR'], notebook: ['KeyN'], lights: ['KeyL'], map: ['KeyM', 'Tab', 'KeyG'],      // (music is in Settings, not on a key)
 };
+// A gamepad's buttons while driving, by their numbers in the standard layout. A looks closer, B stops the toy (and steps
+// back from a work or a board), X swaps toys, Y is the camera, View is the notebook, Menu pauses; on the D-pad, up is
+// the map, down the lights, left a work's label. The bumpers jump and the triggers are the pedals (see read). The
+// stick clicks do nothing: a thumb leaning hard on a stick presses them without meaning to.
+const PAD = { 0: ['look'], 1: ['reset', 'back'], 2: ['swap'], 3: ['camera'], 8: ['notebook'], 9: ['pause'], 12: ['map'], 13: ['lights'], 14: ['info'] };
+// Anywhere else (a menu, a card table, an arcade cabinet) the pad is a keyboard, so whatever works with keys works with
+// it: the D-pad or the left stick are the arrows, A is Enter, B and Menu are Escape, X and Y the two spare buttons.
+const PADKEY = { 0: 'Enter', 1: 'Escape', 2: 'KeyF', 3: 'Space', 9: 'Escape', 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight' };
 
 export class Input {
   constructor(surface) {
@@ -21,7 +29,8 @@ export class Input {
     this.sticks = { lx: 0, ly: 0, rx: 0, ry: 0 };
     // A phone or tablet is known for what it is from the start, and any touch anywhere confirms it.
     this.usedTouch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-    document.addEventListener('touchstart', () => { this.usedTouch = true; document.body.classList.add('touch'); }, { passive: true, capture: true });
+    this.pad = false;                // a gamepad is what was used last: the prompts name its buttons, and the glass controls go
+    document.addEventListener('touchstart', () => { this.usedTouch = true; this.pad = false; document.body.classList.add('touch'); }, { passive: true, capture: true });
     if (this.usedTouch) document.body.classList.add('touch');
     this.capture = false;            // true while driving: arrows and space belong to the game, not the page
     this.hold = false;               // 'hold my speed' setting
@@ -35,9 +44,12 @@ export class Input {
     this.thumb = { x: 0, y: 0, ox: 0, oy: 0, on: false };                // where the thumbstick is, for drawing it
     this._jump = false;
     this.onGesture = null;           // called on any lift or key, to unlock sound
-    this._pad = {};
+    this.padBtn = -1;
+    this._pad = {};                  // which of the pad's buttons are down, and
+    this._padKey = {};               // which of them is holding a key down (see poll)
 
     addEventListener('keydown', e => {
+      if (!this._synth) this.pad = false;
       const ours = this.capture && (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab');      // (Tab opens the map, not the next button)
       if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;      // a slider or tick box has the keys
       this._mods(e);
@@ -170,6 +182,64 @@ export class Input {
     return { x, y };
   }
 
+  // The pad to read: the first one laid out the standard way, or failing that the first there is.
+  _first() {
+    const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(p => p && p.connected) : [];
+    return pads.find(p => p.mapping === 'standard') || pads[0] || null;
+  }
+
+  // An axis counts only once it has been seen at rest. Some things that call themselves gamepads (pedals, a wheel, a
+  // flight stick's throttle, odd USB receivers) have axes that sit at one end: read as a stick, held down for ever.
+  _ax(p, i) { const v = p.axes[i] || 0, key = p.index + ':' + i; if (Math.abs(v) < 0.3) this._live[key] = true; return this._live[key] ? v : 0; }
+
+  // The pad's buttons, every frame, whatever is on the screen (main.js: tick). Driving, each is an action (PAD). Anywhere
+  // else each is a key (PADKEY), and what a keyboard's own keys would then have done is done here: an arrow nothing
+  // wanted moves on to the next thing that can be pressed, and A presses it.
+  poll(driving) {
+    const p = this._first(); if (!p) return;
+    const b = p.buttons, sx = this._ax(p, 0), sy = this._ax(p, 1);
+    // (17 to 20: the left stick pushed up, down, left, right, as a second D-pad for the menus)
+    const on = i => (i < 17 ? !!(b[i] && b[i].pressed) : i === 17 ? sy < -0.6 : i === 18 ? sy > 0.6 : i === 19 ? sx < -0.6 : sx > 0.6);
+    // (Taken up, not held: a wheel or a throttle that calls itself a gamepad can sit with a button down for ever, and
+    // must not go on taking the prompts back from somebody at the keyboard.)
+    const busy = b.some(x => x && x.pressed) || [0, 1, 2, 3].some(i => Math.abs(this._ax(p, i)) > 0.5);
+    if (busy && !this._busy) { this.pad = true; this.usedTouch = false; }
+    this._busy = busy;
+    for (let i = 0; i < 21; i++) {
+      const is = on(i), code = PADKEY[i < 17 ? i : i - 5];
+      if (is === !!this._pad[i]) continue;
+      this._pad[i] = is;
+      if (!is) { if (this._padKey[i]) { this._padKey[i] = false; this._key('keyup', code); } continue; }
+      if (i < 17 && this.onGesture) this.onGesture();
+      if (driving) { if (PAD[i]) { for (const a of PAD[i]) this.queue.add(a); this.queue.add('any'); } continue; }
+      if (!code) continue;
+      this._padKey[i] = true;
+      const el = document.activeElement;
+      if (!this._key('keydown', code, i)) continue;          // something took the key
+      if (i === 0) { if (el && el.matches('button, a[href], input[type=checkbox]')) { el.click(); this.queue.delete('look'); } }      // (pressed a button: not also a look at whatever is near)
+      else if (code.startsWith('Arrow')) this._move(el, code);
+    }
+  }
+
+  // A key pressed without a keyboard. Says whether nothing took it. (padBtn: which of the pad's buttons it is, for the
+  // one listener that cares: B and Menu are both Escape, and only Menu skips the opening, src/opening.js.)
+  _key(type, code, btn = -1) {
+    this._synth = true; this.padBtn = btn;
+    const free = (document.activeElement || document.body).dispatchEvent(new KeyboardEvent(type, { code, key: code === 'Space' ? ' ' : code === 'KeyF' ? 'f' : code, bubbles: true, cancelable: true }));
+    this._synth = false; this.padBtn = -1;
+    return free;
+  }
+
+  // An arrow from the pad: left and right work a slider; otherwise on to the next button of whatever is open.
+  _move(el, code) {
+    const fwd = code === 'ArrowDown' || code === 'ArrowRight';
+    if (el && el.type === 'range' && (code === 'ArrowLeft' || code === 'ArrowRight')) { if (fwd) el.stepUp(); else el.stepDown(); el.dispatchEvent(new Event('input', { bubbles: true })); return; }
+    const open = [...document.querySelectorAll('.screen, [aria-modal="true"]')].filter(d => d.getClientRects().length).pop();
+    const all = [...(open || document.body).querySelectorAll('button, input, select, a[href]')].filter(c => !c.disabled && c.getClientRects().length && (open || !c.closest('#hud')));
+    const i = all.indexOf(el);
+    if (all.length) all[i < 0 ? 0 : (i + (fwd ? 1 : all.length - 1)) % all.length].focus();
+  }
+
   // Reads everything into the two sticks. `drone` picks the key layout.
   read(drone) {
     let lx = 0, ly = 0, rx = 0, ry = 0, trig = 0, coast = false;
@@ -183,26 +253,20 @@ export class Input {
       rx = this._axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']);
     }
     const dz = v => (Math.abs(v) < 0.14 ? 0 : (v - Math.sign(v) * 0.14) / 0.86);
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    for (const p of pads) {
-      if (!p || !p.connected) continue;
-      const b = p.buttons;
-      // An axis counts only once it has been seen at rest. Some things that call themselves gamepads (pedals, a wheel, a
-      // flight stick's throttle, odd USB receivers) have axes that sit at one end: read as a stick, held down for ever.
-      const a = [0, 1, 2, 3].map(i => { const v = p.axes[i] || 0, key = p.index + ':' + i; if (Math.abs(v) < 0.3) this._live[key] = true; return this._live[key] ? v : 0; });
-      const glx = dz(a[0]), gly = -dz(a[1]), grx = dz(a[2]), gry = -dz(a[3]);
+    const p = this._first();
+    if (p) {
+      const b = p.buttons, a = [0, 1, 2, 3].map(i => this._ax(p, i));
+      trig = (b[7] ? b[7].value : 0) - (b[6] ? b[6].value : 0);
+      if (Math.abs(trig) < 0.06) trig = 0;
+      // Driven like a driving game (a trigger pulled), the left stick only steers: a thumb steering hard is not also
+      // asking for the brake. Driven like a transmitter (the right stick steering), the left stick is the throttle again.
+      const grx = dz(a[2]);
+      if (trig) this._pedals = true; else if (Math.abs(grx) > 0.5) this._pedals = false;
+      const glx = dz(a[0]), gly = this._pedals && !drone ? 0 : -dz(a[1]), gry = -dz(a[3]);
       if (Math.abs(glx) > Math.abs(lx)) lx = glx;
       if (Math.abs(gly) > Math.abs(ly)) ly = gly;
       if (Math.abs(grx) > Math.abs(rx)) rx = grx;
       if (Math.abs(gry) > Math.abs(ry)) ry = gry;
-      trig = (b[7] ? b[7].value : 0) - (b[6] ? b[6].value : 0);
-      const map = { 0: 'look', 3: 'camera', 2: 'swap', 9: 'pause', 8: 'notebook', 1: 'reset' };
-      for (const [i, act] of Object.entries(map)) {
-        const on = b[i] && b[i].pressed;
-        if (on && !this._pad[i]) { this.queue.add(act); this.queue.add('any'); if (this.onGesture) this.onGesture(); }
-        this._pad[i] = on;
-      }
-      break;
     }
     // Glass: one thumbstick drives the car.
     // For the drone the stick flies and turns, and UP and DOWN are buttons.
@@ -221,16 +285,16 @@ export class Input {
         // slide left and right to steer, it stops when you let go, and pulling back backs it up.
         if (this.autogo) {
           if (tl) { rx = curve(tl.x); ly = tl.y < -0.35 ? (tl.y + 0.35) / 0.65 : 0.45 + 0.55 * Math.max(0, (tl.y - 0.1) / 0.9); }       // thumb down is an easy pace; forward is faster; back brakes and then reverses
-          coast = !tl;
+          coast = !tl && !ly && !trig;       // (no thumb on the glass, and nothing held on a keyboard or a pad either)
         } else if (tl) { rx = curve(tl.x); ly = tl.y > 0.15 ? (tl.y - 0.15) / 0.85 : tl.y < -0.4 ? (tl.y + 0.4) / 0.6 : 0; }
       }
     }
     let held = this.down.has('Space') || this.btn.jump;
-    for (const p of pads) if (p && p.connected) { held = held || !!(p.buttons[5] && p.buttons[5].pressed) || !!(p.buttons[4] && p.buttons[4].pressed); break; }
+    if (p) held = held || !!(p.buttons[5] && p.buttons[5].pressed) || !!(p.buttons[4] && p.buttons[4].pressed);
     const jump = held && !this._jump;
     this._jump = held;
+    if (Math.abs(trig) > Math.abs(ly)) ly = trig;                        // the triggers: go and brake, or up and down
     if (!drone) {
-      if (Math.abs(trig) > Math.abs(ly)) ly = trig;
       if (Math.abs(lx) > Math.abs(rx) && !this.usedTouch) rx = lx;       // pad players who steer on the left stick
       lx = 0; ry = 0;
     }

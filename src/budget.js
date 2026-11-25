@@ -10,7 +10,9 @@ export const LOWMEM = (() => {
   try {
     const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
     const mem = typeof navigator !== 'undefined' && navigator.deviceMemory;
-    const small = typeof screen !== 'undefined' && Math.min(screen.width, screen.height) < 600;
+    // (A small screen with a mouse or a trackpad for its pointer is a computer with its display scaled up: a handheld PC
+    // at 200% reports 960 x 540. Only a small screen that is not one of those is taken for a phone.)
+    const small = typeof screen !== 'undefined' && Math.min(screen.width, screen.height) < 600 && !(typeof matchMedia === 'function' && matchMedia('(pointer: fine)').matches);
     return !!(coarse || small || (mem && mem <= 4) || /[?&]lowmem\b/.test(location.search));
   } catch { return false; }
 })();
