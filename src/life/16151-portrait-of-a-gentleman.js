@@ -11,30 +11,38 @@
 // is what a window in a dark room is for: beyond.
 //
 // Look at the picture and a window opens low in the gallery wall beside it, down to the left under its label,
-// rising from its sill as a shutter is lifted: the same upright shape as his, about half a metre wide and
-// eighty-four centimetres high, with the thickness of the wall showing round it. In it is his country, at a size a
-// small car can look into. It is not a picture hung there: it lies behind the wall, in sheets one behind another
-// (sky, mountains and hill, wood, the farm's ground, the near bank, the tree), so as you drive past it the tree
-// slides across the barn and the barn across the hills, as things do through a real window; from straight in front
-// it is exactly as he composed it. It is quietly alive: the leaves stir, the standing ox grazes and lifts its head,
-// the one lying down turns its head, the herdsman shifts his stick, and now and then the man with his load goes
-// along the front of the stack and in under the shed. Then the one thing that happens: down in the grass the two
-// white birds put up their necks, a breath goes through the tree, and they take wing, come up across the window
-// growing until they are the biggest things in it, their wingbeats heard, and go out past its edge. A moment later
-// they are seen again, small, going away over the pale hill towards the mountains, where they are lost: the
-// distance was there to be flown into. Much later they come home and settle where he painted them. Stop looking
-// and it stays while the toy is near; drive off and the shutter comes down and the wall is a wall.
+// rising from its sill as a shutter is lifted: the same upright shape as his, cut through sixteen centimetres of
+// wall. It is a hole, not a picture: its sides close in as they go back (a splayed reveal, the plain grey stone of
+// his own window), the sloping sill and the right jamb take the light that comes in from the upper left as it does
+// in his picture, the left jamb and the head are in their own shade, the left jamb's shadow lies across the sill,
+// and a faint patch of daylight lies on the gallery floor under it. At the back of that thickness is the daylight
+// opening, 38 cm wide and 69 high, and beyond it his country, at a size a small car can look into. It lies in
+// sheets one behind another (sky, mountains and hill, wood, the farm's ground, the near bank, the tree), so as you
+// drive past, the reveal hides one side of it and shows the other, and the tree slides across the barn and the
+// barn across the hills, as things do through a real window; from straight in front it is exactly as he composed
+// it. It is quietly alive: the leaves stir, the standing ox grazes and lifts its head, the one lying down turns its
+// head, the herdsman shifts his stick, and now and then the man with his load goes along the front of the stack
+// and in under the shed. Then the one thing that happens: down in the grass the two white birds put up their
+// necks, a breath goes through the tree, and they take wing, one a wingbeat ahead of the other: necks out, feet
+// laid back, the long feathers of their wings parting as they beat (white on top, grey beneath), up across the
+// window growing until they are the biggest things in it, their wingbeats heard, and out behind its left jamb. A
+// moment later they are seen again, small, going away over the pale hill towards the mountains, where they are
+// lost: the distance was there to be flown into. Much later they come home and settle where he painted them. Stop
+// looking and it stays while the toy is near; drive off and the shutter comes down and the wall is a wall.
 //
-// How it is made: one flat rectangle on the wall, one draw call. The country is painted once (when first looked
-// at) into two canvases in his colours, read off the picture: the pieces that move on one, the land in four long
-// strips on the other. The rectangle's shader finds, for each point of the opening, where the eye's line meets each
-// sheet behind the wall and lays them over one another, back to front, then the wall's own jambs, sill and head.
-// Nothing is built in the room: it reaches 0 m out from the wall, has no collision, and lies between 0.16 m and
-// 0.62 m to the left of the picture's middle and from 0.26 m to 1.10 m above the floor (clear of the skirting,
-// under the label, 0.6 m short of the frame of Piero di Cosimo's tondo on the other side of the picture and 0.38 m
-// from the room's corner; Botticelli's Virgin and Child and Allori's Francesco de' Medici hang past the doorway,
-// more than six metres along the wall). Nothing is drawn on or in front of any picture. In a calm museum the birds
-// do not fly: they look up now and then, and the leaves move half as much. The caption says only what can be seen.
+// How it is made: one flat rectangle on the wall and one on the floor, two draw calls. The country is painted
+// once (when first looked at) into two canvases in his colours, read off the picture: the pieces that move on one,
+// the land in four long strips on the other. The wall's rectangle has no depth of its own: its shader finds, for
+// each point of it, whether the eye's line meets the stone of the reveal first (and which face, how deep, in light
+// or shade) or goes through to the daylight, and there where it meets each sheet beyond, and lays them over one
+// another, back to front. So the birds are never in front of the stone: they pass behind it. Nothing is built in
+// the room: the window reaches 0 m out from the wall and the light on the floor 0.95 m, flat, neither with any
+// collision; both lie between 0.16 m and 0.62 m to the left of the picture's middle, the window from 0.26 m to
+// 1.06 m above the floor (clear of the skirting, under the label, 0.6 m short of the frame of Piero di Cosimo's
+// tondo on the other side of the picture and 0.38 m from the room's corner; Botticelli's Virgin and Child and
+// Allori's Francesco de' Medici hang past the doorway, more than six metres along the wall). Nothing is drawn on
+// or in front of any picture. In a calm museum the birds do not fly: they look up now and then, and the leaves
+// move half as much. The caption says only what can be seen.
 //
 // What it does not do: he does not move, turn, leave his picture or get a name, a trade or a reason for the
 // window, and the birds are not said to be geese or doves, nor the dark they stand in to be water, because the
@@ -51,7 +59,7 @@ const PI = Math.PI, TAU = PI * 2;
 // (of 2048 by 1024; x, y, width, height), and how big it stands in the country beyond the window (metres there)
 const AW = 2048, AH = 1024;
 const CELL = {
-  tree: [0, 0, 560, 1024], farm: [564, 0, 920, 500], fly: [564, 504, 300, 150], wing: [868, 504, 200, 260],
+  tree: [0, 0, 560, 1024], farm: [564, 0, 920, 500], fly: [564, 504, 500, 250], wing: [1068, 504, 206, 330], wingu: [1280, 504, 206, 330],
   ox1: [1492, 0, 300, 200], ox1h: [1796, 0, 140, 140], ox2: [1492, 204, 280, 180], ox2h: [1796, 144, 140, 140],
   herd: [1596, 392, 128, 300], arm: [1728, 392, 128, 220], man1: [1860, 392, 90, 220], man2: [1952, 392, 90, 220],
   bird: [1728, 616, 150, 130], neck: [1882, 616, 70, 130],
@@ -222,32 +230,92 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
     for (let i = 0; i < 90; i++) { const x = 30 + R() * 810; stroke([[x, base + 2], [x + jit(4), base - 3 - R() * 7]], 1, pick([GRASS_M, GRASS_D, GRASS_L]), 0.7); }
   });
 
-  // ------------------------------------------------------------ a white bird on the wing, heading right (its body,
-  // which turns about (150, 80)); and one wing, upright, which beats about its root at (100, 250)
-  const taper = (pts, w0, w1, c) => { for (let i = 0; i < 20; i++) { const a0 = along(pts, i / 20), a1 = along(pts, (i + 1) / 20); stroke([[a0[0], a0[1]], [a1[0], a1[1]]], lerp_(w0, w1, i / 20), c); } };
+  // ------------------------------------------------------------ a white bird on the wing, heading right: its body
+  // (which turns about (250, 130)); and its wing, upright, which beats about its root at (110, 322), twice over: once
+  // as it is seen from above, in the light, and once from beneath, in its own shade. White is never white: cream
+  // where the light falls, a cool grey under the neck, the belly and the wing, and each long feather told by the
+  // grey line of the one that lies on it.
+  for (let i = 0; i < 9; i++) R();                           // (the land after this keeps the touches it had)
+  let sb = 9157; const Rb = () => (sb = (sb * 16807) % 2147483647) / 2147483647, jb = s => (Rb() - 0.5) * s;
+  const WHITE_H = [250, 247, 236], WHITE_D = mix(WHITE_S, HOLE, 0.4);
+  const taper = (pts, w0, w1, c, a = 1) => { for (let i = 0; i < 24; i++) { const a0 = along(pts, i / 24), a1 = along(pts, (i + 1) / 24); stroke([[a0[0], a0[1]], [a1[0], a1[1]]], lerp_(w0, w1, i / 24), c, a); } };
+  // one feather from its root to its blunt tip, wd its half width
+  const blade = (x0, y0, x1, y1, wd, c, a = 1) => {
+    const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy / l * wd, ny = dx / l * wd;
+    g.globalAlpha = a; g.fillStyle = css(c); g.beginPath(); g.moveTo(x0, y0);
+    g.bezierCurveTo(x0 + dx * 0.3 + nx, y0 + dy * 0.3 + ny, x0 + dx * 0.97 + nx, y0 + dy * 0.97 + ny, x1, y1);
+    g.bezierCurveTo(x0 + dx * 0.97 - nx, y0 + dy * 0.97 - ny, x0 + dx * 0.3 - nx, y0 + dy * 0.3 - ny, x0, y0); g.fill(); g.globalAlpha = 1;
+  };
+  // a feather lying on the next: its own grey shade first, then the feather, then its shaft
+  const quill = (x0, y0, x1, y1, wd, c, sh, shaft, sa = 0.7) => {
+    blade(x0 + 2, y0 + 3.5, x1 + 2, y1 + 4.5, wd + 1.5, sh, sa); blade(x0, y0, x1, y1, wd, c);
+    stroke([[x0, y0], [lerp_(x0, x1, 0.94), lerp_(y0, y1, 0.94)]], 0.9, shaft, 0.4);
+  };
+  const b2 = (p0, p1, p2, k) => [(1 - k) * (1 - k) * p0[0] + 2 * k * (1 - k) * p1[0] + k * k * p2[0], (1 - k) * (1 - k) * p0[1] + 2 * k * (1 - k) * p1[1] + k * k * p2[1]];
+  const wingArt = under => (w, h) => {
+    const top = () => mix(WHITE, WHITE_H, Rb()), low = () => mix(WHITE_S, WHITE, 0.2 + 0.2 * Rb());
+    const fc = under ? low : top, sh = under ? mix(WHITE_D, HOLE, 0.25) : mix(WHITE_S, HOLE, 0.25), shaft = under ? WHITE_D : WHITE_S;
+    // the ten long feathers of the hand, the outermost first: they part at their tips
+    for (let i = 0; i < 8; i++) {
+      const k = i / 7, tip = b2([100, 8], [34, 40], [24, 160], k), root = [lerp_(160, 152, k), lerp_(140, 200, k)];
+      quill(root[0], root[1], tip[0] + jb(4), tip[1] + jb(4), 9.5 + 1.5 * k, fc(), sh, shaft, 0.9);
+    }
+    // the feathers of the arm, from the wrist in to the body, each lying on the last
+    for (let i = 0; i < 12; i++) {
+      const k = i / 11, root = [lerp_(154, 136, k), lerp_(186, 312, k)], tip = [lerp_(26, 62, k * k) + jb(3), lerp_(176, 326, k) + jb(3)];
+      quill(root[0], root[1], tip[0], tip[1], 11.5, fc(), sh, shaft, 0.9);
+    }
+    // two rows of the small feathers that cover their roots
+    for (const [len, wd, n, x0, x1] of [[52, 9.5, 14, 160, 142], [28, 7.5, 16, 164, 146]]) for (let i = 0; i < n; i++) {
+      const k = i / (n - 1), rx0 = lerp_(x0, x1, k) + (k < 0.3 ? -6 * (0.3 - k) / 0.3 : 0), ry0 = lerp_(120, 316, k), a = lerp_(2.25, 2.95, k) + jb(0.08);
+      quill(rx0, ry0, rx0 + Math.cos(a) * len, ry0 + Math.sin(a) * len * 0.75 + len * 0.3, wd, fc(), sh, shaft, 0.55);
+    }
+    // the arm itself, along the front of the wing: round, and (from above) the brightest thing on it
+    const ARM = [[142, 324], [158, 262], [168, 196], [160, 138], [140, 84], [116, 40], [100, 12]];
+    taper(ARM, 21, 5, under ? mix(WHITE_S, WHITE_D, 0.45) : WHITE);
+    taper(ARM.map(([x, y]) => [x + 3.5, y - 1]), 8, 2, under ? mix(WHITE_S, WHITE, 0.25) : WHITE_H, 0.9);
+    taper(ARM.map(([x, y]) => [x - 6, y + 2]), 5, 1.5, under ? WHITE_D : WHITE_S, under ? 0.5 : 0.4);
+    for (let i = 0; i < 26; i++) { const p = along(ARM, 0.04 + 0.8 * Rb()); curve([p[0] - 2, p[1] + jb(4)], [p[0] - 9, p[1] + 5], [p[0] - 15 - 5 * Rb(), p[1] + 9 + jb(3)], 1, under ? WHITE_D : WHITE_S, 0.3); }
+    // the light on it, over all: only where there is wing
+    g.globalCompositeOperation = 'source-atop';
+    if (under) {
+      // (seen from beneath, the sky comes through the thin ends of the feathers, and the root is in the body's shade)
+      g.fillStyle = lin(20, 0, 120, 0, [[0, WHITE_H, 0.34], [0.45, WHITE, 0.12], [1, WHITE, 0]]); g.fillRect(0, 0, w, h);
+      soft(122, 330, 80, WHITE_D, 0.6, 1, 0.9); soft(150, 220, 46, WHITE_D, 0.3, 0.5, 2.2);
+    } else {
+      g.fillStyle = lin(170, 0, 30, 0, [[0, WHITE_S, 0], [0.5, WHITE_S, 0.1], [1, WHITE_S, 0.36]]); g.fillRect(0, 0, w, h);
+      soft(108, 334, 62, WHITE_S, 0.7, 1.1, 0.8); soft(60, 60, 60, WHITE_S, 0.25);
+    }
+    g.globalCompositeOperation = 'source-over';
+  };
+  cell('wing', wingArt(false));
+  cell('wingu', wingArt(true));
   cell('fly', (w, h) => {
-    fill([[14, 72], [44, 66], [78, 68], [80, 86], [46, 86], [16, 82]], mix(WHITE, WHITE_S, 0.45));
-    for (let i = 0; i < 5; i++) stroke([[16 + i * 2, 73 + i * 2.2], [70, 70 + i * 3.4]], 0.9, WHITE_S, 0.6);
-    stroke([[70, 90], [38, 93]], 3, mix(BILL, HOLE, 0.4), 0.9);                       // its legs, trailed
-    taper([[186, 76], [212, 70], [238, 66], [248, 65]], 18, 11, mix(WHITE, WHITE_S, 0.22));
-    curve([190, 82], [216, 78], [246, 71], 3, WHITE_S, 0.55);
-    const B = [[56, 72], [84, 61], [124, 56], [164, 58], [194, 64], [202, 77], [188, 92], [150, 100], [108, 98], [76, 90]];
-    shape(B); g.fillStyle = lin(0, 56, 0, 100, [[0, WHITE], [0.5, mix(WHITE, WHITE_S, 0.3)], [1, WHITE_S]]); g.fill();
-    within(B, () => { soft(130, 62, 50, [250, 248, 238], 0.6, 1.5, 0.4); soft(130, 102, 60, mix(WHITE_S, HOLE, 0.35), 0.5, 1.5, 0.35); });
-    oval(254, 63, 12, 9, -0.1, WHITE); oval(255, 67, 9, 4.5, -0.1, WHITE_S, 0.5);
-    fill([[263, 58], [287, 65], [264, 70]], BILL, 1, false); stroke([[265, 64.5], [284, 65.2]], 0.8, mix(BILL, HOLE, 0.5), 0.8);
-    oval(258, 61, 1.8, 1.8, 0, HOLE);
-  });
-  cell('wing', (w, h) => {
-    const Wg = [[74, 250], [60, 196], [62, 140], [76, 82], [94, 32], [108, 8], [123, 40], [132, 108], [129, 180], [120, 250]];
-    shape(Wg); g.fillStyle = lin(60, 0, 134, 0, [[0, WHITE_S], [0.45, mix(WHITE, WHITE_S, 0.3)], [1, WHITE]]); g.fill();
-    within(Wg, () => {
-      soft(118, 120, 60, [250, 248, 238], 0.5, 0.4, 1.8); soft(96, 250, 46, mix(WHITE_S, HOLE, 0.3), 0.5);
-      // the flight feathers, fanned from the leading edge back and down
-      for (let i = 0; i < 9; i++) { const k = i / 8, y0 = lerp_(22, 232, k) + jit(6), x0 = 122 + 8 * Math.sin(k * PI_); curve([x0, y0], [x0 - 30, y0 + 14], [x0 - 66, y0 + 44 - 20 * k], 1.8, WHITE_S, 0.24); }
-      for (let i = 0; i < 7; i++) { const k = i / 6, y0 = lerp_(60, 230, k); curve([124, y0], [108, y0 + 8], [92, y0 + 22], 1.2, WHITE_S, 0.2); }
+    // the tail, a short fan in the body's shade; and the feet, laid back under it
+    for (let i = 0; i < 7; i++) { const k = i / 6; quill(180, lerp_(124, 140, k), 92 + 14 * Math.abs(k - 0.4), lerp_(110, 150, k), 8, mix(WHITE, WHITE_S, 0.25 + 0.5 * k), mix(WHITE_S, HOLE, 0.2), WHITE_S, 0.6); }
+    stroke([[226, 156], [176, 160], [146, 158]], 4.2, mix(BILL, HOLE, 0.45), 0.95); fill([[152, 154], [118, 153], [112, 160], [150, 163]], mix(BILL, HOLE, 0.38), 1, false);
+    stroke([[150, 157], [118, 156]], 0.9, mix(BILL, HOLE, 0.7), 0.6);
+    // the neck, held out straight: lit along its top, grey beneath
+    const NK = [[318, 128], [352, 118], [388, 109], [424, 102]];
+    taper(NK, 40, 19, mix(WHITE, WHITE_S, 0.3));
+    taper(NK.map(([x, y]) => [x - 1, y - 5]), 20, 9, WHITE_H, 0.9);
+    taper(NK.map(([x, y], i) => [x + 2, y + 9 - 2 * i]), 15, 7.5, WHITE_S, 0.9); taper(NK.map(([x, y], i) => [x + 2, y + 14.5 - 3 * i]), 5, 3, WHITE_D, 0.7);
+    // the body: a full breast, the back in the light, the belly in a cool shade with the light of the grass thrown up into it
+    const B = [[150, 128], [176, 111], [222, 102], [272, 100], [314, 105], [340, 118], [342, 136], [322, 152], [280, 162], [228, 162], [186, 152], [160, 141]];
+    shape(B); g.fillStyle = lin(0, 100, 0, 163, [[0, WHITE_H], [0.2, WHITE], [0.4, mix(WHITE, WHITE_S, 0.7)], [0.6, WHITE_S], [0.88, mix(WHITE_S, WHITE_D, 0.75)], [1, mix(WHITE_D, GRASS_L, 0.3)]]); g.fill();
+    within(B, () => {
+      soft(250, 104, 60, [255, 253, 244], 0.6, 1.8, 0.3); soft(236, 168, 70, WHITE_D, 0.6, 1.9, 0.36); soft(338, 142, 26, WHITE_S, 0.4); soft(160, 134, 30, WHITE_S, 0.5);
+      // the small feathers of the flank and breast, in rows
+      for (let j = 0; j < 4; j++) for (let i = 0; i < 12; i++) { const x = 176 + i * 14 + (j % 2) * 7 + jb(3), y = 122 + j * 9 + jb(2); curve([x, y], [x + 7, y + 5.5], [x + 14, y], 1, j < 2 ? WHITE_S : WHITE_D, 0.24 + 0.05 * j); }
+      // where the wing springs from the shoulder, and its shade on the flank
+      soft(290, 120, 30, WHITE_S, 0.5, 1.3, 0.7); curve([252, 112], [286, 128], [316, 112], 1.6, WHITE_S, 0.5);
+      curve([168, 147], [250, 170], [334, 146], 2.4, WHITE_D, 0.55);
     });
-    for (let i = 0; i < 4; i++) stroke([[104 + i * 3, 10 + i * 5], [96 + i * 2, 34 + i * 8]], 1.6, mix(WHITE_S, HOLE, 0.3), 0.6);
+    // the head: small, round, a dark eye, the bill a little open as it calls
+    oval(436, 98, 19, 13.5, -0.1, WHITE); oval(432, 93, 12, 6, -0.1, WHITE_H, 0.9); oval(439, 105.5, 15, 6.5, -0.1, WHITE_S, 0.85); curve([424, 109], [438, 113], [452, 106], 1.4, WHITE_D, 0.6);
+    fill([[451, 89], [488, 98], [452, 100]], BILL, 1, false); fill([[452, 101], [482, 103], [451, 108]], mix(BILL, HOLE, 0.3), 1, false);
+    stroke([[454, 90.5], [484, 97.5]], 1, mix(BILL, WHITE, 0.5), 0.7); stroke([[462, 95], [468, 96]], 1.2, mix(BILL, HOLE, 0.6), 0.8);
+    oval(442, 94, 2.5, 2.5, 0, HOLE); oval(441.3, 93.2, 0.8, 0.8, 0, WHITE_H, 0.9);
   });
 
   // ------------------------------------------------------------ the two cattle. A beast is a smooth close-toned form:
@@ -458,21 +526,27 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
 // </paint>
 
 // ---------------------------------------------------------------- the window in the gallery wall
-const X0 = -0.616, X1 = -0.16, Y0 = 0.26, Y1 = 1.10;      // the opening: metres along the wall from the picture's middle, and up from the floor
-const WH = 1697, WXR = 907, S = (Y1 - Y0) / WH;           // the picture's window in its own measure (sill to top; its right jamb); metres to one point of it
-const THICK = 0.09;                                       // the wall's thickness, as the window shows it
+const X0 = -0.616, X1 = -0.16, Y0 = 0.26;                 // the opening in the face of the wall: metres along it from the picture's middle, and its foot above the floor
+const THICK = 0.16;                                       // the wall's thickness, as the window shows it
+const GL = 0.04, GR = 0.04, GT = 0.045, GB = 0.065;       // how far each side of the opening closes in through that thickness (a splayed reveal, and a sloping sill)
+const AX0 = X0 + GL, AX1 = X1 - GR;                       // the daylight opening, at the back of the wall
+const WH = 1697, WXL = -14, WXR = 907, S = (AX1 - AX0) / (WXR - WXL);   // the picture's window in its own measure (sill to top; its jambs); metres to one point of it
+const AY0 = Y0 + GB, AY1 = AY0 + WH * S, Y1 = AY1 + GT;   // the sill and head of the daylight opening, and the top of the opening in the wall's face
+const SUN = [0.55, 0.8];                                  // the light comes in from the upper left, as in his picture: how far across and down it goes for each metre it comes in
 const EYE0 = [(X0 + X1) / 2, 0.8, 2.0];                   // where you stand to see the country exactly as he composed it
 const DEEP = { sky: 0.9, far: 0.62, wood: 0.44, land: 0.3, bank: 0.11, tree: 0.05 };    // how far behind the wall each sheet lies (it is a shallow box, not a mile)
+const POOL = 0.2;                                         // how strong the daylight on the floor is
 const KEY = 0.68;                                         // how bright the country is in the gallery's light
 const TREE_AT = [391, 10], TREE_K = 1.15;                // where the thin tree's sheet sits in the window, and its size
 const NS = 14;                                            // the pieces that move: farm, man, two cattle and their heads, herdsman and his arm; then the two birds, three pieces each
 const TAKE = 4.0, LOOP = 32;                              // the birds take wing at 4 s, and again every 32 s
 // their flight, as [seconds after taking wing, across, down, size, depth]: up from the grass and across the window,
 // out past its left side; then small and far, over the hill to the mountains; and much later home again
-const OUT = [[0, 590, 1570, 0.2, 0.11], [0.35, 548, 1480, 0.38, 0.1], [0.7, 462, 1280, 0.8, 0.085], [1.0, 360, 1020, 1.25, 0.07], [1.35, 205, 740, 1.4, 0.07], [1.75, -60, 470, 1.3, 0.07], [2.15, -430, 300, 1.2, 0.07]];
+const OUT = [[0, 590, 1570, 0.2, 0.11], [0.35, 548, 1480, 0.4, 0.1], [0.7, 462, 1280, 0.9, 0.085], [1.0, 360, 1020, 1.5, 0.07], [1.35, 205, 740, 1.8, 0.07], [1.75, -60, 470, 1.75, 0.07], [2.15, -520, 280, 1.7, 0.07]];
 const AWAY = [[2.2, -330, 610, 0.56, 0.4], [3.0, 40, 665, 0.52, 0.4], [4.0, 330, 745, 0.42, 0.45], [5.2, 540, 835, 0.28, 0.5], [6.6, 662, 893, 0.15, 0.58], [8.2, 715, 922, 0.06, 0.62]];
 const HOME = [[17, 1010, 850, 0.06, 0.6], [18.2, 830, 950, 0.11, 0.5], [19.4, 700, 1230, 0.17, 0.3], [20.4, 615, 1490, 0.2, 0.15], [21, 590, 1570, 0.2, 0.11]];
-const BIRDS = [{ lag: 0, dx: 0, dy: 0, ax: 0, ay: 0, ph: 0, fx: 1 }, { lag: 0.28, dx: 35, dy: 28, ax: -44, ay: 20, ph: 1.9, fx: -1 }];
+const BIRDS = [{ lag: 0, dx: 0, dy: 0, ax: 0, ay: 0, ph: 0, fx: 1 }, { lag: 0.36, dx: 35, dy: 28, ax: -44, ay: 20, ph: 1.9, fx: -1 }];       // (one leads, the other a wingbeat behind)
+const KF = 0.7;                                           // the flying bird's sheet is drawn larger than it is shown
 const curveAt = (K, t, into) => {
   let i = 0; while (i < K.length - 2 && t > K[i + 1][0]) i++;
   const a = K[Math.max(0, i - 1)], b = K[i], c = K[i + 1], d = K[Math.min(K.length - 1, i + 2)], k = clamp01((t - b[0]) / (c[0] - b[0]));
@@ -506,7 +580,8 @@ lifeFor(16151, {
       uInv: { value: new THREE.Matrix4() }, uT: { value: 0 }, uTop: { value: Y0 }, uKey: { value: KEY }, uSway: { value: 1 }, uLand: { value: land },
       uSA: { value: new Float32Array(NS * 4) }, uSM: { value: new Float32Array(NS * 4) }, uSC: { value: new Float32Array(NS * 4) }, uSP: { value: new Float32Array(NS * 2) },
     };
-    const f = (x, n = 1) => x.toFixed(n), row = n => { const [r0, r1, y0, y1] = LAND[n]; return `vec4(${f(r0 + GUT)}, ${f(r1)}, ${f(y0)}, ${f(y1)})`; };
+    const f = (x, n = 1) => x.toFixed(n), g4 = x => x.toFixed(4), row = n => { const [r0, r1, y0, y1] = LAND[n]; return `vec4(${f(r0 + GUT)}, ${f(r1)}, ${f(y0)}, ${f(y1)})`; };
+    const STONE = '#938b7a', SHADE = '#908d89';                                // the stone of his window's surround, as daylight would show it (in his dark room it is #403927)
     const SKY = [[20, '#2b4d43'], [150, '#306665'], [300, '#4c8486'], [450, '#6da4a4'], [600, '#8db7b1'], [700, '#a2c4ba'], [780, '#afc8b9'], [880, '#cdd3b8'], [945, '#e3dcb7']];
     const m = new THREE.MeshBasicMaterial({ map: atlas, transparent: true, depthWrite: false, fog: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
     m.landTex = land;
@@ -547,11 +622,19 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
     vec2 P = vLoc.xy;
     float ez = max(vEye.z - vLoc.z, 0.05);
     vec2 sl = (P - vEye.xy) / ez;                                   // the slope of the eye's line as it goes into the wall
-    vec2 dm = sl - (P - vec2(${f(EYE0[0], 3)}, ${f(EYE0[1], 3)})) / ${f(EYE0[2], 3)};
+    // the wall's thickness: four faces that close in towards the daylight; how deep the eye's line goes before it meets each
+    float zl = (P.x - ${g4(X0)}) / max(${g4(GL / THICK)} - sl.x, 1.0e-4), zr = (${g4(X1)} - P.x) / max(${g4(GR / THICK)} + sl.x, 1.0e-4);
+    float zb = (P.y - ${g4(Y0)}) / max(${g4(GB / THICK)} - sl.y, 1.0e-4), zt = (uTop - P.y) / max(${g4(GT / THICK)} + sl.y, 1.0e-4);
+    float zj = min(zl, zr), zv = min(zb, zt), zm = min(zj, zv), e = min(zm / ${g4(THICK)}, 4.0);
+    float through = smoothstep(1.0 - clamp(fwidth(e) * 1.5, 0.0, 0.3), 1.0, e);
+    vec3 c = vec3(0.0);
+    if (through > 0.0) {
+    vec2 Q = P + sl * ${g4(THICK)};                                 // where the line comes out into the daylight
+    vec2 dm = sl - (Q - vec2(${f(EYE0[0], 3)}, ${f(EYE0[1], 3)})) / ${f(EYE0[2] + THICK, 3)};
     dm /= sqrt(1.0 + dot(dm, dm) / 0.36);                           // (from far to one side the country slides only so far)
-    vec2 D = vec2(dm.x, -dm.y * 0.3) / ${S.toFixed(7)};             // how far a sheet slides, in the picture's measure, for each metre it lies behind the wall
-    vec2 Pw = vec2((P.x - ${f(X1, 3)}) / ${S.toFixed(7)} + ${f(WXR)}, (${f(Y1, 3)} - P.y) / ${S.toFixed(7)});
-    vec3 c = gvSky(Pw + D * ${f(DEEP.sky, 2)});
+    vec2 D = vec2(dm.x, -dm.y * 0.3) / ${S.toFixed(7)};             // how far a sheet slides, in the picture's measure, for each metre it lies beyond the wall
+    vec2 Pw = vec2((Q.x - ${g4(AX1)}) / ${S.toFixed(7)} + ${f(WXR)}, (${g4(AY1)} - Q.y) / ${S.toFixed(7)});
+    c = gvSky(Pw + D * ${f(DEEP.sky, 2)});
     c = gvOver(c, gvStrip(Pw + D * ${f(DEEP.far, 2)}, ${row('far')}));
     c = gvOver(c, gvStrip(Pw + D * ${f(DEEP.wood, 2)}, ${row('wood')}));
     c = gvOver(c, gvStrip(Pw + D * ${f(DEEP.land, 2)}, ${row('ground')}));
@@ -567,29 +650,56 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
       vec2 uv = clamp(l, vec2(0.5), vec2(${f(CELL.tree[2] - 0.5)}, ${f(CELL.tree[3] - 2)})) / vec2(${f(AW)}, ${f(AH)});
       c = gvOver(c, texture2D(map, vec2(uv.x, 1.0 - uv.y)) * k);
     }
-    // the wall's own thickness round the opening: jambs, sill and head, in the dark grey-brown of his room
-    vec2 th = sl * ${f(THICK, 3)}, lo = vec2(${f(X0, 3)}, ${f(Y0, 3)}), hi = vec2(${f(X1, 3)}, uTop);
-    float sx = th.x > 0.0 ? (hi.x - P.x) / max(th.x, 1.0e-5) : (P.x - lo.x) / max(-th.x, 1.0e-5);
-    float sy = th.y > 0.0 ? (hi.y - P.y) / max(th.y, 1.0e-5) : (P.y - lo.y) / max(-th.y, 1.0e-5);
-    float s = min(sx, sy);
-    vec3 rc = sx < sy ? (th.x > 0.0 ? ${lin('#4b4231')} : ${lin('#28231a')}) : (th.y > 0.0 ? ${lin('#1e1a13')} : ${lin('#5a4f39')});
-    rc *= (1.0 - 0.32 * clamp(s, 0.0, 1.0)) * (0.92 + 0.16 * gvNoise(P * 160.0));
-    c *= 1.0 - 0.3 * exp(-max(s - 1.0, 0.0) * 5.0);                // (a little of the wall's shade on the country, close in under its edges)
-    c = mix(c, rc, 1.0 - smoothstep(1.0 - clamp(fwidth(s) * 1.5, 0.0, 0.5), 1.0, s));
+    c *= uKey;
+    }
+    if (through < 1.0) {
+      // the wall's own thickness round the opening, in the plain grey stone of his window: the sill and the right jamb
+      // take the light that comes in, the left jamb and the head are in their own shade, and the left jamb's shadow
+      // lies across the sill and the head's down the right jamb
+      float T = ${g4(THICK)}, top = uTop - ${g4(GT)};
+      float zjc = min(zj, T), zvc = min(zv, T), dj = zjc / T, dv = zvc / T;      // (a face the line never meets is met nowhere: keep the sums finite)
+      float yj = P.y + sl.y * zjc, xv = P.x + sl.x * zvc;
+      float litR = smoothstep(-0.007, 0.007, top - ${g4(SUN[1])} * (T - zjc) - yj);
+      float litS = smoothstep(-0.007, 0.007, xv - ${g4(AX0)} - ${g4(SUN[0])} * (T - zvc));
+      float tj = zl < zr ? mix(0.3, 0.4, dj) + 0.1 * exp(-max(yj - ${g4(Y0)}, 0.0) / 0.12) : mix(0.5, 1.0, litR) * mix(0.8, 0.94, dj);
+      float tv = zb < zt ? mix(0.47, 1.0, litS) * mix(0.9, 1.06, dv) : mix(0.24, 0.33, dv);
+      // (each face is a little darker in its corners, where it meets the next)
+      float cj = min(yj - ${g4(Y0)} - ${g4(GB / THICK)} * zjc, uTop - ${g4(GT / THICK)} * zjc - yj);
+      float cv = min(xv - ${g4(X0)} - ${g4(GL / THICK)} * zvc, ${g4(X1)} - ${g4(GR / THICK)} * zvc - xv);
+      tj *= 1.0 - 0.3 * exp(-max(cj, 0.0) / 0.016); tv *= 1.0 - 0.3 * exp(-max(cv, 0.0) / 0.016);
+      float zd = clamp(zv, 0.0, 4.0) - clamp(zj, 0.0, 4.0), tone = mix(tv, tj, smoothstep(-1.0, 1.0, zd / max(fwidth(zd), 1.0e-5)));
+      vec2 hp = vec2(zj < zv ? yj : xv, min(zm, T)) * 150.0;
+      tone *= 0.9 + 0.13 * gvNoise(hp) + 0.07 * gvNoise(hp * 0.23 + 7.0);
+      tone *= 1.0 + 0.1 * exp(-max(zm, 0.0) / 0.004);                         // (the arris, where the stone meets the plaster)
+      c = mix(mix(${lin(SHADE)}, ${lin(STONE)}, smoothstep(0.25, 0.8, tone)) * tone, c, through);    // (what is in shade has the sky's light, not the sun's)
+    }
     float a = 1.0 - smoothstep(uTop - fwidth(P.y) * 1.5, uTop, P.y);
-    diffuseColor = vec4(c * uKey * a, a);
+    diffuseColor = vec4(c * a, a);
   }
   diffuseColor *= lifeK;`);
     };
-    m.customProgramCacheKey = () => 'ghirlandaio-window-5';
+    m.customProgramCacheKey = () => 'ghirlandaio-window-9';
     const mesh = this.mesh = new THREE.Mesh(geo, m);
     mesh.matrixAutoUpdate = false; mesh.matrix.copy(this.B); mesh.matrixWorldNeedsUpdate = true; mesh.renderOrder = 6; mesh.visible = false; mesh.frustumCulled = false;
     L.add(mesh);
+    // the daylight it lets fall on the gallery floor, under the sill: what a patch of sky that size would throw there,
+    // made to end before the window's own sides do
+    const FW = X1 - X0, FD = 0.95, fn = 64, fm = 96;
+    const pool = canvasTexture(fn, fm, g => {
+      const im = g.createImageData(fn, fm), ss = t => { t = clamp01(t); return t * t * (3 - 2 * t); };
+      const E = (x, o) => { let s = 0; for (let i = 0; i < 8; i++) for (let j = 0; j < 12; j++) { const xq = lerp(AX0, AX1, (i + 0.5) / 8) - (X0 + X1) / 2, yq = lerp(AY0, AY1, (j + 0.5) / 12), r2 = (x - xq) * (x - xq) + yq * yq + o * o; s += yq * o / (r2 * r2); } return s; };
+      let top = 0; const v = new Float32Array(fn * fm);
+      for (let j = 0; j < fm; j++) for (let i = 0; i < fn; i++) { const x = ((i + 0.5) / fn - 0.5) * FW, o = (j + 0.5) / fm * FD; v[j * fn + i] = E(x, o + 0.02) * ss((0.5 - Math.abs(x) / FW) * 2 / 0.55) * ss((FD - o) / (FD * 0.6)); top = Math.max(top, v[j * fn + i]); }
+      for (let k = 0; k < fn * fm; k++) { const a = v[k] / top; im.data[k * 4] = 232 * a; im.data[k * 4 + 1] = 236 * a; im.data[k * 4 + 2] = 214 * a; im.data[k * 4 + 3] = 255; }
+      g.putImageData(im, 0, 0);
+    });
+    this.pool = L.decal({ w: FW, d: FD, u: (X0 + X1) / 2, out: -L.wall + FD / 2, map: pool, additive: true, opacity: 0 });
+    this.pool.visible = false;
     this.tmp = [0, 0, 0, 0]; this.tmp2 = [0, 0, 0, 0];
     this.clear();
   },
 
-  hide() { if (this.mesh) this.mesh.visible = false; },
+  hide() { if (this.mesh) this.mesh.visible = false; if (this.pool) this.pool.visible = false; },
   clear() { this.open = 0; this.open0 = 0; this.wasBack = false; this.T = 0; this.told = false; this.beat = [0, 0]; this.gust = 0; },
   start(L, resumed) {
     if (resumed) return;
@@ -622,6 +732,7 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
     this.T += dt * sp;
     const T = this.T; u.uT.value = T; u.uInv.value.copy(this.Binv);
     this.mesh.visible = this.open > 0.002;
+    this.pool.visible = this.mesh.visible; this.pool.material.opacity = POOL * ease.inOut(clamp01((this.open - 0.12) / 0.88));
 
     // ---- the farm, and the small life of the yard
     const DL = DEEP.land;
@@ -673,11 +784,19 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
       const x = a4[0] + ox, y = a4[1] + oy, k = Math.max(0.03, a4[2]), deep = a4[3];
       let vx = b4[0] - a4[0], vy = (b4[1] - a4[1]) * 0.45; const vl = Math.hypot(vx, vy) || 1; vx /= vl; vy /= vl;
       const fl = vx >= 0 ? 1 : -1, yx = -vy * fl, yy = vx * fl;
-      const w = TAU * 3.4 * t + b.ph, lim = v => (v < 0 ? -1 : 1) * Math.max(0.12, Math.abs(v)), f1 = lim(Math.sin(w)), f2 = lim(Math.sin(w + 0.45));
-      // the far wing, the body, the near wing
-      this.set(i, 'wing', x + (vx * 16 + yx * -15) * k, y + (vy * 16 + yy * -15) * k, deep, al, vx / (k * 0.9), vy / (k * 0.9), yx / (k * 0.9 * f2), yy / (k * 0.9 * f2), 100, 250);
-      this.set(i + 1, 'fly', x, y, deep, al, vx / k, vy / k, yx / k, yy / k, 150, 80);
-      this.set(i + 2, 'wing', x + yx * -11 * k, y + yy * -11 * k, deep, al, vx / k, vy / k, yx / (k * f1), yy / (k * f1), 100, 250);
+      // the wings beat: up, and a longer way down; the body rides a little against them
+      const w = TAU * 3.4 * t + b.ph, lim = v => (v < 0 ? -1 : 1) * Math.max(0.22, Math.abs(v)), beat = p => lim(0.14 + 0.86 * Math.sin(p + 0.3 * Math.sin(p)));
+      const f1 = beat(w), f2 = beat(w - 0.35), kk = k * KF, bob = -3.5 * Math.sin(w - 0.5), bx = x + yx * bob * kk, by = y + yy * bob * kk;
+      // the far wing, the body, the near wing: a wing that is up shows its underside if it is the near one, its lit top
+      // if it is the far one, and the other way about when it is down
+      // (the far wing is set a little forward of the near one, so the two are seen as two)
+      const wing = (j, name, ox, oy, sc, f, tilt) => {
+        const c = Math.cos(tilt * fl), s = Math.sin(tilt * fl), ax = vx * c - vy * s, ay = vx * s + vy * c, cx = yx * c - yy * s, cy = yx * s + yy * c, q = kk * sc;
+        this.set(j, name, bx + (vx * ox + yx * oy) * kk, by + (vy * ox + yy * oy) * kk, deep, al, ax / q, ay / q, cx / (q * f), cy / (q * f), 110, 322);
+      };
+      wing(i, f2 > 0 ? 'wing' : 'wingu', 52, -20, 0.93, f2, 0.3);
+      this.set(i + 1, 'fly', bx, by, deep, al, vx / kk, vy / kk, yx / kk, yy / kk, 250, 130);
+      wing(i + 2, f1 > 0 ? 'wingu' : 'wing', 40, -13, 1, f1, -0.1);
       // each downstroke is heard, the louder the nearer they are
       const was = this.beat[n]; this.beat[n] = Math.sin(w);
       const nk = clamp01(k / 1.3) * al; if (K !== AWAY) near = Math.max(near, nk);
