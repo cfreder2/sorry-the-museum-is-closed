@@ -12,7 +12,8 @@
 //
 // So he comes out, and what he does in the room is what anyone does here at night: he looks at the picture. Look,
 // and the swag of green silk at the picture's right edge is let down past the frame to the floor, as if the painted
-// one hung on into the room. It is put aside from behind, and he steps out past it and walks towards you, a hand on
+// one hung on into the room. It stands out a little over someone behind it, is put aside, and he steps out past it
+// and walks towards you, a hand on
 // his hip over the hilt (as a man walks who wears a sword), the other arm swinging: for a moment you have him from
 // the front, as the picture has him. He stops, turns about, tucks his thumb into his coat, and looks up at himself,
 // his back to you and the green silk behind him, his head a little on one side. He is quite still. Then his head
@@ -26,7 +27,7 @@
 // portrait's own turn of the head, met from the other side.
 //
 // How he is made. Ingres hid his brush: the quality of the picture is a contour as exact as a cut and tone that
-// turns without a seam, so here nothing is loose and nothing is stroked. He is measured (seven and three quarter
+// turns without a seam, so here nothing is loose and nothing is stroked. He is measured (seven and a half
 // heads, the high waist and sloping shoulders of the coat, the sleeve heads a little full, limbs that taper, hands
 // with fingers), every form is a smooth surface laid by a rule, and no surface takes the room's light: his light,
 // from the upper left as in the picture, is worked out in the paint. The black is his black: nearly nothing in the
@@ -41,17 +42,18 @@
 // time: it is never drawn, lifted or pointed, and nothing is done with it.
 //
 // The silk is one sheet with its folds and its hard crumpled lights (taffeta), in the picture's greens. One rig
-// (him), the silk, and the soft shadows on the floor: three draw calls. He stands 0.74 m. Everything is under the
-// rail of this frame: he comes no further than 0.95 m out from this wall and keeps within 0.6 m of the middle of
-// his picture; the silk hangs under the frame's right-hand corner, 0.12 m deep. Turner's sea
+// (him), the silk, and the soft shadows on the floor: three draw calls. He stands 0.78 m. Everything is under the
+// rail of this frame: he comes no further than 0.7 m out from this wall and keeps within 0.45 m of the middle of
+// his picture; the silk hangs under the frame's right-hand corner, from 0.12 m to 0.6 m right of the middle and no
+// more than 0.2 m deep, 0.65 m short of the doorway. Turner's sea
 // (src/life/4796-fishing-boats-hucksters.js) begins 1.74 m out from this wall, so the two never meet; Constable's lane
 // (4758) is across the room on the same wall as the sea, and Lawrence's Isabella Wolff (4773) walks in and sits on
 // the wall opposite, seven metres away: her show is her gown and its light, this one has no light that runs and no
 // chair. He is soft to the toy: it is eased round him, never stopped and never through him; nothing is pushed and
 // nothing stays out after the look.
 //
-// No tune: steps on the boards, the silk, and two plain notes (G, and the B that makes it a chord) for the two
-// looks. With "Reduce motion and flashing" on, the silk comes down slowly and does not swing, he turns more slowly,
+// No tune: steps on the boards, the silk, and plain held notes for the two looks (a low G and its fifth when he
+// looks at the picture; the G again, and the B that makes it a chord, when he looks at you). With "Reduce motion and flashing" on, the silk comes down slowly and does not swing, he turns more slowly,
 // the gilt keeps one steady light, and it is all quieter; nothing here flashes at any setting.
 //
 // What it does not do: it gives him no story but the museum's (he commissioned it from his friend, and it stayed in
@@ -84,7 +86,7 @@ const T_HAND = [3.3, 4.1];                               // his thumb to his coa
 const T_TILT = [4.45, 5.1];                              // his head a little on one side
 const G0 = 5.25, G1 = 8.25;                              // looks round at you; goes back to the picture
 const T_LOOP = 9.6, PER = 9.5, LG0 = 4.6, LG1 = 6.7;     // and on: now and then he looks round again
-const RET = 2.8;
+const RET = 2.6;
 // ---------------------------------------------------------------- his measures (a man's, in metres)
 const HIP = 0.9, WAIST = 1.08, NECK = [0, 1.535, -0.015], SHO = [0.19, 1.44, -0.005], HIPW = 0.086;
 const THIGH = 0.42, SHIN = 0.42, ANKLE = 0.06, AU = 0.3, AF = 0.255;
@@ -153,7 +155,7 @@ function ringPt(R, th, out, grow = 1) {
   return out.set(R[2] * sn * grow, R[0], R[1] + (cs > 0 ? R[3] : R[4]) * cs * grow);
 }
 const TORSO = [[1.0, 0, 0.15, 0.112, 0.106, 2.3], [1.045, 0, 0.152, 0.116, 0.106, 2.3], [1.09, 0, 0.141, 0.109, 0.1, 2.3], [1.17, 0.005, 0.153, 0.121, 0.105, 2.4], [1.27, 0.012, 0.177, 0.14, 0.112, 2.5], [1.36, 0.012, 0.196, 0.142, 0.12, 2.6], [1.43, 0.004, 0.186, 0.122, 0.122, 2.2], [1.475, -0.004, 0.158, 0.1, 0.112, 2.1], [1.51, -0.008, 0.108, 0.082, 0.098, 2.1], [1.54, -0.012, 0.07, 0.07, 0.08, 2.0]];
-const PELVIS = [[0.79, 0, 0.02, 0.02, 0.02, 2], [0.81, 0, 0.12, 0.09, 0.095, 2.2], [0.87, 0, 0.166, 0.106, 0.116, 2.4], [0.95, 0, 0.172, 0.112, 0.125, 2.4], [1.03, 0, 0.158, 0.11, 0.112, 2.3], [1.1, 0, 0.14, 0.104, 0.098, 2.3]];
+const PELVIS = [[0.8, 0, 0.03, 0.03, 0.03, 2], [0.82, 0, 0.15, 0.095, 0.1, 2.6], [0.87, 0, 0.176, 0.106, 0.116, 2.8], [0.95, 0, 0.176, 0.112, 0.125, 2.5], [1.03, 0, 0.158, 0.11, 0.112, 2.3], [1.1, 0, 0.14, 0.104, 0.098, 2.3]];
 const T_Y0 = 1.0, T_Y1 = 1.54;
 
 // ---------------------------------------------------------------- his head: an ellipsoid with the face drawn forward
@@ -336,7 +338,7 @@ lifeFor(111317, {
   title: /Comte de Pastoret/,
   word: 'likeness',
   // (the camera stands a little to the left: his elbow and the hilt are on its side when he faces the picture, and the silk is behind him)
-  stage: { out: 1.8, half: 1.0, cam: { dist: 2.25, side: -0.55, height: 0.72, fov: 58, lookU: 0.1, lookOut: 0.45, lookH: 0.9, floorOut: 1.05 } },
+  stage: { out: 1.8, half: 1.0, cam: { dist: 2.1, side: -0.5, height: 0.62, fov: 58, lookU: 0.1, lookOut: 0.4, lookH: 0.9, floorOut: 0.78 } },
   wake: 2, ret: RET,
 
   build(L) {
@@ -349,10 +351,10 @@ lifeFor(111317, {
     const torso = part();
     {
       let TH = 0;
-      surf(torso, 56, 40, (a, b, out) => ringPt(row(TORSO, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true, uv: (a, b, p) => torsoUV((a - 0.5) * TAU, p.y) });
+      surf(torso, 44, 30, (a, b, out) => ringPt(row(TORSO, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true, uv: (a, b, p) => torsoUV((a - 0.5) * TAU, p.y) });
       // the collar: a tall band, open in front, standing a little off his neck
       const gap = b => lerp(0.14, 1.0, Math.pow(b, 0.8));
-      surf(torso, 44, 7, (a, b, out) => { TH = lerp(gap(b), TAU - gap(b), a); const back = (1 - Math.cos(TH)) / 2, y = lerp(1.495, lerp(1.6, 1.63, back), b), r = 1 + 0.14 * b + 0.16 * b * (1 - back); return out.set(0.073 * Math.sin(TH) * r, y, -0.014 + (Math.cos(TH) > 0 ? 0.076 : 0.082) * Math.cos(TH) * r); }, { ...cloth, uv: (a, b) => bandUV(a, b) });
+      surf(torso, 34, 6, (a, b, out) => { TH = lerp(gap(b), TAU - gap(b), a); const back = (1 - Math.cos(TH)) / 2, y = lerp(1.495, lerp(1.6, 1.63, back), b), r = 1 + 0.14 * b + 0.16 * b * (1 - back); return out.set(0.073 * Math.sin(TH) * r, y, -0.014 + (Math.cos(TH) > 0 ? 0.076 : 0.082) * Math.cos(TH) * r); }, { ...cloth, uv: (a, b) => bandUV(a, b) });
       // his shirt collar, white, in two points up to the jaw; and the red at his throat
       for (const sd of [-1, 1]) surf(torso, 10, 4, (a, b, out) => { const th = sd * lerp(0.22, 1.5, a), top = lerp(1.575, 1.652, sstep(a, 0, 0.6)) - 0.035 * sstep(a, 0.75, 1); return out.set(0.066 * Math.sin(th) * (1 + 0.1 * b), lerp(1.5, top, b), -0.014 + 0.07 * Math.cos(th) * (1 + 0.1 * b)); }, { kind: K.LINEN, col: LINEN });
       tube(torso, line([0, 1.47, -0.014], [0, 1.578, -0.008]), capped(t => 0.062 + 0.003 * t, 0.001, 0.12), 14, 5, { kind: K.LINEN, col: LINEN });
@@ -363,7 +365,7 @@ lifeFor(111317, {
       // his left arm: out from the shoulder, back to the elbow, and forward again to the hip
       const arm = curve([[0.13, 1.43, -0.004], [0.196, 1.412, -0.012], [0.3, 1.305, -0.046], [0.385, 1.185, -0.076], [0.326, 1.106, 0.004], [0.238, 1.047, 0.074]]);
       const ar = prof([[0, 0.05], [0.12, 0.062], [0.22, 0.066], [0.36, 0.06], [0.55, 0.054], [0.8, 0.046], [0.9, 0.042], [1, 0.042]]);
-      tube(torso, arm, (t, ph) => ar(t), 16, 34, { ...cloth, uv: (a, b) => (b > 0.84 ? bandUV(a * 0.5, 0.3 + (b - 0.84) / 0.16 * 0.6) : [2 + a, b]), extra: (a, b) => 0.25 + 0.75 * gss(b - 0.56, 0.16) });
+      tube(torso, arm, (t, ph) => ar(t), 14, 28, { ...cloth, uv: (a, b) => (b > 0.84 ? bandUV(a * 0.5, 0.3 + (b - 0.84) / 0.16 * 0.6) : [2 + a, b]), extra: (a, b) => 0.15 + 0.7 * gss(b - 0.56, 0.18) });
       const W = V3(0.238, 1.047, 0.074), d = V3(-0.757, -0.486, 0.432).normalize(), px = V3(-0.6, 0, -0.8); px.addScaledVector(d, -px.dot(d)).normalize();
       tube(torso, (t, out) => out.copy(W).addScaledVector(d, lerp(-0.012, 0.014, t)), () => 0.036, 12, 2, { kind: K.LINEN, col: LINEN });
       const yv = d.clone().negate(), zv = V3().crossVectors(px, yv).negate();      // (mirrored: a left hand)
@@ -373,26 +375,26 @@ lifeFor(111317, {
     const head = part();
     {
       const TH = a => { const s = 2 * a - 1; return PI * (0.45 * s + 0.55 * s * Math.pow(Math.abs(s), 1.2)); };
-      surf(head, 64, 48, (a, b, out) => headAt(TH(a), (b - 0.5) * PI, out), { kind: K.FACE, wrap: true, uv: (a, b) => headUV(TH(a), Math.sin((b - 0.5) * PI)) });
-      surf(head, 56, 40, (a, b, out) => { const th = (a - 0.5) * TAU, ph = (b - 0.5) * PI; return headAt(th, ph, out, hairThick(th, ph)); }, { kind: K.HAIR, col: HAIRC, wrap: true, uv: (a, b) => headUV((a - 0.5) * TAU, Math.sin((b - 0.5) * PI)), extra: (a, b) => Math.sin((b - 0.5) * PI) - hairline(Math.abs((a - 0.5) * TAU)) });
+      surf(head, 54, 40, (a, b, out) => headAt(TH(a), (b - 0.5) * PI, out), { kind: K.FACE, wrap: true, uv: (a, b) => headUV(TH(a), Math.sin((b - 0.5) * PI)) });
+      surf(head, 48, 34, (a, b, out) => { const th = (a - 0.5) * TAU, ph = (b - 0.5) * PI; return headAt(th, ph, out, hairThick(th, ph)); }, { kind: K.HAIR, col: HAIRC, wrap: true, uv: (a, b) => headUV((a - 0.5) * TAU, Math.sin((b - 0.5) * PI)), extra: (a, b) => Math.sin((b - 0.5) * PI) - hairline(Math.abs((a - 0.5) * TAU)) });
       for (const sd of [-1, 1]) ball(head, [sd * 0.079, 1.652, -0.004], [0.011, 0.03, 0.019], { kind: K.FLESH, col: FLESH }, 8, 6);
       tube(head, line([0, 1.44, -0.016], [0, 1.6, -0.006]), t => 0.055 + 0.004 * t, 14, 3, { kind: K.FLESH, col: FLESH });
     }
     // ---------------------------------------------------------- his right arm, in two; the hand at the end of it
     const armU = part(), armF = part();
     {
-      tube(armU, line([0, 0.03, 0], [0, -AU - 0.01, 0]), capped(prof([[0, 0.058], [0.14, 0.065], [0.4, 0.06], [1, 0.052]]), 0.12, 0.08), 14, 14, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.2 + 0.8 * sstep(b, 0.55, 0.95) });
+      tube(armU, line([0, 0.03, 0], [0, -AU - 0.01, 0]), capped(prof([[0, 0.058], [0.14, 0.065], [0.4, 0.06], [1, 0.052]]), 0.12, 0.08), 14, 14, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.15 + 0.6 * sstep(b, 0.5, 0.95) });
       const fr = prof([[0, 0.052], [0.5, 0.047], [0.86, 0.041], [1, 0.042]]);
-      tube(armF, line([0, 0.02, 0], [0, -AF + 0.012, 0]), capped(fr, 0.1, 0.001), 14, 14, { ...cloth, uv: (a, b) => (b > 0.82 ? bandUV(0.5 + a * 0.5, 0.3 + (b - 0.82) / 0.18 * 0.6) : [2 + a, b]), extra: (a, b) => 0.2 + 0.8 * sstep(b, 0.4, 0.05) });
+      tube(armF, line([0, 0.02, 0], [0, -AF + 0.012, 0]), capped(fr, 0.1, 0.001), 14, 14, { ...cloth, uv: (a, b) => (b > 0.82 ? bandUV(0.5 + a * 0.5, 0.3 + (b - 0.82) / 0.18 * 0.6) : [2 + a, b]), extra: (a, b) => 0.15 + 0.6 * sstep(b, 0.45, 0.05) });
       tube(armF, line([0, -AF + 0.02, 0], [0, -AF - 0.012, 0]), () => 0.0355, 12, 2, { kind: K.LINEN, col: LINEN });
       hand(armF, new THREE.Matrix4().makeTranslation(0, -AF - 0.006, 0), FLESH, { spread: 0.05, curl: 0.62 });
     }
     // ---------------------------------------------------------- his hips, the tails of the coat, the sword at his hip
     const pelvis = part();
     {
-      surf(pelvis, 32, 16, (a, b, out) => ringPt(row(PELVIS, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true });
+      surf(pelvis, 24, 12, (a, b, out) => ringPt(row(PELVIS, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true });
       // the tails: from the waist round behind him, down to the back of the knee, parted in the middle
-      surf(pelvis, 28, 16, (a, b, out) => {
+      surf(pelvis, 22, 12, (a, b, out) => {
         const span = lerp(1.75, 0.95, sstep(b, 0, 0.9)), s = 2 * a - 1, th = PI + s * span, R = [lerp(1.075, 0.52, b), 0, 0.146 * (1 + 0.1 * b), 0.11, 0.107 * (1 + 0.42 * Math.sin(b * PI * 0.6)), 2.3];
         ringPt(R, th, out, 1.03); out.z += 0.006 * b * Math.cos(s * 9); out.x += 0.012 * b * Math.sign(s) * gss(s, 0.12); return out;
       }, cloth);
@@ -411,8 +413,8 @@ lifeFor(111317, {
     // ---------------------------------------------------------- his legs (ours: the picture stops above them), plain
     const thigh = part(), shin = part(), shoe = part();
     {
-      tube(thigh, line([0, 0.05, 0], [0, -THIGH - 0.02, 0]), capped(prof([[0, 0.1], [0.25, 0.101], [1, 0.075]]), 0.16, 0.1), 14, 12, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.3 + 0.5 * sstep(b, 0.6, 0.95) + 0.3 * sstep(b, 0.3, 0.05) });
-      tube(shin, line([0, 0.04, 0], [0, -SHIN + 0.015, 0]), capped(prof([[0, 0.074], [0.3, 0.071], [0.8, 0.062], [1, 0.064]]), 0.12, 0.001), 14, 12, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.3 + 0.5 * sstep(b, 0.35, 0.05) + 0.5 * sstep(b, 0.75, 1) });
+      tube(thigh, line([0, 0.05, 0], [0, -THIGH - 0.02, 0]), capped(prof([[0, 0.09], [0.25, 0.094], [1, 0.075]]), 0.16, 0.1), 14, 12, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.12 + 0.3 * sstep(b, 0.7, 0.98) });
+      tube(shin, line([0, 0.04, 0], [0, -SHIN + 0.015, 0]), capped(prof([[0, 0.075], [0.3, 0.072], [0.8, 0.062], [1, 0.064]]), 0.12, 0.001), 14, 12, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.12 + 0.25 * sstep(b, 0.3, 0.02) + 0.35 * sstep(b, 0.8, 1) });
       surf(shoe, 14, 9, (a, b, out) => { const th = a * TAU, ph = (b - 0.5) * PI, cp = Math.cos(ph), z = Math.cos(th) * cp; return out.set(0.044 * Math.sin(th) * cp * (1 - 0.18 * Math.max(0, z)), -0.026 + 0.033 * Math.sin(ph) * (1 - 0.3 * Math.max(0, z)), 0.045 + 0.118 * z); }, { kind: K.SHOE, col: BLACK, wrap: true });
     }
 
@@ -452,11 +454,12 @@ float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     c = mix(${GL('#0b0a0a', 0.1)}, ${GL('#45423f', 0.08)}, clamp(0.8 * bloom + 0.5 * rim + 0.1 * smoothstep(-0.6, 0.6, N.y), 0.0, 1.0));
     c = mix(c, ${GL('#6a6763', 0.06)}, 0.4 * pow(nh, 4.0) * smoothstep(0.0, 0.6, nl));
     if (kind == ${K.SHOE}) c = mix(c, ${GL('#8c8a86', 0.03)}, 0.7 * pow(nh, 24.0));
+    if (!gl_FrontFacing) c *= 0.3;                                         // (the inside of his coat tails, and of his collar)
     if (vUv2.x > 1.5) {
       // a sleeve or a trouser leg: soft folds across it where it bends, as lights and hollows in the black
-      float fa = (vUv2.x - 2.0) * 6.2832, ft = vUv2.y, fold = sin(ft * 34.0 + 2.2 * sin(fa + 1.0) + 5.0 * pN(vec2(fa * 0.8, ft * 5.0))) * vK.y;
-      c = mix(c, ${GL('#55524e', 0.06)}, 0.3 * max(fold, 0.0) * smoothstep(-0.2, 0.7, nl));
-      c *= 1.0 - 0.45 * max(-fold, 0.0);
+      float fa = (vUv2.x - 2.0) * 6.2832, ft = vUv2.y, fold = 2.0 * (pN(vec2(fa * 0.7 + 2.5 * ft, ft * 6.5)) - 0.5) * vK.y;
+      c = mix(c, ${GL('#55524e', 0.06)}, 0.42 * smoothstep(0.1, 0.6, fold) * smoothstep(-0.2, 0.7, nl));
+      c *= 1.0 - 0.4 * smoothstep(0.1, 0.6, -fold);
     }
     // the embroidery: black silk on it, found where the light catches it
     float m = vUv2.x < 1.5 ? tx.r : 0.0;
@@ -621,11 +624,11 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   },
   // going home: r of the way back
   bodyBack(tau, calm, o) {
-    const h = this.hold, q = ramp(tau, 0.5, 2.25), s = walkE(q), w = 1 - s;
+    const h = this.hold, q = ramp(tau, 0.45, 2.05), s = walkE(q), w = 1 - s;
     o.u = w * w * h.u + 2 * w * s * h.vu + s * s * HOME[0]; o.out = w * w * h.out + 2 * w * s * h.vo + s * s * HOME[1];
     const du = (h.vu - h.u) * w + (HOME[0] - h.vu) * s, dout = (h.vo - h.out) * w + (HOME[1] - h.vo) * s;
     o.psi = turnTo(h.psi, Math.atan2(du, dout), ease.inOut(ramp(tau, 0.05, 0.85)));
-    o.going = q <= 0 || q >= 1 ? 0 : clamp01(Math.min(q, 1 - q) / 0.12); o.ph = (tau - 0.3) / 0.42 * PI; o.g = 0; o.gh = 0;
+    o.going = q <= 0 || q >= 1 ? 0 : clamp01(Math.min(q, 1 - q) / 0.12); o.ph = (tau - 0.28) / 0.36 * PI; o.g = 0; o.gh = 0;
     const k = 1 - ease.inOut(ramp(tau, 0, 0.5));
     o.twist = h.twist * k + 0.05 * Math.sin(o.ph) * o.going; o.hy = h.hy * k; o.hp = lerp(-0.06, h.hp, k); o.hr = h.hr * k; o.lean = h.lean * k + 0.03 * o.going; o.side = h.side * k;
     o.hand = h.hand * (1 - ease.inOut(ramp(tau, 0.2, 0.8))); o.breath = 0; o.stand = h.stand * k; o.vis = h.vis;
@@ -652,7 +655,7 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   back(L) {
     const h = this.bodyShow(L.t, L.calm, {}), tf = L.t < T_LOOP ? L.t : T_LOOP + ((L.t - T_LOOP) % PER);
     h.vu = lerp(h.u, HOME[0], 0.75); h.vo = Math.max(0.12, h.out * 0.45);
-    const steps = []; for (let k = 0; k < 6; k++) steps.push({ f: k % 2, t0: 0.3 + 0.42 * k, t1: 0.66 + 0.42 * k, lead: 0.2 });
+    const steps = []; for (let k = 0; k < 6; k++) steps.push({ f: k % 2, t0: 0.28 + 0.36 * k, t1: 0.6 + 0.36 * k, lead: 0.18 });
     this.hold = h;
     this.plant(steps, t => this.bodyBack(t, false, this.o2));
     steps.start = [this.footAt(this.steps, tf, 0, {}), this.footAt(this.steps, tf, 1, {})];
