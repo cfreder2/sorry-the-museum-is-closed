@@ -494,7 +494,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const wingR = surf((s, t, v) => v.set(WW, t * EH, lerp(PJ, 0, s)), 6, 12, (p, c) => { const n = fbm(p.z * 20, p.y * 14); c.copy(wallD).lerp(wallL, 0.35 * n).lerp(dark, 0.5 * sm(p.y, EH - 0.04, EH)); });
     const wingL = surf((s, t, v) => v.set(-CS, t * LE, lerp(PJ, -DEP, s)), 34, 10, (p, c, s, t) => {
       c.copy(dark).lerp(board, 0.3 * sm(s, 0.82, 1));
-      const g = Math.exp(-Math.pow((s - 0.56) / 0.17, 2) - Math.pow((t - 0.42) / 0.36, 2)); c.lerp(glim, clamp01(g * 1.25) * (0.75 + 0.25 * vn(s * 20, t * 9)));
+      const g = Math.exp(-Math.pow((s - 0.56) / 0.17, 2) - Math.pow((t - 0.42) / 0.36, 2)); c.lerp(glim, 0.7 * clamp01(g * 1.25) * (0.75 + 0.25 * vn(s * 20, t * 9)));      // (as light as the gable's lights and no lighter, as he has it: lighter, it glowed at the wall's foot when the rest had gone dark)
     });
     const endR = surf((s, t, v) => { const y = t * RH, w = y <= EH ? 1 : 1 - (y - EH) / (RH - EH); v.set(LEN, y, -DEP / 2 + (s - 0.5) * DEP * w); }, 6, 8, (p, c) => c.copy(dark).lerp(wallD, 0.3));
     const back = surf((s, t, v) => v.set(lerp(-CS, LEN, s), t * EH * (s < 0.1 ? 0.6 : 1), -DEP), 8, 3, (p, c) => c.copy(dark).lerp(wallD, 0.2));
