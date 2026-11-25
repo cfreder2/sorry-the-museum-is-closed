@@ -215,14 +215,18 @@ const F = {
   },
   // Somewhere to wander to: an open place in one of its rooms (its own room and the one it is in, most often).
   _wander(E) {
-    const g = this._grid(E), P = this.k.plan, R = Math.random; if (!g) return;
+    const g = this._grid(E), P = this.k.plan, R = Math.random, V = this.k.G.vehicle.pos; if (!g) return;
+    // (its own idea of where: a flock makes for a bench)
+    if (E.spec.where && R() < 0.65) { const w = E.spec.where(E, this.k, g); if (w && !this._quietNear(w.x, w.z, E.y) && Math.hypot(w.x - V.x, w.z - V.z) > 3.5 && this._to(E, w.x, w.z)) return; }
     for (let n = 0; n < 24; n++) {
       const id = R() < 0.45 ? E.room : g.rooms[Math.floor(R() * g.rooms.length)], r = P.byId[id]; if (!r || (QUIET.has(id))) continue;
       const x = r.x0 + 0.8 + R() * Math.max(0.1, r.x1 - r.x0 - 1.6), z = r.z0 + 0.8 + R() * Math.max(0.1, r.z1 - r.z0 - 1.6);
-      if (Math.hypot(x - E.x, z - E.z) > 26 || clearAt(g, x, z) < (E.spec.need || 0.42) + 0.2 || this._quietNear(x, z, E.y)) continue;
+      if (Math.hypot(x - E.x, z - E.z) > 26 || clearAt(g, x, z) < (E.spec.need || 0.42) + 0.2 || this._quietNear(x, z, E.y) || Math.hypot(x - V.x, z - V.z) < 3.5) continue;
       if (this._to(E, x, z)) return;
     }
   },
+  // Is the toy square in the way it is going?
+  _facing(E, p, d) { const i = Math.min(E.pk, E.pn - 1), nx = E.path[i * 2] - E.x, nz = E.path[i * 2 + 1] - E.z, nl = Math.hypot(nx, nz) || 1; return (nx * (p.x - E.x) + nz * (p.z - E.z)) / (nl * (d || 1)) > 0.75; },
   _move(E, dt, speed) {
     E.v = 0; if (!(E.pn > 1) || E.pk >= E.pn) return true;
     let left = speed * dt;
@@ -277,6 +281,8 @@ const F = {
     if (this._box && this._box.checked !== on) this._box.checked = on;
     if (!on) { this.marks.begin(dt); this.marks.end(); return; }
     const p = G.vehicle.pos, eye = G.camera.position, play = G.state === 'play';
+    // (a sheepdog works by moving: a toy that is parked herds nothing, and nothing loose comes up to it)
+    if (this.px != null && Math.hypot(p.x - this.px, p.z - this.pz) > 0.4 * dt) this.still = 0; else this.still = (this.still || 0) + dt; this.px = p.x; this.pz = p.z;
     // How an escape begins: the toy has watched a living work's show for a few seconds, and drives off.
     for (const E of this.list0) {
       if (E.state !== 'home') continue;
@@ -308,7 +314,7 @@ const F = {
         const lit = E.by && E.litNow; E.litNow = false;
         if (!lit) { E.lit = Math.max(0, E.lit - dt * 0.5); if (E.lit <= 0) E.by = null; }
         const d = E.d, spot = this._spot(E);
-        if (play && !lit && d < TUNE.herd && !sacred) { if (!E.led) E.pn = 0; E.led = 3; } else if (E.led > 0 && (d > TUNE.keep || lit)) { E.led = Math.max(0, E.led - dt); if (!E.led) E.pn = 0; }
+        if (play && !lit && d < TUNE.herd && !sacred && (this.still < 2 || E.led > 0)) { if (!E.led) E.pn = 0; E.led = 3; } else if (E.led > 0 && (d > TUNE.keep || lit)) { E.led = Math.max(0, E.led - dt); if (!E.led) E.pn = 0; }
         if (E.spec.helper) E.spec.helper(E, dt, k, this);
         if (lit && E.spec.react === 'still') E.v = 0;
         else if (lit && E.spec.react === 'off') { if (!(E.pn > 1 && E.pk < E.pn)) this._off(E, E.by); this._move(E, dt, E.spec.speed * 0.8); }
@@ -316,13 +322,13 @@ const F = {
           if (spot) {
             if (!(E.pn > 1) || E.goal !== 'home') { this._to(E, spot.x, spot.z, Math.min(E.spec.need || 0.42, 0.36)); E.goal = 'home'; }
             // (never at the player: with the toy square in its way it waits for the way to clear)
-            const nx = E.path[Math.min(E.pk, E.pn - 1) * 2] - E.x, nz = E.path[Math.min(E.pk, E.pn - 1) * 2 + 1] - E.z, nl = Math.hypot(nx, nz) || 1, tx = p.x - E.x, tz = p.z - E.z;
-            if (d < 1.5 && (nx * tx + nz * tz) / (nl * (d || 1)) > 0.75) E.v = 0;
+            if (d < 1.5 && this._facing(E, p, d)) E.v = 0;
             else if (this._move(E, dt, E.spec.herd || E.spec.speed * 1.6) && Math.hypot(E.x - spot.x, E.z - spot.z) < 0.5) this.home(E, 'toy');
           } else { if (!(E.pn > 1 && E.pk < E.pn)) this._off(E, { x: p.x, z: p.z }); this._move(E, dt, E.spec.herd || E.spec.speed * 1.6); }
         } else {
           if (E.goal === 'home') { E.goal = null; E.pn = 0; }
-          if (E.pn > 1 && E.pk < E.pn) { if (this._move(E, dt, E.spec.speed)) E.rest = E.spec.rest ? E.spec.rest[0] + Math.random() * (E.spec.rest[1] - E.spec.rest[0]) : 4; }
+          if (E.pn > 1 && E.pk < E.pn && d < 2.4 && this._facing(E, p, d)) { E.v = 0; if ((E.balk = (E.balk || 0) + dt) > 2.5) { E.balk = 0; E.pn = 0; E.rest = 0.5; } }      // (the toy is in its way: it does not come up to it)
+          else if (E.pn > 1 && E.pk < E.pn) { if (this._move(E, dt, E.spec.speed)) E.rest = E.spec.rest ? E.spec.rest[0] + Math.random() * (E.spec.rest[1] - E.spec.rest[0]) : 4; }
           else if ((E.rest -= dt) <= 0) { this._wander(E); if (!(E.pn > 1)) E.rest = 2; }
         }
         if ((E.roomT = (E.roomT || 0) - dt) <= 0) { E.roomT = 0.25; const gg = this._grid(E); E.clear = gg ? clearAt(gg, E.x, E.z) : 1; const r = roomAt(k.plan, E.x, E.z, E.y + 0.5); if (r && r.id !== E.room && !QUIET.has(r.id)) { E.room = r.id; this.dirty = true; } }
@@ -411,7 +417,7 @@ const F = {
     T.ang = ang; look(ang, 3.2);
     const lit = this._lit(b, E, 1.25);
     if (E.state === 'going') { T.k = Math.min(1, T.k + dt * 1.6); return true; }
-    if (lit) { T.lost = 0; E.litNow = true; E.by = b; E.lit = Math.min(1, E.lit + dt / TUNE.hold); if (E.lit >= 1 && Math.abs(wrap(ang - b.look)) < 0.25) { this.home(E, 'light', b); if (E.state === 'home') T.done = 0.01; } }
+    if (lit) { T.lost = 0; E.litNow = true; E.by = b; E.lit = Math.min(1, E.lit + dt / (E.spec.hold || TUNE.hold)); if (E.lit >= 1 && Math.abs(wrap(ang - b.look)) < 0.25) { this.home(E, 'light', b); if (E.state === 'home') T.done = 0.01; } }
     else if ((T.lost += dt) > 3) { this._untend(b, gf, true); return true; }
     T.k = Math.min(0.35, T.k + dt * 0.2 * (lit ? 1 : 0));      // (the lamp begins to warm as it holds)
     return true;
@@ -494,8 +500,11 @@ const F = {
     if (!E || E.body !== true) return { error: 'no body' };
     const k = this.k, G = k.G, r = G.renderer, H = Math.round(W * 9 / 16), rows = [];
     const arts = k.museum.arts.filter(a => a.mesh && !a.obj && Math.abs((a.fy != null ? a.fy : a.y) - E.y) < 8 && Math.hypot(a.x - E.x, a.z - E.z) < 60);
-    const quads = new THREE.Group(), white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, toneMapped: false });
-    for (const a of arts) { a.mesh.updateMatrixWorld(); const m = new THREE.Mesh(a.mesh.geometry, white); m.matrixAutoUpdate = false; m.matrix.copy(a.mesh.matrixWorld); quads.add(m); }
+    const quads = new THREE.Scene(), white = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide });
+    // (each canvas in a colour of its own, so a pixel on one can be laid at that work's door)
+    const tints = arts.map((a, i) => new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(((i + 1) & 255) / 255, ((i + 1) >> 8) / 255, 1), side: THREE.DoubleSide, toneMapped: false }));
+    arts.forEach((a, i) => { a.mesh.updateMatrixWorld(); const m = new THREE.Mesh(a.mesh.geometry, tints[i]); m.matrixAutoUpdate = false; m.matrix.copy(a.mesh.matrixWorld); quads.add(m); });
+    const over = new Map();
     quads.updateMatrixWorld(true);
     const near = arts.slice().sort((p, q) => Math.hypot(p.x - E.x, p.z - E.z) - Math.hypot(q.x - E.x, q.z - E.z)), h = E.y + (E.spec.height || 0.4) * 0.5;
     const V = views || {
@@ -514,20 +523,21 @@ const F = {
       this._cam = cam;
       const arts2 = this._arts(E.room === G.roomId || !G.roomId ? [E.room] : [E.room, G.roomId]);
       this._watch(E.key, arts2, cam.position, E.x, h, E.z, E.spec.radius || 0.6); this._watch(this.key, arts2, cam.position, cam.position.x, cam.position.y, cam.position.z, 0);
-      r.setRenderTarget(rt); r.setClearColor(0x000000, 0); r.autoClear = true; white.colorWrite = true; r.render(quads, cam); r.readRenderTargetPixels(rt, 0, 0, W, H, mask);
+      r.setRenderTarget(rt); r.setClearColor(0x000000, 0); r.autoClear = true; quads.overrideMaterial = null; r.render(quads, cam); r.readRenderTargetPixels(rt, 0, 0, W, H, mask);
       const shot = off => {
         for (const key of keys) guardBlock(key).uLifeOff.value = off ? 1 : 0;
-        white.colorWrite = false; r.autoClear = true; r.render(quads, cam); r.autoClear = false; for (const o of objs) if (o.visible) r.render(o, cam);
+        quads.overrideMaterial = white; r.autoClear = true; r.render(quads, cam); r.autoClear = false; for (const o of objs) if (o.visible) r.render(o, cam);
         r.readRenderTargetPixels(rt, 0, 0, W, H, buf);
-        let on = 0, all = 0; for (let i = 0; i < W * H; i++) { if (buf[i * 4 + 3] < 8) continue; all++; if (mask[i * 4 + 3] > 8) on++; }
+        let on = 0, all = 0; for (let i = 0; i < W * H; i++) { if (buf[i * 4 + 3] < 8) continue; all++; if (mask[i * 4 + 3] > 8) { on++; if (!off) { const w = mask[i * 4] + mask[i * 4 + 1] * 256 - 1; over.set(w, (over.get(w) || 0) + 1); } } }
         return { on, all };
       };
       const g = shot(false), u = shot(true);
       rows.push({ cam: name, drawn: g.on, wouldBe: u.on, visible: g.all });
     }
     for (const key of keys) guardBlock(key).uLifeOff.value = 0;
-    this._cam = null; r.setRenderTarget(prevRT); r.setClearColor(cc, ca); r.autoClear = auto; rt.dispose(); white.dispose();
-    return { id: E.id, tag: E.spec.tag, canvases: arts.length, guarded: guardBlock(E.key).arts.length, pass: rows.every(q => q.drawn === 0), drawn: rows.reduce((n, q) => n + q.drawn, 0), wouldBe: rows.reduce((n, q) => n + q.wouldBe, 0), visible: rows.reduce((n, q) => n + q.visible, 0), rows };
+    this._cam = null; r.setRenderTarget(prevRT); r.setClearColor(cc, ca); r.autoClear = auto; rt.dispose(); white.dispose(); for (const m of tints) m.dispose();
+    const kept = new Set(guardBlock(E.key).arts);
+    return { over: [...over].map(([i, n]) => ({ work: arts[i] ? arts[i].work.id : i, room: arts[i] && arts[i].room, guarded: kept.has(arts[i]), px: n, far: arts[i] ? +Math.hypot(arts[i].x - E.x, arts[i].z - E.z).toFixed(1) : 0 })), id: E.id, tag: E.spec.tag, canvases: arts.length, guarded: guardBlock(E.key).arts.length, pass: rows.every(q => q.drawn === 0), drawn: rows.reduce((n, q) => n + q.drawn, 0), wouldBe: rows.reduce((n, q) => n + q.wouldBe, 0), visible: rows.reduce((n, q) => n + q.visible, 0), rows };
   },
 };
 feature(F);
