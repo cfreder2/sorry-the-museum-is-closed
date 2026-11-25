@@ -10,8 +10,8 @@
 // every night. Drive up to it and it bolts: out of the room and away through the building, a dash at a time, always
 // a little ahead, stopping to look back and chatter when you fall behind, to the Director's whiteboard (the one with
 // the clue on it: src/secret.js). Find it there and it runs home; the next time you come into 240 it is sitting on
-// the bench, and it runs to the picture and jumps to the foot of the frame, under where the painted one sits, and is
-// gone: back on its lead. Lose it for long enough and it goes back under the bench, to be chased again. It goes by
+// the bench, and it runs to the picture, waits at the foot of the wall until you are looking its way, and jumps to
+// the foot of the frame, under where the painted one sits, and is gone: back on its lead. Lose it for long enough and it goes back under the bench, to be chased again. It goes by
 // the robots' own floor plan (src/guardplan.js), so never through a wall, a case or a bench; and like the dancers it
 // is never seen in front of the canvas. The painted monkey is still the clue to the Director's passage, and still
 // there to be tapped (src/secret.js, src/secretclue.js). The dancers are not solid, and only there while you look.
@@ -33,7 +33,8 @@ const RIGID = 0, LEG_L = 1, LEG_R = 2, PARASOL = 3, TILT_C = Math.cos(0.45), TIL
 // more than AWAY off (further than its longest dash leaves it ahead, so a toy that is following is never 'away'), or
 // twice that of waiting in one place. NEED is the room it keeps from walls and furniture, MK its size (the model is
 // 21 cm tall at 1: at 1.3 it still sits under a bench seat, 37 cm clear), TALL its height.
-const BOLT = 1.5, NEAR = 3.4, AWAY = 18, HOP = 8, RUN = 9, DASH = 15, LOST = 45, NEED = 0.3, MK = 1.3, TALL = 0.21 * MK;
+// WATCH is how long it waits at the foot of the wall to be looked at before it jumps home anyway.
+const BOLT = 1.5, NEAR = 3.4, AWAY = 18, HOP = 8, RUN = 9, DASH = 15, LOST = 45, WATCH = 12, NEED = 0.3, MK = 1.3, TALL = 0.21 * MK;
 const swing = (a, b, f) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * Math.min(1, f);
 // Off the bench seat (h above the floor) and down beside it, f from 0 to 1: level until it is clear of the seat's edge.
 const hopDown = (h, f) => h * (1 - f * f * f) + Math.sin(f * Math.PI) * 0.15;
@@ -162,7 +163,7 @@ feature({
     const b = this.bench = k.plan.benches.find(q => q.room === room.id) || null, mx = (room.x0 + room.x1) / 2, mz = (room.z0 + room.z1) / 2;
     this.home = b ? { x: b.x + (b.alongX ? 0 : Math.sign(mx - b.x) * 0.1), y: room.y, z: b.z + (b.alongX ? Math.sign(mz - b.z) * 0.1 : 0) } : { x: room.x1 - 0.35, y: room.y, z: room.z0 + 0.35 };
     this.seat = b ? { x: b.x, y: room.y + 0.5, z: b.z } : this.home;
-    this.buf = new Float32Array(512); this.K = new Float32Array(12); this.fade = 0; this.t = 0;
+    this.buf = new Float32Array(512); this.K = new Float32Array(12); this.q = new THREE.Vector3(); this.fade = 0; this.t = 0;
     this.trail = null; this.charted = false; this.grid = null; this.clock = 0;
     this.hide();
     this.wz = null;    // the waltz
@@ -198,7 +199,8 @@ feature({
   //   show    looking up at the board for a few seconds; then
   //   home    back the way it came, flat out: to hop onto the bench (found) or go under it again (it gave the toy up).
   //   up      the hop onto the seat.            seat    sitting there until the toy next comes into the room.
-  //   toart   down, and across to the picture.  leap    the jump to the foot of the frame.
+  //   toart   down, and across to the picture.  foot    at the foot of the wall there, until it is being looked at.
+  //   leap    the jump to the foot of the frame.
   //   hang    hanging there a moment, and gone. back    on its lead in the picture, for the rest of the night.
   ape(dt, k) {
     const m = this.monkey, G = k.G, st = this.state;
@@ -257,7 +259,15 @@ feature({
       const W = this.homing, c1 = W.cum[1];
       this.s = Math.min(W.len, this.s + (this.s < c1 ? 3.2 : 6) * dt); this.pose(dt, k, 1, W); this.patter(dt, k, gap);
       if (this.s < c1 && this.drop) m.position.y = y0 + hopDown(this.drop, this.s / c1);
-      if (this.s >= W.len - 1e-3) { this.state = 'leap'; this.rest = 0; this.lx = m.position.x; this.lz = m.position.z; }
+      if (this.s >= W.len - 1e-3) { this.state = 'foot'; this.rest = 0; this.seen = 0; this.chat = 0.5; }
+    } else if (st === 'foot') {
+      // At the foot of the wall, under its place: hopping and chattering there until it is on the screen (for half a
+      // second: a toy driven up to the bench has its back to the picture, and the jump was over before it had turned
+      // round), or it has waited WATCH seconds. Then the jump.
+      this.rest += dt; m.position.y = y0 + Math.abs(Math.sin(tt * 7)) * (calm ? 0.025 : 0.07); m.rotation.x = 0; face(p.x, p.z, 12);
+      if (G.state === 'play' && (this.chat -= dt) < 0) { this.chat = 1.8; this.chatter(k, 0.03); }
+      this.seen = m.visible && this.onScreen(k) ? this.seen + dt : 0;
+      if (this.seen > 0.5 || this.rest > WATCH) { this.state = 'leap'; this.rest = 0; this.lx = m.position.x; this.lz = m.position.z; }
     } else if (st === 'leap') {
       // Up to the foot of the frame: rising all the way and never above where it will hang, its head under the rail.
       const F = this.from, a = this.art, f = Math.min(1, (this.rest += dt) / 0.42);
@@ -357,6 +367,13 @@ feature({
     const g = this.grid || (this.grid = grid(k.plan, [this.roomId], this.y));
     this.homing = this.route(g, o.x, o.z, bx, bz, !seat && !!this.bench) || { p: [o.x, o.z, o.x, o.z, bx, bz], cum: [0, 0, Math.hypot(bx - o.x, bz - o.z)], len: Math.hypot(bx - o.x, bz - o.z), under: false, i: 0 };
     this.state = 'toart'; this.s = 0; this.drop = seat ? this.seat.y - this.y : 0;
+  },
+  // Is it on the screen just now, and near enough to be made out? (As the last frame was drawn.)
+  onScreen(k) {
+    const cam = k.G.camera, m = this.monkey; if (!cam) return true;
+    const q = this.q.set(m.position.x, m.position.y + TALL / 2, m.position.z);
+    if (q.distanceTo(cam.position) > 14) return false;
+    q.project(cam); return Math.abs(q.x) < 0.85 && Math.abs(q.y) < 0.85 && q.z < 1;
   },
   // The dancers' guarantee, for the monkey. Would any of it be seen in front of the canvas from where the camera is just
   // now? Three balls hold all of it (its body and feet; its head; its tail, wherever that has swung to; all bigger when
