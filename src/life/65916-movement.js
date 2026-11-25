@@ -66,7 +66,7 @@ function part(bars, vol) {
 // ---------------------------------------------------------------- the timing (seconds of show)
 const T_MUSIC = 0.6;                                 // bar 1: the first hand, alone
 const T_SKIM = T_MUSIC + 2 * BAR;                    // bar 3, where the second hand begins to run: the orange disc skims the floor on its first beat
-const T_LAUNCH = T_SKIM - 2.496;                     // so it sets off this long before (top to bottom, with its easing in, takes 2.5 s)
+const T_LAUNCH = T_SKIM - 2.513;                     // so it sets off this long before (top to bottom, with its easing in, takes 2.5 s: change RING or the easing and this changes)
 const T_ORB = 3 * BAR;                               // once round: three bars (so it skims on the first beat of bars 3, 6, 9 and 12, and the tune comes round with it)
 const RR = 0.3, RO = 0.18;                           // the red disc's radius, the orange one's (m): as 5 to 3, as he has them
 const G = 9.8, BOUNCE = t => G * t * t / 8;          // how high a bounce that lasts t seconds goes
@@ -77,7 +77,7 @@ const TO0 = T_LAUNCH - 0.62, TO1 = TO0 + 0.2;        // the orange one: out from
 const RED = [-0.05, 1.0], RED0 = [0.1, 0.07];        // where the red disc sits, and where it comes out from under the rail
 // The orange disc's path: an ellipse round the red disc, tilted up towards the wall (and a little to the right), so
 // that it skims the floor in front and is highest at the back, up to the right of the red disc, as it is in the picture.
-const RING = { cu: 0.15, cout: 0.95, A: 1.05, B: 0.37, gu: 0.1, go: 0.95, low: RO + 0.03, swing: 2.6 };
+const RING = { cu: 0.15, cout: 0.95, A: 1.05, B: 0.37, gu: 0.1, go: 0.745, low: RO + 0.03, swing: 2.6 };      // (its top is kept under a metre, so that from the toy's eye it stays below the picture)
 const EDGE = 0.94;                                   // a disc's rim on its card
 const TONE = 0.8;                                    // his colours a little under full strength: paint in a lit room, not lamps
 const NT = 512;
@@ -266,7 +266,7 @@ ${GLSL_NOISE}`)
   }`);
     };
     wmat.customProgramCacheKey = () => 'hartley-wake';
-    this.wake = L.add(new THREE.Mesh(wgeo, wmat)); this.wake.name = 'wake'; this.wake.renderOrder = 5;
+    this.wake = L.add(new THREE.Mesh(wgeo, wmat)); this.wake.name = 'wake'; this.wake.renderOrder = 7;      // (after the gallery's lamp pools, at 4, and the labels' green glow, at 5, which would otherwise show through it)
 
     // ---------------------------------------------------------- under the discs: a soft shadow each, and the red one's warm
     // light on the floor (darkening and light in one draw call: the colour is added, the alpha takes away)
