@@ -30,7 +30,7 @@ const HIPS = [[0.062, 0.18, 0.13], [-0.062, 0.18, 0.13], [0.066, 0.185, -0.13], 
 const sm = x => { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _t = new THREE.Vector3(0, 1, 0), _c = new THREE.Color();
-const LIGHT = ['#f3ecda', '#e9dfc8', '#efe4c9', '#e2d6bb'], FLANK = ['#d8cbb0', '#cdbf9f', '#b8b2a2', '#a9b0a8', '#c7b99c'], SHADE = ['#8a745a', '#6e5a48', '#7d6a55', '#94846c'];
+const LIGHT = ['#f3ecda', '#e9dfc8', '#efe4c9', '#e2d6bb'], FLANK = ['#d8cbb0', '#cdbf9f', '#b8b2a2', '#a9b0a8', '#c7b99c'], SHADE = ['#a8977c', '#9a8a72', '#b3a48a', '#a39a8a'];
 // Wool: dabs all over a ball, but no two lying alike (each leans its own way and stands a little in or out, so the
 // tufts break the outline), coloured by which way the place faces: pick(up, R) -> THREE.Color.
 function fleece(c, r, n, size, R, pick, { jit = 0.5, out = [0.96, 1.1], long = [1.15, 1.5] } = {}) {
@@ -68,23 +68,23 @@ escapeFor(111559, {
     const B = E.build, R = B.R = rng(111559), S = L && L.spec, c = (h, k = 0.15) => col(pal, h, k);
     // ---- the lambs
     const light = LIGHT.map(h => c(h)), flank = FLANK.map(h => c(h)), shade = SHADE.map(h => c(h)), face = ['#d9cbb0', '#cdbf9f', '#e2d6bb', '#bfae90'].map(h => c(h));
-    const pick = (up, r) => { const q = up + (r() - 0.5) * 0.75, set = q > 0.22 ? light : q < -0.34 ? shade : flank; return set[Math.floor(r() * set.length)]; };
-    const under = c('#86755e').getHex(), bone = c('#b3a488').getHex(), shin = c('#a39378').getHex(), V = (x, y, z) => new THREE.Vector3(x, y, z);
+    const pick = (up, r) => { const q = up + (r() - 0.5) * 0.75, set = q > 0.12 ? light : q < -0.48 ? shade : flank; return set[Math.floor(r() * set.length)]; };
+    const under = c('#b9ab90').getHex(), bone = c('#b3a488').getHex(), shin = c('#a39378').getHex(), V = (x, y, z) => new THREE.Vector3(x, y, z);
     // its barrel, deep in the chest; a small tail hanging
     const gBody = merge([ball([0, 0.3, 0], [0.072, 0.072, 0.152], under, 10),
-      dabs([...fleece([0, 0.3, 0], [0.085, 0.085, 0.17], LOW ? 92 : 150, [0.036, 0.056], R, pick), ...fleece([0, 0.3, 0.1], [0.07, 0.082, 0.068], LOW ? 14 : 24, [0.032, 0.048], R, pick), ...fleece([0, 0.268, -0.172], [0.018, 0.046, 0.018], 7, [0.022, 0.03], R, pick, { jit: 0.3 })])]);
+      dabs([...fleece([0, 0.3, 0], [0.085, 0.085, 0.17], LOW ? 110 : 190, [0.036, 0.056], R, pick), ...fleece([0, 0.3, 0.1], [0.07, 0.082, 0.068], LOW ? 14 : 24, [0.032, 0.048], R, pick), ...fleece([0, 0.268, -0.172], [0.018, 0.046, 0.018], 7, [0.022, 0.03], R, pick, { jit: 0.3 })])]);
     // a leg: long for the body, a knee, a small dark hoof, wool to the knee
     const shank = new THREE.CylinderGeometry(0.016, 0.0105, 0.225, 5); shank.translate(0, -0.1125, 0);
     const gLeg = merge([solid(shank, shin), ball([0, -0.106, 0.003], [0.0155, 0.017, 0.0155], shin, 6), ball([0, -0.225, 0.005], [0.013, 0.0105, 0.018], c('#3a2e26').getHex(), 6),
       dabs(fleece([0, -0.05, 0], [0.021, 0.068, 0.023], LOW ? 6 : 9, [0.024, 0.034], R, pick, { jit: 0.3, out: [1, 1.1] }))]);
     // its neck and head, turning at the shoulder: a neck, a wedge of a skull running out to the muzzle, two long ears out
     // sideways, a dark eye and nose set down as dabs
-    const eye = side => { const d = V(side * 0.84, 0.2, 0.5).normalize(); return { p: V(d.x * 0.044 * 1.07, 0.172 + d.y * 0.042 * 1.07, 0.097 + d.z * 0.052 * 1.07), n: d, s: 0.0125, l: 1.7, a: Math.PI / 2, c: c('#2a201c') }; };
-    const ear = side => [{ p: V(side * 0.074, 0.186, 0.064), n: V(0, 0.5, 0.86), s: 0.033, l: 2.1, a: Math.PI / 2 - side * 0.32, c: c('#e2d6bb') }, { p: V(side * 0.076, 0.186, 0.067), n: V(0, 0.5, 0.86), s: 0.015, l: 2.6, a: Math.PI / 2 - side * 0.32, c: c('#c79a84') }];
-    const gHead = merge([ball([0, 0.07, 0.04], [0.033, 0.094, 0.039], under, 8), ball([0, 0.17, 0.1], [0.039, 0.037, 0.05], bone, 8), ball([0, 0.152, 0.158], [0.025, 0.024, 0.042], c('#c9b99c').getHex(), 8),
-      dabs([...fleece([0, 0.07, 0.04], [0.04, 0.1, 0.046], LOW ? 16 : 24, [0.03, 0.044], R, pick), ...fleece([0, 0.172, 0.097], [0.044, 0.042, 0.052], LOW ? 18 : 28, [0.022, 0.032], R, pick, { jit: 0.3, out: [1, 1.06] }),
-        ...fleece([0, 0.152, 0.152], [0.027, 0.026, 0.042], 10, [0.018, 0.026], R, (u, r) => face[Math.floor(r() * face.length)], { jit: 0.2, out: [1, 1.03] })]),
-      dabs([...ear(1), ...ear(-1), eye(1), eye(-1), { p: V(0, 0.15, 0.203), n: V(0, -0.15, 1), s: 0.02, l: 1.2, a: 0, c: c('#6a4a44') }], 0.006)]);
+    const eye = side => { const d = V(side * 0.84, 0.2, 0.5).normalize(); return { p: V(d.x * 0.044 * 1.07, 0.134 + d.y * 0.042 * 1.07, 0.097 + d.z * 0.052 * 1.07), n: d, s: 0.0125, l: 1.7, a: Math.PI / 2, c: c('#2a201c') }; };
+    const ear = side => [{ p: V(side * 0.074, 0.148, 0.064), n: V(0, 0.5, 0.86), s: 0.033, l: 2.1, a: Math.PI / 2 - side * 0.32, c: c('#e2d6bb') }, { p: V(side * 0.076, 0.148, 0.067), n: V(0, 0.5, 0.86), s: 0.015, l: 2.6, a: Math.PI / 2 - side * 0.32, c: c('#c79a84') }];
+    const gHead = merge([ball([0, 0.05, 0.04], [0.038, 0.078, 0.043], under, 8), ball([0, 0.132, 0.1], [0.039, 0.037, 0.05], bone, 8), ball([0, 0.114, 0.158], [0.025, 0.024, 0.042], c('#c9b99c').getHex(), 8),
+      dabs([...fleece([0, 0.05, 0.04], [0.045, 0.084, 0.05], LOW ? 18 : 28, [0.03, 0.044], R, pick), ...fleece([0, 0.134, 0.097], [0.044, 0.042, 0.052], LOW ? 18 : 28, [0.022, 0.032], R, pick, { jit: 0.3, out: [1, 1.06] }),
+        ...fleece([0, 0.114, 0.152], [0.027, 0.026, 0.042], 10, [0.018, 0.026], R, (u, r) => face[Math.floor(r() * face.length)], { jit: 0.2, out: [1, 1.03] })]),
+      dabs([...ear(1), ...ear(-1), eye(1), eye(-1), { p: V(0, 0.112, 0.203), n: V(0, -0.15, 1), s: 0.02, l: 1.2, a: 0, c: c('#6a4a44') }], 0.006)]);
     const lb = B.lb = batch([gBody, gLeg, gHead], N * 6, paint({ glow: 0.42, rough: 0.9 }));
     B.lambs = Array.from({ length: N }, (_, j) => ({ j, s: LS * [1, 1.07, 0.93][j % 3], body: lb.add(0), hd: lb.add(2), legs: [0, 1, 2, 3].map(() => lb.add(1)), x: E.x + Math.sin(j * 2.1) * 0.2, z: E.z + Math.cos(j * 2.1) * 0.2, yaw: E.yaw, dist: j * 0.3, v: 0, leap: 3 + R() * 5, air: -1, slot: null, look: R() * TAU, g: 0, up: 0, upT: 2 + R() * 6, hy: 0, hyaw: 0 }));
     group.add(lb.mesh); B.mh = new THREE.Matrix4();
@@ -142,7 +142,7 @@ escapeFor(111559, {
       l.g += (graze - l.g) * Math.min(1, dt * 3.2); const gz = sm(l.g);
       const pitch = air >= 0 ? -0.16 * Math.cos(Math.PI * air) : 0.2 * gz;
       // its head: carried before it as it goes, down to the floor to graze (and working at it), up and about when it looks
-      const hp = 0.32 + 1.68 * gz + (calm ? 0 : 0.06 * gz * Math.sin(t * 5.2 + l.j * 2.1)) - (air >= 0 ? 0.14 : 0);
+      const hp = 0.5 + 1.62 * gz + (calm ? 0 : 0.06 * gz * Math.sin(t * 5.2 + l.j * 2.1)) - (air >= 0 ? 0.14 : 0);
       l.hyaw += ((rest && l.up > 0 ? l.hy : 0) - l.hyaw) * Math.min(1, dt * 3);
       bn.set(B.m, l.x - E.x, hop * l.s, l.z - E.z, l.yaw, pitch, 0, l.s); lb.mat(l.body, B.m);
       bn.child(B.mh, B.m, NECK[0], NECK[1], NECK[2], l.hyaw + (calm ? 0 : 0.1 * gz * Math.sin(t * 0.9 + l.j)), hp, 0); lb.mat(l.hd, B.mh);

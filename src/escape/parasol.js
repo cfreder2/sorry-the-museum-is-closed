@@ -38,8 +38,9 @@ escapeFor(14620, {
   colors: ['#e8765a', '#f09070', '#f2a890', '#ec8468', '#f6b8a0', '#d8604a', '#b85a46', '#f2d86a', '#7fa04a'],
   // Monet's short commas, each turned its own way, as he flicks them on
   mark: { cell: CELL.comma, w: [0.024, 0.036], long: [1.7, 2.3], turn: 0, jit: 1.3 },
-  // (its dome, up where it flies: what a robot's lamp throws the shadow of)
-  parts(E) { const B = E.build, m = B.mesh; return [{ x: E.x + m.position.x, y: E.y + m.position.y - 0.03, z: E.z + m.position.z, r: 0.27, ry: 0.1 }]; },
+  // (its dome: up where it flies, or stood on its rim on the floor, which is how a robot's lamp finds it and throws its
+  // shadow, from its foot away over the floor)
+  parts(E) { const B = E.build, m = B.mesh, h = m.position.y, f = sm(B.f || 0); return [{ x: E.x + m.position.x, y: E.y + h - 0.03 * f, z: E.z + m.position.z, r: 0.28, ry: 0.1 + (h - 0.1) * (1 - f) }]; },
 
   async build(E, L, { group, pal }) {
     const B = E.build, c = (h, k = 0.15) => col(pal, h, k);

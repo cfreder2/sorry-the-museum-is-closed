@@ -442,7 +442,7 @@ const F = {
       try { E.spec.pose(E, dt, k); } catch (e) { console.error('escapes: ' + E.spec.name + ': ' + (e && e.stack || e)); this._arrive(E, 'now'); E.body = 'broken'; continue; }
       // what the lamp throws behind it
       const lb = E.lit > 0.02 ? E.by || (E.going && E.going.b) : null;
-      if (lb && lb.fy != null && Math.abs(lb.fy - E.y) < 0.5) { const sk = Math.min(1, E.lit * 1.4) * (1 - E.gone) * 0.5, ps = (E.spec.parts && E.spec.parts(E)) || null; if (ps) for (const q of ps) this.shade.put(q.x, q.y, q.z, q.sr || q.r, q.ry || q.r, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); else { const hh = (E.spec.height || 0.4) * 0.5, rr = Math.min(E.spec.radius || 0.4, hh); this.shade.put(E.x, E.y + hh, E.z, rr, hh, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); } }
+      if (lb && lb.fy != null && Math.abs(lb.fy - E.y) < 0.5) { const sk = Math.min(1, E.lit * 1.4) * (1 - E.gone) * 0.62, ps = (E.spec.parts && E.spec.parts(E)) || null; if (ps) for (const q of ps) this.shade.put(q.x, q.y, q.z, q.sr || q.r, q.ry || q.r, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); else { const hh = (E.spec.height || 0.4) * 0.5, rr = Math.min(E.spec.radius || 0.4, hh); this.shade.put(E.x, E.y + hh, E.z, rr, hh, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); } }
       this._watch(E.key, this._arts(E.room === G.roomId || !G.roomId ? [E.room] : [E.room, G.roomId]), eye, E.x, E.y + (E.spec.height || 0.4) / 2, E.z, E.spec.radius || 0.6, E.y);
     }
     this.marks.end(); this.shade.end();

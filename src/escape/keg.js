@@ -32,7 +32,7 @@ escapeFor(25865, {
   count: 1, speed: 0.42, herd: 1.05, radius: 1.05, height: 0.36, need: 0.6, rest: [3, 8], react: 'none', chips: 25, stroke: 1.15,
   colors: ['#b04a2a', '#cf6a40', '#743423', '#35423b', '#46554d', '#586660', '#28402e', '#cbc5af'],
   // Homer's long wet strokes, laid the way the water runs: no wider or longer than the ones on the keg
-  mark: { cell: CELL.wet, w: [0.026, 0.038], long: [2.3, 3.0], turn: 0, jit: 0.22 },
+  mark: { cell: CELL.wet, w: [0.022, 0.032], long: [3.2, 4.4], turn: 0, jit: 0.2 },
   parts(E) { const B = E.build; return [{ x: E.x + (B.kx || 0), y: E.y + (B.h || 0.1), z: E.z + (B.kz || 0), r: 0.15, ry: 0.13 }]; },
 
   async build(E, L, { group, pal }) {
