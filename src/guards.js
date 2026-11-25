@@ -94,7 +94,7 @@ const MOOD = {
   calm: new THREE.Color(0.25, 1.1, 1.6), wary: new THREE.Color(2.0, 1.15, 0.15), hunt: new THREE.Color(2.4, 0.18, 0.12),
   poolCalm: new THREE.Color(0.55, 0.72, 0.85), poolWary: new THREE.Color(0.9, 0.62, 0.18), poolHunt: new THREE.Color(1.0, 0.2, 0.14),
   // Sending something home to its painting (src/escapes.js): the lamp goes from its search colour to a warm gallery white.
-  warm: new THREE.Color(1.9, 1.62, 1.18), poolWarm: new THREE.Color(1.0, 0.78, 0.46),
+  warm: new THREE.Color(1.9, 1.62, 1.18), poolWarm: new THREE.Color(1.0, 0.74, 0.4),
 };
 const moodOf = m => (m === 'chase' || m === 'charge' || m === 'hold' ? 'hunt' : m === 'alert' || m === 'search' ? 'wary' : 'calm');
 
@@ -885,7 +885,7 @@ feature({
       }
       b.pool.geometry.attributes.position.needsUpdate = true; b.pool.geometry.attributes.aT.needsUpdate = true;
       const u = b.pool.material.uniforms; u.uC.value.copy(mood === 'hunt' ? MOOD.poolHunt : mood === 'wary' ? MOOD.poolWary : MOOD.poolCalm); u.uK.value = mood === 'calm' ? 0.42 : 0.55;
-      if (warm > 0) { u.uC.value.lerp(MOOD.poolWarm, warm); u.uK.value += (0.4 - u.uK.value) * warm; }
+      if (warm > 0) { u.uC.value.lerp(MOOD.poolWarm, warm); u.uK.value += (0.28 - u.uK.value) * warm; }
     }
   },
 });

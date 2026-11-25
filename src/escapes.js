@@ -23,6 +23,7 @@
 //
 //   window.__esc   list(), specs(), release(id), place(id, x, z), home(id, 'light' | 'toy' | 'now'), bots(), bot(i, x, z, look),
 //                  check(id, views), cost(), tune (the numbers), on
+//   ?escout        in the address: start with every one out (up to the cap); ?escout=keg,hats: those. For tests.
 // Each escapee is a file in src/escape/ (escapeFor(id, spec), see src/escape/kit.js).
 
 import * as THREE from 'three';
@@ -116,6 +117,9 @@ const F = {
     }
     this.key = roamGuard(); this.marks = new Marks(MARKS, this.key); this.marks.mesh.onBeforeRender = r => this._px(this.key, r); k.group.add(this.marks.mesh);
     this._restore();
+    // (a test's way of starting with things out: ?escout lets every one out, up to the cap; ?escout=keg,hats those)
+    const q = typeof location !== 'undefined' && /[?&]escout(?:=([^&]*))?(?:&|$)/.exec(location.search);
+    if (q && k.G.mode === 'explore' && k.G.set.escapes !== false) { this.on = true; const want = q[1] ? decodeURIComponent(q[1]).toUpperCase().split(',') : null; for (const E of this.list0) if (!want || want.some(w => E.spec.tag.includes(w) || String(E.id) === w)) this.release(E, { quiet: true }); }
     this._switch();
     if (typeof window !== 'undefined') window.__esc = this._api();
   },
@@ -481,7 +485,9 @@ const F = {
     this.dirty = false;
   },
   // A new night: everything is home. A new game: and nothing is remembered.
-  reset() { for (const E of this.out) this._arrive(E, 'now'); this.dirty = true; },
+  // A run begun again (a reload, or back from the title): what is out stays out, where it was; what was on its way home is home.
+  // Only a new game (fresh) calls everything in.
+  reset() { for (const E of this.out) if (E.state === 'going') this._arrive(E, 'now'); },
   fresh() { for (const E of this.out) this._arrive(E, 'now'); this.log.length = 0; try { localStorage.removeItem(SAVE); } catch { /* */ } this.dirty = false; },
   // The switch, beside the robots' own in the settings (the page is not this file's: it is put there, as one of its kind).
   _switch() {
