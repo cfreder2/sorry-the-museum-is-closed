@@ -167,6 +167,8 @@ lifeFor(16495, {
     this.PL = [[0.03, 0.036, -0.006, 0.1, 0.0, -0.25, 0.95], [0.04, 0.026, -0.02, 0.95, 0.1, -0.6, 0.8], [0.036, 0.022, 0.016, -0.8, 0.1, -0.75, 0.72]].map(([x, y, z, yaw, pitch, roll, s]) =>
       ({ m: new THREE.Matrix4().compose(V3(HELM[0] + x, HELM[1] + y, HELM[2] + z), new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, roll, 'YXZ')), V3(s, s, s)), yaw, pitch, roll, s, p: V3(HELM[0] + x, HELM[1] + y, HELM[2] + z) }));
     this.IDLE = { kW: 1, kT: 1, kH: 1, breath: 0, trace: 0, lift: 0, sway: [0, 0, 0], sky: 0, birds: [0.5, 0.5, 0.5], flap: [0, 0, 0] };
+    // (his strokes are let down while he is still looking at the shield, the wand across his knee: where each part is then)
+    this.pose({ ...this.IDLE, kW: 0, kT: 0, kH: 0 }); const EM = {}; for (const n of ['head', 'lu', 'lf', 'wand']) EM[n] = this.M[n].clone().invert();
     this.pose(this.IDLE);      // (as the picture has him: every part is painted where it stands then)
 
     const R = () => L.rand();
@@ -210,7 +212,7 @@ lifeFor(16495, {
     // the stroke comes (aFly: from where, relative to its place, and when), so the vertex shader can bring them down
     // from under the rail; a body grows up from its foot instead. aKind 1: the light in the shield, which is not laid
     // with the rest but kindled, later, from the wand's tip outwards (its own clock).
-    const part = rest => { rest = rest ? rest.clone() : new THREE.Matrix4(); return { pos: [], nor: [], col: [], uv: [], cen: [], fly: [], kind: [], rest, inv: rest.clone().invert(), n: 0 }; };
+    const part = (rest, from = null) => { rest = rest ? rest.clone() : new THREE.Matrix4(); const inv = rest.clone().invert(); return { pos: [], nor: [], col: [], uv: [], cen: [], fly: [], kind: [], rest, inv, from: from || inv, n: 0 }; };
     let KIND = 0;
     const side = V3(), d2 = V3(), cl = V3(), src = V3(), wp = V3(), nW = V3(), ca = new THREE.Color(), cb = new THREE.Color();
     const vert = (Pt, p, n, c, uv, cen, f) => { Pt.pos.push(p.x, p.y, p.z); Pt.nor.push(n.x, n.y, n.z); Pt.col.push(c.r, c.g, c.b); Pt.uv.push(uv[0], uv[1]); Pt.cen.push(cen.x, cen.y, cen.z); Pt.fly.push(f[0], f[1], f[2], f[3]); Pt.kind.push(KIND); Pt.n++; };
@@ -237,7 +239,7 @@ lifeFor(16495, {
       }
       ca.copy(c).multiplyScalar(1 + ridge); cb.copy(c).multiplyScalar(1 - ridge * 0.7);
       wp.copy(mid).applyMatrix4(Pt.rest);
-      src.set(XS + Math.max(-0.6, Math.min(0.6, (wp.x - XS) * 0.62)) + (R() - 0.5) * 0.08, RAIL - 0.09 - R() * 0.05, 0.014 + R() * 0.02).applyMatrix4(Pt.inv);
+      src.set(XS + Math.max(-0.6, Math.min(0.6, (wp.x - XS) * 0.62)) + (R() - 0.5) * 0.08, RAIL - 0.09 - R() * 0.05, 0.014 + R() * 0.02).applyMatrix4(Pt.from);
       const tt = t == null ? when(0.3, 0.4, wp.y) : t, f = stay ? [0, 0, 0, tt] : [src.x - mid.x, src.y - mid.y, src.z - mid.z, tt];
       for (let i = 0; i < 5; i++) { vert(Pt, A[i], Ns[i], cb, ua[i], mid, f); vert(Pt, Bq[i + 1], Ns[i + 1], ca, ub[i + 1], mid, f); vert(Pt, Bq[i], Ns[i], ca, ub[i], mid, f); vert(Pt, A[i], Ns[i], cb, ua[i], mid, f); vert(Pt, A[i + 1], Ns[i + 1], cb, ua[i + 1], mid, f); vert(Pt, Bq[i + 1], Ns[i + 1], ca, ub[i + 1], mid, f); }
     };
@@ -426,7 +428,7 @@ lifeFor(16495, {
 
     // ---------------------------------------------------------- his head: the mantle drawn up over it, a dark cap at
     // his brow, his eyes in the shade of it, his nose and cheek in the light, and the long white beard. No drawn features.
-    const T_HEAD = 1.0, head = part(M.head);
+    const T_HEAD = 1.0, head = part(M.head, EM.head);
     {
       const uW = under(WH), uO = under(OC);
       const SKc = [0, 0.058, 0.004], SKr = [0.035, 0.043, 0.038];
@@ -482,11 +484,11 @@ lifeFor(16495, {
     // same gold, a hand
     const T_ARM = 0.9, to2 = mixer(OC, OCH, 0.42, 0.18), tf2 = mixer(FL, FLH, 0.3, 0.07), uF2 = under(FL);
     const SLEEVE = { l: [0.05, 0.085], w: [0.02, 0.03], tip: 0.003, ridge: 0.08, tilt: 0.26, dark: 0.86 };
-    const upper = rest => { const Pt = part(rest); tube(Pt, [[0.04, -0.01], [0.042, 0.03], [0.037, 0.08], [0.031, L1]], OC, T_ARM, 60, to2, SLEEVE); return Pt; };
+    const upper = (rest, from) => { const Pt = part(rest, from); tube(Pt, [[0.04, -0.01], [0.042, 0.03], [0.037, 0.08], [0.031, L1]], OC, T_ARM, 60, to2, SLEEVE); return Pt; };
     const uO2 = under(OC);
     const tu2 = mixer(UN, UNH, 0.5, 0.3);
-    const fore = (rest, hang) => {
-      const Pt = part(rest);
+    const fore = (rest, hang, from) => {
+      const Pt = part(rest, from);
       if (hang) {      // (his wand arm: the narrow sleeve of the dark robe)
         tube(Pt, [[0.022, 0], [0.021, 0.05], [0.018, 0.1], [0.016, 0.134]], UN, T_ARM + 0.05, 30, tu2, { l: [0.04, 0.07], w: [0.012, 0.018], tip: 0.002, dark: 0.9 });
         const Hc = [0, L2 - 0.002, 0.001], Hr = [0.0145, 0.022, 0.0115];
@@ -502,7 +504,7 @@ lifeFor(16495, {
       coat(Pt, Hc, Hr, 26, tf2, T_ARM + 0.1, { l: [0.012, 0.02], w: [0.008, 0.012], cell: 2, tip: 0.0008, ridge: 0.03, tilt: 0.16 });
       return Pt;
     };
-    const ru = upper(M.ru), rf = fore(M.rf, false), lu = upper(M.lu), lf = fore(M.lf, true);
+    const ru = upper(M.ru), rf = fore(M.rf, false), lu = upper(M.lu, EM.lu), lf = fore(M.lf, true, EM.lf);
     // the mantle falling from his left shoulder over that arm, down to his lap, in three or four creased folds:
     // only his wrist and hand come out from under it
     {
@@ -586,7 +588,7 @@ lifeFor(16495, {
     // three birds, far off, for the shield's sky (they are in the picture, small and dark, over the sea): two touches each
     const BIRDC = col('#4c5661', 0.08), birds = [0, 1, 2].map(() => { const Pt = part(); for (const sx of [-1, 1]) stroke(Pt, V3(sx * 0.0058, 0.0016, 0), V3(0, 0, 1), V3(sx, 0.34, 0).normalize(), 0.0125, 0.0036, BIRDC, 0, { stay: true, lift: 0, tip: 0, cell: 0, tilt: 0, ridge: 0 }); return Pt; });
     // his wand: a thin rod, dark, a light down one side
-    const T_WAND = 1.3, wand = part(M.wand);
+    const T_WAND = 1.3, wand = part(M.wand, EM.wand);
     {
       const uW2 = under(WD);
       tube(wand, [[0.0048, -0.02], [0.0044, 0.08], [0.0036, 0.2], [0.0026, WL]], WD, T_WAND, 0, null, { shrink: 1, dark: 1 });
@@ -681,7 +683,7 @@ lifeFor(16495, {
     if (aKind > 0.5) {
       // the light in the shield: each touch opens where it lies, when the light has come that far from the wand's tip
       float k2 = clamp((uC - aFly.w) / 0.7, 0.0, 1.0);
-      transformed = aCen + rel * (k2 <= 0.0 ? 0.0 : 0.25 + 0.75 * (1.0 - (1.0 - k2) * (1.0 - k2)));
+      transformed = aCen + rel * (k2 <= 0.0 ? 0.0 : 0.5 + 0.5 * (1.0 - (1.0 - k2) * (1.0 - k2)));
       vBody = 1.0; vConj = k2;
     }
     // what falls on everything else from the shield's hollow side, once it is alight
@@ -806,7 +808,8 @@ vec3 fCol; float fA;`)
     const V = this.V, M = this.M;
     const eul = (m, x, y, z, yaw, pitch, roll) => m.compose(V.pos.set(x, y, z), V.q.setFromEuler(V.e.set(pitch, yaw, roll, 'YXZ')), V.one);
     const kH = o.kH;
-    eul(M.torso, WAIST[0], WAIST[1], WAIST[2], TORSO.yaw + 0.05 * (kH - 1), TORSO.pitch + 0.012 * o.breath, TORSO.roll - 0.03 * (kH - 1));
+    const lean = o.kW * (1 - kH);      // (he bends a little to the shield as the wand comes over it)
+    eul(M.torso, WAIST[0], WAIST[1], WAIST[2], TORSO.yaw + 0.05 * (kH - 1) - 0.05 * lean, TORSO.pitch + 0.012 * o.breath + 0.03 * lean, TORSO.roll - 0.03 * (kH - 1));
     eul(V.l, NECK[0], NECK[1], NECK[2], lerp(HA.yaw, HB.yaw, kH), lerp(HA.pitch, HB.pitch, kH) - 0.05 * Math.sin(Math.PI * kH), lerp(HA.roll, HB.roll, kH));
     M.head.multiplyMatrices(M.torso, V.l).scale(V.b.setScalar(1.1));
     // his right hand on the top of the shield
