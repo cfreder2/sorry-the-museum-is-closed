@@ -16,7 +16,7 @@
 // it, and it begins to beat; and with each beat the leaves about it lie down and take their colours, further out
 // each time: a blue lap, a sleeve, the white at her throat, the green slats of the seat, and last a face under a
 // cream bonnet. She was sitting there the whole time. She fans herself a little longer in the heat, lets the fan
-// down open into her lap, and looks out at you: the picture, and the eye goes up to it. While you keep looking she
+// down open into her lap, and her head comes a little down and aside: the picture, and the eye goes up to it. While you keep looking she
 // stays, and now and then takes up the fan again. When you stop, the fan shuts, the greens ruffle back over her from
 // the edges in until she is a bush again, the bush goes back into the hedge, and the trellis folds up into the wall.
 //
@@ -32,7 +32,8 @@
 // How she is made: of paint, with no bare form showing, on the plan of Corot's reader (81512-interrupted-reading.js).
 // Under everything is a core a little smaller and darker than the form; what the eye sees is strokes lying over it,
 // each a ribbon with a brush's print on it, tilted about its length so the edge of every form is ragged ends. Her
-// face has no drawn features: it is planes of light and shade under the brim. She is about seven and a half heads.
+// face has no drawn features: the brim's shade lies across her brow and eyes as one plane, with a light on her cheek
+// and chin and a faint rose for her mouth. She is about seven and a half heads.
 // What is new here is that every stroke of her and of her seat has two states and the vertex shader goes between
 // them: lying on her form in its own colour, or ruffled off it (turned about an axis of its own, lifted, larger) in
 // one of the hedge's greens; and a shell of plain leaves round her shrinks away as she is found. Nothing flies in and
@@ -156,20 +157,20 @@ lifeFor(153798, {
     const BL = set(['#5a6c9e', '#6676a6', '#526496'], ['#343f70', '#2e3968', '#3a477a'], ['#232a52', '#1f264a', '#272f5a'], ['#161a36', '#13172e']);       // her dress
     const WH = set(['#f2efe3', '#ede9db'], ['#dddecf', '#d6d8ca'], ['#bcc4b6', '#b4bdaf'], ['#98a598', '#909d90']);                                      // the fichu: white, going green-grey in its shade
     const CR = set(['#f4ead0', '#f1e5c6'], ['#e6d6ae', '#e0cfa6'], ['#cdb688', '#c6ae80'], ['#a8905e']);                                                 // the bonnet
-    const FL = set(['#f3e8d6', '#f0e4d0'], ['#e8d9c0', '#e2d3ba'], ['#cbb99e', '#c4b298'], ['#a39178', '#9b8970']);                                      // her skin
+    const FL = set(['#f0e0c8', '#eddbc2'], ['#e2ccae', '#dcc6a8'], ['#c6ae92', '#bfa78c'], ['#9e886e', '#968066']);                                      // her skin
     const GV = set(['#deba76', '#d8b26c'], ['#c69c56', '#be944e'], ['#a47c3e', '#9c7438'], ['#7e5c2c']);                                                 // her gloves
     const BG = set(['#62a088', '#58947e'], ['#2f6c57', '#2a6251'], ['#1d4a3c', '#1a4337'], ['#102c23']);                                                 // the seat
     const HD = set(['#4a7058', '#44694a'], ['#2e4f3a', '#2a4a36'], ['#1e3a2c', '#1a3328'], ['#12261c']);                                                 // the hedge, in its depths
     const BLH = C(['#3e5088', '#7388b4', '#27325e', '#343c6c', '#56648e', '#1e2246', '#8e9ec4', '#3a4460', '#4a5078', '#2c4058', '#6a7aa0', '#454a7e'], 0.1);       // the broken colour of each mass
     const WHH = C(['#f6f3e8', '#e4e6da', '#cdd5c8', '#eee6d0', '#b9c6ba', '#dfe4e2', '#f3efe2'], 0.06);
-    const CRH = C(['#f6eed6', '#eadcb6', '#f2e4c0', '#dcc698', '#f8f2e0'], 0.08), FLH = C(['#f4ead8', '#e9dcc4', '#eedfce', '#dfd4ba', '#efe2cc'], 0.08);
+    const CRH = C(['#f6eed6', '#eadcb6', '#f2e4c0', '#dcc698', '#f8f2e0'], 0.08), FLH = C(['#f0e0c8', '#e4d0b4', '#e9d6be', '#dccab0', '#ecdac0'], 0.08);
     const GVH = C(['#d9b56d', '#c9a159', '#e1c181', '#b98d49'], 0.1), BGH = C(['#3a7a64', '#2a5c4c', '#6aa48c', '#1f4a3e', '#4c8a78', '#7fb09a'], 0.1);
     const G_DEEP = C(['#1f3d31', '#254536', '#1c382f', '#2b4c3a'], 0.12), G_MID = C(['#3c6248', '#466c4e', '#375a4c', '#4d745a', '#42705a'], 0.12);
     const G_ACID = C(['#86a056', '#98ac62', '#76924e', '#a8b870', '#8aa04c'], 0.1), G_PALE = C(['#93aba2', '#a6b9ae', '#809e98', '#bccab8'], 0.1);
-    const LATH = C(['#8aa2b0', '#9db2bd', '#7892a4', '#a9bcc4', '#6f8a9e'], 0.1), PATH = C(['#7f9092', '#8b9a98', '#74868c', '#869498', '#94a096'], 0.14), GRASS = C(['#4f7a4c', '#5f8a50', '#3f6a48', '#7a9a58'], 0.12);
+    const LATH = C(['#8aa2b0', '#9db2bd', '#7892a4', '#a9bcc4', '#6f8a9e'], 0.1), GRASS = C(['#4f7a4c', '#5f8a50', '#3f6a48', '#7a9a58'], 0.12);
     const HAIR = C(['#c98f4e', '#bd8344', '#d49c5a', '#b0763c'], 0.1), FLOWER = C(['#c8584e', '#d67a70', '#e8c8bc', '#f0ead8', '#b8a0c8', '#e0a0a0', '#f4f0e4'], 0.08);
     const RIB = C(['#a3b2d6', '#8fa0cc', '#b9c5e0', '#7f92c2'], 0.08), RK_D = C(['#2a4650', '#223a44', '#345862'], 0.1), RK_H = C(['#b89a5c', '#a88a50', '#c8aa6c'], 0.1), IVORY = C(['#e8dcc0', '#d8cab0'], 0.08);
-    const SOCK = col('#96806a', 0.08), EYE = col('#43362c', 0.06), BROW = col('#8e6c42', 0.08), ROSE = col('#bd6a60', 0.06), CHEEK = col('#e6ac98', 0.05), BRIM_SH = col('#d8be98', 0.08);
+    const SOCK = col('#96806a', 0.08), ROSE = col('#bd6a60', 0.06), CHEEK = col('#e6ac98', 0.05), BRIM_SH = col('#b4a590', 0.08);
     // one of the hedge's greens, for a stroke that lies where n faces (the leaves in the sun are the acid ones)
     const green = (n, r) => { const k = n.dot(KEY), q = (r * 5.3) % 1, list = r < 0.26 - 0.16 * k ? G_DEEP : r < 0.66 - 0.12 * k ? G_MID : r < 0.89 ? G_ACID : G_PALE; return pick(list, q).clone().multiplyScalar(0.9 + 0.24 * Math.max(0, k)); };
     // The tone of a form where it faces the light; and a stroke on it: that tone, leaning to one of the mass's own colours.
@@ -327,14 +328,14 @@ lifeFor(153798, {
       }
     }
 
-    // ---------------------------------------------------------- the ground: the pale path at the left, grass under the
-    // seat; separate drags with gaps between, no edge
+    // ---------------------------------------------------------- the ground: a little grass under the seat, in separate
+    // drags with gaps between, no edge (the pale path of the picture is left to the boards)
     const ground = part(null, false);
     {
       const up = V3(0, 1, 0);
-      for (let i = 0; i < 30; i++) {
-        const path = i < 12, x = path ? RAKE.x + lerp(-0.2, 0.22, R()) : lerp(-0.45, 0.28, R()), z = path ? ZT + 0.1 + R() * 0.34 : ZT + 0.04 + Math.pow(R(), 1.3) * 0.5;
-        stroke(ground, V3(x, 0.004 + R() * 0.004, z), up, along(up, path ? ACROSS : V3(0.8, 0, 0.5), path ? 0.5 : 1.6), lerp(0.08, 0.15, R()), lerp(0.028, 0.045, R()), path ? pick(PATH, R()) : pick(GRASS, R()).clone().multiplyScalar(0.95), { kind: 4, tilt: 0.04, tip: 0.001, lift: 0, cell: R() < 0.5 ? 0 : 1 });
+      for (let i = 0; i < 18; i++) {
+        const x = lerp(-0.45, 0.28, R()), z = ZT + 0.04 + Math.pow(R(), 1.3) * 0.5;
+        stroke(ground, V3(x, 0.004 + R() * 0.004, z), up, along(up, V3(0.8, 0, 0.5), 1.6), lerp(0.08, 0.15, R()), lerp(0.028, 0.045, R()), pick(GRASS, R()).clone().multiplyScalar(0.95), { kind: 4, tilt: 0.04, tip: 0.001, lift: 0, cell: R() < 0.5 ? 0 : 1 });
       }
     }
 
@@ -441,32 +442,36 @@ lifeFor(153798, {
       const gz = (n, x, y, z, rx, ry = rx) => { const k = 1 / Math.hypot(x, y, z), dx = (n.x - x * k) / rx, dy = (n.y - y * k) / ry, dz = (n.z - z * k) / rx; return Math.exp(-(dx * dx + dy * dy + dz * dz)); };
       const face = (nw, v, nn) => {
         if (open(nn) < 0.02) return c.copy(uC(nw)).multiplyScalar(0.8);
-        c.copy(uF(nw)).lerp(SOCK, 0.34 * sstep(Math.abs(nn.x), 0.5, 0.92) + 0.1 * sstep(nn.x, 0.1, 0.8));      // her temples and jaw, in the bonnet's shade; the far side a little more
-        c.lerp(BRIM_SH, 0.36 * sstep(nn.y, 0.14, 0.42));                                                     // the warm shade of the brim, over her brow
-        for (const sx of [-1, 1]) c.lerp(BROW, 0.5 * gz(nn, sx * 0.42, 0.25, 0.88, 0.22, 0.045)).lerp(SOCK, 0.55 * gz(nn, sx * 0.4, 0.1, 0.9, 0.24, 0.15)).lerp(EYE, 0.92 * gz(nn, sx * 0.4, 0.08, 0.9, 0.125, 0.07)).lerp(CHEEK, 0.5 * gz(nn, sx * 0.56, -0.26, 0.8, 0.22));
-        c.lerp(SOCK, 0.42 * gz(nn, 0.19, -0.1, 0.96, 0.085)).lerp(SOCK, 0.5 * gz(nn, 0.02, -0.31, 0.95, 0.11, 0.05));      // beside her nose, and under it
-        c.lerp(ROSE, 0.8 * gz(nn, 0, -0.52, 0.86, 0.15, 0.055)).lerp(EYE, 0.3 * gz(nn, 0, -0.525, 0.86, 0.13, 0.014)).lerp(SOCK, 0.36 * gz(nn, 0, -0.72, 0.7, 0.16, 0.07));      // her mouth; under her lip
+        c.copy(uF(nw)).lerp(SOCK, 0.3 * sstep(Math.abs(nn.x), 0.5, 0.92) + 0.08 * sstep(nn.x, 0.1, 0.8));      // her temples and jaw, in the bonnet's shade; the far side a little more
+        c.lerp(BRIM_SH, 0.62 * sstep(nn.y, -0.2, 0.17));                                                    // the brim's shadow: one soft cool plane across her brow and eyes
+        c.lerp(SOCK, 0.26 * gz(nn, 0, 0.09, 0.92, 0.62, 0.11));                                               // a little deeper where her eyes are, right across; no marks
+        for (const sx of [-1, 1]) c.lerp(FL.hi[0], (sx < 0 ? 0.7 : 0.4) * gz(nn, sx * 0.48, -0.34, 0.8, 0.26)).lerp(CHEEK, 0.16 * gz(nn, sx * 0.56, -0.3, 0.8, 0.2));      // the light on her cheek
+        c.lerp(FL.hi[0], 0.5 * gz(nn, 0, -0.8, 0.6, 0.18, 0.11));                                           // and on her chin
+        c.lerp(SOCK, 0.3 * gz(nn, 0.19, -0.1, 0.96, 0.085)).lerp(SOCK, 0.3 * gz(nn, 0.02, -0.31, 0.95, 0.11, 0.05));      // beside her nose, and under it
+        c.lerp(ROSE, 0.5 * gz(nn, 0, -0.52, 0.86, 0.14, 0.05));                                             // her mouth: a faint rose touch
         return c.lerp(c3.copy(HAIR[0]).multiplyScalar(0.92), hairy(nn));                                  // into her fringe
       };
       ball(head, SKc, SKr, face, { detail: 6, shrink: 0.95, dark: 0.95 });
       ball(head, [0, 0.0478, 0.0352], [0.0036, 0.0072, 0.0042], nw => c.copy(uF(nw)), { detail: 2, shrink: 1, dark: 0.94 });      // her nose
       const visage = (nw, r, nn) => face(nw, null, nn).clone().multiplyScalar(1 + (r - 0.5) * 0.07);
       coat(head, SKc, SKr, 420, visage, { l: [0.009, 0.015], w: [0.008, 0.012], keep: (p, n, u) => open(u) > 0.1 && u.z > -0.1 && hairy(u) < 0.5, flow: V3(0.2, -1, 0), jit: 1.4, cell: 2, tip: 0.0008, lift: 0.0012, ridge: 0.02, tilt: 0.14 });
-      { const n = V3(-0.12, -0.08, 1).normalize(); stroke(head, V3(-0.0006, 0.049, 0.0405), n, V3(0.05, 1, 0).normalize(), 0.014, 0.0052, FL.hi[0], { cell: 2, lift: 0.0006, tip: 0, tilt: 0.05, ridge: 0.03 }); }      // the light down her nose
+      { const n = V3(-0.12, -0.08, 1).normalize(); stroke(head, V3(-0.0006, 0.046, 0.0405), n, V3(0.05, 1, 0).normalize(), 0.009, 0.0046, FL.hi[1], { cell: 2, lift: 0.0006, tip: 0, tilt: 0.05, ridge: 0.03 }); }      // the light down her nose
       coat(head, SKc, SKr, 70, (nw, r) => pick(HAIR, r).clone().multiplyScalar(0.86 + 0.2 * Math.max(0, nw.dot(KEY))), { l: [0.014, 0.022], w: [0.006, 0.01], grow: 1.03, keep: (p, n, u) => hairy(u) > 0.3 && open(u) > 0.12, flow: V3(0.25, -1, 0), jit: 0.7, cell: 1, tip: 0.002 });      // her fringe
       // the bonnet: a cream hood over the back and top of her head, open in front; its brim standing out round her face
       const tc = mixer(CR, CRH, 0.4, 0.12);
       ball(head, BNc, BNr, nw => c.copy(uC(nw)), { detail: 4, keep: n => open(n) < 0.24, dark: 0.86 });
       coat(head, BNc, BNr, 150, tc, { l: [0.02, 0.034], w: [0.011, 0.017], grow: 1.02, keep: (p, n, u) => open(u) < 0.2, flow: V3(0.2, -0.3, 1), jit: 1.0, tip: 0.003 });
       const rim = a => { const rad = V3(Math.cos(a), 0, 0).addScaledVector(YAX, Math.sin(a)), e = V3().copy(WAX).multiplyScalar(0.2).addScaledVector(rad, 0.98).normalize();
-        return { p: V3(BNc[0] + e.x * BNr[0], BNc[1] + e.y * BNr[1], BNc[2] + e.z * BNr[2]), d: V3().copy(WAX).multiplyScalar(0.93).addScaledVector(rad, 0.36).normalize(), nb: V3().copy(rad).multiplyScalar(0.93).addScaledVector(WAX, -0.36).normalize(), len: 0.03 - 0.013 * fall(Math.sin(a), -0.7, 0.2) }; };
-      { const segs = 30, pos = [], nor = [], A0 = -1.0, A1 = Math.PI + 1.0, ring = []; for (let i = 0; i <= segs; i++) { const q = rim(lerp(A0, A1, i / segs)); ring.push([q.p.clone().addScaledVector(q.d, -0.005), q.p.clone().addScaledVector(q.d, q.len * 0.94), q.nb]); }
+        return { p: V3(BNc[0] + e.x * BNr[0], BNc[1] + e.y * BNr[1], BNc[2] + e.z * BNr[2]), d: V3().copy(WAX).multiplyScalar(0.93).addScaledVector(rad, 0.36).normalize(), nb: V3().copy(rad).multiplyScalar(0.93).addScaledVector(WAX, -0.36).normalize(), len: 0.03 - 0.02 * fall(Math.sin(a), -0.55, 0.45) }; };
+      { const segs = 30, pos = [], nor = [], A0 = -0.8, A1 = Math.PI + 0.8, ring = []; for (let i = 0; i <= segs; i++) { const q = rim(lerp(A0, A1, i / segs)); ring.push([q.p.clone().addScaledVector(q.d, -0.005), q.p.clone().addScaledVector(q.d, q.len * 0.6), q.nb]); }
         for (let i = 0; i < segs; i++) for (const [P_, N_] of [[ring[i][0], ring[i][2]], [ring[i][1], ring[i][2]], [ring[i + 1][1], ring[i + 1][2]], [ring[i][0], ring[i][2]], [ring[i + 1][1], ring[i + 1][2]], [ring[i + 1][0], ring[i + 1][2]]]) { pos.push(P_.x, P_.y, P_.z); nor.push(N_.x, N_.y, N_.z); }
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-        solid(head, g, nw => c.copy(CR.mid[0]).lerp(CR.hi[0], 0.5 + 0.5 * nw.dot(KEY)).multiplyScalar(0.9)); }
-      for (let row = 0; row < 3; row++) for (let i = 0; i < 40; i++) {
-        const q = rim(lerp(-0.98, Math.PI + 0.98, (i + 0.33 * row) / 39.7)), l = q.len * (0.62 - 0.1 * row) + 0.004 * R(), at = 0.3 + 0.3 * row;
-        stroke(head, q.p.clone().addScaledVector(q.d, q.len * at).addScaledVector(q.nb, row === 1 ? -0.0012 : 0.0012), row === 1 ? q.nb.clone().negate() : q.nb, q.d, l, 0.013 + 0.004 * R(), pick(R() < 0.6 ? CR.hi : CRH, R()).clone().multiplyScalar(0.92 + 0.12 * R() - 0.06 * row), { tip: 0.0006, lift: 0.0004, tilt: 0.08, ridge: 0.05, cell: R() < 0.6 ? 2 : 0 });
+        solid(head, g, nw => c.copy(CR.lo[0]).lerp(CR.mid[0], 0.5 + 0.5 * nw.dot(KEY)).multiplyScalar(0.92)); }
+      for (let row = 0; row < 3; row++) for (let i = 0; i < 36; i++) {
+        // (three rows of touches, none the same length or quite the same way: the inner ones in the bonnet's own shade, the outer ones lit, running out past the brim so its edge is their ends)
+        const q = rim(lerp(-0.8, Math.PI + 0.8, (i + 0.33 * row + (R() - 0.5) * 0.9) / 35.7)), at = [0.22, 0.5, 0.8][row] + (R() - 0.5) * 0.2, l = q.len * lerp(0.45, 0.95, R()) + 0.004, dir = q.d.clone().addScaledVector(V3().crossVectors(q.d, q.nb), (R() - 0.5) * 0.7).normalize();
+        const tone = row === 0 ? pick(R() < 0.6 ? CR.lo : CR.mid, R()) : row === 1 ? pick(R() < 0.5 ? CR.mid : CRH, R()) : pick(R() < 0.65 ? CR.hi : CRH, R());
+        stroke(head, q.p.clone().addScaledVector(q.d, q.len * at).addScaledVector(q.nb, row === 1 ? -0.0012 : 0.0012), row === 1 ? q.nb.clone().negate() : q.nb, dir, l, 0.011 + 0.007 * R(), tone.clone().multiplyScalar(0.94 + 0.1 * R()), { tip: 0.003, lift: 0.0004, tilt: 0.3, ridge: 0.06, cell: R() < 0.45 ? 2 : R() < 0.5 ? 0 : 1 });
       }
       // on top: the blue ribbon in a bow, and a few flowers
       const TPc = [0.004, 0.113, -0.002], TPr = [0.042, 0.026, 0.034];
@@ -633,8 +638,8 @@ vec3 lifeTurn(vec3 v, vec3 ax, float a) { float c = cos(a), s = sin(a); return v
     const eul = (m, x, y, z, yaw, pitch, roll) => m.compose(V.pos.set(x, y, z), V.q.setFromEuler(V.e.set(pitch, yaw, roll, 'YXZ')), V.one);
     // her body, from the waist: turned a little the way her knees go; leaning back a little when she fans
     eul(M.torso, WAIST[0], WAIST[1], WAIST[2], -0.2 + 0.05 * k, 0.03 - 0.07 * k + 0.012 * o.breath, 0.02 + 0.03 * k + 0.004 * o.sway);
-    // her head: to you; or tipped back and a little towards the fan
-    eul(V.l, NECK[0], NECK[1], NECK[2], lerp(0.2 + o.gazeY, 0.38, 0.55 * k), lerp(o.gazeP, -0.13, 0.7 * k), 0.03 + 0.07 * k + 0.012 * o.sway);
+    // her head: a little down and aside, as it is in the picture (and only a little towards you); or tipped back and towards the fan
+    eul(V.l, NECK[0], NECK[1], NECK[2], lerp(0.05 + 0.35 * o.gazeY, 0.38, 0.55 * k), lerp(0.1 + 0.3 * o.gazeP, -0.13, 0.7 * k), lerp(0.09, 0.1, k) + 0.012 * o.sway);
     M.head.multiplyMatrices(M.torso, V.l);
     // her left hand, and the fan in it: in her lap; or up before her, beating
     const hl = V.a.set(lerp(LAP_L[0], UP_L[0], k), lerp(LAP_L[1], UP_L[1], k) + 0.03 * Math.sin(Math.PI * k), lerp(LAP_L[2], UP_L[2], k) + 0.02 * Math.sin(Math.PI * k));
