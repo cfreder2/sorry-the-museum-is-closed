@@ -472,7 +472,7 @@ export class Car {
     this.launched = 0; this.landed = null; this.bump = 0;
     this.clock = (this.clock || 0) + dt;
     if (this.rail) return this._loop(dt, inp);
-    const S = this.spec, TOP = 12 * S.top, REV = 4.5;
+    const S = this.spec, TOP = 12 * S.top * (this.gentle ? 0.72 : 1), REV = 4.5;
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     const rx = -fz, rz = fx;
     let vf = this.vel.x * fx + this.vel.z * fz;
@@ -481,10 +481,17 @@ export class Car {
     const th = inp.throttle;
     this.throttle = th;
     this.steer += (inp.steer - this.steer) * Math.min(1, dt * 11);
+    // The gentle car (Settings, Driving): for a young driver. The same toy, steered by the same hands, but it tops out
+    // lower, pulls away instead of leaping, and the faster it goes the less sharply it turns. A driver who holds a key
+    // until the car points the right way lets go a third of a second late: at 120 degrees a second that is a 40 degree
+    // overshoot, and the press that answers it overshoots back (a zigzag down every corridor); at 70 it is not. At a
+    // crawl it turns as tightly as ever, and flat out it still gets round the same corner the quick car does flat out.
+    const gentle = !!this.gentle;
+    this.power = !gentle ? th : th > 0 ? Math.min(th, (this.power || 0) + dt / 0.6) : 0;
     let rate = 0;
     if (!this.air) {
       // Part throttle is a lower top speed, not just a slower run up to the same one.
-      if (th > 0) vf += th * 13 * S.accel * (1 - Math.max(0, vf) / (TOP * (0.22 + 0.78 * th))) * dt * (vf < 0 ? 2.2 : 1);
+      if (th > 0) vf += (vf < 0 ? th : this.power) * 13 * S.accel * (1 - Math.max(0, vf) / (TOP * (0.22 + 0.78 * th))) * dt * (vf < 0 ? 2.2 : 1);
       else if (th < 0) vf += th * (vf > 0.4 ? 20 : 9 * (1 - Math.max(0, -vf) / REV)) * dt;
       vf -= vf * 0.24 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 0.4 * dt);     // tops out near 9.5 m/s
       // Marble is slippery; a gallery's wood floor is not; a mopped floor is something else.
@@ -506,7 +513,7 @@ export class Car {
       // (A sheet may say how crusted it is at a spot, 0 glassy to 1 snowed over: crust(x, z). The harbour's does: src/icefield.js.)
       const crust = !icy ? 0 : typeof sheet.crust === 'function' ? sheet.crust(this.pos.x, this.pos.z) : sheet.crust ? 0.85 : 0;
       if (icy) { const ice = Math.max(S.ice || 0, crust); grip = 0.15 + ice * 2.4 * S.grip; bite *= 0.8 + 0.2 * ice; vf -= (vf - this._vf0) * 0.8 * (1 - ice * 0.85); }
-      rate = this.steer * bite * 3.6 * S.steer / (1 + Math.abs(vf) / 13);
+      rate = this.steer * bite * 3.6 * S.steer / (1 + Math.abs(vf) / (gentle ? 4 : 13));
       this.yaw -= rate * dt;
       this.slip = Math.abs(vl);
       const nfx = Math.sin(this.yaw), nfz = Math.cos(this.yaw);
