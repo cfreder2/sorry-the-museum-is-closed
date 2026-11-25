@@ -27,22 +27,29 @@
 // portrait's own turn of the head, met from the other side.
 //
 // How he is made. Ingres hid his brush: the quality of the picture is a contour as exact as a cut and tone that
-// turns without a seam, so here nothing is loose and nothing is stroked. He is measured (seven and a half
-// heads, the high waist and sloping shoulders of the coat, the sleeve heads a little full, limbs that taper, hands
-// with fingers), every form is a smooth surface laid by a rule, and no surface takes the room's light: his light,
-// from the upper left as in the picture, is worked out in the paint. The black is his black: nearly nothing in the
-// shadow, a grey bloom where the cloth turns to the light and along its edge, and the embroidery (leaves and stems
-// of black silk on black cloth, down the breast, round the waist, the collar and the cuffs) found only where the
-// light catches it. The flesh is pale and close in tone, turning to a warmer shade at its edge. The face is painted
-// as he painted it, in one piece and exactly: the broad forehead, straight heavy brows low over hooded grey eyes that
-// look at you, the long nose with its shade on the far side, a small closed mouth, colour in the cheeks, the
-// red-brown whiskers, and the chestnut curls standing wide of the temples, which are modelled. The cross (white
+// turns without a seam, so here nothing is loose and nothing is stroked. He is one skin: every point of him hangs
+// between two bones, so the sleeve flows out of the shoulder and through the elbow, the trouser from the hip through
+// the knee to the instep, and the coat over the hips, with no place where one part meets another; where a limb
+// bends the cloth has a few soft folds, as his sleeve has in the picture. The tailoring is the drawing: seven and a
+// half heads, slender; the high standing collar, the chest fitted and the waist nipped, the coat cut straight
+// across in front and hanging behind in two tails with the vent between them, two buttons and the curved seams of
+// the back at the waist (his back is to you for most of the show); narrow trousers over slim shoes; long hands.
+// No surface takes the room's light: his light, from the upper left as in the picture, is worked out in the paint.
+// The black is his black: nearly nothing in the shadow, the faintest cool bloom where the cloth turns to the light,
+// a soft dark contour where the form turns away, the velvet of the collar a warmer black, and the embroidery (leaves
+// and stems of black silk on black cloth, down the breast, round the waist, the collar and the cuffs) found only
+// where the light catches it. The flesh is pale and close in tone, turning to a warmer shade at its edge. The face
+// is painted as he painted it, in one piece and exactly: the broad forehead, straight heavy brows low over hooded
+// grey eyes, the long nose with its shade on the far side, a small closed mouth, colour in the cheeks, the red-brown
+// whiskers, and the chestnut curls standing wide of the temples, which are modelled. His eyes move: when he looks
+// round they go first, then his head, then his shoulders and his feet. Standing, his weight is on one leg with the
+// hip out over it, as in the picture; walking, the tails swing a little behind his stride. The cross (white
 // enamel, a gold crown, its red ribbon), the white of collar and cuffs, and the hilt (gilt, with a pearl grip) are
-// the few lights in the dark, as the museum says they are. The sword stays in its scabbard at his hip the whole
-// time: it is never drawn, lifted or pointed, and nothing is done with it.
+// the few lights in the dark, as the museum says they are. The sword is a dress sword, thin, slanting back from
+// his hip; it stays in its scabbard the whole time: it is never drawn, lifted or pointed, and nothing is done with it.
 //
-// The silk is one sheet with its folds and its hard crumpled lights (taffeta), in the picture's greens. One rig
-// (him), the silk, and the soft shadows on the floor: three draw calls. He stands 0.78 m. Everything is under the
+// The silk is one sheet with its folds and its hard crumpled lights (taffeta), in the picture's greens. One mesh
+// (him: twelve bones, blended in its shader), the silk, and the soft shadows on the floor: three draw calls. He stands 0.78 m. Everything is under the
 // rail of this frame: he comes no further than 0.7 m out from this wall and keeps within 0.45 m of the middle of
 // his picture; the silk hangs under the frame's right-hand corner, from 0.12 m to 0.6 m right of the middle and no
 // more than 0.2 m deep, 0.65 m short of the doorway. Turner's sea
@@ -88,18 +95,18 @@ const G0 = 5.25, G1 = 8.25;                              // looks round at you; 
 const T_LOOP = 9.6, PER = 9.5, LG0 = 4.6, LG1 = 6.7;     // and on: now and then he looks round again
 const RET = 2.6;
 // ---------------------------------------------------------------- his measures (a man's, in metres)
-const HIP = 0.9, WAIST = 1.08, NECK = [0, 1.535, -0.015], SHO = [0.19, 1.44, -0.005], HIPW = 0.086;
+const HIP = 0.9, WAIST = 1.08, NECK = [0, 1.535, -0.015], SHO = [0.18, 1.435, -0.005], HIPW = 0.08, TAIL = [0, 1.02, -0.09];
 const THIGH = 0.42, SHIN = 0.42, ANKLE = 0.06, AU = 0.3, AF = 0.255;
 const HC = [0, 1.662, 0];                                // the middle of his head
 
 // ---------------------------------------------------------------- surfaces: every form is a smooth sheet laid by a rule
 const K = { CLOTH: 0, FLESH: 1, FACE: 2, HAIR: 3, LINEN: 4, GOLD: 5, RED: 6, CARD: 7, PEARL: 8, SHOE: 9 };
-const part = () => ({ pos: [], nor: [], col: [], uv: [], k: [] });
+const part = () => ({ pos: [], nor: [], col: [], uv: [], k: [], w: [] });
 const _e1 = V3(), _e2 = V3(), _e3 = V3();
 // na by nb squares; f(a, b, out) its rule. o: kind, extra (one number the shader gets), col (a colour), uv(a, b, p),
 // wrap (it closes on itself round a).
 function surf(P, na, nb, f, o = {}) {
-  const { kind = 0, extra = 0, col = null, uv = null, wrap = false } = o, W = na + 1, pts = [], nrm = [], cen = V3();
+  const { kind = 0, extra = 0, col = null, uv = null, wrap = false, skin = null } = o, W = na + 1, pts = [], nrm = [], cen = V3();
   for (let j = 0; j <= nb; j++) for (let i = 0; i <= na; i++) { const p = f(i / na, j / nb, V3()); pts.push(p); cen.add(p); }
   cen.multiplyScalar(1 / pts.length);
   let vote = 0;
@@ -117,7 +124,8 @@ function surf(P, na, nb, f, o = {}) {
   if (vote < 0) for (const n of nrm) n.negate();
   const c = col || WHITE, put = (i, j) => {
     const k = j * W + i, p = pts[k], n = nrm[k], t = uv ? uv(i / na, j / nb, p) : NOUV, e = typeof extra === 'function' ? extra(i / na, j / nb, p) : extra;
-    P.pos.push(p.x, p.y, p.z); P.nor.push(n.x, n.y, n.z); P.col.push(c.r, c.g, c.b); P.uv.push(t[0], t[1]); P.k.push(kind, e);
+    const sk = skin ? skin(p) : RIGID0;
+    P.pos.push(p.x, p.y, p.z); P.nor.push(n.x, n.y, n.z); P.col.push(c.r, c.g, c.b); P.uv.push(t[0], t[1]); P.k.push(kind, e); P.w.push(sk[0], sk[1], sk[2]);
   };
   for (let j = 0; j < nb; j++) for (let i = 0; i < na; i++) {
     const A = pts[j * W + i], B = pts[j * W + i + 1], C = pts[(j + 1) * W + i + 1], D = pts[(j + 1) * W + i];
@@ -126,7 +134,7 @@ function surf(P, na, nb, f, o = {}) {
     else { put(i, j); put(i + 1, j + 1); put(i + 1, j); put(i, j); put(i, j + 1); put(i + 1, j + 1); }
   }
 }
-const WHITE = new THREE.Color(1, 1, 1), NOUV = [-1, -1];
+const WHITE = new THREE.Color(1, 1, 1), NOUV = [-1, -1], RIGID0 = [0, 0, 0];
 // A limb: round a path(t, out), rad(t, ph) its radius; ref is where ph = 0 points.
 const _c = V3(), _c2 = V3(), _T = V3(), _A = V3(), _B = V3();
 function tube(P, path, rad, na, nb, o = {}) {
@@ -154,9 +162,9 @@ function ringPt(R, th, out, grow = 1) {
   const e = 2 / R[5]; let cs = Math.cos(th), sn = Math.sin(th); cs = Math.sign(cs) * Math.pow(Math.abs(cs), e); sn = Math.sign(sn) * Math.pow(Math.abs(sn), e);
   return out.set(R[2] * sn * grow, R[0], R[1] + (cs > 0 ? R[3] : R[4]) * cs * grow);
 }
-const TORSO = [[1.0, 0, 0.15, 0.112, 0.106, 2.3], [1.045, 0, 0.152, 0.116, 0.106, 2.3], [1.09, 0, 0.141, 0.109, 0.1, 2.3], [1.17, 0.005, 0.153, 0.121, 0.105, 2.4], [1.27, 0.012, 0.177, 0.14, 0.112, 2.5], [1.36, 0.012, 0.196, 0.142, 0.12, 2.6], [1.43, 0.004, 0.186, 0.122, 0.122, 2.2], [1.475, -0.004, 0.158, 0.1, 0.112, 2.1], [1.51, -0.008, 0.108, 0.082, 0.098, 2.1], [1.54, -0.012, 0.07, 0.07, 0.08, 2.0]];
-const PELVIS = [[0.8, 0, 0.03, 0.03, 0.03, 2], [0.82, 0, 0.15, 0.095, 0.1, 2.6], [0.87, 0, 0.176, 0.106, 0.116, 2.8], [0.95, 0, 0.176, 0.112, 0.125, 2.5], [1.03, 0, 0.158, 0.11, 0.112, 2.3], [1.1, 0, 0.14, 0.104, 0.098, 2.3]];
-const T_Y0 = 1.0, T_Y1 = 1.54;
+const TORSO = [[1.04, 0, 0.139, 0.108, 0.101, 2.3], [1.085, 0, 0.13, 0.101, 0.095, 2.3], [1.17, 0.005, 0.144, 0.115, 0.1, 2.4], [1.27, 0.012, 0.166, 0.134, 0.107, 2.5], [1.36, 0.012, 0.182, 0.137, 0.114, 2.5], [1.43, 0.004, 0.176, 0.118, 0.117, 2.2], [1.475, -0.004, 0.15, 0.097, 0.108, 2.1], [1.51, -0.008, 0.103, 0.08, 0.095, 2.1], [1.54, -0.012, 0.068, 0.068, 0.078, 2.0]];
+const PELVIS = [[0.8, 0, 0.03, 0.03, 0.03, 2], [0.82, 0, 0.135, 0.09, 0.095, 2.6], [0.87, 0, 0.158, 0.1, 0.11, 2.7], [0.95, 0, 0.158, 0.105, 0.118, 2.5], [1.03, 0, 0.14, 0.102, 0.104, 2.3], [1.1, 0, 0.126, 0.097, 0.092, 2.3]];
+const T_Y0 = 1.04, T_Y1 = 1.54;
 
 // ---------------------------------------------------------------- his head: an ellipsoid with the face drawn forward
 // on it (th round it, 0 his front; Y up it, -1 the chin, 1 the crown)
@@ -194,10 +202,10 @@ const torsoUV = (th, y) => [0.5 + th / TAU, 1 - (TOR_Y + (1 - (y - T_Y0) / (T_Y1
 const bandUV = (a, b) => [(200 + a * 496) / AT, 1 - (TILE_Y + 184 - b * 176) / AT];
 
 // A hand, from the wrist (the origin): fingers down -y, the palm to +x, the thumb to +z; m sets it somewhere.
-function hand(P, m, col, { spread = 0.08, curl = 0.5 } = {}) {
-  const o = { kind: K.FLESH, col }, put = f => (a, b, out) => f(a, b, out).applyMatrix4(m), pv = V3();
-  surf(P, 12, 8, put((a, b, out) => { const th = a * TAU, ph = (b - 0.5) * PI, cp = Math.cos(ph); return out.set(0.004 + 0.0135 * Math.cos(th) * cp, -0.05 + 0.052 * Math.sin(ph), 0.04 * Math.sin(th) * cp); }), { ...o, wrap: true });
-  const fz = [0.027, 0.009, -0.009, -0.026], fy = [-0.086, -0.092, -0.09, -0.082], fl = [0.072, 0.08, 0.074, 0.058], fr = [0.0092, 0.0095, 0.009, 0.008];
+function hand(P, m, col, { spread = 0.08, curl = 0.5, skin = null } = {}) {
+  const o = { kind: K.FLESH, col, skin }, put = f => (a, b, out) => f(a, b, out).applyMatrix4(m), pv = V3();
+  surf(P, 12, 8, put((a, b, out) => { const th = a * TAU, ph = (b - 0.5) * PI, cp = Math.cos(ph); return out.set(0.004 + 0.0125 * Math.cos(th) * cp, -0.052 + 0.054 * Math.sin(ph), 0.036 * Math.sin(th) * cp); }), { ...o, wrap: true });
+  const fz = [0.0245, 0.008, -0.008, -0.0235], fy = [-0.09, -0.096, -0.094, -0.086], fl = [0.082, 0.092, 0.085, 0.066], fr = [0.0083, 0.0086, 0.0081, 0.0072];
   for (let i = 0; i < 4; i++) {
     const path = (t, out) => out.set(0.004 + fl[i] * curl * 0.62 * t * t, fy[i] - fl[i] * (t - 0.16 * curl * t * t), fz[i] + (fz[i] / 0.027) * spread * fl[i] * t);
     surf(P, 7, 6, put((a, b, out) => { const t = b, ph = a * TAU; path(t, pv); const r = capped(q => lerp(fr[i], fr[i] * 0.74, q), 0.01, 0.16)(t, ph); return out.set(pv.x + r * Math.cos(ph), pv.y, pv.z + r * Math.sin(ph)); }), { ...o, wrap: true });
@@ -237,10 +245,6 @@ function paintAtlas(rand) {
       const ex = X(sd * 0.42), ey = Yp(0.07), hw = 33, almond = () => { g.beginPath(); g.moveTo(ex - hw, ey + 2); g.quadraticCurveTo(ex - 2 * sd, ey - 17, ex + hw, ey + 1); g.quadraticCurveTo(ex, ey + 14, ex - hw, ey + 2); g.closePath(); };
       g.save(); almond(); g.clip();
       g.fillStyle = '#e6dcd2'; g.fillRect(ex - 40, ey - 20, 80, 40);
-      g.fillStyle = '#3a302a'; g.beginPath(); g.arc(ex, ey - 2, 14, 0, TAU); g.fill();
-      g.fillStyle = '#56483e'; g.beginPath(); g.arc(ex, ey - 2, 11.4, 0, TAU); g.fill();
-      g.fillStyle = '#120d0b'; g.beginPath(); g.arc(ex, ey - 2, 5.4, 0, TAU); g.fill();
-      g.fillStyle = '#f6f1ea'; g.beginPath(); g.arc(ex - 5, ey - 5, 2.4, 0, TAU); g.fill();
       { const gr = g.createLinearGradient(0, ey - 15, 0, ey + 2); gr.addColorStop(0, 'rgba(50,28,20,0.8)'); gr.addColorStop(0.45, 'rgba(60,36,26,0.3)'); gr.addColorStop(1, 'rgba(60,36,26,0)'); g.fillStyle = gr; g.fillRect(ex - 40, ey - 20, 80, 24); }
       g.restore();
       g.lineCap = 'round'; g.strokeStyle = '#1e100b'; g.lineWidth = 5.5; g.beginPath(); g.moveTo(ex - hw, ey + 2); g.quadraticCurveTo(ex - 2 * sd, ey - 17, ex + hw, ey + 1); g.stroke();      // the upper lid's edge
@@ -294,6 +298,10 @@ function paintAtlas(rand) {
     for (const sd of [-1, 1]) { g.beginPath(); for (let y = 1.05; y <= 1.53; y += 0.01) { const px = X(CL + sd * wide(y)), py = Yt(y); if (y === 1.05) g.moveTo(px, py); else g.lineTo(px, py); } g.stroke(); }
     g.beginPath(); g.moveTo(X(-1.5), Yt(1.118)); g.lineTo(X(1.5), Yt(1.118)); g.stroke(); g.beginPath(); g.moveTo(X(-1.6), Yt(1.05)); g.lineTo(X(1.6), Yt(1.05)); g.stroke();
     g.strokeStyle = '#000'; g.lineWidth = 3; g.beginPath(); g.moveTo(X(CL), Yt(1.045)); g.lineTo(X(CL), Yt(1.5)); g.stroke();
+    // the seams of the back (kept apart from the silk, in the blue): down the middle, and curving in from each armhole to the waist buttons
+    g.strokeStyle = 'rgb(0,0,255)'; g.lineWidth = 3;
+    for (const x of [1.5, AT - 1.5]) { g.beginPath(); g.moveTo(x, Yt(1.5)); g.lineTo(x, Yt(1.06)); g.stroke(); }
+    for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(X(sd * 2.05), Yt(1.4)); g.quadraticCurveTo(X(sd * 2.5), Yt(1.3), X(sd * (PI - 0.3)), Yt(1.09)); g.stroke(); }
     for (let y = 1.13; y < 1.44; y += 0.058) { g.fillStyle = '#000'; g.beginPath(); g.arc(X(CL + 0.075), Yt(y), 10, 0, TAU); g.fill(); g.fillStyle = '#d8d8d8'; g.beginPath(); g.arc(X(CL + 0.075), Yt(y), 7.5, 0, TAU); g.fill(); g.fillStyle = '#666'; g.beginPath(); g.arc(X(CL + 0.075), Yt(y), 3.5, 0, TAU); g.fill(); }
     g.restore();
     // the collar and the cuffs: worked all over
@@ -347,97 +355,109 @@ lifeFor(111317, {
     const BLACK = col('#0d0c0c', 0.1), FLESH = col('#e6bc9c', 0), LINEN = col('#efece4', 0), GOLD = col('#c9a044', 0), RED = col('#c4401f', 0), HAIRC = col('#3a2416', 0), PEARL = col('#e6e0d2', 0);
     const cloth = { kind: K.CLOTH, col: BLACK };
 
-    // ---------------------------------------------------------- the coat's body, his left arm on his hip, the collar
-    const torso = part();
+    // ---------------------------------------------------------- one skin. He is set out as he stands at rest (his
+    // right arm down, his legs straight), and every point knows the two bones it hangs between and how much it is the
+    // second's: so an arm flows into its shoulder, a thigh through the knee into the calf, the coat over the hips,
+    // and nothing shows where one part meets another.
+    const G = part(), B = { pelvis: 0, torso: 1, head: 2, armU: 3, armF: 4, thigh: [5, 6], shin: [7, 8], shoe: [9, 10], tail: 11 };
+    const ORG = [[0, HIP, 0], [0, WAIST, 0], NECK, [-SHO[0], SHO[1], SHO[2]], [-SHO[0], SHO[1] - AU, SHO[2]], [HIPW, HIP, 0], [-HIPW, HIP, 0], [HIPW, HIP - THIGH, 0], [-HIPW, HIP - THIGH, 0], [HIPW, ANKLE, 0], [-HIPW, ANKLE, 0], TAIL];
+    const rigid = b => () => [b, b, 0], KNEE = HIP - THIGH, ELBOW = SHO[1] - AU, WRIST = SHO[1] - AU - AF;
+    const waistSkin = p => [B.pelvis, B.torso, sstep(p.y, 1.02, 1.14)];
+    const legSkin = f => p => (p.y > 0.7 ? [B.pelvis, B.thigh[f], sstep(p.y, HIP + 0.05, HIP - 0.1)] : [B.thigh[f], B.shin[f], sstep(p.y, KNEE + 0.075, KNEE - 0.075)]);
+    const armSkin = p => (p.y > SHO[1] - 0.14 ? [B.torso, B.armU, sstep(p.y, SHO[1] + 0.035, SHO[1] - 0.075)] : [B.armU, B.armF, sstep(p.y, ELBOW + 0.06, ELBOW - 0.06)]);
+    const tailSkin = p => (p.y > 1.02 ? waistSkin(p) : [B.pelvis, B.tail, sstep(p.y, 1.02, 0.8)]);
+    const onTorso = rigid(B.torso), onHead = rigid(B.head), tmp = V3();
+    const bOf = y => { let lo = 0, hi = 1; for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (row(TORSO, m)[0] < y) lo = m; else hi = m; } return lo; };
+
+    // ---------------------------------------------------------- the coat: fitted to the chest, nipped at the waist,
+    // cut straight across in front; the standing collar; his left arm on his hip
     {
-      let TH = 0;
-      surf(torso, 44, 30, (a, b, out) => ringPt(row(TORSO, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true, uv: (a, b, p) => torsoUV((a - 0.5) * TAU, p.y) });
-      // the collar: a tall band, open in front, standing a little off his neck
+      surf(G, 38, 26, (a, b, out) => ringPt(row(TORSO, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true, uv: (a, b, p) => torsoUV((a - 0.5) * TAU, p.y), skin: waistSkin });
+      // the collar: a tall band of velvet, open in front, standing a little off his neck
       const gap = b => lerp(0.14, 1.0, Math.pow(b, 0.8));
-      surf(torso, 34, 6, (a, b, out) => { TH = lerp(gap(b), TAU - gap(b), a); const back = (1 - Math.cos(TH)) / 2, y = lerp(1.495, lerp(1.6, 1.63, back), b), r = 1 + 0.14 * b + 0.16 * b * (1 - back); return out.set(0.073 * Math.sin(TH) * r, y, -0.014 + (Math.cos(TH) > 0 ? 0.076 : 0.082) * Math.cos(TH) * r); }, { ...cloth, uv: (a, b) => bandUV(a, b) });
-      // his shirt collar, white, in two points up to the jaw; and the red at his throat
-      for (const sd of [-1, 1]) surf(torso, 10, 4, (a, b, out) => { const th = sd * lerp(0.22, 1.5, a), top = lerp(1.575, 1.652, sstep(a, 0, 0.6)) - 0.035 * sstep(a, 0.75, 1); return out.set(0.066 * Math.sin(th) * (1 + 0.1 * b), lerp(1.5, top, b), -0.014 + 0.07 * Math.cos(th) * (1 + 0.1 * b)); }, { kind: K.LINEN, col: LINEN });
-      tube(torso, line([0, 1.47, -0.014], [0, 1.578, -0.008]), capped(t => 0.062 + 0.003 * t, 0.001, 0.12), 14, 5, { kind: K.LINEN, col: LINEN });
-      ball(torso, [0.004, 1.512, 0.052], [0.026, 0.05, 0.018], { kind: K.RED, col: RED }, 10, 6);
+      surf(G, 34, 6, (a, b, out) => { const th = lerp(gap(b), TAU - gap(b), a), back = (1 - Math.cos(th)) / 2, y = lerp(1.495, lerp(1.6, 1.63, back), b), r = 1 + 0.14 * b + 0.16 * b * (1 - back); return out.set(0.071 * Math.sin(th) * r, y, -0.014 + (Math.cos(th) > 0 ? 0.075 : 0.081) * Math.cos(th) * r); }, { ...cloth, extra: 2, uv: (a, b) => bandUV(a, b), skin: onTorso });
+      // his shirt collar, white, in two points up to the jaw; the stock round his neck; the red of the ribbon at his throat
+      for (const sd of [-1, 1]) surf(G, 10, 4, (a, b, out) => { const th = sd * lerp(0.22, 1.5, a), top = lerp(1.575, 1.652, sstep(a, 0, 0.6)) - 0.035 * sstep(a, 0.75, 1); return out.set(0.065 * Math.sin(th) * (1 + 0.1 * b), lerp(1.5, top, b), -0.014 + 0.069 * Math.cos(th) * (1 + 0.1 * b)); }, { kind: K.LINEN, col: LINEN, skin: onTorso });
+      tube(G, line([0, 1.47, -0.014], [0, 1.578, -0.008]), capped(t => 0.061 + 0.003 * t, 0.001, 0.12), 14, 5, { kind: K.LINEN, col: LINEN, skin: onTorso });
+      ball(G, [0.004, 1.512, 0.051], [0.025, 0.05, 0.018], { kind: K.RED, col: RED, skin: onTorso }, 10, 6);
       // the cross, hung high
-      { const w = 0.04, h = 0.04, bOf = y => { let lo = 0, hi = 1; for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2; if (row(TORSO, m)[0] < y) lo = m; else hi = m; } return lo; };
-        surf(torso, 4, 6, (a, b, out) => { const y = 1.432 + (b - 0.5) * 2 * h; ringPt(row(TORSO, bOf(y)), 0, out); return out.set(-0.012 + (a - 0.5) * 2 * w, y, out.z + 0.006 - 22 * Math.pow((a - 0.5) * 2 * w, 2) * 0.1); }, { kind: K.CARD, uv: (a, b) => [(4 + a * 184) / AT, 1 - (TILE_Y + 188 - b * 184) / AT] }); }
-      // his left arm: out from the shoulder, back to the elbow, and forward again to the hip
-      const arm = curve([[0.13, 1.43, -0.004], [0.196, 1.412, -0.012], [0.3, 1.305, -0.046], [0.385, 1.185, -0.076], [0.326, 1.106, 0.004], [0.238, 1.047, 0.074]]);
-      const ar = prof([[0, 0.05], [0.12, 0.062], [0.22, 0.066], [0.36, 0.06], [0.55, 0.054], [0.8, 0.046], [0.9, 0.042], [1, 0.042]]);
-      tube(torso, arm, (t, ph) => ar(t), 14, 28, { ...cloth, uv: (a, b) => (b > 0.84 ? bandUV(a * 0.5, 0.3 + (b - 0.84) / 0.16 * 0.6) : [2 + a, b]), extra: (a, b) => 0.15 + 0.7 * gss(b - 0.56, 0.18) });
-      const W = V3(0.238, 1.047, 0.074), d = V3(-0.757, -0.486, 0.432).normalize(), px = V3(-0.6, 0, -0.8); px.addScaledVector(d, -px.dot(d)).normalize();
-      tube(torso, (t, out) => out.copy(W).addScaledVector(d, lerp(-0.012, 0.014, t)), () => 0.036, 12, 2, { kind: K.LINEN, col: LINEN });
+      surf(G, 4, 6, (a, b, out) => { const y = 1.43 + (b - 0.5) * 0.08; ringPt(row(TORSO, bOf(y)), 0, out); return out.set(-0.012 + (a - 0.5) * 0.08, y, out.z + 0.006 - 2.2 * Math.pow((a - 0.5) * 0.08, 2)); }, { kind: K.CARD, uv: (a, b) => [(4 + a * 184) / AT, 1 - (TILE_Y + 188 - b * 184) / AT], skin: onTorso });
+      // his left arm: out from the shoulder, back to the elbow, and forward again to the hip; the sleeve head a little full
+      const arm = curve([[0.115, 1.42, -0.004], [0.18, 1.404, -0.012], [0.28, 1.3, -0.046], [0.352, 1.182, -0.074], [0.296, 1.102, 0.002], [0.204, 1.042, 0.066]]);
+      const ar = prof([[0, 0.044], [0.12, 0.054], [0.22, 0.057], [0.36, 0.051], [0.55, 0.045], [0.8, 0.039], [0.9, 0.0355], [1, 0.0355]]);
+      tube(G, arm, t => ar(t), 14, 28, { ...cloth, uv: (a, b) => (b > 0.86 ? bandUV(a * 0.5, 0.3 + (b - 0.86) / 0.14 * 0.6) : [2 + a, b]), extra: (a, b) => 0.1 + 0.7 * gss(b - 0.56, 0.12), skin: onTorso });
+      const W = V3(0.204, 1.042, 0.066), d = V3(-0.757, -0.486, 0.432).normalize(), px = V3(-0.6, 0, -0.8); px.addScaledVector(d, -px.dot(d)).normalize();
+      tube(G, (t, out) => out.copy(W).addScaledVector(d, lerp(-0.012, 0.014, t)), () => 0.0315, 12, 2, { kind: K.LINEN, col: LINEN, skin: onTorso });
       const yv = d.clone().negate(), zv = V3().crossVectors(px, yv).negate();      // (mirrored: a left hand)
-      hand(torso, new THREE.Matrix4().makeBasis(px, yv, zv).setPosition(W.clone().addScaledVector(d, 0.012)), FLESH, { spread: 0.24, curl: 0.3 });
+      hand(G, new THREE.Matrix4().makeBasis(px, yv, zv).setPosition(W.clone().addScaledVector(d, 0.012)), FLESH, { spread: 0.24, curl: 0.3, skin: onTorso });
+      // the two buttons at the back of the waist, where the tails begin
+      for (const sd of [-1, 1]) { ringPt(row(TORSO, bOf(1.085)), PI + sd * 0.3, tmp); ball(G, [tmp.x, tmp.y, tmp.z - 0.003], [0.011, 0.011, 0.006], { kind: K.SHOE, col: BLACK, skin: waistSkin }, 8, 5); }
     }
     // ---------------------------------------------------------- his head
-    const head = part();
     {
       const TH = a => { const s = 2 * a - 1; return PI * (0.45 * s + 0.55 * s * Math.pow(Math.abs(s), 1.2)); };
-      surf(head, 54, 40, (a, b, out) => headAt(TH(a), (b - 0.5) * PI, out), { kind: K.FACE, wrap: true, uv: (a, b) => headUV(TH(a), Math.sin((b - 0.5) * PI)) });
-      surf(head, 48, 34, (a, b, out) => { const th = (a - 0.5) * TAU, ph = (b - 0.5) * PI; return headAt(th, ph, out, hairThick(th, ph)); }, { kind: K.HAIR, col: HAIRC, wrap: true, uv: (a, b) => headUV((a - 0.5) * TAU, Math.sin((b - 0.5) * PI)), extra: (a, b) => Math.sin((b - 0.5) * PI) - hairline(Math.abs((a - 0.5) * TAU)) });
-      for (const sd of [-1, 1]) ball(head, [sd * 0.079, 1.652, -0.004], [0.011, 0.03, 0.019], { kind: K.FLESH, col: FLESH }, 8, 6);
-      tube(head, line([0, 1.44, -0.016], [0, 1.6, -0.006]), t => 0.055 + 0.004 * t, 14, 3, { kind: K.FLESH, col: FLESH });
+      surf(G, 48, 36, (a, b, out) => headAt(TH(a), (b - 0.5) * PI, out), { kind: K.FACE, wrap: true, uv: (a, b) => headUV(TH(a), Math.sin((b - 0.5) * PI)), skin: onHead });
+      surf(G, 42, 30, (a, b, out) => { const th = (a - 0.5) * TAU, ph = (b - 0.5) * PI; return headAt(th, ph, out, hairThick(th, ph)); }, { kind: K.HAIR, col: HAIRC, wrap: true, uv: (a, b) => headUV((a - 0.5) * TAU, Math.sin((b - 0.5) * PI)), extra: (a, b) => Math.sin((b - 0.5) * PI) - hairline(Math.abs((a - 0.5) * TAU)), skin: onHead });
+      for (const sd of [-1, 1]) ball(G, [sd * 0.079, 1.652, -0.004], [0.011, 0.03, 0.019], { kind: K.FLESH, col: FLESH, skin: onHead }, 8, 6);
+      tube(G, line([0, 1.44, -0.016], [0, 1.6, -0.006]), t => 0.054 + 0.004 * t, 14, 3, { kind: K.FLESH, col: FLESH, skin: onHead });
     }
-    // ---------------------------------------------------------- his right arm, in two; the hand at the end of it
-    const armU = part(), armF = part();
+    // ---------------------------------------------------------- his right arm, one sleeve from the shoulder to the cuff
     {
-      tube(armU, line([0, 0.03, 0], [0, -AU - 0.01, 0]), capped(prof([[0, 0.058], [0.14, 0.065], [0.4, 0.06], [1, 0.052]]), 0.12, 0.08), 14, 14, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.15 + 0.6 * sstep(b, 0.5, 0.95) });
-      const fr = prof([[0, 0.052], [0.5, 0.047], [0.86, 0.041], [1, 0.042]]);
-      tube(armF, line([0, 0.02, 0], [0, -AF + 0.012, 0]), capped(fr, 0.1, 0.001), 14, 14, { ...cloth, uv: (a, b) => (b > 0.82 ? bandUV(0.5 + a * 0.5, 0.3 + (b - 0.82) / 0.18 * 0.6) : [2 + a, b]), extra: (a, b) => 0.15 + 0.6 * sstep(b, 0.45, 0.05) });
-      tube(armF, line([0, -AF + 0.02, 0], [0, -AF - 0.012, 0]), () => 0.0355, 12, 2, { kind: K.LINEN, col: LINEN });
-      hand(armF, new THREE.Matrix4().makeTranslation(0, -AF - 0.006, 0), FLESH, { spread: 0.05, curl: 0.62 });
+      const ax = -SHO[0], top = SHO[1] + 0.03, rr = prof([[0, 0.044], [0.08, 0.055], [0.2, 0.052], [0.52, 0.044], [0.86, 0.036], [0.94, 0.0345], [1, 0.035]]);
+      tube(G, line([ax, top, SHO[2]], [ax, WRIST + 0.012, SHO[2]]), capped(rr, 0.07, 0.001), 14, 28, { ...cloth, uv: (a, b) => (b > 0.92 ? bandUV(0.5 + a * 0.5, 0.3 + (b - 0.92) / 0.08 * 0.6) : [2 + a, b]), extra: (a, b) => 0.08 + 0.65 * gss(b - 0.575, 0.075) * (0.5 + 0.5 * Math.cos(a * TAU)), skin: armSkin });
+      tube(G, line([ax, WRIST + 0.02, SHO[2]], [ax, WRIST - 0.012, SHO[2]]), () => 0.031, 12, 2, { kind: K.LINEN, col: LINEN, skin: rigid(B.armF) });
+      hand(G, new THREE.Matrix4().makeTranslation(ax, WRIST - 0.006, SHO[2]), FLESH, { spread: 0.05, curl: 0.62, skin: rigid(B.armF) });
     }
-    // ---------------------------------------------------------- his hips, the tails of the coat, the sword at his hip
-    const pelvis = part();
+    // ---------------------------------------------------------- his hips; the coat's skirts, cut away in front and
+    // hanging behind in two tails with the vent between them; the sword at his hip
     {
-      surf(pelvis, 24, 12, (a, b, out) => ringPt(row(PELVIS, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true });
-      // the tails: from the waist round behind him, down to the back of the knee, parted in the middle
-      surf(pelvis, 22, 12, (a, b, out) => {
-        const span = lerp(1.75, 0.95, sstep(b, 0, 0.9)), s = 2 * a - 1, th = PI + s * span, R = [lerp(1.075, 0.52, b), 0, 0.146 * (1 + 0.1 * b), 0.11, 0.107 * (1 + 0.42 * Math.sin(b * PI * 0.6)), 2.3];
-        ringPt(R, th, out, 1.03); out.z += 0.006 * b * Math.cos(s * 9); out.x += 0.012 * b * Math.sign(s) * gss(s, 0.12); return out;
-      }, cloth);
-      // the sword: its hilt before his hip, under his hand; the scabbard down and back behind his leg. It hangs there.
-      const g0 = V3(0.212, 0.905, 0.07), up = V3(0.02, 0.95, 0.31).normalize(), at = (k, o = V3()) => o.copy(g0).addScaledVector(up, k), fwd = V3(0, -0.31, 0.95).normalize(), gold = { kind: K.GOLD, col: GOLD };
-      tube(pelvis, (t, out) => at(lerp(0.012, 0.105, t), out), capped(t => 0.0125 + 0.003 * Math.sin(PI * t), 0.05, 0.05), 10, 6, { kind: K.PEARL, col: PEARL });
-      { const p = at(0.122); ball(pelvis, [p.x, p.y, p.z], [0.019, 0.022, 0.019], gold, 10, 6); const q = at(0.004); ball(pelvis, [q.x, q.y, q.z], [0.04, 0.012, 0.03], gold, 12, 6); }
-      { const a0 = at(0.118), a1 = at(0.06).addScaledVector(fwd, 0.062), a2 = at(0.006).addScaledVector(fwd, 0.036); tube(pelvis, curve([a0.toArray(), a1.toArray(), a2.toArray()]), capped(() => 0.0065, 0.04, 0.04), 8, 12, gold); }
-      const tip = at(-0.62);
-      tube(pelvis, (t, out) => at(lerp(-0.002, -0.62, t), out), capped(t => lerp(0.014, 0.009, t), 0.001, 0.03), 8, 10, { kind: K.SHOE, col: BLACK });
-      tube(pelvis, (t, out) => at(lerp(-0.002, -0.05, t), out), () => 0.0152, 8, 2, gold);
-      tube(pelvis, (t, out) => out.copy(tip).addScaledVector(up, lerp(0.07, -0.004, t)), capped(t => lerp(0.0105, 0.008, t), 0.001, 0.2), 8, 4, gold);
+      surf(G, 24, 12, (a, b, out) => ringPt(row(PELVIS, b), (a - 0.5) * TAU, out), { ...cloth, wrap: true, skin: waistSkin });
+      surf(G, 26, 16, (a, b, out) => {
+        const s = 2 * a - 1, as = Math.abs(s), span = (b < 0.25 ? lerp(1.5, 1.22, b / 0.25) : lerp(1.22, 0.84, (b - 0.25) / 0.75)) * (1 - 0.2 * sstep(b, 0.8, 1) * as);
+        const y = lerp(1.078, 0.57, b) + 0.035 * sstep(b, 0.72, 1) * Math.abs(2 * as - 1);      // (each tail's end rounded)
+        return ringPt([y, 0, 0.131 * (1 + 0.1 * b), 0.1, 0.097 + 0.03 * Math.sin(PI * Math.min(1, b / 0.55)) * (1 - 0.35 * b) + 0.016 * b, 2.3], PI + s * span, out, 1.025);
+      }, { ...cloth, extra: 0.12, uv: (a, b) => [3 + a, b], skin: tailSkin });
+      // the sword: a dress sword, its hilt before his hip under his hand, the thin scabbard slanting down and back. It hangs there.
+      const swSkin = p => [B.pelvis, B.tail, 0.45 * sstep(p.y, 0.86, 0.5)];
+      const g0 = V3(0.186, 0.915, 0.066), up = V3(0.03, 0.82, 0.57).normalize(), at = (k, o = V3()) => o.copy(g0).addScaledVector(up, k), fwd = V3(0, -0.57, 0.82).normalize(), gold = { kind: K.GOLD, col: GOLD, skin: swSkin };
+      tube(G, (t, out) => at(lerp(0.012, 0.1, t), out), capped(t => 0.011 + 0.0025 * Math.sin(PI * t), 0.05, 0.05), 10, 6, { kind: K.PEARL, col: PEARL, skin: swSkin });
+      { const p = at(0.115); ball(G, [p.x, p.y, p.z], [0.016, 0.019, 0.016], gold, 10, 6); const q = at(0.004); ball(G, [q.x, q.y, q.z], [0.034, 0.01, 0.026], gold, 12, 6); }
+      { const a0 = at(0.112), a1 = at(0.058).addScaledVector(fwd, 0.055), a2 = at(0.006).addScaledVector(fwd, 0.032); tube(G, curve([a0.toArray(), a1.toArray(), a2.toArray()]), capped(() => 0.0052, 0.04, 0.04), 8, 12, gold); }
+      const tip = at(-0.46);
+      tube(G, (t, out) => at(lerp(-0.002, -0.46, t), out), capped(t => lerp(0.0085, 0.0048, t), 0.001, 0.03), 8, 10, { kind: K.SHOE, col: BLACK, skin: swSkin });
+      tube(G, (t, out) => at(lerp(-0.002, -0.04, t), out), () => 0.0098, 8, 2, gold);
+      tube(G, (t, out) => out.copy(tip).addScaledVector(up, lerp(0.055, -0.004, t)), capped(t => lerp(0.0064, 0.0045, t), 0.001, 0.2), 8, 4, gold);
       // the seal at his watch ribbon, on the other side
-      ball(pelvis, [-0.098, 1.0, 0.108], [0.017, 0.021, 0.014], gold, 8, 6); tube(pelvis, line([-0.098, 1.06, 0.1], [-0.098, 1.015, 0.108]), () => 0.007, 6, 2, { kind: K.RED, col: col('#3a1410', 0) });
+      ball(G, [-0.085, 1.0, 0.1], [0.015, 0.019, 0.012], { kind: K.GOLD, col: GOLD, skin: waistSkin }, 8, 6); tube(G, line([-0.085, 1.055, 0.094], [-0.085, 1.012, 0.1]), () => 0.006, 6, 2, { kind: K.RED, col: col('#3a1410', 0), skin: waistSkin });
     }
-    // ---------------------------------------------------------- his legs (ours: the picture stops above them), plain
-    const thigh = part(), shin = part(), shoe = part();
-    {
-      tube(thigh, line([0, 0.05, 0], [0, -THIGH - 0.02, 0]), capped(prof([[0, 0.09], [0.25, 0.094], [1, 0.075]]), 0.16, 0.1), 14, 12, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.12 + 0.3 * sstep(b, 0.7, 0.98) });
-      tube(shin, line([0, 0.04, 0], [0, -SHIN + 0.015, 0]), capped(prof([[0, 0.075], [0.3, 0.072], [0.8, 0.062], [1, 0.064]]), 0.12, 0.001), 14, 12, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.12 + 0.25 * sstep(b, 0.3, 0.02) + 0.35 * sstep(b, 0.8, 1) });
-      surf(shoe, 14, 9, (a, b, out) => { const th = a * TAU, ph = (b - 0.5) * PI, cp = Math.cos(ph), z = Math.cos(th) * cp; return out.set(0.044 * Math.sin(th) * cp * (1 - 0.18 * Math.max(0, z)), -0.026 + 0.033 * Math.sin(ph) * (1 - 0.3 * Math.max(0, z)), 0.045 + 0.118 * z); }, { kind: K.SHOE, col: BLACK, wrap: true });
+    // ---------------------------------------------------------- his legs (ours: the picture stops above them): narrow
+    // trousers, one length of cloth from the hip to the instep, over slim shoes
+    for (let f = 0; f < 2; f++) {
+      const sd = f === 0 ? 1 : -1, lr = prof([[0, 0.07], [0.12, 0.08], [0.3, 0.069], [0.53, 0.055], [0.66, 0.053], [0.93, 0.042], [1, 0.046]]);
+      tube(G, line([sd * HIPW, 0.97, 0], [sd * HIPW, 0.045, 0.004]), capped(lr, 0.05, 0.001), 14, 30, { ...cloth, uv: (a, b) => [2 + a, b], extra: (a, b) => 0.06 + 0.6 * gss(b - 0.53, 0.06) * (0.5 - 0.5 * Math.cos(a * TAU)) + 0.25 * sstep(b, 0.9, 1), skin: legSkin(f) });
+      surf(G, 14, 9, (a, b, out) => { const th = a * TAU, ph = (b - 0.5) * PI, cp = Math.cos(ph), z = Math.cos(th) * cp, toe = Math.max(0, z); return out.set(sd * HIPW + 0.037 * Math.sin(th) * cp * (1 - 0.5 * toe * toe), 0.026 + 0.026 * Math.sin(ph) * (1 - 0.45 * toe), 0.038 + 0.118 * z); }, { kind: K.SHOE, col: BLACK, wrap: true, skin: rigid(B.shoe[f]) });
     }
 
-    // ---------------------------------------------------------- the rig: all of him, one draw call
-    const parts = { pelvis, torso, head, armU, armF, thigh, shin, shoe };
-    const origin = { pelvis: [0, HIP, 0], torso: [0, WAIST, 0], head: NECK, armU: [0, 0, 0], armF: [0, 0, 0], thigh: [0, 0, 0], shin: [0, 0, 0], shoe: [0, 0, 0] };
-    let total = 0; for (const p of Object.values(parts)) total += p.pos.length / 3;
+    // ---------------------------------------------------------- all of him: one mesh, one draw call
+    const nV = G.pos.length / 3, pos = new Float32Array(nV * 3), p2 = new Float32Array(nV * 3);
+    for (let i = 0; i < nV; i++) { const a = ORG[G.w[i * 3]], b = ORG[G.w[i * 3 + 1]]; for (let k = 0; k < 3; k++) { pos[i * 3 + k] = G.pos[i * 3 + k] - a[k]; p2[i * 3 + k] = G.pos[i * 3 + k] - b[k]; } }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aP2', new THREE.BufferAttribute(p2, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(G.nor, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(G.col, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(G.uv, 2)); geo.setAttribute('aK', new THREE.Float32BufferAttribute(G.k, 2)); geo.setAttribute('aW', new THREE.Float32BufferAttribute(G.w, 3));
+    G.pos = G.nor = G.col = G.uv = G.k = G.w = null;
     const atlas = paintAtlas(rand); atlas.anisotropy = 4;
     const sun = V3().addScaledVector(V3(L.tx, 0, L.tz), -0.42).addScaledVector(V3(L.nx, 0, L.nz), 0.72).add(V3(0, 0.55, 0)).normalize();      // his light: from the upper left, in front
-    const u = this.u = { uAtlas: { value: atlas }, uSun: { value: sun }, uWall: { value: new THREE.Vector4(L.nx, 0, L.nz, L.cx * L.nx + L.cz * L.nz) }, uCalm: { value: 0 } };
+    this.bones = ORG.map(() => new THREE.Matrix4());
+    const u = this.u = { uAtlas: { value: atlas }, uSun: { value: sun }, uWall: { value: new THREE.Vector4(L.nx, 0, L.nz, L.cx * L.nx + L.cz * L.nz) }, uCalm: { value: 0 }, uB: { value: this.bones }, uEye: { value: new THREE.Vector2() } };
     const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false });
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, u);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aK; varying vec2 vK, vUv2; varying vec3 vWN, vWP;')
-        .replace('#include <begin_vertex>', `#include <begin_vertex>
-  vK = aK; vUv2 = uv;
-  #ifdef USE_BATCHING
-    vWN = normalize(mat3(modelMatrix) * (mat3(batchingMatrix) * normal)); vWP = (modelMatrix * (batchingMatrix * vec4(position, 1.0))).xyz;
-  #else
-    vWN = normalize(mat3(modelMatrix) * normal); vWP = (modelMatrix * vec4(position, 1.0)).xyz;
-  #endif`);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aK; attribute vec3 aP2, aW; uniform mat4 uB[12]; varying vec2 vK, vUv2; varying vec3 vWN, vWP;')
+        .replace('#include <begin_vertex>', `mat4 ba = uB[int(aW.x + 0.5)], bb = uB[int(aW.y + 0.5)];
+  vec3 transformed = mix((ba * vec4(position, 1.0)).xyz, (bb * vec4(aP2, 1.0)).xyz, aW.z);
+  vK = aK; vUv2 = uv; vWP = transformed; vWN = normalize(mix(mat3(ba) * normal, mat3(bb) * normal, aW.z));`);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-uniform sampler2D uAtlas; uniform vec3 uSun; uniform vec4 uWall; uniform float uCalm; varying vec2 vK, vUv2; varying vec3 vWN, vWP;
+uniform sampler2D uAtlas; uniform vec3 uSun; uniform vec4 uWall; uniform float uCalm; uniform vec2 uEye; varying vec2 vK, vUv2; varying vec3 vWN, vWP;
 float pH(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(pH(i), pH(i + vec2(1.0, 0.0)), f.x), mix(pH(i + vec2(0.0, 1.0)), pH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
         .replace('#include <opaque_fragment>', `{
@@ -449,24 +469,49 @@ float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   vec4 tx = vUv2.x >= 0.0 && vUv2.x < 1.5 ? texture2D(uAtlas, vUv2) : vec4(0.0, 0.0, 0.0, 1.0);
   vec3 c = vColor;
   if (kind == ${K.CLOTH} || kind == ${K.SHOE}) {
-    // his black: nearly nothing in the shadow, a grey bloom where the cloth turns to the light, and along its edge
-    float bloom = smoothstep(-0.25, 1.0, nl), rim = pow(1.0 - nv, 3.0) * smoothstep(-0.4, 0.4, nl);
-    c = mix(${GL('#0b0a0a', 0.1)}, ${GL('#45423f', 0.08)}, clamp(0.8 * bloom + 0.5 * rim + 0.1 * smoothstep(-0.6, 0.6, N.y), 0.0, 1.0));
-    c = mix(c, ${GL('#6a6763', 0.06)}, 0.4 * pow(nh, 4.0) * smoothstep(0.0, 0.6, nl));
+    // his black: nearly nothing in the shadow, the faintest cool bloom where the cloth turns to the light, and a
+    // soft dark contour where the form turns away. The velvet of the collar is a warmer black, lightest at its edge.
+    float bloom = smoothstep(-0.25, 1.0, nl), edge = pow(1.0 - nv, 2.2);
+    if (vUv2.x < 1.5 && vK.y > 1.5) c = mix(${GL('#120b09', 0.05)}, ${GL('#4b3a33', 0.05)}, clamp(0.45 * bloom + 0.4 * edge * smoothstep(-0.3, 0.5, nl), 0.0, 1.0));
+    else {
+      c = mix(${GL('#0b0b0b', 0.08)}, ${GL('#38393c', 0.04)}, clamp(0.6 * bloom + 0.08 * smoothstep(-0.6, 0.6, N.y), 0.0, 1.0));
+      c = mix(c, ${GL('#58595d', 0.03)}, 0.3 * pow(nh, 4.0) * smoothstep(0.0, 0.6, nl));
+      c *= 1.0 - 0.62 * edge;
+    }
     if (kind == ${K.SHOE}) c = mix(c, ${GL('#8c8a86', 0.03)}, 0.7 * pow(nh, 24.0));
     if (!gl_FrontFacing) c *= 0.3;                                         // (the inside of his coat tails, and of his collar)
-    if (vUv2.x > 1.5) {
-      // a sleeve or a trouser leg: soft folds across it where it bends, as lights and hollows in the black
-      float fa = (vUv2.x - 2.0) * 6.2832, ft = vUv2.y, fold = 2.0 * (pN(vec2(fa * 0.7 + 2.5 * ft, ft * 6.5)) - 0.5) * vK.y;
-      c = mix(c, ${GL('#55524e', 0.06)}, 0.42 * smoothstep(0.1, 0.6, fold) * smoothstep(-0.2, 0.7, nl));
-      c *= 1.0 - 0.4 * smoothstep(0.1, 0.6, -fold);
+    if (vUv2.x > 2.999) {
+      // the tails: the vent between them, open a little towards the hem
+      float vent = abs(vUv2.x - 3.5); if (vent < 0.012 * vUv2.y * vUv2.y) discard;
+      c *= 1.0 - 0.6 * smoothstep(0.03, 0.01, vent) * step(0.03, vUv2.y);
+    } else if (vUv2.x > 1.5) {
+      // a sleeve or a trouser leg: a few soft folds where it bends, as lights and hollows in the black
+      float fa = (vUv2.x - 2.0) * 6.2832, ft = vUv2.y, fold = 2.0 * (pN(vec2(fa * 0.7 + 2.5 * ft, ft * 9.0)) - 0.5) * vK.y;
+      c = mix(c, ${GL('#505154', 0.03)}, 0.45 * smoothstep(0.08, 0.5, fold) * smoothstep(-0.2, 0.7, nl));
+      c *= 1.0 - 0.45 * smoothstep(0.08, 0.5, -fold);
+    } else {
+      // the embroidery: black silk on it, found where the light catches it; and the coat's seams
+      float m = tx.r, seam = clamp(tx.b - tx.r, 0.0, 1.0);
+      c = mix(c, ${GL('#6e6b66', 0.05)}, clamp(m * (0.1 + 0.26 * smoothstep(-0.7, 0.85, nl) + 0.45 * pow(nh, 9.0)), 0.0, 0.85));
+      c *= 1.0 - 0.65 * seam;
     }
-    // the embroidery: black silk on it, found where the light catches it
-    float m = vUv2.x < 1.5 ? tx.r : 0.0;
-    c = mix(c, ${GL('#6e6b66', 0.05)}, clamp(m * (0.13 + 0.25 * smoothstep(-0.7, 0.85, nl) + 0.45 * pow(nh, 9.0)), 0.0, 0.85));
   } else if (kind == ${K.FLESH} || kind == ${K.FACE}) {
     // his flesh: pale, close in tone, turning to a warmer shade at its edge
     vec3 a = kind == ${K.FACE} ? tx.rgb : vColor;
+    if (kind == ${K.FACE}) {
+      // his eyes: they turn before his head does
+      vec2 px = vec2(vUv2.x, 1.0 - vUv2.y) * ${AT.toFixed(1)};
+      for (int e = 0; e < 2; e++) {
+        vec2 d = px - vec2(e == 0 ? 443.55 : 580.45, 208.3); float q = d.x / 33.0;
+        if (abs(q) < 1.0) {
+          float bow = 1.0 - q * q, top = 1.5 - 9.25 * bow, bot = 1.5 + 6.25 * bow, inside = smoothstep(top - 0.5, top + 1.5, d.y) * smoothstep(bot + 0.5, bot - 1.5, d.y);
+          vec2 ic = vec2(uEye.x * 14.0, -2.0 + uEye.y * 6.0); float r = length(d - ic);
+          vec3 iris = r < 5.4 ? vec3(0.004) : r < 11.4 ? ${GL('#56483e', 0)} : ${GL('#3a302a', 0)};
+          iris = mix(iris, vec3(0.9), smoothstep(2.6, 1.6, length(d - ic - vec2(-5.0, -5.0))));
+          a = mix(a, iris * mix(0.5, 1.0, smoothstep(top, top + 9.0, d.y)), inside * smoothstep(14.5, 13.2, r));
+        }
+      }
+    }
     c = a * mix(vec3(0.6, 0.49, 0.44), vec3(1.03, 1.0, 0.97), lit);
     c = mix(c, a * vec3(0.5, 0.36, 0.31), 0.5 * pow(1.0 - nv, 2.4));
   } else if (kind == ${K.HAIR}) {
@@ -499,18 +544,9 @@ float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
 #include <opaque_fragment>`);
     };
     mat.customProgramCacheKey = () => 'ingres-pastoret';
-    const rig = this.rig = L.rig(12, total + 64, mat), gid = {};
-    for (const [name, p] of Object.entries(parts)) {
-      const g = new THREE.BufferGeometry(), o = origin[name], pos = new Float32Array(p.pos);
-      for (let i = 0; i < pos.length; i += 3) { pos[i] -= o[0]; pos[i + 1] -= o[1]; pos[i + 2] -= o[2]; }
-      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(p.nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(p.col, 3));
-      g.setAttribute('uv', new THREE.Float32BufferAttribute(p.uv, 2)); g.setAttribute('aK', new THREE.Float32BufferAttribute(p.k, 2));
-      gid[name] = rig.geo(g); p.pos = p.nor = p.col = p.uv = p.k = null;
-    }
-    const I = this.I = { pelvis: rig.add(gid.pelvis), torso: rig.add(gid.torso), head: rig.add(gid.head), armU: rig.add(gid.armU), armF: rig.add(gid.armF), thigh: [rig.add(gid.thigh), rig.add(gid.thigh)], shin: [rig.add(gid.shin), rig.add(gid.shin)], shoe: [rig.add(gid.shoe), rig.add(gid.shoe)] };
-    this.all = [I.pelvis, I.torso, I.head, I.armU, I.armF, ...I.thigh, ...I.shin, ...I.shoe];
+    this.body = new THREE.Mesh(geo, mat); this.body.name = 'pastoret'; L.add(this.body);
     const M4 = () => new THREE.Matrix4();
-    this.M = { root: M4(), pelvis: M4(), torso: M4(), head: M4(), a: M4(), b: M4(), out: M4() };
+    this.M = { root: M4(), pelvis: M4(), torso: M4(), head: M4(), a: M4(), b: M4() };
     this.v = { hip: V3(), knee: V3(), ank: V3(), end: V3(), pole: V3(), sh: V3(), el: V3(), wr: V3(), tg: V3(), tg2: V3(), th: V3(), p: V3(), e: new THREE.Euler(0, 0, 0, 'YXZ'), q: new THREE.Quaternion(), s: V3(1, 1, 1), z: V3() };
 
     // ---------------------------------------------------------- the silk: one sheet, let down from under the frame
@@ -525,8 +561,8 @@ float pN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     this.tThrough = T_WALK[1]; for (let t = T_WALK[0]; t < T_WALK[1]; t += 0.01) { wc.getPointAt(walkE(ramp(t, T_WALK[0], T_WALK[1])), this.wp); if (this.wp.z > 0.36) { this.tThrough = t; break; } }
     const steps = [];
     for (let k = 0; k < 5; k++) steps.push({ f: k % 2 ? 0 : 1, t0: 0.92 + 0.475 * k, t1: 1.3 + 0.475 * k, lead: k < 4 ? 0.24 : 0.1 });
-    steps.push({ f: 0, t0: 3.2, t1: 3.46, lead: 0.14 }, { f: 1, t0: 3.46, t1: 3.72, lead: 0.14 }, { f: 0, t0: 3.72, t1: 3.96, lead: 0.2 }, { f: 1, t0: 3.96, t1: 4.2, lead: 0.25 });
-    const glance = (a, b) => steps.push({ f: 0, t0: a + 0.02, t1: a + 0.38, lead: 0.4 }, { f: 1, t0: a + 0.4, t1: a + 0.68, lead: 0.12 }, { f: 1, t0: b + 0.05, t1: b + 0.36, lead: 0.5 }, { f: 0, t0: b + 0.38, t1: b + 0.7, lead: 0.15 });
+    steps.push({ f: 0, t0: 3.2, t1: 3.46, lead: 0.14 }, { f: 1, t0: 3.46, t1: 3.72, lead: 0.14 }, { f: 0, t0: 3.72, t1: 3.96, lead: 0.3, fw: 0.07 }, { f: 1, t0: 3.96, t1: 4.2, lead: 0.25 });
+    const glance = (a, b) => steps.push({ f: 0, t0: a + 0.12, t1: a + 0.48, lead: 0.4 }, { f: 1, t0: a + 0.5, t1: a + 0.78, lead: 0.12 }, { f: 1, t0: b + 0.15, t1: b + 0.46, lead: 0.5 }, { f: 0, t0: b + 0.48, t1: b + 0.8, lead: 0.15, fw: 0.07 });
     glance(G0, G1); glance(T_LOOP + LG0, T_LOOP + LG1);
     this.o = {}; this.o2 = {};
     this.steps = this.plant(steps, t => this.bodyShow(t, false, this.o2));
@@ -595,7 +631,7 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     this.silk = new THREE.Mesh(geo, m); this.silk.name = 'pastoret-silk'; L.add(this.silk);
   },
 
-  hide() { for (const i of this.all) this.rig.show(i, false); this.rig.mesh.visible = false; this.silk.visible = false; this.blobs.count = 0; this.blobs.visible = false; },
+  hide() { this.body.visible = false; this.silk.visible = false; this.blobs.count = 0; this.blobs.visible = false; },
 
   // ---------------------------------------------------------------- where he is and how he holds himself at show-time t
   bodyShow(t, calm, o) {
@@ -606,9 +642,10 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     const turn = ease.inOut(ramp(tf, T_TURN[0], T_TURN[0] + (T_TURN[1] - T_TURN[0]) * slow));
     let psi = lerp(Math.atan2(this.wd.x, this.wd.z), -PI, turn);
     // looking round at you, and back
-    const gl = (a, b) => ease.inOut(ramp(tf, a, a + 0.75 * slow)) * (1 - ease.inOut(ramp(tf, b, b + 0.8 * slow)));
+    const gl = (a, b) => ease.inOut(ramp(tf, a + 0.1, a + 0.1 + 0.75 * slow)) * (1 - ease.inOut(ramp(tf, b + 0.1, b + 0.1 + 0.8 * slow)));
     const g = Math.max(gl(G0, G1), gl(T_LOOP + LG0, T_LOOP + LG1));
-    const gh = (a, b) => ease.inOut(ramp(tf, a - 0.12, a + 0.55 * slow)) * (1 - ease.inOut(ramp(tf, b - 0.1, b + 0.6 * slow)));
+    const gh = (a, b) => ease.inOut(ramp(tf, a - 0.08, a + 0.5 * slow)) * (1 - ease.inOut(ramp(tf, b - 0.08, b + 0.55 * slow)));
+    const ge = (a, b) => ease.inOut(ramp(tf, a - 0.4, a - 0.14)) * (1 - ease.inOut(ramp(tf, a + 0.25, a + 0.7 * slow))) - ease.inOut(ramp(tf, b - 0.4, b - 0.14)) * (1 - ease.inOut(ramp(tf, b + 0.2, b + 0.6 * slow)));
     const h = Math.max(gh(G0, G1), gh(T_LOOP + LG0, T_LOOP + LG1));
     psi += 0.92 * g; o.psi = psi; o.g = g; o.gh = h;
     const up = ease.inOut(ramp(tf, T_UP[0], T_UP[1])) * (1 - h);
@@ -618,7 +655,8 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     o.hy = 1.02 * h; o.hp = -0.08 * (1 - up) * (1 - h) - 0.6 * up - 0.1 * h + 0.13 * nod; o.hr = (0.1 - 0.2 * other) * tilt * up;
     o.lean = -0.1 * up + 0.03 * o.going; o.side = (0.03 - 0.06 * other) * tilt;
     o.hand = ease.inOut(ramp(tf, T_HAND[0], T_HAND[1])); o.breath = Math.sin(t * 1.5);
-    o.stand = ease.inOut(ramp(tf, T_TURN[1], T_TURN[1] + 0.7)) * (1 - 2 * other);      // (his weight on one leg; later, the other)
+    o.stand = ease.inOut(ramp(tf, T_TURN[1] - 0.1, T_TURN[1] + 0.7)) * (1 - 2 * other) * (1 - 0.6 * g);      // (his weight on one leg; later, the other)
+    o.ex = 0.7 * (ge(G0, G1) + ge(T_LOOP + LG0, T_LOOP + LG1)); o.ey = -0.5 * up;
     o.vis = tf > T_WALK[0] - 0.05;
     return o;
   },
@@ -631,14 +669,14 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     o.going = q <= 0 || q >= 1 ? 0 : clamp01(Math.min(q, 1 - q) / 0.12); o.ph = (tau - 0.28) / 0.36 * PI; o.g = 0; o.gh = 0;
     const k = 1 - ease.inOut(ramp(tau, 0, 0.5));
     o.twist = h.twist * k + 0.05 * Math.sin(o.ph) * o.going; o.hy = h.hy * k; o.hp = lerp(-0.06, h.hp, k); o.hr = h.hr * k; o.lean = h.lean * k + 0.03 * o.going; o.side = h.side * k;
-    o.hand = h.hand * (1 - ease.inOut(ramp(tau, 0.2, 0.8))); o.breath = 0; o.stand = h.stand * k; o.vis = h.vis;
+    o.hand = h.hand * (1 - ease.inOut(ramp(tau, 0.2, 0.8))); o.breath = 0; o.stand = h.stand * k; o.ex = h.ex * k; o.ey = h.ey * k; o.vis = h.vis;
     return o;
   },
   // Where each step comes down: under where he will be a moment after it lands.
   plant(steps, body) {
     const at = (t, f) => { const o = body(t), sg = f === 0 ? 1 : -1, c = Math.cos(o.psi), s = Math.sin(o.psi), w = 0.1 * S; return { u: o.u + c * sg * w, out: o.out - s * sg * w, yaw: o.psi + sg * 0.2 }; };
     steps.start = [at(steps.t00 || 0, 0), at(steps.t00 || 0, 1)];
-    for (const st of steps) st.p = at(st.t1 + st.lead, st.f);
+    for (const st of steps) { st.p = at(st.t1 + st.lead, st.f); if (st.fw) { const o = body(st.t1 + st.lead); st.p.u += Math.sin(o.psi) * st.fw * S; st.p.out += Math.cos(o.psi) * st.fw * S; } }
     return steps;
   },
   footAt(steps, t, f, out) {
@@ -677,7 +715,7 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     const ph = L.phase, showing = ph === 'wake' || ph === 'play', back = ph === 'return';
     if (!showing && !back) { this.hide(); return; }
     if (back && !this.hold) this.back(L);
-    const calm = L.calm, t = L.t, v = this.v, M = this.M, rig = this.rig, I = this.I, tau = back ? L.ret * RET : 0;
+    const calm = L.calm, t = L.t, v = this.v, M = this.M, tau = back ? L.ret * RET : 0;
     if (showing) this.sc.play(t);
     const voice = L.voice(); voice.level = calm ? 0.55 : 1; voice.place();
     if (showing && !this.told && !L.quiet && t > T_UP[0]) { this.told = true; L.k.say('He commissioned this likeness from his friend Ingres, and it stayed in his family until 1890. He comes round to look at it.', 6); }
@@ -693,30 +731,34 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     } else { drop = 1 - ease.inOut(ramp(tau, RET - 0.5, RET - 0.02)); if (!this.hold.vis || this.hold.out < 0) drop = Math.min(drop, 1 - ease.inOut(ramp(tau, 0.1, 0.9))); }
     open = through * (o.vis ? 1 : 0);
     su.uDrop.value = drop; su.uOpen.value = open; su.uSway.value.set(sx, sz); su.uBulge.value.set(o.u - SILK.u0, 0.09 * behind * (o.vis ? 1 : 0) * drop);
-    this.silk.visible = drop > 0.02; this.rig.mesh.visible = true; this.blobs.visible = true;
+    this.silk.visible = drop > 0.02; this.blobs.visible = true;
 
     // ---- him
     const vis = o.vis && (!back || L.ret < 0.995);
-    for (const i of this.all) rig.show(i, vis);
+    this.body.visible = vis;
     const psi = o.psi, cs = Math.cos(psi), sn = Math.sin(psi), steps = back ? this.hold.steps : this.steps, tt = back ? tau : (t < T_LOOP ? t : T_LOOP + ((t - T_LOOP) % PER));
-    // his feet, where they stand (in his own measure: x to his left, z before him)
-    const F = this.feet; let hipY = HIP - 0.006;
+    // his feet, where they stand (in his own measure: x to his left, z before him). Standing, his weight is on one
+    // leg, the hip out over it, and the other is easy: its knee forward, its heel just off the boards.
+    const F = this.feet, st = o.stand; let hipY = HIP - 0.006 - 0.012 * Math.abs(st);
     for (let f = 0; f < 2; f++) {
       const ft = this.footAt(steps, tt, f, F[f]), du = (ft.u - o.u) / S, dz = (ft.out - o.out) / S;
-      ft.x = du * cs - dz * sn; ft.z = du * sn + dz * cs; ft.ry = ft.yaw - psi; ft.y = ANKLE + ft.lift;
+      ft.free = Math.max(0, st * (f === 0 ? 1 : -1));
+      ft.x = du * cs - dz * sn; ft.z = du * sn + dz * cs; ft.ry = ft.yaw - psi; ft.y = ANKLE + ft.lift + 0.026 * ft.free;
       const dh = Math.hypot(ft.x - (f === 0 ? HIPW : -HIPW), ft.z), top = ft.y + Math.sqrt(Math.max(0.01, 0.832 * 0.832 - dh * dh));
-      if (ft.lift < 0.004) hipY = Math.min(hipY, top);
+      if (ft.lift < 0.004 && ft.free < 0.01) hipY = Math.min(hipY, top);
     }
     hipY = Math.max(HIP - 0.04, hipY) - 0.004 * o.going;
     const pos = L.floor(o.u, o.out, v.p);
     M.root.compose(pos.setY(L.y + 0.004), v.q.setFromEuler(v.e.set(0, L.yawOut + psi, 0)), v.s.setScalar(S));
     const set = (m, x, y, z, yaw, pitch, roll) => m.compose(v.tg.set(x, y, z), v.q.setFromEuler(v.e.set(pitch, yaw, roll)), v.s.setScalar(1));
-    const sway = 0.012 * Math.sin(o.ph) * o.going - 0.026 * o.stand;
-    set(M.pelvis, sway, hipY, 0, 0.06 * Math.sin(o.ph) * o.going - 0.3 * o.twist, 0, 0.05 * o.stand);
-    M.a.copy(M.pelvis); set(M.b, 0, WAIST - HIP, 0, o.twist * 1.3, o.lean, o.side - 0.085 * o.stand); M.torso.multiplyMatrices(M.a, M.b);
-    set(M.b, NECK[0], NECK[1] - WAIST, NECK[2], o.hy, o.hp, o.hr); M.head.multiplyMatrices(M.torso, M.b);
-    const put = (i, m) => rig.mat(i, M.out.multiplyMatrices(M.root, m));
-    put(I.pelvis, M.pelvis); put(I.torso, M.torso); put(I.head, M.head);
+    const sway = 0.012 * Math.sin(o.ph) * o.going - 0.034 * st;
+    set(M.pelvis, sway, hipY, 0, 0.06 * Math.sin(o.ph) * o.going - 0.3 * o.twist, 0, 0.075 * st + 0.03 * Math.sin(o.ph) * o.going);
+    M.a.copy(M.pelvis); set(M.b, 0, WAIST - HIP, 0, o.twist * 1.3, o.lean, o.side - 0.125 * st - 0.045 * Math.sin(o.ph) * o.going); M.torso.multiplyMatrices(M.a, M.b);
+    set(M.b, NECK[0], NECK[1] - WAIST, NECK[2], o.hy, o.hp, o.hr + 0.05 * st); M.head.multiplyMatrices(M.torso, M.b);
+    const BN = this.bones, put = (i, m) => BN[i].multiplyMatrices(M.root, m);
+    put(0, M.pelvis); put(1, M.torso); put(2, M.head);
+    // the tails of his coat: they hang from the waist, and swing a little behind his stride
+    set(M.b, TAIL[0], TAIL[1] - HIP, TAIL[2], 0.05 * Math.sin(o.ph - 1.1) * o.going, (0.05 + 0.05 * Math.sin(2 * o.ph - 0.9)) * o.going * (calm ? 0.5 : 1) - 0.5 * o.lean, 0.045 * Math.sin(o.ph - 0.9) * o.going - 0.05 * st); put(11, M.a.multiplyMatrices(M.pelvis, M.b));
     // his legs
     for (let f = 0; f < 2; f++) {
       const ft = F[f], sg = f === 0 ? 1 : -1;
@@ -724,22 +766,23 @@ float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       v.pole.set(Math.sin(ft.ry * 0.6), 0, Math.cos(ft.ry * 0.6));
       reach(v.hip, v.ank, THIGH, SHIN, v.pole, v.knee, v.end);
       const heel = Math.min(0.5, 4 * v.end.distanceTo(v.ank)) * (ft.z < 0 ? 1 : -0.6);      // (a leg at full stretch: behind him the heel is up, before him the toe)
-      put(I.thigh[f], hang(M.a, v.hip, v.knee, v.pole)); put(I.shin[f], hang(M.a, v.knee, v.end, v.pole));
-      put(I.shoe[f], set(M.a, v.end.x, v.end.y, v.end.z, ft.ry, (ft.q > 0 ? 0.38 * Math.sin(TAU * ft.q) * (1 - 0.3 * ft.q) : 0) + heel, 0));
+      put(5 + f, hang(M.a, v.hip, v.knee, v.pole)); put(7 + f, hang(M.a, v.knee, v.end, v.pole));
+      put(9 + f, set(M.a, v.end.x, v.end.y, v.end.z, ft.ry, (ft.q > 0 ? 0.38 * Math.sin(TAU * ft.q) * (1 - 0.3 * ft.q) : 0) + heel + 0.3 * ft.free, 0));
     }
     // his right arm: swinging as he walks; then the hand to his coat, thumb tucked in
     {
       v.sh.set(-SHO[0], SHO[1] - WAIST, SHO[2]).applyMatrix4(M.torso);
       const sw = 0.2 * Math.sin(o.ph) * o.going, k = o.hand, arc = Math.sin(PI * k);
-      v.tg.set(-SHO[0] - 0.045, SHO[1] - WAIST - 0.535 + 0.03 * Math.abs(sw), 0.03 + 0.5 * sw).applyMatrix4(M.torso);
-      v.tg2.set(-0.108, 0.045 + 0.004 * o.breath, 0.108).applyMatrix4(M.torso);
+      v.tg.set(-SHO[0] - 0.04, SHO[1] - WAIST - 0.535 + 0.03 * Math.abs(sw), 0.03 + 0.5 * sw).applyMatrix4(M.torso);
+      v.tg2.set(-0.1, 0.045 + 0.004 * o.breath, 0.1).applyMatrix4(M.torso);
       v.wr.lerpVectors(v.tg, v.tg2, k); v.wr.addScaledVector(v.z.set(-0.3, 0, 1).transformDirection(M.torso), 0.09 * arc);
       v.pole.set(-0.25 - 0.75 * k, -0.2 * k, -1 + 0.72 * k).transformDirection(M.torso);
       reach(v.sh, v.wr, AU, AF, v.pole, v.el, v.end);
-      put(I.armU, hang(M.a, v.sh, v.el, v.z.set(0, 0, 1).transformDirection(M.torso)));
+      put(3, hang(M.a, v.sh, v.el, v.z.set(0, 0, 1).transformDirection(M.torso)));
       v.th.set(0, k, 1 - k).normalize().transformDirection(M.torso);
-      put(I.armF, hang(M.a, v.el, v.end, v.th));
+      put(4, hang(M.a, v.el, v.end, v.th));
     }
+    this.u.uEye.value.set(o.ex || 0, o.ey || 0);
     // ---- the shadows on the boards
     const bl = this.blobs, inRoom = sstep(o.out, 0.0, 0.14) * (vis ? 1 : 0); let n = 0;
     bl.set(n++, pos.x, pos.z, 0.2, 0.42 * inRoom);
