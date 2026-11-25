@@ -5,7 +5,8 @@
 // Then bed: her lamp clicks off, the television, the light in the hall, and the room is lit by the string of bulbs
 // round her window and the colours of the show in the park. She takes the handset and the car from her bookcase,
 // tiptoes out by the door, and (the stairs, the snow) comes back to the window: her breath on the glass, the handset
-// in her mittens, the toy waking in the snow below. Then a cut, to the museum's steps, behind the toy, which is yours.
+// in her mittens, the toy waking in the snow below. It pulls away, and we go with it: out through the glass, down past
+// it, up over the lights and the park and the roofs of the museum, and round to the steps behind the toy, which is yours.
 //
 // Nobody's face is ever shown: her parents are voices from along the hall.
 //
@@ -17,7 +18,7 @@
 //   opening.begin(done)      starts it; done(seconds it took) once control is handed over (or at once if it cannot run)
 //   opening.frame(dt)        each frame while G.state === 'opening'
 //   opening.advance()        what a click does
-//   opening.seek(phase, t)   (tests) stop the clock at t seconds of 'night' or 'fly' (the arrival), or at card t of 'room'
+//   opening.seek(phase, t)   (tests) stop the clock at t seconds of 'night' or 'fly', or at card t of 'room'
 //
 // The set is src/openingset.js, the sounds src/openingsound.js.
 
@@ -82,10 +83,10 @@ const N = {
   thru: 10.9, black: 11.3, gone: 12.1,              // out by it
   set: 14.2, back: 14.9,                            // (the stairs, the street door, the snow; and back up)
   win: 17.0, glass: 17.9, puff: 17.7, puff2: 18.8,  // to the window, her nose to the glass, her breath on it
-  up0: 18.0, up1: 18.7, sw: 19.1, lit: 19.4, go: 19.75, end: 21.7,      // the handset comes up; the switch; the toy's lamp; away
+  up0: 18.0, up1: 18.7, sw: 19.1, lit: 19.4, go: 19.75, end: 20.5,      // the handset comes up; the switch; the toy's lamp; away
 };
 const WALKS = [[N.toShelf, N.shelf, 0.5], [N.lift + 0.15, N.door, 0.46], [N.thru, N.gone, 0.4], [N.back + 0.1, N.win + 0.4, 0.5]];      // when she is on her feet: from, to, seconds a step
-const FLY = 3.9, CALM_FLY = 1.6, FLY_FROM = 0.3;    // the arrival at the museum's steps
+const FLY = 13.5, CALM_FLY = 4.6;                   // the flight from her window to the museum's steps
 
 export class Opening {
   constructor(G, { THREE, scene, camera, sound }) {
@@ -440,17 +441,7 @@ export class Opening {
     rem.visible = T < N.pocket; rem.position.copy(set.remoteSpot);
     if (T < N.rem0 || (T >= N.gone && T < N.up0)) return;
     rig.visible = true; rig.position.copy(cam.position); rig.quaternion.copy(cam.quaternion); set.held.value = T >= N.up0 ? 0.5 : 0.6;
-    if (T >= N.up0) {                                             // at the window: the handset in both her mittens, held up into the bottom of the view
-      // (small and close, in front of the glass: it is the toy below that the long lens is on)
-      const k = span(T, N.up0, N.up1), dy = -0.34 * (1 - k), press = T >= N.sw && T < N.sw + 0.2 ? 1 : 0;
-      rig.scale.setScalar(0.26);
-      set.handset.visible = true; set.handset.position.set(0, -0.118 + dy, -1.0); set.handset.rotation.set(0.85, 0, 0);
-      for (const a of set.arms) {
-        const sd = a.side, dip = sd > 0 ? press * 0.006 : 0;
-        set.poseArm(a, t0.set(sd * 0.33, -0.47 + dy * 0.4, -0.6), t1.set(sd * 0.142, -0.178 + dy - dip, -0.925), t2.set(sd * 0.8, -0.6, 0.3), t3.set(-sd * 0.5, 0.5, -0.72), t4.set(sd * 0.75, 0.12, 0.62));
-      }
-      return;
-    }
+    if (T >= N.up0) { this._window(span(T, N.up0, N.up1), T >= N.sw && T < N.sw + 0.2); return; }
     rig.scale.setScalar(1); rig.updateMatrixWorld(true); this._iq.copy(cam.quaternion).invert();
     const h = this.ch, fx = Math.sin(h), fz = Math.cos(h), rx = -Math.cos(h), rz = Math.sin(h);
     const at = v => rig.worldToLocal(set.L(v.x, v.y, v.z, v)), way = v => v.applyAxisAngle(this._up, set.yaw).applyQuaternion(this._iq);
@@ -476,6 +467,19 @@ export class Opening {
         t0.lerpVectors(this._body(sd * 0.2, -0.62, 0.02, t1), t2, kr); t0.y += Math.sin(kr * Math.PI) * 0.07;
         pose(a, t0, t3.set(fx * 0.95, -0.3, fz * 0.95), t4.set(rx * sd, 0.25, rz * sd));
       }
+    }
+  }
+
+  // At the window: the handset in both her mittens, held up into the bottom of the view (k: how far up it has come).
+  // (small and close, in front of the glass: it is the toy below that the long lens is on)
+  _window(k, press) {
+    const set = this.set, rig = set.rig, cam = this.camera, [t0, t1, t2, t3, t4] = this._t, dy = -0.34 * (1 - k);
+    rig.visible = k > 0.001; if (!rig.visible) return;
+    rig.position.copy(cam.position); rig.quaternion.copy(cam.quaternion); rig.scale.setScalar(0.26); set.held.value = 0.5;
+    set.handset.visible = true; set.handset.position.set(0, -0.118 + dy, -1.0); set.handset.rotation.set(0.85, 0, 0);
+    for (const a of set.arms) {
+      const sd = a.side, dip = sd > 0 && press ? 0.006 : 0;
+      set.poseArm(a, t0.set(sd * 0.33, -0.47 + dy * 0.4, -0.6), t1.set(sd * 0.142, -0.178 + dy - dip, -0.925), t2.set(sd * 0.8, -0.6, 0.3), t3.set(-sd * 0.5, 0.5, -0.72), t4.set(sd * 0.75, 0.12, 0.62));
     }
   }
 
@@ -523,27 +527,46 @@ export class Opening {
     v.place(h.x, h.z, h.yaw, h.y); v.group.visible = true;
   }
 
-  // ------------------------------------------------------------------ the arrival --
+  // ------------------------------------------------------------------ the flight --
 
-  // A cut: the museum's steps, coming down behind the toy where the game will find it. (The phase keeps its old name.)
+  // Out through the glass after the toy, and over everything there is to drive through, to where the game will find it.
   _fly() {
-    const THREE = this.THREE, h = this.home, fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), sx = -fz, sz = fx;
-    this.phase = 'fly'; this.tF = 0; this.len = this.calm ? CALM_FLY : FLY;
-    const rel = (back, side, up) => new THREE.Vector3(h.x - fx * back + sx * side, h.y + up, h.z - fz * back + sz * side);
-    this.curve = new THREE.CatmullRomCurve3([rel(26, 7.6, 7.5), rel(18, 1.8, 2.6), this.endAt.clone()], false, 'centripetal');
-    this.toy = new THREE.Vector3(h.x, h.y + 0.3, h.z);
-    this._home(); this.set.room.visible = false; this.set.rig.visible = false; this.set.breath.visible = false;
-    this._fade(true, true);
-    if (!this.frozen) { this.snd.wind(0, this.len); if (!this.calm) this.snd.motif(0.3, { beat: 0.46, gain: 0.05 }); }
+    const THREE = this.THREE, h = this.home, fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), sx = -fz, sz = fx, cam = this.camera, V = (x, y, z) => new THREE.Vector3(x, y, z);
+    this.phase = 'fly'; this.tF = 0; this.len = this.calm ? CALM_FLY : FLY; this.fov0 = cam.fov;
+    const rel = (back, side, up) => V(h.x - fx * back + sx * side, h.y + up, h.z - fz * back + sz * side);
+    // (down the walk between the trees to the toy as it goes by, then up over the lights)
+    this.curve = new THREE.CatmullRomCurve3([cam.position.clone(), V(396, 11, -34), V(387.6, 3.2, -20), V(380, 6, -7), V(350, 27, 8), V(285, 36, 55),
+      V(170, 36, 100), V(60, 30, 110), rel(5, 12.6, 17), rel(26, 7.6, 7.5), rel(18, 1.8, 2.6), this.endAt.clone()], false, 'centripetal');
+    this.curve.arcLengthDivisions = 800;
+    this.toy = V(h.x, h.y + 0.3, h.z);
+    if (!this.frozen) { this.snd.wind(0, this.len - 0.4); if (!this.calm) this.snd.motif(1.6, { beat: 1.0, gain: 0.05 }); }
   }
-  _flyFrame() {
-    const cam = this.camera, T = this.tF, len = this.len;
-    const x = this.calm ? 1 : Math.min(1, T / (len - 0.4)), u = FLY_FROM + (1 - FLY_FROM) * (1 - (1 - x) * (1 - x)), fov = lerp(60, 70, span(x, 0.45, 1));
-    this.curve.getPointAt(u, cam.position);
-    this._v.lerpVectors(this.toy, this.endLook, span(u, 0.74, 1));
-    this.cq.setFromRotationMatrix(this._m.lookAt(cam.position, this._v, this._up)); cam.quaternion.copy(this.cq);
+  // What the camera is turned to, u of the way along: the toy as it leaves, the tree, the park, the museum, the toy again.
+  _look(u, out) {
+    const v = this.G.vehicle, h = this.home, car = h.back ? [CAR.x, 0, CAR.z] : [v.pos.x, v.pos.y + 0.2, v.pos.z];
+    const K = [[0, car], [0.1, car], [0.2, [352, 15, -3]], [0.32, [250, 12, 60]], [0.52, [100, 10, 105]], [0.74, this.toy.toArray()], [0.94, this.toy.toArray()], [1, this.endLook.toArray()]];
+    let i = 0; while (i < K.length - 2 && u > K[i + 1][0]) i++;
+    const k = ease((u - K[i][0]) / (K[i + 1][0] - K[i][0]));
+    return out.set(lerp(K[i][1][0], K[i + 1][1][0], k), lerp(K[i][1][1], K[i + 1][1][1], k), lerp(K[i][1][2], K[i + 1][1][2], k));
+  }
+  _flyFrame(dt) {
+    const set = this.set, cam = this.camera, T = this.tF, len = this.len;
+    let u, fov;
+    if (this.calm) {                                             // three still pictures, cut together
+      u = T < 1.5 ? 0.2 : T < 3.0 ? 0.62 : 1; fov = u < 1 ? 58 : 70;
+    } else { u = ease(T / len); fov = u < 0.08 ? lerp(this.fov0, 58, ease(u / 0.08)) : u < 0.9 ? lerp(58, 62, (u - 0.08) / 0.82) : lerp(62, 70, ease((u - 0.9) / 0.1)); }
+    this._drive(N.end - N.go + T);
+    if (u >= 0.45) this._home();
+    this.curve.getPointAt(Math.min(1, Math.max(0, u)), cam.position);
+    this._q.setFromRotationMatrix(this._m.lookAt(cam.position, this._look(u, this._v), this._up));
+    if (this.calm || this.frozen || T < 0.02) this.cq.copy(this._q); else this.cq.slerp(this._q, 1 - Math.exp(-dt * 7));
+    if (u >= 0.999) this.cq.copy(this._q);
+    cam.quaternion.copy(this.cq);
     if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
-    this._once('seen', 0.1, T, () => this._fade(false, false, true));
+    // through the glass: the frost and her breath clear, her hands drop away, then the room is behind us
+    const k = this.calm ? 0 : 1 - span(T, 0, 0.45); set.frost.material.opacity = 0.85 * k; set.breath.material.opacity = Math.min(set.breath.material.opacity, 0.95 * k);
+    const inside = this._w.copy(cam.position); set.room.worldToLocal(inside);
+    set.room.visible = !this.calm && inside.z > 0.03; this._window(set.room.visible ? 1 - span(T, 0, 0.3) : 0, false);
     if (T > len - 0.8) this.el.classList.add('out');
     if (T >= len && !this.frozen) this.finish(false);
   }
@@ -562,7 +585,7 @@ export class Opening {
     if (this.phase === 'room') {
       this._light(-1); this._lines(this.frozen ? 0 : d); this._aim(d, this.view, this.snap); this.snap = false; this._props(-1);
     } else if (this.phase === 'night') { if (!this.frozen) this.tB += d; this._nightFrame(d); }
-    if (this.phase === 'fly') { if (!this.frozen) this.tF += d; this._flyFrame(); }
+    if (this.phase === 'fly') { if (!this.frozen) this.tF += d; this._flyFrame(d); }
     if (!this.on) return;
     set.twinkle(this.calm ? 0 : t);
     this._outside(d);

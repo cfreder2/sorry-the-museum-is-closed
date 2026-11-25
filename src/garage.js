@@ -840,6 +840,8 @@ export class Garage {
   /** `?toy=`: car, drone, or the id of any toy (which opens it, for testing). */
   fromParam(p, pick) { return (BY_ID[p] ? this.choose(p, pick, true) : this.chooseKind(p, pick)).kind; }
   ready() { return this.open.has(this.shown); }
+  /** A new game begins with the RC Car, in its own red (whatever has been unlocked stays in the garage). */
+  fresh(pick) { delete this.coat.buggy; delete this.coat.quad; this.sel.drone = 'quad'; return this.choose('buggy', pick); }
 
   /** Put the chosen bodies on the two toys. */
   apply(car, drone) {
