@@ -74,3 +74,4 @@ import './28849-city-park.js';       // 161  Chase, A City Park: far
 import './65916-movement.js';         // 392  Hartley, Movement: orbit
 import './153798-woman-in-a-garden.js'; // 201  Morisot, Woman in a Garden: fan
 import './24684-francesco-de-medici.js'; // 205  Allori, Francesco de' Medici: cameo
+import './110760-adventures-of-ulysses.js'; // 238  Apollonio di Giovanni, The Adventures of Ulysses: home
