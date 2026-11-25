@@ -652,7 +652,7 @@ class Life {
       try { this.spec.build(this); this.made = true; this.usedAt = performance.now(); } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; return; }
       // Compile its shaders now, off the main thread where the browser can, so the first show does not stutter.
       const G = this.k.G, r = G.renderer;
-      if (r && r.compileAsync && G.camera) { const v = this.group.visible; this.group.visible = true; r.compileAsync(this.group, G.camera, G.scene).catch(() => {}); this.group.visible = v; }
+      if (r && r.compileAsync && G.camera) { const v = this.group.visible; this.group.visible = true; const done = () => { this._compiling = 0; }; this._compiling = performance.now(); r.compileAsync(this.group, G.camera, G.scene).then(done, done); this.group.visible = v; }
     })();
     return this._ready;
   }
@@ -704,6 +704,7 @@ class Life {
   // way, the next time the toy comes near. Only while nothing of it is out (off).
   release() {
     if (this.made !== true || this.state !== 'off' || this.force != null) return false;
+    if (this._compiling && performance.now() - this._compiling < 15000) return false;      // (its shaders are still being compiled: a material let go now is one the renderer comes back to ask after, and that is a page error)
     for (const grp of [this.group, this.fixed]) {
       if (!grp) continue;
       grp.traverse(o => {

@@ -102,7 +102,7 @@ const F = {
     this.k = k; const G = k.G, P = k.plan; G.escapes = this;
     // The rooms and the ways between them an escapee may use: the robots' own doors, and never a quiet room.
     const same = (a, b) => Math.abs(a - b) < 0.06;
-    this.adj = new Map(); this.floors = new Map();
+    this.adj = new Map(); this.floors = new Map(); this._front = [];
     for (const d of P.doors) {
       if (d.out || d.b === 'out' || d.vent || d.hidden || d.h < 1.3) continue;
       const a = P.byId[d.a], b = P.byId[d.b]; if (!a || !b || a.secret || b.secret || !same(a.y, d.y) || !same(b.y, d.y)) continue;
@@ -278,7 +278,16 @@ const F = {
     if (!W) {
       const P = this.k.plan, ids = P.rooms.filter(r => Math.abs(r.y - y) < 0.06).map(r => r.id), set = new Set(ids);
       const g = ids.length ? grid(P, ids, y) : null;
-      W = g ? { X0: g.X0, Z0: g.Z0, C: g.C, nx: g.nx, nz: g.nz, floor: g.floor, arts: this.k.museum.arts.filter(a => set.has(a.room)) } : { arts: [] };
+      // (for what a wall hides, a doorway is as wide as it is built: every cell it touches, not only those wholly in it.
+      // A jamb taken for open guards a canvas for nothing; a jamb taken for wall would leave one unguarded.)
+      const see = g ? g.floor.slice() : null;
+      if (g) for (const d of P.doors) {
+        if (d.out || d.vent || d.hidden || Math.abs(d.y - y) > 0.06 || !set.has(d.a) || !set.has(d.b)) continue;
+        const ax = d.along === 'x', x0 = d.x0 - (ax ? 1 : 0), x1 = d.x1 + (ax ? 1 : 0), z0 = d.z0 - (ax ? 0 : 1), z1 = d.z1 + (ax ? 0 : 1);
+        const i0 = Math.max(0, Math.floor((x0 - g.X0) / g.C)), i1 = Math.min(g.nx - 1, Math.ceil((x1 - g.X0) / g.C) - 1), j0 = Math.max(0, Math.floor((z0 - g.Z0) / g.C)), j1 = Math.min(g.nz - 1, Math.ceil((z1 - g.Z0) / g.C) - 1);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) see[j * g.nx + i] = 1;
+      }
+      W = g ? { X0: g.X0, Z0: g.Z0, C: g.C, nx: g.nx, nz: g.nz, floor: see, arts: this.k.museum.arts.filter(a => set.has(a.room)) } : { arts: [] };
       this.floors.set(key, W);
     }
     return W;
@@ -290,13 +299,15 @@ const F = {
       for (const a of W.arts) {
         if (!a.mesh || a.obj || Math.abs(a.x - x) > FAR || Math.abs(a.z - z) > FAR || !inFront(a, eye, x, y, z, rad + 0.6)) continue;
         if (!near) near = new Set(arts);
-        if (near.has(a) || walled(W, eye.x, eye.z, a)) continue;
-        arts.push(a); near.add(a);
+        if (near.has(a)) { this._front.push(a); continue; }
+        if (walled(W, eye.x, eye.z, a)) continue;
+        arts.push(a); near.add(a); this._front.push(a);
       }
     }
     if (arts.length > GUARD_MAX) {
-      for (const a of arts) { a._eg = Math.hypot(a.x - x, a.z - z) - (inFront(a, eye, x, y, z, rad + 0.6) ? 1000 : 0); }
-      arts = arts.slice().sort((p, q) => p._eg - q._eg).slice(0, GUARD_MAX);
+      const front = new Set();
+      for (const a of arts) { const f = inFront(a, eye, x, y, z, rad + 0.6); if (f) front.add(a); a._eg = Math.hypot(a.x - x, a.z - z) - (f ? 1000 : 0); }
+      arts = fit(arts.slice().sort((p, q) => p._eg - q._eg), front, eye);
     }
     placeRoam(key, arts);
   },
@@ -305,9 +316,12 @@ const F = {
   _watchMarks(eye) {
     const G = this.k.G, rooms = G.roomId ? [G.roomId] : [], first = [];
     for (const E of this.out) if (E.body === true) { if (!rooms.includes(E.room)) rooms.push(E.room); if (E.art.mesh && !first.includes(E.art)) first.push(E.art); }
-    let arts = this._arts(rooms);
-    if (arts.length + first.length > GUARD_MAX) { for (const a of arts) a._eg = Math.hypot(a.x - eye.x, a.z - eye.z); arts.sort((p, q) => p._eg - q._eg); }
-    placeRoam(this.key, [...first, ...arts.filter(a => !first.includes(a))].slice(0, GUARD_MAX));
+    // (then the nearest few about the toy; then whatever a body could be seen in front of, however far, for its petals
+    // and feathers fly about it; then the rest of the rooms about)
+    const arts = this._arts(rooms), front = new Set(this._front), by = (p, q) => p._eg - q._eg;
+    if (arts.length + first.length + front.size > GUARD_MAX) { for (const a of arts) a._eg = Math.hypot(a.x - eye.x, a.z - eye.z); for (const a of front) a._eg = Math.hypot(a.x - eye.x, a.z - eye.z); arts.sort(by); }
+    const list = [...first]; for (const part of [arts.slice(0, 6), [...front].sort(by), arts]) for (const a of part) if (!list.includes(a)) list.push(a);
+    placeRoam(this.key, fit(list, front, eye));
   },
 
   // ---------------------------------------------------------------- every frame --
@@ -316,7 +330,7 @@ const F = {
     if (on !== this.on) { this.on = on; if (!on) for (const E of this.out) this._arrive(E, 'now'); }
     if (this._box && this._box.checked !== on) this._box.checked = on;
     if (!on) { this.marks.begin(dt); this.marks.end(); return; }
-    const p = G.vehicle.pos, eye = G.camera.position, play = G.state === 'play';
+    const p = G.vehicle.pos, eye = G.camera.position, play = G.state === 'play'; this._front.length = 0;
     // (a sheepdog works by moving: a toy that is parked herds nothing, and nothing loose comes up to it)
     if (this.px != null && Math.hypot(p.x - this.px, p.z - this.pz) > 0.4 * dt) this.still = 0; else this.still = (this.still || 0) + dt; this.px = p.x; this.pz = p.z;
     // How an escape begins: the toy has watched a living work's show for a few seconds, and drives off.
@@ -567,23 +581,24 @@ const F = {
       if (v.quat) cam.quaternion.fromArray(v.quat); else cam.lookAt(_v.fromArray(v.look)); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
       this._cam = cam0 = cam;
       const arts2 = this._arts(E.room === G.roomId || !G.roomId ? [E.room] : [E.room, G.roomId]);
-      this._watch(E.key, arts2, cam.position, E.x, h, E.z, E.spec.radius || 0.6, E.y); this._watchMarks(cam.position);
+      this._front.length = 0; this._watch(E.key, arts2, cam.position, E.x, h, E.z, E.spec.radius || 0.6, E.y); this._watchMarks(cam.position);
       r.setRenderTarget(rt); r.setClearColor(0x000000, 0); world(); r.render(quads, cam); r.readRenderTargetPixels(rt, 0, 0, W, H, mask);
       const shot = off => {
         for (const key of keys) guardBlock(key).uLifeOff.value = off ? 1 : 0;
         world(); for (const o of objs) if (o.visible) r.render(o, cam);
         r.readRenderTargetPixels(rt, 0, 0, W, H, buf);
-        let on = 0, all = 0; for (let i = 0; i < W * H; i++) { if (buf[i * 4 + 3] < 8) continue; all++; if (mask[i * 4 + 3] > 8) { on++; if (!off) { const w = mask[i * 4] + mask[i * 4 + 1] * 256 - 1; over.set(w, (over.get(w) || 0) + 1); } } }
+        let on = 0, all = 0; for (let i = 0; i < W * H; i++) { if (buf[i * 4 + 3] < 8) continue; all++; if (mask[i * 4 + 3] > 8) { on++; if (!off) { const w = mask[i * 4] + mask[i * 4 + 1] * 256 - 1; let o = over.get(w); if (!o) { const a = arts[w], Wf = this._floor(E.y); over.set(w, o = { n: 0, cam: name, seen: a ? inFront(a, cam.position, E.x, h, E.z, (E.spec.radius || 0.6) + 0.6) : null, wall: a && Wf.floor ? walled(Wf, cam.position.x, cam.position.z, a) : null, held: a ? guardBlock(E.key).arts.includes(a) : null, marks: a ? guardBlock(this.key).arts.includes(a) : null }); } o.n++; } } }
         return { on, all };
       };
-      const g = shot(false), u = shot(true);
-      rows.push({ cam: name, drawn: g.on, wouldBe: u.on, visible: g.all });
+      const g = shot(false), u = shot(true), row = { cam: name, drawn: g.on, wouldBe: u.on, visible: g.all };
+      if (g.on) { const m = this.marks.mesh, was = m.visible, n0 = new Map([...over].map(([w, o]) => [w, o.n])); m.visible = false; row.body = shot(false).on; m.visible = was; for (const [w, o] of over) o.n = n0.get(w) || 0; }      // (whose pixels: the thing's own, or what it leaves about it)
+      rows.push(row);
     }
     for (const key of keys) guardBlock(key).uLifeOff.value = 0;
     for (const o of hid) o.visible = true;
     this._cam = null; r.setRenderTarget(prevRT); r.setClearColor(cc, ca); r.autoClear = auto; rt.dispose(); white.dispose(); for (const m of tints) m.dispose();
     const kept = new Set(guardBlock(E.key).arts);
-    return { over: [...over].map(([i, n]) => ({ work: arts[i] ? arts[i].work.id : i, room: arts[i] && arts[i].room, guarded: kept.has(arts[i]), px: n, far: arts[i] ? +Math.hypot(arts[i].x - E.x, arts[i].z - E.z).toFixed(1) : 0 })), id: E.id, tag: E.spec.tag, canvases: arts.length, guarded: guardBlock(E.key).arts.length, pass: rows.every(q => q.drawn === 0), drawn: rows.reduce((n, q) => n + q.drawn, 0), wouldBe: rows.reduce((n, q) => n + q.wouldBe, 0), visible: rows.reduce((n, q) => n + q.visible, 0), rows };
+    return { over: [...over].map(([i, o]) => ({ work: arts[i] ? arts[i].work.id : i, room: arts[i] && arts[i].room, guarded: kept.has(arts[i]), px: o.n, cam: o.cam, seen: o.seen, wall: o.wall, held: o.held, marks: o.marks, far: arts[i] ? +Math.hypot(arts[i].x - E.x, arts[i].z - E.z).toFixed(1) : 0 })), id: E.id, tag: E.spec.tag, canvases: arts.length, guarded: guardBlock(E.key).arts.length, pass: rows.every(q => q.drawn === 0), drawn: rows.reduce((n, q) => n + q.drawn, 0), wouldBe: rows.reduce((n, q) => n + q.wouldBe, 0), visible: rows.reduce((n, q) => n + q.visible, 0), rows };
   },
 };
 feature(F);
@@ -594,24 +609,55 @@ function count(g) { let n = 0; g.traverse(o => { if (o.isMesh && o.visible) n++;
 function tris(g) { let n = 0; g.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) n += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); }); return Math.round(n); }
 // Does a wall stand between this eye and a work's canvas (its middle and both its ends)? Only walls count: a case is
 // glass, and a canvas guarded for nothing costs nothing. Off the map is not a wall.
-const FAR = 48;
+const FAR = 100;      // (Griffin Court is a hundred metres of pictures)
 function walled(W, ex, ez, a) {
-  for (const u of [0, -0.45, 0.45]) {
-    const bx = a.x + a.nx * 0.45 - a.nz * a.w * u, bz = a.z + a.nz * 0.45 + a.nx * a.w * u;
-    const L = Math.hypot(bx - ex, bz - ez), n = Math.max(2, Math.ceil(L / (W.C * 0.5))); let inside = false, hit = false;
-    for (let s = 0; s <= n; s++) {
+  const m = Math.min(12, Math.max(2, Math.ceil(a.w / 0.35)));      // (a ray to every foot or so of it: a doorway may show only a strip)
+  for (let q = 0; q <= m; q++) {
+    const u = q / m - 0.5, bx = a.x - a.nz * a.w * u, bz = a.z + a.nx * a.w * u;      // (to the canvas itself, and the walk stops short of the wall it hangs on)
+    const L = Math.hypot(bx - ex, bz - ez), n = Math.max(2, Math.ceil(L / (W.C * 0.5))), end = Math.floor(n * (1 - 0.5 / Math.max(L, 0.6))); let inside = false, hit = false, gone = 0;
+    for (let s = 0; s <= end; s++) {
       const t = s / n, i = Math.floor((ex + (bx - ex) * t - W.X0) / W.C), j = Math.floor((ez + (bz - ez) * t - W.Z0) / W.C);
       if (i < 0 || j < 0 || i >= W.nx || j >= W.nz) continue;
-      if (W.floor[j * W.nx + i]) inside = true; else if (inside) { hit = true; break; }      // (a camera hard against a wall starts in the wall's own cells)
+      if (W.floor[j * W.nx + i]) { inside = true; gone = 0; } else if (inside && ++gone > 1) { hit = true; break; }      // (a camera hard against a wall starts in the wall's own cells; one cell clipped at a door jamb is not a wall)
     }
     if (!hit) return false;
   }
   return true;
 }
-// Would a ball of radius r at (x, y, z) be seen in front of this work's canvas from the eye?
+// More canvases than a guard holds (the eye down among a flock in a great room, or low in a long hall of pictures).
+// The first of them keep their own shapes. The rest that the thing could be seen in front of are guarded a slice of
+// the view at a time: one shape, square to the eye and as far off as the farthest of them, that covers every picture
+// in that slice. So against far walls the thing may be cut a little wider than the pictures there, and it is never
+// drawn across one. (The shapes are grown by what the eye may move in a frame.)
+const SLICES = 12;
+function fit(arts, front, eye) {
+  if (arts.length <= GUARD_MAX) return arts;
+  const keep = arts.slice(0, GUARD_MAX - SLICES), rest = [];
+  for (let i = GUARD_MAX - SLICES; i < arts.length; i++) if (front.has(arts[i])) rest.push(arts[i]);
+  if (rest.length <= SLICES) { for (const a of rest) keep.push(a); for (let i = GUARD_MAX - SLICES; i < arts.length && keep.length < GUARD_MAX; i++) if (!front.has(arts[i])) keep.push(arts[i]); return keep; }
+  const bins = new Map(), step = TAU / SLICES;
+  for (const a of rest) {
+    const b = Math.floor((Math.atan2(a.z - eye.z, a.x - eye.x) + Math.PI) / step) % SLICES, phi = -Math.PI + (b + 0.5) * step, dx = Math.cos(phi), dz = Math.sin(phi);
+    let w = bins.get(b); if (!w) bins.set(b, w = { dx, dz, t0: 1e9, t1: -1e9, v0: 1e9, v1: -1e9, D: 0, d: 1e9, n: 0 });
+    for (const e of [-0.5, 0.5]) {
+      const cx = a.x - a.nz * a.w * e - eye.x, cz = a.z + a.nx * a.w * e - eye.z, dep = Math.max(cx * dx + cz * dz, 0.5), t = (cz * dx - cx * dz) / dep;
+      w.t0 = Math.min(w.t0, t); w.t1 = Math.max(w.t1, t); w.v0 = Math.min(w.v0, (a.y - a.h / 2 - eye.y) / dep); w.v1 = Math.max(w.v1, (a.y + a.h / 2 - eye.y) / dep); w.D = Math.max(w.D, dep); w.d = Math.min(w.d, dep);
+    }
+    w.n++;
+  }
+  for (const w of bins.values()) {
+    const D = w.D + 0.3, m = 0.05 + 0.12 * D / w.d, u0 = w.t0 * D - m, u1 = w.t1 * D + m, y0 = eye.y + w.v0 * D - m, y1 = eye.y + w.v1 * D + m, u = (u0 + u1) / 2;
+    keep.push({ x: eye.x + w.dx * D - w.dz * u, z: eye.z + w.dz * D + w.dx * u, y: (y0 + y1) / 2, w: u1 - u0, h: y1 - y0, rot: Math.atan2(-w.dx, -w.dz), nx: -w.dx, nz: -w.dz, slice: w.n });
+  }
+  return keep;
+}
+// Could a ball of radius r at (x, y, z) be seen in front of this work's canvas from the eye? (By the angle between them,
+// the canvas taken as a ball too: generous, and sound when the thing is beside the eye or the eye is inside it.)
 function inFront(a, E, x, y, z, r) {
-  const s = (E.x - a.x) * a.nx + (E.z - a.z) * a.nz, f = (x - a.x) * a.nx + (z - a.z) * a.nz;
-  if (s <= 0 || f <= -r || f >= s) return false;
-  const q = s / Math.max(s - f, 1e-4), hx = E.x + (x - E.x) * q, hy = E.y + (y - E.y) * q, hz = E.z + (z - E.z) * q, g = r * q;
-  return Math.abs((hx - a.x) * a.nz - (hz - a.z) * a.nx) < a.w / 2 + 0.05 + g && Math.abs(hy - a.y) < a.h / 2 + 0.05 + g;
+  if ((E.x - a.x) * a.nx + (E.z - a.z) * a.nz <= 0) return false;      // (seen from behind)
+  const bx = x - E.x, by = y - E.y, bz = z - E.z, dB = Math.hypot(bx, by, bz), ax = a.x - E.x, ay = a.y - E.y, az = a.z - E.z, dA = Math.hypot(ax, ay, az), rho = Math.hypot(a.w, a.h) / 2 + 0.05;
+  if (dA + rho < dB - r) return false;                                 // (the canvas is nearer than the thing)
+  if (dB <= r || dA <= rho) return true;
+  const c = (bx * ax + by * ay + bz * az) / (dB * dA);
+  return Math.acos(c < -1 ? -1 : c > 1 ? 1 : c) < Math.asin(r / dB) + Math.asin(rho / dA);
 }
