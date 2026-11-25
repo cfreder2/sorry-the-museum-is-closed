@@ -1,6 +1,9 @@
 // Goya's Boy on a Ram (111559): the three lambs stray, and the boy rides out on his ram to fetch them.
 //
-// The lambs are what is out: soft dabs of cream that skip off, graze, and skip on. They are the only thing here a robot
+// The lambs are what is out: they skip off, put their heads down to graze, look up, and skip on. Each is a shell of
+// Goya's soft dabs, not a smooth thing: wool broken into cream where the light falls, grey on the flank and warm shadow
+// under, on a lamb's own long legs, with a neck, a wedge of a head and ears. (His picture has no lambs in it: the show
+// adds them, and these are made as he made the ram's fleece, in his colours.) They are the only thing here a robot
 // can find, light or send home. The boy and his ram are helpers: they are no record in src/escapes.js, so no lamp can
 // be turned on them, held on them, or send them anywhere; a beam that crosses them is a beam crossing a coat on a bench.
 // He rides out a few seconds after the lambs, goes round behind them and works them back towards their own room (they
@@ -8,23 +11,38 @@
 // a lamp's) he turns his ram, trots to the foot of his own wall, lifts his hat, and goes in under the frame by himself.
 // He looks at his lambs and the way he is going: never at the player.
 //
-// The lambs are one draw call (the show's own lamb, three times); the boy and ram are one more, of the show's own parts.
+// The lambs are one draw call (body, head and four legs each); the boy and ram are one more, of the show's own parts.
 
 import * as THREE from 'three';
-import { escapeFor, paint, take, thin, ballDabs, ball, merge, solid, batch, col, TAU } from './kit.js';
+import { escapeFor, paint, take, thin, dabs, ball, merge, solid, batch, col, TAU, CELL } from './kit.js';
+import { LOWMEM as LOW } from '../budget.js';
 import { rng } from '../paintlife.js';
 import { cellAt, clearAt, lineClear, path as route, nearestOpen } from '../guardplan.js';
 import { Bones } from '../life/stagecraft.js';
 import { features } from '../features.js';
 
-const N = 3, K = 1.3, SC = 1.2 * K, LS = 1.42 * K, BOY = 1.1;      // (the show's own sizes, a little larger out on the floor)
+const N = 3, K = 1.3, SC = 1.2 * K, BOY = 1.1;      // (the show's own sizes, a little larger out on the floor)
+// A lamb is drawn 0.385 to the top of its back and 0.34 long, and stood at LS of that: two thirds of the ram's height.
+const LS = 0.76, NECK = [0, 0.335, 0.135];
 const T_BOY = 4.5;                                // seconds after the lambs before he rides out
-const LH = [[0.026, 0.09, 0.046], [-0.026, 0.09, 0.046], [0.027, 0.09, -0.046], [-0.027, 0.09, -0.046]];
+const LH = [[0.05, 0.235, 0.105], [-0.05, 0.235, 0.105], [0.052, 0.235, -0.115], [-0.052, 0.235, -0.115]];
 const HIPS = [[0.062, 0.18, 0.13], [-0.062, 0.18, 0.13], [0.066, 0.185, -0.13], [-0.066, 0.185, -0.13]];
 const sm = x => { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _t = new THREE.Vector3(0, 1, 0), _c = new THREE.Color();
-const WOOL = ['#e9dfc8', '#d8cbb0', '#f3ecda', '#c7b99c'];
+const LIGHT = ['#f3ecda', '#e9dfc8', '#efe4c9', '#e2d6bb'], FLANK = ['#d8cbb0', '#cdbf9f', '#b8b2a2', '#a9b0a8', '#c7b99c'], SHADE = ['#8a745a', '#6e5a48', '#7d6a55', '#94846c'];
+// Wool: dabs all over a ball, but no two lying alike (each leans its own way and stands a little in or out, so the
+// tufts break the outline), coloured by which way the place faces: pick(up, R) -> THREE.Color.
+function fleece(c, r, n, size, R, pick, { jit = 0.5, out = [0.96, 1.1], long = [1.15, 1.5] } = {}) {
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    const y = 1 - 2 * (i + 0.5) / n, q = Math.sqrt(1 - y * y), a = i * 2.39996 + R() * 0.6, x = Math.cos(a) * q, z = Math.sin(a) * q, o = out[0] + R() * (out[1] - out[0]);
+    const nn = new THREE.Vector3(x / r[0], y / r[1], z / r[2]).normalize(), up = nn.y;
+    nn.x += (R() - 0.5) * jit; nn.y += (R() - 0.5) * jit; nn.z += (R() - 0.5) * jit; nn.normalize();
+    list.push({ p: new THREE.Vector3(c[0] + x * r[0] * o, c[1] + y * r[1] * o, c[2] + z * r[2] * o), n: nn, s: size[0] + R() * (size[1] - size[0]), l: long[0] + R() * (long[1] - long[0]), a: R() * TAU, c: pick(up, R).clone() });
+  }
+  return list;
+}
 const HEART = 0.3;                                // (radians) no lamp is held on the lambs while the boy is this near the middle of it
 // The robot whose lamp is on the lambs, or is coming round to them.
 function lampNear(E, k) {
@@ -40,22 +58,36 @@ escapeFor(111559, {
   name: 'the lambs', tag: 'LAMBS',
   line: 'Three lambs have strayed out of Goya’s Boy on a Ram. The boy has ridden out after them.',
   back: 'The lambs are home, and the boy and his ram behind them.',
-  count: N, speed: 0.62, herd: 1.25, radius: 0.85, height: 0.5, need: 0.5, rest: [5, 10], react: 'off', hold: 3.2, chips: 35, stroke: 0.8, strokeLong: 1.7,
+  count: N, speed: 0.62, herd: 1.25, radius: 0.95, height: 0.55, need: 0.5, rest: [5, 10], react: 'off', hold: 3.2, chips: 35, stroke: 0.8, strokeLong: 1.7,
   colors: ['#e9dfc8', '#d8cbb0', '#f3ecda', '#c7b99c', '#b9a27a', '#8f9a6a', '#6f7f5a', '#5a4a3e'],
+  // Goya's soft dab, any way up, no bigger than the dabs of their wool
+  mark: { cell: CELL.dab, w: [0.027, 0.042], long: [1.15, 1.5], turn: 0, jit: 1.6 },
+  parts(E) { const B = E.build, out = []; for (const l of B.lambs || []) if (l.j < E.n) out.push({ x: l.x, y: E.y + 0.29 * l.s, z: l.z, r: 0.16 * l.s, ry: 0.1 * l.s }); return out.length ? out : null; },
 
   async build(E, L, { group, pal }) {
     const B = E.build, R = B.R = rng(111559), S = L && L.spec, c = (h, k = 0.15) => col(pal, h, k);
     // ---- the lambs
-    let gLamb = null, gLeg = null;
-    try { if (S && S.rig && S.lambs) { gLamb = thin(take(L, S.lambs[0].body), { dab: 0.72, curl: 0, R }); gLeg = take(L, S.lambs[0].legs[0]); } } catch { gLamb = gLeg = null; }
-    if (!gLamb) {
-      const cols = WOOL.map(h => c(h));
-      gLamb = merge([ball([0, 0.115, 0], [0.04, 0.036, 0.07], c('#d8cbb0').getHex(), 10), ball([0, 0.15, 0.075], [0.022, 0.022, 0.03], c('#e9dfc8').getHex(), 8), ballDabs([0, 0.115, 0], [0.042, 0.038, 0.072], 46, () => cols[Math.floor(R() * cols.length)], [0.02, 0.03], R)]);
-      const leg = new THREE.CylinderGeometry(0.009, 0.007, 0.09, 5); leg.translate(0, -0.045, 0); gLeg = solid(leg, c('#c7b99c').getHex());
-    }
-    const lb = B.lb = batch([gLamb, gLeg], N * 5, paint({ glow: 0.42, rough: 0.9 }));
-    B.lambs = Array.from({ length: N }, (_, j) => ({ j, body: lb.add(0), legs: [0, 1, 2, 3].map(() => lb.add(1)), x: E.x + Math.sin(j * 2.1) * 0.12, z: E.z + Math.cos(j * 2.1) * 0.12, yaw: E.yaw, dist: j * 0.3, v: 0, leap: 3 + R() * 5, air: -1, slot: null, look: R() * TAU }));
-    group.add(lb.mesh);
+    const light = LIGHT.map(h => c(h)), flank = FLANK.map(h => c(h)), shade = SHADE.map(h => c(h)), face = ['#d9cbb0', '#cdbf9f', '#e2d6bb', '#bfae90'].map(h => c(h));
+    const pick = (up, r) => { const q = up + (r() - 0.5) * 0.75, set = q > 0.22 ? light : q < -0.34 ? shade : flank; return set[Math.floor(r() * set.length)]; };
+    const under = c('#86755e').getHex(), bone = c('#b3a488').getHex(), shin = c('#a39378').getHex(), V = (x, y, z) => new THREE.Vector3(x, y, z);
+    // its barrel, deep in the chest; a small tail hanging
+    const gBody = merge([ball([0, 0.3, 0], [0.072, 0.072, 0.152], under, 10),
+      dabs([...fleece([0, 0.3, 0], [0.085, 0.085, 0.17], LOW ? 92 : 150, [0.036, 0.056], R, pick), ...fleece([0, 0.3, 0.1], [0.07, 0.082, 0.068], LOW ? 14 : 24, [0.032, 0.048], R, pick), ...fleece([0, 0.268, -0.172], [0.018, 0.046, 0.018], 7, [0.022, 0.03], R, pick, { jit: 0.3 })])]);
+    // a leg: long for the body, a knee, a small dark hoof, wool to the knee
+    const shank = new THREE.CylinderGeometry(0.016, 0.0105, 0.225, 5); shank.translate(0, -0.1125, 0);
+    const gLeg = merge([solid(shank, shin), ball([0, -0.106, 0.003], [0.0155, 0.017, 0.0155], shin, 6), ball([0, -0.225, 0.005], [0.013, 0.0105, 0.018], c('#3a2e26').getHex(), 6),
+      dabs(fleece([0, -0.05, 0], [0.021, 0.068, 0.023], LOW ? 6 : 9, [0.024, 0.034], R, pick, { jit: 0.3, out: [1, 1.1] }))]);
+    // its neck and head, turning at the shoulder: a neck, a wedge of a skull running out to the muzzle, two long ears out
+    // sideways, a dark eye and nose set down as dabs
+    const eye = side => { const d = V(side * 0.84, 0.2, 0.5).normalize(); return { p: V(d.x * 0.044 * 1.07, 0.172 + d.y * 0.042 * 1.07, 0.097 + d.z * 0.052 * 1.07), n: d, s: 0.0125, l: 1.7, a: Math.PI / 2, c: c('#2a201c') }; };
+    const ear = side => [{ p: V(side * 0.074, 0.186, 0.064), n: V(0, 0.5, 0.86), s: 0.033, l: 2.1, a: Math.PI / 2 - side * 0.32, c: c('#e2d6bb') }, { p: V(side * 0.076, 0.186, 0.067), n: V(0, 0.5, 0.86), s: 0.015, l: 2.6, a: Math.PI / 2 - side * 0.32, c: c('#c79a84') }];
+    const gHead = merge([ball([0, 0.07, 0.04], [0.033, 0.094, 0.039], under, 8), ball([0, 0.17, 0.1], [0.039, 0.037, 0.05], bone, 8), ball([0, 0.152, 0.158], [0.025, 0.024, 0.042], c('#c9b99c').getHex(), 8),
+      dabs([...fleece([0, 0.07, 0.04], [0.04, 0.1, 0.046], LOW ? 16 : 24, [0.03, 0.044], R, pick), ...fleece([0, 0.172, 0.097], [0.044, 0.042, 0.052], LOW ? 18 : 28, [0.022, 0.032], R, pick, { jit: 0.3, out: [1, 1.06] }),
+        ...fleece([0, 0.152, 0.152], [0.027, 0.026, 0.042], 10, [0.018, 0.026], R, (u, r) => face[Math.floor(r() * face.length)], { jit: 0.2, out: [1, 1.03] })]),
+      dabs([...ear(1), ...ear(-1), eye(1), eye(-1), { p: V(0, 0.15, 0.203), n: V(0, -0.15, 1), s: 0.02, l: 1.2, a: 0, c: c('#6a4a44') }], 0.006)]);
+    const lb = B.lb = batch([gBody, gLeg, gHead], N * 6, paint({ glow: 0.42, rough: 0.9 }));
+    B.lambs = Array.from({ length: N }, (_, j) => ({ j, s: LS * [1, 1.07, 0.93][j % 3], body: lb.add(0), hd: lb.add(2), legs: [0, 1, 2, 3].map(() => lb.add(1)), x: E.x + Math.sin(j * 2.1) * 0.2, z: E.z + Math.cos(j * 2.1) * 0.2, yaw: E.yaw, dist: j * 0.3, v: 0, leap: 3 + R() * 5, air: -1, slot: null, look: R() * TAU, g: 0, up: 0, upT: 2 + R() * 6, hy: 0, hyaw: 0 }));
+    group.add(lb.mesh); B.mh = new THREE.Matrix4();
     // ---- the boy and his ram: the show's own parts (if the show cannot be had, the lambs stray alone)
     B.boy = null;
     try {
@@ -79,35 +111,42 @@ escapeFor(111559, {
     const B = E.build, lb = B.lb, bn = B.bones, t = E.t, calm = E.calm, fl = E.y, g = E.grid, R = B.R, going = E.state === 'going';
     const w0 = B.wake[0]; if (Math.hypot(E.x - w0.x, E.z - w0.z) > 0.05) { const last = B.wake.pop(); last.x = E.x; last.z = E.z; B.wake.unshift(last); }
     const moving = E.v > 0.05, rest = !moving && !going;
-    if (rest && !B.roost) B.lambs.forEach((l, j) => { const a = j / N * TAU + R() * 1.2, r = Math.min(0.42, Math.max(0.12, (E.clear == null ? 1 : E.clear) - 0.25)) * (0.6 + 0.4 * R()); l.slot = { x: E.x + Math.sin(a) * r, z: E.z + Math.cos(a) * r }; l.look = R() * TAU; });
+    if (rest && !B.roost) B.lambs.forEach((l, j) => { const a = j / N * TAU + R() * 1.2, r = Math.min(0.5, Math.max(0.16, (E.clear == null ? 1 : E.clear) - 0.3)) * (0.65 + 0.35 * R()); l.slot = { x: E.x + Math.sin(a) * r, z: E.z + Math.cos(a) * r }; l.look = R() * TAU; });
     B.roost = rest;
     // ---- the lambs
     for (const l of B.lambs) {
-      const on = l.j < E.n; lb.show(l.body, on); for (const q of l.legs) lb.show(q, on);
+      const on = l.j < E.n; lb.show(l.body, on); lb.show(l.hd, on); for (const q of l.legs) lb.show(q, on);
       if (!on) continue;
       let tx, tz;
       if (rest && l.slot) { tx = l.slot.x; tz = l.slot.z; }
       else {
         // one behind another along the way the first has come, a little to either side
-        const idx = Math.min(B.wake.length - 1, Math.round(l.j * 0.36 / 0.05)), p = B.wake[idx], q = B.wake[Math.max(0, idx - 1)];
+        const idx = Math.min(B.wake.length - 1, Math.round(l.j * 0.42 / 0.05)), p = B.wake[idx], q = B.wake[Math.max(0, idx - 1)];
         let dx = q.x - p.x, dz = q.z - p.z; const dl = Math.hypot(dx, dz); if (dl > 1e-3) { dx /= dl; dz /= dl; } else { dx = Math.sin(E.yaw); dz = Math.cos(E.yaw); }
-        const wide = Math.max(0, Math.min(0.16, (E.clear == null ? 1 : E.clear) - 0.3)) * (l.j === 1 ? 1 : l.j === 2 ? -1 : 0.2);
+        const wide = Math.max(0, Math.min(0.2, (E.clear == null ? 1 : E.clear) - 0.3)) * (l.j === 1 ? 1 : l.j === 2 ? -1 : 0.2);
         tx = p.x + dz * wide; tz = p.z - dx * wide;
       }
       const dx = tx - l.x, dz = tz - l.z, d = Math.hypot(dx, dz), sp = Math.min(Math.max(E.v, 0.5) * 1.7, d * 4), st = Math.min(d, sp * dt);
       if (d > 0.015) { l.x += dx / d * st; l.z += dz / d * st; l.dist += st; l.v = st / Math.max(dt, 1e-4); l.yaw += wrap(Math.atan2(dx, dz) - l.yaw) * Math.min(1, dt * 8); }
       else { l.v = 0; if (rest) l.yaw += wrap(l.look - l.yaw) * Math.min(1, dt * 1.2); }
-      // a lamb's gait: a skip at every step when it is going anywhere; at rest it grazes, and now and then leaps for nothing
-      let hop = 0, air = -1, pitch = 0;
-      if (l.v > 0.25 && !calm) { const h = l.dist / 0.34, f = h - Math.floor(h); hop = 0.05 * 4 * f * (1 - f) * Math.min(1, l.v / 0.6); air = f; }
-      else if (rest) {
+      // a lamb's gait: a skip at every step when it is going anywhere; at rest it grazes, looks up (at nothing in
+      // particular: never at the player), and now and then leaps for nothing
+      let hop = 0, air = -1, graze = 0;
+      if (l.v > 0.25 && !calm) { const h = l.dist / 0.36, f = h - Math.floor(h); hop = 0.1 * 4 * f * (1 - f) * Math.min(1, l.v / 0.6); air = f; }
+      else if (rest && l.v < 0.05) {
         if (!calm && (l.leap -= dt) <= 0) { l.leap = 4 + R() * 7; l.air0 = t; l.look = R() * TAU; if (E.d < 14) k.synth.note([540, 610, 480][l.j], 0.16, { type: 'triangle', vol: 0.012 * (1 - E.d / 14), attack: 0.02 }); }
         const f = l.air0 != null ? (t - l.air0) / 0.42 : 2;
-        if (f < 1) { hop = 0.085 * 4 * f * (1 - f); air = f; } else pitch = 0.16 + (calm ? 0 : 0.03 * Math.sin(t * 2.3 + l.j * 2));      // (its head down to the floor)
+        if (f < 1) { hop = 0.2 * 4 * f * (1 - f); air = f; }
+        else { if (!calm && (l.upT -= dt) <= 0) { l.upT = 5 + R() * 9; l.up = 1.5 + R() * 1.8; l.hy = (R() - 0.5) * 1.6; } if (l.up > 0) l.up -= dt; else graze = 1; }
       }
-      if (air >= 0) pitch = -0.16 * Math.cos(Math.PI * air);
-      bn.set(B.m, l.x - E.x, hop * LS, l.z - E.z, l.yaw, pitch, 0, LS); lb.mat(l.body, B.m);
-      const lphi = l.dist / 0.13 * TAU, mv = Math.min(1, l.v / 0.4);
+      l.g += (graze - l.g) * Math.min(1, dt * 3.2); const gz = sm(l.g);
+      const pitch = air >= 0 ? -0.16 * Math.cos(Math.PI * air) : 0.2 * gz;
+      // its head: carried before it as it goes, down to the floor to graze (and working at it), up and about when it looks
+      const hp = 0.32 + 1.68 * gz + (calm ? 0 : 0.06 * gz * Math.sin(t * 5.2 + l.j * 2.1)) - (air >= 0 ? 0.14 : 0);
+      l.hyaw += ((rest && l.up > 0 ? l.hy : 0) - l.hyaw) * Math.min(1, dt * 3);
+      bn.set(B.m, l.x - E.x, hop * l.s, l.z - E.z, l.yaw, pitch, 0, l.s); lb.mat(l.body, B.m);
+      bn.child(B.mh, B.m, NECK[0], NECK[1], NECK[2], l.hyaw + (calm ? 0 : 0.1 * gz * Math.sin(t * 0.9 + l.j)), hp, 0); lb.mat(l.hd, B.mh);
+      const lphi = l.dist / 0.17 * TAU, mv = Math.min(1, l.v / 0.4);
       for (let q = 0; q < 4; q++) {
         const front = q < 2, ph = lphi + (q === 1 || q === 2 ? Math.PI : 0), p = air >= 0 && (rest || l.v > 0.5) ? (front ? 0.3 : -0.3) * Math.sin(Math.PI * air) : 0.38 * mv * Math.sin(ph);
         bn.child(B.ml[q], B.m, LH[q][0], LH[q][1], LH[q][2], 0, p - (air < 0 ? pitch : 0), 0); lb.mat(l.legs[q], B.ml[q]);
@@ -263,7 +302,7 @@ escapeFor(111559, {
   },
 
   // small cloven prints, two and two
-  trail() { return { color: '#5a4a3e', size: 0.032, long: 1.5, every: 0.2, life: 12, side: 0.045, turn: (Math.random() - 0.5) * 0.3, dx: (Math.random() - 0.5) * 0.25, dz: (Math.random() - 0.5) * 0.25 }; },
+  trail() { return { color: '#5a4a3e', size: 0.026, long: 1.5, cell: CELL.dab, every: 0.2, life: 12, side: 0.045, turn: (Math.random() - 0.5) * 0.3, dx: (Math.random() - 0.5) * 0.25, dz: (Math.random() - 0.5) * 0.25 }; },
 
   // a lamb's bleat, thin and high
   voice(E, k, vol) { const f = [520, 600, 470][Math.floor(Math.random() * 3)]; k.synth.note(f, 0.13, { type: 'triangle', vol: 0.03 * vol, attack: 0.02 }); k.synth.note(f * 0.94, 0.26, { type: 'triangle', vol: 0.026 * vol, at: 0.12, attack: 0.02 }); },
