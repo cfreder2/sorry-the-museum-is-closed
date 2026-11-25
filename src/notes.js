@@ -13,7 +13,7 @@ const PUBLIC = r => r.kind !== 'backofhouse' && r.kind !== 'service' && r.kind !
 // Each hint is left next to the room it is about: { g: gallery number } | { room: id } | { re: name } | { out: [x, z] outdoors }.
 const HINTS = [
   { g: 201, text: 'Gallery 201: roof leak?? floor wet by the Paris street AGAIN. don’t stare at it too long. it rains.' },
-  { g: 240, text: 'the monkey on the lead in 240 is MISSING from its picture. check under the benches.' },
+  { g: 240, text: 'a monkey has come out of the painting in 240 AGAIN. it’s hiding under the bench. we can’t get it. the robots aren’t fast enough. get the groundskeeper to see if he can get it out.' },      // (src/l2-grandejatte.js: it is there, and it runs)
   { g: 241, text: 'Van Gogh’s bedroom, 241: that door in the wall is NOT a door.\n(it is.)' },
   { g: 243, text: '243: the haystacks change with the light. so does the lily pond?? ask me in spring.' },
   { g: 242, text: '242: somebody hums the can-can in there after midnight. it is not me.' },

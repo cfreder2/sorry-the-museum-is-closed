@@ -1437,8 +1437,8 @@ export class Museum {
   _buildFurniture() {
     const { plan } = this;
     const leather = new Geo(), metal = new Geo();
-    const bench = (cx, cz, alongX, y = 0) => {
-      const L = 1.4, W = 0.38;
+    const bench = (cx, cz, alongX, y = 0, L = 1.4) => {      // L: half its length (a short one stands in Gallery 240: plan.js)
+      const W = 0.38;
       const hx = alongX ? L : W, hz = alongX ? W : L;
       leather.box(cx - hx, cx + hx, y + 0.4, y + 0.5, cz - hz, cz + hz);
       this.shade.soft([cx, y + 0.012, cz], [1, 0, 0], [0, 0, 1], -hx + 0.05, hx - 0.05, -hz + 0.05, hz - 0.05, 0.24, 0.24, 0.24, 0.24, 0.45);
@@ -1449,7 +1449,7 @@ export class Museum {
         plan.obstacles.push({ x0: lx - 0.03, x1: lx + 0.03, z0: lz - 0.03, z1: lz + 0.03, y0: y, y1: y + 0.4 });
       }
     };
-    for (const b of plan.benches) bench(b.x, b.z, b.alongX, b.y || 0);
+    for (const b of plan.benches) bench(b.x, b.z, b.alongX, b.y || 0, b.half || 1.4);
     this.group.add(leather.mesh(new THREE.MeshStandardMaterial({ color: 0x45201b, roughness: 0.45, emissive: 0x45201b, emissiveIntensity: 0.4 })));
     this.group.add(metal.mesh(new THREE.MeshStandardMaterial({ color: 0x6d6a66, roughness: 0.35, metalness: 0.7 })));
 

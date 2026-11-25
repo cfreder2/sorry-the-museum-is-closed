@@ -5,12 +5,19 @@
 // round them all. A waltz plays, quietly (Johann Strauss II, The Blue Danube, 1866: the first strain, made up here,
 // not recorded). They come up dot by dot as you look, and go the same way when you stop.
 //
-// And the monkey on the lead slips it. Only once the Director's passage has been found, though: until then the
-// monkey is the clue to it (src/secret.js, src/secretclue.js), and must stay put to be tapped. After that it drops
-// from the foot of the frame, a small monkey of my own, runs off into the gallery and hides in a corner: drive up to
-// it to find it. The dancers are not solid, and they are only there while you are looking.
+// And the monkey on the lead is out of the picture again (the guard's note by the door says so: src/notes.js). A
+// small monkey of my own sits under the bench in here (src/plan.js puts the bench there for it) from the start of
+// every night. Drive up to it and it bolts: out of the room and away through the building, a dash at a time, always
+// a little ahead, stopping to look back and chatter when you fall behind, to the Director's whiteboard (the one with
+// the clue on it: src/secret.js). Find it there and it runs home; the next time you come into 240 it is sitting on
+// the bench, and it runs to the picture and jumps to the foot of the frame, under where the painted one sits, and is
+// gone: back on its lead. Lose it for long enough and it goes back under the bench, to be chased again. It goes by
+// the robots' own floor plan (src/guardplan.js), so never through a wall, a case or a bench; and like the dancers it
+// is never seen in front of the canvas. The painted monkey is still the clue to the Director's passage, and still
+// there to be tapped (src/secret.js, src/secretclue.js). The dancers are not solid, and only there while you look.
 import * as THREE from 'three';
 import { feature } from './features.js';
+import { grid, path, nearestOpen } from './guardplan.js';
 
 const rnd = (s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646)(240);
 const PAL = { navy: '#2b2f5e', orange: '#d8823a', cream: '#ecdfb4', pink: '#d77c7a', green: '#2f6b45', black: '#1e1b22', violet: '#6a4f8f', red: '#c2413a', white: '#f3eedf', ochre: '#c9a14a', brown: '#5a3a24' };
@@ -20,6 +27,16 @@ const TAU = Math.PI * 2;
 const ALONG = 1.15, OUT0 = 0.38, OUT1 = 1.2, DOT = 0.036;
 const GATHER = 0.3, ease = q => (q <= 0 ? 0 : q >= 1 ? 1 : q * q * (3 - 2 * q));
 const RIGID = 0, LEG_L = 1, LEG_R = 2, PARASOL = 3, TILT_C = Math.cos(0.45), TILT_S = Math.sin(0.45);
+// The monkey: it bolts when the toy comes within BOLT metres; runs RUN m/s, or a third as fast again as the toy if
+// that is more (so it is seen running, and is never caught), a HOP at a time, and stops to look back; goes home at
+// DASH; goes on again when the toy is within NEAR; and gives the toy up after LOST seconds of it being
+// more than AWAY off (further than its longest dash leaves it ahead, so a toy that is following is never 'away'), or
+// twice that of waiting in one place. NEED is the room it keeps from walls and furniture, MK its size (the model is
+// 21 cm tall at 1: at 1.3 it still sits under a bench seat, 37 cm clear), TALL its height.
+const BOLT = 1.5, NEAR = 3.4, AWAY = 18, HOP = 8, RUN = 9, DASH = 15, LOST = 45, NEED = 0.3, MK = 1.3, TALL = 0.21 * MK;
+const swing = (a, b, f) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * Math.min(1, f);
+// Off the bench seat (h above the floor) and down beside it, f from 0 to 1: level until it is clear of the seat's edge.
+const hopDown = (h, f) => h * (1 - f * f * f) + Math.sin(f * Math.PI) * 0.15;
 
 // A figure as dots: [x, y, z, colour, part] in metres, feet at y = 0, facing +z. Dots are scattered over each
 // part's surface, as many as its area wants, so a figure reads from every side.
@@ -130,29 +147,30 @@ feature({
       f.form = { x: art.x + this.tx * u + art.nx * 0.2, y: Math.max(room.y, rail - 0.03 - top), z: art.z + this.tz * u + art.nz * 0.2, yaw: Math.atan2(art.nx, art.nz) };
       f.delay = 0.05 * i / all.length;
     });
-    // The monkey of my own, for when it gets away: brown, a red collar, a curl of a tail.
+    // The monkey of my own: brown, a red collar, a curl of a tail. (Its own glow, as the robots have: no lamp is added for it.)
     const mk = this.monkey = new THREE.Group(), fur = new THREE.MeshLambertMaterial({ color: 0x6b4426, emissive: 0x3a2412 }), face = new THREE.MeshLambertMaterial({ color: 0xd6b48a, emissive: 0x6a5238 });
     const ball = (r, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const b = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), mat); b.position.set(x, y, z); b.scale.set(sx, sy, sz); mk.add(b); return b; };
     ball(0.06, fur, 0, 0.07, 0, 1, 1.2, 0.9); ball(0.045, fur, 0, 0.16, 0.01); ball(0.03, face, 0, 0.155, 0.04, 1, 0.8, 0.6);
     for (const sx of [-1, 1]) { ball(0.016, face, sx * 0.042, 0.175, 0.005); ball(0.018, fur, sx * 0.05, 0.03, 0.02, 0.8, 1.4, 0.8); }
     const collar = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 6, 14), new THREE.MeshLambertMaterial({ color: 0xc0392b, emissive: 0x5a1010 })); collar.position.set(0, 0.12, 0.005); collar.rotation.x = Math.PI / 2; mk.add(collar);
     const tail = this.tail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.04, -0.05), new THREE.Vector3(0, 0.02, -0.13), new THREE.Vector3(0, 0.1, -0.17), new THREE.Vector3(0, 0.14, -0.12)]), 12, 0.008, 5), fur);
-    mk.add(tail); mk.visible = false; k.group.add(mk);
-    // Where it can hide: three corners (not the one with the Director's door in it).
-    const e = 0.32, hidden = k.plan.doors.find(d => d.hidden && (d.a === room.id || d.b === room.id));
-    this.corners = [[room.x1 - e, room.z0 + e], [room.x1 - e, room.z1 - e], [room.x0 + e, room.z1 - e], [room.x0 + e, room.z0 + e]]
-      .filter(([x, z]) => !k.plan.doorsOf(room.id).some(d => x > d.x0 - 1.2 && x < d.x1 + 1.2 && z > d.z0 - 1.2 && z < d.z1 + 1.2) && !(hidden && Math.hypot(x - (hidden.x0 + hidden.x1) / 2, z - (hidden.z0 + hidden.z1) / 2) < 3))
-      .map(([x, z]) => ({ x, y: room.y, z }));
-    if (!this.corners.length) this.corners = [{ x: room.x1 - e, y: room.y, z: room.z1 - e }];
-    this.state = 'home'; this.look = 0; this.fade = 0; this.leap = 0; this.at = null; this.t = 0;
+    // always: it leaves the room, so the streamer (src/stream.js, on a phone) must not go by where it was built.
+    // Without this it was hidden for the far end of the chase, from 85 m off its bench: the whiteboard is 105 m off.
+    mk.add(tail); mk.rotation.order = 'YXZ'; mk.name = 'grande-jatte-monkey'; mk.userData.always = true; k.group.add(mk);
+    // Where it lives while it is out: under the bench the plan put in this room for it, a little to the room's side of
+    // the middle of the seat, in its shadow; and, later, on the seat. (No bench: the corner away from the Director's door.)
+    const b = this.bench = k.plan.benches.find(q => q.room === room.id) || null, mx = (room.x0 + room.x1) / 2, mz = (room.z0 + room.z1) / 2;
+    this.home = b ? { x: b.x + (b.alongX ? 0 : Math.sign(mx - b.x) * 0.1), y: room.y, z: b.z + (b.alongX ? Math.sign(mz - b.z) * 0.1 : 0) } : { x: room.x1 - 0.35, y: room.y, z: room.z0 + 0.35 };
+    this.seat = b ? { x: b.x, y: room.y + 0.5, z: b.z } : this.home;
+    this.buf = new Float32Array(512); this.K = new Float32Array(12); this.fade = 0; this.t = 0;
+    this.trail = null; this.charted = false; this.grid = null; this.clock = 0;
+    this.hide();
     this.wz = null;    // the waltz
   },
-  active(k) { return !!this.art && (k.inRoom(this.roomId, 2) || this.fade > 0.001); },
-  // The monkey goes only once the passage it points to has been found (or there is no passage this time).
-  free(k) { const S = k.G.secret; return !S || !S.enabled || !S.clue || S.clue.work.id !== this.art.work.id || S.open; },
+  // (The monkey may be anywhere between here and the Director's office: it is moved wherever the toy is.)
+  active(k) { return !!this.art && (k.inRoom(this.roomId, 2) || this.fade > 0.001 || (this.state !== 'bench' && this.state !== 'seat' && this.state !== 'back')); },
   update(dt, k) {
     const looking = k.looking === this.art;
-    this.look = looking ? this.look + dt : 0;
     // How far out of the picture they are: 0 not at all, 0.3 every dot gathered, 0.45 the figures made, 0.75 all on the floor.
     // (They wait for the camera to come to rest in front of the picture: seen swinging past at a slant, a dot in front of
     // the frame could seem to cross the canvas.)
@@ -162,40 +180,208 @@ feature({
     this.dots.visible = show > 0; this.dots.geometry.setDrawRange(0, show);
     if (show > 0) { this.t += dt; this.dance(dt, k, show); }
     this.waltz(k, looking);
-    // The monkey: off the lead after a few seconds of looking, if it may go. It drops from the foot of the frame
-    // (never across the picture) and runs off to a corner.
-    if (this.state === 'home' && this.look > 4 && this.free(k)) {
-      this.state = 'leaving'; this.leap = 0; k.synth.chime([1568, 1976, 2349], { gap: 0.07, dur: 0.3, vol: 0.04 });
-      const a = this.art, R = a.work.id === 27992 && k.G.secret && k.G.secret.clue ? k.G.secret.clue.rect : [0.685, 0.755, 0.805, 0.9], u = (R[0] + R[2]) / 2 - 0.5;
-      this.from = { x: a.x + this.tx * u * a.w + a.nx * 0.14, y: a.y - a.h / 2 - Math.max(0.05, a.frame || 0.1) - 0.24, z: a.z + this.tz * u * a.w + a.nz * 0.14 };      // hanging from the frame's foot, its head under it
-      this.at = this.corners[Math.floor(Math.random() * this.corners.length)];
-      this.monkey.position.set(this.from.x, this.from.y, this.from.z); this.monkey.visible = true;
-    }
-    if (this.state === 'leaving') {
-      this.leap += dt;
-      const f = Math.min(1, this.leap / 1.6), mk = this.monkey, F = this.from, A = this.at, y0 = this.y;
-      if (f < 0.25) { const s = f / 0.25; mk.position.set(F.x + (F.x + (A.x - F.x) * 0.08 - F.x) * s, F.y + (y0 - F.y) * s * s, F.z + (A.z - F.z) * 0.08 * s); }      // down off the frame
-      else { const s = 0.08 + 0.92 * (f - 0.25) / 0.75; mk.position.set(F.x + (A.x - F.x) * s, y0 + Math.abs(Math.sin(s * Math.PI * 7)) * 0.08, F.z + (A.z - F.z) * s); }     // and away, in bounds
-      mk.rotation.y = Math.atan2(A.x - F.x, A.z - F.z);
-      if (this.leap > 1.6) { this.state = 'out'; this.monkey.position.set(this.at.x, this.at.y, this.at.z); k.say('The monkey has slipped its lead. It is in here somewhere.', 5); }
-    }
-    if (this.state === 'out' || this.state === 'caught') {
-      const mk = this.monkey, tt = performance.now() / 1000;
-      mk.rotation.y = Math.atan2(k.pos.x - mk.position.x, k.pos.z - mk.position.z);
-      this.tail.rotation.y = Math.sin(tt * 3) * 0.4;
-      if (this.state === 'out') {
-        mk.position.y = this.at.y + Math.abs(Math.sin(tt * 5)) * 0.015;
-        if (k.close(this.at, 0.7, 1) && k.G.state === 'play') {
-          this.state = 'caught'; this.leap = 0;
-          for (let i = 0; i < 4; i++) k.synth.note(1400 + i * 260, 0.08, { type: 'square', vol: 0.025, at: i * 0.07 });
-          if (k.find('monkey')) k.callout('THE MONKEY');
-          k.say('Found. It chatters at you, and goes back to the picture, and its lead.', 5);
-        }
+    this.ape(dt, k);
+  },
+
+  // ---------------------------------------------------------------- the monkey
+  // Under the bench, as at the start of every night; and after it has given the toy up (wary: then it will not bolt
+  // again until the toy has been away from the bench, or a few seconds have gone by).
+  hide(wary) {
+    const m = this.monkey, h = this.home;
+    this.state = 'bench'; this.lost = 0; this.rest = 0; this.chat = 3; this.seen = 0; this.go = false; this.wary = wary ? 4 : 0;
+    m.position.set(h.x, h.y, h.z); m.rotation.set(0, 0, 0); m.scale.setScalar(MK); m.visible = true;
+  },
+  // What it does this frame.
+  //   bench   under the bench, watching the toy: tail going, a chatter now and then. The toy within BOLT: it bolts.
+  //   run     on the way to the whiteboard: a dash, then a stop to look back until the toy is near again.
+  //   board   under the whiteboard, hopping, until the toy comes up to it: found.
+  //   show    looking up at the board for a few seconds; then
+  //   home    back the way it came, flat out: to hop onto the bench (found) or go under it again (it gave the toy up).
+  //   up      the hop onto the seat.            seat    sitting there until the toy next comes into the room.
+  //   toart   down, and across to the picture.  leap    the jump to the foot of the frame.
+  //   hang    hanging there a moment, and gone. back    on its lead in the picture, for the rest of the night.
+  ape(dt, k) {
+    const m = this.monkey, G = k.G, st = this.state;
+    if (st === 'back') { m.visible = false; return; }
+    const y0 = this.y, calm = !!(G.set && G.set.reduce), tt = (this.clock += dt), p = k.pos, v = k.v;
+    const gap = Math.hypot(p.x - m.position.x, p.z - m.position.z), level = Math.abs(p.y - y0) < 4.5, play = G.state === 'play' && !G.racing && Math.abs(p.y - y0) < 1.6;      // (play: down at its height, too, not a drone up at the ceiling)
+    const face = (x, z, rate) => { m.rotation.y = swing(m.rotation.y, Math.atan2(x - m.position.x, z - m.position.z), rate * dt); };
+    this.tail.rotation.y = Math.sin(tt * 3) * 0.4 + (!calm && Math.sin(tt * 0.9) > 0.9 ? Math.sin(tt * 24) * 0.45 : 0);      // its tail swings, and now and then flicks
+    if (st === 'bench') {
+      const h = this.home; m.position.set(h.x, h.y + Math.abs(Math.sin(tt * 2.2)) * 0.006, h.z); m.rotation.x = 0; face(p.x, p.z, 5);
+      if (k.inRoom(this.roomId) && G.state === 'play' && (this.chat -= dt) < 0) { this.chat = 5 + Math.random() * 5; this.chatter(k, 0.014); }      // (it keeps quiet while a picture is looked at: the waltz)
+      if (this.wary > 0) this.wary = gap > 2.5 ? 0 : this.wary - dt; else if (play && level && gap < BOLT) this.bolt(k);
+    } else if (st === 'run') {
+      if (this.go) {
+        // A dash: quicker than the toy whatever the toy is, so it is in front again by the time it stops.
+        const sp = v && v.vel ? Math.hypot(v.vel.x, v.vel.z) : 0;
+        this.s = Math.min(this.to, this.s + Math.max(RUN, sp * 1.35 + 2) * dt); this.pose(dt, k, 1, this.trail); this.patter(dt, k, gap);
+        if (this.s >= this.to - 1e-3) { this.go = false; this.rest = 0; this.chat = 0.9; if (this.to >= this.trail.len - 1e-3) this.state = 'board'; }
       } else {
-        this.leap += dt; mk.position.y = this.at.y + Math.max(0, Math.sin(this.leap * 9)) * 0.12; mk.scale.setScalar(Math.max(0.01, 1 - Math.max(0, this.leap - 1.2) * 1.5));
-        if (this.leap > 2) { mk.visible = false; mk.scale.setScalar(1); this.state = 'back'; }
+        // Stopped, looking back. On again as soon as the toy is close (at once, if it is nearly on top of it).
+        this.rest += dt; m.position.y = y0 + this.fidget(dt, calm); m.rotation.x = 0; face(p.x, p.z, 12);
+        if (level && gap < NEAR && this.rest > (gap < 2 ? 0 : 0.15)) this.dash(); else this.wait(dt, k, level ? gap : 99);
+      }
+    } else if (st === 'board') {
+      // Under the whiteboard, hopping, looking round for the toy.
+      this.rest += dt; m.position.y = y0 + Math.abs(Math.sin(tt * 7)) * (calm ? 0.025 : 0.07); m.rotation.x = 0; face(p.x, p.z, 12);
+      if (play && level && gap < 2.4) {
+        this.state = 'show'; this.rest = 0; this.chatter(k, 0.03);
+        if (k.find('monkey')) k.callout('THE MONKEY');
+        k.say('It chatters, and looks up at the whiteboard.', 0, 5, true);
+      } else this.wait(dt, k, level ? gap : 99);
+    } else if (st === 'show') {
+      // It turns to the board and looks up at it; one more hop; and then it is off home.
+      const bd = this.trail.board; this.rest += dt; face(bd.x, bd.z, 9);
+      m.rotation.x += (-0.5 - m.rotation.x) * Math.min(1, dt * 6); m.position.y = y0 + (this.rest > 1.6 && this.rest < 1.95 ? Math.sin((this.rest - 1.6) / 0.35 * Math.PI) * (calm ? 0.03 : 0.09) : 0);
+      if (this.rest > 3.4) { this.state = 'home'; this.then = 'seat'; this.said = false; }
+    } else if (st === 'home') {
+      const W = this.trail, end = this.then === 'seat' ? W.cum[1] : 0;
+      this.s = Math.max(end, this.s - DASH * dt); this.pose(dt, k, -1, W); this.patter(dt, k, gap);
+      if (this.then === 'seat' && !this.said && this.s < W.gone) { this.said = true; k.say('It has gone home to its picture.', 0, 4, true); }
+      if (this.s <= end + 1e-3) { if (this.then === 'seat') { this.state = 'up'; this.rest = 0; } else this.hide(true); }
+    } else if (st === 'up') {
+      // From beside the bench up onto the seat.
+      const W = this.trail, s = this.seat, f = Math.min(1, (this.rest += dt) / 0.34), ax = W.p[2], az = W.p[3];
+      m.position.set(ax + (s.x - ax) * f, y0 + hopDown(s.y - y0, 1 - f), az + (s.z - az) * f); m.rotation.x = 0; face(s.x + (s.x - ax), s.z + (s.z - az), 20);
+      if (f >= 1) { this.state = 'seat'; this.seen = 0; }
+    } else if (st === 'seat') {
+      // Sitting on the bench. The toy comes into the room: it sees it, chatters, hops once, and is off to its picture.
+      const s = this.seat; m.position.set(s.x, s.y, s.z); m.rotation.x = 0;
+      if (k.inRoom(this.roomId) && (G.state === 'play' || G.state === 'study')) {
+        face(p.x, p.z, 8); if (!this.seen) this.chatter(k, 0.03);
+        if ((this.seen += dt) > 0.35 && this.seen < 0.7) m.position.y = s.y + Math.sin((this.seen - 0.35) / 0.35 * Math.PI) * (calm ? 0.025 : 0.06);
+        if (this.seen > 1.2) this.toArt(k, true);
+      } else { this.seen = 0; face(this.art.x, this.art.z, 3); }
+    } else if (st === 'toart') {
+      const W = this.homing, c1 = W.cum[1];
+      this.s = Math.min(W.len, this.s + (this.s < c1 ? 3.2 : 6) * dt); this.pose(dt, k, 1, W); this.patter(dt, k, gap);
+      if (this.s < c1 && this.drop) m.position.y = y0 + hopDown(this.drop, this.s / c1);
+      if (this.s >= W.len - 1e-3) { this.state = 'leap'; this.rest = 0; this.lx = m.position.x; this.lz = m.position.z; }
+    } else if (st === 'leap') {
+      // Up to the foot of the frame: rising all the way and never above where it will hang, its head under the rail.
+      const F = this.from, a = this.art, f = Math.min(1, (this.rest += dt) / 0.42);
+      m.position.set(this.lx + (F.x - this.lx) * f, y0 + (F.y - y0) * Math.sin(f * Math.PI / 2), this.lz + (F.z - this.lz) * f); m.rotation.x = 0;
+      m.rotation.y = swing(m.rotation.y, Math.atan2(-a.nx, -a.nz), 20 * dt);
+      if (f >= 1) { this.state = 'hang'; this.rest = 0; this.chatter(k, 0.025); }
+    } else if (st === 'hang') {
+      // It hangs there by its hands, its back to the room and its tail going, and is gone (smaller and smaller, up
+      // against the rail it hangs from: into the foot of the frame, not onto the picture).
+      const F = this.from, sc = Math.max(0.02, 1 - Math.max(0, (this.rest += dt) - 0.55) / 0.35);
+      m.scale.setScalar(MK * sc); m.position.set(F.x, F.y + TALL * (1 - sc), F.z);
+      if (this.rest > 0.9) {
+        this.state = 'back'; m.visible = false; m.scale.setScalar(MK);
+        k.synth.chime([2349, 1976, 1568], { gap: 0.07, dur: 0.3, vol: 0.04 }); k.say('Back on its lead.', 0, 4, true);
+        return;
       }
     }
+    m.visible = !this.over(k);
+  },
+  // Out from under the bench, and away. (No whiteboard to lead to, or no level way there: straight back to its picture.)
+  // What is said about it, here and below, is said at once and not in its turn (k.say's last argument): each line is
+  // about what is on the screen this moment, and behind a few hints in the queue it came up after the monkey had gone.
+  bolt(k) {
+    const W = this.chart(k);
+    k.synth.chime([1568, 1976, 2349], { gap: 0.07, dur: 0.3, vol: 0.04 });
+    if (!W) { if (k.find('monkey')) k.callout('THE MONKEY'); this.toArt(k, false); return; }
+    this.state = 'run'; this.s = 0; this.lost = 0; this.told = false; this.dash();
+    k.say('The monkey bolts from under the bench. After it.', 0, 3.5, true);
+  },
+  // Its next dash: a HOP along the way, or to just through the next doorway if that is about as far; the last one all the way.
+  dash() {
+    const W = this.trail; let to = Math.min(W.len, this.s + HOP);
+    for (const d of W.stops) if (d > this.s + 1.5 && d < this.s + HOP * 1.6) { to = d; break; }
+    this.to = W.len - to < 2.5 ? W.len : to; this.go = true;
+  },
+  // Stopped, and the toy is not coming: it chatters to be heard (less and less often; not while a picture is being
+  // looked at), with a little hop; and after LOST seconds with the toy a long way off, or twice that of waiting here
+  // at all, it gives the toy up, and goes home under its bench to be found again.
+  wait(dt, k, gap) {
+    this.lost = gap > AWAY ? this.lost + dt : 0;
+    if (this.rest > 0.8 && (this.chat -= dt) < 0 && k.G.state === 'play') { this.chat = Math.min(8, 2.4 + this.rest * 0.15); this.chatter(k, 0.03 * Math.max(0.25, 1 - gap / 30)); this.hopT = 0.3; }
+    if (!this.told && this.rest > 2.5 && this.state === 'run') { this.told = true; k.say('The monkey has stopped to wait for you. It is chattering.', 0, 4, true); }
+    if (this.lost > LOST || this.rest > LOST * 2) { this.state = 'home'; this.then = 'bench'; k.say('The monkey has given you up. It will be back under its bench.', 0, 5, true); }
+  },
+  fidget(dt, calm) { if (!(this.hopT > 0)) return 0; this.hopT -= dt; return Math.sin(Math.max(0, this.hopT) / 0.3 * Math.PI) * (calm ? 0.02 : 0.05); },
+  chatter(k, vol) { for (let i = 0; i < 4; i++) k.synth.note(1400 + i * 260, 0.08, { type: 'square', vol, at: i * 0.07 }); },
+  patter(dt, k, gap) { if ((this.pat = (this.pat || 0) - dt) < 0 && gap < 12) { this.pat = 0.11; k.synth.noise(0.03, { vol: 0.016 * (1 - gap / 12), lp: 3000 }); } },
+  // Stand it on a way, this.s metres along: bounding (a bound to about 0.8 m; a small one if motion is to be reduced; none
+  // while it is still under the seat), leaning into it, turned the way it goes (dir -1: back along the way).
+  pose(dt, k, dir, W) {
+    const p = W.p, c = W.cum, n = c.length, s = this.s, m = this.monkey, calm = k.G.set && k.G.set.reduce;
+    let i = Math.min(W.i || 0, n - 2); while (i < n - 2 && c[i + 1] < s) i++; while (i > 0 && c[i] > s) i--; W.i = i;
+    const L = c[i + 1] - c[i], f = L > 1e-6 ? Math.max(0, Math.min(1, (s - c[i]) / L)) : 0, clear = W.under ? Math.max(0, Math.min(1, (s - c[1]) / 0.6)) : 1;
+    m.position.set(p[i * 2] + (p[i * 2 + 2] - p[i * 2]) * f, this.y + Math.abs(Math.sin(s * 3.9)) * (calm ? 0.03 : 0.09) * clear, p[i * 2 + 1] + (p[i * 2 + 3] - p[i * 2 + 1]) * f);
+    m.rotation.x = calm ? 0.1 : 0.3; if (L > 1e-6) m.rotation.y = swing(m.rotation.y, Math.atan2((p[i * 2 + 2] - p[i * 2]) * dir, (p[i * 2 + 3] - p[i * 2 + 1]) * dir), 24 * dt);
+  },
+  // A way over the robots' own floor plan (src/guardplan.js): open cells and clear lines only, so never through a wall, a
+  // case or a bench. From a (which may be under or on the bench: its first step is then straight out to the open floor
+  // beside it) to the open floor nearest b. { p: [x, z, ...], cum: metres along at each point, len }, or null.
+  route(g, ax, az, bx, bz, under) {
+    const spot = (x, z) => { const c = nearestOpen(g, x, z, NEED, 1.8); return c < 0 ? null : [g.X0 + ((c % g.nx) + 0.5) * g.C, g.Z0 + (Math.floor(c / g.nx) + 0.5) * g.C]; };
+    const A = spot(ax, az), B = spot(bx, bz), n = A && B ? path(g, A[0], A[1], B[0], B[1], this.buf, NEED) : 0;
+    if (!n) return null;
+    const p = [ax, az], cum = [0]; for (let i = 0; i < n; i++) p.push(this.buf[i * 2], this.buf[i * 2 + 1]);
+    for (let i = 1; i < p.length / 2; i++) cum.push(cum[i - 1] + Math.hypot(p[i * 2] - p[i * 2 - 2], p[i * 2 + 1] - p[i * 2 - 1]));
+    return { p, cum, len: cum[cum.length - 1], under: !!under, i: 0 };
+  },
+  // The way to the Director's whiteboard, worked out once, the first time it bolts: the rooms between here and there
+  // through level doorways a toy can use too (no stairs, no vents, not the hidden door: the robots' own rule,
+  // src/guardplan.js), then the way across their floors, to the floor under the board.
+  chart(k) {
+    if (this.charted) return this.trail; this.charted = true;
+    const P = k.plan, y = this.y, bd = k.G.boards && k.G.boards.byId && k.G.boards.byId.clue, flat = r => r && !r.secret && Math.abs(r.y - y) < 0.06;
+    if (!bd || !flat(P.byId[bd.room])) return null;
+    const ok = d => !d.out && d.b !== 'out' && !d.vent && !d.hidden && d.h >= 1.3 && Math.abs(d.y - y) < 0.06 && flat(P.byId[d.a]) && flat(P.byId[d.b]);
+    const prev = new Map([[this.roomId, null]]), q = [this.roomId];
+    while (q.length && !prev.has(bd.room)) { const id = q.shift(); for (const d of P.doorsOf(id)) if (ok(d)) { const n = d.a === id ? d.b : d.a; if (!prev.has(n)) { prev.set(n, [id, d]); q.push(n); } } }
+    if (!prev.has(bd.room)) return null;
+    const rooms = [], doors = []; for (let id = bd.room; id;) { rooms.unshift(id); const pr = prev.get(id); if (pr) doors.unshift(pr[1]); id = pr && pr[0]; }
+    const g = this.grid = grid(P, rooms, y), W = this.route(g, this.home.x, this.home.z, bd.x + (bd.fx || 0) * 0.42, bd.z + (bd.fz || 0) * 0.42, !!this.bench);
+    if (!W) return null;
+    // Where it stops to look back whatever the toy is doing: just through each doorway on the way. And where, going home, it is out of the office and gone.
+    const at = (x, z) => { let best = 0, bd2 = Infinity; for (let i = 0; i < W.cum.length - 1; i++) { const x0 = W.p[i * 2], z0 = W.p[i * 2 + 1], dx = W.p[i * 2 + 2] - x0, dz = W.p[i * 2 + 3] - z0, L2 = dx * dx + dz * dz, f = L2 > 0 ? Math.max(0, Math.min(1, ((x - x0) * dx + (z - z0) * dz) / L2)) : 0, d2 = (x0 + dx * f - x) ** 2 + (z0 + dz * f - z) ** 2; if (d2 < bd2) { bd2 = d2; best = W.cum[i] + Math.sqrt(L2) * f; } } return best; };
+    W.stops = doors.map(d => at((d.x0 + d.x1) / 2, (d.z0 + d.z1) / 2) + (d.along === 'x' ? d.x1 - d.x0 : d.z1 - d.z0) / 2 + 0.9).filter(s => s < W.len - 2.5);
+    W.gone = W.stops.length ? W.stops[W.stops.length - 1] - 2.4 : W.len - 6; W.board = bd; W.rooms = rooms;
+    return this.trail = W;
+  },
+  // Where it hangs from the foot of the frame, under where the painted one sits: out from the wall, its head a little
+  // under the frame's bottom rail. Below the picture, never on it.
+  perch(k) {
+    const a = this.art, S = k.G.secret, R = S && S.clue && S.clue.work.id === a.work.id && S.clue.rect ? S.clue.rect : [0.685, 0.755, 0.805, 0.9], u = (R[0] + R[2]) / 2 - 0.5;
+    return { x: a.x + this.tx * u * a.w + a.nx * 0.14, y: a.y - a.h / 2 - Math.max(0.05, a.frame || 0.1) - 0.06 - TALL, z: a.z + this.tz * u * a.w + a.nz * 0.14 };
+  },
+  // Back to its picture: off the bench (or out from under it), across the floor to under where the painted one sits; then the jump.
+  toArt(k, seat) {
+    const a = this.art, F = this.from = this.perch(k), o = seat ? this.seat : this.home, bx = F.x + a.nx * 0.4, bz = F.z + a.nz * 0.4;
+    const g = this.grid || (this.grid = grid(k.plan, [this.roomId], this.y));
+    this.homing = this.route(g, o.x, o.z, bx, bz, !seat && !!this.bench) || { p: [o.x, o.z, o.x, o.z, bx, bz], cum: [0, 0, Math.hypot(bx - o.x, bz - o.z)], len: Math.hypot(bx - o.x, bz - o.z), under: false, i: 0 };
+    this.state = 'toart'; this.s = 0; this.drop = seat ? this.seat.y - this.y : 0;
+  },
+  // The dancers' guarantee, for the monkey. Would any of it be seen in front of the canvas from where the camera is just
+  // now? Three balls hold all of it (its body and feet; its head; its tail, wherever that has swung to; all bigger when
+  // it leans): is any inside the pyramid from the eye to the canvas's four corners (and a little to spare)? If so it
+  // is not drawn this frame. Its way to the frame keeps
+  // below the rail in any case; this is for a camera down on the floor, looking up past it.
+  over(k) {
+    const G = k.G, a = this.art, m = this.monkey, c = G.camera && G.camera.position; if (!c) return false;
+    // (The eye is where this frame will be drawn from: the camera is in place by now, but a test's eye or a film's is put there later, src/main.js.)
+    const te = G.testEye, ce = !te && G.cineEye && G.state === 'play' ? G.cineEye.at : null, ex = te ? te.at[0] : ce ? ce.x : c.x, ey = te ? te.at[1] : ce ? ce.y : c.y, ez = te ? te.at[2] : ce ? ce.z : c.z;
+    if ((ex - a.x) * a.nx + (ez - a.z) * a.nz < 0.02) return false;                  // the eye is behind the wall (it is not, ever)
+    const K = this.K, hw = a.w / 2 + 0.03, hh = a.h / 2 + 0.03, sc = m.scale.x, cy = Math.cos(m.rotation.y), sy = Math.sin(m.rotation.y), lean = Math.abs(m.rotation.x) * 0.22, tw = m.rotation.y + this.tail.rotation.y;
+    for (let i = 0; i < 4; i++) { const su = i === 0 || i === 3 ? -1 : 1, sv = i < 2 ? -1 : 1; K[i * 3] = a.x + this.tx * hw * su - ex; K[i * 3 + 1] = a.y + hh * sv - ey; K[i * 3 + 2] = a.z + this.tz * hw * su - ez; }
+    const ox = a.x - ex, oy = a.y - ey, oz = a.z - ez;
+    for (let b = 0; b < 3; b++) {
+      const by = b === 1 ? 0.16 : b ? 0.08 : 0.07, bz = b === 1 ? 0.012 : b ? -0.115 : 0, r = ((b === 1 ? 0.063 : b ? 0.078 : 0.092) + lean) * sc, s1 = b === 2 ? Math.sin(tw) : sy, c1 = b === 2 ? Math.cos(tw) : cy;
+      const px = m.position.x + s1 * bz * sc - ex, py = m.position.y + by * sc - ey, pz = m.position.z + c1 * bz * sc - ez; let inside = true;
+      for (let i = 0; i < 4 && inside; i++) {
+        const j = (i + 1) % 4, ax = K[i * 3], ay = K[i * 3 + 1], az = K[i * 3 + 2], bx = K[j * 3], bY = K[j * 3 + 1], bZ = K[j * 3 + 2];
+        const nx = ay * bZ - az * bY, ny = az * bx - ax * bZ, nz = ax * bY - ay * bx, L = Math.hypot(nx, ny, nz) || 1, way = nx * ox + ny * oy + nz * oz < 0 ? -1 : 1;
+        if ((nx * px + ny * py + nz * pz) / L * way < -r) inside = false;
+      }
+      if (inside) return true;
+    }
+    return false;
   },
   // Where everyone is this frame, and then the dots that are showing, moved to match.
   dance(dt, k, show) {
@@ -283,8 +469,8 @@ feature({
     g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + 0.015); g.gain.setTargetAtTime(0, at + dur * 0.6, dur * 0.35);
     o.connect(g); g.connect(out); o.start(at); o.stop(at + dur + 0.4);
   },
-  spots() { return this.art ? [{ kind: 'secret', id: 'monkey', name: 'The monkey off its lead', x: this.art.x, y: this.art.y - 1.6, z: this.art.z + this.art.nz * 1.5 }] : []; },
-  reset() { if (!this.art) return; this.state = 'home'; this.monkey.visible = false; this.monkey.scale.setScalar(1); this.look = 0; },
+  spots() { return this.art ? [{ kind: 'secret', id: 'monkey', name: 'The monkey off its lead', x: this.home.x, y: this.home.y, z: this.home.z }] : []; },
+  reset() { if (this.art) this.hide(); },      // a new night: it is out again, and under the bench
 });
 
 // The Blue Danube, the first strain: [beat, midi note, beats long]. Three beats to the bar.
