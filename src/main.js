@@ -147,7 +147,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.24.70';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.1';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -616,7 +616,7 @@ function applySettings(save) {
   input.autogo = !!set.autogo;
   document.body.classList.toggle('autogo', !!set.autogo);
   tm.allowed = set.stats !== false;
-  tm.settings = { reduce: !!set.reduce, big: !!set.big, hold: !!set.hold, slowmo: !!set.slowmo, mirror: !!set.mirror };
+  tm.settings = { reduce: !!set.reduce, big: !!set.big, hold: !!set.hold, slowmo: !!set.slowmo, mirror: !!set.mirror, gentle: !!set.gentle };
   if (G.museum) G.museum.calm = set.reduce;
   if (G.race) G.race.calm = set.reduce;
   if (G.car) G.car.calm = set.reduce;
@@ -1268,6 +1268,7 @@ function play(dt, real) {
   if (G.testInput) inp = G.testInput;
   if (v.kind === 'car') {
     if (inp.coast && !G.testInput && !G.ride) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); inp.throttle = vf > 0.4 ? -0.45 : 0; }      // thumb off: it pulls up
+    v.gentle = !!set.gentle;
     if (set.assist && !(G.auto && racing) && !G.ride) steerHelp(v, inp, dt);
   }
   if ((racing && R.locked) || G.held) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };      // (G.held: a security robot has the toy, src/guards.js)
