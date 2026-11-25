@@ -4,21 +4,28 @@ A plan, not yet built. It covers the sixty paintings that are alive on 2026-11-2
 changes the shows; it adds a second life to some of them. The rule at the end is a proposal to be tested on five
 scenarios before it is applied to anything else.
 
-## Where this stands (2026-11-24)
+## Where this stands (2026-11-24): decided, first tests being built
 
-The independent reviewer who knows the shows has read the idea (`~/Desktop/Museum-life/ESCAPES-REVIEW.md`). They
-think it is worth building and disagree with this plan on three points, which the owner has yet to decide:
+The owner has decided, after the independent reviewer's opinion (`~/Desktop/Museum-life/ESCAPES-REVIEW.md`):
 
-1. **No person is ever quarry.** Not the bolt at their feet either: a machine chasing painted people who run from it
-   is the one picture that must not reach the screen. That removes the people rows below as escapees (the skaters,
-   the Paris couple, the two painters, the strollers) and test T4, and it means Goya's boy and ram only ride out to
-   fetch strayed lambs, with no robot ever pointing anything at them.
-2. **The "zap" is a lamp, not a bolt**: the gallery's own warm white washing the green off, the escapee turning to
-   strokes and flowing home.
-3. **The player is the sheepdog**: leading escapees home is the win; the robot doing it is the dull ending.
+1. **The robots send escapees home with light, not with the bolt.** A robot that finds an escaped thing in its
+   searchlight turns the beam to the gallery's own warm white; the green washes off, the thing comes apart into its
+   painter's brushstrokes and flows back along the floor and up under its frame. The painting on the wall never
+   changes. The bolt stays for the toy.
+2. **No person is ever quarry.** Creatures, objects, light, water and weather can be loose and move off from a robot.
+   People from pictures are never chased, lit as a target or sent home by a machine. Goya's boy and ram ride out only
+   to fetch strayed lambs; no robot points anything at the boy.
+3. **The toy is the sheepdog.** Finding an escapee and leading it home itself is the win; the robot's light is the
+   plain ending.
+4. **The player has no weapon.** The "alien blaster" of `docs/PAINTING-ANIMATIONS.md` is dropped: a painting wakes by
+   being looked at, as now.
 
-Their first tests: Seurat's monkey, Degas's hats, the Herring Net keg on its sea, Goya's boy and ram fetching the
-lambs, and the Cliff Walk parasol. Until the owner decides, read rules 5, 6 and 8 and the table below with that in mind.
+So read rules 5, 6 and 8 below with those four in mind, and in the table treat every "People" row as releasing
+nothing of the people (an object or effect of theirs at most), and test T4 as replaced.
+
+**First tests** (being built on branch work, not yet in the game): Seurat's monkey; Degas's hats (a flock that
+scatters); Homer's keg float on its patch of sea ("zap the effect"); Goya's boy and ram fetching the lambs; Monet's
+parasol blown from room to room.
 
 ## The idea
 

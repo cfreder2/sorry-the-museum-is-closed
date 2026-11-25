@@ -430,7 +430,7 @@ Security:   That is how it got to 75.
 14 2nd floor ring              OK **
 15 Loading dock                OK
 16 Dumpster, back wall         OK (filthy)
-17 ${pad(E.cam17 || 'Gallery 240', 27)} NO SIGNAL
+17 ${pad(E.cam17 || 'Bridge galleries, west', 27)} NO SIGNAL
 18 Director's corridor         "PRIVATE"
 19 Security control 1          OK (me)
 20 Security control 2          OK (not me)
@@ -446,7 +446,7 @@ Security:   That is how it got to 75.
 17:  no signal since March. See cam17.
 24:  not fitted. Then why is it on the list.
 ` },
-  '/cameras/cam17_no_signal.txt': { text: E => `CAM 17 · ${E.cam17 || 'Gallery 240'} · NO SIGNAL
+  '/cameras/cam17_no_signal.txt': { text: E => `CAM 17 · ${E.cam17 || 'Bridge galleries, west'} · NO SIGNAL
 ------------------------------------------
 Fitted January. Lost in March.
 
