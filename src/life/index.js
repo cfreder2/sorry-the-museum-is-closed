@@ -70,3 +70,4 @@ import './109819-lozenge-composition.js'; // 393  Mondrian, Lozenge Composition 
 import './15401-at-mouquins.js';      // 272  Glackens, At Mouquin's: mirror
 import './27987-jacques-and-berthe-lipchitz.js'; // 391  Modigliani, Jacques and Berthe Lipchitz: sitting
 import './109926-window-overlooking-the-woods.js'; // 244  Vuillard, Landscape: Window Overlooking the Woods: verdure
+import './24684-francesco-de-medici.js'; // 205  Allori, Francesco de' Medici: cameo
