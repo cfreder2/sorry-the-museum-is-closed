@@ -104,16 +104,20 @@ const YARD = [-0.78, 0.88, 0.2, 0.1];
 // where the hens go in: under the thatch's low eave, at its front; and a little way inside
 const IN = [hu(-CS, 0.03), ho(-CS, 0.03)], INSIDE = [hu(0.06, 0), ho(0.06, 0)], TURN = [IN[0] - 0.25 * CA, IN[1] + 0.25 * SN];
 const far = o => lerp(0.62, 1, sm(o, 0.84, 1.3));       // how big a bird is built, by how far out it is
+const sag = x => 0.014 * Math.sin(Math.PI * clamp01(x / LEN)) + 0.005 * Math.sin(x * 8);      // the long ridge, sagging a little
+// the long roof's eave: the thatch hangs out over the wall, and its edge is ragged
+const eaveZ = x => 0.046 + 0.01 * Math.sin(x * 37) + 0.007 * Math.sin(x * 83 + 1.3), eaveY = x => EH - 0.03 - 0.6 * (eaveZ(x) - 0.046);
+const SKIRT = 0.05;                                     // the grass against the foot of the house's walls: this high at most
 // ---------------------------------------------------------------- the clock
 const T_SMOKE = 1.4, T_DUSK0 = 1.8, T_DUSK1 = 5.9, T_ALONE = 4.25, T_LAMP = 5.0, T_TALL = 5.2, T_STRUT = 5.75, T_RUN = 6.25, T_DUCK = 7.45, T_IN = 7.8, T_SETTLE = 8.35;
 // the birds: where each walks (the last three points are the turn off the track, the eave, inside), and when:
 // [seconds, how far along] with 1 at the eave. kind 1 is the cock.
 const BIRDS = [
-  { S: 0.1, pale: 1, comb: 0.5, pts: [[-1.5, 1.06], [-1.27, 1.09], [-1.05, 1.02]], keys: [[0, 0.5], [2.7, 1], [3.2, 1.14]], ph: 0.1 },
-  { S: 0.097, pale: 1, comb: 1, pts: [[-1.5, 1.06], [-1.27, 1.09], [-1.05, 1.02]], keys: [[0, 0.3], [1.4, 0.5], [2.15, 0.5], [4.0, 1], [4.5, 1.14]], ph: 0.55 },
-  { S: 0.102, pale: 0, comb: 0.8, pts: [[-1.5, 1.06], [-1.27, 1.09], [-1.05, 1.02]], keys: [[0, 0.06], [2.5, 0.5], [3.2, 0.5], [5.0, 1], [5.5, 1.14]], ph: 0.8 },
-  { S: 0.104, pale: 0, comb: 0.8, pts: [[-0.86, 1.27], [-0.96, 1.16], [-0.99, 1.04]], keys: [[0, 0], [3.05, 0], [5.9, 1], [6.35, 1.14]], ph: 0.3, turn: 2.4 },
-  { S: 0.098, pale: 0, comb: 0.6, pts: [[-0.7, 1.34], [-0.86, 1.22], [-0.96, 1.07]], keys: [[0, 0], [3.75, 0], [6.4, 1], [6.85, 1.14]], ph: 0.7, turn: -2.0 },
+  { S: 0.112, pale: 1, comb: 0.5, pts: [[-1.5, 1.06], [-1.27, 1.09], [-1.05, 1.02]], keys: [[0, 0.5], [2.7, 1], [3.2, 1.14]], ph: 0.1 },
+  { S: 0.109, pale: 1, comb: 1, pts: [[-1.5, 1.06], [-1.27, 1.09], [-1.05, 1.02]], keys: [[0, 0.3], [1.4, 0.5], [2.15, 0.5], [4.0, 1], [4.5, 1.14]], ph: 0.55 },
+  { S: 0.114, pale: 0, comb: 0.8, pts: [[-1.5, 1.06], [-1.27, 1.09], [-1.05, 1.02]], keys: [[0, 0.06], [2.5, 0.5], [3.2, 0.5], [5.0, 1], [5.5, 1.14]], ph: 0.8 },
+  { S: 0.116, pale: 0, comb: 0.8, pts: [[-0.86, 1.27], [-0.96, 1.16], [-0.99, 1.04]], keys: [[0, 0], [3.05, 0], [5.9, 1], [6.35, 1.14]], ph: 0.3, turn: 2.4 },
+  { S: 0.11, pale: 0, comb: 0.6, pts: [[-0.7, 1.34], [-0.86, 1.22], [-0.96, 1.07]], keys: [[0, 0], [3.75, 0], [6.4, 1], [6.85, 1.14]], ph: 0.7, turn: -2.0 },
   { S: 0.14, pale: 0, comb: 1, kind: 1, pts: [[-1.08, 1.31], [-1.1, 1.18], [-1.04, 1.05]], keys: [[0, 0], [T_STRUT, 0], [T_RUN, 0.13], [T_DUCK, 0.93], [T_IN, 1], [T_IN + 0.35, 1.14]], ph: 0, turn: 1.4 },
 ];
 const NB = BIRDS.length;
@@ -269,6 +273,16 @@ lifeFor(81507, {
     const quad = (pts, wall) => { const b = pos.length / 3; for (const [a, c] of pts) { if (wall) L.at(a, c - (L.cy - L.y), -0.004, v); else { L.floor(a, c, v); v.y += 0.012; } pos.push(v.x, v.y, v.z); uo.push(a, c, wall ? 1 : 0); } idx.push(b, b + 2, b + 1, b + 2, b + 3, b + 1); };
     quad([[-1.6, -0.004], [1.12, -0.004], [-1.6, 1.74], [1.12, 1.74]], false);
     quad([[-1.6, 0.0], [1.12, 0.0], [-1.6, 1.0], [1.12, 1.0]], true);
+    // A skirt of the field's own paint against the foot of every wall of the house, a few centimetres high and
+    // ragged at its top: grass grown up the wall. (It is drawn with the field, so after the gallery's own pool of
+    // light on the floor under the picture. That pool is laid on with a depth offset, which lets it land on the
+    // lowest row of anything opaque standing on the floor: without this, a pale line along the foot of the walls.)
+    { const e = 0.003, ring = [[-CS - e, PJ + e], [WW + e, PJ + e], [WW + e, e], [LEN + e, e], [LEN + e, -DEP - e], [-CS - e, -DEP - e]];
+      ring.forEach((a, i) => {
+        const c = ring[(i + 1) % ring.length], b = pos.length / 3;
+        for (const [q, t] of [[a, 0], [c, 0], [a, 1], [c, 1]]) { const uu = hu(q[0], q[1]), oo = ho(q[0], q[1]); L.floor(uu, oo, v); v.y += 0.012 + t * SKIRT; pos.push(v.x, v.y, v.z); uo.push(uu, oo, 2 + t); }
+        idx.push(b, b + 2, b + 1, b + 2, b + 3, b + 1);
+      }); }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aUO', new THREE.Float32BufferAttribute(uo, 3)); g.setIndex(idx);
     const css = (h, a = 0.2) => col(h, a).getStyle();
@@ -313,15 +327,19 @@ varying vec3 vUO; vec3 hCol; float hA;
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
 float blot(vec2 p, vec2 c, vec2 d, vec2 r) { vec2 q = p - c; return exp(-pow(dot(q, d) / r.x, 2.0) - pow(dot(q, vec2(-d.y, d.x)) / r.y, 2.0)); }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
-if (vUO.z < 0.5) {
+if (vUO.z < 0.5 || vUO.z > 1.5) {
   vec2 p = vUO.xy;
   vec4 tf = texture2D(tField, vec2(p.x / 1.3, p.y / 0.66) + vec2(0.13, 0.07)), tg = texture2D(tField, vec2(p.x / 0.74 + 0.4, p.y / 0.4 + 0.3)), te = texture2D(tEarth, p / 0.5 + vec2(0.4, 0.2));
+  // (the skirt at the foot of the house: blades of the field's paint, each its own height)
+  float sk = vUO.z - 2.0, blade = 0.0;
+  if (sk > -0.5) { float sa = p.x * 0.9 + p.y * 0.44; blade = 0.62 * texture2D(tField, vec2(0.37 + sk * 0.07, sa / 0.3)).a + 0.38 * texture2D(tField, vec2(0.81 + sk * 0.05, sa / 0.09)).a; }
   // how far the evening has come out from under the picture, and the field's own edge: the ends of its strokes
   vec2 e = vec2((p.x - ${GL(U0)}) / ${GL(SA)} + 1.0e-5, max(p.y, 0.0) / ${GL(SB)}); float th = atan(e.y, e.x);
   float r = pow(pow(abs(e.x), 3.0) + pow(e.y, 3.0), 1.0 / 3.0) + 0.3 * smoothstep(0.15, 1.0, e.x) * smoothstep(0.35, 1.0, e.y), rw = r / (1.0 + 0.07 * sin(3.0 * th + 0.6) + 0.05 * sin(5.0 * th + 2.3) + 0.03 * sin(9.0 * th + 1.1));
   float m = min(uGrow * 1.6 - 0.25 - r, 1.0 - rw);
   m = min(m, 1.0 - uShut * 1.08 - 0.5 * distance(p, vec2(${GL(LAMP[0])}, ${GL(LAMP[2])})));      // (and the night, closing in round the window)
   hA = smoothstep(0.0, 0.05, m + (tf.a - 0.66) * 0.34 + (tg.a - 0.66) * 0.14);
+  if (sk > -0.5) hA *= 1.0 - smoothstep(-0.14, 0.14, sk - 0.2 - 0.8 * blade);
   if (hA < 0.01) discard;
   // the field: level bands of dark and of cold green, more olive towards you
   float band = 0.5 + 0.5 * sin(p.y * 13.0 + p.x * 1.7 + 1.6 * sin(p.x * 1.7 + 0.4));
@@ -346,6 +364,7 @@ if (vUO.z < 0.5) {
   vec2 lq = p - vec2(${GL(hu(WX, 0))}, ${GL(ho(WX, 0))}); float al = dot(lq, vec2(${GL(SN)}, ${GL(CA)})), ac = dot(lq, vec2(${GL(CA)}, ${GL(-SN)}));
   float pool = exp(-pow(ac / (0.04 + 0.32 * max(al, 0.0)), 2.0)) * smoothstep(0.0, 0.05, al) * exp(-max(al, 0.0) / 0.24);
   c += cLamp * pool * uLamp * (0.1 + 0.2 * tf.a + 0.22 * track) * 1.25;
+  if (sk > -0.5) c *= 0.8 + 0.5 * sk;
   hCol = c;
 } else {
   vec2 p = vUO.xy;
@@ -441,7 +460,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       if (shutter) c.lerp(shut, 0.8 * (1 - sm(Math.abs(p.x - x0 - w - 0.016), 0.009, 0.018)) * (1 - sm(p.y, y1 - 0.005, y1 + 0.005)) * sm(p.y, y0 - 0.005, y0 + 0.005));
       c.lerp(lint, 0.5 * (1 - sm(Math.abs(p.y - y1 - 0.01), 0.004, 0.01)) * (1 - sm(Math.abs(p.x - x0 - w / 2), w / 2, w / 2 + 0.014)));
     };
-    const front = surf((s, t, v) => v.set(lerp(WW, LEN, s), t * EH, 0), 150, 28, (p, c) => {
+    const front = surf((s, t, v) => v.set(lerp(WW, LEN, s), t * (EH + 0.014), 0), 150, 28, (p, c) => {
       const n = fbm(p.x * 7, p.y * 15), n2 = fbm(p.x * 19 + 3, p.y * 26 + 1);
       c.copy(wallD).lerp(wallL, sm(n, 0.2, 0.62)).lerp(wallP, sm(n * 0.6 + n2 * 0.4, 0.5, 0.72) * 0.9);
       c.lerp(wallG, (1 - sm(p.y, 0.006, 0.05 + 0.04 * n2)) * 0.8).lerp(wallD, sm(p.y, EH - 0.035, EH) * 0.75);      // damp at the foot; the eave's shade
@@ -455,6 +474,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     const gable = surf((s, t, v) => { const x = lerp(-CS, WW, s); v.set(x, t * Math.max(0.02, rake(x)), PJ); }, 46, 44, (p, c) => {
       const n = fbm(p.x * 11 + 5, p.y * 11), top = rake(p.x);
       c.copy(gabM).lerp(gabL, sm(n, 0.25, 0.7) * sm(p.y, 0.05, 0.2)).lerp(gabD, (1 - sm(p.y, 0.02, 0.13 + 0.07 * n)) * 0.8);
+      c.lerp(gabL, 0.55 * Math.exp(-Math.pow((p.x - RX + 0.01) / 0.085, 2) - Math.pow((p.y - 0.27) / 0.085, 2)) + 0.35 * Math.exp(-Math.pow((p.x - RX - 0.07) / 0.075, 2) - Math.pow((p.y - 0.19) / 0.07, 2)));      // the loaded lights
       c.lerp(gabD, 0.45 * sm(p.y, top - 0.03, top)).lerp(gabD, 0.5 * sm(p.x, WW - 0.035, WW));
       c.lerp(board, 0.92 * (1 - sm(p.x, -0.012, 0.012)));
     });
@@ -467,18 +487,36 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     });
     const endR = surf((s, t, v) => { const y = t * RH, w = y <= EH ? 1 : 1 - (y - EH) / (RH - EH); v.set(LEN, y, -DEP / 2 + (s - 0.5) * DEP * w); }, 6, 8, (p, c) => c.copy(dark).lerp(wallD, 0.3));
     const back = surf((s, t, v) => v.set(lerp(-CS, LEN, s), t * EH * (s < 0.1 ? 0.6 : 1), -DEP), 8, 3, (p, c) => c.copy(dark).lerp(wallD, 0.2));
-    // the long roof: near black, a warm brown dragged along the courses, moss; the ridge sagging a little
-    const sag = x => 0.014 * Math.sin(Math.PI * clamp01(x / LEN)) + 0.005 * Math.sin(x * 8);
-    const roofPaint = (p, c) => { const n = fbm(p.x * 5, p.y * 30 + p.z * 22), n2 = fbm(p.x * 21 + 9, p.y * 44); c.copy(roofD).lerp(roofB, sm(n, 0.35, 0.75) * 0.9).lerp(roofM, sm(n2, 0.55, 0.75) * 0.6).multiplyScalar(lerp(1.15, 0.78, sm(p.x, 0.2, LEN))); };
-    const roofF = surf((s, t, v) => { const x = lerp(RX, LEN + 0.016, s); v.set(x, lerp(EH - 0.014, RH - sag(x), t), lerp(0.024, -DEP / 2, t)); }, 70, 16, roofPaint);
-    const roofB2 = surf((s, t, v) => { const x = lerp(RX, LEN + 0.016, s); v.set(x, lerp(EH - 0.014, RH - sag(x), t), lerp(-DEP - 0.024, -DEP / 2, t)); }, 16, 6, roofPaint);
-    // the wing's roof: old thatch on the left, lighter along its top, coming right down to the low eave; and its
+    // The roofs: one old thatch. The wing's left slope has the last of the sky on it; the long roof, and the wing's
+    // right slope, are the same thatch out of the light: the same courses, most of the way down to black, with a
+    // little moss. (a: along the eave; d: down the slope; lit: how much light is on it; up: 0 at the eave, 1 at the ridge)
+    const weave = (a, d, c, lit, up) => {
+      const n = fbm(a * 14, d * 26), n2 = fbm(a * 21 + 9, d * 44 + 3);
+      c.copy(thD).lerp(thM, sm(n, 0.15, 0.7) * lerp(0.42, 1, lit)).lerp(thL, sm(n, 0.5, 0.8) * (0.3 + 0.7 * up) * lerp(0.1, 1, lit));
+      c.lerp(roofD, 0.55 * (1 - lit) * sm(n2, 0.3, 0.7)).lerp(roofM, 0.3 * (1 - lit) * sm(n2, 0.62, 0.8));
+    };
+    // (a faintly lighter line along its eave and along its ridge, as he has it; darker as it goes back into the trees)
+    const roofPaint = (p, c, up) => { weave(p.x, p.z + p.y * 0.54, c, lerp(0.14, 0.04, sm(p.x, 0.3, LEN)), up); c.lerp(thM, 0.32 * (1 - sm(up, 0.0, 0.16)) + 0.24 * sm(up, 0.84, 1)).multiplyScalar(lerp(0.9, 0.62, sm(p.x, 0.2, LEN))); };
+    const roofF = surf((s, t, v) => { const x = lerp(RX, LEN + 0.03, s); v.set(x, lerp(eaveY(x), RH - sag(x), t), lerp(eaveZ(x), -DEP / 2, t)); }, 70, 16, (p, c, s, t) => roofPaint(p, c, t));
+    const roofB2 = surf((s, t, v) => { const x = lerp(RX, LEN + 0.03, s); v.set(x, lerp(EH - 0.014, RH - sag(x), t), lerp(-DEP - 0.024, -DEP / 2, t)); }, 16, 6, (p, c, s, t) => roofPaint(p, c, t));
+    // the wing's roof: on the left, lighter along its top, coming right down to the low eave (ragged there); and its
     // right side, dark, going into the long roof
-    const thatch = (p, c) => { const n = fbm(p.z * 14, p.x * 26 + p.y * 14), up = sm(p.y, LE, RH); c.copy(thD).lerp(thM, sm(n, 0.15, 0.7)).lerp(thL, sm(n, 0.5, 0.8) * (0.3 + 0.7 * up)).lerp(thD, 0.5 * (1 - sm(p.y, LE - 0.01, LE + 0.05))); };
-    const wingT = surf((s, t, v) => { const x = lerp(RX, -CS - 0.022, t); v.set(x, lerp(RH, LE - 0.012, t) + 0.006 * Math.sin(s * 9) * t, lerp(PJ + 0.022, -DEP - 0.02, s)); }, 30, 24, thatch);
-    const wingD = surf((s, t, v) => { const x = lerp(RX, WW + 0.02, t); v.set(x, lerp(RH, EH - 0.014, t), lerp(PJ + 0.022, -DEP / 2, s)); }, 14, 12, roofPaint);
-    // the chimneys: red brick, lit on the side the sky is on; and a pale one further along
-    const stack = (x, w, hgt, a, b, lit) => tint(shape.move(shape.box(w, hgt, w * 0.85), x, RH - sag(x) + hgt / 2 - 0.02, -DEP / 2), (p, c) => { const n = vn(p.x * 120, p.y * 90); c.copy(a).lerp(b, sm(p.x, x - w * 0.2, x + w * 0.4) * 0.85).lerp(lit, sm(n, 0.55, 0.8) * (1 - sm(p.x, x - w * 0.4, x + w * 0.1)) * 0.8).lerp(dark, 0.5 * sm(p.y, RH + hgt - 0.04, RH + hgt - 0.018)); });
+    const thatch = (p, c) => { weave(p.z, p.x + p.y * 0.54, c, 0.86, sm(p.y, LE, RH)); c.lerp(thD, 0.5 * (1 - sm(p.y, LE - 0.01, LE + 0.05))); };
+    const wingT = surf((s, t, v) => { const x = lerp(RX, -CS - 0.022, t); v.set(x, lerp(RH, LE - 0.012, t) + (0.006 * Math.sin(s * 9) + 0.004 * Math.sin(s * 31 + 2)) * t, lerp(PJ + 0.022, -DEP - 0.02, s)); }, 30, 24, thatch);
+    const wingD = surf((s, t, v) => { const x = lerp(RX, WW + 0.02, t); v.set(x, lerp(RH, EH - 0.014, t), lerp(PJ + 0.022, -DEP / 2, s)); }, 14, 12, (p, c, s, t) => { weave(p.z, p.x - p.y * 0.54, c, 0.14, 1 - t); c.multiplyScalar(0.9); });
+    // the chimneys: red brick, lit on the side the sky is on; and a pale one further along. Each is four painted
+    // sides, a little narrower up to a course standing out under its top, mottled as brick is
+    const stack = (x, w, hgt, a, b, lit) => {
+      const y0 = RH - sag(x) - 0.02, d = w * 0.85, ring = [[-w / 2, d / 2], [w / 2, d / 2], [w / 2, -d / 2], [-w / 2, -d / 2], [-w / 2, d / 2]];
+      return surf((s, t, v) => {
+        const q = Math.min(3.999, s * 4), i = Math.floor(q), f = q - i, k = t > 0.99 ? 0 : 1 - 0.1 * t + (t > 0.7 ? 0.13 : 0);
+        v.set(x + lerp(ring[i][0], ring[i + 1][0], f) * k, y0 + Math.min(t, 6 / 7) * (7 / 6) * hgt, -DEP / 2 + lerp(ring[i][1], ring[i + 1][1], f) * k);
+      }, 8, 7, (p, c, s, t) => {
+        const shade = s < 0.2 ? 0.3 : s < 0.45 ? 0.9 : s < 0.7 ? 1 : s < 0.95 ? 0 : 0.3, n = vn(s * 9 + x * 31, t * 6 + 2.7);
+        c.copy(a).lerp(b, shade * 0.85).lerp(lit, sm(n, 0.45, 0.8) * (1 - shade) * 0.85).lerp(b, sm(1 - n, 0.6, 0.9) * 0.5);
+        c.lerp(dark, 0.6 * sm(t, 0.74, 0.9)).lerp(dark, 0.35 * (1 - sm(t, 0.0, 0.3)));
+      });
+    };
     const house = shape.merge([front, gable, wingR, wingL, endR, back, roofF, roofB2, wingT, wingD, stack(CH[0], 0.044, 0.105, brick, brickD, brickL), stack(CH[1], 0.036, 0.09, chalk, chalkD, chalk)]);
     this.Mh = new THREE.Matrix4().makeBasis(new THREE.Vector3(CA, 0, -SN), this.UP, new THREE.Vector3(SN, 0, CA)).setPosition(G[0], HY, G[1]);
     this.iHouse = rig.add(rig.geo(house));
@@ -553,26 +591,42 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       add(u, s * 0.95, o, 0.2, 1, 0, s * 1.7, s * 1.6, MASS, tone(0.08, T()), { r: 0.12, k: 0.9 });
       for (let i = 0; i < 3; i++) add(u + RR(-0.5, 0.5) * s, s * RR(0.8, 1.3), o + 0.012, RR(-0.5, 0.3), 1, 0, s * 1.3, s * 1.1, LEAF + i, tone(RR(0.2, 0.42), T()), { r: 0.3 + 0.2 * R(), sway: 1 });
     }
-    // ---- the house in his paint (in the house's own frame, turned into the scene's): the loaded lights on the
-    // gable, the worn patches of the long wall, the drags that lose the roof's edges in the trees, the thatch
-    // hanging ragged at its eave, the red of the chimney
+    // ---- the house in his paint (in the house's own frame, turned into the scene's): the broken lines of lighter
+    // thatch that are the roof's edges, the thatch hanging ragged at its eaves, the dabs on the chimneys. (A mark
+    // faces you, so one laid against a wall or a slope is cut where it meets it: these all stand clear, at edges.)
     const hp = (x, y, z, dx, dy, dz, len, wid, slot, c, o) => add(hu(x, z), y + HY, ho(x, z), dx * CA + dz * SN, dy, -dx * SN + dz * CA, len, wid, slot, c, o);
-    const cGab = col('#8f8c79', 0.12), cGab2 = col('#787663'), cRoof = col('#0f0d09', 0.1), cRoofB = col('#2c2117'), cTh = col('#5a4930'), cThL = col('#77633f', 0.15), cThD = col('#2b2217'), cBrick = col('#b0563a', 0.1);
-    const gp = (x, y, len, wid, c, o) => hp(x, y, PJ + 0.006, RR(-0.25, 0.25), 1, 0, len, wid, SOFT, c, o);
-    gp(RX - 0.01, 0.27, 0.24, 0.26, cGab, { r: 0.95, own: 0.08, al: 0.5 }); gp(RX + 0.07, 0.19, 0.2, 0.2, cGab2, { r: 0.9, own: 0.05, al: 0.45 });
-    for (let i = 0; i < 2; i++) { const t = 0.28 + 0.4 * i; hp(lerp(WW, RX, t), lerp(EH, RH, t) + 0.004, PJ + 0.014, RX - WW, RH - EH, 0, 0.15, 0.04, DRAG, cRoof, { r: 0.12, k: 0.9 }); }      // the dark verge on the gable's right
-    for (let i = 0; i < 8; i++) { const x = lerp(WW, LEN, (i + RR(0.2, 0.8)) / 8), t = RR(0.2, 0.8); hp(x, lerp(EH, RH, t) + 0.008, lerp(0.024, -DEP / 2, t) + 0.012, 1, RR(-0.05, 0.05), 0, RR(0.2, 0.32), RR(0.05, 0.075), DRAG, i % 3 === 1 ? cRoof : cRoofB, { r: 0.1 + 0.1 * R(), k: i % 3 === 2 ? 1.15 : 0.95 }); }
-    for (let i = 0; i < 6; i++) hp(lerp(RX + 0.1, LEN, (i + 0.5) / 6), RH + 0.002, -DEP / 2, i % 2 ? 1 : -1, RR(-0.06, 0.06), 0, 0.3, 0.06, DRAG, cRoof, { r: 0.08, k: 0.9 });      // the ridge, lost in the trees
-    for (let i = 0; i < 6; i++) hp(lerp(WW, LEN, (i + 0.5) / 6), EH - 0.012, 0.03, i % 2 ? 1 : -1, RR(-0.04, 0.04), 0, 0.28, 0.035, DRAG, cRoof, { r: 0.1, k: 0.85 });           // the eave's shade
+    const cRoof = col('#0f0d09', 0.1), cRoofB = col('#2c2117'), cTh = col('#5a4930'), cThL = col('#77633f', 0.15), cThD = col('#2b2217'), cBrick = col('#b0563a', 0.1), cBrickL = col('#cf8562', 0.1), cBrickD = col('#5a2a1c'), cChalk = col('#b4b2a4', 0.12), cChalkD = col('#5e5d55');
+    // the roof's own edges, which are what make it a roof against the woods: a broken line of his lighter thatch
+    // along the ridge and along the eave (these keep a little of their own light as the evening goes), and the
+    // thatch hanging ragged over the wall
+    for (let i = 0; i < 8; i++) { const x = lerp(RX + 0.14, LEN, (i + RR(0.25, 0.75)) / 8); hp(x, RH - sag(x) + 0.01, -DEP / 2 + 0.016, i % 2 ? 1 : -1, RR(-0.05, 0.05), 0, RR(0.16, 0.24), RR(0.026, 0.036), DRAG, i % 3 === 1 ? cThL : cTh, { r: 0.5 + 0.2 * R(), own: 0.3, k: lerp(0.86, 0.6, x / LEN), al: 0.85 }); }
+    for (let i = 0; i < 8; i++) { const x = lerp(WW + 0.06, LEN, (i + RR(0.25, 0.75)) / 8); hp(x, eaveY(x) + 0.007, eaveZ(x) + 0.004, i % 2 ? 1 : -1, RR(-0.04, 0.04), 0, RR(0.15, 0.22), RR(0.024, 0.032), DRAG, i % 3 === 2 ? cThL : cTh, { r: 0.45 + 0.2 * R(), own: 0.26, k: lerp(0.8, 0.52, x / LEN), al: 0.85 }); }
+    for (let i = 0; i < 9; i++) { const x = lerp(WW + 0.03, LEN + 0.02, (i + RR(0.2, 0.8)) / 9); hp(x, eaveY(x) - 0.012, eaveZ(x) + 0.006, RR(-0.4, 0.4), -1, 0, RR(0.03, 0.05), RR(0.04, 0.055), SOFT, i % 3 ? cThD : cRoofB, { r: 0.2 + 0.2 * R(), al: 0.85, k: lerp(1, 0.7, x / LEN) }); }
     // the thatch: drags down its slope, the lights on its upper part; and ragged at its eave
     for (let i = 0; i < 7; i++) { const t = RR(0.12, 0.82), z = lerp(PJ - 0.01, -DEP + 0.03, (i + RR(0.2, 0.8)) / 7); hp(lerp(RX, -CS, t) - 0.008, lerp(RH, LE, t) + 0.01, z, -(RX + CS), -(RH - LE), 0, RR(0.14, 0.2), RR(0.06, 0.08), i % 2 ? SOFT : DRAG, i % 3 === 1 ? cThL : cTh, { r: 0.55 + 0.2 * R(), own: 0.05, k: lerp(1.0, 0.82, t), al: 0.45 }); }
     for (let i = 0; i < 6; i++) { const z = lerp(PJ + 0.01, -DEP, (i + RR(0.2, 0.8)) / 6); hp(-CS - 0.018, LE - 0.004, z, -0.5, -1, 0, RR(0.03, 0.045), 0.05, SOFT, i % 2 ? cThD : cTh, { r: 0.4, al: 0.8 }); }
     hp(RX, RH + 0.004, lerp(PJ, -DEP / 2, 0.4), 0, 0, -1, 0.26, 0.05, DRAG, cThD, { r: 0.3, k: 0.9 });                                                            // its ridge
-    hp(CH[0] - 0.008, RH + 0.035, -DEP / 2 + 0.022, 0, 1, 0, 0.09, 0.036, SOFT, cBrick, { r: 0.9, own: 0.35, k: 1.05 });
-    // ---- the garden under the long wall: dark bushes, a few orange flowers by the gable, the red ones at the far end
+    // the chimneys in his dabs: on the red one a light, loaded touch on the side the sky is on, the brick under it,
+    // its dark side and the soot at its top; on the pale one two touches of chalk
+    { const x = CH[0], y = RH - sag(x), z = -DEP / 2 + 0.024;
+      hp(x + 0.004, y + 0.03, z, 0.1, 1, 0, 0.085, 0.04, SOFT, cBrick, { r: 0.85, own: 0.3, k: 0.95 });
+      hp(x + 0.014, y + 0.036, z, 0, 1, 0, 0.07, 0.02, SOFT, cBrickD, { r: 0.6, own: 0.1, al: 0.8 });
+      hp(x - 0.01, y + 0.046, z + 0.002, -0.1, 1, 0, 0.055, 0.02, SOFT, cBrickL, { r: 0.95, own: 0.4, k: 1.05 });
+      hp(x, y + 0.08, z, 1, 0.05, 0, 0.06, 0.018, SOFT, cRoof, { r: 0.4, al: 0.85 }); }
+    { const x = CH[1], y = RH - sag(x), z = -DEP / 2 + 0.02;
+      hp(x - 0.004, y + 0.035, z, 0.15, 1, 0, 0.07, 0.03, SOFT, cChalk, { r: 0.9, own: 0.32, k: 0.95 });
+      hp(x + 0.01, y + 0.02, z, -0.2, 1, 0, 0.05, 0.02, SOFT, cChalkD, { r: 0.6, own: 0.1, al: 0.8 });
+      hp(x, y + 0.068, z, 1, -0.05, 0, 0.048, 0.016, SOFT, cRoof, { r: 0.4, al: 0.8 }); }
+    // ---- the garden in front of the long wall: bushes, each a dark mass standing clear of the wall with a few
+    // feathered lights over it and a low spray in front (so the wall's foot is lost behind them, as his is); a few
+    // orange flowers by the gable, the red ones at the far end
     const cOr = col('#b5642c', 0.1), cRed = col('#c03d28', 0.08);
-    for (let i = 0; i < 10; i++) { const x = lerp(WW + 0.03, LEN, (i + RR(0.1, 0.9)) / 10), z = RR(0.035, 0.1), s = RR(0.085, 0.13); hp(x, s * 0.4, z, RR(-0.5, 0.5), 1, 0, s * 1.1, s * 1.2, LEAF + i % 3, tone(RR(0.14, 0.34), T()), { r: 0.2 + 0.2 * R(), sway: 1, k: 0.95 }); }
-    hp(WW * 0.45, 0.05, PJ + 0.03, 1, 0.1, 0, 0.26, 0.13, MASS, tone(0.2, T()), { r: 0.15, al: 0.9 }); hp(WW * 0.34, 0.085, PJ + 0.04, -0.3, 1, 0, 0.13, 0.13, LEAF, tone(0.3, T()), { r: 0.3, sway: 1 }); hp(WW * 0.62, 0.075, PJ + 0.04, 0.2, 1, 0, 0.12, 0.12, LEAF + 2, tone(0.24, T()), { r: 0.3, sway: 1 }); hp(WW * 0.86, 0.06, PJ + 0.035, 0.3, 1, 0, 0.1, 0.11, LEAF + 1, tone(0.2, T()), { r: 0.3, sway: 1 });
+    for (const [x, z, sz] of [[0.445, 0.075, 0.07], [0.69, 0.11, 0.088], [0.79, 0.065, 0.066], [1.0, 0.12, 0.105], [1.12, 0.075, 0.09], [1.25, 0.135, 0.115]]) {
+      hp(x, sz * 0.52, z, RR(-0.2, 0.2), 1, 0, sz * 1.3, sz * 1.55, MASS, tone(RR(0.03, 0.12), T()), { r: 0.14 + 0.1 * R(), k: 0.95 });
+      for (let i = 0; i < 3; i++) hp(x + RR(-0.55, 0.45) * sz, sz * RR(0.62, 1.1), z + 0.018 + 0.014 * i, RR(-0.6, 0.2), 1, 0, sz * RR(0.85, 1.05), sz * RR(0.8, 1.0), LEAF + (i + Math.floor(x * 9)) % 3, tone(RR(0.3, 0.58), T()), { r: 0.3 + 0.2 * R(), sway: 1, k: 0.95 });
+      hp(x + RR(-0.7, 0.7) * sz, sz * 0.3, z + 0.06, RR(-0.5, 0.5), 1, 0, sz * 0.7, sz * 0.95, LEAF + Math.floor(R() * 3), tone(RR(0.12, 0.26), T()), { r: 0.25 + 0.2 * R(), sway: 1, k: 0.9 });
+    }
+    hp(WW * 0.5, 0.058, PJ + 0.05, 1, 0.1, 0, 0.27, 0.15, MASS, tone(0.14, T()), { r: 0.15, al: 0.92 }); hp(WW * 0.34, 0.095, PJ + 0.065, -0.3, 1, 0, 0.13, 0.13, LEAF, tone(0.32, T()), { r: 0.3, sway: 1 }); hp(WW * 0.62, 0.085, PJ + 0.075, 0.2, 1, 0, 0.12, 0.12, LEAF + 2, tone(0.26, T()), { r: 0.3, sway: 1 }); hp(WW * 0.88, 0.07, PJ + 0.06, 0.3, 1, 0, 0.11, 0.12, LEAF + 1, tone(0.2, T()), { r: 0.3, sway: 1 }); hp(WW * 0.14, 0.035, PJ + 0.09, 0.4, 1, 0, 0.07, 0.09, LEAF + 1, tone(0.18, T()), { r: 0.3, sway: 1 });
     hp(WW + 0.06, 0.07, 0.1, 0, 1, 0, 0.04, 0.045, DOTS, cOr, { r: 0.9, own: 0.15, k: 0.7, al: 0.85 }); hp(WW + 0.22, 0.06, 0.12, 0, 1, 0, 0.035, 0.04, DOTS, cOr, { r: 0.92, own: 0.15, k: 0.7, al: 0.85 });
     hp(LEN - 0.1, 0.09, 0.1, 0.2, 1, 0, 0.2, 0.26, MASS, tone(0.16, T()), { r: 0.15, k: 0.9 });
     for (let i = 0; i < 3; i++) hp(LEN - 0.19 + 0.08 * i, 0.11 + RR(-0.02, 0.05), 0.12 + 0.01 * i, RR(-0.5, 0.3), 1, 0, 0.15, 0.14, LEAF + i, tone(RR(0.15, 0.4), T()), { r: 0.35, sway: 1 });
@@ -595,7 +649,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   // ---------------------------------------------------------------- the birds: each a few touches on a moving frame
   buildBirds(L, col) {
     const R = () => L.rand(), V = (x, y) => new THREE.Vector3(x, 0, y);
-    const C = { dk: col('#120e0a', 0.1), dk2: col('#33241a'), rus: col('#5f3a22'), wh: col('#cfcab9', 0.12), wh2: col('#8f8c80'), leg: col('#6e5a34'), red: col('#b3382a', 0.06), beak: col('#b99a52', 0.1), hack: col('#bfae80', 0.1), hack2: col('#8a733f'), sad: col('#7c3f20'), sad2: col('#4a2a18'), tail: col('#0c110d', 0.08), sheen: col('#23382d') };
+    const C = { dk: col('#120e0a', 0.1), dk2: col('#33241a'), rus: col('#5f3a22'), or: col('#9a5a26'), wh: col('#cfcab9', 0.12), wh2: col('#8f8c80'), leg: col('#6e5a34'), red: col('#b3382a', 0.06), beak: col('#b99a52', 0.1), hack: col('#bfae80', 0.1), hack2: col('#8a733f'), sad: col('#7c3f20'), sad2: col('#4a2a18'), tail: col('#0c110d', 0.08), sheen: col('#23382d') };
     this.BC = C;
     this.birds = BIRDS.map((b, i) => {
       const pts = [...b.pts, TURN, IN, INSIDE].map(p => V(p[0], p[1])), curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
@@ -603,7 +657,11 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
       // how far along (0..1 by length) the eave is
       const v = new THREE.Vector3(); let qe = 0.8, bd = 9;
       for (let k = 0; k <= 400; k++) { curve.getPointAt(k / 400, v); const d = Math.hypot(v.x - IN[0], v.z - IN[1]); if (d < bd) { bd = d; qe = k / 400; } }
-      return { ...b, i, curve, len: curve.getLength(), qe, kind: b.kind || 0, u: 0, o: 0, sc: 1, th: 0, vis: 0, turn: b.turn || 0, r1: R(), r2: R(), p: new THREE.Vector3(), d: new THREE.Vector3() };
+      // its steps: how many it has taken by each point of its road. A step is a fixed part of the bird's own size
+      // where it is, so a foot that is down stays where it was put while the body goes over it
+      const stride = b.kind ? 0.4 : 0.28, tab = new Float32Array(201); let acc = 0, px = 0, pz = 0;
+      for (let k = 0; k <= 200; k++) { curve.getPointAt(k / 200, v); if (k) acc += Math.hypot(v.x - px, v.z - pz) / (stride * b.S * far(v.z)); tab[k] = acc; px = v.x; pz = v.z; }
+      return { ...b, i, tab, A: stride / 2, curve, len: curve.getLength(), qe, kind: b.kind || 0, u: 0, o: 0, sc: 1, th: 0, vis: 0, turn: b.turn || 0, r1: R(), r2: R(), p: new THREE.Vector3(), d: new THREE.Vector3() };
     });
     this.order = this.birds.slice();
   },
@@ -721,7 +779,7 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     b.walk = sm(b.speed, 0.015, 0.07); b.run = b.kind ? sm(b.speed, 0.3, 0.46) : 0;
     // standing, it faces its own way; it turns into its road as it sets off
     b.th = Math.atan2(v.z, v.x) + b.turn * (1 - sm(q, 0.0, 0.1));
-    b.gait = q * b.qe * b.len / (0.5 * b.S);                         // steps taken
+    { const g = clamp01(s) * 200, gi = Math.min(199, Math.floor(g)); b.gait = lerp(b.tab[gi], b.tab[gi + 1], g - gi); }      // steps taken
     b.inn = sm(q, 0.985, 1.12);                                      // under the eave, into the dark
     b.duck = sm(q, 0.86, 0.99);
     b.vis = (1 - b.inn) * this.came(b.u, 0.05, b.o, 0.5);
@@ -750,13 +808,13 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
     }
     const run = b.run, step = b.gait * Math.PI, bounce = (calm ? 0.5 : 1) * run * Math.abs(Math.sin(step)) * 0.08;
     const pitch = (cock ? 0.36 : 0.08) + 0.2 * tall - 0.42 * run - 0.26 * peck - 0.22 * b.duck;      // the body: breast up
-    const cp = Math.cos(pitch), sp = Math.sin(pitch), by = (cock ? 0.44 : 0.38) + bounce + 0.04 * tall - 0.05 * b.duck;
+    const cp = Math.cos(pitch), sp = Math.sin(pitch), by = (cock ? 0.44 : 0.3) + bounce + 0.04 * tall - (cock ? 0.05 : 0.03) * b.duck;      // (a hen's body sits low over her legs)
     const P = (x, y, z, into) => into.set(b.u + (fx * x + rx * z) * S, y * S, b.o + (fz * x + rz * z) * S);
     const bp = (x, y) => [x * cp - y * sp, by + x * sp + y * cp];      // a point of the body, tipped with it
     const mark = (x, y, z, dx, dy, dz, len, wid, slot, c, k = 1, own = 0) => { P(x, y, z, v); this.put(v.x, v.y, v.z, fx * dx + rx * dz, dy, fz * dx + rz * dz, len * S, wid * S, slot, cut, al, c, k * kd, own); };
     // ---- the body under the paint
     rig.show(id, true);
-    { P(0, by, 0, v); const wx = this.O.x + this.T3.x * v.x + this.N3.x * v.z, wz = this.O.z + this.T3.z * v.x + this.N3.z * v.z; rig.put(id, wx, this.O.y + v.y, wz, L.yawOf(fx, fz), -pitch, 0, S * 0.9 * sm(a, 0.25, 0.8)); }
+    { P(0, by, 0, v); const wx = this.O.x + this.T3.x * v.x + this.N3.x * v.z, wz = this.O.z + this.T3.z * v.x + this.N3.z * v.z; rig.put(id, wx, this.O.y + v.y, wz, L.yawOf(fx, fz), -pitch, 0, S * (cock ? 0.9 : 1.1) * sm(a, 0.25, 0.8)); }
     const dk = b.pale ? C.wh2 : C.dk, md = b.pale ? C.wh : C.dk2, hi = b.pale ? C.wh : C.rus;
     // ---- the tail: a hen's, a short fan held up; the cock's, dark plumes that go up and arch over
     const [tx, ty] = bp(-0.27, 0.09);
@@ -769,26 +827,31 @@ float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
           x += Math.cos(an) * l * 0.56; y += Math.sin(an) * l * 0.56; an += bend * (1 - 0.5 * str);
         }
       }
-    } else for (let i = 0; i < 2; i++) { const an = 2.05 + 0.38 * i + 0.6 * pitch; mark(tx + Math.cos(an) * 0.17, ty + Math.sin(an) * 0.17, (i - 0.5) * 0.05, Math.cos(an), Math.sin(an), 0, 0.42, 0.32, FEATH, i ? md : dk, 1); }
-    // ---- the legs: under the body, each foot down in its turn
+    } else for (let i = 0; i < 3; i++) { const an = 1.86 + 0.3 * i + 0.6 * pitch; mark(tx + Math.cos(an) * 0.16, ty + Math.sin(an) * 0.16, (i - 1) * 0.045, Math.cos(an), Math.sin(an), 0, 0.42 - 0.04 * i, 0.3, FEATH, i === 1 ? md : dk, 1); }
+    // ---- the legs: under the body. A foot that is down stays where it is on the ground while the body passes over
+    // it (it goes back, in the bird's frame, exactly as fast as the bird goes forward); then it is lifted and swung
+    // through to the front. Standing, both are down wherever they were.
     for (let i = 0; i < 2; i++) {
-      const sd = i ? 1 : -1, ph = step + (i ? Math.PI : 0), sw = b.walk * Math.sin(ph) * (0.16 + 0.18 * run), lift = b.walk * Math.max(0, Math.cos(ph)) * (0.06 + 0.1 * run + 0.1 * tall);
-      const hx = 0.0, hy = by - 0.12, fxx = hx + sw, l = Math.hypot(fxx - hx, hy - lift);
-      mark((hx + fxx) / 2, (hy + lift) / 2, sd * 0.07, (fxx - hx) / l, (lift - hy) / l, 0, l + 0.06, cock ? 0.11 : 0.1, FEATH, C.leg, 0.9);
+      const sd = i ? 1 : -1, f = (b.gait * 0.5 + i * 0.5 + 0.25) % 1, A = b.A, hy = by - (cock ? 0.12 : 0.1); let x, lift = 0;
+      if (f < 0.5) x = A * (1 - 4 * f); else { const w = (f - 0.5) * 2; x = A * (2 * ease.inOut(w) - 1); lift = b.walk * Math.sin(Math.PI * w) * (cock ? 0.07 + 0.08 * run + 0.1 * tall : 0.05); }
+      if (x < 0 && b.walk < 1) { lift += 0.04 * Math.sin(Math.PI * b.walk); x *= lerp(0.25, 1, b.walk); }      // (stopping, it brings up the foot left behind)
+      const l = Math.hypot(x, hy - lift);
+      mark(x / 2, (hy + lift) / 2, sd * 0.07, x / l, (lift - hy) / l, 0, l + 0.06, cock ? 0.11 : 0.085, FEATH, C.leg, cock ? 0.9 : 0.66);
     }
     // ---- the body: the back, the breast, the saddle, the wing laid over them
-    { const [x, y] = bp(-0.02, 0.0); mark(x, y, 0, cp, sp, 0, 0.92, 0.7, MASS, dk, 1); }
+    { const [x, y] = bp(-0.02, 0.0); mark(x, y, 0, cp, sp, 0, cock ? 0.92 : 1.0, cock ? 0.7 : 0.8, MASS, dk, 1); }
     { const [x, y] = bp(0.19, -0.03); mark(x, y, 0, Math.cos(pitch + 1.15), Math.sin(pitch + 1.15), 0, 0.5, 0.42, SOFT, cock ? C.tail : md, 1); }
     if (cock) { const [x, y] = bp(-0.15, 0.13); mark(x, y, 0, -cp, -sp + 0.2, 0, 0.4, 0.32, SOFT, C.sad, 1, 0.06); }
+    else { const [x, y] = bp(-0.01, -0.14), [x2, y2] = bp(-0.17, 0.11); mark(x, y, 0, cp, sp, 0, 0.5, 0.26, SOFT, dk, 1); mark(x2, y2, 0, -cp, -sp + 0.15, 0, 0.36, 0.3, SOFT, md, 0.95); }      // a hen: the fluff over the tops of her legs, and her rump
     { const open = cock ? run * (calm ? 0.25 : 1) * (0.6 + 0.4 * Math.sin(step * 2)) : 0, [x, y] = bp(-0.03, 0.05 + 0.1 * open), wa = pitch - 0.2 + 0.5 * open; for (const sd of open > 0.1 ? [-1, 1] : [1]) mark(x, y, sd * (0.1 + 0.2 * open), -Math.cos(wa), -Math.sin(wa), sd * open * 0.9, 0.52, 0.34, FEATH, cock ? C.sad2 : hi, 1); }
     // ---- the neck and the head: up to look, down to peck, out in front to run
     const [nx, ny] = bp(0.2, 0.1), up = 1 - peck;
     const hX = nx + lerp(0.24, cock ? 0.1 : 0.13, up) + 0.24 * run + 0.1 * b.duck - 0.04 * tall + b.walk * (1 - run) * 0.05 * Math.sin(step * 2);
     const hY = Math.max(0.07, lerp(0.08, ny + (cock ? 0.36 : 0.3) + 0.07 * alert + 0.1 * tall, up) * (1 - 0.42 * run * up) - 0.3 * b.duck * up), hZ = 0.07 * look;
-    { const dx = hX - nx, dy = hY - ny, l = Math.hypot(dx, dy) || 1; mark(nx + dx * 0.36, ny + dy * 0.36, hZ * 0.5, dx / l, dy / l, 0, l + 0.3, cock ? 0.52 : 0.36, FEATH, cock ? C.hack2 : md, 1); if (cock) mark(nx + dx * 0.62 - 0.035, ny + dy * 0.62, hZ * 0.6, dx / l, dy / l, 0, l * 0.62 + 0.08, 0.26, FEATH, C.hack, 1, 0.06); }
+    { const dx = hX - nx, dy = hY - ny, l = Math.hypot(dx, dy) || 1; mark(nx + dx * 0.36, ny + dy * 0.36, hZ * 0.5, dx / l, dy / l, 0, l + 0.3, cock ? 0.52 : 0.36, FEATH, cock ? C.hack2 : md, 1); if (cock) mark(nx + dx * 0.62 - 0.035, ny + dy * 0.62, hZ * 0.6, dx / l, dy / l, 0, l * 0.62 + 0.08, 0.26, FEATH, C.hack, 1, 0.06); else if (!b.pale) mark(nx + dx * 0.6 - 0.02, ny + dy * 0.6, hZ * 0.6, dx / l, dy / l, 0, l * 0.5 + 0.08, 0.2, FEATH, C.or, 0.85, 0.05); }
     const face = Math.atan2(look, 1), bx = Math.cos(face), bz = Math.sin(face);
     mark(hX, hY, hZ, bx, 0.1 - 0.5 * peck, bz, 0.22, 0.2, SOFT, b.pale ? C.wh : cock ? C.hack2 : C.dk2, 1);
     mark(hX + 0.12 * bx, hY - 0.02 - 0.06 * peck, hZ + 0.12 * bz, bx, -0.25 - 0.6 * peck, bz, 0.13, 0.1, FEATH, C.beak, 1, 0.1);
-    if (b.comb > 0) { const cs = cock ? 0.17 : 0.08 + 0.04 * b.comb; mark(hX + 0.02 * bx, hY + 0.06 + cs * 0.3, hZ, bx, 0.3, bz, cs, cs * 0.8, SOFT, C.red, 0.85, 0.15); if (cock) mark(hX + 0.08 * bx, hY - 0.09, hZ + 0.08 * bz, 0, -1, 0, 0.13, 0.11, SOFT, C.red, 0.8, 0.12); }
+    if (b.comb > 0) { const cs = cock ? 0.17 : 0.1 + 0.05 * b.comb; mark(hX + 0.02 * bx, hY + 0.06 + cs * 0.3, hZ, bx, 0.3, bz, cs, cs * 0.8, SOFT, C.red, 0.85, 0.15); if (cock) mark(hX + 0.08 * bx, hY - 0.09, hZ + 0.08 * bz, 0, -1, 0, 0.13, 0.11, SOFT, C.red, 0.8, 0.12); else if (b.comb > 0.7) mark(hX + 0.07 * bx, hY - 0.07, hZ + 0.07 * bz, 0, -1, 0, 0.08, 0.07, SOFT, C.red, 0.8, 0.12); }
   },
 });
