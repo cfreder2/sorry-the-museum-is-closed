@@ -361,7 +361,7 @@ const F = {
           if (E.goal === 'home') { E.goal = null; E.pn = 0; }
           if (E.pn > 1 && E.pk < E.pn && d < 2.4 && this._facing(E, p, d)) { E.v = 0; if ((E.balk = (E.balk || 0) + dt) > 2.5) { E.balk = 0; E.pn = 0; E.rest = 0.5; } }      // (the toy is in its way: it does not come up to it)
           else if (E.pn > 1 && E.pk < E.pn) { if (this._move(E, dt, E.spec.speed)) E.rest = E.spec.rest ? E.spec.rest[0] + Math.random() * (E.spec.rest[1] - E.spec.rest[0]) : 4; }
-          else if ((E.rest -= dt) <= 0) { this._wander(E); if (!(E.pn > 1)) E.rest = 2; }
+          else { E.v = 0; if ((E.rest -= dt) <= 0) { this._wander(E); if (!(E.pn > 1)) E.rest = 2; } }
         }
         if ((E.roomT = (E.roomT || 0) - dt) <= 0) { E.roomT = 0.25; const gg = this._grid(E); E.clear = gg ? clearAt(gg, E.x, E.z) : 1; const r = roomAt(k.plan, E.x, E.z, E.y + 0.5); if (r && r.id !== E.room && !QUIET.has(r.id)) { E.room = r.id; this.dirty = true; } }
         // what it leaves behind it, and its small sound
