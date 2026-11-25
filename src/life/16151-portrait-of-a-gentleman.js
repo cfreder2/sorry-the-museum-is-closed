@@ -1,6 +1,44 @@
 // Ridolfo Ghirlandaio, Portrait of a Gentleman (about 1505), Gallery 205. The word: beyond.
 //
-// HEADER TO BE WRITTEN LAST.
+// A man in a black robe lined with fur and a black capuccio looks out of a dark room. The museum does not know who
+// he is and neither do we; he is given no name and no story here. But high in the corner behind his shoulder the
+// wall of his room is cut by a window, and in it, no bigger than a playing card, is a whole country: a deep sky
+// going down to cream, far blue mountains, a pale hill with a dark one behind it, a wood, a thatched barn with its
+// timbers showing, a round stack, a man carrying something on his shoulder, two cattle (one standing, one lying), a
+// herdsman with a stick, a thin tree with its leaves in level clumps, and at the bottom, in the dark grass, two
+// white birds, each some three millimetres of paint. Nobody sees them from the gallery floor. The museum's words
+// for it are only "building", "hills", "landscape", "sky". That window is what only this picture has, and the word
+// is what a window in a dark room is for: beyond.
+//
+// Look at the picture and a window opens low in the gallery wall beside it, down to the left under its label,
+// rising from its sill as a shutter is lifted: the same upright shape as his, about half a metre wide and
+// eighty-four centimetres high, with the thickness of the wall showing round it. In it is his country, at a size a
+// small car can look into. It is not a picture hung there: it lies behind the wall, in sheets one behind another
+// (sky, mountains and hill, wood, the farm's ground, the near bank, the tree), so as you drive past it the tree
+// slides across the barn and the barn across the hills, as things do through a real window; from straight in front
+// it is exactly as he composed it. It is quietly alive: the leaves stir, the standing ox grazes and lifts its head,
+// the one lying down turns its head, the herdsman shifts his stick, and now and then the man with his load goes
+// along the front of the stack and in under the shed. Then the one thing that happens: down in the grass the two
+// white birds put up their necks, a breath goes through the tree, and they take wing, come up across the window
+// growing until they are the biggest things in it, their wingbeats heard, and go out past its edge. A moment later
+// they are seen again, small, going away over the pale hill towards the mountains, where they are lost: the
+// distance was there to be flown into. Much later they come home and settle where he painted them. Stop looking
+// and it stays while the toy is near; drive off and the shutter comes down and the wall is a wall.
+//
+// How it is made: one flat rectangle on the wall, one draw call. The country is painted once (when first looked
+// at) into two canvases in his colours, read off the picture: the pieces that move on one, the land in four long
+// strips on the other. The rectangle's shader finds, for each point of the opening, where the eye's line meets each
+// sheet behind the wall and lays them over one another, back to front, then the wall's own jambs, sill and head.
+// Nothing is built in the room: it reaches 0 m out from the wall, has no collision, and lies between 0.16 m and
+// 0.62 m to the left of the picture's middle and from 0.26 m to 1.10 m above the floor (clear of the skirting,
+// under the label, 0.6 m short of the frame of Piero di Cosimo's tondo on the other side of the picture and 0.38 m
+// from the room's corner; Botticelli's Virgin and Child and Allori's Francesco de' Medici hang past the doorway,
+// more than six metres along the wall). Nothing is drawn on or in front of any picture. In a calm museum the birds
+// do not fly: they look up now and then, and the leaves move half as much. The caption says only what can be seen.
+//
+// What it does not do: he does not move, turn, leave his picture or get a name, a trade or a reason for the
+// window, and the birds are not said to be geese or doves, nor the dark they stand in to be water, because the
+// museum says none of that and the paint is too small to settle it.
 
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, clamp01, lerp, rng, canvasTexture } from '../paintlife.js';
@@ -72,15 +110,15 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
   // ---- his colours (read off the picture; the palette is mixed into them a little)
   const C = h => col(h);
   const LEAF_D = C('#1a2010'), LEAF_M = C('#2e3a1a'), LEAF_L = C('#6f7234'), LEAF_G = C('#a39a48'), BARK = C('#2e2414'), BARK_L = C('#6e5e3a');
-  const THATCH = C('#6a5a30'), THATCH_L = C('#8e7a40'), THATCH_D = C('#3a301a'), DAUB = C('#4e3f26'), DAUB_L = C('#6e5a32'), DAUB_D = C('#2e2618'), TIMBER = C('#241a0e'), HOLE = C('#120c07');
+  const THATCH = C('#57472a'), THATCH_L = C('#7c6a3a'), THATCH_D = C('#3a301a'), DAUB = C('#4e3f26'), DAUB_L = C('#6e5a32'), DAUB_D = C('#2e2618'), TIMBER = C('#241a0e'), HOLE = C('#120c07');
   const STACK = C('#7d5d26'), STACK_L = C('#a07c38'), STACK_D = C('#3e3018');
-  const OX = C('#533a24'), OX_L = C('#7a5a38'), OX_D = C('#2a1c14'), HORN = C('#d8ccac'), HOOF = C('#1e150e');
+  const OX = C('#533a24'), OX_L = C('#7a5a38'), OX_D = C('#2a1c14'), HORN = C('#b3a784'), HOOF = C('#1e150e');
   const WHITE = C('#e6e2d4'), WHITE_S = C('#8d978c'), BILL = C('#b89a5a');
   const SKIN = C('#b08660'), SKIN_D = C('#6a4630'), TUNIC = C('#5a4522'), TUNIC_L = C('#8a6a34'), TUNIC_D = C('#2e2210'), HOSE = C('#8f8468'), HOSE_D = C('#4e4634'), HAT = C('#221a12'), JERKIN = C('#4a4a2a'), JERKIN_L = C('#6e6c3c'), JERKIN_D = C('#24260f'), STRAW = C('#a8934e');
   const GRASS_D = C('#1e2414'), GRASS_M = C('#3a3a1e'), GRASS_L = C('#6a6a2c'), GRASS_G = C('#8f8238');
   const WOOD_D = C('#182014'), WOOD_M = C('#253220'), WOOD_L = C('#3d5230'), WOOD_G = C('#5f7040');
-  const MT_L = C('#a6c4c0'), MT = C('#86b0ae'), FOOT = C('#3f716b'), FOOT_D = C('#2f4f42'), HILL_L = C('#86966c'), HILL = C('#74855f'), HILL_D = C('#55683f'), CAP = C('#3a3f2f'), CAP_L = C('#566040');
-  const FIELD = C('#4d5735'), FIELD_L = C('#66733f'), YARD = C('#765f27'), YARD_L = C('#93782f'), YARD_S = C('#382f1d'), PATH = C('#8a8050'), POOL = C('#1b1d15'), GROVE_D = C('#1c2218');
+  const MT_L = C('#a6c4c0'), MT = C('#86b0ae'), FOOT = C('#3f716b'), FOOT_D = C('#2f4f42'), HILL_L = C('#93a384'), HILL = C('#7d8f70'), HILL_D = C('#586a48'), CAP = C('#2a3020'), CAP_L = C('#414b2e');
+  const FIELD = C('#434d2e'), FIELD_L = C('#57633a'), YARD = C('#765f27'), YARD_L = C('#93782f'), YARD_S = C('#382f1d'), PATH = C('#8a8050'), POOL = C('#1b1d15'), GROVE_D = C('#1c2218');
 
   g.clearRect(0, 0, 2048 * K, 1024 * K);
 
@@ -89,50 +127,28 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
   cell('tree', (w, h) => {
     const S1 = [[402, 1024], [398, 880], [403, 730], [398, 590], [389, 450], [376, 320], [361, 200], [348, 100], [340, 30]];
     const S2 = [[427, 1024], [424, 900], [429, 760], [435, 620], [434, 490], [441, 360], [452, 240], [462, 140], [468, 60]];
-    const twigs = [];
-    const branch = (S, t, dirSign, len, rise, droop) => {
-      const a = along(S, t), ang = rise, ex = a[0] + dirSign * len * Math.cos(ang), ey = a[1] - len * Math.sin(ang) + droop;
-      const cx = a[0] + dirSign * len * 0.45 * Math.cos(ang), cy = a[1] - len * 0.62 * Math.sin(ang) - len * 0.1;
-      twigs.push({ p0: [a[0], a[1]], c: [cx, cy], p1: [ex, ey], w: lerp_(2.6, 1.2, t), leaf0: 0.3 });
-      // side twigs off it
-      const n = 1 + Math.floor(len / 70);
-      for (let i = 0; i < n; i++) {
-        const s = 0.3 + 0.55 * (i + R()) / n, q = 1 - s, bx = q * q * a[0] + 2 * q * s * cx + s * s * ex, by = q * q * a[1] + 2 * q * s * cy + s * s * ey;
-        const l2 = 26 + R() * 46, up = R() < 0.6 ? -1 : 1, a2 = 0.25 + R() * 0.7;
-        twigs.push({ p0: [bx, by], c: [bx + dirSign * l2 * 0.5, by + up * l2 * 0.5 * Math.sin(a2) - 4], p1: [bx + dirSign * l2 * Math.cos(a2 * 0.5), by + up * l2 * Math.sin(a2)], w: 1, leaf0: 0.15 });
-      }
-    };
-    // (from low to high: longer and more level below, short and steep at the top)
-    const B1 = [[0.36, -1, 64, 0.1, 14], [0.44, -1, 120, 0.05, 26], [0.5, -1, 235, 0.2, 30], [0.56, 1, 60, 0.5, 4], [0.6, -1, 270, 0.3, 26], [0.66, -1, 150, 0.55, 10], [0.7, -1, 300, 0.38, 30], [0.76, -1, 205, 0.62, 16], [0.8, -1, 285, 0.5, 34], [0.86, -1, 160, 0.8, 12], [0.9, -1, 215, 0.66, 30], [0.95, -1, 120, 0.95, 10], [0.99, -1, 70, 1.2, 4]];
-    const B2 = [[0.34, 1, 40, 0.3, 8], [0.42, -1, 34, 0.5, 4], [0.5, 1, 78, 0.35, 10], [0.6, -1, 46, 0.7, 0], [0.66, 1, 92, 0.5, 14], [0.74, 1, 70, 0.8, 6], [0.8, -1, 70, 1.0, 4], [0.86, 1, 84, 0.7, 12], [0.93, 1, 60, 1.0, 6], [0.99, -1, 50, 1.25, 2], [0.99, 1, 44, 1.1, 4]];
-    for (const b of B1) branch(S1, ...b);
-    for (const b of B2) branch(S2, ...b);
-    // the twigs, fine and dark
-    for (const t of twigs) curve(t.p0, t.c, t.p1, t.w, mix(BARK, LEAF_D, 0.4), 0.95);
-    // the leaves, in two passes: the dark of the spray, then its lights
-    const sprays = [];
-    for (const t of twigs) {
-      const L = Math.hypot(t.p1[0] - t.p0[0], t.p1[1] - t.p0[1]), n = Math.max(2, Math.round(L / 15));
-      for (let i = 0; i <= n; i++) {
-        const s = t.leaf0 + (1 - t.leaf0) * i / n, q = 1 - s;
-        const x = q * q * t.p0[0] + 2 * q * s * t.c[0] + s * s * t.p1[0], y = q * q * t.p0[1] + 2 * q * s * t.c[1] + s * s * t.p1[1];
-        const tx = 2 * q * (t.c[0] - t.p0[0]) + 2 * s * (t.p1[0] - t.c[0]), ty = 2 * q * (t.c[1] - t.p0[1]) + 2 * s * (t.p1[1] - t.c[1]);
-        sprays.push({ x, y, a: Math.atan2(ty, tx), k: 0.75 + 0.5 * s });
-      }
-    }
+    // (where its clumps of leaves hang, read off the picture: across, down, half its width, half its height)
+    const CL = [[790, 62, 128, 50], [700, 150, 92, 40], [845, 172, 66, 40], [660, 282, 92, 40], [802, 292, 80, 44], [588, 268, 30, 15], [560, 440, 92, 40], [722, 382, 80, 40], [832, 424, 58, 40], [762, 502, 60, 30], [640, 590, 50, 22], [722, 642, 40, 20], [852, 622, 48, 25], [792, 762, 40, 24], [884, 560, 28, 20]]
+      .map(([x, y, a, b]) => [(x - 391) / 1.15, (y - 10) / 1.15, a / 1.15, b / 1.15]);
     const leaf = (x, y, a, len, wid, c, al) => { g.save(); g.translate(x, y); g.rotate(a); g.globalAlpha = al; g.fillStyle = css(c); g.beginPath(); g.moveTo(-len / 2, 0); g.quadraticCurveTo(0, -wid, len / 2, 0); g.quadraticCurveTo(0, wid, -len / 2, 0); g.fill(); g.restore(); g.globalAlpha = 1; };
     const leaves = [];
-    for (const s of sprays) {
-      const n = 5 + Math.floor(R() * 4);
-      for (let i = 0; i < n; i++) {
-        // (a spray lies nearly level, its leaves slanting a little down and out from the twig, like the teeth of a comb)
-        const d = (i / (n - 1) - 0.5) * 22 * s.k, a = (Math.cos(s.a) < 0 ? PI_ : 0) + jit(0.5) + (Math.cos(s.a) < 0 ? -1 : 1) * (0.25 + 0.5 * R()) * (R() < 0.75 ? 1 : -1);
-        const x = s.x + Math.cos(s.a) * d + jit(5), y = s.y + Math.sin(s.a) * d + jit(5) + 2;
-        leaves.push({ x, y, a, len: (10 + R() * 7) * s.k, wid: 2.3 + R() * 1.4, lit: R() });
+    CL.forEach(([cx, cy, a, b], i) => {
+      // the bough that carries it leaves the stem lower down and comes up under it
+      const S = i % 3 === 1 ? S2 : S1, top = S === S1 ? 994 : 964, sy = Math.min(1000, cy + 46 + a * 0.85), p0 = along(S, clamp_((1024 - sy) / top)), sg = cx < p0[0] ? -1 : 1;
+      curve([p0[0], p0[1]], [lerp_(p0[0], cx, 0.45), cy + b * 0.5 + (p0[1] - cy) * 0.2], [cx + sg * a * 0.55, cy + b * 0.1], 2.2, mix(BARK, LEAF_D, 0.4), 0.95);
+      for (let j = 0; j < 3; j++) { const x = cx + jit(a), y = cy + b * 0.3; curve([x, y], [x + sg * a * 0.2, y - b * 0.5], [x + sg * a * (0.3 + 0.3 * R()), y - b * (0.5 + 0.5 * R())], 1.1, mix(BARK, LEAF_D, 0.5), 0.9); }
+      // a clump is several ragged sprays, each leaning its own way, their leaves slanting like the barbs of a feather
+      const m = 3 + Math.round(a / 22);
+      for (let q = 0; q < m; q++) {
+        const sx = cx + jit(1.5) * a, sy2 = cy + jit(1.3) * b, ra = a * 0.5 * (0.6 + 0.7 * R()), rb = b * 0.42 * (0.6 + 0.7 * R()), tilt = jit(0.7), ct = Math.cos(tilt), st = Math.sin(tilt), n = Math.round(ra * rb / 7);
+        for (let j = 0; j < n; j++) {
+          const an = R() * TAU, rr = Math.pow(R(), 0.6), co = Math.cos(an), si = Math.sin(an), lx = co * rr * ra, ly = si * rr * rb;
+          leaves.push({ x: sx + lx * ct - ly * st, y: sy2 + lx * st + ly * ct, a: tilt + (lx > 0 ? 0.55 : -0.55) + jit(0.5), len: 15 + R() * 12, wid: 3.2 + R() * 2.4, lit: clamp_(0.5 - (co * 0.45 + si * 0.8) * rr * 0.6 + jit(0.5)) });
+        }
       }
-    }
-    for (const l of leaves) leaf(l.x, l.y + 1.5, l.a, l.len, l.wid, mix(LEAF_D, LEAF_M, 0.5 * R()), 0.96);
-    for (const l of leaves) if (l.lit > 0.56) leaf(l.x - 1.4, l.y - 1.6, l.a + jit(0.2), l.len * 0.8, l.wid * 0.66, mix(LEAF_L, LEAF_G, clamp_((l.lit - 0.56) * 2.6 + jit(0.3))), 0.92);
+    });
+    for (const l of leaves) leaf(l.x, l.y + 1.5, l.a, l.len, l.wid, mix(LEAF_D, LEAF_M, 0.6 * R()), 0.97);
+    for (const l of leaves) if (l.lit > 0.52) leaf(l.x - 1.6, l.y - 1.8, l.a + jit(0.2), l.len * 0.78, l.wid * 0.6, mix(LEAF_L, LEAF_G, clamp_((l.lit - 0.52) * 2.4 + jit(0.3))), 0.9);
     // the two stems over their own twigs
     stem(S2, 6.5, 1.6, mix(BARK, HOLE, 0.2), BARK_L);
     stem(S1, 8.5, 1.8, BARK, mix(BARK_L, LEAF_G, 0.25));
@@ -388,19 +404,18 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
   // ---- the ground the farm stands on: the field behind, the bare yard in the light, the grass where the cattle are
   strip('ground', (y0, y1) => {
     const gr = pl([[-160, 1064], [300, 1062], [340, 1080], [400, 1150], [470, 1290], [560, 1332], [700, 1338], [1080, 1342]]);
-    const G = prof(gr, y1); poly(G); g.fillStyle = lin(0, 1060, 0, 1590, [[0, FIELD_L], [0.2, FIELD], [0.55, mix(FIELD, YARD_S, 0.5)], [0.75, mix(GRASS_M, YARD_S, 0.4)], [1, GRASS_D]]); g.fill();
+    const G = prof(gr, y1); g.filter = `blur(${3 * K}px)`; poly(prof(x => gr(x) + 5, y1)); g.fillStyle = css(FIELD); g.fill(); g.filter = 'none'; poly(prof(x => gr(x) + 5, y1)); g.fillStyle = lin(0, 1060, 0, 1590, [[0, FIELD_L], [0.2, FIELD], [0.55, mix(FIELD, YARD_S, 0.5)], [0.75, mix(GRASS_M, YARD_S, 0.4)], [1, GRASS_D]]); g.fill();
     within(G, () => {
       for (let i = 0; i < 700; i++) { const x = WX0 + R() * 560, y = 1064 + R() * 250; oval(x, y, 5 + R() * 12, 1.2 + R() * 1.8, jit(0.2), R() < 0.5 ? mix(FIELD_L, GRASS_G, R() * 0.4) : mix(FIELD, GRASS_M, R()), 0.22); }
       // the dark hedge at the left, and the lit slope under it
       for (let i = 0; i < 40; i++) { const x = -150 + R() * 230, y = 1196 + R() * 90; head(x, y, 12 + R() * 14, WOOD_D, WOOD_M, WOOD_L, WOOD_G); }
-      fill([[-150, 1296], [50, 1288], [118, 1326], [112, 1392], [40, 1440], [-150, 1452]], mix(GRASS_L, FIELD, 0.4));
-      soft(20, 1340, 90, GRASS_G, 0.35, 1.5, 0.6);
+      soft(-10, 1350, 110, mix(GRASS_L, FIELD_L, 0.4), 0.8, 1.3, 0.55); soft(10, 1340, 70, GRASS_G, 0.3, 1.5, 0.6);
       // the yard: bare earth, gold where the light falls across it
-      fill([[70, 1412], [130, 1386], [400, 1380], [690, 1384], [812, 1394], [820, 1420], [700, 1446], [400, 1452], [150, 1448]], YARD);
+      g.filter = `blur(${7 * K}px)`; fill([[40, 1418], [130, 1384], [400, 1376], [690, 1380], [820, 1392], [830, 1424], [700, 1462], [420, 1476], [150, 1466]], YARD); g.filter = 'none';
       soft(330, 1412, 40, YARD_L, 0.9, 6, 0.55); soft(620, 1414, 34, YARD_L, 0.6, 4.5, 0.5); soft(760, 1400, 60, YARD_S, 0.6, 1.2, 0.6);
       for (let i = 0; i < 520; i++) { const x = 60 + R() * 770, y = 1378 + R() * 78; oval(x, y, 3 + R() * 9, 0.9 + R() * 1.4, jit(0.15), pick([YARD, YARD_L, YARD_L, YARD_S, mix(YARD, GRASS_L, 0.5)]), 0.3); }
       // the grass below it, where the cattle are
-      soft(430, 1490, 60, mix(GRASS_L, GRASS_M, 0.5), 0.45, 5, 0.6);
+      soft(400, 1486, 60, mix(GRASS_L, YARD, 0.5), 0.7, 6, 0.7); soft(230, 1470, 50, GRASS_G, 0.3, 4, 0.6);
       for (let i = 0; i < 1100; i++) { const x = rx(), y = 1442 + R() * 150, l = 4 + R() * 7; stroke([[x, y + 2], [x + jit(4), y - l]], 0.9 + 0.5 * R(), pick([GRASS_M, GRASS_D, mix(GRASS_M, GRASS_L, 0.5), GRASS_L]), 0.5); }
       // the track coming down out of the trees, and the dark under them
       for (let i = 0; i < 14; i++) { const k = i / 13; oval(lerp_(798, 770, k) + 6 * Math.sin(k * 4), lerp_(1336, 1392, k), lerp_(12, 22, k), lerp_(5, 7, k), 0, mix(PATH, YARD, 0.3 + 0.4 * k), 0.75); }
@@ -408,7 +423,7 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
     }, false);
   });
 
-  // ---- the near bank under the window: the lit rise at the left with its small flowers, the still water and its
+  // ---- the near bank under the window: the lit rise at the left with its small flowers, the dark hollow and its
   // reeds, and the tall dark bush at the tree's foot
   strip('bank', (y0, y1) => {
     const bk = pl([[-160, 1418], [0, 1446], [150, 1486], [300, 1520], [380, 1535], [560, 1546], [700, 1542], [1080, 1540]]);
@@ -416,8 +431,7 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
     within(B, () => {
       soft(130, 1560, 70, GRASS_L, 0.75, 3.2, 0.8); soft(90, 1540, 40, GRASS_G, 0.4, 3, 0.6);
       const Pl = [[388, 1574], [460, 1556], [600, 1554], [720, 1562], [762, 1592], [706, 1630], [560, 1644], [440, 1632], [384, 1604]];
-      fill(Pl, POOL); within(Pl, () => { for (let i = 0; i < 26; i++) { const x = 400 + R() * 350, y = 1560 + R() * 80; stroke([[x, y], [x + 16 + R() * 40, y + jit(1.5)]], 1 + R(), pick([[58, 78, 72], [44, 56, 46], GRASS_M]), 0.3); } soft(560, 1556, 100, HOLE, 0.5, 2, 0.14); });
-      curve([400, 1620], [560, 1650], [720, 1626], 1.6, mix(GRASS_L, WHITE, 0.2), 0.35);
+      g.filter = `blur(${9 * K}px)`; fill(Pl, POOL, 0.9); g.filter = 'none'; within(Pl, () => { for (let i = 0; i < 26; i++) { const x = 400 + R() * 350, y = 1560 + R() * 80; stroke([[x, y], [x + 16 + R() * 40, y + jit(1.5)]], 1 + R(), pick([[58, 78, 72], [44, 56, 46], GRASS_M]), 0.3); } soft(560, 1556, 100, HOLE, 0.5, 2, 0.14); });
     }, false);
     // the grass, blade by blade: gold on the lit rise
     for (let i = 0; i < 2400; i++) { const x = rx(), y = bk(x) - 2 + R() * R() * 230, l = 6 + R() * 12, lit = Math.exp(-(((x - 110) / 190) ** 2)) * Math.exp(-(((y - 1545) / 70) ** 2)); if (x > 380 && x < 770 && y > 1556 && y < 1640 && R() < 0.93) continue; stroke([[x, y + 2], [x + jit(5), y - l]], 1 + 0.6 * R(), lit > 0.25 && R() < 0.75 ? mix(GRASS_L, GRASS_G, R() * lit * 1.3) : pick([GRASS_M, GRASS_D, GRASS_M, mix(GRASS_M, GRASS_L, 0.4)]), 0.75); }
@@ -433,28 +447,30 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
   });
 
   // ------------------------------------------------------------ the tooth of old paint, over all of it
-  for (const [c, w, h, n] of [[gA, 2048, 1024, 22000], [gB, 1024, 1024, 14000]]) {
+  for (const [c, w, h, n] of [[gA, 2048, 1024, 30000], [gB, 1024, 1024, 18000]]) {
     c.save(); c.setTransform(K, 0, 0, K, 0, 0); c.globalCompositeOperation = 'source-atop';
-    for (let i = 0; i < n; i++) { const d = R(); c.globalAlpha = d < 0.5 ? 0.07 : 0.05; c.fillStyle = d < 0.5 ? '#0c0a06' : '#f0e2b4'; c.beginPath(); c.ellipse(R() * w, R() * h, 0.8 + R() * 2.2, 0.6 + R() * 1.2, R() * 3, 0, TAU); c.fill(); }
+    if (c === gA) { g = c; const [fx, fy, fw, fh] = CELL.farm; for (let i = 0; i < 900; i++) { const d = R(); soft(fx + R() * fw, fy + R() * fh, 4 + R() * 10, d < 0.55 ? [38, 24, 10] : [206, 164, 92], 0.14 + 0.12 * R(), 1 + R(), 0.7 + 0.5 * R()); } }
+    g = c; for (let i = 0; i < n / 16; i++) { const d = R(); soft(R() * w, R() * h, 7 + R() * R() * 34, d < 0.5 ? [16, 12, 6] : d < 0.8 ? [214, 186, 110] : [120, 150, 120], 0.1 + 0.08 * R(), 1 + R(), 0.6 + 0.6 * R()); }
+    for (let i = 0; i < n; i++) { const d = R(); c.globalAlpha = d < 0.5 ? 0.1 : 0.075; c.fillStyle = d < 0.5 ? '#0c0a06' : '#f0e2b4'; c.beginPath(); c.ellipse(R() * w, R() * h, 0.8 + R() * 2.2, 0.6 + R() * 1.2, R() * 3, 0, TAU); c.fill(); }
     c.restore();
   }
 }
 // </paint>
 
 // ---------------------------------------------------------------- the window in the gallery wall
-const X0 = -0.66, X1 = -0.16, Y0 = 0.26, Y1 = 1.10;      // the opening: metres along the wall from the picture's middle, and up from the floor
+const X0 = -0.616, X1 = -0.16, Y0 = 0.26, Y1 = 1.10;      // the opening: metres along the wall from the picture's middle, and up from the floor
 const WH = 1697, WXR = 907, S = (Y1 - Y0) / WH;           // the picture's window in its own measure (sill to top; its right jamb); metres to one point of it
 const THICK = 0.09;                                       // the wall's thickness, as the window shows it
 const EYE0 = [(X0 + X1) / 2, 0.8, 2.0];                   // where you stand to see the country exactly as he composed it
 const DEEP = { sky: 0.9, far: 0.62, wood: 0.44, land: 0.3, bank: 0.11, tree: 0.05 };    // how far behind the wall each sheet lies (it is a shallow box, not a mile)
-const KEY = 0.6;                                         // how bright the country is in the gallery's light
+const KEY = 0.68;                                         // how bright the country is in the gallery's light
 const TREE_AT = [391, 10], TREE_K = 1.15;                // where the thin tree's sheet sits in the window, and its size
 const NS = 14;                                            // the pieces that move: farm, man, two cattle and their heads, herdsman and his arm; then the two birds, three pieces each
 const TAKE = 4.0, LOOP = 32;                              // the birds take wing at 4 s, and again every 32 s
-// their flight, as [seconds after taking wing, across, down, size, depth]: up from the water and across the window,
+// their flight, as [seconds after taking wing, across, down, size, depth]: up from the grass and across the window,
 // out past its left side; then small and far, over the hill to the mountains; and much later home again
 const OUT = [[0, 590, 1570, 0.2, 0.11], [0.35, 548, 1480, 0.38, 0.1], [0.7, 462, 1280, 0.8, 0.085], [1.0, 360, 1020, 1.25, 0.07], [1.35, 205, 740, 1.4, 0.07], [1.75, -60, 470, 1.3, 0.07], [2.15, -430, 300, 1.2, 0.07]];
-const AWAY = [[2.2, -470, 676, 0.36, 0.4], [2.6, -260, 700, 0.34, 0.4], [3.3, 110, 742, 0.28, 0.45], [4.0, 395, 800, 0.22, 0.5], [5.2, 615, 878, 0.13, 0.58], [6.6, 705, 915, 0.06, 0.62]];
+const AWAY = [[2.2, -330, 610, 0.56, 0.4], [3.0, 40, 665, 0.52, 0.4], [4.0, 330, 745, 0.42, 0.45], [5.2, 540, 835, 0.28, 0.5], [6.6, 662, 893, 0.15, 0.58], [8.2, 715, 922, 0.06, 0.62]];
 const HOME = [[17, 1010, 850, 0.06, 0.6], [18.2, 830, 950, 0.11, 0.5], [19.4, 700, 1230, 0.17, 0.3], [20.4, 615, 1490, 0.2, 0.15], [21, 590, 1570, 0.2, 0.11]];
 const BIRDS = [{ lag: 0, dx: 0, dy: 0, ax: 0, ay: 0, ph: 0, fx: 1 }, { lag: 0.28, dx: 35, dy: 28, ax: -44, ay: 20, ph: 1.9, fx: -1 }];
 const curveAt = (K, t, into) => {
@@ -509,7 +525,7 @@ float gvNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 
 vec3 gvSky(vec2 q) {
   vec3 c = ${lin(SKY[0][1])};
 ${SKY.slice(1).map((s, i) => `  c = mix(c, ${lin(s[1])}, clamp((q.y - ${f(SKY[i][0])}) / ${f(s[0] - SKY[i][0])}, 0.0, 1.0));`).join('\n')}
-  return c * (0.95 + 0.07 * gvNoise(q / 23.0) + 0.04 * gvNoise(q / 6.0));
+  return c * (0.86 + 0.13 * gvNoise(q / 95.0 + 3.0) + 0.1 * gvNoise(vec2(q.x / 38.0, q.y / 17.0)) + 0.07 * gvNoise(q / 6.0) + 0.05 * gvHash(floor(q / 2.5)));
 }
 // a strip of the land, where the eye's line meets its sheet: it goes on, mirrored, past either end
 vec4 gvStrip(vec2 q, vec4 r) {
@@ -564,7 +580,7 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
   }
   diffuseColor *= lifeK;`);
     };
-    m.customProgramCacheKey = () => 'ghirlandaio-window-1';
+    m.customProgramCacheKey = () => 'ghirlandaio-window-3';
     const mesh = this.mesh = new THREE.Mesh(geo, m);
     mesh.matrixAutoUpdate = false; mesh.matrix.copy(this.B); mesh.matrixWorldNeedsUpdate = true; mesh.renderOrder = 6; mesh.visible = false; mesh.frustumCulled = false;
     L.add(mesh);
@@ -573,7 +589,7 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
   },
 
   hide() { if (this.mesh) this.mesh.visible = false; },
-  clear() { this.open = 0; this.T = 0; this.told = false; this.beat = [0, 0]; this.gust = 0; },
+  clear() { this.open = 0; this.open0 = 0; this.wasBack = false; this.T = 0; this.told = false; this.beat = [0, 0]; this.gust = 0; },
   start(L, resumed) {
     if (resumed) return;
     this.clear();
@@ -599,7 +615,8 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
     if (!showing && !linger && !back) { this.hide(); return; }
     const calm = L.calm, u = this.u, sp = calm ? 0.6 : 1, voice = L.voice(), loud = !L.quiet && voice.ctx;
     // ---- the opening rises from the sill (and comes down again, from wherever it is)
-    this.open = back ? Math.max(0, this.open - dt / Math.max(0.6, L.retDur - 0.25)) : Math.min(1, this.open + dt * sp / 2.15);
+    if (back) { if (!this.wasBack) this.open0 = this.open; this.open = this.open0 * (1 - clamp01(L.ret / 0.9)); } else this.open = Math.min(1, this.open + dt * sp / 2.15);
+    this.wasBack = back;
     u.uTop.value = lerp(Y0, Y1, ease.inOut(this.open));
     this.T += dt * sp;
     const T = this.T; u.uT.value = T; u.uInv.value.copy(this.Binv);
@@ -613,7 +630,7 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
       this.put(1, Math.floor(T * 3.1) % 2 ? 'man1' : 'man2', x, y, DL, ramp(p, 0, 0.06) * (1 - ramp(p, 0.86, 1)), 0.3, 0, 46, 214);
     }
     { // the standing ox grazes, and lifts its head now and then; the one lying down turns its head
-      const up = ease.inOut(ramp(Math.sin(T * 0.55 + 0.6), 0.72, 0.96)), k = 0.5, x = 178, y = 1500;
+      const up = ease.inOut(ramp(Math.sin(T * 0.55 + 0.6), 0.72, 0.96)), k = 0.6, x = 178, y = 1502;
       this.put(2, 'ox1', x, y, DL, 1, k, 0, 38, 192);
       this.put(3, 'ox1h', x + (236 - 38) * k, y + (70 - 192) * k, DL, 1, k, 0.78 - 0.5 * up + 0.025 * Math.sin(T * 5.2) * (1 - up), 24, 60);
       const k2 = 0.55, x2 = 345, y2 = 1508;
@@ -626,17 +643,18 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
       this.put(7, 'arm', x + (40 - 66) * k, y + (78 - 292) * k, DL, 1, k, -0.26 + 0.07 * Math.sin(T * 0.6), 64, 150);
     }
 
-    // ---- the two white birds by the water
+    // ---- the two white birds in the dark grass
     const tau = T < TAKE || calm ? -1 : (T - TAKE) % LOOP, a4 = this.tmp, b4 = this.tmp2;
     // (before they go, their necks come up: something has stirred; in a calm museum they only look up now and then)
     const alert = calm ? ease.inOut(ramp(Math.sin(T * 0.5), 0.6, 0.95)) : T < TAKE ? ease.inOut(ramp(T, TAKE - 0.75, TAKE - 0.3)) : 0;
     let near = 0;
+    const k8 = t => 1.5 - ramp(t, 3, 8.2);            // (the two draw together as they go)
     BIRDS.forEach((b, n) => {
       const i = 8 + n * 3, t = tau - b.lag;
       let K = null, al = 1, ox = b.dx, oy = b.dy;
       if (tau >= 0 && t >= 0 && t < 21) {
         if (t < 2.15) { K = OUT; al = 1 - ramp(t, 1.9, 2.15); }
-        else if (t >= 2.2 && t < 6.6) { K = AWAY; al = ramp(t, 2.2, 2.5) * (1 - ramp(t, 5.8, 6.6)); ox = b.ax; oy = b.ay; }
+        else if (t >= 2.2 && t < 8.2) { K = AWAY; al = ramp(t, 2.2, 2.5) * (1 - ramp(t, 7.3, 8.2)); ox = b.ax * k8(t); oy = b.ay * k8(t); }
         else if (t >= 17) { K = HOME; al = ramp(t, 17, 17.6); }
         else al = 0;
       }
@@ -669,7 +687,7 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
     u.uSway.value = (calm ? 0.5 : 1) + this.gust;
 
     if (loud) { voice.level = calm ? 0.8 : 1; voice.place(L.cx + L.tx * EYE0[0], L.cz + L.tz * EYE0[0]); }
-    if (showing && !this.told && !L.quiet && this.open >= 1) { this.told = true; L.k.say('Behind his shoulder there is a window, and a country in it: hills, a thatched barn, two cattle and, by the water, two white birds, each a few millimetres of paint.', 6); }
+    if (showing && !this.told && !L.quiet && this.open >= 1) { this.told = true; L.k.say('Behind his shoulder there is a window, and a country in it: hills, a thatched barn, two cattle and, down in the dark grass, two white birds, each a few millimetres of paint.', 6); }
     if (back && L.ret >= 1) this.hide();
   },
 });
