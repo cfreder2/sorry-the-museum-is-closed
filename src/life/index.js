@@ -66,3 +66,4 @@ import './81512-interrupted-reading.js'; // 224  Corot, Interrupted Reading: pau
 import './4773-isabella-wolff.js';   // 220  Lawrence, Isabella Wolff: satin
 import './146953-two-cows-and-a-young-bull.js'; // 213  Potter, Two Cows and a Young Bull beside a Fence in a Meadow: cud
 import './120154-strawberries-nuts.js'; // 161  Peale, Still Life—Strawberries, Nuts, &c.: ring
+import './28849-city-park.js';       // 161  Chase, A City Park: far
