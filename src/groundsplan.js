@@ -32,6 +32,25 @@ export const SPECIES = { elm: [10.5, 14], locust: [8, 11], linden: [7.5, 10], gi
 // Shrubs: [radius of the clump, height, solid?]. (parkdress has nothing to draw for them: they are in trees.js's meshes.)
 export const SHRUBS = { dogwood: [0.55, 1.5, 1], viburnum: [0.8, 1.7, 1], privet: [0.7, 1.0, 1], rose: [0.6, 0.95, 0], grass: [0.5, 1.25, 0], seed: [0.4, 0.7, 0], hydrangea: [0.55, 1.0, 0], yew: [0.9, 1.0, 1], arbor: [0.55, 3.0, 1] };
 
+// What stands at the foot of the Modern Wing's north side: the glass stair tower at the top of the Nichols Bridgeway, the
+// glass lift beside it, and the paved apron before the court's doors on Monroe Street. bridgeway.js builds them and
+// wingplay.js runs the lift, long after the planting is laid; where they stand is worked out here, once for both, so that
+// the planting can leave them clear. (It did not know of them: the bed at the wall's foot ran straight through all three,
+// and its roses grew up through the floor of the lift.)
+export function wingFoot(plan) {
+  const h = plan.hall, mod = plan.masses.filter(m => m.room && m.room.building === 'modern' && m.room.kind !== 'hall');
+  if (!mod.length || !h) return null;
+  const wp = mod.filter(m => m.room.use === 'terrace').sort((a, b) => b.top - a.top)[0] || mod.slice().sort((a, b) => a.x0 - b.x0)[0];
+  const tw = { x0: (wp.x0 + wp.x1) / 2 - 3.4, x1: (wp.x0 + wp.x1) / 2 + 3.4, z0: wp.z0 - 5.4, z1: wp.z0 - 0.05, top: wp.top + 0.8 };
+  const lift = (() => {
+    const x0 = tw.x1 + 0.6, x1 = tw.x1 + 2.4, here = mod.filter(m => m.x1 > x0 && m.x0 < x1 && m.z0 < wp.z0 + 1);
+    const face = Math.min(wp.z0, ...here.map(m => m.z0)) - 0.07, z1 = face - 0.15;      // 15 cm off the glass of the face
+    return { x0, x1, z0: z1 - 1.8, z1, face };
+  })();
+  const hm = (plan.massOf && plan.massOf[h.id]) || { x0: h.x0 - 1, x1: h.x1 + 1, z0: h.z0 - 1 };
+  return { wp, tw, lift, apron: { x0: hm.x0 - 0.8, x1: hm.x1 + 0.8, z0: hm.z0 - 4.2 - 1.5, z1: hm.z0 } };
+}
+
 export function dressGrounds(plan, openings = []) {
   const G = plan.grounds, L = plan.lakefront, B = plan.bounds, O = plan.obstacles, F = plan.facade, r = rng(1909), n1 = vnoise(7), n2 = vnoise(31);
   const pavedR = plan.paved.filter(q => q.x0 != null);
@@ -55,6 +74,9 @@ export function dressGrounds(plan, openings = []) {
   for (const d of plan.doors) if (d.out) keep.push({ x0: d.x0 - 4.5, x1: d.x1 + 4.5, z0: d.z0 - 4.5, z1: d.z1 + 4.5 });
   for (const q of openings) if (q && q.x0 != null) keep.push({ x0: q.x0 - 2.5, x1: q.x1 + 2.5, z0: q.z0 - 2.5, z1: q.z1 + 2.5 });
   for (const s of G.sculpt) if (s.half) keep.push({ x0: s.x - 3, x1: s.x + 3, z0: s.z - s.half - 2.5, z1: s.z + s.half + 2.5 });
+  // ...and the foot of the Modern Wing, where bridgeway.js stands its tower, its lift and its apron after this: the tower, the
+  // lift's shaft with the gap beside it and the way up to its street door, and the paving. Nothing grows through a floor.
+  const WF = wingFoot(plan), bare = WF ? [{ x0: WF.tw.x0, x1: WF.tw.x1, z0: WF.tw.z0, z1: WF.tw.z1 }, { x0: WF.tw.x1, x1: WF.lift.x1 + 0.35, z0: WF.lift.z0 - 1.6, z1: WF.lift.face }, WF.apron] : [];
   // ...and round things that are points: [x, z, r]
   const discs = [];
   for (const [list, rad] of [[plan.hoops, 4.5], [plan.loops, 8], [plan.props, 1.7], [G.snowmen, 1.9], [plan.lamps, 1.3], [plan.benches, 1.8]]) for (const p of list || []) if (p.x != null) discs.push([p.x, p.z, rad]);
@@ -75,9 +97,11 @@ export function dressGrounds(plan, openings = []) {
   const segD = (x, z, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - ax - dx * t, z - az - dz * t); };
   const mine = [];                                       // [x, z, r] of what this has placed
   /** Is there room at (x, z) for something `rad` across? paved: may it stand on a pavement or a path's edge? */
-  const free = (x, z, rad, { paved = false, gap = 0.3, own = true } = {}) => {
+  // (late: the caller leaves `bare` ground clear itself, when it sets the thing down. The beds do: they throw their dice as if
+  // it were not there, so that taking a plant out of the lift moves no other plant in the grounds.)
+  const free = (x, z, rad, { paved = false, gap = 0.3, own = true, late = false } = {}) => {
     if (x < B.x0 + 1 || x > B.x1 - 1 || z < B.z0 + 1 || z > B.z1 - 1 || inMass(x, z, rad + 0.35)) return false;
-    if (inRect(keep, x, z, rad)) return false;
+    if (inRect(keep, x, z, rad) || (!late && inRect(bare, x, z, rad))) return false;
     if (inRect(G.paths, x, z, rad + 0.15) || (L && inRect(L.paths, x, z, rad + 0.15))) return false;
     if (!paved && inRect(pavedR, x, z, rad)) return false;
     if (inRect(plan.ice || [], x, z, rad + 0.5)) return false;
@@ -176,13 +200,17 @@ export function dressGrounds(plan, openings = []) {
   // ------------------------------------------------------------------ shrubs
   const shrub = (x, z, k, o = {}) => {
     const [rad, h, solid] = SHRUBS[k], s = (o.s || 1) * (0.8 + r() * 0.45);
-    if (near(x, z, 1.2) || !free(x, z, rad * s * 0.7, { gap: o.gap ?? 0.12 })) return false;
-    D.shrubs.push({ x, z, k, r: rad * s, h: h * s, seed: (r() * 1e6) | 0 }); mine.push([x, z, rad * s * (o.tight ? 0.35 : 0.6)]);
+    if (near(x, z, 1.2) || !free(x, z, rad * s * 0.7, { gap: o.gap ?? 0.12, late: true })) return false;
+    const seed = (r() * 1e6) | 0; mine.push([x, z, rad * s * (o.tight ? 0.35 : 0.6)]);
+    if (inRect(bare, x, z, rad * s * 0.5)) return true;      // thrown, and its place kept, as ever: only not set down (see free)
+    D.shrubs.push({ x, z, k, r: rad * s, h: h * s, seed });
     if (solid) { const c = rad * s * 0.42; O.push({ x0: x - c, x1: x + c, z0: z - c, z1: z + c, y0: 0, y1: h * s * 0.6 }); D.ride.push({ x, z }); }
     return true;
   };
   // Beds at the foot of the building: along every outside wall with lawn before it, in drifts of one kind, with gaps.
   const BED = ['yew', 'dogwood', 'grass', 'viburnum', 'hydrangea', 'rose', 'seed', 'dogwood', 'grass', 'yew'];
+  // A bed stops where the tower, the lift or the apron stands in it: what is left of it either side, if that is still a bed.
+  const bedParts = (q, alongZ) => { let parts = [q]; for (const b of bare) parts = parts.flatMap(p => p.x1 <= b.x0 || p.x0 >= b.x1 || p.z1 <= b.z0 || p.z0 >= b.z1 ? [p] : alongZ ? [{ ...p, z1: b.z0 }, { ...p, z0: b.z1 }] : [{ ...p, x1: b.x0 }, { ...p, x0: b.x1 }]); return parts.filter(p => (alongZ ? p.z1 - p.z0 : p.x1 - p.x0) > 2); };
   for (const m of plan.masses) {
     if (m.x1 - m.x0 < 3 || m.z1 - m.z0 < 3 || m.x0 > G.columbus.x0) continue;
     for (const [nx, nz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -190,12 +218,12 @@ export function dressGrounds(plan, openings = []) {
       let run = null;
       for (let p = a + 0.8; p <= b - 0.3; p += 1.15) {
         const x = alongZ ? w + nx * 1.05 : p, z = alongZ ? p : w + nz * 1.05, band = n1(x / 9 + 3, z / 9), kind = BED[Math.floor(n2(x / 14, z / 14 + 9) * BED.length) % BED.length];
-        let ok = band > 0.47 && lawn(x, z) && lawn(x + nx * 1.2, z + nz * 1.2) && !inMass(x + nx * 0.8, z + nz * 0.8, 0.1) && free(x, z, 0.5, { gap: 0.05 }) && free(x + nx * 2.2, z + nz * 2.2, 0.3, { own: false });
+        let ok = band > 0.47 && lawn(x, z) && lawn(x + nx * 1.2, z + nz * 1.2) && !inMass(x + nx * 0.8, z + nz * 0.8, 0.1) && free(x, z, 0.5, { gap: 0.05, late: true }) && free(x + nx * 2.2, z + nz * 2.2, 0.3, { own: false, late: true });
         if (ok) { const o = 1.05 + (r() - 0.5) * 0.5, px = alongZ ? w + nx * o : p, pz = alongZ ? p : w + nz * o; ok = shrub(px, pz, kind, { tight: true, gap: 0 });
           if (ok && (kind === 'grass' || kind === 'seed' || kind === 'rose') && r() < 0.7) shrub(px + nx * (0.7 + r() * 0.5) + (alongZ ? 0 : 0.4), pz + nz * (0.7 + r() * 0.5) + (alongZ ? 0.4 : 0), kind, { tight: true, gap: 0, s: 0.8 }); }
-        else if (band > 0.3 && band <= 0.47 && lawn(x, z) && !inMass(x, z, 0.3) && !inRect(keep, x, z, 0) && !hit(x, z, 0.4)) D.cover.push([alongZ ? w + nx * 0.06 : p, alongZ ? p : w + nz * 0.06, nx, nz]);      // ivy on the wall's foot, groundcover before it
+        else if (band > 0.3 && band <= 0.47 && lawn(x, z) && !inMass(x, z, 0.3) && !inRect(keep, x, z, 0) && !inRect(bare, x, z, 0.3) && !hit(x, z, 0.4)) D.cover.push([alongZ ? w + nx * 0.06 : p, alongZ ? p : w + nz * 0.06, nx, nz]);      // ivy on the wall's foot, groundcover before it
         if (ok) { if (!run) run = [p, p]; run[1] = p; }
-        if ((!ok || p + 1.15 > b - 0.3) && run) { if (run[1] - run[0] > 2) { const q = alongZ ? { x0: Math.min(w, w + nx * 2.1), x1: Math.max(w, w + nx * 2.1), z0: run[0] - 0.8, z1: run[1] + 0.8 } : { x0: run[0] - 0.8, x1: run[1] + 0.8, z0: Math.min(w, w + nz * 2.1), z1: Math.max(w, w + nz * 2.1) }; D.beds.push(q); flatRect(q.x0 - 0.2, q.x1 + 0.2, q.z0 - 0.2, q.z1 + 0.2); } run = null; }
+        if ((!ok || p + 1.15 > b - 0.3) && run) { if (run[1] - run[0] > 2) { const q = alongZ ? { x0: Math.min(w, w + nx * 2.1), x1: Math.max(w, w + nx * 2.1), z0: run[0] - 0.8, z1: run[1] + 0.8 } : { x0: run[0] - 0.8, x1: run[1] + 0.8, z0: Math.min(w, w + nz * 2.1), z1: Math.max(w, w + nz * 2.1) }; D.beds.push(...bedParts(q, alongZ)); flatRect(q.x0 - 0.2, q.x1 + 0.2, q.z0 - 0.2, q.z1 + 0.2); } run = null; }
       }
     }
   }
@@ -213,7 +241,7 @@ export function dressGrounds(plan, openings = []) {
   // Arborvitae either side of the plainer doors, beyond their lamps.
   for (const d of plan.doors) if (d.out && !d.vent && d !== plan.front) { const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2, m = plan.byId && plan.byId[d.a]; if (!m) continue;
     for (const sg of [-1, 1]) { const o = 5.4; let x, z; if (d.along === 'x') { x = (d.x0 < m.x0 ? d.x0 - 0.9 : d.x1 + 0.9); z = cz + sg * o; } else { z = (d.z0 < m.z0 ? d.z0 - 0.9 : d.z1 + 0.9); x = cx + sg * o; }
-      if (lawn(x, z) && !inMass(x, z, 0.5) && !hit(x, z, 0.6) && !inRect(G.paths, x, z, 0.6) && !(x > G.rail.x0 - 2.6 && x < G.rail.x1 + 2.6) && !inRect(keep.slice(FLAT.length, FLAT.length + 8), x, z, 0.4) && !discs.some(q => (x - q[0]) ** 2 + (z - q[1]) ** 2 < (q[2] + 0.5) ** 2)) { const [rad, h] = SHRUBS.arbor, s = 0.85 + r() * 0.4; D.shrubs.push({ x, z, k: 'arbor', r: rad * s, h: h * s, seed: (r() * 1e6) | 0 }); mine.push([x, z, 0.5]); O.push({ x0: x - 0.3, x1: x + 0.3, z0: z - 0.3, z1: z + 0.3, y0: 0, y1: h * s * 0.8 }); D.ride.push({ x, z }); } } }
+      if (lawn(x, z) && !inMass(x, z, 0.5) && !hit(x, z, 0.6) && !inRect(G.paths, x, z, 0.6) && !(x > G.rail.x0 - 2.6 && x < G.rail.x1 + 2.6) && !inRect(keep.slice(FLAT.length, FLAT.length + 8), x, z, 0.4) && !discs.some(q => (x - q[0]) ** 2 + (z - q[1]) ** 2 < (q[2] + 0.5) ** 2)) { const [rad, h] = SHRUBS.arbor, s = 0.85 + r() * 0.4, seed = (r() * 1e6) | 0; mine.push([x, z, 0.5]); if (inRect(bare, x, z, 0.4)) continue; D.shrubs.push({ x, z, k: 'arbor', r: rad * s, h: h * s, seed }); O.push({ x0: x - 0.3, x1: x + 0.3, z0: z - 0.3, z1: z + 0.3, y0: 0, y1: h * s * 0.8 }); D.ride.push({ x, z }); } } }
 
   // ------------------------------------------------------------------ furniture
   // Benches: the gardens' real ones, each facing into its garden; then along the paths, facing them, with a lamp between.

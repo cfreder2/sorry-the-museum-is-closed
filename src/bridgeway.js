@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { Geo } from './geo.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { landable } from './plan.js';
+import { wingFoot } from './groundsplan.js';
 import { frostHedges, hedgeMaterial } from './frost.js';
 
 const tex = (w, h, draw, rx = 1, ry = 1) => {
@@ -134,13 +135,9 @@ export function buildBridgeway(museum, plan) {
 
   // The west pavilion, the stair tower against its north end, and beside the tower the glass lift (wingplay.js): its
   // shaft stands clear of the north face, which is drawn round it.
-  const wp = mod.filter(m => m.room.use === 'terrace').sort((a, b) => b.top - a.top)[0] || mod.slice().sort((a, b) => a.x0 - b.x0)[0];
-  const tw = { x0: (wp.x0 + wp.x1) / 2 - 3.4, x1: (wp.x0 + wp.x1) / 2 + 3.4, z0: wp.z0 - 5.4, z1: wp.z0 - 0.05, top: wp.top + 0.8 }, L3 = 11.3;
-  const lift = (() => {
-    const x0 = tw.x1 + 0.6, x1 = tw.x1 + 2.4, here = mod.filter(m => m.x1 > x0 && m.x0 < x1 && m.z0 < wp.z0 + 1);
-    const face = Math.min(wp.z0, ...here.map(m => m.z0)) - 0.07, z1 = face - 0.15;      // 15 cm off the glass of the face
-    return { x0, x1, z0: z1 - 1.8, z1, face };
-  })();
+  // (Where the three stand, and the apron before the court's doors, is groundsplan.js's wingFoot: the planting, laid long
+  // before this is built, has to leave them clear.)
+  const wf = wingFoot(plan), { wp, tw, lift } = wf, L3 = 11.3;
   // A stretch [a, b] with the shaft (and a hand's breadth either side) taken out of it.
   const cx0 = lift.x0 - 0.12, cx1 = lift.x1 + 0.12;
   const besideLift = (a, b) => (b <= cx0 || a >= cx1) ? [[a, b]] : [[a, Math.min(b, cx0)], [Math.max(a, cx1), b]].filter(([p, q]) => q - p > 0.05);
@@ -323,8 +320,8 @@ export function buildBridgeway(museum, plan) {
     O.push({ x0: c0, x1: c1, z0: cz0, z1: hm.z0, y0: 3.4, y1: 3.7 });
     // A paved apron, a step proud of the snow.
     const apron = new Geo(), st = slabTex();
-    apron.box(c0, c1, 0, 0.07, cz0 - 1.5, hm.z0, 2.4);
-    landable(plan, c0, c1, cz0 - 1.5, hm.z0, 0.07);      // drawn a step proud of the snow, so the wheels go up onto it rather than into it
+    apron.box(wf.apron.x0, wf.apron.x1, 0, 0.07, wf.apron.z0, wf.apron.z1, 2.4);
+    landable(plan, wf.apron.x0, wf.apron.x1, wf.apron.z0, wf.apron.z1, 0.07);      // drawn a step proud of the snow, so the wheels go up onto it rather than into it
     add(apron.mesh(new THREE.MeshStandardMaterial({ map: st, roughness: 0.85, emissiveMap: st, emissive: new THREE.Color(0.5, 0.46, 0.4), emissiveIntensity: 0.6 })));
 
     // The wall with the name on it, before the west pavilion.

@@ -655,7 +655,9 @@ export class Car {
     // A fixed distance let it hop at thirty frames a second and never leave the ground at sixty.
     const onHill = !this.air && on && on.hill && beneath && beneath.hill;
     // A lift going down takes the car with it: the floor is not falling away, it is being lowered.
-    const lowered = !this.air && beneath && beneath.lift && yb - g < 0.25;
+    // (To the very end: as the lift comes level with the floor at the foot of its shaft it is that floor which is found under
+    // the wheels, not the lift, and the car was dropped the last step of the way: a hop and a nod at every arrival.)
+    const lowered = !this.air && ((beneath && beneath.lift) || (on && on.lift && on.lift.vy < 0)) && yb - g < 0.25;
     // A plain slope of the street (the ramps beside the front steps, the side streets climbing from the avenue) is driven
     // down with the wheels on it: the ground only ever drops a few centimetres a frame there. Without this the car left the
     // slope every frame and fell back onto it, which felt like going down the stairs. (A stair tread drops 15 cm at once: that still bumps.)

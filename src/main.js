@@ -857,11 +857,15 @@ function chase(dt, snap) {
     // Never under the floor: whichever floor that is, on this level.
     // (Out of doors the ground is hills and drifts: the highest of the ground under it and just round it, and well clear,
     // or the snow a hand's breadth in front of the lens is cut away by the near plane.)
-    { const top = Math.max(want.y, v.pos.y) + 0.3, out = !G.roomId, gy = out ? groundRound(want, 0.4, top) : groundAt(G.plan, want.x, want.z, top, 0), up = out ? 0.26 : 0.1; if (want.y < gy + up) want.y = gy + up; }
+    // (A toy riding a lift: the landing it is on its way up to, or has just left, is not the camera's floor. Looked for from
+    // 0.3 m under it, the landing threw the camera up over itself, half a metre in one frame, with the toy still below; and
+    // on the way down it held the camera there while the toy sank metres under it. On a lift no floor above the toy counts.)
+    const out = !G.roomId, lifted = out && onLift(v);
+    { const top = lifted ? v.pos.y + 0.05 : Math.max(want.y, v.pos.y) + 0.3, gy = out ? groundRound(want, 0.4, top) : groundAt(G.plan, want.x, want.z, top, 0), up = out ? 0.26 : 0.1; if (want.y < gy + up) want.y = gy + up; }
     { const cc = G.features && G.features.kit.camClose; if (cc) { want.set(cc.at.x, cc.at.y, cc.at.z); tmp.set(cc.look.x, cc.look.y, cc.look.z); rate = 6; } }      // a feature can stand the camera somewhere (features.js k.camClose)
     camera.position.lerp(want, snap ? 1 : 1 - Math.exp(-dt * rate));
     // ...and where it actually is, on its way there, as well as where it is going: it must not cut the corner through a crest.
-    if (!G.roomId) { const gy = groundRound(camera.position, 0.4, Math.max(camera.position.y, v.pos.y) + 0.3); if (camera.position.y < gy + 0.22) camera.position.y = gy + 0.22; }
+    if (out) { const gy = groundRound(camera.position, 0.4, lifted ? v.pos.y + 0.05 : Math.max(camera.position.y, v.pos.y) + 0.3); if (camera.position.y < gy + 0.22) camera.position.y = gy + 0.22; }
     camLook.lerp(tmp, snap ? 1 : 1 - Math.exp(-dt * 14));
     camera.up.set(0, 1, 0);
     camera.lookAt(camLook);
@@ -878,6 +882,8 @@ const movers = [], prev = new THREE.Vector3(0, -99, 0), here = new THREE.Vector3
 const camFrom = new THREE.Vector3(), camTry = new THREE.Vector3(), camHit = new THREE.Vector3();
 // The highest ground under a point and at four places `r` round it (at or below `top`).
 const _ROUND = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+// Is the toy standing on (or over) the floor of a lift?
+function onLift(v) { const u = G.plan.under; groundAt(G.plan, v.pos.x, v.pos.z, v.pos.y + 0.05, 0); const s = G.plan.under; G.plan.under = u; return !!(s && s.lift); }
 function groundRound(p, r, top) { const u = G.plan.under; let g = -1e9; for (const [dx, dz] of _ROUND) { const y = groundAt(G.plan, p.x + dx * r, p.z + dz * r, top, 0); if (y > g) g = y; } G.plan.under = u; return g; }
 // What the chase camera's boom must also stop at out of doors, besides the walls confine() finds: solid blocks taller
 // than 0.6 m and at least half a metre across (a lion's plinth, a planter: not a lamp post or a railing, which it may

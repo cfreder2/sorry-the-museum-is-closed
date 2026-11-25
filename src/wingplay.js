@@ -271,9 +271,14 @@ feature({
     const here = this._stopAt();
     if (here >= 0 && this.doors[here].u > 0) { this._sync(); return; }
     const want = this.stops[this.goal], d = want - this.y, riding = this.inCar(k);
-    const step = Math.sign(d) * Math.min(Math.abs(d), dt * Math.min(1.8, 0.4 + Math.abs(d) * 0.8));
+    let step = Math.sign(d) * Math.min(Math.abs(d), dt * Math.min(1.8, 0.4 + Math.abs(d) * 0.8));
+    if (Math.abs(d - step) < 0.002) step = d;      // (the last two millimetres in the same step: what is aboard takes them too)
     this.y += step; this._sync(); this._display();
-    if (riding) { const v = k.v; if (step > 0 && v.pos.y < this.y) v.pos.y = this.y; v.vel.x *= 0.9; v.vel.z *= 0.9; }
+    // Whatever is aboard goes with the floor, up and down, in the same frame, and is drawn again where the floor now is. (The
+    // toy has been moved and drawn for this frame by now. It was left a frame behind the floor: sunk into it on the way up
+    // and hanging over it on the way down, by as far as the lift went in the frame, which is never twice the same: the car
+    // shook all the way. And a drone, which nothing lowers, was left hanging in the shaft when the car went down.)
+    if (riding) { const v = k.v; v.pos.y += step; if (v.pos.y < this.y) v.pos.y = this.y; v.vel.x *= 0.9; v.vel.z *= 0.9; v.sync(0); }
     if (Math.abs(want - this.y) < 0.002) {
       this.y = want; this.goal = null; this._sync(); this._display(); k.synth.chime([1319, 1047], { gap: 0.3, dur: 1.1, vol: 0.05 });      // ding-dong
       if (riding && want === this.stops[this.stops.length - 1]) { if (k.find('goingup')) k.callout('GOING UP'); else k.say('The roof of the west pavilion.', 2.5); }
