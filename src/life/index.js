@@ -76,4 +76,6 @@ import './153798-woman-in-a-garden.js'; // 201  Morisot, Woman in a Garden: fan
 import './24684-francesco-de-medici.js'; // 205  Allori, Francesco de' Medici: cameo
 import './111317-comte-de-pastoret.js'; // 220  Ingres, Amédée-David, the Comte de Pastoret: likeness
 import './110760-adventures-of-ulysses.js'; // 238  Apollonio di Giovanni, The Adventures of Ulysses: home
+import './16495-rinaldo-and-the-magus.js'; // hall Tiepolo, Rinaldo and the Magus of Ascalon: behold
+import './81539-bank-of-the-seine.js'; // 201  Monet, On the Bank of the Seine, Bennecourt: twice
 import './218072-man-in-a-red-cap.js'; // 238  South German, Portrait of a Man in a Red Cap: pair
