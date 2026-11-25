@@ -1,6 +1,42 @@
 // South German (possibly Ulm), Portrait of a Man in a Red Cap (c. 1480), Gallery 238. The word: pair.
 //
-// HEADER TO BE WRITTEN LAST.
+// A small panel half a metre high: a man the museum does not name, in a red cap, and in his hand at the
+// foot of the picture a stem of pinks, two flowers on the one stalk: one turned full face and dark at its lip, one in
+// profile, turned the way he is turned. The museum says the flower "was frequently associated with marriage vows"
+// (and could also speak of the Incarnation, and so of his hope of salvation), and that the portrait "was perhaps
+// paired with one of the sitter's wife, the two closing to form a diptych": a thing kept in a chest and brought out
+// for family or friends. Only this panel hangs here. What the picture itself still has of a pair is on the stem.
+//
+// So the stem grows, on the floor under the painted hand: up out of a small tuft to its knot, where his two long
+// leaves spring (one sweeping up to the left to a point, one curling round to the right and back over the stem), on
+// to the fork with its two short leaves, and then the two stalks, each ending in a bud. The buds open as he painted
+// them, the upper one full face, the lower one in profile. They stand so a while. Then the one in profile turns its
+// face up, the full-face one bows to it, and the two close face to face, as the two panels perhaps did; they hold,
+// part (the upper one lifting first) and stand again as he painted them, and so on every sixteen seconds for as long
+// as you look. When you stop they part, close to buds, and the stem draws back down into the floor.
+//
+// It is one mesh cut from one sheet of paint (two draw calls with its floor shadow), every point placed each frame:
+// the stalks keep their length and bend to get where they are going, a petal stands in its calyx and turns outward
+// near its foot. The manner is his: a dark red-brown line drawn round every leaf and round the toothed lip of every
+// petal, the red loaded on in tongues over crimson with dark dabs inside the lip, the full-face flower nearly black at
+// its heart with one pale stroke there, the stalks going red-brown above the fork, everything lit from the upper
+// left. The colours are taken from the picture's own palette and were matched by measure against the painted flowers
+// as the game shows them. Two things are mine and not his: the tuft at the foot (he painted the stem cut; a cut stem
+// standing on a floor would be a thing held by no one), and the few plucked notes, which are no one's tune: two lines
+// that come to one note as the flowers close.
+//
+// How far it reaches (measured over the whole run and every way of going back): along the wall from 0.31 m left of
+// the picture's middle to 0.07 m right of it (the picture's own frame is 0.25 m either way), from 0.11 to 0.40 m out
+// from the wall, and no higher than 0.98 m, which is 0.32 m under the frame. That is 0.24 m short of the frame of
+// The Nativity, in Coffer on its right and 0.54 m short of the Holy Family on its left, with nothing under or before
+// either; its one long leaf ends below the near edge of Fridrich Rorbach's frame, more than half a metre under it.
+// The Adventures of Ulysses and its sea are on the opposite wall, 8.4 m away.
+// With motion reduced the sway is halved and the notes are softer; at any setting nothing in it flashes, spins,
+// overshoots or sounds suddenly.
+//
+// It does not bring out the man, his hand or his cap, invents no wife and no second panel, gives him no name, and
+// leaves the back of the panel (Death, and its line of Ovid) where the museum keeps it, because the museum knows no
+// more of him than this, and a warning of death is not a thing to act out under a man's face.
 import * as THREE from 'three';
 import { lifeFor, ease, ramp, lerp, clamp01, canvasTexture, rng } from '../paintlife.js';
 import { score } from './stagecraft.js';
@@ -239,7 +275,7 @@ lifeFor(218072, {
       N.wP = ease.inOut(ramp(t, T_SEEN[0], T_SEEN[1]));
       // (the one in profile turns its face up first, and then the full-face one bows to it: so no petal passes through
       // another. Parting, the upper one lifts away first.)
-      const c = t < T_SHUT ? -1 : (t - T_SHUT) % AGAIN, d1 = calm ? SHUT * 1.4 : SHUT, d2 = calm ? PART * 1.4 : PART;
+      const c = t < T_SHUT ? -1 : (t - T_SHUT) % AGAIN, d1 = SHUT, d2 = PART;
       N.wB = c < 0 ? 0 : ease.inOut(ramp(c, 0, 0.55 * d1)) - ease.inOut(ramp(c, T_PART + 0.45 * d2, T_PART + d2));
       N.wA = c < 0 ? 0 : ease.inOut(ramp(c, 0.3 * d1, d1)) - ease.inOut(ramp(c, T_PART, T_PART + 0.7 * d2));
       N.opA = ease.out(ramp(t, T_OPEN_A[0], T_OPEN_A[1])); N.opB = ease.out(ramp(t, T_OPEN_B[0], T_OPEN_B[1]));
@@ -376,7 +412,7 @@ lifeFor(218072, {
     // the two pale threads at its heart, curling apart (a pink has two)
     for (let i = 0; i < 2; i++) {
       const sg = i ? -1 : 1, dx = sg * (0.94 * e[0] + 0.34 * e[3]), dy = sg * (0.94 * e[1] + 0.34 * e[4]), dz = sg * (0.94 * e[2] + 0.34 * e[5]);
-      const tx = -0.34 * e[0] + 0.94 * e[3], ty = -0.34 * e[1] + 0.94 * e[4], tz = -0.34 * e[2] + 0.94 * e[5], len = 0.036 * k * open;
+      const tx = -0.34 * e[0] + 0.94 * e[3], ty = -0.34 * e[1] + 0.94 * e[4], tz = -0.34 * e[2] + 0.94 * e[5], len = 0.036 * k * open * (1 - 0.85 * press);      // (drawn in as the faces meet)
       for (let j = 0; j < 5; j++) {
         const r = j / 4, hj = len * (r - 0.3 * r * r * r), rj = len * 0.34 * r * r + 0.0012, hw = 0.0016 * k * open * (1 - 0.6 * r), o = (f.sty[i] + j * 3) * 3;
         for (let q = 0; q < 3; q++) { const w = (q - 1) * hw; pos[o + q * 3] = ox + ax * hj + dx * rj + tx * w; pos[o + q * 3 + 1] = oy + ay * hj + dy * rj + ty * w; pos[o + q * 3 + 2] = oz + az * hj + dz * rj + tz * w; }
