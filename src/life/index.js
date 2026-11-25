@@ -80,4 +80,5 @@ import './16495-rinaldo-and-the-magus.js'; // hall Tiepolo, Rinaldo and the Magu
 import './81539-bank-of-the-seine.js'; // 201  Monet, On the Bank of the Seine, Bennecourt: twice
 import './218072-man-in-a-red-cap.js'; // 238  South German, Portrait of a Man in a Red Cap: pair
 import './81507-house-of-mere-bazot.js'; // 222  Daubigny, House of Mère Bazot: dusk
+import './16151-portrait-of-a-gentleman.js'; // 205  Ghirlandaio, Portrait of a Gentleman: beyond
 import './59891-young-artist.js';     // 207  German, Portrait of a Young Artist: quill
