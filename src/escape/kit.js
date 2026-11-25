@@ -20,7 +20,13 @@
 //                        robot's light), E.led (the toy is bringing it home), E.n (creatures to draw), E.gone (0..1 coming apart)
 //   hide(L, S)           every frame of the work's show while it is out: take the escaped thing out of the show
 //   voice(E, k, vol)     its small sound, now and then (vol: by how far it is; it carries a little through walls)
-//   trail(E)             a mark to leave behind it: { color, size, long } or null
+//   trail(E)             a mark to leave behind it: { color, size, long, cell } or null
+//   mark                 the strokes it comes apart into, in its painter's hand: { cell (CELL.*), w: [a, b] (metres across, no
+//                        bigger than the strokes on its body), long: [a, b] (how long for its width), turn (radians each lies
+//                        off the way it is going), jit (and how much that varies) }
+//   parts(E)             where it is, as balls in the room: [{ x, y, z, r, ry (half its height, r if not given) }]. Its strokes
+//                        are born on these when it comes apart, and a robot's lamp throws their shadows. One ball if not given.
+//   may(E, k)            true if it may be out at all (never forced; asked again while it is out: not true, and it is home)
 // }
 //
 // One escapee is one mesh if it can be: its parts are merged, or one BatchedMesh; what it carries of its world (a patch of
@@ -36,26 +42,46 @@ export function escapeFor(id, spec) { SPECS.push({ id, ...spec }); }
 
 const TAU = Math.PI * 2;
 
-// One small texture for every escapee: the left half a soft, ragged dab of paint (alpha), the right half solid.
+// One small texture for every escapee: eight cells in a row, each a mark of paint cut out by its alpha, and one solid.
+// A painter's hand is a cell: Goya's soft dab, Seurat's round dot, Homer's long wet stroke (set down full and dragged out
+// dry, split by the bristles), Degas's stick of pastel (a narrow grainy hatch), Monet's short comma. v runs the long way.
+export const CELLS = 8, CELL = { dab: 0, solid: 1, dot: 2, wet: 3, chalk: 4, comma: 5 };
 let _atlas = null;
 export function atlas() {
   if (_atlas) return _atlas;
-  const W = 128, H = 64, c = document.createElement('canvas'); c.width = W; c.height = H;
-  const g = c.getContext('2d'), img = g.createImageData(W, H), R = rng(77);
-  const lobes = Array.from({ length: 7 }, () => [R() * TAU, 0.05 + R() * 0.11]);
+  const S = 64, W = S * CELLS, H = S, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), img = g.createImageData(W, H), R = rng(77), ph = Array.from({ length: 8 }, () => R() * TAU);
+  const hash = (x, y) => { const q = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return q - Math.floor(q); };
+  const soft = (u, v) => { const a = Math.atan2(v, u), e = 0.82 + 0.07 * Math.sin(a * 2 + ph[0]) + 0.05 * Math.sin(a * 3 + ph[1]) + 0.025 * Math.sin(a * 5 + ph[2]); return (1 - Math.hypot(u, v * 1.04) / e) * 3.2 + 0.5; };
+  const shape = [
+    soft,
+    () => 1,
+    (u, v) => (1 - Math.hypot(u, v) / 0.9) * 4 + 0.5,
+    (u, v) => {
+      const t = (v + 1) / 2; if (t < 0.02 || t > 0.98) return 0;
+      const wd = 0.78 * Math.pow(Math.max(0, Math.sin(Math.PI * Math.pow(t, 0.75))), 0.55), uu = u - 0.07 * Math.sin(v * 2.6 + ph[3]);
+      return (1 - Math.abs(uu) / Math.max(0.02, wd)) * 3 + 0.5 - Math.max(0, (t - 0.45) / 0.55) * 2.8 * Math.pow(0.5 + 0.5 * Math.sin(uu * 15 + ph[4]), 2);
+    },
+    (u, v, x, y) => {
+      const cl = Math.floor(x / 2); if (v > 0.9 - 0.16 * hash(cl, 3) || v < -0.9 + 0.16 * hash(cl, 9) || Math.abs(u) > 0.72 + 0.12 * (hash(Math.floor(y / 3), 5) - 0.5)) return 0;
+      const st = hash(cl, 1); return hash(cl, Math.floor(y / 2)) < 0.16 + 0.26 * st * st + 0.5 * Math.max(0, Math.abs(u) - 0.42) ? 0 : 1;
+    },
+    (u, v) => {
+      const t = (v + 0.92) / 1.84; if (t < 0 || t > 1) return 0;
+      const wd = t < 0.22 ? 0.5 * Math.sqrt(1 - Math.pow(1 - t / 0.22, 2)) : 0.5 * Math.pow(1 - (t - 0.22) / 0.78, 0.85) + 0.02;
+      return (1 - Math.abs(u - (-0.3 + 0.75 * t * t)) / Math.max(0.02, wd)) * 3 + 0.5;
+    },
+    soft, soft,
+  ];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const o = (y * W + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = 255;
-    if (x >= 64) { img.data[o + 3] = 255; continue; }
-    const u = (x + 0.5) / 32 - 1, v = (y + 0.5) / 32 - 1, a = Math.atan2(v, u);
-    let e = 0.8; lobes.forEach(([ph, am], i) => { e += am * Math.sin(a * (i + 2) + ph); });
-    const d = Math.hypot(u, v * 1.08) / e;
-    img.data[o + 3] = Math.round(255 * Math.max(0, Math.min(1, (1 - d) * 3.2 + 0.5)));
+    const o = (y * W + x) * 4, cell = Math.floor(x / S), lx = x - cell * S; img.data[o] = img.data[o + 1] = img.data[o + 2] = 255;
+    img.data[o + 3] = Math.round(255 * Math.max(0, Math.min(1, shape[cell]((lx + 0.5) / (S / 2) - 1, (y + 0.5) / (S / 2) - 1, lx, y))));
   }
   g.putImageData(img, 0, 0);
   _atlas = new THREE.CanvasTexture(c); _atlas.colorSpace = THREE.SRGBColorSpace; _atlas.generateMipmaps = false; _atlas.minFilter = _atlas.magFilter = THREE.LinearFilter;
   return _atlas;
 }
-const SOLID_U = 0.76, SOLID_V = 0.5;
+const SOLID_U = (CELL.solid + 0.5) / CELLS, SOLID_V = 0.5;
 
 // The body's material: vertex colours that glow a little in themselves (the galleries are dark at night), cut out by
 // the atlas (dabs), and uGone (0 to 1) to come apart with: specks of it go, till none is left.
@@ -112,7 +138,8 @@ export function take(L, insts, { useMap = false } = {}) {
   return Array.isArray(insts) ? out : out[0];
 }
 // Dabs of paint: flat four-sided marks lying on a surface. list of { p: Vector3, n: Vector3 (out of the surface),
-// s (size, metres), l (how long for its width, 1 = round), c: THREE.Color, a (turned about n, radians) }.
+// s (size, metres), l (how long for its width, 1 = round), c: THREE.Color, a (turned about n, radians), cell (whose
+// hand: CELL.dab if not given) }.
 // A show's model, made light enough to walk about the building: its smooth bodies are kept; each soft dab of paint over
 // them (a little leaf of six triangles) becomes a kite of two, and only `dab` of them are kept (a little larger, to cover);
 // of the curls of light (twelve triangles) `curl` are kept as they are. R: a seeded random.
@@ -153,7 +180,7 @@ export function thin(g, { dab = 0.7, curl = 0, R = Math.random, grow = null } = 
 }
 
 const _t = new THREE.Vector3(), _b = new THREE.Vector3(), _n = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _x = new THREE.Vector3(1, 0, 0);
-export function dabs(list, lift = 0.003) {
+export function dabs(list, lift = 0.003, cell = 0) {
   const n = list.length, P = new Float32Array(n * 18), N = new Float32Array(n * 18), C = new Float32Array(n * 18), U = new Float32Array(n * 12);
   const Q = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
   list.forEach((d, i) => {
@@ -163,7 +190,7 @@ export function dabs(list, lift = 0.003) {
       const lx = qx * w, ly = qy * h, tx = lx * ca - ly * sa, ty = lx * sa + ly * ca, o = i * 18 + j * 3;
       P[o] = d.p.x + _t.x * tx + _b.x * ty + _n.x * lift; P[o + 1] = d.p.y + _t.y * tx + _b.y * ty + _n.y * lift; P[o + 2] = d.p.z + _t.z * tx + _b.z * ty + _n.z * lift;
       N[o] = _n.x; N[o + 1] = _n.y; N[o + 2] = _n.z; C[o] = d.c.r; C[o + 1] = d.c.g; C[o + 2] = d.c.b;
-      U[i * 12 + j * 2] = 0.02 + (qx * 0.5 + 0.5) * 0.46; U[i * 12 + j * 2 + 1] = 0.03 + (qy * 0.5 + 0.5) * 0.94;
+      U[i * 12 + j * 2] = ((d.cell == null ? cell : d.cell) + 0.04 + (qx * 0.5 + 0.5) * 0.92) / CELLS; U[i * 12 + j * 2 + 1] = 0.03 + (qy * 0.5 + 0.5) * 0.94;
     });
   });
   const g = new THREE.BufferGeometry();
@@ -172,14 +199,14 @@ export function dabs(list, lift = 0.003) {
   return g;
 }
 // Dabs all over a ball (centre, radii): n of them, coloured by pick(nx, ny, nz, R) -> THREE.Color; size [a, b].
-export function ballDabs(c, r, n, pick, size, R, { long = 1.3, out = 1.0 } = {}) {
+export function ballDabs(c, r, n, pick, size, R, { long = 1.3, out = 1.0, cell = 0 } = {}) {
   const list = [];
   for (let i = 0; i < n; i++) {
     const y = 1 - 2 * (i + 0.5) / n, q = Math.sqrt(1 - y * y), a = i * 2.39996 + R() * 0.5, x = Math.cos(a) * q, z = Math.sin(a) * q;
     const nn = new THREE.Vector3(x / r[0], y / r[1], z / r[2]).normalize();
     list.push({ p: new THREE.Vector3(c[0] + x * r[0] * out, c[1] + y * r[1] * out, c[2] + z * r[2] * out), n: nn, s: size[0] + R() * (size[1] - size[0]), l: long, a: R() * TAU, c: pick(nn.x, nn.y, nn.z, R).clone() });
   }
-  return dabs(list);
+  return dabs(list, 0.003, cell);
 }
 export const ball = (c, r, color, seg = 12) => { const g = new THREE.SphereGeometry(1, seg, Math.max(6, seg - 4)); g.scale(r[0], r[1], r[2]); g.translate(c[0], c[1], c[2]); return solid(g, color); };
 export const merge = list => mergeGeometries(list.map(g => (g.attributes.uv && g.attributes.color && !g.index ? g : plain(g))), false);

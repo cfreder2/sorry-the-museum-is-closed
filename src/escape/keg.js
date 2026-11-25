@@ -7,7 +7,7 @@
 // painted shell of dabs laid on) and the sea it rides (the kit's patch, in the show's own strokes).
 
 import * as THREE from 'three';
-import { escapeFor, paint, take, dabs, merge, solid, patch, swellAt, col, batch, TAU } from './kit.js';
+import { escapeFor, paint, take, dabs, merge, solid, patch, swellAt, col, batch, TAU, CELL } from './kit.js';
 import { strokes } from '../life/brush.js';
 import { rng } from '../paintlife.js';
 import { LOWMEM as LOW } from '../budget.js';
@@ -31,6 +31,9 @@ escapeFor(25865, {
   back: 'The keg float is back on Homer’s sea.',
   count: 1, speed: 0.42, herd: 1.05, radius: 1.05, height: 0.36, need: 0.6, rest: [3, 8], react: 'none', chips: 25, stroke: 1.15,
   colors: ['#b04a2a', '#cf6a40', '#743423', '#35423b', '#46554d', '#586660', '#28402e', '#cbc5af'],
+  // Homer's long wet strokes, laid the way the water runs: no wider or longer than the ones on the keg
+  mark: { cell: CELL.wet, w: [0.026, 0.038], long: [2.3, 3.0], turn: 0, jit: 0.22 },
+  parts(E) { const B = E.build; return [{ x: E.x + (B.kx || 0), y: E.y + (B.h || 0.1), z: E.z + (B.kz || 0), r: 0.15, ry: 0.13 }]; },
 
   async build(E, L, { group, pal }) {
     const R = rng(25865), c = (h, k = 0.18) => col(pal, h, k), B = E.build;
@@ -84,7 +87,7 @@ escapeFor(25865, {
     const kx = Math.sin(E.yaw) * lead, kz = Math.cos(E.yaw) * lead, h0 = hAt(kx, kz), e = 0.14;
     const pitch = -Math.atan2(hAt(kx + fx * e, kz + fz * e) - hAt(kx - fx * e, kz - fz * e), 2 * e), roll = Math.atan2(hAt(kx + fz * e, kz - fx * e) - hAt(kx - fz * e, kz + fx * e), 2 * e) + (calm ? 0 : Math.sin(t * 1.3) * 0.06);
     B.h += ((h0 + KEG.r * S * 0.42 * Math.min(1, grow * 1.6 + 0.2)) - B.h) * Math.min(1, dt * 6);
-    b.put(B.keg, kx, B.h, kz, yaw, pitch, roll, S);
+    b.put(B.keg, kx, B.h, kz, yaw, pitch, roll, S); B.kx = kx; B.kz = kz;
     // the corks: strung out along where it has been, on the water, the line between them
     const wx = E.x + kx - fx * KEG.hl * S, wz = E.z + kz - fz * KEG.hl * S, w0 = B.wake[0];
     if (Math.hypot(wx - w0.x, wz - w0.z) > 0.03) { const last = B.wake.pop(); last.x = wx; last.z = wz; B.wake.unshift(last); }
@@ -106,7 +109,8 @@ escapeFor(25865, {
 
   onPlace(E) { if (E.onPlaceWake && E.build) E.onPlaceWake(); },
 
-  trail(E) { return { color: WET[Math.floor(Math.random() * WET.length)], size: 0.2 + Math.random() * 0.12, long: 1.9, every: 0.3, life: 11, turn: (Math.random() - 0.5) * 0.5, dx: (Math.random() - 0.5) * 0.5, dz: (Math.random() - 0.5) * 0.5 }; },
+  // the floor left wet where it has been: a few of his sea's strokes, lying the way it went
+  trail(E) { return { color: WET[Math.floor(Math.random() * WET.length)], size: 0.028 + Math.random() * 0.012, long: 2.8, cell: CELL.wet, every: LOW ? 0.16 : 0.08, life: 10, turn: Math.PI + (Math.random() - 0.5) * 0.4, dx: (Math.random() - 0.5) * 0.7, dz: (Math.random() - 0.5) * 0.7 }; },
 
   // the water: a slap against the wood, and now and then the knock of the cask
   voice(E, k, vol) {

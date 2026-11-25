@@ -108,6 +108,7 @@ function glyph(ch, colour) {
 // The pool of light on the floor: a fan of rays, each stopped by the first wall, bright near the lamp and soft at the edges.
 const POOL_V = 'attribute float aT; attribute float aE; varying float vT; varying float vE; void main() { vT = aT; vE = aE; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 const POOL_F = 'uniform vec3 uC; uniform float uK; varying float vT; varying float vE; void main() { float edge = 1.0 - smoothstep(0.55, 1.0, abs(vE)); float fall = (1.0 - smoothstep(0.5, 1.0, vT)) * (0.45 + 0.55 * smoothstep(0.0, 0.18, vT)); gl_FragColor = vec4(uC * (edge * fall * uK), 1.0); }';
+const EDGE_F = 'uniform vec3 uC; uniform float uW; varying float vT; varying float vE; void main() { float a = abs(vE); float inE = 1.0 - smoothstep(0.88, 1.0, a); float inT = 1.0 - smoothstep(0.9, 1.0, vT); float rim = smoothstep(0.45, 0.82, a) * inE * inT; float end = smoothstep(0.55, 0.86, vT) * inT * inE; float al = (max(rim, end) * 0.36 + 0.09 * inE * inT) * smoothstep(0.02, 0.2, vT) * uW; gl_FragColor = vec4(uC, al); }';
 function poolMesh() {
   const n = FAN * 3, pos = new Float32Array(n * 3), t = new Float32Array(n), e = new Float32Array(n);
   for (let i = 0; i < FAN; i++) { const e0 = -1 + 2 * i / FAN, e1 = -1 + 2 * (i + 1) / FAN; e[i * 3] = (e0 + e1) / 2; e[i * 3 + 1] = e0; e[i * 3 + 2] = e1; }
@@ -116,7 +117,12 @@ function poolMesh() {
   g.setAttribute('aT', new THREE.BufferAttribute(t, 1).setUsage(THREE.DynamicDrawUsage));
   g.setAttribute('aE', new THREE.BufferAttribute(e, 1));
   const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ vertexShader: POOL_V, fragmentShader: POOL_F, uniforms: { uC: { value: MOOD.poolCalm.clone() }, uK: { value: 0.42 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-  m.frustumCulled = false; m.renderOrder = 4; m.matrixAutoUpdate = false; return m;
+  m.frustumCulled = false; m.renderOrder = 4; m.matrixAutoUpdate = false;
+  // The lamp gone warm (it is sending something home to its painting): light added to a white floor cannot be seen, so
+  // the warm pool has an edge of its own that is laid on, not added: a soft amber rim round it and a breath of amber in it.
+  const e2 = new THREE.Mesh(g, new THREE.ShaderMaterial({ vertexShader: POOL_V, fragmentShader: EDGE_F, uniforms: { uC: { value: new THREE.Color(0.93, 0.56, 0.2) }, uW: { value: 0 } }, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  e2.frustumCulled = false; e2.renderOrder = 4; e2.matrixAutoUpdate = false; e2.visible = false; m.add(e2); m.userData.edge = e2;
+  return m;
 }
 
 // ------------------------------------------------------------------ the bolt --
@@ -857,6 +863,7 @@ feature({
     const rate = mood === 'hunt' ? 7 : mood === 'wary' ? 3.5 : 0.8, ph = (now * rate + b.i * 0.3) % 1, pulse = mood === 'hunt' ? (ph < 0.5 ? 1 : 0.15) : 0.35 + 0.65 * Math.max(0, Math.sin(ph * TAU));
     const warm = b.tend ? b.tend.k : 0;      // (0 to 1: its lamp gone warm white, for what it is sending home)
     b.glowMat.color.copy(col); if (warm > 0) b.glowMat.color.lerp(MOOD.warm, warm);
+    const edge = b.pool.userData.edge; if (edge) { edge.visible = warm > 0.01; edge.material.uniforms.uW.value = warm; }
     b.beacon.material.color.copy(b.glowMat.color).multiplyScalar(pulse * 0.9 + (0.9 - pulse * 0.9) * warm); const bs = 0.3 + (pulse + (0.6 - pulse) * warm) * 0.25; b.beacon.scale.set(bs, bs, 1);
     // The prong warms up before it fires.
     const ch = b.mode === 'charge' ? Math.min(1, b.mt / CHARGE) : 0;

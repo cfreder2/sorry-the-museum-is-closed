@@ -9,7 +9,7 @@
 // One draw call: the show's own parasol (its dome in his orange and salmon, darker under, its stick and knob).
 
 import * as THREE from 'three';
-import { escapeFor, paint, take, solid, merge, col, TAU } from './kit.js';
+import { escapeFor, paint, take, solid, merge, col, TAU, CELL } from './kit.js';
 import { rng } from '../paintlife.js';
 import { nearestOpen } from '../guardplan.js';
 import { LOWMEM as LOW } from '../budget.js';
@@ -36,6 +36,10 @@ escapeFor(14620, {
   back: 'The parasol is back on the cliff top, in her hands.',
   count: 1, speed: 1.15, herd: 1.7, radius: 0.75, height: 1.25, need: 0.62, rest: [2.5, 6], react: 'still', hold: 2.6, chips: 30, stroke: 0.9, strokeLong: 1.5,
   colors: ['#e8765a', '#f09070', '#f2a890', '#ec8468', '#f6b8a0', '#d8604a', '#b85a46', '#f2d86a', '#7fa04a'],
+  // Monet's short commas, each turned its own way, as he flicks them on
+  mark: { cell: CELL.comma, w: [0.024, 0.036], long: [1.7, 2.3], turn: 0, jit: 1.3 },
+  // (its dome, up where it flies: what a robot's lamp throws the shadow of)
+  parts(E) { const B = E.build, m = B.mesh; return [{ x: E.x + m.position.x, y: E.y + m.position.y - 0.03, z: E.z + m.position.z, r: 0.27, ry: 0.1 }]; },
 
   async build(E, L, { group, pal }) {
     const B = E.build, c = (h, k = 0.15) => col(pal, h, k);
@@ -66,7 +70,7 @@ escapeFor(14620, {
       const a = B.ea * q.w + q.ph, r = q.r * (0.75 + 0.45 * f), y = 0.014 + (calm ? 0.05 : 0.04 + 0.3 * q.up * (0.6 + 0.4 * Math.sin(t * 2.7 + q.ph))) * f;
       const sx = Math.sin(a), cz = Math.cos(a), lean = 0.9 * f;
       _p.set(B.ex + sx * r, E.y + y, B.ez + cz * r); _n.set(sx * lean, 1, cz * lean).normalize(); _t.set(cz, 0.25 * f * Math.sin(t * 5 + q.ph), -sx).normalize();
-      E.marks.put(_p, _n, _t, q.grass ? 0.018 : 0.036, q.grass ? 0.085 : 0.052, q.c);
+      E.marks.put(_p, _n, _t, q.grass ? 0.018 : 0.034, q.grass ? 0.085 : 0.06, q.c, CELL.comma);
     }
   },
 
@@ -83,7 +87,7 @@ escapeFor(14620, {
   hide(L, Sp) { if (Sp.rig && Sp.I && Sp.I[PARASOL] >= 0) Sp.rig.show(Sp.I[PARASOL], false); },
 
   // petals, left lying where the gust has been
-  trail() { const g = Math.random() < 0.25; return { color: g ? GRASS[Math.floor(Math.random() * GRASS.length)] : PETALS[Math.floor(Math.random() * PETALS.length)], size: g ? 0.016 : 0.03, long: g ? 4.2 : 1.4, every: 0.3, life: 10, turn: Math.random() * TAU, dx: (Math.random() - 0.5) * 0.7, dz: (Math.random() - 0.5) * 0.7 }; },
+  trail() { const g = Math.random() < 0.25; return { color: g ? GRASS[Math.floor(Math.random() * GRASS.length)] : PETALS[Math.floor(Math.random() * PETALS.length)], size: g ? 0.016 : 0.03, long: g ? 4.2 : 1.8, cell: CELL.comma, every: 0.3, life: 10, turn: Math.random() * TAU, dx: (Math.random() - 0.5) * 0.7, dz: (Math.random() - 0.5) * 0.7 }; },
 
   // the gust itself: a breath through the doorway
   voice(E, k, vol) { if (E.v > 0.05) k.synth.noise(1.1, { vol: 0.02 * vol, lp: 700 }); },

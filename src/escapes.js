@@ -32,7 +32,7 @@ import { LOWMEM } from './budget.js';
 import { roomAt } from './plan.js';
 import { grid, path, cellAt, clearAt, lineClear, sight, nearestOpen } from './guardplan.js';
 import { protectArt, palette, roamGuard, placeRoam, guardBlock, lifeOf, GUARD_MAX, rng } from './paintlife.js';
-import { SPECS, atlas, TAU } from './escape/kit.js';
+import { SPECS, atlas, TAU, CELL, CELLS } from './escape/kit.js';
 import './escape/keg.js';
 import './escape/hats.js';
 import './escape/lambs.js';
@@ -49,7 +49,7 @@ const TUNE = {
   hops: 2,          // how many rooms from its own it wanders
   quiet: 4.5,       // metres kept from a quiet work in a room it shares
 };
-const CAP_OUT = LOWMEM ? 3 : 6, CAP_BODY = LOWMEM ? 6 : 20, MARKS = LOWMEM ? 260 : 700, STROKES = LOWMEM ? 56 : 130;
+const CAP_OUT = LOWMEM ? 3 : 6, CAP_BODY = LOWMEM ? 6 : 20, MARKS = LOWMEM ? 340 : 960, STROKES = LOWMEM ? 96 : 240;
 const SAVE = 'after-hours.escapes';
 // Rooms nothing roams into (docs/ESCAPES.md's "nothing" rows): 202 Jean Gros, 209 Claude's Delphi, 211 El Greco and Sánchez
 // Cotán, 218 Reynolds and David, 222 Courbet, 223 Moreau and Beata Beatrix, 241 Gauguin's Arlésiennes, 247 Mahana no atua.
@@ -57,29 +57,33 @@ const QUIET = new Set(['G202', 'G209', 'G211', 'G218', 'G222', 'G223', 'G241', '
 // And one quiet work in a room that is another escapee's own (226, the Millinery Shop's): Degas's uncle and niece, in mourning.
 const QUIET_WORKS = [14574];
 
-const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _m = new THREE.Matrix4(), _col = new THREE.Color(), _vp = new THREE.Vector4();
+const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _s = new THREE.Vector3(), _m = new THREE.Matrix4(), _col = new THREE.Color(), _vp = new THREE.Vector4();
 const UP = new THREE.Vector3(0, 1, 0);
 const clamp01 = x => (x < 0 ? 0 : x > 1 ? 1 : x), smooth = x => { x = clamp01(x); return x * x * (3 - 2 * x); };
 const wrap = a => { a = (a + Math.PI) % TAU; return (a < 0 ? a + TAU : a) - Math.PI; };
 
 // ------------------------------------------------------------------ marks: trails, and the strokes it goes home as --
-// One instanced mesh of dabs for every escapee: some stay where they are put and fade (a trail), the rest are placed
-// afresh each frame (the strokes on their way home).
+// One instanced mesh of marks for every escapee: some stay where they are put and fade (a trail), the rest are placed
+// afresh each frame (the strokes on their way home). Each is in one painter's hand: a cell of the kit's atlas.
 class Marks {
   constructor(n, key) {
-    const g = new THREE.PlaneGeometry(1, 1), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.02 + uv.getX(i) * 0.46, 0.03 + uv.getY(i) * 0.94);
+    const g = new THREE.PlaneGeometry(1, 1), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.04 + uv.getX(i) * 0.92, 0.03 + uv.getY(i) * 0.94);
+    this.cell = new THREE.InstancedBufferAttribute(new Float32Array(n), 1); this.cell.setUsage(THREE.DynamicDrawUsage); g.setAttribute('aCell', this.cell);
     const m = new THREE.MeshBasicMaterial({ map: atlas(), alphaTest: 0.5, side: THREE.DoubleSide });
+    m.onBeforeCompile = sh => { sh.vertexShader = 'attribute float aCell;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vMapUv.x = (vMapUv.x + aCell) / ' + CELLS + '.0;'); };
+    m.customProgramCacheKey = () => 'escapemarks';
     this.mesh = new THREE.InstancedMesh(g, protectArt(m, key, { soft: 0.05 }), n);
     this.mesh.count = 0; this.mesh.frustumCulled = false; this.mesh.renderOrder = 6; this.mesh.setColorAt(0, _col.set(0xffffff));
     this.n = n; this.kept = []; this.i = 0;
   }
-  // A mark that stays: { x, y, z, nx, ny, nz (the way it faces), tx, ty, tz (its long way), w, h, color, life, vx.. (drifts), spin }
-  keep(o) { o.age = 0; if (this.kept.length >= this.n * 0.55) this.kept.shift(); this.kept.push(o); }
-  put(p, n, t, w, h, color) {
+  // A mark that stays: { x, y, z, nx, ny, nz (the way it faces), tx, ty, tz (its long way), w, h, color, cell, life, vx.. (drifts), spin }
+  keep(o) { o.age = 0; if (this.kept.length >= this.n * 0.5) this.kept.shift(); this.kept.push(o); }
+  // p: where; n: the way it faces; t: its long way; w, h: metres across and along; cell: whose hand (CELL.*)
+  put(p, n, t, w, h, color, cell = 0) {
     if (this.i >= this.n) return;
-    _a.crossVectors(t, n).normalize();
-    _m.set(_a.x * w, t.x * h, n.x, p.x, _a.y * w, t.y * h, n.y, p.y, _a.z * w, t.z * h, n.z, p.z, 0, 0, 0, 1);
-    this.mesh.setMatrixAt(this.i, _m); this.mesh.setColorAt(this.i, color); this.i++;
+    _s.crossVectors(t, n).normalize();
+    _m.set(_s.x * w, t.x * h, n.x, p.x, _s.y * w, t.y * h, n.y, p.y, _s.z * w, t.z * h, n.z, p.z, 0, 0, 0, 1);
+    this.mesh.setMatrixAt(this.i, _m); this.mesh.setColorAt(this.i, color); this.cell.array[this.i] = cell; this.i++;
   }
   begin(dt) {
     this.i = 0;
@@ -88,10 +92,42 @@ class Marks {
       if (o.vx !== undefined) { o.x += o.vx * dt; o.y += o.vy * dt; o.z += o.vz * dt; if (o.y < o.floor) { o.y = o.floor; o.vx = o.vy = o.vz = 0; o.nx = 0; o.ny = 1; o.nz = 0; o.spin = 0; } else if (o.spin) { const a = o.spin * dt, c = Math.cos(a), s = Math.sin(a), nx = o.nx * c - o.ny * s; o.ny = o.nx * s + o.ny * c; o.nx = nx; } }
       const f = Math.min(1, o.age / 0.25) * Math.min(1, (o.life - o.age) / (o.life * 0.35));
       _b.set(o.nx, o.ny, o.nz).normalize(); _c.set(o.tx, o.ty, o.tz); if (Math.abs(_c.dot(_b)) > 0.9) _c.set(_b.y, _b.z, _b.x); _c.addScaledVector(_b, -_c.dot(_b)).normalize();
-      this.put(_v.set(o.x, o.y, o.z), _b, _c, o.w * f, o.h * f, o.color);
+      this.put(_v.set(o.x, o.y, o.z), _b, _c, o.w * f, o.h * f, o.color, o.cell || 0);
     }
   }
-  end() { this.mesh.count = this.i; this.mesh.instanceMatrix.needsUpdate = true; if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true; this.mesh.visible = this.i > 0; }
+  end() { this.mesh.count = this.i; this.mesh.instanceMatrix.needsUpdate = true; this.cell.needsUpdate = true; if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true; this.mesh.visible = this.i > 0; }
+}
+
+// The shadows a robot's lamp throws: what stands in the light keeps the light off the floor behind it. Soft dark
+// ovals lying on the floor, away from the lamp, as long as the lamp is low. On the floor only, and guarded like the marks.
+class Shade {
+  constructor(n, key) {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.72)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    const map = new THREE.CanvasTexture(c); map.userData.own = true;
+    const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2);
+    this.a = new THREE.InstancedBufferAttribute(new Float32Array(n), 1); this.a.setUsage(THREE.DynamicDrawUsage); g.setAttribute('aA', this.a);
+    const m = new THREE.MeshBasicMaterial({ map, color: 0x241a12, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    m.onBeforeCompile = sh => {
+      sh.vertexShader = 'attribute float aA; varying float vA;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vA = aA;');
+      sh.fragmentShader = 'varying float vA;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.a *= vA;');
+    };
+    m.customProgramCacheKey = () => 'escapeshade';
+    this.mesh = new THREE.InstancedMesh(g, protectArt(m, key, { soft: 0.08 }), n);
+    this.mesh.count = 0; this.mesh.frustumCulled = false; this.mesh.renderOrder = 5; this.mesh.visible = false; this.n = n; this.i = 0;
+  }
+  // One thing's shadow: a ball of radius r (ry up and down), its middle at (x, y, z), over a floor at fy; the lamp at (lx, ly, lz).
+  put(x, y, z, r, ry, fy, lx, ly, lz, k) {
+    if (this.i >= this.n || k <= 0.01) return;
+    let dx = x - lx, dz = z - lz; const d = Math.hypot(dx, dz); if (d < 0.3) return; dx /= d; dz /= d;
+    const hl = Math.max(0.25, ly - fy), lo = Math.max(0, y - ry - fy), hi = y + ry - fy;
+    const s0 = lo < hl - 0.05 ? d * lo / (hl - lo) : 2.2, s1 = Math.min(2.4, hi < hl - 0.08 ? d * hi / (hl - hi) : 2.4) + r * 0.6;
+    const a = Math.min(s0, s1) - r * 0.6, len = Math.max(r * 1.6, s1 - a), mid = a + len / 2, wide = r * 2 * (1 + mid / d) * 1.1;
+    _m.set(dz * wide, 0, dx * len, x + dx * mid, 0, 1, 0, fy + 0.012, -dx * wide, 0, dz * len, z + dz * mid, 0, 0, 0, 1);
+    this.mesh.setMatrixAt(this.i, _m); this.a.array[this.i] = k * Math.min(1, 0.55 + 0.6 * r / Math.max(0.2, len)); this.i++;
+  }
+  begin() { this.i = 0; }
+  end() { this.mesh.count = this.i; this.mesh.visible = this.i > 0; if (this.i) { this.mesh.instanceMatrix.needsUpdate = true; this.a.needsUpdate = true; } }
 }
 
 // ------------------------------------------------------------------ the feature --
@@ -116,6 +152,7 @@ const F = {
         rest: 0, grid: null, at: null, going: null, gone: 0, emerge: 1, watch: 0, armed: false, voiceT: 3, trailD: 0, slow: 0, rand: rng(s.id), outT: 0 });
     }
     this.key = roamGuard(); this.marks = new Marks(MARKS, this.key); this.marks.mesh.onBeforeRender = r => this._px(this.key, r); k.group.add(this.marks.mesh);
+    this.shade = new Shade(24, this.key); this.shade.mesh.onBeforeRender = r => this._px(this.key, r); k.group.add(this.shade.mesh);
     this._restore();
     // (a test's way of starting with things out: ?escout lets every one out, up to the cap; ?escout=keg,hats those)
     const q = typeof location !== 'undefined' && /[?&]escout(?:=([^&]*))?(?:&|$)/.exec(location.search);
@@ -133,6 +170,7 @@ const F = {
     if (E.state !== 'home') return 'out already';
     if (!this.on) return 'escapes are switched off';
     if (!force && this.out.length >= CAP_OUT) return 'the cap: ' + CAP_OUT + ' out at once';
+    if (E.spec.may && E.spec.may(E, this.k) !== true) return 'not yet: ' + E.spec.name + ' may not go';      // (never forced: the monkey on its lead is a clue)
     const a = E.art;
     E.state = 'out'; E.x = a.x + a.nx * 0.55; E.z = a.z + a.nz * 0.55; E.room = a.room; E.yaw = Math.atan2(a.nx, a.nz); E.v = 0; E.t = 0; E.outT = 0; E.lit = 0; E.by = null; E.led = 0; E.pn = 0; E.rest = 1.6; E.gone = 0; E.going = null; E.emerge = 0; E.grid = null; E.armed = false; E.watch = 0;
     this._flutter(E, true); this.dirty = true;
@@ -158,12 +196,19 @@ const F = {
     if (far) pts.push(new THREE.Vector3(E.x + Math.sin(E.yaw) * 3.2, E.y + 0.014, E.z + Math.cos(E.yaw) * 3.2));      // (no way over this floor: the strokes run out and are gone)
     else { pts.push(foot); pts.push(new THREE.Vector3(foot.x, a.y - a.h / 2 - (a.frame || 0.08) - 0.05, foot.z)); }
     const len = [0]; for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + pts[i].distanceTo(pts[i - 1]));
-    const total = len[len.length - 1], R = E.rand, pal = E.pal, hexes = E.spec.colors || [];
+    const total = len[len.length - 1], R = E.rand, pal = E.pal, hexes = E.spec.colors || [], hues = E.hues && E.hues.length ? E.hues : null;
+    // What it comes apart into: its painter's own strokes (spec.mark: whose hand, and no bigger than the strokes on its
+    // body), in the colours of the body itself, of what it was painted with, and of its picture. Each is born on the
+    // thing, where a stroke of it was, and runs off it onto the floor.
+    const mk = E.spec.mark || {}, mw = mk.w || [0.03, 0.05], ml = mk.long || [1.2, 1.8], jit = mk.jit == null ? 0.8 : mk.jit;
+    const parts = (!calm && E.spec.parts && E.spec.parts(E)) || [{ x: E.x, y: E.y + (E.spec.height || 0.4) * 0.5, z: E.z, r: Math.min(E.spec.radius || 0.4, E.spec.height || 0.4) * 0.45 }];
     const strokes = Array.from({ length: calm ? 0 : STROKES }, (_, i) => {
-      const c = new THREE.Color(); if (i % 3 === 2 && pal) c.set(pal.hex[(happy ? 4 : 1) + Math.floor(R() * (happy ? 4 : 6))]); else c.set(hexes[Math.floor(R() * hexes.length)] || '#bbb');
-      if (happy) c.lerp(_col.set(0xfff0c8), 0.22); c.multiplyScalar(0.92);
-      const ang = R() * TAU, rad = Math.sqrt(R()) * (E.spec.radius || 0.4) * 0.8;
-      return { d: R() * 2.0, off: (R() - 0.5) * 0.6, sx: Math.cos(ang) * rad, sz: Math.sin(ang) * rad, h0: R() * (E.spec.height || 0.3), c, w: (0.085 + R() * 0.09) * (E.spec.stroke || 1), l: (E.spec.strokeLong || 2.6) * (0.7 + R() * 0.7), ph: R() * TAU, k: 0.8 + R() * 0.35 };
+      const c = new THREE.Color(), q = R();
+      if (hues && q < 0.62) c.copy(hues[Math.floor(R() * hues.length)]); else if (pal && q > 0.84) c.set(pal.hex[1 + Math.floor(R() * 6)]); else c.set(hexes[Math.floor(R() * hexes.length)] || '#bbb');
+      if (happy) c.lerp(_col.set(0xfff0c8), 0.1); c.multiplyScalar(0.8);
+      const P0 = parts[i % parts.length], th = R() * TAU, ny = Math.min(1, R() * 1.6 - 0.6), sq = Math.sqrt(1 - ny * ny), nx = Math.cos(th) * sq, nz = Math.sin(th) * sq, ry = P0.ry || P0.r;
+      return { d: R() * 1.3, off: (R() - 0.5) * 0.36, bx: P0.x + nx * P0.r, by: Math.max(E.y + 0.02, P0.y + ny * ry), bz: P0.z + nz * P0.r, nx, ny, nz, c, cell: mk.cell || 0,
+        w: mw[0] + R() * (mw[1] - mw[0]), l: ml[0] + R() * (ml[1] - ml[0]), ang: (mk.turn || 0) + (R() - 0.5) * 2 * jit, ph: R() * TAU, k: 0.8 + R() * 0.35, ly: (i % 16) * 0.0005, fall: 0.5 + 0.4 * R() };
     });
     const flow = calm ? 3.2 : Math.max(happy ? 1.8 : 2.8, Math.min(7, total / 2.6));
     E.going = { t: 0, T: calm ? flow + 1 : flow * 1.15 + 2.1, flow, pts, len, total, strokes, happy, calm, how, b, far, wallFrom: far ? 1e9 : len[len.length - 2] };
@@ -257,7 +302,7 @@ const F = {
         for (const m of [].concat(o.material || [])) { protectArt(m, key, { soft: m.transparent ? 0.08 : 0.05 }); if (m.userData.u && m.userData.u.uGone && !m.userData.helper) E.mats.push(m); }
         o.frustumCulled = false; if (o.isMesh) { const was = o.onBeforeRender; o.onBeforeRender = (r, s, c, ...rest) => { this._px(key, r); was.call(o, r, s, c, ...rest); }; }
       });
-      E.group = g; E.key = key; k.group.add(g); E.body = true;
+      E.hues = hues(g); E.group = g; E.key = key; k.group.add(g); E.body = true;
     } catch (e) { console.error('escapes: ' + E.spec.name + ': ' + (e && e.stack || e)); E.body = 'broken'; }
   },
   _drop(E) { if (E.group) { E.group.removeFromParent(); dispose(E.group); } E.group = null; E.key = null; E.mats = null; E.build = null; if (E.body !== 'broken') E.body = null; },
@@ -329,7 +374,7 @@ const F = {
     const G = k.G, t0 = performance.now(), on = G.set.escapes !== false;
     if (on !== this.on) { this.on = on; if (!on) for (const E of this.out) this._arrive(E, 'now'); }
     if (this._box && this._box.checked !== on) this._box.checked = on;
-    if (!on) { this.marks.begin(dt); this.marks.end(); return; }
+    if (!on) { this.marks.begin(dt); this.marks.end(); this.shade.begin(); this.shade.end(); return; }
     const p = G.vehicle.pos, eye = G.camera.position, play = G.state === 'play'; this._front.length = 0;
     // (a sheepdog works by moving: a toy that is parked herds nothing, and nothing loose comes up to it)
     if (this.px != null && Math.hypot(p.x - this.px, p.z - this.pz) > 0.4 * dt) this.still = 0; else this.still = (this.still || 0) + dt; this.px = p.x; this.pz = p.z;
@@ -351,11 +396,12 @@ const F = {
       if (want) { E.n = Math.min(E.spec.count || 1, room); room -= E.n; if (!E.body) this._embody(E); }
       else if (E.body === true || E.body === 'pending') { if (E.state === 'going') this._arrive(E, E.going.how, E.going.b); else this._drop(E); }
     }
-    this.marks.begin(dt);
+    this.marks.begin(dt); this.shade.begin();
     const sacred = QUIET.has(G.roomId);
     for (const E of out) {
       if (E.state === 'home') continue;
       E.t += dt; E.outT += dt;
+      if (E.spec.may && E.state === 'out' && (E.mayT = (E.mayT || 0) - dt) <= 0) { E.mayT = 0.5; if (E.spec.may(E, k) !== true) { this._arrive(E, 'now'); continue; } }      // (it may not be out: it is home, at once)
       if (E.body !== true) { this._slow(E, dt); continue; }
       E.emerge = Math.min(1, E.emerge + dt / 1.3);
       if (E.state === 'going') this._going(E, dt, k);
@@ -384,7 +430,7 @@ const F = {
         if ((E.roomT = (E.roomT || 0) - dt) <= 0) { E.roomT = 0.25; const gg = this._grid(E); E.clear = gg ? clearAt(gg, E.x, E.z) : 1; const r = roomAt(k.plan, E.x, E.z, E.y + 0.5); if (r && r.id !== E.room && !QUIET.has(r.id)) { E.room = r.id; this.dirty = true; } }
         // what it leaves behind it, and its small sound
         if (E.v > 0.05 && E.spec.trail) { E.trailD += E.v * dt; const tr = E.spec.trail(E); if (tr && E.trailD > (tr.every || 0.3)) { E.trailD = 0; const a = E.yaw + (tr.turn || 0), s = tr.side ? (E.side = -(E.side || 1)) * tr.side : 0;
-          this.marks.keep({ x: E.x + Math.cos(E.yaw) * s + (tr.dx || 0), y: E.y + 0.012 + Math.random() * 0.003, z: E.z - Math.sin(E.yaw) * s + (tr.dz || 0), nx: 0, ny: 1, nz: 0, tx: Math.sin(a), ty: 0, tz: Math.cos(a), w: tr.size, h: tr.size * (tr.long || 1.4), color: new THREE.Color(tr.color).multiplyScalar(0.85), life: tr.life || 14 }); } }
+          this.marks.keep({ x: E.x + Math.cos(E.yaw) * s + (tr.dx || 0), y: E.y + 0.012 + Math.random() * 0.003, z: E.z - Math.sin(E.yaw) * s + (tr.dz || 0), nx: 0, ny: 1, nz: 0, tx: Math.sin(a), ty: 0, tz: Math.cos(a), w: tr.size, h: tr.size * (tr.long || 1.4), color: new THREE.Color(tr.color).multiplyScalar(0.8), cell: tr.cell || 0, life: tr.life || 14 }); } }
         if ((E.voiceT -= dt) <= 0) { E.voiceT = 2.5 + Math.random() * 4; const vol = this._vol(E); if (vol > 0.02 && E.spec.voice && play) E.spec.voice(E, k, vol); }
       }
       // Its body, where it is; and its guard, for this eye.
@@ -393,9 +439,12 @@ const F = {
       for (const m of E.mats) m.userData.u.uGone.value = E.gone;
       E.marks = this.marks; E.calm = !!(k.museum.calm || G.set.reduce);
       try { E.spec.pose(E, dt, k); } catch (e) { console.error('escapes: ' + E.spec.name + ': ' + (e && e.stack || e)); this._arrive(E, 'now'); E.body = 'broken'; continue; }
+      // what the lamp throws behind it
+      const lb = E.lit > 0.02 ? E.by || (E.going && E.going.b) : null;
+      if (lb && lb.fy != null && Math.abs(lb.fy - E.y) < 0.5) { const sk = Math.min(1, E.lit * 1.4) * (1 - E.gone) * 0.5, ps = (E.spec.parts && E.spec.parts(E)) || null; if (ps) for (const q of ps) this.shade.put(q.x, q.y, q.z, q.sr || q.r, q.ry || q.r, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); else { const hh = (E.spec.height || 0.4) * 0.5, rr = Math.min(E.spec.radius || 0.4, hh); this.shade.put(E.x, E.y + hh, E.z, rr, hh, E.y, lb.x, lb.fy + LAMP_H, lb.z, sk); } }
       this._watch(E.key, this._arts(E.room === G.roomId || !G.roomId ? [E.room] : [E.room, G.roomId]), eye, E.x, E.y + (E.spec.height || 0.4) / 2, E.z, E.spec.radius || 0.6, E.y);
     }
-    this.marks.end();
+    this.marks.end(); this.shade.end();
     this._watchMarks(eye);
     if (this.dirty && (this.saveT = (this.saveT || 0) + dt) > 2) { this.saveT = 0; this.dirty = false; this._save(); }
     this.ms = this.ms * 0.95 + (performance.now() - t0) * 0.05;
@@ -420,19 +469,28 @@ const F = {
   // floor and up under its frame, and it is home. Reduced motion: it fades where it is.
   _going(E, dt, k) {
     const Q = E.going; Q.t += dt; E.v = 0;
-    E.gone = Q.calm ? smooth(Q.t / (Q.T - 0.3)) : smooth(Q.t / 1.0);
-    const P = Q.pts, n = P.length, wall = E.art;
+    E.gone = Q.calm ? smooth(Q.t / (Q.T - 0.3)) : smooth(Q.t / 1.5);
+    const P = Q.pts, n = P.length, wall = E.art, HOLD = 0.22;
     for (const s of Q.strokes) {
-      const u = (Q.t - s.d) / (Q.flow * s.k); if (u <= 0) continue; if (u >= 1) continue;
+      const age = Q.t - s.d; if (age <= 0) continue;
+      const u = Math.max(0, age - HOLD) / (Q.flow * s.k); if (u >= 1) continue;
       const dist = (0.45 * u + 0.55 * smooth(u)) * Q.total; let i = 1; while (i < n - 1 && Q.len[i] < dist) i++;
       const f = (dist - Q.len[i - 1]) / Math.max(1e-4, Q.len[i] - Q.len[i - 1]); _v.lerpVectors(P[i - 1], P[i], f);
       _b.subVectors(P[i], P[i - 1]).normalize();      // the way it is going
-      const up = !Q.far && dist > Q.wallFrom, born = clamp01((Q.t - s.d) / 0.5), size = Math.min(1, u / 0.06) * Math.min(1, (1 - u) / 0.08);
-      const spread = (1 - smooth(u * 3)), wob = Math.sin(u * 14 + s.ph) * 0.05;
-      if (up) { _a.set(wall.nx, 0, wall.nz); _c.set(wall.nz, 0, -wall.nx); _v.addScaledVector(_c, (s.off * 0.6 + wob)).addScaledVector(_a, 0.004); }
-      else { _a.copy(UP); _c.set(_b.z, 0, -_b.x); _v.addScaledVector(_c, s.off * (0.5 + 0.5 * smooth(u * 4)) + wob); _v.x += s.sx * spread; _v.z += s.sz * spread; _v.y += s.h0 * (1 - smooth(born)) + (Q.happy ? Math.abs(Math.sin(u * 20 + s.ph)) * 0.05 * (1 - u) : 0); }
+      const up = !Q.far && dist > Q.wallFrom, size = Math.min(1, age / 0.15) * Math.min(1, (1 - u) / 0.08), wob = Math.sin(u * 14 + s.ph) * 0.03;
+      if (up) { _a.set(wall.nx, 0, wall.nz); _c.set(wall.nz, 0, -wall.nx); _v.addScaledVector(_c, s.off * 0.7 + wob).addScaledVector(_a, 0.004 + s.ly); }
+      else {
+        _a.copy(UP); _c.set(_b.z, 0, -_b.x); const sp = 1 - smooth(u * 3);
+        _v.addScaledVector(_c, s.off * (0.4 + 0.6 * smooth(u * 4)) + wob); _v.x += (s.bx - P[0].x) * sp; _v.z += (s.bz - P[0].z) * sp;
+        _v.y += s.ly + (Q.happy ? Math.abs(Math.sin(u * 20 + s.ph)) * 0.03 * (1 - u) : 0);
+        // (off the thing itself: it lies on it where a stroke of it was, then runs down to the floor)
+        const e = (age - HOLD) / s.fall;
+        if (e < 1) { const q = e <= 0 ? 0 : e, h = smooth(q); _v.x = s.bx + (_v.x - s.bx) * h; _v.z = s.bz + (_v.z - s.bz) * h; _v.y = s.by + (_v.y - s.by) * q * q; _a.set(s.nx, s.ny, s.nz).lerp(UP, h); if (_a.lengthSq() < 0.03) _a.copy(UP); else _a.normalize(); }
+      }
       if (_v.y > wall.y - wall.h / 2 - 0.04 && Math.hypot(_v.x - wall.x, _v.z - wall.z) < wall.w) continue;      // (belt and braces: never as high as the picture)
-      this.marks.put(_v, _a, _b, s.w * size * (Q.happy ? 1.15 : 1), s.w * s.l * size, s.c);
+      // its long way: along the way it is going, turned as that painter turns his hand
+      _d.copy(_b).multiplyScalar(Math.cos(s.ang)).addScaledVector(_c, Math.sin(s.ang)); _d.addScaledVector(_a, -_d.dot(_a)); if (_d.lengthSq() < 1e-4) _d.copy(_c).addScaledVector(_a, -_c.dot(_a)); _d.normalize();
+      this.marks.put(_v, _a, _d, s.w * size, s.w * s.l * size, s.c, s.cell);
     }
     // (a helper that came out after it may have its own way home to make first: Goya's boy on his ram)
     if (Q.t >= Q.T) { if (E.spec.linger && (Q.over = (Q.over || 0) + dt) < 40 && E.spec.linger(E, dt, k) === true) return; this._arrive(E, Q.how, Q.b); }
@@ -571,7 +629,7 @@ const F = {
     };
     const rt = new THREE.WebGLRenderTarget(W, H), mask = new Uint8Array(W * H * 4), buf = new Uint8Array(W * H * 4);
     const prevRT = r.getRenderTarget(), cc = r.getClearColor(new THREE.Color()), ca = r.getClearAlpha(), auto = r.autoClear;
-    const keys = [E.key, this.key], objs = [E.group, this.marks.mesh]; let scene = k.group; while (scene.parent) scene = scene.parent;
+    const keys = [E.key, this.key], objs = [E.group, this.marks.mesh, this.shade.mesh]; let scene = k.group; while (scene.parent) scene = scene.parent;
     // (what is not solid to the eye is left out of the depth: glass, water, light)
     const hid = [], walk = o => { if (!o.visible) return; const m = o.material; if (o === k.group || o.isSprite || o.isPoints || o.isLine || (m && [].concat(m).some(q => q.transparent || q.opacity < 1 || q.depthWrite === false))) { o.visible = false; hid.push(o); return; } for (const c of o.children) walk(c); }; walk(scene);
     const world = () => { const was = scene.overrideMaterial, bg = scene.background; scene.overrideMaterial = white; scene.background = null; r.autoClear = true; r.render(scene, cam0); scene.overrideMaterial = was; scene.background = bg; r.autoClear = false; };
@@ -604,6 +662,23 @@ const F = {
 feature(F);
 
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const LAMP_H = 1.08;      // a robot's lamp above its floor (src/guardplan.js's BOT.emitter)
+// The colours a body is painted in, for the strokes it comes apart into: read off its own vertices (the dabs laid on
+// it first, if it has them; a helper's are not its own). Linear, as they are drawn.
+function hues(group, max = 160) {
+  const dab = [], all = [], own = atlas();
+  group.traverse(o => {
+    const g = o.geometry, m = o.material; if (!o.isMesh || !g || !g.attributes.color || !m || Array.isArray(m) || !m.vertexColors || m.userData.helper) return;
+    const c = g.attributes.color, uv = g.attributes.uv, n = c.count, step = Math.max(3, Math.floor(n / 1200) * 3);
+    for (let i = 0; i < n; i += step) {
+      const r = c.getX(i), gg = c.getY(i), b = c.getZ(i); if (r + gg + b < 0.012) continue;
+      const q = new THREE.Color(r, gg, b); all.push(q); if (m.map === own && uv && Math.floor(uv.getX(i) * CELLS) !== CELL.solid) dab.push(q);
+    }
+  });
+  const from = dab.length >= 12 ? dab : all, out = []; if (!from.length) return out;
+  for (let i = 0; i < max; i++) out.push(from[Math.floor((i + 0.5) / max * from.length)]);
+  return out;
+}
 function dispose(g) { g.traverse(o => { if (o.geometry) o.geometry.dispose(); for (const m of [].concat(o.material || [])) { for (const key in m) { const x = m[key]; if (x && x.isTexture && x.userData && x.userData.own) x.dispose(); } m.dispose(); } if (o.isBatchedMesh && o.dispose) o.dispose(); }); }
 function count(g) { let n = 0; g.traverse(o => { if (o.isMesh && o.visible) n++; }); return n; }
 function tris(g) { let n = 0; g.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) n += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); }); return Math.round(n); }
