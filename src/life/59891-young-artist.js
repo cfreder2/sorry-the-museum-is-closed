@@ -653,9 +653,10 @@ float gA;`)
   },
   // The way back, R of the way through it: the pen up under the frame, the rest let go, the sheet rolled up the wall.
   goBack(R) {
-    const Q = this.Q, F = this.F, V = this.V, k = ease.inOut(ramp(R, 0, 0.6)), go = 1 - ramp(R, 0.04, 0.36);
-    V.a.copy(Q.p).addScaledVector(Q.d, LEN * Q.sc / 2); V.a.lerp(this.eMid, k); V.a.y += 0.06 * Math.sin(PI * k);
-    Q.sc = lerp(Q.sc, 0.3, k); Q.d.lerp(V.b.set(0.99, 0.12, 0.04), k).normalize(); Q.p.copy(V.a).addScaledVector(Q.d, -LEN * Q.sc / 2);
+    // (the pen is laid flat to the wall first and only then goes up it, so that from the floor it never crosses the picture)
+    const Q = this.Q, F = this.F, V = this.V, k = ease.inOut(ramp(R, 0, 0.6)), kw = ease.out(ramp(R, 0, 0.3)), go = 1 - ramp(R, 0.04, 0.36), e = this.eMid;
+    V.a.copy(Q.p).addScaledVector(Q.d, LEN * Q.sc / 2); V.a.set(lerp(V.a.x, e.x, k), lerp(V.a.y, e.y - 0.05, k) + 0.04 * Math.sin(PI * k), lerp(V.a.z, e.z, kw));
+    Q.sc = lerp(Q.sc, 0.3, ease.inOut(ramp(R, 0, 0.42))); Q.d.lerp(V.b.set(0.99, 0.12, 0.04), kw).normalize(); Q.p.copy(V.a).addScaledVector(Q.d, -LEN * Q.sc / 2);
     F[1] *= 1 - ramp(R, 0.46, 0.6);
     for (const i of [2, 3, 4, 5, 6, 7, 8]) F[i] *= go;
     for (const c of this.u.uCs.value) c.w *= go;
