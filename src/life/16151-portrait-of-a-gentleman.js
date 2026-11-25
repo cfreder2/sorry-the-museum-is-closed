@@ -244,8 +244,8 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
     within(Wg, () => {
       soft(118, 120, 60, [250, 248, 238], 0.5, 0.4, 1.8); soft(96, 250, 46, mix(WHITE_S, HOLE, 0.3), 0.5);
       // the flight feathers, fanned from the leading edge back and down
-      for (let i = 0; i < 15; i++) { const k = i / 14, y0 = lerp_(18, 236, k), x0 = 122 + 8 * Math.sin(k * PI_); curve([x0, y0], [x0 - 30, y0 + 14], [x0 - 66, y0 + 44 - 20 * k], 1.3, mix(WHITE_S, HOLE, 0.15), 0.5); }
-      for (let i = 0; i < 7; i++) { const k = i / 6, y0 = lerp_(60, 230, k); curve([124, y0], [108, y0 + 8], [92, y0 + 22], 1, WHITE_S, 0.4); }
+      for (let i = 0; i < 9; i++) { const k = i / 8, y0 = lerp_(22, 232, k) + jit(6), x0 = 122 + 8 * Math.sin(k * PI_); curve([x0, y0], [x0 - 30, y0 + 14], [x0 - 66, y0 + 44 - 20 * k], 1.8, WHITE_S, 0.24); }
+      for (let i = 0; i < 7; i++) { const k = i / 6, y0 = lerp_(60, 230, k); curve([124, y0], [108, y0 + 8], [92, y0 + 22], 1.2, WHITE_S, 0.2); }
     });
     for (let i = 0; i < 4; i++) stroke([[104 + i * 3, 10 + i * 5], [96 + i * 2, 34 + i * 8]], 1.6, mix(WHITE_S, HOLE, 0.3), 0.6);
   });
@@ -438,7 +438,7 @@ function paintView(gA, K, col, R, CELL, gB, LAND, GUT) {
     for (let i = 0; i < 38; i++) { const x = 612 + R() * 96, y = 1562 + jit(8), tp = 26 + R() * 44; curve([x, y], [x + jit(4), y - tp * 0.6], [x + jit(16), y - tp], 1.1 + 0.5 * R(), pick([GRASS_L, GRASS_G, GRASS_M, LEAF_L]), 0.85); }
     for (let i = 0; i < 46; i++) { const x = -20 + R() * 330, y = 1560 + R() * 150; stroke([[x, y + 12], [x + jit(4), y]], 1, GRASS_L, 0.8); oval(x + jit(2), y - 1, 2, 2, 0, mix(WHITE, GRASS_G, 0.45), 0.8); if (R() < 0.5) oval(x + 5 + jit(2), y + 3, 1.6, 1.6, 0, mix(WHITE, GRASS_G, 0.55), 0.7); }
     // the bush, leaf by leaf, its upper left side lit
-    fill([[738, 1560], [742, 1410], [772, 1318], [840, 1288], [900, 1302], [962, 1332], [1070, 1338], [1070, 1764], [738, 1764]], mix(LEAF_D, HOLE, 0.3));
+    g.filter = `blur(${8 * K}px)`; fill([[752, 1580], [760, 1440], [790, 1340], [846, 1300], [900, 1306], [962, 1332], [1070, 1338], [1070, 1764], [752, 1764]], mix(LEAF_D, HOLE, 0.3)); g.filter = 'none';
     const bush = (cx, cy, r, n) => { for (let i = 0; i < n; i++) { const a = R() * TAU, rr = Math.sqrt(R()) * r, x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 0.9, lit = clamp_(0.45 - (Math.cos(a) * 0.5 + Math.sin(a) * 0.8) * rr / r); oval(x, y, 3.4 + R() * 3.4, 1.8 + R() * 1.6, jit(1.6), lit > 0.62 ? mix(LEAF_M, LEAF_L, (lit - 0.5) * 1.5 * R()) : mix(LEAF_D, LEAF_M, R() * 0.7), 0.9); } };
     for (const [cx, cy, r, n] of [[1010, 1420, 90, 380], [930, 1380, 70, 340], [820, 1350, 66, 400], [900, 1500, 80, 380], [800, 1460, 70, 460], [960, 1620, 100, 380], [850, 1570, 80, 480], [790, 1660, 70, 380]]) bush(cx, cy, r, n);
     // a pale bent stem in front of it
@@ -539,6 +539,7 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
   vec4 a = uSA[i], mm = uSM[i], c = uSC[i];
   vec2 d = Pw + D * a.z - a.xy, l = vec2(dot(mm.xy, d), dot(mm.zw, d)) + uSP[i];
   float k = a.w * step(0.5, l.x) * step(l.x, c.z - 0.5) * step(0.5, l.y) * step(l.y, c.w - 0.5);
+  if (k <= 0.0) return vec4(0.0);                                 // (most points of the opening have no piece over them: do not read the sheet for nothing)
   vec2 uv = (c.xy + clamp(l, vec2(0.5), c.zw - 0.5)) / vec2(${f(AW)}, ${f(AH)});
   return texture2D(map, vec2(uv.x, 1.0 - uv.y)) * k;
 }`).replace('#include <map_fragment>', `
@@ -580,7 +581,7 @@ vec4 gvPiece(int i, vec2 Pw, vec2 D) {
   }
   diffuseColor *= lifeK;`);
     };
-    m.customProgramCacheKey = () => 'ghirlandaio-window-3';
+    m.customProgramCacheKey = () => 'ghirlandaio-window-5';
     const mesh = this.mesh = new THREE.Mesh(geo, m);
     mesh.matrixAutoUpdate = false; mesh.matrix.copy(this.B); mesh.matrixWorldNeedsUpdate = true; mesh.renderOrder = 6; mesh.visible = false; mesh.frustumCulled = false;
     L.add(mesh);
