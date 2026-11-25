@@ -246,7 +246,7 @@ function wallParts(solid, glowing, w, H, rnd) {
 // ---------------------------------------------------------------- putting a room together
 // rooms: [{ desk: { x, y, z, fx, fz } | null, wall: { x, y, z, fx, fz, w } | null, H }]. Returns what src/secdesk.js needs to keep it
 // alive: { group, uniforms, live: { canvas, ctx, tex }, clocks(text), lit(k), show(on) }.
-export function dressRooms(rooms, { cam17 = 'Gallery 240', clock = '02:10:00', seed = 7 } = {}) {
+export function dressRooms(rooms, { cam17 = 'Bridge galleries, west', clock = '02:10:00', seed = 7 } = {}) {
   let s = seed >>> 0; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
   const atlas = document.createElement('canvas'); atlas.width = AW; atlas.height = AH; const ac = atlas.getContext('2d');
   paintAtlas(ac, cam17, clock);

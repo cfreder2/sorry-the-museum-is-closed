@@ -1287,6 +1287,11 @@ function addStunts(plan) {
       // Only where the whole jump stands on one room's floor: a line that runs along a wall, or through one, gets none.
       const within = plan.rooms.find(r => Math.abs(r.y - lineY) < 0.1 && F.cx > r.x0 && F.cx < r.x1 && F.cz > r.z0 && F.cz < r.z1), half = 1.5;
       if (!within || (F.ax === 'z' ? F.cx - half < within.x0 || F.cx + half > within.x1 || F.cz - 3 < within.z0 || F.cz + 3 > within.z1 : F.cz - half < within.z0 || F.cz + half > within.z1 || F.cx - 3 < within.x0 || F.cx + 3 > within.x1)) continue;
+      // And only where it leaves the walls beside it to their pictures: 2.5 m of clear floor each side, the strip in front of a
+      // wall where a picture would be hung higher to clear it (see clearance). A gallery narrower than that gets no jump: in
+      // G217 (5.6 m across) it stood 1.6 m from both walls, and every show on them had to stay small to keep off it.
+      const side = F.ax === 'z' ? Math.min(F.cx - within.x0, within.x1 - F.cx) : Math.min(F.cz - within.z0, within.z1 - F.cz);
+      if (side - 1.2 < 2.5) continue;
       const i0 = S.length;
       tabletop(F, 0, 0, 0.42, 2.4, 1.6, 0.5);
       for (let j = i0; j < S.length; j++) S[j].line = true;      // these stay when the race is on

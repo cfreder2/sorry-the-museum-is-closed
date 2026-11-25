@@ -17,6 +17,10 @@ flowers; for anything flat and patterned on the floor).
 
 ## What it is
 
+> **Decided 2026-11-24: there is no blaster.** The owner dropped the weapon described in this section and in "In the
+> game" below. A work wakes by being looked at (the LOOK trigger, as built). What gets loose afterwards, and how the
+> security robots send it home with light, is in `docs/ESCAPES.md`. Read every "blast" below as "look".
+
 An alien blaster, given to the player by the probe at the end of the UFO chase, wakes a work up. Blast a work and
 what is in it comes out into the room for a few seconds: the Seurat's strollers step down and waltz on the floor; birds
 leave a landscape and circle the gallery; a still life's fruit rolls across the floorboards. The work itself never
