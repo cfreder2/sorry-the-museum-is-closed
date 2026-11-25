@@ -512,7 +512,7 @@ ${segs.map(([a, b, h]) => `  s = max(s, ${f3(0.66 / (1 + 22 * h))} * smoothstep(
 
     // ------------------------------------------------------------ the dark of his curtain, low on the wall, and the shade on the boards
     const soft = [];
-    const R = L.room; let left = 1.9, right = 2.3, deep = 3.2;
+    const R = L.room; let left = 0.9, right = 2.0, deep = 2.4;      // (no wider than the pool of dark is: every pixel of it is checked against every picture in the room)
     if (R) {
       const a = Math.abs(L.tx) > 0.5 ? [(R.x0 - L.cx) * L.tx, (R.x1 - L.cx) * L.tx] : [(R.z0 - L.cz) * L.tz, (R.z1 - L.cz) * L.tz];
       left = Math.min(left, -Math.min(a[0], a[1]) - 0.08); right = Math.min(right, Math.max(a[0], a[1]) - 0.08);
@@ -618,7 +618,7 @@ vec3 gCol; float gA;`)
       if (a > 0) {
         const n = Math.floor(a / PERIOD), b = a - n * PERIOD, k = calm ? 0.5 : 1;
         const rock = Math.sin(PI * ramp(b, ROCK[0], ROCK[1])), sway = ease.smooth(rock);
-        V.q.setFromEuler(V.e.set(0.02 * Math.sin(a * 1.1) - 0.1 * k * sway, 0.025 * Math.sin(a * 0.8) - 0.42 * k * sway, 0.012 * Math.sin(a * 0.67), 'YXZ'));
+        V.q.setFromEuler(V.e.set(0.02 * Math.sin(a * 1.1) - 0.1 * k * sway, 0.025 * Math.sin(a * 0.8) - 0.42 * k * sway, 0.012 * Math.sin(a * 0.67) + (calm ? 0 : 0.05 * Math.exp(-5 * a) * Math.sin(13 * a)), 'YXZ'));      // (and as it arrives it is steadied, as a hand steadies a thing)
         ps.q.multiply(V.q); ps.p.y += 0.005 * Math.sin(a * 1.3);
       }
     }
