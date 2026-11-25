@@ -8,7 +8,7 @@ import { VFS, FILES, HOME, LOCKED, checkPassword } from '../src/secfiles.js';
 import { Term, EXPECTED } from '../src/secterm.js';
 
 const kept = new Map(), log = [];
-const env = { desk: 1, clock: '02:41', cam17: 'Gallery 240', best: 420, bots: [{ id: 'BOT-00', level: '2', beat: '231-233 > 234e > 234' }], clearance: false };
+const env = { desk: 1, clock: '02:41', cam17: 'Bridge galleries, west', best: 420, bots: [{ id: 'BOT-00', level: '2', beat: '231-233 > 234e > 234' }], clearance: false };
 const fs = new VFS({ store: { get: p => kept.get(p), set: (p, t) => kept.set(p, t) }, env: () => env });
 let sys = null;
 const T = new Term(fs, {
@@ -48,7 +48,7 @@ await run('..'); assert.equal(T.cwd, '/home'); await run('nightshift'); assert.e
 // reading
 has(await run('cat handover.txt'), /sticky notes/); has(await run('type handover'), /HANDOVER/); has(await run('more /README.txt'), /SECDESK-01/);
 has(await run('cat mail'), /that is a folder/); has(await run('cat nope.txt'), /no such file/); has(await run('cat'), /which file/);
-has(await run('cat rota.txt'), /BOT-00\s+2\s+231-233/); has(await run('cat /cameras/camlist.txt'), /17 Gallery 240\s+NO SIGNAL/);
+has(await run('cat rota.txt'), /BOT-00\s+2\s+231-233/); has(await run('cat /cameras/camlist.txt'), /17 Bridge galleries, west\s+NO SIGNAL/);
 has(await run('cat .donut_scores'), /best: 420/);
 has(await run('handover.txt'), /Reading it/);
 

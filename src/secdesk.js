@@ -28,6 +28,8 @@ import { feature } from './features.js';
 import { story } from './story.js';
 import { MOTIF, hz } from './motif.js';
 import { VFS, HALVES } from './secfiles.js';
+
+const CAM17 = { G240: 'Bridge galleries, west' };      // Gallery 240 is at the west end of the galleries that bridge the railway
 import { Term } from './secterm.js';
 import { Tracker } from './tracker.js';
 import { arenaFrom, Arena, LastDonut, Tune } from './donut.js';
@@ -165,7 +167,10 @@ feature({
     addEventListener('keydown', this._onKey, true); addEventListener('keyup', this._onKeyUp, true);
   },
   _keep() { try { localStorage.setItem(KEY, JSON.stringify(this.save)); } catch { /* fine */ } },
-  _cam17() { const s = this.k.plan.secret; return (s && s.gallery) || 'Gallery 240'; },
+  // Where CAM 17 was, as the camera list names places (an area, not a room): a hint at the passage, never its address. The
+  // whiteboard and the picture are the clue; a file that said "Gallery 240" would give the secret away. One entry per site
+  // in tools/build_layout.mjs (section 8).
+  _cam17() { const s = this.k.plan.secret; return (s && CAM17[s.room]) || 'Bridge galleries, west'; },
   // The night's own clock: it was seven minutes past two when you came in.
   clock(secs) { const G = this.k.G, s = Math.max(0, Math.floor(2 * 3600 + 7 * 60 + (G.t || 0) - (G.startedAt || 0))), c = Math.min(s, 5 * 3600 + 59 * 60 + 59), p = n => String(n).padStart(2, '0'); return `${p(Math.floor(c / 3600))}:${p(Math.floor(c / 60) % 60)}${secs ? ':' + p(c % 60) : ''}`; },
 
