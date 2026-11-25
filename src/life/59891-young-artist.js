@@ -48,13 +48,13 @@ const KEY = 0.5;                                    // (the game's film curve li
 const XS0 = -0.36, XS1 = 0.24, SW = XS1 - XS0, LS = 1.0, LF = 0.09, WOUND = 0.36, S_END = LS + LF, S_TOT = S_END + WOUND, U0 = 0.09;
 const G0 = 0.15, GP = 8.0;                          // how it leans at the top, how late it bends out to the floor
 const RIN = 0.011, PITCH = 0.008;                   // the roll: its innermost turn, how much each turn adds
-const TW = 640, TH = 960, TMAX = 96;                // the drawing: its texture, and the longest its clock runs
+const TW = 640, TH = 960, TMAX = 128;               // the drawing: its texture, and the longest its clock runs
 const XD0 = XS0 + 0.04, DW = SW - 0.08, SD0 = 0.07, DH = DW * TH / TW;      // where on the sheet it is drawn (tall and narrow, as his window is)
-const LEN = 1.0, NIBL = 0.09, QS = 0.86;            // the quill: its length as made, how much of it is cut; how large it is shown
+const LEN = 1.0, NIBL = 0.09, QS = 0.82;            // the quill: its length as made, how much of it is cut; how large it is shown
 const BLD = 0.17, KS = 1.15;                        // the knife's blade; how much larger than it is made the knife is shown
 const RHO = 0.04, CW = 0.026;                       // a shaving: its curl, its width
 // his ink box (larger than made, too): where it lies, its bossed end turned to the light as he has it; its stopper, by that end
-const PS = 1.3, PX = -0.86, PZ = 0.38, POT_YAW = 0.9, STX = -0.72, STZ = 0.57;
+const PS = 1.3, PX = -0.86, PZ = 0.38, POT_YAW = 0.9, STX = -0.70, STZ = 0.575;
 const BH = 0.04, BL = 0.09, MZ = -0.05, INK_Y = 0.094;      // the box: half its section, half its length; where along it its mouth is, how high the ink stands
 const MOUTH = new THREE.Vector3(PX + PS * MZ * Math.sin(POT_YAW), INK_Y * PS, PZ + PS * MZ * Math.cos(POT_YAW)), POT_AX = new THREE.Vector3(Math.sin(POT_YAW), 0, Math.cos(POT_YAW));
 const CN = new THREE.Vector3(-0.58, 0.66, 0.60);    // where the pen's point is held to be cut
@@ -65,7 +65,7 @@ const T_FALL = [0.15, 1.25], T_POT = [0.5, 1.0], T_KIN = [0.9, 1.6], T_P1 = [1.7
 const FIRST = [0.62, 0.38, 0.45], DIP = [0.5, 0.4, 0.5], CAP = 4.4;      // to the pot, in it, to the sheet; how far a penful goes (metres of line)
 let TOLD = false;                                   // (the game says what happens once, the first time)
 const K_PAPER = 0, K_QUILL = 1, K_KNIFE = 2, K_POT = 3, K_STOP = 4, K_CURL = 5, K_INK = 6, NP = 9;
-const GK = 0.84;                                    // (how fast the line under which nothing crosses his picture, seen from the floor, falls with the way out from the wall)
+const GK = 1.07;                                    // (how fast the line under which nothing crosses his picture, seen from the floor, falls with the way out from the wall)
 const hump = (t, a, b) => (t <= a || t >= b ? 0 : Math.sin(PI * (t - a) / (b - a)));
 
 // ---------------------------------------------------------------- geometry
@@ -262,7 +262,7 @@ function plan(calm) {
     s.t0 = t; s.t1 = t + dur; s.wear = Math.min(1, used / CAP);
     ev.push({ k: 'stroke', t0: t, t1: t + dur, s }); t += dur; used += s.len; last = end(s);
   });
-  ev.push({ k: 'rest', t0: t, t1: 1e9, from: last, to: last, done: true });
+  ev.push({ k: 'rest', t0: t, t1: 1e9, from: last, to: [1.035, 0.3], done: true });
   return { S, ev, dips, total: t, contours };
 }
 // How far along a stroke the pen is, a part q of its time in: a long line is drawn evenly, a hatching stroke flicked.
@@ -376,8 +376,8 @@ lifeFor(59891, {
 
     // ------------------------------------------------------------ its stopper (part 4), lying by it as he has it: a plug turned in three black
     // flanges, and the gold knob it is drawn by
-    { const sc = curveOf([[0.001, 0], [0.0135, 0.0005], [0.015, 0.004], [0.015, 0.010], [0.0265, 0.0115], [0.028, 0.0145], [0.0265, 0.0175], [0.018, 0.019], [0.018, 0.0225], [0.0265, 0.024], [0.028, 0.027], [0.0265, 0.030], [0.018, 0.0315], [0.018, 0.035], [0.025, 0.0365], [0.0265, 0.0395], [0.025, 0.0425], [0.012, 0.0445], [0.0075, 0.047], [0.0125, 0.052], [0.0155, 0.060], [0.013, 0.068], [0.007, 0.074], [0.001, 0.0765]]), q = new THREE.Vector3();
-      parts.push(surf(18, 72, (u, v, o) => { sc.getPoint(v, q); const a = u * TAU; o.p.set(q.x * Math.cos(a), q.y, q.x * Math.sin(a)); o.t.set(u, q.y); o.c.setRGB(q.x, 0, 0); }, K_STOP, 4, 0)); }
+    { const sc = curveOf([[0.001, 0], [0.0135, 0.0005], [0.015, 0.004], [0.015, 0.010], [0.0265, 0.0115], [0.028, 0.0145], [0.0265, 0.0175], [0.018, 0.019], [0.018, 0.0225], [0.0265, 0.024], [0.028, 0.027], [0.0265, 0.030], [0.018, 0.0315], [0.018, 0.035], [0.025, 0.0365], [0.0265, 0.0395], [0.025, 0.0425], [0.012, 0.0445], [0.009, 0.0475], [0.015, 0.053], [0.0195, 0.063], [0.0185, 0.073], [0.0125, 0.083], [0.0085, 0.088], [0.011, 0.093], [0.009, 0.099], [0.001, 0.1015]]), q = new THREE.Vector3();
+      parts.push(surf(18, 84, (u, v, o) => { sc.getPoint(v, q); const a = u * TAU; o.p.set(q.x * Math.cos(a), q.y, q.x * Math.sin(a)); o.t.set(u, q.y); o.c.setRGB(q.x, 0, 0); }, K_STOP, 4, 0)); }
 
     // ------------------------------------------------------------ three shavings (parts 5, 6, 7: wound in the shader) and a drop of ink (part 8)
     for (let i = 0; i < 3; i++) parts.push(surf(2, 40, (u, v, o) => { o.p.set(0, v * 0.01, (u - 0.5) * CW); o.t.set(u, v); }, K_CURL, 5 + i, 0));
@@ -418,7 +418,7 @@ float shadeAll(vec3 p, int kind) {
   if (kind != ${K_QUILL}) { s = max(s, uSh.x * 0.78 * cap(p, uQa, uQb, 0.006)); s = max(s, uSh.x * 0.6 * cap(p, uQv0, uQv1, 0.026)); }
   if (kind != ${K_KNIFE}) s = max(s, uSh.y * 0.7 * cap(p, uKa, uKb, 0.012));
   if (kind != ${K_POT}) s = max(s, uSh.z * 0.8 * cap(p, vec3(${f3(PX - POT_AX.x * 0.068 * PS)}, ${f3(0.045 * PS)}, ${f3(PZ - POT_AX.z * 0.068 * PS)}), vec3(${f3(PX + POT_AX.x * 0.068 * PS)}, ${f3(0.045 * PS)}, ${f3(PZ + POT_AX.z * 0.068 * PS)}), ${f3(0.047 * PS)}));
-  if (kind != ${K_STOP}) s = max(s, uSh.z * 0.65 * cap(p, vec3(${f3(STX - 0.032)}, 0.034, ${f3(STZ - 0.015)}), vec3(${f3(STX + 0.032)}, 0.034, ${f3(STZ + 0.015)}), 0.032));
+  if (kind != ${K_STOP}) s = max(s, uSh.z * 0.65 * cap(p, vec3(${f3(STX - 0.045)}, 0.034, ${f3(STZ - 0.022)}), vec3(${f3(STX + 0.05)}, 0.034, ${f3(STZ + 0.024)}), 0.032));
   if (kind != ${K_CURL}) for (int i = 0; i < 3; i++) s = max(s, uCs[i].w * 0.6 * cap(p, uCs[i].xyz - vec3(0.0, 0.0, 0.01), uCs[i].xyz + vec3(0.0, 0.0, 0.01), 0.024));
   s = max(s, uSh.w * 0.45 * cap(p, vec3(${f3(XS0)}, uRl.x, uRl.y), vec3(${f3(XS1)}, uRl.x, uRl.y), uRl.z));
   if (kind != ${K_PAPER}) s = max(s, uSh.w * 0.75 * sheetShade(p));
@@ -474,7 +474,7 @@ varying vec3 vK, vLP, vN; varying vec2 vUv2; varying float vRoll;${SHARED}`)
     // and rolled is, with the tooth of the mould it was made on; its underside duller, and darker into the roll; the drawing on its face
     vec2 pm = vec2(vUv2.x * ${f3(SW)}, vUv2.y);
     float cock = mN(pm * vec2(7.0, 5.0)) - 0.5, lam = smoothstep(-0.3, 0.85, nl + 0.24 * cock), fib = mN(pm * vec2(520.0, 150.0)), fl = mN(pm * 46.0), chain = smoothstep(0.93, 1.0, cos(pm.x * 251.0));
-    c = mix(${C('#766b55')}, ${C('#d9ceb2')}, lam);
+    c = mix(${C('#766b55')}, ${C('#ded4ba')}, lam);
     c *= 0.925 + 0.07 * fib + 0.09 * (fl - 0.5) - 0.025 * chain;
     c *= mix(vec3(1.0), vec3(1.0, 0.955, 0.86), 0.6 * smoothstep(0.35, 0.9, mN(pm * 11.0 + 3.0)));
     if (!front) c *= vec3(0.80, 0.765, 0.69) * (1.0 - 0.09 * min(vRoll, 3.0));
@@ -524,7 +524,7 @@ varying vec3 vK, vLP, vN; varying vec2 vUv2; varying float vRoll;${SHARED}`)
       float top = smoothstep(0.070, 0.078, q.y), endf = smoothstep(0.080, 0.088, q.z), side = (1.0 - top) * (1.0 - endf);
       float mo = 0.6 * mN(vec2(q.x + q.y, q.z + 0.3 * q.y) * 55.0) + 0.4 * mN(vec2(q.x - q.y, q.z) * 190.0);
       float tone = smoothstep(-0.4, 0.85, nl + 0.22 * (mo - 0.5));
-      c = mix(${C('#7d4f1a')}, ${C('#b5822f')}, smoothstep(0.0, 0.5, tone)); c = mix(c, ${C('#d4ad5a')}, smoothstep(0.5, 1.0, tone));
+      c = mix(${C('#5f4120')}, ${C('#8e6a32')}, smoothstep(0.0, 0.5, tone)); c = mix(c, ${C('#b08f55')}, smoothstep(0.5, 1.0, tone));
       c *= (0.86 + 0.26 * mo) * (0.95 + 0.09 * mN(vec2(q.z * 30.0, (q.x + q.y) * 420.0)));
       float ex = smoothstep(0.033, 0.039, abs(q.x)), ey = smoothstep(0.033, 0.039, abs(b.y)), ez = smoothstep(0.082, 0.089, abs(q.z));
       float arris = max(ex * ey, max(ex * ez, ey * ez));
@@ -556,7 +556,7 @@ varying vec3 vK, vLP, vN; varying vec2 vUv2; varying float vRoll;${SHARED}`)
       float crest = smoothstep(0.021, 0.0275, vColor.r);
       c = mix(${C('#0c0907')}, ${C('#40342a')}, tone * (0.35 + 0.65 * crest)) * (0.9 + 0.2 * mN(vec2(vUv2.x * 40.0, y * 300.0)));
       c += vec3(0.4, 0.38, 0.33) * smoothstep(0.35, 0.95, pow(spec, 18.0)) * (0.25 + 0.75 * crest);
-    } else { c = mix(${C('#5d4310')}, ${C('#c9a03a')}, tone) * (0.9 + 0.2 * mN(vec2(vUv2.x * 25.0, y * 200.0))); c = mix(c, ${C('#f4e29a', 0.03)}, 0.7 * smoothstep(0.3, 0.9, pow(spec, 20.0))); }
+    } else { c = mix(${C('#54400f')}, ${C('#a98a3c')}, tone) * (0.9 + 0.2 * mN(vec2(vUv2.x * 25.0, y * 200.0))); c = mix(c, ${C('#ecd9a0', 0.03)}, 0.55 * smoothstep(0.3, 0.9, pow(spec, 20.0))); }
   } else if (kind == ${K_CURL}) {
     // a shaving: thin horn, the light through it
     float tone = max(smoothstep(-0.4, 0.8, nl), 0.45); c = mix(${C('#978b6c')}, ${C('#efe9d2')}, tone);
@@ -655,8 +655,9 @@ float gA;`)
       o.pot = there ? k1 : 1 - k3; o.dip = hump(x, A, A + Bq); o.arc = 0.05 * Math.sin(PI * (there ? k1 : k3)); o.X = (there ? e.from : e.to)[0]; o.Y = (there ? e.from : e.to)[1]; o.lift = 0.02 * o.pot;
     } else {
       // at rest: held a little off the sheet (and brought over to where the next thing goes, at the end)
-      const up = ease.smooth(clamp01(x / 0.5)), k = e.done ? 0 : ease.inOut(clamp01((x - (e.t1 - e.t0) + 0.6) / 0.6));
-      o.X = lerp(e.from[0], e.to[0], k); o.Y = lerp(e.from[1], e.to[1], k); o.lift = 0.035 * up * (e.done ? 1 : 1 - k * 0.8); o.rest = up * (1 - k);
+      // (when all is drawn it is drawn aside, to the sheet's right edge and low, and what it has made is left clear)
+      const up = ease.smooth(clamp01(x / 0.5)), k = e.done ? ease.inOut(clamp01((x - 0.2) / 1.1)) : ease.inOut(clamp01((x - (e.t1 - e.t0) + 0.6) / 0.6));
+      o.X = lerp(e.from[0], e.to[0], k); o.Y = lerp(e.from[1], e.to[1], k); o.lift = 0.035 * up * (e.done ? 1 : 1 - k * 0.8); o.rest = up * (e.done ? 1 : 1 - k);
     }
     return o;
   },
@@ -696,7 +697,7 @@ float gA;`)
       Q.d.normalize(); Q.sc = QS; F[1] = 1;
       // (it never stands so high over the sheet that its feather would come before his picture for an eye on the floor: worked near the
       // sheet's top it lies over along the wall, and stands the freer the lower it goes)
-      const sum = Q.d.y + GK * Q.d.z, room = (this.yb - 0.09 - Q.p.y - GK * Q.p.z) / (LEN * QS * 1.03), lim = lerp(Math.max(room, 0.04), sum, o.pot);
+      const sum = Q.d.y + GK * Q.d.z, room = (this.yb - 0.10 - Q.p.y - GK * Q.p.z) / (LEN * QS * 1.03), lim = lerp(Math.max(room, 0.04), sum, ease.smooth(ramp(o.pot, 0.5, 0.92)));
       if (sum > lim) { const kk = lim / sum; Q.d.y *= kk; Q.d.z *= kk; Q.d.x = Math.sqrt(Math.max(0, 1 - Q.d.y * Q.d.y - Q.d.z * Q.d.z)); }
     }
     u.uCut.value = ease.smooth(ramp(t, T_P1[0], T_P1[1])) + ease.smooth(ramp(t, T_P2[0], T_P2[1])) + ramp(t, T_SNICK, T_SNICK + 0.05);
@@ -725,7 +726,7 @@ float gA;`)
         const fall = Math.sqrt(2 * (cy - RHO - 0.002) / 4), land = Math.max(0, x - fall), f = Math.min(x, fall);
         cy = Math.max(RHO + 0.002, cy - 2 * f * f) + (land > 0 ? 0.022 * Math.abs(Math.sin(PI * land / 0.2)) * Math.exp(-land * 8) : 0);
         const run = 1 - Math.exp(-x * 2.2), rock = land > 0 ? 0.6 * k * Math.exp(-land * 2.6) * Math.sin(8 * land) : 0;
-        cx += (i ? 0.05 : -0.06) * run - RHO * rock; cz += (i ? 0.13 : 0.07) * run; th = (i ? -1 : 1) * 2.6 * k * f + rock + 0.5 * ease.out(clamp01(x * 12)) * (i ? -1 : 1); yaw = (i ? -0.45 : 0.4) * run;
+        cx += (i ? 0.08 : -0.02) * run - RHO * rock; cz += (i ? 0.13 : 0.07) * run; th = (i ? -1 : 1) * 2.6 * k * f + rock + 0.5 * ease.out(clamp01(x * 12)) * (i ? -1 : 1); yaw = (i ? -0.45 : 0.4) * run;
       }
       V.m.makeTranslation(cx, cy, cz).multiply(V.m2.makeRotationFromEuler(V.e.set(PI, yaw, th, 'YZX'))).multiply(V.m2.makeTranslation(0, -RHO, 0)); M[5 + i].copy(V.m);
       C[i].set(cx, cy, cz, G[i]);
@@ -742,7 +743,7 @@ float gA;`)
       F[3] = ramp(t, T_POT[0], T_POT[0] + 0.25); F[4] = ramp(t, T_POT[0] + 0.13, T_POT[0] + 0.38);
       M[3].makeRotationY(POT_YAW).scale(V.a.setScalar(PS)).setPosition(PX, 0.14 * (1 - a), PZ);
       const rock = since > 0 && !calm ? 0.16 * Math.exp(-since * 4) * Math.sin(since * 11) : 0;
-      M[4].makeRotationFromEuler(V.e.set(rock, -0.45, -PI / 2 - 0.05, 'YXZ')).scale(V.a.setScalar(PS)).setPosition(STX - 0.034 * PS, 0.0285 * PS + 0.12 * (1 - b), STZ - 0.016 * PS);
+      M[4].makeRotationFromEuler(V.e.set(rock, -0.45, -PI / 2 - 0.05, 'YXZ')).scale(V.a.setScalar(PS)).setPosition(STX - 0.045 * PS, 0.0285 * PS + 0.12 * (1 - b), STZ - 0.022 * PS);
     }
     // ---- the sheet, let down the wall and out along the floor
     {
