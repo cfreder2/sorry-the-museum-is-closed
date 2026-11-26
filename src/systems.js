@@ -917,7 +917,7 @@ const S = feature({
     let low = Infinity;
     for (const a of (st ? st.arts : [])) low = Math.min(low, (a.obj ? (a.fy || r.y) + (a.plinth || 0) : a.y - a.h / 2 - (a.frame || 0)) - r.y);
     const cap = Math.min(VAPOUR_TOP, low - UNDER);
-    const doors = k.plan.doorsOf(r.id).filter(d => !d.hidden && !d.vent && !(d.out || d.b === 'out') && Math.abs(d.y - r.y) < 0.3);
+    const doors = k.plan.doorsOf(r.id).filter(d => !d.hidden && !d.vent && !d.shut && !(d.out || d.b === 'out') && Math.abs(d.y - r.y) < 0.3);
     const ft = { r, label, stage: 'wait', t0: 0, tw: this.t, cap, low, doors, bars: [], fx: null, near: false, press: 0, k: 0, curtain: 0 };
     this.tests.set(r.id, ft);
   },

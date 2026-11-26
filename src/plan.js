@@ -21,6 +21,7 @@ import { addFinale } from './finaleplan.js';
 import { addStaffVent } from './ventplan.js';
 import { shapeHill } from './hillshape.js';      // the hills' shapes (kit helper): off-centre summits, spurs, a sled chute
 import { dressGrounds } from './groundsplan.js';   // what grows and stands in the grounds: trees by kind, shrubs, hedges, the park's furniture
+import { SHUT_ROOMS } from './shut.js';      // the rooms whose doors do not open
 
 export const T = 1;            // wall thickness, for the outside of a building
 export const HW = HALL_HW();    // Griffin Court's half-width
@@ -77,6 +78,12 @@ export function buildPlan() {
   });
   const doors = LAYOUT.doors.map((d, i) => ({ id: 'D' + i, ...d, y: d.y || 0, out: d.b === 'out' }));
   const byId = Object.fromEntries(rooms.map(r => [r.id, r]));
+  // Some rooms are shut (src/shut.js): they are built as ever, behind doors that do not open. A doorway with a shut room
+  // on one side of it and an open one on the other is such a door: `d.shut`. It keeps its place in the wall and in this
+  // list (so everything that is laid out round the doorways is where it always was), but it is a way for nothing: no
+  // volume to pass through (below), and every finder of ways leaves it out.
+  { const shut = new Set(SHUT_ROOMS); for (const r of rooms) if (shut.has(r.id)) r.shut = true;
+    for (const d of doors) if (d.b !== 'out' && byId[d.a] && byId[d.b] && !!byId[d.a].shut !== !!byId[d.b].shut) d.shut = true; }
   const lap = (a, b, m = 0) => a.x0 < b.x1 + m && a.x1 > b.x0 - m && a.z0 < b.z1 + m && a.z1 > b.z0 - m;
   // Is there sky over a room, or another room (or the ground)? Skylights go only where there is sky.
   for (const r of rooms) r.sky = r.top > 0.5 && !rooms.some(o => o !== r && o.y > r.y + 1 && lap(r, o, T));
@@ -240,8 +247,8 @@ export function buildPlan() {
   for (const d of doors) {
     const e = 1.6;
     boxes.push(d.along === 'z'
-      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden }
-      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden });
+      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden, shut: !!d.shut }
+      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden, shut: !!d.shut });      // (a shut door's volume is kept, for what is laid out round it, and never used: confine)
   }
   for (const w of plan.wells) boxes.push({ x0: w.x0, x1: w.x1, z0: w.z0, z1: w.z1, y0: w.y - SLAB - 1.6, y1: w.y + 1 });
 
@@ -597,6 +604,23 @@ export function wallPoint(w, u, y, off = 0) {
     : { x: w.fixed + w.nx * off, y, z: u };
 }
 
+// A saved game may have been left standing in a room that has since been shut (src/shut.js). Where to put it instead: on
+// the floor just outside the nearest of the shut doors on that level, facing away from it. Null if p is in no shut room.
+export function outsideShut(plan, p) {
+  const r = roomAt(plan, p.x, p.z, (p.y || 0) + 0.3);
+  if (!r || !r.shut) return null;
+  let best = null, bd = Infinity;
+  for (const d of plan.doors) {
+    if (!d.shut || Math.abs(d.y - r.y) > 1.5) continue;
+    const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2, dd = Math.hypot(cx - p.x, cz - p.z);
+    if (dd < bd) { bd = dd; best = d; }
+  }
+  if (!best) return null;
+  const d = best, o = plan.byId[plan.byId[d.a].shut ? d.b : d.a], ax = d.along === 'x', cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
+  const s = (ax ? (o.x0 + o.x1) / 2 < cx : (o.z0 + o.z1) / 2 < cz) ? -1 : 1, off = 1.3;      // which way the open room lies from the doorway
+  return ax ? { x: (s < 0 ? d.x0 : d.x1) + s * off, y: d.y, z: cz, yaw: s > 0 ? Math.PI / 2 : -Math.PI / 2 } : { x: cx, y: d.y, z: (s < 0 ? d.z0 : d.z1) + s * off, yaw: s > 0 ? 0 : Math.PI };
+}
+
 // Which room is this point in? With a height, the room on that level (a little slack either way, so
 // that something on the floor or brushing the ceiling still counts). Without one, the topmost room
 // over the spot: what you would see looking down at the plan.
@@ -682,6 +706,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   let best = Infinity, bx = p.x, by = p.y, bz = p.z;
   // (Up on a roof a car is outdoors, and the rooms below are nothing to do with it: it is above their volumes.)
   for (const b of plan.boxes) {
+    if (b.shut) continue;                             // a door that does not open is a wall, always (src/shut.js)
     if (b.lock && plan.locked) continue;              // a locked door is a wall
     if (b.hidden && !plan.secretOpen) continue;       // and so is one that has not been found
     if (b.fly && !flying) continue;                   // a way through up in the air is no use to a car

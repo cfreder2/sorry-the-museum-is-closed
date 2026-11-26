@@ -946,6 +946,40 @@ export class Museum {
       }
     }
     this.doorOpen = 0; this.doorTarget = 0;
+    // And some doors indoors are shut for good (src/shut.js; plan.js marks them `shut`): the same bronze, but the leaves are
+    // fixed, with a panel where the outside doors have glass, a push bar and a kick plate. Behind them the whole doorway is
+    // filled, edge to edge and floor to lintel, so nothing of the room beyond shows round or between them. They stand a
+    // hand's breadth back from the wall of the room you are in, in their stone surround, as a door does. All of them are
+    // three meshes (one a metal), and none of them moves.
+    {
+      const slab = new Geo(), panel = new Geo(), brass = new Geo();
+      for (const d of plan.doors) {
+        if (!d.shut) continue;
+        const ax = d.along === 'x', here = plan.byId[d.a].shut ? plan.byId[d.b] : plan.byId[d.a];      // the room you see it from
+        const lo = ax ? d.x0 : d.z0, hi = ax ? d.x1 : d.z1, s = (ax ? here.x0 + here.x1 : here.z0 + here.z1) / 2 < (lo + hi) / 2 ? -1 : 1;      // which way that room lies
+        const face = (s < 0 ? lo : hi) - s * Math.min(0.14, (hi - lo) * 0.5), u0 = ax ? d.z0 : d.x0, u1 = ax ? d.z1 : d.x1, W = u1 - u0, Y = d.y, H = d.h;
+        // a box: from a0 to a1 across the doorway, y0 to y1 up it, and f0 to f1 out from the leaves' face towards you
+        const box = (g, a0, a1, y0, y1, f0, f1) => { const p = face + s * f0, q = face + s * f1, m = Math.min(p, q), M = Math.max(p, q); if (ax) g.box(m, M, Y + y0, Y + y1, a0, a1); else g.box(a0, a1, Y + y0, Y + y1, m, M); };
+        box(slab, u0, u1, 0, H, -0.07, 0);
+        const n = W >= 1.5 ? 2 : 1, w = W / n, top = Math.min(H - 0.16, 2.2);      // two leaves, or one where the doorway is narrow; the furniture at a person's height, however tall the doorway
+        for (let i = 0; i < n; i++) {
+          const a = u0 + i * w, edge = Math.min(0.16, w * 0.16);
+          box(panel, a + edge, a + w - edge, 0.36, top * 0.46, 0, 0.014);                 // the lower panel
+          box(panel, a + edge, a + w - edge, top * 0.46 + 0.1, top, 0, 0.014);            // the upper one, where an outside door has its glass
+          if (H - top > 0.5) box(panel, a + edge, a + w - edge, top + 0.1, H - 0.14, 0, 0.014);      // and over a tall doorway, a third
+          box(brass, a + 0.03, a + w - 0.03, 0.02, 0.26, 0, 0.01);                        // the kick plate
+          const b = n === 2 ? (i ? a + 0.11 : a + w - 0.11) : a + w - 0.13;               // the bar: by the meeting edge of a pair
+          box(brass, b - 0.025, b + 0.025, 0.85, Math.min(1.75, top - 0.05), 0.014, 0.075);
+        }
+        if (n === 2) box(brass, u0 + w - 0.012, u0 + w + 0.012, 0, H, 0, 0.018);          // the strip down the meeting edges
+      }
+      if (!slab.empty) {
+        this.shutDoors = [slab.mesh(leafMat), panel.mesh(new THREE.MeshStandardMaterial({ color: 0x3b342a, roughness: 0.55, metalness: 0.45, emissive: 0x1b1711, emissiveIntensity: 0.6 })),
+          brass.mesh(new THREE.MeshStandardMaterial({ color: 0x9a7c3a, metalness: 0.7, roughness: 0.35, emissive: 0x3a2c10, emissiveIntensity: 0.6 }))];
+        for (const m of this.shutDoors) m.name = 'shut doors';
+        this.group.add(...this.shutDoors);
+      }
+    }
     // The sign on the front door, hung from the lintel on two chains, low enough to read from the ground.
     {
       const f2 = plan.front, cz2 = (f2.z0 + f2.z1) / 2, hang = new THREE.Group();

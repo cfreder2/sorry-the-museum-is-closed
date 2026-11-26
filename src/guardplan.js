@@ -40,6 +40,8 @@ function links(plan) {
     if (d.out || d.b === 'out' || d.vent || d.hidden || d.h < 1.3) continue;
     const ra = plan.byId[d.a], rb = plan.byId[d.b];
     if (!ra || !rb || ra.secret || rb.secret || !same(ra.y, d.y) || !same(rb.y, d.y)) continue;
+    // (A door that does not open, src/shut.js, is kept here: a robot stands clear of it when it stops to look, as it always
+    // did. It is no way through: build() leaves the room behind it out, and grid() lays no floor in the doorway.)
     add(d.a, d.b, d); add(d.b, d.a, d);
   }
   return out;
@@ -84,7 +86,7 @@ export function grid(plan, roomIds, fy) {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) floor[j * nx + i] = 1;
   };
   for (const r of rooms) lay(r.x0, r.x1, r.z0, r.z1);
-  for (const d of plan.doors) if (!d.out && !d.vent && !d.hidden && d.h >= 1.3 && same(d.y, fy) && set.has(d.a) && set.has(d.b)) {
+  for (const d of plan.doors) if (!d.out && !d.vent && !d.hidden && !d.shut && d.h >= 1.3 && same(d.y, fy) && set.has(d.a) && set.has(d.b)) {
     if (d.along === 'x') lay(d.x0 - 1, d.x1 + 1, d.z0, d.z1); else lay(d.x0, d.x1, d.z0 - 1, d.z1 + 1);
   }
   for (let k = 0; k < N; k++) if (floor[k]) { open[k] = 1; sight[k] = 0; }
@@ -331,7 +333,7 @@ export function beat(plan, rooms, id) { const p = build(plan, links(plan), rooms
 function build(plan, L, chain, n) {
   const fy = plan.byId[chain[0]].y;
   const area = new Set(chain);
-  for (const id of chain) for (const q of L.get(id) || []) area.add(q.to);
+  for (const id of chain) for (const q of L.get(id) || []) if (!q.door.shut) area.add(q.to);      // (not the room behind a door that does not open)
   const g = grid(plan, [...area], fy);
   // Key points: the scan spot in each room, and either side of each doorway on the way to the next, square through it.
   const keys = [];

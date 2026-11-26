@@ -65,6 +65,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const L = landOf();
     for (const d of p.doors) {
       if (d.secret && !(found() && shown(p.byId[d.a]) && shown(p.byId[d.b]))) continue;                 // no way through a wall that has not opened
+      if (d.shut) continue;                                 // nor through a door that does not open (src/shut.js)
       if (p.locked && d.out && d !== p.vent) continue;      // nor through a locked door, nor by a way in that has yet to be found. The front vent is always a way: lit, open, the way in (src/plan.js)
       const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2;
       const side = id => {
@@ -676,6 +677,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       if (!onLevel(r, ly) || !shown(r)) continue;
       const been = G.museum.visited.has(r.id), n = st.arts.length, f = n ? st.seen / n : 0, done = n ? st.done : been;
       const w = r.x1 - r.x0, h = r.z1 - r.z0;
+      // A room that is shut (src/shut.js) is a dark block, crossed out with thin lines: there, and not somewhere to go.
+      if (r.shut) { c.fillStyle = 'rgba(9,10,15,.94)'; c.fillRect(r.x0, r.z0, w, h); c.save(); c.beginPath(); c.rect(r.x0, r.z0, w, h); c.clip(); c.strokeStyle = 'rgba(150,150,170,.2)'; c.lineWidth = px * 0.8; c.beginPath();
+        for (let k = -h; k < w; k += 1.6) { c.moveTo(r.x0 + k, r.z0); c.lineTo(r.x0 + k + h, r.z1); } c.stroke(); c.restore();
+        c.lineWidth = px; c.strokeStyle = 'rgba(150,150,170,.3)'; c.strokeRect(r.x0, r.z0, w, h); continue; }
       c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : r.assumed || r.passage ? 'rgba(20,23,32,.92)' : 'rgba(30,34,48,.94)';
       c.fillRect(r.x0, r.z0, w, h);
       if (!done && f > 0) { c.fillStyle = 'rgba(240,200,110,.95)'; c.fillRect(r.x0, r.z1 - Math.min(h * 0.2, 1.6), w * f, Math.min(h * 0.2, 1.6)); }
@@ -693,7 +698,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       for (const id of ids) { const r = p.byId[id]; if (!r || !onLevel(r, ly) || !shown(r)) continue; { const st = G.museum.rooms[id], gold = st && (st.arts.length ? st.done : G.museum.visited.has(id)); c.fillStyle = gold ? 'rgba(70,52,16,.8)' : 'rgba(170,176,196,.7)'; }
         for (const o of p.obstacles) if (o.fit && o.y1 - o.y0 > 1.9 && Math.abs(o.y0 - r.y) < 0.05 && Math.min(o.x1 - o.x0, o.z1 - o.z0) < 0.2 && o.x0 >= r.x0 - 0.01 && o.x1 <= r.x1 + 0.01 && o.z0 >= r.z0 - 0.01 && o.z1 <= r.z1 + 0.01) c.fillRect(o.x0, o.z0, Math.max(o.x1 - o.x0, px * 1.2), Math.max(o.z1 - o.z0, px * 1.2)); } }
     c.fillStyle = 'rgba(226,205,148,.95)';
-    for (const d of p.doors) if (Math.abs(d.y - ly) < 1.6 && (!d.secret || (found() && shown(p.byId[d.a]) && shown(p.byId[d.b])))) c.fillRect(d.x0 - px, d.z0 - px, Math.max(2 * px, d.x1 - d.x0 + 2 * px), Math.max(2 * px, d.z1 - d.z0 + 2 * px));
+    for (const d of p.doors) if (Math.abs(d.y - ly) < 1.6 && !d.shut && !(p.byId[d.a] && p.byId[d.a].shut) && (!d.secret || (found() && shown(p.byId[d.a]) && shown(p.byId[d.b])))) c.fillRect(d.x0 - px, d.z0 - px, Math.max(2 * px, d.x1 - d.x0 + 2 * px), Math.max(2 * px, d.z1 - d.z0 + 2 * px));
     // Ways up and down from here: stairs hatched, lifts solid.
     c.strokeStyle = 'rgba(127,233,245,.9)'; c.fillStyle = 'rgba(127,233,245,.85)'; c.lineWidth = px;
     for (const q of p.ramps) {
@@ -822,7 +827,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
     for (const st of Object.values(G.museum.rooms)) {
       const r = st.room;
-      if (r.passage || !onLevel(r, ly) || !shown(r)) continue;
+      if (r.passage || r.shut || !onLevel(r, ly) || !shown(r)) continue;      // (a shut room has no name on the map: it is not somewhere to go)
       const X0 = r.x0 * s + ox, X1 = r.x1 * s + ox, Z0 = r.z0 * s + oz, Z1 = r.z1 * s + oz, w = X1 - X0 - 2 * pad, h = Z1 - Z0 - pad;
       if (X1 < 0 || X0 > W || Z1 < 0 || Z0 > H || w < 14 * dpr || h < 11 * dpr) continue;
       const L = labelsOf(r), been = G.museum.visited.has(r.id), done = st.arts.length ? st.done : been;
@@ -1075,6 +1080,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
   function placeUnder(x, z) {
     const ly = state.level.y, p = G.plan, inside = q => x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1;
     const room = p.rooms.find(q => near(q.y, ly) && inside(q) && shown(q));
+    if (room && room.shut) return null;                    // behind a door that does not open (src/shut.js): nothing to ask the way to
     if (room) return { room, target: { x, y: room.y, z, place: 'R' + room.id, label: room.kind === 'hall' ? 'Griffin Court' : room.gallery } };
     const d = p.decks.find(q => near(q.y, ly) && inside(q) && shown(p.byId[q.room]));
     if (d) { const r = p.byId[d.room]; return { room: r, target: { x, y: d.y, z, place: 'D' + d.id, label: r.kind === 'hall' ? 'Griffin Court' : r.gallery } }; }

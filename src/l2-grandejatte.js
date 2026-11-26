@@ -342,7 +342,7 @@ feature({
     if (this.charted) return this.trail; this.charted = true;
     const P = k.plan, y = this.y, bd = k.G.boards && k.G.boards.byId && k.G.boards.byId.clue, flat = r => r && !r.secret && Math.abs(r.y - y) < 0.06;
     if (!bd || !flat(P.byId[bd.room])) return null;
-    const ok = d => !d.out && d.b !== 'out' && !d.vent && !d.hidden && d.h >= 1.3 && Math.abs(d.y - y) < 0.06 && flat(P.byId[d.a]) && flat(P.byId[d.b]);
+    const ok = d => !d.out && d.b !== 'out' && !d.vent && !d.hidden && !d.shut && d.h >= 1.3 && Math.abs(d.y - y) < 0.06 && flat(P.byId[d.a]) && flat(P.byId[d.b]);
     const prev = new Map([[this.roomId, null]]), q = [this.roomId];
     while (q.length && !prev.has(bd.room)) { const id = q.shift(); for (const d of P.doorsOf(id)) if (ok(d)) { const n = d.a === id ? d.b : d.a; if (!prev.has(n)) { prev.set(n, [id, d]); q.push(n); } } }
     if (!prev.has(bd.room)) return null;

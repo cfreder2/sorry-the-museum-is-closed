@@ -32,7 +32,7 @@ export function arenaFrom(plan) {
   const byId = Object.fromEntries(rooms.map(r => [r.id, r])), doors = [];
   for (const d of plan.doors) {
     const a = byId[d.a], b = byId[d.b];
-    if (!a || !b || d.secret || d.vent) continue;
+    if (!a || !b || d.secret || d.vent || d.shut) continue;
     const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2, alongX = a.x1 <= d.x0 + 0.06 || a.x0 >= d.x1 - 0.06;      // which way you go through it
     if ((alongX ? d.z1 - d.z0 : d.x1 - d.x0) < 0.9) continue;                      // (too narrow for a chair)
     const side = r => (alongX ? { x: r.x1 <= d.x0 + 0.06 ? d.x0 - 0.55 : d.x1 + 0.55, z: cz } : { x: cx, z: r.z1 <= d.z0 + 0.06 ? d.z0 - 0.55 : d.z1 + 0.55 });

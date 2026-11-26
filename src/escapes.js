@@ -143,7 +143,7 @@ const F = {
     const same = (a, b) => Math.abs(a - b) < 0.06;
     this.adj = new Map(); this.floors = new Map(); this._front = [];
     for (const d of P.doors) {
-      if (d.out || d.b === 'out' || d.vent || d.hidden || d.h < 1.3) continue;
+      if (d.out || d.b === 'out' || d.vent || d.hidden || d.shut || d.h < 1.3) continue;
       const a = P.byId[d.a], b = P.byId[d.b]; if (!a || !b || a.secret || b.secret || !same(a.y, d.y) || !same(b.y, d.y)) continue;
       for (const [u, w] of [[a, b], [b, a]]) { if (!this.adj.has(u.id)) this.adj.set(u.id, []); this.adj.get(u.id).push({ to: w.id, x: (d.x0 + d.x1) / 2, z: (d.z0 + d.z1) / 2 }); }
     }
@@ -339,7 +339,7 @@ const F = {
       // A jamb taken for open guards a canvas for nothing; a jamb taken for wall would leave one unguarded.)
       const see = g ? g.floor.slice() : null;
       if (g) for (const d of P.doors) {
-        if (d.out || d.vent || d.hidden || Math.abs(d.y - y) > 0.06 || !set.has(d.a) || !set.has(d.b)) continue;
+        if (d.out || d.vent || d.hidden || d.shut || Math.abs(d.y - y) > 0.06 || !set.has(d.a) || !set.has(d.b)) continue;
         const ax = d.along === 'x', x0 = d.x0 - (ax ? 1 : 0), x1 = d.x1 + (ax ? 1 : 0), z0 = d.z0 - (ax ? 0 : 1), z1 = d.z1 + (ax ? 0 : 1);
         const i0 = Math.max(0, Math.floor((x0 - g.X0) / g.C)), i1 = Math.min(g.nx - 1, Math.ceil((x1 - g.X0) / g.C) - 1), j0 = Math.max(0, Math.floor((z0 - g.Z0) / g.C)), j1 = Math.min(g.nz - 1, Math.ceil((z1 - g.Z0) / g.C) - 1);
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) see[j * g.nx + i] = 1;

@@ -9,7 +9,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
 import { LOWMEM } from './budget.js';
 import { Streamer } from './stream.js';
-import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt } from './plan.js';
+import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
 import { Shop } from './shop.js';
@@ -519,7 +519,9 @@ function saved() {
   try {
     const sv = JSON.parse(localStorage.getItem(SAVE) || 'null');
     // (A place kept from an older plan of the building is no use: the rooms have moved.)
-    if (sv && isFinite(sv.x) && isFinite(sv.z) && isFinite(sv.yaw) && sv.plan === G.plan.made) return sv;
+    // (And one left standing in a room whose doors have since been shut, src/shut.js, is put down just outside its door: the plan
+    // is the same plan, so nobody's place is thrown away for it.)
+    if (sv && isFinite(sv.x) && isFinite(sv.z) && isFinite(sv.yaw) && sv.plan === G.plan.made) { const out = outsideShut(G.plan, sv); return out ? { ...sv, ...out } : sv; }
   } catch { /* no storage */ }
   return null;
 }

@@ -227,7 +227,7 @@ export function checkCourse(plan, course, { r = 0.2, inside = false } = {}) {
     for (let q = 0; q < 8; q++) if (wallAt(plan, x + Math.sin(q * Math.PI / 4) * r, z + Math.cos(q * Math.PI / 4) * r, g)) { why.push('wall'); break; }
     const p = { x, y: g, z };
     if (confine(plan, p, r, false, out) && Math.hypot(p.x - x, p.y - g, p.z - z) > 0.005) why.push(`pushed ${Math.hypot(p.x - x, p.y - g, p.z - z).toFixed(2)}`);
-    if (inside && !plan.boxes.some(B => !B.fly && !B.lock && !B.hidden && x > B.x0 && x < B.x1 && z > B.z0 && z < B.z1 && g > B.y0 - 0.3 && g < B.y1)) why.push('outside');
+    if (inside && !plan.boxes.some(B => !B.fly && !B.lock && !B.hidden && !B.shut && x > B.x0 && x < B.x1 && z > B.z0 && z < B.z1 && g > B.y0 - 0.3 && g < B.y1)) why.push('outside');
     if (why.length) bad.push({ i, x: +x.toFixed(2), z: +z.toFixed(2), y: +g.toFixed(2), why: why.join(' ') });
   }
   return bad;

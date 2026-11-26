@@ -82,7 +82,7 @@ export function way(plan) {
   const add = (room, x, z, y, door, kind) => { if (!room) return -1; const i = ends.length; ends.push({ room: room.id, x, z, y, door, kind }); adj.push([]); if (!byRoom.has(room.id)) byRoom.set(room.id, []); byRoom.get(room.id).push(i); return i; };
   const join = (a, b, c) => { if (a < 0 || b < 0) return; adj[a].push([b, c]); adj[b].push([a, c]); };
   for (const d of plan.doors) {
-    if (d.out || d.b === 'out' || d.vent) continue;
+    if (d.out || d.b === 'out' || d.vent || d.shut) continue;
     const ra = plan.byId[d.a], rb = plan.byId[d.b]; if (!ra || !rb) continue;
     const pa = inside(d, ra, 0.7), pb = inside(d, rb, 0.7);
     join(add(ra, pa.x, pa.z, d.y, d), add(rb, pb.x, pb.z, d.y, d), Math.hypot(pa.x - pb.x, pa.z - pb.z));

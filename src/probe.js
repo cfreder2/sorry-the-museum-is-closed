@@ -516,7 +516,7 @@ feature({
   _rooms(k) {
     const P = k.plan, L = this.L, ids = [L.id];
     for (const d of P.doors) {
-      if (d.out || d.vent || d.hidden || d.h < 1.3 || Math.abs(d.y - L.y) > 0.06) continue;
+      if (d.out || d.vent || d.hidden || d.shut || d.h < 1.3 || Math.abs(d.y - L.y) > 0.06) continue;
       const o = d.a === L.id ? d.b : d.b === L.id ? d.a : null, r = o && P.byId[o];
       if (r && !r.secret && Math.abs(r.y - L.y) < 0.06 && !ids.includes(o)) ids.push(o);
     }
