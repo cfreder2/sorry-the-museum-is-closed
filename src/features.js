@@ -471,7 +471,8 @@ function kitFor(o) {
   const api = {
     kit: k,
     // Called where main.js decides what the action button says. Returns { verb, hint, act } or null.
-    near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (r) return r; } return null; },
+    // (What the button then does is the feature's too: a throw from act() is treated as one from update(), where it used to go up through main.js's frame and leave the feature holding whatever it had.)
+    near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (!r) continue; if (r.act && !r.act._safe) { const act = r.act; r.act = (...a) => { try { return act(...a); } catch (e) { broke(f, e); } }; r.act._safe = true; } return r; } return null; },
     // (quiet: the opening runs the park from a window without waking what is still asleep in it)
     update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending) continue; if (f._unseen) { const p = G.vehicle && G.vehicle.pos; if (quiet || !p || Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) >= f.lazy.r) continue; f._unseen.visible = true; f._unseen = null; } if (!f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
     look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
