@@ -303,20 +303,25 @@ const F = {
 
   // ---------------------------------------------------------------- bodies --
   async _embody(E) {
-    E.body = 'pending';
+    // (Each call has its own number. A body dropped while it is being made and asked for again starts a second call: the first,
+    // when it comes back from its waits, must not become the body, nor write over what the second is building.)
+    E.body = 'pending'; const mine = E.bodyN = (E.bodyN || 0) + 1;
     try {
       const k = this.k, L = lifeOf(E.id); if (L && L.made !== true) await L.prepare();
-      E.pal = await palette(E.art).catch(() => null);
-      const g = new THREE.Group(), key = roamGuard(); E.build = {};
+      const pal = await palette(E.art).catch(() => null);
+      if (E.bodyN !== mine) return;
+      E.pal = pal;
+      const g = new THREE.Group(), key = roamGuard(), build = E.build = {};
       await E.spec.build(E, L && L.made === true ? L : null, { group: g, k, pal: E.pal });
-      if (E.body !== 'pending') { dispose(g); return; }      // (sent home, or switched off, while it was being made)
+      if (E.body !== 'pending' || E.bodyN !== mine) { dispose(g); return; }      // (sent home, or switched off, while it was being made; or a later call is making it now)
+      E.build = build;
       E.mats = [];
       g.traverse(o => {
         for (const m of [].concat(o.material || [])) { protectArt(m, key, { soft: m.transparent ? 0.08 : 0.05 }); if (m.userData.u && m.userData.u.uGone && !m.userData.helper) E.mats.push(m); }
         o.frustumCulled = false; if (o.isMesh) { const was = o.onBeforeRender; o.onBeforeRender = (r, s, c, ...rest) => { this._px(key, r); was.call(o, r, s, c, ...rest); }; }
       });
       E.hues = hues(g); E.group = g; E.key = key; k.group.add(g); E.body = true;
-    } catch (e) { console.error('escapes: ' + E.spec.name + ': ' + (e && e.stack || e)); E.body = 'broken'; }
+    } catch (e) { if (E.bodyN !== mine) return; console.error('escapes: ' + E.spec.name + ': ' + (e && e.stack || e)); E.body = 'broken'; }
   },
   _drop(E) { if (E.group) { E.group.removeFromParent(); dispose(E.group); } E.group = null; E.key = null; E.mats = null; E.build = null; if (E.body !== 'broken') E.body = null; },
   // the guard's pixel size, for the target and camera this is about to be drawn with
