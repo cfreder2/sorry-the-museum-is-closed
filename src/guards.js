@@ -180,7 +180,7 @@ class Bolt {
   update(dt, cam) {
     if (this.on <= 0) { if (this.mesh.visible) { this.mesh.visible = false; this.glow.visible = false; } return; }
     this.on -= dt; this.re -= dt;
-    if (this.re <= 0) { this._strike(); this.re = 0.035 + Math.random() * 0.03; this.flick = Math.random() < 0.18 ? 0.25 : 1; }
+    if (this.re <= 0) { this._strike(); this.re = this.calm ? 99 : 0.035 + Math.random() * 0.03; this.flick = this.calm ? 1 : Math.random() < 0.18 ? 0.25 : 1; }      // (Reduce motion, this.calm: struck once and held steady, not re-struck fifteen to twenty-eight times a second)
     const P = this.pts, Q = this.pos, A = this.alpha;
     for (let s = 0; s < this.ns; s++) {
       const i0 = this.segs[s * 2] * 3, i1 = this.segs[s * 2 + 1] * 3;
@@ -559,6 +559,7 @@ feature({
       const b = this.bots.find(q => q.near && (p.x - q.x) ** 2 + (p.z - q.z) ** 2 < 196);
       if (b && sight(b.g, b.x, b.z, p.x, p.z, false)) k.once('guards', 'A security robot. Keep out of its light.', 4);
     }
+    this.calm = this.bolt.calm = !!(G.set && G.set.reduce);
     this.bolt.update(dt, cam);
     this.sparks.update(dt, this.sparkFloor);
   },
@@ -876,14 +877,15 @@ feature({
     g.rotation.y = b.yaw; b.head.rotation.y = wrap(b.look - b.yaw);
     const mood = moodOf(b.mode), col = MOOD[mood];
     // The beacon: a slow pulse on patrol, quick when wary, a hard flash when it is after you.
-    const rate = mood === 'hunt' ? 7 : mood === 'wary' ? 3.5 : 0.8, ph = (now * rate + b.i * 0.3) % 1, pulse = mood === 'hunt' ? (ph < 0.5 ? 1 : 0.15) : 0.35 + 0.65 * Math.max(0, Math.sin(ph * TAU));
+    // (Reduce motion: after you it burns steady, and wary it pulses as slowly as on patrol. No hard flash seven times a second.)
+    const rate = this.calm ? 0.8 : mood === 'hunt' ? 7 : mood === 'wary' ? 3.5 : 0.8, ph = (now * rate + b.i * 0.3) % 1, pulse = mood === 'hunt' ? (this.calm || ph < 0.5 ? 1 : 0.15) : 0.35 + 0.65 * Math.max(0, Math.sin(ph * TAU));
     const warm = b.tend ? b.tend.k : 0;      // (0 to 1: its lamp gone warm white, for what it is sending home)
     b.glowMat.color.copy(col); if (warm > 0) b.glowMat.color.lerp(MOOD.warm, warm);
     const edge = b.pool.userData.edge; if (edge) { edge.visible = warm > 0.01; edge.material.uniforms.uW.value = warm; }
     b.beacon.material.color.copy(b.glowMat.color).multiplyScalar(pulse * 0.9 + (0.9 - pulse * 0.9) * warm); const bs = 0.3 + (pulse + (0.6 - pulse) * warm) * 0.25; b.beacon.scale.set(bs, bs, 1);
     // The prong warms up before it fires.
     const ch = b.mode === 'charge' ? Math.min(1, b.mt / CHARGE) : 0;
-    b.spark.material.opacity = ch ? 0.4 + ch * 0.6 + Math.random() * 0.2 : 0; const ss = 0.12 + ch * 0.4; b.spark.scale.set(ss, ss, 1);
+    b.spark.material.opacity = ch ? 0.4 + ch * 0.6 + (this.calm ? 0.1 : Math.random() * 0.2) : 0; const ss = 0.12 + ch * 0.4; b.spark.scale.set(ss, ss, 1);
     // Its mark.
     const want = mood === 'hunt' ? '!' : mood === 'wary' ? '?' : '';
     if (want !== b.markOn) { b.markOn = want; b.markT = 0; if (want) b.mark.material.map = this.marks[want]; b.mark.visible = !!want; }
