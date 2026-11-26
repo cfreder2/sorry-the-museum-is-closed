@@ -105,7 +105,7 @@ export function grid(plan, roomIds, fy) {
   for (const q of plan.ramps || []) if (Math.min(q.y0, q.y1) < H && Math.max(q.y0, q.y1) > fy - 0.1) fill(q.x0 - 0.2, q.x1 + 0.2, q.z0 - 0.2, q.z1 + 0.2, k => { open[k] = 0; });
   for (const l of plan.lifts || []) if (l.stops[0] - 0.3 < H && l.stops[l.stops.length - 1] + 2.7 > fy) fill(l.x0 - 0.2, l.x1 + 0.2, l.z0 - 0.2, l.z1 + 0.2, k => { open[k] = 0; sight[k] |= 1; });
   for (const w of plan.wells || []) if (Math.abs(w.y - fy) < 0.3) fill(w.x0 - 0.3, w.x1 + 0.3, w.z0 - 0.3, w.z1 + 0.3, k => { open[k] = 0; });
-  const g = { X0, Z0, X1, Z1, nx, nz, N, C, fy, open, clr: null, sight, rooms: roomIds };
+  const g = { X0, Z0, X1, Z1, nx, nz, N, C, fy, open, clr: null, sight, floor, rooms: roomIds };      // (floor: 1 where a room or a doorway is, whatever stands there: src/escapes.js asks it what a wall hides)
   clearance(g);
   return g;
 }

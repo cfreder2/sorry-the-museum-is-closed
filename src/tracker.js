@@ -14,8 +14,8 @@ import { features } from './features.js';
 
 const TAU = Math.PI * 2;
 const HALF = 0.62, REACH = 9;                 // the searchlight, as src/guards.js has it
-const MOOD = { patrol: 0, scan: 0, return: 0, alert: 1, search: 1, chase: 2, charge: 2, hold: 2 };
-const STATE = { patrol: 'PATROL', scan: 'SWEEPING', return: 'RETURNING', alert: 'ALERT ?', search: 'SEARCHING', chase: 'PURSUIT !', charge: 'CHARGING !', hold: 'DETAINING' };
+const MOOD = { patrol: 0, scan: 0, return: 0, tend: 0, alert: 1, search: 1, chase: 2, charge: 2, hold: 2 };
+const STATE = { patrol: 'PATROL', scan: 'SWEEPING', return: 'RETURNING', tend: 'SENDING HOME', alert: 'ALERT ?', search: 'SEARCHING', chase: 'PURSUIT !', charge: 'CHARGING !', hold: 'DETAINING' };
 const TINT = ['#7dffa0', '#ffc23a', '#ff4636'];
 const NAMES = { LL: 'LOWER', 1: 'FIRST', 2: 'SECOND', 3: 'THIRD' };
 export const RESTRICTED = 'SL9';
@@ -40,6 +40,12 @@ export class Tracker {
     const m = feat('mice'); if (!m || !m.list) return [];
     return m.list.map((q, i) => ({ id: 'M' + (i + 1), wing: q.wing ? q.wing.name : '?', x: q.px || 0, z: q.pz || 0, y: q.y, level: this.levelOf(q.y).id, out: q.px != null && q.state !== 'home' && q.state !== 'done', state: q.state === 'done' ? 'HOME' : q.state === 'home' ? 'IN ITS HOLE' : q.state === 'run' || q.state === 'duck' ? 'RUNNING' : 'AT LARGE' }));
   }
+  // What is out of its painting (src/escapes.js): each by name, where it is, and the day's record of the ones sent home.
+  escapes() {
+    const e = this.G.escapes; if (!e || !e.list) return [];
+    return e.list().map(q => ({ id: q.tag, name: q.name, from: q.from, x: q.x, z: q.z, y: q.y, level: this.levelOf(q.y).id, room: roomName(this.G.plan, q.room), state: q.state === 'going' ? 'GOING HOME' : q.lit ? 'IN THE LIGHT' : 'LOOSE' }));
+  }
+  escapeLog() { const e = this.G.escapes; return e && e.log ? e.log.slice() : []; }
   probe() { const p = feat('probe'); if (!p || !p.pos || p.phase === 'idle' || !p.m || !p.m.group.visible) return null; return { x: p.pos.x, y: p.pos.y, z: p.pos.z, level: this.levelOf(p.pos.y).id }; }
 
   // The map's picture of a level, in green: made again only when the map's own picture changes.
@@ -107,6 +113,14 @@ export class Tracker {
       const x = X(m.x), z = Z(m.z), k = (t * 0.9 + hash(m.x)) % 1;
       c.strokeStyle = `rgba(110,255,140,${0.8 * (1 - k)})`; c.lineWidth = 1.2; c.beginPath(); c.arc(x, z, 2 + k * (small ? 7 : 12), 0, TAU); c.stroke();
       c.fillStyle = '#b8ffcc'; c.beginPath(); c.arc(x, z, small ? 1.6 : 2.4, 0, TAU); c.fill();
+    }
+    // what is out of a painting: a steady green dot in a soft halo, and its name
+    for (const e of this.escapes()) {
+      if (e.level !== level.id) continue;
+      const x = X(e.x), z = Z(e.z), r = small ? 2 : 3;
+      c.fillStyle = 'rgba(110,255,140,0.22)'; c.beginPath(); c.arc(x, z, r * 2.4, 0, TAU); c.fill();
+      c.fillStyle = '#7dff9a'; c.beginPath(); c.arc(x, z, r, 0, TAU); c.fill();
+      if (!small) { c.font = '9px monospace'; c.fillStyle = 'rgba(160,255,185,0.9)'; c.fillText(e.id, x + r + 3, z + 3); }
     }
     // whatever came out of the grate
     const pr = this.probe();
