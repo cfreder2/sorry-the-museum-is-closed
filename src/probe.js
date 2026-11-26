@@ -728,7 +728,7 @@ feature({
         // first from just behind the toy, looking up at it; then craning up high over the front, looking out after it
         const dx = this.pos.x - p.x, dz = this.pos.z - p.z, d = Math.hypot(dx, dz) || 1;
         const low = { x: p.x - dx / d * 1.4, y: p.y + 0.6, z: p.z - dz / d * 1.4 }, high = { x: p.x - 16, y: 36, z: p.z + 12 };
-        const c = Math.min(1, Math.max(0, (t - 1.4) / 2.2)), e2 = c * c * (3 - 2 * c);
+        const c = Math.min(1, Math.max(0, (t - 1.4) / 2.2)), e2 = k.G.set.reduce ? 0 : c * c * (3 - 2 * c);      // (Reduce motion: no crane up; it is watched go from where the camera stands)
         k.camClose = { at: { x: low.x + (high.x - low.x) * e2, y: low.y + (high.y - low.y) * e2, z: low.z + (high.z - low.z) * e2 }, look: { x: this.pos.x, y: this.pos.y, z: this.pos.z } };
       }
       if (t > (this.watched ? 5.2 : 0)) {
@@ -779,7 +779,7 @@ feature({
     }
     this._show(dt, k, t < 4.2 ? { x: L.x, z: L.z } : k.pos, { wide: true, step: 0.25, life: 2.4 });
     const look = t < 4.9 ? { x: L.x, y: cy, z: L.z } : { x: this.pos.x, y: Math.min(this.pos.y, this.finCam.y + 120), z: this.pos.z };
-    k.camClose = { at: this.finCam, look, fov: t > 4.9 ? 62 : 55 };
+    k.camClose = { at: this.finCam, look, fov: t > 4.9 && !k.G.set.reduce ? 62 : 55 };      // (Reduce motion: no jump of the lens as it goes)
     if (t > 7.6) {
       this.top = null; k.hold(null); this.held = null; this._hide();
       this.phase = 'idle'; st.stage = 'gone'; save();
