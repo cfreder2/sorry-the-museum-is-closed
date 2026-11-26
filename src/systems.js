@@ -99,7 +99,6 @@ const ZONE_NAMES = {
 const FLOOR_NAME = { LL: 'lower level', 1: 'first floor', 2: 'second floor', 3: 'third floor' };
 function classify(r) {
   if (r.secret || r.floor === 'X' || r.use === 'secret') return '!none';
-  if (r.shut) return '!none';                                             // behind a door that does not open (src/shut.js): no valve, no switch, no zone
   if (r.kind !== 'room') return '!gallery';                               // galleries, Griffin Court, the passage hung with miniatures
   if (/^gallery\b/i.test(r.gallery || '') && r.use !== 'cafe') return '!gallery';      // the balconies over the court are numbered galleries
   if (r.use === 'stair' || r.use === 'lift') return '!riser';
@@ -490,12 +489,16 @@ const S = feature({
         if (by) { this.struck.push({ id: r.id, zone: c, work: by.work.t, room: by.room }); c = '!art'; r._sysArt = by; }
         else if (Math.min(r.x1 - r.x0, r.z1 - r.z0) < 1.5) c = '!small';
       }
-      this.cls.set(r.id, c);
+      // A room behind a door that does not open (src/shut.js) has no valve, no switch and no heads: it is in no zone. But where a
+      // zone is marked (spots(), below) is where its first room is, shut or not: other things keep their distance from the marks
+      // (src/placing.js claimed()), and a mark that moved would move lost property and the guards' notes all over the building.
+      this.cls.set(r.id, r.shut && c[0] !== '!' ? '!none' : c);
       if (c[0] === '!') continue;
-      if (!zones.has(c)) zones.set(c, { id: c, name: ZONE_NAMES[c] || c, rooms: [], heads: 0 });
-      zones.get(c).rooms.push(r);
+      if (!zones.has(c)) zones.set(c, { id: c, name: ZONE_NAMES[c] || c, rooms: [], heads: 0, at: { x: (r.x0 + r.x1) / 2, y: r.y, z: (r.z0 + r.z1) / 2, shut: !!r.shut } });
+      if (!r.shut) zones.get(c).rooms.push(r);
     }
-    this.zoneList = [...zones.values()].sort((a, b) => a.id.localeCompare(b.id));
+    this.zoneMarks = [...zones.values()].sort((a, b) => a.id.localeCompare(b.id));
+    this.zoneList = this.zoneMarks.filter(z => z.rooms.length);
     this.zoneOf = zones;
     // Wings, for the fire test: the galleries of one building on one floor.
     this.wings = {};
@@ -1255,7 +1258,7 @@ const S = feature({
     return { pass: sum('trueChanged') === 0, views: rows.length, truePx: sum('truePx'), trueChanged: sum('trueChanged'), veiledPx: sum('veiledPx'), veiledChanged: sum('veiledChanged'), effectPx: sum('effectPx'), rows };
   },
 
-  spots() { return this.zoneList.map(z => { const r = z.rooms[0]; return { kind: 'thing', id: 'sys-' + z.id, name: 'Sprinkler zone ' + z.id, x: (r.x0 + r.x1) / 2, y: r.y, z: (r.z0 + r.z1) / 2 }; }); },
+  spots() { return this.zoneMarks.map(z => ({ kind: 'thing', id: 'sys-' + z.id, name: 'Sprinkler zone ' + z.id, x: z.at.x, y: z.at.y, z: z.at.z, ...(z.at.shut ? { unseen: true } : null) })); },      // (unseen: in a shut room: kept for the distances, never drawn on a map)
 
   // A new night: every valve shut, every floor dry, every curtain open, every robot its own again.
   reset(k) {

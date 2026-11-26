@@ -1188,7 +1188,7 @@ G.spots = () => {
   if (G.features) out.push(...G.features.spots());
   void lv; return out;
 };
-if (params.has('secrets')) setTimeout(function mark() { if (!G.museum || !G.plan || !G.poker || !G.boards || !G.arcade || G.state === 'title' && !G.vehicle) return setTimeout(mark, 500); try { G.mapMarks = G.spots().map(q => ({ x: q.x, y: q.y, z: q.z, colour: q.kind === 'secret' ? '#ff4d6d' : '#4dd2ff', ring: q.kind === 'secret' })); } catch (e) { console.error(e); } }, 500);
+if (params.has('secrets')) setTimeout(function mark() { if (!G.museum || !G.plan || !G.poker || !G.boards || !G.arcade || G.state === 'title' && !G.vehicle) return setTimeout(mark, 500); try { G.mapMarks = G.spots().filter(q => !q.unseen).map(q => ({ x: q.x, y: q.y, z: q.z, colour: q.kind === 'secret' ? '#ff4d6d' : '#4dd2ff', ring: q.kind === 'secret' })); } catch (e) { console.error(e); } }, 500);
 // The secrets you have found, where they are, for the big map (a gold star on each, as it is found; never the ones still to find).
 G.foundSpots = () => { try { return G.spots().filter(q => q.kind === 'secret' && secrets.has(q.id)); } catch { return []; } };
 const opening = G.opening = new Opening(G, { THREE, scene, camera, sound });
