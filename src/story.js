@@ -163,10 +163,11 @@ feature({
     const d = this._d || (this._d = new THREE.Vector3()); d.copy(mid).sub(at); const len = d.length(); d.divideScalar(len);
     const f = this._f || (this._f = new THREE.Vector3()); cam.getWorldDirection(f);
     if (f.dot(d) < 0.72) return false;
-    const rooms = k.plan.rooms;
+    const rooms = k.plan.rooms, shut = k.plan.shutRooms || [];      // (the shut rooms have left the plan's list, but their blocks still stand and hide the sky)
     for (let s = 3; s < Math.min(len, 260); s += 6) {
       const x = at.x + d.x * s, y = at.y + d.y * s, z = at.z + d.z * s;
       for (const r of rooms) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1 && y > r.y - 1 && y < r.y + (r.h || 4) + 1.5) return false;
+      for (const r of shut) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1 && y > r.y - 1 && y < r.y + (r.h || 4) + 1.5) return false;
     }
     return true;
   },
