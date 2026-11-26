@@ -568,7 +568,8 @@ const F = {
       E.emerge = 1; E.rest = 2; E.outT = 30;
       // (Where it was, if that is near its picture. A game saved before it was kept near may have it rooms away, or on
       // another floor: then it is left where release() has just put it, in front of its own picture.)
-      if (Math.abs(r.y - E.y) < 0.06 && Math.hypot(o.x - E.art.x, o.z - E.art.z) <= TUNE.reach + 2) { E.x = o.x; E.z = o.z; E.y = r.y; E.room = o.room; }
+      // (Nor where it was if that room is shut now, src/shut.js: it is back in front of its picture too.)
+      if (!r.shut && Math.abs(r.y - E.y) < 0.06 && Math.hypot(o.x - E.art.x, o.z - E.art.z) <= TUNE.reach + 2) { E.x = o.x; E.z = o.z; E.y = r.y; E.room = o.room; }
     }
     this.dirty = false;
   },
