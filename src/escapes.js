@@ -37,9 +37,9 @@ import './escape/keg.js';
 import './escape/hats.js';
 import './escape/lambs.js';
 import './escape/parasol.js';
-// (Not './escape/monkey.js': Seurat's monkey is not an escapee. Its getting-out is the chase in src/l2-grandejatte.js now
-// (under the bench in 240, away to the Director's whiteboard, back on its lead), and that monkey is the only one there is.
-// The file was written against the gallery's old secret and would put a second monkey in the building: it is kept, unused.)
+// (Seurat's monkey is not an escapee. Its getting-out is the chase in src/l2-grandejatte.js (under the bench in 240, away to
+// the Director's whiteboard, back on its lead), and that monkey is the only one there is. The first test of it as an
+// escapee, escape/monkey.js, would have put a second monkey in the building: nothing imported it, and it is gone.)
 
 const TUNE = {
   linger: 4,        // seconds of a work's show watched before something can get out
