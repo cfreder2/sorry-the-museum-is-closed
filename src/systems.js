@@ -99,6 +99,7 @@ const ZONE_NAMES = {
 const FLOOR_NAME = { LL: 'lower level', 1: 'first floor', 2: 'second floor', 3: 'third floor' };
 function classify(r) {
   if (r.secret || r.floor === 'X' || r.use === 'secret') return '!none';
+  if (r.shut) return '!none';                                             // behind a door that does not open (src/shut.js): no valve, no switch, no zone
   if (r.kind !== 'room') return '!gallery';                               // galleries, Griffin Court, the passage hung with miniatures
   if (/^gallery\b/i.test(r.gallery || '') && r.use !== 'cafe') return '!gallery';      // the balconies over the court are numbered galleries
   if (r.use === 'stair' || r.use === 'lift') return '!riser';
@@ -528,7 +529,7 @@ const S = feature({
   resolve(word) {
     const P = this.k.plan, w = String(word || '').toLowerCase();
     if (!w) return null;
-    if (w === 'all' || w === 'building') return { label: 'ALL ZONES', rooms: P.rooms.filter(r => !r.secret), all: true };
+    if (w === 'all' || w === 'building') return { label: 'ALL ZONES', rooms: P.rooms.filter(r => !r.secret && !r.shut), all: true };
     if (w === 'here') { const r = this.k.room; return r ? { label: r.id.toUpperCase(), rooms: [r], one: true } : null; }
     if (this.zoneOf.has(w)) { const z = this.zoneOf.get(w); return { label: z.id.toUpperCase(), rooms: z.rooms, zone: z }; }
     if (w === 'corridors') return { label: 'CORRIDORS', rooms: this.zoneList.filter(z => z.id.startsWith('corridors')).flatMap(z => z.rooms) };
@@ -681,7 +682,7 @@ const S = feature({
     const L = this.k.G.lights, M = this.k.museum;
     if (!L) return say(false, 'Lighting controller not answering.');
     if (!a.length || a[0] === 'status') {
-      const all = this.k.plan.rooms.filter(r => !r.secret), on = all.filter(r => L.isOn(r.id));
+      const all = this.k.plan.rooms.filter(r => !r.secret && !r.shut), on = all.filter(r => L.isOn(r.id));
       return say(true, `LIGHTING  ${on.length} of ${all.length} rooms on.`, `Galleries lit: ${on.filter(r => r.kind === 'gallery').length}. Back rooms lit: ${on.filter(r => r.kind !== 'gallery').length}.`, this.usage('lights'));
     }
     const want = a[a.length - 1].toLowerCase(), what = a.slice(0, -1).join(' ');
@@ -762,7 +763,7 @@ const S = feature({
     return {
       sprinklers: { open, wet, rooms: [...this.wet.values()].map(w => ({ id: w.r.id, on: w.on, wet: +w.wet.toFixed(2), left: w.on ? Math.max(0, Math.round(RUN_FOR - (this.t - w.tOn))) : 0 })) },
       firetest: [...this.tests.values()].map(ft => ({ id: ft.r.id, stage: ft.stage, left: ft.stage === 'run' ? Math.max(0, Math.round(TEST_FOR - (this.t - ft.t0))) : null })),
-      lights: L ? { on: P.rooms.filter(r => !r.secret && L.isOn(r.id)).length, rooms: P.rooms.filter(r => !r.secret).length } : null,
+      lights: L ? { on: P.rooms.filter(r => !r.secret && !r.shut && L.isOn(r.id)).length, rooms: P.rooms.filter(r => !r.secret && !r.shut).length } : null,
       lifts: (P.lifts || []).map((l, i) => ({ n: i + 1, id: l.id, y: +l.y.toFixed(2), moving: !(l.wait > 0), called: this.calls.some(c => c.l === l) })),
       doors: { locked: !!P.locked, outside: P.doors.filter(d => (d.out || d.b === 'out') && !d.vent && !d.hidden).length },
       pa: this.pa.text || null,

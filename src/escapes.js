@@ -143,9 +143,9 @@ const F = {
     const same = (a, b) => Math.abs(a - b) < 0.06;
     this.adj = new Map(); this.floors = new Map(); this._front = [];
     for (const d of P.doors) {
-      if (d.out || d.b === 'out' || d.vent || d.hidden || d.shut || d.h < 1.3) continue;
+      if (d.out || d.b === 'out' || d.vent || d.hidden || d.h < 1.3) continue;
       const a = P.byId[d.a], b = P.byId[d.b]; if (!a || !b || a.secret || b.secret || !same(a.y, d.y) || !same(b.y, d.y)) continue;
-      for (const [u, w] of [[a, b], [b, a]]) { if (!this.adj.has(u.id)) this.adj.set(u.id, []); this.adj.get(u.id).push({ to: w.id, x: (d.x0 + d.x1) / 2, z: (d.z0 + d.z1) / 2 }); }
+      for (const [u, w] of [[a, b], [b, a]]) { if (!this.adj.has(u.id)) this.adj.set(u.id, []); this.adj.get(u.id).push({ to: w.id, x: (d.x0 + d.x1) / 2, z: (d.z0 + d.z1) / 2, shut: !!d.shut }); }      // (shut: a door that does not open, src/shut.js: counted among a room's doors as ever, and never gone through)
     }
     this.quietArts = k.museum.arts.filter(a => QUIET_WORKS.includes(a.work.id));
     for (const s of SPECS) {
@@ -245,11 +245,12 @@ const F = {
     if (E.grid && E.grid.rooms.includes(E.room)) return E.grid;
     const P = this.k.plan, start = E.room, r0 = P.byId[start]; if (!r0) return null;
     const ok = id => !QUIET.has(id) || id === E.art.room, seen = new Map([[start, 0]]), q = [start], from = new Map();
-    while (q.length) { const id = q.shift(), n = seen.get(id); if (n >= 5) continue; for (const l of this.adj.get(id) || []) if (!seen.has(l.to) && ok(l.to)) { seen.set(l.to, n + 1); from.set(l.to, id); q.push(l.to); } }
+    while (q.length) { const id = q.shift(), n = seen.get(id); if (n >= 5) continue; for (const l of this.adj.get(id) || []) if (!l.shut && !seen.has(l.to) && ok(l.to)) { seen.set(l.to, n + 1); from.set(l.to, id); q.push(l.to); } }
     const home = E.art.room, near = new Map([[home, 0]]), back = new Map(), hq = [home];
     while (hq.length) { const id = hq.shift(), n = near.get(id); if (n >= 2) continue; for (const l of this.adj.get(id) || []) if (!near.has(l.to) && ok(l.to)) { near.set(l.to, n + 1); back.set(l.to, id); hq.push(l.to); } }
     const set = new Set([...near].filter(([, n]) => n <= TUNE.hops).map(([id]) => id).slice(0, 9));
     for (const w of E.spec.rooms || []) if (near.has(w)) for (let id = w; id && !set.has(id); id = back.get(id)) set.add(id);      // (a room it is known for: the hats' bench)
+    for (const id of [...set]) if (P.byId[id].shut) set.delete(id);      // (the rooms it had, less any that are shut now: not other rooms in their place)
     E.allow = [...set].filter(id => Math.abs(P.byId[id].y - P.byId[home].y) < 0.06);
     for (let id = E.art.room; id && seen.has(id); id = from.get(id)) set.add(id);      // the way home, however it wandered here
     set.add(start);      // (and where it is, wherever that is: put on another floor by a test, there is no way home, and it stays in that room)
