@@ -82,7 +82,7 @@ const BULB_MAIN = `
     else if (p < 1.5) { float lv = 0.08 + 0.92 * clamp(uNote, 0.0, 1.0) * live + uCalm * 0.6; b = step(s, lv); c = pal(s * 0.9 + uBarN * 0.333) * (0.25 + 1.5 * b) + vec3(2.5) * exp(-pow((s - lv) * 30.0, 2.0)); }
     else if (p < 2.5) { float r = 1.0 - uPh; b = exp(-pow((s - r) * 10.0, 2.0)) * 2.4 * live; c = pal(floor(uBarN * 4.0 + uPh) * 0.25 + 0.1) * (0.35 + b) + aCol * 0.25; }
     else { float sp = step(0.86 - 0.25 * beat, hash(ph * 91.0 + floor(uT * 9.0 * live))); c = mix(aCol * 0.6, vec3(2.8, 2.7, 2.4), sp) + pal(k) * 0.4 * beat; }
-    c += vec3(2.0, 1.8, 1.2) * uFin * step(0.5, hash(ph * 13.0 + floor(uT * 14.0)));
+    c += vec3(2.0, 1.8, 1.2) * uFin * step(0.5, hash(ph * 13.0 + floor(uT * 14.0 * live)));      // (Reduce motion: the same half of the bulbs, lit steadily, not re-dealt fourteen times a second)
   }
   else if (m < 6.5) {                       // the mouth: (s, k) in a unit square; the lips are the edge of an ellipse as open as the note
     float o = max(uMouth, 0.12), r = length(vec2(s, k / o)), lip = 1.0 - smoothstep(0.12, 0.3, abs(r - 1.0));
