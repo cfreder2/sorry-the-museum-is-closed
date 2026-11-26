@@ -165,20 +165,23 @@ feature({
   start(k) {
     // A programme of about 22 s: singles, pairs, then a finale. [time, kind, target x offset, height, colour]
     const r = Math.random, kinds = ['peony', 'ring', 'willow', 'crossette', 'palm'], prog = [], col = () => Math.floor(r() * PAL.length);
+    // Reduce motion: the same show, every shell of it, without the strobe. The finale's barrage goes up three a second and not
+    // nine, its salutes a second apart; a salute is a warm burst, not a white crack; and no spark twinkles (see _burst, _step).
+    const calm = this.calm = !!(k.G.set && k.G.set.reduce), gap = calm ? 0.33 : 0.11;
     let t = 1.0;
     for (let i = 0; i < 6; i++) { prog.push([t, i === 2 ? 'saucer' : i === 5 ? 'hello' : kinds[i % kinds.length], (r() - 0.5) * 50, 50 + r() * 20, col()]); t += 1.1 + r() * 0.5; }
     for (let i = 0; i < 4; i++) { for (let j = 0; j < 2; j++) prog.push([t + j * 0.2, kinds[Math.floor(r() * kinds.length)], (j ? 1 : -1) * (10 + r() * 20), 50 + r() * 20, col()]); t += 1.1 + r() * 0.4; }
     t += 0.5;
     // the finale: a barrage, salutes cracking through it, then a gold crown over everything
-    for (let i = 0; i < 24; i++) prog.push([t + i * 0.11, i % 4 === 3 ? 'salute' : i % 3 ? 'peony' : 'willow', (r() - 0.5) * 70, 52 + r() * 25, col()]);
-    const t2 = t + 24 * 0.11 + 0.35;
-    prog.push([t2, 'salute', -24, 60, 5], [t2 + 0.08, 'salute', 24, 62, 5], [t2 + 0.2, 'salute', 0, 66, 5], [t2 + 0.45, 'brocade', 0, 84, 2]);
-    prog.push([t2 + 0.6, 'saucer', -34, 72, 3], [t2 + 0.75, 'hello', 34, 74, 1]);      // the visitors' own, either side of the crown
+    for (let i = 0; i < 24; i++) prog.push([t + i * gap, i % 4 === 3 ? 'salute' : i % 3 ? 'peony' : 'willow', (r() - 0.5) * 70, 52 + r() * 25, col()]);
+    const t2 = t + 24 * gap + 0.35, tc = t2 + (calm ? 3 : 0.45);      // (tc: when the crown opens)
+    prog.push([t2, 'salute', -24, 60, 5], [t2 + (calm ? 1 : 0.08), 'salute', 24, 62, 5], [t2 + (calm ? 2 : 0.2), 'salute', 0, 66, 5], [tc, 'brocade', 0, 84, 2]);
+    prog.push([tc + 0.15, 'saucer', -34, 72, 3], [tc + 0.3, 'hello', 34, 74, 1]);      // the visitors' own, either side of the crown
     prog.sort((a, b) => a[0] - b[0]);
     // the call, faint and high over the finale: as the barrage begins, so it ends as the crown opens
     // ...and as the crown hangs there, an answer: a green light streaks across the sky over the park, dips, and climbs
     // away into the dark. Not a firework. Not a sound.
-    this.run = { t: 0, prog, i: 0, end: t2 + 0.45 + 1.9 + 3.0, callAt: Math.max(1, t2 + 0.45 - 7 * 0.36 - 0.2), called: false, streak: { at: t2 + 1.1, dur: 2.4, flip: r() < 0.5 } };
+    this.run = { t: 0, prog, i: 0, end: tc + 1.9 + 3.0, callAt: Math.max(1, tc - 7 * 0.36 - 0.2), called: false, streak: { at: tc + 0.65, dur: 2.4, flip: r() < 0.5 } };
     this.pts.visible = this.lines.visible = true;
     this.pressTo = 1;
     k.synth.noise(0.08, { vol: 0.08, lp: 900 }); k.synth.note(110, 0.15, { type: 'square', vol: 0.03 });
@@ -267,7 +270,7 @@ feature({
     }
     else if (s.kind === 'willow') sphere(200, 17, 3.2, 1.05, 2.4, 1, [1, 0.72, 0.28]);
     else if (s.kind === 'brocade') { sphere(340, 22, 3.6, 1.2, 1.7, 1, [1, 0.78, 0.32]); sphere(80, 9, 1.4, 1.4, 1.2, 0, [1, 1, 1]); }
-    else if (s.kind === 'salute') sphere(140, 26, 0.35, 1.6, 2.5, 0, [1, 1, 1]);
+    else if (s.kind === 'salute') { if (this.calm) sphere(140, 26, 0.9, 1.0, 2.5, 0, [1, 0.85, 0.6]); else sphere(140, 26, 0.35, 1.6, 2.5, 0, [1, 1, 1]); }
     else if (s.kind === 'crossette') sphere(18, 17, 0.85, 1.6, 0.6, 2);
     else if (s.kind === 'saucer') {
       // a visitor's saucer, in green: a flat ring tipped a little towards the terrace, a dome over it, five lights in the
@@ -285,7 +288,7 @@ feature({
     else { for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; for (let j = 0; j < 12; j++) { const f = 11 + j * 1.1; this._spark(x, y, z, Math.cos(a) * f * 0.8, 8 + j * 0.4, Math.sin(a) * f * 0.8, col, 2.0, 1.3, 1.6, 0); } } }
     // the bang, late by the distance: louder for a salute; a crackle after a willow or the crown
     const d = Math.hypot(x - k.pos.x, y - k.pos.y, z - k.pos.z), at = Math.min(0.6, d / 343), S = k.synth, big = s.kind !== 'crossette', sal = s.kind === 'salute' || s.kind === 'brocade';
-    if (s.kind === 'saucer' || s.kind === 'hello') this._spark(x, y, z, 0, 0, 0, [1, 1, 1], 0.12, 3, 0, 0);      // (a flash at the heart, as the burst opens)
+    if ((s.kind === 'saucer' || s.kind === 'hello') && !this.calm) this._spark(x, y, z, 0, 0, 0, [1, 1, 1], 0.12, 3, 0, 0);      // (a flash at the heart, as the burst opens)
     S.noise(sal ? 0.7 : big ? 0.5 : 0.25, { vol: sal ? 0.17 : big ? 0.12 : 0.07, lp: sal ? 2600 : 1400, at }); S.note(sal ? 42 : 55, sal ? 0.6 : 0.4, { type: 'sine', vol: sal ? 0.14 : 0.1, at });
     if (s.kind === 'willow' || s.kind === 'brocade') for (let i = 0; i < (s.kind === 'brocade' ? 22 : 10); i++) S.noise(0.03, { vol: 0.03, lp: 6000, at: at + 0.8 + i * 0.1 + R() * 0.08 });
   },
@@ -311,7 +314,7 @@ feature({
       this.Vv[i * 3] *= dr; this.Vv[i * 3 + 1] = this.Vv[i * 3 + 1] * dr - g * dt; this.Vv[i * 3 + 2] *= dr;
       this.P[i * 3] += this.Vv[i * 3] * dt; this.P[i * 3 + 1] += this.Vv[i * 3 + 1] * dt; this.P[i * 3 + 2] += this.Vv[i * 3 + 2] * dt;
       const f = this.life[i] / this.max[i];
-      this.A[i] = this.kind[i] === 1 ? Math.min(1, f * 1.6) * (0.7 + 0.3 * Math.sin(this.t * 30 + i)) : f * f * (0.75 + 0.25 * Math.sin(this.t * 24 + i * 1.7));
+      this.A[i] = this.kind[i] === 1 ? Math.min(1, f * 1.6) * (this.calm ? 0.85 : 0.7 + 0.3 * Math.sin(this.t * 30 + i)) : f * f * (this.calm ? 0.85 : 0.75 + 0.25 * Math.sin(this.t * 24 + i * 1.7));
     }
     n = this.n;
     // each spark's streak: from where it is back along the way it came, fading to nothing
