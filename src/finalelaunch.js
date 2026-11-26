@@ -54,7 +54,8 @@ body.fcine #hud > :not(#toast):not(#trick) { display: none !important; }
 #tones .tpads button.lit, #tones .tpads.wait button.lit { opacity: 1; transform: scale(1.07); box-shadow: 0 0 30px var(--c); border-color: #fff; }
 #tones .tpads.wait button { opacity: .25; }
 #tones .tpads button kbd { background: rgba(255,255,255,.55); color: #111; border-color: rgba(0,0,0,.35); }
-.touch #tones kbd { display: none; }
+.touch #tones kbd, .pad #tones kbd { display: none; }
+#tones .tpads button.sel { outline: 3px solid #fff; outline-offset: 4px; }
 #tones .tleave, #fskip { position: fixed; pointer-events: auto; height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid rgba(226,205,148,.55); background: rgba(8,9,14,.66); color: var(--gilt, #e2cd94); font: 700 12px var(--mono, ui-monospace, monospace); letter-spacing: .12em; z-index: 26; }
 #tones .tleave { top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); }
 #fskip { right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); }
@@ -78,7 +79,7 @@ feature({
     this.padK = [0, 0, 0, 0, 0]; this.rim = { mode: 'chase', c: new THREE.Color(), k: 0 };
     this.booted = false; this.hooked = false; this.autoTried = false; this.artGone = false;
     this.cargo = { arts: [], books: [], items: [] };
-    this.hold = dt => this._hold(dt);
+    this.hold = (dt, inp) => this._hold(dt, inp);
     const me = this;
     k.G.finale.launch = {
       open: () => this.use(), press: i => this.press(i), skip: () => this.skip(), beam: () => this.startBeam(),
@@ -509,14 +510,14 @@ feature({
     if (this.run === 'take' && this.toyPath) { this.toyPath.t = this.toyPath.dur; return; }
     if (this.run === 'launch' && !this.skipping) {
       this.skipping = true; this._fade(true);
-      setTimeout(() => { this.script = []; this._sirens(false); this._toVoyage(); this.skipping = false; }, 900);
+      this._after(0.9, () => { this.skipping = false; if (this.run !== 'launch') return; this.script = []; this._sirens(false); this._toVoyage(); });      // (on the launch's own clock, which stands still in the pause menu: a wall-clock timer started the voyage under it)
     }
   },
   // Everything back as it was (the craft on its platform, the platform down, the doors shut, the ramp down), drawn
   // nowhere while the voyage runs; and the archive's easels empty.
   _reset() {
     const k = this.k, G = k.G, h = this.hangar, fin = this.fin;
-    this.run = null; this.cam = null; G.cineEye = null; this.free = null; this.streak = null; this.rise = null; this.script = [];
+    this.run = null; this.cam = null; G.cineEye = null; this.free = null; this.streak = null; this.rise = null; this.script = []; this.skipping = false; this.toyPath = null;
     this.q.length = 0; this.tw.length = 0; this.flights.length = 0;
     document.body.classList.remove('fcine'); if (this.skipEl) this.skipEl.hidden = true;
     this._grip(false);
@@ -703,17 +704,34 @@ feature({
       this._keys(false);
     }
   },
-  _hold(dt) {
+  _hold(dt, inp) {
     const v = this.k.G.vehicle;
     v.vel.set(0, 0, 0); if (v.kind === 'car') { v.speed = 0; v.throttle = 0; v.air = false; v.vy = 0; v.landed = null; v.launched = 0; } else v.landed = true;
     v.bump = 0; v.sync(dt);
+    this._pad(inp);
   },
+  // A gamepad, while the console or the cinematic has the screen. (Driving, a pad's buttons are actions and never keys, src/input.js,
+  // so the key handler below never hears them.) At the pads: the D-pad or a stick moves along the five, A plays the one it is on,
+  // B leaves. In the cinematic: A or B skips. Menu still pauses.
+  _pad(inp) {
+    const I = this.k.G.input; if (!I || !this.run || this.run === 'cue') return;
+    if (this.run !== 'tones') { I.took('swap'); if (I.pad && (I.took('look') || I.took('back'))) this.skip(); return; }      // (and no swapping toys while the beam has this one)
+    if (!I.pad) { this._sel(-1); return; }
+    const x = !inp ? 0 : inp.steer != null ? inp.steer : Math.abs(inp.roll) > Math.abs(inp.yaw) ? inp.roll : inp.yaw, lean = x > 0.6 ? 1 : x < -0.6 ? -1 : 0;
+    const dir = I.took('right') ? 1 : I.took('left') ? -1 : lean !== this._lean ? lean : 0; this._lean = lean;
+    if (this.sel == null) this.sel = 0;
+    if (dir) this.sel = Math.max(0, Math.min(4, this.sel + dir));
+    this._sel(this.sel);
+    if (I.took('look')) this.press(this.sel);
+    if (I.took('back')) this.closeTones('The pads go quiet. Come back any time.');
+  },
+  _sel(i) { if (i === this._selOn || !this.tonesEl) return; this._selOn = i; this.tonesEl.querySelectorAll('.tpads button').forEach((b, n) => b.classList.toggle('sel', n === i)); },
   _shadow(v, on) { if (v.shadow) v.shadow.visible = on; },
   // While the console or the cinematic has the screen: keys 1-5 for the pads, Esc to leave; Space, Enter or Esc to skip.
   _keys(on) {
     if (on && !this._onKey) {
       this._onKey = e => {
-        if (!this.run || this.run === 'cue') return;
+        if (!this.run || this.run === 'cue' || this.k.G.state !== 'play') return;      // (not in the pause menu or on the title: Esc, Enter and Space there are the menu's)
         if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
         const code = e.code;
         if (this.run === 'tones') {
@@ -739,13 +757,13 @@ feature({
     // (pointerdown, so a thumb already down on the glass does not stop the tap; data-tone, so the game's own button handler leaves them alone)
     el.addEventListener('pointerdown', e => {
       if (!document.hasFocus()) window.focus();
-      const b = e.target.closest('button'); if (!b) return;
+      const b = e.target.closest('button'); if (!b || this.k.G.state !== 'play') return;
       e.preventDefault(); this.k.sound.unlock && this.k.sound.unlock();
       if (b.dataset.tone === 'leave') this.closeTones('The pads go quiet. Come back any time.');
       else this.press(+b.dataset.tone);
     });
-    const sk = this.skipEl = document.createElement('button'); sk.id = 'fskip'; sk.hidden = true; sk.dataset.tone = 'skip'; sk.innerHTML = 'SKIP<kbd>Space</kbd>';
-    sk.addEventListener('pointerdown', e => { if (!document.hasFocus()) window.focus(); e.preventDefault(); this.skip(); });
+    const sk = this.skipEl = document.createElement('button'); sk.id = 'fskip'; sk.hidden = true; sk.dataset.tone = 'skip'; sk.innerHTML = `SKIP<kbd data-key="Space" data-pad="A">${this.k.G.input && this.k.G.input.pad ? 'A' : 'Space'}</kbd>`;      // (data-pad: main.js keycaps() swaps the caption when a pad is picked up)
+    sk.addEventListener('pointerdown', e => { if (!document.hasFocus()) window.focus(); e.preventDefault(); if (this.k.G.state === 'play') this.skip(); });
     document.body.append(sk);
     const fd = this.fadeEl = document.createElement('div'); fd.id = 'ffade'; document.body.append(fd);
   },
@@ -887,6 +905,29 @@ feature({
     let tt = t + 0.6; MOTIF.forEach(n => { motifVoice(c, out, n.midi + 12, tt, n.beats * 0.32, 0.05); tt += n.beats * 0.32; });
   },
 
+  // Quit to the title, or a new start, in the middle of any of it: everything is let go of (the toy, the camera, the pads, the
+  // sounds) and it stands as a reload would find it. Left running, the pads and the held toy were still there on the title screen.
+  reset(k) {
+    if (!this.fin || !this.run) return;
+    if (this.run === 'tones') { this.closeTones(); return; }
+    const G = k.G, v = G.vehicle, st = this.fin.save.state;
+    if (this.mark) { G.mapMarks = (G.mapMarks || []).filter(m => m !== this.mark); this.mark = null; }
+    this._reset(); this._clearThings(); this._fade(false);
+    v.group.visible = true; this._shadow(v, true);
+    if (past(st, 'launched')) return;
+    // (not launched: the pictures are still on their easels, and the craft is awake and will call again)
+    this.artGone = false; this.autoTried = false; this._artBack(1);
+    if (this.poolMesh) this.poolMesh.visible = true;
+    this.rim.mode = st === 'played' ? 'bands' : 'chase';
+    this._screen(st === 'played' ? ['CRAFT: AWAKE', 'USE TO CALL IT'] : ['CRAFT: ASLEEP', 'AWAITING TONES  _']);
+  },
+  // The pictures back on their easels (lit this much), whatever the beam had done with them.
+  _artBack(lit) {
+    const h = this.fin.hangar && this.fin.built ? this.fin.hangar : null; if (!h) return null;
+    for (const e of h.easels) { e.light(lit); if (e.art.work) e.art.mesh.visible = true; if (e.fly) { this.fin.baseG.attach(e.art.mesh); e.fly.parent && e.fly.parent.remove(e.fly); e.fly = null; e.art.mesh.scale.set(e.art.w, e.art.h, 1); e.art.mesh.rotation.set(0, Math.PI / 2, 0); e.art.mesh.position.copy(e.position); } }
+    if (h.frames) h.frames.visible = true;
+    return h;
+  },
   // A new game: none of it has happened.
   fresh(k) {
     if (!this.fin) return;
@@ -894,10 +935,7 @@ feature({
     if (this.run === 'tones') this.closeTones(); else if (this.run) this._reset();
     this._chair(true);
     this.phrase = 0; this.lit = 0; this.autoTried = false; this.artGone = false; this.mode = null;
-    const h = this.fin.hangar && this.fin.built ? this.fin.hangar : null;
-    if (h) {
-      for (const e of h.easels) { e.light(0); if (e.art.work) e.art.mesh.visible = true; if (e.fly) { this.fin.baseG.attach(e.art.mesh); e.fly.parent && e.fly.parent.remove(e.fly); e.fly = null; e.art.mesh.scale.set(e.art.w, e.art.h, 1); e.art.mesh.rotation.set(0, Math.PI / 2, 0); e.art.mesh.position.copy(e.position); } }
-      if (h.frames) h.frames.visible = true;
+    if (this._artBack(0)) {
       if (this.poolMesh) { this.poolMesh.visible = true; for (let i = 0; i < this.poolOn.length; i++) { this.poolOn[i] = -1; this._poolsTo(i, 0); } }
       this._screen(['CRAFT: ASLEEP', 'AWAITING TONES  _']);
     }

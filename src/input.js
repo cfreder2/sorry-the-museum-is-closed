@@ -13,7 +13,8 @@ const KEYS = {
 // back from a work or a board), X swaps toys, Y is the camera, View is the notebook, Menu pauses; on the D-pad, up is
 // the map, down the lights, left a work's label. The bumpers jump and the triggers are the pedals (see read). The
 // stick clicks do nothing: a thumb leaning hard on a stick presses them without meaning to.
-const PAD = { 0: ['look'], 1: ['reset', 'back'], 2: ['swap'], 3: ['camera'], 8: ['notebook'], 9: ['pause'], 12: ['map'], 13: ['lights'], 14: ['info'] };
+// ('left' and 'right': the D-pad as it lies, for the one thing played with it while driving, the five pads of src/finalelaunch.js)
+const PAD = { 0: ['look'], 1: ['reset', 'back'], 2: ['swap'], 3: ['camera'], 8: ['notebook'], 9: ['pause'], 12: ['map'], 13: ['lights'], 14: ['info', 'left'], 15: ['right'] };
 // Anywhere else (a menu, a card table, an arcade cabinet) the pad is a keyboard, so whatever works with keys works with
 // it: the D-pad or the left stick are the arrows, A is Enter, B and Menu are Escape, X and Y the two spare buttons.
 const PADKEY = { 0: 'Enter', 1: 'Escape', 2: 'KeyF', 3: 'Space', 9: 'Escape', 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight' };
