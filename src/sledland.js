@@ -109,7 +109,9 @@ function kick(s) {
 }
 
 // ---------------------------------------------------------------- building it
-export function buildLand() {
+// (A generator: sledhill.js builds the hill a part at a time, and each yield is a place the working out can stop until
+// the next frame. `const L = yield* buildLand()` gives the land.)
+export function* buildLand() {
   const { x0, z0, step, nx, nz } = LAND, W = nx + 1, N = W * (nz + 1);
   const run = trace(RUN_FROM.x, RUN_FROM.z, RUN_FROM.heading, RUN_PARTS);
   profile(run, RUN_KEYS, 3);
@@ -141,7 +143,7 @@ export function buildLand() {
     for (let di = -rr; di <= rr; di++) for (let dj = -rr; dj <= rr; dj++) { const L = bucket.get(key(bi + di, bj + dj)); if (!L) continue; for (let m = 0; m < L.length; m += 2) { const rib = L[m], p = ribs[rib].P[L[m + 1]], d2 = (p.x - x) ** 2 + (p.z - z) ** 2; if (d2 < bd[rib]) { bd[rib] = d2; best[rib] = p; } } }
     return best;
   };
-  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+  for (let j = 0; j <= nz; j++) { if (j % 4 === 0) yield; for (let i = 0; i <= nx; i++) {
     const n = j * W + i, x = x0 + i * step, z = z0 + j * step;
     nearest(x, z, RUN_W + RUN_LIP + 6);
     let closest = 1e9;
@@ -155,7 +157,8 @@ export function buildLand() {
     const dt = Math.hypot(x - TOP.x, z - TOP.z);
     if (dt <= TOP.r) { h[n] = PIN_TOP; pin[n] = 1; kind[n] = 4; }
     if (i === 0 || j === 0 || i === nx || j === nz) { if (!pin[n]) { h[n] = 0; pin[n] = 1; } }
-  }
+  } }
+  yield;
   // Where the hill runs out: as far from everything pinned as its height allows at SPREAD (a chamfer distance, two passes).
   const envelope = slope => {
     const E = new Float32Array(N); for (let n = 0; n < N; n++) E[n] = pin[n] && h[n] > 0 ? h[n] : -99;
@@ -165,18 +168,21 @@ export function buildLand() {
     return E;
   };
   const E = envelope(SPREAD), ceil = envelope(CEIL);
+  yield;
   for (let n = 0; n < N; n++) if (!pin[n] && E[n] <= 0) { h[n] = 0; pin[n] = 1; }
   // The sheet over it all: Gauss-Seidel with over-relaxation, from the envelope as a first guess (it settles fast). It is
   // kept under a ceiling a little lower than the ground pinned round it, so that nothing swells up above the ridge it hangs from.
   for (let n = 0; n < N; n++) if (!pin[n]) h[n] = Math.min(E[n], ceil[n]);
   const src = 0.012 * step * step, w = 1.92;
   for (let it = 0; it < 260; it++) {
+    if (it % 8 === 0) yield;
     for (let j = 1; j < nz; j++) for (let i = 1; i < nx; i++) {
       const n = j * W + i; if (pin[n]) continue;
       const v = (h[n - 1] + h[n + 1] + h[n - W] + h[n + W] + src) * 0.25;
       h[n] = Math.min(ceil[n], h[n] + w * (v - h[n]));
     }
   }
+  yield;
   // The foot eased into the field.
   for (let n = 0; n < N; n++) { const v = Math.max(0, h[n]); h[n] = v - FOOT * (1 - Math.exp(-v / FOOT)); }
   // The wind (from the north-west, as it comes across the lake shore in January): a cornice on the lee of the summit's
@@ -193,6 +199,7 @@ export function buildLand() {
     const away = smooth((gap[n] - 0.6) / 2.2), dt = Math.hypot(x0 + i * step - TOP.x, z0 + j * step - TOP.z), offTop = smooth((dt - TOP.r - 0.3) / 1.2);
     h[n] += drift(x0 + i * step, z0 + j * step) * away * offTop * smooth(h[n] / 0.8);
   }
+  yield;
   // The whole thing lightly smoothed (three passes of a 1-2-1 blur), so that no crease is left where one part meets
   // another. (The drift goes on after, so that the walls of the bore stay walls.)
   { const tmp = new Float32Array(N);
@@ -200,6 +207,7 @@ export function buildLand() {
       for (let n = 0; n < N; n++) { const i = n % W, j = (n - i) / W, edge = along === 1 ? i === 0 || i === nx : j === 0 || j === nz; tmp[n] = edge ? h[n] : (h[n - along] + 2 * h[n] + h[n + along]) / 4; }
       h.set(tmp);
     } }
+  yield;
   // The big drift over the run, and the tunnel through it. The run goes through it straight and level-ish; the drift
   // stands `clear` over the highest of the floor under it, flat on top over the bore so that it can be driven across.
   const T = TUNNEL, ta = run.find(p => p.s >= T.s0), tb = run.find(p => p.s >= T.s1);
@@ -229,6 +237,7 @@ export function buildLand() {
       for (let n = W + 1; n < N - W - 1; n++) { if (!moved[n] && !moved[n - along] && !moved[n + along]) continue; const z = z0 + Math.floor(n / W) * step; if (Math.abs(z - tun.z) < T.half + 1.2) continue; tmp[n] = (h[n - along] + 2 * h[n] + h[n + along]) / 4; }
       h.set(tmp);
     } }
+  yield;
   // The drawn surface: two flat triangles a cell (as the mesh is drawn).
   const heightTri = (x, z) => {
     const fx = (x - x0) / step, fz = (z - z0) / step;

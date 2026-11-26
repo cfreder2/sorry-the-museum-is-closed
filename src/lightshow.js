@@ -154,7 +154,12 @@ class ShowBulbs {
     mat.customProgramCacheKey = () => 'lightshow-bulbs';
     const mesh = new THREE.InstancedMesh(geo, mat, n), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
     for (let i = 0; i < n; i++) { S.setScalar(this.s[i]); P.set(this.p[i * 3], this.p[i * 3 + 1], this.p[i * 3 + 2]); mesh.setMatrixAt(i, M.compose(P, Q, S)); }
-    mesh.frustumCulled = false; mesh.name = 'lightshow-bulbs'; group.add(mesh);
+    // Left out when the show is not in the camera's view (it was drawn in every frame, twice with the floor's reflection,
+    // wherever the toy was within 300 m: 416,000 triangles in the lobby, in the basement). three.js tests the sphere round
+    // every bulb: worked out here, once they are all placed, and made 8 m wider, because the shader draws a far bulb bigger
+    // than it is (never under a pixel: its radius is dist * uPix, at most the far plane's 1400 m * 1.25 / 240).
+    mesh.computeBoundingSphere(); mesh.boundingSphere.radius += 8;
+    mesh.name = 'lightshow-bulbs'; group.add(mesh);
     return mesh;
   }
 }
@@ -200,7 +205,7 @@ feature({
     this._figures();
     this._ornaments();
     this.bulbMesh = this.B.build(g, U);
-    const wm = this.W.mesh(); if (wm) { wm.name = 'lightshow-wire'; g.add(wm); this.wireMat = wm.material; }
+    const wm = this.W.mesh(); if (wm) { wm.name = 'lightshow-wire'; wm.frustumCulled = true; g.add(wm); this.wireMat = wm.material; }      // (left out when not in view, as the bulbs are: plain wire, nothing moves it)
     this._glows(g);
     this.hud = null; this.run = null;
     try { this.best = { car: parseFloat(localStorage.getItem('after-hours.lightrun.car')) || null, drone: parseFloat(localStorage.getItem('after-hours.lightrun.drone')) || null }; } catch { this.best = {}; }
