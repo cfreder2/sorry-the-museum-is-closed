@@ -8,6 +8,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
 import { LOWMEM } from './budget.js';
+import { Visibility } from './visible.js';      // (prototype, ?cull: what cannot be seen from the room you are in is not drawn)
 import { Streamer } from './stream.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut, stripShut } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
@@ -94,6 +95,7 @@ import './look.js';              // the look pass over the finished world: the s
 const $ = id => document.getElementById(id);
 const canvas = $('view');
 const params = new URLSearchParams(location.search);
+const CULL = params.has('cull');      // (?cull) what cannot be seen from where the camera is is not drawn: src/visible.js, data/pvs.json (tools/dev/pvs.mjs). Off, and nothing fetched, without the word.
 
 // ------------------------------------------------------------------ stage ---
 
@@ -373,6 +375,9 @@ async function boot() {
       inside: b => inRoom((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, b.min.y) && b.max.x - b.min.x < 40 && b.max.z - b.min.z < 40,
       indoors: p => inRoom(p.x, p.z, p.y) || (p === camera.position && !!G.roomId) });
     G.stream.register(); }
+
+  // (?cull) The table of what can be seen from where. Not with the streamer (a phone): the two would each have to know of the other.
+  if (CULL && !LOWMEM) { try { const r = await fetch('./data/pvs.json'); if (r.ok) G._pvs = await r.json(); else console.warn('visible: no data/pvs.json'); } catch (e) { console.warn('visible', e); } }
 
   $('status').textContent = '';
   // The bar's last stretch: the screen goes once the first frame has been drawn behind it (tick), since that frame
@@ -1669,6 +1674,7 @@ function tick(now) {
   if (G.state === 'loading') { renderer.render(scene, camera); return; }
   if (G.state !== 'paused') G.t += dt;
   govern(dt);
+  if (G.vis && G.state !== 'play' && G.state !== 'study') G.vis.update(camera.position, null, true);      // (?cull) anywhere but in play (or stepped up to a picture), everything is drawn
 
   input.capture = G.state === 'play' || G.state === 'study';
   input.poll(input.capture || (G.state === 'voyage' && G.voyage && !G.voyage.open));      // a gamepad: its buttons drive here, and are keys everywhere else (src/input.js)
@@ -1760,6 +1766,12 @@ function tick(now) {
   lampNear(dt);
   fitNear();
   if (G.stream) { G.stream.update(dt, camera.position); if ((G._reg = (G._reg || 0) + 1) % 600 === 0) G.stream.register(); }      // (and whatever was built since)
+  // (?cull) Made once the shut rooms have left the plan (the table was made for the plan as it is played); things built later are counted every ten seconds.
+  if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
+    if (!G.vis) { G.vis = new Visibility(G.museum.group, G.plan, G._pvs); G.vis.register(); }
+    else if ((G._vreg = (G._vreg || 0) + 1) % 600 === 0) G.vis.register();
+    G.vis.update(camera.position, G.roomId, !!G.cineEye || !!G.cutscene || stage.on);
+  }
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
 }
