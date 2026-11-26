@@ -1,6 +1,6 @@
 // The map's data, read off the running game. dump.mjs boots the game (?noopen&saved&nofps), then runs this in the page
-// as the body of an async function, with srctext.js's functions in scope and SHUT (the ids of the rooms that are shut)
-// handed in. It returns { data, warnings }.
+// as the body of an async function, with srctext.js's functions in scope and two things handed in: SHUT (the ids of
+// the rooms that are shut) and LIFE (life.json: a sentence for each living painting). It returns { data, warnings }.
 //
 // Where things are, and what they say, come from the game: the plan, the hang, G.spots(), each feature's own state,
 // and the game's source for the words that are only ever said (srctext.js reads them out of it). What cannot be read
@@ -11,6 +11,8 @@ const G = window.__ah, P = G.plan;
 const PL = await import('/src/plan.js');
 const F = (await import('/src/features.js')).features, fb = Object.fromEntries(F.map(f => [f.id, f]));
 const warnings = [], notFound = [];
+// Every room, with those that are shut and no longer built: the plan keeps their outlines (plan.shutRooms, from the build that has src/shut.js).
+const GONE = (P.shutRooms || []).filter(r => !P.rooms.includes(r)), RL = [...P.rooms, ...GONE], BY = Object.assign({}, P.byId, Object.fromEntries(GONE.map(r => [r.id, r])));
 const warn = m => { if (!warnings.includes(m)) warnings.push(m); };
 const r1 = v => Math.round(v * 10) / 10;
 const kit = (fb.mice && fb.mice.k) || (fb.lostfound && fb.lostfound.k) || null;
@@ -50,9 +52,9 @@ function levelOf(room, x, z, y) {
   for (const d of P.decks) if (d.room === room.id && d.y > fy && d.y <= y + 0.25 && x >= d.x0 - 0.3 && x <= d.x1 + 0.3 && z >= d.z0 - 0.3 && z <= d.z1 + 0.3) fy = d.y;
   return Math.abs(fy - room.y) < 0.7 ? room.floor : levelOfY(fy);
 }
-const used = new Set(P.rooms.map(r => (r.floor === 'X' || r.secret ? 'X' : r.floor)));
+const used = new Set(RL.map(r => (r.floor === 'X' || r.secret ? 'X' : r.floor)));
 const levels = [...(used.has('X') ? [{ id: 'X', name: 'Secret levels', y: r1(P.secret ? P.secret.y : -12) }] : []), ...LV.filter(l => used.has(l.id)).sort((a, b) => a.y - b.y).map(l => ({ id: l.id, name: NAMES[l.id] || l.id, y: r1(l.y) }))];
-for (const r of P.rooms) if (!(r.floor === 'X' || r.secret) && !LV.some(l => l.id === r.floor)) warn('room ' + r.id + ' is on a floor the plan does not list: ' + r.floor);
+for (const r of RL) if (!(r.floor === 'X' || r.secret) && !LV.some(l => l.id === r.floor)) warn('room ' + r.id + ' is on a floor the plan does not list: ' + r.floor);
 
 // ------------------------------------------------------------------ rooms
 // The banner, as main.js announce() and roomTitle() write it.
@@ -76,14 +78,15 @@ function wingOf(r) {
   const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
   return cx < 108 ? WING.main : cx < 128 ? WING.bridge : cz > 140 ? WING.rice : WING.mck;
 }
-const shut = new Set(SHUT || []);
-for (const id of shut) if (!P.byId[id]) warn('shut list names a room the plan does not have: ' + id);
+const shut = new Set([...(SHUT || []), ...RL.filter(r => r.shut).map(r => r.id)]);
+{ const lost = [...shut].filter(id => !BY[id]); if (lost.length) warn(lost.length + ' room(s) on the shut list are not in the plan, built or as an outline, and are left out: ' + lost.slice(0, 8).join(', ') + (lost.length > 8 ? '…' : '')); }
+if (GONE.length) warn(GONE.length + ' shut rooms are not built in this game: they are listed from their outlines, with nothing in them');
 const life = fb.paintlife, alive = a => !!(life && life.byArt && life.byArt.has(a));
 const artist = w => String(w.a || '').split('(')[0].split('\n')[0].trim();
 const workName = w => [artist(w), String(w.t || '').trim()].filter(Boolean).join(', ');
 const artsOf = {};
 for (const a of G.museum.arts) (artsOf[a.room] = artsOf[a.room] || []).push(a);
-const rooms = P.rooms.map(r => {
+const rooms = RL.map(r => {
   const [name, sub] = banner(r), arts = (artsOf[r.id] || []).slice().sort((a, b) => a.i - b.i);
   return { id: r.id, name, sub, level: r.floor === 'X' || r.secret ? 'X' : r.floor, wing: wingOf(r), kind: r.kind || '', use: r.use || '', x0: r1(r.x0), x1: r1(r.x1), z0: r1(r.z0), z1: r1(r.z1), y: r1(r.y), shut: shut.has(r.id), secret: !!r.secret,
     works: arts.length, living: arts.filter(alive).length, worksList: arts.map(a => workName(a.work) + (alive(a) ? ' (comes alive)' : '')), needed: '' };
@@ -92,16 +95,16 @@ const roomOut = Object.fromEntries(rooms.map(r => [r.id, r]));
 
 // ------------------------------------------------------------------ doors
 const doors = P.doors.map(d => {
-  const a = P.byId[d.a], b = d.b === 'out' ? null : P.byId[d.b], y = d.y != null ? d.y : a ? a.y : 0;
+  const a = BY[d.a], b = d.b === 'out' ? null : BY[d.b], y = d.y != null ? d.y : a ? a.y : 0;
   const level = (a && (a.secret || a.floor === 'X')) || (b && (b.secret || b.floor === 'X')) ? 'X' : a && Math.abs(a.y - y) < 0.7 ? a.floor : b && Math.abs(b.y - y) < 0.7 ? b.floor : levelOfY(y);
-  return { id: d.id, a: d.a, b: b ? d.b : null, level, x0: r1(d.x0), x1: r1(d.x1), z0: r1(d.z0), z1: r1(d.z1), out: !b, vent: !!d.vent, hidden: !!d.hidden, shut: shut.has(d.a) || (!!b && shut.has(d.b)) };
+  return { id: d.id, a: d.a, b: b ? d.b : null, level, x0: r1(d.x0), x1: r1(d.x1), z0: r1(d.z0), z1: r1(d.z1), out: !b, vent: !!d.vent, hidden: !!d.hidden, shut: !!d.shut || shut.has(d.a) || (!!b && shut.has(d.b)) };
 });
 
 // ------------------------------------------------------------------ items
 const items = [], ids = new Set();
 // One thing on the map. `room` may be a room, an id, or undefined (found from the place); `y` is its floor.
 function add(o) {
-  let room = o.room === null ? null : typeof o.room === 'string' ? P.byId[o.room] : o.room || roomNear(o.x, o.z, o.y);
+  let room = o.room === null ? null : typeof o.room === 'string' ? BY[o.room] : o.room || roomNear(o.x, o.z, o.y);
   if (typeof o.room === 'string' && !room) { warn('item ' + o.id + ' names a room the plan does not have: ' + o.room); room = null; }
   let x = o.x, z = o.z;
   if (room && !inBox(room, x, z)) {
@@ -122,7 +125,7 @@ function add(o) {
 const order = list => list.slice().sort((p, q) => p.x - q.x || p.z - q.z || (p.y || 0) - (q.y || 0));
 function numbered(kind, list, make) {
   const by = {};
-  for (const q of list) { const r = q.room !== undefined ? q.room : roomNear(q.x, q.z, q.fy != null ? q.fy : q.y); const key = r ? (r.id || r) : 'out'; (by[key] = by[key] || []).push({ ...q, _room: r ? (typeof r === 'string' ? P.byId[r] : r) : null }); }
+  for (const q of list) { const r = q.room !== undefined ? q.room : roomNear(q.x, q.z, q.fy != null ? q.fy : q.y); const key = r ? (r.id || r) : 'out'; (by[key] = by[key] || []).push({ ...q, _room: r ? (typeof r === 'string' ? BY[r] : r) : null }); }
   for (const key of Object.keys(by).sort()) order(by[key]).forEach((q, i) => make(q, `${kind}-${key}-${i + 1}`, q._room));
 }
 const spots = G.spots();
@@ -135,7 +138,7 @@ const done = new Set();      // spots already turned into an item (or covered by
   for (const b of G.boards.list) {
     const clue = b.id === 'clue';
     add({ id: 'whiteboard-' + b.id, kind: 'whiteboard', name: clue ? 'The Director’s whiteboard (the clue board)' : b.title, room: typeof b.room === 'string' ? b.room : b.room && b.room.id, x: b.x, z: b.z, y: b.y - 1.7,
-      what: clue ? 'Pull up and READ: it names the picture with the passage behind it and the part of it to touch. Reading it counts as a whiteboard too (five read is a trophy).' : 'Pull up in front of it and READ: the camera stands square to the board and its words come up as text. Five read is the trophy Read the Room.',
+      what: clue ? 'Pull up and READ: it names the picture with the passage behind it, and the part of it to touch. It counts as a whiteboard read, like the rest.' : 'Pull up in front of it and READ: the camera stands square to the board and its words come up as text. The first one read is a secret; five is the trophy Read the Room.',
       text: BT.plainText(b.lines).split('\n') });
   }
   for (const s of spots) if (s.id === 'board' || s.id === 'boards') done.add(s);
@@ -144,8 +147,8 @@ const done = new Set();      // spots already turned into an item (or covered by
 // ---- the guard's notes
 {
   const f = fb.notes, said = W('notes');
-  for (const n of (f && f.list) || []) add({ id: n.id, kind: 'guard-note', name: 'Guard’s note' + (n.about ? ' (about ' + title(P.byId[n.about]) + ')' : ''), room: n.room, x: n.x, z: n.z, y: n.y - 0.36,
-    what: 'A yellow sticky note low on the wall: stop beside it and it is read out. ' + (n.about ? 'A hint about ' + title(P.byId[n.about]) + '.' : 'One of the guard’s jokes.') + ' Ten read is the secret The guard’s notes.', text: [...n.text.split('\n'), '— G.'] });
+  for (const n of (f && f.list) || []) add({ id: n.id, kind: 'guard-note', name: 'Guard’s note' + (n.about ? ' (about ' + title(BY[n.about]) + ')' : ''), room: n.room, x: n.x, z: n.z, y: n.y - 0.36,
+    what: 'A yellow sticky note low on the wall: stop beside it and it is read out. ' + (n.about ? 'A hint about ' + title(BY[n.about]) + '.' : 'One of the guard’s jokes.') + ' Ten read is the secret The guard’s notes.', text: [...n.text.split('\n'), '— G.'] });
   if (!f || !(f.list || []).length) notFound.push('guard-note: the notes feature has no list');
   for (const s of spots) if (/^note\d+$/.test(s.id)) done.add(s);
   void said;
@@ -172,10 +175,10 @@ const pathRooms = (pts, y) => { const seq = []; for (const [x, z] of pts) { cons
   const MN = { north: 'North mouse', south: 'South mouse', rice: 'Rice mouse', modern: 'Modern Wing mouse', lower: 'Lower-level mouse' };
   const said = W('mice'), nests = Object.fromEntries((P.nests || []).map(n => [n.wing, n]));
   for (const m of (fb.mice && fb.mice.list) || []) {
-    const id = m.wing.id, pts = m.pts.map(p => [p.x, p.z]), seq = pathRooms(pts, m.y), n = nests[id], nr = n && P.byId[n.room];
+    const id = m.wing.id, pts = m.pts.map(p => [p.x, p.z]), seq = pathRooms(pts, m.y), n = nests[id], nr = n && BY[n.room];
     if (!MN[id]) warn('a mouse the table does not know: ' + id);
     add({ id: 'mouse-' + id, kind: 'mouse', name: MN[id] || 'Mouse (' + m.wing.name + ')', x: pts[0][0], z: pts[0][1], y: m.y,
-      what: `Sits here in the open (${m.wing.name}). Come near and it runs home, ${Math.round(m.len)} m, through ${seq.map(q => title(P.byId[q])).join(', ')}, stopping to look back; see it in at its grille${nr ? ' in ' + title(nr) : ''} and that grille can be opened.`, text: said });
+      what: `Sits here in the open (${m.wing.name}). Come near and it runs home, ${Math.round(m.len)} m, through ${seq.map(q => title(BY[q])).join(', ')}, stopping to look back; see it in at its grille${nr ? ' in ' + title(nr) : ''} and that grille can be opened.`, text: said });
     paths.push({ id: 'mouse-run-' + id, kind: 'mouse-run', name: (MN[id] || id) + '’s run home', level: levelOf(roomNear(pts[0][0], pts[0][1], m.y), pts[0][0], pts[0][1], m.y), pts: pts.map(([x, z]) => [r1(x), r1(z)]) });
   }
   const live = Object.fromEntries(((fb.nests && fb.nests.list) || []).map(v => [v.n.wing, v])), said2 = W('nests', /nest|vent|Squeeze|Stuck|mice have kept/i).filter(t => !/DESK/.test(t));
@@ -219,7 +222,8 @@ const pathRooms = (pts, y) => { const seq = []; for (const [x, z] of pts) { cons
   const sd = G.secret && G.secret.door; if (sd) page('passage', { x: (sd.x0 + sd.x1) / 2, z: (sd.z0 + sd.z1) / 2, y: sd.y, room: P.secret && P.secret.room }, 'Found when the piece of wall slides aside: touch the part of the picture the Director’s whiteboard names.');
   page('sublevel9', va ? { x: va.x, z: va.z, y: va.y } : null, 'Found on first coming down the stair into Sub-level 9.');
   page('alienracer', zib ? { x: zib.x, z: zib.z, room: null } : null, 'Found by beating Zib, the racer that is not from round here, at the crop circle on Butler Field: it leaves its charm.');
-  page('base', gc ? { x: gc.x, z: gc.z, y: gc.y } : null, 'Found on getting into the base under Butler Field (marked here in the hangar).');
+  const chk = BY['B-check'];
+  page('base', chk ? { x: (chk.x0 + chk.x1) / 2, z: (chk.z0 + chk.z1) / 2, y: chk.y, room: chk } : gc ? { x: gc.x, z: gc.z, y: gc.y } : null, 'Found on first getting into the base under Butler Field, past the tunnel: any of its rooms does it, and the checkpoint, marked here, is the first you come to.');
 }
 
 // ---- the works that come alive, and the four that get out
@@ -237,13 +241,19 @@ let LIFE_WHAT = {};
   }
   for (const idw of Object.keys(LIFE_WHAT)) if (!live.some(a => String(a.work.id) === String(idw))) warn('the table has a living work that is not hung: ' + idw);
   for (const s of spots) if (s.id === 'rain' || s.id === 'croquet') done.add(s);      // secrets of two living works: the work's own item has their words
-  // the escapees
+  // the escapees: what each does while it is out (from the head of its file in src/escape/), by the museum's id of its work
+  const ESC = {
+    25865: 'the net’s red keg float slides over the gallery floors on a patch of its own grey-green sea, nose first, its corks strung out behind it, and leaves the floor wet where it has been',
+    14572: 'the five hats flutter from room to room on their bows at the height of a bench, ribbons streaming, and come down to roost in a row on a gallery bench',
+    111559: 'three lambs skip off, graze, look up and skip on; the boy rides out on his ram a few seconds after them and works them back towards their own room',
+    14620: 'a gust takes the orange parasol from room to room, turning as it flies, petals and blades of grass going round under it; when the gust drops it comes down like a dandelion seed',
+  };
   const ES = fb.escapes;
   for (const E of (ES && ES.list0) || []) {
-    const a = E.art, sp = E.spec; let allow = [];
-    try { const c = Object.assign({}, E, { grid: null, room: a.room, y: P.byId[a.room].y }); ES._grid(c); allow = c.allow || []; } catch (e) { warn('escapes: could not work out where ' + sp.name + ' may go: ' + e); }
+    const a = E.art, sp = E.spec; let allow = []; if (!ESC[E.id]) warn('an escapee the table does not know: ' + E.id + ' ' + sp.name);
+    try { const c = Object.assign({}, E, { grid: null, room: a.room, y: BY[a.room].y }); ES._grid(c); allow = c.allow || []; } catch (e) { warn('escapes: could not work out where ' + sp.name + ' may go: ' + e); }
     add({ id: 'escape-' + (sp.tag || E.id).toLowerCase().replace(/\W+/g, '-'), kind: 'painting-escape', name: workName(a.work) + ': ' + sp.name, room: a.room, x: a.x, z: a.z, y: a.fy,
-      what: `Watch its show for a few seconds and drive off, and ${sp.name} ${sp.count > 1 ? 'get' : 'gets'} out: ${sp.count > 1 ? 'they wander' : 'it wanders'} this room and the rooms a door off it, never more than 18 m from the picture. Come up to ${sp.count > 1 ? 'them' : 'it'} and ${sp.count > 1 ? 'they go' : 'it goes'} home to this wall (${sp.chips} chips); a robot’s lamp held on ${sp.count > 1 ? 'them' : 'it'} sends ${sp.count > 1 ? 'them' : 'it'} home for nothing.`,
+      what: `Watch its show for a few seconds and drive off, and ${sp.name} ${sp.count > 1 ? 'get' : 'gets'} out: ${ESC[E.id] || (sp.count > 1 ? 'they wander' : 'it wanders')}, in this room and the rooms a door off it, never more than ${(/reach:\s*(\d+)/.exec(SRC['escapes.js'] || '') || [0, 18])[1]} m from the picture. Come up to ${sp.count > 1 ? 'them' : 'it'} and ${sp.count > 1 ? 'they go' : 'it goes'} home to this wall (${sp.chips} chips); a robot’s lamp held on ${sp.count > 1 ? 'them' : 'it'} sends ${sp.count > 1 ? 'them' : 'it'} home for nothing.`,
       text: [sp.line, sp.back || (sp.name[0].toUpperCase() + sp.name.slice(1) + ' is back in its painting.')] });
     areas.push({ id: 'escape-' + (sp.tag || E.id).toLowerCase().replace(/\W+/g, '-'), kind: 'escape', name: 'Where ' + sp.name + ' may wander', rooms: allow });
   }
@@ -273,7 +283,7 @@ let LIFE_WHAT = {};
   const cw = ONCE('film');
   for (const c of (G.cinema && G.cinema.screens) || []) add({ id: 'film-' + c.room.id, kind: 'film-screen', name: 'Film screen', room: c.room, x: c.x, z: c.z, y: c.room.y, what: 'The projector has been left running: go in and the film starts (the game’s own films and a few public-domain clips), leave and it stops. WATCH sits you down. Any screen is the secret The late showing.', text: cw });
   for (const s of spots) if (s.id === 'cinema') done.add(s);
-  for (const a of (G.arcade && G.arcade.list) || []) add({ id: 'arcade-' + a.id, kind: 'arcade', name: 'Monitor: ' + (a.Game && a.Game.title || a.id), x: a.x, z: a.z, y: a.y, room: a.room && P.byId[a.room] ? a.room : undefined, what: `An old monitor left switched on with a game on it (${a.Game && a.Game.title || a.id}): pull up in front and PLAY. Each one found is a secret; all of them is the trophy Screen Time.` + (a.bonus ? ' This one is the extra, a long way down.' : ''), text: [] });
+  for (const a of (G.arcade && G.arcade.list) || []) add({ id: 'arcade-' + a.id, kind: 'arcade', name: 'Monitor: ' + (a.Game && a.Game.title || a.id), x: a.x, z: a.z, y: a.y, room: a.room && BY[a.room] ? a.room : undefined, what: `An old monitor left switched on with a game on it (${a.Game && a.Game.title || a.id}): pull up in front and PLAY. Each one found is a secret; all of them is the trophy Screen Time.` + (a.bonus ? ' This one is the extra, a long way down.' : ''), text: [] });
   for (const s of spots) if (/^arcade:/.test(s.id) || s.id === 'outpost') done.add(s);
   const hw = [...ONCE('heist'), ...FW('heist.js')];
   (P.heistConsoles || []).forEach((c, i) => add({ id: 'heist-' + c.room, kind: 'heist-console', name: 'Big red button (IN CASE OF HEIST)', room: c.room, x: c.x, z: c.z, y: c.y, what: 'Press it and the building picks a gallery and a picture in it and fills the room with laser beams: get the toy-sized copy off its plinth and back to this button before the clock runs out. One touch of a beam and the cage drops, and you wake in the dumpster.', text: hw }));
@@ -313,8 +323,8 @@ let LIFE_WHAT = {};
     const pts = []; for (let i = 0; i < Pt.n; i++) pts.push([Pt.pts[i * 2], Pt.pts[i * 2 + 1]]);
     if (!pts.length) { warn('robot ' + Pt.id + ' has no beat'); continue; }
     const lobby = g.lobbyBot && g.lobbyBot.P === Pt, name = lobby ? 'Security robot (lobby)' : 'Security robot (' + Pt.rooms.join(', ') + ')', room = roomNear(pts[0][0], pts[0][1], Pt.fy);
-    add({ id: Pt.id, kind: 'robot', name, room, x: pts[0][0], z: pts[0][1], y: Pt.fy, what: `Starts its beat here: out along ${Pt.rooms.map(q => title(P.byId[q])).join(', ')} and back, stopping to sweep its searchlight. Stay in the light and it comes for you; within a metre and a half it zaps you and you wake in the dumpster, 50 chips poorer.` + (lobby ? ' This is the one that sees the saucer off in the entrance hall.' : ''), text: gw });
-    paths.push({ id: 'beat-' + Pt.id, kind: 'robot-beat', name: 'Beat of the ' + name.toLowerCase().replace('security robot', 'security robot'), level: levelOfY(Pt.fy), pts: pts.map(([x, z]) => [r1(x), r1(z)]) });
+    add({ id: Pt.id, kind: 'robot', name, room, x: pts[0][0], z: pts[0][1], y: Pt.fy, what: `Starts its beat here: out along ${Pt.rooms.map(q => title(BY[q])).join(', ')} and back, stopping to sweep its searchlight. Stay in the light and it comes for you; within a metre and a half it zaps you and you wake in the dumpster, 50 chips poorer.` + (lobby ? ' This is the one that sees the saucer off in the entrance hall.' : ''), text: gw });
+    paths.push({ id: 'beat-' + Pt.id, kind: 'robot-beat', name: 'Beat of the s' + name.slice(1), level: levelOfY(Pt.fy), pts: pts.map(([x, z]) => [r1(x), r1(z)]) });
     areas.push({ id: 'beat-' + Pt.id, kind: 'robot-beat', name: name + ': the rooms on its beat', rooms: Pt.rooms.slice() });
     areas.push({ id: 'chase-' + Pt.id, kind: 'robot-chase', name: name + ': the rooms it will chase through', rooms: (Pt.area || Pt.rooms).slice() });
   }
@@ -332,12 +342,12 @@ let LIFE_WHAT = {};
 
 // ---- hoops, the stunt kit, cones, perches, benches the hats roost on
 {
-  numbered('hoop', P.hoops.map(h => ({ ...h, room: h.room ? P.byId[h.room] : (roomNear(h.x, h.z, h.y - 0.9) || roomNear(h.x, h.z, h.y - 2.5) || null) })), (h, id, room) => add({ id, kind: 'hoop', name: 'Hoop', room, x: h.x, z: h.z, y: room ? Math.max(room.y, h.y - 2.6) : 0, what: 'Go through it. Every hoop in the building in one visit is the trophy Every Hoop.', text: [] }));
+  numbered('hoop', P.hoops.map(h => ({ ...h, room: h.room ? BY[h.room] : (roomNear(h.x, h.z, h.y - 0.9) || roomNear(h.x, h.z, h.y - 2.5) || null) })), (h, id, room) => add({ id, kind: 'hoop', name: 'Hoop', room, x: h.x, z: h.z, y: room ? Math.max(room.y, h.y - 2.6) : 0, what: 'Go through it. Every hoop in the building in one visit is the trophy Every Hoop.', text: [] }));
   const kitOf = {}, where = s => roomAt((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, (s.base != null ? s.base : Math.min(s.h0, s.h1)) + 0.05);
   for (const s of P.surfaces) if (['ply', 'track', 'pad', 'crate'].includes(s.skin) && !s.hill) { const r = where(s); if (r && !r.secret) (kitOf[r.id] = kitOf[r.id] || []).push(s); }
-  for (const idr of Object.keys(kitOf).sort()) { const L = kitOf[idr], n = L.length, cx = L.reduce((a, s) => a + (s.x0 + s.x1) / 2, 0) / n, cz = L.reduce((a, s) => a + (s.z0 + s.z1) / 2, 0) / n; add({ id: 'stunt-' + idr, kind: 'stunt-kit', name: `Stunt kit (${n} piece${n > 1 ? 's' : ''})`, room: idr, x: cx, z: cz, y: P.byId[idr].y, what: `Plywood ramps, track and crates left out in this room (${n} piece${n > 1 ? 's' : ''}): to jump off, for a Stunt Look at a work from mid-air, and on the way through the hoops.`, text: [] }); }
+  for (const idr of Object.keys(kitOf).sort()) { const L = kitOf[idr], n = L.length, cx = L.reduce((a, s) => a + (s.x0 + s.x1) / 2, 0) / n, cz = L.reduce((a, s) => a + (s.z0 + s.z1) / 2, 0) / n; add({ id: 'stunt-' + idr, kind: 'stunt-kit', name: `Stunt kit (${n} piece${n > 1 ? 's' : ''})`, room: idr, x: cx, z: cz, y: BY[idr].y, what: `Plywood ramps, track and crates left out in this room (${n} piece${n > 1 ? 's' : ''}): to jump off, for a Stunt Look at a work from mid-air, and on the way through the hoops.`, text: [] }); }
   const pk = {}; for (const p of P.props || []) { const r = roomNear(p.x, p.z, p.y || 0); if (!r) continue; (pk[r.id] = pk[r.id] || []).push(p); }
-  for (const idr of Object.keys(pk).sort()) { const L = pk[idr], n = L.length, kinds = [...new Set(L.map(p => p.type))], cx = L.reduce((a, p) => a + p.x, 0) / n, cz = L.reduce((a, p) => a + p.z, 0) / n; add({ id: 'cones-' + idr, kind: 'cones', name: `${n} ${kinds.join('s and ')}${n > 1 ? 's' : ''}`, room: idr, x: cx, z: cz, y: P.byId[idr].y, what: 'Cones and WET FLOOR signs standing about: drive into them and they go over.', text: [] }); }
+  for (const idr of Object.keys(pk).sort()) { const L = pk[idr], n = L.length, kinds = [...new Set(L.map(p => p.type))], cx = L.reduce((a, p) => a + p.x, 0) / n, cz = L.reduce((a, p) => a + p.z, 0) / n; add({ id: 'cones-' + idr, kind: 'cones', name: `${n} ${kinds.join('s and ')}${n > 1 ? 's' : ''}`, room: idr, x: cx, z: cz, y: BY[idr].y, what: 'Cones and WET FLOOR signs standing about: drive into them and they go over.', text: [] }); }
   const perchW = clean((SRC['main.js'].match(/callout\('A VIEW FROM UP HERE'\)/) ? ['A VIEW FROM UP HERE'] : []));
   numbered('perch', P.surfaces.filter(s => s.perch).map(s => ({ s, x: (s.x0 + s.x1) / 2, z: (s.z0 + s.z1) / 2, y: Math.max(s.h0, s.h1), room: roomAt((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, Math.max(s.h0, s.h1) - 0.3) || roomAt((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, Math.max(s.h0, s.h1) - 2.6) || roomAt((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, (s.base || 0) + 0.1) || null })), (q, id, room) => add({ id, kind: 'perch', name: 'High place: ' + q.s.perch, room, x: q.x, z: q.z, y: q.y, what: `Get the toy up onto the ${q.s.perch} and stop: it counts as one of the ${G.perchTotal} high places (the tally on the pause screen).`, text: [...perchW, `The ${q.s.perch}. Look round: E works from here too.`] }));
   // the benches the hats may come down on: a long bench in a room they may wander, within their reach of the picture
@@ -374,20 +384,24 @@ numbered('hydrant', (P.hydrants || []).map(h => ({ ...h, room: null })), (h, id)
   const HK = { duct: ['Air duct', 'A duct through the wall, low enough for the toy: a way in from outside.'], inner: ['Duct from the court', 'A short duct between the court outside and this room.'], flap: ['Flap in a door', 'A flap low in a door: a way in from outside.'], window: ['Window propped open', 'A window propped open at the foot of the wall: a way in from outside.'], dock: ['Dock shutter, part raised', 'A loading shutter left a toy’s height off the ground: a way in from outside.'] };
   for (const h of P.holes || []) { const k = HK[h.kind]; if (!k) warn('a way in of a kind the table does not know: ' + h.kind); add({ id: 'way-' + h.id, kind: 'way-in', name: (k ? k[0] : 'Way in (' + h.kind + ')'), room: h.a, reach: 2.5, x: (h.x0 + h.x1) / 2, z: (h.z0 + h.z1) / 2, y: h.y, what: k ? k[1] : 'A way in from outside.', text: [] }); }
   for (const d of P.doors) if ((d.out || d.b === 'out') && !d.vent && d !== P.front) add({ id: 'way-door-' + d.id, kind: 'way-in', name: 'Outside door', room: d.a, reach: 2, x: (d.x0 + d.x1) / 2, z: (d.z0 + d.z1) / 2, y: d.y, what: 'A door to the outside. Locked until you have found a way in once; open after that.', text: [] });
-  for (const k of P.skylights || []) { const r = P.byId[k.room]; add({ id: 'way-skylight-' + k.room, kind: 'way-in', name: 'Open skylight (drone)', room: r, x: (k.x0 + k.x1) / 2, z: (k.z0 + k.z1) / 2, y: r ? r.y : 0, what: 'A skylight left open in the roof over this room: the drone’s way in, and a place to peer down from on the roofs.', text: [] }); }
+  for (const k of P.skylights || []) { const r = BY[k.room]; add({ id: 'way-skylight-' + k.room, kind: 'way-in', name: 'Open skylight (drone)', room: r, x: (k.x0 + k.x1) / 2, z: (k.z0 + k.z1) / 2, y: r ? r.y : 0, what: 'A skylight left open in the roof over this room: the drone’s way in, and a place to peer down from on the roofs.', text: [] }); }
   const V = P.staffVent, bin = fb.guards && fb.guards.bin;
   if (V) add({ id: 'way-staff-vent', kind: 'way-in', name: 'The staff vent (the duct from the bin yard)', room: V.room, x: V.keep ? (V.keep.x0 + V.keep.x1) / 2 : V.x0, z: V.zc, y: V.y, what: 'Where the duct from the hood by the dumpster comes out, low in the wall: the way back in after a robot has thrown you out, and straight to security’s big red button.', text: W('guards', /vent hood/) });
   if (V && V.hood) add({ id: 'way-staff-vent-hood', kind: 'way-in', name: 'The vent hood by the dumpster', room: null, x: (V.hood.x0 + V.hood.x1) / 2, z: (V.hood.z0 + V.hood.z1) / 2, what: 'A galvanised hood over an air intake in the bin yard, its grille off: drive in and the duct slopes down under the wall to the staff entrance on the lower level.', text: [] });
   if (bin) add({ id: 'dumpster', kind: 'way-in', name: 'The dumpster', room: null, x: bin.x, z: bin.z, what: 'Where you wake up when a robot zaps you or a heist’s cage drops: thrown out, round the back. The vent hood in front of it is the way back in.', text: W('guards', /THROWN OUT|Dumped|binned|chips$/) });
   for (const s of spots) if (s.id === 'dumpster' || s.id === 'staffvent') done.add(s);
   for (const l of P.lifts || []) {
-    const cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2, at = l.stops.map(y => roomAt(cx, cz, y + 0.3) || roomAt(cx, cz, y + 1) || P.byId[l.room]);
-    l.stops.forEach((y, i) => add({ id: 'way-lift-' + l.id + '-' + (i + 1), kind: 'way-in', name: 'Lift', room: at[i], x: cx, z: cz, y, what: `A lift between ${l.stops.map((q, j) => title(at[j]) + ' (' + (at[j] && (at[j].secret || at[j].floor === 'X') ? 'secret' : (NAMES[levelOfY(q)] || levelOfY(q)).toLowerCase()) + ')').join(' and ')}: drive on and it goes.`, text: [] }));
+    const cx = (l.x0 + l.x1) / 2, cz = (l.z0 + l.z1) / 2, at = l.stops.map(y => roomAt(cx, cz, y + 0.3) || roomAt(cx, cz, y + 1) || BY[l.room]);
+    const lv = y => (NAMES[levelOfY(y)] || levelOfY(y)), same = at.every(q => q === at[0]);
+    l.stops.forEach((y, i) => add({ id: 'way-lift-' + l.id + '-' + (i + 1), kind: 'way-in', name: 'Lift', room: at[i], level: at[i] && (at[i].secret || at[i].floor === 'X') ? 'X' : levelOfY(y), x: cx, z: cz, y, what: (same ? `The lift in ${title(at[0])}, stopping at ${l.stops.map(lv).join(', ')}` : `A lift between ${l.stops.map((q, j) => title(at[j]) + ' (' + lv(q) + ')').join(' and ')}`) + ': drive on and it goes.', text: [] }));
   }
   const groups = {}; for (const q of P.ramps || []) { const g = q.id.replace(/-\d+$/, ''); (groups[g] = groups[g] || []).push(q); }
   for (const [g, L] of Object.entries(groups)) {
-    const ys = L.flatMap(q => [q.y0, q.y1]), lo = Math.min(...ys), hi = Math.max(...ys), q0 = L.slice().sort((a, b) => Math.min(a.y0, a.y1) - Math.min(b.y0, b.y1))[0], r = P.byId[q0.room];
-    add({ id: 'way-stair-' + g, kind: 'way-in', name: 'Stairs', room: r && inBox(r, (q0.x0 + q0.x1) / 2, (q0.z0 + q0.z1) / 2, 0.5) ? r : undefined, x: (q0.x0 + q0.x1) / 2, z: (q0.z0 + q0.z1) / 2, y: Math.min(q0.y0, q0.y1), level: r && (r.secret || r.floor === 'X') ? 'X' : levelOfY(Math.min(q0.y0, q0.y1)), what: `A stair of ${L.length} flight${L.length > 1 ? 's' : ''} in ${title(r)}, from ${r1(lo)} m up to ${r1(hi)} m (${[...new Set([lo, hi].map(y => (r && (r.secret || r.floor === 'X') && y < -5 ? 'the secret levels' : (NAMES[levelOfY(y)] || levelOfY(y)))))].join(' to ')}).`, text: [] });
+    // each flight's two ends: (y0 at its low-numbered end, y1 at the other); the stair goes from the lowest end to the highest
+    const ends = L.flatMap(q => { const ax = q.axis === 'x', c = ax ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2; return [{ y: q.y0, x: ax ? q.x0 : c, z: ax ? c : q.z0, dx: ax ? -1 : 0, dz: ax ? 0 : -1, q }, { y: q.y1, x: ax ? q.x1 : c, z: ax ? c : q.z1, dx: ax ? 1 : 0, dz: ax ? 0 : 1, q }]; }).sort((a, b) => a.y - b.y);
+    const lo = ends[0], hi = ends[ends.length - 1], endRoom = e => roomAt(e.x + e.dx * 0.5, e.z + e.dz * 0.5, e.y + 0.2) || roomAt(e.x - e.dx * 0.5, e.z - e.dz * 0.5, e.y + 0.2) || BY[e.q.room], ra = endRoom(lo), rb = endRoom(hi);
+    const lv = (r, y) => (r && (r.secret || r.floor === 'X') ? 'the secret levels' : (NAMES[levelOfY(y)] || levelOfY(y))), q0 = lo.q, mx = (q0.x0 + q0.x1) / 2, mz = (q0.z0 + q0.z1) / 2, r = roomAt(mx, mz, lo.y + 0.2) || ra;
+    add({ id: 'way-stair-' + g, kind: 'way-in', name: 'Stairs', room: r, reach: 3, x: mx, z: mz, y: lo.y, level: r && (r.secret || r.floor === 'X') ? 'X' : levelOfY(lo.y), what: `A stair of ${L.length} flight${L.length > 1 ? 's' : ''} from ${title(ra)} (${lv(ra, lo.y)}, ${r1(lo.y)} m) up to ${title(rb)} (${lv(rb, hi.y)}, ${r1(hi.y)} m).`, text: [] });
   }
 }
 
@@ -402,7 +416,7 @@ const SPOT = {
   'masks103-lost': { kind: PZ, f: 'masks103', re: /MASK|belongs|hands are full/i, what: 'The missing Noh mask lies here: drive into it to pick it up, and carry it to the empty stand in Gallery 103.' },
   seasons154: { kind: PZ, what: 'A Roman floor of the four seasons with its four squares lifted out: push each tile back into its place.' },
   herring161: { kind: PZ, what: 'Look at Homer’s The Herring Net: you hear the sea, and a herring jumps from under the frame onto the floor. Catch it.' },
-  wheat: { kind: PZ, re: /SEASONS/, what: 'Monet’s stacks of wheat change the light of the room to their own hour and season as you look at each: see them all.' },
+  wheat: { kind: PZ, re: /SEASONS/, lines: true, what: 'Monet’s stacks of wheat change the light of the room to their own hour and season as you look at each: see them all.' },
   lilypad: { kind: PZ, re: /frog|pond|Plop|RIBBIT/i, what: 'Looking at the Water Lilies opens a pond in the floor: hop from lily pad to lily pad to the frog on the far one.' },
   cancan: { kind: PZ, re: /can-can|CAN-CAN|Bravo|Out of step|No sound/i, what: 'Look at At the Moulin Rouge and the can-can strikes up over a floor of lit squares: drive onto each square as it lights, in time with the band.' },
   circus: { kind: PZ, re: /ring|lap|Two!|THREE TIMES/i, what: 'Looking at the circus picture lays a sawdust ring on the floor: three laps of it at a gallop, without leaving the ring.' },
@@ -423,13 +437,13 @@ const SPOT = {
   l3service: { kind: PZ, what: 'Ring at the kitchen pass for service, then run the plate to the table for two at the far end of the restaurant before it goes cold.' },
   l3xray: { kind: PZ, what: 'An X-ray on a light box: look at it for the guitar under the paint, a clue to Gallery 391.', drawn: true },
   l3cake: { kind: PZ, what: 'A birthday cake nobody has blown the candles out on: drive past it fast and they go out.', drawn: true },
-  l3cubist: { kind: PZ, what: 'Shards hang in the air about the room: stand on the eye on the floor, where they line up into one whole guitar.' },
+  l3cubist: { kind: PZ, what: 'A Cubist still life of a guitar broken into shards hung in the air: from one spot on the floor, and only there, it is whole. Stand on that spot.' },
   l3kandinsky: { kind: PZ, what: 'Seven shapes that hum, each its own note: touch all seven.' },
   l3mondrian: { kind: PZ, what: 'A Mondrian laid out on the floor: drive from the red square to the yellow one on the black lines only.' },
-  l3lemons: { kind: PZ, what: 'Lemons have rolled off the plate: push them all back onto it.' },
-  l3bird: { kind: PZ, what: 'A brass egg on the floor: go three times round it and it hatches.' },
-  l3doors: { kind: PZ, what: 'A door standing on its own with the night in it: drive through it and come out of the one across the room.' },
-  l3corpse: { kind: PZ, what: 'Three drums and three plates: turn the drums until head, body and legs make one creature.' },
+  l3lemons: { kind: PZ, what: 'A pewter plate on the floor with one lemon on it and three rolled away across the room: nudge them home, all four on the plate.' },
+  l3bird: { kind: PZ, what: 'A polished egg on a stack of base blocks: go round it three times and it opens, and a brass bird flies once round the skylight and comes back to sit on the shell.' },
+  l3doors: { kind: PZ, what: 'Two doors stand open on their own in the middle of the floor, with the night in them: go in at one and you come out of the other, the far side of the room.' },
+  l3corpse: { kind: PZ, what: 'A column of three drums, each painted with four heads, bodies or legs: roll onto a plate to turn its drum, and when all three show the same creature it wakes up.' },
   l3bubbles: { kind: PZ, what: 'A clay pipe still blowing soap bubbles: pop a dozen of them.' },
   l3stars: { kind: PZ, what: 'Seven stars let into the floor: drive over them in order, from the end of the handle to the bowl.' },
   l3sprint: { kind: PZ, what: 'The whole corridor of Gallery 389 end to end, flat out, under the time on the notice board downstairs.' },
@@ -445,8 +459,8 @@ const SPOT = {
   ufo: { kind: 'other', file: 'secret.js', re: /IT IS YOURS|lifts off|On the pedestal/, once: 'ufo', what: 'A flying saucer the size of a dustbin lid, turning by itself on a pedestal: go up to it and TAKE it, and there is one your size among the toys on the title screen.' },
   keycard: { kind: 'other', f: 'finale', re: /KEYCARD|keycard|card/i, what: 'A keycard on a stand under a map of a tunnel going east: TAKE it. It opens the blast door beside it.' },
   blastdoor: { kind: 'way-in', room: 'X-brief', f: 'finale', re: /blast door|ACCESS GRANTED|Swipe/i, what: 'A blast door and a card reader: with the keycard it rolls aside, onto a tunnel that runs 190 m east under the railway and Columbus Drive to the base under Butler Field.' },
-  greencheese: { kind: 'scene', f: 'finale', re: /lights know|Only a mouse/, what: 'The hangar under Butler Field, and the craft on its launch platform: getting into the base is the secret Project Green Cheese and the last page of the file.' },
-  'story-note': { kind: 'other', what: 'A note on the floor of the office under a little saucer, signed D.: READ it for why any of it matters.', f: 'story', re: /note|Director/i, lit: ['story.js', 'D_NOTE', '— D.'] },
+  greencheese: { kind: 'scene', f: 'finale', re: /^$/, arrive: 'B-hangar', what: 'The hangar under Butler Field, and the craft on its launch platform, ramp down, under the silo shaft: coming into it is the secret Project Green Cheese.' },
+  'story-note': { kind: 'other', what: 'A note on the floor of the office under a little saucer, signed D.: READ it for why any of it matters.', f: 'story', re: /A note|The Director\./, lit: ['story.js', 'D_NOTE', '— D.'] },
   'story-rings': { kind: 'scene', f: 'story', re: /Rings|five notes|green light/i, what: 'Out on Butler Field, over the silo: rings melted into the snow with five marks round them, and the call from under your wheels. Driving onto them is a page of the file; the finale’s launch comes up through here.' },
   'party-note': { kind: 'scene', f: 'welcome', lit: ['welcome.js', 'NOTE', '— D.'], what: 'The welcome party on the roof of the Modern Wing’s west pavilion, laid out for visitors from the stars: READ the Director’s note propped against the cake (a page of the file).' },
   'party-book': { kind: 'other', f: 'welcome', re: /guest book|signature/i, book: true, what: 'The guest book on a stand by the lift at the welcome party: READ it. The last signature is in no alphabet at all.' },
@@ -458,15 +472,21 @@ const SPOT = {
   poker: { kind: 'other', once: 'poker', what: 'The card game on the roof of Gallery 211, under fairy lights: sit in at the empty place for Texas hold’em. The chips are the game’s money.' },
   dogs: { kind: 'easel', what: 'A Friend in Need on an easel by the card game: LOOK at it.' },
   stall: { kind: 'other', once: 'stall', what: 'A toy stall on the roof: two toys for sale at 2,000 chips each.' },
-  hockey: { kind: 'other', once: 'pond', what: 'The frozen pond in McKinlock Court, a goal at each end and a puck in the middle: play the blue car at pond hockey.' },
-  presents: { kind: 'other', once: 'parcel', file: 'presents.js', what: 'Parcels under the tree in McKinlock Court: OPEN one for what is in it (a car, chips, a map, a paper crown, coal).' },
+  hockey: { kind: 'other', once: 'pond', what: 'A pond frozen hard, out of doors, with a goal at each end and a puck in the middle: play the blue car at pond hockey (a goal and a win are trophies).' },
+  presents: { kind: 'other', once: 'parcel', file: 'presents.js', what: 'Parcels under the tree, out of doors: OPEN one for what is in it (a car, chips, a map, a paper crown, coal).' },
 };
+// words kept in a table in the code and said from it: the line of each thing (line: '...'), what is said on first coming into
+// each room of the base, and what the shop's till sells
+const lineProps = src => [...src.matchAll(/\bline:\s*(?='|`)/g)].map(m => { const i = m.index + m[0].length, k = skip(src, i); return unesc(src.slice(i + 1, k - 1)); });
+const ARRIVE = (() => { const src = SRC['finale.js'] || '', i = src.indexOf('_arrive('); const v = i > 0 ? literal(src.slice(i), 'line') : null; if (!v) warn('finale.js: what is said on coming into each room of the base was not found'); return v || {}; })();
+const GOODS = [...(SRC['giftshop.js'] || '').matchAll(/name:\s*'((?:[^'\\]|\\.)*)',\s*price:\s*(\d+),\s*line:\s*'((?:[^'\\]|\\.)*)'/g)].map(m => `${unesc(m[1])} (${m[2]} chips): ${unesc(m[3])}`);
+if (!GOODS.length) warn('giftshop.js: what the till sells was not found');
 const LIONART = fb.lionhunt && fb.lionhunt.art;
 if (LIONART) add({ id: 'lionhunt-painting', kind: PZ, name: workName(LIONART.work) + ' (starts the lion hunt)', room: LIONART.room, x: LIONART.x, z: LIONART.z, y: LIONART.fy, what: 'Look at this painting and the lion hunt begins: twelve lions are loose about the building, ten indoors and the two on the front steps.', text: W('lionhunt') });
 else notFound.push('painting-puzzle: the painting that starts the lion hunt is not hung tonight');
 const secretOf = id => F.find(f => (f.secrets || []).some(s => s[0] === id) && BLOCK[f.id]);
 const featOf = s => { const f = F.find(q => BLOCK[q.id] && q.id === s.id) || secretOf(s.id) || secretOf(s.id.split(':')[0]) || F.find(q => BLOCK[q.id] && s.id.startsWith(q.id)); return f ? f.id : null; };
-const seenSpot = {};
+const seenSpot = {}, many = {}; for (const s of spots) many[s.id] = (many[s.id] || 0) + 1;
 for (const s of spots) {
   if (done.has(s) || /^sys-/.test(s.id)) continue;
   const t = SPOT[s.id] || SPOT[s.id.replace(/\d+$/, '')], nth = (seenSpot[s.id] = (seenSpot[s.id] || 0) + 1), fid = t && t.f ? t.f : featOf(s);
@@ -479,12 +499,15 @@ for (const s of spots) {
   if (t && t.book) { const v = LIT('welcome.js', 'BOOK'); if (v) text.push('GUEST BOOK', 'please sign', ...v.flatMap(q => [q[0], q[1]])); }
   if (t && t.log) { const v = LIT('probe.js', 'LOG'), n = LIT('probe.js', 'NOTE'); if (v) text.push(...v.map(q => q[0] + ': ' + q[1])); if (n) text.push(...n); }
   if (t && t.drawn && fid && BLOCK[fid]) text.push(...drawn(BLOCK[fid].pre + BLOCK[fid].body));
+  if (t && t.lines && fid && BLOCK[fid]) text.push(...lineProps(BLOCK[fid].pre + BLOCK[fid].body));
+  if (t && t.arrive && ARRIVE[t.arrive]) text.push(...ARRIVE[t.arrive].filter(Boolean));
+  if (s.id === 'shelf') text.push(...GOODS);
   if (s.id === 'lionhunt') text = fill(text, { 'L.name': s.name.replace(/^Lion \d+: /, '') });
   const room = t && t.room ? t.room : t && t.outdoors ? null : roomNear(s.x, s.z, s.y) || null, out = !room;
   let kind = t && t.kind ? t.kind : s.kind === 'secret' ? 'secret' : 'other', what = t && (nth > 1 && t.what2 ? t.what2 : t.what);
   if (!t) warn('a spot the table does not know: ' + s.id + ' "' + s.name + '"' + (out ? ' (out of doors)' : ' in ' + room.id));
   if (!what) what = (out ? (/^roof/.test(s.id) ? 'On the roofs: ' : 'Out of doors: ') : '') + s.name + (s.kind === 'secret' ? '. One of the secrets.' : '.');
-  add({ id: s.id.replace(/[^\w-]+/g, '-') + (nth > 1 ? '-' + nth : ''), kind, name: s.name, room, reach: t && t.reach, x: s.x, z: s.z, y: s.y, what, text });
+  add({ id: (s.id === 'lionhunt' ? 'lion' : s.id.replace(/[^\w-]+/g, '-')) + (many[s.id] > 1 ? '-' + nth : ''), kind, name: s.name, room, reach: t && t.reach, x: s.x, z: s.z, y: s.y, what, text });
 }
 
 // ---- things the list of spots does not have: the frame in the lobby, the back offices' small stories, the scenes
@@ -497,11 +520,12 @@ for (const s of spots) {
     ['l3slides', at('l3slides'), 'Slides on a light table', 'LOOK at the slides on the light table: a clue to the galleries upstairs in the Modern Wing.', true],
     ['l3fax', at('l3fax'), 'A fax for the restaurant', 'READ the fax: a table for two at eleven, hot, ring the bell at the pass. A clue to Service! in Terzo Piano.', true],
     ['l3corridor', at('l3corridor', 'board'), 'Notice board', 'READ the notice board in the conservation corridor: cards that are clues to things on the third floor (the sprint time for Gallery 389 among them). A water cooler stands by it.', false],
-    ['l3flasks', at('l3flasks'), 'Flasks on the boil', 'Flasks in the laboratory that come to the boil as you come near.', false],
-    ['l3frame', fb.l3frame && fb.l3frame.x != null ? { x: fb.l3frame.x, z: fb.l3frame.z } : null, 'An empty frame on its stand', 'A big empty frame standing in the studio: drive through it.', false],
-    ['l3bucket', at('l3bucket'), 'Ice bucket', 'An ice bucket by a table in Terzo Piano: knock it over and the cubes skitter across the floor.', false],
-    ['l3pots', at('l3pots'), 'Pots on the range', 'Pots in the restaurant kitchen: bump the range and they rattle.', false],
-    ['l3mobile', fb.l3mobile && fb.l3mobile.cx != null ? { x: fb.l3mobile.cx, z: fb.l3mobile.cz } : null, 'A mobile', 'A mobile hanging in the room, turning slowly.', false],
+    ['l3flasks', at('l3flasks'), 'Flasks that bubble', 'Flasks on the bench in the laboratory at the end of the corridor, bubbling.', false],
+    ['l3frame', fb.l3frame && fb.l3frame.x != null ? { x: fb.l3frame.x, z: fb.l3frame.z } : null, 'An empty frame on its stand', 'An empty frame in the frame conservation studio, to drive through.', false],
+    ['l3bucket', at('l3bucket'), 'Ice bucket', 'A champagne bucket on its stand between the tables of Terzo Piano: knock it and it goes over, ice and all.', false],
+    ['l3pots', at('l3pots'), 'Pots on the range', 'Pots in the restaurant kitchen, to knock over.', false],
+    ['l3mobile', fb.l3mobile && fb.l3mobile.cx != null ? { x: fb.l3mobile.cx, z: fb.l3mobile.cz } : null, 'A mobile', 'Discs on wires hung from the ceiling: drive under it fast and it turns.', false],
+    ['l3forms', fb.l3forms && fb.l3forms.forms && fb.l3forms.forms[0] ? (f0 => (f0.x != null ? f0 : f0.at || (f0.m && f0.m.position) || null))(fb.l3forms.forms[0]) : null, 'Soft forms', 'Four smooth plaster forms that give when you bump them.', false],
     ['l3ring', fb.l3ring && fb.l3ring.x != null ? { x: fb.l3ring.x, z: fb.l3ring.z, y: fb.l3ring.y } : null, 'Steel ring on the terrace', 'A steel ring standing on the terrace: drive through it.', false],
   ];
   for (const [fid, p, name, what, dr] of L3) {
@@ -512,7 +536,7 @@ for (const s of spots) {
     if (fid === 'l3corridor' && b) { const cards = [...(b.pre + b.body).matchAll(/card\([^[\]]*(\[[^\]]*\])/g)].flatMap(m => { try { return new Function('return ' + m[1])(); } catch { return []; } }); if (!cards.length) warn('level3-back.js: the notice board’s cards were not found'); text.push(...cards); }
     add({ id: fid, kind: 'other', name, x: p.x, z: p.z, y, what, text });
   }
-  for (const f of F) if (/^l3/.test(f.id) && !L3.some(q => q[0] === f.id) && !spots.some(s => s.id === f.id) && !['l3terrace', 'l3snowfall', 'l3forms'].includes(f.id)) warn('a third-floor feature the table does not know: ' + f.id);
+  for (const f of F) if (/^l3/.test(f.id) && !L3.some(q => q[0] === f.id) && !spots.some(s => s.id === f.id) && !['l3terrace', 'l3snowfall'].includes(f.id)) warn('a third-floor feature the table does not know: ' + f.id);
   // the scenes
   const en = fb.entry, pr = fb.probe, fin = fb.finale, Fz = P.finale;
   if (en && en.S1) add({ id: 'scene-entry-saucer', kind: 'scene', name: 'The saucer in the entrance hall', room: en.L, x: en.S1.x, z: en.S1.z, y: 0, what: 'The first time you come in through the vent, a sixteen-second cutscene: a small saucer is scanning the Turner, the picture wakes, the lobby’s robot rolls in from the Grand Staircase and puts a bolt into it, and it bolts out through the front doors, which have just unlocked.', text: [] });
@@ -524,7 +548,9 @@ for (const s of spots) {
   else notFound.push('scene: the finale’s tone console has no mark in the plan');
   if (sw) add({ id: 'scene-big-chair', kind: 'scene', name: 'The big chair in the control room', room: sw.room, x: sw.x, z: sw.z, y: sw.y, what: 'The swivel chair with its back to you as you come into the control room: it turns, and it is only a glowing mouse.', text: W('finale', /Only a mouse/) });
   if (Fz && Fz.beam) add({ id: 'scene-beam', kind: 'scene', name: 'The beam, and the launch', room: Fz.hangar, x: Fz.beam.x, z: Fz.beam.z, y: Fz.fl, what: 'After the five notes are played: drive onto the hangar floor into the tractor beam and the toy is taken up into the craft; the silo doors part, the platform carries the saucer up through Butler Field, and the voyage to the Moon begins.', text: W('finalelaunch', /beam|YOUR TURN|wakes/i) });
-  const tun = P.byId['B-tunnel']; if (tun) add({ id: 'scene-tunnel', kind: 'scene', name: 'The tunnel east', room: tun, x: tun.x0 + 3, z: (tun.z0 + tun.z1) / 2, y: tun.y, what: 'Beyond the blast door: about 190 m of tunnel under the railway and Columbus Drive, its lights waking ahead of you, to the base.', text: W('finale', /lights know/) });
+  for (const [idr, line] of Object.entries(ARRIVE)) { const r = BY[idr]; if (!r) { warn('finale.js speaks of a room the plan does not have: ' + idr); continue; } if (idr === 'B-hangar') continue; add({ id: 'arrive-' + idr, kind: 'scene', name: 'Arriving in ' + title(r), room: r, x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 + 1, y: r.y, what: 'What is said the first time you come into this room of the base.', text: line.filter(Boolean) }); }
+  for (const a of P.outdoorArt || []) if (a.text) add({ id: 'outdoor-art-' + Math.round(a.x) + '-' + Math.round(a.z), kind: 'other', name: a.text.replace(/\.$/, ''), room: null, x: a.x, z: a.z, what: 'A sculpture in the grounds: come near and it is named.', text: [a.text] });
+  const tun = BY['B-tunnel']; if (tun) add({ id: 'scene-tunnel', kind: 'scene', name: 'The tunnel east', room: tun, x: tun.x0 + 3, z: (tun.z0 + tun.z1) / 2, y: tun.y, what: 'Beyond the blast door: about 190 m of tunnel under the railway and Columbus Drive, its lights waking ahead of you, to the base.', text: W('finale', /lights know/) });
   const fw = fb.fireworks; if (fw && fw.det) add({ id: 'button-fireworks', kind: 'button', name: 'The fireworks plunger', room: null, x: fw.det.x, z: fw.det.z, what: 'A crate of fireworks and a plunger at the welcome party on the roof: push the plunger for fireworks over the park (a secret).', text: W('fireworks') });
   for (const s of spots) if (s.id === 'l3service') { const f = fb.l3service; if (f && f.tableAt) add({ id: 'l3service-table', kind: PZ, name: 'Service!: the table for two', x: f.tableAt.x, z: f.tableAt.z, y: f.y, what: 'Where the plate from the kitchen pass has to be brought, before it goes cold.', text: W('l3service') }); }
   // the robots docked in the base, the specimen jars, the labels down below are furniture; what is written on the base's walls is not read here
@@ -540,11 +566,11 @@ for (const s of spots) {
   const has = new Set(rooms.filter(r => r.works > 0).map(r => r.id)); for (const it of items) if (it.room && !['hoop', 'stunt-kit', 'cones', 'way-in'].includes(it.kind)) has.add(it.room);
   const reach = (g, from, skip) => { const seen = new Set([from]), q = [from]; while (q.length) { const a = q.shift(); for (const b of g.get(a) || []) if (b !== skip && !seen.has(b)) { seen.add(b); q.push(b); } } return seen; };
   const start = P.front ? P.front.a : 'lobby', all = reach(adj, start), inAll = reach(ind, start);
-  const names = list => list.slice(0, 3).map(id => title(P.byId[id])).join(', ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '');
+  const names = list => list.slice(0, 3).map(id => title(BY[id])).join(', ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '');
   const ways = {}; for (const it of items) if (it.kind === 'way-in' && it.room) (ways[it.room] = ways[it.room] || []).push(it);
   const dash = (areas.find(a => a.id === 'monkey-dash') || { rooms: [] }).rooms;
-  for (const r of P.rooms) {
-    const out = roomOut[r.id], why = [];
+  for (const r of RL) {
+    const out = roomOut[r.id], why = []; if (GONE.includes(r)) continue;
     if (r.id !== start) {
       const lost = [...has].filter(id => id !== r.id && all.has(id) && !reach(adj, start, r.id).has(id));
       if (lost.length) why.push(`The only way to ${lost.length} room${lost.length > 1 ? 's' : ''} with something in ${lost.length > 1 ? 'them' : 'it'} (${names(lost)})`);
