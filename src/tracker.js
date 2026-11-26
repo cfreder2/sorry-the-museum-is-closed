@@ -21,14 +21,19 @@ const NAMES = { LL: 'SUB-LEVEL 1', 1: 'FIRST', 2: 'SECOND', 3: 'THIRD' };
 export const RESTRICTED = 'SL9';
 const feat = id => features.find(f => f.id === id);
 const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
-const roomName = (plan, id) => { const r = id && plan.byId[id]; if (!r) return 'corridor'; if (r.id === 'lobby' || /lobby/i.test(r.id)) return 'Lobby'; const g = String(r.gallery || r.id); return g.replace(/^Galler(y|ies) /, '').replace(/\s*\(.*\)$/, '').slice(0, 15); };
+// A room's name for the terminal's list (20 characters wide there). One too long is shortened at a word and ends with an
+// ellipsis: it used to be cut at 15 characters wherever that fell ("East stair towe").
+const ROOM_W = 20, short = (s, n = ROOM_W) => { if (s.length <= n) return s; let t = s.slice(0, n - 1); if (/\S/.test(s[n - 1]) && /\s/.test(t)) t = t.replace(/\s+\S*$/, ''); return t.replace(/[\s,;:.]+$/, '') + '\u2026'; };
+const roomName = (plan, id) => { const r = id && plan.byId[id]; if (!r) return 'corridor'; if (r.id === 'lobby' || /lobby/i.test(r.id)) return 'Lobby'; const g = String(r.gallery || r.id); return short(g.replace(/^Galler(y|ies) /, '').replace(/\s*\(.*\)$/, '')); };
 const beatName = id => String(id).replace(/^G(?=\d)/, '').replace(/^F\d-/, '').replace(/_/g, '-');
 
 export class Tracker {
   constructor(G) { this.G = G; this.tinted = new Map(); }
   // The levels there are to look at, bottom to top, and the one nobody may.
   levels() { const L = this.G.plan.levels || { 1: 0 }; return [{ id: RESTRICTED, name: 'SUB-LEVEL', y: -12, restricted: true }, ...['LL', '1', '2', '3'].filter(k => L[k] != null).map(k => ({ id: k, name: NAMES[k] || k, y: L[k] }))]; }
-  levelOf(y) { let best = null; for (const l of this.levels()) if (!l.restricted && (!best || Math.abs(l.y - y) < Math.abs(best.y - y))) best = l; return best; }
+  // (What is under Sub-level 1 is filed under its own level, the one nobody may look at: it used to come out as the nearest floor
+  // above, so the toy down in Sub-level 9 was drawn on Sub-level 1's plan. 2.5 m: under the lowest floor there is, the foot of the east stair tower.)
+  levelOf(y) { let best = null, low = null; for (const l of this.levels()) { if (l.restricted) { low = l; continue; } if (!best || Math.abs(l.y - y) < Math.abs(best.y - y)) best = l; } return low && best && best.id === 'LL' && y < best.y - 2.5 ? low : best; }
   get guardsOn() { const G = this.G; return G.mode === 'explore' && G.set && G.set.guards !== false; }
 
   // ---- who is where (also what the terminal's `bots` and `mice` print)
