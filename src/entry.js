@@ -461,7 +461,11 @@ feature({
   //            its bolt and sparks (must be 0: these have nothing but where they are to keep them off the picture)
   //   gap      how near any pixel those change comes to the picture, in pixels of a W-wide view (null: not within 24)
   //   veiled   canvas pixels where the frame's alpha is not 0 with everything drawn: something see-through, of this
-  //            scene or not, lies over the picture there (artSafe trusts that alpha; must be 0)
+  //            scene or not, lies over the picture there (artSafe trusts that alpha; must be 0). veiledByScene: of
+  //            those, the ones whose alpha the scene itself changed. veilMax: the most alpha found on one.
+  //   edge     pixels the flat colour finds that the game does not draw as the picture even with the scene hidden (their
+  //            alpha is 1 there: something solid of the game's own, the frame's lip, wins that pixel by a hair of depth
+  //            when the canvas wears its own material). They are not counted as canvas.
   // Floating point, no MSAA.
   check({ W = 480 } = {}) {
     const G = this.k.G, r = G.renderer, e = G.cineEye; if (this.off || !e) return null;
@@ -485,14 +489,15 @@ feature({
       show(soft, true); shot(b);
       const mask = this._mask || (this._mask = new Uint8Array(W * H));
       const df = (p, q, o) => Math.abs(p[o] - q[o]) + Math.abs(p[o + 1] - q[o + 1]) + Math.abs(p[o + 2] - q[o + 2]), eps = o => 1e-4 * (1 + a[o] + a[o + 1] + a[o + 2]);
-      let canvas = 0, changed = 0, hardOn = 0, veiled = 0, x0 = W, x1 = -1, y0 = H, y1 = -1;
+      let canvas = 0, changed = 0, hardOn = 0, veiled = 0, veiledByScene = 0, veilMax = 0, edge = 0, x0 = W, x1 = -1, y0 = H, y1 = -1;
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const i = y * W + x, o = i * 4;
         mask[i] = df(m1, m2, o) > 0.2 ? 1 : 0; if (!mask[i]) continue;
+        if (a[o + 3] >= 0.999) { mask[i] = 0; edge++; continue; }
         canvas++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
         if (df(a, b, o) > eps(o)) changed++;
         if (df(a, c, o) > eps(o)) hardOn++;
-        if (b[o + 3] > 1e-6) veiled++;
+        if (b[o + 3] > 1e-6) { veiled++; if (Math.abs(b[o + 3] - a[o + 3]) > 1e-6) veiledByScene++; if (b[o + 3] > veilMax) veilMax = b[o + 3]; }
       }
       let gap = null;
       if (canvas) for (let y = Math.max(0, y0 - GAP); y <= Math.min(H - 1, y1 + GAP); y++) for (let x = Math.max(0, x0 - GAP); x <= Math.min(W - 1, x1 + GAP); x++) {
@@ -500,7 +505,7 @@ feature({
         const g = Math.ceil(gap == null ? GAP : gap);
         for (let yy = Math.max(0, y - g); yy <= Math.min(H - 1, y + g); yy++) for (let xx = Math.max(0, x - g); xx <= Math.min(W - 1, x + g); xx++) if (mask[yy * W + xx]) { const d = Math.hypot(xx - x, yy - y); if (d <= GAP && (gap == null || d < gap)) gap = d; }
       }
-      res[view] = { canvas, changed, hard: hardOn, veiled, gap: gap == null ? null : +gap.toFixed(1), high: canvas ? y1 - y0 + 1 : 0 };
+      res[view] = { canvas, changed, hard: hardOn, veiled, veiledByScene, veilMax: +veilMax.toFixed(5), edge, gap: gap == null ? null : +gap.toFixed(1), high: canvas ? y1 - y0 + 1 : 0 };
     }
     for (const [o, v] of was) o.visible = v;
     r.setRenderTarget(prev);
