@@ -1850,8 +1850,25 @@ export function hang(plan, collection) {
     }
     if (!isHall) spill.push(...queue);
   }
+  entryPicture(plan, placements);
   placements.push(...stand(plan, collection, placements));
   return placements;
+}
+
+// One picture hangs in the entrance hall, on the wall that faces you as you come in: the work the visitors' machine is
+// found scanning on the first night (src/entry.js). It is one of the works that found no room in its own gallery and was
+// hung in Griffin Court; it is taken off that wall and nothing else there moves, so its place in the court is left empty.
+// (If the front hall has no stretch of wall for it, it stays where it was.)
+export const ENTRY_WORK = 109938;        // Turner, Valley of Aosta: Snowstorm, Avalanche, and Thunderstorm
+function entryPicture(plan, placements) {
+  const d = plan.front, r = d && plan.byId[d.a]; if (!r || d.along !== 'x') return;
+  const i = placements.findIndex(p => p.work.id === ENTRY_WORK && p.kind === 'painting'); if (i < 0) return;
+  const was = placements[i], wall = plan.walls.find(w => w.room === r && !w.horiz && w.nx < 0); if (!wall) return;
+  // Not straight ahead, where the doorway to the Grand Staircase is, but a little to the left of it: in line with the vent the toy comes in by.
+  const u = (d.z0 + d.z1) / 2 - 4.2, half = was.w / 2 + was.frame, seg = wall.segs.find(s => s.lo + 0.55 <= u - half && s.hi - 0.55 >= u + half); if (!seg) return;
+  const cy = Math.max(1.62, 0.8 + was.h / 2), { need, cap } = clearance(plan, wall, u - half, u + half); if (need > 0 || cy + was.h / 2 + was.frame > cap) return;
+  const pos = wallPoint(wall, u, r.y + cy, 0.04);
+  placements[i] = { ...was, room: r.id, fy: r.y, x: pos.x, y: pos.y, z: pos.z, rot: wall.rot, nx: wall.nx, nz: wall.nz, high: false, entry: true };
 }
 
 // Is there still `w` metres of clear floor from every doorway of room r to every other,

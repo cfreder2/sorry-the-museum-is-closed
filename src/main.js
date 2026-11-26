@@ -88,6 +88,7 @@ import './life/index.js';        // paintings that come alive while you look at 
 import './escapes.js';           // what gets out of a living painting and wanders the building till it is sent or led home (docs/ESCAPES.md)
 import './systems.js';           // the building's systems, for the control room: sprinklers, the fire test, lights, lifts, doors, the PA (after guards.js: it takes robots over)
 import './hydrants.js';         // fire hydrants that shear off when hit hard, and the jet that freezes into a fountain over the stub
+import './entry.js';             // the first time in: a saucer found scanning the picture in the entrance hall, and the robot that sees it off (after guards.js, probe.js and the paintings: it uses all three)
 import './look.js';              // the look pass over the finished world: the snow's drifts, soft shadows under what moves (last: src/finish.js)
 
 const $ = id => document.getElementById(id);
@@ -663,7 +664,7 @@ function once(key, text, hold = 6, now = false) { if (G.told.has(key)) return; G
 let toastUntil = 0;
 function runToasts() {
   const el = $('toast');
-  const i = toasts.findIndex(t => G.t >= t.at);
+  const i = G.cutscene ? -1 : toasts.findIndex(t => G.t >= t.at);      // (a cutscene has the screen, src/entry.js: what there is to say waits until it is over)
   if (i >= 0 && G.t > toastUntil - 0.2) {
     const t = toasts.splice(i, 1)[0];
     el.textContent = t.text; el.classList.add('on'); toastUntil = G.t + t.hold;
@@ -1287,6 +1288,7 @@ function steerHelp(v, inp, dt) {
 function play(dt, real) {
   const v = G.vehicle, R = G.race, racing = G.racing, bots = R.bots.length > 0;      // (bots: rivals out on a course, in a race or just after one)
   let inp = input.read(v.kind === 'drone');
+  if (G.cutscene) G.cutscene(input);      // a cutscene has the controls (src/entry.js): it takes what was pressed, to be skipped by it or to ignore it
   if (G.auto && racing) inp = autopilot(v, R, dt);
   if (G.testInput) inp = G.testInput;
   if (v.kind === 'car') {

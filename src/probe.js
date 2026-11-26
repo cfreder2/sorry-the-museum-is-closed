@@ -27,6 +27,8 @@
 //
 // For other modules: G.probe.where() is where the file's "?" should point while there is something here to follow (the
 // grate, the probe, the log), or null. src/story.js asks it first.
+// Before any of that, the first time you come in, it is the saucer found scanning the picture in the entrance hall:
+// src/entry.js borrows this one (its model, _show and _hide, its notes) while it is still waiting here, and gives it back.
 
 import * as THREE from 'three';
 import { feature, features } from './features.js';
@@ -37,7 +39,7 @@ import { MOTIF, MOTIF_COLOURS, motifVoice } from './motif.js';
 import * as TX from './textures.js';
 import { night } from './garage.js';
 const KEY = 'after-hours.probe';
-const GREEN = new THREE.Color(0.32, 1, 0.42);
+export const GREEN = new THREE.Color(0.32, 1, 0.42);
 const R = 0.4;             // its radius: 80 cm across, bigger than the car is long (it still clears the vent, 1.2 m by 0.75)
 const FLY = 0.7;           // the height of its middle over the floor indoors (the pictures start at 0.8 m)
 const LEAD = 3.2;          // how far ahead of you it keeps, along its way out (metres)
@@ -97,13 +99,13 @@ const PAL = /* glsl */`
 // Light added to the frame, but only where the frame is not a work of art: the source is weighted by the destination's
 // alpha (0 on a canvas: src/finish.js keepTrue), and the alpha is left as it was. The material's colour must already
 // be multiplied by its own coverage (as an additive glow's is).
-function artSafe(m) {
+export function artSafe(m) {
   Object.assign(m, { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstAlphaFactor, blendDst: THREE.OneFactor,
     blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor, fog: false });
   return m;
 }
 // A glow on a surface of revolution (the column, the field): scrolling noise, soft at the silhouette, brightest at one end.
-function beamMaterial(U, o) {
+export function beamMaterial(U, o) {
   const F = x => Number(x).toFixed(3);
   return artSafe(new THREE.ShaderMaterial({
     uniforms: { uTime: U.uTime, uCol: { value: new THREE.Color() }, uK: { value: 0 } },
@@ -426,6 +428,7 @@ feature({
     this.column = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 3.4, 40, 1, true).translate(0, 1.7, 0), beamMaterial(M.U, { up: true, n: 12, m: 4, speed: 1.4, rings: 3, ringSpeed: 0.8, fall: 0.9 }));
     this.column.scale.z = 0.66; this.column.renderOrder = 4;
     this.column.position.set(this.grate.x, L.y + 0.01, this.grate.z); this.column.visible = false; k.group.add(this.column);
+    for (const o of [M.group, this.ribbon.mesh, this.motes.mesh, this.pool, this.column]) o.userData.always = true;      // (it flies about: not for src/stream.js, which would go by where it stood when it was counted and hide it on a phone)
     this.pos = new THREE.Vector3(); this.v3 = new THREE.Vector3(); this.v4 = new THREE.Vector3(); this.v5 = new THREE.Vector3();
     // the card on screen when the log is read
     const el = this.cardEl = document.createElement('div'); el.id = 'keeperCard'; el.setAttribute('role', 'img');

@@ -648,6 +648,9 @@ class Life {
       this.pal = await palette(this.art);
       this.group = new THREE.Group(); this.group.name = 'life:' + this.id; this.group.visible = false; this.k.group.add(this.group);
       this.fixed = new THREE.Group(); this.fixed.name = 'life-fixed:' + this.id; this.k.group.add(this.fixed);
+      // (Not for src/stream.js: a show's meshes move, and are counted by where they lay when it found them. On a phone a
+      // rig counted at rest was taken for something far away and never drawn. The kit lets its own shows go: release().)
+      this.group.userData.always = this.fixed.userData.always = true;
       if (!this._keys) this._keys = new Set(Object.keys(this.spec));      // (what the spec was before it built: release() clears the rest)
       try { this.spec.build(this); this.made = true; this.usedAt = performance.now(); } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; return; }
       // Compile its shaders now, off the main thread where the browser can, so the first show does not stutter.
@@ -734,13 +737,14 @@ const GLOW = 0.9, GLOW_RIM = 0.06, WHITE = new THREE.Color(1, 1, 1), FLUT = new 
 function exposedCards(museum, arts) {
   const cards = museum && museum.cards; if (!cards || !arts.length) return null;
   const M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3();
-  const pos = [];
+  const pos = [], at = new Map();
   for (const a of arts) {
     cards.getMatrixAt(a.i, M); M.decompose(P, Q, S);
     if (S.x < 0.01) continue;                                   // a work with no card
     a.exposed = true; if (museum._paint) museum._paint(a);       // the card itself takes a green cast, dark or lit
     a.glowI = pos.length;                                        // (which glow is this work's: flutter(), below)
     // Out into the room along the work's normal (the card is a hair off the wall; its own +z is no guide).
+    at.set(a, pos.length);
     pos.push([P.clone().add(new THREE.Vector3(a.nx, 0, a.nz).multiplyScalar(0.01)), Q.clone(), S.x, S.y]);
   }
   if (!pos.length) return null;
@@ -760,6 +764,13 @@ function exposedCards(museum, arts) {
   pos.forEach(([p, q], i) => { m.setMatrixAt(i, M.compose(p, q, S.set(W, H, 1))); m.setColorAt(i, WHITE); });
   m.frustumCulled = false; m.renderOrder = 5;
   museum.group.add(m);
+  // One work's ring put out or lit again (src/entry.js: the work in the entrance hall has not been touched until the scan).
+  m.userData.expose = (a, on) => {
+    const i = at.get(a); if (i == null) return false;
+    const [p, q] = pos[i]; m.setMatrixAt(i, on ? M.compose(p, q, S.set(W, H, 1)) : M.compose(p, q, S.set(0, 0, 0))); m.instanceMatrix.needsUpdate = true;
+    a.exposed = !!on; if (museum._paint) museum._paint(a);
+    return true;
+  };
   return m;
 }
 
@@ -833,6 +844,17 @@ feature({
     return LIVES.flatMap(L => (L.spec.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: L.cx + L.nx * 1.4, y: L.y, z: L.cz + L.nz * 1.4 })));
   },
   reset() { for (const L of LIVES) L.reset(); },
+  // For src/entry.js (the saucer that scans the work in the entrance hall).
+  // lifeOf: the Life of a work hung tonight (or undefined). expose: its label's green light, on or off (the same ring and
+  // the same cast on the card as every living work's; all of them are on from the start). wake: its show begun without a
+  // look, by the same step() a look drives, and let go again (it then goes back as it does when a look ends).
+  lifeOf(art) { return this.byArt && this.byArt.get(art); },
+  expose(art, on) { return !!(this.exposed && this.exposed.userData.expose(art, on)); },
+  wake(art, on) {
+    const L = this.lifeOf(art); if (!L) return false;
+    if (on) { if (!L.made) L.prepare(); L.force = true; } else if (L.force === true) L.force = null;
+    return true;
+  },
 });
 
 // ------------------------------------------------------------------ checks and test aids --

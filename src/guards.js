@@ -373,6 +373,7 @@ feature({
     this.k = k; this.v3 = new THREE.Vector3(); this.v3b = new THREE.Vector3(); this.sparkFloor = 0;
     this.seq = null; this.grace = 0; this.wasOn = false; this.blipT = 0; this.prevState = 'play';
     this.root = new THREE.Group(); this.root.name = 'security robots'; k.group.add(this.root);
+    this.root.userData.always = true;      // (they move about: not for src/stream.js, which would go by where each stood when it was counted and hide it on a phone)
     this.sfx = voices(k);
     const P = this.patrols = patrols(k.plan, COUNT);
     // One body, one head and one set of glowing bits, shared; each robot has its own glow colour, its own pool of light and its own mark.
@@ -406,6 +407,17 @@ feature({
       };
       this._home(b, Math.floor((i * 0.37 % 1) * p.n));
       return b;
+  },
+
+  // The lobby's robot, made the first time it is wanted (here, or by src/entry.js, whose cutscene it is in).
+  _lobby(k) {
+    if (!this.lobbyTried && this.bots) {
+      this.lobbyTried = true;
+      const L = k.plan.byId[k.plan.front && k.plan.front.a];
+      const p = L && beat(k.plan, [L.id], 'bot-lobby');
+      if (p) { const b = this._makeBot(p, this.bots.length); b.lobby = true; this._home(b, 0); this.bots.push(b); this.lobbyBot = b; }
+    }
+    return this.lobbyBot || null;
   },
 
   // Put a robot back on its beat, at point i.
@@ -490,12 +502,7 @@ feature({
     this.wasOn = true;
     // The lobby's own robot: one beat up and down the Michigan Avenue lobby, past the front doors, the first one most people meet.
     // Built on the first frame rather than at the start, so the coat-check counter (src/lobby.js) is on its plan as somewhere to hide.
-    if (!this.lobbyTried) {
-      this.lobbyTried = true;
-      const L = k.plan.byId[k.plan.front && k.plan.front.a];
-      const p = L && beat(k.plan, [L.id], 'bot-lobby');
-      if (p) { const b = this._makeBot(p, this.bots.length); b.lobby = true; this._home(b, 0); this.bots.push(b); this.lobbyBot = b; }
-    }
+    this._lobby(k);
     const v = k.v, p = v.pos, now = G.t, cam = G.camera ? G.camera.position : p;
     // Back from something else (a look, a game, the pause menu): a moment before anybody can see you.
     if (G.state !== this.prevState) { if (G.state === 'play') this.grace = Math.max(this.grace, now + 1.5); this.prevState = G.state; }
@@ -508,6 +515,7 @@ feature({
     const lamp = !!G.lampOn, drone = v.kind === 'drone';
     let nearest = 1e9;
     for (const b of this.bots) {
+      if (b.cut) continue;      // (somebody else has this one for now, and draws it: the lobby's robot until the saucer has been seen off, src/entry.js)
       const dx = p.x - b.x, dz = p.z - b.z, d2 = dx * dx + dz * dz, dy = p.y - b.fy;
       const sameLevel = dy > -1.5 && dy < 4;
       b.near = sameLevel && d2 < 45 * 45; b.far = !sameLevel || d2 > 60 * 60;
