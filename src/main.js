@@ -151,7 +151,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.19';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.20';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -1614,10 +1614,29 @@ const diag = params.has('diag') ? (() => {
   };
 })() : null;
 
+// The frame rate, on screen at all times while the game is being made (the owner's wish): frames a second over the last
+// half second, and the longest frame in it. Green at 55 and over, amber at 30, red under. ?nofps takes it off (for stills
+// and films); with ?diag it is in that readout already. To take it off for players, make SHOW_FPS false.
+const SHOW_FPS = true;
+const fpsMeter = SHOW_FPS && !diag && !params.has('nofps') ? (() => {
+  const el = document.createElement('div'); el.id = 'fps'; el.setAttribute('aria-hidden', 'true');
+  el.style.cssText = 'position:fixed;left:50%;top:5px;transform:translateX(-50%);z-index:98;padding:2px 7px;font:11px/1.3 ui-monospace,Menlo,Consolas,monospace;color:#9f9;background:rgba(0,0,0,.55);border-radius:4px;pointer-events:none;white-space:nowrap';
+  document.body.append(el);
+  let n = 0, sum = 0, worst = 0;
+  return ms => {
+    n++; sum += ms; if (ms > worst) worst = ms;
+    if (sum < 500) return;
+    const f = Math.round(1000 * n / sum);
+    el.textContent = `${f} fps · ${worst.toFixed(0)} ms worst`; el.style.color = f >= 55 ? '#9f9' : f >= 30 ? '#fd6' : '#f77';
+    n = 0; sum = 0; worst = 0;
+  };
+})() : null;
+
 let last = performance.now();
 function tick(now) {
   requestAnimationFrame(tick);
   if (diag) diag(now - last);
+  if (fpsMeter) fpsMeter(now - last);
   G.fps = (G.fps || 60) * 0.95 + 0.05 * 1000 / Math.max(1, now - last);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
