@@ -156,6 +156,7 @@ feature({
     const prints = st.arts.filter(a => !a.work.c && /Hour of the (\w+)/i.test(a.work.t || '')).map(a => { const m = /Hour of the (\w+)/i.exec(a.work.t), h = ANIMAL[m[1].toLowerCase()]; return h == null ? null : { art: a, animal: m[1], hour: h }; }).filter(Boolean);
     if (!prints.length) return;
     let seen = []; try { seen = JSON.parse(localStorage.getItem('after-hours.hours') || '[]'); } catch { /* none kept */ }
+    if (!Array.isArray(seen)) seen = [];      // (a record of another shape broke the feature at start-up)
     const halo = TX.radial(0.5, 1.1);
     for (const p of prints) {
       // The glow when it is found: a halo on the wall round the print, laid 1.5 cm off the wall, behind the print and its
