@@ -293,13 +293,16 @@ class Voyage {
     else if (a === 'view') this.view = this.view === 'cabin' ? 'outside' : 'cabin';
     else if (a === 'moon') { this._menu(null); this._autoMoon(); }
     else if (a === 'far') { this._menu(null); this._hyper(); }
-    else if (a === 'home') { this._menu(null); this._home(false); }
+    else if (a === 'home') { if (!this.opened) return; this._menu(null); this._home(false); }      // (not before the Moon museum has opened: see _menu)
     else if (a === 'new') { this._menu(null); this._home(true); }
     else if (a === 'skip') { if (this.phase === 'credits') this._summary(); }
     else if (a === 'explore') { this.$('.vsum').hidden = true; this.open = null; this._setPhase('explore'); this._stage('The Moon · Lunar Base'); this.$('[data-v="home"]').hidden = false; this._cap('The Moon is yours. Fly home whenever you like.', 5); }
   }
   _menu(name) {
     for (const n of ['vdest', 'vpause']) this.$('.' + n).hidden = n !== name;
+    // Fly home is offered once the museum on the Moon has opened, here as in the top bar. Taken sooner it saved the voyage as
+    // over with the ending not reached, and nothing started one again.
+    if (name === 'vpause') this.$('.vpause [data-v="home"]').hidden = !this.opened;
     this.open = name;
     if (name) { const f = this.$('.' + name + ' [data-first]'); if (f) f.focus({ preventScroll: true }); }
     else this.G.renderer.domElement.focus({ preventScroll: true });
