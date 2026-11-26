@@ -712,7 +712,7 @@ const pick = G.pick = { toy: 'car' };
 function choose(key, step) { garage.step(step, pick); if (G.museum) titleButtons(); }
 choose('toy', 0);
 addEventListener('keydown', e => {
-  if (shown !== 'title' || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return;
+  if (shown !== 'title' || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight') || $('title').classList.contains('first')) return;      // (a first visit shows no chooser: nothing to step)
   const row = document.activeElement && document.activeElement.closest('.sel');
   choose(row ? row.dataset.sel : 'toy', e.code === 'ArrowLeft' ? -1 : 1);
   e.preventDefault();
