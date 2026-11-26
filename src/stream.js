@@ -9,9 +9,13 @@
 //     are drawn after you come back, from the copies still held in memory.
 // Nothing about a feature changes: `visible` is left to the features themselves; this uses the layer only.
 //
-// What is not streamed: anything bigger than a city block (the ground, the sky, the lake), anything that moves about
-// the world (it is not under the museum's group, or says userData.always), and the works of art (museum.js loads
-// and lets go of their pictures itself, by distance).
+// What is not streamed: anything bigger than a city block (the ground, the sky, the lake), anything that says
+// userData.always or is not under the museum's group (the toys), and the works of art (museum.js loads and lets go of
+// their pictures itself, by distance).
+// What moves under the museum's group (a train, a car in the street, a mouse, a lift, the sleigh) is streamed by where
+// it is now, not by where it stood when it was counted: its box goes with it. (They were hidden by where they first
+// stood: a train that started far off stayed hidden as it came past.) Such a thing is only hidden when far, never let go
+// from the graphics card: it would be sent up again every time it came round.
 
 import * as THREE from 'three';
 
@@ -45,7 +49,8 @@ export class Streamer {
       if (b.isEmpty() || !isFinite(b.min.x) || !isFinite(b.max.x)) return;
       const sx = b.max.x - b.min.x, sz = b.max.z - b.min.z;
       if (sx > this.big || sz > this.big) return;          // the ground, the sky, the lake: always
-      this.items.push({ o, box: b.clone(), on: true, inner: !!this.inside(b) });
+      const e = o.matrixWorld.elements;
+      this.items.push({ o, box: b.clone(), on: true, inner: !!this.inside(b), x: e[12], y: e[13], z: e[14], moves: false });      // (x, y, z: where it stood when its box was made)
     });
   }
   // How far the camera is from a box: across the ground, with a level's difference in height counted as a long way
@@ -66,6 +71,8 @@ export class Streamer {
     // how near a thing must be to be drawn, by where you are and where it is
     const reach = inRoom ? { inner: this.near, outer: this.near * 0.8 } : { inner: this.near * 0.55, outer: this.outR };
     for (const it of this.items) {
+      // (moved since its box was made: the box goes with it, and from now on it is one of the things that move)
+      const e = it.o.matrixWorld.elements; if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z) { it.box.translate(this._v.set(e[12] - it.x, e[13] - it.y, e[14] - it.z)); it.x = e[12]; it.y = e[13]; it.z = e[14]; it.moves = true; }
       const d = this._dist(it.box, cam), r = it.inner ? reach.inner : reach.outer;
       if (it.on && d > r + gap) { it.on = false; it.o.layers.set(HIDDEN); gone.push(it); }
       else if (!it.on && d < r) { it.on = true; it.o.layers.set(0); }
@@ -73,6 +80,7 @@ export class Streamer {
     // Let go of what only far things use (worked out only when something has gone: it is a walk over every material).
     if (gone.length) for (const it of this.items) if (it.on) { keepG.add(it.o.geometry); for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture) keepT.add(x); } }
     for (const it of gone) {
+      if (it.moves) continue;
       // A geometry whose copy in memory has been let go (museum.js, lights.js, budget.js do that once it is on the
       // graphics card) cannot be sent up again: it stays on the card, hidden. Disposing it made every later frame throw.
       const g = it.o.geometry; if (g && !keepG.has(g) && held(g)) g.dispose();

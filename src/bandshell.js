@@ -101,22 +101,24 @@ feature({
   id: 'bandshell',
   lazy: { x: 316, z: 212, r: 150 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['snowball', 'Snow Ball: a full combo'], ['snowstar', 'Snow Ball: an S on HARD']],
-  init(k) {
+  // (A generator: each yield is a place the building of it can stop until the next frame. features.js, `begin`.)
+  *init(k) {
     const L = k.plan.lakefront; if (!L || !L.shell || !L.shell.rings) return;
     k.G.snowball = this;      // (a test aid)
     this.k = k; this.sh = L.shell; this.t = 0; this.mode = 'idle'; this.sel = { song: 0, level: 0 }; this.lvl = 0; this.burst = 0; this.far = 999;
-    const g = this.g = new THREE.Group(); g.name = 'bandshell'; k.group.add(g);
+    const g = this.g = new THREE.Group(); g.name = 'bandshell'; g.visible = false; k.group.add(g);      // (hidden until it all stands: features.js builds it a part at a time, and k.ready shows it)
     const pal = IDLE_PAL.map(c => new THREE.Vector3(...c));
     this.U = { uT: { value: 0 }, uKick: { value: 0 }, uLevel: { value: 0 }, uCalm: { value: 0 }, uFlash: { value: 0 }, uRing: { value: 0 }, uPal: { value: pal } };
     this.glyph = glyphTex();
-    this.arr = DANCES.map(arrange);
-    this._venue(k); this._rig(k); this._screen(k); this._pad(k);
+    this.arr = DANCES.map(arrange); yield;
+    this._venue(k); yield; this._rig(k); yield; this._screen(k); yield; this._pad(k); yield;
     this.puffs = k.puffs(420, { size: 0.15 });
     this.band = new Band();
     this.padLit = [0, 0, 0, 0]; this.recep = [0, 0, 0, 0]; this.held = new Set(); this.stickWas = -1; this.padWas = {};
     this._drawIdle();
     addEventListener('keydown', e => this._key(e, true), true);
     addEventListener('keyup', e => this._key(e, false), true);
+    yield* k.ready(g);
   },
 
   // ============================================================ the shell

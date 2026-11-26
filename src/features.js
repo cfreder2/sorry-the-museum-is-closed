@@ -41,7 +41,8 @@
 //   k.roofAt(x, z), k.roofSolid(piece, mat), k.parts()   up on the roofs, and drawing many small things cheaply (see "added for the roofs")
 //   k.tune(mel, opts)     a melody in carols.js's notation, played on k.synth (pre-1900 music only)
 
-import { confine } from './plan.js';
+import { confine, onRoof } from './plan.js';
+import { LOWMEM } from './budget.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { parse } from './carols.js';
 
@@ -243,15 +244,17 @@ class Body {
 // ---------------------------------------------------------------- the hook main.js calls
 // startFeatures(o) starts every feature at once and returns the api. startFeaturesInTurn(o, rest) does the same, but
 // calls `await rest(done, total)` whenever starting them has held the page for a while, so a loading screen can move.
-export function startFeatures(o) { const s = kitFor(o); for (const f of features) s.start(f); return s.api; }
+// (A feature built a part at a time, see `begin` below, is built to the end here, the screen getting its frame between parts.)
+export function startFeatures(o) { const s = kitFor(o); for (const f of features) { const step = s.start(f); while (step && step() !== true); } return s.api; }
 export async function startFeaturesInTurn(o, rest, budget = 40) {
   const s = kitFor(o); let t = performance.now();
   for (let i = 0; i < features.length; i++) {
-    s.start(features[i]);
-    if (performance.now() - t > budget) { await rest(i + 1, features.length); t = performance.now(); }
+    const step = s.start(features[i]);
+    do { if (performance.now() - t > budget) { await rest(i + 1, features.length); t = performance.now(); } } while (step && step() !== true);
   }
   return s.api;
 }
+const SLICE = 6;      // milliseconds a frame given to a feature being built while the game is played (wake, below)
 function kitFor(o) {
   const { G, THREE, secrets, say, once, callout, sound, stage, key } = o;
   const group = new THREE.Group(); group.name = 'features'; G.museum.group.add(group);
@@ -413,10 +416,37 @@ function kitFor(o) {
     },
   };
   k.carry = new Carry(k);
-  // A feature with `lazy: { x, z, r }` (where it is, and how near the toy must come) is not built at start-up but the
-  // first time the toy comes within r metres: the park, the hill, the harbour cost a phone nothing until you go out there.
-  // Its secrets are counted from the start; until it is built it is on the map at (x, z).
-  const init = f => { f._pending = false; try { if (f.init) f.init(k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } };
+  // k.ready(obj): the last line of a lazy feature's init, `yield* k.ready(g)`: its group, kept hidden while it was built,
+  // is shown. Built while the game is being played (on a phone), its shaders are compiled first, in the browser's own time,
+  // so that its first frame is not the one that waits for them (20 to 30 ms); it gives up after three seconds and shows
+  // it as it is. Built behind the loading bar (a computer), it stays hidden, and is not updated, until the toy first comes
+  // within its r metres in play (update, below): which is when it used to be built. So it appears when and where it
+  // always did, the title and the opening film look out over a park without it as they always did, and nothing is drawn
+  // (through the walls, from the lobby) of a thing nobody has been near.
+  let cur = null;      // (the feature whose init is running)
+  k.ready = function* (obj) {
+    if (G.state === 'loading' || !G.warm) { cur._unseen = obj; return; }
+    let done = false; const fin = () => { done = true; }; G.warm(obj).then(fin, fin);
+    for (const t = performance.now(); !done && performance.now() - t < 3000;) yield true;
+    obj.visible = true;
+  };
+  // A feature with `lazy: { x, z, r }` (where it is, and how near the toy must come) is one of the park's big ones. On a
+  // computer it is built at start-up with the rest, behind the loading bar. On a phone (LOWMEM) it is not built until the
+  // toy first comes within r metres, out of doors: the park, the hill, the harbour cost a phone nothing until you go out
+  // there. (Out of doors, because r reaches through the walls: the sled hill used to be built, in one frame of 280 ms,
+  // from three quarters of the way down Griffin Court.) Its secrets are counted from the start; until it is built it is on
+  // the map at (x, z).
+  // Its init is a generator (*init(k), with a yield between its parts), so that it can be built a part at a time:
+  // begin(f) starts it and hands back step(), which builds the next part and says true once the feature stands. It is
+  // _pending until then, so nothing asks it anything while it is half built. (A plain init is done at once: begin() is null.)
+  // It keeps its group hidden until the end (k.ready shows it), so that it appears whole.
+  const begin = f => {
+    f._pending = false; let it = null;
+    try { it = f.init ? f.init(k) : null; } catch (e) { console.error('feature ' + f.id, e); f._broken = true; }
+    if (!it || typeof it.next !== 'function') return null;
+    f._pending = true;
+    return () => { cur = f; try { const r = it.next(); if (!r.done) return r.value === true ? null : false; } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } f._pending = false; return true; };      // (null: it is waiting on something, k.ready, and has nothing to do until the next frame)
+  };
   // A feature that throws in play is switched off for the rest of the visit, and first made to let go of whatever it had hold
   // of: its own reset() is how a feature puts things back (the toy it was holding, a robot's grip, a cutscene, its camera). If
   // that fails too, the toy is taken back from it here. Left holding, the toy could not move until Quit to title.
@@ -427,21 +457,23 @@ function kitFor(o) {
   };
   const start = f => {
     for (const [id, name] of f.secrets || []) secrets.add(id, name);
-    if (f.lazy) { f._pending = true; return; }
-    init(f);
+    if (f.lazy && LOWMEM) { f._pending = true; return null; }
+    return begin(f);
   };
-  let lazyT = 0;
+  let lazyT = 0, building = null;
   const wake = dt => {
+    if (building) { for (const t = performance.now(); ;) { const r = building(); if (r) { building = null; return; } if (r === null || performance.now() - t > SLICE) return; } }      // (the one being built: a few milliseconds of it a frame)
     if ((lazyT += dt) < 0.5) return; lazyT = 0;
     const p = G.vehicle && G.vehicle.pos; if (!p) return;
-    for (const f of features) if (f._pending && Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) < f.lazy.r) { init(f); return; }      // (one at a time)
+    if (G.plan.masses.some(m => p.x > m.x0 && p.x < m.x1 && p.z > m.z0 && p.z < m.z1) && !onRoof(G.plan, p.x, p.z, p.y)) return;      // in the building (not on its roof)
+    for (const f of features) if (f._pending && Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) < f.lazy.r) { building = begin(f); return; }      // (one at a time)
   };
   const api = {
     kit: k,
     // Called where main.js decides what the action button says. Returns { verb, hint, act } or null.
     near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (r) return r; } return null; },
     // (quiet: the opening runs the park from a window without waking what is still asleep in it)
-    update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending || !f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
+    update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending) continue; if (f._unseen) { const p = G.vehicle && G.vehicle.pos; if (quiet || !p || Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) >= f.lazy.r) continue; f._unseen.visible = true; f._unseen = null; } if (!f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
     look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
     spots() { return features.flatMap(f => { if (f._pending) return (f.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: f.lazy.x, y: 0, z: f.lazy.z })); try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset && !f._pending) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },

@@ -214,7 +214,7 @@ feature({
     const zA = cz - (W + 0.15), zB = cz + 0.15, xW = cx - 0.05 - D - T, xE = cx + 0.05 + D + T;      // glass planes
     const defs = [[ROOMS[0], -1, xW, zA], [ROOMS[1], -1, xW, zB], [ROOMS[2], 1, xE, zA], [ROOMS[3], 1, xE, zB]];
     const mat = cast({ roughness: 0.85, metalness: 0, emissiveIntensity: 0.42 });
-    const glassM = new THREE.MeshStandardMaterial({ color: 0xdfeef5, transparent: true, opacity: 0.13, roughness: 0.05, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide });
+    const glassM = new THREE.MeshStandardMaterial({ color: 0xdfeef5, transparent: true, opacity: 0.13, roughness: 0.05, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true });      // (both sides in one go, not two)
     const oak = caseWood(), frameM = new THREE.MeshStandardMaterial({ map: oak, color: 0xffffff, roughness: 0.5, metalness: 0, emissiveMap: oak, emissive: 0xffffff, emissiveIntensity: 0.22 });
     const endP = casePanels(), endM = new THREE.MeshStandardMaterial({ map: endP, roughness: 0.5, emissiveMap: endP, emissive: 0xffffff, emissiveIntensity: 0.22 });
     const crackM = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 });

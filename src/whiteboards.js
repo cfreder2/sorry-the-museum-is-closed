@@ -73,20 +73,48 @@ const BIG = {
   },
 };
 
+// A line too long for the board is carried on to the rows below it (some boards are whole sentences, not jottings). A row that
+// carries on comes back marked '+' before its line's own mark: the same ink and indent, no bullet or tick box of its own.
+// The more rows there are the smaller the hand, so the hand is tried a row smaller at a time until the rows it makes fit the board:
+// the rows come back with that count on them (`n`), for drawBoard to space them by.
+function wrapLines(c, W, H, lines, doodle) {
+  const big = BIG[doodle], mx = W * 0.055, head = H * 0.125;
+  let n = Math.max(lines.length, 6), out = lines;
+  for (let pass = 0; pass < 40; pass++, n++) {
+    const step = Math.min(H * 0.118, (H * 0.9 - head) / (n - 0.4)); out = [];
+    for (const raw of lines) {
+      const k = raw[0], marked = /^[#\->!=\[]/.test(raw);
+      if (!raw || k === '=' || k === '#') { out.push(raw); continue; }      // (a heading is one row: squeezed, never carried on)
+      const mark = marked ? raw.slice(0, k === '[' && raw[1] === 'x' ? 2 : 1) : '', text = marked ? raw.slice(mark.length).trim() : raw;
+      const size = k === '#' ? head : step * 0.66, indent = k === '>' ? W * 0.07 : k === '-' || k === '[' ? W * 0.04 : 0;
+      c.font = `${k === '#' ? 'bold ' : ''}${size}px ${FONT}`;
+      const room = i => W - 2 * mx - indent - (big && i > 0 ? W * 0.44 : !big && doodle && i < 2 ? W * 0.2 : 0), wide = t => c.measureText(t.replace(/=+/g, 'XXXXXX')).width;
+      if (wide(text) <= room(out.length) * 1.04) { out.push(raw); continue; }
+      let row = '', first = true;
+      for (const word of text.split(/\s+/)) { const t = row ? row + ' ' + word : word; if (row && wide(t) > room(out.length)) { out.push((first ? '' : '+') + mark + row); first = false; row = word; } else row = t; }
+      if (row) out.push((first ? '' : '+') + mark + row);
+    }
+    if (out.length <= n) break;
+  }
+  out.n = n; return out;
+}
+
 // Write `lines` (see src/boardtext.js for the marks at the start of each) on a board W by H.
-export function drawBoard(c, W, H, lines, doodle, seed = 1) {
+export function drawBoard(c, W, H, lines, doodle, seed = 1, wrap = false) {
   c.fillStyle = '#f4f5f1'; c.fillRect(0, 0, W, H);
   // Somebody wiped it first, not very well.
   let s = seed; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
   c.globalAlpha = 0.05; c.fillStyle = '#6a7a9a'; for (let i = 0; i < 5; i++) { c.beginPath(); c.ellipse(rnd() * W, rnd() * H, W * (0.12 + rnd() * 0.2), H * 0.06, rnd() * 3, 0, 7); c.fill(); } c.globalAlpha = 1;
-  const big = BIG[doodle], mx = W * 0.055, n = Math.max(lines.length, 6), head = H * 0.125, step = Math.min(H * 0.118, (H * 0.9 - head) / (n - 0.4));
+  if (wrap) lines = wrapLines(c, W, H, lines, doodle);      // (a board of sentences says so, `wrap` in src/boardtext.js: the jotted ones are drawn as they always were)
+  const big = BIG[doodle], mx = W * 0.055, n = Math.max(lines.length, 6, lines.n || 0), head = H * 0.125, step = Math.min(H * 0.118, (H * 0.9 - head) / (n - 0.4));
   let y = H * 0.14;
   c.textBaseline = 'alphabetic'; c.lineCap = 'round'; c.lineJoin = 'round';
   lines.forEach((raw, i) => {
+    const cont = raw[0] === '+'; if (cont) raw = raw.slice(1);      // (a row carried on from the one above: wrapLines)
     const k = raw[0], text = /^[#\->!=\[]/.test(raw) ? raw.slice(k === '[' && raw[1] === 'x' ? 2 : 1).trim() : raw;
     const size = k === '#' ? head : step * 0.66, indent = k === '>' ? W * 0.07 : k === '-' || k === '[' ? W * 0.04 : 0;
     const room = W - 2 * mx - indent - (big && i > 0 ? W * 0.44 : !big && doodle && i < 2 ? W * 0.2 : 0);
-    if (i) y += k === '#' ? head : step;
+    if (i) y += k === '#' ? head : lines.n && lines[i - 1][0] === '#' ? Math.max(step, head * 0.66) : step;      // (in a small hand, the row under a heading still clears its underline)
     if (!raw) return;
     c.save(); c.translate(mx + indent, y); c.rotate((rnd() - 0.5) * 0.022);
     if (k === '=') { c.fillStyle = '#16171a'; const w = room * (text ? Math.min(1, text.length / 24) : 0.45 + rnd() * 0.45); c.fillRect(0, -size * 0.8, w, size * 0.95); c.restore(); return; }
@@ -94,8 +122,8 @@ export function drawBoard(c, W, H, lines, doodle, seed = 1) {
     const fit = c.measureText(text.replace(/=+/g, 'XXXXXX')).width; if (fit > room) { px *= room / fit; c.font = `${k === '#' ? 'bold ' : ''}${px}px ${FONT}`; }
     const ink = k === '#' ? INK.blue : k === '!' ? INK.red : k === '>' ? INK.green : INK.black;
     c.fillStyle = ink; c.strokeStyle = ink; c.lineWidth = Math.max(1.5, px * 0.07);
-    if (k === '-') { c.beginPath(); c.moveTo(-W * 0.032, -px * 0.3); c.lineTo(-W * 0.012, -px * 0.3); c.stroke(); }
-    if (k === '[') { c.strokeRect(-W * 0.036, -px * 0.72, px * 0.62, px * 0.62); if (raw[1] === 'x') { c.strokeStyle = INK.green; c.beginPath(); c.moveTo(-W * 0.034, -px * 0.4); c.lineTo(-W * 0.036 + px * 0.25, -px * 0.12); c.lineTo(-W * 0.036 + px * 0.8, -px * 0.95); c.stroke(); } }
+    if (k === '-' && !cont) { c.beginPath(); c.moveTo(-W * 0.032, -px * 0.3); c.lineTo(-W * 0.012, -px * 0.3); c.stroke(); }
+    if (k === '[' && !cont) { c.strokeRect(-W * 0.036, -px * 0.72, px * 0.62, px * 0.62); if (raw[1] === 'x') { c.strokeStyle = INK.green; c.beginPath(); c.moveTo(-W * 0.034, -px * 0.4); c.lineTo(-W * 0.036 + px * 0.25, -px * 0.12); c.lineTo(-W * 0.036 + px * 0.8, -px * 0.95); c.stroke(); } }
     // A run of ==== inside a line is blacked out where it stands.
     let x = 0;
     for (const part of text.split(/(=+)/)) { if (!part) continue; if (part[0] === '=') { const w = c.measureText('XXXXXX').width; c.fillStyle = '#16171a'; c.fillRect(x, -px * 0.8, w, px * 0.95); c.fillStyle = ink; x += w; } else { c.fillText(part, x, 0); x += c.measureText(part).width; } }
@@ -136,7 +164,7 @@ export class Whiteboards {
   _wipe(b) { if (b.tex) { b.tex.dispose(); b.tex = null; b.mesh.material.dispose(); b.mesh.material = this.blank; this.live--; } }
   _write(b, px = 512) {
     const cv = document.createElement('canvas'); cv.width = px; cv.height = Math.round(px * b.h / b.w); b.px = px;
-    drawBoard(cv.getContext('2d'), cv.width, cv.height, b.lines, b.doodle, hash(b.id));
+    drawBoard(cv.getContext('2d'), cv.width, cv.height, b.lines, b.doodle, hash(b.id), !!(b.def && b.def.wrap));
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     b.tex = tex; b.mesh.material = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.8, 0.8, 0.8) }); this.live++;
   }

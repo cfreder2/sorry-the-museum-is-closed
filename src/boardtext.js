@@ -9,7 +9,8 @@
 //   !  in red, underlined               =  a line blacked out  [  a tick box, empty; [x ticked
 //   (anything else: plain black)
 //
-// `doodle` adds a small drawing in the corner. Nobody real is named anywhere on them.
+// `doodle` adds a small drawing in the corner. Nobody real is named anywhere on them. A line may be a whole
+// sentence or several: on a board marked `wrap`, one too long for the board is carried on to the rows below it (src/whiteboards.js wrapLines).
 //
 // No DOM and no three.js here: src/furnish.js reads this to hang a board in each of these rooms,
 // and src/whiteboards.js to write on them. The Director's board (`clue`) is written by
@@ -19,12 +20,12 @@ export const BOARDS = [
   { id: 'clue', room: /^Director's office/i, largest: true, title: 'The Director\'s whiteboard', lines: ['#MEMO'] },
   { id: 'decoy', room: /^Director's office/i, skip: 1, title: 'A whiteboard in the other Director\'s office', doodle: 'car', lines: [
     '#THIS WEEK', '- board dinner moved to Thursday', '- sign off the spring hang', '- tyre marks on my rug. SMALL ones. Who?', '- heating bill lists a "sub-level 9".', '>ask Facilities what that is', '!Facilities say there is no sub-level 9.'] },
-  { id: 'security', room: /^Security control/i, title: 'The security control room\'s whiteboard', doodle: 'button', lines: [
-    '#NIGHT SHIFT', '- walk every floor at 1, 3 and 5', '- camera 14 shows a toy car again. Reboot it.', '- the big red button is NOT a drill button', '>it is the HEIST button. It starts a heist.', '!DO NOT PRESS (again)'] },
+  { id: 'security', room: /^Security control/i, title: 'The security control room\'s whiteboard', doodle: 'button', wrap: true, lines: [
+    '#SECURITY GUARD TO DO', '- Ensure all vents are sealed properly', '- Complete Route Programming for Robot Guards', '- Let Franky and Lou know their services are no longer needed', '>our services have been deemed redundant now that the Director has bought the security bots', '- Find and recover the Director\'s top-secret desk key.', '- Security footage shows a mouse ran off with the Director\'s key. Gross. We don\'t get paid enough...'] },
   { id: 'incidents', room: /^Security control/i, skip: 1, title: 'A whiteboard of incidents', doodle: 'cards', lines: [
     '#INCIDENTS', '- 02:10 green light over the lake. Again.', '- 03:40 lift called to 3. By nobody.', '- roof: fairy lights ON, sound of cards', '>sent the new one up. He lost $40.', '!somebody keeps leaving plywood on the stairs'] },
-  { id: 'lost', room: /^Staff canteen/i, title: 'The canteen\'s whiteboard', doodle: 'tally', lines: [
-    '#LOST PROPERTY', '- umbrellas', '- single gloves', '- balloons (on the ceiling)', '- toy cars: 0, but we keep HEARING one', '>fridge is emptied on FRIDAYS. Label it.'] },
+  { id: 'lost', room: /^Staff canteen/i, title: 'The canteen\'s whiteboard', doodle: 'tally', wrap: true, lines: [
+    '- There will be a celebration later tonight on the rooftop terrace of the museum\'s new wing. The theme is "Visitors from Space." Please wear an appropriate costume. The password for entry is "Beam me up, Scotty."', '', '- Whoever left the tuna melt in the fridge, please see HR immediately.'] },
   { id: 'registrar', room: /^Registrar$/i, title: 'The Registrar\'s whiteboard', doodle: 'arrow', lines: [
     '#IN / OUT', '- crate 14 back Tuesday', '- courier at the dock 07:30 sharp', '- condition reports BEFORE it is unpacked', '- every work on the wall has a number', '>count them. Somebody is. All night.'] },
   { id: 'it', room: /^Information technology/i, title: 'The IT office\'s whiteboard', doodle: 'screen', lines: [
@@ -49,14 +50,14 @@ export const BOARDS = [
     '#LIFE DRAWING 6 PM', '- bring charcoal', '- two-minute poses, then twenty', '- draw what you SEE, not what you know', '>the model is a plaster cast. Be kind.'] },
   { id: 'exhibitions', room: /^Exhibitions office/i, title: 'The exhibitions office\'s whiteboard', doodle: 'hoop', lines: [
     '#OPENING IN 9 DAYS', '- lighting', '- labels', '- cases: glass on LAST', '- somebody please count the hoops', '>why are there hoops'] },
-  { id: 'engineers', room: /^Building engineers/i, title: 'The engineers\' whiteboard', doodle: 'pipe', lines: [
-    '#PLANT', '- boiler 2: service due', '- lobby: a green light at the Turner. AGAIN', '- scaffold, south side: STILL UP', '>somebody plays cards up there at night', '!"sub-level 9" is not on OUR drawings'] },
-  { id: 'mail', room: /^Mail room/i, title: 'The mail room\'s whiteboard', doodle: 'parcel', lines: [
-    '#POST', '- out by 4', '- parcels for "Facilities" (no name):', '>leave them by the lift. They go overnight.', '- do NOT open them', '!one of them hummed'] },
+  { id: 'engineers', room: /^Building engineers/i, title: 'The engineers\' whiteboard', doodle: 'pipe', wrap: true, lines: [
+    '#PLANT', '- Sub-level 9 is a rumor; ignore any documentation marked Sub-level 9. If you see anything, tell the Director immediately.', '- The green glow in the water is normal; it results from calcium oxidation and mineralization, so no further investigation is needed.', '- The pipes are currently making a noise that sounds like five notes played together, caused by the copper sweating and expanding with temperature.', '- Groundskeeping reports strange melting of snow in rings above Butler Field. We\'ve been told it\'s the sprinkler system and instructed not to investigate further.'] },
+  { id: 'mail', room: /^Mail room/i, title: 'The mail room\'s whiteboard', doodle: 'parcel', wrap: true, lines: [
+    '#POST', '- Please leave all boxes marked for facilities by the lift; the night shift will handle them. Do not open boxes or crates marked "Director\'s eyes only."', '- HR says to ensure that all red and pink slips are delivered to security officers because their services are no longer needed.'] },
   { id: 'hr', room: /^Human resources/i, title: 'A whiteboard of reminders', lines: [
     '#REMINDERS', '- timesheets Friday', '- fire drill Tuesday (a real drill)', '- night staff: the building is EMPTY', '>if you see a toy car you are tired', '>go home'] },
-  { id: 'housekeeping', room: /^Housekeeping/i, title: 'Housekeeping\'s whiteboard', doodle: 'snowman', lines: [
-    '#FLOORS', '- mop the 2nd floor ring before 6', '- WET FLOOR signs keep getting knocked flat', '>tyre marks. Again.', '- snowmen on the lawn: not ours', '!leave the snowmen ALONE'] },
+  { id: 'housekeeping', room: /^Housekeeping/i, title: 'Housekeeping\'s whiteboard', doodle: 'snowman', wrap: true, lines: [
+    '#FLOORS', '- Green crystals have been observed growing in various areas of the facility; our engineering staff says this is normal oxidation due to the building\'s age.', '- Wet floor signs keep being knocked over by our new robo security guards. We need to ensure all water is removed from the floors before leaving.', '- It appears someone has been driving a remote-controlled car through the buildings at night, leaving scuff marks on the floors. If you have any information, please report it to the Director immediately.'] },
   { id: 'volunteers', room: /^Volunteers/i, title: 'The volunteers\' whiteboard', doodle: 'lion', lines: [
     '#AT THE DESK', '- smile', '- the lions are called "the lions"', '- the front doors are LOCKED at night', '>(the air vent beside them is not)', '- if asked: there is NOTHING under the building', '>and the lights over the lake are PLANES'] },
   { id: 'dye', room: /^Dye laboratory/i, title: 'The dye laboratory\'s whiteboard', doodle: 'flask', lines: [
