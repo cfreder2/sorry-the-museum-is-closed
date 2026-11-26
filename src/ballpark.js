@@ -1247,5 +1247,6 @@ feature({
   reset(k) {
     if (!this.P) return;
     this._stop(k, true); this.phase = 'off'; this.cheer = 0; this.fw.length = 0; if (this.bu) this.bu.uB.value = 0;
+    if (this.crowd) this.crowd.set(0);      // (the crowd goes quiet with it: its noise carried on over the title screen, and into the next game until the toy came near the field)
   },
 });

@@ -16,9 +16,10 @@ export class OpeningSound {
   }
   /** Hush everything, now. */
   stop() {
-    const b = this.bus; this.bus = null; this.tv = null;
+    const b = this.bus, tv = this.tv; this.bus = null; this.tv = null;
     if (!b) return;
     try { b.gain.setTargetAtTime(0, b.context.currentTime, 0.04); } catch { /* closed */ }
+    if (tv) try { tv.s.stop(b.context.currentTime + 0.4); } catch { /* stopped */ }      // (the television's loop is stopped, not just forgotten: skipped, it played on unheard)
     setTimeout(() => { try { b.disconnect(); } catch { /* gone */ } }, 500);
   }
 
