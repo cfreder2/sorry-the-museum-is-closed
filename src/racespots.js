@@ -47,7 +47,7 @@ function buildAlien() {
   return { body, wheels: [], aerial, radius: 0.19 };
 }
 
-const load = () => { let s = {}; try { s = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { s = {}; } return { seen: [], won: {}, best: {}, ...s }; };
+const load = () => { let s = {}; try { s = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { s = {}; } const o = { seen: [], won: {}, best: {}, ...s }; if (!Array.isArray(o.seen)) o.seen = []; for (const f of ['won', 'best']) if (!o[f] || typeof o[f] !== 'object') o[f] = {}; return o; };      // (each field the shape it is read as: `seen` of another shape threw in the radar, six times a second)
 feature({
   id: 'racespots',
   secrets: [...SPOTS.map(s => ['race:' + s.id, `Beat ${s.rivals[0].name}`]), ['race:all', 'Beat every rival']],
