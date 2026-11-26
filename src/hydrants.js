@@ -75,9 +75,12 @@ function sheetTex() {
   for (let i = 0; i < 9; i++) { const a = r() * 6.283, d = R * (0.2 + r() * 0.2); blob(m + Math.cos(a) * d, m + Math.sin(a) * d, R * (0.05 + r() * 0.08), WHITE, 0.6); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
-function dotTex() {
+// A drop, or (soft) a breath of mist: that one has no middle to speak of, or the last puff to drift off alone is a disc in the sky.
+function dotTex(soft) {
   const cv = canvas(32, 32), c = cv.getContext('2d'), g = c.createRadialGradient(16, 16, 0, 16, 16, 16);
-  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,0.6)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 32, 32);
+  if (soft) { g.addColorStop(0, 'rgba(255,255,255,0.62)'); g.addColorStop(0.3, 'rgba(255,255,255,0.4)'); g.addColorStop(0.65, 'rgba(255,255,255,0.1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); }
+  else { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,0.6)'); g.addColorStop(1, 'rgba(255,255,255,0)'); }
+  c.fillStyle = g; c.fillRect(0, 0, 32, 32);
   return new THREE.CanvasTexture(cv);
 }
 
@@ -247,7 +250,7 @@ feature({
     const H = this.H = k.plan.hydrants; if (!H || !H.length || !H.red || !H.snow) { this.H = null; return; }
     for (const h of H) h.state = 0;                         // 0 standing, 1 running, 2 frozen
     const root = this.root = new THREE.Group(); root.name = 'hydrants'; root.userData.always = true; k.group.add(root);      // (always: these come and go and are tiny; nothing for the streamer to do)
-    this.streak = streakTex(); this.dot = dotTex(); this.sheetMap = sheetTex();
+    this.streak = streakTex(); this.dot = dotTex(false); this.puff = dotTex(true); this.sheetMap = sheetTex();
     // Ice. It is lit like everything else (the headlamp finds its facets), but most of what you see of it at night is the
     // light it holds: each facet its own colour, dark and blue where you look into it and white where you look along it,
     // which is what makes ice of it and not blue plastic. Not see-through: one pass, and nothing to sort.
@@ -256,7 +259,7 @@ feature({
     this.water = new THREE.MeshBasicMaterial({ map: this.streak, color: 0xc4dcff, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide });
     this.sheetMat = new THREE.MeshStandardMaterial({ map: this.sheetMap, roughness: 0.1, transparent: true, depthWrite: false, emissive: new THREE.Color(0.3, 0.36, 0.5), emissiveMap: this.sheetMap, emissiveIntensity: GLOW, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
     this.dropMat = new THREE.PointsMaterial({ map: this.dot, size: 0.075, vertexColors: true, transparent: true, depthWrite: false, sizeAttenuation: true });
-    this.mistMat = new THREE.PointsMaterial({ map: this.dot, size: 1.5, color: 0xb9d2f2, vertexColors: true, transparent: true, depthWrite: false, sizeAttenuation: true });
+    this.mistMat = new THREE.PointsMaterial({ map: this.puff, size: 1.7, color: 0xb9d2f2, vertexColors: true, transparent: true, depthWrite: false, sizeAttenuation: true });
     this.jetG = jetGeo(); this.veilG = veilGeo(); this.bodyG = bodyGeo(); this.flat = new THREE.PlaneGeometry(1, 1, LOWMEM ? 8 : 12, LOWMEM ? 8 : 12).rotateX(-Math.PI / 2);
     this.kinds = []; for (let i = 0; i < KINDS; i++) this.kinds.push(fountain(4100 + i * 37));
     this.rigs = [];
@@ -283,7 +286,7 @@ feature({
     this.warm = true;
     let scene = k.group; while (scene.parent) scene = scene.parent;
     const rt = new THREE.WebGLRenderTarget(4, 4), was = r.getRenderTarget();
-    try { r.setRenderTarget(rt); const p = r.compileAsync(this.root, cam, scene); if (p && p.catch) p.catch(() => {}); for (const t of [this.streak, this.dot, this.sheetMap]) r.initTexture(t); } catch (e) { /* then it is made when first drawn */ }
+    try { r.setRenderTarget(rt); const p = r.compileAsync(this.root, cam, scene); if (p && p.catch) p.catch(() => {}); for (const t of [this.streak, this.dot, this.puff, this.sheetMap]) r.initTexture(t); } catch (e) { /* then it is made when first drawn */ }
     r.setRenderTarget(was); rt.dispose();
   },
 
@@ -355,9 +358,12 @@ feature({
     const P = this.plan = k.plan, calm = !!k.G.set.reduce;
     this._warm(k); this._dress(h, i);
     this._shear(h, true); this._drop(P.obstacles, h.ob); h.state = 1;
-    // where the body ends up: down the line of the hit, clear of anything solid, lying along the street or across it
-    const a = Math.atan2(nx, nz) + (Math.random() - 0.5) * 0.5, d = 1.15 + Math.min(1.1, Math.max(0, speed - BREAK) * 0.22);
-    _p.x = h.x + Math.sin(a) * d; _p.y = h.y; _p.z = h.z + Math.cos(a) * d; confine(P, _p, 0.42, false, _o);
+    // where the body ends up: the way it was hit, but down the pavement (whichever way along it the hit was going, and no more than
+    // a step to the side: in the carriageway the night bus would drive through it), clear of anything solid, lying along the street or across it
+    const d = 1.15 + Math.min(1.1, Math.max(0, speed - BREAK) * 0.22), ux = h.ew ? 1 : 0, uz = h.ew ? 0 : 1, al = nx * ux + nz * uz, ac = nx * uz - nz * ux;
+    const far = Math.max(1.05, Math.abs(al) * d) * (Math.abs(al) > 0.15 ? Math.sign(al) : Math.random() < 0.5 ? -1 : 1), side = Math.max(-0.4, Math.min(0.4, ac * d + (Math.random() - 0.5) * 0.3));
+    _p.x = h.x + ux * far + uz * side; _p.y = h.y; _p.z = h.z + uz * far - ux * side; confine(P, _p, 0.42, false, _o);
+    const a = Math.atan2(_p.x - h.x, _p.z - h.z);
     let gy = groundAt(P, _p.x, _p.z, h.y + 0.4); if (!(gy > h.y - 1.5)) gy = h.y;
     const sx = Math.sin(a), cz = Math.cos(a);
     h.lie = [_p.x, gy, _p.z, Math.abs(sx) > Math.abs(cz) ? Math.sign(sx) * Math.PI / 2 : cz > 0 ? 0 : Math.PI]; h.from = a; h.bob = null;
@@ -365,7 +371,7 @@ feature({
     // a set of moving parts: a free one, or the one that has been running longest (which sets on the spot)
     let R = this.rigs.find(q => !q.h);
     if (!R) { R = this.rigs.reduce((m, q) => (q.t > m.t ? q : m)); this._set(R.h, this.H.indexOf(R.h)); this._free(R); }
-    R.h = h; this.busy = 1; R.t = 0; R.emit = R.fog = R.tick = 0; R.done = false; R.landed = false; R.rise = calm ? 1.2 : 0.45;
+    R.h = h; this.busy = 1; R.t = 0; R.emit = R.fog = R.tick = 0; R.done = false; R.landed = false; R.solid = R.slick = false; R.rise = calm ? 1.2 : 0.45;
     R.g.position.set(h.x, h.y, h.z); R.g.visible = true;
     R.ice.geometry = R.live[i % KINDS]; R.ice.rotation.y = h.rot; R.ice.scale.setScalar(h.size); R.ice.visible = false;
     R.sheetMat.color.copy(_wet); R.sheetMat.emissiveIntensity = 0.04; R.sheetMat.opacity = 0; h.sheet.material = R.sheetMat; h.sheet.scale.set(0.3, 1, 0.3); h.sheet.visible = true;
@@ -429,7 +435,7 @@ feature({
       R.fog += dt * (LOWMEM ? 3 : 7) * flow;
       while (R.fog >= 1) {
         R.fog -= 1; const up = Math.random() < 0.6, a = Math.random() * 6.283, d = Math.random() * (up ? 0.5 : 0.7);
-        R.mist.add(Math.cos(a) * d, up ? head - Math.random() * 0.9 : 0.25 + Math.random() * 0.3, Math.sin(a) * d, WIND[0] * 0.45 + Math.cos(a) * 0.25, up ? -0.15 : 0.3, WIND[1] * 0.45 + Math.sin(a) * 0.25, 2 + Math.random() * 1.2, 2, 0.1 + Math.random() * 0.07);
+        R.mist.add(Math.cos(a) * d, up ? head - Math.random() * 0.9 : 0.25 + Math.random() * 0.3, Math.sin(a) * d, WIND[0] * 0.45 + Math.cos(a) * 0.25, up ? -0.15 : 0.3, WIND[1] * 0.45 + Math.sin(a) * 0.25, 2 + Math.random() * 1.2, 2, (0.16 + Math.random() * 0.1) * (0.4 + 0.6 * flow));      // (thinner as the water gives out)
       }
       // it will lift a toy that drives into it (and a drone that flies through gets a shove up)
       if (flow > 0.35 && t > 0.2 && v && !k.G.held && !k.G.ride) {
@@ -448,8 +454,9 @@ feature({
     if (g > 0.05 && g < 0.93 && (R.tick -= dt) <= 0) { R.tick = 0.1 + Math.random() * (0.7 - 0.45 * g); this._sound('tick', k, h); }
     const a1 = R.drops.step(dt, calm), a2 = R.mist.step(dt, calm);
     // solid, and slippery, once there is enough of it (and the toy is not standing where the column will be)
-    if (g > 0.3 && !this._has(this.plan.obstacles, h.col) && v && Math.hypot(v.pos.x - h.x, v.pos.z - h.z) > COL * 1.42 + (v.radius || 0.2) + 0.1) this.plan.obstacles.push(h.col);
-    if (g > 0.4 && !this._has(this.plan.ice, h.rect)) this.plan.ice.push(h.rect);
+    // (R.solid, R.slick: asked of the rig, not of the plan, whose list of solids is eighteen thousand long)
+    if (!R.solid && g > 0.3 && v && Math.hypot(v.pos.x - h.x, v.pos.z - h.z) > COL * 1.42 + (v.radius || 0.2) + 0.1) { R.solid = true; this.plan.obstacles.push(h.col); }
+    if (!R.slick && g > 0.4) { R.slick = true; this.plan.ice.push(h.rect); }
     if (g >= 1 && !a1 && !a2) { this._set(h, this.H.indexOf(h)); this._free(R); return 0; }
     return live ? flow * Math.min(1, rise) * this._fall(k, h) : 0;
   },
