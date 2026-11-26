@@ -53,6 +53,7 @@ export class Input {
       if (!this._synth) this.pad = false;
       const ours = this.capture && (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab');      // (Tab opens the map, not the next button)
       if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;      // a slider or tick box has the keys
+      if (!this._synth && this.usedTouch) { this.usedTouch = false; document.body.classList.remove('touch'); }      // a key takes the prompts back from the glass, as it does from a pad (one tap on a touch-screen laptop left the thumb controls up for the session); the next touch gives them back
       this._mods(e);
       if (e.repeat) { if (ours) e.preventDefault(); return; }
       this.down.add(e.code); this.at.set(e.code, ++this._n);
