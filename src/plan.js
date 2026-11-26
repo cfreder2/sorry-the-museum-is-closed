@@ -281,7 +281,10 @@ export function buildPlan() {
 // anything is looked up in or bumped against: not a room, a wall, a floor, a piece of furniture or a mark. What is left of
 // them: plan.shutRooms (their outlines), their blocks and roofs out of doors (plan.masses, plan.roofs: the building looks
 // the same from the street and from the air, and what stands on those roofs still stands), plan.byId (so that a doorway's
-// far side can still be asked what it was), and their volumes in plan.boxes, marked `shut`: nowhere to be (confine).
+// far side can still be asked what it was), their volumes in plan.boxes, marked `shut`: nowhere to be (confine), and how
+// high their floors were (plan.floors). Those last two are for one case: a toy thrown past a thin wall in a single long frame.
+// It has to find the ground where it always was and be put back where it came from. With the floors gone as well, a drone
+// shoved through a shut door on the lower level at 25 m/s was taken for something under the street and set down on it.
 export function stripShut(plan) {
   if (plan.stripped) return 0; plan.stripped = true;
   const keep = (list, ok) => { if (!list) return 0; let n = 0; for (let i = 0; i < list.length; i++) if (ok(list[i])) list[n++] = list[i]; const gone = list.length - n; list.length = n; return gone; };
@@ -289,7 +292,6 @@ export function stripShut(plan) {
   out.rooms = keep(plan.rooms, r => !r.shut);
   out.doors = keep(plan.doors, d => !d.gone);
   out.walls = keep(plan.walls, w => !(w.room && w.room.shut));
-  out.floors = keep(plan.floors, f => !(f.shut || (f.room && f.room.shut)));
   out.solids = keep(plan.obstacles, o => !o.shut);
   out.marks = keep(plan.marks, m => !ids.has(m.room));
   if (plan.fitout) for (const id of ids) delete plan.fitout[id];
@@ -420,7 +422,7 @@ function addLevels(plan) {
   plan.slabs = S.filter(s => s.slab);
 
   // Floors. A doorway's threshold is floor too, at the doorway's own height.
-  plan.floors = [...rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y: r.y, room: r })), ...doors.map(d => ({ x0: d.x0, x1: d.x1, z0: d.z0, z1: d.z1, y: d.y, shut: !!(d.shut || (plan.byId[d.a] && plan.byId[d.a].shut)) }))];      // (shut: stripShut takes it out with the room)
+  plan.floors = [...rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y: r.y, room: r })), ...doors.map(d => ({ x0: d.x0, x1: d.x1, z0: d.z0, z1: d.z1, y: d.y }))];
   // Wells. A stair cuts the floor it goes down through for as far as there would not be headroom
   // under it (after that it is simply in the room below, coming down out of the ceiling). A lift cuts
   // every floor between its lowest stop and its highest.
