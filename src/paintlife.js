@@ -145,6 +145,8 @@ const MAXC = 24;                          // canvases guarded per work (the work
 const GUARDS = new WeakMap();
 let MUSEUM = null;
 function guardOf(art) {
+  // (No work to guard: say who asked, once, and hand back a block nothing reads. A WeakMap will not take such a key, and the page error it throws, "Invalid value used as weak map key", seen twice on build .18, names no caller.)
+  if (art === null || typeof art !== 'object') { if (!guardOf.said) { guardOf.said = true; console.error(new Error('paintlife guardOf: no work to guard')); } return guardOf.spare || (guardOf.spare = { uLifeR: { value: Array.from({ length: MAXC * 3 }, () => new THREE.Vector4()) }, uLifeN: { value: 0 }, uLifeOff: { value: 0 }, uLifePx: { value: 900 }, arts: [] }); }
   let u = GUARDS.get(art);
   if (!u) { GUARDS.set(art, u = { uLifeR: { value: Array.from({ length: MAXC * 3 }, () => new THREE.Vector4()) }, uLifeN: { value: 0 }, uLifeOff: { value: 0 }, uLifePx: { value: 900 }, arts: [] }); placeGuard(art); }
   return u;
