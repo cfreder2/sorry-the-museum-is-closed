@@ -437,6 +437,47 @@ export const entries = [
     },
     note: 'The hiss loop driven by itself as one car comes and goes past (update() would otherwise hold it at the parked toy\'s level).',
   },
+  // ---------------------------------------------------------------- src/hydrants.js
+  {
+    id: 'hydrant-break', group: 'Outdoors', title: 'A fire hydrant shears off',
+    when: 'On a pavement outside, when your toy hits a fire hydrant at 5.5 m/s or more: the iron lets go and the water main bursts up.',
+    src: 'src/hydrants.js#if (what === \'break\')', secs: 2.5,
+    trigger: async sb => { sb.feat('hydrants')._sound('break', sb.k, null); },
+    note: 'The feature\'s own sound, at the level of a toy right beside it (in the game it falls off with distance).',
+  },
+  {
+    id: 'hydrant-jet', group: 'Outdoors', title: 'The jet from a broken hydrant',
+    when: 'Near a hydrant that has just been broken, for the ten seconds or so before the ice closes over it: three seconds at full, then dying away as it freezes.',
+    src: 'src/hydrants.js#this.hiss.set(vol * 0.1)', secs: 7,
+    trigger: async sb => {
+      const F = sb.feat('hydrants'), t0 = performance.now(); F.loud = 0;
+      // up as it bursts, full, then throttled by the ice
+      const id = setInterval(() => { const s = (performance.now() - t0) / 1000; F.hiss.set(0.1 * (s < 0.4 ? s / 0.4 : s < 3 ? 1 : Math.max(0, 1 - (s - 3) / 2.5))); }, 50);
+      sb.later(() => { clearInterval(id); F.hiss.set(0); F.loud = 300; });
+    },
+    note: 'The hiss loop driven by itself at the level of a toy right beside the jet, over a shortened run (no hydrant is broken to make it).',
+  },
+  {
+    id: 'hydrant-body-lands', group: 'Outdoors', title: 'The hydrant\'s body lands',
+    when: 'Three quarters of a second after a hydrant breaks, when the knocked-off body comes down on the pavement.',
+    src: 'src/hydrants.js#else if (what === \'land\')', secs: 1.5,
+    trigger: async sb => { sb.feat('hydrants')._sound('land', sb.k, null); },
+    note: 'The feature\'s own sound, at the level of a toy right beside it.',
+  },
+  {
+    id: 'hydrant-freezing', group: 'Outdoors', title: 'The spray freezing',
+    when: 'While a broken hydrant\'s water is turning to ice: small cracks and ticks, closer together as it sets.',
+    src: 'src/hydrants.js#else if (what === \'tick\')', secs: 4,
+    trigger: async sb => { const F = sb.feat('hydrants'); for (let i = 0, t = 0; t < 3200; i++) { setTimeout(() => F._sound('tick', sb.k, null), t); t += 420 - i * 22 + Math.random() * 160; } },
+    note: 'The feature\'s own tick, replayed at about the pace of the game (which spaces them at random, from 0.1 to 0.7 s apart early on down to 0.1 to 0.3 s at the end).',
+  },
+  {
+    id: 'hydrant-frozen', group: 'Outdoors', title: 'The fountain sets',
+    when: 'About ten seconds after a hydrant breaks, when the last of the water stops and the ice is whole.',
+    src: 'src/hydrants.js#else if (what === \'set\')', secs: 3,
+    trigger: async sb => { sb.feat('hydrants')._sound('set', sb.k, null); },
+    note: 'The feature\'s own sound, at the level of a toy right beside it.',
+  },
   // ---------------------------------------------------------------- src/bridgeplay.js
   {
     id: 'bridge-loop-round', group: 'Outdoors', title: 'Round a loop on the bridge track',

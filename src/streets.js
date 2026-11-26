@@ -294,7 +294,11 @@ export function buildStreets(museum, plan) {
   // Benches and bins are streetscape.js's (the same in the parks), solid as drawn.
   const PF = new ParkFurniture(plan);
   const bin = (x, z) => PF.bin(x, streetY(plan, x, z), z);
-  const hydrant = (x, z) => { const y = streetY(plan, x, z); g.red.box(x - 0.11, x + 0.11, y, y + 0.55, z - 0.11, z + 0.11); g.red.box(x - 0.15, x + 0.15, y + 0.55, y + 0.62, z - 0.15, z + 0.15); g.red.box(x - 0.07, x + 0.07, y + 0.62, y + 0.72, z - 0.07, z + 0.07); g.red.box(x - 0.2, x + 0.2, y + 0.32, y + 0.44, z - 0.06, z + 0.06); g.snow.box(x - 0.08, x + 0.08, y + 0.72, y + 0.76, z - 0.08, z + 0.08); ob(x - 0.15, x + 0.15, z - 0.15, z + 0.15, y, y + 0.75); };
+  // (Each is noted in plan.hydrants with where its boxes begin in the two merged meshes: a hard enough knock breaks one open, and
+  // src/hydrants.js cuts it down to a stub there. Drawn as before until then, in the same two meshes as everything else red or snowed on.
+  // `ew`: its pavement runs east and west, not north and south; what is knocked off one is kept to the pavement, out of the traffic.)
+  plan.hydrants = [];
+  const hydrant = (x, z, ew = false) => { const y = streetY(plan, x, z), red = g.red.p.length / 3, snow = g.snow.p.length / 3; g.red.box(x - 0.11, x + 0.11, y, y + 0.55, z - 0.11, z + 0.11); g.red.box(x - 0.15, x + 0.15, y + 0.55, y + 0.62, z - 0.15, z + 0.15); g.red.box(x - 0.07, x + 0.07, y + 0.62, y + 0.72, z - 0.07, z + 0.07); g.red.box(x - 0.2, x + 0.2, y + 0.32, y + 0.44, z - 0.06, z + 0.06); g.snow.box(x - 0.08, x + 0.08, y + 0.72, y + 0.76, z - 0.08, z + 0.08); ob(x - 0.15, x + 0.15, z - 0.15, z + 0.15, y, y + 0.75); plan.hydrants.push({ x, y, z, ew, ob: O[O.length - 1], red, snow }); };
   const bollard = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.09, x + 0.09, y, y + 0.9, z - 0.09, z + 0.09); g.black.box(x - 0.12, x + 0.12, y + 0.78, y + 0.84, z - 0.12, z + 0.12); g.snow.box(x - 0.08, x + 0.08, y + 0.9, y + 0.94, z - 0.08, z + 0.08); ob(x - 0.1, x + 0.1, z - 0.1, z + 0.1, y, y + 0.92); };
   const paybox = (x, z) => { const y = streetY(plan, x, z); g.black.box(x - 0.05, x + 0.05, y, y + 1.0, z - 0.05, z + 0.05); g.steel.box(x - 0.17, x + 0.17, y + 1.0, y + 1.55, z - 0.13, z + 0.13); g.glow.box(x - 0.1, x + 0.1, y + 1.3, y + 1.45, z + 0.13, z + 0.14); g.glow.box(x - 0.1, x + 0.1, y + 1.3, y + 1.45, z - 0.14, z - 0.13); g.snow.box(x - 0.17, x + 0.17, y + 1.55, y + 1.6, z - 0.13, z + 0.13); ob(x - 0.17, x + 0.17, z - 0.13, z + 0.13, y, y + 1.6); };
   const newsbox = (x, z, q) => { const y = streetY(plan, x, z); q.box(x - 0.22, x + 0.22, y + 0.12, y + 1.05, z - 0.2, z + 0.2); g.black.box(x - 0.18, x + 0.18, y, y + 0.12, z - 0.16, z + 0.16); g.dark.box(x - 0.23, x - 0.221, y + 0.6, y + 0.95, z - 0.15, z + 0.15); g.snow.box(x - 0.22, x + 0.22, y + 1.05, y + 1.1, z - 0.2, z + 0.2); ob(x - 0.22, x + 0.22, z - 0.2, z + 0.2, y, y + 1.1); };
@@ -421,7 +425,7 @@ export function buildStreets(museum, plan) {
   const clearX = (x, z) => !(x > R.x0 - 6 && x < R.x1 + 6) && !G.trees.some(t => Math.abs(t.x - x) < 1.6 && Math.abs(t.z - z) < 1.6) && !O.some(o => o.y1 > 0.2 && o.y0 < 1 && x > o.x0 - 0.9 && x < o.x1 + 0.9 && z > o.z0 - 0.9 && z < o.z1 + 0.9);
   for (const [zp, zc, sgn] of [[MO.z1 + 1.3, MO.z1 - 1.0, 1], [JA.z0 - 1.3, JA.z0 + 1.0, -1]]) {
     let i = 0;
-    for (let x = 34; x < C.x0 - 14; x += 23, i++) { if (!clearX(x + 6, zp)) continue; if (i % 3 === 0) bench(x + 6, zp + sgn * 0.5, 0, -sgn); else if (i % 3 === 1) bin(x + 6, zp + sgn * 0.3); else hydrant(x + 6, zp - sgn * 0.7); }
+    for (let x = 34; x < C.x0 - 14; x += 23, i++) { if (!clearX(x + 6, zp)) continue; if (i % 3 === 0) bench(x + 6, zp + sgn * 0.5, 0, -sgn); else if (i % 3 === 1) bin(x + 6, zp + sgn * 0.3); else hydrant(x + 6, zp - sgn * 0.7, true); }
     for (const x of [52, 76, 158, 222]) { if (!clearX(x, zc)) continue; parked(x, zc, sgn, 0); if (clearX(x + 3.2, zp - sgn * 0.75)) paybox(x + 3.2, zp - sgn * 0.75); }
     for (const x of [44, 190]) if (clearX(x, zp - sgn * 0.8)) sign(x, zp - sgn * 0.8, ['2 HOUR', 'PARKING', 'PAY BOX'], '#1f6b3a', 'x');
   }
@@ -439,7 +443,7 @@ export function buildStreets(museum, plan) {
   for (const [x, y, z] of bikeRow) bike(x, y, z, g.blue);
   const add = m => { m.matrixAutoUpdate = false; m.updateMatrix(); group.add(m); };
   if (!frost.empty) add(frost.mesh(hedgeMaterial()));
-  for (const k2 in g) if (!g[k2].empty) { const m = g[k2].mesh(mat[k2]); if (k2 === 'glass') m.renderOrder = 5; if (k2 === 'frit' || k2 === 'streak') m.renderOrder = 6; add(m); }
+  for (const k2 in g) if (!g[k2].empty) { const m = g[k2].mesh(mat[k2]); if (k2 === 'glass') m.renderOrder = 5; if (k2 === 'frit' || k2 === 'streak') m.renderOrder = 6; if (k2 === 'red' || k2 === 'snow') plan.hydrants[k2] = m; add(m); }
   if (twig.length) add(new THREE.Mesh(mergeGeometries(twig), std({ color: 0x2a221c, roughness: 0.9, emissive: 0x1a1d26, emissiveIntensity: 0.9 })));
   if (wheel.length) add(new THREE.Mesh(mergeGeometries(wheel), mat.black));
   for (const m of extra) add(m);

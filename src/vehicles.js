@@ -510,7 +510,7 @@ export class Car {
       this.out = this._proud(room);
       let grip = !room ? 3.4 : room.kind === 'gallery' && room.floor !== '1' ? 9 : 5.2;
       // Gritted streets hold better than snow; the frozen pool does not hold at all.
-      if (!room) { for (const q of this.plan.paved) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 6; for (const q of this.plan.ice) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 0.3; }
+      if (!room) { for (const q of this.plan.paved) if (this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 6; for (const q of this.plan.ice) if ((q.y === undefined || Math.abs(this.pos.y - q.y) < 0.05) && this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1) grip = 0.3; }
       // Snow outdoors, unless there is track laid on it.
       if (!room) for (const d of this.plan.decals) if (this.pos.x > d.x0 && this.pos.x < d.x1 && this.pos.z > d.z0 - 0.3 && this.pos.z < d.z1 + 0.3) grip = 9;
       grip *= S.grip;
@@ -519,7 +519,7 @@ export class Car {
       for (const p of this.plan.puddles) if (Math.abs(this.pos.y - (p.y || 0)) < 0.03 && (p.x0 !== undefined ? this.pos.x > p.x0 && this.pos.x < p.x1 && this.pos.z > p.z0 && this.pos.z < p.z1 : (this.pos.x - p.x) ** 2 + (this.pos.z - p.z) ** 2 < p.r * p.r)) this.wet = true;      // (a rectangle: a room the sprinklers have wetted, src/systems.js)
       if (this.wet) { grip = 0.35; bite *= 0.55; vf -= (vf - this._vf0) * 0.7; }
       // Ice: the wheels spin, the brakes do little, and the car goes on the way it was going whichever way it is pointed.
-      const sheet = !this.wet && !room && Math.abs(this.pos.y) < 0.05 && this.plan.ice.find(q => this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1), icy = !!sheet;
+      const sheet = !this.wet && !room && this.plan.ice.find(q => Math.abs(this.pos.y - (q.y || 0)) < 0.05 && this.pos.x > q.x0 && this.pos.x < q.x1 && this.pos.z > q.z0 && this.pos.z < q.z1), icy = !!sheet;      // (a sheet lies at the level of the grounds unless it says where: `y`, for one down on Michigan Avenue, src/hydrants.js)
       // (Big studded tyres, S.ice, bite into it: less wheelspin, more steering, and the slide is caught sooner. The
       // harbour's crusted lake ice is driven as if on studs: it still slides, but a toy can steer across it and line up a jump.)
       // (A sheet may say how crusted it is at a spot, 0 glassy to 1 snowed over: crust(x, z). The harbour's does: src/icefield.js.)
