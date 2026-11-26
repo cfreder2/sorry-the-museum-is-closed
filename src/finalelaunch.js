@@ -63,6 +63,9 @@ body.fcine #hud > :not(#toast):not(#trick) { display: none !important; }
 .touch #fskip kbd { display: none; }
 #ffade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .9s ease; z-index: 24; }
 #ffade.white { background: #f4f7ff; }
+/* Reduce motion: the fade is a slow dip to dark. Never a cut (style.css turns transitions off under .reduce: a hard flash), and never to white. */
+.reduce #ffade { transition: opacity .9s linear !important; }
+.reduce #ffade.white { background: #0a0c12; }
 @media (max-height: 430px) { #tones { gap: 6px; } #tones .tsay { font-size: 11px; padding: 3px 10px; } }
 `;
 
@@ -256,7 +259,7 @@ feature({
       [V(440, -14.0, 194.5), V(400, -16.4, 176), 46],                // across the hangar: the craft, and the archive through its door
     ];
     const [at, look, fov] = shots[p] || shots[0], at2 = at.clone().add(V(-0.8, 0.1, -0.6));
-    this.cam = { t: 0, fn: t => ({ at: at.clone().lerp(at2, ease(t / 6)), look, fov }) };
+    this.cam = { t: 0, fn: t => ({ at: this.k.G.set.reduce ? at : at.clone().lerp(at2, ease(t / 6)), look, fov }) };
   },
   // One note: its pad, its colour on the rim and in the hangar, its sound. `craft`: the craft's own voice (louder, ringing).
   _note(i, dur, craft, answer = false) {
@@ -447,9 +450,10 @@ feature({
     if (this.run !== 'launch') return;
     // amber lamps and the hangar wash, flashing
     if (this.amberOn) {
-      const on = (Math.sin(this.lt * 7.5) > 0);
+      // (Reduce motion: the amber is on and steady, the lamps round the silo too. It does not flash.)
+      const calm = !!G.set.reduce, on = calm || Math.sin(this.lt * 7.5) > 0;
       if (on !== this._amb) { this._amb = on; for (const b of this.fin.beacons || []) b.material.color.copy(on ? AMBER : new THREE.Color(0.4, 0.22, 0.04)); const t = k.tint('B-hangar'); if (t && this.lt < 11) t.set(on ? 0xffc27a : 0xffe6c8, 0.15); }
-      if (this.ambG) this.ambG.children.forEach((s, i) => { const q = 0.5 + 0.5 * Math.sin(this.lt * 5 - i * 0.8); s.material.opacity = 0.25 + 0.75 * q; });
+      if (this.ambG) this.ambG.children.forEach((s, i) => { const q = calm ? 0.6 : 0.5 + 0.5 * Math.sin(this.lt * 5 - i * 0.8); s.material.opacity = 0.25 + 0.75 * q; });
     }
     if (this.snowT != null) { this.snowT += dt; this.snowM.material.uniforms.t.value = this.snowT; if (this.snowT > 14) { this.snowM.visible = false; this.snowT = null; } }
     // up the shaft on the platform
@@ -674,23 +678,25 @@ feature({
   // ---------------------------------------------------------------- the camera
   _shot(name) {
     const F = this.fin.F, h = this.hangar, s = () => h.saucer.position;
+    // (Reduce motion: every shot is taken from where it starts. The camera does not travel or zoom; it only turns to keep the craft in view.)
+    const calm = !!this.k.G.set.reduce, mv = t => (calm ? 0 : t);
     const fixed = (at, look, fov = 62) => ({ t: 0, fn: () => ({ at, look, fov }) });
-    const dolly = (a0, l0, a1, l1, dur, fov = 62) => ({ t: 0, fn: t => { const u = ease(t / dur); return { at: a0.clone().lerp(a1, u), look: l0.clone().lerp(l1, u), fov }; } });
+    const dolly = (a0, l0, a1, l1, dur, fov = 62) => ({ t: 0, fn: t => { const u = ease(mv(t) / dur); return { at: a0.clone().lerp(a1, u), look: l0.clone().lerp(l1, u), fov }; } });
     const shots = {
       // the craft lifting off its cradle, from the hangar floor
       wake: dolly(V(414.5, -17.0, 192.5), V(431, -15.2, 177), V(413.5, -16.6, 190.8), V(431, -14.6, 177), 6, 64),
       // in the archive, by the door: the beam comes in over your shoulder
-      archive: { t: 0, fn: t => { const base = V(388, -16.6, 177), f = this.lastArt; return { at: V(413.2 - t * 0.12, -13.7, 167.4), look: f && f.parent ? base.lerp(f.position, 0.45) : base, fov: 62 }; } },
+      archive: { t: 0, fn: t => { const base = V(388, -16.6, 177), f = this.lastArt; return { at: V(413.2 - mv(t) * 0.12, -13.7, 167.4), look: f && f.parent ? base.lerp(f.position, 0.45) : base, fov: 62 }; } },
       // across the hangar: the pictures streaming from the door into the port
       stream: dolly(V(419, -16.6, 195.3), V(422, -15.6, 176), V(421.5, -16.3, 195.3), V(423.5, -15.5, 176), 12, 68),
       // under the craft: the doors parting, the snow coming down the shaft
       hangarUp: dolly(V(418.6, -17.3, 193.4), V(432, -6, 176.4), V(419.4, -17.0, 192.6), V(432, -4, 176.2), 6, 74),
       // out on the field, by the hole: up it comes
-      field: { t: 0, fn: t => ({ at: V(456 - t * 0.15, 1.7 + t * 0.1, 182 + t * 0.1), look: V(432, Math.max(-2, s().y + 3.2), 176), fov: 66 }) },
+      field: { t: 0, fn: t => ({ at: V(456 - mv(t) * 0.15, 1.7 + mv(t) * 0.1, 182 + mv(t) * 0.1), look: V(432, Math.max(-2, s().y + 3.2), 176), fov: 66 }) },
       // over Butler Field, the museum and the city behind it
-      over: { t: 0, fn: t => ({ at: V(522 - t * 1.2, 18 + t * 0.5, 232 - t * 0.6), look: s().clone().add(V(0, 2, 0)), fov: 58 }) },
+      over: { t: 0, fn: t => ({ at: V(522 - mv(t) * 1.2, 18 + mv(t) * 0.5, 232 - mv(t) * 0.6), look: s().clone().add(V(0, 2, 0)), fov: 58 }) },
       // out over the lake, looking back at the city; then up
-      lake: { t: 0, fn: t => ({ at: V(656, 30, 176), look: this.streak != null ? s().clone().lerp(V(598, 44, 146), Math.max(0, 0.6 - this.streak * 0.3)) : s().clone().add(V(0, 1.5, 0)), fov: this.streak != null ? 58 - Math.min(14, this.streak * 6) : 58 }) },
+      lake: { t: 0, fn: t => ({ at: V(656, 30, 176), look: this.streak != null ? s().clone().lerp(V(598, 44, 146), Math.max(0, 0.6 - this.streak * 0.3)) : s().clone().add(V(0, 1.5, 0)), fov: this.streak != null && !calm ? 58 - Math.min(14, this.streak * 6) : 58 }) },
     };
     this.cam = shots[name];
     void F;
@@ -793,7 +799,7 @@ feature({
     const r = this.rim, c = this._rc || (this._rc = new THREE.Color());
     if (this.run === 'launch' && this.lt != null) {
       if (this.streak != null) return c.setRGB(3, 3, 3);
-      const q = Math.max(0, Math.sin(t * 6 - i * 0.9)); return c.copy(this.lt < 11 ? AMBER : COL[Math.floor(i / 6) % 5]).multiplyScalar(0.35 + 1.4 * q);
+      const q = this.k.G.set.reduce ? 0.5 : Math.max(0, Math.sin(t * 6 - i * 0.9)); return c.copy(this.lt < 11 ? AMBER : COL[Math.floor(i / 6) % 5]).multiplyScalar(0.35 + 1.4 * q);      // (Reduce motion: lit evenly, no chase round the rim)
     }
     if (r.mode === 'flash' && r.k > 0) return c.copy(r.c).multiplyScalar(0.4 + 2.2 * r.k);
     if (r.mode === 'flash' || r.mode === 'bands' || this.fin.save.state === 'played') {
