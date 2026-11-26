@@ -33,11 +33,12 @@ export class Presents {
     if (!b.parts) return;
     const [paper, r1, r2] = b.parts, g = paper.parent, mat = paper.material;
     r1.visible = r2.visible = paper.visible = false;
-    const t = 0.02, add = (w, h, d, x, y, z, rz = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.rotation.z = rz; g.add(m); return m; };
+    const made = b.open = [];      // (the pieces of the open box: reset() takes them away again)
+    const t = 0.02, add = (w, h, d, x, y, z, rz = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.rotation.z = rz; g.add(m); made.push(m); return m; };
     add(b.w, t, b.w, b.x, t / 2, b.z);
     add(t, b.h, b.w, b.x - b.w / 2, b.h / 2, b.z); add(t, b.h, b.w, b.x + b.w / 2, b.h / 2, b.z); add(b.w, b.h, t, b.x, b.h / 2, b.z - b.w / 2); add(b.w, b.h, t, b.x, b.h / 2, b.z + b.w / 2);
     add(b.w + 0.04, t, b.w + 0.04, b.x + b.w * 0.95, 0.1, b.z + 0.06, 0.5);                              // the lid, leaning where it fell
-    const tissue = new THREE.Mesh(new THREE.BoxGeometry(b.w - 0.04, 0.02, b.w - 0.04), new THREE.MeshBasicMaterial({ color: 0xfff4d8 })); tissue.position.set(b.x, b.h * 0.55, b.z); g.add(tissue);
+    const tissue = new THREE.Mesh(new THREE.BoxGeometry(b.w - 0.04, 0.02, b.w - 0.04), new THREE.MeshBasicMaterial({ color: 0xfff4d8 })); tissue.position.set(b.x, b.h * 0.55, b.z); g.add(tissue); b.tissue = tissue;
     if (!quiet) this._burst(b);
   }
   _burst(b) {
@@ -73,6 +74,14 @@ export class Presents {
     if (this.secrets) this.secrets.find('presents');
     return what;
   }
-  /** A new game wraps them up again: reload to see it. */
-  reset() { this.opened.clear(); try { localStorage.removeItem(KEY); } catch { /* fine */ } }
+  /** A new game wraps them up again, where they stand. (They used to stay drawn open until a reload, closed in the record: each could be opened again, paid again, and got a second box.) */
+  reset() {
+    this.opened.clear(); try { localStorage.removeItem(KEY); } catch { /* fine */ }
+    for (const b of this.list) {
+      if (!b.open) continue;
+      for (const m of b.open) { if (m.parent) m.parent.remove(m); m.geometry.dispose(); } b.open = null;
+      if (b.tissue) { if (b.tissue.parent) b.tissue.parent.remove(b.tissue); b.tissue.geometry.dispose(); b.tissue.material.dispose(); b.tissue = null; }
+      if (b.parts) for (const p of b.parts.slice(0, 3)) p.visible = true;
+    }
+  }
 }
