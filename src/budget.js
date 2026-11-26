@@ -31,11 +31,8 @@ export function shrink(c, floor = 256, cap = 512) {
 // Static geometry (the building, the streets: geo.js) keeps a copy of every vertex in script memory after it has gone to
 // the graphics card, where it is drawn from. On a phone that copy is let go: marked here, and once it has been sent up,
 // sweep() (main.js, every few seconds of play) empties it. Its bounds are worked out first, for culling.
+// (Nothing is marked any more: the streamer, src/stream.js, sends geometry up again when you come back, and needs the copy.)
 const MARKED = new Set();
-export function releasable(geo) {
-  for (const a of [...Object.values(geo.attributes), geo.index]) if (a) a.onUpload(function () { this._sent = true; });
-  MARKED.add(geo);
-}
 export function sweep() {
   if (!LOWMEM) return 0;
   let freed = 0;

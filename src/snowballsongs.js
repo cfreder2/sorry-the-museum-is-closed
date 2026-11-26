@@ -29,7 +29,6 @@ export const DANCES = [
     sections: [[DAN_A, DAN_H, 0, ''], [DAN_A, DAN_H, 0, 'glock end']] },
 ];
 export const LEVELS = [{ name: 'EASY', gap: 0.6, window: 1.9 }, { name: 'NORMAL', gap: 0.3, window: 1.55 }, { name: 'HARD', gap: 0.2, window: 1.25, fill: true }];
-export const LANES = ['LEFT', 'DOWN', 'UP', 'RIGHT'];
 
 // ---------------------------------------------------------------- the band
 // Everything a dance plays, in beats from the top of the count-in: [{ t, d, v (voice), m (midi or chord), g }], with the
