@@ -3,7 +3,7 @@
 // A small made-up filesystem for the terminal in the security control rooms (src/secterm.js reads it,
 // src/secdesk.js shows it). The night shift's own paperwork: incident reports, a handover, the rota,
 // tickets Facilities keep closing, an email thread in which the Director denies everything. They are
-// clues, and they point at things that are really in the building (the grate in the lobby, the mouse
+// clues, and they point at things that are really in the building (the saucer in the lobby, the mouse
 // grilles, the harbour light, the rings on the ballfield, the green edge to a living picture's label,
 // the vent by the dumpster). They never say what is going on: the night shift does not know.
 //
@@ -58,9 +58,10 @@ The coffee machine still owes me 75 cents.
 2. Mice: five. They glow. Pest control say
    mice do not glow, and have stopped
    taking our calls.
-3. The lobby floor grate is humming again.
-   Same five notes. Engineers say it is
-   "the pipes". Pipes cannot hold a tune.
+3. Something small and green was in the
+   lobby again, at the Turner. Engineers
+   say "a reflection". Reflections do
+   not leave by the front doors.
 4. Front doors LOCKED. The air vent beside
    them still is not. Ticket open since
    the autumn.
@@ -211,13 +212,13 @@ Do not look at the label.
   // ------------------------------------------------------------ incidents
   '/incidents/incident_log.txt': { text: `INCIDENT LOG · nights · this week
 ------------------------------------------
-01:15 Mouse, lobby. Green. Went down the
-      floor grate.
+01:15 Mouse, galleries. Green. Went into
+      a vent in the wall.
       > none. It is a mouse.
 02:10 Green light over the lake, falling.
       No sound.
       > logged (0210)
-02:25 Lobby grate humming. Five notes.
+02:25 Lobby: a green light at the Turner.
       > told the engineers (0225)
 02:26 The engineers hung up.
 03:10 CAM 14: toy car in the galleries.
@@ -252,7 +253,7 @@ Where to: behind the trees on Butler
   be, if anybody played ball in the snow.
 Sound: none. Then, very faint, a tune.
   Five notes. I know it from somewhere.
-  (The lobby. The grate.)
+  (The mice. They squeak it.)
 
 Fourth this month. Always after two.
 
@@ -260,21 +261,22 @@ Director's ruling: a plane.
 My ruling: planes do not park under
   a ballfield.
 ` },
-  '/incidents/0225_lobby_grate.txt': { text: `INCIDENT 0225 · LOBBY FLOOR GRATE
+  '/incidents/0225_lobby_light.txt': { text: `INCIDENT 0225 · LOBBY, THE TURNER
 ------------------------------------------
-Just inside the front doors, in the floor.
-Lit green from below. There is no lighting
-circuit under the lobby. I looked it up.
+Just inside the front doors, east wall.
+A green light in front of the Turner,
+about knee high. There is no lighting
+circuit there. I looked it up.
 
-It hums. Put an ear to it (I did; don't)
-and it is not a hum. It is five notes,
-a long way down, over and over.
-Like somebody asking the same question.
+On CAM 02 it is a small round thing, and
+it is looking at the picture. A beam goes
+along the frame. Then the picture's own
+lamp comes on, and its label goes green.
 
-Brass tag on the frame: "KEEP SHUT. — D."
-It IS shut. It does not help.
+The lobby unit went in after it. It left
+by the front doors, which were LOCKED.
 
-The mice use it as a front door.
+The label is still green. So are others.
 ` },
   '/incidents/0340_lift.txt': { text: `INCIDENT 0340 · LIFT
 ------------------------------------------
@@ -415,7 +417,7 @@ Security:   That is how it got to 75.
   '/cameras/camlist.txt': { text: E => `CAMERAS · 24 fitted
 ------------------------------------------
 01 Michigan Avenue lobby       OK
-02 Lobby, floor grate          OK *
+02 Lobby, east wall (Turner)   OK *
 03 Coat check                  OK
 04 Grand staircase             OK
 05 Old building, north         OK
@@ -512,7 +514,8 @@ Note from the lift engineer:
 - The lights over the lake are planes.
 - The mice are "a trick of the light".
   (They ARE a light. Do not say so.)
-- The grate in the lobby stays shut.
+- Nothing was in the lobby. If a robot
+  chased it, the robot was faulty.
 - The pictures do not move. If one has
   moved, it was being cleaned.
 - The harbour keeper is "on holiday".
@@ -547,7 +550,7 @@ NIGHT LOG · THE FIRST NIGHT · 19██
       not it.
 05:00 Orders: it stays below. Nobody goes
       down but the Director. If it sings,
-      shut the grate.
+      nobody sings back.
 
       Signed for the night shift, ██████
       Countersigned,  — D.

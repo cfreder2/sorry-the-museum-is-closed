@@ -50,7 +50,7 @@ export const BOARDS = [
   { id: 'exhibitions', room: /^Exhibitions office/i, title: 'The exhibitions office\'s whiteboard', doodle: 'hoop', lines: [
     '#OPENING IN 9 DAYS', '- lighting', '- labels', '- cases: glass on LAST', '- somebody please count the hoops', '>why are there hoops'] },
   { id: 'engineers', room: /^Building engineers/i, title: 'The engineers\' whiteboard', doodle: 'pipe', lines: [
-    '#PLANT', '- boiler 2: service due', '- lobby floor grate HUMS. In a tune??', '- scaffold, south side: STILL UP', '>somebody plays cards up there at night', '!"sub-level 9" is not on OUR drawings'] },
+    '#PLANT', '- boiler 2: service due', '- lobby: a green light at the Turner. AGAIN', '- scaffold, south side: STILL UP', '>somebody plays cards up there at night', '!"sub-level 9" is not on OUR drawings'] },
   { id: 'mail', room: /^Mail room/i, title: 'The mail room\'s whiteboard', doodle: 'parcel', lines: [
     '#POST', '- out by 4', '- parcels for "Facilities" (no name):', '>leave them by the lift. They go overnight.', '- do NOT open them', '!one of them hummed'] },
   { id: 'hr', room: /^Human resources/i, title: 'A whiteboard of reminders', lines: [

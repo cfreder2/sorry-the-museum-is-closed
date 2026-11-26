@@ -1,7 +1,7 @@
 // The Tracker: the security desk's live floor plan.
 //
 // Every robot guard as a dot with its searchlight and the colour of its mood, the radioactive mice as green
-// blips, the probe (while it is out of the grate) as UNKNOWN CONTACT ?, and you, the toy. A level at a time.
+// blips, the probe (while it is back in the building) as UNKNOWN CONTACT ?, and you, the toy. A level at a time.
 // Below the lower level the plan is hatched and stamped RESTRICTED: CLEARANCE 9, and now and then something
 // shows there and is gone.
 //
@@ -122,7 +122,7 @@ export class Tracker {
       c.fillStyle = '#7dff9a'; c.beginPath(); c.arc(x, z, r, 0, TAU); c.fill();
       if (!small) { c.font = '9px monospace'; c.fillStyle = 'rgba(160,255,185,0.9)'; c.fillText(e.id, x + r + 3, z + 3); }
     }
-    // whatever came out of the grate
+    // the saucer, while it is back in the building
     const pr = this.probe();
     if (pr && pr.level === level.id) {
       const x = Math.max(12, Math.min(W - 12, X(pr.x))), z = Math.max(top + 10, Math.min(H - 12, Z(pr.z))), on = Math.floor(t * 3) % 2 === 0;

@@ -48,7 +48,8 @@ const TUNE = {
   see: 8, half: 0.62,      // a robot's lamp: how far, and half its width (radians): src/guards.js's own
   near: 30, far: 38,       // a body within this of the toy; let go beyond that
   herd: 2.2, keep: 6,      // the toy this close sets it off home; it keeps going while the toy is within this
-  hops: 2,          // how many rooms from its own it wanders
+  hops: 1,          // how many doors from its OWN room it wanders (its own room, and the rooms that open off it)
+  reach: 18,        // and never further than this from its picture, in metres (the owner: close to its painting, not all over the building)
   quiet: 4.5,       // metres kept from a quiet work in a room it shares
 };
 const CAP_OUT = LOWMEM ? 3 : 6, CAP_BODY = LOWMEM ? 6 : 20, MARKS = LOWMEM ? 340 : 960, STROKES = LOWMEM ? 96 : 240;
@@ -237,15 +238,21 @@ const F = {
   _vol(E) { const p = this.k.G.vehicle.pos, d = Math.hypot(p.x - E.x, p.z - E.z); return Math.abs(p.y - E.y) > 3 ? 0 : clamp01(1 - d / 20) ** 1.5; },
 
   // ---------------------------------------------------------------- the floor it knows --
-  // Its rooms: within a few doors of where it is, the way back to its own room among them, and no quiet room.
+  // Its rooms: its own, and those a door off it (and one it is known for, if that is no more than two doors off); no quiet
+  // room. Counted from its own room, not from where it is: counted from where it was, every room it wandered into gave it
+  // two more, and it was all over the building. (If it is somewhere else, a saved game or a test, the way home is in too.)
   _grid(E) {
     if (E.grid && E.grid.rooms.includes(E.room)) return E.grid;
     const P = this.k.plan, start = E.room, r0 = P.byId[start]; if (!r0) return null;
     const ok = id => !QUIET.has(id) || id === E.art.room, seen = new Map([[start, 0]]), q = [start], from = new Map();
     while (q.length) { const id = q.shift(), n = seen.get(id); if (n >= 5) continue; for (const l of this.adj.get(id) || []) if (!seen.has(l.to) && ok(l.to)) { seen.set(l.to, n + 1); from.set(l.to, id); q.push(l.to); } }
-    const set = new Set([...seen].filter(([, n]) => n <= TUNE.hops).map(([id]) => id).slice(0, 9));
-    for (const w of E.spec.rooms || []) if (seen.get(w) <= TUNE.hops) for (let id = w; id && !set.has(id); id = from.get(id)) set.add(id);      // (a room it is known for, that the nine would have left out)
+    const home = E.art.room, near = new Map([[home, 0]]), back = new Map(), hq = [home];
+    while (hq.length) { const id = hq.shift(), n = near.get(id); if (n >= 2) continue; for (const l of this.adj.get(id) || []) if (!near.has(l.to) && ok(l.to)) { near.set(l.to, n + 1); back.set(l.to, id); hq.push(l.to); } }
+    const set = new Set([...near].filter(([, n]) => n <= TUNE.hops).map(([id]) => id).slice(0, 9));
+    for (const w of E.spec.rooms || []) if (near.has(w)) for (let id = w; id && !set.has(id); id = back.get(id)) set.add(id);      // (a room it is known for: the hats' bench)
+    E.allow = [...set].filter(id => Math.abs(P.byId[id].y - P.byId[home].y) < 0.06);
     for (let id = E.art.room; id && seen.has(id); id = from.get(id)) set.add(id);      // the way home, however it wandered here
+    set.add(start);      // (and where it is, wherever that is: put on another floor by a test, there is no way home, and it stays in that room)
     const ids = [...set].filter(id => Math.abs(P.byId[id].y - r0.y) < 0.06);
     E.grid = grid(P, ids, r0.y); E.homeSpot = undefined;
     return E.grid;
@@ -257,6 +264,8 @@ const F = {
     if (g && g.rooms.includes(a.room)) { const c = nearestOpen(g, a.x + a.nx * 0.8, a.z + a.nz * 0.8, 0.36, 2.5); if (c >= 0) E.homeSpot = { x: g.X0 + ((c % g.nx) + 0.5) * g.C, z: g.Z0 + (Math.floor(c / g.nx) + 0.5) * g.C }; }
     return E.homeSpot;
   },
+  // Close enough to its picture to go there: within reach of it, or in a room it is known for.
+  _close(E, x, z) { const a = E.art; if (Math.hypot(x - a.x, z - a.z) <= TUNE.reach) return true; const w = E.spec.rooms; if (!w) return false; const r = roomAt(this.k.plan, x, z, E.y + 0.5); return !!r && w.includes(r.id); },
   _quietNear(x, z, y) { for (const a of this.quietArts) if (Math.abs((a.fy != null ? a.fy : a.y - 1.5) - y) < 2.5 && Math.hypot(a.x - x, a.z - z) < TUNE.quiet) return true; return false; },
   _to(E, x, z, need = E.spec.need || 0.42) {
     const g = this._grid(E); E.pn = 0; if (!g) return false;
@@ -269,11 +278,11 @@ const F = {
   _wander(E) {
     const g = this._grid(E), P = this.k.plan, R = Math.random, V = this.k.G.vehicle.pos; if (!g) return;
     // (its own idea of where: a flock makes for a bench)
-    if (E.spec.where && R() < 0.65) { const w = E.spec.where(E, this.k, g); if (w && !this._quietNear(w.x, w.z, E.y) && Math.hypot(w.x - V.x, w.z - V.z) > 3.5 && this._to(E, w.x, w.z)) return; }
+    if (E.spec.where && R() < 0.65) { const w = E.spec.where(E, this.k, g); if (w && this._close(E, w.x, w.z) && !this._quietNear(w.x, w.z, E.y) && Math.hypot(w.x - V.x, w.z - V.z) > 3.5 && this._to(E, w.x, w.z)) return; }
     for (let n = 0; n < 24; n++) {
-      const id = R() < 0.45 ? E.room : g.rooms[Math.floor(R() * g.rooms.length)], r = P.byId[id]; if (!r || (QUIET.has(id))) continue;
+      const A = E.allow && E.allow.length ? E.allow : g.rooms, id = R() < 0.45 && A.includes(E.room) ? E.room : A[Math.floor(R() * A.length)], r = P.byId[id]; if (!r || (QUIET.has(id))) continue;
       const x = r.x0 + 0.8 + R() * Math.max(0.1, r.x1 - r.x0 - 1.6), z = r.z0 + 0.8 + R() * Math.max(0.1, r.z1 - r.z0 - 1.6);
-      if (Math.hypot(x - E.x, z - E.z) > 26 || clearAt(g, x, z) < (E.spec.need || 0.42) + 0.2 || this._quietNear(x, z, E.y) || Math.hypot(x - V.x, z - V.z) < 3.5) continue;
+      if (Math.hypot(x - E.x, z - E.z) > 26 || !this._close(E, x, z) || clearAt(g, x, z) < (E.spec.need || 0.42) + 0.2 || this._quietNear(x, z, E.y) || Math.hypot(x - V.x, z - V.z) < 3.5) continue;
       if (this._to(E, x, z)) return;
     }
   },
@@ -456,7 +465,7 @@ const F = {
   _off(E, from) {
     const g = this._grid(E); if (!g) return;
     const a0 = Math.atan2(E.x - from.x, E.z - from.z);
-    for (let n = 0; n < 10; n++) { const a = a0 + (Math.random() - 0.5) * (0.6 + n * 0.3), d = 2.2 + Math.random() * 1.5, x = E.x + Math.sin(a) * d, z = E.z + Math.cos(a) * d; if (clearAt(g, x, z) >= 0.5 && !this._quietNear(x, z, E.y) && this._to(E, x, z)) { E.goal = 'off'; return; } }
+    for (let n = 0; n < 10; n++) { const a = a0 + (Math.random() - 0.5) * (0.6 + n * 0.3), d = 2.2 + Math.random() * 1.5, x = E.x + Math.sin(a) * d, z = E.z + Math.cos(a) * d; if (clearAt(g, x, z) >= 0.5 && (n > 6 || this._close(E, x, z)) && !this._quietNear(x, z, E.y) && this._to(E, x, z)) { E.goal = 'off'; return; } }
   },
   // Out of sight it is only a record: it keeps to its ways on a slow clock, and a robot whose beat it is on sends it home.
   _slow(E, dt) {
@@ -555,7 +564,10 @@ const F = {
     for (const o of (sv.out || []).slice(0, CAP_OUT)) {
       const E = this.list0.find(q => q.id === o.id), r = this.k.plan.byId[o.room]; if (!E || !r || QUIET.has(o.room)) continue;
       const n = this.log.length; if (this.release(E, { quiet: true }) !== true) continue; this.log.length = n;
-      E.x = o.x; E.z = o.z; E.y = r.y; E.room = o.room; E.emerge = 1; E.rest = 2; E.outT = 30;
+      E.emerge = 1; E.rest = 2; E.outT = 30;
+      // (Where it was, if that is near its picture. A game saved before it was kept near may have it rooms away, or on
+      // another floor: then it is left where release() has just put it, in front of its own picture.)
+      if (Math.abs(r.y - E.y) < 0.06 && Math.hypot(o.x - E.art.x, o.z - E.art.z) <= TUNE.reach + 2) { E.x = o.x; E.z = o.z; E.y = r.y; E.room = o.room; }
     }
     this.dirty = false;
   },

@@ -1,14 +1,18 @@
-// The probe: a small saucer that comes up out of the lobby grate, and the keeper's log it leads you to (docs/FINALE.md,
+// The probe: a small saucer, and the keeper's log it leads you to (docs/FINALE.md,
 // "The hooks"). One of three saucers in the game: this one is a scout, 80 cm across (bigger than your toy), nobody
 // aboard; the Sub-level 9 toy (garage.js buildSaucer) is a model of the craft someone made; the craft itself waits in
 // the hangar (craft.js, finale.js).
 //
 // How it goes:
-//   * Not at once. Once the grate's page is in the file, and you have looked at three more works (or spent three minutes
-//     indoors since), and been in the building over a minute in all, the grate hums louder and a faint "?" sits on it.
-//   * Come back near the lobby and it rises out of the grate in a column of green light (edge on, spinning: it is wider
-//     than the grate is deep), flies to you through the doorways, past you, turns, and hangs in front of you a moment,
+//   * The first time you come in it is found scanning the picture in the entrance hall, and the lobby's robot sees it off
+//     through the front doors (src/entry.js, which borrows this one: its model, _show and _hide, its notes).
+//   * It comes back, but not at once. Once that is over, and you have looked at three more works (or spent three minutes
+//     indoors since), and been in the building over a minute in all, a faint "?" sits in the entrance hall.
+//   * Come back near the lobby and it slips in again by the front doors (low: the CLOSED sign hangs in the doorway),
+//     flies to you through the doorways, past you, turns, and hangs in front of you a moment,
 //     curious, its lamps chiming the call (src/motif.js).
+//   (It used to come up out of a glowing grate in the lobby floor, once you had listened at it. The owner had the grate
+//   taken out.)
 //   * Then you herd it out. It keeps a few metres ahead of you along its way out (doorways, then the vent: the floor grid of
 //     guardplan.js, never through a wall), facing you. Drive at it and it eases away; rush it and it goes faster; stop and
 //     it stops, bobbing and chiming softly. It never runs off by itself. Wander off and it waits, or drifts back to where
@@ -21,14 +25,12 @@
 //     READ it. Clarice's last entries, and the new keeper's note pinned to the door. A page of the file ('lighthouse'),
 //     and the "?" moves on to the rings over the silo ("under the ballfield").
 //
-// Saved in 'after-hours.probe': once it has risen it counts as flown (quit in the middle and it is waiting at the light
+// Saved in 'after-hours.probe': once it has come back in it counts as flown (quit in the middle and it is waiting at the light
 // next time); 'gone' once it has left. Nothing is done per frame before it is due (a check twice a second), nor once it has
 // gone, nor while it waits at the light and you are far away.
 //
 // For other modules: G.probe.where() is where the file's "?" should point while there is something here to follow (the
-// grate, the probe, the log), or null. src/story.js asks it first.
-// Before any of that, the first time you come in, it is the saucer found scanning the picture in the entrance hall:
-// src/entry.js borrows this one (its model, _show and _hide, its notes) while it is still waiting here, and gives it back.
+// hall it comes back to, the probe, the log), or null. src/story.js asks it first.
 
 import * as THREE from 'three';
 import { feature, features } from './features.js';
@@ -56,7 +58,7 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {
 // dome with a lens in it that turns to look at you (nobody aboard), and underneath, round the glowing emitter, a ring
 // of fifteen lamps in the call's five colours with a bright one chasing round. Under it, a soft shimmering field.
 //
-// Every glow it makes (the halo, the field, the trail, the motes, the pool on the floor, the column) is added with
+// Every glow it makes (the halo, the field, the trail, the motes, the pool on the floor) is added with
 // artSafe(): its light is scaled by what the frame already holds in alpha, and a work of art is drawn with alpha 0
 // (src/finish.js keepTrue), so not one of them can land on a canvas, from any camera. The hull and the glass are
 // things in the room and may pass in front of a picture, as the toy does.
@@ -104,7 +106,7 @@ export function artSafe(m) {
     blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor, fog: false });
   return m;
 }
-// A glow on a surface of revolution (the column, the field): scrolling noise, soft at the silhouette, brightest at one end.
+// A glow on a surface of revolution (the field): scrolling noise, soft at the silhouette, brightest at one end.
 export function beamMaterial(U, o) {
   const F = x => Number(x).toFixed(3);
   return artSafe(new THREE.ShaderMaterial({
@@ -396,11 +398,15 @@ feature({
   id: 'probe',
 
   init(k) {
-    this.k = k; this.t = 0; this.checkT = 0; this.inT = 0; this.sinceGrate = 0; this.seenAt = null; this.phase = 'idle';
+    this.k = k; this.t = 0; this.checkT = 0; this.inT = 0; this.since = 0; this.seenAt = null; this.phase = 'idle';
     const P = k.plan, L = this.L = P.byId[P.front && P.front.a] || P.byId.lobby, vent = this.vent = P.vent;
     const H = this.hut = P.lakefront && P.lakefront.hut, light = this.light = P.lakefront && P.lakefront.light;
     if (!L || !vent || !H || !light) { this.off = true; return; }
-    this.grate = { x: Math.min(L.x1 - 1, vent.x1 + 4), y: L.y, z: (vent.z0 + vent.z1) / 2 };      // where story.js lays the grate
+    // Where it comes back to: inside the front doors, and the way in to there from over the terrace (low through the doorway).
+    { const F = P.front, ok = F && F.along === 'x', fz = ok ? (F.z0 + F.z1) / 2 : (vent.z0 + vent.z1) / 2, x0 = ok ? F.x0 : vent.x0, x1 = ok ? F.x1 : vent.x1;
+      this.spot = { x: Math.min(L.x1 - 1, x1 + 3.4), y: L.y, z: fz };
+      this.wayIn = ok ? new THREE.CatmullRomCurve3([new THREE.Vector3(x0 - 7, L.y + 3.2, fz + 0.8), new THREE.Vector3(x0 - 2.6, L.y + 1.25, fz + 0.2), new THREE.Vector3(x0, L.y + 0.8, fz), new THREE.Vector3(x1 - 0.3, L.y + 0.82, fz),
+        new THREE.Vector3(this.spot.x - 1.2, L.y + 0.78, fz), new THREE.Vector3(this.spot.x, L.y + FLY, fz)], false, 'centripetal') : null; }
     this.wait = { x: light.x - 1.2, y: 4.3, z: light.z + 6.5 };                                   // where it waits by the light
     const me = this;
     k.G.probe = { where: () => me.where(), get stage() { return st.stage; }, get phase() { return me.phase; } };
@@ -424,11 +430,7 @@ feature({
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     })));
     this.pool.renderOrder = 3; this.pool.visible = false; k.group.add(this.pool);
-    // the column of green light it rises in: an oval the shape of the grate (0.9 by 0.6 m), noise streaming up it
-    this.column = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 3.4, 40, 1, true).translate(0, 1.7, 0), beamMaterial(M.U, { up: true, n: 12, m: 4, speed: 1.4, rings: 3, ringSpeed: 0.8, fall: 0.9 }));
-    this.column.scale.z = 0.66; this.column.renderOrder = 4;
-    this.column.position.set(this.grate.x, L.y + 0.01, this.grate.z); this.column.visible = false; k.group.add(this.column);
-    for (const o of [M.group, this.ribbon.mesh, this.motes.mesh, this.pool, this.column]) o.userData.always = true;      // (it flies about: not for src/stream.js, which would go by where it stood when it was counted and hide it on a phone)
+    for (const o of [M.group, this.ribbon.mesh, this.motes.mesh, this.pool]) o.userData.always = true;      // (it flies about: not for src/stream.js, which would go by where it stood when it was counted and hide it on a phone)
     this.pos = new THREE.Vector3(); this.v3 = new THREE.Vector3(); this.v4 = new THREE.Vector3(); this.v5 = new THREE.Vector3();
     // the card on screen when the log is read
     const el = this.cardEl = document.createElement('div'); el.id = 'keeperCard'; el.setAttribute('role', 'img');
@@ -442,7 +444,7 @@ feature({
   where() {
     if (this.off) return null;
     const ph = this.phase;
-    if (ph === 'armed') return { x: this.grate.x, y: this.grate.y, z: this.grate.z };
+    if (ph === 'armed') return { x: this.spot.x, y: this.spot.y, z: this.spot.z };
     if (['rise', 'come', 'pass', 'look', 'herd'].includes(ph)) return { x: this.pos.x, y: this.L.y, z: this.pos.z };
     if (ph === 'takeoff' || ph === 'fly' || ph === 'lake' || ph === 'finale') return { x: this.wait.x, y: 0, z: this.wait.z };
     if (st.stage === 'gone' && !story.has('lighthouse')) return { x: this.hut.log.x, y: 0, z: this.hut.log.z };
@@ -508,7 +510,7 @@ feature({
       this.pool.material.uniforms.uGlow.value.copy(GREEN).lerp(fc, f * 0.7);
     } else this.pool.visible = false;
   },
-  _hide() { this.m.group.visible = false; this.ribbon.reset(); this.motes.reset(); this.pool.visible = false; this.column.visible = false; },
+  _hide() { this.m.group.visible = false; this.ribbon.reset(); this.motes.reset(); this.pool.visible = false; },
 
   // ---------------------------------------------------------------- the way out: a line of points from you to the terrace
   _rooms(k) {
@@ -520,9 +522,9 @@ feature({
     }
     return ids;
   },
-  _near(k) {        // in the lobby or a room off it, on its floor, and not far from the grate
+  _near(k) {        // in the lobby or a room off it, on its floor, and not far from where it comes in
     const p = k.pos, r = k.room;
-    return !!r && (this.ids || (this.ids = this._rooms(k))).includes(r.id) && Math.abs(p.y - this.L.y) < 1.2 && Math.hypot(p.x - this.grate.x, p.z - this.grate.z) < 34;
+    return !!r && (this.ids || (this.ids = this._rooms(k))).includes(r.id) && Math.abs(p.y - this.L.y) < 1.2 && Math.hypot(p.x - this.spot.x, p.z - this.spot.z) < 34;
   },
   _grid(k) { return this.g || (this.g = grid(k.plan, this.ids || (this.ids = this._rooms(k)), this.L.y)); },
   _way(k, ax, az, bx, bz) {
@@ -572,64 +574,59 @@ feature({
     void G;
   },
 
-  // Is it time? Twice a second: the grate's page, works seen since, time indoors. Then, when you are near the lobby, up it comes.
+  // Is it time? Twice a second: the scene in the entrance hall over, works seen since, time indoors. Then, when you are near the lobby, in it comes.
   _due(dt, k) {
     if (st.stage !== 'wait') { this.phase = 'idle'; return; }
-    const G = k.G, play = G.state === 'play';
-    if (play && k.room) { this.inT += dt; if (story.has('grate')) this.sinceGrate += dt; }
-    if (this.phase === 'armed' && (this.pulseT = (this.pulseT || 0) - dt) <= 0) { this.pulseT = 2.4; const s = features.find(f => f.id === 'story'); if (s) s.flare = Math.max(s.flare || 0, 0.9); }
+    const G = k.G, play = G.state === 'play', seenOff = !G.entry || (G.entry.stage !== 'wait' && !G.entry.busy);      // (it is the same saucer: it cannot come back before it has been seen off)
+    if (play && k.room) { this.inT += dt; if (seenOff) this.since += dt; }
     if ((this.checkT -= dt) > 0) return;
     this.checkT = 0.5;
-    if (!story.has('grate')) return;
+    if (!seenOff) return;
     const seen = G.museum.seenCount;
     if (this.seenAt == null) this.seenAt = seen;
     if (this.phase === 'idle') {
-      if (this.inT < 75 || (seen - this.seenAt < 3 && this.sinceGrate < 180)) return;
+      if (this.inT < 75 || (seen - this.seenAt < 3 && this.since < 180)) return;
       this.phase = 'armed'; this._warm(k);
-      if (k.room && !this._near(k)) k.say('Back in the lobby, the grate hums louder.', 0.5, 5);
+      if (k.room && !this._near(k)) k.say('Something is back in the entrance hall.', 0.5, 5);
     }
-    if (play && !G.ride && !G.held && !G.study && this._near(k) && Math.hypot(k.pos.x - this.grate.x, k.pos.z - this.grate.z) > 1.4) this._start(k);
+    if (play && !G.ride && !G.held && !G.study && this._near(k) && Math.hypot(k.pos.x - this.spot.x, k.pos.z - this.spot.z) > 1.4) this._start(k);
   },
 
   // Its shaders, compiled in the background once it is due, so it does not catch on the frame it first shows.
   _warm(k) {
     const G = k.G, r = G.renderer; if (this.warmed || !r || !r.compileAsync || !G.camera) return;
     this.warmed = true;
-    for (const o of [this.m.group, this.ribbon.mesh, this.motes.mesh, this.pool, this.column]) { const v = o.visible; o.visible = true; r.compileAsync(o, G.camera, G.scene).catch(() => {}); o.visible = v; }
+    for (const o of [this.m.group, this.ribbon.mesh, this.motes.mesh, this.pool]) { const v = o.visible; o.visible = true; r.compileAsync(o, G.camera, G.scene).catch(() => {}); o.visible = v; }
   },
 
-  // ---------------------------------------------------------------- up out of the grate
+  // ---------------------------------------------------------------- back in by the front doors
   _start(k) {
     this._warm(k);
     st.stage = 'flown'; save();          // from here on, a reload finds it waiting at the light
     this._buildRoute(k);
     this.phase = 'rise'; this.pt = 0;
-    this.pos.set(this.grate.x, this.L.y - 0.5, this.grate.z); this.m.group.rotation.y = 0;      // (square to the grate: it comes up edge on)
-    this.column.visible = true; this.held = k.hold(() => {});
-    const s = features.find(f => f.id === 'story'); if (s) s.flare = 2.2;
+    const S = this.spot, W = this.wayIn;
+    if (W) W.getPointAt(0, this.pos); else this.pos.set(S.x, this.L.y + FLY + 1.6, S.z);
+    this.m.group.rotation.y = 0;
+    this.held = k.hold(() => {});
     k.synth.noise(0.5, { vol: 0.03, lp: 1200 }); this._whoosh(true, 0.025);
-    // the camera: over your shoulder if the grate is in sight, else in the lobby looking at it
-    const p = k.pos, inLobby = k.room && k.room.id === this.L.id, dx = this.grate.x - p.x, dz = this.grate.z - p.z, d = Math.hypot(dx, dz) || 1;
-    const at = inLobby ? { x: p.x - dx / d * 1.0, y: p.y + 0.7, z: p.z - dz / d * 1.0 } : { x: this.grate.x + 3, y: this.L.y + 1.3, z: this.grate.z + 2.6 };
+    // the camera: over your shoulder if the doors are in sight, else in the lobby looking at them
+    const p = k.pos, inLobby = k.room && k.room.id === this.L.id, dx = S.x - p.x, dz = S.z - p.z, d = Math.hypot(dx, dz) || 1;
+    const at = inLobby ? { x: p.x - dx / d * 1.0, y: p.y + 0.7, z: p.z - dz / d * 1.0 } : { x: S.x + 3, y: this.L.y + 1.3, z: S.z + 2.6 };
     confine(k.plan, at, 0.12, true, null, true);
     this.riseCam = at;
   },
   _rise(dt, k) {
-    this.pt += dt; const t = this.pt, G = this.grate, f = Math.min(1, t / 2.1), e = f * f * (3 - 2 * f);
-    const up = -0.5 + (FLY + 0.85) * e;
-    this.pos.set(G.x, G.y + up, G.z);
-    // It is wider than the grate is deep (0.9 by 0.6 m), so it comes up through it edge on, spinning in its own plane,
-    // and rights itself once its rim is clear of the floor.
-    const r = Math.min(1, Math.max(0, (up - R - 0.03) / 0.4)), roll = Math.PI / 2 * (1 - r * r * (3 - 2 * r));
-    const c = Math.min(1, t / 0.35) * (t > 2.0 ? Math.max(0, 1 - (t - 2.0) / 0.5) : 1), cu = this.column.material.uniforms;
-    cu.uCol.value.copy(GREEN); cu.uK.value = c * (0.26 + 0.04 * Math.sin(t * 23));
-    this._show(dt, k, null, { floor: G.y, trail: false, tilt: roll, field: roll < 0.2 });
-    this.m.body.rotation.y = Math.PI * 6 * (1 - (1 - f) ** 2);
-    k.camClose = { at: this.riseCam, look: { x: G.x, y: G.y + 0.45 + 0.75 * e, z: G.z } };
+    this.pt += dt; const t = this.pt, S = this.spot, W = this.wayIn, f = Math.min(1, t / 2.3), e = f * f * (3 - 2 * f);
+    let q = null;
+    if (W) { W.getPointAt(e, this.pos); q = W.getPointAt(Math.min(1, e + 0.04), this.v5); }      // in over the terrace, low through the doorway, and up to where it hangs
+    else this.pos.set(S.x, S.y + FLY + 1.6 * (1 - e), S.z);
+    this._show(dt, k, q, { floor: this.pos.x > S.x - 3.6 ? S.y : null, trail: !!W, tilt: 0.22 * (1 - e) });
+    k.camClose = { at: this.riseCam, look: { x: this.pos.x, y: this.pos.y, z: this.pos.z } };
     if (t > 0.5 && !this.rang) { this.rang = true; this._note(0, { gain: 0.03, dur: 0.6 }); this._note(1, { gain: 0.03, dur: 0.6, at: 0.32 }); }
-    if (t > 2.5) {
-      this.rang = false; this.column.visible = false; this.m.body.rotation.y = 0;
-      this.come = this._way(k, G.x, G.z, k.pos.x, k.pos.z); this.ci = 1;
+    if (t > 2.7) {
+      this.rang = false;
+      this.come = this._way(k, S.x, S.z, k.pos.x, k.pos.z); this.ci = 1;
       this.phase = 'come'; this.pt = 0;
     }
   },
@@ -840,14 +837,14 @@ feature({
     if (this.held) { k.hold(null); this.held = null; }
     if (this.cardEl) this._showCard(false);
     if (st.stage === 'flown') this._toLake(); else { this._hide(); this.phase = 'idle'; }
-    this.inT = 0; this.sinceGrate = 0; this.seenAt = null; this.top = null;
+    this.inT = 0; this.since = 0; this.seenAt = null; this.top = null;
   },
   // A new game: it has not come up yet.
   fresh(k) {
     if (this.off) return;
     st = { stage: 'wait' }; save();
     if (this.held) { k.hold(null); this.held = null; }
-    this._hide(); this.phase = 'idle'; this.inT = 0; this.sinceGrate = 0; this.seenAt = null; this.top = null;
+    this._hide(); this.phase = 'idle'; this.inT = 0; this.since = 0; this.seenAt = null; this.top = null;
     if (this.cardEl) this._showCard(false);
   },
 });

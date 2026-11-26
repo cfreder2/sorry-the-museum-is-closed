@@ -45,7 +45,8 @@ escapeFor(14572, {
   name: 'the hats', tag: 'HATS',
   line: 'The hats are off their stands in Degas’s Millinery Shop, and out of the shop: a flock of five, on their bows.',
   back: 'The hats are back on their stands in the Millinery Shop.',
-  rooms: ['G205'],      // (two doors off, and the nearest bench: where they roost)
+  // (They were known for G205, two doors off, for its bench to roost on: 44 m from their picture. They keep near it now,
+  // like the rest: src/escapes.js TUNE.reach. A bench or a crate within that, they roost on; else they stay on the wing.)
   count: N, speed: 0.95, herd: 1.5, radius: 2.0, height: 1.4, need: 0.62, rest: [7, 14], react: 'off', hold: 2.8, chips: 30, stroke: 0.95, strokeLong: 2.0,
   colors: ['#d99e9a', '#efc4bc', '#9b3a28', '#c0603c', '#d8b77a', '#f0dcaa', '#a8c6d0', '#3b9ac4', '#e08a3a', '#d79a3a', '#6f9a52'],
   // Degas's stick of pastel: narrow hatching, every stroke leaning the same way
@@ -179,7 +180,7 @@ escapeFor(14572, {
   where(E, k, g) {
     const need = 0.72, list = [];
     for (const bn of seats(k)) {
-      if (Math.abs(bn.y - E.y) > 0.1) continue; const d = Math.hypot(bn.x - E.x, bn.z - E.z); if (d > 48 || d < 2.2) continue;      // (far enough to take in the bench in G205, two rooms off)
+      if (Math.abs(bn.y - E.y) > 0.1) continue; const d = Math.hypot(bn.x - E.x, bn.z - E.z); if (d > 48 || d < 2.2) continue;
       for (const sd of [-1, 1]) { const off = sd * (bn.wide + 1.0), x = bn.x + (bn.alongX ? 0 : off), z = bn.z + (bn.alongX ? off : 0); if (clearAt(g, x, z) >= need) list.push({ x, z }); }
     }
     return list.length ? list[Math.floor(Math.random() * list.length)] : null;

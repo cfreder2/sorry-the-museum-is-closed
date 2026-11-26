@@ -82,7 +82,7 @@ import './finale.js';
 import './finalelaunch.js';      // the five notes, the tractor beam and the launch (docs/FINALE.md, phase 3)
 import './story.js';             // the Green Cheese file: the hooks that lead to all that, and the file that keeps them (after the finale: it reads it)
 import './racespots.js';         // rival toys waiting about the building and the grounds, each with a course to race them round
-import './probe.js';             // the probe out of the lobby grate, herded out and away to the harbour light, and the keeper's log there
+import './probe.js';             // the little saucer, back in the entrance hall: herded out and away to the harbour light, and the keeper's log there
 import './secdesk.js';           // the computers in the security control rooms: a terminal, the robot tracker, a donut game
 import './life/index.js';        // paintings that come alive while you look at them (src/paintlife.js, docs/PAINTING-ANIMATIONS.md)
 import './escapes.js';           // what gets out of a living painting and wanders the building till it is sent or led home (docs/ESCAPES.md)
@@ -151,7 +151,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.18';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.19';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -453,7 +453,7 @@ function start(fresh = false) {
       say(input.pad ? (G.toy === 'drone' ? 'Left stick climbs and turns · right stick flies' : 'Right trigger to go · left stick to steer')
         : touch ? (G.toy === 'drone' ? 'Left thumb flies. UP and DOWN on the right.' : set.autogo ? 'Hold a thumb down to go. Slide it to steer.' : 'Left thumb drives: push to go, lean to steer.')
         : G.toy === 'drone' ? 'W A S D to fly · arrows to climb' : 'W A S D or the arrows to drive', 0.4, 4.5);
-      say(G.toy === 'drone' ? 'Locked. Follow the glowing pawprints to the air vent: fly in low.' : 'Locked. Follow the glowing pawprints to the air vent.', 5, 7);
+      say(G.toy === 'drone' ? 'Locked. There is an air vent low in the wall, left of the doors: fly in low.' : 'Locked. There is an air vent low in the wall, left of the doors.', 5, 7);
     }
     if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 5); if (!touch) say(input.pad ? 'Either bumper to jump. Steer in the air for tricks.' : 'Space to jump. Steer in the air for tricks.', 24, 6); }
   }

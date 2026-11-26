@@ -3,33 +3,6 @@
 export const entries = [
   // ================================================================ Story and secrets: story.js (the Green Cheese file)
   {
-    id: 'story-grate-hum', group: 'Story and secrets', title: 'Glowing grate hum',
-    when: 'In the lobby, a low hum from the green-lit floor grate, louder as you pull up to it.',
-    src: 'src/story.js:307', secs: 5,
-    // The game sets the hum every frame from the toy's distance; its loop is driven here at the level heard at the grate
-    // (d about 1 m: 0.03 * (1 - 1/9)), with the game's own per-frame setting held off for the entry.
-    trigger: async sb => {
-      const f = sb.feat('story'), real = f.hum;
-      sb.patch(f, 'hum', { set() {}, stop() {} });
-      const id = setInterval(() => real.set(0.027), 100); real.set(0.027);
-      sb.later(() => { clearInterval(id); real.set(0); });
-    },
-    note: 'The grate’s own loop (73.4 Hz sine), held at the level heard standing at the grate.',
-  },
-  {
-    id: 'story-grate-listen', group: 'Story and secrets', title: 'LISTEN at the grate: the call',
-    when: 'Pulled up on the lobby grate, pressing LISTEN: five notes far below, the craft’s call.',
-    src: 'src/story.js:359', secs: 5,
-    trigger: sb => { sb.feat('story')._call(sb.k, { below: true, transpose: -12, gain: 0.06, beat: 0.55, colour: true, at: 0.05 }); },
-    note: 'The call _listen() plays (its call, without the page being added, so no toast follows).',
-  },
-  {
-    id: 'story-grate-ambient', group: 'Story and secrets', title: 'Faint call from the grate',
-    when: 'Waiting near the lobby grate: every fifteen seconds or so the call comes up, faint.',
-    src: 'src/story.js:309', secs: 5.5,
-    trigger: sb => { sb.feat('story')._call(sb.k, { below: true, transpose: -12, gain: 0.022, beat: 0.6, colour: true }); },
-  },
-  {
     id: 'story-lights-call', group: 'Story and secrets', title: 'Green light over the lake: far call',
     when: 'Outdoors, after a green light has fallen over the lake towards the park: the call, thin and high, far off.',
     src: 'src/story.js:251', secs: 5,
@@ -90,10 +63,10 @@ export const entries = [
     note: 'The Sound method take() calls; take() itself would unlock the toy for good.',
   },
 
-  // ---------------------------------------------------------------- probe.js (the probe out of the grate)
+  // ---------------------------------------------------------------- probe.js (the saucer back in the entrance hall)
   {
-    id: 'probe-rise', group: 'Story and secrets', title: 'Probe rises out of the grate',
-    when: 'Back in the lobby once the grate is armed: the probe comes up out of it in a column of green light, ringing two notes.',
+    id: 'probe-rise', group: 'Story and secrets', title: 'The saucer comes back in by the front doors',
+    when: 'Back near the lobby once it is due: the saucer slips in again by the front doors, ringing two notes.',
     src: 'src/probe.js:305', secs: 2.5,
     trigger: async sb => {
       const f = sb.feat('probe');
@@ -101,7 +74,7 @@ export const entries = [
       await sb.wait(0.5);
       f._note(0, { gain: 0.03, dur: 0.6 }); f._note(1, { gain: 0.03, dur: 0.6, at: 0.32 });
     },
-    note: 'Replayed with the feature’s own _whoosh and _note (lines 305 and 320): it rises once a game.',
+    note: 'Replayed with the feature’s own _whoosh and _note: it comes back once a game.',
   },
   {
     id: 'probe-pass', group: 'Story and secrets', title: 'Probe swoops past you',

@@ -2,20 +2,19 @@
 //
 // The chain itself is older: the mice and their nests (src/nests.js), the Director's desk, the whiteboard, the painting,
 // Sub-level 9 (src/secret.js), the keycard and the base (src/finale.js). This file adds what leads into it and along it:
-//   * glowing pawprints on the front terrace, going in at the air vent ahead of you (the first ten seconds);
-//   * a floor grate in the lobby, lit green from below and humming. (A mouse sat on it and dived through as you came in,
-//     until the saucer was given the hall: src/entry.js. The owner had it taken out.) Pull up and
-//     LISTEN: far down, five notes, the craft's call (src/motif.js). The mice squeak the same notes (src/mice.js);
+//   (At the front there were glowing pawprints on the terrace going in at the air vent, a mouse on a floor grate in the
+//   lobby, and the grate itself, lit green and humming the call from far below. The owner had all three taken out once
+//   the saucer was given the entrance hall: src/entry.js. The call is first heard out on Butler Field now, or from the mice.)
 //   * out of doors, now and then, a green light falling over the lake towards Butler Field;
 //   * where it comes down, rings melted into the snow over the silo, five marks round them in the call's colours, and the
 //     call again, from under your wheels;
-//   * a little probe that rises out of the grate once you have seen some art, and that you herd out of the building; it
+//   * the little saucer from the entrance hall, back again once you have seen some art, which you herd out of the building; it
 //     flies to the harbour light, where the keeper's log says what she saw (src/probe.js, the page 'lighthouse');
 //   * in the base, a last note from the Director, "— D.", on the floor of the office: why any of it matters;
 //   * the file itself: each step found is a page, with a toast and as many notes of the call as pages so far (the tune
 //     grows as the mystery does), and a faint "?" on the map where to look next. The pause menu opens it once it has a page.
 //
-// Nothing is drawn or done per frame far from these places: the grate only near the lobby, the sky only out of doors (and
+// Nothing is drawn or done per frame far from these places: the sky only out of doors (and
 // only a timer until a light falls), the rings are two flat meshes riding the silo doors, the note is built when first near.
 //
 // ---- the story API, for other modules (works before or after this feature starts) --------------------------------
@@ -30,8 +29,7 @@
 import * as THREE from 'three';
 import { shrink } from './budget.js';
 import { feature, features } from './features.js';
-import { groundAt } from './plan.js';
-import { mice, pawTexture } from './mice.js';
+import { mice } from './mice.js';
 import { MOTIF, MOTIF_COLOURS, motifVoice } from './motif.js';
 import { toast } from './trophies.js';
 import * as TX from './textures.js';
@@ -42,8 +40,7 @@ const NEST_ORDER = ['north', 'south', 'rice', 'modern', 'lower'];      // the or
 
 // The pages of the file, in the order a player usually meets them. `hint` is shown (dimly) for the first page not yet found.
 export const ENTRIES = [
-  { id: 'grate', title: 'Five notes from below', line: 'A grate in the lobby, lit green from underneath. Far down, five notes, over and over. Like a call.', hint: 'Listen at the glowing grate in the lobby.' },
-  { id: 'lighthouse', title: 'Clarice’s log', line: 'The harbour keeper watched the museum at night. Crates going down. Five notes off the water. Then she was gone.', hint: 'Give the grate time. Then follow what comes out.' },
+  { id: 'lighthouse', title: 'Clarice’s log', line: 'The harbour keeper watched the museum at night. Crates going down. Five notes off the water. Then she was gone.', hint: 'Look at a few pictures, then go back to the entrance hall. Follow what comes in.' },
   { id: 'lights', title: 'Lights over the lake', line: 'A green light fell towards the park. Not a sound.', hint: 'Watch the sky over the lake.' },
   { id: 'party', optional: true, title: 'The welcome party', line: 'A party on the roof for guests from the stars. “They’re coming back tonight. Keep the fireworks ready.”  — D.', hint: 'Somebody is expecting visitors on the roof.' },
   { id: 'ring', title: 'Rings in the snow', line: 'Rings melted into Butler Field, five marks round them, five colours. The call again, under the snow.', hint: 'Where did the light come down?' },
@@ -82,7 +79,7 @@ export const story = {
   get count() { return this.entries.filter(e => st.got.includes(e.id)).length; },
   get total() { return this.entries.length; },
   // Has the player heard the call somewhere before the console? (src/finalelaunch.js says so when it plays.)
-  get heard() { return ['grate', 'ring', 'lights'].some(id => st.got.includes(id)); },
+  get heard() { return ['ring', 'lights'].some(id => st.got.includes(id)); },
   open() { if (me) me._openFile(); },
 };
 
@@ -119,28 +116,6 @@ function ringTexture() {
   const t = new THREE.CanvasTexture(shrink(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
-// The grate: iron bars over slots, the slots lit from beneath.
-function grateTexture() {
-  const W = 256, H = 160, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
-  g.fillStyle = '#1d2124'; g.fillRect(0, 0, W, H);
-  const lit = g.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * 0.6); lit.addColorStop(0, '#b8ffcc'); lit.addColorStop(0.5, '#4fe07a'); lit.addColorStop(1, '#173a22');
-  g.fillStyle = lit; for (let x = 22; x < W - 22; x += 18) g.fillRect(x, 18, 9, H - 36);
-  g.strokeStyle = '#3a4045'; g.lineWidth = 8; g.strokeRect(6, 6, W - 12, H - 12);
-  g.fillStyle = '#b08a3a'; g.fillRect(W - 54, H - 30, 34, 14);            // the brass tag
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-
-// Light added to the frame, but never to a work of art: weighted by what the frame holds in alpha, which is 0 on a canvas
-// (src/finish.js keepTrue), and the alpha left as it was. As src/probe.js's artSafe. `cut`: the material's shape is in its
-// map's alpha (plain additive blending multiplied by that; here the shader does). For the two lights at the lobby grate
-// that stand up off the floor, now that a picture hangs on the wall beyond them: seen from the vent, they are in front of it.
-function artSafe(m, cut = false) {
-  Object.assign(m, { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstAlphaFactor, blendDst: THREE.OneFactor,
-    blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
-  if (cut) { m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n\tgl_FragColor.rgb *= gl_FragColor.a;'); }; m.customProgramCacheKey = () => 'story-artsafe-cut'; }
-  return m;
-}
-
 feature({
   id: 'story',
 
@@ -151,59 +126,14 @@ feature({
     this.L = P.byId[P.front && P.front.a] || P.byId.lobby || null;
     this.root = new THREE.Group(); this.root.name = 'story'; k.group.add(this.root);
     this.radial = TX.radial(0, 1.2);
-    if (this.L) this._lobby(k);
     this._sky(k);
     this.silo = P.grounds && P.grounds.silo;
     this.office = P.byId['B-office'] || null;
-    this.hum = k.loop({ type: 'sine', freq: 73.4 });          // D, low: the grate's hum (the call is in D)
     this.ringHum = k.loop({ type: 'sine', freq: 55 });
     // the card on screen (the note)
     const el = this.cardEl = document.createElement('div'); el.id = 'storyCard';
     el.style.cssText = 'position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-1.5deg);width:min(70vmin,340px);pointer-events:none;opacity:0;transition:opacity .25s;z-index:30;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))';
     document.body.appendChild(el);
-  },
-
-  // ---------------------------------------------------------------- the front: pawprints and the grate
-  _lobby(k) {
-    const P = k.plan, L = this.L;
-    const vents = P.doors.filter(d => (d.a === L.id && d.b === 'out') || (d.b === L.id && d.a === 'out'));
-    const vent = vents.find(d => Math.min(d.x1 - d.x0, d.z1 - d.z0) < 2) || vents[0];
-    if (!vent) return;
-    const alongX = (vent.x1 - vent.x0) > (vent.z1 - vent.z0);       // the vent runs through the west wall, so along x
-    const vz = (vent.z0 + vent.z1) / 2, vx0 = vent.x0, vx1 = vent.x1, y = L.y;
-    void alongX;
-    this.grate = { x: Math.min(L.x1 - 1, vx1 + 4), y, z: vz, w: 0.9, d: 0.6 };
-    const G = this.grate, g = this.grateG = new THREE.Group(); g.name = 'story-grate'; this.root.add(g);
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(G.w, G.d).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: grateTexture(), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-    face.position.set(G.x, y + 0.011, G.z); face.renderOrder = 2; g.add(face);
-    this.gratePool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: this.radial, color: GREEN.clone(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
-    this.gratePool.position.set(G.x, y + 0.013, G.z); this.gratePool.scale.set(2.6, 1, 2.2); this.gratePool.renderOrder = 3; g.add(this.gratePool);
-    // light coming up through it: two crossed glowing sheets, fading upward
-    const shaftTex = (() => { const cv = document.createElement('canvas'); cv.width = 32; cv.height = 128; const c = cv.getContext('2d'), gr = c.createLinearGradient(0, 128, 0, 0); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, 32, 128); const h = c.createLinearGradient(0, 0, 32, 0); h.addColorStop(0, 'rgba(0,0,0,1)'); h.addColorStop(0.5, 'rgba(0,0,0,0)'); h.addColorStop(1, 'rgba(0,0,0,1)'); c.globalCompositeOperation = 'destination-out'; c.fillStyle = h; c.fillRect(0, 0, 32, 128); return new THREE.CanvasTexture(cv); })();
-    this.shaftMat = artSafe(new THREE.MeshBasicMaterial({ map: shaftTex, color: GREEN.clone().multiplyScalar(0.5), side: THREE.DoubleSide, fog: false }), true);      // (a picture hangs beyond it now, in line with the vent: src/plan.js entryPicture)
-    for (const r of [0, Math.PI / 2]) { const s = new THREE.Mesh(new THREE.PlaneGeometry(r ? G.d : G.w, 1.4), this.shaftMat); s.position.set(G.x, y + 0.72, G.z); s.rotation.y = r; g.add(s); }
-    // the pawprints: from the terrace in at the vent, through the wall and across to the grate
-    const pts = [], add = (x, z) => pts.push([x, z]);
-    const bez = (a, b, c, n) => { for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; add(u * u * a[0] + 2 * u * t * b[0] + t * t * c[0], u * u * a[1] + 2 * u * t * b[1] + t * t * c[1]); } };
-    bez([vx0 - 2.6, vz - 8.5], [vx0 - 3.4, vz - 0.4], [vx0 - 0.05, vz], 40);      // along the top of the steps from the north, and in
-    for (let x = vx0 + 0.13; x < G.x - 0.3; x += 0.13) add(x, vz + Math.sin(x * 1.7) * 0.04);
-    const prints = [], STEP = 0.13;
-    let acc = 0, foot = 1;
-    for (let i = 1; i < pts.length; i++) {
-      const [ax, az] = pts[i - 1], [bx, bz] = pts[i], l = Math.hypot(bx - ax, bz - az);
-      for (acc += l; acc > STEP; acc -= STEP) { const f = 1 - acc / l, x = ax + (bx - ax) * f, z = az + (bz - az) * f; foot = -foot; prints.push({ x, z, yaw: Math.atan2(bx - ax, bz - az), foot }); }
-    }
-    const pos = [], uv = [], col = [], idx = [];
-    prints.forEach((q, i) => {
-      const fx = Math.sin(q.yaw), fz = Math.cos(q.yaw), rx = -fz, rz = fx, s = q.foot * 0.026, cx = q.x + rx * s, cz = q.z + rz * s, hw = 0.042, hl = 0.05;
-      const yy = (q.x < vx0 ? groundAt(P, cx, cz, 0.3) : y) + 0.012, b = 0.35 + 0.65 * (i / prints.length);      // brighter towards the grate: fresher
-      for (const [a, c] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { pos.push(cx + rx * hw * a + fx * hl * c, yy, cz + rz * hw * a + fz * hl * c); col.push(GREEN.r * b, GREEN.g * b, GREEN.b * b); }
-      uv.push(0, 0, 1, 0, 1, 1, 0, 1); idx.push(i * 4, i * 4 + 2, i * 4 + 1, i * 4, i * 4 + 3, i * 4 + 2);
-    });
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx);
-    const pm = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pawTexture(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
-    pm.renderOrder = 3; pm.name = 'story-prints'; this.root.add(pm); this.prints = pm;
-    this.ventAt = { x: vx0 - 1.2, y, z: vz };
   },
 
   // ---------------------------------------------------------------- the sky: a light falling over the lake
@@ -290,31 +220,13 @@ feature({
     if (!story.has('ring')) {
       k.say('Rings melted into the snow. Five marks round them, five colours.', 0.2, 6);
       this._call(k, { below: true, transpose: -12, gain: 0.05, beat: 0.55, at: 2.6 });
-      k.say(story.has('grate') ? 'And under the snow, the same five notes.' : 'From under the snow: five notes, very faint.', 3.2, 6);
+      k.say('From under the snow: five notes, very faint.', 3.2, 6);
       setTimeout(() => story.add('ring'), 5600);
     }
   },
 
-  // ---------------------------------------------------------------- the grate, each frame near the lobby
-  _grateTick(dt, k, p) {
-    const G = this.grate; if (!G) return;
-    const d = Math.abs(p.y - G.y) < 2.5 ? Math.hypot(p.x - G.x, p.z - G.z) : 1e4;
-    const near = d < 45;
-    this.grateG.visible = this.prints.visible = near;
-    if (!near) { this.hum.set(0); return; }
-    const t = this.t, pulse = 0.5 + 0.5 * Math.sin(t * 2.1), fl = this.flare = Math.max(0, (this.flare || 0) - dt * 1.4);
-    const col = this.grateCol || GREEN;
-    this.gratePool.material.color.copy(col).multiplyScalar(0.55 + 0.35 * pulse + fl * 1.5);
-    this.shaftK = k.G.entry && k.G.entry.busy ? 0 : Math.min(1, (this.shaftK || 0) + dt * 0.5);          // the light comes up once the saucer in the hall has been seen off (src/entry.js: it has the hall until then). (It was counted down a whole step a frame while it waited, and took minutes to come back up from there: it never did in the visit you came in on.)
-    this.shaftMat.color.copy(col).multiplyScalar((0.24 + 0.14 * pulse + fl) * Math.max(0, this.shaftK));
-    this.hum.set(d < 9 ? 0.03 * (1 - d / 9) : 0);
-    // now and then, the call from below, faint, while you are near
-    if (d < 10 && !this.calling && (this.ambT = (this.ambT || 0) + dt) > 15) { this.ambT = 0; this._call(k, { below: true, transpose: -12, gain: 0.022, beat: 0.6, colour: true }); }
-  },
-
   // ---------------------------------------------------------------- the call, from wherever
-  // o: { below (through a low muffle, as if from far down), transpose, gain, beat, at, notes (how many), colour (the grate's
-  // light takes each note's colour), lp }
+  // o: { below (through a low muffle, as if from far down), transpose, gain, beat, at, notes (how many), lp }
   _call(k, o = {}) {
     const S = k.sound, c = S && S.ctx; if (!c || c.state !== 'running' || !S.master) return 0;
     const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = o.lp || (o.below ? 650 : 4000); lp.connect(S.master);
@@ -323,23 +235,12 @@ feature({
     for (let i = 0; i < n; i++) {
       const N = MOTIF[i], dur = (i === n - 1 && n < 5 ? 1.5 : N.beats) * beat;
       end = motifVoice(c, lp, N.midi + (o.transpose || 0), t0 + t, dur, o.gain || 0.04);
-      if (o.colour && this.grate) setTimeout(() => { this.grateCol = new THREE.Color(MOTIF_COLOURS[i]).lerp(GREEN, 0.25); this.flare = Math.max(this.flare || 0, 0.8); }, (t0 + t - c.currentTime) * 1000);
       t += N.beats * beat;
     }
     this.calling = true; this.callEnd = Math.max(this.callEnd || 0, end);
-    setTimeout(() => { this.calling = false; this.grateCol = null; try { lp.disconnect(); } catch { /* gone */ } }, (end - c.currentTime) * 1000 + 200);
+    setTimeout(() => { this.calling = false; try { lp.disconnect(); } catch { /* gone */ } }, (end - c.currentTime) * 1000 + 200);
     return end - c.currentTime;
   },
-  _listen() {
-    const k = this.k, c = k.sound && k.sound.ctx;
-    if (this.listening) return;
-    const wait = c && this.calling ? Math.max(0, (this.callEnd || 0) - c.currentTime) + 0.3 : 0.05;      // (the grate may be in the middle of calling: after it)
-    const secs = this._call(k, { below: true, transpose: -12, gain: 0.06, beat: 0.55, colour: true, at: wait });
-    this.listening = true; setTimeout(() => { this.listening = false; }, Math.max(1, secs) * 1000);
-    k.say('Far below, five notes. The same five, over and over. Like something calling.', 0.2, 6);
-    setTimeout(() => { if (story.add('grate')) k.say('A brass tag on the grate: KEEP SHUT.  — D.', 0.3, 5); }, Math.max(1, secs) * 1000);
-  },
-
   // ---------------------------------------------------------------- the Director's note, in the base office
   _office(k, p) {
     const O = this.office; if (!O) return;
@@ -401,7 +302,7 @@ feature({
   _next() {
     const k = this.k, G = k.G, N = this._feat('nests'), S = G.secret, F = this._feat('finale');
     const ns = N && N.state, state = F && F.save ? F.save.state : 'locked';
-    { const q = G.probe && G.probe.where(); if (q) return q; }      // the probe out of the grate, while it is to be followed, and then the keeper's log (src/probe.js)
+    { const q = G.probe && G.probe.where(); if (q) return q; }      // the saucer back in the hall, while it is to be followed, and then the keeper's log (src/probe.js)
     if (state !== 'locked') {
       if (state === 'found' && F.built && G.finale) { const c = G.finale.console; if (c && c.position) return { x: c.position.x, y: c.position.y, z: c.position.z }; }
       return null;
@@ -427,7 +328,7 @@ feature({
     if (quiet) return;
     const k = this.k, e = BY[id], n = story.count, of = story.total;
     const sting = () => this._call(k, { transpose: 12, gain: 0.03, beat: 0.17, notes: Math.min(5, n), lp: 5000 });
-    setTimeout(() => toast({ head: `The Green Cheese file · ${n} of ${of}`, name: e.title, tier: 'file', icon: SAUCER, sound: sting, hold: 4600 }), id === 'grate' || id === 'lights' || id === 'ring' ? 200 : 1800);
+    setTimeout(() => toast({ head: `The Green Cheese file · ${n} of ${of}`, name: e.title, tier: 'file', icon: SAUCER, sound: sting, hold: 4600 }), id === 'lights' || id === 'ring' ? 200 : 1800);
     if (n === 1) k.say('A page for the Green Cheese file. It is in the pause menu.', 5.5, 5);
   },
 
@@ -472,8 +373,7 @@ feature({
   // ---------------------------------------------------------------- the hooks into the game
   near(v, k) {
     if (k.G.racing) return null;
-    const p = k.pos, G = this.grate;
-    if (G && Math.abs(p.y - G.y) < 0.8 && Math.hypot(p.x - G.x, p.z - G.z) < 0.95) return { verb: 'LISTEN', hint: story.has('grate') ? null : 'A grate, glowing green. E to listen.', act: () => this._listen() };
+    const p = k.pos;
     const A = this.noteAt;
     if (A && this.noteG && this.noteG.visible && Math.abs(p.y - A.y) < 0.8 && Math.hypot(p.x - A.x, p.z - A.z) < 0.9) return { verb: 'READ', hint: st.note ? null : 'A note, signed D. E to read it.', act: () => { if (this.showing) { this._showNote(false); return; } this._showNote(true); if (!st.note) { st.note = true; save(); k.say('The Director. Whoever D. was, they meant to send it home.', 0.6, 6); } } };
     return null;
@@ -484,7 +384,6 @@ feature({
     const p = k.pos;
     if (pending.length) { const ids = pending.splice(0); for (const id of ids) this._found(id, false); }
     if ((this.syncT -= dt) <= 0) { this.syncT = 0.5; this._sync(!this.synced); this.synced = true; }
-    this._grateTick(dt, k, p);
     this._skyTick(dt, k);
     this._rings(k);
     this._ringTick(dt, k, p);
@@ -493,7 +392,6 @@ feature({
   },
   spots() {
     const out = [];
-    if (this.grate) out.push({ kind: 'todo', id: 'story-grate', name: 'The glowing grate (the call)', ...this.grate });
     if (this.silo) out.push({ kind: 'todo', id: 'story-rings', name: 'Rings in the snow', x: this.silo.cx, y: 0, z: this.silo.cz });
     if (this.office) out.push({ kind: 'todo', id: 'story-note', name: 'The Director’s last note', x: this.office.x0 + 5, y: this.office.y, z: (this.office.z0 + this.office.z1) / 2 + 1.2 });
     return out;

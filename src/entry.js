@@ -2,8 +2,8 @@
 //
 // One picture hangs in the Michigan Avenue lobby, on the wall that faces the vent you come in by (src/plan.js
 // entryPicture: the Turner, which has a life of its own in src/life/). Until you have been in, a small saucer hangs in
-// front of it in a green glow (the probe of src/probe.js: the same one, borrowed, long before it comes up out of the
-// grate), with its light on the floor under it and in the air round it.
+// front of it in a green glow (the probe of src/probe.js: the same one, borrowed, long before it comes back to be herded out),
+// with its light on the floor under it and in the air round it.
 //
 // Come in through the vent and it plays out as a cutscene, sixteen seconds:
 //   * the camera leaves your toy and crosses the hall to it;
@@ -168,7 +168,7 @@ feature({
       this.wall.updateMatrixWorld(); const l = this.wall.worldToLocal(this.lab.clone());
       this.wall.material.uniforms.uLab.value.set(l.x, l.y, 0.11);
     }
-    this.hum = k.loop({ type: 'sine', freq: 146.8 });      // D, an octave over the grate's
+    this.hum = k.loop({ type: 'sine', freq: 146.8 });      // D (the call is in D)
     this.v1 = new THREE.Vector3(); this.v2 = new THREE.Vector3(); this.v3 = new THREE.Vector3(); this.up = new THREE.Vector3(0, 1, 0);
     if (st.stage === 'wait') pl.expose(art, false);         // not touched yet: its label is like any other
   },
@@ -485,7 +485,7 @@ feature({
     if (rt.width !== W) { rt.setSize(W, H); this._buf = this._mask = null; }
     const B = this._buf || (this._buf = [0, 1, 2, 3, 4].map(() => new Float32Array(N))), [a, b, c, m1, m2] = B;
     const cam = this._cam || (this._cam = new THREE.PerspectiveCamera(50, W / H, 0.05, 400)), art = this.art, P = this.probe, gd = this.gd, bot = this.bot;
-    const soft = [this.group, P.m.halo, P.m.field, P.ribbon.mesh, P.motes.mesh, P.pool, P.column], hard = [P.m.body, bot && bot.group, bot && bot.pool, gd.bolt.mesh, gd.bolt.glow, gd.sparks.mesh].filter(Boolean);
+    const soft = [this.group, P.m.halo, P.m.field, P.ribbon.mesh, P.motes.mesh, P.pool], hard = [P.m.body, bot && bot.group, bot && bot.pool, gd.bolt.mesh, gd.bolt.glow, gd.sparks.mesh].filter(Boolean);
     const was = new Map([...soft, ...hard].map(o => [o, o.visible])), show = (list, on) => { for (const o of list) o.visible = on && was.get(o); };
     const prev = r.getRenderTarget(), flat = this._flat || (this._flat = new THREE.MeshBasicMaterial({ fog: false, toneMapped: false }));
     const shot = out => { r.setRenderTarget(rt); r.clear(); r.render(G.scene, cam); r.readRenderTargetPixels(rt, 0, 0, W, H, out); };

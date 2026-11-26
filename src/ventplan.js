@@ -54,7 +54,10 @@ export function addStaffVent(plan) {
   // And the lid of the duct below ground: a ceiling only (it is under the apron, and nothing drives on it from above).
   plan.slabs.push({ vent: true, x0, x1: hood.x0, z0, z1, axis: 'x', h0: r.y + H + 0.1, h1: floorAt(hood.x0) + H + 0.1, thick: 0.1 });
   // Somewhere to be: the whole duct, a little way into the room and a little way out of the mouth (so that what flies can go from one to the other).
-  plan.boxes.push({ x0: x0 - 0.7, x1: x1 + 0.7, z0, z1, y0: r.y, y1: HOOD - 0.06, vent: true });
+  // (In two lengths. Where it goes under the wall and the room above, it is only as high as the duct is: as one volume up to
+  // the hood's lid it reached through the floor above, and a car on that floor, in Visitor services, was "in" it and drove
+  // out through the wall over the duct, onto the yard.)
+  { const xw = xf + 0.6; plan.boxes.push({ x0: x0 - 0.7, x1: xw, z0, z1, y0: r.y, y1: floorAt(xw) + H + 0.1, vent: true }, { x0: xw, x1: x1 + 0.7, z0, z1, y0: floorAt(xw), y1: HOOD - 0.06, vent: true }); }
   // The street is no floor under the hood: the slope is.
   const hole = { x0: hood.x0 - 0.03, x1, z0: z0 - 0.03, z1: z1 + 0.03 };      // (a little under the hood's own sheet all round, so that no edge of snow shows inside it)
   plan.pits.push({ ...hole, vent: true });

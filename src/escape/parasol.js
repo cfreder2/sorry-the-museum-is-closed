@@ -32,7 +32,7 @@ function dome(c) {
 
 escapeFor(14620, {
   name: 'the parasol', tag: 'PARASOL', tall: true,
-  line: 'The orange parasol is off on the wind again: out of Monet’s Cliff Walk, and away through the building.',
+  line: 'The orange parasol is off on the wind again: out of Monet’s Cliff Walk, and about Griffin Court.',
   back: 'The parasol is back on the cliff top, in her hands.',
   count: 1, speed: 1.15, herd: 1.7, radius: 0.75, height: 1.25, need: 0.62, rest: [2.5, 6], react: 'still', hold: 2.6, shade: 2.3, chips: 30, stroke: 0.9, strokeLong: 1.5,
   colors: ['#e8765a', '#f09070', '#f2a890', '#ec8468', '#f6b8a0', '#d8604a', '#b85a46', '#f2d86a', '#7fa04a'],
