@@ -138,13 +138,20 @@ feature({
       new THREE.Vector3(front.x0, y + 0.8, fz + 0.05 * side), new THREE.Vector3(front.x0 - 3.5, y + 1.7, fz + 0.5 * side),      // (low through the doorway: the CLOSED sign hangs in it, from 1.38 m up) new THREE.Vector3(front.x0 - 11, y + 7, fz + 2.1 * side), new THREE.Vector3(front.x0 - 24, y + 20, fz + 3.6 * side),
       new THREE.Vector3(Math.max(P.bounds.x0 + 6, front.x0 - 36), y + 34, fz + 4.6 * side)], false, 'centripetal');
     this.out.arcLengthDivisions = 300;
-    // The cameras (in the same terms).
-    this.CB = { at: at(-0.95, 3.36, 1.35), look: at(0.2, 0.0, 1.3), fov: 50 };
-    this.CB2 = { at: at(-0.9, 3.05, 1.35), look: at(0.2, 0.0, 1.3), fov: 50 };
-    this.CC = { at: at(-1.6, 4.0, 1.3), look: at(2.3, 1.5, 0.95), fov: 58 };
-    this.CC2 = { at: at(-1.5, 3.8, 1.3), look: at(2.2, 1.7, 0.95), fov: 58 };
-    this.CD = { at: at(1.7, 0.76, 1.3), look: new THREE.Vector3(front.x1 - 0.3, y + 1.25, fz + 0.2 * side), fov: 52 };
-    this.CD2 = { at: at(1.9, 1.4, 1.3), look: new THREE.Vector3(front.x1 - 0.3, y + 1.35, fz + 0.2 * side), fov: 52 };
+    // The cameras (in the same terms). All of them under the canvas's bottom edge (EYE: 1.1 m; this canvas starts at 1.16),
+    // as the kit's own look camera is: an eye level with a picture has the far ground edge-on along its own horizon, and
+    // the streets' markings, drawn with a slope-scaled depth offset, then win odd single pixels through every wall
+    // between: over the picture too. (Measured, from 1.35 m: section "the odd pixel" of the results. Not this scene's
+    // doing, but its glows, which trust the picture's alpha, landed on such a pixel.) From under the canvas no ray to it
+    // comes down to the ground.
+    const EYE = Math.min(1.1, art.y - art.h / 2 - y - 0.05);
+    this.CB = { at: at(-0.95, 3.36, EYE), look: at(0.2, 0.0, 1.3), fov: 50 };
+    this.CB2 = { at: at(-0.9, 3.05, EYE), look: at(0.2, 0.0, 1.3), fov: 50 };
+    this.CC = { at: at(-1.6, 4.0, EYE), look: at(2.3, 1.5, 0.9), fov: 58 };
+    this.CC2 = { at: at(-1.5, 3.8, EYE), look: at(2.2, 1.7, 0.9), fov: 58 };
+    this.CD = { at: at(1.7, 0.76, EYE), look: new THREE.Vector3(front.x1 - 0.3, y + 1.2, fz + 0.2 * side), fov: 52 };
+    this.CD2 = { at: at(1.9, 1.4, EYE), look: new THREE.Vector3(front.x1 - 0.3, y + 1.3, fz + 0.2 * side), fov: 52 };
+    this.EYE = EYE;
     this.eye = { at: new THREE.Vector3(), look: new THREE.Vector3(), fov: 50 };
     // What this draws of its own (the saucer and the robot are theirs): the beam, where it lands, the light round the frame.
     const g = this.group = new THREE.Group(); g.name = 'entry'; g.visible = false; g.userData.always = true; k.group.add(g);      // (always: src/stream.js leaves it alone)
@@ -231,10 +238,10 @@ feature({
     const s = this.side;
     const c0 = cam.position.clone(), l0 = cam.getWorldDirection(new THREE.Vector3()).multiplyScalar(7).add(c0);
     // The camera's way from the toy to the picture: out of the vent behind the toy, up and aside, and across.
-    const L = this.L, ka = new THREE.Vector3(Math.max(L.x0 + 0.3, v.pos.x - 0.75), Math.max(c0.y, this.y + 0.6), v.pos.z), k1 = new THREE.Vector3(Math.max(L.x0 + 0.35, v.pos.x - 0.6), this.y + 1.15, v.pos.z - 0.85 * s);
+    const L = this.L, ka = new THREE.Vector3(Math.max(L.x0 + 0.3, v.pos.x - 0.75), Math.min(this.y + this.EYE - 0.2, Math.max(c0.y, this.y + 0.6)), v.pos.z), k1 = new THREE.Vector3(Math.max(L.x0 + 0.35, v.pos.x - 0.6), this.y + this.EYE - 0.1, v.pos.z - 0.85 * s);
     const calm = !!(G.set && G.set.reduce);
     this.run = {
-      T: 0, beat: 'cross', calm, fired: {}, skip: null, fov0: cam.fov, K1: { at: k1, look: this.S1.clone().setY(this.y + 0.85), fov: 58 },
+      T: 0, beat: 'cross', calm, fired: {}, skip: null, fov0: cam.fov, c0y: c0.y, K1: { at: k1, look: this.S1.clone().setY(this.y + 0.85), fov: 58 },
       camAt: new THREE.CatmullRomCurve3([c0, ka, k1, this.CB.at.clone()], false, 'centripetal'), camLook: new THREE.CatmullRomCurve3([l0, this.S1.clone().setY(this.y + 0.8), this.S1.clone().setY(this.y + 0.95), this.CB.look.clone()], false, 'centripetal'),
       face: new THREE.Vector3().copy(this.art), sau: this.S1.clone(), spin: 0, botOn: false, there: false, gave: false, wide: false,
     };
@@ -394,6 +401,7 @@ feature({
       const c = t < T.beam - 0.2 ? r.K1 : t < T.wake + 0.6 ? this.CB : t < T.cut ? this.CC : this.CD; mix(c, c, 0);
     } else if (t < T.cross) {
       const q = ease(t / T.cross); r.camAt.getPoint(q, e.at); r.camLook.getPoint(q, e.look); e.fov = r.fov0 + (this.CB.fov - r.fov0) * ease(span(t, 0.3, T.cross));
+      if (e.at.y > this.y + this.EYE && r.c0y <= this.y + this.EYE) e.at.y = this.y + this.EYE;      // (never over the cameras' height on the way across)
     } else if (t < T.wake) mix(this.CB, this.CB2, ease(span(t, T.cross, T.wake)));
     else if (t < T.robot + 0.5) mix(this.CB2, this.CC, ease(span(t, T.wake, T.robot + 0.5)));
     else if (t < T.cut) {
