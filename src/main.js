@@ -1712,7 +1712,7 @@ function tick(now) {
     if (!G.heist.briefing) { G.state = 'play'; canvas.focus({ preventScroll: true }); }
     sound.update(G.vehicle, false);
   } else if (G.state === 'paused') {
-    if (input.took('pause')) act('resume');
+    if (input.took('pause') && shown) act('resume');      // (only from the game's own menus: the stall, a till, a vending machine, the film, the pads and the rest pause the game for a screen of their own, and P there started the game again under it)
     sound.update(G.vehicle, false);
   }
   input.endFrame();
