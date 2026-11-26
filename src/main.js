@@ -725,7 +725,7 @@ function act(a) {
     case 'start': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { G.toy = pick.toy; start(); } break;
     case 'newgame': if (G.state === 'title' && !garage.ready()) break; if (G.state === 'title') { newGame(); G.toy = pick.toy; start(true); } break;      // no questions: asked for, done
     case 'pause': if (G.state === 'play' || G.state === 'study') pause(); break;
-    case 'resume': G.state = G.study ? 'study' : 'play'; show(null); break;
+    case 'resume': G.state = G.study ? 'study' : 'play'; show(null); input.endFrame(); break;      // (the Enter that pressed Carry on is not also a press of LOOK: as in start())
     case 'way': if (G.wayOffer && G.nav) { const ok = G.nav.goTo(G.wayOffer); say(ok ? `The way to the ${G.wayOffer.label} is lit on the floor and the map.` : `No way found to the ${G.wayOffer.label}.`, 0, 6); G.wayOffer = null; $('bWay').hidden = true; endStudy(); } break;
     case 'leaveRace': if (G.raceSpots) G.raceSpots.quit(); act('resume'); break;
     case 'quit': quit(); break;
