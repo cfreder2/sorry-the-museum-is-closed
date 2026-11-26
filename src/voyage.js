@@ -147,7 +147,7 @@ body.vcine #hud, body.vcine #voyage .vhint { display: none !important; }
 #voyage .roll p i { color: #cfc8b6; }
 #voyage .vskip { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.62); color: var(--gilt); font: 700 12px var(--mono); letter-spacing: .12em; }
 @media (max-width: 560px) { #voyage .vbtn { height: 36px; padding: 0 10px; font-size: 11px; } #voyage .vstage { font-size: 10px; } }
-.reduce #voyage .roll { transition: none; }
+.reduce #voyage .roll { transition: transform 60s linear !important; }      /* (Reduce motion: the credits roll slowly, the 60 s _credits() asks for. It was 'none' here, which put the whole roll off the top of the screen at once: they could not be read at all.) */
 /* Reduce motion: every fade here is a half-second dip to dark. Never a cut (style.css turns transitions off under .reduce, which made each one a hard flash), and never to white. */
 .reduce #voyage .vfade { transition: opacity .5s linear !important; }
 .reduce #voyage .vfade.white { background: #0a0c12; }
