@@ -239,16 +239,16 @@ export function buildPlan() {
   const boxes = plan.boxes;
   // (The air inside a room stops well short of its own roof: a room whose ceiling reached the roof could be flown into from above.)
   const under = (r, y1) => { const m = massOf[r.id]; return m ? Math.min(y1, m.top - 1.0) : y1; };
-  for (const r of rooms) boxes.push({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y0: r.y, y1: under(r, r.y + r.ceil) });
+  for (const r of rooms) boxes.push({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y0: r.y, y1: under(r, r.y + r.ceil), shut: !!r.shut });      // (a shut room's volume is kept in the list and is nowhere to be: confine)
   const hx = (hall.x0 + hall.x1) / 2;
   boxes.push({ x0: hx - 4, x1: hx + 4, z0: hall.z0, z1: hall.z1, y0: hall.y, y1: under(hall, SPRING + VAULT_R) });
   for (const k of skylights) boxes.push({ x0: k.x0, x1: k.x1, z0: k.z0, z1: k.z1, y0: k.y - 1, y1: SKY });     // straight up and out
   if (transom) boxes.push({ x0: transom.x0 - 1.6, x1: transom.x1 + 1.6, z0: transom.z0, z1: transom.z1, y0: transom.y0, y1: transom.y1, fly: true });   // above the door: for things that fly
   for (const d of doors) {
-    const e = 1.6;
+    const e = 1.6, shut = !!(d.shut || (byId[d.a] && byId[d.a].shut));      // (a doorway between two shut rooms is nowhere to be either)
     boxes.push(d.along === 'z'
-      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden, shut: !!d.shut }
-      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden, shut: !!d.shut });      // (a shut door's volume is kept, for what is laid out round it, and never used: confine)
+      ? { x0: d.x0, x1: d.x1, z0: d.z0 - e, z1: d.z1 + e, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden, shut }
+      : { x0: d.x0 - e, x1: d.x1 + e, z0: d.z0, z1: d.z1, y0: d.y, y1: d.y + d.h, lock: d.out && !d.vent, hidden: !!d.hidden, shut });      // (a shut door's volume is kept, for what is laid out round it, and never used: confine)
   }
   for (const w of plan.wells) boxes.push({ x0: w.x0, x1: w.x1, z0: w.z0, z1: w.z1, y0: w.y - SLAB - 1.6, y1: w.y + 1 });
 
@@ -704,9 +704,14 @@ export function groundOpenings(plan) {
 
 export function confine(plan, p, r, flying, out, noFurniture) {
   let best = Infinity, bx = p.x, by = p.y, bz = p.z;
+  // Where a shut room is (src/shut.js) there is nowhere to be, and that has to hold for a toy thrown past a thin wall in one
+  // long frame as well. Left to the rule below, the nearest volume to such a toy can be the open room on the floor under
+  // it or over it (a car is not moved up or down, so it would be left standing where it is, behind the door). So: in a
+  // shut room, only a volume the toy can be put in without leaving its own level will do: `level`, the best of those.
+  let sealed = false, level = Infinity, lx = p.x, ly = p.y, lz = p.z;
   // (Up on a roof a car is outdoors, and the rooms below are nothing to do with it: it is above their volumes.)
   for (const b of plan.boxes) {
-    if (b.shut) continue;                             // a door that does not open is a wall, always (src/shut.js)
+    if (b.shut) { if (!sealed && p.x > b.x0 && p.x < b.x1 && p.z > b.z0 && p.z < b.z1 && p.y > b.y0 - 0.3 && p.y < b.y1) sealed = true; continue; }      // a door that does not open is a wall, always
     if (b.lock && plan.locked) continue;              // a locked door is a wall
     if (b.hidden && !plan.secretOpen) continue;       // and so is one that has not been found
     if (b.fly && !flying) continue;                   // a way through up in the air is no use to a car
@@ -714,20 +719,22 @@ export function confine(plan, p, r, flying, out, noFurniture) {
     if (x0 > x1 || z0 > z1) continue;
     const cx = p.x < x0 ? x0 : p.x > x1 ? x1 : p.x;
     const cz = p.z < z0 ? z0 : p.z > z1 ? z1 : p.z;
-    let cy = p.y, d = (cx - p.x) ** 2 + (cz - p.z) ** 2;
+    let cy = p.y, d = (cx - p.x) ** 2 + (cz - p.z) ** 2, same = true;
     if (flying) {
       // Something that flies is kept between the floor and the ceiling of the volume it is in.
       const y1 = b.y1 - r, y0 = b.y0 + (b.fly ? r : 0);
       cy = p.y > y1 ? y1 : p.y < y0 ? Math.min(y0, y1) : p.y;
-      d += (cy - p.y) ** 2;
+      d += (cy - p.y) ** 2; same = Math.abs(cy - p.y) < 0.6;
     } else {
       // A car goes where the ground takes it, so it is not moved up or down: but a volume on
       // another level is not one it is in. How far off its level counts against it.
       const dy = p.y < b.y0 - 0.3 ? b.y0 - 0.3 - p.y : p.y > b.y1 ? p.y - b.y1 : 0;
-      d += dy * dy;
+      d += dy * dy; same = dy === 0;
     }
+    if (same && d < level) { level = d; lx = cx; ly = cy; lz = cz; }
     if (d < best) { best = d; bx = cx; by = cy; bz = cz; if (d === 0) break; }
   }
+  if (sealed && best > 0 && level < Infinity) { best = level; bx = lx; by = ly; bz = lz; }
   if (best > 1e-10 && p.y > -6.5) {
     // Not indoors. Outdoors, then (but not deep under the ground, where outdoors is solid earth: there the nearest room or tunnel is where it is put): push clear of any building it is touching
     // (or, coming down from above, set it on the roof).
@@ -750,7 +757,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
       if (pass === 2) ok = false;
     }
     const d = (_o.x - p.x) ** 2 + (_o.y - p.y) ** 2 + (_o.z - p.z) ** 2;
-    if (ok && d < best) { best = d; bx = _o.x; by = _o.y; bz = _o.z; }
+    if (ok && d < best && !(sealed && level < Infinity)) { best = d; bx = _o.x; by = _o.y; bz = _o.z; }
   }
   let hit = best > 1e-10;
   if (hit && out) { out.x = bx - p.x; out.y = by - p.y; out.z = bz - p.z; }

@@ -6,6 +6,8 @@
 // rooms that pass that test are left open all the same, because a way in from outside (a duct, a dock shutter, a
 // propped window, an outside door) opens into them or they are the only way on from one that does: the Rice east
 // range, Auditorium foyer 2, the corridor B1-180, the Stock Exchange Trading Room 2, the West entrance passage.
+// And one more is left open: the Stock Exchange Trading Room (B1-164), because the stair from Backstage down to the
+// Café goes down through its floor: the stairwell is open to that room from below.
 //
 // To open a room again, delete its line. To shut another, add its id (src/layout.js), but only a room with nothing in
 // it that no route needs: a doorway is shut when exactly one of its two rooms is on this list, and whatever is behind
@@ -101,7 +103,7 @@ export const SHUT_ROOMS = [
   'MW0-lockers',  // Staff lockers, east
   'MW0-plant',    // Mechanical plant (two storeys deep)
   'MW0-storeS',   // Art storage
-  // ---- The first floor: 20 rooms
+  // ---- The first floor: 19 rooms
   // Ferguson (staff block, north)
   'B1-16',        // Visitor services office
   'B1-17',        // Membership office
@@ -112,7 +114,6 @@ export const SHUT_ROOMS = [
   'B1-92',        // Prints and drawings study room
   // Columbus Drive (auditorium, school)
   'B1-161',       // Auditorium foyer
-  'B1-164',       // Stock Exchange Trading Room
   'B1-167',       // Group entrance
   'B1-169',       // School reception
   'B1-171',       // Seminar room
