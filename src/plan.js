@@ -78,10 +78,16 @@ export function buildPlan() {
   });
   const doors = LAYOUT.doors.map((d, i) => ({ id: 'D' + i, ...d, y: d.y || 0, out: d.b === 'out' }));
   const byId = Object.fromEntries(rooms.map(r => [r.id, r]));
-  // Some rooms are shut (src/shut.js): they are built as ever, behind doors that do not open. A doorway with a shut room
-  // on one side of it and an open one on the other is such a door: `d.shut`. It keeps its place in the wall and in this
-  // list (so everything that is laid out round the doorways is where it always was), but it is a way for nothing: no
-  // volume to pass through (below), and every finder of ways leaves it out.
+  // Some rooms are shut (src/shut.js), behind doors that do not open. A doorway with a shut room on one side of it and an
+  // open one on the other is such a door: `d.shut`. It keeps its place in the wall and in this list (so everything that is
+  // laid out round the doorways is where it always was), but it is a way for nothing: no volume to pass through (below),
+  // and every finder of ways leaves it out.
+  // A shut room is not built: no walls, floor, furniture or lights are made for it (src/museum.js, src/furnish.js,
+  // src/lights.js). But it is in the plan while the building is laid out, because much of what is in the rooms that are
+  // open is dealt in turn across every room, or keeps clear of what is next door: the ways in from outside, the mice's
+  // nests and runs, lost property, the guards' notes, which room has which whiteboard. Dealt with the shut rooms left
+  // out, half of that lands somewhere else. So everything is dealt as if they were there, and then stripShut() (below)
+  // takes them out of the plan for good: main.js calls it once the last of the dealing is done.
   { const shut = new Set(SHUT_ROOMS); for (const r of rooms) if (shut.has(r.id)) r.shut = true;
     for (const d of doors) if (d.b !== 'out' && byId[d.a] && byId[d.b] && !!byId[d.a].shut !== !!byId[d.b].shut) d.shut = true; }
   const lap = (a, b, m = 0) => a.x0 < b.x1 + m && a.x1 > b.x0 - m && a.z0 < b.z1 + m && a.z1 > b.z0 - m;
@@ -267,7 +273,26 @@ export function buildPlan() {
   addNests(plan);
   dressGrounds(plan, groundOpenings(plan));          // the planting and the park's furniture, wherever everything above has left room (src/groundsplan.js)
   addLie(plan);            // last: the land rolls only where nothing above needs it flat
+  plan.shutRooms = rooms.filter(r => r.shut);      // (kept when they have gone from plan.rooms: the map draws them as blocks, and a saved game may be standing in one)
   return plan;
+}
+
+// The shut rooms, taken out of the plan (see buildPlan, where they are marked). After this they are in none of the lists
+// anything is looked up in or bumped against: not a room, a wall, a floor, a piece of furniture or a mark. What is left of
+// them: plan.shutRooms (their outlines), their blocks and roofs out of doors (plan.masses, plan.roofs: the building looks
+// the same from the street and from the air, and what stands on those roofs still stands), plan.byId (so that a doorway's
+// far side can still be asked what it was), and their volumes in plan.boxes, marked `shut`: nowhere to be (confine).
+export function stripShut(plan) {
+  if (plan.stripped) return 0; plan.stripped = true;
+  const keep = (list, ok) => { if (!list) return 0; let n = 0; for (let i = 0; i < list.length; i++) if (ok(list[i])) list[n++] = list[i]; const gone = list.length - n; list.length = n; return gone; };
+  const ids = new Set(plan.shutRooms.map(r => r.id)), out = {};
+  out.rooms = keep(plan.rooms, r => !r.shut);
+  out.walls = keep(plan.walls, w => !(w.room && w.room.shut));
+  out.floors = keep(plan.floors, f => !(f.shut || (f.room && f.room.shut)));
+  out.solids = keep(plan.obstacles, o => !o.shut);
+  out.marks = keep(plan.marks, m => !ids.has(m.room));
+  if (plan.fitout) for (const id of ids) delete plan.fitout[id];
+  return out;
 }
 
 // ------------------------------------------------------------- the mice's nests --
@@ -394,7 +419,7 @@ function addLevels(plan) {
   plan.slabs = S.filter(s => s.slab);
 
   // Floors. A doorway's threshold is floor too, at the doorway's own height.
-  plan.floors = [...rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y: r.y, room: r })), ...doors.map(d => ({ x0: d.x0, x1: d.x1, z0: d.z0, z1: d.z1, y: d.y }))];
+  plan.floors = [...rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y: r.y, room: r })), ...doors.map(d => ({ x0: d.x0, x1: d.x1, z0: d.z0, z1: d.z1, y: d.y, shut: !!(d.shut || (plan.byId[d.a] && plan.byId[d.a].shut)) }))];      // (shut: stripShut takes it out with the room)
   // Wells. A stair cuts the floor it goes down through for as far as there would not be headroom
   // under it (after that it is simply in the room below, coming down out of the ceiling). A lift cuts
   // every floor between its lowest stop and its highest.
@@ -607,8 +632,8 @@ export function wallPoint(w, u, y, off = 0) {
 // A saved game may have been left standing in a room that has since been shut (src/shut.js). Where to put it instead: on
 // the floor just outside the nearest of the shut doors on that level, facing away from it. Null if p is in no shut room.
 export function outsideShut(plan, p) {
-  const r = roomAt(plan, p.x, p.z, (p.y || 0) + 0.3);
-  if (!r || !r.shut) return null;
+  const y = (p.y || 0) + 0.3, r = (plan.shutRooms || []).find(q => p.x >= q.x0 && p.x <= q.x1 && p.z >= q.z0 && p.z <= q.z1 && y >= q.y - 0.3 && y <= q.top + 0.3);
+  if (!r) return null;
   let best = null, bd = Infinity;
   for (const d of plan.doors) {
     if (!d.shut || Math.abs(d.y - r.y) > 1.5) continue;

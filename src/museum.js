@@ -583,6 +583,8 @@ export class Museum {
     // Each room is built from its own floor up, as if that were the ground, and then lifted to its level.
     const lift = (m, y) => { m.position.y = y; m.updateMatrix(); return m; };
     plan.rooms.forEach((r, ri) => {
+      // (A shut room, src/shut.js, has no inside: no walls, floor, ceiling or lights, and nothing kept about it. Only its outside, below.)
+      if (!r.shut) {
       const walls = new Geo(), trim = new Geo();
       const lower = r.floor === 'LL' || r.floor === 'X' || r.kind === 'corridor';
       for (const w of plan.walls.filter(w => w.room === r)) {
@@ -679,6 +681,7 @@ export class Museum {
         sheet(lay, X0, X1, Z0, Z1, r.top - 0.03, [0, -1, 0], (a, b, c, d) => [[(a - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (c - Z0) / (Z1 - Z0)], [(b - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)], [(a - X0) / (X1 - X0), (d - Z0) / (Z1 - Z0)]], hole);
       }
 
+      }
       // The outside of it: stone wherever no other room stands against this one, and a roof under snow.
       // (A room below ground has no outside. One above it is a block from the street to its roof, whatever level its floor is on.)
       const m = plan.massOf[r.id];
@@ -809,6 +812,7 @@ export class Museum {
     };
     const signs = new THREE.Group();
     const hang1 = (d, into, from) => {
+      if (from && plan.byId[from] && plan.byId[from].shut) return;      // (nobody is in there to read it)
       // Stand in room `from`; the sign over the door names `into`.
       // (It needs wall to hang on: under the ceiling of the room it is in, and under any balcony that runs over the door.)
       const r = plan.byId[from], near = k => k.room === from && k.y > d.y + 1 && k.x0 < d.x1 + 2 && k.x1 > d.x0 - 2 && k.z0 < d.z1 + 2 && k.z1 > d.z0 - 2;

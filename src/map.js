@@ -672,15 +672,19 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const p = G.plan;
     // Out of doors, on the big map: the streets, the gardens, the park, the Drive and the harbour (outdoorPicture). Zoom out to see them all.
     if (label && Math.abs(ly) < 1) { layOutdoors(c); drawOutdoorNames(c, px); }
+    // A room that is shut (src/shut.js) is a dark block, crossed out with thin lines: there, and not somewhere to go.
+    for (const r of p.shutRooms || []) {
+      if (!onLevel(r, ly)) continue;
+      const w = r.x1 - r.x0, h = r.z1 - r.z0;
+      c.fillStyle = 'rgba(9,10,15,.94)'; c.fillRect(r.x0, r.z0, w, h); c.save(); c.beginPath(); c.rect(r.x0, r.z0, w, h); c.clip(); c.strokeStyle = 'rgba(150,150,170,.2)'; c.lineWidth = px * 0.8; c.beginPath();
+      for (let k = -h; k < w; k += 1.6) { c.moveTo(r.x0 + k, r.z0); c.lineTo(r.x0 + k + h, r.z1); } c.stroke(); c.restore();
+      c.lineWidth = px; c.strokeStyle = 'rgba(150,150,170,.3)'; c.strokeRect(r.x0, r.z0, w, h);
+    }
     for (const st of Object.values(G.museum.rooms)) {
       const r = st.room;
-      if (!onLevel(r, ly) || !shown(r)) continue;
+      if (r.shut || !onLevel(r, ly) || !shown(r)) continue;
       const been = G.museum.visited.has(r.id), n = st.arts.length, f = n ? st.seen / n : 0, done = n ? st.done : been;
       const w = r.x1 - r.x0, h = r.z1 - r.z0;
-      // A room that is shut (src/shut.js) is a dark block, crossed out with thin lines: there, and not somewhere to go.
-      if (r.shut) { c.fillStyle = 'rgba(9,10,15,.94)'; c.fillRect(r.x0, r.z0, w, h); c.save(); c.beginPath(); c.rect(r.x0, r.z0, w, h); c.clip(); c.strokeStyle = 'rgba(150,150,170,.2)'; c.lineWidth = px * 0.8; c.beginPath();
-        for (let k = -h; k < w; k += 1.6) { c.moveTo(r.x0 + k, r.z0); c.lineTo(r.x0 + k + h, r.z1); } c.stroke(); c.restore();
-        c.lineWidth = px; c.strokeStyle = 'rgba(150,150,170,.3)'; c.strokeRect(r.x0, r.z0, w, h); continue; }
       c.fillStyle = done ? 'rgba(226,190,110,.95)' : been ? 'rgba(62,70,98,.95)' : r.assumed || r.passage ? 'rgba(20,23,32,.92)' : 'rgba(30,34,48,.94)';
       c.fillRect(r.x0, r.z0, w, h);
       if (!done && f > 0) { c.fillStyle = 'rgba(240,200,110,.95)'; c.fillRect(r.x0, r.z1 - Math.min(h * 0.2, 1.6), w * f, Math.min(h * 0.2, 1.6)); }

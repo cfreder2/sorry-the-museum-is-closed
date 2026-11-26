@@ -2153,14 +2153,17 @@ function writtenBoard(R, id) {
 // triangles: { batches: [{ mat, floor, position, normal, color, index, bounds }], rooms, items, solids }.
 // Normals are signed bytes and colours unsigned bytes (linear), both to be read as normalised.
 export function furnish(plan) {
-  const out = { batches: {}, solids: [], marks: [] }, rooms = {}, arcades = [], consoles = [], desks = [];
+  const out = { batches: {}, solids: [], marks: [] }, ghost = { batches: {}, solids: [], marks: [] }, rooms = {}, arcades = [], consoles = [], desks = [];
   let items = 0;
   const lineRooms = plan.rooms.filter(r => LINE_ROOM.test(String(r.gallery || ''))).sort((p, q) => (q.x1 - q.x0) * (q.z1 - q.z0) - (p.x1 - p.x0) * (p.z1 - p.z0)); plan.repair = null; plan.repairNotes = [];      // where the conservation line goes (src/repair.js)
   const boards = assignBoards(plan.rooms, r => !!fitoutOf(r));       // which rooms have a whiteboard with something written on it (src/boardtext.js)
   for (const room of plan.rooms) {
     const recipe = fitoutOf(room);
     if (!recipe) continue;
-    const R = new Room(plan, room, out, OPTS[recipe]);
+    // A shut room (src/shut.js) is laid out like any other, so that whatever is dealt round it comes out as it always did (plan.js
+    // buildPlan says why), but none of it is made: its triangles and marks go nowhere, and what is solid in it is marked to be
+    // taken out again (stripShut).
+    const R = new Room(plan, room, room.shut ? ghost : out, OPTS[recipe]);
     const slot = ARCADE_ROOMS.indexOf(room.gallery);
     if (slot >= 0) { const at = extra(R, 'arcade'); if (at) arcades.push({ slot, ...at }); }
     if (recipe === 'securityControl') { const at = extra(R, 'heist'); if (at) consoles.push(at); const dk = extraWide(R, 'secdesk', 2.2); if (dk) desks.push(dk); }
@@ -2183,6 +2186,7 @@ export function furnish(plan) {
     rooms[room.id].taken = R.taken;                       // every footprint, solid or not: src/lights.js keeps its switch plates off them
   }
   for (const s of out.solids) plan.obstacles.push(s);
+  for (const s of ghost.solids) { s.shut = true; plan.obstacles.push(s); }
   plan.fitout = rooms;
   plan.wc = out.wc || [];                                 // how each restroom block was divided, and what is in each part of it
   plan.marks = out.marks;                                 // spots the fit-out leaves for others to dress: whiteboards (src/whiteboards.js), and what is under the building (src/secret.js)

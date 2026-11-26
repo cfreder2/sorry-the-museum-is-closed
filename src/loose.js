@@ -62,7 +62,7 @@ function shape(type) {
 export class Loose {
   constructor(museum, plan, sound) {
     this.museum = museum; this.plan = plan; this.sound = sound; this.group = new THREE.Group(); this.onHit = null;
-    const marks = [...(plan.marks || []), ...(plan.looseExtra || [])].filter(m => m.kind === 'loose' && TYPES[m.type]);
+    const marks = [...(plan.marks || []), ...(plan.looseExtra || [])].filter(m => m.kind === 'loose' && TYPES[m.type]);      // (a shut room's chairs are not among them: src/furnish.js keeps no marks for it)
     this.bodies = marks.map(m => ({ def: m, T: TYPES[m.type], type: m.type, x: m.x, y: m.y, z: m.z, vx: 0, vy: 0, vz: 0, yaw: m.yaw || 0, av: 0, tip: 0, to: 0, ax: 1, az: 0, rest: true, i: 0, mesh: null }));
     // Each room keeps its own list: only the room the toy is in (or beside) is ever looked at, so two thousand chairs
     // elsewhere in the building cost nothing. `R` is the room (or, outdoors, the patch of ground they are kept to).

@@ -9,7 +9,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
 import { LOWMEM } from './budget.js';
 import { Streamer } from './stream.js';
-import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut } from './plan.js';
+import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut, stripShut } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
 import { Shop } from './shop.js';
@@ -46,7 +46,7 @@ import { Secret } from './secret.js';
 import { Traffic } from './traffic.js';
 import { Loose } from './loose.js';
 import { Vending } from './vending.js';
-import { startFeaturesInTurn } from './features.js';
+import { startFeaturesInTurn, features as FEATURES } from './features.js';
 import { startVoyage, testCargo, resumeVoyage, clearVoyage, voyageFinished } from './voyage.js';      // the finale's flight to the Moon (docs/FINALE.md)
 // Things to find and do: each lives in its own file and registers itself with features.js. Import them here.
 import './thorne.js';
@@ -1721,6 +1721,9 @@ function tick(now) {
   if (G.simon) G.simon.update(dt, G.t);
   if (G.cinema) G.cinema.update(dt, G, sound);
   if (G.features && (G.state === 'play' || G.state === 'study')) G.features.update(dt);
+  // The shut rooms (src/shut.js) leave the plan once the last things dealt across every room have been dealt (src/plan.js, buildPlan and
+  // stripShut): lost property, the guards' notes and the mice find their places in their first frame of play.
+  if (G.features && !G.plan.stripped && ['lostfound', 'notes', 'mice'].every(id => { const f = FEATURES.find(q => q.id === id); return !f || f._broken || f.placed; })) stripShut(G.plan);
   if (G.piano) G.piano.update(dt);
   if (G.vending) G.vending.update(dt, G.t);
   if (G.presents) G.presents.update(dt);
