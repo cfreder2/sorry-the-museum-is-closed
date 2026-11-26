@@ -392,7 +392,7 @@ feature({
       finish: { x0: 73, x1: 81.2, z0: -3.2, z1: bz, y0: high - 0.5 },
       inside: p => p.y > low - 1.5,
       onStart: () => k.synth.chime([523, 784], { gap: 0.1, dur: 0.5 }),
-      onFinish: t => { if (t < RUN_TARGET) { if (k.find('roofrun')) k.callout('OVER THE ROOFTOPS'); k.synth.chime([523, 659, 784, 1047]); } else k.say(`${t.toFixed(1)} s. Under ${RUN_TARGET} for the secret.`, 3.5); },
+      onFinish: t => { if (t < RUN_TARGET) { if (k.find('roofrun')) k.callout('OVER THE ROOFTOPS'); k.synth.chime([523, 659, 784, 1047]); } else k.say(`${t.toFixed(2)} s. Under ${RUN_TARGET} for the secret.`, 3.5); },
     });
     this.start = { x: sc.x - 3, y: sc.top, z: sc.z - 3 };
   },

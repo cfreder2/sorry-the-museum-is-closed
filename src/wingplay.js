@@ -70,7 +70,7 @@ feature({
       finish: { x0: A.x - HW, x1: lx1, z0: top - 1.6, z1: tw.z0 + 0.2, y0: L3 - 0.5 },
       inside: inDeck,
       onStart: () => k.synth.chime([523, 784], { gap: 0.1, dur: 0.5 }),
-      onFinish: t => { if (t < 25) { if (k.find('bridgeway')) k.callout('BRIDGEWAY SPRINT'); k.synth.chime([523, 659, 784, 1047]); } else k.say(`${t.toFixed(1)} s to the top. Under 25 for the secret.`, 3.5); },
+      onFinish: t => { if (t < 25) { if (k.find('bridgeway')) k.callout('BRIDGEWAY SPRINT'); k.synth.chime([523, 659, 784, 1047]); } else k.say(`${t.toFixed(2)} s to the top. Under 25 for the secret.`, 3.5); },      // (two places, as the clock on screen: 24.96 was announced as "25.0 s. Under 25")
     });
     this.zone = { x0: ax0 - 10, x1: lx1 + 12, z0: az0 - 5, z1: tw.z1 + 4 };
   },

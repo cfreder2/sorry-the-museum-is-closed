@@ -166,7 +166,7 @@ feature({
         if (r && r.state === 'slide') r.race = beat ? 'lost' : null;
         if (beat) { if (k.find('penguinrace')) k.callout('BEAT THE PENGUIN'); else k.say('You beat the penguin.', 2.5); k.tune('E5 E5 E5:2 | E5 E5 E5:2 | E5 G5 C5:1.5 D5:.5 | E5:4', { bpm: 190, type: 'triangle', vol: 0.06, at: 0.3 }); }
         if (t < GOOD) { if (k.find('sledding')) k.callout('SLEDDING'); k.synth.chime([523, 659, 784, 1047]); }
-        else if (!beat) k.say(`${t.toFixed(1)} s. Under ${GOOD} and the hill is yours.`, 3.5);
+        else if (!beat) k.say(`${t.toFixed(2)} s. Under ${GOOD} and the hill is yours.`, 3.5);
       },
     });
     // The sled waiting at the gate, and the one that is ridden (and left at the bottom until the next go).
