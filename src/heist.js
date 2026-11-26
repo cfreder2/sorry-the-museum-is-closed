@@ -241,6 +241,8 @@ export class Heist {
   // Under way: on the way there, on the way back, or in the cage. (The security robots look the other way meanwhile.)
   get active() { return this.state === 'in' || this.state === 'out' || this.state === 'caged'; }
   get level() { return level(this.completed); }
+  // A new game: the first job again, the hurdle taught again, no room waiting for another go. (The best times and the counts stay.)
+  fresh() { this.completed = 0; this.taught = false; this.retry = null; this.avoid = null; this._save(); }
   _save() { try { localStorage.setItem(KEY, JSON.stringify({ attempts: this.attempts, completed: this.completed, clean: this.clean, caught: this.caught, taught: this.taught, best: this.best, again: this.retry })); } catch { /* fine */ } }
   _tell(event, more) { try { window.dispatchEvent(new CustomEvent('museum:heist', { detail: { event, room: this.target ? this.target.id : null, time: +(this.elapsed || 0).toFixed(1), trips: this.trips || 0, ...more } })); } catch { /* fine */ } }
   // The security robots' own kit (src/guards.js): their voice, their dumpster.

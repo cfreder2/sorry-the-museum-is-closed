@@ -544,7 +544,7 @@ function newGame() {
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
   G.arcade.reset();
   G.lights.reset();
-  G.arcade.reset(); G.secret.reset(); G.boards.reset();
+  G.arcade.reset(); G.secret.reset(); G.boards.reset(); G.heist.fresh();
   secrets.reset();
   G.presents.reset();
   if (G.features) G.features.fresh();
