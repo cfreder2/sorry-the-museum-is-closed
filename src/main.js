@@ -311,7 +311,7 @@ async function boot() {
   G.vending = new Vending(G, { museum: G.museum, plan, garage, poker: G.poker, sound, stage, resume: () => act('resume'), callout, secrets, trophies, onBuy: p => tm.event('paint-can', p.id) });
   if (G.vending.list.length) secrets.add('vending', 'The vending machines');
   G.hockey = new Hockey(G.museum, plan, sound);
-  G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the railway.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
+  G.hockey.onEvent = (text, kind) => { if (text && /^GOAL|^YOU WIN/.test(text)) trophies.flag('goal'); if (text && /^YOU WIN/.test(text)) trophies.flag('pond'); if (text) { callout(text); tm.event('hockey', null, { you: G.hockey.you, bot: G.hockey.bot }); } else if (kind === 'wake') say('The blue car has woken up. First to five: you shoot east, towards the lake.', 0, 6); else if (kind === 'left') say('You have left the pond. The game is off.', 0, 4); };
   G.arcade = new Arcade(G.museum, plan, sound);            // the monitors with games on them (src/arcade.js)
   G.heist = new Heist(G, { say, callout });                // the button in the security control room (src/heist.js)
   // The parcels under the tree can be opened (src/presents.js). The map in one of them leads to a secret not yet found.
@@ -508,7 +508,7 @@ function letIn() {
 function hints(v, room) {
   if (!G.plan.locked || room) return;
   const out = G.t - G.outsideSince;
-  if (G.hinted === 0 && out > 30) { G.hinted = 1; say(v.kind === 'drone' ? 'The way in is the open air vent at the foot of the wall, just left of the front doors: fly in low. Or find an open skylight on the roof.' : 'The way in is the open air vent at the foot of the wall, just left of the front doors. Follow the arrows.', 0, 10); }
+  if (G.hinted === 0 && out > 30) { G.hinted = 1; say(v.kind === 'drone' ? 'The way in is the open air vent at the foot of the wall, just left of the front doors: fly in low. Or find an open skylight on the roof.' : 'The way in is the open air vent at the foot of the wall, just left of the front doors.', 0, 10); }      // (it used to end "Follow the arrows": there are none now)
   else if (G.hinted === 1 && out > 70) { G.hinted = 2; say(v.kind === 'drone' ? 'Up on the roofs, a pane has been left propped open here and there, with light coming up out of it.' : 'There are other ways in all round the building: a duct, a kicked-in door panel, a propped window. Look low along the walls.', 0, 10); }
 }
 

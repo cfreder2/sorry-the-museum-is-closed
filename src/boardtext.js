@@ -38,9 +38,9 @@ export const BOARDS = [
   { id: 'paper', room: /^Paper conservation studio/i, title: 'The paper studio\'s whiteboard', lines: [
     '#THIS WEEK', '- three prints to float-wash', '- hinges: wheat starch, NOT the tape', '- blotters are drying. Hands off.', '- humidity 50. Keep the door SHUT.', '>draughts come up from somewhere below'] },
   { id: 'curators', room: /^Curators, European painting/i, title: 'The curators\' whiteboard', doodle: 'frame', lines: [
-    '#SPRING HANG', '- swap the two landscapes', '- label typo: "oil on canavs" !!', '- visitor asked what the lamps are for', '>they come on when you get near. Try it.', '- who painted ARROWS on the 2nd floor'] },
+    '#SPRING HANG', '- swap the two landscapes', '- label typo: "oil on canavs" !!', '- visitor asked what the lamps are for', '>they come on when you get near. Try it.'] },
   { id: 'curators2', room: /^Curators, American art/i, title: 'A whiteboard of things to do', doodle: 'puck', lines: [
-    '#TO DO', '- loan letters', '- wall text: 80 words. EIGHTY.', '- the pond north of the building:', '>who put hockey goals on it? And a puck?', '- the blue car out there is not ours either'] },
+    '#TO DO', '- loan letters', '- wall text: 80 words. EIGHTY.', '- the pond in the courtyard:', '>who put hockey goals on it? And a puck?', '- the blue car out there is not ours either'] },
   { id: 'handlers', room: /^Art handlers/i, title: 'The art handlers\' whiteboard', doodle: 'ramp', lines: [
     '#HANDLERS', '- gloves ON', '- two people for anything bigger than you', '- van keys live on THIS hook', '- WHO is leaving ramps in the galleries', '>not funny.   (a bit funny.)'] },
   { id: 'painting', room: /^School painting studio/i, title: 'A studio whiteboard', doodle: 'sun', lines: [

@@ -1109,7 +1109,7 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     const r = at.room, n = nameOf(r), st = r && G.museum.rooms[r.id], arts = st ? st.arts.length : 0;
     document.getElementById('bmCardT').textContent = n.title;
     document.getElementById('bmCardS').textContent = n.sub;
-    const lv = levelOf(at.target.y), bits = [`${NAMES[lv.name] || lv.name} level`];
+    const lv = levelOf(at.target.y), nm = NAMES[lv.name] || lv.name, bits = [/^Sub/.test(nm) ? nm : `${nm} level`];      // (not "Sub-level 1 level")
     if (arts) bits.unshift(st.done ? `All ${arts} works seen ✓` : `${st.seen} of ${arts} works seen`);
     else if (r && G.museum.visited.has(r.id)) bits.unshift('Visited');
     if (r) { const got = gotSpots.filter(q => q.x >= r.x0 && q.x <= r.x1 && q.z >= r.z0 && q.z <= r.z1 && Math.abs((q.y || 0) - r.y) < 3).map(q => q.name).filter((v, i, a) => a.indexOf(v) === i); if (got.length) bits.push('★ ' + (got.length > 2 ? `${got.slice(0, 2).join(', ')} +${got.length - 2}` : got.join(', '))); }
