@@ -157,7 +157,7 @@ tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
 Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
-try { G.seen = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); } catch { /* no storage */ }
+try { const s = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); if (Array.isArray(s)) G.seen = s.filter(w => w && typeof w === 'object' && w.id != null); } catch { /* no storage */ }      // (only what note() writes: a record of another shape threw at every look, and in the notebook)
 
 // ---- art score, trophies and the garage (score.js, trophies.js, garage.js) ----
 const note = w => { if (G.seen.some(s => s.id === w.id)) return; G.seen.push({ id: w.id, t: w.t, a: w.a, img: w.img }); try { localStorage.setItem('after-hours.seen', JSON.stringify(G.seen)); } catch { /* fine */ } };      // into the notebook
