@@ -1078,6 +1078,9 @@ function setLabel(on) {
   const s = G.study;
   if (!s) return;
   s.label = on;
+  // The picture the Director's whiteboard names, once the board has been read: a key (a pad's X) touches the part it
+  // says, for hands that have no pointer to touch it with (src/secret.js: only a click or a finger could). Said here, on the label.
+  { const tk = $('touchKey'), sec = G.secret, yes = !!(sec && sec.enabled && sec.clueRead && !sec.open && sec.clue && sec.clue.art === s.art); tk.hidden = !yes; if (yes) tk.lastElementChild.textContent = 'touch ' + sec.clue.part; }
   if (on && s.brief) s.hideAt = s.t + 7;
   $('label').classList.toggle('away', !on);
   $('bInfo').setAttribute('aria-pressed', on);
@@ -1676,8 +1679,10 @@ function tick(now) {
     const st = input.sticks;
     if (input.took('info')) setLabel(!G.study.label);
     else if (G.study.label && G.study.t > G.study.hideAt) setLabel(false);
+    if (input.took('swap') && G.secret.live && G.secret.clueRead && !G.secret.open) G.secret.find();      // (V, or a pad's X: see setLabel)
     // (A finger put down on the picture itself and not moved is a touch on the picture, not a push on the stick: src/secret.js.)
-    if (input.took('look') || input.took('pause') || input.took('back') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8 && !G.secret.tapping) endStudy();
+    if (G.state !== 'study') { /* the key found it, and the look is over: the wall is sliding */ }
+    else if (input.took('look') || input.took('pause') || input.took('back') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8 && !G.secret.tapping) endStudy();
     else { studyCam(dt); G.museum.update(dt, G.vehicle.pos, G.roomId, camera.position); }
     G.secret.update(dt, G.vehicle, G.roomId, camera.position);
     sound.update(G.vehicle, false);

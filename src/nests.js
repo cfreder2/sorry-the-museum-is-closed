@@ -27,6 +27,7 @@ import * as TX from './textures.js';
 const KEY = 'after-hours.nests';
 const OPEN = -1.9;                    // the grille swung open, back against the wall (radians about its hinge)
 const NEAR = 16;                      // how near the toy must be before a nest is drawn
+const REACH = 1.2;                    // how near the Director's desk a toy must be to try its drawer
 const GREEN = new THREE.Color(0.32, 1, 0.42);
 
 // What is in each nest to read, in the order they lead on. `say` is what is said when it is read: where to go next.
@@ -37,6 +38,18 @@ const CLUES = {
   modern: { kind: 'file', title: 'PROJECT GREEN CHEESE · p.3', lines: ['Only the Director goes down.', 'The way is written up in ####', 'Spare desk key: LOST.'], say: 'A lost key. The mouse on the lower level keeps the shiniest things.' },
   lower: { kind: 'key', title: 'DIRECTOR · DESK', lines: ['A tiny silver saucer on a key ring,', 'warm to the touch.'], say: 'The key to the Director’s desk. Upstairs, back of house: the Director’s office.' },
 };
+// The order the nests lead on in, a ring: each one's clue is about the next. Which nest the chain leads to now: the
+// first not yet read after the one read last (so the map's "?" in src/story.js agrees with the words just read, wherever
+// a player began); with none read, one whose mouse has been seen home already, or else the first. st: this file's
+// saved state.
+export const NEST_ORDER = ['north', 'south', 'rice', 'modern', 'lower'];
+export function nextNest(st) {
+  if (!st) return null;
+  const n = NEST_ORDER.length; let i0 = st.last ? NEST_ORDER.indexOf(st.last) + 1 : 0;
+  if (!st.last) { const seen = NEST_ORDER.findIndex(w => !st.read[w] && mice.seenHome(w)); if (seen >= 0) i0 = seen; }
+  for (let j = 0; j < n; j++) { const w = NEST_ORDER[(i0 + j) % n]; if (!st.read[w]) return w; }
+  return null;
+}
 const DESK = { kind: 'folder', title: 'PROJECT GREEN CHEESE · ACCESS', lines: ['The way down is behind a painting.', 'My whiteboard says which one,', 'and what to touch.  — D.'], say: 'The whiteboard, here in this office.' };
 
 // ---------------------------------------------------------------- the cards
@@ -98,7 +111,9 @@ function card(c) {
     g.fillStyle = '#c99a3a'; g.beginPath(); g.arc(W * 0.6, H * 0.4, 26, 0, 7); g.fill(); g.fillStyle = '#20262a'; g.beginPath(); g.arc(W * 0.6, H * 0.4, 9, 0, 7); g.fill();     // the key
     g.fillStyle = '#c99a3a'; g.fillRect(W * 0.6 - 7, H * 0.4 + 20, 14, 130); for (const [y, w] of [[H * 0.4 + 112, 26], [H * 0.4 + 132, 20]]) g.fillRect(W * 0.6 + 6, y, w, 12);
     g.fillStyle = '#efe6cf'; g.save(); g.translate(W * 0.76, H * 0.52); g.rotate(0.22); g.fillRect(-70, -26, 140, 52); g.fillStyle = '#1d3a2c'; g.font = 'bold 22px "Courier New", monospace'; g.textAlign = 'center'; g.fillText(c.title, 0, 8); g.restore();      // the tag
-    g.font = '25px "Courier New", monospace'; g.fillStyle = '#e8efe6'; c.lines.forEach((l, i) => g.fillText(l, 40, H - 92 + i * 34));
+    let fs = 25; g.font = `${fs}px "Courier New", monospace`;      // (as big as will fit: at 25 px the first line ran off the card's edge)
+    while (fs > 15 && Math.max(...c.lines.map(l => g.measureText(l).width)) > W - 80) { fs--; g.font = `${fs}px "Courier New", monospace`; }
+    g.fillStyle = '#e8efe6'; c.lines.forEach((l, i) => g.fillText(l, 40, H - 92 + i * 34));
   }
   return cv;
 }
@@ -193,8 +208,10 @@ feature({
     }
     // the card on screen
     const el = this.cardEl = document.createElement('div'); el.id = 'nestCard';
-    el.style.cssText = 'position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) rotate(1.5deg);width:min(70vmin,340px);pointer-events:none;opacity:0;transition:opacity .25s;z-index:30;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))';
-    document.body.appendChild(el);
+    el.style.cssText = 'position:fixed;left:50%;top:64%;transform:translate(-50%,-50%) rotate(1.5deg);width:min(48vmin,340px);pointer-events:none;opacity:0;transition:opacity .25s;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))';
+    // Under the words on the screen, not over them (it was put last in the page at z-index 30, and what was said as it
+    // was read, and THE DIRECTOR'S DESK KEY, came up behind it): before #hud in the page, and lower down, clear of the line.
+    { const hud = document.getElementById('hud'); if (hud && hud.parentNode) hud.parentNode.insertBefore(el, hud); else document.body.appendChild(el); }
     this.marks = [];
   },
   // A point of nest n: `lat` along its wall, `dep` out through the wall from the room's face of it. [x, z]
@@ -390,7 +407,10 @@ feature({
     folder.rotation.x = -Math.PI / 2; folder.position.set(0, 0.625, -0.22); drawer.add(folder);
     const clip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.006, 0.07), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 1.7, 0.7), toneMapped: false })); clip.position.set(0.14, 0.63, -0.36); drawer.add(clip);
     this.k.group.add(G);
-    this.desk = { room: r, G, drawer, out: 0, want: 0, at: { x: front.x + d.fx * 0.25, y, z: front.z + d.fz * 0.25 }, fx: d.fx, fz: d.fz, c: { x: cx, y, z: cz } };
+    // The top of it, on the floor (from its back edge to the drawer's face, as wide as it stands): what a toy pulls up to.
+    const hw = (Math.abs(d.fx) > 0.5 ? d.z1 - d.z0 : d.x1 - d.x0) / 2, wx = Math.abs(d.fz) * hw, wz = Math.abs(d.fx) * hw;
+    const top = { x0: Math.min(bx, front.x) - wx, x1: Math.max(bx, front.x) + wx, z0: Math.min(bz, front.z) - wz, z1: Math.max(bz, front.z) + wz };
+    this.desk = { room: r, G, drawer, out: 0, want: 0, at: { x: front.x + d.fx * 0.25, y, z: front.z + d.fz * 0.25 }, fx: d.fx, fz: d.fz, c: { x: cx, y, z: cz }, top };
     if (this.state.desk) { this.desk.out = this.desk.want = 1; drawer.position.z = 0.32; }
     return this.desk;
   },
@@ -423,7 +443,7 @@ feature({
     if (this.showing === c) { this._show(null); return; }
     this._show(c, k.pos);
     if (this.state.read[n.wing]) return;
-    this.state.read[n.wing] = true; if (c.kind === 'key') this.state.key = true; this.save();
+    this.state.read[n.wing] = true; this.state.last = n.wing; if (c.kind === 'key') this.state.key = true; this.save();
     if (v.item) v.item.mesh.visible = false;
     k.synth.chime([1175, 1568, 2349], { vol: 0.045, gap: 0.1, dur: 1 });
     const got = this.list.filter(q => this.state.read[q.n.wing]).length;
@@ -469,7 +489,9 @@ feature({
       }
     }
     const D = this._desk();
-    if (D && Math.abs(p.y - D.at.y) < 0.8 && Math.hypot(p.x - D.at.x, p.z - D.at.z) < 1.25) {
+    // Pulled up to the desk from any side: within a metre of its top, in front of it, beside it, behind it or under it.
+    // (It was within 1.25 m of a spot behind the drawer, and from the door a toy meets the front: no prompt there at all.)
+    if (D && Math.abs(p.y - D.at.y) < 0.8 && Math.hypot(Math.max(D.top.x0 - p.x, 0, p.x - D.top.x1), Math.max(D.top.z0 - p.z, 0, p.z - D.top.z1)) < REACH) {
       if (!this.state.desk) return { verb: 'OPEN', hint: this.state.key ? 'The Director’s desk. You have its key.' : null, act: () => this._openDesk() };
       return { verb: 'READ', act: () => { if (this.showing === DESK) { this._show(null); return; } this._show(DESK, k.pos); if (!this.state.folder) { this.state.folder = true; this.save(); k.say(DESK.say, 5); } } };
     }

@@ -22,6 +22,7 @@ import { MOTIF, hz } from './motif.js';
 const SCALE = 1.75;       // a well-fed mouse, bigger than life, so it reads from a toy's height and from the chase camera
 // Pace. The car tops out near 9.5 m/s; a mouse runs a little faster than the toy is coming, up to TOP.
 const TOP = 8.2, PACE = 4.5, SEE = 14, BOLT = 4.5, SCARE = 2.2, LAG = 10, BACK = 6, WAIT = 6;
+const HUNT = 30;          // seconds from the bolt for which the robots leave a toy that is following it alone
 // notices you within SEE and sits up to look; runs within BOLT; at a stop on the way it stays put until you are within
 // SCARE; beyond LAG it stops and waits up to WAIT seconds for the toy to come within BACK, then runs on alone (and home
 // alone does not count)
@@ -30,6 +31,7 @@ const PRINTS = 1200, STEP = 0.12, LIFE = 12, PAW = 0.085;
 const GREEN = new THREE.Color(0.32, 1, 0.42);
 // The run home: how long (along the floor), and the grid it is found on.
 const CELL = 0.45, WANT = 62, MINRUN = 36, MAXRUN = 95, OPEN = 1.4;
+const TAUT = 0.7;         // how clear of walls and furniture the run is kept where it is pulled straight (see mouseRun)
 
 // The mouse, in the units of its figure (the floor at y = 0, nose towards +z): a pear of a body, big round ears, a pointed
 // snout with whiskers, four little legs and a long thin tail. Everything is coloured by vertex, so one material does it all.
@@ -162,9 +164,16 @@ class Heap {
   push(key, v) { if (this.n === this.k.length) { const k = new Float64Array(this.n * 2), w = new Int32Array(this.n * 2); k.set(this.k); w.set(this.v); this.k = k; this.v = w; } let i = this.n++; const K = this.k, V = this.v; while (i > 0) { const p = (i - 1) >> 1; if (K[p] <= key) break; K[i] = K[p]; V[i] = V[p]; i = p; } K[i] = key; V[i] = v; }
   pop() { const K = this.k, V = this.v, top = V[0], key = K[--this.n], v = V[this.n]; let i = 0; for (;;) { let c = 2 * i + 1; if (c >= this.n) break; if (c + 1 < this.n && K[c + 1] < K[c]) c++; if (K[c] >= key) break; K[i] = K[c]; V[i] = V[c]; i = c; } K[i] = key; V[i] = v; return top; }
 }
-export function mouseRun(plan, n, seed = 1) {
+// Rooms that are no part of a mouse's floor: it neither sits in them nor runs through them.
+//   * the Thorne corridor (Gallery 11), for the lower-level mouse. It sat at the far end of it, and the way in is at the
+//     near end: it bolted back past the toy and out by the door the toy had just come in by, and the toy, turning right
+//     round among the miniature rooms, lost it more often than not (7 seen home in 15 scripted tries). Kept out of there
+//     it sits out in the open in Gallery 10 and runs away from whoever finds it.
+const KEEP_OUT = { lower: ['G11'] };
+export function keptOut(plan, wing) { return new Set(KEEP_OUT[wing] || []); }
+export function mouseRun(plan, n, seed = 1, out = keptOut(plan, n.wing)) {
   const y = n.y, R = 70, vx = n.vent.x, vz = n.vent.z;
-  const rooms = plan.rooms.filter(r => !r.secret && same(r.y, y) && r.kind !== 'hall' && !/stair|lift/.test(r.use || '') && Math.max(r.x0 - vx, vx - r.x1, r.z0 - vz, vz - r.z1, 0) < R);
+  const rooms = plan.rooms.filter(r => !r.secret && !out.has(r.id) && same(r.y, y) && r.kind !== 'hall' && !/stair|lift/.test(r.use || '') && Math.max(r.x0 - vx, vx - r.x1, r.z0 - vz, vz - r.z1, 0) < R);
   const ids = new Set(rooms.map(r => r.id));
   const doors = plan.doors.filter(d => !d.out && !d.hidden && !d.secret && same(d.y, y) && ids.has(d.a) && ids.has(d.b));
   let X0 = Infinity, X1 = -Infinity, Z0 = Infinity, Z1 = -Infinity;
@@ -223,8 +232,9 @@ export function mouseRun(plan, n, seed = 1) {
   if (start < 0) { for (let k = 0; k < N; k++) if (len[k] > (start < 0 ? 8 : len[start]) && open[k] > 0.6) start = k; }
   if (start < 0) return null;
   const cells = []; for (let k = start; k >= 0; k = via[k]) cells.push(k);
-  // pulled taut: straight from each point to the furthest one it can see across open floor
-  const see = (a, b) => { const ax = cx(a), az = cz(a), bx = cx(b), bz = cz(b), L = Math.hypot(bx - ax, bz - az), m = Math.ceil(L / 0.15); for (let t = 1; t < m; t++) { const k = cellOf(ax + (bx - ax) * t / m, az + (bz - az) * t / m); if (k < 0 || !floor[k] || open[k] < 0.4) return false; } return true; };
+  // pulled taut: straight from each point to the furthest one it can see across open floor, TAUT clear of anything
+  // (at 0.4 m the straight line cut doorways by the jamb, 5 cm from one of them, and a toy on its prints hit it)
+  const see = (a, b) => { const ax = cx(a), az = cz(a), bx = cx(b), bz = cz(b), L = Math.hypot(bx - ax, bz - az), m = Math.ceil(L / 0.15); for (let t = 1; t < m; t++) { const k = cellOf(ax + (bx - ax) * t / m, az + (bz - az) * t / m); if (k < 0 || !floor[k] || open[k] < TAUT) return false; } return true; };
   const pts = [{ x: cx(cells[0]), z: cz(cells[0]) }];
   for (let i = 0; i < cells.length - 1;) { let j = i + 1; while (j + 1 < cells.length && j - i < 60 && see(cells[i], cells[j + 1])) j++; pts.push({ x: cx(cells[j]), z: cz(cells[j]) }); i = j; }
   pts.push({ x: vx + n.nx * 0.1, z: vz + n.nz * 0.1 });                     // and up to the grille itself
@@ -257,7 +267,7 @@ export const mice = feature({
       const m = {
         id: 'mouse-' + w.id, wing: w, nest: n, room: n.room, y: n.y, nx: n.nx, nz: n.nz, ...run,
         hole: { x: n.vent.x, y: n.y, z: n.vent.z },
-        s: 0, state: 'peek', t: 0, spd: 0, yaw: 0, pitch: 0, pause: 0, acc: 0, foot: 1, flare: 0, alone: false, squeak: 0, px: 0, pz: 0, hx: 0, hz: 1, stop: 0, look: 0, fidget: 0, home: false,
+        s: 0, state: 'peek', t: 0, chase: 0, spd: 0, yaw: 0, pitch: 0, pause: 0, acc: 0, foot: 1, flare: 0, alone: false, squeak: 0, px: 0, pz: 0, hx: 0, hz: 1, stop: 0, look: 0, fidget: 0, home: false,
       };
       this.list.push(m); claim({ x: run.pts[0].x, y: n.y, z: run.pts[0].z });
     });
@@ -373,9 +383,10 @@ export const mice = feature({
       else toYaw(m.look, 2.5);
       if (m.state === 'peek') {
         if (d < SEE) k.once('mouse-first', 'A glowing mouse, right out in the open! Follow it home.', 4, true);      // (at once: in its turn it came up behind the first minute's hints, seconds before the mouse was home)
-        if (d < BOLT) { m.state = 'run'; m.t = 0; m.spd = 3; m.stop = 0; k.synth.note(2600, 0.05, { type: 'sine', vol: 0.02 }); k.synth.note(3100, 0.04, { type: 'sine', vol: 0.02, at: 0.07 }); }
+        if (d < BOLT) { m.state = 'run'; m.t = 0; m.spd = 3; m.stop = 0; m.chase = 0; k.synth.note(2600, 0.05, { type: 'sine', vol: 0.02 }); k.synth.note(3100, 0.04, { type: 'sine', vol: 0.02, at: 0.07 }); }
       }
     } else if (m.state === 'run' || m.state === 'wait' || m.state === 'sit') {
+      m.chase += dt;                              // how long since it bolted (following(): the robots)
       if (m.state === 'run') {
         // a little faster than the toy is coming, faster still when it is close; stop-start when it is not
         if (d < BACK) m.alone = false;
@@ -475,6 +486,14 @@ export const mice = feature({
   _chirp(k, m) {
     const i = (m.chirp = ((m.chirp || 0) + 1) % 4), a = MOTIF[i], b = MOTIF[i + 1];
     k.synth.note(hz(a.midi + 36), 0.05, { type: 'sine', vol: 0.016 }); k.synth.note(hz(b.midi + 36), b.beats > 1 ? 0.12 : 0.05, { type: 'sine', vol: 0.014, at: 0.09 });
+  },
+  // Is the toy on a mouse's tail just now? (src/guards.js: the robots leave such a toy alone.) Narrowly: a mouse the toy
+  // set off is running, or sat up at one of its stops; it has not given the toy up and gone on alone, and is not
+  // stopped waiting for a toy that has fallen behind; the toy is within LAG metres of it, on its level; and it bolted
+  // less than HUNT seconds ago (a run takes eight to twenty: nobody is left alone for dawdling behind a mouse longer than that).
+  following() {
+    for (const m of this.list || []) if ((m.state === 'run' || m.state === 'sit') && !m.alone && m.d < LAG && m.chase < HUNT) return true;
+    return false;
   },
   // Has this wing's mouse been seen home? (src/nests.js: its grille can be opened once it has.)
   seenHome(wing) { return !!this.tally && this.tally.has('mouse-' + wing); },

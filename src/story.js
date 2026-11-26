@@ -30,13 +30,14 @@ import * as THREE from 'three';
 import { shrink } from './budget.js';
 import { feature, features } from './features.js';
 import { mice } from './mice.js';
+import { nextNest } from './nests.js';
 import { MOTIF, MOTIF_COLOURS, motifVoice } from './motif.js';
 import { toast } from './trophies.js';
 import * as TX from './textures.js';
 
 const KEY = 'after-hours.story';
 const GREEN = new THREE.Color(0.32, 1, 0.42);
-const NEST_ORDER = ['north', 'south', 'rice', 'modern', 'lower'];      // the order the chewed pages lead on (src/nests.js)
+
 
 // The pages of the file, in the order a player usually meets them. `hint` is shown (dimly) for the first page not yet found.
 export const ENTRIES = [
@@ -59,7 +60,8 @@ const BY = Object.fromEntries(ENTRIES.map(e => [e.id, e]));
 let st = load();
 function load() {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { s = null; }
-  return { got: [], dove: false, note: false, ...(s || {}) };
+  s = { got: [], note: false, ...(s || {}) }; delete s.dove;      // (dove: the mouse that went down the lobby grate, when there was one)
+  return s;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch { /* a private window: it lasts the visit */ } }
 const live = new Set();          // optional pages whose module has said they exist (not saved: said again at every start)
@@ -284,13 +286,21 @@ feature({
     this.nestsRead = read;
     this._pointers();
   },
-  // Where to look next: one faint "?" on the map for the next step of the chain, and one where the light came down.
+  // Where to look next: a faint "?" on the map for the next step of the chain, one for the saucer while it is about, and
+  // one where the light came down.
   _pointers() {
     const k = this.k, G = k.G, out = [];
-    if (story.count) {
+    {
       const s = this.silo;
-      if (s && (story.has('lights') || story.has('alienracer') || story.has('lighthouse') || story.has('portal')) && !story.has('ring')) out.push({ x: s.cx, y: 0, z: s.cz });      // (Clarice's log: "under the ballfield"; the groundskeeper's note: the snow there melts in rings)
-      const q = this._next(); if (q) out.push(q);
+      if (story.count && s && (story.has('lights') || story.has('alienracer') || story.has('lighthouse') || story.has('portal')) && !story.has('ring')) out.push({ x: s.cx, y: 0, z: s.cz });      // (Clarice's log: "under the ballfield"; the groundskeeper's note: the snow there melts in rings)
+      // The chain's own mark does not wait for a page: a new game has none, and the first step (a mouse to find, to follow,
+      // and its grille) was the one with no mark at all. It is there from the moment you are indoors and the hall is yours
+      // (not out on the avenue, and not under the saucer's scene: src/entry.js), and so is the saucer's when it is due back.
+      // The saucer's has its own mark, beside the chain's and not instead of it (it was asked first and took the only "?":
+      // from the third minute until it had been herded out and followed to the harbour, the chain had none).
+      const on = story.count || (!G.plan.locked && !(G.entry && G.entry.busy)), q = on ? this._next() : null, p = on && G.probe ? G.probe.where() : null;
+      if (q) out.push(q);
+      if (p && !(q && Math.hypot(p.x - q.x, p.z - q.z) < 1 && Math.abs(p.y - q.y) < 1)) out.push(p);      // (the saucer back in the hall, while it is to be followed, and then the keeper's log: src/probe.js)
     }
     const key = out.map(q => `${q.x.toFixed(1)},${q.z.toFixed(1)}`).join('|');
     if (key === this.marksKey) return;
@@ -302,7 +312,6 @@ feature({
   _next() {
     const k = this.k, G = k.G, N = this._feat('nests'), S = G.secret, F = this._feat('finale');
     const ns = N && N.state, state = F && F.save ? F.save.state : 'locked';
-    { const q = G.probe && G.probe.where(); if (q) return q; }      // the saucer back in the hall, while it is to be followed, and then the keeper's log (src/probe.js)
     if (state !== 'locked') {
       if (state === 'found' && F.built && G.finale) { const c = G.finale.console; if (c && c.position) return { x: c.position.x, y: c.position.y, z: c.position.z }; }
       return null;
@@ -314,13 +323,9 @@ feature({
     if (ns && ns.desk) { const b = G.boards && G.boards.byId && G.boards.byId.clue; return b ? { x: b.x, y: b.y - 1.6, z: b.z } : null; }
     if (ns && ns.key && N._desk) { const D = N._desk(); return D ? { x: D.at.x, y: D.at.y, z: D.at.z } : null; }
     if (!ns || !mice.list || !mice.list.length) return null;
-    for (const w of NEST_ORDER) {
-      if (ns.read[w]) continue;
-      const m = mice.list.find(q => q.wing && q.wing.id === w); if (!m) continue;
-      if (mice.seenHome(w)) return { x: m.hole.x, y: m.y, z: m.hole.z };
-      return { x: m.pts[0].x, y: m.y, z: m.pts[0].z };
-    }
-    return null;
+    const w = nextNest(ns), m = w && mice.list.find(q => q.wing && q.wing.id === w);
+    if (!m) return null;
+    return mice.seenHome(w) ? { x: m.hole.x, y: m.y, z: m.hole.z } : { x: m.pts[0].x, y: m.y, z: m.pts[0].z };
   },
   // A page found: the toast, and the call as far as the file has got (a note a page, the whole of it from five).
   _found(id, quiet) {
@@ -399,7 +404,7 @@ feature({
   reset() { if (this.cardEl) this._showNote(false); this._closeFile(); },
   // A new game: an empty file, no marks.
   fresh(k) {
-    st = { got: [], dove: false, note: false }; save();
+    st = { got: [], note: false }; save();
     this.ringTold = false; this.synced = false; this.skyT = 0; this.nextFall = 7; this.marksKey = null;
     if (k && k.G.mapMarks) k.G.mapMarks = k.G.mapMarks.filter(m => !m.story);
     this.marks = [];

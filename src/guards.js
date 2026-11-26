@@ -19,6 +19,7 @@ import { feature } from './features.js';
 import * as TX from './textures.js';
 import { confine, groundAt, roomAt } from './plan.js';
 import { BOT, ROOM, patrols, beat, cellAt, lineClear, sight, reach, path } from './guardplan.js';
+import { mice } from './mice.js';
 
 const PHONE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 const COUNT = 16;                     // the same on a phone: the far ones barely cost anything (they tick slowly and are not drawn)
@@ -511,7 +512,14 @@ feature({
     // Looking at a work: they pass by, and any after you give up; a moment's grace after you look away.
     if (!!G.study !== !!this.prevStudy) { if (!G.study) this.grace = Math.max(this.grace, now + 2); this.prevStudy = !!G.study; }
     if (G.study) for (const b of this.bots || []) if (b.mode === 'chase' || b.mode === 'charge' || b.mode === 'alert') { b.sus = 0; this._return(b); }
-    const watch = !frozen && !G.held && !G.study && !G.racing && now > this.grace && !(G.heist && G.heist.active);      // (and not in a race: src/racespots.js)
+    // On a mouse's tail (src/mice.js following(): one the toy set off, running or sat up at a stop, within ten metres,
+    // not gone on alone, for at most 30 s from its bolt): they leave the toy alone, as they do one stood at a picture.
+    // Any after it give up, and there are two seconds' grace when it ends. A mouse's run goes through their beats, and
+    // the Rice building's was lost to its robot four times in fifteen.
+    const tailing = mice.following();
+    if (tailing !== !!this.prevTail) { if (!tailing) this.grace = Math.max(this.grace, now + 2); this.prevTail = tailing; }
+    if (tailing) for (const b of this.bots || []) if (b.mode === 'chase' || b.mode === 'charge' || b.mode === 'alert') { b.sus = 0; this._return(b); }
+    const watch = !frozen && !G.held && !G.study && !tailing && !G.racing && now > this.grace && !(G.heist && G.heist.active);      // (and not in a race: src/racespots.js)
     const lamp = !!G.lampOn, drone = v.kind === 'drone';
     let nearest = 1e9;
     for (const b of this.bots) {
