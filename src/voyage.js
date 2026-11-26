@@ -47,7 +47,7 @@ const PLANETS = [['mercury', 88, -6, 15000, 140], ['venus', 56, -3, 9000, 240], 
 const MOON_SUN = dirAE(100, 13), MOON_EARTH = dirAE(-12, 31);
 
 // ---------------------------------------------------------------- saving --
-export function voyageSaved() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); return s && s.stage ? s : null; } catch { return null; } }
+export function voyageSaved() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); return s && ['space', 'landed', 'opened', 'home'].includes(s.stage) && s.cargo && typeof s.cargo === 'object' ? s : null; } catch { return null; } }      // (a stage the voyage itself writes, and a cargo: anything else truthy sent Continue straight into a voyage with nothing aboard)
 export function voyageFinished() { try { return localStorage.getItem(DONE) === '1'; } catch { return false; } }
 export function clearVoyage() { try { localStorage.removeItem(SAVE); } catch { /* fine */ } }
 function save(stage, v) {
