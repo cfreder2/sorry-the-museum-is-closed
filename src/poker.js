@@ -146,7 +146,7 @@ export class Poker {
     this._deal();
   }
   // Your chips, as they stand between sittings, and spending them (at the stall beside the table).
-  chips() { try { const sv = JSON.parse(localStorage.getItem(KEY) || 'null'); if (sv && Array.isArray(sv.stacks) && sv.stacks[0] > 0) return sv.stacks[0]; } catch { /* fine */ } return STAKE; }
+  chips() { try { const sv = JSON.parse(localStorage.getItem(KEY) || 'null'); if (sv && Array.isArray(sv.stacks) && typeof sv.stacks[0] === 'number' && sv.stacks[0] >= 0) return sv.stacks[0]; } catch { /* fine */ } return STAKE; }      // (nothing left is nothing: it used to read as a fresh thousand. The table still stakes you when you sit down cleaned out.)
   spend(n) {
     const have = this.chips(); if (n > have) return false;
     let sv = null; try { sv = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* fine */ }
