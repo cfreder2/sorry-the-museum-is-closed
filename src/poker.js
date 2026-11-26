@@ -137,7 +137,8 @@ export class Poker {
 
   sit() {
     let saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* fine */ }
-    const stacks = saved && Array.isArray(saved.stacks) && saved.stacks.length === WHO.length && saved.stacks.some((n, i) => i > 0 && n > 0) ? saved.stacks : WHO.map(() => STAKE);
+    const kept = saved && Array.isArray(saved.stacks) && saved.stacks.length === WHO.length;
+    const stacks = kept && saved.stacks.some((n, i) => i > 0 && n > 0) ? saved.stacks : WHO.map((w, i) => (i === 0 && kept && saved.stacks[0] > 0 ? saved.stacks[0] : STAKE));      // (the others all bust: they buy back in. What you hold is yours.)
     if (stacks[0] <= 0) stacks[0] = STAKE;
     this.game = new Holdem(WHO.map((w, i) => ({ ...w, bot: i > 0, stack: stacks[i] })));
     if (saved && Number.isInteger(saved.button)) this.game.button = saved.button % WHO.length;
@@ -172,7 +173,7 @@ export class Poker {
   _deal() {
     const g = this.game;
     if (g.p[0].stack <= 0) { g.p[0].stack = STAKE; this.note = `Cleaned out. The table stakes you another ${money(STAKE)}.`; }
-    if (g.p.slice(1).every(q => q.stack <= 0)) { for (const q of g.p) q.stack = STAKE; this.note = 'You took every chip on the roof. They have all bought back in.'; }
+    if (g.p.slice(1).every(q => q.stack <= 0)) { for (const q of g.p.slice(1)) q.stack = STAKE; this.note = 'You took every chip on the roof. They have all bought back in.'; }      // (they buy back in; you keep what you won)
     g.deal(); this.wait = 0.9; this.raiseTo = 0; this.sound.tick(0.07, 2400, 0.05);
     this._show();
   }
