@@ -136,7 +136,7 @@ export class Poker {
   seat() { const T = this.T, s = this.seats[0]; return { x: T.x + s.x, z: T.z + s.z, y: T.top, yaw: -Math.PI / 2, cam: new THREE.Vector3(T.x + 3.3, T.top + 1.5, T.z + 0.9), look: new THREE.Vector3(T.x - 1.4, T.top + 0.7, T.z) }; }
 
   sit() {
-    let saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* fine */ }
+    const saved = this._read();
     const kept = saved && Array.isArray(saved.stacks) && saved.stacks.length === WHO.length;
     const stacks = kept && saved.stacks.some((n, i) => i > 0 && n > 0) ? saved.stacks : WHO.map((w, i) => (i === 0 && kept && saved.stacks[0] > 0 ? saved.stacks[0] : STAKE));      // (the others all bust: they buy back in. What you hold is yours.)
     if (stacks[0] <= 0) stacks[0] = STAKE;
@@ -147,28 +147,32 @@ export class Poker {
     this._deal();
   }
   // Your chips, as they stand between sittings, and spending them (at the stall beside the table).
-  chips() { try { const sv = JSON.parse(localStorage.getItem(KEY) || 'null'); if (sv && Array.isArray(sv.stacks) && typeof sv.stacks[0] === 'number' && sv.stacks[0] >= 0) return sv.stacks[0]; } catch { /* fine */ } return STAKE; }      // (nothing left is nothing: it used to read as a fresh thousand. The table still stakes you when you sit down cleaned out.)
+  // (The wallet is kept in storage, with a copy here: where storage is blocked or full, a private window or an embedded frame
+  // with it turned off, the copy is the wallet for the visit. Without it every purchase failed and chips earned were dropped.)
+  _read() { if (!this._lost) try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* blocked, or not JSON */ } return this._lost ? this._mem : null; }
+  _write(sv) { this._mem = sv; try { localStorage.setItem(KEY, JSON.stringify(sv)); this._lost = false; } catch { this._lost = true; } }
+  chips() { const sv = this._read(); return sv && Array.isArray(sv.stacks) && typeof sv.stacks[0] === 'number' && sv.stacks[0] >= 0 ? sv.stacks[0] : STAKE; }      // (nothing left is nothing: it used to read as a fresh thousand. The table still stakes you when you sit down cleaned out.)
   spend(n) {
     const have = this.chips(); if (n > have) return false;
-    let sv = null; try { sv = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* fine */ }
+    let sv = this._read();
     if (!sv || !Array.isArray(sv.stacks) || sv.stacks.length !== WHO.length) sv = { stacks: WHO.map(() => STAKE), button: 0 };
     sv.stacks[0] = have - n;
-    try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch { return false; }
+    this._write(sv);
     this.game = null;
     return true;
   }
   /** Chips come by some other way (change picked up off the café floor). */
   earn(n) {
     if (this.game && this.game.p && this.game.p[0]) { this.game.p[0].stack += n; this._save(); return true; }
-    let sv = null; try { sv = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* fine */ }
+    let sv = this._read();
     if (!sv || !Array.isArray(sv.stacks) || sv.stacks.length !== WHO.length) sv = { stacks: WHO.map(() => STAKE), button: 0 };
     sv.stacks[0] = this.chips() + n;
-    try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch { return false; }
+    this._write(sv);
     return true;
   }
   leave() { this.on = false; $('poker').hidden = true; this._save(); }
-  reset() { try { localStorage.removeItem(KEY); } catch { /* fine */ } this.game = null; if (this.T) this._table(); }
-  _save() { if (!this.game) return; try { localStorage.setItem(KEY, JSON.stringify({ stacks: this.game.p.map(q => q.stack + q.total), button: this.game.button })); } catch { /* fine */ } }
+  reset() { try { localStorage.removeItem(KEY); } catch { /* fine */ } this._mem = null; this._lost = false; this.game = null; if (this.T) this._table(); }
+  _save() { if (!this.game) return; this._write({ stacks: this.game.p.map(q => q.stack + q.total), button: this.game.button }); }
 
   _deal() {
     const g = this.game;
