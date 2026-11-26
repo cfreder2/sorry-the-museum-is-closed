@@ -559,7 +559,7 @@ export class Car {
     const ox = this.pos.x, oz = this.pos.z;
     // On a slope, speed is shared between along and up: a steep lip sends you
     // skyward, not forward.
-    const sp = Math.hypot(this.vel.x, this.vel.z);
+    const sp = Math.hypot(this.vel.x, this.vel.z), sp0 = sp;
     let cs = 1, rise = 0, slope = 0;
     const on = this.on;
     if (!this.air && on && on.axis && sp > 0.05) {
@@ -586,7 +586,14 @@ export class Car {
       const q = 0.3, px = this.pos.x, pz = this.pos.z, gx = (heightOf(on, px + q, pz) - heightOf(on, px - q, pz)) / (2 * q), gz = (heightOf(on, px, pz + q) - heightOf(on, px, pz - q)) / (2 * q);
       this.vel.x -= GRAVITY * 0.6 * gx * dt; this.vel.z -= GRAVITY * 0.6 * gz * dt;
     }
-    this.pos.x += this.vel.x * cs * dt; this.pos.z += this.vel.z * cs * dt;
+    // A wall is a wall at any frame rate: the frame's move is made in steps no longer than the car's own radius, each one kept out
+    // of the walls and the furniture before the next. (One long step could carry the car more than half way through a wall or
+    // clean past a rail, and it was then put down on the far side: confine() takes the nearest place it may be.) At sixty frames
+    // a second, flat out, the whole move is under a radius: one step, exactly as it always was.
+    const nsub = Math.max(1, Math.ceil(sp * cs * dt / this.radius)), hdt = dt / nsub;
+    for (let sub = 0; sub < nsub; sub++) {
+    const ox = this.pos.x, oz = this.pos.z, sp = sub ? Math.hypot(this.vel.x, this.vel.z) : sp0;      // (this step's own start, and the speed it starts with)
+    this.pos.x += this.vel.x * cs * hdt; this.pos.z += this.vel.z * cs * hdt;
 
     // The stunt kit, side on: plywood does not move.
     if (sp > 0.01) {
@@ -607,9 +614,9 @@ export class Car {
       };
       const nx = this.pos.x, nz = this.pos.z;
       if (blocked(ox, oz, nx + ax, nz + az)) {
-        if (!blocked(ox, oz, ox + ax, nz + az)) { this.pos.x = ox; this.bump = Math.abs(this.vel.x); this.vel.x *= -0.25; }
-        else if (!blocked(ox, oz, nx + ax, oz + az)) { this.pos.z = oz; this.bump = Math.abs(this.vel.z); this.vel.z *= -0.25; }
-        else { this.pos.x = ox; this.pos.z = oz; this.bump = sp; this.vel.x *= -0.25; this.vel.z *= -0.25; }
+        if (!blocked(ox, oz, ox + ax, nz + az)) { this.pos.x = ox; this.bump = Math.max(this.bump, Math.abs(this.vel.x)); this.vel.x *= -0.25; }
+        else if (!blocked(ox, oz, nx + ax, oz + az)) { this.pos.z = oz; this.bump = Math.max(this.bump, Math.abs(this.vel.z)); this.vel.z *= -0.25; }
+        else { this.pos.x = ox; this.pos.z = oz; this.bump = Math.max(this.bump, sp); this.vel.x *= -0.25; this.vel.z *= -0.25; }
       }
     }
 
@@ -637,6 +644,7 @@ export class Car {
         if (l > 1e-6) { const into = (this.vel.x * mx + this.vel.z * mz) / l; if (into < 0) { this.vel.x -= mx / l * into * 1.2; this.vel.z -= mz / l * into * 1.2; this.bump = Math.max(this.bump, -into); } }
       }
     }
+    }      // (the end of a step of the move)
 
     // Up and down. Follow the ground while it is there; when it falls away
     // faster than gravity would take you, you are flying.
@@ -944,24 +952,29 @@ export class Drone {
     this.vel.y += (inp.climb * 5.2 * S.climb - this.vel.y) * Math.min(1, dt * 5 * (S.drag || 1));
     this.yaw -= inp.yaw * 2.5 * S.yaw * dt;
     const ox = this.pos.x, oy = this.pos.y, oz = this.pos.z;
-    this.pos.addScaledVector(this.vel, dt);
-
     this.bump = 0;
+    // The frame's move, in steps no longer than the drone's own radius (see Car.update: a wall is a wall at any frame rate).
+    // Flat out on W at sixty frames a second it is one step, exactly as it always was.
+    const nsub = Math.max(1, Math.ceil(this.vel.length() * dt / this.radius)), hdt = dt / nsub;
+    let floor = 0;
+    for (let sub = 0; sub < nsub; sub++) {
+    const sx = this.pos.x, sy = this.pos.y, sz = this.pos.z;      // (this step's own start)
+    this.pos.addScaledVector(this.vel, hdt);
+
     // Plywood and stone stop a drone side-on too; table tops and ramps are somewhere to land.
     if (wallAt(this.plan, this.pos.x, this.pos.z, this.pos.y - 0.07, 0.06)) {
-      if (!wallAt(this.plan, ox, this.pos.z, this.pos.y - 0.07, 0.06)) { this.pos.x = ox; this.vel.x *= -0.3; }
-      else if (!wallAt(this.plan, this.pos.x, oz, this.pos.y - 0.07, 0.06)) { this.pos.z = oz; this.vel.z *= -0.3; }
-      else { this.pos.x = ox; this.pos.z = oz; this.vel.x *= -0.3; this.vel.z *= -0.3; }
+      if (!wallAt(this.plan, sx, this.pos.z, this.pos.y - 0.07, 0.06)) { this.pos.x = sx; this.vel.x *= -0.3; }
+      else if (!wallAt(this.plan, this.pos.x, sz, this.pos.y - 0.07, 0.06)) { this.pos.z = sz; this.vel.z *= -0.3; }
+      else { this.pos.x = sx; this.pos.z = sz; this.vel.x *= -0.3; this.vel.z *= -0.3; }
     }
     // Whatever it was above before this step it is still above. (Coming down fast, a quick airframe or a slow frame moves
     // it further in one step than a deck or a plank is thick: it must land on it, not pass into it and be found under it.)
-    const floor = groundAt(this.plan, this.pos.x, this.pos.z, Math.max(this.pos.y, oy), 0.02) + 0.07;
-    this.floor = floor;
+    floor = groundAt(this.plan, this.pos.x, this.pos.z, Math.max(this.pos.y, sy), 0.02) + 0.07;
     if (this.pos.y < floor) { this.pos.y = floor; if (this.vel.y < 0) this.vel.y = 0; }
     // And a balcony, a bridge or a stair overhead is as solid from below as from above: from below. Something it is
     // already in (a lift car that has come up round it) does not push it down through itself; climbing takes it out on top.
-    const head = headAt(this.plan, this.pos.x, this.pos.z, Math.min(this.pos.y, oy)) - 0.2;
-    if (this.pos.y > head && head > floor + 0.1 && oy <= head + 0.12 && !(this._free > 0)) { this.pos.y = head; if (this.vel.y > 0) { this.bump = this.vel.y; this.vel.y = 0; } }
+    const head = headAt(this.plan, this.pos.x, this.pos.z, Math.min(this.pos.y, sy)) - 0.2;
+    if (this.pos.y > head && head > floor + 0.1 && sy <= head + 0.12 && !(this._free > 0)) { this.pos.y = head; if (this.vel.y > 0) { this.bump = this.vel.y; this.vel.y = 0; } }
     const push = this._push;
     if (confine(this.plan, this.pos, this.radius, true, push)) {
       const l = Math.hypot(push.x, push.y, push.z);
@@ -974,6 +987,8 @@ export class Drone {
         }
       }
     }
+    }      // (the end of a step of the move)
+    this.floor = floor;
     // Never trapped. Holding still with climb held and yet carried down, frame after frame, by something overhead (still
     // air under a fixed slab does not do that; flying along under a sloping plank does, and is left alone): for a moment
     // nothing overhead holds it, and it goes up through.
