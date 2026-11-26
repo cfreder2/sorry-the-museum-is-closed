@@ -62,7 +62,7 @@ feature({
   active(k) { return !!this.at && (this.on > 0 || k.inRoom('B3-42', 0.5)); },
   update(dt, k) {
     if (this.on <= 0) { this.film.material.emissiveIntensity = 0.03; return; }
-    this.on -= dt; const t = 6 - this.on, flick = t < 0.6 ? (Math.sin(t * 60) > 0 ? 1 : 0.2) : 1;
+    this.on -= dt; const t = 6 - this.on, flick = t >= 0.6 ? 1 : k.G.set.reduce ? 0.2 + 0.8 * t / 0.6 : Math.sin(t * 60) > 0 ? 1 : 0.2;      // (Reduce motion: the tube comes up steadily, it does not flicker on)
     this.film.material.emissiveIntensity = 1.1 * flick; this.film.material.color.setScalar(0.25 + 0.5 * flick);
     if (k.close(this.at, 2.2, 1)) k.camClose = this.look; else this.on = 0;
   },
