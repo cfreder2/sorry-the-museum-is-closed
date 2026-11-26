@@ -416,6 +416,7 @@ function setVehicle(kind) {
   $('stickL').lastElementChild.textContent = input.usedTouch ? (kind === 'drone' ? 'fly' : set.autogo ? 'hold to go' : 'drive') : kind === 'drone' ? 'climb · turn' : 'throttle';
   $('stickR').lastElementChild.textContent = kind === 'drone' ? 'fly' : 'steer';
   if (G.features) G.features.kit.carry._mount();      // what is being carried rides on the toy in use
+  input.latched = false;                              // 'hold my speed' is let go with the toy: latched in the car, the drone flew off forward
 }
 
 function start(fresh = false) {
@@ -1306,6 +1307,7 @@ function play(dt, real) {
     v.gentle = !!(garage.sel.car === 'buggy' ? set.gentle1 : set.gentle);      // the red RC Car is gentle as it comes (Settings, Driving); the others only if asked
     if (set.assist && !(G.auto && racing) && !G.ride) steerHelp(v, inp, dt);
   }
+  if (G.held) input.latched = false;      // (and by a robot's grip: set down by the bin, the car drove off)
   if ((racing && R.locked) || G.held) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };      // (G.held: a security robot has the toy, src/guards.js)
   stepLifts(G.plan, dt, [v.pos]);
   if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else if (G.ride) { try { G.ride(dt, inp); } catch (e) { console.error('ride', e); G.ride = null; } } else v.update(dt, inp);      // (held: src/guards.js moves the toy itself; G.ride: something else carries it, a sled say, src/sledhill.js)
