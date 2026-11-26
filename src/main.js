@@ -8,7 +8,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
 import { LOWMEM } from './budget.js';
-import { Visibility } from './visible.js';      // (prototype, ?cull: what cannot be seen from the room you are in is not drawn)
+import { Visibility } from './visible.js';      // (?cull: what cannot be seen from where the camera is is not drawn)
 import { Streamer } from './stream.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut, stripShut } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
@@ -1674,7 +1674,7 @@ function tick(now) {
   if (G.state === 'loading') { renderer.render(scene, camera); return; }
   if (G.state !== 'paused') G.t += dt;
   govern(dt);
-  if (G.vis && G.state !== 'play' && G.state !== 'study') G.vis.update(camera.position, null, true);      // (?cull) anywhere but in play (or stepped up to a picture), everything is drawn
+  if (G.vis && G.state !== 'play' && G.state !== 'study') G.vis.update(camera.position, null, true, null, false);      // (?cull) anywhere but in play (or stepped up to a picture), everything is drawn
 
   input.capture = G.state === 'play' || G.state === 'study';
   input.poll(input.capture || (G.state === 'voyage' && G.voyage && !G.voyage.open));      // a gamepad: its buttons drive here, and are keys everywhere else (src/input.js)
@@ -1761,17 +1761,18 @@ function tick(now) {
   if (G.state === 'paused') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
   else if (G.cineEye && G.state === 'play') { const e = G.cineEye; camera.position.copy(e.at); camera.up.set(0, 1, 0); camera.lookAt(e.look); if (e.fov && Math.abs(camera.fov - e.fov) > 0.01) { camera.fov = e.fov; camera.updateProjectionMatrix(); } }      // a feature's cinematic camera, held exactly ({ at, look: Vector3, fov }: src/finalelaunch.js)
+  // (?cull) Made once the shut rooms have left the plan (the table is for the plan as it is played). Here, where the camera is where it will be drawn from and before anything is
+  // drawn from it (the chrome toy's mirror is next). Whatever has been built since last time is looked at twice a second: until then it is simply drawn.
+  if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
+    if (!G.vis) { G.vis = new Visibility(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register(); }
+    else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.vis.register();
+    G.vis.update(camera.position, G.vehicle && G.vehicle.pos, !!G.cineEye || !!G.cutscene || stage.on, mirror.enabled ? G.floorY || 0 : null, !!(G.live && G.live.live));
+  }
   // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
   lampNear(dt);
   fitNear();
   if (G.stream) { G.stream.update(dt, camera.position); if ((G._reg = (G._reg || 0) + 1) % 600 === 0) G.stream.register(); }      // (and whatever was built since)
-  // (?cull) Made once the shut rooms have left the plan (the table was made for the plan as it is played); things built later are counted every ten seconds.
-  if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
-    if (!G.vis) { G.vis = new Visibility(G.museum.group, G.plan, G._pvs); G.vis.register(); }
-    else if ((G._vreg = (G._vreg || 0) + 1) % 600 === 0) G.vis.register();
-    G.vis.update(camera.position, G.roomId, !!G.cineEye || !!G.cutscene || stage.on);
-  }
   mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
   composer.render();
 }
