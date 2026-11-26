@@ -22,6 +22,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { Geo } from './geo.js';
 import { mice } from './mice.js';
+import { roomAt } from './plan.js';
 import * as TX from './textures.js';
 
 const KEY = 'after-hours.nests';
@@ -30,13 +31,17 @@ const NEAR = 16;                      // how near the toy must be before a nest 
 const REACH = 1.2;                    // how near the Director's desk a toy must be to try its drawer
 const GREEN = new THREE.Color(0.32, 1, 0.42);
 
-// What is in each nest to read, in the order they lead on. `say` is what is said when it is read: where to go next.
+// What is in each nest to read, in the order they lead on. `say` is what is said of it when it is read; where to go next
+// is said after it, and is worked out then (_line): the room the next mouse really sits in tonight, by the name the
+// banner and the map print, or the room its grille is in if it has been seen home already. (The lines used to name a
+// wing, "the south galleries", "the Modern Wing mouse", and the mouse was somewhere a player could not look up; and
+// "upstairs, back of house" had two Director's offices to choose from.)
 const CLUES = {
-  north: { kind: 'file', title: 'PROJECT GREEN CHEESE · p.1', lines: ['Recovered craft held at', 'SUB-LEVEL 9.', 'Crystals leaking. Rodents ####'], say: 'Page one of a chewed-up file. The mouse in the south galleries has more of it.' },
-  south: { kind: 'file', title: 'PROJECT GREEN CHEESE · p.2', lines: ['The mice glow now.', 'They steal shiny things.', 'Samples sent to the Rice ######'], say: 'The mice carry it all off. One of them lives over in the Rice building.' },
-  rice: { kind: 'photo', title: 'A photograph', lines: ['Sub-level 9. The night', 'it came in.  — D.'], say: 'Something round, under a tarp. D for the Director? The Modern Wing mouse has been hoarding too.' },
-  modern: { kind: 'file', title: 'PROJECT GREEN CHEESE · p.3', lines: ['Only the Director goes down.', 'The way is written up in ####', 'Spare desk key: LOST.'], say: 'A lost key. The mouse on the lower level keeps the shiniest things.' },
-  lower: { kind: 'key', title: 'DIRECTOR · DESK', lines: ['A tiny silver saucer on a key ring,', 'warm to the touch.'], say: 'The key to the Director’s desk. Upstairs, back of house: the Director’s office.' },
+  north: { kind: 'file', title: 'PROJECT GREEN CHEESE · p.1', lines: ['Recovered craft held at', 'SUB-LEVEL 9.', 'Crystals leaking. Rodents ####'], say: 'Page one of a chewed-up file.' },
+  south: { kind: 'file', title: 'PROJECT GREEN CHEESE · p.2', lines: ['The mice glow now.', 'They steal shiny things.', 'Samples sent to the Rice ######'], say: 'The mice carry it all off.' },
+  rice: { kind: 'photo', title: 'A photograph', lines: ['Sub-level 9. The night', 'it came in.  — D.'], say: 'Something round, under a tarp. D for the Director?' },
+  modern: { kind: 'file', title: 'PROJECT GREEN CHEESE · p.3', lines: ['Only the Director goes down.', 'The way is written up in ####', 'Spare desk key: LOST.'], say: 'A lost key.' },
+  lower: { kind: 'key', title: 'DIRECTOR · DESK', lines: ['A tiny silver saucer on a key ring,', 'warm to the touch.'], say: 'The key to the Director’s desk.' },
 };
 // The order the nests lead on in, a ring: each one's clue is about the next. Which nest the chain leads to now: the
 // first not yet read after the one read last (so the map's "?" in src/story.js agrees with the words just read, wherever
@@ -50,6 +55,21 @@ export function nextNest(st) {
   for (let j = 0; j < n; j++) { const w = NEST_ORDER[(i0 + j) % n]; if (!st.read[w]) return w; }
   return null;
 }
+// How the next nest is spoken of, by whose it is. {room}: where its mouse sits. {level}: the level that is on.
+// (None for the north nest: the ring comes round to it only past the lower one, and by then the key is in hand.)
+const LEADS = {
+  south: 'A mouse in {room} has more of it.',
+  rice: 'One of them lives over in the Rice building: try {room}.',
+  modern: 'The mouse in {room} has been hoarding too.',
+  lower: 'The mouse down on {level}, in {room}, keeps the shiniest things.',
+};
+const HOME = 'The mouse you saw home in {room} has more: its vent will open now.';      // (its mouse is in already)
+const HAVE_KEY = 'You have the key to the Director’s desk already.';                     // (a nest read after the key was taken)
+const WRONG_DESK = 'The key does not fit this one.';                                     // (the desk in the other Director's office, key in hand)
+const LEVELS = { LL: 'Sub-level 1', 1: 'the first level', 2: 'the second level', 3: 'the third level' };      // as the map's tabs have them
+const levelName = r => LEVELS[r.floor] || 'another level';
+// A room, as the banner and the map's card name it (main.js roomTitle).
+const roomName = r => (r.kind === 'hall' ? 'Griffin Court' : r.kind === 'corridor' ? 'Gallery 11' : String(r.gallery || 'a room').replace(/^Galleries /, 'Gallery '));
 const DESK = { kind: 'folder', title: 'PROJECT GREEN CHEESE · ACCESS', lines: ['The way down is behind a painting.', 'My whiteboard says which one,', 'and what to touch.  — D.'], say: 'The whiteboard, here in this office.' };
 
 // ---------------------------------------------------------------- the cards
@@ -154,6 +174,14 @@ function prep(g, hex) {
 }
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V = new THREE.Vector3(), S = new THREE.Vector3();
 function placed(g, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) { M4.compose(V.set(x, y, z), Q.setFromEuler(E.set(rx, ry, rz)), S.set(sx, sy, sz)); g.applyMatrix4(M4); return g; }
+
+// A desk as the fit-out set it down (a footprint with its back at one edge, facing (fx, fz): the top is the first 0.8 m of
+// it, the chair beyond): its middle, the face of its drawer, and its top on the floor, which is what a toy pulls up to.
+function deskTop(d) {
+  const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2, depth = Math.abs(d.fx) > 0.5 ? d.x1 - d.x0 : d.z1 - d.z0, bx = cx - d.fx * depth / 2, bz = cz - d.fz * depth / 2;
+  const front = { x: bx + d.fx * 0.8, z: bz + d.fz * 0.8 }, hw = (Math.abs(d.fx) > 0.5 ? d.z1 - d.z0 : d.x1 - d.x0) / 2, wx = Math.abs(d.fz) * hw, wz = Math.abs(d.fx) * hw;
+  return { cx, cz, front, top: { x0: Math.min(bx, front.x) - wx, x1: Math.max(bx, front.x) + wx, z0: Math.min(bz, front.z) - wz, z1: Math.max(bz, front.z) + wz } };
+}
 
 feature({
   id: 'nests',
@@ -389,8 +417,7 @@ feature({
     const d = r && r.desk; if (!d) return null;
     // The desk was set down with its back at one edge of this footprint, facing (fx, fz): the top is the first 0.8 m of it,
     // the chair beyond. A drawer across the middle, under the top, on the chair's side.
-    const cx = (d.x0 + d.x1) / 2, cz = (d.z0 + d.z1) / 2, depth = Math.abs(d.fx) > 0.5 ? d.x1 - d.x0 : d.z1 - d.z0, bx = cx - d.fx * depth / 2, bz = cz - d.fz * depth / 2;
-    const front = { x: bx + d.fx * 0.8, z: bz + d.fz * 0.8 }, y = r.y;
+    const { cx, cz, front, top } = deskTop(d), y = r.y;
     const G = new THREE.Group(); G.position.set(front.x, y, front.z); G.rotation.y = Math.atan2(d.fx, d.fz);      // local z: out from the front of the drawer
     const wood = new THREE.MeshStandardMaterial({ color: 0x4a2c1a, roughness: 0.6, emissive: 0x24140a, emissiveIntensity: 0.6 });
     const brass = new THREE.MeshStandardMaterial({ color: 0xd2a043, metalness: 0.8, roughness: 0.35, emissive: 0x4a3410, emissiveIntensity: 0.7 });
@@ -407,9 +434,6 @@ feature({
     folder.rotation.x = -Math.PI / 2; folder.position.set(0, 0.625, -0.22); drawer.add(folder);
     const clip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.006, 0.07), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 1.7, 0.7), toneMapped: false })); clip.position.set(0.14, 0.63, -0.36); drawer.add(clip);
     this.k.group.add(G);
-    // The top of it, on the floor (from its back edge to the drawer's face, as wide as it stands): what a toy pulls up to.
-    const hw = (Math.abs(d.fx) > 0.5 ? d.z1 - d.z0 : d.x1 - d.x0) / 2, wx = Math.abs(d.fz) * hw, wz = Math.abs(d.fx) * hw;
-    const top = { x0: Math.min(bx, front.x) - wx, x1: Math.max(bx, front.x) + wx, z0: Math.min(bz, front.z) - wz, z1: Math.max(bz, front.z) + wz };
     this.desk = { room: r, G, drawer, out: 0, want: 0, at: { x: front.x + d.fx * 0.25, y, z: front.z + d.fz * 0.25 }, fx: d.fx, fz: d.fz, c: { x: cx, y, z: cz }, top };
     if (this.state.desk) { this.desk.out = this.desk.want = 1; drawer.position.z = 0.32; }
     return this.desk;
@@ -449,9 +473,48 @@ feature({
     const got = this.list.filter(q => this.state.read[q.n.wing]).length;
     if (c.kind === 'key') k.callout('THE DIRECTOR’S DESK KEY');
     else k.callout(`NEST ${got} / ${this.list.length}`);
-    k.say(c.say, 6);
+    k.say(this._line(v), 0, 8, true);      // (at once, not in its turn: it is about the card that has just come up, and behind other lines it was said after the toy had driven off)
     if (got >= this.list.length && k.find('nests')) k.say('Every nest found. Whatever is under the museum, the mice have been into it.', 6);
     this._marks();
+  },
+  // What is said as a nest is read: what the thing is, and where the chain goes from here (nextNest above: the same answer
+  // the map's "?" gives).
+  _line(v) {
+    const c = v.clue, st = this.state, P = this.k.plan;
+    if (c.kind === 'key') return `${c.say} ${this._office()}`;
+    if (st.desk) return c.say;                                        // (the desk has been opened: nothing left to send you to)
+    if (st.key) return `${c.say} ${HAVE_KEY} ${this._office()}`;
+    const w = nextNest(st), m = w && (mice.list || []).find(q => q.wing && q.wing.id === w);
+    if (!m) return c.say;
+    const elsewhere = r => (r && Math.abs(r.y - v.n.y) > 1 ? `, on ${levelName(r)},` : '');
+    if (mice.seenHome(w)) { const r = P.byId[m.room]; return r ? `${c.say} ${HOME.replace('{room}', roomName(r) + elsewhere(r))}` : c.say; }
+    const r = roomAt(P, m.pts[0].x, m.pts[0].z, m.y + 0.1);
+    return r && LEADS[w] ? `${c.say} ${LEADS[w].replace('{room}', roomName(r)).replace('{level}', levelName(r))}` : c.say;
+  },
+  // Where the Director's office is, in words: its level; which end of its corridor its door is at, if it is the last door
+  // along it; and the nearest gallery that has a door into that corridor. Worked out from the plan, once.
+  _office() {
+    if (this._off !== undefined) return this._off;
+    const D = this._desk(), P = this.k.plan; this._end = '';
+    if (!D) return (this._off = 'It is for the Director’s office.');
+    const r = D.room, lvl = levelName(r), d0 = P.doorsOf(r.id).find(d => !d.hidden && !d.out && P.byId[d.a === r.id ? d.b : d.a]), c = d0 && P.byId[d0.a === r.id ? d0.b : d0.a];
+    if (!c) return (this._off = `The Director’s office is on ${lvl}.`);
+    const longZ = c.z1 - c.z0 > c.x1 - c.x0, at = d => (longZ ? (d.z0 + d.z1) / 2 : (d.x0 + d.x1) / 2), all = P.doorsOf(c.id).filter(d => !d.hidden && !d.out), mine = at(d0);
+    this._end = mine <= Math.min(...all.map(at)) + 0.01 ? (longZ ? 'north' : 'west') : mine >= Math.max(...all.map(at)) - 0.01 ? (longZ ? 'south' : 'east') : '';
+    let g = null, gd = Infinity; for (const d of all) { const o = P.byId[d.a === c.id ? d.b : d.a]; if (o && o.kind === 'gallery' && Math.abs(at(d) - mine) < gd) { gd = Math.abs(at(d) - mine); g = o; } }
+    const behind = g ? `, behind ${roomName(g)}` : ''; this._corridor = c.id;
+    return (this._off = this._end ? `The Director’s office is on ${lvl}: the last door at the ${this._end} end of the ${roomName(c)}${behind}.` : `The Director’s office is on ${lvl}, off the ${roomName(c)}${behind}.`);
+  },
+  // The desk in the other Director's office (the plan has two rooms of that name; the whiteboard with the clue, and so the
+  // desk with the folder, is in one): it has no drawer to open, and with the key in hand it says which desk has.
+  _desk2() {
+    if (this.desk2 !== undefined) return this.desk2;
+    this.desk2 = null;
+    const D = this._desk(), P = this.k.plan; if (!D) return null;
+    const r = P.rooms.find(q => q !== D.room && !q.secret && q.desk && /^Director's office/i.test(q.gallery || '')); if (!r) return null;
+    this._office();
+    const same = P.doorsOf(r.id).some(d => (d.a === r.id ? d.b : d.a) === this._corridor);
+    return (this.desk2 = { room: r, y: r.y, top: deskTop(r.desk).top, where: this._end && same ? `The Director’s own desk is in the last office at the ${this._end} end of this corridor.` : `The Director’s own desk is in the other office: ${this._office()}` });
   },
   _openDesk() {
     const k = this.k, D = this.desk;
@@ -495,6 +558,9 @@ feature({
       if (!this.state.desk) return { verb: 'OPEN', hint: this.state.key ? 'The Director’s desk. You have its key.' : null, act: () => this._openDesk() };
       return { verb: 'READ', act: () => { if (this.showing === DESK) { this._show(null); return; } this._show(DESK, k.pos); if (!this.state.folder) { this.state.folder = true; this.save(); k.say(DESK.say, 5); } } };
     }
+    const E = this._desk2();
+    if (E && Math.abs(p.y - E.y) < 0.8 && Math.hypot(Math.max(E.top.x0 - p.x, 0, p.x - E.top.x1), Math.max(E.top.z0 - p.z, 0, p.z - E.top.z1)) < REACH)
+      return { verb: 'OPEN', act: () => { k.synth.noise(0.12, { vol: 0.04, lp: 1800 }); k.say(this.state.key && !this.state.desk ? `${WRONG_DESK} ${E.where}` : 'Locked. A little brass keyhole.', 0, 6, true); } };
     return null;
   },
 
