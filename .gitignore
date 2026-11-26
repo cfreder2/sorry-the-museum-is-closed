@@ -10,3 +10,6 @@ tools/.cache/
 
 # what tools/build.mjs stages for itch.io
 dist/
+
+# the room map’s data: made by tools/dev/roommap/dump.mjs, not kept
+tools/dev/roommap/map-data.json
