@@ -1394,6 +1394,20 @@ function addStunts(plan) {
         S.push({ skin: 'bench', x0: rect[0], x1: rect[1], z0: rect[2], z1: rect[3], axis: null, h0: r.y + 0.5, h1: r.y + 0.5, thick: 0.1, base: r.y });
       }
     }
+    // Gallery 226 (the Degas room) has a door in every wall and two in one: its middle is all doorway, and it got no bench.
+    // It is given one, in the south-east quarter, before the pictures there: the hats out of The Millinery Shop roost on a
+    // bench (src/escape/hats.js) and keep within 18 m of their picture (src/escapes.js), and the nearest was 38 m off.
+    // That quarter is the far one from the portrait beside the Millinery Shop that nothing settles near (QUIET_WORKS).
+    if (r.id === 'G226') {
+      const sd = plan.doorsOf(r.id).find(d => same(d.y, r.y) && !d.hidden && d.along === 'z' && d.z0 >= r.z1 - 0.01), sx = sd ? sd.x1 : (r.x0 + r.x1) / 2, bx = (sx + r.x1) / 2 + 0.1;
+      for (const off of r.x1 - sx >= 4.6 ? [2.9, 2.5, 2.2] : []) {
+        const bz = r.z1 - off, rect = [bx - 1.4, bx + 1.4, bz - 0.38, bz + 0.38];
+        if (F.lanes.some(l => hits(rect, l)) || S.some(s => onLevel(s, r.y) && hits(rect, foot(s, r.y), 0.3))) continue;
+        plan.benches.push({ x: bx, y: r.y, z: bz, alongX: true, room: r.id });
+        S.push({ skin: 'bench', x0: rect[0], x1: rect[1], z0: rect[2], z1: rect[3], axis: null, h0: r.y + 0.5, h1: r.y + 0.5, thick: 0.1, base: r.y });
+        break;
+      }
+    }
   }
 
   // ---- outside ----
