@@ -339,7 +339,7 @@ feature({
   _robot(dt, k, t) {
     const r = this.run, b = this.bot, gd = this.gd, G = k.G, calm = r.calm, P = this.probe;
     if (t < T.robot) return;
-    if (!r.botOn) { r.botOn = true; this._park(); b.mode = 'chase'; b.mt = 0; gd._plan(b, this.R1.x, this.R1.z); }
+    if (!r.botOn) { r.botOn = true; this._park(); b.mt = 0; gd._plan(b, this.R1.x, this.R1.z); }
     const cam = G.cineEye ? G.cineEye.at : G.camera.position, sx = P.pos.x, sz = P.pos.z;
     const drive = to => { const d = Math.hypot(to.x - b.x, to.z - b.z); if (d < 0.05) { b.v = 0; return true; } if (b.pk < b.pn) gd._follow(b, Math.min(BOT.run, Math.sqrt(2 * 9 * d) + 0.35), dt); return false; };
     const look = (x, z, rate) => { b.look = turn(b.look, Math.atan2(x - b.x, z - b.z), rate * dt); };
@@ -347,8 +347,12 @@ feature({
     if (t < T.chase) {
       if (drive(this.R1)) b.yaw = turn(b.yaw, Math.atan2(sx - b.x, sz - b.z), 5 * dt);
       if (t > T.seen) look(sx, sz, 7); else b.look = b.yaw;
-      if (t >= T.charge && t < T.zap) { b.mode = 'charge'; b.mt = t - T.charge; this._once('charge', T.charge, () => gd.sfx.charge()); }
-      else if (t >= T.zap) b.mode = t < T.zapEnd ? 'hold' : 'chase';
+      // (Still beyond the doorway it is as it is on its beat: a robot after something shows its "!" through walls, and
+      // here that would be on the wall beside the picture before it is in the room. It goes red as it comes through.)
+      this._once('charge', T.charge, () => gd.sfx.charge());
+      if (b.x > this.L.x1 + 0.1) b.mode = 'patrol';
+      else if (t >= T.charge && t < T.zap) { b.mode = 'charge'; b.mt = t - T.charge; }
+      else b.mode = t >= T.zap && t < T.zapEnd ? 'hold' : 'chase';
       // the bolt, from its prong to the saucer
       if (t >= T.zap && t < T.zapEnd) {
         const e = gd._emitter(b, this.v1), hit = this.v2.copy(P.pos);
