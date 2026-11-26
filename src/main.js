@@ -676,7 +676,11 @@ input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
 upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study') && !document.body.classList.contains('sd-open')) pause(); });      // (not at the security desk's computer, which works either way up, and is easier to type at upright: src/secdesk.js)
-document.addEventListener('visibilitychange', () => { if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
+// Leaving (the tab hidden, the page put away): what is written a moment behind is written now. The works seen wait a second and a
+// half and the score nearly half a second: close the tab inside that and the last work was unseen next time.
+const leaving = () => { if (G.museum && G.museum.flush) G.museum.flush(); score.write(); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) leaving(); if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
+addEventListener('pagehide', leaving);
 
 const toasts = [];
 // `now`: it cannot wait its turn (a robot has just seen you): it goes up at once, over whatever is showing.
