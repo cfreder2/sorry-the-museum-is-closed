@@ -28,7 +28,7 @@ import { feature, features } from './features.js';
 import { MOTIF, motifVoice, hz } from './motif.js';
 import { KINDS } from './lostfound.js';
 import { loadBooks, booksFor } from './books.js';
-import { startVoyage, voyageSaved } from './voyage.js';
+import { startVoyage, voyageSaved, voyageFinished } from './voyage.js';
 import * as TX from './textures.js';
 
 const KEY = 'after-hours.launch';                                  // { toy, cargo }: kept at the launch, for a reload before the voyage saves
@@ -152,7 +152,13 @@ feature({
     if (!this.fin.built) this.fin._build();
     if (!this.hooked) this._hook(k);
     if (st === 'played') { this.startBeam(); return; }
-    if (past(st, 'launched')) { k.say('The pads are dark. The craft is resting.', 4); return; }
+    if (past(st, 'launched')) {
+      // A voyage flown home before the Moon museum had opened (older builds offered Fly home too soon): the craft is back and
+      // still loaded, and nothing else would ever start it again. The console sends it back up.
+      const G = k.G, s = voyageSaved();
+      if (s && s.stage === 'home' && !voyageFinished() && !G.voyage) { k.say('The craft is still loaded. Off it goes again.', 3); this._after(1.6, () => { if (!G.voyage && G.state === 'play') startVoyage(G, { cargo: s.cargo, toy: G.vehicle.kind, stage: 'space' }); }); return; }
+      k.say('The pads are dark. The craft is resting.', 4); return;
+    }
     if (!this.consoleApi) { k.say('Five pads, dark. Nothing answers.', 4); return; }
     this.openTones();
   },
