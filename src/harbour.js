@@ -279,9 +279,11 @@ feature({
     this.splash.update(dt); this.sparks.update(dt);
     if (this.ring.visible) { const r = this.ring; r.userData.t += dt; const u = r.userData.t / 1.1; r.scale.setScalar(1 + u * 5); r.material.opacity = 0.4 * (1 - u) * (1 - u); if (u >= 1) r.visible = false; }
     // the light: turning slowly; flashing and turning fast while it is being visited
+    // (Reduce motion: visited, the lamp burns brighter and steady and turns no faster; it does not flash.)
+    const calm = !!(k.G.set && k.G.set.reduce);
     { const on = this.show > 0; this.show = Math.max(0, this.show - dt);
-      this.beam.rotation.y += dt * (on ? 2.6 : 0.7);
-      const flash = on ? 0.5 + 0.5 * Math.sign(Math.sin(this.t * 14)) : 1;
+      this.beam.rotation.y += dt * (on && !calm ? 2.6 : 0.7);
+      const flash = !on || calm ? 1 : 0.5 + 0.5 * Math.sign(Math.sin(this.t * 14));
       this.beamM.uniforms.uI.value = on ? 0.22 + 0.3 * flash : 0.16;
       this.lamp.material.color.setRGB(3.2 * (on ? 0.4 + flash : 1), 0.7 * (on ? 0.4 + flash : 1), 0.55 * (on ? 0.4 + flash : 1));
       const s = on ? 3 + flash * 2.2 : 3 + Math.sin(this.t * 1.3) * 0.2; this.glow.scale.set(s, s, 1);
@@ -290,7 +292,7 @@ feature({
     // Green for a moment, flickering, while something circles the lantern (src/probe.js sets this.green, in seconds).
     if (this.green > 0 || this.wasGreen) {
       this.green = Math.max(0, (this.green || 0) - dt);
-      const on = this.green > 0, f = on ? (Math.sin(this.t * 31) * Math.sin(this.t * 17.3) > -0.2 ? 1 : 0.25) : 0;
+      const on = this.green > 0, f = !on ? 0 : calm ? 1 : Math.sin(this.t * 31) * Math.sin(this.t * 17.3) > -0.2 ? 1 : 0.25;
       if (on) { this.lamp.material.color.setRGB(0.5 * f, 3.0 * f, 0.9 * f); this.glow.material.color.setRGB(0.2, 1.0, 0.4).multiplyScalar(0.4 + 0.6 * f); this.beamM.uniforms.uC.value.setRGB(0.3, 1.0, 0.45); this.beamM.uniforms.uI.value = 0.3 * f; this.glass.material.color.setRGB(0.35, 0.95, 0.5); this.halo.material.color.setRGB(0.04, 0.22 * f, 0.08); }
       else { this.glow.material.color.setRGB(1.0, 0.25, 0.2); this.beamM.uniforms.uC.value.setRGB(1.0, 0.42, 0.36); this.glass.material.color.setRGB(0.9, 0.3, 0.28); }
       this.wasGreen = on;
