@@ -725,12 +725,13 @@ const GLOW = 0.9, GLOW_RIM = 0.06;
 function exposedCards(museum, arts) {
   const cards = museum && museum.cards; if (!cards || !arts.length) return null;
   const M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3();
-  const pos = [];
+  const pos = [], at = new Map();
   for (const a of arts) {
     cards.getMatrixAt(a.i, M); M.decompose(P, Q, S);
     if (S.x < 0.01) continue;                                   // a work with no card
     a.exposed = true; if (museum._paint) museum._paint(a);       // the card itself takes a green cast, dark or lit
     // Out into the room along the work's normal (the card is a hair off the wall; its own +z is no guide).
+    at.set(a, pos.length);
     pos.push([P.clone().add(new THREE.Vector3(a.nx, 0, a.nz).multiplyScalar(0.01)), Q.clone(), S.x, S.y]);
   }
   if (!pos.length) return null;
@@ -750,6 +751,13 @@ function exposedCards(museum, arts) {
   pos.forEach(([p, q], i) => m.setMatrixAt(i, M.compose(p, q, S.set(W, H, 1))));
   m.frustumCulled = false; m.renderOrder = 5;
   museum.group.add(m);
+  // One work's ring put out or lit again (src/entry.js: the work in the entrance hall has not been touched until the scan).
+  m.userData.expose = (a, on) => {
+    const i = at.get(a); if (i == null) return false;
+    const [p, q] = pos[i]; m.setMatrixAt(i, on ? M.compose(p, q, S.set(W, H, 1)) : M.compose(p, q, S.set(0, 0, 0))); m.instanceMatrix.needsUpdate = true;
+    a.exposed = !!on; if (museum._paint) museum._paint(a);
+    return true;
+  };
   return m;
 }
 
@@ -809,6 +817,10 @@ feature({
     return LIVES.flatMap(L => (L.spec.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: L.cx + L.nx * 1.4, y: L.y, z: L.cz + L.nz * 1.4 })));
   },
   reset() { for (const L of LIVES) L.reset(); },
+  // For src/entry.js. lifeOf: the Life of a work hung tonight (or undefined). expose: its label's green light, on or off
+  // (the same ring and the same cast on the card as every living work's; all of them are on from the start).
+  lifeOf(art) { return this.byArt && this.byArt.get(art); },
+  expose(art, on) { return !!(this.exposed && this.exposed.userData.expose(art, on)); },
 });
 
 // ------------------------------------------------------------------ checks and test aids --

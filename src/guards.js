@@ -88,9 +88,9 @@ function glowGeo() {
   for (const g of [visor, beacon, tip]) if (g.attributes.uv) g.deleteAttribute('uv');
   return mergeGeometries([visor.toNonIndexed(), beacon.toNonIndexed(), tip.toNonIndexed()]);
 }
-const EMIT = new THREE.Vector3(0.12, BOT.emitter, 0.14);        // where the prong's tip is, in the head's frame
+export const EMIT = new THREE.Vector3(0.12, BOT.emitter, 0.14);        // where the prong's tip is, in the head's frame
 
-const MOOD = {
+export const MOOD = {
   calm: new THREE.Color(0.25, 1.1, 1.6), wary: new THREE.Color(2.0, 1.15, 0.15), hunt: new THREE.Color(2.4, 0.18, 0.12),
   poolCalm: new THREE.Color(0.55, 0.72, 0.85), poolWary: new THREE.Color(0.9, 0.62, 0.18), poolHunt: new THREE.Color(1.0, 0.2, 0.14),
 };
@@ -121,7 +121,7 @@ function poolMesh() {
 // A jagged line of light from the prong to whatever it hits, re-struck every few hundredths of a second:
 // a strip per segment, turned to face the camera, white-hot down the middle and blue at the edges.
 const MAXS = 40;
-class Bolt {
+export class Bolt {
   constructor(parent) {
     const g = this.geo = new THREE.BufferGeometry();
     this.pos = new Float32Array(MAXS * 12); this.alpha = new Float32Array(MAXS * 4);
@@ -191,7 +191,7 @@ class Bolt {
 }
 
 // Sparks: a few dozen points, flung and falling, hot blue-white going out.
-class Sparks {
+export class Sparks {
   constructor(parent) {
     const n = this.n = 96; this.p = new Float32Array(n * 3); this.v = new Float32Array(n * 3); this.life = new Float32Array(n); this.c = new Float32Array(n * 3); this.next = 0;
     const g = this.geo = new THREE.BufferGeometry();
@@ -500,6 +500,8 @@ feature({
     const lamp = !!G.lampOn, drone = v.kind === 'drone';
     let nearest = 1e9;
     for (const b of this.bots) {
+      // (the lobby's robot is kept out of the lobby until the visitors' machine has been seen off: src/entry.js)
+      if (b.lobby && this.lobbyOff) { b.near = false; b.group.visible = false; b.pool.visible = false; continue; }
       const dx = p.x - b.x, dz = p.z - b.z, d2 = dx * dx + dz * dz, dy = p.y - b.fy;
       const sameLevel = dy > -1.5 && dy < 4;
       b.near = sameLevel && d2 < 45 * 45; b.far = !sameLevel || d2 > 60 * 60;

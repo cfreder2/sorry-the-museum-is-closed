@@ -37,7 +37,7 @@ import { MOTIF, MOTIF_COLOURS, motifVoice } from './motif.js';
 import * as TX from './textures.js';
 import { night } from './garage.js';
 const KEY = 'after-hours.probe';
-const GREEN = new THREE.Color(0.32, 1, 0.42);
+export const GREEN = new THREE.Color(0.32, 1, 0.42);
 const R = 0.4;             // its radius: 80 cm across, bigger than the car is long (it still clears the vent, 1.2 m by 0.75)
 const FLY = 0.7;           // the height of its middle over the floor indoors (the pictures start at 0.8 m)
 const LEAD = 3.2;          // how far ahead of you it keeps, along its way out (metres)
@@ -97,13 +97,13 @@ const PAL = /* glsl */`
 // Light added to the frame, but only where the frame is not a work of art: the source is weighted by the destination's
 // alpha (0 on a canvas: src/finish.js keepTrue), and the alpha is left as it was. The material's colour must already
 // be multiplied by its own coverage (as an additive glow's is).
-function artSafe(m) {
+export function artSafe(m) {
   Object.assign(m, { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstAlphaFactor, blendDst: THREE.OneFactor,
     blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor, fog: false });
   return m;
 }
 // A glow on a surface of revolution (the column, the field): scrolling noise, soft at the silhouette, brightest at one end.
-function beamMaterial(U, o) {
+export function beamMaterial(U, o) {
   const F = x => Number(x).toFixed(3);
   return artSafe(new THREE.ShaderMaterial({
     uniforms: { uTime: U.uTime, uCol: { value: new THREE.Color() }, uK: { value: 0 } },
@@ -126,7 +126,7 @@ function beamMaterial(U, o) {
   }));
 }
 
-function buildProbe() {
+export function buildProbe() {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body); g.name = 'probe';
   const env = night();
   const cols = MOTIF_COLOURS.map(c => new THREE.Color(c));
@@ -225,7 +225,7 @@ function buildProbe() {
 // The trail: a ribbon of light along where it has been, turned to face the camera, tapering and fading with age, its
 // colour running through the call's. A ring of points (the newest first, the head where it is now); each frame only the
 // head moves, and a new point is laid down every `step` metres.
-class Ribbon {
+export class Ribbon {
   constructor(n = 64) {
     this.N = n; this.n = 0; this.P = new Float32Array(n * 3); this.T = new Float32Array(n); this.C = new Float32Array(n * 3); this.hue = 0;
     const g = this.geo = new THREE.BufferGeometry(), V = n * 2;
@@ -297,7 +297,7 @@ class Ribbon {
 
 // Motes: a few slow sparks shed from under it, in the call's colours, drifting and twinkling out. Each is written once,
 // when it is shed; the shader moves it from there.
-class Motes {
+export class Motes {
   constructor(n = 40) {
     this.N = n; this.i = 0; this.acc = 0;
     const g = this.geo = new THREE.BufferGeometry();
@@ -345,6 +345,26 @@ class Motes {
     this.mat.uniforms.uTime.value = now; this.mat.uniforms.uLife.value = o.life; this.mat.uniforms.uSize.value = o.size;
     this.mesh.visible = true;
   }
+}
+
+// The pool of its light on the floor under it: green in the middle, the lamps' colours going round it (a flat square, one
+// metre across until scaled; U: the probe's shared uniforms).
+export function floorPool(U) {
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), artSafe(new THREE.ShaderMaterial({
+    uniforms: { uTime: U.uTime, uCols: U.uCols, uGlow: { value: GREEN.clone() }, uK: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float uTime; uniform vec3 uGlow; uniform float uK; varying vec2 vUv;
+      ${PAL}
+      void main() {
+        vec2 q = vUv * 2.0 - 1.0; float r = length(q), a = atan(q.y, abs(q.x) < 1e-5 ? 1e-5 : q.x) / 6.2832;
+        float core = exp(-r * r * 9.0), rr = (r - 0.42) / 0.16, ring = exp(-rr * rr);
+        vec3 c = uGlow * core + pal5(a + uTime * 0.07) * ring * 0.14;
+        gl_FragColor = vec4(c * uK * (1.0 - smoothstep(0.75, 1.0, r)), 1.0);
+      }`,
+    polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+  })));
+  pool.renderOrder = 3;
+  return pool;
 }
 
 // ---------------------------------------------------------------- the log and the note
@@ -408,20 +428,8 @@ feature({
     this.ribbon = new Ribbon(); k.group.add(this.ribbon.mesh);
     this.motes = new Motes(); k.group.add(this.motes.mesh);
     // a pool of its light on the floor under it: green in the middle, the lamps' colours going round it
-    this.pool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), artSafe(new THREE.ShaderMaterial({
-      uniforms: { uTime: M.U.uTime, uCols: M.U.uCols, uGlow: { value: GREEN.clone() }, uK: { value: 0 } },
-      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: `uniform float uTime; uniform vec3 uGlow; uniform float uK; varying vec2 vUv;
-        ${PAL}
-        void main() {
-          vec2 q = vUv * 2.0 - 1.0; float r = length(q), a = atan(q.y, abs(q.x) < 1e-5 ? 1e-5 : q.x) / 6.2832;
-          float core = exp(-r * r * 9.0), rr = (r - 0.42) / 0.16, ring = exp(-rr * rr);
-          vec3 c = uGlow * core + pal5(a + uTime * 0.07) * ring * 0.14;
-          gl_FragColor = vec4(c * uK * (1.0 - smoothstep(0.75, 1.0, r)), 1.0);
-        }`,
-      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
-    })));
-    this.pool.renderOrder = 3; this.pool.visible = false; k.group.add(this.pool);
+    this.pool = floorPool(M.U);
+    this.pool.visible = false; k.group.add(this.pool);
     // the column of green light it rises in: an oval the shape of the grate (0.9 by 0.6 m), noise streaming up it
     this.column = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 3.4, 40, 1, true).translate(0, 1.7, 0), beamMaterial(M.U, { up: true, n: 12, m: 4, speed: 1.4, rings: 3, ringSpeed: 0.8, fall: 0.9 }));
     this.column.scale.z = 0.66; this.column.renderOrder = 4;
