@@ -22,6 +22,8 @@
 //   k.G, k.plan, k.museum, k.sound, k.stage, k.THREE, k.group (a THREE.Group already in the scene)
 //   k.find(id)            -> true the first time: a secret found (toast and count handled by the Secrets system)
 //   k.say(text, hold), k.once(key, text, hold), k.callout(TEXT)      (k.say(text, 0, hold, true): at once, not in turn)
+//   k.key(verb)           the name of the action button in the player's hands, for a line said with k.say or k.once: E on a
+//                         keyboard, A on a gamepad, the button's own word (verb) on glass. (A near() hint is written "E to ..." and main.js does it.)
 //   k.v                   the toy now; k.pos its position; k.room the room it is in (or null outdoors)
 //   k.inRoom(id | id[], around = 0)   in that room, or within `around` metres of it on the same level
 //   k.close(p, r, dy = 1.5)          within r metres of {x,y,z} (and dy vertically)
@@ -251,7 +253,7 @@ export async function startFeaturesInTurn(o, rest, budget = 40) {
   return s.api;
 }
 function kitFor(o) {
-  const { G, THREE, secrets, say, once, callout, sound, stage } = o;
+  const { G, THREE, secrets, say, once, callout, sound, stage, key } = o;
   const group = new THREE.Group(); group.name = 'features'; G.museum.group.add(group);
   // What has been collected stays collected through a new game (the mice stay followed, the lost things stay handed in), but New
   // game empties the Secrets list, and nothing left in the building could then earn the secret a finished collection awarded.
@@ -264,6 +266,7 @@ function kitFor(o) {
     // A fourth argument, true, says it at once, ahead of whatever is waiting (for what is on the screen this moment).
     say: (text, a, b, now) => (b === undefined ? say(text, 0, a === undefined ? 5 : a) : say(text, a, b, !!now)),
     find: id => secrets.find(id),
+    key: verb => (key ? key(verb) : 'E'),
     keeps(ids, done) { const q = { ids: [].concat(ids), done }; kept.push(q); putBack(q); },
     get v() { return G.vehicle; }, get pos() { return G.vehicle.pos; }, get room() { return G.roomId ? G.plan.byId[G.roomId] : null; },
     inRoom(ids, around = 0) {

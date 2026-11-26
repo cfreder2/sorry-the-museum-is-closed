@@ -682,7 +682,7 @@ feature({
       const p = sh.pad, sway = calm ? 0 : Math.sin(T * 0.35) * 0.9;
       k.camClose = { at: { x: p.x + sway, y: sh.h + 1.55, z: p.z - 4.8 }, look: { x: p.x + sway * 0.3, y: sh.h + 1.85, z: p.z + 4 } };
     }
-    if (this.mode === 'idle' && this.far < 30) k.once('snowball', 'The band shell. Up the ramp, onto the dance pad, and E.', 6);
+    if (this.mode === 'idle' && this.far < 30) k.once('snowball', `The band shell. Up the ramp, onto the dance pad, and ${k.key('DANCE')}.`, 6);
   },
   // Where each head points. In a song the pattern changes every four bars: a fan over the lawn, crossing beams, all of them
   // on the toy, circles on the snow, a fan up into the sky. Idle, a slow fan. The searchlights sweep the sky.

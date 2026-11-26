@@ -357,7 +357,7 @@ async function boot() {
 
   // Every registered feature (features.js) is started here, with the shared kit, the bar moving on as they start.
   await loading(89, 'Making the last rounds', 91);
-  G.features = await startFeaturesInTurn({ G, THREE, secrets, say, once, callout, sound, stage }, (n, all) => loading(89 + 3 * n / all, 'Making the last rounds', 92));
+  G.features = await startFeaturesInTurn({ G, THREE, secrets, say, once, callout, sound, stage, key: verb => (input.usedTouch ? verb || 'LOOK' : E()) }, (n, all) => loading(89 + 3 * n / all, 'Making the last rounds', 92));
 
   setVehicle('car');
   G.car.place(plan.spawn.x + 3, plan.spawn.z, plan.spawn.yaw);
@@ -1469,7 +1469,7 @@ function play(dt, real) {
     G.heist.update(dt, v);
     // The toy stall on the roof.
     if (stallNear) {
-      once('stall', 'A toy stall, up here of all places. Two for sale, 2,000 chips each. E to look.', 7);
+      once('stall', `A toy stall, up here of all places. Two for sale, 2,000 chips each. ${input.usedTouch ? 'SHOP' : E()} to look.`, 7);
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
       if (shopTap) G.shop.open();
     }
