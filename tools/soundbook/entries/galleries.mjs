@@ -287,27 +287,47 @@ export const entries = [
   {
     id: 'grandejatte-waltz', group: GL, title: 'Grande Jatte: the waltz',
     when: 'Gallery 240, looking at Seurat\'s A Sunday on La Grande Jatte: dot-people dance on the floor to The Blue Danube.',
-    src: 'src/l2-grandejatte.js:274', secs: 19,
+    src: 'src/l2-grandejatte.js:460', secs: 19,
     trigger: async sb => {
       const f = sb.feat('l2-grande-jatte'), a = f.art, y = sb.G.plan.byId[f.roomId].y;
-      sb.patch(f, 'free', () => false);      // (the monkey stays on its lead for this one)
       sb.place(a.x + a.nx * 2, y + 0.05, a.z + a.nz * 2);
       sb.G.shell.look(a);
     },
     note: 'The first strain, once round (17 s), looking from 2 m. The look\'s own bell (and the lamp, the first time) come at the start.',
   },
   {
-    id: 'grandejatte-monkey-off', group: GL, title: 'The monkey slips its lead',
-    when: 'Gallery 240, a few seconds into looking at La Grande Jatte (once the Director\'s passage is found): the monkey drops off the frame.',
-    src: 'src/l2-grandejatte.js:168', secs: 1,
+    id: 'grandejatte-monkey-chatter', group: GL, title: 'The monkey chatters',
+    when: 'Gallery 240 and the way to the Director\'s office: the monkey out of Seurat\'s picture chatters. Quietly, now and then, from under the bench; louder when it has stopped to wait for you, from the bench when it sees you come back, and from the foot of the frame as it goes.',
+    src: 'src/l2-grandejatte.js:306', secs: 1,
+    trigger: async sb => { sb.feat('l2-grande-jatte').chatter(sb.k, 0.03); },
+    note: 'The loudest it is (0.03). Under the bench it is at 0.014.',
+  },
+  {
+    id: 'grandejatte-monkey-off', group: GL, title: 'The monkey bolts',
+    when: 'Gallery 240, driving to within a metre and a half of the bench: the monkey bolts from under it, and the chase to the Director\'s whiteboard is on.',
+    src: 'src/l2-grandejatte.js:285', secs: 1,
     trigger: async sb => { sb.k.synth.chime([1568, 1976, 2349], { gap: 0.07, dur: 0.3, vol: 0.04 }); },
     note: 'Replayed from the source lines.',
   },
   {
+    id: 'grandejatte-monkey-feet', group: GL, title: 'The monkey running',
+    when: 'On the chase, and on its way home: its feet on the floor while it runs, when it is within twelve metres.',
+    src: 'src/l2-grandejatte.js:307', secs: 1.2,
+    trigger: async sb => { for (let i = 0; i < 8; i++) { sb.k.synth.noise(0.03, { vol: 0.016, lp: 3000 }); await sb.wait(0.11); } },
+    note: 'Replayed from the source lines: a dash of eight steps, as close as it gets.',
+  },
+  {
     id: 'grandejatte-monkey-found', group: SS, title: 'The monkey found',
-    when: 'Gallery 240, driving up to the monkey hiding in a corner: it chatters.',
-    src: 'src/l2-grandejatte.js:190', secs: 1,
-    trigger: async sb => { for (let i = 0; i < 4; i++) sb.k.synth.note(1400 + i * 260, 0.08, { type: 'square', vol: 0.025, at: i * 0.07 }); },
+    when: 'The Director\'s office, driving up to the monkey under the whiteboard: it chatters, and looks up at the board.',
+    src: 'src/l2-grandejatte.js:230', secs: 1,
+    trigger: async sb => { for (let i = 0; i < 4; i++) sb.k.synth.note(1400 + i * 260, 0.08, { type: 'square', vol: 0.03, at: i * 0.07 }); },
+    note: 'Replayed from the source lines.',
+  },
+  {
+    id: 'grandejatte-monkey-back', group: SS, title: 'The monkey back on its lead',
+    when: 'Gallery 240, the next time you come in after finding it: it runs from the bench to the picture, jumps to the foot of the frame, and is gone.',
+    src: 'src/l2-grandejatte.js:274', secs: 1,
+    trigger: async sb => { sb.k.synth.chime([2349, 1976, 1568], { gap: 0.07, dur: 0.3, vol: 0.04 }); },
     note: 'Replayed from the source lines.',
   },
 

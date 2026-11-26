@@ -20,7 +20,7 @@
 // The kit `k` handed to every call:
 //   k.G, k.plan, k.museum, k.sound, k.stage, k.THREE, k.group (a THREE.Group already in the scene)
 //   k.find(id)            -> true the first time: a secret found (toast and count handled by the Secrets system)
-//   k.say(text, hold), k.once(key, text, hold), k.callout(TEXT)
+//   k.say(text, hold), k.once(key, text, hold), k.callout(TEXT)      (k.say(text, 0, hold, true): at once, not in turn)
 //   k.v                   the toy now; k.pos its position; k.room the room it is in (or null outdoors)
 //   k.inRoom(id | id[], around = 0)   in that room, or within `around` metres of it on the same level
 //   k.close(p, r, dy = 1.5)          within r metres of {x,y,z} (and dy vertically)
@@ -254,7 +254,8 @@ function kitFor(o) {
   const k = {
     G, plan: G.plan, museum: G.museum, sound, stage, THREE, group, once, callout,
     // k.say(text, hold) as documented; k.say(text, delay, hold) as main.js's say. (Two arguments used to be read as a delay.)
-    say: (text, a, b) => (b === undefined ? say(text, 0, a === undefined ? 5 : a) : say(text, a, b)),
+    // A fourth argument, true, says it at once, ahead of whatever is waiting (for what is on the screen this moment).
+    say: (text, a, b, now) => (b === undefined ? say(text, 0, a === undefined ? 5 : a) : say(text, a, b, !!now)),
     find: id => secrets.find(id),
     get v() { return G.vehicle; }, get pos() { return G.vehicle.pos; }, get room() { return G.roomId ? G.plan.byId[G.roomId] : null; },
     inRoom(ids, around = 0) {

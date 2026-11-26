@@ -1380,6 +1380,20 @@ function addStunts(plan) {
       const hxx = alongX ? 1.4 : 0.38, hzz = alongX ? 0.38 : 1.4;
       S.push({ skin: 'bench', x0: bx - hxx, x1: bx + hxx, z0: bz - hzz, z1: bz + hzz, axis: null, h0: r.y + 0.5, h1: r.y + 0.5, thick: 0.1, base: r.y });
     }
+    // Gallery 240 is too narrow for that bench, and has a door in the middle of every wall, so its middle is all doorway.
+    // But it must have one: the monkey out of Seurat's picture hides under it (src/l2-grandejatte.js; the guard's note
+    // by the door, src/notes.js). A short one (half: half its length) along the east wall, north of the east door:
+    // the one patch of floor that is in no doorway's path, away from the Director's hidden door and the wall that
+    // slides, and out of sight when the Seurat and its dancers are looked at (the look stands by the north wall,
+    // facing south: the south-east corner comes into a wide window's view, this one is beside the camera).
+    if (r.id === 'G240') {
+      const ed = plan.doorsOf(r.id).find(d => same(d.y, r.y) && !d.hidden && d.along !== 'z' && d.x0 >= r.x1 - 0.01), half = 0.7;
+      const bx = r.x1 - 0.44, z0 = r.z0 + 0.28, z1 = ed ? ed.z0 - 0.5 : z0 + half * 2, bz = (z0 + z1) / 2, rect = [bx - 0.38, bx + 0.38, bz - half, bz + half];
+      if (z1 - z0 >= half * 2 && !F.lanes.some(l => hits(rect, l)) && !S.some(s => onLevel(s, r.y) && hits(rect, foot(s, r.y), 0.3))) {
+        plan.benches.push({ x: bx, y: r.y, z: bz, alongX: false, half, room: r.id });
+        S.push({ skin: 'bench', x0: rect[0], x1: rect[1], z0: rect[2], z1: rect[3], axis: null, h0: r.y + 0.5, h1: r.y + 0.5, thick: 0.1, base: r.y });
+      }
+    }
   }
 
   // ---- outside ----
