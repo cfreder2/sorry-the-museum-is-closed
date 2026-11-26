@@ -369,6 +369,7 @@ function kitFor(o) {
     collect(name, total, secret) {
       const key = 'feature-set-' + name;
       let got = []; try { got = JSON.parse(localStorage.getItem(key) || '[]'); } catch { got = []; }
+      if (!Array.isArray(got)) got = [];      // (a record of another shape broke the feature that kept it)
       const save = () => { try { localStorage.setItem(key, JSON.stringify(got)); } catch { /* private window: it lasts the visit */ } };
       if (secret) k.keeps(secret, () => total > 0 && got.length >= total);
       return {
