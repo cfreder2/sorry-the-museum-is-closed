@@ -379,6 +379,7 @@ export class Car {
   place(x, z, yaw, y = 0) {
     this.pos.set(x, y, z); this.vel.set(0, 0, 0); this.yaw = yaw;
     this.vy = 0; this.air = false; this.rail = null; this.tilt = 0; this.speed = 0; this.flip = this.spin = 0;
+    this.on = null;              // (what it last stood on is not under it now: remembered, the car climbed 1.6 m back onto that piece from below it)
     this.pos.y = groundAt(this.plan, x, z, y + 0.3);
     this._unbox();
     this._hitchReset();
