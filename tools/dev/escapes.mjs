@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// What gets out of a living painting (src/escapes.js, docs/ESCAPES.md): the five first tests, filmed and measured.
+// What gets out of a living painting (src/escapes.js, docs/ESCAPES.md): the four that are in the game, filmed and measured.
 //   node tools/dev/escapes.mjs <port> [lowmem]
 // Serve the repo first with tools/dev/serve.py. One browser, one page, real time.
 //
-// For each of the five (Homer's keg float, Degas's hats, Goya's lambs and the boy who fetches them, Monet's parasol,
-// Seurat's monkey) it lets the thing out the way a player would (the toy watches the show, then drives off; if that
-// does not happen it says so and lets it out by the test hook), and records strips of stills of
+// For each of the four (Homer's keg float, Degas's hats, Goya's lambs and the boy who fetches them, Monet's parasol)
+// it lets the thing out the way a player would (the toy watches the show, then drives off; if that does not happen it
+// says so and lets it out by the test hook), and records strips of stills of
+// (Seurat's monkey is not one of them: it is the chase in src/l2-grandejatte.js, which has its own test.)
 //   loose   it out of its painting and about the rooms (and the show it left, playing without it)
 //   lamp    a robot's lamp finding it, going from its search colour to warm white, and sending it home in strokes
 //   herd    the toy behind it as a sheepdog, and it going home by itself
@@ -16,7 +17,7 @@
 // tracker's dots, reduced motion.
 // A lamp is only filmed where one can come: where no robot's beat reaches the rooms a thing knows, it says so and
 // takes no lamp strip (in play that thing is only ever herded home).
-//   ESC_ONLY=keg,hats      only these (keg hats lambs parasol monkey)
+//   ESC_ONLY=keg,hats      only these (keg hats lambs parasol)
 //   ESC_SCENES=loose,lamp  only these scenes (loose lamp herd rules)
 //   ESC_SCENES=film        instead of the stills: one short film of each, <key>.mp4 (getting out, about the rooms, a
 //                          robot's lamp and the going home in strokes, the toy herding it home), 1280 x 720 at 30 a
@@ -39,14 +40,13 @@ fs.mkdirSync(OUT, { recursive: true });
 const ONLY = process.env.ESC_ONLY ? process.env.ESC_ONLY.split(',') : null, SCENES = (process.env.ESC_SCENES || 'loose,lamp,herd,rules').split(',');
 const FILM = SCENES.includes('film'), FFMPEG = process.env.FFMPEG || path.join(os.homedir(), 'Desktop/Avara-trailer/ffmpeg'), FPS = 30;
 
-// The five. lampAt: where it is when a lamp is brought (in a robot's beat); herdAt: where the toy finds it; door: a
+// The four. lampAt: where it is when a lamp is brought (in a robot's beat); herdAt: where the toy finds it; door: a
 // point through a doorway it is sent to (the film of it crossing); roost: a bench for the hats, in another gallery.
 const TESTS = [
   { key: 'keg', id: 25865, what: 'Homer, The Herring Net: the keg float on its patch of sea', lampAt: [166.5, 162], herdAt: [168.5, 166.5], doorFrom: [172.3, 153.5], door: [172.3, 144.5], eye: { d0: 2.3, h: 0.95, lift: 0.22 } },
   { key: 'hats', id: 14572, what: 'Degas, The Millinery Shop: the hats, a flock', lampAt: [66.0, 94.8], herdAt: [69.5, 93.5], roost: [68.0, 138.8], eye: { d0: 3.4, h: 1.3, lift: 0.95 } },
   { key: 'lambs', id: 111559, what: 'Goya, Boy on a Ram: three lambs stray, the boy on his ram fetches them', lampAt: [36, 72], herdAt: [22.5, 88.5], eye: { d0: 2.7, h: 0.95, lift: 0.3 } },
   { key: 'parasol', id: 14620, what: 'Monet, Cliff Walk at Pourville: the orange parasol on a gust', lampAt: [171.5, 44], herdAt: [172.5, 54], door: [161.5, 42.1], eye: { d0: 3.0, h: 1.2, lift: 0.75 } },
-  { key: 'monkey', id: 27992, what: 'Seurat, A Sunday on La Grande Jatte: the monkey off its lead', lampAt: [95, 110], herdAt: [97.2, 108.6], eye: { d0: 2.0, h: 0.8, lift: 0.2 } },
 ].filter(t => !ONLY || ONLY.includes(t.key));
 
 const b = await puppeteer.launch({ headless: 'new', protocolTimeout: 900000, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
@@ -131,14 +131,11 @@ const boot = async () => {
     T.frames = async (n = 90) => { let last = await frame(), sum = 0, worst = 0; for (let i = 0; i < n; i++) { const t = await frame(), d = t - last; last = t; sum += d; worst = Math.max(worst, d); } return { avg: +(sum / n).toFixed(2), worst: +worst.toFixed(1) }; };
     T.pad = (i, n = 2) => String(i).padStart(n, '0');
     // Out, by the test hook, and standing somewhere, bodied.
-    // (Seurat's monkey may only be out once the passage it points to has been found, and a fresh test page has not found it: the test says it has, and says that it did)
-    T.gj = () => features.find(q => q.id === 'l2-grande-jatte');
-    T.ungate = () => { const f = T.gj(); if (f && !f.free(F.k)) { f.free = () => true; return true; } return false; };
     // What is said on the screen, as it is said.
     T.said = []; for (const n of ['say', 'once']) { const was = F.k[n]; try { F.k[n] = (...q) => { const text = n === 'once' ? q[1] : q[0]; if (n !== 'once' || !G.told.has(q[0])) T.said.push(text); return was(...q); }; } catch { /* a kit that cannot be listened to */ } }
     // Does a robot's beat reach any room it knows from home? (If none does, no lamp can come to it in play.)
     T.beats = E => { const was = [E.room, E.grid]; if (E.state === 'home') { E.room = E.art.room; E.grid = null; } const rooms = F._grid(E).rooms; if (E.state === 'home') { E.room = was[0]; E.grid = was[1]; } return { rooms, bots: esc.bots().map((b, i) => [i, Math.abs(b.fy - E.y) < 0.5 ? (b.rooms || []).filter(r => rooms.includes(r)) : []]).filter(q => q[1].length).map(q => 'BOT-' + String(q[0]).padStart(2, '0') + ' in ' + q[1].join(' ')) }; };
-    T.out = async (id, at) => { const E = esc.get(id); if (E.state !== 'home') esc.home(id, 'now'); await sleep(200); if (E.spec.may) T.ungate(); const r = esc.release(id, { force: true, quiet: true }); if (r !== true) return r; await sleep(2300); if (at) { const w = esc.place(id, at[0], at[1]); if (typeof w !== 'string' || w === 'not there') return 'place: ' + w; } for (let i = 0; i < 40 && E.body !== true; i++) await sleep(150); return E.body === true ? true : 'no body (' + E.body + ')'; };
+    T.out = async (id, at) => { const E = esc.get(id); if (E.state !== 'home') esc.home(id, 'now'); await sleep(200); const r = esc.release(id, { force: true, quiet: true }); if (r !== true) return r; await sleep(2300); if (at) { const w = esc.place(id, at[0], at[1]); if (typeof w !== 'string' || w === 'not there') return 'place: ' + w; } for (let i = 0; i < 40 && E.body !== true; i++) await sleep(150); return E.body === true ? true : 'no body (' + E.body + ')'; };
   });
 };
 await boot();
@@ -165,34 +162,15 @@ for (const t of FILM ? [] : TESTS) {
       G.set.guards = false; esc.home('all'); G.testEye = null; await sleep(300);
       const E = esc.get(t.id), a = E.art, L = window.__life.life(t.id), g = F._grid(E), y = E.y;
       T.lights(a.x, a.z, y);
-      const back = (!E.spec.watch && T.before(E)) || [a.x + a.nx * 3, a.z + a.nz * 3];      // (the monkey's own way out wants the toy in its room)
-      T.toy(E.spec.watch ? null : g, back[0], back[1], y, [a.x, a.z]); await sleep(1500);
+      const back = T.before(E) || [a.x + a.nx * 3, a.z + a.nz * 3];
+      T.toy(g, back[0], back[1], y, [a.x, a.z]); await sleep(1500);
       // The way a player lets it out: the toy watches the show a few seconds, and drives off.
       const t0 = performance.now(), secs = () => +((performance.now() - t0) / 1000).toFixed(1);
       G.shell.look(a); await sleep(2600);
-      if (E.spec.watch) {      // (Seurat's monkey is the gallery's own: it slips its lead when its picture has been looked at, hides in a corner, and is loose in the building once the toy has left the room)
-        const f = T.gj(), s0 = T.said.length;
-        // (in the game it goes only once the passage it points to has been found; a fresh test page has not found it: first that it is refused, then the test lets it go as if it had, and says so)
-        o.gated = !f.free(F.k); if (o.gated) { o.refused = String(esc.release(t.id, { force: true, quiet: true })); T.ungate(); }
-        for (let i = 0; i < 120 && E.state !== 'out'; i++) await sleep(250);
-        o.armed = E.state === 'out' ? secs() : null; o.life = 'the gallery’s monkey ' + f.state + ', looked ' + (f.look || 0).toFixed(1) + ' s, ' + G.state + ', toy in ' + G.roomId; await T.shot(strip, '00-show');
-        G.shell.endLook(); await sleep(200);
-        if (o.armed != null) {
-          let c = T.cam(E, [[E.corner.x, E.corner.z]], { d0: 2.6, h: 1.0, lift: 0.25 }); await T.shot(strip, '01-off-its-lead');
-          for (let i = 0; i < 40 && !E.cornered; i++) { await sleep(200); if (i === 2) await T.shot(strip, '01-to-its-corner'); }
-          await sleep(900); T.cam(E, [], { d0: 1.9, h: 0.8, lift: 0.2 }); await T.shot(strip, '01-in-its-corner');
-          o.hid = E.hid && E.cornered; o.one = G.t; await sleep(3000); o.stays = E.hid === true;      // (it stays while the toy is in the room)
-          o.said = T.said.slice(s0); o.clue = G.secret && G.secret.clue ? G.secret.clue.work.id + ' ' + G.secret.clue.part + (G.secret.open ? ' (open)' : ' (shut)') : 'no secret';
-          const link = (F.adj.get(a.room) || []).find(l => !esc.quiet.includes(l.to)), R = link && G.plan.byId[link.to];
-          if (R) { const g2 = gp.grid(G.plan, [a.room, link.to], y); T.toy(g2, link.x + Math.sign((R.x0 + R.x1) / 2 - link.x) * Math.min(3, Math.abs((R.x0 + R.x1) / 2 - link.x)), link.z + Math.sign((R.z0 + R.z1) / 2 - link.z) * Math.min(3, Math.abs((R.z0 + R.z1) / 2 - link.z)), y); }
-          for (let i = 0; i < 40 && E.hid; i++) await sleep(150); o.left = E.hid === false; o.gallery = f.state + (f.monkey && f.monkey.visible ? ', its own monkey showing' : ', its own monkey put away');
-        }
-      } else {
-        for (let i = 0; i < 180 && !E.armed; i++) { await sleep(250); if (i === 16) await T.shot(strip, '00-show'); }
-        o.armed = E.armed ? secs() : null; o.life = L ? L.state : 'no show';
-        G.shell.endLook(); await sleep(300);
-        const far = T.before(E, 5.2) || back; T.toy(g, far[0], far[1], y, [a.x, a.z]);
-      }
+      for (let i = 0; i < 180 && !E.armed; i++) { await sleep(250); if (i === 16) await T.shot(strip, '00-show'); }
+      o.armed = E.armed ? secs() : null; o.life = L ? L.state : 'no show';
+      G.shell.endLook(); await sleep(300);
+      const far = T.before(E, 5.2) || back; T.toy(g, far[0], far[1], y, [a.x, a.z]);
       const t1 = performance.now(); for (let i = 0; i < 40 && E.state !== 'out'; i++) await sleep(150);
       o.natural = E.state === 'out'; o.after = +((performance.now() - t1) / 1000).toFixed(1);
       if (!o.natural) { o.release = esc.release(t.id, { force: true }); }
@@ -250,8 +228,7 @@ for (const t of FILM ? [] : TESTS) {
     }, t);
     if (r.error) say('  loose: ' + r.error);
     else {
-      say(`  let out by play: ${r.natural ? `yes (ready after ${r.armed} s of watching, out ${r.after} s after the toy went)${r.gated ? ` (the passage not yet found: let out by the hook it said "${r.refused}"; then the test said the passage was found, and it slipped its lead)` : ''}` : `NO (armed ${r.armed}, show ${r.life}); let out by the hook: ${r.release}`}`);
-      if (r.said) say(`  one monkey, one caption: ${r.said.length === 1 ? 'PASS' : 'FAIL'} ${JSON.stringify(r.said)}; in its corner, hidden: ${r.hid}; still there 3 s on with the toy in the room: ${r.stays}; loose once the toy had left: ${r.left}; the gallery's feature: ${r.gallery}; the passage's clue: ${r.clue}`);
+      say(`  let out by play: ${r.natural ? `yes (ready after ${r.armed} s of watching, out ${r.after} s after the toy went)` : `NO (armed ${r.armed}, show ${r.life}); let out by the hook: ${r.release}`}`);
       say(`  loose: rooms ${r.rooms.join(' > ')}${r.door ? `; through a doorway ${r.door.from} > ${r.door.to} (${r.door.go ? 'went' : 'no way'})` : ''}${r.roost ? `; roost in ${r.roost} (${r.reach}): on the bench ${r.roosted}` : ''}; the show without it: ${r.showOut}; label flutters while out ${r.flutter}, settles when home ${r.settled}`);
       for (const k of r.checks) say(`  guard ${k.error ? 'ERROR ' + k.error : (k.pass ? 'PASS' : 'FAIL')}  ${k.name}: ${k.drawn} px on any canvas (${k.wouldBe} without the guard; ${k.guarded} of ${k.canvases} canvases guarded)  [${k.rows}]${k.over ? ' ' + JSON.stringify(k.over) : ''}`);
       say(`  cost with it out: ${r.cost.ms} ms a frame in the feature, ${r.cost.calls} draw calls, ${r.cost.tris} triangles, ${r.cost.marks} marks${r.n > 1 ? ', ' + r.n + ' bodies' : ''}; frame ${r.frame.avg} ms (worst ${r.frame.worst}) against ${r.home.avg} ms (worst ${r.home.worst}) with it home`);
@@ -406,28 +383,13 @@ if (FILM) {
     const T = window.__T, { G, esc, F, gp, sleep } = T, o = {};
     T.rec(''); T.track = T.dog = null; G.set.guards = false; esc.home('all'); G.testEye = null; await sleep(300); await T.hush();
     const E = esc.get(t.id), a = E.art, y = E.y, foot = [a.x + a.nx * 0.1, a.z + a.nz * 0.1], out = [a.x + a.nx * 0.7, a.z + a.nz * 0.7], s0 = T.said.length;
-    T.lights(a.x, a.z, y); G.told.delete('escape-' + t.id); if (E.spec.may) o.ungated = T.ungate();
+    T.lights(a.x, a.z, y); G.told.delete('escape-' + t.id);
     const g = F._grid(E), back = T.before(E, 5.2) || [a.x + a.nx * 5, a.z + a.nz * 5];
-    if (E.spec.watch) {      // (the monkey: its picture is looked at, it slips its lead, hides in its corner; the toy leaves the room, and it is loose)
-      const f = T.gj(); T.toy(null, a.x + a.nx * 3, a.z + a.nz * 3, y, [a.x, a.z]); await sleep(900);
-      T.cam(E, [foot], { ...t.eye, at: out, d0: t.eye.d0 + 1.4, lift: 0.5 }); await T.sharp();
-      G.shell.look(a); await T.wait(() => f.look > 3.3 || E.state === 'out', 14);
-      T.rec('1-out'); await T.wait(() => f.state === 'leaving' || E.state === 'out', 8); G.shell.endLook(); await T.wait(() => E.state === 'out' && E.body === true, 6);
-      if (E.state !== 'out') return { error: 'the monkey did not slip its lead: the gallery’s is ' + f.state };
-      T.track = { E, o: { ...t.eye, d0: t.eye.d0 + 0.5 }, lift: t.eye.lift, also: [[E.corner.x, E.corner.z]] };
-      await T.wait(() => E.cornered, 9);
-      { const n = T.cam(E, [], { ...t.eye, d0: Math.max(1.8, t.eye.d0 - 0.6) }); if (n) { T.track.c = n; T.track.look = null; T.track.age = 0; T.track.bad = 0; T.track.also = []; } }      // (a nearer eye on it in its corner)
-      await sleep(1500);
-      const link = (F.adj.get(a.room) || []).find(l => !esc.quiet.includes(l.to)), R = link && G.plan.byId[link.to];
-      if (R) { const g2 = gp.grid(G.plan, [a.room, link.to], y); T.toy(g2, link.x + Math.sign((R.x0 + R.x1) / 2 - link.x) * Math.min(3, Math.abs((R.x0 + R.x1) / 2 - link.x)), link.z + Math.sign((R.z0 + R.z1) / 2 - link.z) * Math.min(3, Math.abs((R.z0 + R.z1) / 2 - link.z)), y); }
-      await T.wait(() => !E.hid, 6); o.how = 'its own way: the picture looked at, the lead slipped, the corner, and loose when the toy had left the room';
-    } else {
-      T.toy(g, back[0], back[1], y, [a.x, a.z]); await sleep(900);
-      const O = { ...t.eye, lift: t.eye.lift + 0.15 }, c = T.cam(E, [foot], { ...O, at: out });
-      T.track = { E, c, o: O, lift: O.lift, also: [foot], pt: () => (E.state === 'out' && E.emerge >= 1 ? [E.x, E.z] : out) };
-      await sleep(200); await T.sharp(); T.rec('1-out'); await sleep(500); const r = esc.release(t.id, { force: true }); if (r !== true) return { error: 'not let out: ' + r };
-      await T.wait(() => E.body === true && E.emerge >= 1, 8); await sleep(700); o.how = 'by the hook (the stills run lets it out by play)';
-    }
+    T.toy(g, back[0], back[1], y, [a.x, a.z]); await sleep(900);
+    const O = { ...t.eye, lift: t.eye.lift + 0.15 }, c = T.cam(E, [foot], { ...O, at: out });
+    T.track = { E, c, o: O, lift: O.lift, also: [foot], pt: () => (E.state === 'out' && E.emerge >= 1 ? [E.x, E.z] : out) };
+    await sleep(200); await T.sharp(); T.rec('1-out'); await sleep(500); const r = esc.release(t.id, { force: true }); if (r !== true) return { error: 'not let out: ' + r };
+    await T.wait(() => E.body === true && E.emerge >= 1, 8); await sleep(700); o.how = 'by the hook (the stills run lets it out by play)';
     T.rec('2-about'); T.track.also = []; T.track.pt = null; T.track.o = t.eye; T.track.lift = t.eye.lift;
     for (let i = 0; i < t.about * 10 && E.state === 'out'; i++) { if (!(E.pn > 1 && E.pk < E.pn) && E.rest > 0.4) esc.roam(t.id, 0.25); await sleep(100); }
     T.rec(''); o.said = T.said.slice(s0); o.room = E.room; o.state = E.state; return o;
@@ -541,7 +503,7 @@ if (SCENES.includes('rules')) {
   say('\n== THE RULE');
   const r1 = await p.evaluate(async () => {
     const { G, esc, F, gp, sleep } = window.__T, T = window.__T, o = {};
-    G.set.guards = false; esc.home('all'); G.testEye = null; await sleep(300); T.ungate();      // (the monkey counts among them as it would once its passage is found)
+    G.set.guards = false; esc.home('all'); G.testEye = null; await sleep(300);
     // the cap: how many may be out at once
     o.cap = esc.caps; o.release = esc.specs().map(s => s.tag + ' ' + esc.release(s.id, { quiet: true })); o.out = esc.list().length;
     // bodies: a flock's creatures count, and what is far from the toy is only a record
@@ -573,12 +535,13 @@ if (SCENES.includes('rules')) {
     const box = document.querySelector('input[data-set="escapes"]'); o.box = box ? 'there, ' + (box.checked ? 'on' : 'off') : 'MISSING';
     G.set.escapes = false; await sleep(500); o.off = { out: esc.list().length, release: esc.release(25865), box: box ? box.checked : null };
     G.set.escapes = true; await sleep(500); o.on = esc.on;
-    // the quiet rooms: nothing roams into them, nothing can be put in them, nothing is sent through them
-    const M = esc.get('MONKEY'), a = M.art; T.lights(a.x, a.z, M.y); T.toy(F._grid(M), a.x + 3, a.z - 3, M.y); await sleep(800);
-    await T.out(27992, [a.x + 3.5, a.z - 3]); const Q = G.plan.byId.G241, qx = (Q.x0 + Q.x1) / 2, qz = (Q.z0 + Q.z1) / 2;
-    o.quiet = { rooms: esc.quiet, monkeyKnows: F._grid(M).rooms, go241: esc.go(27992, qx, qz), place241: esc.place(27992, qx, qz) };
-    // the parasol, set down beside a quiet room and blown about for half a minute: where the gust takes it
-    await T.out(14620, null); o.quiet.parasolUp = esc.place(14620, a.x + 3.5, a.z - 3.4, M.y); const P = esc.get(14620), seen = [P.room];
+    // the quiet rooms: nothing roams into them, nothing can be put in them, nothing is sent through them.
+    // Monet's parasol, set down by the test upstairs in Gallery 240 (the Seurat's), beside 241 which is quiet: it cannot be
+    // sent or put into 241, and blown about for half a minute it never goes in.
+    const a = T.art(27992), y2 = G.plan.byId[a.room].y; T.lights(a.x, a.z, y2); T.toy(gp.grid(G.plan, [a.room], y2), a.x + 3, a.z - 3, y2); await sleep(800);
+    await T.out(14620, null); o.quiet = { rooms: esc.quiet, parasolUp: esc.place(14620, a.x + 3.5, a.z - 3.4, y2) }; const P = esc.get(14620), seen = [P.room];
+    const Q = G.plan.byId.G241, qx = (Q.x0 + Q.x1) / 2, qz = (Q.z0 + Q.z1) / 2; await sleep(600);
+    o.quiet.go241 = esc.go(14620, qx, qz); o.quiet.place241 = esc.place(14620, qx, qz); o.quiet.still = P.room;
     T.cam(P, [], { d0: 4.5, h: 1.6 });
     for (let i = 0; i < 34; i++) { if (P.rest > 100) esc.roam(14620, 0.2); await sleep(1000); if (!seen.includes(P.room)) seen.push(P.room); const R = G.plan.rooms.find(R => Math.abs(R.y - P.y) < 0.2 && P.x > R.x0 && P.x < R.x1 && P.z > R.z0 && P.z < R.z1); if (R && esc.quiet.includes(R.id)) o.quiet.BROKE = R.id; if (i % 6 === 2) { T.cam(P, [], { d0: 4.5, h: 1.6 }); await T.shot('rule', 'parasol-upstairs-' + T.pad(i)); } }
     o.quiet.parasolWent = seen; o.quiet.parasolKnows = F._grid(P).rooms; esc.home('all');
@@ -592,7 +555,7 @@ if (SCENES.includes('rules')) {
   });
   say(`  after a reload: ${JSON.stringify(r2.restored)}`);
   say(`  the switch: ${r2.box}; off: ${r2.off.out} out, release says "${r2.off.release}", box ${r2.off.box}; on again: ${r2.on}`);
-  say(`  quiet rooms ${r2.quiet.rooms.join(' ')}: the monkey's rooms ${r2.quiet.monkeyKnows.join(' ')}; sent into 241: ${r2.quiet.go241}; put into 241: ${r2.quiet.place241}`);
+  say(`  quiet rooms ${r2.quiet.rooms.join(' ')}: the parasol in ${r2.quiet.parasolUp}, sent into 241: ${r2.quiet.go241}; put into 241: ${r2.quiet.place241} (still in ${r2.quiet.still})`);
   say(`  the parasol beside 241 (put in ${r2.quiet.parasolUp}) for 34 s: went ${r2.quiet.parasolWent.join(' > ')}; its rooms ${r2.quiet.parasolKnows.join(' ')}${r2.quiet.BROKE ? '  IN A QUIET ROOM: ' + r2.quiet.BROKE : '; never in a quiet room'}`);
   say(`  reduced motion: ${r2.reduce.strokes} strokes, a ${r2.reduce.secs} s fade`);
   const e = took(); say('  page errors: ' + (e.length ? '\n    ' + e.join('\n    ') : 'none'));

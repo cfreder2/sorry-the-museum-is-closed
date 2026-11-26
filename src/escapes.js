@@ -37,7 +37,9 @@ import './escape/keg.js';
 import './escape/hats.js';
 import './escape/lambs.js';
 import './escape/parasol.js';
-import './escape/monkey.js';
+// (Not './escape/monkey.js': Seurat's monkey is not an escapee. Its getting-out is the chase in src/l2-grandejatte.js now
+// (under the bench in 240, away to the Director's whiteboard, back on its lead), and that monkey is the only one there is.
+// The file was written against the gallery's old secret and would put a second monkey in the building: it is kept, unused.)
 
 const TUNE = {
   linger: 4,        // seconds of a work's show watched before something can get out
@@ -170,7 +172,7 @@ const F = {
     if (E.state !== 'home') return 'out already';
     if (!this.on) return 'escapes are switched off';
     if (!force && this.out.length >= CAP_OUT) return 'the cap: ' + CAP_OUT + ' out at once';
-    if (E.spec.may && E.spec.may(E, this.k) !== true) return 'not yet: ' + E.spec.name + ' may not go';      // (never forced: the monkey on its lead is a clue)
+    if (E.spec.may && E.spec.may(E, this.k) !== true) return 'not yet: ' + E.spec.name + ' may not go';      // (never forced: a rule of its own that it may not be out is kept whatever a test asks)
     const a = E.art;
     E.state = 'out'; E.x = a.x + a.nx * 0.55; E.z = a.z + a.nz * 0.55; E.room = a.room; E.yaw = Math.atan2(a.nx, a.nz); E.v = 0; E.t = 0; E.outT = 0; E.lit = 0; E.by = null; E.led = 0; E.pn = 0; E.rest = 1.6; E.gone = 0; E.going = null; E.emerge = 0; E.grid = null; E.armed = false; E.watch = 0;
     this._flutter(E, true); this.dirty = true;

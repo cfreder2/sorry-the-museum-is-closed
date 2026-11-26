@@ -1,3 +1,9 @@
+// NOT IN THE GAME: nothing imports this file (src/escapes.js says why). Seurat's monkey gets out by the chase in
+// src/l2-grandejatte.js now, which was rewritten after this was: the gallery's free(), at, 'leaving' and 'out' that this
+// asks for are gone. Registered as it stands it is a second monkey in the building (measured with ?escout: this one
+// loose in 240 while the gallery's own sat under its bench and ran, and this one's "back on its lead" and the secret's
+// callout given for herding it home, in the middle of the chase). Kept for its Seurat-dot body, should the two ever be made one.
+//
 // Out of Seurat's A Sunday on La Grande Jatte (Gallery 240): the monkey, off its lead.
 // It is one thing with what was there (src/l2-grandejatte.js, the old secret): when the picture has been looked at and the
 // monkey slips its lead, the monkey that drops from under the frame IS this one, in Seurat's dots, and the gallery's own

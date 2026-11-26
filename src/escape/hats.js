@@ -31,7 +31,7 @@ const local = (x, y, z, yaw, pitch, roll, sx = 1, sy = sx, sz = sx) => _l.compos
 let SEATS = null;
 function seats(k) {
   if (SEATS) return SEATS; SEATS = [];
-  for (const b of k.plan.benches || []) SEATS.push({ x: b.x, z: b.z, y: b.y, top: b.y + 0.5, alongX: !!b.alongX, half: 1.15, wide: 0.2 });
+  for (const b of k.plan.benches || []) if (!(b.half < 1.4)) SEATS.push({ x: b.x, z: b.z, y: b.y, top: b.y + 0.5, alongX: !!b.alongX, half: 1.15, wide: 0.2 });      // (not the short bench in 240: too short for five in a row, and it is the monkey's, src/l2-grandejatte.js)
   for (const s of k.plan.surfaces || []) { if (s.skin !== 'crate' || s.axis || s.h0 !== s.h1 || s.base == null || s.h0 - s.base > 0.9) continue; const w = s.x1 - s.x0, d = s.z1 - s.z0; if (Math.min(w, d) < 0.35 || Math.max(w, d) < 1.0) continue; SEATS.push({ x: (s.x0 + s.x1) / 2, z: (s.z0 + s.z1) / 2, y: s.base, top: s.h0, alongX: w > d, half: Math.max(w, d) / 2 - 0.2, wide: Math.min(w, d) / 2 - 0.12 }); }
   return SEATS;
 }
