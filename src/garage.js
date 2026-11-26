@@ -874,7 +874,7 @@ export class Garage {
       const was = renderer.getRenderTarget(), col = new THREE.Color(), alpha = renderer.getClearAlpha();
       renderer.getClearColor(col);
       renderer.setClearColor(0x000000, 0);
-      for (const v of VEHICLES) {
+      try { for (const v of VEHICLES) {
         const m = buildVehicle(v.id);
         m.group.rotation.set(0, v.kind === 'car' ? -2.25 : -2.45, 0);
         m.group.position.set(0, v.kind === 'car' ? -0.12 : 0, 0);
@@ -891,9 +891,7 @@ export class Garage {
         cx.putImageData(img, 0, 0);
         this.thumbs[v.id] = cv.toDataURL('image/png');
         scene.remove(m.group);
-      }
-      renderer.setRenderTarget(was); renderer.setClearColor(col, alpha);
-      rt.dispose();
+      } } finally { renderer.setRenderTarget(was); renderer.setClearColor(col, alpha); rt.dispose(); }      // (in a finally: a throw part way left the render target and the clear colour wrong for the session)
     } catch (e) { /* no pictures: the names still say which is which */ }
     this.show();
   }
