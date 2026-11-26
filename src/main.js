@@ -115,15 +115,17 @@ composer.addPass(bloom);
 const finish = new FinishPass(bloom);
 composer.addPass(finish);
 
-const quality = { step: 0, slow: 0, since: 0 };      // what a slow machine has been let off (govern, below)
+// What a slow machine has been let off (govern, below): sharpness (soft), the glow, the floor's reflection, in `order` as they
+// were given up (step is how many, for the readouts). busy: the frame function's own milliseconds, smoothed.
+const quality = { step: 0, slow: 0, since: 0, fast: 0, wait: 12, gave: -99, busy: 0, soft: false, glow: true, floor: true, order: [] };
 function resize() {
-  // (Sharpness is the first thing a slow machine gives up, and a window that changes size, or goes full screen, does not give it back.)
-  const w = innerWidth, h = innerHeight, pr = quality.step ? 1 : Math.min(devicePixelRatio || 1, 1.75);
+  // (A window that changes size, or goes full screen, does not give the sharpness back: only govern does.)
+  const w = innerWidth, h = innerHeight, pr = quality.soft ? 1 : Math.min(devicePixelRatio || 1, 1.75);
   renderer.setPixelRatio(pr);
   renderer.setSize(w, h, false);
   composer.setPixelRatio(pr);
   composer.setSize(w, h);
-  if (quality.step) mirror.setSize(w * 0.8, h * 0.8); else mirror.setSize(w * pr, h * pr);
+  if (quality.soft) mirror.setSize(w * 0.8, h * 0.8); else mirror.setSize(w * pr, h * pr);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
@@ -624,7 +626,7 @@ function applySettings(save) {
   sound.setVolumes(set);
   document.body.classList.toggle('reduce', set.reduce);
   document.body.classList.toggle('bigtext', set.big);
-  mirror.enabled = set.mirror;
+  mirror.enabled = set.mirror && quality.floor;      // (the player's switch, and the slow machine's: govern never touches the player's)
   input.hold = set.hold;
   input.autogo = !!set.autogo;
   document.body.classList.toggle('autogo', !!set.autogo);
@@ -645,6 +647,7 @@ document.addEventListener('input', e => {
   if (!k) return;
   sound.unlock();
   set[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value / 100;
+  if (k === 'mirror' && !quality.floor) { quality.floor = true; quality.order = quality.order.filter(q => q !== 'floor'); quality.step = quality.order.length; quality.since = 0; }      // the player has spoken: govern lets go of it, and judges afresh
   applySettings(true);
   if (k === 'motor' || k === 'master') sound.preview('motor'); else if (k === 'music') sound.preview('music');
 });
@@ -1573,18 +1576,39 @@ function autopilot(v, R, dt) {
 }
 G.auto = params.has('auto');
 
-// If the machine cannot keep up, give things back in order of how little they
-// will be missed: sharpness first, then the glow, then the floor reflections.
+// If the machine cannot keep up (under 38 frames a second for three seconds), it is let off one thing at a time, whichever
+// buys the most for the side that is slow. The frame function's own time is set against the whole frame's: if it is most of
+// it, the processor is what is slow, and the floor's reflection goes first (the scene drawn a second time: 40% of the
+// frame function, where sharpness is worth a tenth of that and the glow nothing); then sharpness, then the glow. If the
+// frame function is the lesser part, it is the graphics card: sharpness first (two thirds of the pixels), the glow, then
+// the reflection.
+// And they come back, last given up first, when there has been room for a while: 55 frames a second or better for `wait`
+// seconds (and, for the reflection, a frame function that would still be under 22 ms with the scene drawn twice: it is
+// near enough twice the work). If what came back has to go again within half a minute, the room was not there: the wait
+// doubles (12 s, 24, 48... to four minutes), so nothing flickers on and off; given up later than that, it is a heavier
+// place, and the wait starts again at 12.
+// None of this is the player's settings, and none of it is saved: the reflection is drawn only if the player's switch and
+// this both say so, and a thing the player has turned off is not this function's to give up or give back.
+const LEVERS = { floor: on => { quality.floor = on; applySettings(); }, soft: on => { quality.soft = !on; resize(); }, glow: on => { quality.glow = on; bloom.enabled = on; } };
 function govern(dt) {
   if (G.state !== 'play' || document.hidden) return;
-  quality.since += dt;
-  if (quality.since < 4) return;
-  quality.slow = G.fps < 38 ? quality.slow + dt : 0;
-  if (quality.slow < 3 || quality.step >= 3) return;
-  quality.step++; quality.slow = 0; quality.since = 0;
-  if (quality.step === 1) resize();
-  else if (quality.step === 2) bloom.enabled = false;
-  else { set.mirror = false; applySettings(); }
+  const Q = quality;
+  Q.since += dt;
+  if (Q.since < 4) return;                             // (what was changed last is given time to show)
+  if (G.fps < 38) {
+    Q.fast = 0;
+    if ((Q.slow += dt) < 3) return;
+    const cpu = Q.busy > 0.5 * 1000 / G.fps, k = (cpu ? ['floor', 'soft', 'glow'] : ['soft', 'glow', 'floor']).find(q => !Q.order.includes(q) && (q !== 'floor' || set.mirror));
+    if (!k) return;
+    Q.wait = G.t - Q.gave < 30 ? Math.min(240, Q.wait * 2) : 12;
+    Q.order.push(k); Q.step = Q.order.length; Q.slow = 0; Q.since = 0; LEVERS[k](false);
+    return;
+  }
+  Q.slow = 0;
+  Q.fast = G.fps >= 55 ? Q.fast + dt : 0;
+  const k = Q.order[Q.order.length - 1];
+  if (!k || Q.fast < Q.wait || (k === 'floor' && Q.busy * 2 > 22)) return;
+  Q.order.pop(); Q.step = Q.order.length; Q.fast = 0; Q.since = 0; Q.gave = G.t; LEVERS[k](true);
 }
 
 // ?diag: what this machine is really being given, in a corner of the screen, for when the game feels slow on something
@@ -1646,6 +1670,7 @@ let last = performance.now();
 const selfMoved = [];      // (what has an onBeforeRender of its own: see the end of tick)
 function tick(now) {
   requestAnimationFrame(tick);
+  const began = performance.now();
   if (diag) diag(now - last);
   if (fpsMeter) fpsMeter(now - last);
   G.fps = (G.fps || 60) * 0.95 + 0.05 * 1000 / Math.max(1, now - last);
@@ -1760,6 +1785,7 @@ function tick(now) {
     for (const o of selfMoved) o.updateWorldMatrix(false, false);
     composer.render();
   } finally { scene.matrixWorldAutoUpdate = true; }
+  quality.busy += (performance.now() - began - quality.busy) * 0.05;      // (for govern: how much of the frame is this function's)
 }
 
 // The headlamp up against something. Its light falls off with distance, so a wall a hand in front of it took dozens of
