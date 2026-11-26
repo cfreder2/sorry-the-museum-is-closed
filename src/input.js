@@ -197,7 +197,9 @@ export class Input {
   // else each is a key (PADKEY), and what a keyboard's own keys would then have done is done here: an arrow nothing
   // wanted moves on to the next thing that can be pressed, and A presses it.
   poll(driving) {
-    const p = this._first(); if (!p) return;
+    const p = this._first();
+    // (A pad unplugged with a button held in a menu: the key it was holding down is let go, or the car drove on resume until that key was tapped.)
+    if (!p) { for (const i in this._padKey) if (this._padKey[i]) { this._padKey[i] = false; this._key('keyup', PADKEY[i < 17 ? i : i - 5]); } for (const i in this._pad) this._pad[i] = false; return; }
     const b = p.buttons, sx = this._ax(p, 0), sy = this._ax(p, 1);
     // (17 to 20: the left stick pushed up, down, left, right, as a second D-pad for the menus)
     const on = i => (i < 17 ? !!(b[i] && b[i].pressed) : i === 17 ? sy < -0.6 : i === 18 ? sy > 0.6 : i === 19 ? sx < -0.6 : sx > 0.6);
