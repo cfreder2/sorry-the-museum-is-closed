@@ -7,8 +7,9 @@
 //   * the room itself (_dress): a border of dark marble let into the floor and a compass rose in front of the doors,
 //     walnut panelling to dado height with a rail, two benches against the west wall facing the picture frame, and brass
 //     wall lights left burning all night, each with its wash on the wall and its pool on the floor. The same lights run
-//     on through the members' room and the service corridor beyond (F1-member, B1-north), the way the north mouse runs
-//     home (src/mice.js). Flat things and lights only, but for the benches, which are solid as drawn and which the
+//     on through the members' room and the service corridor beyond (F1-member, B1-north), which is the last of the way
+//     the north mouse runs home (src/mice.js: it comes into the members' room from the Fullerton Hall lobby now, not
+//     up the entrance hall, where no mouse sits or runs). Flat things and lights only, but for the benches, which are solid as drawn and which the
 //     lobby's robot knows about (guardplan.js shut). Each kind is one merged mesh.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';

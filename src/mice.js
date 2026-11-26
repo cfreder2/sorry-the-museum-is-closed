@@ -1,5 +1,5 @@
 // The museum mice. One lives in each wing: the old building's north and south galleries, the Rice building,
-// the Modern Wing and the lower level. Each has its home behind a little grille low on a wall (plan.js addNests;
+// the Modern Wing and the lower level. None is in the entrance hall (runOf, below). Each has its home behind a little grille low on a wall (plan.js addNests;
 // what is behind it is src/nests.js). They are radioactive: they glow green, light a pool of floor round them and
 // leave glowing footprints that fade over several seconds, so one can be followed across a dark gallery even when
 // it gets ahead.
@@ -169,8 +169,26 @@ class Heap {
 //     near end: it bolted back past the toy and out by the door the toy had just come in by, and the toy, turning right
 //     round among the miniature rooms, lost it more often than not (7 seen home in 15 scripted tries). Kept out of there
 //     it sits out in the open in Gallery 10 and runs away from whoever finds it.
+//   * the entrance hall (the room the front doors open into, plan.front.a: the Michigan Avenue Lobby), for every mouse.
+//     The owner wants no mouse at the front entrance: the saucer has the hall (src/entry.js). The north mouse sat at the
+//     far end of it and ran its length; kept out, it sits in a gallery off the Grand Staircase and goes home by the
+//     Fullerton Hall lobby and Member Services, to the same grille.
+//     (It is left out only for a mouse whose run would otherwise touch it: runOf, below. Leaving a room out for a mouse
+//     that never went near it still moves that mouse, because where each sits is chosen with a throw of the dice over
+//     every spot of its floor, and fewer spots is a different throw: the south mouse moved into the north one's rooms.)
 const KEEP_OUT = { lower: ['G11'] };
 export function keptOut(plan, wing) { return new Set(KEEP_OUT[wing] || []); }
+// A mouse's run for a nest, with the entrance hall no part of it.
+export function runOf(plan, n, seed = 1) {
+  const out = keptOut(plan, n.wing), hall = plan.byId[plan.front && plan.front.a];
+  let run = mouseRun(plan, n, seed, out);
+  if (run && hall && same(hall.y, n.y) && touches(run, hall)) { out.add(hall.id); run = mouseRun(plan, n, seed, out); }
+  return run;
+}
+function touches(run, r) {
+  for (let i = 1; i < run.pts.length; i++) { const a = run.pts[i - 1], b = run.pts[i], m = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25)); for (let t = 0; t <= m; t++) { const x = a.x + (b.x - a.x) * t / m, z = a.z + (b.z - a.z) * t / m; if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return true; } }
+  return false;
+}
 export function mouseRun(plan, n, seed = 1, out = keptOut(plan, n.wing)) {
   const y = n.y, R = 70, vx = n.vent.x, vz = n.vent.z;
   const rooms = plan.rooms.filter(r => !r.secret && !out.has(r.id) && same(r.y, y) && r.kind !== 'hall' && !/stair|lift/.test(r.use || '') && Math.max(r.x0 - vx, vx - r.x1, r.z0 - vz, vz - r.z1, 0) < R);
@@ -263,7 +281,7 @@ export const mice = feature({
     claimed(k.G);                                     // (read what is already placed, so that where these sit is added to it)
     MOUSE_WINGS.forEach((w, i) => {
       const n = (P.nests || []).find(q => q.wing === w.id); if (!n) return;
-      const run = mouseRun(P, n, 17 + i * 101); if (!run) return;
+      const run = runOf(P, n, 17 + i * 101); if (!run) return;
       const m = {
         id: 'mouse-' + w.id, wing: w, nest: n, room: n.room, y: n.y, nx: n.nx, nz: n.nz, ...run,
         hole: { x: n.vent.x, y: n.y, z: n.vent.z },
