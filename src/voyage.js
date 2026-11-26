@@ -594,6 +594,7 @@ class Voyage {
     G.voyage = null; G.moonPlan = null;
     G.state = 'play';
     if (G.shell && G.shell.setVehicle) G.shell.setVehicle(v.kind);
+    if (G.lamp) G.lamp.intensity = G.lampOn ? 70 : 0;      // (put out while the toy was docked, _dockToy: back as the Lights button says)
     const L = G.plan.lakefront, S = G.plan.grounds && G.plan.grounds.silo;
     const at = S ? { x: (S.x0 + S.x1) / 2 - 22, z: (S.z0 + S.z1) / 2 } : L ? { x: 381, z: 110 } : G.plan.spawn;
     const yaw = S ? Math.PI / 2 : -Math.PI / 2;      // facing the silo, to watch it close
