@@ -11,6 +11,7 @@
 //     active(k) { return k.inRoom('G201', 1); },        // optional: update() only runs while this is true (cheap test)
 //     update(dt, k) { ... },                            // per frame while active (and while the game is in play or a look)
 //     near(v, k) { return k.close(this.at, 1.6) ? { verb: 'PLAY', hint: 'A piano. E to play.', act: () => ... } : null },
+//                                                       // (write "E to ...": main.js names the key in the player's hands, A on a pad, the verb on glass)
 //     onLook(art, k) { if (/Rainy Day/.test(art.work.t)) ... },   // the player has just stepped up to look at a work
 //     spots() { return [{ kind: 'secret', id: 'rain201', name: 'Rain indoors', x, y, z }] },   // for the ?secrets debug map
 //     reset(k) { ... },                                 // a new night: put things back

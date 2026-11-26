@@ -202,8 +202,7 @@ feature({
       const dy = v.pos.y - d.y; if (dy < -0.3 || dy > 2.2) continue;
       const dx = v.pos.x - d.sx, dz = v.pos.z - d.sz;
       if (dx * dx + dz * dz > 1.5 * 1.5 || (v.pos.x - d.cx) * d.fx + (v.pos.z - d.cz) * d.fz < 0.9 || Math.hypot(v.vel.x, v.vel.z) > 3) continue;
-      const touch = k.G.input && k.G.input.usedTouch;
-      return { verb: 'USE', hint: `The night shift’s computer, left logged in. ${touch ? 'USE' : 'E'} to sit down at it.`, card: ['The security desk', 'A computer, left logged in.', 'use it'], act: () => this.open(d) };
+      return { verb: 'USE', hint: 'The night shift’s computer, left logged in. E to sit down at it.', card: ['The security desk', 'A computer, left logged in.', 'use it'], act: () => this.open(d) };
     }
     return null;
   },

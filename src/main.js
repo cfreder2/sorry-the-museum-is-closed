@@ -770,6 +770,8 @@ function openNotebook() {
 
 // The button a prompt names is the one on whatever is in your hands: E on a keyboard, A on a gamepad.
 const E = () => (input.pad ? 'A' : 'E');
+// A feature writes its hint for a keyboard ("A piano. E to play."): shown, the key is the one in your hands, as in the prompts here.
+const keyed = (text, verb) => text.replace(/\bE(?= to\b)/, input.usedTouch ? verb || 'LOOK' : E());
 function keycaps() {
   if (input.pad === keycaps.pad) return;
   keycaps.pad = input.pad;
@@ -1436,7 +1438,7 @@ function play(dt, real) {
     if (G.switchNear && G.facing && !G.switchNear.facing) G.switchNear = null;
     const repairTap = !!G.repairNear && input.took('look'), switchTap = !!G.switchNear && input.took('look');
     G.pokerNear = G.poker.near(v);
-    if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. E to sit in.', 7);
+    if (G.pokerNear) once('poker', 'Texas hold\u2019em under the lights, and an empty place at the table. ' + (input.usedTouch ? 'PLAY' : E()) + ' to sit in.', 7);
     // A monitor with a game on it, or the button in the security control room, takes the same button.
     G.arcadeNear = G.pokerNear ? null : G.arcade.near(v);
     G.heistNear = G.pokerNear || G.arcadeNear ? null : G.heist.near(v);
@@ -1462,10 +1464,10 @@ function play(dt, real) {
       if (shopTap) G.shop.open();
     }
     if (filmNear) { once('film', `The projector has been left running. ${input.usedTouch ? 'WATCH' : E()} to sit down.`, 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'WATCH'; if (filmTap) G.cinema.open(); }
-    if (vendNear) { once('vend', 'A vending machine, lit up. It sells spray paint, for chips. E to look.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'VEND'; if (vendTap) G.vending.open(vendNear); }
-    if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
-    if (pianoNear) { once('piano', 'A grand piano, lid up, stool out. E to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (pianoTap) G.piano.open(pianoNear); }
-    if (giftNear != null) { once('parcel', 'A parcel with nobody\u2019s name on it. E to open it.', 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'OPEN'; if (giftTap) { const what = G.presents.open(giftNear); tm.event('present', what); } }
+    if (vendNear) { once('vend', 'A vending machine, lit up. It sells spray paint, for chips. ' + (input.usedTouch ? 'VEND' : E()) + ' to look.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'VEND'; if (vendTap) G.vending.open(vendNear); }
+    if (simonNear) { once('simon', 'Four lit pads on a pedestal, under the coloured roof. ' + (input.usedTouch ? 'PLAY' : E()) + ' to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (simonTap) G.simon.open(); }
+    if (pianoNear) { once('piano', 'A grand piano, lid up, stool out. ' + (input.usedTouch ? 'PLAY' : E()) + ' to play.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PLAY'; if (pianoTap) G.piano.open(pianoNear); }
+    if (giftNear != null) { once('parcel', 'A parcel with nobody\u2019s name on it. ' + (input.usedTouch ? 'OPEN' : E()) + ' to open it.', 6); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'OPEN'; if (giftTap) { const what = G.presents.open(giftNear); tm.event('present', what); } }
     { const st = G.roomId && G.museum.rooms[G.roomId]; if (st && st.room.kind === 'room' && !st.room.passage && st.sw !== true) once('dark', 'Dark in here. There is a light switch by the door: pull up to it.', 8); }
     // Secrets are found by coming across them.
     {
@@ -1474,7 +1476,7 @@ function play(dt, real) {
       { const lf = G.plan.lakefront; if (lf && !G.roomId && v.kind === 'drone' && Math.hypot(v.pos.x - lf.light.x, v.pos.z - lf.light.z) < 12) secrets.find('harbour'); }      // (flown out to; a car that gets there across the floes has its own: harbour.js)
       const rk = G.plan.rink; if (rk && !G.roomId && Math.hypot(v.pos.x - rk.x, v.pos.z - rk.z) < 16) secrets.find('hockey');
     }
-    if (paintNear) { once('easel', 'An easel, and paint. Whatever you make here hangs in the lobby. E to paint.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PAINT'; if (paintTap) G.paint.open(); }
+    if (paintNear) { once('easel', 'An easel, and paint. Whatever you make here hangs in the lobby. ' + (input.usedTouch ? 'PAINT' : E()) + ' to paint.', 7); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'PAINT'; if (paintTap) G.paint.open(); }
     if (frameNear) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LOOK';
       if (paintTap) { lookAtEasel(G.paint.art); const to = !G.paint.done && G.paint.studioSpot; G.wayOffer = to && G.nav ? { ...to, paint: true } : null; $('bWay').hidden = !G.wayOffer; if (G.wayOffer) $('bWayText').textContent = to.label; }      // an empty frame offers the way to the studio: a map button naming the room, and the path only if it is pressed
@@ -1492,7 +1494,7 @@ function play(dt, real) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LIGHTS'; actPrompt('Light switch', `${roomTitle(G.plan.byId[G.switchNear.room])} \u00b7 the lights are ${lit ? 'on' : 'off'}`, lit ? 'lights off' : 'lights on');
     } else actPrompt();
     // A feature's verb is set last, so that nothing else nearby relabels the button it has taken.
-    if (featNear) { if (featNear.hint) once('feat:' + featNear.verb + featNear.hint, featNear.hint, 6); if (featNear.card) actPrompt(...featNear.card); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = featNear.verb || 'LOOK'; if (featTap) featNear.act(); }      // (card: [title, line, verb] for the card at the foot of the screen)
+    if (featNear) { if (featNear.hint) once('feat:' + featNear.verb + featNear.hint, keyed(featNear.hint, featNear.verb), 6); if (featNear.card) actPrompt(...featNear.card); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = featNear.verb || 'LOOK'; if (featTap) featNear.act(); }      // (card: [title, line, verb] for the card at the foot of the screen)
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -1500,7 +1502,7 @@ function play(dt, real) {
     const on = v.kind === 'car' && !v.air ? v.on : null;
     if (on && on.perch && Math.abs(v.speed) < 2.5) {
       const key = on.perch + '@' + Math.round(on.x0) + ',' + Math.round(on.z0);
-      if (!G.perched.has(key)) { G.perched.add(key); callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: E works from here too.`, 0.5, 6); }
+      if (!G.perched.has(key)) { G.perched.add(key); callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: ${input.usedTouch ? 'LOOK' : E()} works from here too.`, 0.5, 6); }
     }
   }
   keep();

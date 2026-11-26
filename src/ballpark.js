@@ -872,7 +872,7 @@ feature({
     const b = this.box, p = v.pos;
     if ((p.x - b.x) ** 2 + (p.z - b.z) ** 2 > 1.1 * 1.1 || Math.abs(p.y) > 0.4) return null;
     if (v.kind !== 'car') return { verb: 'BAT', hint: 'The snowman pitches to cars: the drone can only watch.', act: () => k.say('The snowman pitches to cars. Come back in one.', 3) };
-    return { verb: 'BAT', hint: 'Home Run Derby. E (or BAT) to step up to the plate.', act: () => this._start(k) };
+    return { verb: 'BAT', hint: 'Home Run Derby. E to step up to the plate.', act: () => this._start(k) };
   },
   _start(k) {
     const v = k.v; if (!v || v.kind !== 'car') return;
