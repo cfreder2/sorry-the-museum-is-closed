@@ -801,7 +801,7 @@ function chase(dt, snap) {
   if (G.view === 'fpv') {
     const fx = Math.sin(v.yaw), fz = Math.cos(v.yaw);
     camera.position.set(v.pos.x + fx * (drone ? 0.12 : 0.25), v.pos.y + (drone ? 0.0 : 0.17), v.pos.z + fz * (drone ? 0.12 : 0.25));
-    camLook.set(v.pos.x + fx * 3, v.pos.y + (drone ? -0.25 - v.pitch * 2 : 0.3), v.pos.z + fz * 3);
+    camLook.set(v.pos.x + fx * 3, v.pos.y + (drone ? -0.25 - (set.reduce ? 0 : v.pitch * 2) : 0.3), v.pos.z + fz * 3);      // (Reduce motion: the view does not nod with every push, as it does not roll, two lines down)
     camera.up.set(0, 1, 0);
     camera.lookAt(camLook);
     if (!set.reduce) camera.rotateZ(-(v.roll || 0) * (drone ? 0.9 : 1.4));
