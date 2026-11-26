@@ -402,6 +402,14 @@ function kitFor(o) {
   // first time the toy comes within r metres: the park, the hill, the harbour cost a phone nothing until you go out there.
   // Its secrets are counted from the start; until it is built it is on the map at (x, z).
   const init = f => { f._pending = false; try { if (f.init) f.init(k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } };
+  // A feature that throws in play is switched off for the rest of the visit, and first made to let go of whatever it had hold
+  // of: its own reset() is how a feature puts things back (the toy it was holding, a robot's grip, a cutscene, its camera). If
+  // that fails too, the toy is taken back from it here. Left holding, the toy could not move until Quit to title.
+  const broke = (f, e) => {
+    console.error('feature ' + f.id, e); f._broken = true;
+    try { if (f.reset) f.reset(k); return; } catch (e2) { console.error('feature ' + f.id + ' (letting go)', e2); }
+    if (G.ride && G.ride._k === k) G.ride = null; k._held = null; G.held = false; G.cutscene = null; G.cineEye = null;
+  };
   const start = f => {
     for (const [id, name] of f.secrets || []) secrets.add(id, name);
     if (f.lazy) { f._pending = true; return; }
@@ -416,9 +424,9 @@ function kitFor(o) {
   const api = {
     kit: k,
     // Called where main.js decides what the action button says. Returns { verb, hint, act } or null.
-    near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } if (r) return r; } return null; },
+    near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (r) return r; } return null; },
     // (quiet: the opening runs the park from a window without waking what is still asleep in it)
-    update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending || !f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { console.error('feature ' + f.id, e); f._broken = true; } } },
+    update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending || !f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
     look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
     spots() { return features.flatMap(f => { if (f._pending) return (f.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: f.lazy.x, y: 0, z: f.lazy.z })); try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset && !f._pending) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },

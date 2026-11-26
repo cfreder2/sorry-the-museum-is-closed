@@ -1295,7 +1295,7 @@ function steerHelp(v, inp, dt) {
 function play(dt, real) {
   const v = G.vehicle, R = G.race, racing = G.racing, bots = R.bots.length > 0;      // (bots: rivals out on a course, in a race or just after one)
   let inp = input.read(v.kind === 'drone');
-  if (G.cutscene) G.cutscene(input);      // a cutscene has the controls (src/entry.js): it takes what was pressed, to be skipped by it or to ignore it
+  if (G.cutscene) { try { G.cutscene(input); } catch (e) { console.error('cutscene', e); G.cutscene = null; } }      // a cutscene has the controls (src/entry.js): it takes what was pressed, to be skipped by it or to ignore it      // (one that throws is over: left on, it threw every frame before anything was drawn)
   if (G.auto && racing) inp = autopilot(v, R, dt);
   if (G.testInput) inp = G.testInput;
   if (v.kind === 'car') {
@@ -1305,7 +1305,7 @@ function play(dt, real) {
   }
   if ((racing && R.locked) || G.held) inp = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: 0, steer: 0 };      // (G.held: a security robot has the toy, src/guards.js)
   stepLifts(G.plan, dt, [v.pos]);
-  if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else if (G.ride) G.ride(dt, inp); else v.update(dt, inp);      // (held: src/guards.js moves the toy itself; G.ride: something else carries it, a sled say, src/sledhill.js)
+  if (G.held) { v.landed = null; v.launched = 0; v.bump = 0; } else if (G.ride) { try { G.ride(dt, inp); } catch (e) { console.error('ride', e); G.ride = null; } } else v.update(dt, inp);      // (held: src/guards.js moves the toy itself; G.ride: something else carries it, a sled say, src/sledhill.js)
   if (v.bump > 1.2) sound.bump(v.bump);
   flight(v, real, racing);
   if (!racing) score.update(G.museum, v, dt, G.roomId, slow.live);       // Stunt Looks: a work in view while the car is in the air
@@ -1639,6 +1639,15 @@ const fpsMeter = SHOW_FPS && !diag && !params.has('nofps') ? (() => {
   };
 })() : null;
 
+// The voyage's frame. One that throws thirty frames running is ended and the game handed back: a throw there came before
+// anything was drawn, every frame, and the picture stood still for good.
+let voyageBad = 0;
+function voyageFrame(dt) {
+  try { G.voyage.frame(dt); voyageBad = 0; return; } catch (e) { console.error('voyage', e); if (++voyageBad < 30) return; }
+  voyageBad = 0; const V = G.voyage;
+  try { V.end(false); } catch (e) { console.error('voyage (ending it)', e); try { V.el.remove(); } catch { /* not built */ } document.body.classList.remove('voyaging', 'vcine'); G.voyage = null; G.state = 'play'; }
+}
+
 let last = performance.now();
 function tick(now) {
   requestAnimationFrame(tick);
@@ -1658,7 +1667,7 @@ function tick(now) {
   keycaps();
   // The key that skips the opening is not also a key pressed in the game: Esc (or a pad's Menu) skipped it and then paused.
   if (G.state !== tick.was) { if (tick.was === 'opening') input.endFrame(); tick.was = G.state; }
-  if (G.state === 'voyage' && G.voyage) { G.voyage.frame(dt); input.endFrame(); return; }      // the voyage draws its own frame (src/voyage.js)
+  if (G.state === 'voyage' && G.voyage) { voyageFrame(dt); input.endFrame(); return; }      // the voyage draws its own frame (src/voyage.js)
   // What the telemetry will say next time it reports: brought up to date once a second.
   if (G.state === 'play' || G.state === 'study' || G.state === 'poker' || G.state === 'arcade') tm.play += dt;
   if (frame % 30 === 0 && (G.state === 'play' || G.state === 'study' || G.state === 'poker' || G.state === 'arcade')) progress();
