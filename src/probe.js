@@ -841,8 +841,8 @@ feature({
   },
   // A new game: it has not come up yet.
   fresh(k) {
+    st = { stage: 'wait' }; save();      // (also on a night it is off: a new game begun then kept 'done', and no later night played it)
     if (this.off) return;
-    st = { stage: 'wait' }; save();
     if (this.held) { k.hold(null); this.held = null; }
     this._hide(); this.phase = 'idle'; this.inT = 0; this.since = 0; this.seenAt = null; this.top = null;
     if (this.cardEl) this._showCard(false);

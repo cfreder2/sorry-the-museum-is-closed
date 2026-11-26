@@ -448,7 +448,7 @@ feature({
   },
   // A new game: it has not been seen.
   fresh(k) {
-    if (this.off) return;
+    if (this.off) { st = { stage: 'wait' }; save(); return; }      // (not on tonight, but it has still not been seen: a new game begun on such a night kept 'done', and no later night played it)
     if (this.run) this._end(k, true);
     st = { stage: 'wait' }; save();
     this._hideAll(); this.pl.expose(this.art, false); this._park();
