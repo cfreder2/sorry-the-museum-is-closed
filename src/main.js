@@ -444,7 +444,7 @@ function start(fresh = false) {
     if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, sv ? (sv.y || 0) + (sv.toy === 'drone' ? 0 : 0.9) : 0.9); else G.car.place(sp.x, sp.z, sp.yaw, sv ? sv.y || 0 : 0);
     resumed = !!sv;
     // The doors stay locked until you have found your way in once.
-    G.museum.setLocked(!(sv && unlocked()), true);
+    G.museum.setLocked(!unlocked(), true);
     G.outsideSince = G.t; G.hinted = 0;
     sound.musicOn = true;
     // The first things said: how to move, then where to go. Short, and in that order: you need the first to do the second.
