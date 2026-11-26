@@ -193,7 +193,7 @@ export function mouseRun(plan, n, seed = 1, out = keptOut(plan, n.wing)) {
   const y = n.y, R = 70, vx = n.vent.x, vz = n.vent.z;
   const rooms = plan.rooms.filter(r => !r.secret && !out.has(r.id) && same(r.y, y) && r.kind !== 'hall' && !/stair|lift/.test(r.use || '') && Math.max(r.x0 - vx, vx - r.x1, r.z0 - vz, vz - r.z1, 0) < R);
   const ids = new Set(rooms.map(r => r.id));
-  const doors = plan.doors.filter(d => !d.out && !d.hidden && !d.secret && !d.shut && same(d.y, y) && ids.has(d.a) && ids.has(d.b));
+  const doors = plan.doors.filter(d => !d.out && !d.hidden && !d.secret && same(d.y, y) && ids.has(d.a) && ids.has(d.b));
   let X0 = Infinity, X1 = -Infinity, Z0 = Infinity, Z1 = -Infinity;
   for (const r of rooms) { X0 = Math.min(X0, r.x0); X1 = Math.max(X1, r.x1); Z0 = Math.min(Z0, r.z0); Z1 = Math.max(Z1, r.z1); }
   X0 = Math.max(X0, vx - R) - 1; X1 = Math.min(X1, vx + R) + 1; Z0 = Math.max(Z0, vz - R) - 1; Z1 = Math.min(Z1, vz + R) + 1;

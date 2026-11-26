@@ -974,8 +974,10 @@ export class Museum {
         if (n === 2) box(brass, u0 + w - 0.012, u0 + w + 0.012, 0, H, 0, 0.018);          // the strip down the meeting edges
       }
       if (!slab.empty) {
-        this.shutDoors = [slab.mesh(leafMat), panel.mesh(new THREE.MeshStandardMaterial({ color: 0x3b342a, roughness: 0.55, metalness: 0.45, emissive: 0x1b1711, emissiveIntensity: 0.6 })),
-          brass.mesh(new THREE.MeshStandardMaterial({ color: 0x9a7c3a, metalness: 0.7, roughness: 0.35, emissive: 0x3a2c10, emissiveIntensity: 0.6 }))];
+        // (Lit a little from within, as the doorways' stone is: indoors there is no lamp but the toy's, and a door that went
+        // black in a dark corridor would read as a way through. The outside doors' own bronze is for street light, and too dark for this.)
+        const bronze = (c, k, rough) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0.35, emissive: c, emissiveIntensity: k });
+        this.shutDoors = [slab.mesh(bronze(0x5d4b33, 0.3, 0.6)), panel.mesh(bronze(0x7a6444, 0.36, 0.5)), brass.mesh(bronze(0xa5843c, 0.3, 0.38))];
         for (const m of this.shutDoors) m.name = 'shut doors';
         this.group.add(...this.shutDoors);
       }
