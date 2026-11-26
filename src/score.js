@@ -53,6 +53,7 @@ export class Score {
       const a = JSON.parse(localStorage.getItem(ALL) || 'null');
       if (a && a.at && Date.now() - a.at < 3600e3 && a.n) { this.all = new Map(Object.entries(a.n).map(([k, n]) => [+k, n])); this.allAt = a.at; }
     } catch { /* no storage */ }
+    if (!this.views || typeof this.views !== 'object' || Array.isArray(this.views)) this.views = {};      // (a record of another shape: every look threw as it was counted)
     for (const k in this.s) if (!Number.isFinite(this.s[k])) this.s[k] = 0;
   }
 
