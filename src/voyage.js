@@ -172,7 +172,7 @@ class Voyage {
     if (G.galleryMusic && G.galleryMusic._switch) { try { G.galleryMusic._switch(null); G.galleryMusic.key = null; } catch { /* fine */ } }
     this._onKey = e => this._key(e); addEventListener('keydown', this._onKey);
     // build next frame, so the black is up first
-    requestAnimationFrame(() => setTimeout(() => this._build(stage), 0));
+    requestAnimationFrame(() => setTimeout(() => { try { this._build(stage); } catch (e) { console.error('voyage (building)', e); try { this.end(); } catch (e2) { console.error('voyage (ending)', e2); } } }, 0));      // (a throw in the building left a black screen, and Continue walked back into it: flown home instead, as a voyage that throws in flight is)
   }
 
   // ------------------------------------------------------------- building --
