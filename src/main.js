@@ -1347,7 +1347,7 @@ function play(dt, real) {
   if (input.took('pause')) pause();
   if (racing && input.took('look') && G.raceSpots) G.raceSpots.quit();      // E again gives the race up
   if (input.took('reset')) { if (racing) R.reset(); else { v.vel.set(0, 0, 0); } }
-  if (input.took('swap') && !racing) {
+  if (input.took('swap') && !racing && !G.held) {      // (not while a robot has the toy: the one swapped out kept the zap's roll and pitch for the session)
     const to = v.kind === 'car' ? 'drone' : 'car', from = v;
     score.flush();
     setVehicle(to);
