@@ -157,7 +157,7 @@ export class Whiteboards {
     let best = null, bd = 2.9;
     for (const b of this.list) {
       const dy = v.pos.y - b.y;
-      if (dy < -1.6 || dy > 1.6) continue;
+      if (dy < -2.1 || dy > 1.6) continue;      // (b.y is the board's middle, 1.7 to 1.8 m up since the boards were raised off the floor: at -1.6 no car on the floor could read any of them)
       const dx = v.pos.x - b.x, dz = v.pos.z - b.z, out = dx * b.fx + dz * b.fz, d = Math.hypot(dx, dz);
       if (out < 0.25 || d > bd || Math.abs(dx * b.fz - dz * b.fx) > b.w / 2 + 0.7 || Math.hypot(v.vel.x, v.vel.z) > 4) continue;
       best = b; bd = d;

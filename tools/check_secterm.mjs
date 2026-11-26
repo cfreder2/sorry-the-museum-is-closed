@@ -79,7 +79,7 @@ has(await run('whoami'), /clearance 9/); await run('cd /'); has(await run('grep 
 // the rest
 has(await run('help'), /grep <word>/); has(await run('whoami'), /nightshift/); has(await run('date'), /02:41/); has(await run('history'), /1  ls/);
 log.length = 0; await run('clear'); await run('cls'); assert.equal(log.filter(l => l === 'clear').length, 2); await run('exit'); assert.ok(log.includes('exit'));
-has(await run('grep grate /incidents'), /0225_lobby_grate\.txt: /); has(await run('grep zzzz'), /not a word/); has(await run('tree'), /`-- rota\.txt/);
+has(await run('grep Turner /incidents'), /0225_lobby_light\.txt: /); has(await run('grep zzzz'), /not a word/); has(await run('tree'), /`-- rota\.txt/);
 has(await run('bots'), /BOT-04\s+1\s+127A\s+PURSUIT/); has(await run('mice'), /old building, north\s+AT LARGE/); has(await run('cams'), /NO SIGNAL/);
 has(await run('sudo rm -rf /'), /sudoers/); has(await run('rm -rf /'), /delete evidence/); has(await run('format c:'), /Only joking/);
 log.length = 0; has(await run('ping sublevel9'), /5 sent\. 5 answered/); assert.ok(log.includes('sound motif')); has(await run('ping lake'), /0 back/);

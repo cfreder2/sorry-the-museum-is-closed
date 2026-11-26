@@ -284,7 +284,7 @@ Tab finishes a name. Up: the last command.`);
       for (const w of opts) if (w.toLowerCase().startsWith(stem)) out.push({ label: w, text: text.slice(0, text.length - stem.length) + (/\s/.test(w) ? `"${w}"` : w), run: true });
       return out;
     }
-    if (cmd === 'grep' || cmd === 'find') { for (const w of ['green', 'grate', 'lift', 'label', 'crate', 'Director', 'notes', 'donut']) out.push({ label: w, text: `${cmd} ${w}`, run: true }); return out; }
+    if (cmd === 'grep' || cmd === 'find') { for (const w of ['green', 'Turner', 'lift', 'label', 'crate', 'Director', 'notes', 'donut']) out.push({ label: w, text: `${cmd} ${w}`, run: true }); return out; }
     const want = this._wants(cmd);
     if (want) {
       const last = argPart.split(/\s+/).pop(), head = text.slice(0, text.length - last.length), { dir, list } = this._names(last, want === 'dir' ? 'dir' : 'any');

@@ -372,7 +372,7 @@ export const mice = feature({
       else if ((m.fidget -= dt) < 0) { m.fidget = 1.5 + Math.random() * 2.5; m.look = m.yaw + (Math.random() - 0.5) * 2.4; }
       else toYaw(m.look, 2.5);
       if (m.state === 'peek') {
-        if (d < SEE) k.once('mouse-first', 'A glowing mouse, right out in the open! Follow it home.', 4);
+        if (d < SEE) k.once('mouse-first', 'A glowing mouse, right out in the open! Follow it home.', 4, true);      // (at once: in its turn it came up behind the first minute's hints, seconds before the mouse was home)
         if (d < BOLT) { m.state = 'run'; m.t = 0; m.spd = 3; m.stop = 0; k.synth.note(2600, 0.05, { type: 'sine', vol: 0.02 }); k.synth.note(3100, 0.04, { type: 'sine', vol: 0.02, at: 0.07 }); }
       }
     } else if (m.state === 'run' || m.state === 'wait' || m.state === 'sit') {
@@ -467,7 +467,7 @@ export const mice = feature({
       k.synth.chime([1568, 2093, 2637], { vol: 0.045, gap: 0.11, dur: 0.9 });
       k.callout(`MICE ${this.tally.count} / ${this.tally.total}`);
       if (this.tally.done) k.find('mice');
-      k.once('mouse-vent', 'It went into the vent. E to open.', 5);
+      k.once('mouse-vent', 'It went into the vent. E to open.', 5, true);
     }
   },
   // Its squeak is two notes of the craft's call (src/motif.js), three octaves up, and the next two at the next stop:
