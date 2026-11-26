@@ -222,7 +222,8 @@ function loading(pct, step, to = pct) {
   barAt = a;
   if (step) $('lstep').textContent = step;
   if (pct >= 100) { el.classList.add('done'); setTimeout(() => { el.hidden = true; }, 900); return Promise.resolve(); }
-  return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  // (A frame, so the bar is seen to move; or a tenth of a second, whichever comes first: a tab in the background is given no frames, and the loading stood still until it was looked at again.)
+  return new Promise(r => { requestAnimationFrame(() => setTimeout(r, 0)); setTimeout(r, 100); });
 }
 
 // Everything the scene will draw with, made ready behind the loading screen, so the first frame drawn is not the one
