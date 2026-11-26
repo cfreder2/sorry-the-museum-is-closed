@@ -141,6 +141,7 @@ const SETTINGS = 'after-hours.settings';
 const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true, escapes: true, gentle1: true,
   autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
+for (const k of ['master', 'motor', 'music']) if (!(typeof set[k] === 'number' && set[k] >= 0 && set[k] <= 1)) set[k] = k === 'motor' ? 0.5 : 0.8;      // (a volume that is not a number stopped the sound being built, and then threw every frame)
 
 const G = {
   set,
