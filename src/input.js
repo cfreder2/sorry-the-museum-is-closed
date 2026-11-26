@@ -90,6 +90,7 @@ export class Input {
     const start = e => {
       e.preventDefault();
       this.usedTouch = true;
+      this._reconcile(e);              // (first: a thumb the system took without a touchend is let go before the new one is looked at, or the new one was refused once)
       // One thumbstick, wherever the left thumb comes down. The right side of the glass is for the buttons.
       for (const t of e.changedTouches) {
         if (t.clientX < innerWidth * 0.6 && !this.touch.l) this.touch.l = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: 0, y: 0 };
