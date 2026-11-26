@@ -294,7 +294,7 @@ feature({
   },
 
   // ---------------------------------------------------------------- remembered
-  _load() { try { const s = JSON.parse(localStorage.getItem(STORE) || '{}'); return { flags: s.flags || [], flag: s.flag || null, shelf: s.shelf || [], globes: s.globes || [] }; } catch { return { flags: [], flag: null, shelf: [], globes: [] }; } },
+  _load() { try { const s = JSON.parse(localStorage.getItem(STORE) || '{}'), list = v => (Array.isArray(v) ? v : []); return { flags: list(s.flags), flag: s.flag || null, shelf: list(s.shelf), globes: list(s.globes) }; } catch { return { flags: [], flag: null, shelf: [], globes: [] }; } },
   _save() { try { localStorage.setItem(STORE, JSON.stringify(this.state)); } catch { /* private window: it lasts the visit */ } },
 
   _priceTex(v) {
