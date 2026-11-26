@@ -929,6 +929,7 @@ function raceNews(e) {
     const el = $('rFlash');
     el.textContent = `${e.up ? '↑' : '↓'} ${ordinal(e.place)}`;
     el.className = e.up ? 'up' : 'down'; void el.offsetWidth; el.classList.add('on');
+    clearTimeout(raceNews.t); raceNews.t = setTimeout(() => el.classList.remove('on'), 1500);      // (put away once shown: with Reduce motion nothing else would ever take it off. As the stunt call.)
     return;
   }
   const el = $('trick'), big = e.type === 'finish' ? `FINISH — ${ordinal(e.place)}` : e.final ? `LAP ${e.lap} — FINAL LAP` : `LAP ${e.lap} / ${e.laps}`;
