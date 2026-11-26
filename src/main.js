@@ -415,6 +415,7 @@ function setVehicle(kind) {
   document.body.classList.toggle('flying', kind === 'drone');
   $('stickL').lastElementChild.textContent = input.usedTouch ? (kind === 'drone' ? 'fly' : set.autogo ? 'hold to go' : 'drive') : kind === 'drone' ? 'climb · turn' : 'throttle';
   $('stickR').lastElementChild.textContent = kind === 'drone' ? 'fly' : 'steer';
+  if (G.features) G.features.kit.carry._mount();      // what is being carried rides on the toy in use
 }
 
 function start(fresh = false) {
