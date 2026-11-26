@@ -11,8 +11,10 @@
 //
 // To open a room again, delete its line. To shut another, add its id (src/layout.js), but only a room with nothing in
 // it that no route needs: a doorway is shut when exactly one of its two rooms is on this list, and whatever is behind
-// it can no longer be reached. The rooms are still built, lit and furnished behind their doors, exactly as before;
-// only the doorways are shut (src/plan.js gives them no way through, src/museum.js hangs the leaves).
+// it can no longer be reached. A shut room is not built: no interior, no furniture, no lights, nothing in the lists things
+// are bumped against. It is still dealt its share when things are placed, so that everything in the open rooms lands
+// exactly where it did, and its block and roof still stand out of doors (src/plan.js: buildPlan marks them, stripShut
+// takes them out once everything is placed; src/museum.js hangs the leaves and skips the insides).
 export const SHUT_ROOMS = [
   // ---- The lower level: 82 rooms
   // Ferguson (staff block, north)

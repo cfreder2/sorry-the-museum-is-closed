@@ -278,7 +278,7 @@ export function buildPlan() {
 }
 
 // The shut rooms, taken out of the plan (see buildPlan, where they are marked). After this they are in none of the lists
-// anything is looked up in or bumped against: not a room, a wall, a floor, a piece of furniture or a mark. What is left of
+// anything is looked up in or bumped against: not a room, a wall, a piece of furniture or a mark. What is left of
 // them: plan.shutRooms (their outlines), their blocks and roofs out of doors (plan.masses, plan.roofs: the building looks
 // the same from the street and from the air, and what stands on those roofs still stands), plan.byId (so that a doorway's
 // far side can still be asked what it was), their volumes in plan.boxes, marked `shut`: nowhere to be (confine), and how
