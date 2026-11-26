@@ -434,6 +434,7 @@ feature({
     this.column = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 3.4, 40, 1, true).translate(0, 1.7, 0), beamMaterial(M.U, { up: true, n: 12, m: 4, speed: 1.4, rings: 3, ringSpeed: 0.8, fall: 0.9 }));
     this.column.scale.z = 0.66; this.column.renderOrder = 4;
     this.column.position.set(this.grate.x, L.y + 0.01, this.grate.z); this.column.visible = false; k.group.add(this.column);
+    for (const o of [M.group, this.ribbon.mesh, this.motes.mesh, this.pool, this.column]) o.userData.always = true;      // (it flies about: not for src/stream.js, which would go by where it stood when it was counted and hide it on a phone)
     this.pos = new THREE.Vector3(); this.v3 = new THREE.Vector3(); this.v4 = new THREE.Vector3(); this.v5 = new THREE.Vector3();
     // the card on screen when the log is read
     const el = this.cardEl = document.createElement('div'); el.id = 'keeperCard'; el.setAttribute('role', 'img');

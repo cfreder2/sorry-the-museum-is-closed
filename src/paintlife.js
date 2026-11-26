@@ -639,6 +639,9 @@ class Life {
       this.pal = await palette(this.art);
       this.group = new THREE.Group(); this.group.name = 'life:' + this.id; this.group.visible = false; this.k.group.add(this.group);
       this.fixed = new THREE.Group(); this.fixed.name = 'life-fixed:' + this.id; this.k.group.add(this.fixed);
+      // (Not for src/stream.js: a show's meshes move, and are counted by where they lay when it found them. On a phone a
+      // rig counted at rest was taken for something far away and never drawn. The kit lets its own shows go: release().)
+      this.group.userData.always = this.fixed.userData.always = true;
       if (!this._keys) this._keys = new Set(Object.keys(this.spec));      // (what the spec was before it built: release() clears the rest)
       try { this.spec.build(this); this.made = true; this.usedAt = performance.now(); } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; return; }
       // Compile its shaders now, off the main thread where the browser can, so the first show does not stutter.

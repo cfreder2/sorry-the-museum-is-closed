@@ -365,6 +365,7 @@ feature({
     this.k = k; this.v3 = new THREE.Vector3(); this.v3b = new THREE.Vector3(); this.sparkFloor = 0;
     this.seq = null; this.grace = 0; this.wasOn = false; this.blipT = 0; this.prevState = 'play';
     this.root = new THREE.Group(); this.root.name = 'security robots'; k.group.add(this.root);
+    this.root.userData.always = true;      // (they move about: not for src/stream.js, which would go by where each stood when it was counted and hide it on a phone)
     this.sfx = voices(k);
     const P = this.patrols = patrols(k.plan, COUNT);
     // One body, one head and one set of glowing bits, shared; each robot has its own glow colour, its own pool of light and its own mark.
