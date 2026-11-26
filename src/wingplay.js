@@ -414,7 +414,8 @@ feature({
       c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.globalCompositeOperation = 'source-over'; this._compose();
       if (Math.random() < 0.2) k.synth.noise(0.08, { vol: 0.02, lp: 3000 });
     };
-    this.pad.addEventListener('pointerdown', e => { e.preventDefault(); down = true; [lx, ly] = at(e); this.pad.setPointerCapture(e.pointerId); wipe(lx, ly, lx + 0.1, ly); });
+    // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
+    this.pad.addEventListener('pointerdown', e => { down = true; [lx, ly] = at(e); this.pad.setPointerCapture(e.pointerId); wipe(lx, ly, lx + 0.1, ly); });
     this.pad.addEventListener('pointermove', e => { if (!down) return; const [x, y] = at(e); wipe(lx, ly, x, y); lx = x; ly = y; });
     const up = () => { if (!down) return; down = false; this._check(k); };
     this.pad.addEventListener('pointerup', up); this.pad.addEventListener('pointercancel', up);

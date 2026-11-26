@@ -88,7 +88,7 @@ export class Simon {
     document.body.append(el);
     el.addEventListener('pointerdown', e => {
       const b = e.target.closest('button'); if (!b) return;
-      e.preventDefault();
+      // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
       if (b.dataset.pad) this._press(+b.dataset.pad);
       else if (b.dataset.simon === 'again') this._start();
       else if (b.dataset.simon === 'leave') this.close();

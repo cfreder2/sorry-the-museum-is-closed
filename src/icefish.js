@@ -323,8 +323,8 @@ feature({
     this.stepEls = [...el.querySelectorAll('[data-s]')]; this.sonar = el.querySelector('[data-sonar]').getContext('2d'); this.yankBtn = el.querySelector('[data-yank]');
     this.keys = new Set(); this.hold = 0;
     let drag = null;
+    // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
     el.addEventListener('pointerdown', e => {
-      e.preventDefault();
       if (e.target.closest('[data-leave]')) return this.close();
       if (e.target.closest('[data-jig]')) return this.jiggle();
       if (e.target.closest('[data-yank]')) return this.yank();

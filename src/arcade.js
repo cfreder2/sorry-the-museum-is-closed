@@ -211,8 +211,8 @@ export class Arcade {
     addEventListener('keyup', e => this.keyup(e));
     addEventListener('blur', () => { if (this.held) for (const k in this.held) this.held[k] = false; });
     // Buttons: the four directions and the two actions are held, and some games repeat while they are.
+    // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
     const down = (b, e) => {
-      e.preventDefault();
       const k = b.dataset.arc;
       if (k === 'leave' || k === 'again') return this.press(k);
       if (k === 'b') return this.press('b2');
@@ -233,7 +233,7 @@ export class Arcade {
     let p = null;
     cv.addEventListener('pointerdown', e => {
       if (!this.on || !this.game) return;
-      e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch { /* fine */ }
+      try { cv.setPointerCapture(e.pointerId); } catch { /* fine */ }      // (no preventDefault here either: see the buttons, above)
       const [x, y] = at(e), g = this.game;
       p = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ox: e.clientX, oy: e.clientY, used: false, moved: false };
       if (g.drag && !g.over) g.drag(x, y);

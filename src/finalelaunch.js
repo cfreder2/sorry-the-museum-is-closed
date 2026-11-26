@@ -770,12 +770,13 @@ feature({
     el.addEventListener('pointerdown', e => {
       if (!document.hasFocus()) window.focus();
       const b = e.target.closest('button'); if (!b || this.k.G.state !== 'play') return;
-      e.preventDefault(); this.k.sound.unlock && this.k.sound.unlock();
+      // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
+      this.k.sound.unlock && this.k.sound.unlock();
       if (b.dataset.tone === 'leave') this.closeTones('The pads go quiet. Come back any time.');
       else this.press(+b.dataset.tone);
     });
     const sk = this.skipEl = document.createElement('button'); sk.id = 'fskip'; sk.hidden = true; sk.dataset.tone = 'skip'; sk.innerHTML = `SKIP<kbd data-key="Space" data-pad="A">${this.k.G.input && this.k.G.input.pad ? 'A' : 'Space'}</kbd>`;      // (data-pad: main.js keycaps() swaps the caption when a pad is picked up)
-    sk.addEventListener('pointerdown', e => { if (!document.hasFocus()) window.focus(); e.preventDefault(); if (this.k.G.state === 'play') this.skip(); });
+    sk.addEventListener('pointerdown', () => { if (!document.hasFocus()) window.focus(); if (this.k.G.state === 'play') this.skip(); });      // (no preventDefault: as the pads, above)
     document.body.append(sk);
     const fd = this.fadeEl = document.createElement('div'); fd.id = 'ffade'; document.body.append(fd);
   },

@@ -405,7 +405,8 @@ export class Repair {
     this.ctx = cv.getContext('2d');
     addEventListener('keydown', e => { if (this.on && this.key(e)) e.preventDefault(); });
     // Every finger is its own touch: two thumbs can work the belt at once.
-    cv.addEventListener('pointerdown', e => { if (!this.on) return; e.preventDefault(); if (e.pointerType === 'mouse' && e.button !== 0) return; if (e.pointerType !== 'touch') this.keys = false; this._tapAt(e.clientX, e.clientY); });
+    // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
+    cv.addEventListener('pointerdown', e => { if (!this.on) return; if (e.pointerType === 'mouse' && e.button !== 0) return; if (e.pointerType !== 'touch') this.keys = false; this._tapAt(e.clientX, e.clientY); });
     cv.addEventListener('contextmenu', e => e.preventDefault());
     for (const ev of ['touchstart', 'touchmove']) cv.addEventListener(ev, e => { if (this.on) e.preventDefault(); }, { passive: false });      // no scrolling, no zooming, no loupe
   }

@@ -174,7 +174,7 @@ export class Paint {
     // Buttons answer as they are touched, not on the click after: a click straight after a stroke can go missing.
     el.addEventListener('pointerdown', e => {
       const b = e.target.closest('button'); if (!b) return;
-      e.preventDefault();
+      // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
       if (b.dataset.tool) this.tool = b.dataset.tool;
       else if (b.dataset.size) this.size = +b.dataset.size;
       else if (b.dataset.colour) { this.colour = b.dataset.colour; if (this.tool === 'eraser') this.tool = 'brush'; }
@@ -189,7 +189,7 @@ export class Paint {
     const at = e => { const r = this.pc.getBoundingClientRect(); return [(e.clientX - r.left) * CW / r.width, (e.clientY - r.top) * CH / r.height]; };
     let last = null, id = null;
     this.pc.addEventListener('pointerdown', e => {
-      if (id !== null) return; e.preventDefault(); id = e.pointerId; this.pc.setPointerCapture(id);
+      if (id !== null) return; id = e.pointerId; this.pc.setPointerCapture(id);      // (no preventDefault: as the buttons, above. The canvas has touch-action: none, so a finger draws and does not scroll.)
       const [x, y] = at(e); this._keep();
       if (this.tool === 'fill') { this._fill(Math.round(x), Math.round(y)); id = null; return; }
       last = [x, y]; this._dab(x, y, x, y);

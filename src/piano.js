@@ -106,14 +106,15 @@ export class Piano {
     document.body.append(el);
     const pane = this.pane = el.querySelector('.pane');
     const at = e => this.keyAt(e.clientX, e.clientY);
-    pane.addEventListener('pointerdown', e => { e.preventDefault(); try { pane.setPointerCapture(e.pointerId); } catch { /* fine */ } const m = at(e); this.ptr.set(e.pointerId, m); if (m != null) this.press(m, 'p' + e.pointerId); });
+    // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive. Nothing is lost by it: style.css already stops text being selected and the page being dragged, for every element.)
+    pane.addEventListener('pointerdown', e => { try { pane.setPointerCapture(e.pointerId); } catch { /* fine */ } const m = at(e); this.ptr.set(e.pointerId, m); if (m != null) this.press(m, 'p' + e.pointerId); });
     pane.addEventListener('pointermove', e => { if (!this.ptr.has(e.pointerId)) return; const was = this.ptr.get(e.pointerId), m = at(e); if (m === was) return; if (was != null) this.release(was, 'p' + e.pointerId); this.ptr.set(e.pointerId, m); if (m != null) this.press(m, 'p' + e.pointerId, 0.8); });
     const upP = e => { if (!this.ptr.has(e.pointerId)) return; const was = this.ptr.get(e.pointerId); this.ptr.delete(e.pointerId); if (was != null) this.release(was, 'p' + e.pointerId); };
     pane.addEventListener('pointerup', upP); pane.addEventListener('pointercancel', upP);
     for (const b of el.querySelectorAll('button')) {
       const act = b.dataset.act;
-      if (act === 'pedal') { b.addEventListener('pointerdown', e => { e.preventDefault(); this.pedal(true); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => this.pedal(false)); }
-      else b.addEventListener('pointerdown', e => { e.preventDefault(); if (act === 'leave') this.close(); else if (act === 'listen') this.listen(); else this.shift(act === 'up' ? 12 : -12); });
+      if (act === 'pedal') { b.addEventListener('pointerdown', () => { this.pedal(true); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => this.pedal(false)); }
+      else b.addEventListener('pointerdown', () => { if (act === 'leave') this.close(); else if (act === 'listen') this.listen(); else this.shift(act === 'up' ? 12 : -12); });
     }
     addEventListener('keydown', e => {
       if (!this.on) return;
