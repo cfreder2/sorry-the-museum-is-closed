@@ -497,10 +497,13 @@ function cutOut(img) {
 const LOADER = `${cutPixels.toString()}
 onmessage = async e => {
   const { id, url, obj } = e.data;
+  // (A request that never answers, or a picture that stalls half way, is given up after half a minute: it must not keep one of the six places for good.)
+  const ac = typeof AbortController === 'function' ? new AbortController() : null, late = ac ? setTimeout(() => ac.abort(), 30000) : 0;
   try {
-    const r = await fetch(url, { mode: 'cors', referrerPolicy: 'no-referrer' });
+    const r = await fetch(url, { mode: 'cors', referrerPolicy: 'no-referrer', signal: ac ? ac.signal : undefined });
     if (!r.ok) throw new Error('http ' + r.status);
     const blob = await r.blob();
+    clearTimeout(late);
     let bmp;
     if (obj) {
       const src = await createImageBitmap(blob);
@@ -514,6 +517,8 @@ onmessage = async e => {
     postMessage({ id, bmp }, [bmp]);
   } catch (err) {
     // A browser that cannot do this at all says so once, and the page does the work itself from then on.
+    clearTimeout(late);
+    if (ac && ac.signal.aborted) { postMessage({ id, fail: true, late: true }); return; }
     postMessage({ id, fail: true, cannot: err instanceof TypeError && !/fetch|network|load/i.test(String(err.message)) || typeof OffscreenCanvas === 'undefined' });
   }
 };`;
@@ -2236,6 +2241,7 @@ export class Museum {
           if (!j) return;
           this._jobs.delete(e.data.id);
           if (e.data.bmp) { this._ok = true; this._ready.push({ a: j.a, tier: j.tier, url: j.url, source: e.data.bmp, flip: false }); return; }
+          if (e.data.late) { this._failed(j.a); return; }      // (no answer in half a minute: the page would do no better. The picture waits and is asked for again.)
           // Whatever went wrong, the page has one try at this picture itself; and a worker that has
           // never once delivered is given up on after three failures.
           this._loadHere(j.a, j.tier, j.url);
@@ -2247,14 +2253,17 @@ export class Museum {
     if (this._worker) { const id = ++this._jobId; this._jobs.set(id, { a, tier, url }); this._worker.postMessage({ id, url: new URL(url, location.href).href, obj: !!a.obj }); }
     else this._loadHere(a, tier, url);
   }
-  _failed(a) { a.failed = (a.failed || 0) + 1; setTimeout(() => { a.busy = false; this.loading--; }, Math.min(60000, 4000 * a.failed)); }
+  // A picture that would not load waits 4 to 60 seconds before it is asked for again; its place among the six goes back at once.
+  // (It used to keep the place for the whole wait: six near works that kept failing starved every picture behind them.)
+  _failed(a) { a.failed = (a.failed || 0) + 1; this.loading--; setTimeout(() => { a.busy = false; }, Math.min(60000, 4000 * a.failed)); }
   // The old way, on the page: an image element, and the cut-out done here.
   _loadHere(a, tier, url) {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.referrerPolicy = 'no-referrer';
-    img.onload = () => this._ready.push({ a, tier, url, source: a.obj ? cutOut(img) : img, flip: true });
-    img.onerror = () => this._failed(a);
+    const late = setTimeout(() => { img.onload = img.onerror = null; img.src = ''; this._failed(a); }, 30000);      // (no answer in half a minute: given up, as the worker does)
+    img.onload = () => { clearTimeout(late); this._ready.push({ a, tier, url, source: a.obj ? cutOut(img) : img, flip: true }); };
+    img.onerror = () => { clearTimeout(late); this._failed(a); };
     img.src = url;
   }
 
