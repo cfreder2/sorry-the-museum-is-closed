@@ -1,6 +1,6 @@
 # Prompts
 
-Sorry, the Museum is Closed (first called After Hours) was built in one conversation with Claude Code. These are the
+Sorry, the Museum is Closed was built in one conversation with Claude Code. These are the
 prompts that built it, in order and exactly as typed. Several were sent while
 the previous one was still being worked on; those are marked.
 
@@ -173,7 +173,7 @@ the previous one was still being worked on; those are marked.
 
 ## 41 (sent during the build)
 
-> the name "after hours" is innapproriate in some contexts.  Can we just go with "Sorry, the Musem is Closed"?
+> the name "[the first name]" is innapproriate in some contexts.  Can we just go with "Sorry, the Musem is Closed"?
 
 ## 42 (sent during the build)
 
@@ -201,7 +201,7 @@ the previous one was still being worked on; those are marked.
 
 ## 48
 
-> okay, the after hours name is gone, what is it now
+> okay, the [first] name is gone, what is it now
 
 ## 49
 
@@ -741,7 +741,7 @@ Prompts 68 to 128 come from the summary of a session whose full transcript was n
 
 ## 174 (sent during the build)
 
-> Experience that art collection from the Art Institute of Chicago as a rouge RC Car tearing down the museuem halways after hours.
+> Experience that art collection from the Art Institute of Chicago as a rouge RC Car tearing down the museuem halways [after closing].
 
 ## 175
 

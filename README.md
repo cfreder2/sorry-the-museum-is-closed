@@ -7,7 +7,7 @@ the museum lists it in. The aim is to see as much of it as you can.
 
 Play it: <https://cfreder2.github.io/sorry-the-museum-is-closed/>
 
-(First called After Hours. Saved games still use that name internally.)
+(Saved games keep the internal key names they were first given.)
 
 ## Run it locally
 

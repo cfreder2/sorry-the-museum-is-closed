@@ -1,5 +1,5 @@
 // Sorry, the Museum is Closed. The Art Institute of Chicago, by remote control.
-// (First called After Hours; saved games and the folder still carry that name.)
+// (Saved games keep the key names they were first given: they are players' saves, and are never renamed.)
 // Never draw over a painting: effects go beside, below or in front of a work, in the room, never on the canvas.
 
 import * as THREE from 'three';
