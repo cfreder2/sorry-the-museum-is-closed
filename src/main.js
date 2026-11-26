@@ -450,6 +450,7 @@ function start(fresh = false) {
     // The first things said: how to move, then where to go. Short, and in that order: you need the first to do the second.
     const touch = !input.pad && (input.usedTouch || matchMedia('(pointer: coarse)').matches);
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
+    else if (unlocked()) say(`Back at the front. The doors are unlocked. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);      // (been in before, but the saved place was no use: not the first-night lines)
     else {
       say(input.pad ? (G.toy === 'drone' ? 'Left stick climbs and turns · right stick flies' : 'Right trigger to go · left stick to steer')
         : touch ? (G.toy === 'drone' ? 'Left thumb flies. UP and DOWN on the right.' : set.autogo ? 'Hold a thumb down to go. Slide it to steer.' : 'Left thumb drives: push to go, lean to steer.')
