@@ -65,8 +65,8 @@ const CARDS = [
     { who: 'me', text: 'Why is it closed?' },
     { who: 'mom', text: 'I don’t know, honey, it’s just closed. We can talk about this tomorrow.' },
     { who: 'dad', note: 'mutters', text: 'The news said it’s closed for renovations.' }] },
-  { view: 'museum2', pre: 1.6, on: '_flash', lines: [
-    { who: 'me', text: 'But Mom, I swear something’s happening at the museum. Green lights are flashing, right?' },
+  { view: 'museum2', pre: 3.4, on: '_flash', lines: [      // (pre: the museum's five notes are heard out before she speaks)
+    { who: 'me', text: 'But Mom, I swear something is happening at the museum. Did you hear that?' },
     { who: 'mom', text: 'Honey, those are the Christmas lights.' },
     { who: 'dad', text: 'It’s time for bed.' }] },
   { view: 'room', pre: 0.9, lines: [{ who: 'me', text: 'Fine.' }] },
@@ -137,6 +137,8 @@ const GRIP = 0.178;                                 // from the middle of the to
 const SWOOP = 2.4, CHASE = 5, OVER = 11.5, FLY = SWOOP + CHASE + OVER, CALM_FLY = 4.6;
 const TOY = { v: 3.4, far: 30 };                    // how fast the toy goes over the snow, and how far: to the ring of lights round the Singing Tree
 const MOTOR = { kind: 'car', speed: TOY.v, throttle: 0.45, air: false };      // what the game's own motor sound is told while we are down beside it
+// The museum's call on the green-lights card: the five notes (src/motif.js), when, how fast, and how loud (her voice is 0.03).
+const CALL = { at: 0.5, beat: 0.42, gain: 0.3 };
 
 export class Opening {
   constructor(G, { THREE, scene, camera, sound }) {
@@ -362,9 +364,12 @@ export class Opening {
     return out.set(b * b * STAR[0] + 2 * b * k * 300 + k * k * INTO[0], b * b * STAR[1] + 2 * b * k * (33 + i * 1.6) + k * k * INTO[1] + wig, b * b * STAR[2] + 2 * b * k * (i * 3 - 4) + k * k * INTO[2] + wig * 0.6);
   }
   _lightsGo() { if (this.trig === Infinity) this.trig = this.t + 0.5; }
+  // The museum calls: its five notes, loud, a green light for each (the television turned down under them).
   _flash() {
-    this.greenTo = 0.42;
-    this.snd.motif(0.5, { beat: 0.34, gain: 0.05, onNote: i => this._pulse(i % 5, 1) });
+    this.greenTo = 0.42; this.called = this.t + CALL.at + CALL.beat * 7;
+    this.snd.tvLevel(0.2);
+    this.snd.motif(CALL.at, { beat: CALL.beat, gain: CALL.gain, onNote: i => this._pulse(i % 5, 1) });
+    this.snd.motif(CALL.at, { beat: CALL.beat, gain: CALL.gain * 0.3, transpose: 12 });      // (and an octave up, which a phone's small speaker carries)
   }
   _pulse(i, amp) { if (this.on) this.pulses.push({ i, amp, t: this.t }); }
 
@@ -387,7 +392,7 @@ export class Opening {
     if (!alive && t > this.trig && !this.gone) { this.gone = true; this.greenTo = Math.max(this.greenTo, 0.16); }
     // the green in the museum
     this.green += (this.greenTo - this.green) * Math.min(1, dt * 1.5);
-    if (this.phase === 'room' && this.ci === 7 && !this.calm && Math.random() < dt * 1.4) this._pulse(Math.floor(Math.random() * 5), 0.5 + Math.random() * 0.5);
+    if (this.phase === 'room' && this.ci === 7 && !this.calm && t > (this.called ?? 1e9) && Math.random() < dt * 1.4) this._pulse(Math.floor(Math.random() * 5), 0.2 + Math.random() * 0.3);      // (a glimmer afterwards: the bright flashes are the notes')
     this.pulses = this.pulses.filter(p => t - p.t < 2.2);
     set.glows.forEach((s, i) => {
       let k = this.green * (i === 5 ? 0.3 : 0.75 + 0.25 * Math.sin(t * 2.3 + i * 1.9));

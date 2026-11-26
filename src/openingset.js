@@ -370,9 +370,12 @@ export function buildSet(G, { eye, aim }) {
   // the low bookcase by the window, where the car is kept, and the lamp on it
   const SH = SHELF, sx = (SH.x0 + SH.x1) / 2, sz = (SH.z0 + SH.z1) / 2, sw = SH.x1 - SH.x0, sd = SH.z1 - SH.z0;
   put(box(sw + 0.02, 0.03, sd + 0.02), WOOD, M(sx - 0.01, SH.y - 0.015, sz));
-  put(box(sw, SH.y, 0.03), WOOD, M(sx, SH.y / 2, SH.z0 + 0.015)); put(box(sw, SH.y, 0.03), WOOD, M(sx, SH.y / 2, SH.z1 - 0.015));
+  // (The ends and the back stop under the top board. They stood as high as it, and the dark back's edge flickered in a strip
+  // across the top, the two drawn at the same height.)
+  const sh = SH.y - 0.03;
+  put(box(sw, sh, 0.03), WOOD, M(sx, sh / 2, SH.z0 + 0.015)); put(box(sw, sh, 0.03), WOOD, M(sx, sh / 2, SH.z1 - 0.015));
   put(box(sw, 0.03, sd), WOOD, M(sx, 0.36, sz)); put(box(sw, 0.05, sd), WOOD, M(sx, 0.025, sz));
-  put(box(0.02, SH.y, sd), 0x3a2c22, M(SH.x1 - 0.2, SH.y / 2, sz));
+  put(box(0.02, sh, sd), 0x3a2c22, M(SH.x1 - 0.2, sh / 2, sz));
   { let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, cols = [0xb8473c, 0x3f6ea8, 0xd8a03a, 0x4d8a5c, 0x8a5aa8, 0xd9d2c0, 0xc76a3a, 0x33607a];
     for (const y0 of [0.05, 0.375]) for (let z = SH.z0 + 0.05; z < SH.z1 - 0.09;) { const t = 0.028 + rnd() * 0.04, hh = 0.2 + rnd() * 0.09; put(box(0.16, hh, t), cols[rnd() * cols.length | 0], M(SH.x0 + 0.1, y0 + hh / 2, z + t / 2)); z += t + 0.004; if (rnd() < 0.12) z += 0.08; } }
   put(cyl(0.055, 0.065, 0.02, 16), 0x39405a, M(LAMP.x, SH.y + 0.01, LAMP.z)); put(cyl(0.009, 0.009, 0.2, 8), 0x39405a, M(LAMP.x, SH.y + 0.12, LAMP.z));
