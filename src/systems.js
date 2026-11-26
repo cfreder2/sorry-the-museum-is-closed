@@ -93,10 +93,10 @@ const POWER = /electrical|substation|switchroom|server room|information technolo
 const ZONE_NAMES = {
   lobby: 'Michigan Avenue lobby', shop: 'Museum shops', cafe: 'Cafés', restrooms: 'Restrooms', checkroom: 'Checkroom', learning: 'Learning centre', staff: 'Staff rooms', plant: 'Plant rooms',
   restaurant: 'Restaurant', kitchens: 'Kitchens', auditorium: 'Auditoria', entrances: 'Entrance halls and foyers', service: 'Service rooms', security: 'Security and staff entrances', loading: 'Loading dock', workshops: 'Workshops',
-  offices: 'Offices', ranges: 'Back-of-house ranges', 'corridors-ll': 'Service corridors, lower level', 'corridors-1': 'Service corridors, first floor', 'corridors-2': 'Service corridors, second floor',
+  offices: 'Offices', ranges: 'Back-of-house ranges', 'corridors-ll': 'Service corridors, Sub-level 1', 'corridors-1': 'Service corridors, first floor', 'corridors-2': 'Service corridors, second floor',
   'corridors-3': 'Service corridors, third floor', other: 'Other back rooms',
 };
-const FLOOR_NAME = { LL: 'lower level', 1: 'first floor', 2: 'second floor', 3: 'third floor' };
+const FLOOR_NAME = { LL: 'Sub-level 1', 1: 'first floor', 2: 'second floor', 3: 'third floor' };
 function classify(r) {
   if (r.secret || r.floor === 'X' || r.use === 'secret') return '!none';
   if (r.kind !== 'room') return '!gallery';                               // galleries, Griffin Court, the passage hung with miniatures
@@ -502,11 +502,11 @@ const S = feature({
     this.zoneOf = zones;
     // Wings, for the fire test: the galleries of one building on one floor.
     this.wings = {};
-    const B = { main: 'the old building', modern: 'the Modern Wing', lower: 'the lower level', first: 'the first building' };
+    const B = { main: 'the old building', modern: 'the Modern Wing', lower: 'Sub-level 1', first: 'the first building' };
     for (const r of P.rooms) {
       if (r.kind !== 'gallery' || r.secret) continue;
       const id = (r.building || 'main') + '-' + String(r.floor).toLowerCase();
-      (this.wings[id] || (this.wings[id] = { name: r.building === 'lower' ? 'the lower level' : (B[r.building] || r.building || 'the building') + ', ' + (FLOOR_NAME[r.floor] || 'floor ' + r.floor), rooms: [] })).rooms.push(r);
+      (this.wings[id] || (this.wings[id] = { name: r.building === 'lower' ? 'Sub-level 1' : (B[r.building] || r.building || 'the building') + ', ' + (FLOOR_NAME[r.floor] || 'floor ' + r.floor), rooms: [] })).rooms.push(r);
     }
   },
   // The words for "no".
@@ -732,7 +732,7 @@ const S = feature({
         `  ${vents.length} vents, ducts, flaps and propped windows: not on the system.`, P.locked ? 'The building is secure.' : 'The building is secure, apart from the doors.');
     }
     if (a[0] === 'unlock') {
-      if (/^staff/i.test(a[1] || '')) return say(false, 'STAFF ENTRANCE: on the drawings (lower level, room BLL-1). No door to the street was ever built there.', 'Staff use the front door, like everybody else. Request declined.');
+      if (/^staff/i.test(a[1] || '')) return say(false, 'STAFF ENTRANCE: on the drawings (Sub-level 1, room BLL-1). No door to the street was ever built there.', 'Staff use the front door, like everybody else. Request declined.');
       if (!a[1]) return say(false, this.usage('doors'));
       return say(false, P.locked ? `Door ${a[1]}: unlocking needs a key holder on site. There is no key holder on site.` : `Door ${a[1]}: already unlocked. Nobody has told this system why.`);
     }

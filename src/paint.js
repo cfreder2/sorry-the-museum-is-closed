@@ -111,7 +111,6 @@ export class Paint {
     if (this.saved) { k.font = 'italic 700 46px Georgia, serif'; k.fillText(this.title || 'Untitled', 384, 72, 720); k.font = '32px Georgia, serif'; k.fillText('You, tonight. Paint on screen.', 384, 132); }
     else { k.font = '700 44px Georgia, serif'; k.fillText('EXHIBIT COMING SOON', 384, 72); { const line = 'See the restoration in the Ryan Learning Center.'; let px = 30; do { k.font = `italic ${px}px Georgia, serif`; px--; } while (k.measureText(line).width > 700 && px > 12); k.fillText(line, 384, 132); } }
     this.cardTex.needsUpdate = true;
-    const levels = { LL: 'lower level', 1: 'first floor', 2: 'second floor', 3: 'third floor' };
     this.art.work = this.saved
       ? { id: 0, t: this.title || 'Untitled', a: 'You', d: 'tonight', m: 'Paint on screen, 800 × 600.', g: 'Michigan Avenue Lobby', alt: 'Painted in the ' + where + '. Go back to the easel there to change it or start again.', note: 'Yours. It is kept on this device and goes nowhere else.' }
       : { id: 0, t: 'Exhibit coming soon', a: '', d: '', m: '', g: 'Michigan Avenue Lobby', alt: 'See the restoration in the Ryan Learning Center.' };

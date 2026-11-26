@@ -29,7 +29,7 @@ const KEY = 'after-hours.heist', MAXB = 460;
 const HELD = 2.5;                  // seconds in the cage before it is carried off
 const $ = id => document.getElementById(id);
 const clock = s => { s = Math.max(0, s); const m = Math.floor(s / 60), r = Math.floor(s - m * 60); return `${m}:${r < 10 ? '0' : ''}${r}`; };
-const LEVEL = { LL: 'the lower level', 1: 'the first floor', 2: 'the second floor', 3: 'the third floor' };
+const LEVEL = { LL: 'Sub-level 1', 1: 'the first floor', 2: 'the second floor', 3: 'the third floor' };
 // How it went, by how much of the clock was left at the button.
 const RANKS = [[0.25, 'A GHOST'], [0.15, 'CAT BURGLAR'], [0.07, 'LIGHT FINGERS'], [0, 'BY A WHISKER']];
 // What a finished heist pays, in chips (the game's money: the shop, the card table). The job itself, more for a harder

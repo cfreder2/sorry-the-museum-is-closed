@@ -17,7 +17,7 @@ const HALF = 0.62, REACH = 9;                 // the searchlight, as src/guards.
 const MOOD = { patrol: 0, scan: 0, return: 0, tend: 0, alert: 1, search: 1, chase: 2, charge: 2, hold: 2 };
 const STATE = { patrol: 'PATROL', scan: 'SWEEPING', return: 'RETURNING', tend: 'SENDING HOME', alert: 'ALERT ?', search: 'SEARCHING', chase: 'PURSUIT !', charge: 'CHARGING !', hold: 'DETAINING' };
 const TINT = ['#7dffa0', '#ffc23a', '#ff4636'];
-const NAMES = { LL: 'LOWER', 1: 'FIRST', 2: 'SECOND', 3: 'THIRD' };
+const NAMES = { LL: 'SUB-LEVEL 1', 1: 'FIRST', 2: 'SECOND', 3: 'THIRD' };
 export const RESTRICTED = 'SL9';
 const feat = id => features.find(f => f.id === id);
 const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -38,7 +38,8 @@ export class Tracker {
   }
   mice() {
     const m = feat('mice'); if (!m || !m.list) return [];
-    return m.list.map((q, i) => ({ id: 'M' + (i + 1), wing: q.wing ? q.wing.name : '?', x: q.px || 0, z: q.pz || 0, y: q.y, level: this.levelOf(q.y).id, out: q.px != null && q.state !== 'home' && q.state !== 'done', state: q.state === 'done' ? 'HOME' : q.state === 'home' ? 'IN ITS HOLE' : q.state === 'run' || q.state === 'duck' ? 'RUNNING' : 'AT LARGE' }));
+    // (the floor below has one name wherever it is read, the map's: the mice's own table, plan.js MOUSE_WINGS, still says "the lower level")
+    return m.list.map((q, i) => ({ id: 'M' + (i + 1), wing: q.wing ? (q.wing.id === 'lower' ? 'Sub-level 1' : q.wing.name) : '?', x: q.px || 0, z: q.pz || 0, y: q.y, level: this.levelOf(q.y).id, out: q.px != null && q.state !== 'home' && q.state !== 'done', state: q.state === 'done' ? 'HOME' : q.state === 'home' ? 'IN ITS HOLE' : q.state === 'run' || q.state === 'duck' ? 'RUNNING' : 'AT LARGE' }));
   }
   // What is out of its painting (src/escapes.js): each by name, where it is, and the day's record of the ones sent home.
   escapes() {
