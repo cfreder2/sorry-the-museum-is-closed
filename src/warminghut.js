@@ -238,10 +238,11 @@ feature({
   id: 'warminghut',
   lazy: { x: 430, z: 236, r: 140 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['hutcat', 'The hut cat']],
-  init(k) {
+  // (A generator: each yield is a place the building of it can stop until the next frame. features.js, `begin`.)
+  *init(k) {
     if (!k.plan.lakefront) return;
     this.k = k; this.t = 0;
-    const g = this.g = new THREE.Group(); g.name = 'warminghut'; g.position.set(HX, 0, HZ); k.group.add(g);
+    const g = this.g = new THREE.Group(); g.name = 'warminghut'; g.position.set(HX, 0, HZ); g.visible = false; k.group.add(g);      // (hidden until it all stands: features.js builds it a part at a time, and k.ready shows it)
     const inner = this.inner = new THREE.Group(); g.add(inner);       // the room inside: only drawn when the toy is near
     const M = this.M = {
       wall: warm(new THREE.MeshStandardMaterial({ map: battenTex(), roughness: 0.85 }), OUTSIDE),
@@ -269,19 +270,21 @@ feature({
       lamp: new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.45, 0.75) }),
       bulb: new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.8, 1.0) }),
     };
+    yield;
     this.O = k.plan.obstacles; this.S = k.plan.surfaces;
     const out = new Bag(), ins = new Bag();
-    this._shell(out, ins);
-    this._roof(out, ins);
-    this._porch(out);
-    this._room(ins);
-    out.done(g); ins.done(inner);
-    this._cat(inner);
+    this._shell(out, ins); yield;
+    this._roof(out, ins); yield;
+    this._porch(out); yield;
+    this._room(ins); yield;
+    out.done(g); ins.done(inner); yield;
+    this._cat(inner); yield;
     this._glows(g, inner);
     this._lights(g);
-    this._smoke(g);
+    this._smoke(g); yield;
     this.steam = k.puffs(50, { color: 0xe6edf5, size: 0.13 }); this.kettle = k.puffs(24, { color: 0xdde6f0, size: 0.07 });
     this.roar = k.loop({ lp: 420 }); this.crack = 0; this.warmT = 0; this.steamT = 0; this.lines = 0;
+    yield* k.ready(g);
   },
   // A solid box in the hut's frame (local coordinates), and a top to land on.
   _ob(x0, x1, y0, y1, z0, z1, extra) { this.O.push({ x0: HX + x0, x1: HX + x1, z0: HZ + z0, z1: HZ + z1, y0, y1, ...extra }); },

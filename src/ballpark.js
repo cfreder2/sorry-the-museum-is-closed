@@ -75,11 +75,12 @@ feature({
   id: 'ballpark',
   lazy: { x: 402, z: 146, r: 160 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['derbyhr', 'Home Run Derby: one over the wall'], ['derby5', 'Home Run Derby: five in a round']],
-  init(k) {
+  // (A generator: each yield is a place the building of it can stop until the next frame. features.js, `begin`.)
+  *init(k) {
     const L = k.plan.lakefront; if (!L) return;
     const P = this.P = { hx: 402, hz: 146, line: 40, centre: 68, wall: 1.4, ...(L.ballpark || {}) };
     this.k = k; this.t = 0; this.on = false; this.phase = 'off';
-    const g = this.g = new THREE.Group(); g.name = 'ballpark'; k.group.add(g);
+    const g = this.g = new THREE.Group(); g.name = 'ballpark'; g.visible = false; k.group.add(g);      // (hidden until it all stands: features.js builds it a part at a time, and k.ready shows it)
     // The field's frame: home plate, centre field (c), and the side of the plate the batter's box is on (s, the
     // third-base side, where a right-handed batter stands).
     this.H = new THREE.Vector3(P.hx, 0, P.hz);
@@ -92,13 +93,14 @@ feature({
     this.tgt = new THREE.Vector3();                                         // where the pitch in the air will cross the plate
     k.plan.paved.push({ x0: P.hx - 3.6, x1: P.hx + 17, z0: P.hz - 3.6, z1: P.hz + 17 });      // the infield is ploughed: it grips, and takes no tyre tracks
     this.lamps = new THREE.Group(); g.add(this.lamps);
-    this._ground(k); this._backstop(k); this._dugouts(k); this._wall(k); this._towers(k); this._scoreboard(k);
-    this._pitcher(k); this._balls(k); this._fans(k);
+    this._ground(k); yield; this._backstop(k); yield; this._dugouts(k); yield; this._wall(k); yield; this._towers(k); yield; this._scoreboard(k); yield;
+    this._pitcher(k); yield; this._balls(k); yield; this._fans(k); yield;
     this.crowd = k.loop({ type: 'noise', lp: 2300, hp: 450 }); this.cheer = 0;
     try { this.best = parseInt(localStorage.getItem('after-hours.derby.best'), 10) || 0; } catch { this.best = 0; }
     this._board();
     // Space swings at once (the jump it also makes is seen a frame later): the timing is to the key, not the frame.
     addEventListener('keydown', e => { if (this.on && e.code === 'Space' && !e.repeat) this._press = true; });
+    yield* k.ready(g);
   },
 
   // r(θ): how far out the wall stands, θ from the third-base line (0, along +x) round to the first-base line (90°, +z).

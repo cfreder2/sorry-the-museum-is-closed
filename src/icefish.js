@@ -149,12 +149,13 @@ feature({
   id: 'icefish',
   lazy: { x: 550, z: 122, r: 160 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['icefish', 'Ice fishing']],
-  init(k) {
+  // (A generator: each yield is a place the building of it can stop until the next frame. features.js, `begin`.)
+  *init(k) {
     this.k = k; const L = k.plan.lakefront; if (!L || !L.window) return;
     const W = this.W = L.window, x = L.fish.x, z = L.fish.z, r = this.r = rng(4242);
     this.at = { x, y: 0, z }; this.caught = 0; this.fishes = []; this.bucketed = [];
     this.DEEP = 2.6;
-    const g = this.g = new THREE.Group(); g.position.set(x, 0, z); k.group.add(g);
+    const g = this.g = new THREE.Group(); g.position.set(x, 0, z); g.visible = false; k.group.add(g);      // (hidden until it all stands: features.js builds it a part at a time, and k.ready shows it)
     const wx0 = W.x0 - x, wx1 = W.x1 - x, wz0 = W.z0 - z, wz1 = W.z1 - z, D = this.DEEP;
     // ---- under the ice: the water's sides falling away into the dark, the bottom, stones and weed
     {
@@ -178,6 +179,7 @@ feature({
       const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.1, 0.24, 0.24), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
       glow.rotation.x = -Math.PI / 2; glow.position.y = -D + 0.02; g.add(glow);
     }
+    yield;
     // ---- the clear ice over it all: black ice, frost lying on it in drifts, cracks, snow banked at the edges, the hole
     {
       const T = canvas(512, 512, (c, w, h) => {
@@ -203,6 +205,7 @@ feature({
       const chips = []; for (let i = 0; i < 18; i++) { const a = r() * 6.28, d = 0.23 + r() * 0.16, q = new THREE.DodecahedronGeometry(0.006 + r() * 0.012, 0); q.scale(1, 0.45, 1); q.rotateY(r() * 3); q.translate(Math.cos(a) * d, 0.012, Math.sin(a) * d); chips.push(q); }
       g.add(new THREE.Mesh(mergeGeometries(chips), lit(0xdde8f2, { roughness: 0.3, transparent: true, opacity: 0.85 })));
     }
+    yield;
     // ---- on the ice: the rod in its holder, a lantern, a stool, the bucket, the shanty
     {
       const wood = lit(0x6b4426), dark = lit(0x2a2a2a, { roughness: 0.5 });
@@ -282,15 +285,18 @@ feature({
         mesh(pools, new THREE.MeshBasicMaterial({ map: radial(), color: new THREE.Color(0.34, 0.23, 0.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })).renderOrder = 5;
       }
     }
+    yield;
     // ---- the fish
     const kit = this.kit = { perch: buildKind('perch'), smelt: buildKind('smelt') };
     void kit;
     for (let i = 0; i < 7; i++) { const f = new Fish(this.kit, i < 5 ? 'perch' : 'smelt', r); f.p.set(lerp(wx0 + 0.6, wx1 - 0.6, r()), -0.5 - r() * 1.8, lerp(wz0 + 0.6, wz1 - 0.6, r())); this._pick(f); g.add(f.g); this.fishes.push(f); }
+    yield;
     // ---- the line's state: where the rod tip is, how deep the jig, its little hops
     this.depth = 0.6; this.sweep = 0; this.hop = 0; this.hopV = 0; this.tug = 0; this.tension = 0; this.hooked = null; this.phase = 'idle';
     this.tipAt = new THREE.Vector3(); this.jigAt = new THREE.Vector3();
     this._rest();
     this._dom();
+    yield* k.ready(g);
   },
   // A new place for a fish to swim to, in its own band of the water.
   _pick(f) { const W = this.W, x = this.at.x, z = this.at.z, r = this.r; f.to.set(lerp(W.x0 - x + 0.5, W.x1 - x - 0.5, r()), f.kind === 'smelt' ? -0.4 - r() * 0.9 : -0.7 - r() * 1.6, lerp(W.z0 - z + 0.5, W.z1 - z - 0.5, r())); f.t = 0; },

@@ -248,6 +248,11 @@ async function prepare(from, to, step) {
   if (compiled) { await loading(from + (to - from) * 0.5, step, to); await Promise.race([compiled.catch(() => {}), new Promise(r => setTimeout(r, 8000))]); }
 }
 
+// Something built while the game is being played (one of the park's features on a phone: src/features.js, k.ready) has its
+// shaders compiled before it is shown: as they will be drawn (into the composer's buffer, not the screen), and in the
+// browser's own time. The promise is kept when they are ready.
+G.warm = o => { const was = renderer.getRenderTarget(); let p = null; renderer.setRenderTarget(composer.readBuffer); try { p = renderer.compileAsync(o, camera, scene); } catch (e) { console.warn('compile', e); } renderer.setRenderTarget(was); return p || Promise.resolve(); };
+
 async function boot() {
   await loading(8, 'Seeing the last visitors out');
   // ?saved skips the live API; ?remote ignores any offline image copy, which is only looked for when run locally.

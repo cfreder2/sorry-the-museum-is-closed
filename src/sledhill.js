@@ -115,12 +115,14 @@ feature({
   id: 'sledding',
   lazy: { x: 330, z: 140, r: 170 },      // built the first time the toy comes this near (features.js), not at start-up
   secrets: [['sledding', 'Sledding'], ['penguinrace', 'Beat a penguin down the hill']],
-  init(k) {
+  // (A generator: each yield is a place the building of it can stop until the next frame. features.js, `begin`.)
+  *init(k) {
     if (!k.plan.lakefront) return;
     const t0 = performance.now();
-    const L = this.L = buildLand(), hAt = L.heightAt;
+    const L = this.L = yield* buildLand(), hAt = L.heightAt;
+    yield;
     this.k = k; this.t = 0;
-    const g = this.g = new THREE.Group(); g.name = 'sledhill'; k.group.add(g);
+    const g = this.g = new THREE.Group(); g.name = 'sledhill'; g.visible = false; k.group.add(g);      // (hidden until it all stands: features.js builds it a part at a time, and k.ready shows it)
     const O = this.O = k.plan.obstacles;
     // The ground, for the car: one surface over the whole hill whose height is the heightfield's, and a hill (it pulls
     // you down its slopes, and there is no getting under it). In plan.hills too, so that tyre tracks follow it.
@@ -131,23 +133,24 @@ feature({
     this.roof = { skin: 'snow', x0: T.x0, x1: T.x1, z0: T.z - TUNNEL.half, z1: T.z + TUNNEL.half, axis: null, h0: T.top, h1: T.top, thick: TUNNEL.thick, sled: true };
     k.plan.surfaces.push(this.roof); if (k.plan.slabs) k.plan.slabs.push(this.roof);
 
-    g.add(this._ground(k));
+    g.add(yield* this._ground(k)); yield;
     const P = new Parts(), B = this.bulbs = new Bulbs(), Wr = new Wire(0.012);
     this.stoneP = new TexParts(1 / 0.8); this.lumpP = new TexParts(1 / 3);      // (stone, and snow: lumps, the tops of things)
-    this._tunnel(P, B, k);
-    this._summit(P, B, Wr, k);
+    this._tunnel(P, B, k); yield;
+    this._summit(P, B, Wr, k); yield;
     this._stairs(P);
-    this._path(P, B);
-    this._gates(P, B, Wr, k);
-    this._nature(P);
-    this._sleds(P);
-    g.add(P.mesh());
+    this._path(P, B); yield;
+    this._gates(P, B, Wr, k); yield;
+    yield* this._nature(P); yield;
+    this._sleds(P); yield;
+    g.add(P.mesh()); yield;
     { const st = stoneTex(), sn = k.museum.snowTex.clone(); sn.needsUpdate = true; sn.repeat.set(1, 1);
       g.add(this.stoneP.mesh(new THREE.MeshStandardMaterial({ map: st, vertexColors: true, roughness: 0.9, emissiveMap: st, emissive: new THREE.Color(0.3, 0.3, 0.33) })));
       g.add(this.lumpP.mesh(new THREE.MeshStandardMaterial({ map: sn, vertexColors: true, roughness: 0.95, emissiveMap: sn, emissive: new THREE.Color(0.26, 0.3, 0.42) }))); }
     B.build(g); const wm = Wr.mesh(); if (wm) g.add(wm);
-    this._poleMeshes(g);
-    this._penguins(k);
+    yield;
+    this._poleMeshes(g); yield;
+    this._penguins(k); yield;
 
     // The clock: from the gate on the top to the line at the bottom, along the run.
     const run = L.run, at = s => run[Math.min(run.length - 1, Math.round(s / 0.25))];
@@ -175,6 +178,7 @@ feature({
     this._poseSled(this.waiting, this.gate.x, this.gate.z, this.gate.yaw, 0);
     { const gt = this.gate, hx = Math.abs(Math.sin(gt.yaw)) * 0.44 + Math.abs(Math.cos(gt.yaw)) * 0.25, hz = Math.abs(Math.cos(gt.yaw)) * 0.44 + Math.abs(Math.sin(gt.yaw)) * 0.25; this.gateSled = { x0: gt.x - hx, x1: gt.x + hx, z0: gt.z - hz, z1: gt.z + hz, y0: gt.y - 0.5, y1: gt.y + 0.12, gate: { off: false } }; this.O.push(this.gateSled); }      // (the waiting sled is in the way, until it is taken)
     this.ride = (dt, inp) => this._ride(dt, inp);
+    yield* k.ready(g);
     this.built = performance.now() - t0;
   },
 
@@ -315,7 +319,7 @@ feature({
   },
 
   // ============================================================ the ground
-  _ground(k) {
+  *_ground(k) {
     const L = this.L, { x0, z0, step, nx, nz, W, h } = L, sx = nx * step, sz = nz * step;
     const idx = [], pos = [], uv = [], uv1 = [], foot = [], map = new Int32Array(W * (nz + 1)).fill(-1), fieldUV = this._fieldUV(k);
     const vert = n => {
@@ -327,16 +331,17 @@ feature({
       foot.push(Math.min(1, Math.max(0, y)) ** 2 * (3 - 2 * Math.min(1, Math.max(0, y))));      // (0 at the field, 1 a metre up: the hill's own light and marks fade in over it)
       return map[n];
     };
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < nz; j++) { if (j % 16 === 0) yield; for (let i = 0; i < nx; i++) {
       const a = j * W + i, b = a + 1, c = a + W, d = c + 1;
       if (Math.max(h[a], h[b], h[c], h[d]) <= FOOT_MM) continue;
       const A = vert(a), Bv = vert(b), Cv = vert(c), D = vert(d);
       idx.push(A, Cv, Bv, Bv, Cv, D);            // (the same two triangles heightAt interpolates on)
-    }
+    } }
+    yield;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('uv1', new THREE.Float32BufferAttribute(uv1, 2)); geo.setAttribute('aFoot', new THREE.Float32BufferAttribute(foot, 1));
-    geo.setIndex(idx); geo.computeVertexNormals();
-    const { macro, norm } = this._paint(sx, sz);
+    yield; geo.setIndex(idx); geo.computeVertexNormals(); yield;
+    const { macro, norm } = yield* this._paint(sx, sz);
     const m = new THREE.Mesh(geo, this._snowMat(k, macro, norm, 1, !!fieldUV.field)); m.name = 'sledhill-ground'; m.matrixAutoUpdate = false; return m;
   },
   // Where (x, z) falls on the field's own snow texture (museum.js lays one sheet of it over the whole ground, its
@@ -371,7 +376,7 @@ feature({
   // The marks on the snow, painted once over the whole hill: sled tracks down the run and down every open face,
   // footprints up the path, the wind's ripples, dye lines across the run at the gate, the kickers and the finish.
   // Two textures over the hill's own uv1: what it glows (the colour of it at night) and how it is dented (a normal map).
-  _paint(sx, sz) {
+  *_paint(sx, sz) {
     const L = this.L, TW = 1200, TH = Math.round(TW * sz / sx), px = x => (x - L.x0) / sx * TW, pz = z => (z - L.z0) / sz * TH, ppm = TW / sx;
     const cv = document.createElement('canvas'); cv.width = TW; cv.height = TH; const c = cv.getContext('2d');
     const hv = document.createElement('canvas'); hv.width = TW; hv.height = TH; const d = hv.getContext('2d');
@@ -389,15 +394,17 @@ feature({
         im.data[o] = im.data[o + 1] = 204 * f; im.data[o + 2] = Math.min(255, 204 * f * 1.02); im.data[o + 3] = 255;
       }
       sg.putImageData(im, 0, 0); c.imageSmoothingEnabled = true; c.drawImage(sc, 0, 0, TW, TH); }
+    yield;
     // wind-polished patches and soft blue shadows in the snow
     for (let i = 0; i < 260; i++) { const x = r() * TW, y = r() * TH, R = (2 + r() * 6) * ppm; const gr = c.createRadialGradient(x, y, 0, x, y, R); const a = 0.05 + r() * 0.08; gr.addColorStop(0, r() < 0.5 ? `rgba(230,236,245,${a * 1.5})` : `rgba(150,168,205,${a})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(x - R, y - R, 2 * R, 2 * R); }
     // the ripples: short wavy crests across the wind (from the north-west), on the open snow only
-    d.lineCap = 'round';
+    yield; d.lineCap = 'round';
     // (in patches, where the wind has scoured, and smooth between; their run turning slowly across the hill and each
     // a little off it, a crest now heavy and now faint: laid evenly everywhere, all one way, they read from a low eye as
     // a regular banding across the whole hill)
     const patchy = (x, z) => { const v = Math.sin(x * 0.23 + 1.3) * Math.cos(z * 0.19 - 0.4) + 0.6 * Math.sin(x * 0.07 - z * 0.11 + 2.1); return Math.max(0, Math.min(1, 0.5 + 0.6 * v)); };
     for (let i = 0; i < 5200; i++) {
+      if (i % 400 === 0) yield;
       const x = L.x0 + r() * sx, z = L.z0 + r() * sz, kd = kindAt(x, z); if (kd && kd !== 4 && kd !== 5) continue; if (L.heightAt(x, z) < 0.05) continue;
       const pw = patchy(x, z); if (r() > pw * pw) continue;
       const len = (0.4 + r() * 1.8), a = Math.PI * 0.25 + 0.45 * Math.sin(x * 0.09 + z * 0.05) + (r() - 0.5) * 0.9, ux = Math.cos(a), uz = Math.sin(a), k1 = (0.25 + 0.75 * r()) * pw;
@@ -416,6 +423,7 @@ feature({
     c.lineCap = c.lineJoin = d.lineJoin = 'round';
     // down the run: runners in pairs, riding high round the banks; and the wide smear of saucers
     const run = L.run;
+    yield;
     for (let t = 0; t < 16; t++) {
       const o0 = (r() - 0.5) * 2.6, ph = r() * TAU, sled = r() < 0.75, pts = [[], []];
       for (let i = 0; i < run.length; i += 2) {
@@ -438,11 +446,14 @@ feature({
       if (sled) { const off = (pp, s) => pp.map((p, i) => { const q = pp[Math.min(pp.length - 1, i + 1)], o = pp[Math.max(0, i - 1)], l = Math.hypot(q[0] - o[0], q[1] - o[1]) || 1; return [p[0] - (q[1] - o[1]) / l * s, p[1] + (q[0] - o[0]) / l * s]; }); groove(off(pts, 0.2), 0.05, 0.7); groove(off(pts, -0.2), 0.05, 0.7); }
       else groove(pts, 0.6, 0.25, 0.12);
     };
+    yield;
     for (let i = 0; i < 70; i++) {
+      if (i % 10 === 0) yield;
       const a = r() * TAU, rr = TOP.r + 0.6 + r() * 5, x = TOP.x + Math.cos(a) * rr, z = TOP.z + Math.sin(a) * rr;
       fall(x, z, r() < 0.7);
     }
     for (let i = 0; i < 50; i++) { const x = L.x0 + r() * sx, z = L.z0 + r() * sz; if (L.heightAt(x, z) > 2 && !kindAt(x, z)) fall(x, z, r() < 0.6); }
+    yield;
     // up the path: footprints, two by two, and the odd set wandering off it
     const path = L.path;
     for (let w = 0; w < 7; w++) {
@@ -453,6 +464,7 @@ feature({
         for (const [ctx, st] of [[d, 'rgba(60,60,60,0.7)'], [c, 'rgba(140,150,180,0.35)']]) { ctx.fillStyle = st; ctx.beginPath(); ctx.ellipse(px(x), pz(z), 0.15 * ppm, 0.055 * ppm, a, 0, TAU); ctx.fill(); }
       }
     }
+    yield;
     // dye: red across the run at the gate and at the finish, blue at the lip of each kicker
     const dye = (s, style, wide) => { const p = run[Math.min(run.length - 1, Math.round(s / 0.25))], nx = -p.tz, nz = p.tx; c.lineWidth = wide * ppm; c.strokeStyle = style; c.beginPath(); c.moveTo(px(p.x - nx * (RUN_W + 0.4)), pz(p.z - nz * (RUN_W + 0.4))); c.lineTo(px(p.x + nx * (RUN_W + 0.4)), pz(p.z + nz * (RUN_W + 0.4))); c.stroke(); };
     dye(1.2, 'rgba(204,40,40,0.9)', 0.12); dye(FINISH_S, 'rgba(204,40,40,0.9)', 0.12);
@@ -466,13 +478,16 @@ feature({
     // packed and a little icy-blue down the run, trodden grey up the path
     const band = (P, wide, style) => { c.lineWidth = wide * ppm; c.strokeStyle = style; c.beginPath(); c.moveTo(px(P[0].x), pz(P[0].z)); for (const p of P) c.lineTo(px(p.x), pz(p.z)); c.stroke(); };
     c.save(); c.globalCompositeOperation = 'multiply'; band(run, RUN_W * 2, 'rgb(208,224,255)'); band(L.path, PATH_W * 2, 'rgb(236,234,236)'); c.restore();
+    yield;
     const macro = new THREE.CanvasTexture(shrink(cv)); macro.colorSpace = THREE.NoColorSpace; macro.flipY = false; macro.anisotropy = 4;
+    yield;
     // the normal map, from the dents
     const src = d.getImageData(0, 0, TW, TH).data, out = new Uint8Array(TW * TH * 4), Hh = (x, y) => src[((y < 0 ? 0 : y >= TH ? TH - 1 : y) * TW + (x < 0 ? 0 : x >= TW ? TW - 1 : x)) * 4] / 255;
-    for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
+    yield;
+    for (let y = 0; y < TH; y++) { if (y % 64 === 0) yield; for (let x = 0; x < TW; x++) {
       const gx = (Hh(x + 1, y) - Hh(x - 1, y)) * 3.2, gy = (Hh(x, y + 1) - Hh(x, y - 1)) * 3.2, l = Math.hypot(gx, gy, 1), o = (y * TW + x) * 4;
       out[o] = (0.5 - gx / l * 0.5) * 255; out[o + 1] = (0.5 - gy / l * 0.5) * 255; out[o + 2] = (0.5 + 0.5 / l) * 255; out[o + 3] = 255;
-    }
+    } }
     hv.width = hv.height = 0;      // (only read for the normals: let it go)
     const norm = new THREE.DataTexture(out, TW, TH, THREE.RGBAFormat); norm.channel = 1; norm.wrapS = norm.wrapT = THREE.ClampToEdgeWrapping;
     norm.generateMipmaps = true; norm.minFilter = THREE.LinearMipmapLinearFilter; norm.magFilter = THREE.LinearFilter; norm.anisotropy = 4; norm.needsUpdate = true;
@@ -825,7 +840,7 @@ feature({
   },
 
   // ============================================================ trees and bushes
-  _nature(P) {
+  *_nature(P) {
     const L = this.L, r = rng(31), bark = col(0x3d2f25), twig = col(0x4a3c30), BUSH = col(0x3c4636).map(v => v * 1.3);
     const ok = (x, z, m) => { const n = L.node(x, z); return n >= 0 && L.gap[n] > m && !L.kind[n] && L.heightAt(x, z) > 0.2 && !this.O.some(o => x > o.x0 - m && x < o.x1 + m && z > o.z0 - m && z < o.z1 + m); };
     // bare trees: a trunk dividing and dividing again, snow along the tops of the boughs
@@ -843,7 +858,7 @@ feature({
       grow(new THREE.Vector3(x, y, z), new THREE.Vector3((rr() - 0.5) * 0.12, 1, (rr() - 0.5) * 0.12).normalize(), 1.9 * s, 0.17 * s, 5);
       this.O.push({ x0: x - 0.22 * s, x1: x + 0.22 * s, z0: z - 0.22 * s, z1: z + 0.22 * s, y0: y - 1, y1: y + 6 * s });
     };
-    let nt = 0; for (const [x, z, s] of [[312, 133, 1.15], [351, 128, 1.0], [373.5, 150, 0.9], [322.5, 176, 1.05], [348.5, 191.5, 0.95], [361, 167, 0.8], [313, 157, 0.85], [342, 121, 0.9]]) if (ok(x, z, 1.4)) tree(x, z, s, 100 + nt++);
+    let nt = 0; for (const [x, z, s] of [[312, 133, 1.15], [351, 128, 1.0], [373.5, 150, 0.9], [322.5, 176, 1.05], [348.5, 191.5, 0.95], [361, 167, 0.8], [313, 157, 0.85], [342, 121, 0.9]]) if (ok(x, z, 1.4)) { tree(x, z, s, 100 + nt++); yield; }
     this.trees = nt;
     // bushes buried to their shoulders, a few twigs showing
     const bush = (x, z, s) => {
@@ -860,7 +875,7 @@ feature({
       this.O.push({ x0: x - ext * 0.8, x1: x + ext * 0.8, z0: z - ext * 0.8, z1: z + ext * 0.8, y0: y - 1, y1: y + 0.8 * s });
     };
     const spots = [[318.5, 146], [313.5, 170], [321, 188], [316, 201.5], [326, 205], [340, 152], [355.5, 152], [365, 134], [330, 165], [333, 184.5], [356, 184.5], [377, 163], [372.5, 194], [311, 141], [345, 128.5], [337.5, 136.5]];
-    let nb = 0; for (const [x, z] of spots) { if (ok(x, z, 1.0)) { bush(x, z, 0.9 + r() * 0.5); nb++; } }
+    let nb = 0; for (const [x, z] of spots) { if (ok(x, z, 1.0)) { bush(x, z, 0.9 + r() * 0.5); nb++; yield; } }
     this.bushes = nb;
   },
 
