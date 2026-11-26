@@ -212,7 +212,7 @@ feature({
     }
     const sc = put(new THREE.Mesh(new THREE.TorusGeometry(mid.r * 0.62, mid.r * 0.14, 8, 24), this.scarf), 0, this.y + base.r * 1.86 + mid.r * 1.72, 0); sc.rotation.x = Math.PI / 2;
     const tail = put(new THREE.Mesh(new THREE.BoxGeometry(mid.r * 0.3, mid.r * 1.0, 0.03), this.scarf), fx * mid.r * 0.7 + sx * mid.r * 0.3, my + mid.r * 0.55, fz * mid.r * 0.7 + sz * mid.r * 0.3); tail.rotation.y = face;
-    setTimeout(() => { g.visible = true; }, 500);
+    setTimeout(() => { if (this.done) g.visible = true; }, 500);      // (not over snowballs that have been put back meanwhile: reset())
     this.done = true; k.tune(DECK, { bpm: 132, type: 'triangle', vol: 0.07, at: 0.6 });
     if (k.find('l3snowman')) k.callout('A SNOWMAN ON THE TERRACE');
   },
@@ -348,7 +348,7 @@ feature({
     k.carry.drop('l3plate'); this.carrying = false; this.served.visible = true;
     k.tune(VERDI, { bpm: 150, type: 'triangle', vol: 0.07, at: 0.2 });
     if (k.find('l3service')) k.callout('SERVICE!');
-    setTimeout(() => { this.plate.visible = true; }, 3000);
+    setTimeout(() => { if (!this.carrying) this.plate.visible = true; }, 3000);      // (not while you are carrying the next one)
   },
   active(k) { return !!this.timer && (this.carrying || k.inRoom(['MW3-kitchen', 'MW3-terzo'], 1)); },
   update(dt, k) {

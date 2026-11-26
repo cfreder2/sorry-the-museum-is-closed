@@ -96,7 +96,7 @@ feature({
       setTimeout(() => { if (Pn.on && Pn.cur === P) Pn.press(note, 'duet', 0.75); }, 300 + t * step);
       setTimeout(() => { if (Pn.cur === P) Pn.release(note, 'duet'); }, 300 + (t + len) * step - 20);
     }
-    setTimeout(() => { this.lighting = true; if (k.find('duet')) k.callout('A DUET WITH RENOIR'); k.say('The piano answers you, and its lamp comes up.', 6); }, 300 + 12 * step);
+    setTimeout(() => { if (!(Pn.on && Pn.cur === P)) return; this.lighting = true; if (k.find('duet')) k.callout('A DUET WITH RENOIR'); k.say('The piano answers you, and its lamp comes up.', 6); }, 300 + 12 * step);      // (only if you are still at the piano to hear it, as the notes above)
   },
   active(k) { return !!this.P && k.inRoom('G201', 3); },
   update(dt) {

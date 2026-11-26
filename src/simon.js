@@ -130,10 +130,10 @@ export class Simon {
       // Five right: the roof lets go. Step out of the game to watch it.
       this.won = true; this._save();
       this._say('FIVE. LOOK UP.');
-      setTimeout(() => { if (this.on) { this.close(); this.celebrate(); if (this.onWin) this.onWin(GOAL); } }, 700);
+      { const run = this.run; setTimeout(() => { if (this.on && this.run === run) { this.close(); this.celebrate(); if (this.onWin) this.onWin(GOAL); } }, 700); }      // (this game's own timer: Again pressed meanwhile started a game that was then shut on you)
       return;
     }
-    this._say('YES.'); setTimeout(() => { if (this.on) this._next(); }, 650);
+    this._say('YES.'); { const run = this.run; setTimeout(() => { if (this.on && this.run === run) this._next(); }, 650); }      // (Again pressed meanwhile began the new game at pattern 2)
   }
   _record(n) { if (n > this.best) { this.best = n; this._save(); } }
   _save() { try { localStorage.setItem(KEY, JSON.stringify({ best: this.best, won: this.won })); } catch { /* fine */ } }

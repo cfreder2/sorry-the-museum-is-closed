@@ -223,7 +223,7 @@ feature({
       k.say('Rings melted into the snow. Five marks round them, five colours.', 0.2, 6);
       this._call(k, { below: true, transpose: -12, gain: 0.05, beat: 0.55, at: 2.6 });
       k.say('From under the snow: five notes, very faint.', 3.2, 6);
-      setTimeout(() => story.add('ring'), 5600);
+      this._ringT = setTimeout(() => { this._ringT = 0; story.add('ring'); }, 5600);      // (reset() calls it off: quit and New game inside those seconds, and the new game began with the page in its file)
     }
   },
 
@@ -401,7 +401,7 @@ feature({
     if (this.office) out.push({ kind: 'todo', id: 'story-note', name: 'The Director’s last note', x: this.office.x0 + 5, y: this.office.y, z: (this.office.z0 + this.office.z1) / 2 + 1.2 });
     return out;
   },
-  reset() { if (this.cardEl) this._showNote(false); this._closeFile(); },
+  reset() { if (this.cardEl) this._showNote(false); this._closeFile(); if (this._ringT) { clearTimeout(this._ringT); this._ringT = 0; this.ringTold = false; } if (this.ringHum) this.ringHum.set(0); },      // (and the rings' hum does not follow you to the title screen)
   // A new game: an empty file, no marks.
   fresh(k) {
     st = { got: [], note: false }; save();
