@@ -148,6 +148,9 @@ body.vcine #hud, body.vcine #voyage .vhint { display: none !important; }
 #voyage .vskip { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid rgba(226,205,148,.5); background: rgba(8,9,14,.62); color: var(--gilt); font: 700 12px var(--mono); letter-spacing: .12em; }
 @media (max-width: 560px) { #voyage .vbtn { height: 36px; padding: 0 10px; font-size: 11px; } #voyage .vstage { font-size: 10px; } }
 .reduce #voyage .roll { transition: none; }
+/* Reduce motion: every fade here is a half-second dip to dark. Never a cut (style.css turns transitions off under .reduce, which made each one a hard flash), and never to white. */
+.reduce #voyage .vfade { transition: opacity .5s linear !important; }
+.reduce #voyage .vfade.white { background: #0a0c12; }
 `;
 
 // ---------------------------------------------------------------- voyage --
@@ -712,7 +715,7 @@ class Voyage {
       cam.fov += (72 - cam.fov) * Math.min(1, dt * 3);
     } else {
       // outside: behind and above, swinging round the craft on the autopilot's curve
-      const swing = this.phase === 'auto' ? Math.sin(this.ph * 0.35) * 0.9 : this.phase === 'deep' ? 0.5 : 0;
+      const swing = this.G.set.reduce ? 0 : this.phase === 'auto' ? Math.sin(this.ph * 0.35) * 0.9 : this.phase === 'deep' ? 0.5 : 0;      // (Reduce motion: straight behind, no swing)
       const a = k.yaw + swing, back = this.phase === 'auto' ? 34 : 30;
       want.set(k.pos.x + Math.sin(a) * back, k.pos.y + 8, k.pos.z + Math.cos(a) * back);
       look.set(k.pos.x - Math.sin(k.yaw) * 14, k.pos.y + 1.5, k.pos.z - Math.cos(k.yaw) * 14);
@@ -731,7 +734,7 @@ class Voyage {
     if (ph === 'landing') {
       const T = 9, u = ease(this.ph / T), g = C.group;
       g.position.set(SAUCER.x + 40 * (1 - u) * (1 - u), CRAFT.LEG + 70 * Math.pow(1 - u, 1.6), SAUCER.z + 30 * (1 - u) * (1 - u));
-      g.rotation.y = SAUCER.yaw + (1 - u) * 0.9; g.rotation.z = Math.sin(this.ph * 1.7) * 0.03 * (1 - u);
+      g.rotation.y = SAUCER.yaw + (1 - u) * 0.9; g.rotation.z = this.G.set.reduce ? 0 : Math.sin(this.ph * 1.7) * 0.03 * (1 - u);
       C.setLegs(ease((this.ph - 5) / 3));
       const alt = g.position.y - CRAFT.LEG;
       if (alt < 14 && this.dust) for (let i = 0; i < 6; i++) { const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 6, s = 3 + (14 - alt) * 0.6; this.dust.puff(g.position.x + Math.cos(a) * r, moonH(g.position.x, g.position.z) + 0.05, g.position.z + Math.sin(a) * r, Math.cos(a) * s, 0.4 + Math.random() * 1.5, Math.sin(a) * s, 0.25 + Math.random() * 0.3, 2.5); }
