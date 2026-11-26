@@ -446,6 +446,7 @@ function start(fresh = false) {
     const sv = fresh ? null : saved(), sp = sv || G.plan.spawn;
     if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, sv ? (sv.y || 0) + (sv.toy === 'drone' ? 0 : 0.9) : 0.9); else G.car.place(sp.x, sp.z, sp.yaw, sv ? sv.y || 0 : 0);
     resumed = !!sv;
+    G.perched.clear(); if (sv && Array.isArray(sv.perched)) for (const p of sv.perched) if (typeof p === 'string') G.perched.add(p);      // (the high places reached, kept with the place: Continue used to begin at 0 / 18 every time)
     // The doors stay locked until you have found your way in once.
     G.museum.setLocked(!unlocked(), true);
     G.outsideSince = G.t; G.hinted = 0;
@@ -465,7 +466,6 @@ function start(fresh = false) {
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
   G.startedAt = G.t;
-  G.perched.clear();
   G.state = 'play';
   chase(0, true);
   show(null);
@@ -536,7 +536,7 @@ function keep() {
   const v = G.vehicle;
   if (G.racing || G.state !== 'play' || G.t - lastSave < 3 || v.air || v.rail || G.held) return;
   lastSave = G.t;
-  try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind, plan: G.plan.made })); } catch { /* fine */ }
+  try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind, plan: G.plan.made, perched: [...G.perched] })); } catch { /* fine */ }
 }
 function newGame() {
   G.museum.forget();
@@ -1512,7 +1512,7 @@ function play(dt, real) {
     const on = v.kind === 'car' && !v.air ? v.on : null;
     if (on && on.perch && Math.abs(v.speed) < 2.5) {
       const key = on.perch + '@' + Math.round(on.x0) + ',' + Math.round(on.z0);
-      if (!G.perched.has(key)) { G.perched.add(key); callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: ${input.usedTouch ? 'LOOK' : E()} works from here too.`, 0.5, 6); }
+      if (!G.perched.has(key)) { G.perched.add(key); lastSave = -9; callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: ${input.usedTouch ? 'LOOK' : E()} works from here too.`, 0.5, 6); }      // (lastSave: kept at once, with the place, by keep() below)
     }
   }
   keep();
