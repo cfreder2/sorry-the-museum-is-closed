@@ -245,8 +245,9 @@ export class Vending {
       if (this.trophies) { this.trophies.flags.paints = Math.max(this.trophies.flags.paints || 0, this.garage.paints.size); this.trophies.save(); }
       if (this.onBuy) this.onBuy(p);
     }
-    if (wearing) this.garage.setCoat(wearing, p.id);
-    this._draw(wearing ? `${p.name}: on the ${this.garage.get(wearing).name} now, and yours for any toy from the title screen.` : `${p.name} is yours.`);
+    const paints = wearing && wearing !== 'ufo';      // (not the saucer: the garage keeps no paint row for it, so paint put on it here could never be taken off)
+    if (paints) this.garage.setCoat(wearing, p.id);
+    this._draw(paints ? `${p.name}: on the ${this.garage.get(wearing).name} now, and yours for any toy from the title screen.` : `${p.name} is yours.`);
   }
   _drop(m, s, hex) { this.fallMat.color.set(hex); this.fallMat.emissive.set(hex); this.drop = { m, u: s.u, y: s.y, t: 0 }; if (this.sound) this.sound.tick(0.06, 320, 0.12); }
   _fizz() {
