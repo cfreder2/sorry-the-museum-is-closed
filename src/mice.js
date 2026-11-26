@@ -282,6 +282,9 @@ export const mice = feature({
     MOUSE_WINGS.forEach((w, i) => {
       const n = (P.nests || []).find(q => q.wing === w.id); if (!n) return;
       const run = runOf(P, n, 17 + i * 101); if (!run) return;
+      // A room that is shut (src/shut.js) still counts when the seat is chosen, so that every mouse sits where it did before any
+      // room was shut. But no mouse may sit in one or run through one: if a line added to that list ever puts one there, say so.
+      { const shut = (P.shutRooms || P.rooms.filter(r => r.shut)).find(r => same(r.y, n.y) && touches(run, r)); if (shut) console.error(`mice: the ${w.id} mouse sits in or runs through ${shut.id}, a room that is shut (src/shut.js). Take that room off the list.`); }
       const m = {
         id: 'mouse-' + w.id, wing: w, nest: n, room: n.room, y: n.y, nx: n.nx, nz: n.nz, ...run,
         hole: { x: n.vent.x, y: n.y, z: n.vent.z },
