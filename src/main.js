@@ -1638,6 +1638,7 @@ const fpsMeter = SHOW_FPS && !diag && !params.has('nofps') ? (() => {
 })() : null;
 
 let last = performance.now();
+const selfMoved = [];      // (what has an onBeforeRender of its own: see the end of tick)
 function tick(now) {
   requestAnimationFrame(tick);
   if (diag) diag(now - last);
@@ -1741,8 +1742,19 @@ function tick(now) {
   lampNear(dt);
   fitNear();
   if (G.stream) { G.stream.update(dt, camera.position); if ((G._reg = (G._reg || 0) + 1) % 600 === 0) G.stream.register(); }      // (and whatever was built since)
-  mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
-  composer.render();
+  // The world's matrices are brought up to date once a frame, here, not once for each time the scene is drawn (three.js walks
+  // every object and works its matrix out again at every drawing: twice a frame, the floor's reflection and then the view).
+  // Nothing is moved between the two but what moves itself as it is drawn (an onBeforeRender of its own: a mouse's halo steps
+  // back from whichever camera is looking), and those are put back in between. (They are looked for twice a second, and in the
+  // frame the game changes state or the mice take their places. The flag goes back in the finally: a throw in either drawing
+  // must not leave the world's matrices switched off for the title, a pause, or a feature's own picture of the scene.)
+  if (frame % 30 === 0 || selfMoved.key !== (selfMoved.key = G.state + (G.plan.stripped ? 1 : 0))) { selfMoved.length = 0; scene.traverse(o => { if (o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) selfMoved.push(o); }); }
+  scene.updateMatrixWorld(); scene.matrixWorldAutoUpdate = false;
+  try {
+    mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
+    for (const o of selfMoved) o.updateWorldMatrix(false, false);
+    composer.render();
+  } finally { scene.matrixWorldAutoUpdate = true; }
 }
 
 // The headlamp up against something. Its light falls off with distance, so a wall a hand in front of it took dozens of
