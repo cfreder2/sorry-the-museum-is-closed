@@ -654,6 +654,8 @@ addEventListener('keydown', e => {
   if (shown === 'settings') act('closeSettings');
   else if (shown === 'controls' || shown === 'about') act('closeInfo');
   else if (shown === 'notebook') act('closeNotebook');
+  else return;
+  input.queue.delete('pause');      // (Esc shut that screen and is not also Carry on: it landed on the pause menu or back in the game, by whether a slider or a button had the focus)
 });
 // The buttons under the right thumb are held, not tapped.
 input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'), 'down');
