@@ -455,10 +455,10 @@ feature({
       const n = v.n;
       if (Math.abs(p.y - n.y) > 0.8 || Math.abs(p.x - n.vent.x) > 4 || Math.abs(p.z - n.vent.z) > 4) continue;
       // in the nest, by the thing to read
+      // (Anywhere in the run, not only within 0.75 m of the page: short of that the button went to a picture hanging on the
+      // gallery side of the wall instead, and what the mouse had could not be read.)
       if (v.item && this._inside(v, p)) {
-        const di = Math.hypot(p.x - v.item.x, p.z - v.item.z);
-        if (di < 0.75 || (this.showing === v.clue)) return { verb: v.clue.kind === 'key' && !this.state.read[n.wing] ? 'TAKE' : 'READ', hint: this.state.read[n.wing] ? null : 'Something the mice have kept. E to read it.', act: () => this._read(v) };
-        continue;
+        return { verb: v.clue.kind === 'key' && !this.state.read[n.wing] ? 'TAKE' : 'READ', hint: this.state.read[n.wing] ? null : 'Something the mice have kept. E to read it.', act: () => this._read(v) };
       }
       // at the grille, in front of it
       if (v.want === OPEN) continue;
@@ -500,7 +500,7 @@ feature({
       v.inPool.material.opacity = 0.75 + 0.25 * pulse;
       if (v.glint) { v.glint.material.opacity = 0.4 + 0.45 * pulse; }
       if (this._inside(v, p)) {
-        k.museum.playerIndoors = true;
+        k.museum.playerIndoors = true; k.G.nestIn = k.G.t;      // (main.js: in here no picture beyond the wall is 'faced')
         if (k.G.view !== 'fpv') { const c = this._cc || (this._cc = { at: null, look: { x: 0, y: 0, z: 0 } }); c.at = v.cam; c.look.x = p.x; c.look.y = p.y + 0.08; c.look.z = p.z; k.camClose = c; }
         if (!v.inTold) { v.inTold = true; k.once('nest-in', 'A mouse nest. Paper, fluff, and things that glow.', 4); }
       }

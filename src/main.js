@@ -148,7 +148,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.13';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.14';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -1391,7 +1391,8 @@ function play(dt, real) {
 
   if (!racing) {
     const calm = Math.hypot(v.vel.x, v.vel.z) < 5 && !v.air && !v.rail && !G.held;
-    const art = calm ? G.museum.facing(v.pos, v.yaw, G.roomId) : null;
+    // (Inside a mouse's run, in the wall, nothing is faced: the pictures hang on the other side of it. src/nests.js)
+    const art = calm && !(G.nestIn != null && G.t - G.nestIn < 0.25) ? G.museum.facing(v.pos, v.yaw, G.roomId) : null;
     if (art !== G.facing) {
       G.facing = art;
       const el = $('placard');
