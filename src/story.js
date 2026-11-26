@@ -3,7 +3,8 @@
 // The chain itself is older: the mice and their nests (src/nests.js), the Director's desk, the whiteboard, the painting,
 // Sub-level 9 (src/secret.js), the keycard and the base (src/finale.js). This file adds what leads into it and along it:
 //   * glowing pawprints on the front terrace, going in at the air vent ahead of you (the first ten seconds);
-//   * a floor grate in the lobby, lit green from below and humming. A mouse dives through it as you come in. Pull up and
+//   * a floor grate in the lobby, lit green from below and humming. (A mouse sat on it and dived through as you came in,
+//     until the saucer was given the hall: src/entry.js. The owner had it taken out.) Pull up and
 //     LISTEN: far down, five notes, the craft's call (src/motif.js). The mice squeak the same notes (src/mice.js);
 //   * out of doors, now and then, a green light falling over the lake towards Butler Field;
 //   * where it comes down, rings melted into the snow over the silo, five marks round them in the call's colours, and the
@@ -30,7 +31,7 @@ import * as THREE from 'three';
 import { shrink } from './budget.js';
 import { feature, features } from './features.js';
 import { groundAt } from './plan.js';
-import { mice, mouseGeometry, pawTexture } from './mice.js';
+import { mice, pawTexture } from './mice.js';
 import { MOTIF, MOTIF_COLOURS, motifVoice } from './motif.js';
 import { toast } from './trophies.js';
 import * as TX from './textures.js';
@@ -203,17 +204,6 @@ feature({
     const pm = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pawTexture(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
     pm.renderOrder = 3; pm.name = 'story-prints'; this.root.add(pm); this.prints = pm;
     this.ventAt = { x: vx0 - 1.2, y, z: vz };
-    // the mouse that dives through the grate as you come in
-    const MG = mouseGeometry(), body = new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(0.9, 1.5, 0.95) });
-    const m = this.diver = new THREE.Group(); m.name = 'story-mouse'; m.rotation.order = 'YXZ';
-    const fig = this.diverFig = new THREE.Group(); fig.scale.setScalar(1.35); m.add(fig);
-    fig.add(new THREE.Mesh(MG.body, body), new THREE.Mesh(MG.eyes, new THREE.MeshBasicMaterial({ color: 0x040604 })));
-    const tail = new THREE.Mesh(MG.tail, body); tail.position.set(0, 0.022, -0.062); fig.add(tail); this.diverTail = tail;
-    const halo = new THREE.Sprite(artSafe(new THREE.SpriteMaterial({ map: this.radial, color: GREEN, fog: false }))); halo.position.y = 0.05; halo.scale.setScalar(0.5); m.add(halo); this.diverHalo = halo;
-    const pool = this.diverPool = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: this.radial, color: GREEN.clone().multiplyScalar(0.8), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
-    pool.position.y = 0.004; pool.renderOrder = 3; m.add(pool);
-    // until it has gone down, it sits on the grate, sniffing, facing the vent: you see it as you come through
-    m.position.set(G.x - 0.18, y + 0.012, G.z); m.rotation.y = -Math.PI / 2; m.visible = !st.dove; this.root.add(m);
   },
 
   // ---------------------------------------------------------------- the sky: a light falling over the lake
@@ -315,36 +305,11 @@ feature({
     const t = this.t, pulse = 0.5 + 0.5 * Math.sin(t * 2.1), fl = this.flare = Math.max(0, (this.flare || 0) - dt * 1.4);
     const col = this.grateCol || GREEN;
     this.gratePool.material.color.copy(col).multiplyScalar(0.55 + 0.35 * pulse + fl * 1.5);
-    this.shaftK = Math.min(1, (this.shaftK || 0) + (st.dove ? dt * 0.5 : -1));          // the light comes up only once the mouse has gone down
+    this.shaftK = k.G.entry && k.G.entry.busy ? 0 : Math.min(1, (this.shaftK || 0) + dt * 0.5);          // the light comes up once the saucer in the hall has been seen off (src/entry.js: it has the hall until then). (It was counted down a whole step a frame while it waited, and took minutes to come back up from there: it never did in the visit you came in on.)
     this.shaftMat.color.copy(col).multiplyScalar((0.24 + 0.14 * pulse + fl) * Math.max(0, this.shaftK));
     this.hum.set(d < 9 ? 0.03 * (1 - d / 9) : 0);
     // now and then, the call from below, faint, while you are near
     if (d < 10 && !this.calling && (this.ambT = (this.ambT || 0) + dt) > 15) { this.ambT = 0; this._call(k, { below: true, transpose: -12, gain: 0.022, beat: 0.6, colour: true }); }
-    // the mouse, the first time you are in the lobby
-    const L = this.L;
-    if (!st.dove && !this.dive) {
-      const m = this.diver; m.visible = true;
-      // sniffing, looking round at you as you come
-      const look = Math.atan2(p.x - m.position.x, p.z - m.position.z);
-      m.rotation.y += Math.atan2(Math.sin(look - m.rotation.y), Math.cos(look - m.rotation.y)) * Math.min(1, dt * (d < 8 ? 5 : 1.5));
-      m.rotation.x = -0.12 + Math.sin(t * 2.3) * 0.06 - (d < 8 ? 0.25 : 0); this.diverTail.rotation.y = Math.sin(t * 3) * 0.35;
-      this.diverHalo.scale.setScalar(Math.min(1.8, 0.45 + d / 7) * (1 + 0.1 * Math.sin(t * 5)));      // a beacon, bigger from further off, as the mice are
-      if (k.room && k.room.id === L.id && d < 3.6 && !(k.G.entry && k.G.entry.busy)) {      // (not while the saucer in the hall is still to be seen, or being seen: src/entry.js. The mouse waits its turn.)
-        this.dive = { t: 0, phase: 'look' };
-        const a = MOTIF[0], b = MOTIF[1]; k.synth.note(440 * Math.pow(2, (a.midi + 36 - 69) / 12), 0.05, { type: 'sine', vol: 0.02 }); k.synth.note(440 * Math.pow(2, (b.midi + 36 - 69) / 12), 0.06, { type: 'sine', vol: 0.018, at: 0.09 });
-      }
-    }
-    if (this.dive) this._diveTick(dt, k);
-  },
-  _diveTick(dt, k) {
-    const D = this.dive, G = this.grate, m = this.diver; D.t += dt;
-    if (D.phase === 'look') {          // sits up, looks at you a moment, and turns for the slots
-      m.rotation.x = -0.4; this.diverTail.rotation.y = Math.sin(D.t * 10) * 0.4;
-      if (D.t > 0.7) { D.phase = 'duck'; D.t = 0; this.flare = 1.2; k.synth.noise(0.12, { vol: 0.03, lp: 3000 }); this._call(k, { below: true, transpose: -12, gain: 0.05, beat: 0.5, notes: 3, at: 0.6, colour: true }); }
-    } else {
-      const f = Math.min(1, D.t / 0.5); m.rotation.x = 0.5 * f; m.position.x += (G.x - m.position.x) * Math.min(1, dt * 8); this.diverFig.scale.setScalar(1.35 * (1 - f)); m.position.y = G.y + 0.012 - 0.05 * f;
-      if (f >= 1) { m.visible = false; this.dive = null; st.dove = true; save(); k.say('A glowing mouse. It just went down through that grate.', 0.4, 6); }
-    }
   },
 
   // ---------------------------------------------------------------- the call, from wherever
@@ -534,13 +499,12 @@ feature({
     return out;
   },
   reset() { if (this.cardEl) this._showNote(false); this._closeFile(); },
-  // A new game: an empty file, the mouse not yet down the grate, no marks.
+  // A new game: an empty file, no marks.
   fresh(k) {
     st = { got: [], dove: false, note: false }; save();
     this.ringTold = false; this.synced = false; this.skyT = 0; this.nextFall = 7; this.marksKey = null;
     if (k && k.G.mapMarks) k.G.mapMarks = k.G.mapMarks.filter(m => !m.story);
-    this.marks = []; this.dive = null;
-    if (this.diver && this.grate) { this.diver.visible = true; this.diverFig.scale.setScalar(1.35); this.diver.position.set(this.grate.x - 0.18, this.grate.y + 0.012, this.grate.z); }
+    this.marks = [];
     if (this.cardEl) this._showNote(false);
   },
 });

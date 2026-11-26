@@ -17,21 +17,6 @@ export const entries = [
     note: 'The grate’s own loop (73.4 Hz sine), held at the level heard standing at the grate.',
   },
   {
-    id: 'story-mouse-dive', group: 'Story and secrets', title: 'Glowing mouse dives down the grate',
-    when: 'The first time you come up to the lobby grate: two squeaks, then the mouse ducks through and three notes answer from below.',
-    src: 'src/story.js:321', secs: 4.5,
-    trigger: async sb => {
-      const f = sb.feat('story'), k = sb.k, { MOTIF } = await sb.mod('motif.js');
-      const a = MOTIF[0], b = MOTIF[1];
-      k.synth.note(440 * Math.pow(2, (a.midi + 36 - 69) / 12), 0.05, { type: 'sine', vol: 0.02 });
-      k.synth.note(440 * Math.pow(2, (b.midi + 36 - 69) / 12), 0.06, { type: 'sine', vol: 0.018, at: 0.09 });
-      await sb.wait(0.7);
-      k.synth.noise(0.12, { vol: 0.03, lp: 3000 });
-      f._call(k, { below: true, transpose: -12, gain: 0.05, beat: 0.5, notes: 3, at: 0.6, colour: true });
-    },
-    note: 'Replayed from the source lines (story.js 321 and 330: the dive happens once a game), with the feature’s own _call.',
-  },
-  {
     id: 'story-grate-listen', group: 'Story and secrets', title: 'LISTEN at the grate: the call',
     when: 'Pulled up on the lobby grate, pressing LISTEN: five notes far below, the craft’s call.',
     src: 'src/story.js:359', secs: 5,

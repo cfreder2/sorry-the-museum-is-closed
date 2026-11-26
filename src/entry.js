@@ -15,8 +15,7 @@
 //     voice and bolt; none of them fly, so it rolls in at the speed it chases at), warms its prong and puts a bolt into it
 //     (as the Turner's own thunder breaks);
 //   * the saucer bolts for the front doors, which have just unlocked, and is gone over the avenue. The robot goes after
-//     it as far as the doors, gives up, and goes back to its beat. The toy is yours again, and the mouse on the grate,
-//     which has waited its turn (src/story.js), dives.
+//     it as far as the doors, gives up, and goes back to its beat. The toy is yours again.
 // SKIP (the button; Esc or P; a pad's B or Menu) ends it at once, behind a quick dip to black, with everything where the
 // end would have left it. Nothing is written across the screen while it plays: the lines that were waiting wait (main.js
 // runToasts), and YOU'RE IN, which main.js had just put up, is said when it is over.
