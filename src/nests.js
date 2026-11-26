@@ -208,7 +208,7 @@ feature({
     }
     // the card on screen
     const el = this.cardEl = document.createElement('div'); el.id = 'nestCard';
-    el.style.cssText = 'position:fixed;left:50%;top:64%;transform:translate(-50%,-50%) rotate(1.5deg);width:min(48vmin,340px);pointer-events:none;opacity:0;transition:opacity .25s;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))';
+    el.style.cssText = 'position:fixed;left:50%;top:66%;transform:translate(-50%,-50%) rotate(1.5deg);width:min(54vmin,340px);pointer-events:none;opacity:0;transition:opacity .25s;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))';
     // Under the words on the screen, not over them (it was put last in the page at z-index 30, and what was said as it
     // was read, and THE DIRECTOR'S DESK KEY, came up behind it): before #hud in the page, and lower down, clear of the line.
     { const hud = document.getElementById('hud'); if (hud && hud.parentNode) hud.parentNode.insertBefore(el, hud); else document.body.appendChild(el); }
