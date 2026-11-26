@@ -172,12 +172,13 @@ feature({
   now(p, d = new Date()) { return (d.getHours() - (p.hour + 23) % 24 + 24) % 24 < 2; },
   onLook(a, k) {
     const H = this.H; if (!H) return; const p = H.prints.find(q => q.art === a); if (!p) return;
+    if (!H.done && k.G.secrets && k.G.secrets.has('hours107')) H.done = true;      // (found on an earlier visit: the callout is not said again at the first look after every reload)
     p.g = 1; H.seen.add(p.animal.toLowerCase()); try { localStorage.setItem('after-hours.hours', JSON.stringify([...H.seen])); } catch { /* not kept */ }
     koto(k, p.hour);
     const now = this.now(p), all = H.prints.every(q => H.seen.has(q.animal.toLowerCase()));
     const s = (p.hour + 23) % 24, from = s === 0 ? 'midnight' : s === 12 ? 'noon' : `${s % 12} ${s < 12 ? 'in the morning' : s < 18 ? 'in the afternoon' : 'in the evening'}`;
     if (!H.done && (now || all)) { H.done = true; p.g = 2; k.find('hours107'); k.callout(now ? `THE HOUR OF THE ${p.animal.toUpperCase()}` : 'THE TWELVE HOURS'); k.say(now ? `The Hour of the ${p.animal}: this hour, here and now.` : 'Every hour on these walls, seen.', 0.4, 6); }
-    else if (!H.done) k.say(`The Hour of the ${p.animal}, from ${from}. ${H.seen.size} of ${H.prints.length} hours on view seen.`, 0.4, 6);
+    else if (!H.done) k.say(`The Hour of the ${p.animal}, from ${from}. ${H.prints.filter(q => H.seen.has(q.animal.toLowerCase())).length} of ${H.prints.length} hours on view seen.`, 0.4, 6);      // (of tonight's prints: the kept set can hold more than are hung tonight, "4 of 2")
   },
   active() { return !!this.H && this.H.prints.some(p => p.g > 0 || p.glow.visible); },
   update(dt) {
