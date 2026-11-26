@@ -254,8 +254,8 @@ export function palette(art, n = 8) {
     try { const im = art.tex && art.tex.image; if (im && im.width > 32) { px = grab(im); src = 'texture'; } } catch { px = null; }      // (a picture drawn from another site without permission cannot be read)
     if (!px && w.img) try {
       const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 5000);
-      const r = await fetch(imageUrl(w, 400), { referrerPolicy: 'no-referrer', signal: ctl.signal }); clearTimeout(to);
-      if (r.ok) { const bm = await createImageBitmap(await r.blob()); px = grab(bm); if (bm.close) bm.close(); src = 'image'; }
+      const r = await fetch(imageUrl(w, 400), { referrerPolicy: 'no-referrer', signal: ctl.signal }), blob = r.ok ? await r.blob() : null; clearTimeout(to);      // (the five seconds cover the picture itself, not only its headers: a body that stalled hung this work's palette, and it never came alive)
+      if (blob) { const bm = await createImageBitmap(blob); px = grab(bm); if (bm.close) bm.close(); src = 'image'; }
     } catch { px = null; }
     if (!px && w.lq) try { const im = new Image(); im.src = w.lq; await im.decode(); px = grab(im); src = 'preview'; } catch { px = null; }
     return new Palette(px ? kmeans(px, n, w.id) : [], src);
