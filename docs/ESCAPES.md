@@ -1,10 +1,10 @@
 # Escapes: what gets out of the paintings, and how the robots put it back
 
-A plan, not yet built. It covers the sixty paintings that are alive on 2026-11-24 (build 2026.11.24.50). Nothing here
-changes the shows; it adds a second life to some of them. The rule at the end is a proposal to be tested on five
-scenarios before it is applied to anything else.
+The plan, and where it stands. It covers the sixty paintings that were alive on 2026-11-24 (build 2026.11.24.50).
+Nothing here changes the shows; it adds a second life to some of them. Four escapees are built and in the game
+(`src/escapes.js`, one file each in `src/escape/`); the rest of this document is still the plan it was.
 
-## Where this stands (2026-11-24): decided, first tests being built
+## Where this stands (2026-11-25): decided, four built
 
 The owner has decided, after the independent reviewer's opinion (`~/Desktop/Museum-life/ESCAPES-REVIEW.md`):
 
@@ -23,9 +23,14 @@ The owner has decided, after the independent reviewer's opinion (`~/Desktop/Muse
 So read rules 5, 6 and 8 below with those four in mind, and in the table treat every "People" row as releasing
 nothing of the people (an object or effect of theirs at most), and test T4 as replaced.
 
-**First tests** (being built on branch work, not yet in the game): Seurat's monkey; Degas's hats (a flock that
-scatters); Homer's keg float on its patch of sea ("zap the effect"); Goya's boy and ram fetching the lambs; Monet's
-parasol blown from room to room.
+**Built, and in the game: four.** Degas's hats (a flock that scatters, `src/escape/hats.js`); Homer's keg float on its
+patch of sea (`keg.js`); Goya's lambs, with the boy on his ram fetching them (`lambs.js`); Monet's parasol blown from
+room to room (`parasol.js`). The test that films and measures them is `tools/dev/escapes.mjs`.
+
+**Seurat's monkey is not an escapee.** It was the fifth first test (`src/escape/monkey.js`, written against the old
+secret in Gallery 240), but its getting-out is now the chase in `src/l2-grandejatte.js`: under the bench in 240 from
+the start of the night, away to the Director's whiteboard, home, and back on its lead. There is one monkey, and it is
+that one. `monkey.js` is kept in the tree and is not imported; the Seurat row in the table below is the old plan.
 
 ## The idea
 
