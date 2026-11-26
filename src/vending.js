@@ -252,8 +252,10 @@ export class Vending {
   _drop(m, s, hex) { this.fallMat.color.set(hex); this.fallMat.emissive.set(hex); this.drop = { m, u: s.u, y: s.y, t: 0 }; if (this.sound) this.sound.tick(0.06, 320, 0.12); }
   _fizz() {
     this.fizz = FIZZ; const car = this.G.car; if (!car || this.fizzed) return;
-    this.fizzed = car.spec; this.fizzWas = car.spec.jump; car.spec.jump = this.fizzWas * 1.5;
+    this.fizzed = car.spec; this.fizzWas = car.spec.fizzWas = car.spec.jump; car.spec.jump = this.fizzWas * 1.5;
     if (this.sound && this.sound.grind) this.sound.tick(0.05, 5200, 0.5);
   }
-  _unfizz() { if (this.fizzed) { if (this.G.car && this.G.car.spec === this.fizzed) this.fizzed.jump = this.fizzWas; this.fizzed = null; } }
+  // (The jump goes back on the spec that was fizzed and on any copy of it the car wears by now: the hot chocolate, src/giftshop.js,
+  // swaps a copy in and its own back afterwards, and the two together left the jump at one and a half times for good.)
+  _unfizz() { if (!this.fizzed) return; for (const s of [this.fizzed, this.G.car && this.G.car.spec]) if (s && s.fizzWas != null) { s.jump = s.fizzWas; delete s.fizzWas; } this.fizzed = null; }
 }
