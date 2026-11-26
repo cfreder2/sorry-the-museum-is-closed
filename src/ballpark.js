@@ -1232,12 +1232,12 @@ feature({
     const H = this.H, c = this.c, s = this.s, cam = this.cam, b = this.ball.position;
     const follow = (this.phase === 'hit' && this.freeze <= 0) || (this.phase === 'after' && this.hitType);
     this.camMix += ((follow ? 1 : 0) - this.camMix) * Math.min(1, dt * (follow ? 3 : 1.5));
-    const m = this.camMix;
-    cam.at.x = H.x - c.x * (1.9 + m * 2.4) - s.x * (0.1 + m * 0.4); cam.at.z = H.z - c.z * (1.9 + m * 2.4) - s.z * (0.1 + m * 0.4); cam.at.y = 0.82 + m * 2.6;
+    const m = this.camMix, mp = this.calm ? 0 : m;      // (Reduce motion: the camera stays where it stands and does not zoom; it only turns to watch the ball go)
+    cam.at.x = H.x - c.x * (1.9 + mp * 2.4) - s.x * (0.1 + mp * 0.4); cam.at.z = H.z - c.z * (1.9 + mp * 2.4) - s.z * (0.1 + mp * 0.4); cam.at.y = 0.82 + mp * 2.6;
     const lx = H.x + c.x * 6 - s.x * 0.08, ly = -0.1, lz = H.z + c.z * 6 - s.z * 0.08;
     if (follow && this.phase === 'hit') this.look.lerp(b, Math.min(1, dt * 6)); else if (!follow) this.look.set(lx, ly, lz);
     cam.look.x = lx + (this.look.x - lx) * m; cam.look.y = ly + (this.look.y - ly) * m; cam.look.z = lz + (this.look.z - lz) * m;
-    cam.fov = (innerHeight < 520 ? 42 : 50) + 14 * m;          // (a phone on its side: closer in, so the zone is big enough to aim in)
+    cam.fov = (innerHeight < 520 ? 42 : 50) + 14 * mp;          // (a phone on its side: closer in, so the zone is big enough to aim in)
   },
 
   spots() {
