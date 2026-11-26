@@ -202,7 +202,7 @@ export function buildCar(colour = 0xd2261c) {
   const white = rimmed(std(0xf4f2ec, { roughness: 0.3, envMap: env, envMapIntensity: 0.5 }), 0.25, 0.2);
   const suit = std(0x1e4fc8, { roughness: 0.5, emissive: 0x1e4fc8, emissiveIntensity: 0.1 });
   const steel = std(0x5b6068, { metalness: 0.7, roughness: 0.4, envMap: env, envMapIntensity: 0.6 });
-  const screen = new THREE.MeshStandardMaterial({ color: 0x9fc4dc, roughness: 0.05, metalness: 0.2, envMap: env, envMapIntensity: 1.4, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false });
+  const screen = new THREE.MeshStandardMaterial({ color: 0x9fc4dc, roughness: 0.05, metalness: 0.2, envMap: env, envMapIntensity: 1.4, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false, forceSinglePass: true });      // (both sides in one go, not two)
   const spring = std(0xf3c21b, { metalness: 0.5, roughness: 0.3, emissive: 0xf3c21b, emissiveIntensity: 0.12, envMap: env, envMapIntensity: 0.6 });
 
   // ---- the body shell: a low wedge of a nose, an open cockpit with its driver, a deck behind with the wing on it

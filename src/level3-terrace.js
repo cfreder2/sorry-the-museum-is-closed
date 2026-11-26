@@ -49,7 +49,7 @@ feature({
     }
     if (caps.length) k.group.add(new THREE.Mesh(mergeGeometries(caps), snowMat()));
     // The glass along the open side: panes waist high and a little more, a steel rail on top, posts between.
-    const glass = new THREE.MeshStandardMaterial({ color: 0xcfe3ee, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, emissive: 0x223844, depthWrite: false, side: THREE.DoubleSide });
+    const glass = new THREE.MeshStandardMaterial({ color: 0xcfe3ee, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, emissive: 0x223844, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true });      // (both sides in one go, not two)
     const steel = metal(0xb8bec4, { roughness: 0.3 }), gx = r.x0 + 0.04, gh = 1.15;
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(D, gh), glass); pane.rotation.y = Math.PI / 2; pane.position.set(gx, y + gh / 2, r.z0 + D / 2); k.group.add(pane);
     const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, D, 10), steel); rail.rotation.x = Math.PI / 2; rail.position.set(gx, y + gh + 0.03, r.z0 + D / 2); k.group.add(rail);

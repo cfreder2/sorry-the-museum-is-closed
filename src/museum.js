@@ -1057,7 +1057,7 @@ export class Museum {
       const H2 = 16, uvB = [[0, 0], [1, 0], [1, 1], [0, 1]];
       beam.quad([k.x0, top, cz3], [k.x1, top, cz3], [k.x1 + 0.5, top + H2, cz3], [k.x0 - 0.5, top + H2, cz3], [0, 0, 1], [[0, 1], [1, 1], [1, 0], [0, 0]]);
       beam.quad([cx2, top, k.z0], [cx2, top, k.z1], [cx2, top + H2, k.z1 + 0.5], [cx2, top + H2, k.z0 - 0.5], [1, 0, 0], [[0, 1], [1, 1], [1, 0], [0, 0]]);
-      const bm = beam.mesh(new THREE.MeshBasicMaterial({ map: TX.shaft(), color: new THREE.Color(1.0, 0.72, 0.38), transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      const bm = beam.mesh(new THREE.MeshBasicMaterial({ map: TX.shaft(), color: new THREE.Color(1.0, 0.72, 0.38), transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, fog: false }));
       bm.renderOrder = 5;
       this.group.add(pane, bm);
     }
@@ -1185,7 +1185,7 @@ export class Museum {
     hg.add(lay.mesh(new THREE.MeshBasicMaterial({ map: gel(32, 96, 1), color: new THREE.Color(0.6, 0.6, 0.62), side: THREE.DoubleSide })));
     const cast = new Geo();
     cast.quad([0, 0.012, -HW], [LEN, 0.012, -HW], [LEN, 0.012, HW], [0, 0.012, HW], [0, 1, 0], uv);
-    const castMesh = cast.mesh(new THREE.MeshBasicMaterial({ map: gel(8, 8, 0), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const castMesh = cast.mesh(new THREE.MeshBasicMaterial({ map: gel(8, 8, 0), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
     hg.add(castMesh);
     const na = 18;
 
@@ -1216,7 +1216,7 @@ export class Museum {
 
     // Moonlight: shafts falling from the vault, and what they land on.
     const add = (geo, map, color, opacity) => {
-      const m = geo.mesh(new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      const m = geo.mesh(new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, fog: false }));
       m.renderOrder = 5;
       hg.add(m);
       return m;
@@ -1415,7 +1415,7 @@ export class Museum {
     }
     if (!plinths.empty) {
       this.group.add(plinths.mesh(new THREE.MeshStandardMaterial({ color: 0x2b2927, roughness: 0.7, emissive: 0x1c1a18, emissiveIntensity: 0.5 })));
-      const gm = glass.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 0.62, 0.72), transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      const gm = glass.mesh(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 0.62, 0.72), transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
       gm.renderOrder = 7;
       this.group.add(gm, brass.mesh(new THREE.MeshStandardMaterial({ color: 0x8a7340, roughness: 0.4, metalness: 0.6, emissive: 0x3a2f14, emissiveIntensity: 0.6 })));
     }
@@ -1626,7 +1626,7 @@ export class Museum {
     const hzTex = TX.hazard(), chTex = TX.chequer();
     const M = {
       frame: new THREE.MeshStandardMaterial({ color: 0xb4bbc2, roughness: 0.35, metalness: 0.55, emissive: 0x4a5058, emissiveIntensity: 0.8 }),
-      glass: new THREE.MeshStandardMaterial({ color: 0xbfd8e6, transparent: true, opacity: 0.2, roughness: 0.05, metalness: 0.1, emissive: 0x16242c, depthWrite: false, side: THREE.DoubleSide }),
+      glass: new THREE.MeshStandardMaterial({ color: 0xbfd8e6, transparent: true, opacity: 0.2, roughness: 0.05, metalness: 0.1, emissive: 0x16242c, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }),      // (both sides in one go: three.js would draw it twice, looking its shader up afresh each time)
       floor: new THREE.MeshStandardMaterial({ map: chTex, roughness: 0.38, metalness: 0.65, emissiveMap: chTex, emissive: 0xffffff, emissiveIntensity: 0.28 }),
       stripe: new THREE.MeshStandardMaterial({ map: hzTex, roughness: 0.6, emissiveMap: hzTex, emissive: 0xffffff, emissiveIntensity: 0.4 }),
       sign: new THREE.MeshBasicMaterial({ map: TX.liftSigns(labels.length ? labels : ['']) }),

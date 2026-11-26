@@ -35,7 +35,7 @@ export class Hockey {
     paint(0.14, R.rz * 2 - 0.4, 0, 0xc0221c); for (const sx of [-1, 1]) { paint(0.1, R.rz * 1.3, sx * R.gx, 0xc0221c); paint(0.14, R.rz * 1.86, sx * R.rx * 0.36, 0x2a5cc0); }
     const ring = put(new THREE.RingGeometry(1.6, 1.72, 40), new THREE.MeshBasicMaterial({ color: 0x2a5cc0, transparent: true, opacity: 0.55, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), 0, 0.013, 0); ring.rotation.x = -Math.PI / 2;
     // The goals: red pipe and a white net.
-    const pipe = std({ color: 0xc8261c, roughness: 0.5, emissive: 0x6a100a, emissiveIntensity: 0.8 }), net = new THREE.MeshBasicMaterial({ map: this._net(), transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.8, 0.82, 0.9) });
+    const pipe = std({ color: 0xc8261c, roughness: 0.5, emissive: 0x6a100a, emissiveIntensity: 0.8 }), net = new THREE.MeshBasicMaterial({ map: this._net(), transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0.8, 0.82, 0.9), forceSinglePass: true });      // (both sides in one go: three.js would draw it twice, looking its shader up afresh each time)
     for (const sx of [-1, 1]) {
       const x = sx * R.gx, W = R.gw, H = 0.9, D = 0.9;
       for (const sz of [-1, 1]) { put(new THREE.CylinderGeometry(0.04, 0.04, H, 8), pipe, x, H / 2, sz * W); plan.obstacles.push({ x0: R.x + x - 0.05, x1: R.x + x + 0.05, z0: R.z + sz * W - 0.05, z1: R.z + sz * W + 0.05, y0: 0, y1: H }); }
