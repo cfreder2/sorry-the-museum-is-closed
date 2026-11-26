@@ -129,6 +129,17 @@ function grateTexture() {
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
+// Light added to the frame, but never to a work of art: weighted by what the frame holds in alpha, which is 0 on a canvas
+// (src/finish.js keepTrue), and the alpha left as it was. As src/probe.js's artSafe. `cut`: the material's shape is in its
+// map's alpha (plain additive blending multiplied by that; here the shader does). For the two lights at the lobby grate
+// that stand up off the floor, now that a picture hangs on the wall beyond them: seen from the vent, they are in front of it.
+function artSafe(m, cut = false) {
+  Object.assign(m, { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.DstAlphaFactor, blendDst: THREE.OneFactor,
+    blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
+  if (cut) { m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n\tgl_FragColor.rgb *= gl_FragColor.a;'); }; m.customProgramCacheKey = () => 'story-artsafe-cut'; }
+  return m;
+}
+
 feature({
   id: 'story',
 
@@ -168,7 +179,7 @@ feature({
     this.gratePool.position.set(G.x, y + 0.013, G.z); this.gratePool.scale.set(2.6, 1, 2.2); this.gratePool.renderOrder = 3; g.add(this.gratePool);
     // light coming up through it: two crossed glowing sheets, fading upward
     const shaftTex = (() => { const cv = document.createElement('canvas'); cv.width = 32; cv.height = 128; const c = cv.getContext('2d'), gr = c.createLinearGradient(0, 128, 0, 0); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, 32, 128); const h = c.createLinearGradient(0, 0, 32, 0); h.addColorStop(0, 'rgba(0,0,0,1)'); h.addColorStop(0.5, 'rgba(0,0,0,0)'); h.addColorStop(1, 'rgba(0,0,0,1)'); c.globalCompositeOperation = 'destination-out'; c.fillStyle = h; c.fillRect(0, 0, 32, 128); return new THREE.CanvasTexture(cv); })();
-    this.shaftMat = new THREE.MeshBasicMaterial({ map: shaftTex, color: GREEN.clone().multiplyScalar(0.5), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    this.shaftMat = artSafe(new THREE.MeshBasicMaterial({ map: shaftTex, color: GREEN.clone().multiplyScalar(0.5), side: THREE.DoubleSide, fog: false }), true);      // (a picture hangs beyond it now, in line with the vent: src/plan.js entryPicture)
     for (const r of [0, Math.PI / 2]) { const s = new THREE.Mesh(new THREE.PlaneGeometry(r ? G.d : G.w, 1.4), this.shaftMat); s.position.set(G.x, y + 0.72, G.z); s.rotation.y = r; g.add(s); }
     // the pawprints: from the terrace in at the vent, through the wall and across to the grate
     const pts = [], add = (x, z) => pts.push([x, z]);
@@ -198,7 +209,7 @@ feature({
     const fig = this.diverFig = new THREE.Group(); fig.scale.setScalar(1.35); m.add(fig);
     fig.add(new THREE.Mesh(MG.body, body), new THREE.Mesh(MG.eyes, new THREE.MeshBasicMaterial({ color: 0x040604 })));
     const tail = new THREE.Mesh(MG.tail, body); tail.position.set(0, 0.022, -0.062); fig.add(tail); this.diverTail = tail;
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.radial, color: GREEN, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); halo.position.y = 0.05; halo.scale.setScalar(0.5); m.add(halo); this.diverHalo = halo;
+    const halo = new THREE.Sprite(artSafe(new THREE.SpriteMaterial({ map: this.radial, color: GREEN, fog: false }))); halo.position.y = 0.05; halo.scale.setScalar(0.5); m.add(halo); this.diverHalo = halo;
     const pool = this.diverPool = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: this.radial, color: GREEN.clone().multiplyScalar(0.8), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
     pool.position.y = 0.004; pool.renderOrder = 3; m.add(pool);
     // until it has gone down, it sits on the grate, sniffing, facing the vent: you see it as you come through
@@ -318,7 +329,7 @@ feature({
       m.rotation.y += Math.atan2(Math.sin(look - m.rotation.y), Math.cos(look - m.rotation.y)) * Math.min(1, dt * (d < 8 ? 5 : 1.5));
       m.rotation.x = -0.12 + Math.sin(t * 2.3) * 0.06 - (d < 8 ? 0.25 : 0); this.diverTail.rotation.y = Math.sin(t * 3) * 0.35;
       this.diverHalo.scale.setScalar(Math.min(1.8, 0.45 + d / 7) * (1 + 0.1 * Math.sin(t * 5)));      // a beacon, bigger from further off, as the mice are
-      if (k.room && k.room.id === L.id && d < 3.6) {
+      if (k.room && k.room.id === L.id && d < 3.6 && !(k.G.entry && k.G.entry.busy)) {      // (not while the saucer in the hall is still to be seen, or being seen: src/entry.js. The mouse waits its turn.)
         this.dive = { t: 0, phase: 'look' };
         const a = MOTIF[0], b = MOTIF[1]; k.synth.note(440 * Math.pow(2, (a.midi + 36 - 69) / 12), 0.05, { type: 'sine', vol: 0.02 }); k.synth.note(440 * Math.pow(2, (b.midi + 36 - 69) / 12), 0.06, { type: 'sine', vol: 0.018, at: 0.09 });
       }

@@ -820,10 +820,17 @@ feature({
     return LIVES.flatMap(L => (L.spec.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: L.cx + L.nx * 1.4, y: L.y, z: L.cz + L.nz * 1.4 })));
   },
   reset() { for (const L of LIVES) L.reset(); },
-  // For src/entry.js. lifeOf: the Life of a work hung tonight (or undefined). expose: its label's green light, on or off
-  // (the same ring and the same cast on the card as every living work's; all of them are on from the start).
+  // For src/entry.js (the saucer that scans the work in the entrance hall).
+  // lifeOf: the Life of a work hung tonight (or undefined). expose: its label's green light, on or off (the same ring and
+  // the same cast on the card as every living work's; all of them are on from the start). wake: its show begun without a
+  // look, by the same step() a look drives, and let go again (it then goes back as it does when a look ends).
   lifeOf(art) { return this.byArt && this.byArt.get(art); },
   expose(art, on) { return !!(this.exposed && this.exposed.userData.expose(art, on)); },
+  wake(art, on) {
+    const L = this.lifeOf(art); if (!L) return false;
+    if (on) { if (!L.made) L.prepare(); L.force = true; } else if (L.force === true) L.force = null;
+    return true;
+  },
 });
 
 // ------------------------------------------------------------------ checks and test aids --

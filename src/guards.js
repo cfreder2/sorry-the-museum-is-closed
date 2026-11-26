@@ -88,9 +88,9 @@ function glowGeo() {
   for (const g of [visor, beacon, tip]) if (g.attributes.uv) g.deleteAttribute('uv');
   return mergeGeometries([visor.toNonIndexed(), beacon.toNonIndexed(), tip.toNonIndexed()]);
 }
-export const EMIT = new THREE.Vector3(0.12, BOT.emitter, 0.14);        // where the prong's tip is, in the head's frame
+const EMIT = new THREE.Vector3(0.12, BOT.emitter, 0.14);        // where the prong's tip is, in the head's frame
 
-export const MOOD = {
+const MOOD = {
   calm: new THREE.Color(0.25, 1.1, 1.6), wary: new THREE.Color(2.0, 1.15, 0.15), hunt: new THREE.Color(2.4, 0.18, 0.12),
   poolCalm: new THREE.Color(0.55, 0.72, 0.85), poolWary: new THREE.Color(0.9, 0.62, 0.18), poolHunt: new THREE.Color(1.0, 0.2, 0.14),
 };
@@ -121,7 +121,7 @@ function poolMesh() {
 // A jagged line of light from the prong to whatever it hits, re-struck every few hundredths of a second:
 // a strip per segment, turned to face the camera, white-hot down the middle and blue at the edges.
 const MAXS = 40;
-export class Bolt {
+class Bolt {
   constructor(parent) {
     const g = this.geo = new THREE.BufferGeometry();
     this.pos = new Float32Array(MAXS * 12); this.alpha = new Float32Array(MAXS * 4);
@@ -191,7 +191,7 @@ export class Bolt {
 }
 
 // Sparks: a few dozen points, flung and falling, hot blue-white going out.
-export class Sparks {
+class Sparks {
   constructor(parent) {
     const n = this.n = 96; this.p = new Float32Array(n * 3); this.v = new Float32Array(n * 3); this.life = new Float32Array(n); this.c = new Float32Array(n * 3); this.next = 0;
     const g = this.geo = new THREE.BufferGeometry();
@@ -401,6 +401,17 @@ feature({
       return b;
   },
 
+  // The lobby's robot, made the first time it is wanted (here, or by src/entry.js, whose cutscene it is in).
+  _lobby(k) {
+    if (!this.lobbyTried && this.bots) {
+      this.lobbyTried = true;
+      const L = k.plan.byId[k.plan.front && k.plan.front.a];
+      const p = L && beat(k.plan, [L.id], 'bot-lobby');
+      if (p) { const b = this._makeBot(p, this.bots.length); b.lobby = true; this._home(b, 0); this.bots.push(b); this.lobbyBot = b; }
+    }
+    return this.lobbyBot || null;
+  },
+
   // Put a robot back on its beat, at point i.
   _home(b, i = 0) {
     const p = b.P; b.k = i % p.n; b.x = p.pts[b.k * 2]; b.z = p.pts[b.k * 2 + 1];
@@ -483,12 +494,7 @@ feature({
     this.wasOn = true;
     // The lobby's own robot: one beat up and down the Michigan Avenue lobby, past the front doors, the first one most people meet.
     // Built on the first frame rather than at the start, so the coat-check counter (src/lobby.js) is on its plan as somewhere to hide.
-    if (!this.lobbyTried) {
-      this.lobbyTried = true;
-      const L = k.plan.byId[k.plan.front && k.plan.front.a];
-      const p = L && beat(k.plan, [L.id], 'bot-lobby');
-      if (p) { const b = this._makeBot(p, this.bots.length); b.lobby = true; this._home(b, 0); this.bots.push(b); this.lobbyBot = b; }
-    }
+    this._lobby(k);
     const v = k.v, p = v.pos, now = G.t, cam = G.camera ? G.camera.position : p;
     // Back from something else (a look, a game, the pause menu): a moment before anybody can see you.
     if (G.state !== this.prevState) { if (G.state === 'play') this.grace = Math.max(this.grace, now + 1.5); this.prevState = G.state; }
@@ -501,8 +507,7 @@ feature({
     const lamp = !!G.lampOn, drone = v.kind === 'drone';
     let nearest = 1e9;
     for (const b of this.bots) {
-      // (the lobby's robot is kept out of the lobby until the visitors' machine has been seen off: src/entry.js)
-      if (b.lobby && this.lobbyOff) { b.near = false; b.group.visible = false; b.pool.visible = false; continue; }
+      if (b.cut) continue;      // (somebody else has this one for now, and draws it: the lobby's robot until the saucer has been seen off, src/entry.js)
       const dx = p.x - b.x, dz = p.z - b.z, d2 = dx * dx + dz * dz, dy = p.y - b.fy;
       const sameLevel = dy > -1.5 && dy < 4;
       b.near = sameLevel && d2 < 45 * 45; b.far = !sameLevel || d2 > 60 * 60;
