@@ -89,7 +89,7 @@ export function buildPlan() {
   // out, half of that lands somewhere else. So everything is dealt as if they were there, and then stripShut() (below)
   // takes them out of the plan for good: main.js calls it once the last of the dealing is done.
   { const shut = new Set(SHUT_ROOMS); for (const r of rooms) if (shut.has(r.id)) r.shut = true;
-    for (const d of doors) if (d.b !== 'out' && byId[d.a] && byId[d.b] && !!byId[d.a].shut !== !!byId[d.b].shut) d.shut = true; }
+    for (const d of doors) if (d.b !== 'out' && byId[d.a] && byId[d.b]) { if (!!byId[d.a].shut !== !!byId[d.b].shut) d.shut = true; else if (byId[d.a].shut) d.gone = true; } }      // (gone: a doorway between two shut rooms: nothing is made of it)
   const lap = (a, b, m = 0) => a.x0 < b.x1 + m && a.x1 > b.x0 - m && a.z0 < b.z1 + m && a.z1 > b.z0 - m;
   // Is there sky over a room, or another room (or the ground)? Skylights go only where there is sky.
   for (const r of rooms) r.sky = r.top > 0.5 && !rooms.some(o => o !== r && o.y > r.y + 1 && lap(r, o, T));
@@ -287,6 +287,7 @@ export function stripShut(plan) {
   const keep = (list, ok) => { if (!list) return 0; let n = 0; for (let i = 0; i < list.length; i++) if (ok(list[i])) list[n++] = list[i]; const gone = list.length - n; list.length = n; return gone; };
   const ids = new Set(plan.shutRooms.map(r => r.id)), out = {};
   out.rooms = keep(plan.rooms, r => !r.shut);
+  out.doors = keep(plan.doors, d => !d.gone);
   out.walls = keep(plan.walls, w => !(w.room && w.room.shut));
   out.floors = keep(plan.floors, f => !(f.shut || (f.room && f.room.shut)));
   out.solids = keep(plan.obstacles, o => !o.shut);

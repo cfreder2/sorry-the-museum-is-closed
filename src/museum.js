@@ -758,7 +758,7 @@ export class Museum {
     // Doorways: stone surround right through the wall, and a threshold.
     for (const d of plan.doors) {
       const j = 0.3, p = 0.07, Y = d.y;
-      if (d.vent) continue;                           // the vent has its own frame, below
+      if (d.vent || d.gone) continue;                 // the vent has its own frame, below (gone: between two shut rooms, src/shut.js: not built)
       if (d.hidden) { fq(stone, d.x0, d.x1, d.z0, d.z1, 1.3, Y); continue; }      // no surround: nothing says there is a doorway here
       if (d.along === 'z') {
         portals.box(d.x0 - j, d.x0, Y, Y + d.h, d.z0 - p, d.z1 + p);
@@ -832,7 +832,7 @@ export class Museum {
       signs.add(m);
     };
     for (const d of plan.doors) {
-      if (d.vent || d.hidden) continue;
+      if (d.vent || d.hidden || d.gone) continue;
       if (d.out) { if (d !== plan.front) hang1(d, d.a, null); hang1(d, null, d.a); }
       else { hang1(d, d.b, d.a); hang1(d, d.a, d.b); }
     }
