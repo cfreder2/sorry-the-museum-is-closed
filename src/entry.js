@@ -247,6 +247,7 @@ feature({
     };
     this.held = k.hold(() => {});
     v.vel.set(0, 0, 0);
+    this.run.lamp = G.lamp ? G.lamp.intensity : null; this.lampWas = this.run.lamp;
     G.cutscene = inp => { if (this.run && this.run.T > 0.5 && (inp.took('pause') || inp.took('back'))) this.skip(); inp.queue.clear(); };
     this.gd.grace = Math.max(this.gd.grace || 0, G.t + 1e6);          // (no robot takes the toy in the middle of this)
     document.body.classList.add('ecine'); this.skipEl.hidden = false;
@@ -270,6 +271,9 @@ feature({
   _play(dt, k) {
     const r = this.run, G = k.G; if (G.entry.rate) dt *= G.entry.rate;      // (rate: a test aid, the scene run slowly so that more moments of it are measured)
     r.T += dt;
+    // The toy's own headlamp is dipped for this (it is on after the opening): the toy sits by the doors with it pointed down
+    // the hall, and from beside the picture it was a white glare over a third of the screen, where the saucer goes out.
+    if (G.lamp && r.lamp != null) G.lamp.intensity = r.lamp * Math.max(0, 1 - r.T / 0.7);
     if (r.skip != null && (r.skip += dt) > 0.24) return this._end(k);
     const t = r.T;
     r.beat = t < T.beam ? 'cross' : t < T.wake ? 'scan' : t < T.robot ? 'alive' : t < T.zap ? 'robot' : t < T.flee ? 'zap' : t < T.gone ? 'chase' : 'after';
@@ -415,6 +419,7 @@ feature({
   // (quiet: a new night or a new game has taken everything back; nothing more is said or moved)
   _end(k, quiet = false) {
     const G = k.G, b = this.bot, gd = this.gd, said = this.run && this.run.said;
+    if (G.lamp && this.lampWas != null) { G.lamp.intensity = G.lampOn ? this.lampWas : 0; this.lampWas = null; }      // (the headlamp, as it was)
     this.run = null; G.cineEye = null; G.cutscene = null;
     if (this.held) { k.hold(null); this.held = null; }
     document.body.classList.remove('ecine'); if (this.skipEl) this.skipEl.hidden = true; if (this.fadeEl) this.fadeEl.style.opacity = '0';
