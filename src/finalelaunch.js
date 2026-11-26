@@ -314,7 +314,7 @@ feature({
   },
 
   // ---------------------------------------------------------------- the beam
-  async startBeam(now = false) {
+  startBeam(now = false) {      // (not async: nothing in it waits, and a throw after it had gripped the toy was an unhandled rejection that nothing let go of)
     const k = this.k, G = k.G, h = this.hangar || (this.hangar = this.fin.hangar);
     if (this.run && this.run !== 'tones') return;
     if (!this.hooked) this._hook(k);
