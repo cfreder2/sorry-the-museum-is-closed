@@ -385,7 +385,7 @@ export class Trains {
   }
   _rumble(sound, vol) {
     const c = sound.ctx; if (!c || c.state !== 'running' || !sound.noise) return;
-    if (!this.rumble) { if (vol <= 0) return; const s = c.createBufferSource(); s.buffer = sound.noise; s.loop = true; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 170; const e = c.createGain(); e.gain.value = 0; s.connect(f); f.connect(e); e.connect(sound.dry); s.start(); this.rumble = e; }
+    if (!this.rumble) { if (vol <= 0) return; const s = c.createBufferSource(); s.buffer = sound.noise; s.loop = true; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 170; const e = c.createGain(); e.gain.value = 0; s.connect(f); f.connect(e); e.connect(sound.world || sound.dry); s.start(); this.rumble = e; }      // (the world's: silent while a menu is up, audio.js quiet())
     this.rumble.gain.setTargetAtTime(0.55 * vol, c.currentTime, 0.15);
   }
 }

@@ -457,7 +457,7 @@ class Voice {
       const s = this.L.k.sound; this.bus = c.createGain(); this.bus.gain.value = this.level;
       this.pan = c.createStereoPanner ? c.createStereoPanner() : null;
       const into = this.pan || this.bus; if (this.pan) this.pan.connect(this.bus);
-      this.bus.connect(s.dry || s.master); if (s.send) { const w = c.createGain(); w.gain.value = 0.35; this.bus.connect(w); w.connect(s.send); }
+      this.bus.connect(s.world || s.dry || s.master); if (s.send) { const w = c.createGain(); w.gain.value = 0.35; this.bus.connect(w); w.connect(s.worldWet || s.send); }      // (a painting's wind or rain goes on: the world's, silent while a menu is up, audio.js quiet())
       this.into = into;
     }
     return this.into;

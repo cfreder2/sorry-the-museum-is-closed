@@ -341,7 +341,7 @@ function kitFor(o) {
         else { src = c.createOscillator(); src.type = type; src.frequency.value = freq; }
         let node = src;
         for (const [kind, f] of [['lowpass', lp], ['highpass', hp]]) if (f) { const q = c.createBiquadFilter(); q.type = kind; q.frequency.value = f; node.connect(q); node = q; }
-        node.connect(g); g.connect(sound.master); src.start(); return true;
+        node.connect(g); g.connect(sound.world || sound.master); src.start(); return true;      // (the world's: silent while a menu is up, audio.js quiet())
       };
       const stop = () => { if (!src) return; try { src.stop(); } catch { /* stopped */ } src.disconnect(); g.disconnect(); src = g = null; };
       return {

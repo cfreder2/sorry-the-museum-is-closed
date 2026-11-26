@@ -121,7 +121,7 @@ feature({
     // The sound: a low drone like breath on a reed, and now and then a small bell.
     if (live(k)) {
       const g = (near ? gain(k, R.x, R.z, 26) : 0) * fade * music(k), c = k.sound.ctx;
-      if (!R.drone && g > 0) { const out = c.createGain(); out.gain.value = 0; for (const n of outs(k)) out.connect(n);
+      if (!R.drone && g > 0) { const out = c.createGain(); out.gain.value = 0; for (const n of (k.sound.world ? [k.sound.world, k.sound.worldWet] : outs(k))) out.connect(n);      // (a drone that goes on: the world's, silent while a menu is up)
         const os = [98, 147, 196.5].map((f, i) => { const o = c.createOscillator(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = f; const e = c.createGain(); e.gain.value = [0.5, 0.3, 0.16][i]; o.connect(e); e.connect(out); o.start(); return o; });
         R.drone = { out, os }; }
       if (R.drone) R.drone.out.gain.setTargetAtTime(0.05 * g, c.currentTime, 0.4);

@@ -60,6 +60,10 @@ export class Sound {
     this.verb.connect(this.wet); this.wet.connect(this.master);
     this.dry = c.createGain(); this.dry.connect(this.master);
     this.send = c.createGain(); this.send.connect(this.verb);
+    // What goes on sounding in the world (a train, the traffic, a hum, rain, a painting's wind) plays through `world`, and
+    // through `worldWet` into the room, so that one rule can still all of it: quiet(), below.
+    this.world = c.createGain(); this.world.connect(this.master); this.worldWet = c.createGain(); this.worldWet.connect(this.send);
+    this.world.gain.value = this.worldWet.gain.value = this.quieted ? 0 : 1;
 
     // Motor: two oscillators and a filter that opens with speed.
     this.motor = { o1: c.createOscillator(), o2: c.createOscillator(), f: c.createBiquadFilter(), g: c.createGain(), s: c.createGain() };
@@ -114,6 +118,12 @@ export class Sound {
     const t = this.ctx.currentTime;
     this.bell(midi(50), t, 0.09, 4.5); this.bell(midi(57), t + 0.04, 0.06, 4.5); this.bell(midi(93), t + 0.1, 0.02, 3);
   }
+
+  // One rule for a menu. While the title screen, the pause menu or anything opened from them is up, the world's continuous
+  // sounds are silent, and they come back where they were: each keeps its own level meanwhile, and only this is turned. Faded,
+  // never cut; and the context is never suspended (iOS does not give it back without a touch). Music and the menus' own
+  // sounds are not the world's, and play as they did.
+  quiet(on) { this.quieted = !!on; if (!this.world) return; const t = this.ctx.currentTime; for (const g of [this.world, this.worldWet]) g.gain.setTargetAtTime(on ? 0 : 1, t, on ? 0.05 : 0.12); }
 
   setMuted(m) { this.muted = m; if (this.master) this.master.gain.setTargetAtTime(m ? 0 : this.vol.master, this.ctx.currentTime, 0.05); }
 

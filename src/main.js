@@ -616,6 +616,7 @@ let shown = 'title';
 function show(name) {
   for (const id of ['title', 'pause', 'notebook', 'settings', 'controls', 'about', 'bigmap']) $(id).hidden = id !== name;
   shown = name;
+  sound.quiet(!!name);      // (a menu is up: the train, the traffic and every other sound that goes on in the world wait in silence, src/audio.js)
   if (name === 'title') $('titleMoon').hidden = !voyageFinished();      // a small Moon by the title once the museum on the Moon has opened
   // Keyboard and switch users land on the first control of whatever just opened.
   if (name) { const first = $(name).querySelector('[data-first]:not([disabled])') || $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }

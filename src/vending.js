@@ -170,7 +170,7 @@ export class Vending {
     const s = this.sound, c = s && s.ctx; if (!c || c.state !== 'running' || !s.master || !v) return;
     let best = 1e9; for (const m of this.list) if (Math.abs(v.pos.y - m.y) < 2.5) best = Math.min(best, Math.hypot(v.pos.x - m.front.x, v.pos.z - m.front.z));
     const want = best < 7 ? 0.012 * (1 - best / 7) : 0;
-    if (!this.hum) { if (!want) return; try { const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = 100; o2.type = 'triangle'; o2.frequency.value = 200.6; g.gain.value = 0; o.connect(g); o2.connect(g); g.connect(s.master); o.start(); o2.start(); this.hum = g; } catch { return; } }
+    if (!this.hum) { if (!want) return; try { const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = 100; o2.type = 'triangle'; o2.frequency.value = 200.6; g.gain.value = 0; o.connect(g); o2.connect(g); g.connect(s.world || s.master); o.start(); o2.start(); this.hum = g; } catch { return; } }
     this.hum.gain.setTargetAtTime(want, c.currentTime, 0.3);
   }
 

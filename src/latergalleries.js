@@ -374,7 +374,7 @@ feature({
     const c = ctxOf(k);
     if (vol > 0.0005 && c && !this.osc) {
       const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = hz(62); o2.type = 'sine'; o2.frequency.value = hz(62) * 2.003;
-      const g2 = c.createGain(); g2.gain.value = 0.18; o2.connect(g2); g2.connect(g); o.connect(g); g.gain.value = 0; g.connect(k.sound.master); o.start(); o2.start(); this.osc = { o, o2, g };
+      const g2 = c.createGain(); g2.gain.value = 0.18; o2.connect(g2); g2.connect(g); o.connect(g); g.gain.value = 0; g.connect(k.sound.world || k.sound.master); o.start(); o2.start(); this.osc = { o, o2, g };
     }
     if (this.osc) {
       const g = this.osc.g; g.gain.setTargetAtTime(vol, g.context.currentTime, 0.5);
