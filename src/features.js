@@ -31,8 +31,9 @@
 //   k.camClose            set to { at: {x,y,z}, look: {x,y,z} } from update() to stand the chase camera there this frame (inside a small
 //                         enclosure, say, where the usual camera behind the toy would end up in a wall). Cleared before each update round.
 //                         An optional fov (degrees) narrows or widens the view meanwhile.
-//   k.tally(key, total)   a set of things to collect across the building, remembered between visits:
-//                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done
+//   k.tally(key, total, secret = key)   a set of things to collect across the building, remembered between visits:
+//                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done. `secret`: the secret (or list of them) it awards when full
+//   k.keeps(ids, done)    a collection a new game does not empty keeps its secret: put back, without a word, whenever done() is true
 //   k.tint(roomId)        light a room differently: .set(color, secs), .off(secs)   (see the end of this file)
 //   k.course(gates, opts) a timed run through gates in order: .start(), .update(dt), .fail(why)   (ditto)
 //   k.roofAt(x, z), k.roofSolid(piece, mat), k.parts()   up on the roofs, and drawing many small things cheaply (see "added for the roofs")
@@ -252,12 +253,18 @@ export async function startFeaturesInTurn(o, rest, budget = 40) {
 function kitFor(o) {
   const { G, THREE, secrets, say, once, callout, sound, stage } = o;
   const group = new THREE.Group(); group.name = 'features'; G.museum.group.add(group);
+  // What has been collected stays collected through a new game (the mice stay followed, the lost things stay handed in), but New
+  // game empties the Secrets list, and nothing left in the building could then earn the secret a finished collection awarded.
+  // So each such collection says which secret is its own, and that one is put back without a word (no callout, no chime, no
+  // chips again) whenever the collection is found already full: as it is made (a save caught by this) and after a new game (api.kept).
+  const kept = [], putBack = q => { let d = false; try { d = !!q.done(); } catch { /* not built */ } if (d) for (const id of q.ids) secrets.keep(id); };
   const k = {
     G, plan: G.plan, museum: G.museum, sound, stage, THREE, group, once, callout,
     // k.say(text, hold) as documented; k.say(text, delay, hold) as main.js's say. (Two arguments used to be read as a delay.)
     // A fourth argument, true, says it at once, ahead of whatever is waiting (for what is on the screen this moment).
     say: (text, a, b, now) => (b === undefined ? say(text, 0, a === undefined ? 5 : a) : say(text, a, b, !!now)),
     find: id => secrets.find(id),
+    keeps(ids, done) { const q = { ids: [].concat(ids), done }; kept.push(q); putBack(q); },
     get v() { return G.vehicle; }, get pos() { return G.vehicle.pos; }, get room() { return G.roomId ? G.plan.byId[G.roomId] : null; },
     inRoom(ids, around = 0) {
       const p = G.vehicle.pos;
@@ -308,10 +315,12 @@ function kitFor(o) {
       return L;
     },
     // A "collect N of a set across the building" counter (mice followed, notes read, lost things returned, lions
-    // counted...), kept in localStorage so it lasts between visits.
-    tally(key, total) {
+    // counted...), kept in localStorage so it lasts between visits. The secret it awards when full is the one of its own name,
+    // unless `secret` names another (or a list): see `kept` above.
+    tally(key, total, secret = key) {
       const store = 'after-hours.tally.' + key; let got;
       try { got = new Set(JSON.parse(localStorage.getItem(store) || '[]')); } catch { got = new Set(); }
+      k.keeps(secret, () => total > 0 && got.size >= total);
       return {
         total, has: id => got.has(id), get count() { return got.size; }, get done() { return got.size >= total; },
         add(id) { if (got.has(id)) return false; got.add(id); try { localStorage.setItem(store, JSON.stringify([...got])); } catch { } return true; },
@@ -353,11 +362,12 @@ function kitFor(o) {
     },
     // A set of things to collect across the building (the lions, mice, lost property...), remembered between visits.
     //   const lions = k.collect('lions', 12); lions.add('L3') -> the new count the first time, 0 if already had;
-    //   lions.has(id), lions.count, lions.total, lions.done, lions.clear()
-    collect(name, total) {
+    //   lions.has(id), lions.count, lions.total, lions.done, lions.clear(). `secret`: as k.tally's.
+    collect(name, total, secret) {
       const key = 'feature-set-' + name;
       let got = []; try { got = JSON.parse(localStorage.getItem(key) || '[]'); } catch { got = []; }
       const save = () => { try { localStorage.setItem(key, JSON.stringify(got)); } catch { /* private window: it lasts the visit */ } };
+      if (secret) k.keeps(secret, () => total > 0 && got.length >= total);
       return {
         total, has: id => got.includes(id), get count() { return got.length; }, get done() { return got.length >= total; },
         add(id) { if (got.includes(id)) return 0; got.push(id); save(); return got.length; },
@@ -432,6 +442,7 @@ function kitFor(o) {
     spots() { return features.flatMap(f => { if (f._pending) return (f.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: f.lazy.x, y: 0, z: f.lazy.z })); try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset && !f._pending) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },
     fresh() { for (const f of features) if (f.fresh && !f._pending) try { f.fresh(k); } catch (e) { console.error('feature ' + f.id, e); } },
+    kept() { for (const q of kept) putBack(q); },      // (after a new game has emptied the Secrets list)
   };
   return { start, api };
 }

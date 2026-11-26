@@ -334,6 +334,7 @@ async function boot() {
   // Mine: what is under the building, what stands on the pedestal there, the monitor nobody upstairs has, and the whiteboards (all of them, as one).
   secrets.add('boards', 'The whiteboards the staff left written on').add('vault', 'Sub-level 9').add('ufo', 'The thing on the pedestal').add('outpost', 'A monitor left on, a long way down: Outpost Nine');
   addEventListener('museum:board', () => secrets.find('boards'));
+  if (G.secret.taken) secrets.keep('ufo');      // (taken on an earlier visit: the pedestal stays empty, so the secret stays found, without a word)
   addEventListener('museum:secret', e => { const d = e.detail || {}; if (d.event === 'ufo') secrets.find('ufo'); if (d.event === 'arrived') secrets.find('vault'); });
   addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'bonus' || d.event === 'bonus-found') secrets.find('outpost'); });
   // The side games earn trophies too.
@@ -547,6 +548,8 @@ function newGame() {
   secrets.reset();
   G.presents.reset();
   if (G.features) G.features.fresh();
+  // What a new game does not undo keeps its secret: a collection left finished (features.js, `kept`), and the saucer once taken.
+  if (G.features) G.features.kept(); if (G.secret.taken) secrets.keep('ufo');
   garage.fresh(pick);                                 // her own red RC Car, whatever was last driven
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air', 'after-hours.voyage', 'after-hours.night', 'after-hours.escapes']) localStorage.removeItem(k); } catch { /* fine */ }
 }

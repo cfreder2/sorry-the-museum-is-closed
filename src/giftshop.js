@@ -131,6 +131,7 @@ feature({
   init(k) {
     this.k = k; const r = k.plan.byId[ROOM]; if (!r) return;
     this.r = r; this.y = r.y; this.state = this._load();
+    k.keeps('shelf', () => this.state.shelf.length >= SHELF.length); k.keeps('globes', () => this.state.globes.length >= GLOBES.length);      // (what you bought and shook is kept, so their secrets are: features.js)
     const g = this.g = new THREE.Group(); g.position.y = r.y; k.group.add(g);
     const kit = new Kit(), glass = new Kit(), light = new Kit(), rnd = rng(77);
     const O = (x0, x1, z0, z1, y1) => k.plan.obstacles.push({ x0, x1, z0, z1, y0: r.y - 0.2, y1: r.y + y1 });
