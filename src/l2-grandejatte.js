@@ -18,6 +18,7 @@
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { grid, path, nearestOpen } from './guardplan.js';
+import { MOTIF } from './motif.js';
 
 const rnd = (s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646)(240);
 const PAL = { navy: '#2b2f5e', orange: '#d8823a', cream: '#ecdfb4', pink: '#d77c7a', green: '#2f6b45', black: '#1e1b22', violet: '#6a4f8f', red: '#c2413a', white: '#f3eedf', ochre: '#c9a14a', brown: '#5a3a24' };
@@ -96,6 +97,7 @@ feature({
   id: 'l2-grande-jatte',
   secrets: [['monkey', 'The monkey off its lead']],
   init(k) {
+    this.k = k;
     const art = this.art = k.museum.arts.find(a => a.work.id === 27992) || k.museum.arts.find(a => /^A Sunday on La Grande Jatte/.test(a.work.t || ''));
     if (!art || art.work.c || art.nx == null) { this.art = null; return; }
     this.roomId = art.room; const room = k.plan.byId[art.room];
@@ -171,17 +173,20 @@ feature({
   // (The monkey may be anywhere between here and the Director's office: it is moved wherever the toy is.)
   active(k) { return !!this.art && (k.inRoom(this.roomId, 2) || this.fade > 0.001 || (this.state !== 'bench' && this.state !== 'seat' && this.state !== 'back')); },
   update(dt, k) {
-    const looking = k.looking === this.art;
+    const looking = k.looking === this.art, g = this.game;
+    if (!looking) this.gone = false;
     // How far out of the picture they are: 0 not at all, 0.3 every dot gathered, 0.45 the figures made, 0.75 all on the floor.
     // (They wait for the camera to come to rest in front of the picture: seen swinging past at a slant, a dot in front of
-    // the frame could seem to cross the canvas.)
+    // the frame could seem to cross the canvas.) In the monkey's show (src/secretgame.js) they come out quicker, and go back
+    // into the picture at the end of it; and stay there while the wall turns.
     const settled = looking && k.G.study && k.G.study.t > 1.6;
-    this.fade = Math.max(0, Math.min(1, this.fade + (settled ? dt / 3.4 : looking ? 0 : -dt / 1.8)));
+    if (g) this.fade = Math.max(0, Math.min(1, this.fade + (g.phase === 'home' ? -dt / (0.8 * g.slow) : settled || this.fade > 0 ? dt / (1.4 * g.slow) : 0)));
+    else this.fade = Math.max(0, Math.min(1, this.fade + (settled && !this.gone ? dt / 3.4 : looking && !this.gone ? 0 : -dt / 1.8)));
     const show = Math.min(this.N, Math.ceil(this.N * this.fade / GATHER));
     this.dots.visible = show > 0; this.dots.geometry.setDrawRange(0, show);
     if (show > 0) { this.t += dt; this.dance(dt, k, show); }
-    this.waltz(k, looking);
-    this.ape(dt, k);
+    this.waltz(k, looking && !this.gone);
+    if (g || this.gstate) this.apeShow(dt, k); else this.ape(dt, k);
   },
 
   // ---------------------------------------------------------------- the monkey
@@ -402,6 +407,7 @@ feature({
   },
   // Where everyone is this frame, and then the dots that are showing, moved to match.
   dance(dt, k, show) {
+    if (this.game) { this.poses(dt, k); this.place(k, show); return; }
     const F = this.figs, B = 0.36, z = this.wz, c = k.sound && k.sound.ctx;
     // The beat: the waltz's own when it is playing, so the steps fall on it; else a clock of our own.
     const beat = z && c ? (c.currentTime - z.t0) / B : this.t / B, bar = beat / 3, ph = bar - Math.floor(bar);
@@ -419,13 +425,19 @@ feature({
     const ch = F[this.child]; ch.x = this.cx; ch.z = this.cz; ch.yaw = -this.t * 2.2; ch.bob = rise * 0.01;
     const dg = F[this.dog], dth = this.t * 0.16 * TAU, dp = at(dth, 1.18, 0.05), dn = at(dth + 0.05, 1.18, 0.05);
     dg.x = dp.x; dg.z = dp.z; dg.yaw = Math.atan2(dn.x - dp.x, dn.z - dp.z); dg.bob = Math.abs(Math.sin(this.t * 14)) * 0.012; dg.leg = Math.sin(this.t * 14) * 0.5;
-    // Each figure from its place in the row under the frame down to the floor: a hop out and down.
+    this.place(k, show);
+  },
+  // Each figure from its place in the row under the frame down to the floor: a hop out and down; then the dots that are
+  // showing, moved to match.
+  place(k, show) {
+    const F = this.figs, tx = this.tx, tz = this.tz, nx = this.art.nx, nz = this.art.nz;
     const E = this.fade, y0 = this.y + 0.004;
     for (const f of F) {
       const h = Math.max(0, Math.min(1, (E - 0.45 - f.delay) / 0.25)), eh = h * h * (3 - 2 * h), Q = f.form;
       f.x = Q.x + (f.x - Q.x) * eh; f.z = Q.z + (f.z - Q.z) * eh; f.y = Q.y + (y0 - Q.y) * h * h;
       f.yaw = Q.yaw + Math.atan2(Math.sin(f.yaw - Q.yaw), Math.cos(f.yaw - Q.yaw)) * eh; f.bob *= h; f.leg *= h;
       f.c = Math.cos(f.yaw); f.s = Math.sin(f.yaw); f.pc = Math.cos(f.spin); f.ps = Math.sin(f.spin);
+      f.tc = Math.cos(f.tilt || 0); f.ts = Math.sin(f.tilt || 0); f.rc = Math.cos(f.roll || 0); f.rs = Math.sin(f.roll || 0);      // (a bow, a stumble: about the feet)
     }
     const P = this.dots.geometry.attributes.position, a = P.array, l = this.local, S = this.src, V = this.via;
     // And the guarantee: a dot that, from wherever the camera is just now, would be seen in front of the canvas (with a
@@ -442,6 +454,8 @@ feature({
         const rx = x * f.pc - zz * f.ps, rz = x * f.ps + zz * f.pc;
         x = rx + 0.1 * f.H; zz = -y * TILT_S + rz * TILT_C - 0.15 * TILT_S; y = 0.75 * f.H + 0.15 * TILT_C + y * TILT_C + rz * TILT_S;
       }
+      if (f.tilt) { const y2 = y * f.tc - zz * f.ts; zz = zz * f.tc + y * f.ts; y = y2; }
+      if (f.roll) { const x2 = x * f.rc + y * f.rs; y = y * f.rc - x * f.rs; x = x2; }
       let px = f.x + x * f.c + zz * f.s, py = f.y + f.bob + y, pz = f.z - x * f.s + zz * f.c;
       // Still on its way from the frame: down the rail, then across to its place in the figure.
       const g = (E - GATHER * i / this.N) / 0.15;
@@ -450,6 +464,7 @@ feature({
         if (g < 0.5) { const q = ease(g * 2); px = S[j] + (V[j] - S[j]) * q; py = S[j + 1] + (V[j + 1] - S[j + 1]) * q; pz = S[j + 2] + (V[j + 2] - S[j + 2]) * q; }
         else { const q = ease(g * 2 - 1); px = V[j] + (px - V[j]) * q; py = V[j + 1] + (py - V[j + 1]) * q; pz = V[j + 2] + (pz - V[j + 2]) * q; }
       }
+      if (f.hide) py = -1e4;
       if (cp) {
         const pN = (px - ax) * nx + (pz - az) * nz;
         if (cN > pN && pN > 0) {
@@ -485,6 +500,123 @@ feature({
     const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
     g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + 0.015); g.gain.setTargetAtTime(0, at + dur * 0.6, dur * 0.35);
     o.connect(g); g.connect(out); o.start(at); o.stop(at + dur + 0.4);
+  },
+  // ---------------------------------------------------------------- the monkey's show (src/secretgame.js runs it)
+  // Touch the monkey in the picture (src/secret.js) and it puts on a show on this floor: the figures out of the picture form a
+  // line, the other two couples stand back at the ends to watch, and the five in the line (the lady with the parasol, her
+  // gentleman, the girl in white, the little dog and, last, the monkey) step forward one at a time and turn. The game says who
+  // is turning, how far round, and how it went (g.i, g.spin, g.phase, g.done); everyone is put where that says. A figure that
+  // has held its pose stands on a ring of its own note's colour (src/motif.js). The monkey wears its lead, which runs back up
+  // to the foot of the frame, under where the painted one sits: below the picture, never across it.
+  promenade(g, won) {
+    const k = this.k;
+    if (g) {
+      if (!this.lead) this._showKit(k);
+      this.game = g; this.was = this.state; this.gstate = 'show'; this.from = this.perch(k);
+      for (const r of this.rings) r.visible = false;
+      this.cast = [this.couples[0].lady, this.couples[0].man, this.child, this.dog];
+      k.synth.chime([1568, 1976, 2349], { gap: 0.07, dur: 0.3, vol: 0.04 }); this.chatter(k, 0.03);
+      return;
+    }
+    this.game = null; this.gstate = null; this.lead.visible = false; for (const r of this.rings) r.visible = false;
+    for (const f of this.figs) { f.tilt = f.roll = 0; f.hide = false; }
+    if (won) this.gone = true;
+    // The monkey goes back to wherever it was before the show: on its lead, or under its bench (wary, so that it does not bolt from a toy left beside it).
+    if (this.was === 'back') { this.state = 'back'; this.monkey.visible = false; } else this.hide(true);
+  },
+  // Known already (src/secret.js): one chatter, and the wall turns.
+  tug() { if (this.k) this.chatter(this.k, 0.03); },
+  _showKit(k) {
+    const lead = this.lead = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 1, 5, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3b2416, emissive: 0x24140a }));
+    lead.name = 'grande-jatte-lead'; lead.visible = false; lead.userData.always = true; k.group.add(lead);
+    this.rings = MOTIF.map(n => { const r = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.135, 36).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(n.colour), transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })); r.visible = false; r.renderOrder = 3; k.group.add(r); return r; });
+  },
+  // Where everyone is this moment of the show.
+  poses(dt, k) {
+    const g = this.game, F = this.figs, a = this.art, face = Math.atan2(a.nx, a.nz), calm = g.calm, ph = g.phase, pt = g.pt, t = this.t;
+    const P = (u, n) => ({ x: a.x + this.tx * u + a.nx * n, z: a.z + this.tz * u + a.nz * n });
+    // The two couples watching, at the ends of the floor, turned to the middle; a little bob as each figure holds.
+    [this.couples[1], this.couples[2]].forEach((C, j) => {
+      const sg = j ? 1 : -1, cheer = ph === 'hit' || ph === 'all' ? Math.abs(Math.sin(pt * (calm ? 6 : 12))) * (calm ? 0.004 : 0.012) : 0;
+      [[F[C.lady], 0.45], [F[C.man], 0.78]].forEach(([f, n]) => { const p = P(sg * 1.34, n); f.x = p.x; f.z = p.z; f.yaw = face - sg * 1.15; f.bob = cheer; f.leg = 0; f.tilt = ph === 'all' ? 0.35 * Math.sin(Math.PI * Math.min(1, pt / 1.4)) : 0; f.roll = 0; f.hide = false; });
+      F[C.lady].spin += dt * 1.1;
+    });
+    const MARK = [-0.95, -0.48, 0, 0.48], BACK = 0.62, FRONT = 0.98, mix = (p, q, e) => ({ x: p.x + (q.x - p.x) * e, z: p.z + (q.z - p.z) * e });
+    this.cast.forEach((fi, i) => {
+      const f = F[fi], mark = P(MARK[i], BACK), front = P(MARK[i] * 0.55, FRONT);
+      let at = mark, yaw = face; f.tilt = 0; f.roll = 0; f.bob = 0; f.leg = 0; f.hide = false;
+      if (i === g.i && ph === 'step') { const e = ease(pt / g.stepT); at = mix(mark, front, e); f.leg = Math.sin(pt * 16) * 0.32 * (1 - e); f.bob = Math.abs(Math.sin(pt * 9)) * 0.008; }
+      else if (i === g.i && ph === 'spin') {
+        // Once round on its toes, facing you again at the top of the turn (the gold); and on round into a bow, if nobody says when.
+        at = front; const s = g.spin / g.top; yaw = face + Math.PI * 2 * s; f.bob = 0.022 * Math.sin(Math.PI * Math.min(1, s)); f.leg = Math.sin(s * Math.PI * 4) * 0.18;
+        if (s > 1) f.tilt = Math.min(0.5, (s - 1) * 2.4);
+        if (f.kind === 'lady') f.spin += dt * 9;
+      } else if (i === g.i && ph === 'hit') { at = front; f.bob = pt < 0.18 ? Math.sin(pt / 0.18 * Math.PI) * (calm ? 0.015 : 0.035) : 0.004; if (f.kind === 'lady') f.spin += dt * 3; }
+      else if (i === g.i && ph === 'bow') { const e = ease(Math.min(1, pt / g.bowT)); at = mix(front, mark, Math.max(0, (pt / g.bowT - 0.45) / 0.55)); f.tilt = 0.55 * Math.sin(Math.PI * Math.min(1, pt / (g.bowT * 0.55))); f.leg = e < 1 && pt > g.bowT * 0.45 ? Math.sin(pt * 16) * 0.25 : 0; }
+      else if (i === g.i && ph === 'miss') {
+        // A stumble: a wobble, a lurch to one side, a sit-down, and up again. (Reduce motion: a gentle sway.)
+        at = front; const d = Math.exp(-pt * (calm ? 1.5 : 2.2));
+        if (calm) { f.roll = 0.14 * Math.sin(pt * 5) * d; }
+        else { f.roll = 0.45 * Math.sin(pt * 14) * d; f.tilt = pt > 0.45 && pt < 1.0 ? -0.3 * Math.sin((pt - 0.45) / 0.55 * Math.PI) : 0; f.bob = pt > 0.45 && pt < 1.0 ? -0.03 * Math.sin((pt - 0.45) / 0.55 * Math.PI) : 0; at = { x: at.x + this.tx * 0.08 * Math.sin(pt * 7) * d, z: at.z + this.tz * 0.08 * Math.sin(pt * 7) * d }; f.leg = Math.sin(pt * 22) * 0.5 * d; }
+        yaw = face + 0.6 * Math.sin(pt * 3) * d;
+      } else if (g.done[i]) { f.bob = 0.004 * Math.sin(t * 2 + i); if (f.kind === 'lady') f.spin += dt * 0.8; }
+      if (ph === 'all') f.tilt = 0.5 * Math.sin(Math.PI * Math.min(1, pt / (1.4 * g.slow)));
+      f.x = at.x; f.z = at.z; f.yaw = yaw;
+      const r = this.rings[i]; r.visible = g.done[i] && ph !== 'home'; if (r.visible) { r.position.set(mark.x, this.y + 0.012, mark.z); r.material.opacity = ph === 'tug' ? 0.4 : 0.75; }
+    });
+    const r4 = this.rings[4], m4 = P(0.95, BACK); r4.visible = g.done[4] && ph !== 'home'; if (r4.visible) r4.position.set(m4.x, this.y + 0.012, m4.z);
+    // The rest: hidden (nobody else is in the show).
+    for (let i = 0; i < F.length; i++) if (!this.cast.includes(i) && !this.couples.slice(1).some(C => C.lady === i || C.man === i)) F[i].hide = true;
+  },
+  // The monkey in the show: out of the frame and down; in the line; its own turn, quickest; the bow; the tug; and home.
+  apeShow(dt, k) {
+    const g = this.game, m = this.monkey, a = this.art, y0 = this.y, F = this.from, calm = g ? g.calm : true, tt = (this.clock += dt);
+    const P = (u, n) => ({ x: a.x + this.tx * u + a.nx * n, z: a.z + this.tz * u + a.nz * n }), face = Math.atan2(a.nx, a.nz);
+    if (!g) { this.gstate = null; return; }
+    const ph = g.phase, pt = g.pt, mark = P(0.95, 0.62), front = P(0.6, 0.98), foot = { x: F.x + a.nx * 0.18, z: F.z + a.nz * 0.18 };
+    let x = mark.x, z = mark.z, y = y0, yaw = face, lean = 0, roll = 0, sc = MK;
+    m.visible = true; this.tail.rotation.y = Math.sin(tt * (calm ? 2 : 4)) * 0.5;
+    const toward = (p) => Math.atan2(p.x - x, p.z - z);
+    if (ph === 'intro') {
+      const s = g.slow, q = pt / s;
+      if (q < 0.5) { x = F.x; z = F.z; y = F.y; sc = MK * Math.max(0.02, q / 0.5); yaw = face; }                       // out of the foot of the frame, under the painted one
+      else if (q < 0.95) { const e = (q - 0.5) / 0.45; x = F.x + (mark.x - F.x) * e; z = F.z + (mark.z - F.z) * e; y = F.y + (y0 - F.y) * e + Math.sin(e * Math.PI) * (calm ? 0.06 : 0.16); }      // and down
+      else if (q < 1.7) lean = 0.6 * Math.sin(Math.PI * (q - 0.95) / 0.75);                                         // a bow to you
+      else y = y0 + Math.abs(Math.sin(tt * 7)) * (calm ? 0.015 : 0.05);
+      if (q >= 0.95 && !this.saidHi) { this.saidHi = true; this.chatter(k, 0.03); }
+    } else if (g.i === 4 && (ph === 'step' || ph === 'spin' || ph === 'hit' || ph === 'miss')) {
+      if (ph === 'step') { const e = ease(pt / g.stepT); x = mark.x + (front.x - mark.x) * e; z = mark.z + (front.z - mark.z) * e; y = y0 + Math.abs(Math.sin(e * Math.PI * 2)) * (calm ? 0.02 : 0.06); }
+      else {
+        x = front.x; z = front.z;
+        if (ph === 'spin') { const s = g.spin / g.top; yaw = face + Math.PI * 2 * s; y = y0 + Math.sin(Math.PI * Math.min(1, s)) * (calm ? 0.03 : 0.09); if (s > 1) lean = Math.min(0.6, (s - 1) * 3); }
+        else if (ph === 'hit') y = y0 + (pt < 0.2 ? Math.sin(pt / 0.2 * Math.PI) * (calm ? 0.03 : 0.1) : 0);
+        else { const d = Math.exp(-pt * 2); roll = (calm ? 0.2 : 0.7) * Math.sin(pt * (calm ? 5 : 15)) * d; yaw = face + (calm ? 0.3 : 1.2) * Math.sin(pt * 4) * d; if (!calm && pt > 0.5 && pt < 0.9) lean = -0.5 * Math.sin((pt - 0.5) / 0.4 * Math.PI); }
+      }
+    } else if (g.i === 4 && ph === 'bow') { const e = Math.max(0, (pt / g.bowT - 0.45) / 0.55); x = front.x + (mark.x - front.x) * e; z = front.z + (mark.z - front.z) * e; lean = 0.7 * Math.sin(Math.PI * Math.min(1, pt / (g.bowT * 0.55))); }
+    else if (ph === 'all') { lean = 0.75 * Math.sin(Math.PI * Math.min(1, pt / (1.4 * g.slow))); if (pt > 1.5 * g.slow) y = y0 + Math.abs(Math.sin(tt * 8)) * (calm ? 0.02 : 0.06); }
+    else if (ph === 'tug') {
+      // To the foot of the wall under its place, its back to the room; and it pulls its lead, twice.
+      const s = g.slow, q = pt / s, e = ease(Math.min(1, q / 0.4));
+      x = mark.x + (foot.x - mark.x) * e; z = mark.z + (foot.z - mark.z) * e; yaw = Math.atan2(-a.nx, -a.nz);
+      if (q > 0.4) { lean = -0.45; const j = Math.max(0, Math.sin((q - 0.4) / 0.3 * Math.PI * 2)); x -= a.nx * j * 0.04; z -= a.nz * j * 0.04; }
+    } else if (ph === 'home') {
+      // Up to the foot of the frame, and gone into it (as at the end of its run home: never onto the picture).
+      const s = g.slow, q = pt / s, e = Math.min(1, q / 0.42);
+      x = foot.x + (F.x - foot.x) * e; z = foot.z + (F.z - foot.z) * e; y = y0 + (F.y - y0) * Math.sin(e * Math.PI / 2); yaw = Math.atan2(-a.nx, -a.nz);
+      if (q > 0.5) { const s2 = Math.max(0.02, 1 - (q - 0.5) / 0.35); sc = MK * s2; y = F.y + TALL * (1 - s2); }
+    } else {
+      // In the line, watching whoever is turning; chattering at a stumble.
+      const c = this.figs[this.cast[Math.min(3, g.i)]]; yaw = c ? Math.atan2(c.x - x, c.z - z) * 0.6 + face * 0.4 : face;
+      if (ph === 'miss') { y = y0 + Math.abs(Math.sin(pt * 10)) * (calm ? 0.02 : 0.07); if (!calm) roll = 0.2 * Math.sin(pt * 12); }
+      if (g.done[4]) y = y0;
+    }
+    m.position.set(x, y, z); m.rotation.set(lean, yaw, roll); m.scale.setScalar(sc);
+    // The lead: from its collar back to the foot of the frame.
+    const rail = a.y - a.h / 2 - Math.max(0.05, a.frame || 0.1), A = this.v3 || (this.v3 = new THREE.Vector3()), B = this.v3b || (this.v3b = new THREE.Vector3());
+    A.set(x - Math.sin(yaw) * 0.01 * sc / MK, y + 0.12 * sc, z - Math.cos(yaw) * 0.01 * sc / MK); B.set(F.x - a.nx * 0.08, rail - 0.012, F.z - a.nz * 0.08);
+    const L = this.lead, len = A.distanceTo(B); L.visible = sc > 0.3 && len > 0.02; L.position.copy(A); L.lookAt(B); L.scale.set(1, 1, len);
+    m.visible = !this.over(k);
+    if (L.visible && !m.visible) L.visible = false;
   },
   spots() { return this.art ? [{ kind: 'secret', id: 'monkey', name: 'The monkey off its lead', x: this.home.x, y: this.home.y, z: this.home.z }] : []; },
   reset() { if (this.art) this.hide(); },      // a new night: it is out again, and under the bench

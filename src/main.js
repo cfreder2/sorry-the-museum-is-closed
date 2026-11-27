@@ -1110,9 +1110,11 @@ function setLabel(on) {
   const s = G.study;
   if (!s) return;
   s.label = on;
-  // The picture the Director's whiteboard names, once the board has been read: a key (a pad's X) touches the part it
-  // says, for hands that have no pointer to touch it with (src/secret.js: only a click or a finger could). Said here, on the label.
-  { const tk = $('touchKey'), sec = G.secret, yes = !!(sec && sec.enabled && sec.clueRead && !sec.open && sec.clue && sec.clue.art === s.art); tk.hidden = !yes; if (yes) tk.lastElementChild.textContent = 'touch ' + sec.clue.part; }
+  // The picture the Director's whiteboard names, once the board has been read: E (a pad's A, TOUCH on glass) touches the part
+  // it says, and Esc (B) steps back instead (src/secret.js, wants). Said here, on the label.
+  { const tk = $('touchKey'), bk = $('backKey').firstElementChild, sec = G.secret, yes = !!(sec && sec.wantsFor(s.art)); tk.hidden = !yes;
+    if (yes) { tk.firstElementChild.textContent = input.usedTouch ? 'TOUCH' : E(); tk.lastElementChild.textContent = 'touch ' + sec.clue.part; }
+    bk.dataset.key = yes ? 'Esc' : 'E'; bk.dataset.pad = yes ? 'B' : 'A'; bk.textContent = input.pad ? bk.dataset.pad : bk.dataset.key; }
   if (on && s.brief) s.hideAt = s.t + 7;
   $('label').classList.toggle('away', !on);
   $('bInfo').setAttribute('aria-pressed', on);
@@ -1480,7 +1482,7 @@ function play(dt, real) {
     { const dip = !!G.boardNear; if (dip || G.dipped) { const to = G.lampOn ? (dip ? 14 : 70) : 0, at = G.lamp.intensity === G.lampSet ? (G.lampRaw ?? G.lamp.intensity) : G.lamp.intensity; G.lampRaw = at + (to - at) * Math.min(1, real * 6); G.dipped = dip || Math.abs(G.lampRaw - to) > 0.5; if (!G.dipped) G.lampRaw = to; G.lamp.intensity = G.lampSet = G.lampRaw * (G.lampK ?? 1); } }      // (on its own strength, G.lampRaw: lampNear turns it down by a wall)
     if (G.boardNear) once('board', `A whiteboard somebody has left written on. ${input.usedTouch ? 'READ' : E()} to read it.`, 6);
     if (G.ufoNear) once('ufo', `${input.usedTouch ? 'TAKE' : E()} to take it. Nobody is looking.`, 6);
-    $('bLook').hidden = !(G.facing || busy || G.ufoNear || G.boardNear); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : G.ufoNear ? 'TAKE' : G.boardNear ? 'READ' : 'LOOK';
+    $('bLook').hidden = !(G.facing || busy || G.ufoNear || G.boardNear); $('bLook').classList.remove('locked'); $('bLook').lastElementChild.textContent = G.pokerNear || G.arcadeNear ? 'PLAY' : G.heistNear ? 'HEIST' : G.ufoNear ? 'TAKE' : G.boardNear ? 'READ' : 'LOOK';
     if (input.took('look')) { if (G.pokerNear) beginPoker(); else if (G.arcadeNear) beginArcade(G.arcadeNear); else if (G.heistNear) beginHeist(G.heistNear); else if (G.facing) beginStudy(G.facing); }
     if (ufoTap) G.secret.take(); else if (boardTap) beginBoard(G.boardNear);
     G.heist.update(dt, v);
@@ -1521,7 +1523,7 @@ function play(dt, real) {
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'LIGHTS'; actPrompt('Light switch', `${roomTitle(G.plan.byId[G.switchNear.room])} \u00b7 the lights are ${lit ? 'on' : 'off'}`, lit ? 'lights off' : 'lights on');
     } else actPrompt();
     // A feature's verb is set last, so that nothing else nearby relabels the button it has taken.
-    if (featNear) { if (featNear.hint) once('feat:' + featNear.verb + featNear.hint, keyed(featNear.hint, featNear.verb), 6); if (featNear.card) actPrompt(...featNear.card); $('bLook').hidden = false; $('bLook').lastElementChild.textContent = featNear.verb || 'LOOK'; if (featTap) featNear.act(); }      // (card: [title, line, verb] for the card at the foot of the screen)
+    if (featNear) { if (featNear.hint) once('feat:' + featNear.verb + featNear.hint, keyed(featNear.hint, featNear.verb), 6); if (featNear.card) actPrompt(...featNear.card); $('bLook').hidden = false; $('bLook').classList.toggle('locked', !!featNear.lock); $('bLook').lastElementChild.textContent = featNear.verb || 'LOOK'; if (featTap) featNear.act(); }      // (card: [title, line, verb] for the card at the foot of the screen)
     if (v.kind === 'car' && v.under) once('bench', 'You fit under the benches. Nobody else in here ever has.');
     if (v.kind === 'drone' && v.pos.distanceTo(G.museum.balloonAt) < 3) once('balloon', 'A balloon, lost on somebody\u2019s field trip and never fetched down.', 7);
     if (v.kind === 'drone' && !room && v.pos.y > 21) once('roofs', 'The roofs of the museum under snow, and the city all round.', 7);
@@ -1745,7 +1747,7 @@ function tick(now) {
     const st = input.sticks;
     if (input.took('info')) setLabel(!G.study.label);
     else if (G.study.label && G.study.t > G.study.hideAt) setLabel(false);
-    if (input.took('swap') && G.secret.live && G.secret.clueRead && !G.secret.open) G.secret.find();      // (V, or a pad's X: see setLabel)
+    if (G.secret.wants && (input.took('look') || input.took('poke'))) G.secret.press();      // (E, a pad's A, TOUCH on glass: the part of the clue picture, and then the monkey's show: src/secret.js; see setLabel)
     // (A finger put down on the picture itself and not moved is a touch on the picture, not a push on the stick: src/secret.js.)
     if (G.state !== 'study') { /* the key found it, and the look is over: the wall is sliding */ }
     else if (input.took('look') || input.took('pause') || input.took('back') || Math.abs(st.ly) + Math.abs(st.rx) + Math.abs(st.lx) + Math.abs(st.ry) > 0.6 && G.study.t > 0.8 && !G.secret.tapping) endStudy();

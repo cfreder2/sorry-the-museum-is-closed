@@ -523,15 +523,15 @@ const SITES = {
     const door = d => { doors.push({ ...d, secret: true }); };
     // (The hidden doorway is as tall as the piece of wall that turns, and no taller: the picture's lamp is on the wall over it.)
     door({ a: 'X-pass', b: g.id, along: 'z', x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 2.45), z0: pass.z1, z1: g.z0, y: g.y, h: 3.1, hidden: true });
-    door({ a: 'X-lift', b: 'X-pass', along: 'z', x0: r2(g.x0 + 0.5), x1: r2(g.x0 + 2.3), z0: r2(g.z0 - 2.5), z1: pass.z0, y: g.y, h: 2.6 });
+    door({ a: 'X-lift', b: 'X-pass', along: 'z', x0: r2(g.x0 + 0.6), x1: r2(g.x0 + 1.9), z0: r2(g.z0 - 2.5), z1: pass.z0, y: g.y, h: 2.6 });
     door({ a: 'X-vault', b: 'X-stair', along: 'z', x0: r2(cx - 0.9), x1: r2(cx + 0.9), z0: vault.z1, z1: shaft.z0, y: DEEP, h: 3.2 });
     door({ a: 'X-lab', b: 'X-vault', along: 'x', x0: lab.x1, x1: vault.x0, z0: r2(lab.z0 + 3.6), z1: r2(lab.z0 + 5.4), y: DEEP, h: 3.2 });
     door({ a: 'X-vault', b: 'X-brief', along: 'x', x0: vault.x1, x1: brief.x0, z0: r2(brief.z0 + 3.6), z1: r2(brief.z0 + 5.4), y: DEEP, h: 3.2 });
     const base = BASE(brief, sec, door);
     // The lift: added last of all (so nothing in the base, nor anything above, is numbered differently for it).
     const car = (id, y) => sec(add({ id, gallery: 'Goods lift', kind: 'room', use: 'lift', passage: true, building: 'main', floor: 'X', x0: g.x0, x1: r2(g.x0 + 2.5), z0: r2(g.z0 - 6.3), z1: r2(g.z0 - 2.5), y, h: 3.4 }));
-    const top = car('X-lift', g.y), foot = car('X-lift9', DEEP);
-    door({ a: 'X-lift9', b: 'X-stair', along: 'z', x0: r2(g.x0 + 0.5), x1: r2(g.x0 + 2.3), z0: shaft.z1, z1: foot.z0, y: DEEP, h: 2.6 });
+    const top = car('X-lift', g.y), foot = car('X-lift9', DEEP);      // (their doorways 1.3 m, in the middle of the end: the doors slide into the car's own walls)
+    door({ a: 'X-lift9', b: 'X-stair', along: 'z', x0: r2(g.x0 + 0.6), x1: r2(g.x0 + 1.9), z0: shaft.z1, z1: foot.z0, y: DEEP, h: 2.6 });
     return Object.assign([pass, shaft, vault, lab, brief, ...base, top, foot], { lift: { top: top.id, foot: foot.id } });
   },
 };

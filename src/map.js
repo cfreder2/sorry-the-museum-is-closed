@@ -112,6 +112,9 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
       l.stops.forEach((y, i) => { for (const [x, z] of [...(l.doors ? [side[l.doors[i]]] : []), side.w, side.e, side.n, side.s]) { const place = placeAt(x, z, y); if (place) { stops.push({ x, y, z, place }); break; } } });
       for (let i = 1; i < stops.length; i++) way(stops[i - 1], stops[i], 9, 'lift');
     }
+    // The goods lift behind the hidden doorway: two cars, and nothing between them on any drawing (src/secretlift.js).
+    { const S = p.secret && p.secret.lift, a = S && p.byId[S.top], b = S && p.byId[S.foot], mid = r => ({ x: (r.x0 + r.x1) / 2, y: r.y, z: (r.z0 + r.z1) / 2, place: 'R' + r.id });
+      if (a && b && shown(a) && shown(b)) way(mid(a), mid(b), 9, 'lift'); }
     for (let i = 0; i < p.decks.length; i++) for (let j = i + 1; j < p.decks.length; j++) {
       const a = p.decks[i], b = p.decks[j];
       if (a.room !== b.room || !near(a.y, b.y, 0.1) || a.x0 > b.x1 + 0.05 || b.x0 > a.x1 + 0.05 || a.z0 > b.z1 + 0.05 || b.z0 > a.z1 + 0.05) continue;

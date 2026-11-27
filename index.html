@@ -65,7 +65,7 @@
     <div class="g"></div>
     <div class="c"></div>
     <div class="v"></div>
-    <div class="foot"><a target="_blank" rel="noopener">See it at artic.edu ↗</a><span id="touchKey" hidden><kbd data-key="V" data-pad="X">V</kbd> <i></i></span><span><kbd data-key="E" data-pad="A">E</kbd> step back</span></div>
+    <div class="foot"><a target="_blank" rel="noopener">See it at artic.edu ↗</a><span id="touchKey" hidden><kbd data-key="E" data-pad="A">E</kbd> <i></i></span><span id="backKey"><kbd data-key="E" data-pad="A">E</kbd> step back</span></div>
   </div>
 
   <div id="flyby"><i class="bar top"></i><i class="bar bot"></i><div class="cap" role="status" aria-live="polite"><div class="t"></div><div class="a"></div></div></div>
@@ -75,6 +75,7 @@
 
   <div id="studyBar">
     <button data-act="way" id="bWay" hidden aria-label="Show the way on the map"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span id="bWayText"></span></button>
+    <button data-act="poke" id="bPoke" hidden>TOUCH</button>
     <button data-act="info" id="bInfo" aria-pressed="true">INFO</button>
     <button data-act="look">BACK</button>
   </div>
@@ -88,7 +89,7 @@
   </div>
   <div id="drive">
     <button id="bJump" class="car" aria-label="Jump">JUMP</button>
-    <button data-act="look" id="bLook" hidden aria-label="Look closer"><svg viewBox="0 0 48 30" aria-hidden="true"><path d="M2 15C9 4 17 1 24 1s15 3 22 14c-7 11-15 14-22 14S9 26 2 15z" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="15" r="7" fill="currentColor"/></svg><span>LOOK</span></button>
+    <button data-act="look" id="bLook" hidden aria-label="Look closer"><svg viewBox="0 0 48 30" aria-hidden="true"><path d="M2 15C9 4 17 1 24 1s15 3 22 14c-7 11-15 14-22 14S9 26 2 15z" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="15" r="7" fill="currentColor"/></svg><svg class="lock" viewBox="0 0 48 30" aria-hidden="true"><path d="M17 14v-4a7 7 0 0 1 14 0v4" fill="none" stroke="currentColor" stroke-width="3"/><rect x="13" y="14" width="22" height="15" rx="2" fill="currentColor"/></svg><span>LOOK</span></button>
     <button id="bUp" class="drone" aria-label="Climb">UP</button>
     <button id="bDown" class="drone" aria-label="Descend">DOWN</button>
   </div>

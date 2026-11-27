@@ -113,6 +113,8 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--gilt-dim); border-radi
 #drive #bLook { width: 92px; height: 92px; right: calc(max(24px, env(safe-area-inset-right)) + 122px); bottom: max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: rgba(226,205,148,.92); border-color: #fff; color: #14120c; font-size: 13px; animation: lookin .25s ease-out; box-shadow: 0 0 22px rgba(226,205,148,.55); }
 #drive #bLook[hidden] { display: none; }
 #drive #bLook svg { width: 44px; height: 27px; }
+#drive #bLook svg.lock, #drive #bLook.locked svg:not(.lock) { display: none; }      /* (a locked thing to open: a padlock, not the eye) */
+#drive #bLook.locked svg.lock { display: block; }
 @keyframes lookin { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 #pads #bLights[aria-pressed="false"] { opacity: .55; }
 #bUp, #bDown { width: 88px; height: 88px; right: max(22px, env(safe-area-inset-right)); }

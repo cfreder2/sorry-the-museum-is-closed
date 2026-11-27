@@ -188,7 +188,7 @@ export class Lights {
     const { plan } = this, list = this.panelList = [];
     this.panelsOf = {};
     for (const r of plan.rooms) {
-      if (r.shut || r.kind !== 'room' || r.use === 'terrace' || this.tubes[this.index.get(r.id)]) continue;      // (a shut room, src/shut.js, is not built: no fittings, no switch)
+      if (r.shut || r.kind !== 'room' || r.use === 'terrace' || (r.secret && r.use === 'lift') || this.tubes[this.index.get(r.id)]) continue;      // (a shut room, src/shut.js, is not built: no fittings, no switch; the secret lift's cars light themselves, src/secretlift.js)
       const w = r.x1 - r.x0, d = r.z1 - r.z0, longX = w >= d, L = longX ? w : d, W = longX ? d : w;
       if (W < 1.2 || L < 1.6) continue;
       const n = Math.max(1, Math.min(8, Math.round(L / 4.2))), rows = W > 8 ? [0.28, 0.72] : [0.5], y = r.y + r.h - 0.035;
@@ -229,7 +229,7 @@ export class Lights {
     const lap = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
     for (const r of plan.rooms) {
       if (r.shut) continue;
-      if (r.use === 'terrace' || r.top <= r.y + 0.5 || (r.x1 - r.x0) * (r.z1 - r.z0) < MIN_AREA) { stats.roomsExcluded.push(r.id); continue; }
+      if (r.use === 'terrace' || (r.secret && r.use === 'lift') || r.top <= r.y + 0.5 || (r.x1 - r.x0) * (r.z1 - r.z0) < MIN_AREA) { stats.roomsExcluded.push(r.id); continue; }
       const st = museum.rooms[r.id], taken = (plan.fitout && plan.fitout[r.id] && plan.fitout[r.id].taken) || [];
       const walls = wallsOf.get(r.id) || [], hungBy = new Map();
       // The obstacles near this room, picked out once: a plate's zone that lies inside this box can only be in the way of those.
