@@ -104,10 +104,11 @@ function bake(geo, base, lights, amb = 0.13, cheesy = true) {
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
     let r = amb, g = amb, b = amb;
-    for (const L of lights) { const dx = L.x - x, dy = L.y - y, dz = L.z - z, d2 = dx * dx + dy * dy + dz * dz, d = Math.sqrt(d2) || 1; const face = Math.max(0.25, (dx * nn.getX(i) + dy * nn.getY(i) + dz * nn.getZ(i)) / d); const q = 1 + d2 / (L.r * L.r), k = L.k * face / (q * q);      // (falling away quickly: a pool of light round each, darkness between) r += L.c[0] * k; g += L.c[1] * k; b += L.c[2] * k; }
+    for (const L of lights) { const dx = L.x - x, dy = L.y - y, dz = L.z - z, d2 = dx * dx + dy * dy + dz * dz, d = Math.sqrt(d2) || 1; const face = Math.max(0.25, (dx * nn.getX(i) + dy * nn.getY(i) + dz * nn.getZ(i)) / d); const q = 1 + d2 / (L.r * L.r), k = L.k * face / (q * q); r += L.c[0] * k; g += L.c[1] * k; b += L.c[2] * k; }      // (falling away quickly: a pool of light round each, darkness between)
     const hole = cheesy ? (n(x * 0.35 + 5, (y + z) * 0.35, 2) > 0.66 ? 0.55 : 1) * (0.88 + 0.24 * n(x * 0.9, z * 0.9 + y, 2)) : 1;      // (the holes in the cheese: darker pockets)
     const T = v => 1 - Math.exp(-1.25 * v);      // (a soft knee: lit up close, never washed out to white)
-    col[i * 3] = c.r * T(r) * hole; col[i * 3 + 1] = c.g * T(g) * hole; col[i * 3 + 2] = c.b * T(b) * hole;
+    const k2 = hole * (cheesy ? 0.55 : 1);      // (the cavern's own stone kept dim, so its lights and the mice stand out in it)
+    col[i * 3] = c.r * T(r) * k2; col[i * 3 + 1] = c.g * T(g) * k2; col[i * 3 + 2] = c.b * T(b) * k2;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); if (geo.attributes.uv) geo.deleteAttribute('uv');
   return geo;
