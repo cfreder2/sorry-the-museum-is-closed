@@ -1438,8 +1438,14 @@ export class Museum {
   }
 
   // A picture's label goes to the right of its frame, but on a crowded wall that spot can be behind the next work along
-  // (110 of the ~900 were, including four of the paintings that come alive, whose labels carry a clue). Any such card
-  // moves to the left of its frame, else just under it, else stays put; never onto another work or another card.
+  // (110 of the ~900 were, including four of the paintings that come alive, whose labels carry a clue), or clear of
+  // everything and yet nearer another work than its own, where it reads as that one's label: 75 of 558 were, most
+  // on a wall hung two high, where an upper picture's card at eye height stood in the column of the picture under it
+  // (the Annunciation's card in Gallery 202 sat under the Portrait of Jean Gros). So a card's place must be clear of
+  // every work and card, on its wall, and nearer its own work than any other. Tried in turn: the right of the frame
+  // at eye height; the left; the right and then the left at the foot of its own frame; just under the frame (in the
+  // middle, to the left, to the right, a card lower). If none
+  // will do, the first that is clear and on the wall, else it stays put.
   _freeCards() {
     const pics = this.arts.filter(a => !a.obj && !a.mini), M = new THREE.Matrix4(), V = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3();
     const wallOf = a => `${a.room}|${a.nx.toFixed(2)}|${a.nz.toFixed(2)}`, walls = new Map();
@@ -1448,15 +1454,21 @@ export class Museum {
     for (const list of walls.values()) {
       const rect = a => { const tx = Math.cos(a.rot), tz = -Math.sin(a.rot), f = a.frame || 0; return { u: a.x * tx + a.z * tz, y: a.y, hu: a.w / 2 + f, hy: a.h / 2 + f, d: a.x * a.nx + a.z * a.nz }; };
       const works = list.map(rect), cards = [];
-      const clear = (u, y, d, self) => works.every((r, j) => j === self || Math.abs(r.d - d) > 0.25 || Math.abs(r.u - u) >= r.hu + CW || Math.abs(r.y - y) >= r.hy + CH)
+      // the wall's ends, from the room's box (along the wall, with a hand's width spare)
+      const a0 = list[0], R = this.plan && this.plan.byId[a0.room], tx0 = Math.cos(a0.rot), tz0 = -Math.sin(a0.rot);
+      const ends = R ? [R.x0 * tx0 + R.z0 * tz0, R.x1 * tx0 + R.z0 * tz0, R.x0 * tx0 + R.z1 * tz0, R.x1 * tx0 + R.z1 * tz0] : null;
+      const onWall = u => !ends || (u - CW >= Math.min(...ends) + 0.05 && u + CW <= Math.max(...ends) - 0.05);
+      const clear = (u, y, d, self) => onWall(u) && works.every((r, j) => j === self || Math.abs(r.d - d) > 0.25 || Math.abs(r.u - u) >= r.hu + CW || Math.abs(r.y - y) >= r.hy + CH)
         && cards.every(c => Math.abs(c.d - d) > 0.25 || Math.abs(c.u - u) >= 2 * CW || Math.abs(c.y - y) >= 2 * CH);
+      const gap = (r, u, y) => Math.hypot(Math.max(0, Math.abs(r.u - u) - r.hu), Math.max(0, Math.abs(r.y - y) - r.hy));      // from a card's middle to a work's edge
+      // (nearer its own by a margin, and never in another work's column, over or under it: that reads as its label)
+      const own = (u, y, d, self) => { const g = gap(works[self], u, y); return works.every((r, j) => j === self || Math.abs(r.d - d) > 0.25 || gap(r, u, y) > g + 0.1 && !(Math.abs(r.u - u) < r.hu + CW * 0.5 && Math.abs(r.y - y) < r.hy + 0.6)); };
       list.forEach((a, j) => {
         this.cards.getMatrixAt(a.i, M); M.decompose(V, Q, S);
-        const tx = Math.cos(a.rot), tz = -Math.sin(a.rot), r = works[j], u = V.x * tx + V.z * tz, d = r.d;
-        if (clear(u, V.y, d, j)) { cards.push({ u, y: V.y, d }); return; }
-        const low = a.y - r.hy - 0.12;
-        const tries = [[r.u - (u - r.u), V.y], [r.u, low]].filter(([, y]) => y > (a.fy || 0) + 0.35);
-        const ok = tries.find(([uu, yy]) => clear(uu, yy, d, j));
+        const tx = Math.cos(a.rot), tz = -Math.sin(a.rot), r = works[j], u = V.x * tx + V.z * tz, d = r.d, off = Math.abs(u - r.u);
+        const foot = r.y - r.hy + CH, low = r.y - r.hy - 0.12;
+        const tries = [[u, V.y], [r.u - (u - r.u), V.y], [r.u + off, foot], [r.u - off, foot], [r.u, low], [r.u - r.hu * 0.6, low], [r.u + r.hu * 0.6, low], [r.u, low - 2 * CH]].filter(([, y]) => y > (a.fy || 0) + 0.35);
+        const ok = tries.find(([uu, yy]) => clear(uu, yy, d, j) && own(uu, yy, d, j)) || tries.find(([uu, yy]) => clear(uu, yy, d, j));
         if (!ok) { cards.push({ u, y: V.y, d }); return; }
         V.x += (ok[0] - u) * tx; V.z += (ok[0] - u) * tz; V.y = ok[1];
         this.cards.setMatrixAt(a.i, M.compose(V, Q, S)); cards.push({ u: ok[0], y: ok[1], d });
