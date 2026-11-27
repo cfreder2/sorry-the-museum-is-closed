@@ -37,7 +37,7 @@ const TOL = 0.45, STATIC = 35044, NOOP = THREE.Object3D.prototype.onBeforeRender
 export const bandOf = y => { let i = 0; while (i < BANDS.length && y >= BANDS[i]) i++; return i; };
 export const topOf = y => { if (y < -8) return -1; for (let i = 0; i < TOPS.length; i++) if (y < TOPS[i]) return i; return -1; };
 export const cellKey = (x, z, y) => { const t = topOf(y); return t < 0 ? null : `o:${Math.floor(x / CELL)}:${Math.floor(z / CELL)}:${t}`; };
-export const ceilOf = r => Math.min(r.top, r.ceil == null || r.kind === 'hall' ? r.top : r.ceil);      // (the hall's `ceil` is its vault, above its box)
+export const ceilOf = r => Math.min(r.top, r.ceil == null ? r.top : r.y + r.ceil);      // (a room's `ceil` is its ceiling's height over its own floor; the hall's is its vault, above its box)
 
 // ---- shared with tools/dev/pvs-page.js, so that the table and the game cannot disagree about what a thing is ----
 

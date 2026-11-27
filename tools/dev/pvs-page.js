@@ -145,32 +145,57 @@ export async function makeTable(opt = {}) {
     if (AW > gl.getParameter(gl.MAX_TEXTURE_SIZE) || AH > gl.getParameter(gl.MAX_TEXTURE_SIZE)) throw new Error('too many bins for one picture');
     const md = gl.getExtension('WEBGL_multi_draw'), clip = gl.getExtension('WEBGL_clip_cull_distance'); window.__pvsGL = gl; stats.gl = { multiDraw: !!md, clipDistance: !!clip };
     const prog = (vs, fs) => { const p = gl.createProgram(); for (const [ty, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const s = gl.createShader(ty); gl.shaderSource(s, '#version 300 es\n' + (ty === gl.VERTEX_SHADER && /gl_ClipDistance/.test(src) ? '#extension GL_ANGLE_clip_cull_distance : require\n' : '') + 'precision highp float; precision highp int; precision highp sampler2D;\n' + src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + src); gl.attachShader(p, s); } gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; for (let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++) { const nm = gl.getActiveUniform(p, i).name.replace('[0]', ''); u[nm] = gl.getUniformLocation(p, nm); } return { p, u }; };
-    const tex = (w, h, f32) => { const x = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, x); gl.texStorage2D(gl.TEXTURE_2D, 1, f32 ? gl.R32F : gl.RGBA8, w, h); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return x; };
+    const tex = (w, h, f32) => { const x = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, x); gl.texStorage2D(gl.TEXTURE_2D, 1, f32 === 4 ? gl.RGBA32F : f32 ? gl.R32F : gl.RGBA8, w, h); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return x; };
     const fbo = (w, h, f32, depth) => { const x = tex(w, h, f32), f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, x, 0); if (depth) { const rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb); } if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error('framebuffer'); return { f, x, w, h }; };
+    const fbo2 = (w, h) => { const x = tex(w, h, 4), x1 = tex(w, h, 4), f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, x, 0); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, x1, 0); gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]); if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error('framebuffer'); return { f, x, x1, w, h }; };
     const QUAD = 'void main() { gl_Position = vec4(vec2(gl_VertexID & 1, gl_VertexID >> 1) * 4.0 - 1.0, 0.0, 1.0); }';
-    // the walls, as how far off they are (along the face's own line of sight)
-    const pOcc = prog('layout(location=0) in vec3 p; uniform mat4 uVP; uniform vec4 uZ; out float vz; void main() { gl_Position = uVP * vec4(p, 1.0); vz = dot(uZ, vec4(p, 1.0)); }', 'in float vz; out vec4 o; void main() { o = vec4(vz, 0.0, 0.0, 1.0); }');
-    // the furthest of four, a size down
-    const pDown = prog(QUAD, 'uniform sampler2D t; out vec4 o; void main() { ivec2 g = ivec2(gl_FragCoord.xy) * 2; o = vec4(max(max(texelFetch(t, g, 0).r, texelFetch(t, g + ivec2(1, 0), 0).r), max(texelFetch(t, g + ivec2(0, 1), 0).r, texelFetch(t, g + ivec2(1, 1), 0).r)), 0.0, 0.0, 1.0); }');
-    // eaten back: the furthest wall within r pixels, r being what a wall this near could shift by for a camera uK/F metres off (never across a face's edge: the overlap covers that)
-    const pErode = prog(QUAD, `uniform sampler2D u0, u1, u2, u3, u4; uniform float uK; out vec4 o; const int S = ${S};
-      float mx(sampler2D t, ivec2 p, int face, int lvl) { int s = S >> lvl; ivec2 c = p >> lvl; float m = 0.0; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) { ivec2 q = clamp(c + ivec2(dx, dy), ivec2(0), ivec2(s - 1)); m = max(m, texelFetch(t, ivec2(face * s + q.x, q.y), 0).r); } return m; }
-      void main() { ivec2 g = ivec2(gl_FragCoord.xy); int face = g.x / S; ivec2 p = ivec2(g.x - face * S, g.y); float d = texelFetch(u0, g, 0).r, r = clamp(uK / max(d, 0.02), 1.0, ${RMAX.toFixed(1)}), e;
-        if (r <= 1.5) e = mx(u0, p, face, 0); else if (r <= 3.0) e = mx(u1, p, face, 1); else if (r <= 6.0) e = mx(u2, p, face, 2); else if (r <= 12.0) e = mx(u3, p, face, 3); else e = mx(u4, p, face, 4);
-        o = vec4(e, 0.0, 0.0, 1.0); }`);
-    // every bin's box, in its own square of the big picture (half the size the walls were eaten back at, the furthest of four kept), its own bit;
-    // kept where no wall is in front. A far box is widened by three quarters of a pixel ON THE PICTURE (each corner pushed away from the box's middle, up-down and
-    // left-right), so that the smallest still lands on a pixel; it is not made deeper, which would push its near side through the wall in front of it.
+    // the walls, as how far off they are (along the face's own line of sight), and how fast that changes across the picture (which says whether the next pixel is the same wall going on)
+    const pOcc = prog('layout(location=0) in vec3 p; uniform mat4 uVP; uniform vec4 uZ; out float vz; void main() { gl_Position = uVP * vec4(p, 1.0); vz = dot(uZ, vec4(p, 1.0)); }', 'in float vz; out vec4 o; void main() { o = vec4(vz, dFdx(vz), dFdy(vz), 1.0); }');
+    // a quarter the size: of each sixteen pixels the nearest wall, the furthest, and, where a wall STOPS (the pixel next to it is further off than the wall going on would be:
+    // an edge, with something seen past it), how far off what is seen past it is, how many pixels that edge could shift by for a camera uK/F metres off (up to 8;
+    // none, for an edge far off), and the plane of the wall that stops there (its distance as a + b across the picture)
+    const pEdge = prog(QUAD, `uniform sampler2D t; uniform float uK; layout(location=0) out vec4 o; layout(location=1) out vec4 o1; const int N = ${S * HI};
+      void main() { ivec2 g = ivec2(gl_FragCoord.xy); int face = g.x / ${S}; ivec2 b = ivec2(g.x - face * ${S}, g.y) * ${HI}; float lo = 1e30, hi = 0.0, far = 0.0, near = 1e30; vec3 pl = vec3(0.0);
+        for (int j = 0; j < ${HI}; j++) for (int i = 0; i < ${HI}; i++) { ivec2 q = b + ivec2(i, j); vec4 c = texelFetch(t, ivec2(face * N + q.x, q.y), 0); lo = min(lo, c.r); hi = max(hi, c.r); if (c.r > 1e8) continue;
+          for (int k = 0; k < 4; k++) { ivec2 d = k == 0 ? ivec2(1, 0) : k == 1 ? ivec2(-1, 0) : k == 2 ? ivec2(0, 1) : ivec2(0, -1), n = q + d; if (n.x < 0 || n.y < 0 || n.x >= N || n.y >= N) continue; vec4 m = texelFetch(t, ivec2(face * N + n.x, n.y), 0);
+            if (m.r > c.r + 0.5 * dot(c.gb + (m.r > 1e8 ? c.gb : m.gb), vec2(d)) + 0.03 + 0.01 * c.r) { near = min(near, c.r); if (m.r > far) { far = m.r; pl = vec3(c.gb, c.r - dot(c.gb, vec2(q) + 0.5)); } } } }
+        o = vec4(lo, hi, far, far > 0.0 ? clamp(uK / max(near, 0.02), 0.0, 8.0) : 0.0); o1 = vec4(pl, 0.0); }`);
+    // half that again (the size the boxes are tested at): of each four, the nearest and furthest, and the edge that sees furthest past it
+    const pHalf = prog(QUAD, `uniform sampler2D t, t1; layout(location=0) out vec4 o; layout(location=1) out vec4 o1;
+      void main() { ivec2 g = ivec2(gl_FragCoord.xy) * 2; float lo = 1e30, hi = 0.0; vec4 best = vec4(0.0), pl = vec4(0.0);
+        for (int k = 0; k < 4; k++) { ivec2 q = g + ivec2(k & 1, k >> 1); vec4 c = texelFetch(t, q, 0); lo = min(lo, c.r); hi = max(hi, c.g); if (c.b > best.b) { best = c; pl = texelFetch(t1, q, 0); } }
+        o = vec4(lo, hi, best.b, best.a); o1 = pl; }`);
+    // each edge spread over the pixels it could shift across, but only on to the wall it is the edge OF (pixels whose own distance lies on that wall's plane): so a doorway's
+    // edge eats back the wall beside the doorway, and not the floor in front of it
+    const pSpread = prog(QUAD, `uniform sampler2D t, t1; out vec4 o;
+      void main() { ivec2 g = ivec2(gl_FragCoord.xy); int face = g.x / ${TS}; ivec2 p = ivec2(g.x - face * ${TS}, g.y); vec4 c = texelFetch(t, g, 0); float far = c.b; vec2 at = (vec2(p) + 0.5) * ${(S * HI / TS).toFixed(1)};
+        for (int dy = -4; dy <= 4; dy++) for (int dx = -4; dx <= 4; dx++) { ivec2 q = p + ivec2(dx, dy); if (q.x < 0 || q.y < 0 || q.x >= ${TS} || q.y >= ${TS}) continue; vec4 s = texelFetch(t, ivec2(face * ${TS} + q.x, q.y), 0);
+          if (s.b <= far || float(max(abs(dx), abs(dy))) > ceil(s.a * 0.5)) continue; vec3 pl = texelFetch(t1, ivec2(face * ${TS} + q.x, q.y), 0).xyz; float d = dot(pl.xy, at) + pl.z, slack = ${(S * HI / TS / 2).toFixed(1)} * (abs(pl.x) + abs(pl.y)) + 0.05 + 0.02 * abs(d);
+          if (c.r <= d + slack && c.g >= d - slack) far = s.b; }
+        o = vec4(far, 0.0, 0.0, 1.0); }`);
+    // every bin's box, in its own square of the big picture (half that size again), its own bit. A pixel of a box is kept if the box is nearer there than the nearest wall,
+    // or than what is seen past an edge that could shift onto it; where it lies between the nearest wall and the furthest (a wall seen slantwise, or an edge), the walls are
+    // looked at pixel by pixel at their full size, the box's own distance worked out for each. So a wall hides what is behind it however slantwise it is seen, and no more.
+    // A box that comes out under two and a half pixels wide or high on the picture is widened to that ON THE PICTURE (each corner pushed away from the box's middle), so
+    // that the smallest, or one seen edge-on, still lands on a pixel; it is not made deeper, which would push its near side through the wall in front of it, and no
+    // pixel of it is taken to be nearer than its nearest corner.
     const pBox = prog(`layout(location=0) in vec3 c; layout(location=1) in vec3 lo; layout(location=2) in vec3 hi; layout(location=3) in float id;
-      uniform mat4 uVP; uniform vec4 uZ; uniform vec3 uCam; uniform float uFace; out float vz; flat out vec2 vO; flat out vec4 vBit;
+      uniform mat4 uVP; uniform vec4 uZ; uniform vec3 uCam; uniform float uFace; out float vz; flat out vec2 vO; flat out vec4 vBit; flat out float vNear;
       void main() { vec3 p = mix(lo, hi, c); vec4 q = uVP * vec4(p, 1.0); vz = dot(uZ, vec4(p, 1.0));
-        vec4 cq = uVP * vec4((lo + hi) * 0.5, 1.0); if (cq.w > length(hi - lo) * 0.5 + 0.05) q.xy += sign(q.xy / q.w - cq.xy / cq.w) * ${(1.5 / TS).toFixed(5)} * q.w;
+        vec2 mn = vec2(1e9), mx = vec2(-1e9); float wmin = 1e9;
+        for (int k = 0; k < 8; k++) { vec4 e = uVP * vec4(mix(lo, hi, vec3(k & 1, (k >> 1) & 1, (k >> 2) & 1)), 1.0); wmin = min(wmin, e.w); vec2 n = e.xy / max(e.w, 1e-4); mn = min(mn, n); mx = max(mx, n); }
+        vNear = wmin; if (wmin > 0.05) q.xy += sign(q.xy / q.w - (mn + mx) * 0.5) * max(vec2(0.0), (2.5 - (mx - mn) * ${(TS / 2).toFixed(1)}) * 0.5) * ${(2 / TS).toFixed(5)} * q.w;
         float tile = floor(id / 32.0), bit = id - tile * 32.0, tx = mod(tile, ${COLS}.0), ty = floor(tile / ${COLS}.0); vO = vec2(tx, uFace * ${ROWS}.0 + ty) * ${TS}.0;
         float ch = floor(bit / 8.0), val = exp2(bit - ch * 8.0) / 255.0; vBit = vec4(ch == 0.0 ? val : 0.0, ch == 1.0 ? val : 0.0, ch == 2.0 ? val : 0.0, ch == 3.0 ? val : 0.0);
         ${clip ? 'gl_ClipDistance[0] = q.w + q.x; gl_ClipDistance[1] = q.w - q.x; gl_ClipDistance[2] = q.w + q.y; gl_ClipDistance[3] = q.w - q.y;' : ''}
         gl_Position = vec4((q.xy * ${TS}.0 + (${TS}.0 + 2.0 * vO - vec2(${AW}.0, ${AH}.0)) * q.w) / vec2(${AW}.0, ${AH}.0), q.z, q.w); }`,
-      `uniform sampler2D uE; uniform int uF; in float vz; flat in vec2 vO; flat in vec4 vBit; out vec4 o;
-      void main() { vec2 l = gl_FragCoord.xy - vO; if (l.x < 0.0 || l.y < 0.0 || l.x >= ${TS}.0 || l.y >= ${TS}.0) discard; if (vz > texelFetch(uE, ivec2(uF * ${TS} + int(l.x), int(l.y)), 0).r * 1.002 + 0.03) discard; o = vBit; }`);
+      `uniform sampler2D uE, uH, uS; uniform int uF; in float vz; flat in vec2 vO; flat in vec4 vBit; flat in float vNear; out vec4 o;
+      void main() { vec2 l = gl_FragCoord.xy - vO; if (l.x < 0.0 || l.y < 0.0 || l.x >= ${TS}.0 || l.y >= ${TS}.0) discard;
+        float inv = 1.0 / max(vz, 0.01), past = texelFetch(uS, ivec2(uF * ${TS} + int(l.x), int(l.y)), 0).r; vec2 gi = vec2(dFdx(inv), dFdy(inv)); ivec2 b = ivec2(l) * 2; bool see = false;
+        for (int k = 0; k < 4 && !see; k++) { ivec2 d = ivec2(k & 1, k >> 1); float ik = inv + dot(gi, (vec2(d) + 0.5) * 0.5 - fract(l)), zb = max(vNear, ik > 1e-5 ? 1.0 / ik : vz); vec4 e = texelFetch(uE, ivec2(uF * ${S} + b.x + d.x, b.y + d.y), 0);
+          if (zb <= max(e.r, past) * 1.002 + 0.03) { see = true; break; } if (zb > e.g * 1.002 + 0.03) continue;
+          for (int j = 0; j < ${HI} && !see; j++) for (int i = 0; i < ${HI}; i++) { float iq = inv + dot(gi, (vec2(d) + (vec2(i, j) + 0.5) / ${HI}.0) * 0.5 - fract(l)), zq = max(vNear, iq > 1e-5 ? 1.0 / iq : vz); if (zq <= texelFetch(uH, ivec2(uF * ${S * HI} + (b.x + d.x) * ${HI} + i, (b.y + d.y) * ${HI} + j), 0).r * 1.002 + 0.03) { see = true; break; } } }
+        if (!see) discard; o = vBit; }`);
     // each square's columns folded into one row of bits, then all six faces of each square into one point
     const pFold1 = prog(QUAD, `uniform sampler2D t; out vec4 o; void main() { ivec2 g = ivec2(gl_FragCoord.xy); uvec4 a = uvec4(0u); for (int y = 0; y < ${TS}; y++) a |= uvec4(texelFetch(t, ivec2(g.x, g.y * ${TS} + y), 0) * 255.0 + 0.5); o = vec4(a) / 255.0; }`);
     const pFold = prog(QUAD, `uniform sampler2D t; out vec4 o; void main() { int tile = int(gl_FragCoord.x), tx = tile % ${COLS}, ty = tile / ${COLS}; uvec4 a = uvec4(0u);
@@ -184,8 +209,7 @@ export async function makeTable(opt = {}) {
     // (the boxes as drawn: no thinner than 0.3 m any way, for a slab seen edge-on from near to)
     { const lo = new Float32Array(NB * 3), hi = new Float32Array(NB * 3), id = new Float32Array(NB); for (let i = 0; i < NB; i++) { const b = boxes[i], f = j => Math.max(0.02, 0.15 - (b[j + 3] - b[j]) / 2); lo.set([b[0] - f(0), b[1] - f(1), b[2] - f(2)], i * 3); hi.set([b[3] + f(0), b[4] + f(1), b[5] + f(2)], i * 3); id[i] = i; } buf(lo, 1, 3, 1); buf(hi, 2, 3, 1); buf(id, 3, 1, 1); }
     gl.bindVertexArray(null);
-    const fHi = fbo(6 * S * HI, S * HI, true, true), chain = []; for (let s = S * HI / 2; s >= 10; s /= 2) chain.push(fbo(6 * s, s, true)); const base = chain[Math.log2(HI) - 1];
-    const fE = fbo(6 * S, S, true), fE2 = fbo(6 * TS, TS, true), fA = fbo(AW, AH, false), fF = fbo(AW, 6 * ROWS, false), fR = fbo(TILES, BATCH, false), fFace = fbo(512, 512, true, true), vQuad = gl.createVertexArray();
+    const fHi = fbo(6 * S * HI, S * HI, 4, true), fB = fbo2(6 * S, S), fH = fbo2(6 * TS, TS), fS = fbo(6 * TS, TS, true), fA = fbo(AW, AH, false), fF = fbo(AW, 6 * ROWS, false), fR = fbo(TILES, BATCH, false), fFace = fbo(512, 512, true, true), vQuad = gl.createVertexArray();
     gl.disable(gl.DITHER); gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
     // the six ways, each a little over a right angle wide
     const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], UPS = [[0, 1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, 1, 0]];
@@ -298,17 +322,15 @@ export async function makeTable(opt = {}) {
       // the walls, six ways, big
       gl.bindFramebuffer(gl.FRAMEBUFFER, fHi.f); gl.viewport(0, 0, fHi.w, fHi.h); gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true); gl.clearColor(BIG, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(pOcc.p); for (let f = 0; f < 6; f++) { gl.viewport(f * S * HI, 0, S * HI, S * HI); drawWalls(pl[f], VP[f], VZ[f]); }
-      // the furthest kept, size by size
-      gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad); gl.useProgram(pDown.p); gl.activeTexture(gl.TEXTURE0); gl.uniform1i(pDown.u.t, 0);
-      let src = fHi; for (const c of chain) { gl.bindFramebuffer(gl.FRAMEBUFFER, c.f); gl.viewport(0, 0, c.w, c.h); gl.bindTexture(gl.TEXTURE_2D, src.x); gl.drawArrays(gl.TRIANGLES, 0, 3); src = c; }
-      // eaten back
-      gl.useProgram(pErode.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fE.f); gl.viewport(0, 0, fE.w, fE.h); const bi = chain.indexOf(base);
-      for (let l = 0; l < 5; l++) { gl.activeTexture(gl.TEXTURE0 + l); gl.bindTexture(gl.TEXTURE_2D, chain[bi + l].x); gl.uniform1i(pErode.u['u' + l], l); } gl.uniform1f(pErode.u.uK, F * s.d); gl.drawArrays(gl.TRIANGLES, 0, 3);
-      gl.useProgram(pDown.p); gl.activeTexture(gl.TEXTURE0); gl.uniform1i(pDown.u.t, 0); gl.bindFramebuffer(gl.FRAMEBUFFER, fE2.f); gl.viewport(0, 0, fE2.w, fE2.h); gl.bindTexture(gl.TEXTURE_2D, fE.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      // a quarter the size, with the edges found; half that; the edges spread
+      gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad);
+      gl.useProgram(pEdge.p); gl.uniform1i(pEdge.u.t, 0); gl.uniform1f(pEdge.u.uK, F * s.d * (opt.spread == null ? 1 : opt.spread)); gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.viewport(0, 0, fB.w, fB.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(pHalf.p); gl.uniform1i(pHalf.u.t, 0); gl.uniform1i(pHalf.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fH.f); gl.viewport(0, 0, fH.w, fH.h); gl.bindTexture(gl.TEXTURE_2D, fB.x); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fB.x1); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(pSpread.p); gl.uniform1i(pSpread.u.t, 0); gl.uniform1i(pSpread.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fS.f); gl.bindTexture(gl.TEXTURE_2D, fH.x1); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fH.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       // the boxes
       gl.bindFramebuffer(gl.FRAMEBUFFER, fA.f); gl.viewport(0, 0, AW, AH); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
       if (clip) for (let q = 0; q < 4; q++) gl.enable(clip.CLIP_DISTANCE0_WEBGL + q);
-      gl.useProgram(pBox.p); gl.bindVertexArray(vBox); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fE2.x); gl.uniform1i(pBox.u.uE, 0); gl.uniform3f(pBox.u.uCam, s.x, s.y, s.z);
+      gl.useProgram(pBox.p); gl.bindVertexArray(vBox); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, fS.x); gl.uniform1i(pBox.u.uS, 2); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.uniform1i(pBox.u.uH, 1); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fB.x); gl.uniform1i(pBox.u.uE, 0); gl.uniform3f(pBox.u.uCam, s.x, s.y, s.z);
       for (let f = 0; f < 6; f++) { gl.uniformMatrix4fv(pBox.u.uVP, false, VP[f]); gl.uniform4fv(pBox.u.uZ, VZ[f]); gl.uniform1f(pBox.u.uFace, f); gl.uniform1i(pBox.u.uF, f); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, NB); }
       if (clip) for (let q = 0; q < 4; q++) gl.disable(clip.CLIP_DISTANCE0_WEBGL + q);
       // folded into this sample's row
@@ -317,7 +339,9 @@ export async function makeTable(opt = {}) {
       gl.bindTexture(gl.TEXTURE_2D, fF.x); gl.uniform1i(pFold.u.t, 0); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.disable(gl.SCISSOR_TEST);
     };
     // (to look into one sample by hand: what it saw, the walls' depths as it had them, eaten back, six faces side by side)
-    if (opt.debug) window.__pvs = { samples, boxes, bins, keys, walls, at, probe: (x, y, z, d) => { lookFrom({ x, y, z, d }, 0); gl.bindFramebuffer(gl.FRAMEBUFFER, fR.f); gl.readPixels(0, 0, TILES, 1, gl.RGBA, gl.UNSIGNED_BYTE, rpx); const seenBins = []; for (let i = 0; i < NB; i++) if ((r32[i >> 5] >>> (i & 31)) & 1) seenBins.push(i); const e = new Float32Array(6 * S * S), e0 = new Float32Array(6 * S * S); gl.bindFramebuffer(gl.FRAMEBUFFER, fE.f); gl.readPixels(0, 0, 6 * S, S, gl.RED, gl.FLOAT, e); gl.bindFramebuffer(gl.FRAMEBUFFER, base.f); gl.readPixels(0, 0, 6 * S, S, gl.RED, gl.FLOAT, e0); return { seen: seenBins, eaten: e, plain: e0, w: 6 * S, h: S }; } };
+    if (opt.debug) window.__pvs = { samples, boxes, bins, keys, walls, at, probe: (x, y, z, d) => { lookFrom({ x, y, z, d }, 0); gl.bindFramebuffer(gl.FRAMEBUFFER, fR.f); gl.readPixels(0, 0, TILES, 1, gl.RGBA, gl.UNSIGNED_BYTE, rpx); const seenBins = []; for (let i = 0; i < NB; i++) if ((r32[i >> 5] >>> (i & 31)) & 1) seenBins.push(i); const raw = new Float32Array(6 * S * S * 4), e = new Float32Array(6 * S * S), e0 = new Float32Array(6 * S * S); const sp = new Float32Array(6 * TS * TS); gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.readPixels(0, 0, 6 * S, S, gl.RGBA, gl.FLOAT, raw); gl.bindFramebuffer(gl.FRAMEBUFFER, fS.f); gl.readPixels(0, 0, 6 * TS, TS, gl.RED, gl.FLOAT, sp); for (let q = 0; q < e.length; q++) { e0[q] = raw[q * 4]; e[q] = Math.max(raw[q * 4], sp[Math.floor(Math.floor(q / (6 * S)) / 2) * 6 * TS + Math.floor((q % (6 * S)) / 2)]); } return { seen: seenBins, eaten: e, plain: e0, w: 6 * S, h: S }; },
+      // (and where on the six faces one bin's box was let through: per face, how many of its pixels, the first of them, and how far off the eaten-back wall is there)
+      where: i => { const tile = i >> 5, bitv = i & 31, tx = tile % COLS, ty = Math.floor(tile / COLS), t8 = new Uint8Array(TS * TS * 4), e2 = new Float32Array(S * S * 4), s2 = new Float32Array(TS * TS), out = []; for (let f = 0; f < 6; f++) { gl.bindFramebuffer(gl.FRAMEBUFFER, fA.f); gl.readPixels(tx * TS, (f * ROWS + ty) * TS, TS, TS, gl.RGBA, gl.UNSIGNED_BYTE, t8); gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.readPixels(f * S, 0, S, S, gl.RGBA, gl.FLOAT, e2); gl.bindFramebuffer(gl.FRAMEBUFFER, fS.f); gl.readPixels(f * TS, 0, TS, TS, gl.RED, gl.FLOAT, s2); let n = 0, first = null; for (let q = 0; q < TS * TS; q++) if ((t8[q * 4 + (bitv >> 3)] >> (bitv & 7)) & 1) { n++; if (!first) { const bq = ((Math.floor(q / TS) * 2) * S + (q % TS) * 2) * 4; first = [q % TS, Math.floor(q / TS), 'nearest ' + e2[bq].toFixed(1) + ' furthest ' + e2[bq + 1].toFixed(1) + ' past an edge ' + s2[q].toFixed(1)]; } } out.push([n, first]); } return out; } };
     for (let si = 0; si < order.length; si++) {
       lookFrom(samples[si], si - batchFirst);
       if (si - batchFirst + 1 === BATCH || si === order.length - 1) { flush(batchFirst, si - batchFirst + 1); batchFirst = si + 1; if (performance.now() - tick > 1500) { tick = performance.now(); say(`looking ${si + 1}/${order.length}, ${Math.round((performance.now() - t) / (si + 1) * (order.length - si - 1) / 1000)} s to go`); await wait(0); } }

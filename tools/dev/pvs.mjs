@@ -33,7 +33,7 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     for (let i = 0; i < 80; i++) { if (await p.evaluate(() => window.__ah.state) === 'play') break; await p.evaluate(() => { const q = document.querySelector('button[data-act="start"]'); if (q && !q.disabled) q.click(); }); await new Promise(r => setTimeout(r, 250)); }
     await new Promise(r => setTimeout(r, 4000));
     const t0 = Date.now(), tell = setInterval(async () => { try { process.stderr.write('\r' + (await p.title()).padEnd(70)); } catch {} }, 5000);
-    const opt = { quick: !!flag('quick'), dry: !!flag('dry'), step: +(flag('step') || 3), rooms: flag('rooms') ? String(flag('rooms')).split(',') : null, limit: +(flag('limit') || 0), debug: false, dRoom: +(flag('droom') || 0), dAir: +(flag('dair') || 0) };
+    const opt = { quick: !!flag('quick'), dry: !!flag('dry'), step: +(flag('step') || 3), rooms: flag('rooms') ? String(flag('rooms')).split(',') : null, limit: +(flag('limit') || 0), debug: false, dRoom: +(flag('droom') || 0), dAir: +(flag('dair') || 0), spread: flag('spread') == null ? 1 : +flag('spread') };
     const out = await p.evaluate(async o => { const m = await import('/tools/dev/pvs-page.js'); return JSON.stringify(await m.makeTable(o)); }, opt).then(JSON.parse).finally(() => clearInterval(tell));
     process.stderr.write('\n');
     if (out.pvs) { out.pvs.src = sources(root); fs.writeFileSync(outFile, JSON.stringify(out.pvs)); console.log(JSON.stringify(out.stats, null, 1)); console.log('in', Math.round((Date.now() - t0) / 1000), 's;', outFile, Math.round(fs.statSync(outFile).size / 1024), 'KB'); }
