@@ -41,6 +41,8 @@ export const ceilOf = r => Math.min(r.top, r.ceil == null || r.kind === 'hall' ?
 
 // ---- shared with tools/dev/pvs-page.js, so that the table and the game cannot disagree about what a thing is ----
 
+/** Vertices that are let go of once they are on the graphics card (the back rooms' fittings, the light switches): they cannot be read here, now or later. */
+export const loose = p => !(p.data || p).array || Object.prototype.hasOwnProperty.call(p, 'onUploadCallback');
 /** May this ever be hidden? (Its shape and place can be trusted to stay as they are.) Its box is looked at separately. */
 export function fixed(o) {
   if (!(o.isMesh || o.isSprite || o.isLine || o.isPoints) || o.isSkinnedMesh || o.isBatchedMesh || o.frustumCulled === false) return false;
@@ -57,7 +59,11 @@ export function boxOf(o, b) {
   try {
     if (o.isSprite) { const e = o.matrixWorld.elements, r = 0.75 * Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6])); b.min.set(e[12] - r, e[13] - r, e[14] - r); b.max.set(e[12] + r, e[13] + r, e[14] + r); }
     else if (o.isInstancedMesh) { o.computeBoundingBox(); b.copy(o.boundingBox).applyMatrix4(o.matrixWorld); }
-    else { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); b.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); }
+    else {
+      const g = o.geometry, p = g.attributes.position;
+      if (loose(p)) { if (!g.boundingSphere) { if (!(p.data || p).array) return false; g.computeBoundingSphere(); } const c = g.boundingSphere.center, r = g.boundingSphere.radius; b.min.set(c.x - r, c.y - r, c.z - r); b.max.set(c.x + r, c.y + r, c.z + r); b.applyMatrix4(o.matrixWorld); }      // (its ball, which three.js made before the vertices went: the same answer whenever it is asked)
+      else { if (!g.boundingBox) g.computeBoundingBox(); b.copy(g.boundingBox).applyMatrix4(o.matrixWorld); }
+    }
   } catch { return false; }
   if (b.isEmpty() || !isFinite(b.min.x + b.min.y + b.min.z + b.max.x + b.max.y + b.max.z)) return false;
   const sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
@@ -70,18 +76,18 @@ export function sigOf(o, b) {
   add(b.min.x); add(b.min.y); add(b.min.z); add(b.max.x); add(b.max.y); add(b.max.z);
   const g = o.geometry, p = g.attributes.position, n = p.count, ix = g.index; add((ix ? ix.count : n) / 500); add(n / 500);
   const e = o.matrixWorld.elements; for (let i = 0; i < 16; i++) add(e[i]);
-  for (let k = 0, st = Math.max(1, Math.floor(n / 96)); k < n; k += st) { add(p.getX(k)); add(p.getY(k)); add(p.getZ(k)); }
+  if (!loose(p)) for (let k = 0, st = Math.max(1, Math.floor(n / 96)); k < n; k += st) { add(p.getX(k)); add(p.getY(k)); add(p.getZ(k)); }
   if (o.isInstancedMesh) { const a = o.instanceMatrix.array, c = o.count * 16; add(o.count / 500); for (let k = 0, st = Math.max(1, Math.floor(c / 256)); k < c; k += st) add(a[k]); }
   return (h1 >>> 0).toString(36) + '.' + (h2 >>> 0).toString(36);
 }
-/** Could this hide what is behind it, as far as the thing itself can tell? A plain solid mesh, big enough to be a wall, a floor, a roof or the ground. (The tool also asks that it was on show, stood still through everything the tool tried, and was there before the park's lazy features were built.) */
+/** Could this hide what is behind it, as far as the thing itself can tell? A plain solid mesh, not tiny. (Places.fabric() then asks where it stands; and the tool, that it was on show, stood still through everything the tool tried, and was there before the park's lazy features were built.) */
 export function wallLike(o, b) {
-  if (!o.isMesh || o.isInstancedMesh || !fixed(o)) return false;
+  if (!o.isMesh || o.isInstancedMesh || !fixed(o) || loose(o.geometry.attributes.position) || (o.geometry.index && !o.geometry.index.array)) return false;
   const ms = Array.isArray(o.material) ? o.material : [o.material]; if (!ms.length) return false;
   for (const m of ms) if (!m || m.transparent || m.opacity < 1 || m.alphaTest > 0 || m.alphaHash || m.alphaMap || m.depthWrite === false || m.depthTest === false || m.visible === false || m.colorWrite === false || m.wireframe || m.isShaderMaterial || m.isRawShaderMaterial || m.displacementMap || m.side !== ms[0].side) return false;
   const g = o.geometry, dr = g.drawRange; if (dr && (dr.start !== 0 || dr.count !== Infinity)) return false;
   const s = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z].sort((p, q) => q - p);
-  return s[0] >= 6 && s[1] >= 2;
+  return s[0] >= 1 && s[1] >= 0.3;
 }
 /** Is every part of it, and everything it hangs from, switched on? */
 export const onShow = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
@@ -104,6 +110,15 @@ export class Places {
     this.none = [];
   }
   near(x, z) { return this.grid.get(Math.floor(x / 8) * 4096 + Math.floor(z / 8)) || this.none; }
+  /** Is a wall-like thing with this box part of the fabric? Anything 6 m by 2 m or more is (walls, floors, roofs, the ground). Anything smaller only if it is in the
+   * thickness of the building and not standing in a room: the lining of a duct, the reveal of a doorway. (Not furniture, which the toy can shove; not what stands out of doors.) */
+  fabric(b) {
+    const s = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z].sort((p, q) => q - p); if (s[0] >= 6 && s[1] >= 2) return true;
+    const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
+    for (const r of this.near(cx, cz)) if (b.min.x >= r.x0 + 0.02 && b.max.x <= r.x1 - 0.02 && b.min.z >= r.z0 + 0.02 && b.max.z <= r.z1 - 0.02 && b.min.y >= r.y - 0.02 && b.max.y <= r.top + 0.02) return false;
+    for (const m of this.plan.masses) if (cx > m.x0 - 1 && cx < m.x1 + 1 && cz > m.z0 - 1 && cz < m.z1 + 1 && b.min.y < m.top + 1) return true;
+    return false;
+  }
   /** The bin of a thing by its box: a room's id if it fits in one (give or take a wall), 'c:ix:iz:storey' if it is in none and no bigger than a square, or null (bigger: the table lists the squares it passes through, by its fingerprint). */
   binOf(b) {
     const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2, cy = (b.min.y + b.max.y) / 2;
@@ -166,9 +181,9 @@ export class Visibility {
       this.mirrorCam = mirrorCam || null; if (mirrorCam) mirrorCam.layers.enable(MIRROR);
       this._mcache = new Map(); this._near = new Map();
       this.ok = true;
-      if (renderer && /[?&]diag\b/.test(location.search)) this._readout(renderer);
     } catch (e) { this.ok = false; this.why = 'the table could not be read: ' + e; }
     if (!this.ok) console.warn('visible: ' + this.why + ': nothing is hidden. Make it again with tools/dev/pvs.mjs');
+    try { if (renderer && /[?&]diag\b/.test(location.search)) this._readout(renderer); } catch {}
   }
   list(key) { const r = this.rows.get(key); return this.lists[r] || (this.lists[r] = unpack(this.pvs.sets[r], this.n)); }
 
@@ -176,14 +191,17 @@ export class Visibility {
   register() {
     if (!this.ok) return;
     try {
-      const known = this._known, b = _box, B = this.box;
+      const known = this._known, b = _box, B = this.box, first = !this.seen;
+      if (first) this.root.updateMatrixWorld(true);
       this.root.traverse(o => {
         if (known.has(o) || !(o.isMesh || o.isLine || o.isPoints || o.isSprite)) return;
         known.add(o); this.seen++;
-        if (!fixed(o) || !boxOf(o, b)) { this.never++; return; }
+        if (!fixed(o)) { this.never++; return; }
+        if (!first) o.updateWorldMatrix(true, false);      // (built since the last frame was drawn: three.js has not yet worked out where it is)
+        if (!boxOf(o, b)) { this.never++; return; }
         // one of the walls the table counted on? (kept an eye on, whether or not it is ever hidden itself)
         let wall = false;
-        if (this.missing && wallLike(o, b)) { const s = sigOf(o, b); if (this.walls.has(s) && !this.walls.get(s)) { wall = true; this.walls.set(s, o); this.missing--; } }
+        if (this.missing && wallLike(o, b) && this.places.fabric(b)) { const s = sigOf(o, b); if (this.walls.has(s) && !this.walls.get(s)) { wall = true; this.walls.set(s, o); this.missing--; } }
         let bin = this.places.binOf(b), bins = null, i = -1;
         if (bin === null) { bins = this.pvs.big[sigOf(o, b)]; if (!bins) { if (wall) this._wall(o); this.never++; return; } }
         else {
@@ -192,8 +210,9 @@ export class Visibility {
           if (b.min.x < B[k] - 0.02 || b.min.y < B[k + 1] - 0.02 || b.min.z < B[k + 2] - 0.02 || b.max.x > B[k + 3] + 0.02 || b.max.y > B[k + 4] + 0.02 || b.max.z > B[k + 5] + 0.02) { if (wall) this._wall(o); this.never++; return; }
         }
         const e = o.matrixWorld.elements, p = o.geometry.attributes.position;
-        const it = { o, i, bins, wall, s: 0, dead: false, x: e[12], y: e[13], z: e[14], t: e[0] + e[5] + e[10] + e[1] + e[6] + e[8], lx: o.position.x, ly: o.position.y, lz: o.position.z,
-          iv: o.isInstancedMesh ? o.instanceMatrix.version : 0, ic: o.isInstancedMesh ? o.count : 0, gv: p.isInterleavedBufferAttribute ? p.data.version : p.version, mask: o.layers.mask };
+        const pa = p.data || p, im = o.isInstancedMesh ? o.instanceMatrix : null;
+        const it = { o, i, bins, wall, s: 0, dead: false, e, p: o.position, g: o.geometry, pa, im, x: e[12], y: e[13], z: e[14], t: e[0] + e[5] + e[10] + e[1] + e[6] + e[8], lx: o.position.x, ly: o.position.y, lz: o.position.z,
+          iv: im ? im.version : 0, ic: im ? o.count : 0, gv: pa.version, mask: o.layers.mask };
         this.items.push(it); this.count++;
         if (bins) this.multi.push(it); else this.byBin[i].push(it);
         if (wall) this.wallList.push(it);
@@ -201,7 +220,7 @@ export class Visibility {
       });
     } catch (e) { this._fail(e); }
   }
-  _wall(o) { const e = o.matrixWorld.elements; this.wallList.push({ o, wall: true, lone: true, dead: false, x: e[12], y: e[13], z: e[14], t: e[0] + e[5] + e[10] + e[1] + e[6] + e[8] }); }
+  _wall(o) { const e = o.matrixWorld.elements; this.wallList.push({ o, wall: true, lone: true, dead: false, e, x: e[12], y: e[13], z: e[14], t: e[0] + e[5] + e[10] + e[1] + e[6] + e[8] }); }
   _fail(e) { this.ok = false; this.why = 'an error: ' + e; console.warn('visible: ' + this.why + ': everything is drawn from here on'); try { for (const it of this.items) it.o.layers.mask = it.mask; } catch {} }
   _set(it, s) { if (it.s !== s && !it.dead) { it.s = s; it.o.layers.mask = s === 0 ? it.mask : s === 1 ? 1 << HIDDEN : 1 << MIRROR; } }
   _multiState(bins) { let m = 1; for (let k = 0; k < bins.length; k++) { const s = this.state[bins[k]]; if (s === 0) return 0; if (s === 2) m = 2; } return m; }
@@ -211,16 +230,16 @@ export class Visibility {
   // place in the world, which three.js only brings up to date when it draws: so a thing a feature has just carried off is
   // caught in the frame it goes.) And each wall the table counted on: still there, still on show, still where it was?
   _sweep() {
-    const items = this.items; let live = this.missing === 0;
+    const items = this.items; let live = this.missing === 0, lost = null;
     for (let k = 0; k < items.length; k++) {
-      const it = items[k], o = it.o, e = o.matrixWorld.elements, p = o.position;
-      if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z || p.x !== it.lx || p.y !== it.ly || p.z !== it.lz || e[0] + e[5] + e[10] + e[1] + e[6] + e[8] !== it.t || (it.ic && (o.instanceMatrix.version !== it.iv || o.count !== it.ic)) || it.gv !== (o.geometry.attributes.position.data || o.geometry.attributes.position).version) {
-        if (it.wall) { live = false; continue; }      // (a wall that has moved: nothing is hidden while it is away, and it is not let go of: it may come back)
+      const it = items[k], e = it.e, p = it.p;
+      if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z || p.x !== it.lx || p.y !== it.ly || p.z !== it.lz || e[0] + e[5] + e[10] + e[1] + e[6] + e[8] !== it.t || it.pa.version !== it.gv || (it.im !== null && (it.im.version !== it.iv || it.o.count !== it.ic)) || it.o.geometry !== it.g) {
+        if (it.wall) { live = false; lost = it; continue; }      // (a wall that has moved: nothing is hidden while it is away, and it is not let go of: it may come back)
         this._drop(it); items[k] = items[items.length - 1]; items.pop(); k--;
       }
     }
-    if (live) { const w = this.wallList; for (let k = 0; k < w.length; k++) { const it = w[k], o = it.o; if (it.lone) { const e = o.matrixWorld.elements; if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z || e[0] + e[5] + e[10] + e[1] + e[6] + e[8] !== it.t) { live = false; break; } } let q = o; for (; q; q = q.parent) { if (!q.visible) break; if (q === this.root) break; } if (q !== this.root) { live = false; break; } } }
-    this.live = live;
+    if (live) { const w = this.wallList, root = this.root; for (let k = 0; k < w.length; k++) { const it = w[k]; if (it.lone) { const e = it.e; if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z || e[0] + e[5] + e[10] + e[1] + e[6] + e[8] !== it.t) { live = false; lost = it; break; } } let q = it.o; for (; q; q = q.parent) { if (!q.visible) break; if (q === root) break; } if (q !== root) { live = false; lost = it; break; } } }
+    this.live = live; this.lost = lost;
   }
   _drop(it) { it.o.layers.mask = it.mask; it.dead = true; it.s = 0; this.movers++; this.count--; }
   // (now and then: what has been taken out of the world altogether is let go of, and the lists are tidied)
@@ -290,6 +309,6 @@ export class Visibility {
   status(calls) {
     if (!this.ok) return 'cull: off (' + this.why + ')';
     const there = this.seen, drawn = this._all ? there : there - this.count + this.shown;
-    return `cull: ${this._all ? (this.off ? 'everything (switched off)' : !this.live ? 'everything (a wall the table counts on is ' + (this.missing ? 'missing' : 'open or away') + ')' : 'everything (no line in the table for here)') : this.sig}\n      ${drawn} of ${there} things on show to the camera` + (calls != null ? `, ${calls} draw calls` : '') + `; ${this.count} fixed, ${this.movers} seen to move, ${this.never} never hidden; ${this.ms.toFixed(2)} ms`;
+    return `cull: ${this._all ? (this.off ? 'everything (switched off)' : !this.live ? 'everything (a wall the table counts on is ' + (this.missing ? 'missing' : 'open or away' + (this.lost ? ': ' + (this.lost.o.name || 'at ' + [this.lost.x, this.lost.y, this.lost.z].map(Math.round).join(', ')) : '')) + ')' : 'everything (no line in the table for here)') : this.sig}\n      ${drawn} of ${there} things on show to the camera` + (calls != null ? `, ${calls} draw calls` : '') + `; ${this.count} fixed, ${this.movers} seen to move, ${this.never} never hidden; ${this.ms.toFixed(2)} ms`;
   }
 }

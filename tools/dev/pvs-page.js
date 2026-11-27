@@ -4,8 +4,9 @@
 // the bins that can be seen from anywhere in it. A bin is a room, or a 24 m square of one storey; each has a BOX (the
 // room's inside and everything filed in it; the things, or the parts of big things, in the square). A bin counts as seen
 // if any part of its box is in line of sight: so the answer is right whatever stands in the box, built or not yet built,
-// solid or glass, on show or switched off: none of that is looked at. Only WALLS hide: plain solid meshes at least 6 m
-// by 2 m that were on show, stood still through everything this tool tried (the front doors shut and open, the secret
+// solid or glass, on show or switched off: none of that is looked at. Only WALLS hide: plain solid meshes, 6 m by 2 m
+// or more (or, in the thickness of the building and not standing in a room, of any size over a metre: a duct's lining,
+// a doorway's reveal), that were on show, stood still through everything this tool tried (the front doors shut and open, the secret
 // wall, the lifts, the toy sent round the building so that what is only shown near to comes and goes, three seconds of
 // watching), and were there before the park's lazy features were built. Their fingerprints go in the table, and the game
 // draws everything if one is missing or moves.
@@ -18,10 +19,10 @@
 // swollen by a pixel, is then tested against that: each box in a square of its own in one big picture, a bit to a box,
 // so nothing can hide a box but a wall. A box the sample is inside is seen. An opening's samples count for both sides.
 import * as T from 'three';
-import { fixed, boxOf, sigOf, wallLike, onShow, planHash, Places, CELL, BANDS, TOPS, FLOOR, CEIL, bandOf, cellKey, ceilOf, pack } from '/src/visible.js';
+import { fixed, boxOf, sigOf, wallLike, onShow, loose, planHash, Places, CELL, BANDS, TOPS, FLOOR, CEIL, bandOf, cellKey, ceilOf, pack } from '/src/visible.js';
 import { features } from '/src/features.js';
 
-const S = 160, F = 51.2, HI = 4, RMAX = 16, NEAR = 0.03, FAR = 2500, BIG = 1e9;      // a face: 160 px across at 51.2 px to the unit of tangent (the middle 128 px are 90 degrees, the rest is overlap with its neighbours)
+const S = 160, F = 51.2, HI = 4, RMAX = 16, TS = S / 2, NEAR = 0.03, FAR = 2500, BIG = 1e9;      // a face: 160 px across at 51.2 px to the unit of tangent (the middle 128 px are 90 degrees, the rest is overlap with its neighbours)
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const frames = n => new Promise(r => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); });
 
@@ -56,10 +57,10 @@ export async function makeTable(opt = {}) {
   for (const l of P.lifts || []) { const y0 = l.y; l.y = l.stops[(l.at + 1) % l.stops.length]; await frames(3); look(); l.y = y0; await frames(2); }
   await wait(opt.quick ? 500 : 3000); look();
   // the walls: there from the start, on show throughout, never moved
-  const box = new T.Box3(), walls = [];
-  root.traverse(o => { if (pre.has(o) && !moved.has(o) && !flicker.has(o) && snap.get(o).shown && drawable(o) && boxOf(o, box) && wallLike(o, box)) walls.push(o); });
+  const box = new T.Box3(), walls = [], fab = new Places(P);
+  root.traverse(o => { if (pre.has(o) && !moved.has(o) && !flicker.has(o) && snap.get(o).shown && drawable(o) && boxOf(o, box) && wallLike(o, box) && fab.fabric(box)) walls.push(o); });
   // everything built: the park's lazy features are woken, then back to the start
-  const woke = []; for (const f of features) if (f._pending && f.lazy) { G.vehicle.place(f.lazy.x, f.lazy.z, 0, 0.5); for (let k = 0; k < 20 && f._pending; k++) await wait(250); woke.push(f.id); }
+  const woke = []; for (const f of features) if ((f._pending || f._unseen) && f.lazy) { G.vehicle.place(f.lazy.x, f.lazy.z, 0, 0.5); for (let k = 0; k < 20 && (f._pending || f._unseen); k++) await wait(250); await frames(3); woke.push(f.id); }
   home(); await wait(800); look(); await wait(400); look();
   stats.things = { drawable: snap.size, moved: moved.size, comeAndGo: flicker.size, walls: walls.length, woke };
   lap('watching', t);
@@ -87,6 +88,7 @@ export async function makeTable(opt = {}) {
     const big = {}, v = new T.Vector3(), count = { room: 0, square: 0, big: 0, bigParts: 0, notFixed: 0 };
     const bigThing = o => {
       const set = new Set(), g = o.geometry, pos = g.attributes.position, m = o.matrixWorld, n = pos.count;
+      if (loose(pos) || (g.index && !g.index.array) || (o.isInstancedMesh && !g.boundingBox && loose(pos))) { part(set, box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z); count.bigParts++; return set; }      // (its vertices cannot be read: by its box, whole)
       if (o.isInstancedMesh) { if (!g.boundingBox) g.computeBoundingBox(); const im = new T.Matrix4(), bb = new T.Box3(); for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, im); im.premultiply(m); bb.copy(g.boundingBox).applyMatrix4(im); part(set, bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z); count.bigParts++; } return set; }
       const w = new Float32Array(n * 3); for (let k = 0; k < n; k++) { v.fromBufferAttribute(pos, k).applyMatrix4(m); w[k * 3] = v.x; w[k * 3 + 1] = v.y; w[k * 3 + 2] = v.z; }
       const per = o.isMesh ? 3 : o.isPoints ? 1 : 2, ix = g.index, cnt = ix ? ix.count : n, stride = o.isLine && !o.isLineSegments ? 1 : per;
@@ -136,13 +138,13 @@ export async function makeTable(opt = {}) {
 
     // ------------------------------------------------------------------ the pictures (a context of its own: the game's is not touched) ---
     t = performance.now();
-    const TILES = Math.ceil(NB / 32), COLS = Math.ceil(Math.sqrt(TILES * 6) / 2.449) || 1, ROWS = Math.ceil(TILES / COLS), AW = COLS * S, AH = 6 * ROWS * S, BATCH = 256;
+    const TILES = Math.ceil(NB / 32), COLS = Math.ceil(Math.sqrt(TILES * 6) / 2.449) || 1, ROWS = Math.ceil(TILES / COLS), AW = COLS * TS, AH = 6 * ROWS * TS, BATCH = 256;
     const cv = document.createElement('canvas'); cv.width = cv.height = 16;
     const gl = cv.getContext('webgl2', { antialias: false, depth: false, alpha: false, powerPreference: 'high-performance' });
     if (!gl || !gl.getExtension('EXT_color_buffer_float')) throw new Error('needs WebGL2 with float render targets');
     if (AW > gl.getParameter(gl.MAX_TEXTURE_SIZE) || AH > gl.getParameter(gl.MAX_TEXTURE_SIZE)) throw new Error('too many bins for one picture');
-    const md = gl.getExtension('WEBGL_multi_draw'); window.__pvsGL = gl;
-    const prog = (vs, fs) => { const p = gl.createProgram(); for (const [ty, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const s = gl.createShader(ty); gl.shaderSource(s, '#version 300 es\nprecision highp float; precision highp int; precision highp sampler2D;\n' + src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + src); gl.attachShader(p, s); } gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; for (let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++) { const nm = gl.getActiveUniform(p, i).name.replace('[0]', ''); u[nm] = gl.getUniformLocation(p, nm); } return { p, u }; };
+    const md = gl.getExtension('WEBGL_multi_draw'), clip = gl.getExtension('WEBGL_clip_cull_distance'); window.__pvsGL = gl; stats.gl = { multiDraw: !!md, clipDistance: !!clip };
+    const prog = (vs, fs) => { const p = gl.createProgram(); for (const [ty, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const s = gl.createShader(ty); gl.shaderSource(s, '#version 300 es\n' + (ty === gl.VERTEX_SHADER && /gl_ClipDistance/.test(src) ? '#extension GL_ANGLE_clip_cull_distance : require\n' : '') + 'precision highp float; precision highp int; precision highp sampler2D;\n' + src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + src); gl.attachShader(p, s); } gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; for (let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++) { const nm = gl.getActiveUniform(p, i).name.replace('[0]', ''); u[nm] = gl.getUniformLocation(p, nm); } return { p, u }; };
     const tex = (w, h, f32) => { const x = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, x); gl.texStorage2D(gl.TEXTURE_2D, 1, f32 ? gl.R32F : gl.RGBA8, w, h); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return x; };
     const fbo = (w, h, f32, depth) => { const x = tex(w, h, f32), f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, x, 0); if (depth) { const rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb); } if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error('framebuffer'); return { f, x, w, h }; };
     const QUAD = 'void main() { gl_Position = vec4(vec2(gl_VertexID & 1, gl_VertexID >> 1) * 4.0 - 1.0, 0.0, 1.0); }';
@@ -156,28 +158,34 @@ export async function makeTable(opt = {}) {
       void main() { ivec2 g = ivec2(gl_FragCoord.xy); int face = g.x / S; ivec2 p = ivec2(g.x - face * S, g.y); float d = texelFetch(u0, g, 0).r, r = clamp(uK / max(d, 0.02), 1.0, ${RMAX.toFixed(1)}), e;
         if (r <= 1.5) e = mx(u0, p, face, 0); else if (r <= 3.0) e = mx(u1, p, face, 1); else if (r <= 6.0) e = mx(u2, p, face, 2); else if (r <= 12.0) e = mx(u3, p, face, 3); else e = mx(u4, p, face, 4);
         o = vec4(e, 0.0, 0.0, 1.0); }`);
-    // every bin's box, in its own square of the big picture, its own bit; kept where no (eaten-back) wall is in front
+    // every bin's box, in its own square of the big picture (half the size the walls were eaten back at, the furthest of four kept), its own bit;
+    // kept where no wall is in front. A far box is widened by three quarters of a pixel ON THE PICTURE (each corner pushed away from the box's middle, up-down and
+    // left-right), so that the smallest still lands on a pixel; it is not made deeper, which would push its near side through the wall in front of it.
     const pBox = prog(`layout(location=0) in vec3 c; layout(location=1) in vec3 lo; layout(location=2) in vec3 hi; layout(location=3) in float id;
       uniform mat4 uVP; uniform vec4 uZ; uniform vec3 uCam; uniform float uFace; out float vz; flat out vec2 vO; flat out vec4 vBit;
-      void main() { vec3 mid = (lo + hi) * 0.5; float sw = 0.02 + ${(0.75 / F).toFixed(5)} * distance(uCam, mid); vec3 p = mix(lo - sw, hi + sw, c); vec4 q = uVP * vec4(p, 1.0); vz = dot(uZ, vec4(p, 1.0));
-        float tile = floor(id / 32.0), bit = id - tile * 32.0, tx = mod(tile, ${COLS}.0), ty = floor(tile / ${COLS}.0); vO = vec2(tx, uFace * ${ROWS}.0 + ty) * ${S}.0;
+      void main() { vec3 p = mix(lo, hi, c); vec4 q = uVP * vec4(p, 1.0); vz = dot(uZ, vec4(p, 1.0));
+        vec4 cq = uVP * vec4((lo + hi) * 0.5, 1.0); if (cq.w > length(hi - lo) * 0.5 + 0.05) q.xy += sign(q.xy / q.w - cq.xy / cq.w) * ${(1.5 / TS).toFixed(5)} * q.w;
+        float tile = floor(id / 32.0), bit = id - tile * 32.0, tx = mod(tile, ${COLS}.0), ty = floor(tile / ${COLS}.0); vO = vec2(tx, uFace * ${ROWS}.0 + ty) * ${TS}.0;
         float ch = floor(bit / 8.0), val = exp2(bit - ch * 8.0) / 255.0; vBit = vec4(ch == 0.0 ? val : 0.0, ch == 1.0 ? val : 0.0, ch == 2.0 ? val : 0.0, ch == 3.0 ? val : 0.0);
-        gl_Position = vec4((q.xy * ${S}.0 + (${S}.0 + 2.0 * vO - vec2(${AW}.0, ${AH}.0)) * q.w) / vec2(${AW}.0, ${AH}.0), q.z, q.w); }`,
+        ${clip ? 'gl_ClipDistance[0] = q.w + q.x; gl_ClipDistance[1] = q.w - q.x; gl_ClipDistance[2] = q.w + q.y; gl_ClipDistance[3] = q.w - q.y;' : ''}
+        gl_Position = vec4((q.xy * ${TS}.0 + (${TS}.0 + 2.0 * vO - vec2(${AW}.0, ${AH}.0)) * q.w) / vec2(${AW}.0, ${AH}.0), q.z, q.w); }`,
       `uniform sampler2D uE; uniform int uF; in float vz; flat in vec2 vO; flat in vec4 vBit; out vec4 o;
-      void main() { vec2 l = gl_FragCoord.xy - vO; if (l.x < 0.0 || l.y < 0.0 || l.x >= ${S}.0 || l.y >= ${S}.0) discard; if (vz > texelFetch(uE, ivec2(uF * ${S} + int(l.x), int(l.y)), 0).r * 1.002 + 0.03) discard; o = vBit; }`);
-    // all six faces of each square folded into one row of bits
+      void main() { vec2 l = gl_FragCoord.xy - vO; if (l.x < 0.0 || l.y < 0.0 || l.x >= ${TS}.0 || l.y >= ${TS}.0) discard; if (vz > texelFetch(uE, ivec2(uF * ${TS} + int(l.x), int(l.y)), 0).r * 1.002 + 0.03) discard; o = vBit; }`);
+    // each square's columns folded into one row of bits, then all six faces of each square into one point
+    const pFold1 = prog(QUAD, `uniform sampler2D t; out vec4 o; void main() { ivec2 g = ivec2(gl_FragCoord.xy); uvec4 a = uvec4(0u); for (int y = 0; y < ${TS}; y++) a |= uvec4(texelFetch(t, ivec2(g.x, g.y * ${TS} + y), 0) * 255.0 + 0.5); o = vec4(a) / 255.0; }`);
     const pFold = prog(QUAD, `uniform sampler2D t; out vec4 o; void main() { int tile = int(gl_FragCoord.x), tx = tile % ${COLS}, ty = tile / ${COLS}; uvec4 a = uvec4(0u);
-      for (int f = 0; f < 6; f++) { int y0 = (f * ${ROWS} + ty) * ${S}, x0 = tx * ${S}; for (int y = 0; y < ${S}; y++) for (int x = 0; x < ${S}; x++) a |= uvec4(texelFetch(t, ivec2(x0 + x, y0 + y), 0) * 255.0 + 0.5); }
+      for (int f = 0; f < 6; f++) for (int x = 0; x < ${TS}; x++) a |= uvec4(texelFetch(t, ivec2(tx * ${TS} + x, f * ${ROWS} + ty), 0) * 255.0 + 0.5);
       o = vec4(a) / 255.0; }`);
     const buf = (data, loc, size, div) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0); if (div) gl.vertexAttribDivisor(loc, 1); return b; };
     const vaos = {}; for (const k of ['one', 'two']) { vaos[k] = gl.createVertexArray(); gl.bindVertexArray(vaos[k]); buf(soups[k].data, 0, 3); }
     // a unit cube, outward faces counter-clockwise
     const CUBE = []; { const f = [[0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0], [0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1], [0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0], [1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1], [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1], [0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0]]; for (const q of f) for (const i of [0, 1, 2, 0, 2, 3]) CUBE.push(q[i * 3], q[i * 3 + 1], q[i * 3 + 2]); }
     const vBox = gl.createVertexArray(); gl.bindVertexArray(vBox); buf(new Float32Array(CUBE), 0, 3);
-    { const lo = new Float32Array(NB * 3), hi = new Float32Array(NB * 3), id = new Float32Array(NB); for (let i = 0; i < NB; i++) { const b = boxes[i]; lo.set([b[0], b[1], b[2]], i * 3); hi.set([b[3], b[4], b[5]], i * 3); id[i] = i; } buf(lo, 1, 3, 1); buf(hi, 2, 3, 1); buf(id, 3, 1, 1); }
+    // (the boxes as drawn: no thinner than 0.3 m any way, for a slab seen edge-on from near to)
+    { const lo = new Float32Array(NB * 3), hi = new Float32Array(NB * 3), id = new Float32Array(NB); for (let i = 0; i < NB; i++) { const b = boxes[i], f = j => Math.max(0.02, 0.15 - (b[j + 3] - b[j]) / 2); lo.set([b[0] - f(0), b[1] - f(1), b[2] - f(2)], i * 3); hi.set([b[3] + f(0), b[4] + f(1), b[5] + f(2)], i * 3); id[i] = i; } buf(lo, 1, 3, 1); buf(hi, 2, 3, 1); buf(id, 3, 1, 1); }
     gl.bindVertexArray(null);
     const fHi = fbo(6 * S * HI, S * HI, true, true), chain = []; for (let s = S * HI / 2; s >= 10; s /= 2) chain.push(fbo(6 * s, s, true)); const base = chain[Math.log2(HI) - 1];
-    const fE = fbo(6 * S, S, true), fA = fbo(AW, AH, false), fR = fbo(TILES, BATCH, false), fFace = fbo(512, 512, true, true), vQuad = gl.createVertexArray();
+    const fE = fbo(6 * S, S, true), fE2 = fbo(6 * TS, TS, true), fA = fbo(AW, AH, false), fF = fbo(AW, 6 * ROWS, false), fR = fbo(TILES, BATCH, false), fFace = fbo(512, 512, true, true), vQuad = gl.createVertexArray();
     gl.disable(gl.DITHER); gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
     // the six ways, each a little over a right angle wide
     const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], UPS = [[0, 1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, 1, 0]];
@@ -227,7 +235,7 @@ export async function makeTable(opt = {}) {
     P.rooms.forEach((r, ri) => {
       if (opt.rooms && !opt.rooms.includes(r.id)) return;
       const c = ceilOf(r), w = r.x1 - r.x0, d = r.z1 - r.z0, h = c - r.y, nx = Math.max(1, Math.ceil(w / STEP)), nz = Math.max(1, Math.ceil(d / STEP)), ny = Math.max(2, Math.ceil(h / 1.7) + 1);
-      const sx = w / nx, sz = d / nz, lo = r.y + FLOOR + 0.07, hi = c - CEIL - 0.07, sy = (hi - lo) / (ny - 1), delta = 0.5 * Math.hypot(sx, sz, sy) + 0.1;
+      const sx = w / nx, sz = d / nz, lo = r.y + FLOOR + 0.07, hi = c - CEIL - 0.07, sy = (hi - lo) / (ny - 1), delta = opt.dRoom || 0.5;      // (a sight line that leaves the room leaves it through an opening, and the openings have samples of their own: these are for what is in the room, and a little beyond)
       for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) for (let k = 0; k < ny; k++) { add(r.x0 + sx * (i + 0.5), lo + sy * k, r.z0 + sz * (j + 0.5), delta, [r.id], 'room'); nSamples.room++; }
       // its six faces, square-on from just inside: where no wall is within 0.55 m is an opening
       const FACES = [[0, r.x0, [-1, 0, 0], [0, 1, 0], d, h], [0, r.x1, [1, 0, 0], [0, 1, 0], d, h], [2, r.z0, [0, 0, -1], [0, 1, 0], w, h], [2, r.z1, [0, 0, 1], [0, 1, 0], w, h], [1, r.y, [0, -1, 0], [0, 0, 1], w, d], [1, c, [0, 1, 0], [0, 0, 1], w, d]];      // [axis, where on it, outward, the picture's up, width, height]
@@ -247,8 +255,10 @@ export async function makeTable(opt = {}) {
           const u = ((i + 0.5) / cols - 0.5) * fw, vv = ((j + 0.5) / rows - 0.5) * fh, px = centre[0] + right[0] * u + up[0] * vv, py = centre[1] + right[1] * u + up[1] * vv, pz = centre[2] + right[2] * u + up[2] * vv;
           // who is on the other side: whatever places lie up to 1.2 m beyond
           const names = [r.id]; for (const off of [0.15, 0.45, 0.8, 1.2]) { const k = at(px + n[0] * off, py + n[1] * off, pz + n[2] * off); if (k) for (const nm of k) { names.push(nm); if (fi === 5 && nm !== r.id) across.add(nm); } }
-          const offs = sp <= 0.5 && m2[j * cols + i] ? [-IN, 0.45, 1.15] : [-IN, 0.45];
-          for (const off of offs) { add(px + n[0] * off, py + n[1] * off, pz + n[2] * off, sp * 0.71 + 0.25, names, 'opening'); nSamples.opening++; }
+          // from just inside the face; and from beyond it, in the doorway and out the far side, where that is a place a camera can be (never from the hollow
+          // between two rooms' walls or over a ceiling: walls are seen through from behind, and a sample there would see the whole building)
+          const offs = [-IN]; if (m1[j * cols + i]) for (const off of m2[j * cols + i] ? [0.45, 1.15] : [0.45]) if (at(px + n[0] * off, py + n[1] * off, pz + n[2] * off)) offs.push(off);
+          for (const off of offs) { add(px + n[0] * off, py + n[1] * off, pz + n[2] * off, sp * 0.71 + 0.1, names, 'opening'); nSamples.opening++; }
           if (fi === 5 && m1[j * cols + i]) { lx0 = Math.min(lx0, px - 0.4); lx1 = Math.max(lx1, px + 0.4); lz0 = Math.min(lz0, pz - 0.4); lz1 = Math.max(lz1, pz + 0.4); }
         }
         // an open top: the camera passing up through it is in both places at once (a well to the room above, a court open to the sky)
@@ -260,7 +270,7 @@ export async function makeTable(opt = {}) {
     const AX0 = (Math.floor((B.x0 - 40) / CELL)) * CELL, AX1 = (Math.floor((B.x1 + 40) / CELL) + 1) * CELL, AZ0 = (Math.floor((B.z0 - 40) / CELL)) * CELL, AZ1 = (Math.floor((B.z1 + 40) / CELL) + 1) * CELL;
     const HM = { w: AX1 - AX0, h: AZ1 - AZ0, d: null }; { HM.d = new Float32Array(HM.w * HM.h); const TW = 256; for (let bx = 0; bx < HM.w; bx += TW) for (let bz = 0; bz < HM.h; bz += TW) { const cw = Math.min(TW, HM.w - bx), ch = Math.min(TW, HM.h - bz), px = square([AX0 + bx + cw / 2, 300, AZ0 + bz + ch / 2], [0, -1, 0], [0, 0, -1], cw, ch, 0, 400, cw, ch); for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) HM.d[(bz + (ch - 1 - j)) * HM.w + bx + i] = 300 - Math.min(px[j * cw + i], 320); } }
     const topAt = (x, z) => { const i = Math.floor(x - AX0), j = Math.floor(z - AZ0); return i < 0 || j < 0 || i >= HM.w || j >= HM.h ? 0 : HM.d[j * HM.w + i]; };
-    const air = (x, y, z, hx, hy) => { const k = at(x, y, z); if (!k || !k.every(nm => nm.startsWith('o:'))) return; const names = k.slice(); for (const [dx, dy, dz] of [[hx, 0, 0], [-hx, 0, 0], [0, 0, hx], [0, 0, -hx], [hx, 0, hx], [-hx, 0, hx], [hx, 0, -hx], [-hx, 0, -hx], [0, hy, 0], [0, -hy, 0]]) { const q = cellKey(x + dx, z + dz, y + dy); if (q) names.push(q); } add(x, y, z, Math.hypot(hx, hx, hy) + 0.1, names, 'air'); nSamples.air++; };
+    const air = (x, y, z, hx, hy) => { const k = at(x, y, z); if (!k || !k.every(nm => nm.startsWith('o:'))) return; const names = k.slice(); const hh = hx + 0.01; for (const [dx, dy, dz] of [[hh, 0, 0], [-hh, 0, 0], [0, 0, hh], [0, 0, -hh], [hh, 0, hh], [-hh, 0, hh], [hh, 0, -hh], [-hh, 0, -hh], [0, hy, 0], [0, -hy, 0]]) { const q = cellKey(x + dx, z + dz, y + dy); if (q) names.push(q); } add(x, y, z, hx <= 3 ? (opt.dAir || 1.5) : (opt.dAir || 1.5) * 1.7, names, 'air'); nSamples.air++; };      // (a camera in the open has samples all round it, and what one block hides from all of them it hides from the camera: so the walls need eating back only a little)
     if (!opt.rooms) for (let x = AX0 + 3; x < AX1; x += 6) for (let z = AZ0 + 3; z < AZ1; z += 6) {
       const top = topAt(x, z), xin = x > B.x0 - 30 && x < B.x1 + 30 && z > B.z0 - 30 && z < B.z1 + 30;
       for (const h of [0.35, 2, 4.4]) air(x, top + h, z, 3, 1.2);                                    // over whatever is topmost here: the ground, or a roof
@@ -278,13 +288,13 @@ export async function makeTable(opt = {}) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, fR.f); gl.readPixels(0, 0, TILES, n, gl.RGBA, gl.UNSIGNED_BYTE, rpx);
       for (let j = 0; j < n; j++) { const s = samples[first + j], row = j * TILES;
         // (and the boxes it is inside of, which have no near side to draw)
-        for (let i = 0, q = 0; i < NB; i++, q++) { const b = boxes[i], sw = 0.12 + 0.0147 * Math.hypot(s.x - (b[0] + b[3]) / 2, s.y - (b[1] + b[4]) / 2, s.z - (b[2] + b[5]) / 2); if (s.x > b[0] - sw && s.x < b[3] + sw && s.y > b[1] - sw && s.y < b[4] + sw && s.z > b[2] - sw && s.z < b[5] + sw) r32[row + (i >> 5)] |= 1 << (i & 31); }
+        for (let i = 0, q = 0; i < NB; i++, q++) { const b = boxes[i], sw = 0.2; if (s.x > b[0] - sw && s.x < b[3] + sw && s.y > b[1] - sw && s.y < b[4] + sw && s.z > b[2] - sw && s.z < b[5] + sw) r32[row + (i >> 5)] |= 1 << (i & 31); }
         for (const k of s.k) { const dst = seen[k]; for (let w2 = 0; w2 < WORDS; w2++) dst[w2] |= r32[row + w2]; } }
     };
     const order = samples.map((_, i) => i); if (opt.limit) order.length = Math.min(order.length, opt.limit);
     let batchFirst = 0, tick = performance.now();
-    for (let si = 0; si < order.length; si++) {
-      const s = samples[si]; setCam(s.x, s.y, s.z);
+    const lookFrom = (s, row) => {
+      setCam(s.x, s.y, s.z);
       // the walls, six ways, big
       gl.bindFramebuffer(gl.FRAMEBUFFER, fHi.f); gl.viewport(0, 0, fHi.w, fHi.h); gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true); gl.clearColor(BIG, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(pOcc.p); for (let f = 0; f < 6; f++) { gl.viewport(f * S * HI, 0, S * HI, S * HI); drawWalls(pl[f], VP[f], VZ[f]); }
@@ -294,17 +304,25 @@ export async function makeTable(opt = {}) {
       // eaten back
       gl.useProgram(pErode.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fE.f); gl.viewport(0, 0, fE.w, fE.h); const bi = chain.indexOf(base);
       for (let l = 0; l < 5; l++) { gl.activeTexture(gl.TEXTURE0 + l); gl.bindTexture(gl.TEXTURE_2D, chain[bi + l].x); gl.uniform1i(pErode.u['u' + l], l); } gl.uniform1f(pErode.u.uK, F * s.d); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(pDown.p); gl.activeTexture(gl.TEXTURE0); gl.uniform1i(pDown.u.t, 0); gl.bindFramebuffer(gl.FRAMEBUFFER, fE2.f); gl.viewport(0, 0, fE2.w, fE2.h); gl.bindTexture(gl.TEXTURE_2D, fE.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       // the boxes
       gl.bindFramebuffer(gl.FRAMEBUFFER, fA.f); gl.viewport(0, 0, AW, AH); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
-      gl.useProgram(pBox.p); gl.bindVertexArray(vBox); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fE.x); gl.uniform1i(pBox.u.uE, 0); gl.uniform3f(pBox.u.uCam, s.x, s.y, s.z);
+      if (clip) for (let q = 0; q < 4; q++) gl.enable(clip.CLIP_DISTANCE0_WEBGL + q);
+      gl.useProgram(pBox.p); gl.bindVertexArray(vBox); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fE2.x); gl.uniform1i(pBox.u.uE, 0); gl.uniform3f(pBox.u.uCam, s.x, s.y, s.z);
       for (let f = 0; f < 6; f++) { gl.uniformMatrix4fv(pBox.u.uVP, false, VP[f]); gl.uniform4fv(pBox.u.uZ, VZ[f]); gl.uniform1f(pBox.u.uFace, f); gl.uniform1i(pBox.u.uF, f); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, NB); }
+      if (clip) for (let q = 0; q < 4; q++) gl.disable(clip.CLIP_DISTANCE0_WEBGL + q);
       // folded into this sample's row
-      gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad); gl.useProgram(pFold.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fR.f); gl.viewport(0, si - batchFirst, TILES, 1); gl.enable(gl.SCISSOR_TEST); gl.scissor(0, si - batchFirst, TILES, 1);
-      gl.bindTexture(gl.TEXTURE_2D, fA.x); gl.uniform1i(pFold.u.t, 0); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.disable(gl.SCISSOR_TEST);
+      gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad); gl.useProgram(pFold1.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fF.f); gl.viewport(0, 0, fF.w, fF.h); gl.bindTexture(gl.TEXTURE_2D, fA.x); gl.uniform1i(pFold1.u.t, 0); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(pFold.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fR.f); gl.viewport(0, row, TILES, 1); gl.enable(gl.SCISSOR_TEST); gl.scissor(0, row, TILES, 1);
+      gl.bindTexture(gl.TEXTURE_2D, fF.x); gl.uniform1i(pFold.u.t, 0); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.disable(gl.SCISSOR_TEST);
+    };
+    // (to look into one sample by hand: what it saw, the walls' depths as it had them, eaten back, six faces side by side)
+    if (opt.debug) window.__pvs = { samples, boxes, bins, keys, walls, at, probe: (x, y, z, d) => { lookFrom({ x, y, z, d }, 0); gl.bindFramebuffer(gl.FRAMEBUFFER, fR.f); gl.readPixels(0, 0, TILES, 1, gl.RGBA, gl.UNSIGNED_BYTE, rpx); const seenBins = []; for (let i = 0; i < NB; i++) if ((r32[i >> 5] >>> (i & 31)) & 1) seenBins.push(i); const e = new Float32Array(6 * S * S), e0 = new Float32Array(6 * S * S); gl.bindFramebuffer(gl.FRAMEBUFFER, fE.f); gl.readPixels(0, 0, 6 * S, S, gl.RED, gl.FLOAT, e); gl.bindFramebuffer(gl.FRAMEBUFFER, base.f); gl.readPixels(0, 0, 6 * S, S, gl.RED, gl.FLOAT, e0); return { seen: seenBins, eaten: e, plain: e0, w: 6 * S, h: S }; } };
+    for (let si = 0; si < order.length; si++) {
+      lookFrom(samples[si], si - batchFirst);
       if (si - batchFirst + 1 === BATCH || si === order.length - 1) { flush(batchFirst, si - batchFirst + 1); batchFirst = si + 1; if (performance.now() - tick > 1500) { tick = performance.now(); say(`looking ${si + 1}/${order.length}, ${Math.round((performance.now() - t) / (si + 1) * (order.length - si - 1) / 1000)} s to go`); await wait(0); } }
     }
     lap('looking', t);
-    if (opt.debug) window.__pvsDebug = { gl, fHi, fE, fA, chain, samples, boxes, bins, keys, seen, soups, square };
 
     // ------------------------------------------------------------------ the table ---
     const bit = (a, i) => (a[i >> 5] >>> (i & 31)) & 1, set1 = (a, i) => { a[i >> 5] |= 1 << (i & 31); };
