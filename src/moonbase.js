@@ -154,6 +154,7 @@ export function buildMoonBase(P, opts = {}) {
   {
     const fl = new THREE.CircleGeometry(1, 72, 0, TAU); fl.rotateX(-Math.PI / 2); fl.scale(CAVE.rx + 0.5, 1, CAVE.rz + 0.5); fl.translate(CAVE.x, Y + 0.003, CAVE.z);
     const fg = new THREE.PlaneGeometry(CAVE.rx * 2 + 1, CAVE.rz * 2 + 1, 56, 68); fg.rotateX(-Math.PI / 2); fg.translate(CAVE.x, Y + 0.003, CAVE.z); void fl;
+    { const fp = fg.attributes.position, ix = fg.index.array, keep = []; for (let i = 0; i < ix.length; i += 3) { let mx = 0, mz = 0; for (let k = 0; k < 3; k++) { mx += fp.getX(ix[i + k]) / 3; mz += fp.getZ(ix[i + k]) / 3; } if (Math.hypot(mx - POND.x, mz - POND.z) > POND.r - 0.4) keep.push(ix[i], ix[i + 1], ix[i + 2]); } fg.setIndex(keep); }      // (a hole for the pond: the fish are under the floor's level)
     cave.add(new THREE.Mesh(bake(fg, 0xcaa553, L, 0.05), basic));
     // the wall: an ellipse of cheese from the floor to the ceiling, bulging and pocked (it leans in at the top)
     const N = 120, R = 6, pos = [], idx = [];
@@ -303,17 +304,17 @@ export function buildMoonBase(P, opts = {}) {
     stems.frustumCulled = bulbs.frustumCulled = false; cave.add(stems, bulbs); garden.stems = stems; garden.bulbs = bulbs;
     // the pond: a dark basin, and over it a skin of moving light the fish swim under
     const basin = new THREE.SphereGeometry(POND.r, 32, 8, 0, TAU, Math.PI / 2, Math.PI / 2); basin.scale(1, 0.18, 1); basin.translate(POND.x, Y + 0.0, POND.z);
-    cave.add(new THREE.Mesh(basin, new THREE.MeshBasicMaterial({ color: 0x0a3a32, side: THREE.BackSide })));
+    cave.add(new THREE.Mesh(basin, new THREE.MeshBasicMaterial({ color: 0x041a16, side: THREE.BackSide })));
     const U = garden.u = { t: { value: 0 } };
     const water = new THREE.Mesh(new THREE.CircleGeometry(POND.r, 48).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       vertexShader: 'varying vec2 vP; void main() { vP = position.xz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: `uniform float t; varying vec2 vP; void main() { float r = length(vP); float w = 0.5 + 0.5 * sin(r * 5.0 - t * 1.6) * cos(vP.x * 2.0 + t * 0.7) ; float edge = smoothstep(${POND.r.toFixed(1)}, ${(POND.r - 0.8).toFixed(1)}, r); vec3 c = mix(vec3(0.05, 0.35, 0.3), vec3(0.3, 0.95, 0.75), w * 0.6); gl_FragColor = vec4(c * edge * 0.55, 1.0); }` }));
+      fragmentShader: `uniform float t; varying vec2 vP; void main() { float r = length(vP); float w = 0.5 + 0.5 * sin(r * 5.0 - t * 1.6) * cos(vP.x * 2.0 + t * 0.7) ; float edge = smoothstep(${POND.r.toFixed(1)}, ${(POND.r - 0.8).toFixed(1)}, r); vec3 c = mix(vec3(0.05, 0.35, 0.3), vec3(0.3, 0.95, 0.75), w * 0.6); gl_FragColor = vec4(c * edge * 0.26, 1.0); }` }));
     water.position.set(POND.x, Y + 0.02, POND.z); water.renderOrder = 5; cave.add(water);
     const stones = []; for (let i = 0; i < 26; i++) { const a = i / 26 * TAU; stones.push(new THREE.IcosahedronGeometry(0.42, 0).scale(1, 0.7, 1).translate(POND.x + Math.sin(a) * (POND.r + 0.3), Y + 0.15, POND.z + Math.cos(a) * (POND.r + 0.3))); }
     cave.add(new THREE.Mesh(bake(merge(stones), 0x8a9a80, L, 0.4, false), basic));
     // moonfish: the glowing fish of Monroe Harbor, swimming round under the light
     const kit = { glow: buildKind('glow') }, r = rnd, nF = low ? 3 : 7;
-    for (let i = 0; i < nF; i++) { const f = new Fish(kit, 'glow', r); f.g.scale.multiplyScalar(2.2); f.ring = 0.8 + r() * (POND.r - 1.6); f.ang = r() * TAU; f.sp = (0.25 + r() * 0.25) * (i % 2 ? 1 : -1); f.dep = 0.18 + r() * 0.12; cave.add(f.g); garden.fish.push(f); }
+    for (let i = 0; i < nF; i++) { const f = new Fish(kit, 'glow', r); f.g.scale.multiplyScalar(2.8); f.ring = 0.8 + r() * (POND.r - 1.6); f.ang = r() * TAU; f.sp = (0.25 + r() * 0.25) * (i % 2 ? 1 : -1); f.dep = 0.1 + r() * 0.1; cave.add(f.g); garden.fish.push(f); }
     if (opts.caught > 0 && garden.fish[0]) { const tag = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.035, 0.012), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 0.3, 0.2) })); tag.position.set(-0.03, 0.05, 0); garden.fish[0].g.add(tag); garden.tagged = garden.fish[0]; }      // (one with a little tag: you have caught one of these before)
     const fp = plaque(['Moonfish', opts.caught > 0 ? 'You have caught one before, on Monroe Harbor.' : 'They glow, like the mice.'], 1.2); fp.position.set(POND.x + POND.r + 1.3, Y, POND.z - 1.4); fp.rotation.y = Math.PI / 2 + 0.4; cave.add(fp);
     const gs = plaque(['THE MOON GARDEN', 'please do not eat the flowers'], 1.3); gs.position.set(POND.x + 7, Y, POND.z - 7.5); gs.rotation.y = Math.PI * 0.8; cave.add(gs);
