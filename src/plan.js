@@ -1820,11 +1820,12 @@ export function wallAtAll(plan, x, z, y, step = STEP, ignore = null) {
 // pushed on since is walked after the square, until that has cost as much as sorting again would. A thing that is moved
 // about in place (a train, a floe, the silo's doors) must say so where it is made, `moves: true`: those are in no square
 // and are asked every time. Heights, and whether a gate is open, are read as they are now and need nothing. And a few of
-// each list are compared, at every use, with where they were when sorted: one found moved that had not said so moves
-// from then on, with a warning; one found swapped for another has the list sorted again.
+// each list are compared, at every use, with where they were when sorted (the whole list every CHECK uses, a second or
+// so of play): one found moved that had not said so moves from then on, with a warning; one found swapped for another
+// has the list sorted again. Until it is found, such a thing is not known to the squares it has moved into: say so.
 const CELL = 4, GB = 0, GM = 1, GO = 2, GF = 3, GS = 4, GR = 5, GH = 6;
 const PADS = [3, 2, 1.5, 0, 0, 0, 0], SURE = 0.01;      // how far beyond its square each list is kept (volumes, blocks, solid things; the others are only ever asked what lies over a point), and a centimetre in hand for rounding
-const FAR_B = (PADS[GB] - SURE) ** 2, REACH_M = PADS[GM] - SURE, REACH_O = PADS[GO] - SURE, CHECK = 6;
+const FAR_B = (PADS[GB] - SURE) ** 2, REACH_M = PADS[GM] - SURE, REACH_O = PADS[GO] - SURE, CHECK = 256;      // (CHECK: in how many uses a list is looked over from end to end for what has moved unannounced)
 // (walks: how often the whole plan was asked after all, and why: 0 the point was off the grid; 1 a radius wider than the blocks'
 // pad; 2 pushed off the grid by a block; 3 wider than the solid things' pad, or put off the grid; 4 shoved off it by a solid
 // thing. wide: how often every volume was asked because none in the square was near enough to be sure of.)
@@ -1877,7 +1878,7 @@ function sorted(g, k, L) {
   const ix = g.of[k], n = ix.n;
   if (ix.list !== L || ix.geo !== g.geo || L.length < n || (n && L[n - 1] !== ix.last)) sortList(g, ix, L);
   else if (L.length > n && (ix.debt += L.length - n) > ix.due) sortList(g, ix, L);
-  else for (let c = 0; c < CHECK && n; c++) {
+  else for (let c = 0, m = n ? Math.ceil(n / CHECK) : 0; c < m; c++) {
     const i = ix.at, q = L[i], e = i * 4, E = ix.ext; ix.at = i + 1 < n ? i + 1 : 0;
     if (q !== ix.was[i]) { g.swapped++; sortList(g, ix, L); break; }
     if (ix.free[i]) continue;
