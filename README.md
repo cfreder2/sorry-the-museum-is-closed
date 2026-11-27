@@ -30,7 +30,9 @@ older buildings from the museum's visitor maps fitted to the mapped outline,
 and the offices, stores, workshops and plant assumed for the space that is
 left (see `survey/README.md` for what each is drawn from and how far to trust
 it). That is 436 rooms on four levels, about 65,000 m² of floor, in the
-building's own 246 m square.
+building's own 246 m square. Of those, 143 with nothing in them are shut,
+behind doors that do not open (`src/shut.js`): 293 rooms, about 47,500 m²,
+can be driven into.
 
 - **Public rooms** are where they are in the building and open into their
   neighbours.
@@ -56,9 +58,10 @@ You get from one level to another the way a toy car would have to:
   across each end, from the basement to the third floor.
 - **The Sculpture Court** is two storeys, with Gallery 261 as the balcony
   round it.
-- **Lifts** are open platforms in a cage of four posts. Drive on and it goes;
-  wait at its gate on another floor and it comes for you. The gate at each
-  stop is shut whenever the platform is somewhere else.
+- **Lifts** are a car in a glass shaft framed in steel, with a doorway at
+  each stop. Drive on and it goes; wait at its gate on another floor and it
+  comes for you. The gate at each stop is shut whenever the car is somewhere
+  else.
 - **Floors are solid.** A car cannot jump through a ceiling and a drone cannot
   fly through a floor; the only ways through are the stair wells, the lift
   shafts and the open air of the two tall halls.
@@ -67,15 +70,15 @@ The round map in the corner turns with you and shows the level you are on,
 with its stairs hatched and its lifts solid. Touch it (or press G) for the
 whole building, a level at a time, opened on the level you are on with a
 ★ where you are. Tap a room there for its card (what is in it, how much of it
-you have seen) and Show the way lights the way to it, on the big map and on the round one, across stairs and lifts. `node tools/check_layout.mjs` proves that every room on every
-level can be driven to from the front door.
+you have seen) and Show the way lights the way to it, on the big map and on the round one, across stairs and lifts. `node tools/check_layout.mjs` proves that every open room on every
+level can be driven to from the front door, past no shut door.
 
 You start outside on Michigan Avenue, between the lions, and the doors are
 locked: a sign on the front door says so. The way in is right at the door and
 hard to miss: for the car, an aluminium air duct at the foot of the wall just
 left of the doors, its grille swung open and its light spilt on the
-pavement; for the drone, the fanlight over the doors standing open (a pane of
-the skylight over the Grand Staircase is open too). Both lead into the lobby
+pavement. A drone flown in low goes through it too (and six skylights stand
+open up on the roofs). The duct leads into the lobby
 on the first floor, with the Grand Staircase straight ahead. Once you are in,
 every outside door unlocks for good. Hints appear if you stay outside a while.
 
@@ -96,9 +99,9 @@ Everything in the building that is not a room or a picture is a secret: the
 card game, the toy stall, the picture on its easel, the hockey pond, the big
 red button, the easel in the studio, every monitor somebody left switched on,
 and a pedestal with four lit pads under the coloured roof of Griffin Court.
-Nothing says where they are. The screen counts them, "secrets 3 / 21", and
+Nothing says where they are. The screen counts them, "secrets 3 / 122", and
 each one found is announced. (The whiteboards count as one between them, and
-three of the twenty-one this file is not going to describe.)
+a few of them this file is not going to describe.)
 
 The pedestal plays a pattern of colours and you play it back; it adds one each
 time. Get five right and the roof lets go: confetti in the colours of all 126
@@ -135,8 +138,9 @@ goes nowhere else; a new game leaves it up.
 
 On the roof beside the card game somebody has set up a stall under a striped
 awning. Two toys turn on their stands: a Supercar and a chrome flying wing
-called the Manta. Each costs 2,000 chips, and the only chips there are are the
-ones on the card table, where you sit down with 1,000. Pull up at the counter
+called the Manta. Each costs 2,000 chips. You sit down at the card table with
+1,000; more are won there, or earned about the building (lost property handed
+in, the targets, a fish through the ice, loose change on the café floor). Pull up at the counter
 and the button says SHOP. Nothing else unlocks them.
 
 ## The outside
@@ -174,7 +178,8 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   the snow on top is a way to drive. Hop onto the bonnet, climb the
   windscreen, cross the roof, run down onto the boot and off.
 - **The railway** runs north to south in its cutting and under the galleries
-  that bridge it (240 to 249), with a commuter train stopped for the night.
+  that bridge it (240 to 249), with two commuter trains laid up for the night
+  and a last train that runs through.
 - **The gardens.** The North Garden with its rows of trees and Calder's red
   *Flying Dragon*; the South Garden with its grid of hawthorns, the long pool
   (frozen, and slippery) and the Fountain of the Great Lakes against the Morton
@@ -234,13 +239,12 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   panels between white fins; the old first floor is brick. (The lower level
   is under the ground now and has no outside.) These are impressions, not
   surveys of the real elevations.
-- **More ways in.** Besides the duct by the front doors there are five more
-  low openings for a car, each a different thing left open: a delivery shutter
-  not quite pulled down (on the Stock Exchange Trading Room), a second duct in
-  the courtyard, a service door with its bottom panel kicked in, and two low
-  windows propped open. Each is at street level and leads into a first-floor
-  room. For anything that flies, three skylights stand open instead of one,
-  each over a room with nothing but sky above it.
+- **More ways in.** Besides the duct by the front doors there are thirteen
+  more low openings for a car, each a thing left open: two delivery shutters
+  not quite pulled down, four more ducts, three service doors with the bottom
+  panel kicked in, and four low windows propped open. Each is at street level
+  and leads into a first-floor room. For anything that flies, six skylights
+  stand open, each over a room with nothing but sky above it.
 - **Every roof is a floor.** A drone can land on any of them. For the car a
   builders' scaffold goes up the south wall of Gallery 211, by the South
   Garden: four flights with guard rails, turn and turn about (the roof is two
@@ -264,11 +268,11 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   domain.
 - **Jingle Bells** plays on bells from the courtyard tree, louder as you come
   nearer; it follows the music volume.
-- **Hills.** The open ground is no longer flat: two big hills (one north of
-  the building by the railway, one in the south-east corner) and eight low
-  swells, wherever there is room clear of buildings, paths and streets. A hill
-  pulls a car down its slope, so one left on the side of it rolls. Each big
-  hill has a kicker of packed snow on its summit: go over the top with speed
+- **Hills.** The open ground is no longer flat: one big hill in the
+  south-east corner and six low swells, wherever there is room clear of
+  buildings, paths and streets. A hill pulls a car down its slope, so one left
+  on the side of it rolls. The big hill has a kicker of packed snow on its
+  summit: go over the top with speed
   and you fly, and come down rolling on the far side. Tyre tracks and the
   glitter follow the slopes.
 - **The lie of the land.** Between the paths the lawns are not levelled: the
@@ -283,23 +287,20 @@ map (OpenStreetMap), placed in the same frame as the galleries:
   floor follow and what the snow, the glitter and the tyre tracks are drawn
   on; trees stand on it. Anything new laid out flat on open ground at start-up
   goes in its `FLAT` list.
-- **The ski jump.** A long bank of snow runs up against the north wall of the
-  galleries over the railway and stands higher than their roof. Take it flat
-  out and you land on the roof.
 - **Ice is ice.** On the frozen pool and the pond the wheels spin, the brakes
   do little, and the car carries on the way it was going while it turns: from
   the same speed it takes five times as far to stop as on snow.
-- **Pond hockey.** North of the building, between the garden and the railway,
-  is a frozen pond with a goal at each end and a puck. A blue toy car waits in
+- **Pond hockey.** In the courtyard south of the Modern Wing, east of the
+  railway, is a frozen pond with a goal at each end and a puck. A blue toy car waits in
   front of its goal; touch the puck and it wakes up. You shoot east, it shoots
   west, first to five. The score is kept in pegs of light on a board on the
   scorer's table on the north bank. The puck is bright orange and lights the
   ice round it. The blue car is slower than yours, lines its shots up roughly
   and stops to think after every touch. Leave the pond and the game is off:
   everything goes back to its place and the score to nothing.
-- **The train** in the cutting is a diesel and two double-deck gallery cars
-  standing on wheels on rails, with frames, tanks and bogies underneath; it is
-  solid from the rail up.
+- **The trains** laid up in the cutting, two of them on the east siding, are
+  each a diesel and double-deck gallery cars standing on wheels on rails, with
+  frames, tanks and bogies underneath; they are solid from the rail up.
 
 Where this departs from the real thing: there is no flight of steps up to the
 door (the first floor is at street level here); the front wall has a plain
@@ -347,15 +348,16 @@ What is not true:
 ## The sledding hill
 
 The south-west quarter of Butler Field, between the cross path and the band
-shell, is a sledding hill of the kind every Chicago park piles up: seven and a
-half metres of snow with a flat top, a warming hut and a string of lights round
-it, timber steps up the steep north face for people, a packed path up the west
+shell, is a sledding hill of the kind every Chicago park piles up: twelve
+metres of snow with a flat top, the Tuxedo Shop on it and a string of lights
+round it, timber steps up the steep north face for people, a packed path up the west
 flank for anything on wheels (lanterns along it), bare trees and buried bushes
 on its sides, drifts the wind has laid on it, sled tracks down every face, and
 toboggans and saucers left lying about. Down its south-east face winds a sled
-run: a gate at the top, a drop, a banked hairpin, a kicker, a second hairpin,
-a tunnel through a big drift (which can be driven over too), a banked turn, a
-second kicker and the finish, with a snow fence across the run-out.
+run: a gate at the top, along the ridge, a banked hairpin right, a quarter
+left onto the south face and the big jump (a kicker at the brow, out over the
+steepest face on the hill), then a wide banked sweeper, a tunnel through a big
+drift and the finish, with a snow fence across the run-out.
 
 The run is ridden on a sled, not driven. A toy's toboggan waits at the gate:
 pull up and press `E` (SLED on a phone) and the car, or the drone, sits in it.
@@ -451,7 +453,7 @@ snow. The north-west one is a ballpark, ploughed and lit for a night game
   the circle round the mound and the foul lines in chalk. The outfield snow
   is rolled in a checker, as a groundsman mows grass, out to a clay warning
   track.
-- **Walled.** The outfield wall stands 40 m down the lines and 68 m out in
+- **Walled.** The outfield wall stands 40 m down the lines and 70 m out in
   centre field, 1.4 m high (a fantasy distance for a 46 cm toy: the derby's
   snowballs fly as far as they need to). It is padded, with the yellow
   home-run line along its top, the distances in feet on it, a yellow foul
@@ -635,9 +637,9 @@ Nothing is ever drawn on or over a painting: whatever a work sets off happens be
   the plain white Seurat wanted.
 - **The drone** can go outside and over the roofs.
 
-The title screen has two choices, Vehicle and Game mode, set to RC Car and
-Explore; press Start (or Enter). On a phone the whole menu is six things to
-tap: the two choices, Continue, New game, Settings and Trophies.
+The title screen has one choice, Vehicle, set to RC Car; press Start (or
+Enter). Under it: Continue (once there is a game), New game, Settings,
+Trophies, Secrets, Controls and About.
 
 ## Art Score, view counts, trophies and the garage
 
@@ -664,7 +666,7 @@ tap: the two choices, Continue, New game, Settings and Trophies.
   picture that is not in tonight's hang is left off the list. They are kept on
   the device and a new game does not take them away. The list is `TROPHIES`
   in `src/trophies.js`.
-- **The garage.** Five cars and four drones. The Vehicle choice on the title
+- **The garage.** Eleven cars and six drones. The Vehicle choice on the title
   screen goes through all of them; a locked one is shown as a silhouette with
   what it needs ("Look closely at 12 more works"). They unlock at 15, 25, 40, 60 and 100
   works looked at closely (driving past does not count), and two for trophies. (There is one more place in the selector,
@@ -684,7 +686,8 @@ The Controls link on the title screen lists everything.
 ## Back of house, fitted out
 
 The rooms that are not galleries (offices, stores, studios, workshops, plant,
-kitchens, the school, the auditoria, the service corridors: about 270 of them)
+kitchens, the school, the auditoria, the service corridors: about 160 of them
+open)
 are furnished according to what their names say they are. A curators' office
 has desks, filing cabinets and bookcases; a painting store has rolling mesh
 racks hung with canvases; a conservation studio has easels, work tables, lamps
@@ -776,7 +779,8 @@ kind of room, add a line to the list.
 
 ## Security robots
 
-At night a few security robots patrol the galleries: squat wheeled things in a
+At night seventeen security robots (sixteen on patrol, and the lobby's) keep
+the galleries: squat wheeled things in a
 pale shell with a navy band, a searchlight in the head, a beacon on top and a
 copper prong. Each has its own beat, out along a short chain of galleries on
 one level and back, stopping in each room to sweep its light about. They keep
@@ -786,8 +790,8 @@ and ramps) and never wait in a doorway.
 - **What it sees is where its light falls.** The pool on the floor stops at
   the walls, and that is the whole of what it can see. Walls, columns and
   cases hide you; a bench or a box hides a car tucked close behind it. Your
-  headlamp gives you away: lights off, it sees you at 6 m; lights on, at
-  9.5 m, and sooner.
+  headlamp gives you away: lights off, it sees you at 8 m; lights on, at
+  12 m, and sooner. A toy going fast within 5 m is heard.
 - **? then !** Stay in the light and a **?** comes up while it makes up its
   mind. Still there, and it is **!**: the light goes red and it comes for you.
   It is a good deal slower than the car (5.6 m/s against 9.5) but turns
@@ -809,7 +813,7 @@ and ramps) and never wait in a doorway.
   `src/staffvent.js`).
 - Two trophies: one for the dumpster, one for shaking a robot off five times.
 - Never during a race, and not during a heist. They stand still
-  while you look at a work. On a phone there are three, otherwise six.
+  while you look at a work. There are as many on a phone as on a computer.
   Settings, Driving, has a switch to turn them off.
 
 Their beats, the floor they drive on, what blocks their sight and the way
@@ -944,7 +948,7 @@ announces itself with a `museum:repair` event (`start`, `end`).
 
 Settings are on the title screen and the pause menu, and are remembered.
 
-- Three volume sliders: everything, the toy motor, music and lamp chimes. `M` mutes.
+- Three volume sliders: everything, the toy motor, music and lamp chimes. (No key mutes: `M` is the map.)
 - **Reduce motion and flashing** (on by default when the system asks for
   reduced motion): no slow motion, no swinging camera or speed zoom, lamps fade
   up instead of flickering, nothing pulses or scrolls.
@@ -976,8 +980,9 @@ find the way in, how far round they get and what they stop to look at.
 - **View counts.** Each look at a work also adds one to that work's count for
   everybody (`supabase/003-views.sql`): the museum's id for the work and
   its title. Nothing about who looked is kept
-  with the count. The counts are the one thing the game reads back, to say
-  "Seen N times by everyone" on a label. A test never adds to them, and with
+  with the count. The counts are what the game reads back: to say
+  "Seen N times by everyone" on a label, and, on the title screen, how many
+  patrons have looked at how many works and which they go back to. A test never adds to them, and with
   the switch off they are neither added to nor asked for.
 - **What is not:** no name, no email, nothing typed (nothing is typed in this
   game), nothing about where the player really is. The only position sent is
@@ -987,9 +992,10 @@ find the way in, how far round they get and what they stop to look at.
   the About screen says it is there. Off, nothing at all is sent.
 - **Where it goes:** the `museum_*` tables of the Supabase project the author's
   other games report to (`supabase/001-telemetry.sql`). Clients can only call
-  two functions that clamp every field; nothing can be read back without the
-  service key, except the per-work view counts, through one function that
-  gives back counts and titles only. `003-views.sql` has been written but is
+  six functions: four that record (a page opened, a session, an event, a view)
+  and clamp every field, and two that give back counts and titles only (the
+  works most looked at, and the totals). Nothing else can be read back without
+  the service key. `003-views.sql` has been written but is
   not applied by anything here: run it on the project before the counts will
   work. Until then the label simply leaves that line out.
 - **Page opens, as well as games.** A session row is only made when a game is
@@ -1074,7 +1080,8 @@ Three things the docs do not make obvious:
 
 `node tools/build_layout.mjs` regenerates `src/layout.js`, the floor plan, from
 the survey in `survey/`. `node tools/check_layout.mjs` then checks
-that the plan is sound: every room and deck reached from the front door, no
+that the plan is sound: every open room and deck reached from the front door
+past no shut door, no
 doorway opening onto nothing, no ramp too steep, every race course on the floor and clear of walls. `node tools/fetch_collection.mjs` refreshes
 `data/collection.json`, the saved copy the game falls back to when the API
 cannot be reached. Add `--images` to also save every image to `data/img/`
@@ -1103,7 +1110,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
 
     index.html, style.css     page and on-screen display
     src/layout.js             the rooms, doorways, decks, ramps and lifts (generated by tools/build_layout.mjs)
-    tools/check_layout.mjs    proves the plan can be driven all the way round
+    tools/check_layout.mjs    proves the plan the game plays (src/layout.js less src/shut.js) can be driven all the way round
     src/plan.js               levels, collision, stunt kit, hanging, cases, race route (no three.js)
     src/collection.js         API calls and sorting works into rooms
     src/books.js, reading.js  books from Open Library: the reading room's display, further reading on labels (tools/books.mjs)
@@ -1118,7 +1125,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/lightshow.js          the Winter Wonderland light show on Butler Field and its Light Run
     src/bandshell.js          the band shell on Butler Field, its light show, and Snow Ball, the dance game on its stage
     src/snowballsongs.js      Snow Ball's two dances: scores, the band that plays them, the steps (no three.js, no DOM)
-    src/sledhill.js           the sledding hill on Butler Field: its run, tunnel, hut, steps, trees, and the sled you ride down it
+    src/sledhill.js           the sledding hill on Butler Field: its run, tunnel, the Tuxedo Shop on top, steps, trees, and the sled you ride down it
     src/sledland.js           the hill's ground: one heightfield the car drives on and the mesh is drawn from (no three.js)
     src/carols.js             the carols it plays: scores, chord charts, the band, the player (no three.js, no DOM)
     src/glowkit.js            lights out of doors: instanced bulbs, figures drawn in glowing wire

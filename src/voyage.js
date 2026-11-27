@@ -47,7 +47,7 @@ const PLANETS = [['mercury', 88, -6, 15000, 140], ['venus', 56, -3, 9000, 240], 
 const MOON_SUN = dirAE(100, 13), MOON_EARTH = dirAE(-12, 31);
 
 // ---------------------------------------------------------------- saving --
-export function voyageSaved() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); return s && s.stage ? s : null; } catch { return null; } }
+export function voyageSaved() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); return s && ['space', 'landed', 'opened', 'home'].includes(s.stage) && s.cargo && typeof s.cargo === 'object' ? s : null; } catch { return null; } }      // (a stage the voyage itself writes, and a cargo: anything else truthy sent Continue straight into a voyage with nothing aboard)
 export function voyageFinished() { try { return localStorage.getItem(DONE) === '1'; } catch { return false; } }
 export function clearVoyage() { try { localStorage.removeItem(SAVE); } catch { /* fine */ } }
 function save(stage, v) {
@@ -172,7 +172,7 @@ class Voyage {
     if (G.galleryMusic && G.galleryMusic._switch) { try { G.galleryMusic._switch(null); G.galleryMusic.key = null; } catch { /* fine */ } }
     this._onKey = e => this._key(e); addEventListener('keydown', this._onKey);
     // build next frame, so the black is up first
-    requestAnimationFrame(() => setTimeout(() => this._build(stage), 0));
+    requestAnimationFrame(() => setTimeout(() => { try { this._build(stage); } catch (e) { console.error('voyage (building)', e); try { this.end(); } catch (e2) { console.error('voyage (ending)', e2); } } }, 0));      // (a throw in the building left a black screen, and Continue walked back into it: flown home instead, as a voyage that throws in flight is)
   }
 
   // ------------------------------------------------------------- building --

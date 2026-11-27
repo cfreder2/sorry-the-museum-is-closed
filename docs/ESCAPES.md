@@ -30,7 +30,7 @@ room to room (`parasol.js`). The test that films and measures them is `tools/dev
 **Seurat's monkey is not an escapee.** It was the fifth first test (`src/escape/monkey.js`, written against the old
 secret in Gallery 240), but its getting-out is now the chase in `src/l2-grandejatte.js`: under the bench in 240 from
 the start of the night, away to the Director's whiteboard, home, and back on its lead. There is one monkey, and it is
-that one. `monkey.js` is kept in the tree and is not imported; the Seurat row in the table below is the old plan.
+that one. `monkey.js` was imported by nothing and has been removed; the Seurat row in the table below is the old plan.
 
 ## The idea
 

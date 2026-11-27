@@ -226,7 +226,7 @@ feature({
     this.keys = {}; this.stick = null; this.last = performance.now();
     this._blip('on');
     try { if (G.tm && G.tm.event) G.tm.event('secdesk', 'desk' + (d.n + 1)); } catch { /* fine */ }
-    const frame = now => { if (!this.on) return; requestAnimationFrame(frame); this._frame(now); };
+    const frame = now => { if (!this.on) return; requestAnimationFrame(frame); try { this._frame(now); } catch (e) { console.error('feature secdesk', e); try { this.close(); } catch { this.on = false; } } };      // (this loop is the desk's own, outside the features' try: a throw in it came again every frame while the desk was up. Now the desk shuts and the toy is let go)
     requestAnimationFrame(frame);
   },
   close() {

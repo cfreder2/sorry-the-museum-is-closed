@@ -145,6 +145,8 @@ const MAXC = 24;                          // canvases guarded per work (the work
 const GUARDS = new WeakMap();
 let MUSEUM = null;
 function guardOf(art) {
+  // (No work to guard: say who asked, once, and hand back a block nothing reads. A WeakMap will not take such a key, and the page error it throws, "Invalid value used as weak map key", seen twice on build .18, names no caller.)
+  if (art === null || typeof art !== 'object') { if (!guardOf.said) { guardOf.said = true; console.error(new Error('paintlife guardOf: no work to guard')); } return guardOf.spare || (guardOf.spare = { uLifeR: { value: Array.from({ length: MAXC * 3 }, () => new THREE.Vector4()) }, uLifeN: { value: 0 }, uLifeOff: { value: 0 }, uLifePx: { value: 900 }, arts: [] }); }
   let u = GUARDS.get(art);
   if (!u) { GUARDS.set(art, u = { uLifeR: { value: Array.from({ length: MAXC * 3 }, () => new THREE.Vector4()) }, uLifeN: { value: 0 }, uLifeOff: { value: 0 }, uLifePx: { value: 900 }, arts: [] }); placeGuard(art); }
   return u;
@@ -254,8 +256,8 @@ export function palette(art, n = 8) {
     try { const im = art.tex && art.tex.image; if (im && im.width > 32) { px = grab(im); src = 'texture'; } } catch { px = null; }      // (a picture drawn from another site without permission cannot be read)
     if (!px && w.img) try {
       const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 5000);
-      const r = await fetch(imageUrl(w, 400), { referrerPolicy: 'no-referrer', signal: ctl.signal }); clearTimeout(to);
-      if (r.ok) { const bm = await createImageBitmap(await r.blob()); px = grab(bm); if (bm.close) bm.close(); src = 'image'; }
+      const r = await fetch(imageUrl(w, 400), { referrerPolicy: 'no-referrer', signal: ctl.signal }), blob = r.ok ? await r.blob() : null; clearTimeout(to);      // (the five seconds cover the picture itself, not only its headers: a body that stalled hung this work's palette, and it never came alive)
+      if (blob) { const bm = await createImageBitmap(blob); px = grab(bm); if (bm.close) bm.close(); src = 'image'; }
     } catch { px = null; }
     if (!px && w.lq) try { const im = new Image(); im.src = w.lq; await im.decode(); px = grab(im); src = 'preview'; } catch { px = null; }
     return new Palette(px ? kmeans(px, n, w.id) : [], src);
@@ -457,7 +459,7 @@ class Voice {
       const s = this.L.k.sound; this.bus = c.createGain(); this.bus.gain.value = this.level;
       this.pan = c.createStereoPanner ? c.createStereoPanner() : null;
       const into = this.pan || this.bus; if (this.pan) this.pan.connect(this.bus);
-      this.bus.connect(s.dry || s.master); if (s.send) { const w = c.createGain(); w.gain.value = 0.35; this.bus.connect(w); w.connect(s.send); }
+      this.bus.connect(s.world || s.dry || s.master); if (s.send) { const w = c.createGain(); w.gain.value = 0.35; this.bus.connect(w); w.connect(s.worldWet || s.send); }      // (a painting's wind or rain goes on: the world's, silent while a menu is up, audio.js quiet())
       this.into = into;
     }
     return this.into;

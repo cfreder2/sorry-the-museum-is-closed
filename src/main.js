@@ -145,6 +145,7 @@ const SETTINGS = 'after-hours.settings';
 const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true, escapes: true, gentle1: true,
   autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
+for (const k of ['master', 'motor', 'music']) if (!(typeof set[k] === 'number' && set[k] >= 0 && set[k] <= 1)) set[k] = k === 'motor' ? 0.5 : 0.8;      // (a volume that is not a number stopped the sound being built, and then threw every frame)
 
 const G = {
   set,
@@ -155,13 +156,13 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.27';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.28';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
 // The test handle. Anything that reaches for it is not a person playing, and the telemetry is told so.
 Object.defineProperty(window, '__ah', { configurable: true, get() { tm.handleTouched = true; return G; } });
-try { G.seen = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); } catch { /* no storage */ }
+try { const s = JSON.parse(localStorage.getItem('after-hours.seen') || '[]'); if (Array.isArray(s)) G.seen = s.filter(w => w && typeof w === 'object' && w.id != null); } catch { /* no storage */ }      // (only what note() writes: a record of another shape threw at every look, and in the notebook)
 
 // ---- art score, trophies and the garage (score.js, trophies.js, garage.js) ----
 const note = w => { if (G.seen.some(s => s.id === w.id)) return; G.seen.push({ id: w.id, t: w.t, a: w.a, img: w.img }); try { localStorage.setItem('after-hours.seen', JSON.stringify(G.seen)); } catch { /* fine */ } };      // into the notebook
@@ -343,6 +344,7 @@ async function boot() {
   // Mine: what is under the building, what stands on the pedestal there, the monitor nobody upstairs has, and the whiteboards (all of them, as one).
   secrets.add('boards', 'The whiteboards the staff left written on').add('vault', 'Sub-level 9').add('ufo', 'The thing on the pedestal').add('outpost', 'A monitor left on, a long way down: Outpost Nine');
   addEventListener('museum:board', () => secrets.find('boards'));
+  if (G.secret.taken) secrets.keep('ufo');      // (taken on an earlier visit: the pedestal stays empty, so the secret stays found, without a word)
   addEventListener('museum:secret', e => { const d = e.detail || {}; if (d.event === 'ufo') secrets.find('ufo'); if (d.event === 'arrived') secrets.find('vault'); });
   addEventListener('museum:arcade', e => { const d = e.detail || {}; if (d.event === 'bonus' || d.event === 'bonus-found') secrets.find('outpost'); });
   // The side games earn trophies too.
@@ -365,7 +367,7 @@ async function boot() {
 
   // Every registered feature (features.js) is started here, with the shared kit, the bar moving on as they start.
   await loading(89, 'Making the last rounds', 91);
-  G.features = await startFeaturesInTurn({ G, THREE, secrets, say, once, callout, sound, stage }, (n, all) => loading(89 + 3 * n / all, 'Making the last rounds', 92));
+  G.features = await startFeaturesInTurn({ G, THREE, secrets, say, once, callout, sound, stage, key: verb => (input.usedTouch ? verb || 'LOOK' : E()) }, (n, all) => loading(89 + 3 * n / all, 'Making the last rounds', 92));
 
   setVehicle('car');
   G.car.place(plan.spawn.x + 3, plan.spawn.z, plan.spawn.yaw);
@@ -457,6 +459,7 @@ function start(fresh = false) {
     const sv = fresh ? null : saved(), sp = sv || G.plan.spawn;
     if (G.toy === 'drone') G.drone.place(sp.x, sp.z, sp.yaw, sv ? (sv.y || 0) + (sv.toy === 'drone' ? 0 : 0.9) : 0.9); else G.car.place(sp.x, sp.z, sp.yaw, sv ? sv.y || 0 : 0);
     resumed = !!sv;
+    G.perched.clear(); if (sv && Array.isArray(sv.perched)) for (const p of sv.perched) if (typeof p === 'string') G.perched.add(p);      // (the high places reached, kept with the place: Continue used to begin at 0 / 18 every time)
     // The doors stay locked until you have found your way in once.
     G.museum.setLocked(!unlocked(), true);
     G.outsideSince = G.t; G.hinted = 0;
@@ -476,7 +479,6 @@ function start(fresh = false) {
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
   G.startedAt = G.t;
-  G.perched.clear();
   G.state = 'play';
   chase(0, true);
   show(null);
@@ -547,7 +549,7 @@ function keep() {
   const v = G.vehicle;
   if (G.racing || G.state !== 'play' || G.t - lastSave < 3 || v.air || v.rail || G.held) return;
   lastSave = G.t;
-  try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind, plan: G.plan.made })); } catch { /* fine */ }
+  try { localStorage.setItem(SAVE, JSON.stringify({ x: +v.pos.x.toFixed(2), y: +v.pos.y.toFixed(2), z: +v.pos.z.toFixed(2), yaw: +v.yaw.toFixed(3), toy: v.kind, plan: G.plan.made, perched: [...G.perched] })); } catch { /* fine */ }
 }
 function newGame() {
   G.museum.forget();
@@ -555,10 +557,12 @@ function newGame() {
   G.seen = []; bestAir = 0; G.perched.clear(); G.told.clear(); G.poker.reset(); G.hockey.reset(); G.roofed = false;
   G.arcade.reset();
   G.lights.reset();
-  G.arcade.reset(); G.secret.reset(); G.boards.reset();
+  G.arcade.reset(); G.secret.reset(); G.boards.reset(); G.heist.fresh();
   secrets.reset();
   G.presents.reset();
   if (G.features) G.features.fresh();
+  // What a new game does not undo keeps its secret: a collection left finished (features.js, `kept`), and the saucer once taken.
+  if (G.features) G.features.kept(); if (G.secret.taken) secrets.keep('ufo');
   garage.fresh(pick);                                 // her own red RC Car, whatever was last driven
   try { for (const k of [SAVE, IN, 'after-hours.seen', 'after-hours.air', 'after-hours.voyage', 'after-hours.night', 'after-hours.escapes']) localStorage.removeItem(k); } catch { /* fine */ }
 }
@@ -625,6 +629,7 @@ let shown = 'title';
 function show(name) {
   for (const id of ['title', 'pause', 'notebook', 'settings', 'controls', 'about', 'bigmap']) $(id).hidden = id !== name;
   shown = name;
+  sound.quiet(!!name);      // (a menu is up: the train, the traffic and every other sound that goes on in the world wait in silence, src/audio.js)
   if (name === 'title') $('titleMoon').hidden = !voyageFinished();      // a small Moon by the title once the museum on the Moon has opened
   // Keyboard and switch users land on the first control of whatever just opened.
   if (name) { const first = $(name).querySelector('[data-first]:not([disabled])') || $(name).querySelector('button:not([disabled]), input'); if (first) first.focus({ preventScroll: true }); }
@@ -676,7 +681,11 @@ input.bind($('bJump'), 'jump'); input.bind($('bUp'), 'up'); input.bind($('bDown'
 // A phone held upright is asked to turn; the game waits while it does.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 820px)');
 upright.addEventListener('change', () => { if (upright.matches && (G.state === 'play' || G.state === 'study') && !document.body.classList.contains('sd-open')) pause(); });      // (not at the security desk's computer, which works either way up, and is easier to type at upright: src/secdesk.js)
-document.addEventListener('visibilitychange', () => { if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
+// Leaving (the tab hidden, the page put away): what is written a moment behind is written now. The works seen wait a second and a
+// half and the score nearly half a second: close the tab inside that and the last work was unseen next time.
+const leaving = () => { if (G.museum && G.museum.flush) G.museum.flush(); score.write(); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) leaving(); if (document.hidden && (G.state === 'play' || G.state === 'study')) pause(); });
+addEventListener('pagehide', leaving);
 
 const toasts = [];
 // `now`: it cannot wait its turn (a robot has just seen you): it goes up at once, over whatever is showing.
@@ -1478,7 +1487,7 @@ function play(dt, real) {
     G.heist.update(dt, v);
     // The toy stall on the roof.
     if (stallNear) {
-      once('stall', 'A toy stall, up here of all places. Two for sale, 2,000 chips each. E to look.', 7);
+      once('stall', `A toy stall, up here of all places. Two for sale, 2,000 chips each. ${input.usedTouch ? 'SHOP' : E()} to look.`, 7);
       $('bLook').hidden = false; $('bLook').lastElementChild.textContent = 'SHOP';
       if (shopTap) G.shop.open();
     }
@@ -1521,7 +1530,7 @@ function play(dt, real) {
     const on = v.kind === 'car' && !v.air ? v.on : null;
     if (on && on.perch && Math.abs(v.speed) < 2.5) {
       const key = on.perch + '@' + Math.round(on.x0) + ',' + Math.round(on.z0);
-      if (!G.perched.has(key)) { G.perched.add(key); callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: ${input.usedTouch ? 'LOOK' : E()} works from here too.`, 0.5, 6); }
+      if (!G.perched.has(key)) { G.perched.add(key); lastSave = -9; callout('A VIEW FROM UP HERE'); sound.lap(); say(`The ${on.perch}. Look round: ${input.usedTouch ? 'LOOK' : E()} works from here too.`, 0.5, 6); }      // (lastSave: kept at once, with the place, by keep() below)
     }
   }
   keep();

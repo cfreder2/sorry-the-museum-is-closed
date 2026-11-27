@@ -185,23 +185,25 @@ An audit from a new player's side found the chain sound but hard to start and ea
 
 What was added (`src/story.js`, in the order a player meets it):
 
-1. **Pawprints** glowing on the front terrace, going in at the air vent ahead of you (seconds in).
-2. **The grate**, in the lobby on the way in: green light through the slats, a hum, and a glowing mouse sitting on it that
-   looks at you and dives through. LISTEN: five notes from far below, the craft's call; a brass tag, "KEEP SHUT. — D."
-   Now and then it calls again by itself. The first page of the file.
+1. **The saucer in the entrance hall** (`src/entry.js`), the first time you come in by the vent: a small saucer scanning
+   the Turner, the lobby's robot seeing it off through the front doors. A cutscene of sixteen seconds, with SKIP. It is not
+   a page of the file.
+2. (There were glowing pawprints on the terrace, a mouse on a floor grate in the lobby, and the grate itself, humming the
+   call. All three were taken out when the saucer was given the entrance hall. The call is first heard from the mice, or
+   out on Butler Field.)
 3. **The mice squeak the call** (`src/mice.js`): two notes of it at each stop, the next two at the next; the whole call as
    one goes in through its grille.
-4. **The probe** (`src/probe.js`), once the grate's page is in the file, three more works have been looked at (or three
-   minutes spent indoors since) and over a minute indoors in all: the grate hums louder and the `?` sits on it. Come near
-   the lobby and a small saucer (80 cm across, bigger than your toy) rises out of it, edge on, in a column of green
-   light, flies to you through the doorways, past you, and hangs in front of you, chiming the call. It leaves a ribbon
+4. **The probe** (`src/probe.js`), once the entrance-hall scene is over, three more works have been looked at (or three
+   minutes spent indoors since) and over a minute indoors in all: a `?` sits in the entrance hall. Come near
+   the lobby and the small saucer (80 cm across, bigger than your toy) slips in again by the front doors, low,
+   flies to you through the doorways, past you, and hangs in front of you, chiming the call. It leaves a ribbon
    of light in the call's colours, kept low indoors and, like all its glows, never drawn on a work of art (src/probe.js
    artSafe). Then you herd it out: it keeps about 3.2 m ahead of you along its way
    to the vent (the floor grid of `guardplan.js`, through doorways, never a wall), eases away as you come, hurries if you
    rush it, stays put and chimes softly when you stop, never runs off. Out on the terrace it takes off on its own, over
    the roofs, Butler Field and the ballpark to the harbour light (a short camera beat watches it go), and waits there.
    Reach the light across the floes and it circles the lantern once, the light flickers green, and it streaks straight up.
-   Saved in `after-hours.probe` (`flown` from the moment it rises, so a reload finds it waiting at the light; `gone`).
+   Saved in `after-hours.probe` (`flown` once it has come back in, so a reload finds it waiting at the light; `gone`).
 5. **Clarice's log**, on the step of the keeper's hut at the foot of the light (drawn in `harbour.js`, solid in
    `harbourplan.js` as `L.hut`). READ: the harbour keeper's last entries, the museum lit at two, "people" with crates
    going down not out, green light under Butler Field, five notes off the water, "They answered", something small at
@@ -223,20 +225,23 @@ Along the way:
 - **The file**: each page is a toast with as many notes of the call as pages so far (the tune grows with the mystery),
   and a pause-menu button, *The Green Cheese file*, once there is a page: pages found, the rest as `? ? ?`, the next one
   with a one-line hint.
-- **A faint `?` on the map** for the next step: the grate once the probe is due, the probe while it is to be followed,
-  the keeper's log once it has gone (`G.probe.where()`, asked first); then the next mouse (or its vent), the desk, the whiteboard, the picture, the
-  keycard, the blast door, the console; and the rings once the light has been seen. On the big map and the radar, not
-  the radar's rim.
-- **Whiteboards**: the incidents board logs the light over the lake, the engineers' board the humming grate, the
-  volunteers' desk is told the lights are planes.
-- **Saved** in `after-hours.story` (pages, the mouse gone down, the note read); New game clears it.
+- **A faint `?` on the map** for the next step of the chain, from the first minute indoors: the next mouse (or its vent),
+  the desk, the whiteboard, the picture, the keycard, the blast door, the console. The saucer has a second `?` of its own,
+  beside the chain's and not instead of it (`G.probe.where()`): the entrance hall once it is due, the saucer while it is to
+  be followed, the keeper's log once it has gone. And one on the rings once the light has been seen. On the big map and
+  the radar; off the radar's edge, a small one on its rim.
+- **Whiteboards**: the incidents board logs the light over the lake, and the volunteers' desk is told the lights are
+  planes.
+- **Saved** in `after-hours.story` (the pages got, and the note read); New game clears it.
 
 **The story API** (`import { story } from './story.js'`, also `G.story`): `story.add(id)` (true the first time; toast
 and sting), `story.has(id)`, `story.count`, `story.total`, `story.open()`, `story.enable(id)`, `story.heard`. Page ids:
-`grate`, `lighthouse`, `lights`, `party`, `ring`, `portal`, `nests`, `desk`, `passage`, `sublevel9`, `alienracer`, `base`.
+`lighthouse`, `lights`, `party`, `ring`, `portal`, `nightlog`, `nests`, `desk`, `passage`, `sublevel9`, `alienracer`, `base`
+(eight always, and four optional ones, `party`, `portal`, `nightlog` and `alienracer`, each counted once its own module
+has started: twelve in all).
 
 **For the alien racer** (the race spots): `alienracer` is an optional page, "The green racer's charm". At its init the
-race module calls `story.enable('alienracer')` (until then the file counts 9 pages, after it 10); when the alien racer is
+race module calls `story.enable('alienracer')` (so the file counts it); when the alien racer is
 beaten, `story.add('alienracer')`. Its page says the charm hums when it faces the park, and once it is found the map's
 `?` goes on the rings over the silo. The racer is Zib, a little green rover waiting in a crop circle in the snow on the
 north-east of Butler Field (src/racecourses.js, `crop`); src/racespots.js makes both calls.
@@ -260,7 +265,7 @@ bottom of the sled run.
 ## Open choices (decided for now; easy to change)
 
 - **Optional:** the finale doesn't block anything else, so the game can be explored without it.
-- **Three saucers, one family:** the *probe* out of the lobby grate is a live scout, small and unmanned, that
+- **Three saucers, one family:** the *probe*, first met in the entrance hall, is a live scout, small and unmanned, that
   leads you to Clarice's log and leaves; the *UFO toy* in Sub-level 9 (`buildSaucer`) is a model of the craft someone
   made, and stays an unlock you can drive; the *craft* in the hangar (`craft.js`) is the real one, the one you ride.
 - **Car or drone:** you can arrive with either; the car rides along, the drone docks, and both are on the Moon.

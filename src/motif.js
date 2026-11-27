@@ -14,11 +14,8 @@ export const MOTIF = Object.freeze([
   Object.freeze({ midi: 69, beats: 1, name: 'A', colour: '#ff8a4c', pad: 3 }),       // orange
   Object.freeze({ midi: 64, beats: 3, name: 'E', colour: '#d78cff', pad: 4 }),       // violet, held
 ]);
-export const MOTIF_NOTES = Object.freeze(MOTIF.map(n => n.midi));          // [62, 67, 71, 69, 64]
 export const MOTIF_BEATS = Object.freeze(MOTIF.map(n => n.beats));        // [1, 1, 1, 1, 3]
 export const MOTIF_COLOURS = Object.freeze(MOTIF.map(n => n.colour));
-// The key it sits in (D major), for anything that wants to harmonise it.
-export const MOTIF_KEY = 62;
 export const hz = m => 440 * Math.pow(2, (m - 69) / 12);
 
 /** When each note starts and how long it lasts, in seconds, at `beat` seconds a beat: [{ i, midi, t, dur }]. */
@@ -27,8 +24,6 @@ export function motifTimes(beat = 0.42, transpose = 0) {
   return MOTIF.map((n, i) => { const o = { i, midi: n.midi + transpose, t, dur: n.beats * beat }; t += n.beats * beat; return o; });
 }
 
-/** The length of the whole call, in seconds. */
-export const motifLength = (beat = 0.42) => MOTIF_BEATS.reduce((s, b) => s + b, 0) * beat;
 
 // One note of the call, in the craft's own voice: a glassy tone (a sine and a soft triangle a fifth-and-octave up,
 // fading in quickly and ringing out), sent to `out` (any AudioNode). Returns when it has finished sounding.

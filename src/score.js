@@ -53,12 +53,18 @@ export class Score {
       const a = JSON.parse(localStorage.getItem(ALL) || 'null');
       if (a && a.at && Date.now() - a.at < 3600e3 && a.n) { this.all = new Map(Object.entries(a.n).map(([k, n]) => [+k, n])); this.allAt = a.at; }
     } catch { /* no storage */ }
+    if (!this.views || typeof this.views !== 'object' || Array.isArray(this.views)) this.views = {};      // (a record of another shape: every look threw as it was counted)
     for (const k in this.s) if (!Number.isFinite(this.s[k])) this.s[k] = 0;
   }
 
   _save() {
     clearTimeout(this._t);
-    this._t = setTimeout(() => { try { localStorage.setItem(VIEWS, JSON.stringify(this.views)); localStorage.setItem(SCORE, JSON.stringify(this.s)); localStorage.setItem(CAUGHT, JSON.stringify({ stunt: [...this.caught], look: [...this.looked1] })); } catch { /* fine */ } }, 400);
+    this._t = setTimeout(() => this.write(), 400);
+  }
+  // (written now: main.js calls it as the page is left, or the last look's score went unwritten)
+  write() {
+    if (!this._t) return; clearTimeout(this._t); this._t = 0;
+    try { localStorage.setItem(VIEWS, JSON.stringify(this.views)); localStorage.setItem(SCORE, JSON.stringify(this.s)); localStorage.setItem(CAUGHT, JSON.stringify({ stunt: [...this.caught], look: [...this.looked1] })); } catch { /* fine */ }
   }
   /** A new game: the score and its tallies go; how often you have looked at each work is kept. */
   reset() { this.s = { score: 0, looks: 0, stunts: 0, bullet: 0, combo: 0, best: 0 }; this.run = null; this.caught.clear(); this.looked1.clear(); this._save(); }

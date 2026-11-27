@@ -500,7 +500,7 @@ feature({
   secrets: [['lionhunt', 'The lion hunt']],
   init(k) {
     const P = k.plan;
-    this.set = k.collect('lions', 12);
+    this.set = k.collect('lions', 12, 'lionhunt');
     this.started = store.get('feature-lions-started', false);
     this.art = k.museum.arts.find(a => a.room === 'G220' && /Lion Hunt/i.test(a.work.t)) || k.museum.arts.find(a => /^The Lion Hunt|Lion Hunt/i.test(a.work.t));
     this.lions = [];

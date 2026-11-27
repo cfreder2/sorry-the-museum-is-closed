@@ -265,6 +265,7 @@ feature({
     // A soft wash of light on the gallery floor in front of each case, as if from inside.
     for (const rm of this.rooms) { const l = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.4), new THREE.MeshBasicMaterial({ map: TX.radial(0, 1.2), color: new THREE.Color(0.32, 0.22, 0.1), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })); l.rotation.x = -Math.PI / 2; l.position.set(rm.xg + rm.f * 0.6, y0 + 0.01, rm.z0 + W / 2); k.group.add(l); }
     for (const rm of this.rooms) if (this.got.has(rm.find.id)) rm.find.mesh.visible = false;
+    k.keeps('thorne:all', () => this.rooms.length > 0 && this.rooms.every(r => this.got.has(r.find.id)));      // (the finds stay found, so their secret does: features.js)
     this.t = 0; this.tick = 0; this.inside = null;
   },
   active(k) { return !!this.rooms && k.inRoom('G11', 2); },

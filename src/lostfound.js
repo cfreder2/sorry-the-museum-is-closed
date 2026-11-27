@@ -43,7 +43,7 @@ export const KINDS = [      // (exported for the Moon museum's cabinet, src/voya
 feature({
   id: 'lostfound',
   secrets: [['lostfirst', 'Somebody dropped this'], ['lostfound', 'Lost and found']],
-  init(k) { this.k = k; this.items = []; this.box = null; this.boxes = []; this.tally = k.tally('lostfound', N); },
+  init(k) { this.k = k; this.items = []; this.box = null; this.boxes = []; this.tally = k.tally('lostfound', N, ['lostfirst', 'lostfound']); },      // (both secrets: with every lost thing home there is nothing left to pick up either)
 
   // Where: anywhere a visitor goes, the emptiest places first (furthest from anything there is to find already).
   place() {

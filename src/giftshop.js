@@ -88,7 +88,7 @@ const GLOBES = [
       const leg = C(d, 0.003, 0.003, 0.03, S(0xf4f0e6), 0.006, 0.0, 0); leg.geometry.translate(0, -0.012, 0); d.userData.leg = leg; return d; });
     return (t, live) => { const sp = 1 + live * 4; tiles.forEach((m, i) => m.material.emissive.setHex(Math.floor(t * sp * 2 + i * 1.7) % 4 === 0 ? 0xff5aa0 : 0x3a2030)); dancers.forEach((d, i) => { d.userData.leg.rotation.z = Math.max(0, Math.sin(t * sp * 5 + i)) * 1.6; d.rotation.y = t * sp * (i - 1) * 0.6; }); };
   } },
-  { to: 'thorne', name: 'The Thorne Rooms', where: 'the lower level', build(g) {
+  { to: 'thorne', name: 'The Thorne Rooms', where: 'Sub-level 1', build(g) {
     const wall = S(0x7a5a8a), floor = S(0x6a4a2a); B(g, 0.15, 0.008, 0.1, floor, 0, -0.096, 0); B(g, 0.15, 0.11, 0.008, wall, 0, -0.04, -0.05); B(g, 0.008, 0.11, 0.1, wall, -0.075, -0.04, 0); B(g, 0.008, 0.11, 0.1, wall, 0.075, -0.04, 0);
     B(g, 0.04, 0.035, 0.012, S(0xd8d0c0), 0, -0.075, -0.043); const fire = B(g, 0.02, 0.012, 0.004, new THREE.MeshBasicMaterial({ color: 0xff8a2a }), 0, -0.084, -0.038);
     B(g, 0.03, 0.004, 0.02, S(0x5a3020), -0.035, -0.072, 0.01); for (const sx of [-1, 1]) B(g, 0.003, 0.02, 0.003, S(0x5a3020), -0.035 + sx * 0.012, -0.084, 0.01);
@@ -131,6 +131,7 @@ feature({
   init(k) {
     this.k = k; const r = k.plan.byId[ROOM]; if (!r) return;
     this.r = r; this.y = r.y; this.state = this._load();
+    k.keeps('shelf', () => this.state.shelf.length >= SHELF.length); k.keeps('globes', () => this.state.globes.length >= GLOBES.length);      // (what you bought and shook is kept, so their secrets are: features.js)
     const g = this.g = new THREE.Group(); g.position.y = r.y; k.group.add(g);
     const kit = new Kit(), glass = new Kit(), light = new Kit(), rnd = rng(77);
     const O = (x0, x1, z0, z1, y1) => k.plan.obstacles.push({ x0, x1, z0, z1, y0: r.y - 0.2, y1: r.y + y1 });
@@ -293,7 +294,7 @@ feature({
   },
 
   // ---------------------------------------------------------------- remembered
-  _load() { try { const s = JSON.parse(localStorage.getItem(STORE) || '{}'); return { flags: s.flags || [], flag: s.flag || null, shelf: s.shelf || [], globes: s.globes || [] }; } catch { return { flags: [], flag: null, shelf: [], globes: [] }; } },
+  _load() { try { const s = JSON.parse(localStorage.getItem(STORE) || '{}'), list = v => (Array.isArray(v) ? v : []); return { flags: list(s.flags), flag: s.flag || null, shelf: list(s.shelf), globes: list(s.globes) }; } catch { return { flags: [], flag: null, shelf: [], globes: [] }; } },
   _save() { try { localStorage.setItem(STORE, JSON.stringify(this.state)); } catch { /* private window: it lasts the visit */ } },
 
   _priceTex(v) {

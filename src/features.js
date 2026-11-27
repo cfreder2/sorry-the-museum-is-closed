@@ -22,6 +22,8 @@
 //   k.G, k.plan, k.museum, k.sound, k.stage, k.THREE, k.group (a THREE.Group already in the scene)
 //   k.find(id)            -> true the first time: a secret found (toast and count handled by the Secrets system)
 //   k.say(text, hold), k.once(key, text, hold), k.callout(TEXT)      (k.say(text, 0, hold, true): at once, not in turn)
+//   k.key(verb)           the name of the action button in the player's hands, for a line said with k.say or k.once: E on a
+//                         keyboard, A on a gamepad, the button's own word (verb) on glass. (A near() hint is written "E to ..." and main.js does it.)
 //   k.v                   the toy now; k.pos its position; k.room the room it is in (or null outdoors)
 //   k.inRoom(id | id[], around = 0)   in that room, or within `around` metres of it on the same level
 //   k.close(p, r, dy = 1.5)          within r metres of {x,y,z} (and dy vertically)
@@ -31,8 +33,9 @@
 //   k.camClose            set to { at: {x,y,z}, look: {x,y,z} } from update() to stand the chase camera there this frame (inside a small
 //                         enclosure, say, where the usual camera behind the toy would end up in a wall). Cleared before each update round.
 //                         An optional fov (degrees) narrows or widens the view meanwhile.
-//   k.tally(key, total)   a set of things to collect across the building, remembered between visits:
-//                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done
+//   k.tally(key, total, secret = key)   a set of things to collect across the building, remembered between visits:
+//                         t.add(id) (true if new), t.has(id), t.count, t.total, t.done. `secret`: the secret (or list of them) it awards when full
+//   k.keeps(ids, done)    a collection a new game does not empty keeps its secret: put back, without a word, whenever done() is true
 //   k.tint(roomId)        light a room differently: .set(color, secs), .off(secs)   (see the end of this file)
 //   k.course(gates, opts) a timed run through gates in order: .start(), .update(dt), .fail(why)   (ditto)
 //   k.roofAt(x, z), k.roofSolid(piece, mat), k.parts()   up on the roofs, and drawing many small things cheaply (see "added for the roofs")
@@ -253,14 +256,21 @@ export async function startFeaturesInTurn(o, rest, budget = 40) {
 }
 const SLICE = 6;      // milliseconds a frame given to a feature being built while the game is played (wake, below)
 function kitFor(o) {
-  const { G, THREE, secrets, say, once, callout, sound, stage } = o;
+  const { G, THREE, secrets, say, once, callout, sound, stage, key } = o;
   const group = new THREE.Group(); group.name = 'features'; G.museum.group.add(group);
+  // What has been collected stays collected through a new game (the mice stay followed, the lost things stay handed in), but New
+  // game empties the Secrets list, and nothing left in the building could then earn the secret a finished collection awarded.
+  // So each such collection says which secret is its own, and that one is put back without a word (no callout, no chime, no
+  // chips again) whenever the collection is found already full: as it is made (a save caught by this) and after a new game (api.kept).
+  const kept = [], putBack = q => { let d = false; try { d = !!q.done(); } catch { /* not built */ } if (d) for (const id of q.ids) secrets.keep(id); };
   const k = {
     G, plan: G.plan, museum: G.museum, sound, stage, THREE, group, once, callout,
     // k.say(text, hold) as documented; k.say(text, delay, hold) as main.js's say. (Two arguments used to be read as a delay.)
     // A fourth argument, true, says it at once, ahead of whatever is waiting (for what is on the screen this moment).
     say: (text, a, b, now) => (b === undefined ? say(text, 0, a === undefined ? 5 : a) : say(text, a, b, !!now)),
     find: id => secrets.find(id),
+    key: verb => (key ? key(verb) : 'E'),
+    keeps(ids, done) { const q = { ids: [].concat(ids), done }; kept.push(q); putBack(q); },
     get v() { return G.vehicle; }, get pos() { return G.vehicle.pos; }, get room() { return G.roomId ? G.plan.byId[G.roomId] : null; },
     inRoom(ids, around = 0) {
       const p = G.vehicle.pos;
@@ -311,10 +321,12 @@ function kitFor(o) {
       return L;
     },
     // A "collect N of a set across the building" counter (mice followed, notes read, lost things returned, lions
-    // counted...), kept in localStorage so it lasts between visits.
-    tally(key, total) {
+    // counted...), kept in localStorage so it lasts between visits. The secret it awards when full is the one of its own name,
+    // unless `secret` names another (or a list): see `kept` above.
+    tally(key, total, secret = key) {
       const store = 'after-hours.tally.' + key; let got;
       try { got = new Set(JSON.parse(localStorage.getItem(store) || '[]')); } catch { got = new Set(); }
+      k.keeps(secret, () => total > 0 && got.size >= total);
       return {
         total, has: id => got.has(id), get count() { return got.size; }, get done() { return got.size >= total; },
         add(id) { if (got.has(id)) return false; got.add(id); try { localStorage.setItem(store, JSON.stringify([...got])); } catch { } return true; },
@@ -335,7 +347,7 @@ function kitFor(o) {
         else { src = c.createOscillator(); src.type = type; src.frequency.value = freq; }
         let node = src;
         for (const [kind, f] of [['lowpass', lp], ['highpass', hp]]) if (f) { const q = c.createBiquadFilter(); q.type = kind; q.frequency.value = f; node.connect(q); node = q; }
-        node.connect(g); g.connect(sound.master); src.start(); return true;
+        node.connect(g); g.connect(sound.world || sound.master); src.start(); return true;      // (the world's: silent while a menu is up, audio.js quiet())
       };
       const stop = () => { if (!src) return; try { src.stop(); } catch { /* stopped */ } src.disconnect(); g.disconnect(); src = g = null; };
       return {
@@ -356,11 +368,13 @@ function kitFor(o) {
     },
     // A set of things to collect across the building (the lions, mice, lost property...), remembered between visits.
     //   const lions = k.collect('lions', 12); lions.add('L3') -> the new count the first time, 0 if already had;
-    //   lions.has(id), lions.count, lions.total, lions.done, lions.clear()
-    collect(name, total) {
+    //   lions.has(id), lions.count, lions.total, lions.done, lions.clear(). `secret`: as k.tally's.
+    collect(name, total, secret) {
       const key = 'feature-set-' + name;
       let got = []; try { got = JSON.parse(localStorage.getItem(key) || '[]'); } catch { got = []; }
+      if (!Array.isArray(got)) got = [];      // (a record of another shape broke the feature that kept it)
       const save = () => { try { localStorage.setItem(key, JSON.stringify(got)); } catch { /* private window: it lasts the visit */ } };
+      if (secret) k.keeps(secret, () => total > 0 && got.length >= total);
       return {
         total, has: id => got.includes(id), get count() { return got.length; }, get done() { return got.length >= total; },
         add(id) { if (got.includes(id)) return 0; got.push(id); save(); return got.length; },
@@ -457,13 +471,15 @@ function kitFor(o) {
   const api = {
     kit: k,
     // Called where main.js decides what the action button says. Returns { verb, hint, act } or null.
-    near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (r) return r; } return null; },
+    // (What the button then does is the feature's too: a throw from act() is treated as one from update(), where it used to go up through main.js's frame and leave the feature holding whatever it had.)
+    near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (!r) continue; if (r.act && !r.act._safe) { const act = r.act; r.act = (...a) => { try { return act(...a); } catch (e) { broke(f, e); } }; r.act._safe = true; } return r; } return null; },
     // (quiet: the opening runs the park from a window without waking what is still asleep in it)
     update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending) continue; if (f._unseen) { const p = G.vehicle && G.vehicle.pos; if (quiet || !p || Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) >= f.lazy.r) continue; f._unseen.visible = true; f._unseen = null; } if (!f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
     look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
     spots() { return features.flatMap(f => { if (f._pending) return (f.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: f.lazy.x, y: 0, z: f.lazy.z })); try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset && !f._pending) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },
     fresh() { for (const f of features) if (f.fresh && !f._pending) try { f.fresh(k); } catch (e) { console.error('feature ' + f.id, e); } },
+    kept() { for (const q of kept) putBack(q); },      // (after a new game has emptied the Secrets list)
   };
   return { start, api };
 }
