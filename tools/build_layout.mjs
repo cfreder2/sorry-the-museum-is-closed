@@ -485,8 +485,8 @@ for (const [id, side] of [['hall', 'n'], ['MW1-west', 'w'], ['G161', 'e'], ['G16
 
 // ---- 8. what is on no drawing ---------------------------------------------------
 //
-// Invented, not surveyed, and marked `secret`: a passage behind one wall of one gallery, a stair
-// tower down from it, and three rooms twelve metres under the street, below everything else in the
+// Invented, not surveyed, and marked `secret`: a passage behind one wall of one gallery, a goods lift
+// at the end of it, and three rooms twelve metres under the street, below everything else in the
 // building. Which gallery is decided by a picture: the first on the list in src/secretclue.js that
 // is in the saved copy of the collection (data/collection.json) says which room, and the game
 // reads the same list. Each such room needs its site drawn here by hand, like the tall rooms at
@@ -495,29 +495,44 @@ for (const [id, side] of [['hall', 'n'], ['MW1-west', 'w'], ['G161', 'e'], ['G16
 //
 // All of it is added after everything else, so nothing above is moved by it: the plan without the
 // `secret` rooms and doors is the plan as it was. The doorway marked `hidden` is the one way in.
+// The lift is two cars, the same size and the same way round, one at the top and one at the foot, with
+// nothing between them on any drawing: `secret.lift` names them, and the game carries a toy from one to
+// the other with the doors shut (src/secretlift.js). tools/check_layout.mjs and the map take it for a lift.
 const DEEP = -12, VAULT_H = 5;
 const SITES = {
   // Gallery 240, over the west end of the galleries that bridge the railway. Its north wall has
   // 5 m of plaster west of its door, and behind that is a pocket between Gallery 230 and Gallery
-  // 241 that nothing uses. North of the pocket, outside the old wall, the corner between the
-  // railway-side range and the bridge galleries is open ground from the street up: the tower
-  // stands there, and goes on down past the lower level. The store is north of its foot.
+  // 241 that nothing uses: the picture that turns with its piece of wall (src/plan.js, secretPicture)
+  // hangs over the hidden doorway, and the pocket holds a short passage and the lift's top car.
+  // North of the pocket, outside the old wall, the corner between the railway-side range and the
+  // bridge galleries is open ground from the street up: the old stair tower stood there, and its
+  // shaft is kept (the same room, the same outline in the plan and out of doors), empty now, its foot
+  // the lift's lobby. The lift's foot is under its top, and the store is north of the lobby.
   G240(g) {
     const sec = r => Object.assign(r, { secret: true, floor: 'X' });
-    const pass = sec(add({ id: 'X-pass', gallery: 'Unlisted passage', kind: 'room', use: 'corridor', passage: true, building: 'main', floor: 'X', x0: g.x0, x1: r2(g.x0 + 2.5), z0: r2(g.z0 - 6.3), z1: r2(g.z0 - 0.4), y: g.y, h: 3.4 }));
-    const T0 = { x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 5.4), z0: r2(pass.z0 - 12.4), z1: r2(pass.z0 - 0.4) };
-    const stair = sec(stairwell('X-stair', 'Service stair', T0, [DEEP, 0, g.y], 'main'));
-    const cx = r2((stair.x0 + stair.x1) / 2);
-    const vault = sec(add({ id: 'X-vault', gallery: 'Sub-level 9 storage', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: cx - 12, x1: cx + 12, z0: r2(stair.z0 - 20.4), z1: r2(stair.z0 - 0.4), y: DEEP, h: VAULT_H }));
+    const pass = sec(add({ id: 'X-pass', gallery: 'Unlisted passage', kind: 'room', use: 'corridor', passage: true, building: 'main', floor: 'X', x0: g.x0, x1: r2(g.x0 + 2.5), z0: r2(g.z0 - 2.1), z1: r2(g.z0 - 0.4), y: g.y, h: 3.4 }));
+    const T0 = { x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 5.4), z0: r2(g.z0 - 18.7), z1: r2(g.z0 - 6.7) };
+    const shaft = sec(add({ id: 'X-stair', gallery: 'Lift lobby', kind: 'room', use: 'corridor', passage: true, building: 'main', floor: 'X', ...T0, y: DEEP, h: r2(g.y - DEEP + 4), fixed: true }));      // (the old stair tower's own room: id, outline and height, so its block outside is as it was)
+    // The old stair's landing at street level is left in the shaft, a slab across its south end twelve metres over the lobby:
+    // the cases in Gallery 140, beside it, were set out clear of it, and so is the run home of the south mouse past them.
+    deck('X-stair-at-5', shaft.id, { x0: shaft.x0, x1: shaft.x1, z0: r2(shaft.z1 - 2), z1: shaft.z1 }, 0, []);
+    const cx = r2((shaft.x0 + shaft.x1) / 2);
+    const vault = sec(add({ id: 'X-vault', gallery: 'Sub-level 9 storage', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: cx - 12, x1: cx + 12, z0: r2(shaft.z0 - 20.4), z1: r2(shaft.z0 - 0.4), y: DEEP, h: VAULT_H }));
     const lab = sec(add({ id: 'X-lab', gallery: 'Specimen room', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: r2(vault.x0 - 10.4), x1: r2(vault.x0 - 0.4), z0: vault.z0 + 2, z1: vault.z0 + 11, y: DEEP, h: VAULT_H }));
     const brief = sec(add({ id: 'X-brief', gallery: 'Debriefing room', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: r2(vault.x1 + 0.4), x1: r2(vault.x1 + 8.4), z0: vault.z0 + 2, z1: vault.z0 + 11, y: DEEP, h: VAULT_H }));
     const door = d => { doors.push({ ...d, secret: true }); };
-    door({ a: 'X-pass', b: g.id, along: 'z', x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 2.2), z0: pass.z1, z1: g.z0, y: g.y, h: 3, hidden: true });
-    door({ a: 'X-stair', b: 'X-pass', along: 'z', x0: r2(stair.x0 + 0.2), x1: r2(stair.x0 + 2), z0: stair.z1, z1: pass.z0, y: g.y, h: 2.8 });
-    door({ a: 'X-vault', b: 'X-stair', along: 'z', x0: r2(cx - 0.9), x1: r2(cx + 0.9), z0: vault.z1, z1: stair.z0, y: DEEP, h: 3.2 });
+    // (The hidden doorway is as tall as the piece of wall that turns, and no taller: the picture's lamp is on the wall over it.)
+    door({ a: 'X-pass', b: g.id, along: 'z', x0: r2(g.x0 + 0.4), x1: r2(g.x0 + 2.45), z0: pass.z1, z1: g.z0, y: g.y, h: 3.1, hidden: true });
+    door({ a: 'X-lift', b: 'X-pass', along: 'z', x0: r2(g.x0 + 0.5), x1: r2(g.x0 + 2.3), z0: r2(g.z0 - 2.5), z1: pass.z0, y: g.y, h: 2.6 });
+    door({ a: 'X-vault', b: 'X-stair', along: 'z', x0: r2(cx - 0.9), x1: r2(cx + 0.9), z0: vault.z1, z1: shaft.z0, y: DEEP, h: 3.2 });
     door({ a: 'X-lab', b: 'X-vault', along: 'x', x0: lab.x1, x1: vault.x0, z0: r2(lab.z0 + 3.6), z1: r2(lab.z0 + 5.4), y: DEEP, h: 3.2 });
     door({ a: 'X-vault', b: 'X-brief', along: 'x', x0: vault.x1, x1: brief.x0, z0: r2(brief.z0 + 3.6), z1: r2(brief.z0 + 5.4), y: DEEP, h: 3.2 });
-    return [pass, stair, vault, lab, brief, ...BASE(brief, sec, door)];
+    const base = BASE(brief, sec, door);
+    // The lift: added last of all (so nothing in the base, nor anything above, is numbered differently for it).
+    const car = (id, y) => sec(add({ id, gallery: 'Goods lift', kind: 'room', use: 'lift', passage: true, building: 'main', floor: 'X', x0: g.x0, x1: r2(g.x0 + 2.5), z0: r2(g.z0 - 6.3), z1: r2(g.z0 - 2.5), y, h: 3.4 }));
+    const top = car('X-lift', g.y), foot = car('X-lift9', DEEP);
+    door({ a: 'X-lift9', b: 'X-stair', along: 'z', x0: r2(g.x0 + 0.5), x1: r2(g.x0 + 2.3), z0: shaft.z1, z1: foot.z0, y: DEEP, h: 2.6 });
+    return Object.assign([pass, shaft, vault, lab, brief, ...base, top, foot], { lift: { top: top.id, foot: foot.id } });
   },
 };
 // ---- 8a. and further: Project Green Cheese (docs/FINALE.md) ----
@@ -582,7 +597,7 @@ let secret = null;
     }
     // And of every way in from the street: a tower in front of a door would be no secret.
     for (const r of made) if (r.top > 0.5) for (const d of doors) if (d.b === 'out' && over(d, r, 4)) throw new Error(`the secret ${r.id} stands in front of an outside door of ${d.a}`);
-    secret = { room: g.id, gallery: g.gallery, work: first.work.id, title: first.work.t, y: DEEP, rooms: made.map(r => r.id) };
+    secret = { room: g.id, gallery: g.gallery, work: first.work.id, title: first.work.t, y: DEEP, rooms: made.map(r => r.id), ...(made.lift ? { lift: made.lift } : {}) };
     console.log(`behind ${g.gallery} (“${first.work.t}”): ${rooms.length - before.rooms} rooms, ${doors.length - before.doors} doorways, ${ramps.length - before.ramps} flights and ${decks.length - before.decks} landings that are on no drawing`);
   }
 }

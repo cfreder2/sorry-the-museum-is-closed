@@ -105,6 +105,17 @@ for (const l of lifts) {
   notes.push(`  lift  ${l.id.padEnd(14)} stops at ${l.stops.join(', ')} m   ${[...new Set(at)].join(' <-> ')}`);
 }
 
+// The lift behind the hidden doorway is two cars, one at the top and one at the foot, with nothing between them on any
+// drawing (section 8 of tools/build_layout.mjs; the game carries a toy from one to the other, src/secretlift.js).
+{
+  const S = L.secret && L.secret.lift, a = S && byId[S.top], b = S && byId[S.foot];
+  if (S && (!a || !b || !a.secret || !b.secret)) problems.push(`secret.lift: ${S.top} and ${S.foot} should both be secret rooms`);
+  else if (S) {
+    if (a.x0 !== b.x0 || a.x1 !== b.x1 || a.z0 !== b.z0 || a.z1 !== b.z1 || a.h !== b.h) problems.push(`secret.lift: ${a.id} and ${b.id} are not the same car (they must match, the doors shut on one and open on the other)`);
+    link(R(a), R(b), 'lift'); notes.push(`  lift  ${'secret'.padEnd(14)} ${a.id} at ${a.y} m <-> ${b.id} at ${b.y} m (the cars, nothing between)`);
+  }
+}
+
 // ---- decks that touch are one floor ----
 for (let i = 0; i < decks.length; i++) for (let j = i + 1; j < decks.length; j++) {
   const a = decks[i], b = decks[j];
