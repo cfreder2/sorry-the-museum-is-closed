@@ -1810,8 +1810,11 @@ export function wallAtAll(plan, x, z, y, step = STEP, ignore = null) {
 // word). The grid sorts each of those lists into squares of CELL metres: a square holds, in the list's own order,
 // everything that lies in it or within that list's pad of it. A question is put to the one square it falls in: the same
 // loop over the same things in the same order, less only those too far off to have had any say, so the answer is the
-// same to the last bit. Wherever that cannot be shown, the whole plan is asked instead: a point off the grid, a shove
-// longer than the pad allows for, a toy inside a shut room, nothing near enough to be sure it is the nearest.
+// same to the last bit. A point that is pushed as the loop goes (out of a block, off a piece of furniture) is followed: once
+// it is further from where its square was taken than the pad allows for, the loop goes on in the square it is in now, at the
+// next thing in the list. Wherever the square cannot be shown to be enough, more is asked: every volume, when none in
+// the square is near enough to be sure it is the nearest of all; the whole plan, for a point off the grid or a radius wider
+// than the pad.
 // It keeps itself true. Every time a list is used it is checked against what was sorted: the same array, no shorter, and
 // the same thing still at the end of what was sorted (so nothing before it has been taken out or put in). What has been
 // pushed on since is walked after the square, until that has cost as much as sorting again would. A thing that is moved
@@ -1822,8 +1825,11 @@ export function wallAtAll(plan, x, z, y, step = STEP, ignore = null) {
 const CELL = 4, GB = 0, GM = 1, GO = 2, GF = 3, GS = 4, GR = 5, GH = 6;
 const PADS = [3, 2, 1.5, 0, 0, 0, 0], SURE = 0.01;      // how far beyond its square each list is kept (volumes, blocks, solid things; the others are only ever asked what lies over a point), and a centimetre in hand for rounding
 const FAR_B = (PADS[GB] - SURE) ** 2, REACH_M = PADS[GM] - SURE, REACH_O = PADS[GO] - SURE, CHECK = 6;
+// (walks: how often the whole plan was asked after all, and why: 0 the point was off the grid; 1 a radius wider than the blocks'
+// pad; 2 pushed off the grid by a block; 3 wider than the solid things' pad, or put off the grid; 4 shoved off it by a solid
+// thing. wide: how often every volume was asked because none in the square was near enough to be sure of.)
 function newGrid(plan) {
-  return { plan, x0: 0, z0: 0, nx: 0, nz: 0, geo: 0, allow: null, na: -1, sorts: 0, ms: 0, walks: 0, learned: 0, swapped: 0,
+  return { plan, x0: 0, z0: 0, nx: 0, nz: 0, geo: 0, allow: null, na: -1, sorts: 0, ms: 0, walks: 0, why: new Int32Array(5), wide: 0, learned: 0, swapped: 0,
     of: PADS.map(pad => ({ pad, list: null, n: 0, last: null, geo: -1, debt: 0, due: 0, at: 0, start: null, ids: null, loose: null, was: null, ext: null, free: null })) };
 }
 // Where the squares lie: over the bounds and any strip beyond them that may be driven (plan.allow), and 8 m round that.
@@ -1886,7 +1892,7 @@ function sorted(g, k, L) {
 // The lowest underside of anything built overhead here (a deck, a bridge, a stair you can go under, a lift), or the sky.
 export function headAt(plan, x, z, y) {
   const G = gridOf(plan), c = G ? cellAt(G, x, z) : -1;
-  if (c < 0) { if (G) G.walks++; return headAtAll(plan, x, z, y); }
+  if (c < 0) { if (G) { G.walks++; G.why[0]++; } return headAtAll(plan, x, z, y); }
   const L = plan.slabs, ix = sorted(G, GH, L), ids = ix.ids, lo = ix.loose, bn = lo.length, tn = L.length, ae = ix.start[c + 1];
   let h0 = SKY + 20;
   for (let a = ix.start[c], b = 0, t = ix.n; ;) {
@@ -1904,11 +1910,15 @@ export function confine(plan, p, r, flying, out, noFurniture) {
   const G = gridOf(plan), px = p.x, py = p.y, pz = p.z;
   if (!G || !(r >= 0) || py !== py) return confineAll(plan, p, r, flying, out, noFurniture);
   const c = cellAt(G, px, pz);
-  if (c < 0) { G.walks++; return confineAll(plan, p, r, flying, out, noFurniture); }
-  let best = Infinity, bx = px, by = py, bz = pz, sealed = false, far = false;
-  {
-    const L = plan.boxes, ix = sorted(G, GB, L), ids = ix.ids, lo = ix.loose, bn = lo.length, tn = L.length, ae = ix.start[c + 1];
-    for (let a = ix.start[c], k = 0, t = ix.n; ;) {
+  if (c < 0) { G.walks++; G.why[0]++; return confineAll(plan, p, r, flying, out, noFurniture); }
+  let best = Infinity, bx = px, by = py, bz = pz, sealed = false, shut = false, level = Infinity, lx = px, ly = py, lz = pz;
+  // (Inside a volume, nothing else in the plan matters: the walk stops at the first that holds it too. Otherwise the nearest of
+  // all must be known, or in a shut room the nearest on its own level. What is in no square here is more than the pad away,
+  // so anything nearer than that found here is the nearest; and with nothing found, a place out of doors nearer than that is
+  // nearer than any volume. Failing both, every volume is asked, as the full walk asks them, and it is gone through again.)
+  for (let L = plan.boxes, ix = sorted(G, GB, L), ids = ix.ids, lo = ix.loose, bn = lo.length, tn = L.length, ae = ix.start[c + 1], whole = false; ; whole = true) {
+    best = Infinity; bx = px; by = py; bz = pz; sealed = false; level = Infinity; lx = px; ly = py; lz = pz;
+    for (let a = whole ? ae : ix.start[c], k = whole ? bn : 0, t = whole ? 0 : ix.n; ;) {
       let i; if (a < ae && (k >= bn || ids[a] < lo[k])) i = ids[a++]; else if (k < bn) i = lo[k++]; else if (t < tn) i = t++; else break;
       const b = L[i];
       if (b.shut) { if (!sealed && p.x > b.x0 && p.x < b.x1 && p.z > b.z0 && p.z < b.z1 && p.y > b.y0 - 0.3 && p.y < b.y1) sealed = true; continue; }
@@ -1919,66 +1929,66 @@ export function confine(plan, p, r, flying, out, noFurniture) {
       if (x0 > x1 || z0 > z1) continue;
       const cx = p.x < x0 ? x0 : p.x > x1 ? x1 : p.x;
       const cz = p.z < z0 ? z0 : p.z > z1 ? z1 : p.z;
-      let cy = p.y, d = (cx - p.x) ** 2 + (cz - p.z) ** 2;
+      let cy = p.y, d = (cx - p.x) ** 2 + (cz - p.z) ** 2, same = true;
       if (flying) {
         const y1 = b.y1 - r, y0 = b.y0 + (b.fly ? r : 0);
         cy = p.y > y1 ? y1 : p.y < y0 ? Math.min(y0, y1) : p.y;
-        d += (cy - p.y) ** 2;
+        d += (cy - p.y) ** 2; same = Math.abs(cy - p.y) < 0.6;
       } else {
         const dy = p.y < b.y0 - 0.3 ? b.y0 - 0.3 - p.y : p.y > b.y1 ? p.y - b.y1 : 0;
-        d += dy * dy;
+        d += dy * dy; same = dy === 0;
       }
+      if (same && d < level) { level = d; lx = cx; ly = cy; lz = cz; }
       if (d < best) { best = d; bx = cx; by = cy; bz = cz; if (d === 0) break; }
     }
-  }
-  // (Inside a volume, nothing else in the plan matters: the walk stops at the first that holds it too. Otherwise the nearest of
-  // all must be known. What is in no square here is more than the pad away, so anything nearer than that found here is the
-  // nearest; failing that, a place out of doors nearer than that is nearer than any volume. In a shut room the best place on
-  // its own level is wanted as well, and that may be anywhere: the whole plan is asked.)
-  if (best !== 0) {
-    far = !(best < FAR_B);
-    if (sealed || (far && !(py > -6.5))) { G.walks++; return confineAll(plan, p, r, flying, out, noFurniture); }
-  }
-  if (best > 1e-10 && p.y > -6.5) {
-    const B = plan.bounds;
-    _o.x = Math.max(B.x0 + r, Math.min(B.x1 - r, p.x)); _o.z = Math.max(B.z0 + r, Math.min(B.z1 - r, p.z)); _o.y = Math.min(p.y, SKY);
-    for (const q of plan.allow || []) if (p.x > q.x0 && p.x < q.x1 && p.z > q.z0 && p.z < q.z1) { _o.x = p.x; _o.z = p.z; }
-    const sx = _o.x, sz = _o.z, mc = cellAt(G, sx, sz);
-    if (mc < 0 || !(r <= REACH_M)) { G.walks++; return confineAll(plan, p, r, flying, out, noFurniture); }
-    const L = plan.masses, ix = sorted(G, GM, L), ids = ix.ids, lo = ix.loose, bn = lo.length, tn = L.length, a0 = ix.start[mc], ae = ix.start[mc + 1], t0 = ix.n;
-    let ok = true;
-    for (let pass = 0; pass < 3; pass++) {
-      let moved = false;
-      for (let a = a0, k = 0, t = t0; ;) {
-        let i; if (a < ae && (k >= bn || ids[a] < lo[k])) i = ids[a++]; else if (k < bn) i = lo[k++]; else if (t < tn) i = t++; else break;
-        const m = L[i];
-        if (_o.x + r <= m.x0 || _o.x - r >= m.x1 || _o.z + r <= m.z0 || _o.z - r >= m.z1) continue;
-        if (flying && _o.y - r >= m.top) continue;
-        if (!flying && _o.y >= m.top - 0.4) continue;
-        if (flying && _o.y > m.top - 0.7) { _o.y = m.top + r; moved = true; continue; }
-        const l = _o.x + r - m.x0, rr = m.x1 - (_o.x - r), n = _o.z + r - m.z0, s = m.z1 - (_o.z - r), k2 = Math.min(l, rr, n, s);
-        if (k2 === l) _o.x -= l; else if (k2 === rr) _o.x += rr; else if (k2 === n) _o.z -= n; else _o.z += s;
-        moved = true;
-        if (!(Math.abs(_o.x - sx) + r <= REACH_M && Math.abs(_o.z - sz) + r <= REACH_M)) { G.walks++; return confineAll(plan, p, r, flying, out, noFurniture); }      // (pushed to where this square no longer knows every block within reach)
+    const sure = whole || best === 0 || (sealed ? level < FAR_B : best < FAR_B);      // (is the nearest volume known?)
+    if (!sure && (sealed || !(py > -6.5))) { G.wide++; continue; }
+    shut = sealed && best > 0 && level < Infinity;      // (in a shut room: the nearest place on its own level, and nothing out of doors)
+    if (shut) { best = level; bx = lx; by = ly; bz = lz; }
+    if (!shut && best > 1e-10 && p.y > -6.5) {
+      const B = plan.bounds;
+      _o.x = Math.max(B.x0 + r, Math.min(B.x1 - r, p.x)); _o.z = Math.max(B.z0 + r, Math.min(B.z1 - r, p.z)); _o.y = Math.min(p.y, SKY);
+      for (const q of plan.allow || []) if (p.x > q.x0 && p.x < q.x1 && p.z > q.z0 && p.z < q.z1) { _o.x = p.x; _o.z = p.z; }
+      if (!(r <= REACH_M)) { G.walks++; G.why[1]++; return confineAll(plan, p, r, flying, out, noFurniture); }
+      const L = plan.masses, ix = sorted(G, GM, L), ids = ix.ids, st = ix.start, lo = ix.loose, bn = lo.length, tn = L.length, t0 = ix.n;
+      let ok = true;
+      for (let pass = 0; pass < 3; pass++) {
+        let moved = false, ax = _o.x, az = _o.z, mc = cellAt(G, ax, az);      // (the square it is in as the pass begins, and where it stood when that square was taken)
+        if (mc < 0) { G.walks++; G.why[2]++; return confineAll(plan, p, r, flying, out, noFurniture); }
+        for (let a = st[mc], ae = st[mc + 1], k = 0, t = t0; ;) {
+          let i; if (a < ae && (k >= bn || ids[a] < lo[k])) i = ids[a++]; else if (k < bn) i = lo[k++]; else if (t < tn) i = t++; else break;
+          const m = L[i];
+          if (_o.x + r <= m.x0 || _o.x - r >= m.x1 || _o.z + r <= m.z0 || _o.z - r >= m.z1) continue;
+          if (flying && _o.y - r >= m.top) continue;
+          if (!flying && _o.y >= m.top - 0.4) continue;
+          if (flying && _o.y > m.top - 0.7) { _o.y = m.top + r; moved = true; continue; }
+          const l = _o.x + r - m.x0, rr = m.x1 - (_o.x - r), n = _o.z + r - m.z0, s = m.z1 - (_o.z - r), k2 = Math.min(l, rr, n, s);
+          if (k2 === l) _o.x -= l; else if (k2 === rr) _o.x += rr; else if (k2 === n) _o.z -= n; else _o.z += s;
+          moved = true;
+          if (!(Math.abs(_o.x - ax) + r <= REACH_M && Math.abs(_o.z - az) + r <= REACH_M)) {      // (pushed to where that square no longer knows every block within reach: go on from the square it is in now, at the next block in the list)
+            ax = _o.x; az = _o.z; mc = cellAt(G, ax, az);
+            if (mc < 0) { G.walks++; G.why[2]++; return confineAll(plan, p, r, flying, out, noFurniture); }
+            for (a = st[mc], ae = st[mc + 1]; a < ae && ids[a] <= i; a++);
+          }
+        }
+        if (!moved) break;
+        if (pass === 2) ok = false;
       }
-      if (!moved) break;
-      if (pass === 2) ok = false;
+      const d = (_o.x - p.x) ** 2 + (_o.y - p.y) ** 2 + (_o.z - p.z) ** 2;
+      if (!sure) { if (!(ok && d < FAR_B)) { G.wide++; continue; } best = d; bx = _o.x; by = _o.y; bz = _o.z; }      // (no volume within the pad: a place out of doors nearer than the pad is nearer than any of them, and failing that every volume is asked)
+      else if (ok && d < best) { best = d; bx = _o.x; by = _o.y; bz = _o.z; }
     }
-    const d = (_o.x - p.x) ** 2 + (_o.y - p.y) ** 2 + (_o.z - p.z) ** 2;
-    if (far) {
-      if (!(ok && d < FAR_B)) { G.walks++; return confineAll(plan, p, r, flying, out, noFurniture); }
-      best = d; bx = _o.x; by = _o.y; bz = _o.z;
-    } else if (ok && d < best) { best = d; bx = _o.x; by = _o.y; bz = _o.z; }
+    break;
   }
   const oc = noFurniture ? 0 : cellAt(G, bx, bz);
-  if (oc < 0 || (!noFurniture && !(r <= REACH_O))) { G.walks++; return confineAll(plan, p, r, flying, out, noFurniture); }
+  if (oc < 0 || (!noFurniture && !(r <= REACH_O))) { G.walks++; G.why[3]++; return confineAll(plan, p, r, flying, out, noFurniture); }
   const wx = out ? out.x : 0, wy = out ? out.y : 0, wz = out ? out.z : 0;      // (what `out` held: put back if the furniture has to be asked again of the whole plan)
   let hit = best > 1e-10;
   if (hit && out) { out.x = bx - p.x; out.y = by - p.y; out.z = bz - p.z; }
   p.x = bx; p.y = by; p.z = bz;
   if (noFurniture) return hit;
-  const L = plan.obstacles, ix = sorted(G, GO, L), ids = ix.ids, lo = ix.loose, bn = lo.length, tn = L.length, ae = ix.start[oc + 1];
-  for (let a = ix.start[oc], k = 0, t = ix.n; ;) {
+  const L = plan.obstacles, ix = sorted(G, GO, L), ids = ix.ids, st = ix.start, lo = ix.loose, bn = lo.length, tn = L.length;
+  for (let a = st[oc], ae = st[oc + 1], k = 0, t = ix.n, ax = bx, az = bz; ;) {
     let i; if (a < ae && (k >= bn || ids[a] < lo[k])) i = ids[a++]; else if (k < bn) i = lo[k++]; else if (t < tn) i = t++; else break;
     const o = L[i];
     if (o.gate && o.gate.off) continue;
@@ -2001,9 +2011,10 @@ export function confine(plan, p, r, flying, out, noFurniture) {
     p.x += dx; p.z += dz;
     if (out) { out.x = (hit ? out.x : 0) + dx; out.z = (hit ? out.z : 0) + dz; if (!hit) out.y = 0; }
     hit = true;
-    if (!(Math.abs(p.x - bx) + r <= REACH_O && Math.abs(p.z - bz) + r <= REACH_O)) {      // (shoved to where this square no longer knows everything within reach: undo it all and ask the whole plan)
-      p.x = px; p.y = py; p.z = pz; if (out) { out.x = wx; out.y = wy; out.z = wz; }
-      G.walks++; return confineAll(plan, p, r, flying, out, noFurniture);
+    if (!(Math.abs(p.x - ax) + r <= REACH_O && Math.abs(p.z - az) + r <= REACH_O)) {      // (shoved to where that square no longer knows everything within reach: go on from the square it is in now, at the next thing in the list)
+      ax = p.x; az = p.z; const nc = cellAt(G, ax, az);
+      if (nc < 0) { p.x = px; p.y = py; p.z = pz; if (out) { out.x = wx; out.y = wy; out.z = wz; } G.walks++; G.why[4]++; return confineAll(plan, p, r, flying, out, noFurniture); }      // (shoved off the grid: undo it all and ask the whole plan)
+      for (a = st[nc], ae = st[nc + 1]; a < ae && ids[a] <= i; a++);
     }
   }
   return hit;
@@ -2012,7 +2023,7 @@ export function confine(plan, p, r, flying, out, noFurniture) {
 // The highest thing under (x, z) that something at height y could be standing on: groundAtAll(), asked of the squares.
 export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
   const G = gridOf(plan), c = G ? cellAt(G, x, z) : -1;
-  if (c < 0) { if (G) G.walks++; return groundAtAll(plan, x, z, y, step, sticky); }
+  if (c < 0) { if (G) { G.walks++; G.why[0]++; } return groundAtAll(plan, x, z, y, step, sticky); }
   const F = plan.floors, fx = sorted(G, GF, F);
   let g = -Infinity, under = null;
   { const ids = fx.ids, lo = fx.loose, bn = lo.length, tn = F.length, ae = fx.start[c + 1];
@@ -2050,7 +2061,7 @@ export function groundAt(plan, x, z, y, step = STEP, sticky = null) {
 // Is there a solid piece here standing taller than something at height y can climb? wallAtAll(), asked of the squares.
 export function wallAt(plan, x, z, y, step = STEP, ignore = null) {
   const G = gridOf(plan), c = G ? cellAt(G, x, z) : -1;
-  if (c < 0) { if (G) G.walks++; return wallAtAll(plan, x, z, y, step, ignore); }
+  if (c < 0) { if (G) { G.walks++; G.why[0]++; } return wallAtAll(plan, x, z, y, step, ignore); }
   for (let w = 0, nw = y > 2 && plan.roofs ? 2 : 1; w < nw; w++) {
     const L = w ? plan.roofs : plan.surfaces, ix = sorted(G, w ? GR : GS, L), ids = ix.ids, lo = ix.loose, bn = lo.length, tn = L.length, ae = ix.start[c + 1];
     for (let a = ix.start[c], k = 0, t = ix.n; ;) {
