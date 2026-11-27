@@ -94,6 +94,7 @@ import './look.js';              // the look pass over the finished world: the s
 const $ = id => document.getElementById(id);
 const canvas = $('view');
 const params = new URLSearchParams(location.search);
+const CULL = params.has('cull');      // (?cull) what cannot be seen from where the camera is is not drawn: src/visible.js, data/pvs.json (tools/dev/pvs.mjs). Off, and nothing fetched, without the word.
 
 // ------------------------------------------------------------------ stage ---
 
@@ -382,6 +383,9 @@ async function boot() {
       inside: b => inRoom((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, b.min.y) && b.max.x - b.min.x < 40 && b.max.z - b.min.z < 40,
       indoors: p => inRoom(p.x, p.z, p.y) || (p === camera.position && !!G.roomId) });
     G.stream.register(); }
+
+  // (?cull) The table of what can be seen from where. Not with the streamer (a phone): the two would each have to know of the other.
+  if (CULL && !LOWMEM) { try { const [m, r] = await Promise.all([import('./visible.js'), fetch('./data/pvs.json')]); if (r.ok) { G._pvs = await r.json(); G._Vis = m.Visibility; } else console.warn('visible: no data/pvs.json'); } catch (e) { console.warn('visible', e); } }      // (the code and the table are both fetched only with the word)
 
   $('status').textContent = '';
   // The bar's last stretch: the screen goes once the first frame has been drawn behind it (tick), since that frame
@@ -1709,6 +1713,7 @@ function tick(now) {
   if (G.state === 'loading') { renderer.render(scene, camera); return; }
   if (G.state !== 'paused') G.t += dt;
   govern(dt);
+  if (G.vis && G.state !== 'play' && G.state !== 'study') G.vis.update(camera.position, null, true, null, false);      // (?cull) anywhere but in play (or stepped up to a picture), everything is drawn
 
   input.capture = G.state === 'play' || G.state === 'study';
   input.poll(input.capture || (G.state === 'voyage' && G.voyage && !G.voyage.open));      // a gamepad: its buttons drive here, and are keys everywhere else (src/input.js)
@@ -1795,6 +1800,13 @@ function tick(now) {
   if (G.state === 'paused') { composer.render(); return; }
   if (G.testEye) { camera.position.fromArray(G.testEye.at); camera.up.set(0, 1, 0); camera.lookAt(G.testEye.look[0], G.testEye.look[1], G.testEye.look[2]); }      // a test aid, like testInput: look from here, at there
   else if (G.cineEye && G.state === 'play') { const e = G.cineEye; camera.position.copy(e.at); camera.up.set(0, 1, 0); camera.lookAt(e.look); if (e.fov && Math.abs(camera.fov - e.fov) > 0.01) { camera.fov = e.fov; camera.updateProjectionMatrix(); } }      // a feature's cinematic camera, held exactly ({ at, look: Vector3, fov }: src/finalelaunch.js)
+  // (?cull) Made once the shut rooms have left the plan (the table is for the plan as it is played). Here, where the camera is where it will be drawn from and before anything is
+  // drawn from it (the chrome toy's mirror is next). Whatever has been built since last time is looked at twice a second: until then it is simply drawn.
+  if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
+    if (!G.vis) { G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register(); }
+    else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.vis.register();
+    G.vis.update(camera.position, G.vehicle && G.vehicle.pos, !!G.cineEye || !!G.cutscene || stage.on, mirror.enabled ? G.floorY || 0 : null, !!(G.live && G.live.live));
+  }
   // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
   lampNear(dt);
