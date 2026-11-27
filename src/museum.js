@@ -1335,7 +1335,8 @@ export class Museum {
 
       // The frame: see buildFrame.
       const f = p.frame, hw = p.w / 2, hh = p.h / 2;
-      if (!obj) {
+      if (!obj && p.panel) art.panelFrame = new Geo(), buildFrame(art.panelFrame, p, frameStyle(p.work, mini));      // (the picture on the piece of wall that turns: its frame is its own, to turn with it; and its shadow is the piece's, src/secret.js)
+      else if (!obj) {
         buildFrame(frames[p.room] || (frames[p.room] = new Geo()), p, frameStyle(p.work, mini));
         // The frame's soft shadow on the wall round it, a little lower than the frame (the lamp is above): never on the canvas,
         // which stands in front of it (src/finish.js).
@@ -1417,6 +1418,10 @@ export class Museum {
       mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n#ifdef USE_COLOR\n  totalEmissiveRadiance *= vColor.rgb;\n#endif'); };
       if (!geo.empty) this.group.add(geo.mesh(mat));
       this.rooms[room].frameMats = [mat];
+    }
+    for (const a of this.arts) if (a.panelFrame) {
+      const st = this.rooms[a.room], mat = st.frameMats[0] || (st.frameMats[0] = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.3, emissive: new THREE.Color(0.62, 0.56, 0.46), emissiveIntensity: 0.03 }));
+      const m = a.frameMesh = a.panelFrame.mesh(mat); m.matrixAutoUpdate = false; m.updateMatrix(); this.group.add(m); a.panelFrame = null;
     }
     if (!plinths.empty) {
       this.group.add(plinths.mesh(new THREE.MeshStandardMaterial({ color: 0x2b2927, roughness: 0.7, emissive: 0x1c1a18, emissiveIntensity: 0.5 })));
@@ -2298,6 +2303,7 @@ export class Museum {
     const fx = Math.sin(yaw), fz = Math.cos(yaw);
     let best = null, score = Infinity;
     for (const a of s.arts) {
+      if (a.away) continue;      // (turned away with its piece of wall: src/secret.js)
       const dx = a.x - pos.x, dz = a.z - pos.z, d = Math.hypot(dx, dz);
       const reach = a.mini || a.obj ? 3.2 : 5.5 + a.w * 0.6;
       if (d > reach || Math.abs(pos.y - (a.fy || 0)) > 3) continue;

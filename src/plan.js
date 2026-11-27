@@ -22,6 +22,7 @@ import { addStaffVent } from './ventplan.js';
 import { shapeHill } from './hillshape.js';      // the hills' shapes (kit helper): off-centre summits, spurs, a sled chute
 import { dressGrounds } from './groundsplan.js';   // what grows and stands in the grounds: trees by kind, shrubs, hedges, the park's furniture
 import { SHUT_ROOMS } from './shut.js';      // the rooms whose doors do not open
+import { CLUES, isClue } from './secretclue.js';      // which picture turns with its piece of wall (secretPicture)
 
 export const T = 1;            // wall thickness, for the outside of a building
 export const HW = HALL_HW();    // Griffin Court's half-width
@@ -2201,8 +2202,51 @@ export function hang(plan, collection) {
     if (!isHall) spill.push(...queue);
   }
   entryPicture(plan, placements);
+  secretPicture(plan, placements);
   placements.push(...stand(plan, collection, placements));
   return placements;
+}
+
+// The piece of wall that turns (src/secret.js) is the stretch over the hidden doorway and on past it, picture and all. The
+// picture the Director's whiteboard names (chosen as secret.js chooses it: the first on the list in src/secretclue.js hung
+// tonight, if it is in this room; else the first of the list that is; else the biggest here) is hung on that stretch, its
+// near edge just inside the doorway's far jamb, and whatever hung there goes to the place it leaves: the two change places
+// and nothing else moves. plan.panel says where the piece is: along its wall from u0 to u1, turning on a post at `pivot`,
+// the free end towards `dir`, as tall as the doorway. If they cannot change places cleanly (more than one picture in the way,
+// or too little wall), nothing is moved and the piece is the doorway alone, bare.
+function secretPicture(plan, placements) {
+  const S = plan.secret, d = S && plan.doors.find(q => q.hidden), r = d && plan.byId[S.room]; if (!r) return;
+  const w = plan.walls.find(q => q.room === r && q.openings.some(o => o.door === d)); if (!w) return;
+  const o = w.openings.find(q => q.door === d), dir = w.hi - o.hi >= o.lo - w.lo ? 1 : -1, near = dir > 0 ? o.lo : o.hi, far = dir > 0 ? o.hi : o.lo;
+  const bare = { door: d, wall: w, room: r.id, dir, pivot: far - dir * 0.15, u0: near - dir * 0.05, u1: far + dir * 0.05, h: d.h + 0.02, art: null };
+  plan.panel = bare;
+  const pics = placements.filter(p => p.kind === 'painting' && !p.work.lent), here = pics.filter(p => p.room === r.id);
+  let pick = null;
+  for (const c of CLUES) { const p = pics.find(q => isClue(c, q.work)); if (p) { if (p.room === r.id) pick = p; break; } }
+  if (!pick) for (const c of CLUES) { pick = here.find(q => isClue(c, q.work)); if (pick) break; }
+  if (!pick) pick = here.slice().sort((a, b) => b.w * b.h - a.w * a.h)[0];
+  if (!pick) return;
+  // Along the wall: the picture's frame from just inside the far jamb, with room after it for its card; and the next
+  // doorway (or the corner) no nearer than the margin the hang keeps.
+  const full = pick.w + 2 * pick.frame, uc = near + dir * (0.1 + full / 2), end = uc + dir * (full / 2 + 0.45);
+  const next = dir > 0 ? Math.min(w.hi, ...w.openings.filter(q => q.lo >= far - 0.01 && q !== o).map(q => q.lo)) : Math.max(w.lo, ...w.openings.filter(q => q.hi <= far + 0.01 && q !== o).map(q => q.hi));
+  if ((next - end) * dir < 0.55 - 0.45) return;
+  const cy = pick.y - pick.fy, { need, cap } = clearance(plan, w, Math.min(uc - full / 2, uc + full / 2), Math.max(uc - full / 2, uc + full / 2));
+  if (cy - pick.h / 2 - pick.frame < need || cy + pick.h / 2 + pick.frame > Math.min(cap, d.h - 0.06)) return;
+  const lo = Math.min(near, end) - 0.3, hi = Math.max(near, end) + 0.3, mine = p => p.room === r.id && p.nx === w.nx && p.nz === w.nz;
+  const inWay = placements.filter(p => p !== pick && mine(p) && (w.horiz ? p.x : p.z) + p.w / 2 + p.frame > lo && (w.horiz ? p.x : p.z) - p.w / 2 - p.frame < hi);
+  if (inWay.length > 1 || (inWay.length && mine(pick))) return;
+  const was = { ...pick }, put = wallPoint(w, uc, r.y + cy, 0.04);
+  const moved = { ...pick, room: r.id, fy: r.y, x: put.x, y: put.y, z: put.z, rot: w.rot, nx: w.nx, nz: w.nz, panel: true };
+  if (inWay.length) {
+    // The one in the way goes where the named one was, at its own height there (as the hang would have hung it).
+    const q = inWay[0], ow = plan.walls.find(v => v.room === plan.byId[was.room] && v.nx === was.nx && v.nz === was.nz); if (!ow || was.room !== r.id) return;
+    if (q.w + 2 * q.frame > full + 0.01) return;
+    const qy = Math.max(1.62, 0.8 + q.h / 2), at = wallPoint(ow, ow.horiz ? was.x : was.z, r.y + qy, 0.04);
+    placements[placements.indexOf(q)] = { ...q, x: at.x, y: at.y, z: at.z, rot: ow.rot, nx: ow.nx, nz: ow.nz };
+  }
+  placements[placements.indexOf(pick)] = moved;
+  plan.panel = { ...bare, u1: dir > 0 ? Math.max(bare.u1, end + 0.02) : Math.min(bare.u1, end - 0.02), art: moved.work.id };
 }
 
 // One picture hangs in the entrance hall, on the wall that faces you as you come in: the work the visitors' machine is
