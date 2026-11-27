@@ -120,17 +120,21 @@ export async function makeTable(opt = {}) {
     // ---- the walls, as triangles in the world, in pieces 32 m square so that a face draws only what is in front of it
     t = performance.now();
     const occ = [], tris = { one: [], two: [] };      // per triangle: 9 numbers
-    let nt = 0;
+    let nt = 0, fine = 0;
     for (const o of walls) {
-      boxOf(o, box); occ.push(sigOf(o, box));
+      boxOf(o, box);
       const g = o.geometry, pos = g.attributes.position, m = o.matrixWorld, n = pos.count, ix = g.index, cnt = ix ? ix.count : n, mat = Array.isArray(o.material) ? o.material[0] : o.material;
       const w = new Float32Array(n * 3); for (let k = 0; k < n; k++) { v.fromBufferAttribute(pos, k).applyMatrix4(m); w[k * 3] = v.x; w[k * 3 + 1] = v.y; w[k * 3 + 2] = v.z; }
       const flip = (m.determinant() < 0) !== (mat.side === T.BackSide), list = mat.side === T.DoubleSide ? tris.two : tris.one;
       const out = new Float32Array(Math.floor(cnt / 3) * 9);
       for (let k = 0, q = 0; k + 3 <= cnt; k += 3, q += 9) { const a = (ix ? ix.getX(k) : k) * 3, b = (ix ? ix.getX(k + (flip ? 2 : 1)) : k + (flip ? 2 : 1)) * 3, c = (ix ? ix.getX(k + (flip ? 1 : 2)) : k + (flip ? 1 : 2)) * 3; out[q] = w[a]; out[q + 1] = w[a + 1]; out[q + 2] = w[a + 2]; out[q + 3] = w[b]; out[q + 4] = w[b + 1]; out[q + 5] = w[b + 2]; out[q + 6] = w[c]; out[q + 7] = w[c + 1]; out[q + 8] = w[c + 2]; }
-      list.push(out); nt += out.length / 9;
+      // (a mesh of many small pieces, the street's hydrants, a statue, hides nothing worth counting on, and one of them is cut about in play: left out,
+      // by the size of its triangles: under a tenth of a square metre each on average)
+      let area = 0; for (let q = 0; q < out.length; q += 9) { const ux = out[q + 3] - out[q], uy = out[q + 4] - out[q + 1], uz = out[q + 5] - out[q + 2], wx = out[q + 6] - out[q], wy = out[q + 7] - out[q + 1], wz = out[q + 8] - out[q + 2]; area += 0.5 * Math.hypot(uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx); }
+      if (area / (out.length / 9) < 0.1) { fine++; continue; }
+      occ.push(sigOf(o, box)); list.push(out); nt += out.length / 9;
     }
-    stats.walls = { meshes: walls.length, triangles: nt };
+    stats.walls = { meshes: occ.length, triangles: nt, leftOutAsTooFine: fine };
     // sorted into pieces
     const PIECE = 32, soup = kind => {
       const n = tris[kind].reduce((a, c) => a + c.length / 9, 0), key = new Int32Array(n), src = new Array(n); let k = 0;
@@ -146,7 +150,7 @@ export async function makeTable(opt = {}) {
 
     // ------------------------------------------------------------------ the pictures (a context of its own: the game's is not touched) ---
     t = performance.now();
-    const TILES = Math.ceil(NB / 32), COLS = Math.ceil(Math.sqrt(TILES * 6) / 2.449) || 1, ROWS = Math.ceil(TILES / COLS), AW = COLS * TS, AH = 6 * ROWS * TS, BATCH = 256;
+    const MAXC = 2800, TILES = Math.ceil((NB + MAXC) / 32), COLS = Math.ceil(Math.sqrt(TILES * 6) / 2.449) || 1, ROWS = Math.ceil(TILES / COLS), AW = COLS * TS, AH = 6 * ROWS * TS, BATCH = 256;
     const cv = document.createElement('canvas'); cv.width = cv.height = 16;
     const gl = cv.getContext('webgl2', { antialias: false, depth: false, alpha: false, powerPreference: 'high-performance' });
     if (!gl || !gl.getExtension('EXT_color_buffer_float')) throw new Error('needs WebGL2 with float render targets');
@@ -215,7 +219,10 @@ export async function makeTable(opt = {}) {
     const CUBE = []; { const f = [[0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0], [0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1], [0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0], [1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1], [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1], [0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0]]; for (const q of f) for (const i of [0, 1, 2, 0, 2, 3]) CUBE.push(q[i * 3], q[i * 3 + 1], q[i * 3 + 2]); }
     const vBox = gl.createVertexArray(); gl.bindVertexArray(vBox); buf(new Float32Array(CUBE), 0, 3);
     // (the boxes as drawn: no thinner than 0.3 m any way, for a slab seen edge-on from near to)
-    { const lo = new Float32Array(NB * 3), hi = new Float32Array(NB * 3), id = new Float32Array(NB); for (let i = 0; i < NB; i++) { const b = boxes[i], f = j => Math.max(0.02, 0.15 - (b[j + 3] - b[j]) / 2); lo.set([b[0] - f(0), b[1] - f(1), b[2] - f(2)], i * 3); hi.set([b[3] + f(0), b[4] + f(1), b[5] + f(2)], i * 3); id[i] = i; } buf(lo, 1, 3, 1); buf(hi, 2, 3, 1); buf(id, 3, 1, 1); }
+    const boxLo = new Float32Array((NB + MAXC) * 3).fill(-9e4), boxHi = new Float32Array((NB + MAXC) * 3).fill(-9e4), boxId = Float32Array.from({ length: NB + MAXC }, (_, i) => i);
+    const boxIn = (i, b) => { const f = j => Math.max(0.02, 0.15 - (b[j + 3] - b[j]) / 2); boxLo.set([b[0] - f(0), b[1] - f(1), b[2] - f(2)], i * 3); boxHi.set([b[3] + f(0), b[4] + f(1), b[5] + f(2)], i * 3); };
+    for (let i = 0; i < NB; i++) boxIn(i, boxes[i]);
+    const bufLo = buf(boxLo, 1, 3, 1), bufHi = buf(boxHi, 2, 3, 1); buf(boxId, 3, 1, 1);
     gl.bindVertexArray(null);
     const fHi = fbo(6 * S * HI, S * HI, 4, true), fB = fbo2(6 * S, S), fH = fbo2(6 * TS, TS), fS = fbo(6 * TS, TS, true), fA = fbo(AW, AH, false), fF = fbo(AW, 6 * ROWS, false), fR = fbo(TILES, BATCH, false), fFace = fbo(512, 512, true, true), vQuad = gl.createVertexArray();
     gl.disable(gl.DITHER); gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
@@ -302,14 +309,25 @@ export async function makeTable(opt = {}) {
     const AX0 = (Math.floor((B.x0 - 40) / CELL)) * CELL, AX1 = (Math.floor((B.x1 + 40) / CELL) + 1) * CELL, AZ0 = (Math.floor((B.z0 - 40) / CELL)) * CELL, AZ1 = (Math.floor((B.z1 + 40) / CELL) + 1) * CELL;
     const HM = { w: AX1 - AX0, h: AZ1 - AZ0, d: null }; { HM.d = new Float32Array(HM.w * HM.h); const TW = 256; for (let bx = 0; bx < HM.w; bx += TW) for (let bz = 0; bz < HM.h; bz += TW) { const cw = Math.min(TW, HM.w - bx), ch = Math.min(TW, HM.h - bz), px = square([AX0 + bx + cw / 2, 300, AZ0 + bz + ch / 2], [0, -1, 0], [0, 0, -1], cw, ch, 0, 400, cw, ch); for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) HM.d[(bz + (ch - 1 - j)) * HM.w + bx + i] = 300 - Math.min(px[j * cw + i], 320); } }
     const topAt = (x, z) => { const i = Math.floor(x - AX0), j = Math.floor(z - AZ0); return i < 0 || j < 0 || i >= HM.w || j >= HM.h ? 0 : HM.d[j * HM.w + i]; };
-    const air = (x, y, z, hx, hy) => { const k = at(x, y, z); if (!k || !k.every(nm => nm.startsWith('o:'))) return; const names = k.slice(); const hh = hx + 0.01; for (const [dx, dy, dz] of [[hh, 0, 0], [-hh, 0, 0], [0, 0, hh], [0, 0, -hh], [hh, 0, hh], [-hh, 0, hh], [hh, 0, -hh], [-hh, 0, -hh], [0, hy, 0], [0, -hy, 0]]) { const q = cellKey(x + dx, z + dz, y + dy); if (q) names.push(q); } add(x, y, z, hx <= 3 ? (opt.dAir || 1.5) : (opt.dAir || 1.5) * 1.7, names, 'air'); nSamples.air++; };      // (a camera in the open has samples all round it, and what one block hides from all of them it hides from the camera: so the walls need eating back only a little)
+    const air = (x, y, z, hx, hy) => { const k = at(x, y, z); if (!k || !k.every(nm => nm.startsWith('o:'))) return; const names = k.slice(); const hh = hx + 0.01; for (const [dx, dy, dz] of [[hh, 0, 0], [-hh, 0, 0], [0, 0, hh], [0, 0, -hh], [hh, 0, hh], [-hh, 0, hh], [hh, 0, -hh], [-hh, 0, -hh], [0, hy, 0], [0, -hy, 0]]) { const q = cellKey(x + dx, z + dz, y + dy); if (q) names.push(q); } add(x, y, z, hx <= 3 ? (opt.dAir || 1.5) : (opt.dAir || 1.5) * 1.7, names, 'air'); samples[samples.length - 1].own = keyOf(k[0]); nSamples.air++; };      // (a camera in the open has samples all round it, and what one block hides from all of them it hides from the camera: so the walls need eating back only a little)
     if (!opt.rooms) for (let x = AX0 + 3; x < AX1; x += 6) for (let z = AZ0 + 3; z < AZ1; z += 6) {
       const top = topAt(x, z), xin = x > B.x0 - 30 && x < B.x1 + 30 && z > B.z0 - 30 && z < B.z1 + 30;
       for (const h of [0.35, 2, 4.4]) air(x, top + h, z, 3, 1.2);                                    // over whatever is topmost here: the ground, or a roof
       if (top > 1.5) for (const h of [0.35, 2, 4.4]) air(x, h, z, 3, 1.2);                          // and at street level beside or under it, where that is open air
       if (xin && (Math.round((x - AX0 - 3) / 6) & 1) === 0 && (Math.round((z - AZ0 - 3) / 6) & 1) === 0) for (const y of [8, 11.5, 16, 22, 30, 42]) if (y > top + 5) air(x + 3, y, z + 3, 6, 3);      // the air above, more thinly
     }
-    stats.samples = { ...nSamples, all: samples.length }; stats.openings = { faces: open.faces, squareMetres: Math.round(open.area), links: links.length }; stats.places = keys.length;
+    // WHAT IS SEEN SEES BACK. A room seen from the open air only as a sliver, down a line through a window and a door, is easily missed from sample points six
+    // metres apart out there, and hard to miss from the other end: the room's own samples stand every half metre across its every opening. So each square of
+    // the open air a camera can be in is given a box too (round its own sample points), every room's samples say which of those boxes they can see, and a
+    // square of air is then taken to see every room that sees it.
+    const cellOf = [], cellAt = new Map(); { const acc = new Map();
+      for (const sm of samples) if (sm.own != null) { let b = acc.get(sm.own); if (!b) acc.set(sm.own, b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]); b[0] = Math.min(b[0], sm.x); b[1] = Math.min(b[1], sm.y); b[2] = Math.min(b[2], sm.z); b[3] = Math.max(b[3], sm.x); b[4] = Math.max(b[4], sm.y); b[5] = Math.max(b[5], sm.z); }
+      for (const [k, b] of acc) { if (cellOf.length >= MAXC) throw new Error('more squares of air than there is room for'); const [, ix, iz, L] = keys[k].split(':').map(Number), y0 = L ? TOPS[L - 1] : -8, y1 = TOPS[L];
+        const bx = [Math.max(ix * CELL, b[0] - 3.05), Math.max(y0, b[1] - 1.3), Math.max(iz * CELL, b[2] - 3.05), Math.min((ix + 1) * CELL, b[3] + 3.05), Math.min(y1, b[4] + 1.3), Math.min((iz + 1) * CELL, b[5] + 3.05)];
+        cellAt.set(k, cellOf.length); cellOf.push(k); boxes.push(bx); boxIn(NB + cellOf.length - 1, bx); } }
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufLo); gl.bufferSubData(gl.ARRAY_BUFFER, 0, boxLo); gl.bindBuffer(gl.ARRAY_BUFFER, bufHi); gl.bufferSubData(gl.ARRAY_BUFFER, 0, boxHi);
+    const NBT = boxes.length, RW = Math.ceil(P.rooms.length / 32), cellSees = cellOf.map(() => new Uint32Array(RW));
+    stats.samples = { ...nSamples, all: samples.length, squaresOfAirWithABox: cellOf.length }; stats.openings = { faces: open.faces, squareMetres: Math.round(open.area), links: links.length }; stats.places = keys.length;
     lap('choosing where to look from', t); say(`${samples.length} sample points, ${keys.length} places`);
     if (opt.dry) return { stats };
 
@@ -320,8 +338,9 @@ export async function makeTable(opt = {}) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, fR.f); gl.readPixels(0, 0, TILES, n, gl.RGBA, gl.UNSIGNED_BYTE, rpx);
       for (let j = 0; j < n; j++) { const s = samples[first + j], row = j * TILES;
         // (and the boxes it is inside of, which have no near side to draw)
-        for (let i = 0, q = 0; i < NB; i++, q++) { const b = boxes[i], sw = 0.2; if (s.x > b[0] - sw && s.x < b[3] + sw && s.y > b[1] - sw && s.y < b[4] + sw && s.z > b[2] - sw && s.z < b[5] + sw) r32[row + (i >> 5)] |= 1 << (i & 31); }
-        for (const k of s.k) { const dst = seen[k]; for (let w2 = 0; w2 < WORDS; w2++) dst[w2] |= r32[row + w2]; } }
+        for (let i = 0; i < NBT; i++) { const b = boxes[i], sw = 0.2; if (s.x > b[0] - sw && s.x < b[3] + sw && s.y > b[1] - sw && s.y < b[4] + sw && s.z > b[2] - sw && s.z < b[5] + sw) r32[row + (i >> 5)] |= 1 << (i & 31); }
+        for (const k of s.k) { const dst = seen[k]; for (let w2 = 0; w2 < WORDS; w2++) dst[w2] |= r32[row + w2]; }
+        if (s.own == null) for (let j = 0; j < cellOf.length; j++) { const i = NB + j; if ((r32[row + (i >> 5)] >>> (i & 31)) & 1) for (const k of s.k) if (k < P.rooms.length) cellSees[j][k >> 5] |= 1 << (k & 31); } }
     };
     const order = samples.map((_, i) => i); if (opt.limit) order.length = Math.min(order.length, opt.limit);
     let batchFirst = 0, tick = performance.now();
@@ -332,14 +351,14 @@ export async function makeTable(opt = {}) {
       gl.useProgram(pOcc.p); for (let f = 0; f < 6; f++) { gl.viewport(f * S * HI, 0, S * HI, S * HI); drawWalls(pl[f], VP[f], VZ[f]); }
       // a quarter the size, with the edges found; half that; the edges spread
       gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad);
-      gl.useProgram(pEdge.p); gl.uniform1i(pEdge.u.t, 0); gl.uniform1f(pEdge.u.uK, F * s.d * (opt.spread == null ? 1 : opt.spread)); gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.viewport(0, 0, fB.w, fB.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(pEdge.p); gl.uniform1i(pEdge.u.t, 0); gl.uniform1f(pEdge.u.uK, F * s.d * (opt.spread || 0));      // (no edge is eaten back unless asked, --spread=1: it was tried, and from the open air it let nearly every room be seen: results.txt) gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.viewport(0, 0, fB.w, fB.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.useProgram(pHalf.p); gl.uniform1i(pHalf.u.t, 0); gl.uniform1i(pHalf.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fH.f); gl.viewport(0, 0, fH.w, fH.h); gl.bindTexture(gl.TEXTURE_2D, fB.x); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fB.x1); gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.useProgram(pSpread.p); gl.uniform1i(pSpread.u.t, 0); gl.uniform1i(pSpread.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fS.f); gl.bindTexture(gl.TEXTURE_2D, fH.x1); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fH.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       // the boxes
       gl.bindFramebuffer(gl.FRAMEBUFFER, fA.f); gl.viewport(0, 0, AW, AH); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
       if (clip) for (let q = 0; q < 4; q++) gl.enable(clip.CLIP_DISTANCE0_WEBGL + q);
       gl.useProgram(pBox.p); gl.bindVertexArray(vBox); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, fS.x); gl.uniform1i(pBox.u.uS, 2); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.uniform1i(pBox.u.uH, 1); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fB.x); gl.uniform1i(pBox.u.uE, 0); gl.uniform3f(pBox.u.uCam, s.x, s.y, s.z);
-      for (let f = 0; f < 6; f++) { gl.uniformMatrix4fv(pBox.u.uVP, false, VP[f]); gl.uniform4fv(pBox.u.uZ, VZ[f]); gl.uniform1f(pBox.u.uFace, f); gl.uniform1i(pBox.u.uF, f); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, NB); }
+      for (let f = 0; f < 6; f++) { gl.uniformMatrix4fv(pBox.u.uVP, false, VP[f]); gl.uniform4fv(pBox.u.uZ, VZ[f]); gl.uniform1f(pBox.u.uFace, f); gl.uniform1i(pBox.u.uF, f); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, NBT); }
       if (clip) for (let q = 0; q < 4; q++) gl.disable(clip.CLIP_DISTANCE0_WEBGL + q);
       // folded into this sample's row
       gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad); gl.useProgram(pFold1.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fF.f); gl.viewport(0, 0, fF.w, fF.h); gl.bindTexture(gl.TEXTURE_2D, fA.x); gl.uniform1i(pFold1.u.t, 0); gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -360,6 +379,7 @@ export async function makeTable(opt = {}) {
     const bit = (a, i) => (a[i >> 5] >>> (i & 31)) & 1, set1 = (a, i) => { a[i >> 5] |= 1 << (i & 31); };
     // a room sees itself and the rooms its doorways lead to; and what one room sees of another, the other sees of it
     P.rooms.forEach((r, i) => set1(seen[i], i));
+    { let n = 0; cellOf.forEach((k, j) => { for (let r = 0; r < P.rooms.length; r++) if ((cellSees[j][r >> 5] >>> (r & 31)) & 1) { if (!bit(seen[k], r)) n++; set1(seen[k], r); } }); stats.roomsAddedToSquaresOfAirBySeeingBack = n; }
     for (const d of places.doors) { const a = index.get(d.a), b = index.get(d.b); if (a != null && b != null && a < P.rooms.length && b < P.rooms.length) { set1(seen[a], b); set1(seen[b], a); } }
     for (let a = 0; a < P.rooms.length; a++) for (let b = 0; b < P.rooms.length; b++) if (bit(seen[a], b)) set1(seen[b], a);
     const used = keys.map(() => false); for (const s of (opt.limit ? samples.slice(0, opt.limit) : samples)) for (const k of s.k) used[k] = true;

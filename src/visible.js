@@ -251,7 +251,7 @@ export class Visibility {
   // (now and then: what has been taken out of the world altogether is let go of, and the lists are tidied)
   _tidy() {
     const under = o => { for (let q = o; q; q = q.parent) if (q === this.root) return true; return false; };
-    this.items = this.items.filter(it => { if (it.wall || under(it.o)) return true; this._drop(it); this.movers--; this._known.delete(it.o); return false; });
+    this.items = this.items.filter(it => { if (it.wall || (under(it.o) && fixed(it.o))) return true; const gone = !under(it.o); this._drop(it); if (gone) { this.movers--; this._known.delete(it.o); } return false; });      // (and what has since been marked as moving, or given a hook of its own, is let go of too)
     for (let i = 0; i < this.n; i++) if (this.byBin[i].some(it => it.dead)) this.byBin[i] = this.byBin[i].filter(it => !it.dead);
     if (this.multi.some(it => it.dead)) this.multi = this.multi.filter(it => !it.dead);
   }
