@@ -138,7 +138,7 @@ function walk(start, outdoors, found = false) {
 if (front && shutRooms.has(front.a)) problems.push(`the front door opens into ${front.a}, which src/shut.js shuts`);
 if (front) {
   const start = R(byId[front.a]), indoors = walk(start, false), all = walk(start, true);
-  const places = [...rooms.map(R), ...decks.map(D)].filter(p => !isShut(p));      // (the places there are in the game)
+  const places = [...rooms.map(R), ...decks.filter(d => !d.left).map(D)].filter(p => !isShut(p));      // (the places there are in the game; a deck marked `left` is a landing left in an empty shaft, on no way: build_layout.mjs, section 8)
   const lost = places.filter(p => !isSecret(p) && !all.has(p)), across = places.filter(p => all.has(p) && !indoors.has(p));
   for (const p of lost) problems.push(`${p}: cannot be reached from the front door`);
   // What is secret: shut away until its doorway is found, all of it reached once it is, and that doorway the only way.

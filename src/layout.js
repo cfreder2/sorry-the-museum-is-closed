@@ -1119,7 +1119,7 @@ export default {"made":"2026-11-27","levels":{"1":0,"2":5.2,"3":11.3,"LL":-4.6},
   {"id":"spiral-at-2","room":"spiral","x0":72.5,"x1":78.1,"z0":159.8,"z1":161.8,"y":5.2,"thick":0.4,"rails":[]},
   {"id":"MW-lift-floor-2","room":"MW-lift","x0":182.5,"x1":185.3,"z0":23.6,"z1":26.7,"y":5.2,"thick":0.4,"rails":[]},
   {"id":"MW-lift-floor-3","room":"MW-lift","x0":182.5,"x1":185.3,"z0":23.6,"z1":26.7,"y":11.3,"thick":0.4,"rails":[]},
-  {"id":"X-stair-at-5","room":"X-stair","x0":89.9,"x1":94.9,"z0":98.5,"z1":100.5,"y":0,"thick":0.4,"rails":[]},
+  {"id":"X-stair-at-5","room":"X-stair","x0":89.9,"x1":94.9,"z0":98.5,"z1":100.5,"y":0,"thick":0.4,"rails":[],"left":true},
   {"id":"B-gantry","room":"B-hangar","x0":410,"x1":454,"z0":156,"z1":159,"y":-12,"thick":0.4,"rails":["s"]}],"ramps":[
   {"id":"hall-up","room":"hall","x0":173.2,"x1":176,"z0":27,"z1":43,"axis":"z","y0":5.2,"y1":0,"stairs":true},
   {"id":"G200-up","room":"G200","x0":35.5,"x1":48.2,"z0":104.9,"z1":110.9,"axis":"x","y0":0,"y1":2.6,"stairs":true},

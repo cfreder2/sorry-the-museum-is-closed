@@ -515,7 +515,7 @@ const SITES = {
     const shaft = sec(add({ id: 'X-stair', gallery: 'Lift lobby', kind: 'room', use: 'corridor', passage: true, building: 'main', floor: 'X', ...T0, y: DEEP, h: r2(g.y - DEEP + 4), fixed: true }));      // (the old stair tower's own room: id, outline and height, so its block outside is as it was)
     // The old stair's landing at street level is left in the shaft, a slab across its south end twelve metres over the lobby:
     // the cases in Gallery 140, beside it, were set out clear of it, and so is the run home of the south mouse past them.
-    deck('X-stair-at-5', shaft.id, { x0: shaft.x0, x1: shaft.x1, z0: r2(shaft.z1 - 2), z1: shaft.z1 }, 0, []);
+    deck('X-stair-at-5', shaft.id, { x0: shaft.x0, x1: shaft.x1, z0: r2(shaft.z1 - 2), z1: shaft.z1 }, 0, []); decks[decks.length - 1].left = true;      // (left: on no way, and not meant to be: tools/check_layout.mjs)
     const cx = r2((shaft.x0 + shaft.x1) / 2);
     const vault = sec(add({ id: 'X-vault', gallery: 'Sub-level 9 storage', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: cx - 12, x1: cx + 12, z0: r2(shaft.z0 - 20.4), z1: r2(shaft.z0 - 0.4), y: DEEP, h: VAULT_H }));
     const lab = sec(add({ id: 'X-lab', gallery: 'Specimen room', kind: 'room', use: 'secret', building: 'lower', floor: 'X', x0: r2(vault.x0 - 10.4), x1: r2(vault.x0 - 0.4), z0: vault.z0 + 2, z1: vault.z0 + 11, y: DEEP, h: VAULT_H }));
