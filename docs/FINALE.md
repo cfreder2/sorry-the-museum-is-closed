@@ -54,25 +54,26 @@ card flips from *Sorry, the Museum is Closed* to *The Museum is Open*.
      and cargo are strapped in.
    - **Outside:** Earth below, the Moon ahead, the planets laid out across the sky (stylised, made in the game).
    - **Flying:** you pilot it with the same controls as the drone, and you can drift past the planets.
-   - **The DESTINATION button:**
-     - **The Moon: Lunar Base.** The way home for the art.
-     - **Somewhere far away.** A hyperspace trip to a distant galaxy: a spiral of a billion lights, a moment of awe,
-       then "Course set: Lunar Base" as the craft swings back.
+   - **The DESTINATION button:** **The Moon: Lunar Base.** The way home for the art. (There was a second choice, a jump
+     to a far galaxy and back; it was cut in November 2026.)
 8. **The Moon.**
-   - **Landing:** the saucer lands beside a domed lunar museum on a grey plain with Earth hanging in the black sky.
+   - **Landing:** the saucer lands beside a domed lunar museum on a plain of cheese with Earth hanging in the black sky,
+     the mice's little saucers swarming round it in welcome.
    - **Unloading:** the ramp lowers and you drive out in the car, in one-sixth gravity with huge floaty jumps and dust
-     plumes. The cargo floats out after you into the dome.
+     plumes. About ten glowing mice come out to meet you. Three of their saucers lift the cargo out of the carrier on
+     green tractor beams onto hover carts, which glide into the dome.
    - **Inside the dome:** the paintings settle onto the walls, the books onto shelves, and the lost property into a
      cabinet of Curiosities from Earth.
 9. **The ending.**
-   - **The opening:** small, friendly lunar visitors (an original design) file in, the lights come up, and the dome's
-     sign flips from *Sorry, the Museum is Closed* to *The Museum is Open*.
+   - **The opening:** the glowing mice file in, the lights come up, and the dome's sign flips from *Sorry, the Museum is
+     Closed* to *The Museum is Open*.
    - **Credits:** they roll over the lunar plain while the motif returns as a full arrangement.
    - **The night in numbers:** works seen, secrets found, time taken, ornaments and home runs, and the books and art
      you brought.
    - **A trophy:** *The Museum is Open*.
 10. **After the ending.**
-    - **Keep driving on the Moon:** one-sixth gravity, a crater jump park, the visitors wandering the dome.
+    - **Keep driving on the Moon:** one-sixth gravity, the mice's base under the cheese, a crater jump park, the mice
+      looking at the pictures in the dome.
     - **Fly home:** you return to Butler Field, the silo closes, and the night carries on.
     - **New game:** starts over as usual.
 
@@ -113,7 +114,7 @@ card flips from *Sorry, the Museum is Closed* to *The Museum is Open*.
    - Exposes `G.finale` with the hangar's parts (saucer, platform, doors, easels, beam origin) for phase 3.
 2. **Space and the Moon** (helper B, alongside phase 1).
    - A standalone voyage module, `startVoyage(G, { cargo, toy })`, testable with a `?voyage` URL switch.
-   - The cabin, the solar system, piloting, the Destination button, hyperspace.
+   - The cabin, the solar system, piloting, the Destination button.
    - The landing, the lunar museum and low gravity, the opening, the credits, the summary, and after the ending.
 3. **The five notes and the launch** (helper C, after phase 1 merges).
    - The tone console and motif, the art lighting up, the tractor beam, the cargo list.
@@ -171,6 +172,37 @@ card flips from *Sorry, the Museum is Closed* to *The Museum is Open*.
 - **The title** shows a small Moon once `voyageFinished()`.
 - **Where the silo is:** the ballpark was moved (home plate at 402, 146; 70 m to centre) so that centre field lies
   over the hangar; its outfield leaves the silo square open, and its light pool hides while the doors are open.
+
+## The Moon, rebuilt (November 2026)
+
+After the owner finished the game:
+
+- **The cargo is yours.** The craft carries twenty pictures: the living works (`src/paintlife.js`) the player has looked
+  at most (`src/score.js` views), most looked at first. The archive has twenty easels showing the choice so far
+  (`src/finale.js choice()`, hung again whenever the base comes into view). The console will not wake the craft until
+  twenty living works have been looked at: "The craft has room for twenty pictures. You have looked at 14 of the living
+  ones: six more." (If fewer than twenty living works are hung, it wants all of them.) A game already past the console is
+  made up to twenty from the other works looked at, then the archive's old pool. Saves past the launch keep their cargo.
+- **One craft.** `src/craft.js buildCraftBody` is the hangar's craft; the voyage and the Moon use it too
+  (`buildCraft`), with the cabin fitted in the well under the dome: the dome is the window, the five pads are on the
+  pedestal, the art hangs round the well's wall, a passage runs out along the door's slot. The Moon's plan is built to
+  the hangar's numbers.
+- **The cheese Moon.** Butter-gold ground, round holes with clean edges, crumbly crater rims, cheese boulders; the Moon
+  seen from space is a pale cheese yellow.
+- **The mice** (`src/moonmice.js`): the museum's glowing mice, and they love you. Ten follow you in a loose trail and crowd
+  round when you stop; the rest file into the dome at the opening and go from picture to picture; the base's workers look
+  up and wave. Four instanced meshes for all of them.
+- **Their saucers** (`src/moonfleet.js`): dozens of small mouse-shaped ones (ears on the dome, whisker lights, a tail
+  of light) on errands round the base, sweeping into patterns over it, one swooping low past the toy now and then; they
+  rest in the hangar's bays; three unload the carrier on green beams onto hover carts.
+- **Their base** (`src/moonbase.js`): a ramp down from the plain west of the craft, a tunnel lined with green crystal,
+  and a cavern eight metres under the cheese: the hangar (bays round a shaft to the sky), the control room, the sculpture
+  hall (a monument to every toy you drove tonight, `src/garage.js driven`; a mouse holding up a saucer; the museum's
+  lions, American Gothic, A Sunday, The Bedroom, done the mousey way), and the moon garden (glowing plants, a pond of light
+  with moonfish in it: the glowing fish you can catch on Monroe Harbor, `src/fishkit.js`). The landing pad and great
+  crystals are on the plain. Each place answers the first time you reach it; the summary counts the places found
+  (`after-hours.moonbase`). The cavern is lit only by colours worked into its walls, and drawn only when the camera is
+  near or in it.
 
 ## The hooks: the Green Cheese file (added after the finale)
 

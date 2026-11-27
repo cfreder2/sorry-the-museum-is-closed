@@ -13,7 +13,9 @@
 // It goes: the cabin, above the night side of the Earth, with the art on the walls; piloting with the drone's
 // controls; DESTINATION, to the Moon (the autopilot's approach); the landing beside the dome; the ramp; the toy out on the Moon at one-sixth gravity, the cargo floating
 // after it; the cargo into the dome (pictures to the walls, books to the shelves, lost property to a cabinet); the
-// visitors, the lights, the sign; the credits; the night in numbers; and after it, the Moon to keep, or home.
+// glowing mice (src/moonmice.js) and their saucers (src/moonfleet.js), who unload the art onto hover carts and love you for
+// it; their base under the cheese (src/moonbase.js); the lights, the sign; the credits; the night in numbers; and after it,
+// the Moon to keep, or home.
 //
 // Saved at each stage in localStorage ('after-hours.voyage'), so a reload goes back to the stage it was at, and
 // 'after-hours.moon' is set for good once the museum has opened (voyageFinished(), for the title screen).
@@ -24,14 +26,20 @@ import { imageUrl } from './collection.js';
 import { loadBooks } from './books.js';
 import { KINDS } from './lostfound.js';
 import { buildCraft, framedArt, CRAFT } from './craft.js';
-import { moonPlan, buildMoon, moonH, Visitors, Dust, DOME, SAUCER, MOON_G, HATCH } from './moon.js';
+import { moonPlan, buildMoon, moonH, Dust, DOME, SAUCER, MOON_G } from './moon.js';
+import { MoonMice } from './moonmice.js';
+import { Fleet, makeCart } from './moonfleet.js';
+import { MOUTH, PAD, SHAFT, PIECES, CAVE, inCave, inTunnel, TUN, zoneAt } from './moonbase.js';
+import { LOWMEM } from './budget.js';
+import { glowCaught } from './fishkit.js';
+import { VEHICLES } from './garage.js';
 import { makeStarfield, makeSun, makeEarth, makeMoonBall, makePlanet, dirAE, disposeAll } from './cosmos.js';
 import { loadSpaceTextures, applySpaceTextures } from './spacetex.js';
 import { CosmicMusic } from './cosmicmusic.js';
 import { tonight } from './features.js';
 import { MOTIF, motifVoice } from './motif.js';
 
-const SAVE = 'after-hours.voyage', DONE = 'after-hours.moon';
+const SAVE = 'after-hours.voyage', DONE = 'after-hours.moon', BASE_SAVE = 'after-hours.moonbase';      // (BASE_SAVE: the places of the mice's base found)
 const V3 = THREE.Vector3;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
@@ -48,7 +56,7 @@ const MOON_SUN = dirAE(100, 13), MOON_EARTH = dirAE(-12, 31);
 // ---------------------------------------------------------------- saving --
 export function voyageSaved() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); return s && ['space', 'landed', 'opened', 'home'].includes(s.stage) && s.cargo && typeof s.cargo === 'object' ? s : null; } catch { return null; } }      // (a stage the voyage itself writes, and a cargo: anything else truthy sent Continue straight into a voyage with nothing aboard)
 export function voyageFinished() { try { return localStorage.getItem(DONE) === '1'; } catch { return false; } }
-export function clearVoyage() { try { localStorage.removeItem(SAVE); } catch { /* fine */ } }
+export function clearVoyage() { try { localStorage.removeItem(SAVE); localStorage.removeItem(BASE_SAVE); } catch { /* fine */ } }
 function save(stage, v) {
   // A work hung in the museum tonight is saved as its id; any other (the base's archive, src/finalelaunch.js) as the little
   // the voyage needs of its record, since a reload could not find it by id.
@@ -251,7 +259,7 @@ class Voyage {
       n++;
     }
     // (books that arrive once the craft has landed: to the shelves if the rest is there already, or out after the toy)
-    if (this.moonW && this.where === 'moon') for (const q of this.items) if (q.kind === 'book' && q.state === 'aboard') { if (this.delivered) this._place(q, true); else if (this.trail) { q.state = 'wait'; q.wait = 0.3 + q.i * 0.1; } }
+    if (this.moonW && this.where === 'moon') for (const q of this.items) if (q.kind === 'book' && q.state === 'aboard') { if (this.delivered) this._place(q, true); else if (this.carts) this._toCart(q, true); }
   }
 
   // the toy: parked in the cabin (the car), or docked on the console (the drone)
@@ -402,8 +410,12 @@ class Voyage {
     this.where = 'moon';
     if (!this.moonW) {
       const n = this.cargo.arts.length;
-      this.P = G.moonPlan = moonPlan(n); this.moonW = buildMoon(this.P, n); this.near.add(this.moonW.group);
-      this.visitors = new Visitors(10); this.near.add(this.visitors.group);
+      // the toys you drove tonight (the mice carve one of each: src/garage.js driven), or, if that was never kept, the ones you own
+      const Gg = G.garage, ids = Gg ? [...(Gg.driven && Gg.driven.size ? Gg.driven : Gg.open || [])].filter(id => VEHICLES.some(q => q.id === id && !(q.secret && !Gg.open.has(id)))) : [];
+      const mine = Gg && Gg.sel ? Gg.sel[this.v.kind] : null; if (mine && !ids.includes(mine)) ids.unshift(mine);
+      this.driven = ids.slice(0, 12); this.caught = glowCaught();
+      this.P = G.moonPlan = moonPlan(n, { monument: this.driven.length }); this.moonW = buildMoon(this.P, n, { lowmem: LOWMEM, driven: this.driven, caught: this.caught }); this.near.add(this.moonW.group);
+      this._miceAndSaucers();
       this.dust = new Dust(900, G.renderer.getPixelRatio()); this.near.add(this.dust.points);
       applySpaceTextures(this);
     }
@@ -422,7 +434,7 @@ class Voyage {
       if (stage === 'opened') {
         for (const q of this.items) this._place(q, true);
         this.delivered = true; this.opened = true;
-        this.moonW.setSign(1); this.moonW.setLights(1); this.visitors.settle(this.moonW.layout.slots);
+        this.moonW.setSign(1); this.moonW.setLights(1); this.mice.settle(this.moonW.layout.slots, DOME); this.mice.gather(this.v.pos);
         this._setPhase('explore'); this._stage('The Moon · Lunar Base'); this.$('[data-v="home"]').hidden = false;
         this._cap('The Museum is Open, and the Moon is yours.', 5, 0.5); this._hint(null);
         this.v.place(DOME.x + 3, DOME.z + DOME.OUT + DOME.PORCH + 4, Math.PI * 0.85);
@@ -440,7 +452,9 @@ class Voyage {
     if (v.kind === 'drone') v.place(s.x, s.z, s.yaw, s.y + 0.6); else v.place(s.x, s.z, s.yaw, s.y);
     this.G.camYaw = v.yaw; this.camYaw = v.yaw;
     this._setPhase('moon'); this.trail = [];
-    for (const q of this.items) if (q.state === 'aboard') { q.state = 'wait'; q.wait = 0.6 + this.items.indexOf(q) * (resumed ? 0.05 : 0.45); }
+    // the mice come out to meet you; their saucers unload the art onto hover carts
+    if (resumed) this.mice.gather(v.pos); else this.mice.arrive({ x: MOUTH.x, z: MOUTH.z }, v.pos);
+    this._unload(resumed);
     this._hint(v.kind === 'drone' ? 'W S fly · A D turn · ↑ ↓ climb · drive into the dome' : 'W A S D drive · Space jump (hold it: higher) · R back to the ramp · take the art into the dome');
     save('landed', this);
     clearTimeout(this._hintT); this._hintT = setTimeout(() => this._hint(null), 14000);
@@ -516,7 +530,7 @@ class Voyage {
       <h3>The books</h3><p>Open Library</p>
       <h3>The city</h3><p><i>Streets and gardens</i> © OpenStreetMap contributors</p>
       <h3>The music</h3><p>Synthesised in the game, note by note.</p><p><i>The craft's five-note call is our own.</i></p>
-      <h3>The visitors</h3><p>Themselves</p>
+      <h3>The mice</h3><p>Themselves</p>
       <h3>&nbsp;</h3><p><i>A fan project, not affiliated with the museum.</i></p><p>Thank you for visiting.</p><p style="height:40vh"></p>`;
     c.hidden = false;
     const dur = this.G.set.reduce ? 60 : 44;
@@ -547,9 +561,10 @@ class Voyage {
       ${sc ? row('Secrets found', `${sc.count} of ${sc.total}`) : ''}
       ${row('Time', time)}${row('Ornaments', orn)}${row('Home runs', hr)}
       ${row('Art brought to the Moon', a)}${row('Books on its shelves', b)}${row('Curiosities in its cabinet', it)}
+      ${this.baseSeen ? row('Places in the mice’s base', `${this.basePlaces.n} of ${this.basePlaces.of}`) : ''}
       ${this.stats.maxAir > 0 ? row('Longest air on the Moon', this.stats.maxAir.toFixed(1) + ' s') : ''}</dl>
       <div class="trophy">★ Trophy: <b>The Museum is Open</b></div>
-      <div class="col"><button data-v="explore" data-first><b>Keep exploring the Moon</b><span>One-sixth gravity, a crater jump park, the visitors in the dome.</span></button>
+      <div class="col"><button data-v="explore" data-first><b>Keep exploring the Moon</b><span>One-sixth gravity, the mice’s base under the cheese, the crater jump park.</span></button>
       <button data-v="home"><b>Fly home</b><span>Back to Butler Field. The night carries on.</span></button>
       <button data-v="new"><b>New game</b><span>Start the night over.</span></button></div>`;
     this.$('.vsum').hidden = false; this.open = 'vsum';
@@ -710,7 +725,7 @@ class Voyage {
         const h = v.pos.y - moonH(v.pos.x, v.pos.z);
         if (h < 1.4 && !this._inDome(v.pos) && Math.random() < 0.7) { const a = Math.random() * Math.PI * 2, s = 1.5 * (1.4 - h); this.dust.puff(v.pos.x, moonH(v.pos.x, v.pos.z) + 0.02, v.pos.z, Math.cos(a) * s, 0.3, Math.sin(a) * s, 0.06, 1.5); }
       }
-      this._procession(dt);
+      this._unloadTick(dt); this._baseTick(dt);
       if (!this.delivered && this._inDome(v.pos, 1.2) && v.pos.y < 3) this._deliver();
       if (ph === 'deliver' && this.items.every(q => q.state === 'placed') && this.ph > 1) { this._setPhase('ending'); this.endT = 0; }
       if (ph === 'ending') this._ending(dt);
@@ -718,36 +733,147 @@ class Voyage {
       else if (ph === 'summary') this._creditsCam(dt);
       else this._camMoon(dt);
     }
-    if (this.visitors) this.visitors.update(dt, this.t, this.where === 'moon' ? v.pos : null);
+    if (this.mice && this.where === 'moon') this._miceTick(dt);
     if (this.dust) this.dust.update(dt);
     this.skyAt = ORIGIN;
   }
   _inDome(p, margin = 0) { return Math.hypot(p.x - DOME.x, p.z - DOME.z) < DOME.IN - margin; }
 
-  // the cargo: out of the door one by one, then following the toy in a floating line
-  _procession(dt) {
-    const v = this.v, tr = this.trail, p = v.pos;
-    if (!tr.length || tr[0].distanceTo(p) > 0.3) { tr.unshift(p.clone()); if (tr.length > 260) tr.pop(); }
-    const at = d => { let acc = 0; for (let i = 1; i < tr.length; i++) { const s = tr[i].distanceTo(tr[i - 1]); if (acc + s >= d) return tr[i - 1].clone().lerp(tr[i], (d - acc) / s); acc += s; } const end = tr.length ? tr[tr.length - 1] : p; return new V3(end.x - Math.sin(v.yaw) * (d - acc), end.y, end.z - Math.cos(v.yaw) * (d - acc)); };      // past the end of the trail: on behind the toy
-    let n = 0;
-    for (const q of this.items) {
-      if (q.state === 'wait') { q.wait -= dt; if (q.wait <= 0) { q.state = 'float'; this.near.attach(q.obj); } else continue; }
-      if (q.state === 'float') {
-        const idx = q.kind === 'art' ? n++ : n + 2 + (q.kind === 'book' ? q.i * 0.3 : 4 + q.i * 0.4);
-        const t = at(2.6 + idx * 1.5).add(new V3(0, 1.6 + 0.25 * Math.sin(this.t * 1.3 + idx), 0));
-        t.y = Math.max(t.y, moonH(t.x, t.z) + 1.2);
-        q.obj.position.lerp(t, 1 - Math.exp(-dt * 1.8));
-        const look = Math.atan2(p.x - q.obj.position.x, p.z - q.obj.position.z);
-        const qq = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, look, 0)); q.obj.quaternion.slerp(qq, 1 - Math.exp(-dt * 2));
-      } else if (q.state === 'fly') {
-        const f = q.fly; f.t += dt; if (f.t < 0) continue;
-        const u = ease(f.t / f.T), pos = f.from.clone().lerp(f.to.pos, u); pos.y += Math.sin(u * Math.PI) * (q.kind === 'art' ? 2.4 : 1.2);
-        q.obj.position.copy(pos); q.obj.quaternion.copy(f.fromQ).slerp(f.to.rot, u);
-        if (f.to.scale && f.to.scale !== 1) { const s0 = q.s0 || (q.s0 = q.obj.scale.x); q.obj.scale.setScalar(s0 * (1 + (f.to.scale - 1) * u)); }
-        if (u >= 1) { q.state = 'placed'; if (f.note >= 0) this._chime(f.note); else if (q.kind === 'item') this.G.sound.tick(0.05, 2600); }
-      }
-    }
+  // ---- the mice and their saucers ------------------------------------------------------------------------------------
+  _miceAndSaucers() {
+    const G = this.G, low = LOWMEM, P = this.P, synth = G.features && G.features.kit ? G.features.kit.synth : null;
+    const ground = (x, z, y) => groundAt(P, x, z, y, 0.3);
+    this.mice = new MoonMice({ max: low ? 30 : 48, ground, synth, reduce: () => !!G.set.reduce, inDome: (x, z) => Math.hypot(x - DOME.x, z - DOME.z) < DOME.OUT + 0.5 });
+    for (let i = 0; i < (low ? 8 : 10); i++) this.mice.add('follow');
+    for (let i = 0; i < (low ? 8 : 16); i++) this.mice.add('gallery');
+    for (const st of this.moonW.base.stations) { const m = this.mice.add('work'); if (m) this.mice.work(m, st); }
+    this.near.add(this.mice.group);
+    const bays = PIECES.bays.map(b => ({ x: b.x, z: b.z, y: CAVE.y + 0.06 }));
+    this.fleet = new Fleet({ n: low ? 14 : 36, synth, reduce: () => !!G.set.reduce, places: { mouth: MOUTH, pad: { ...PAD, y: 0.1 }, dome: { x: DOME.x, y: 18, z: DOME.z }, craft: { x: SAUCER.x, y: 9, z: SAUCER.z }, park: { x: 96, y: 4, z: 2 }, shaft: SHAFT, bays } });
+    this.near.add(this.fleet.group);
+    this.baseSeen = new Set(); try { for (const id of JSON.parse(localStorage.getItem(BASE_SAVE) || '[]')) this.baseSeen.add(id); } catch { /* none */ }
   }
+  // a point d metres back along the way the toy came
+  _trailAt(d) {
+    const v = this.v, tr = this.trail, p = v.pos;
+    let acc = 0; for (let i = 1; i < tr.length; i++) { const s = tr[i].distanceTo(tr[i - 1]); if (acc + s >= d) return tr[i - 1].clone().lerp(tr[i], (d - acc) / s); acc += s; }
+    const end = tr.length ? tr[tr.length - 1] : p; return new V3(end.x - Math.sin(v.yaw) * (d - acc), end.y, end.z - Math.cos(v.yaw) * (d - acc));
+  }
+  _miceTick(dt) {
+    const v = this.v, tr = this.trail, p = v.pos, sp = Math.hypot(v.vel.x, v.vel.z);
+    if (!tr.length || tr[0].distanceTo(p) > 0.3) { tr.unshift(p.clone()); if (tr.length > 260) tr.pop(); }
+    this.still = sp < 0.3 && this.phase !== 'landing' && this.phase !== 'ramp' ? (this.still || 0) + dt : 0;
+    const toy = this._toyCtx || (this._toyCtx = { at: d => this._trailAt(d) });
+    Object.assign(toy, { x: p.x, y: this.phase === 'landing' || this.phase === 'ramp' ? CRAFT.LEG : p.y, z: p.z, yaw: v.yaw, speed: sp, kind: v.kind, still: this.still });
+    this.mice.update(dt, toy, this.cam);
+    this.fleet.update(dt, { toy: this.phase === 'landing' ? null : toy, escort: this.phase === 'landing' ? this.craft.group.position : null, cam: this.cam });
+    // into the dome once it is open: every mouse in it turns to you
+    const inD = this._inDome(p) && p.y < 4;
+    if (inD && !this._wasIn && this.opened && this.phase === 'explore') this.mice.welcome(toy);
+    this._wasIn = inD;
+  }
+  // The base: what is drawn where the camera is, and each place the first time you come to it.
+  _baseTick(dt) {
+    const B = this.moonW.base, c = this.cam.position, v = this.v;
+    const under = c.y < -1.4 && (inCave(c.x, c.z) || inTunnel(c.x, c.z)), nearHole = Math.hypot(c.x - (TUN.x1 + TUN.open) / 2, c.z - 7) < 34 || Math.hypot(c.x - SHAFT.x, c.z - SHAFT.z) < 26;
+    B.cave.visible = under || nearHole || v.pos.y < -1.5;
+    const deep = under && c.x < TUN.open - 3;      // (well under the cheese: the plain's heavy pieces are not drawn)
+    if (deep !== this._deep) { this._deep = deep; for (const m of this.moonW.heavy) m.visible = !deep; this.moonW.dome.visible = !deep; }
+    B.update(dt, this.t, !!this.G.set.reduce);
+    if (this.phase === 'ending' || this.phase === 'credits' || this.phase === 'summary') return;
+    const Z = zoneAt(v.pos.x, v.pos.z, v.pos.y);
+    if (Z && Z.id !== this._zone) {
+      this._zone = Z.id; this._stage('The Moon · ' + Z.name);
+      if (!this.baseSeen.has(Z.id)) { this.baseSeen.add(Z.id); try { localStorage.setItem(BASE_SAVE, JSON.stringify([...this.baseSeen])); } catch { /* fine */ } this._arrive(Z.id); }
+    } else if (!Z && this._zone) { this._zone = null; this._stage(this.opened ? 'The Moon · Lunar Base' : 'Lunar Base'); }
+  }
+  _arrive(id) {
+    const caught = this.caught > 0, L = {
+      mouth: [null, 'A way down, under the cheese. The mice made it, and they want to show you.'],
+      hangar: ['THE MOUSE HANGAR', 'Their saucers, small and mouse-shaped, home in their bays. Up the shaft they go, on errands.'],
+      control: ['THE CONTROL ROOM', 'Every errand on the board. THE VISITOR: OUR FRIEND, it says.'],
+      monument: ['FOR YOU', 'A monument to every toy you drove tonight, carved in cheese. The mice made it for you.'],
+      hall: ['THE SCULPTURE HALL', 'Their own art: the museum’s lions, a few famous pictures done again, a mouse holding up a saucer.'],
+      garden: ['THE MOON GARDEN', caught ? 'Plants that glow, a pond of light, and fish in it. Moonfish. You have caught one before, on Monroe Harbor.' : 'Plants that glow, a pond of light, and fish in it: moonfish. They glow, like the mice.'],
+      pad: ['THE LANDING PAD', 'Errands in, errands out, all day long.'],
+    }[id];
+    if (!L) return;
+    if (L[0]) this._call(L[0], 3);
+    this._cap(L[1], 6, L[0] ? 1.2 : 0);
+    const m = this.music;
+    if (m.ctx && m.out) { const t = m.ctx.currentTime + 0.05, n = id === 'monument' ? 5 : 3; for (let i = 0; i < n; i++) motifVoice(m.ctx, m.out, MOTIF[i].midi + (id === 'monument' ? 0 : 12), t + i * (id === 'monument' ? 0.32 : 0.16), id === 'monument' && i === 4 ? 1.4 : 0.4, 0.045); if (id === 'monument') for (let i = 0; i < 5; i++) motifVoice(m.ctx, m.out, MOTIF[i].midi - 12, t + i * 0.32, 0.5, 0.025); m.played++; }      // (a little fanfare of the call at the monument)
+    if (id === 'monument' || id === 'mouth') { for (const q of this.mice.of('follow')) { q.cheer = 2.5; this.mice.hop(q, 1.2); } this.mice.squeak(4, 0.018); }
+  }
+  /** How many of the base's places have been found, and of how many. */
+  get basePlaces() { return { n: this.baseSeen ? this.baseSeen.size : 0, of: 7 }; }
+
+  // ---- unloading: the mice's saucers lift the cargo out of the carrier on green beams and set it on hover carts, which
+  // glide into the dome. Anything still on its way when you get to the dome goes straight up on the walls (_deliver).
+  _unload(resumed) {
+    const C = this.carts = [];
+    const arts = this.items.filter(q => q.kind === 'art'), nArt = Math.max(1, Math.ceil(arts.length / 5));
+    for (let i = 0; i < nArt + 1; i++) {
+      const g = makeCart(), at = new V3(SAUCER.x + 4.2 + (i % 2) * 1.9, 0, SAUCER.z - 9 - Math.floor(i / 2) * 2.4);
+      at.y = groundAt(this.P, at.x, at.z, 1, 0.3) + 0.38; g.position.copy(at); g.rotation.y = Math.PI; this.near.add(g);
+      const rider = this.mice.add('ride'); if (rider) { rider.ride = g; rider.hidden = false; }
+      C.push({ g, at, n: 0, want: 0, state: 'wait', path: null, i });
+    }
+    // what goes on which cart: five pictures to a cart; the books, and the lost property, on the last
+    arts.forEach((q, j) => { q.cart = C[Math.min(nArt - 1, Math.floor(j / 5))]; q.cartK = j % 5; q.cart.want++; });
+    const books = this.items.filter(q => q.kind === 'book'), things = this.items.filter(q => q.kind === 'item'), last = C[C.length - 1];
+    this.jobs = arts.slice();
+    for (const [list, name] of [[books, 'books'], [things, 'things']]) if (list.length) { const b = new THREE.Group(); b.name = name; this.near.add(b); const at = new V3(); list[0].obj.getWorldPosition(at); b.position.copy(at); for (const q of list) { b.attach(q.obj); q.bundle = b; q.cart = last; } last.want++; this.jobs.push({ bundle: b, list, cart: last, cartK: name === 'books' ? 0 : 1, kind: 'bundle' }); }
+    if (resumed || this.delivered) { for (const j of this.jobs) this._toCart(j, true); this.jobs = []; for (const c of C) this._cartGo(c); return; }
+    this.crew = this.fleet.crew(3).map(s => ({ s, job: null, ph: null, t: 0 }));
+  }
+  _jobObj(j) { return j.bundle || j.obj; }
+  // where on its cart a load rides: pictures stood in a rack along it, the books and the box of lost things at the front
+  _cartSpot(j) {
+    if (j.kind === 'bundle') return { pos: new V3(j.cartK ? 0.35 : -0.35, 0.12, 0.1), rot: 0 };
+    return { pos: new V3(0, 0.12 + ((j.obj.userData && j.obj.userData.h) || 0.6) / 2, -0.36 + j.cartK * 0.18), rot: 0 };
+  }
+  _toCart(j, now) {
+    const obj = this._jobObj(j), c = j.cart, sp = this._cartSpot(j);
+    c.g.attach(obj); if (now) { obj.position.copy(sp.pos); obj.rotation.set(0, sp.rot, 0); }
+    if (j.kind === 'bundle') for (const q of j.list) q.state = 'cart'; else j.state = 'cart';
+    if (!j.counted) { j.counted = true; c.n++; }
+    if (c.n >= c.want && c.state === 'wait' && !now) this._cartGo(c);
+  }
+  _cartGo(c) {
+    const D = DOME, k = c.i - (this.carts.length - 1) / 2, porch = D.z + D.OUT + D.PORCH + 2.5;
+    c.state = 'go'; c.path = [new V3(c.g.position.x, 0, c.g.position.z - 3), new V3(D.x + k * 1.0 + 3, 0, porch + 2), new V3(D.x + k * 0.9, 0, porch), new V3(D.x + k * 0.9, 0, D.z + D.IN - 3.2), new V3(D.x + k * 1.5, 0, D.z + D.IN - 5.5 - Math.abs(k) * 0.4)];
+  }
+  _unloadTick(dt) {
+    if (!this.carts) return;
+    const calm = !!this.G.set.reduce, F = this.fleet, top = new V3(SAUCER.x, CRAFT.LEG + 5.4, SAUCER.z);
+    // the carts: waiting, or gliding in a line into the dome, a mouse riding each
+    for (const c of this.carts) {
+      const g = c.g, hov = 0.36 + 0.04 * Math.sin(this.t * 2.2 + c.i);
+      if (c.state === 'go' && c.path.length) {
+        const p = c.path[0], dx = p.x - g.position.x, dz = p.z - g.position.z, d = Math.hypot(dx, dz), st = Math.min(d, (calm ? 1.4 : 2.4) * dt);
+        if (d < 0.15) c.path.shift(); else { g.position.x += dx / d * st; g.position.z += dz / d * st; const a = Math.atan2(dx, dz); g.rotation.y += Math.atan2(Math.sin(a - g.rotation.y), Math.cos(a - g.rotation.y)) * Math.min(1, dt * 3); }
+        if (!c.path.length) c.state = 'parked';
+      }
+      g.position.y = groundAt(this.P, g.position.x, g.position.z, g.position.y + 0.5, 0.3) + hov;
+    }
+    if (!this.crew) return;
+    // the three saucers: over the carrier, the load up its beam, across to its cart, down onto it
+    this.crew.forEach((w, j) => {
+      const s = w.s;
+      if (this.delivered && w.job) { this._clean(this._jobObj(w.job), false); w.job = null; }      // (you got to the dome first: what it held has gone up on the walls)
+      if (!w.job) { if (this.delivered || !this.jobs.length) { if (!w.done) { w.done = true; F.beam(j, s.p, s.p, 0, dt); F.release(s); } return; } w.job = this.jobs.shift(); w.ph = 'reach'; w.t = 0; }
+      const J = w.job, obj = this._jobObj(J), over = top.clone().add(new V3((j - 1) * 2.2, 3.4, (j - 1) * 0.8)), port = s.p.clone().add(new V3(0, -0.14, 0));
+      w.t += dt;
+      if (w.ph === 'reach') { s.target.copy(over); if (s.p.distanceTo(over) < 0.6 || w.t > 6) { w.ph = 'lift'; w.t = 0; this.near.attach(obj); w.from = obj.position.clone(); this._clean(obj, true); this._squeakSoon(); } }
+      else if (w.ph === 'lift') { const u = ease(w.t / (calm ? 2.6 : 1.5)); obj.position.copy(w.from).lerp(port.clone().add(new V3(0, -1.2, 0)), u); obj.rotation.y += dt * 0.3; if (u >= 1) { w.ph = 'carry'; w.t = 0; } }
+      else if (w.ph === 'carry') { const sp = this._cartSpot(J), cp = J.cart.g.localToWorld(sp.pos.clone()); s.target.copy(cp).add(new V3(0, 3.0, 0)); obj.position.lerp(port.clone().add(new V3(0, -1.2, 0)), 1 - Math.exp(-dt * 6)); obj.quaternion.slerp(J.cart.g.quaternion, 1 - Math.exp(-dt * 2)); if (s.p.distanceTo(s.target) < 0.5 || w.t > 7) { w.ph = 'lower'; w.t = 0; w.from = obj.position.clone(); } }
+      else if (w.ph === 'lower') { const sp = this._cartSpot(J), cp = J.cart.g.localToWorld(sp.pos.clone()), u = ease(w.t / (calm ? 2.2 : 1.2)); obj.position.copy(w.from).lerp(cp, u); obj.quaternion.slerp(J.cart.g.quaternion, Math.min(1, u * 2)); if (u >= 1) { this._clean(obj, false); this._toCart(J, true); w.job = null; this.G.sound.tick && this.G.sound.tick(0.04, 1800); } }
+      F.beam(j, port, w.job && w.ph !== 'reach' ? obj.position : port, w.job && w.ph !== 'reach' ? 1 : 0, dt);
+    });
+  }
+  // A picture in a beam is drawn after the beam, so no green is laid over the painting (the beam is round it, not on it).
+  _clean(obj, on) { obj.traverse(o => { if (!o.isMesh) return; o.renderOrder = on ? 9 : 0; const m = o.material; if (m && !m.isShaderMaterial && !(m.blending === THREE.AdditiveBlending)) { if (on && !m.transparent) { m.transparent = true; m.userData._wasOpaque = true; } else if (!on && m.userData._wasOpaque) { m.transparent = false; m.userData._wasOpaque = false; } m.needsUpdate = true; } }); }
+  _squeakSoon() { if (this.mice && Math.random() < 0.35) this.mice.squeak(2, 0.01); }
   _chime(i) {
     const m = this.music; this.lit = i % 5;
     if (m.ctx && m.out) { motifVoice(m.ctx, m.out, MOTIF[i % 5].midi + 12, m.ctx.currentTime + 0.02, 0.6, 0.045); m.played++; }
@@ -758,13 +884,13 @@ class Voyage {
   _ending(dt) {
     const M = this.moonW, t = this.ph, D = DOME;
     M.setLights(ease(t / 4));
-    if (t > 1.2 && !this._filed) { this._filed = true; this.visitors.fileIn(M.layout.slots); this._cap('Somebody has noticed the lights.', 4); }
-    const first = this.visitors.list.reduce((m, q) => Math.min(m, Math.hypot(q.x - D.x, q.z - (D.z + D.OUT + D.PORCH))), 99);
+    if (t > 1.2 && !this._filed) { this._filed = true; const door = { x: D.x, z: D.z + D.OUT + D.PORCH + 1 }; this.mice.fileIn(M.layout.slots, [{ x: MOUTH.x + 3, z: MOUTH.z + 4 }, { x: -14, z: door.z + 1.5 }, door, { x: D.x, z: D.z + D.IN - 2 }], D); this._cap('The mice have noticed the lights.', 4); }
+    const gal = this.mice.of('gallery'), first = gal.reduce((m, q) => Math.min(m, Math.hypot(q.x - D.x, q.z - (D.z + D.OUT + D.PORCH))), 99);
     if (!this.flipAt && t > 5 && (first < 3 || t > 14)) { this.flipAt = t; this._open(); }
     if (this.flipAt) M.setSign(ease((t - this.flipAt) / 1.8));
     const porch = new V3(D.x, D.DOOR_H + 1.3, D.z + D.OUT + D.PORCH);
     if (t < 5) this._camShot(new V3(D.x + 4, 2.1, D.z + 7), new V3(D.x - 6 + t, 1.8, D.z - 10), dt, 2);
-    else if (!this.flipAt || t < this.flipAt + 4) { const lead = this.visitors.list[0]; this._camShot(new V3(D.x - 2, 1.6, D.z + 31), new V3(lead.x * 0.6 + D.x * 0.4, 1.2, lead.z * 0.6 + (D.z + 19) * 0.4), dt, 1.2); }
+    else if (!this.flipAt || t < this.flipAt + 4) { const lead = gal[0] || { x: D.x, z: D.z + 19 }; this._camShot(new V3(D.x - 2, 1.6, D.z + 31), new V3(lead.x * 0.6 + D.x * 0.4, 1.2, lead.z * 0.6 + (D.z + 19) * 0.4), dt, 1.2); }
     else if (t < this.flipAt + 9) this._camShot(new V3(D.x + 3.5, 3.6, porch.z + 7), porch, dt, 2);
     else this._camShot(new V3(D.x - 5, 3, D.z + 6), new V3(D.x + 6, 1.6, D.z - 9), dt, 1.5);
     if (this.flipAt && t > this.flipAt + 14) this._credits();

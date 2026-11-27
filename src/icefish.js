@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { feature } from './features.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildKind, Fish } from './fishkit.js';      // (the fish: shared with the Moon's ponds)
+import { buildKind, Fish, glowCaught } from './fishkit.js';      // (the fish: shared with the Moon's ponds)
 
 const lit = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, emissive: new THREE.Color(color).multiplyScalar(0.35), ...o });
 const canvas = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
@@ -429,10 +429,6 @@ feature({
   spots() { return this.at ? [{ kind: 'secret', id: 'icefish', name: 'Ice fishing (three fish)', ...this.at }] : []; },
   reset() { for (const f of this.bucketed) this.bucket.remove(f.g); this.bucketed = []; this.caught = 0; glowCaught(0); },
 });
-
-// How many glowing fish have been caught this game (kept in localStorage, put back to none by New game as the bucket is).
-const GLOW = 'after-hours.glowfish';
-export function glowCaught(n) { try { if (n === undefined) return +(localStorage.getItem(GLOW) || 0) || 0; if (n) localStorage.setItem(GLOW, String(n)); else localStorage.removeItem(GLOW); } catch { /* no storage */ } return n || 0; }
 
 let _radial = null;
 function radial() {

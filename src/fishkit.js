@@ -150,3 +150,8 @@ export class Fish {
   }
 }
 
+
+// How many glowing fish have been caught this game (kept in localStorage, put back to none by New game as the bucket is).
+const GLOW = 'after-hours.glowfish';
+export function glowCaught(n) { try { if (n === undefined) return +(localStorage.getItem(GLOW) || 0) || 0; if (n) localStorage.setItem(GLOW, String(n)); else localStorage.removeItem(GLOW); } catch { /* no storage */ } return n || 0; }
+
