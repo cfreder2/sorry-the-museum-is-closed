@@ -124,8 +124,8 @@ export class Promenade {
     const who = ph === 'all' ? 'All five.' : this.cast[this.i], how = ph === 'intro' ? 'The monkey wants a show.' : ph === 'hit' || ph === 'miss' ? this.said : ph === 'all' ? '' : `${key} at the top of the turn`;
     const k = who + '|' + how;
     if (k !== this.key) { this.key = k; $.who.textContent = who; $.how.textContent = how; }
-    const W = this.W; $.gold.style.left = ((TOP - W / 2) * 100).toFixed(2) + '%'; $.gold.style.width = (W * 100).toFixed(2) + '%';
-    $.mark.style.left = (Math.max(0, Math.min(1, ph === 'spin' || ph === 'hit' || ph === 'miss' ? this.spin : 0)) * 100).toFixed(2) + '%';
+    const W = this.W; if (W !== this.lastW) { this.lastW = W; $.gold.style.left = ((TOP - W / 2) * 100).toFixed(2) + '%'; $.gold.style.width = (W * 100).toFixed(2) + '%'; }
+    const mk = (Math.max(0, Math.min(1, ph === 'spin' || ph === 'hit' || ph === 'miss' ? this.spin : 0)) * 100).toFixed(1) + '%'; if (mk !== this.lastMk) { this.lastMk = mk; $.mark.style.left = mk; }
     $.pips.forEach((p, i) => { const c = this.done[i] ? MOTIF[i].colour : 'transparent'; if (p.style.background !== c) p.style.background = c; p.classList.toggle('now', i === this.i && !this.done[i]); });
   }
 
