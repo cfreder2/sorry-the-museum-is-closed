@@ -1809,7 +1809,10 @@ function tick(now) {
   if (frame % 30 === 0 || selfMoved.key !== (selfMoved.key = G.state + (G.plan.stripped ? 1 : 0))) { selfMoved.length = 0; scene.traverse(o => { if (o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) selfMoved.push(o); }); }
   scene.updateMatrixWorld(); scene.matrixWorldAutoUpdate = false;
   try {
-    mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0);
+    // (Not while the opening is in her bedroom: the floors it mirrors are the museum's own, and none is in sight from her window. It was
+    // half of that frame, the whole scene drawn a second time for nothing: 30 frames a second at the window where the close-ups ran at 100.)
+    const was = mirror.enabled; if (G.state === 'opening' && opening.phase !== 'fly') mirror.enabled = false;
+    try { mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0); } finally { mirror.enabled = was; }
     for (const o of selfMoved) o.updateWorldMatrix(false, false);
     composer.render();
   } finally { scene.matrixWorldAutoUpdate = true; }
