@@ -44,7 +44,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature, features } from './features.js';
-import { CRAFT, DOOR, hullY } from './finaleplan.js';
+import { CRAFT, DOOR } from './finaleplan.js';
 import { BLABELS } from './finalefit.js';
 import { beat } from './guardplan.js';
 import { Geo } from './geo.js';
@@ -52,8 +52,10 @@ import { outfield } from './ballpark.js';      // (the outfield's checker, for t
 import * as TX from './textures.js';
 import { imageUrl } from './collection.js';
 import { MOTIF_COLOURS } from './motif.js';
+import { buildCraftBody } from './craft.js';      // (the craft: the same one the voyage flies)
 
 const KEY = 'after-hours.finale';
+export const ROOM = 20;                   // the pictures the craft carries
 export const STATES = ['locked', 'found', 'played', 'launched', 'landed', 'opened'];
 const PAD_COLOURS = MOTIF_COLOURS;          // the call's own colours, a pad to a note (src/motif.js), so the console, the rim and the music agree
 const ease = t => t * t * (3 - 2 * t);
@@ -267,7 +269,9 @@ feature({
     }
     const silo = F.silo, openSilo = F.doorsK > 0.001 && Math.abs(cam.x - silo.cx) < 120 && Math.abs(cam.z - silo.cz) < 120;
     this.tunnelG.visible = deep && cam.x > 100 && cam.x < 312 && Math.abs(cam.z - 74.6) < 30;
+    const was = this.baseG.visible;
     this.baseG.visible = (deep && cam.x > 290 && cam.z > 30 && cam.z < 210) || openSilo;
+    if (this.baseG.visible && !was && STATES.indexOf(this.save.state) < STATES.indexOf('launched')) this._hang();      // (the easels catch up with what has been looked at since)
     if (this.tunnelG.visible) this._tunnelTick(dt, p);
     if (!this.baseG.visible) return;
     this._baseTick(dt, k, p, cam);
@@ -507,7 +511,7 @@ feature({
     const edge = this.padLamps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.28, 0.03, 0.12), new THREE.MeshBasicMaterial({ color: 0xffffff }), 36);
     { const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1), c = new THREE.Color(2.2, 1.3, 0.25); for (let i = 0; i < 36; i++) { const a = i / 36 * TAU; Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -a); edge.setMatrixAt(i, M4.compose(V.set(Math.cos(a) * (CRAFT.pad - 0.3), 0.035, Math.sin(a) * (CRAFT.pad - 0.3)), Q, S)); edge.setColorAt(i, c); } }
     edge.frustumCulled = false; plat.add(edge);
-    const craft = this.craft = buildCraft(this.M); craft.group.position.set(cx, F.platformTop, cz); g.add(craft.group);
+    const craft = this.craft = buildCraftBody(); craft.group.position.set(cx, F.platformTop, cz); g.add(craft.group);
     this.rampU = 0; this.rampTo = 0;
     const me = this, beam = new THREE.Vector3();
     this.hangar = {
@@ -531,8 +535,11 @@ feature({
   },
 
   // ---- the archive: easels, and the pictures on them
+  // The pictures are the player's own: the living works (src/paintlife.js) they have looked at, the most looked at first, up
+  // to the twenty the craft carries (choice(), below; src/finalelaunch.js will not wake the craft for fewer). Hung again
+  // each time the base comes into view, so the easels fill as more are looked at upstairs.
   _archive(k) {
-    const F = this.F, g = this.baseG, list = F.easels || [], me = this;
+    const F = this.F, g = this.baseG, list = F.easels || [];
     if (!list.length) return;
     const legs = new Geo();
     for (const e of list) {
@@ -542,40 +549,75 @@ feature({
       legs.box(x + 0.02, x + 0.16, y + 0.78, y + 0.84, z - 0.5, z + 0.5);                                                         // the ledge
     }
     g.add(legs.mesh(this.M.wood));
-    const unit = new THREE.PlaneGeometry(1, 1), blank = TX.flat(40, 36, 32), frameG = new Geo(), loader = new THREE.TextureLoader();
+    const unit = new THREE.PlaneGeometry(1, 1); this.blank = TX.flat(40, 36, 32);
     const easels = this.hangar.easels;
-    list.forEach((e, i) => {
-      const mat = new THREE.MeshStandardMaterial({ color: 0x4c4c4c, map: blank, emissiveMap: blank, emissive: 0xffffff, emissiveIntensity: 0.22, roughness: 0.6 });
+    list.forEach(e => {
+      const mat = new THREE.MeshStandardMaterial({ color: 0x4c4c4c, map: this.blank, emissiveMap: this.blank, emissive: 0xffffff, emissiveIntensity: 0.22, roughness: 0.6 });
       const mesh = new THREE.Mesh(unit, mat); mesh.rotation.y = Math.PI / 2; mesh.visible = false; g.add(mesh);
       const art = { work: null, mesh, mat, w: 1, h: 1, obj: false, tex: null, tier: 0, url: null, busy: false };
-      easels.push({ art, position: new THREE.Vector3(e.x + 0.14, e.y + 1.5, e.z), normal: new THREE.Vector3(1, 0, 0), light(k2) { mat.emissiveIntensity = 0.22 + 0.9 * Math.max(0, Math.min(1, k2)); } });
+      easels.push({ art, at: e, position: new THREE.Vector3(e.x + 0.14, e.y + 1.5, e.z), normal: new THREE.Vector3(1, 0, 0), light(k2) { mat.emissiveIntensity = 0.22 + 0.9 * Math.max(0, Math.min(1, k2)); } });
     });
-    this.frameG = frameG;
-    // Which pictures: public-domain paintings from the saved copy of the collection, not any hung upstairs tonight, chosen the same way each time.
+    // nearest the hangar first, from the middle of the room out: the order the console lights them and the beam takes them
+    easels.sort((a, b) => (b.position.x - a.position.x) || (Math.abs(a.position.z - 176) - Math.abs(b.position.z - 176)));
+    this.pool = [];
+    this._hang();
+    // (a game already past the console under the old rule may need more than it has looked at: from the saved copy of the
+    // collection, public-domain paintings not hung tonight, chosen the same way each time, as the archive used to have)
     fetch('data/collection.json').then(r => r.json()).then(data => {
       const hung = new Set((k.museum.arts || []).map(a => a.work && a.work.id));
       const ok = w => w && !w.c && w.k === 'Painting' && w.img && w.w > 30 && w.h > 30 && w.w < 260 && w.h < 260;
       let pool = (data.works || []).filter(w => ok(w) && !hung.has(w.id));
-      if (pool.length < easels.length) pool = (data.works || []).filter(ok);
-      // (where there is an offline copy of the images, the works in it first: src/collection.js imageUrl)
       const here = w => !/artic\.edu/.test(imageUrl(w, 400));
       pool.sort((a, b) => (here(b) - here(a)) || a.id - b.id);
-      const nHere = pool.filter(here).length; if (nHere >= easels.length) pool = pool.slice(0, nHere);
-      const step = Math.max(1, Math.floor(pool.length / easels.length));
-      const frames = new Geo();
-      easels.forEach((E, i) => {
-        const w = pool[(i * step + 3) % pool.length]; if (!w) return;
-        const big = Math.max(w.w, w.h) / 100, s = Math.min(1.5 / (w.w / 100), 1.25 / (w.h / 100), Math.max(1, 0.9 / big)), W = w.w / 100 * s, Hh = w.h / 100 * s;      // its own size, but none smaller than 90 cm along its longer side, nor too big for an easel
-        const a = E.art; a.work = w; a.w = W; a.h = Hh;
-        const ex = list[i].x + 0.17, ey = list[i].y + 0.84 + Hh / 2, ez = list[i].z;
-        a.mesh.position.set(ex, ey, ez); a.mesh.scale.set(W, Hh, 1); a.mesh.visible = true; E.position.set(ex, ey, ez);
-        frames.box(ex - 0.04, ex - 0.005, ey - Hh / 2 - 0.06, ey + Hh / 2 + 0.06, ez - W / 2 - 0.06, ez + W / 2 + 0.06);
-        if (w.lq) loader.load(w.lq, t => { if (a.tex) return; t.colorSpace = THREE.SRGBColorSpace; a.mat.map = a.mat.emissiveMap = t; a.mat.needsUpdate = true; });
-        // and the picture itself, fetched and handed over the way the museum's are (src/museum.js: a worker, one a frame)
-        try { k.museum._load(a, 1); } catch { /* the small one will do */ }
-      });
-      g.add(me.hangar.frames = frames.mesh(self(0xa8843a, 0.35, { metalness: 0.6, roughness: 0.4 })));      // (hangar.frames: the beam takes them with their pictures, src/finalelaunch.js)
-    }).catch(() => { /* no pictures: the easels stand empty */ });
+      const step = Math.max(1, Math.floor(pool.length / ROOM));
+      this.pool = Array.from({ length: Math.min(ROOM, pool.length) }, (_, i) => pool[(i * step + 3) % pool.length]);
+      this._hang();
+    }).catch(() => { /* none: the living works will do */ });
+  },
+  // Which pictures go, as { list: [{ work, w, h, living }], looked, want, living }. `looked` is how many living works have
+  // been looked at; `want` how many the console waits for (twenty, or every living work hung tonight if there are fewer).
+  // Past the console (or with all it wants), the rest of the twenty are made up: the other works most looked at, then the pool.
+  choice() {
+    const k = this.k, pl = features.find(f => f.id === 'paintlife'), sc = k.G.score, views = id => (sc ? sc.viewsOf(id) : 0);
+    const pic = a => a && a.work && !a.work.c && a.work.img && !a.obj && !a.mini && a.w > 0.2 && a.h > 0.2;      // public domain, and a picture
+    const rank = (a, b) => (views(b.work.id) - views(a.work.id)) || (a.work.id - b.work.id);
+    const living = pl && pl.byArt ? [...pl.byArt.keys()].filter(pic) : [];
+    const seen = living.filter(a => views(a.work.id) > 0).sort(rank), want = Math.min(ROOM, living.length);
+    const list = seen.slice(0, ROOM).map(a => ({ work: a.work, w: a.w, h: a.h, living: true }));
+    const past = STATES.indexOf(this.save.state) >= STATES.indexOf('played');
+    if (list.length < ROOM && (past || seen.length >= want)) {
+      const ids = new Set(list.map(q => q.work.id));
+      for (const a of (k.museum.arts || []).filter(a => pic(a) && views(a.work.id) > 0 && !ids.has(a.work.id)).sort(rank)) { if (list.length >= ROOM) break; ids.add(a.work.id); list.push({ work: a.work, w: a.w, h: a.h, living: false }); }
+      for (const w of this.pool || []) { if (list.length >= ROOM) break; if (ids.has(w.id)) continue; ids.add(w.id); list.push({ work: w, w: w.w / 100, h: w.h / 100, living: false }); }
+    }
+    return { list, looked: seen.length, want, living: living.length };
+  },
+  // Put the choice on the easels: each that changes takes its new picture (fetched as the museum's are: a worker, one a frame).
+  _hang() {
+    const h = this.hangar; if (!h || !h.easels.length || this.hung === 'gone') return;
+    const k = this.k, { list } = this.choice(), loader = this._loader || (this._loader = new THREE.TextureLoader());
+    let changed = false;
+    h.easels.forEach((E, i) => {
+      const q = list[i], a = E.art, e = E.at;
+      if ((q ? q.work : null) === a.work || a.busy) return;
+      changed = true;
+      if (a.tex) { a.tex.dispose(); a.tex = null; } a.url = null; a.tier = 0; a.mat.map = a.mat.emissiveMap = this.blank; a.mat.needsUpdate = true;
+      a.work = q ? q.work : null; a.mesh.visible = !!q;
+      if (!q) return;
+      const big = Math.max(q.w, q.h), s = Math.min(1.5 / q.w, 1.25 / q.h, Math.max(1, 0.9 / big)), W = q.w * s, Hh = q.h * s;      // its own size, but none smaller than 90 cm along its longer side, nor too big for an easel
+      a.w = W; a.h = Hh;
+      const ex = e.x + 0.17, ey = e.y + 0.84 + Hh / 2, ez = e.z;
+      a.mesh.position.set(ex, ey, ez); a.mesh.scale.set(W, Hh, 1); E.position.set(ex, ey, ez);
+      const w = q.work; if (w.lq) loader.load(w.lq, t => { if (a.tex || a.work !== w) { t.dispose(); return; } t.colorSpace = THREE.SRGBColorSpace; a.mat.map = a.mat.emissiveMap = t; a.mat.needsUpdate = true; });
+      try { k.museum._load(a, 1); } catch { /* the small one will do */ }
+    });
+    if (!changed && h.frames) return;
+    // the gilt frames behind the pictures, merged (hangar.frames: the beam takes them with their pictures, src/finalelaunch.js)
+    const frames = new Geo();
+    for (const E of h.easels) { const a = E.art; if (!a.work) continue; const p = E.position; frames.box(p.x - 0.04, p.x - 0.005, p.y - a.h / 2 - 0.06, p.y + a.h / 2 + 0.06, p.z - a.w / 2 - 0.06, p.z + a.w / 2 + 0.06); }
+    const vis = h.frames ? h.frames.visible : true;
+    if (h.frames) { this.baseG.remove(h.frames); h.frames.geometry.dispose(); }
+    h.frames = frames.mesh(this.frameMat || (this.frameMat = self(0xa8843a, 0.35, { metalness: 0.6, roughness: 0.4 }))); h.frames.visible = vis; this.baseG.add(h.frames);
   },
 
   // ---- lettering on the crates and the signs
@@ -640,7 +682,7 @@ feature({
       'B-office': [null, 'The Director had another office.'],
       'B-sit': [null, 'A table with the whole park on it, and a square in the ballfield marked SILO.'],
       'B-ctrl': [null, 'A console with five dark pads. A chair faces the window.'],
-      'B-archive': [null, 'Pictures from upstairs, on easels. RECOVERED, say the crates.'],
+      'B-archive': [null, this._archiveLine()],
       'B-hangar': ['THE HANGAR', 'It is real, and it is full size.'],
     }[id];
     if (!line) return;
@@ -649,6 +691,11 @@ feature({
     if (id === 'B-hangar') { if (k.find('greencheese')) k.sound.finish(); }
   },
 
+  _archiveLine() {
+    const c = this.choice(), n = c.list.filter(q => q.living).length;
+    if (STATES.indexOf(this.save.state) >= STATES.indexOf('played') || n >= c.want) return 'Pictures from upstairs, on easels: the living ones you looked at most. RECOVERED, say the crates.';
+    return n ? `Twenty easels. On ${n} of them, living pictures you looked at upstairs. RECOVERED, say the crates.` : 'Twenty easels, all empty. RECOVERED, say the crates.';
+  },
   spots() {
     const out = [], F = this.F; if (!F) return out;
     if (this.cardAt) out.push({ kind: 'thing', id: 'keycard', name: 'The keycard', ...this.cardAt });
@@ -710,74 +757,7 @@ function swivelChair(M) {
   return g;
 }
 
-// The craft: the toy saucer (garage.js buildSaucer), sixteen metres across and done properly. Its origin is the foot of
-// its legs; it faces its door, and its ramp, to -x. Shapes from CRAFT (src/finaleplan.js), where its collision is too.
-function buildCraft(M) {
-  const C = CRAFT, g = new THREE.Group(), body = new THREE.Group(); g.add(body); g.name = 'the craft';
-  const panel = canvas(1024, 256, (c, w, h) => {
-    c.fillStyle = '#c9d1d6'; c.fillRect(0, 0, w, h);
-    c.strokeStyle = 'rgba(40,48,56,.55)'; c.lineWidth = 2; for (let i = 0; i <= 48; i++) { c.beginPath(); c.moveTo(i * w / 48, 0); c.lineTo(i * w / 48, h); c.stroke(); }
-    for (const y of [h * 0.3, h * 0.62]) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
-    c.fillStyle = 'rgba(60,70,80,.5)'; for (let i = 0; i < 48; i++) for (const y of [h * 0.3 - 6, h * 0.62 - 6]) { c.beginPath(); c.arc(i * w / 48 + 10, y, 2, 0, 7); c.fill(); }
-  }).tex;
-  panel.wrapS = THREE.RepeatWrapping;
-  const hull = new THREE.MeshStandardMaterial({ color: 0xc4ccd2, map: panel, roughness: 0.28, metalness: 0.7, emissive: 0x3e474f, emissiveIntensity: 0.75, side: THREE.DoubleSide });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x23282e, roughness: 0.45, metalness: 0.6, emissive: 0x15191d, emissiveIntensity: 0.6, side: THREE.DoubleSide });
-  const door = Math.PI * 1.5, gap = C.door;
-  const lathe = (pts, mat, cut = true) => { const geo = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 96, cut ? door + gap : 0, cut ? TAU - 2 * gap : TAU); const m = new THREE.Mesh(geo, mat); body.add(m); return m; };
-  // underneath: the skirt from the belly out, then the lower hull to the rim
-  lathe([[C.bellyR, C.belly], [4.6, C.belly + 0.38], [C.skirtR, C.skirtY]], hull, false);
-  lathe([[C.skirtR, C.skirtY], [7.2, 2.2], [7.8, 2.36], [C.R, C.rimLow]], hull);
-  lathe([[C.R, C.rimLow], [C.R + 0.08, C.rimLow + 0.05], [C.R + 0.08, C.rim - 0.05], [C.R, C.rim]], dark);
-  const up = []; for (let i = 0; i <= 14; i++) { const r = C.R - (C.R - C.domeR) * i / 14; up.push([r, hullY(r)]); }
-  lathe(up, hull);
-  // the dome, glass, with a frame round its foot
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(C.domeR, 48, 20, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9fe8ff, roughness: 0.08, metalness: 0.2, transparent: true, opacity: 0.24, emissive: 0x3fb6d8, emissiveIntensity: 0.3, depthWrite: false }));
-  dome.scale.y = (C.top - C.domeY) / C.domeR; dome.position.y = C.domeY; dome.renderOrder = 5; body.add(dome);
-  const foot = new THREE.Mesh(new THREE.TorusGeometry(C.domeR, 0.09, 8, 64), dark); foot.rotation.x = Math.PI / 2; foot.position.y = C.domeY + 0.02; body.add(foot);
-  // the doorway's sides, and its sill
-  for (const s of [-1, 1]) {
-    const a = door + s * gap, j = new THREE.Mesh(new THREE.BoxGeometry(0.08, C.rim + 0.6 - C.rimLow, C.R - C.cabinR + 0.4), dark);
-    j.position.set(Math.sin(a) * (C.R + C.cabinR) / 2, (C.rimLow + C.rim + 0.6) / 2, Math.cos(a) * (C.R + C.cabinR) / 2); j.rotation.y = a; body.add(j);
-  }
-  // the cabin: its floor, lit in rings, a pedestal of controls under the dome, two seats, a strip of light round the edge
-  const floorT = canvas(512, 512, (c, w, h) => { c.fillStyle = '#20262c'; c.fillRect(0, 0, w, h); c.strokeStyle = 'rgba(120,255,190,.5)'; c.lineWidth = 3; for (const r of [0.2, 0.36, 0.5]) { c.beginPath(); c.arc(w / 2, h / 2, r * w, 0, 7); c.stroke(); } c.strokeStyle = 'rgba(255,255,255,.08)'; for (let i = 0; i < 24; i++) { const a = i / 24 * 7; c.beginPath(); c.moveTo(w / 2, h / 2); c.lineTo(w / 2 + Math.cos(a) * w / 2, h / 2 + Math.sin(a) * w / 2); c.stroke(); } }).tex;
-  const fl = new THREE.Mesh(new THREE.CircleGeometry(C.cabinR + 0.4, 64), new THREE.MeshStandardMaterial({ map: floorT, roughness: 0.5, metalness: 0.4, emissiveMap: floorT, emissive: 0xffffff, emissiveIntensity: 0.5 }));
-  fl.rotation.x = -Math.PI / 2; fl.position.y = C.floor + 0.004; body.add(fl);
-  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.95, 1.0, 24), dark); ped.position.y = C.floor + 0.5; body.add(ped);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.04, 6, 32), glow(0.4, 2.0, 1.3)); ring.rotation.x = Math.PI / 2; ring.position.y = C.floor + 1.0; body.add(ring);
-  for (const a of [0.6, -0.6]) { const s = new THREE.Group(), seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), dark), bk = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.12), dark); seat.position.y = 0.5; bk.position.set(0, 0.95, -0.35); s.add(seat, bk); s.position.set(Math.sin(a) * 2.2, C.floor, Math.cos(a) * 2.2); s.rotation.y = a + Math.PI; body.add(s); }
-  const strip = new THREE.Mesh(new THREE.TorusGeometry(6.4, 0.05, 6, 96), glow(0.3, 1.4, 1.6)); strip.rotation.x = Math.PI / 2; strip.position.y = hullY(6.4) - 0.3; body.add(strip);
-  // the port underneath, where the beam comes from
-  const port = new THREE.Mesh(new THREE.CircleGeometry(2.0, 40), glow(0.15, 0.7, 0.4)); port.rotation.x = Math.PI / 2; port.position.y = C.belly - 0.01; body.add(port);
-  const portRim = new THREE.Mesh(new THREE.TorusGeometry(2.05, 0.08, 6, 48), dark); portRim.rotation.x = Math.PI / 2; portRim.position.y = C.belly - 0.02; body.add(portRim);
-  // rim lamps
-  const n = 30, lamps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.2, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), n);
-  { const M4 = new THREE.Matrix4(), V = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), c = new THREE.Color(1, 1, 1); for (let i = 0; i < n; i++) { const a = door + gap + 0.12 + (TAU - 2 * gap - 0.24) * i / (n - 1); lamps.setMatrixAt(i, M4.compose(V.set(Math.sin(a) * (C.R + 0.24), (C.rimLow + C.rim) / 2, Math.cos(a) * (C.R + 0.24)), Q, S)); lamps.setColorAt(i, c); } }
-  lamps.frustumCulled = false; body.add(lamps);
-  // legs, clear of the doorway
-  for (const a of [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4]) {
-    const fx = Math.cos(a), fz = Math.sin(a), top = new THREE.Vector3(fx * (C.legR - 1.1), C.belly + 0.6, fz * (C.legR - 1.1)), ft = new THREE.Vector3(fx * C.legR, 0.18, fz * C.legR);
-    const len = top.distanceTo(ft), strut = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, len, 10), dark);
-    strut.position.copy(top).add(ft).multiplyScalar(0.5); strut.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), top.clone().sub(ft).normalize()); g.add(strut);
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.18, 16), dark); pad.position.copy(ft).setY(0.09); g.add(pad);
-  }
-  // the ramp: hinged at the sill; down, it lies at its slope to the floor; up, it is drawn level and slid into the hull
-  const rampG = new THREE.Group(), Lr = Math.hypot(C.rampLen, C.floor - 0.02), th = Math.atan2(C.floor - 0.02, C.rampLen);
-  rampG.position.set(-(C.R - 0.4), C.floor, 0); g.add(rampG);
-  const plank = new THREE.Group(); rampG.add(plank);
-  // its tread: ribs across it, as the flying craft's own ramp has (craft.js). Nothing on it points.
-  const ribs = canvas(64, 64, (c, w, h) => { c.fillStyle = '#20242a'; c.fillRect(0, 0, w, h); c.fillStyle = '#9aa3ab'; c.fillRect(8, 5, 16, h - 10); c.fillStyle = '#0c0e11'; c.fillRect(24, 5, 5, h - 10); }).tex; ribs.wrapS = ribs.wrapT = THREE.RepeatWrapping; ribs.repeat.set(Math.round(Lr / 0.3), 1);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(Lr, 0.12, C.rampW), [dark, dark, new THREE.MeshStandardMaterial({ color: 0x8a949c, map: ribs, roughness: 0.6, metalness: 0.4, emissive: 0x2a3036, emissiveIntensity: 0.6 }), dark, dark, dark]);
-  top.position.set(-Lr / 2, -0.06, 0); plank.add(top);
-  for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(Lr, 0.06, 0.08), glow(0.95, 0.72, 0.2)); e.position.set(-Lr / 2, 0.01, s * (C.rampW / 2 - 0.04)); plank.add(e); }
-  const setRamp = u => {      // 0: down; 1: stowed
-    const a = Math.min(1, u * 2), b = Math.max(0, u * 2 - 1);
-    plank.rotation.z = th * (1 - a); plank.position.set(Lr * b, -0.3 * a, 0);
-  };
-  setRamp(0);
-  return { group: g, body, lamps, port, ramp: rampG, setRamp, dome };
-}
+// The craft is src/craft.js buildCraftBody: one shape, drawn the same here and on the voyage and the Moon.
 
 // ======================================================================= pictures drawn on canvases
 

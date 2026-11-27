@@ -1,169 +1,174 @@
-// The craft: the full-size saucer of the voyage, sixteen metres across, with the look of the small one on the
-// pedestal in Sub-level 9 (buildSaucer in src/garage.js): a silver hull, a glass dome the colour of shallow water,
-// a ring of lights that chase round its rim. Inside, one round cabin: a floor of plates, a curved wall with a band
-// of windows all the way round and a wide windscreen at the front, the console under it with the five pads of the
-// craft's call, and on the wall, the art it is carrying home.
+// The craft: the saucer of the finale, sixteen metres across, with the look of the small one on the pedestal in
+// Sub-level 9 (buildSaucer in src/garage.js), done properly. One shape, made here, for both places it is seen:
 //
-// Its own frame: the cabin floor is at y = 0, forward is -z (the windscreen), the door and its ramp are at +x.
-// The landing legs reach down to y = -LEG. The Moon's plan (src/moon.js) is built to match these numbers.
+//   buildCraftBody()   the craft as it stands in the hangar under Butler Field (src/finale.js): a silver lens of a hull,
+//                      a tall glass dome the colour of shallow water, a dark rim band with its ring of lamps, four legs,
+//                      the ramp, and inside the low cabin round the pedestal of controls, its two seats. Its own frame:
+//                      the origin is the foot of the legs, the door and its ramp face -x, and the shapes are CRAFT in
+//                      src/finaleplan.js, where its collision in the hangar is too.
+//   buildCraft()       the same craft for the voyage (src/voyage.js) and the Moon (src/moon.js), with the cabin the flight
+//                      needs fitted inside that hull: the cabin is the round well under the dome, its floor the craft's
+//                      floor, its wall the hull's own depth (the glass begins where the wall stops, so the whole dome is
+//                      the window), the five pads of the craft's call on the pedestal, the art it is carrying round the
+//                      wall, and a passage from the well out to the door, along the slot the hull has there. Its frame:
+//                      the cabin floor at y = 0, forward -z, the door and the ramp at -x, the legs reaching down to
+//                      y = -LEG. The Moon's plan (src/moon.js) is built to these numbers.
+//
+// (It was two crafts: the voyage drew a taller one of its own, with a band of windows, and it changed shape on the way to the
+// Moon. The hangar's is the better ship.)
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MOTIF } from './motif.js';
+import { CRAFT as HC, hullY } from './finaleplan.js';
 
-export const CRAFT = {
-  R: 8.05,            // the rim
-  WALL: 6.5,          // the cabin's outer wall
-  IN: 6.2,            // its inner face, where the art hangs
-  ROOF: 5.6,          // the top of the dome
-  LEG: 2.2,           // the floor stands this high over the ground on its legs
-  HINGE: 6.45,        // the ramp's hinge, at the door's threshold (along +x)
-  RAMP: 7.6,          // the ramp's length
-  RAMP_W: 2.2,
-  DOOR_W: 2.4, DOOR_H: 2.55,
-  BELLY: -1.42,
-};
-const DOOR_A = CRAFT.DOOR_W / 2 / CRAFT.WALL;            // half the door's angle
 const TAU = Math.PI * 2;
-// three's cylinders run their angle from +z towards +x: +x is a quarter turn round.
-const DOOR_T = Math.PI / 2, SCREEN_T = Math.PI, SCREEN_A = 0.72;
+// The voyage's numbers, from the hangar's (src/finaleplan.js CRAFT, heights there off the foot of the legs).
+export const CRAFT = {
+  LEG: HC.floor,               // the floor stands this high over the ground on its legs
+  R: HC.R,                     // the rim
+  PIT: 3.5,                    // the cabin's wall, round under the dome
+  SILL: HC.domeY - HC.floor,   // how high it is: where the glass begins
+  DOOR: HC.door,               // half the angle of the slot the door and the passage are in
+  HINGE: HC.R - 0.4,           // the ramp's hinge, out along -x at floor height
+  RUN: HC.rampLen,             // how far out the ramp reaches, down at the ground
+  RAMP_W: HC.rampW,
+};
+const DOOR_T = Math.PI * 1.5;  // three's angles run from +z towards +x: the door, at -x, is three quarters round
 
+const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
+const canvas = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); draw(c, w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return { tex: t, ctx: c, cv, w, h }; };
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0, ...o });
 
-function canvasTex(w, h, draw, srgb = true) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
-
-// A ring wall segment: part of a cylinder, from angle t0 to t1, from y0 to y1, seen from inside.
-function arc(r, y0, y1, t0, t1, seg = 24) {
-  const g = new THREE.CylinderGeometry(r, r, y1 - y0, Math.max(2, Math.ceil(seg * (t1 - t0) / TAU * 4)), 1, true, t0, t1 - t0);
-  g.translate(0, (y0 + y1) / 2, 0); return g;
+// ---------------------------------------------------------------- the craft, as the hangar has it --
+export function buildCraftBody() {
+  const C = HC, g = new THREE.Group(), body = new THREE.Group(); g.add(body); g.name = 'the craft';
+  const panel = canvas(1024, 256, (c, w, h) => {
+    c.fillStyle = '#c9d1d6'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = 'rgba(40,48,56,.55)'; c.lineWidth = 2; for (let i = 0; i <= 48; i++) { c.beginPath(); c.moveTo(i * w / 48, 0); c.lineTo(i * w / 48, h); c.stroke(); }
+    for (const y of [h * 0.3, h * 0.62]) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+    c.fillStyle = 'rgba(60,70,80,.5)'; for (let i = 0; i < 48; i++) for (const y of [h * 0.3 - 6, h * 0.62 - 6]) { c.beginPath(); c.arc(i * w / 48 + 10, y, 2, 0, 7); c.fill(); }
+  }).tex;
+  panel.wrapS = THREE.RepeatWrapping;
+  const hull = new THREE.MeshStandardMaterial({ color: 0xc4ccd2, map: panel, roughness: 0.28, metalness: 0.7, emissive: 0x3e474f, emissiveIntensity: 0.75, side: THREE.DoubleSide });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x23282e, roughness: 0.45, metalness: 0.6, emissive: 0x15191d, emissiveIntensity: 0.6, side: THREE.DoubleSide });
+  const door = DOOR_T, gap = C.door;
+  const lathe = (pts, mat, cut = true) => { const geo = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 96, cut ? door + gap : 0, cut ? TAU - 2 * gap : TAU); const m = new THREE.Mesh(geo, mat); body.add(m); return m; };
+  // underneath: the skirt from the belly out, then the lower hull to the rim
+  lathe([[C.bellyR, C.belly], [4.6, C.belly + 0.38], [C.skirtR, C.skirtY]], hull, false);
+  lathe([[C.skirtR, C.skirtY], [7.2, 2.2], [7.8, 2.36], [C.R, C.rimLow]], hull);
+  lathe([[C.R, C.rimLow], [C.R + 0.08, C.rimLow + 0.05], [C.R + 0.08, C.rim - 0.05], [C.R, C.rim]], dark);
+  const up = []; for (let i = 0; i <= 14; i++) { const r = C.R - (C.R - C.domeR) * i / 14; up.push([r, hullY(r)]); }
+  lathe(up, hull);
+  // the dome, glass, with a frame round its foot
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(C.domeR, 48, 20, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9fe8ff, roughness: 0.08, metalness: 0.2, transparent: true, opacity: 0.24, emissive: 0x3fb6d8, emissiveIntensity: 0.3, depthWrite: false }));
+  dome.scale.y = (C.top - C.domeY) / C.domeR; dome.position.y = C.domeY; dome.renderOrder = 5; body.add(dome);
+  const foot = new THREE.Mesh(new THREE.TorusGeometry(C.domeR, 0.09, 8, 64), dark); foot.rotation.x = Math.PI / 2; foot.position.y = C.domeY + 0.02; body.add(foot);
+  // the doorway's sides, and its sill
+  for (const s of [-1, 1]) {
+    const a = door + s * gap, j = new THREE.Mesh(new THREE.BoxGeometry(0.08, C.rim + 0.6 - C.rimLow, C.R - C.cabinR + 0.4), dark);
+    j.position.set(Math.sin(a) * (C.R + C.cabinR) / 2, (C.rimLow + C.rim + 0.6) / 2, Math.cos(a) * (C.R + C.cabinR) / 2); j.rotation.y = a; body.add(j);
+  }
+  // the cabin: its floor, lit in rings, a pedestal of controls under the dome, two seats, a strip of light round the edge
+  const floorT = canvas(512, 512, (c, w, h) => { c.fillStyle = '#20262c'; c.fillRect(0, 0, w, h); c.strokeStyle = 'rgba(120,255,190,.5)'; c.lineWidth = 3; for (const r of [0.2, 0.36, 0.5]) { c.beginPath(); c.arc(w / 2, h / 2, r * w, 0, 7); c.stroke(); } c.strokeStyle = 'rgba(255,255,255,.08)'; for (let i = 0; i < 24; i++) { const a = i / 24 * 7; c.beginPath(); c.moveTo(w / 2, h / 2); c.lineTo(w / 2 + Math.cos(a) * w / 2, h / 2 + Math.sin(a) * w / 2); c.stroke(); } }).tex;
+  const fl = new THREE.Mesh(new THREE.CircleGeometry(C.cabinR + 0.4, 64), new THREE.MeshStandardMaterial({ map: floorT, roughness: 0.5, metalness: 0.4, emissiveMap: floorT, emissive: 0xffffff, emissiveIntensity: 0.5 }));
+  fl.rotation.x = -Math.PI / 2; fl.position.y = C.floor + 0.004; body.add(fl);
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.95, 1.0, 24), dark); ped.position.y = C.floor + 0.5; body.add(ped);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.04, 6, 32), glow(0.4, 2.0, 1.3)); ring.rotation.x = Math.PI / 2; ring.position.y = C.floor + 1.0; body.add(ring);
+  for (const a of [0.6, -0.6]) { const s = new THREE.Group(), seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), dark), bk = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.12), dark); seat.position.y = 0.5; bk.position.set(0, 0.95, -0.35); s.add(seat, bk); s.position.set(Math.sin(a) * 2.2, C.floor, Math.cos(a) * 2.2); s.rotation.y = a + Math.PI; body.add(s); }
+  const strip = new THREE.Mesh(new THREE.TorusGeometry(6.4, 0.05, 6, 96), glow(0.3, 1.4, 1.6)); strip.rotation.x = Math.PI / 2; strip.position.y = hullY(6.4) - 0.3; body.add(strip);
+  // the port underneath, where the beam comes from
+  const port = new THREE.Mesh(new THREE.CircleGeometry(2.0, 40), glow(0.15, 0.7, 0.4)); port.rotation.x = Math.PI / 2; port.position.y = C.belly - 0.01; body.add(port);
+  const portRim = new THREE.Mesh(new THREE.TorusGeometry(2.05, 0.08, 6, 48), dark); portRim.rotation.x = Math.PI / 2; portRim.position.y = C.belly - 0.02; body.add(portRim);
+  // rim lamps
+  const n = 30, lamps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.2, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), n);
+  { const M4 = new THREE.Matrix4(), V = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), c = new THREE.Color(1, 1, 1); for (let i = 0; i < n; i++) { const a = door + gap + 0.12 + (TAU - 2 * gap - 0.24) * i / (n - 1); lamps.setMatrixAt(i, M4.compose(V.set(Math.sin(a) * (C.R + 0.24), (C.rimLow + C.rim) / 2, Math.cos(a) * (C.R + 0.24)), Q, S)); lamps.setColorAt(i, c); } }
+  lamps.frustumCulled = false; body.add(lamps);
+  // legs, clear of the doorway (each in a group of its own, so that the flight can draw it up into the hull: setLegs)
+  const legs = [];
+  for (const a of [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4]) {
+    const leg = new THREE.Group(), fx = Math.cos(a), fz = Math.sin(a), top = new THREE.Vector3(fx * (C.legR - 1.1), C.belly + 0.6, fz * (C.legR - 1.1)), ft = new THREE.Vector3(fx * C.legR, 0.18, fz * C.legR);
+    const len = top.distanceTo(ft), strut = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, len, 10), dark);
+    strut.position.copy(top).add(ft).multiplyScalar(0.5); strut.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), top.clone().sub(ft).normalize()); leg.add(strut);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.18, 16), dark); pad.position.copy(ft).setY(0.09); leg.add(pad);
+    g.add(leg); legs.push(leg);
+  }
+  // the ramp: hinged at the sill; down, it lies at its slope to the floor; up, it is drawn level and slid into the hull
+  const rampG = new THREE.Group(), Lr = Math.hypot(C.rampLen, C.floor - 0.02), th = Math.atan2(C.floor - 0.02, C.rampLen);
+  rampG.position.set(-(C.R - 0.4), C.floor, 0); g.add(rampG);
+  const plank = new THREE.Group(); rampG.add(plank);
+  // its tread: ribs across it. Nothing on it points.
+  const ribs = canvas(64, 64, (c, w, h) => { c.fillStyle = '#20242a'; c.fillRect(0, 0, w, h); c.fillStyle = '#9aa3ab'; c.fillRect(8, 5, 16, h - 10); c.fillStyle = '#0c0e11'; c.fillRect(24, 5, 5, h - 10); }).tex; ribs.wrapS = ribs.wrapT = THREE.RepeatWrapping; ribs.repeat.set(Math.round(Lr / 0.3), 1);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(Lr, 0.12, C.rampW), [dark, dark, new THREE.MeshStandardMaterial({ color: 0x8a949c, map: ribs, roughness: 0.6, metalness: 0.4, emissive: 0x2a3036, emissiveIntensity: 0.6 }), dark, dark, dark]);
+  top.position.set(-Lr / 2, -0.06, 0); plank.add(top);
+  for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(Lr, 0.06, 0.08), glow(0.95, 0.72, 0.2)); e.position.set(-Lr / 2, 0.01, s * (C.rampW / 2 - 0.04)); plank.add(e); }
+  const setRamp = u => {      // 0: down; 1: stowed
+    const a = Math.min(1, u * 2), b = Math.max(0, u * 2 - 1);
+    plank.rotation.z = th * (1 - a); plank.position.set(Lr * b, -0.3 * a, 0);
+  };
+  setRamp(0);
+  return {
+    group: g, body, lamps, port, ramp: rampG, setRamp, dome, legs, hull, dark,
+    // 1: standing on them; 0: drawn up into the hull (in flight)
+    setLegs(k) { for (const l of legs) l.position.y = (1 - Math.max(0, Math.min(1, k))) * 1.45; },
+  };
 }
 
+// ---------------------------------------------------------------- the craft, for the voyage --
 export function buildCraft() {
-  const g = new THREE.Group(); g.name = 'craft';
-  const hull = new THREE.Group(), cabin = new THREE.Group(); g.add(hull, cabin);
-  const C = CRAFT;
-
-  // ---- the hull, outside (front faces only: from inside the cabin it is not there, and you see out)
-  const metal = std(0xc3ccd3, { roughness: 0.32, metalness: 0.45, emissive: 0x3a444d, emissiveIntensity: 0.6 });
-  const dark = std(0x23282e, { roughness: 0.5, metalness: 0.6 });
-  const under = [[0, -1.42], [1.5, -1.41], [3, -1.36], [4.6, -1.18], [6.3, -0.95], [7.4, -0.82], [8.0, -0.76], [C.R, -0.68], [8.02, -0.6], [7.2, -0.28], [C.WALL, -0.02]].map(([r, y]) => new THREE.Vector2(r, y));
-  hull.add(new THREE.Mesh(new THREE.LatheGeometry(under, 96), metal));
-  // the outer cabin wall, with the door cut out of it; its window band is lit from within
-  const wins = (x, w, h, bg) => {
-    x.fillStyle = bg; x.fillRect(0, 0, w, h);
-    if (bg !== '#000') { x.fillStyle = 'rgba(40,48,56,.5)'; for (let i = 0; i < 28; i++) x.fillRect(i * w / 28, 0, 2, h); x.fillRect(0, 30, w, 2); x.fillRect(0, 50, w, 2); }
-    for (let i = 0; i < 28; i++) { const x0 = i * w / 28 + 5, ww = w / 28 - 10; const gr = x.createLinearGradient(0, 9, 0, 22); gr.addColorStop(0, '#d8f6ff'); gr.addColorStop(1, '#7fd4f0'); x.fillStyle = gr; x.fillRect(x0, 9, ww, 13); }
-  };
-  const winTex = canvasTex(1024, 64, (x, w, h) => wins(x, w, h, '#b4bec6')), winGlow = canvasTex(1024, 64, (x, w, h) => wins(x, w, h, '#000'));
-  const wallMat = std(0xffffff, { map: winTex, emissiveMap: winGlow, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.32, metalness: 0.4 });
-  const outer = new THREE.CylinderGeometry(C.WALL, C.WALL, 2.97, 96, 1, true, DOOR_T + DOOR_A, TAU - 2 * DOOR_A);
-  outer.translate(0, 1.465, 0);
-  // (the texture's lit strip, rows 9 to 22 of 64, falls on the band of windows inside, 1.95 to 2.55 m up)
-  const band = new THREE.Mesh(outer, wallMat); hull.add(band);
-  const lintel = new THREE.CylinderGeometry(C.WALL, C.WALL, 2.97 - C.DOOR_H, 6, 1, true, DOOR_T - DOOR_A, 2 * DOOR_A); lintel.translate(0, C.DOOR_H + (2.97 - C.DOOR_H) / 2 - 0.02, 0);
-  hull.add(new THREE.Mesh(lintel, metal));
-  // the dome: glass, the colour of the little one's
-  const domeP = [[C.WALL, 2.95], [6.44, 3.2], [6.05, 3.85], [5.25, 4.55], [4.0, 5.1], [2.4, 5.46], [1.0, 5.58], [0, C.ROOF]].map(([r, y]) => new THREE.Vector2(r, y));
-  const glass = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, roughness: 0.06, metalness: 0.2, transparent: true, opacity: 0.42, emissive: 0x3fb6d8, emissiveIntensity: 0.55, depthWrite: false });
-  const dome = new THREE.Mesh(new THREE.LatheGeometry(domeP, 72), glass); dome.renderOrder = 3; hull.add(dome);
-  hull.add(new THREE.Mesh(new THREE.TorusGeometry(C.WALL, 0.07, 6, 96).rotateX(Math.PI / 2).translate(0, 2.97, 0), metal));
-  // the belly: the port the beam comes from
-  const port = new THREE.Mesh(new THREE.CircleGeometry(2.2, 40).rotateX(Math.PI / 2).translate(0, -1.43, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 2.2, 1.4) }));
-  hull.add(port);
-  // the rim lights: twenty-four, chasing round in the colours of the call
-  const lampGeo = new THREE.SphereGeometry(0.13, 10, 8), N = 24;
-  const lamps = new THREE.InstancedMesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), N);
-  { const M = new THREE.Matrix4(), c = new THREE.Color(); for (let i = 0; i < N; i++) { const a = i / N * TAU; M.makeTranslation(Math.sin(a) * (C.R + 0.02), -0.66, Math.cos(a) * (C.R + 0.02)); lamps.setMatrixAt(i, M); lamps.setColorAt(i, c.set(MOTIF[i % 5].colour)); } }
-  hull.add(lamps);
-
-  // ---- the legs: four struts and their pads, folded up in flight
-  const legs = new THREE.Group(); hull.add(legs);
-  const legParts = [];
-  for (let i = 0; i < 4; i++) {
-    const a = Math.PI / 4 + i * Math.PI / 2, leg = new THREE.Group();
-    leg.position.set(Math.sin(a) * 5.4, -1.0, Math.cos(a) * 5.4); leg.rotation.y = a;
-    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 1.3, 10).translate(0, -0.65, 0), dark);
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.1, 16).translate(0, -1.25, 0), metal);
-    leg.add(strut, pad); legs.add(leg); legParts.push(leg);
-  }
-
-  // ---- the door and the ramp, at +x
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.12, C.DOOR_H, C.DOOR_W + 0.1).translate(C.WALL - 0.05, C.DOOR_H / 2, 0), metal);
-  hull.add(door);
-  const ramp = new THREE.Group(); ramp.position.set(C.HINGE, 0, 0); hull.add(ramp);
-  const plank = new THREE.Group(); ramp.add(plank);
-  const treadTex = canvasTex(64, 256, (x, w, h) => { x.fillStyle = '#5b636b'; x.fillRect(0, 0, w, h); x.fillStyle = '#7d868e'; for (let y = 6; y < h; y += 16) x.fillRect(4, y, w - 8, 5); x.fillStyle = '#e0b030'; x.fillRect(0, 0, 4, h); x.fillRect(w - 4, 0, 4, h); });
-  treadTex.wrapT = THREE.RepeatWrapping; treadTex.repeat.set(1, 4);
-  const rampMat = std(0xffffff, { map: treadTex, roughness: 0.6, metalness: 0.5 });
-  plank.add(new THREE.Mesh(new THREE.BoxGeometry(C.RAMP, 0.12, C.RAMP_W).translate(C.RAMP / 2, -0.06, 0), [dark, dark, rampMat, dark, dark, dark]));
-  // the ramp's box: its top face (index 2) is the tread: map it along the length
-  { const geo = plank.children[0].geometry, uv = geo.attributes.uv; for (let i = 8; i < 12; i++) uv.setXY(i, uv.getY(i), uv.getX(i)); }
-  plank.scale.x = 0.02; plank.visible = false;
-
-  // ---- the cabin, inside
-  const plateTex = canvasTex(512, 512, (x, w, h) => {
-    x.fillStyle = '#4a525a'; x.fillRect(0, 0, w, h);
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { const s = w / 4; x.fillStyle = `rgb(${78 + ((i + j) % 2) * 8},${86 + ((i + j) % 2) * 8},${94 + ((i + j) % 2) * 8})`; x.fillRect(i * s + 2, j * s + 2, s - 4, s - 4); x.fillStyle = '#2c3238'; for (const [a, b] of [[10, 10], [s - 14, 10], [10, s - 14], [s - 14, s - 14]]) { x.beginPath(); x.arc(i * s + a + 2, j * s + b + 2, 3, 0, TAU); x.fill(); } }
-  });
-  plateTex.wrapS = plateTex.wrapT = THREE.RepeatWrapping; plateTex.repeat.set(3, 3);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(C.IN + 0.05, 64).rotateX(-Math.PI / 2), std(0xffffff, { map: plateTex, roughness: 0.45, metalness: 0.55 }));
-  cabin.add(floor);
-  cabin.add(new THREE.Mesh(new THREE.BoxGeometry(C.WALL - C.IN + 0.1, 0.02, C.DOOR_W).translate((C.IN + C.WALL) / 2, 0.01, 0), dark));      // the threshold
+  const C = CRAFT, g = new THREE.Group(); g.name = 'craft';
+  const B = buildCraftBody(); B.group.position.y = -HC.floor; g.add(B.group);
+  const cabin = new THREE.Group(); g.add(cabin);
+  const dark = B.dark;
+  // ---- the well under the dome: its wall, as deep as the hull, from the floor to where the glass begins; a gap at the door
+  const gapA = C.DOOR, H = C.SILL + 0.02;
   const wallIn = std(0x9ea8b1, { roughness: 0.6, metalness: 0.35, side: THREE.BackSide, emissive: 0x141a20, emissiveIntensity: 0.5 });
-  const parts = [];
-  // below the windows, round from the door to the screen and from the screen back to the door
-  parts.push(arc(C.IN, 0, 1.95, DOOR_T + DOOR_A, SCREEN_T - SCREEN_A), arc(C.IN, 0, 1.95, SCREEN_T + SCREEN_A, TAU + DOOR_T - DOOR_A));
-  parts.push(arc(C.IN, 0, 0.72, SCREEN_T - SCREEN_A, SCREEN_T + SCREEN_A));                        // the sill under the screen
-  parts.push(arc(C.IN, 2.55, 2.97, 0, TAU, 96));                                                     // over the windows
-  const wall = new THREE.Mesh(mergeGeometries(parts), wallIn); cabin.add(wall);
-  // window frames: posts between the panes, all round
-  const posts = [];
-  for (let i = 0; i < 28; i++) { const a = i / 28 * TAU; if (Math.abs(Math.atan2(Math.sin(a - DOOR_T), Math.cos(a - DOOR_T))) < DOOR_A) continue; const b = new THREE.BoxGeometry(0.12, 0.62, 0.18); b.translate(0, 2.25, C.IN - 0.03); b.rotateY(a); posts.push(b); }
-  for (const t of [SCREEN_T - SCREEN_A, SCREEN_T - SCREEN_A / 3, SCREEN_T + SCREEN_A / 3, SCREEN_T + SCREEN_A]) { const b = new THREE.BoxGeometry(0.14, 1.85, 0.2); b.translate(0, 1.64, C.IN - 0.03); b.rotateY(t); posts.push(b); }
-  cabin.add(new THREE.Mesh(mergeGeometries(posts), dark));
-  // a strip of light round the top of the wall
-  const strip = new THREE.Mesh(new THREE.TorusGeometry(C.IN - 0.08, 0.05, 6, 96).rotateX(Math.PI / 2).translate(0, 2.9, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.7, 1.6, 1.8) }));
-  cabin.add(strip);
-  // the console, under the screen, and its five pads
-  const deskGeo = new THREE.CylinderGeometry(5.6, 5.6, 0.08, 32, 1, false, SCREEN_T - 0.55, 1.1); deskGeo.translate(0, 0.92, 0);
-  const deskFront = new THREE.CylinderGeometry(4.9, 4.9, 0.9, 32, 1, true, SCREEN_T - 0.55, 1.1); deskFront.translate(0, 0.47, 0);
-  cabin.add(new THREE.Mesh(mergeGeometries([deskGeo, deskFront]), std(0x2b3138, { roughness: 0.4, metalness: 0.6, side: THREE.DoubleSide })));
-  const pads = MOTIF.map((n, i) => {
-    const a = SCREEN_T - 0.34 + i * 0.17, m = new THREE.MeshBasicMaterial({ color: new THREE.Color(n.colour).multiplyScalar(0.55) });
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.03, 20), m); p.position.set(Math.sin(a) * 5.25, 0.975, Math.cos(a) * 5.25); cabin.add(p);
-    return { mesh: p, base: new THREE.Color(n.colour) };
+  const wall = new THREE.CylinderGeometry(C.PIT, C.PIT, H, 72, 1, true, DOOR_T + gapA, TAU - 2 * gapA); wall.translate(0, H / 2, 0);
+  cabin.add(new THREE.Mesh(wall, wallIn));
+  const cap = new THREE.RingGeometry(C.PIT - 0.05, HC.domeR + 0.06, 72, 1, DOOR_T + gapA - Math.PI / 2, TAU - 2 * gapA); cap.rotateX(-Math.PI / 2); cap.translate(0, H, 0);
+  cabin.add(new THREE.Mesh(cap, dark));
+  // ---- the passage out to the door, along the slot in the hull: its two walls, each as high as the hull over it
+  const pass = [];
+  for (const s of [-1, 1]) {
+    const a = DOOR_T + s * gapA, sx = Math.sin(a), sz = Math.cos(a), pos = [], idx = [], N = 10;
+    for (let i = 0; i <= N; i++) { const r = C.PIT + (C.HINGE + 0.05 - C.PIT) * i / N, y = hullY(r) - HC.floor - 0.03; pos.push(sx * r, 0, sz * r, sx * r, y, sz * r); if (i < N) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); } }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals(); pass.push(geo);
+  }
+  cabin.add(new THREE.Mesh(mergeGeometries(pass), std(0x8c969f, { roughness: 0.6, metalness: 0.35, side: THREE.DoubleSide, emissive: 0x141a20, emissiveIntensity: 0.5 })));
+  cabin.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 2 * C.HINGE * Math.tan(gapA)).translate(-C.HINGE + 0.15, 0.01, 0), dark));      // the threshold, out to the hinge
+  // ---- the five pads of the call, on the pedestal's top, in an arc at its front (left to right as you sit facing forward)
+  const pads = MOTIF.map((nn, i) => {
+    const a = Math.PI - (i - 2) * 0.27, m = new THREE.MeshBasicMaterial({ color: new THREE.Color(nn.colour).multiplyScalar(0.55) });
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.025, 20), m); p.position.set(Math.sin(a) * 0.5, 1.012, Math.cos(a) * 0.5); cabin.add(p);
+    return { mesh: p, base: new THREE.Color(nn.colour) };
   });
-  const light = new THREE.PointLight(0xdff4ff, 14, 16, 1.6); light.position.set(0, 3.4, 0.5); cabin.add(light);
+  const light = new THREE.PointLight(0xdff4ff, 14, 16, 1.6); light.position.set(0, 2.4, 0); cabin.add(light);
 
-  // where the art hangs: along the wall below the windows, both sides, away from the door and the screen
-  const runs = [[SCREEN_T + SCREEN_A + 0.08, TAU + DOOR_T - DOOR_A - 0.1], [DOOR_T + DOOR_A + 0.1, SCREEN_T - SCREEN_A - 0.08]];
+  // where the art hangs: round the well's wall, clear of the door and of the back (the books and the net are there)
+  const BACK = 0.5, runs = [[BACK, DOOR_T - gapA - 0.22], [DOOR_T + gapA + 0.22, TAU - BACK]];
   const hangAt = n => {
     const total = runs.reduce((s, [a, b]) => s + (b - a), 0), out = [];
     for (let i = 0; i < n; i++) {
       let u = (i + 0.5) / n * total;
       for (const [a, b] of runs) { if (u <= b - a) { out.push(a + u); break; } u -= b - a; }
     }
-    return out.map(t => ({ t, x: Math.sin(t) * (C.IN - 0.04), z: Math.cos(t) * (C.IN - 0.04), y: 1.08, rot: t + Math.PI, room: Math.min(1.9, total * C.IN / n - 0.35) }));
+    return out.map(t => ({ t, x: Math.sin(t) * (C.PIT - 0.04), z: Math.cos(t) * (C.PIT - 0.04), y: 0.6, rot: t + Math.PI, room: Math.min(1.3, total * C.PIT / n - 0.12), tall: 0.9 }));
   };
 
+  const N = B.lamps.count;
   return {
-    group: g, hull, cabin, lamps, legs: legParts, door, ramp, plank, pads, light, glass, port, hangAt,
-    // 0: shut, 1: open and down to the ground
-    setRamp(k) {
-      const open = Math.min(1, k * 2), down = Math.max(0, k * 2 - 1);
-      door.position.y = open * (C.DOOR_H + 0.2); door.visible = open < 0.98;
-      plank.visible = k > 0.02; plank.scale.x = Math.max(0.02, down);
-      ramp.rotation.z = -Math.asin(Math.min(1, C.LEG / C.RAMP)) * Math.min(1, down * 1.2);
-    },
-    // 0: folded up, 1: standing on them
-    setLegs(k) { for (const l of legParts) { l.scale.y = 0.15 + 0.85 * k; l.children[1].visible = k > 0.05; } },
-    // the lights chase round; the pads glow when `lit` names one
+    group: g, hull: B.group, cabin, lamps: B.lamps, legs: B.legs, ramp: B.ramp, pads, light, glass: B.dome.material, port: B.port, hangAt,
+    // 0: stowed, 1: down to the ground
+    setRamp(k) { B.setRamp(1 - Math.max(0, Math.min(1, k))); },
+    // 0: drawn up, 1: standing on them
+    setLegs(k) { B.setLegs(k); },
+    // the lights chase round in the colours of the call; the pads glow when `lit` names one
     animate(t, lit = -1, speed = 1) {
       const c = this._c || (this._c = new THREE.Color());
-      for (let i = 0; i < N; i++) { const k = 0.5 + 0.5 * Math.sin(t * 5 * speed - i * 0.6); c.set(MOTIF[(i + Math.floor(t * 2)) % 5].colour).multiplyScalar(0.5 + 2.2 * k); lamps.setColorAt(i, c); }
-      lamps.instanceColor.needsUpdate = true;
+      for (let i = 0; i < N; i++) { const k = 0.5 + 0.5 * Math.sin(t * 5 * speed - i * 0.6); c.set(MOTIF[(i + Math.floor(t * 2)) % 5].colour).multiplyScalar(0.5 + 2.2 * k); B.lamps.setColorAt(i, c); }
+      B.lamps.instanceColor.needsUpdate = true;
       pads.forEach((p, i) => p.mesh.material.color.copy(p.base).multiplyScalar(i === lit ? 2.4 : 0.45 + 0.15 * Math.sin(t * 2 + i)));
-      port.material.color.setRGB(0.3 + 0.1 * Math.sin(t * 3), 1.8 + 0.4 * Math.sin(t * 3), 1.2);
+      B.port.material.color.setRGB(0.15 + 0.05 * Math.sin(t * 3), 0.7 + 0.25 * Math.sin(t * 3), 0.4);
     },
   };
 }
