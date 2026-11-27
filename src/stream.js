@@ -20,6 +20,10 @@
 import * as THREE from 'three';
 
 const HIDDEN = 7;                          // the layer the camera does not draw
+// The streamer and the visibility table (src/visible.js) both decide whether a thing is drawn, by its layers. So that they
+// do not undo each other, neither writes the layers itself: each keeps its own say on the thing (userData.far, from here;
+// userData.cullMask, the table's layers for it) and this puts the two together. Far is hidden whatever the table says.
+export function applyLayers(o) { const u = o.userData; o.layers.mask = u.far ? 1 << HIDDEN : u.cullMask != null ? u.cullMask : 1; }
 // Is every array of this geometry still in memory, so that three.js can send it up again after a dispose()?
 const held = g => { for (const k in g.attributes) { const a = g.attributes[k]; if (!(a.data ? a.data.array : a.array)) return false; } return !g.index || !!g.index.array; };
 
@@ -74,8 +78,8 @@ export class Streamer {
       // (moved since its box was made: the box goes with it, and from now on it is one of the things that move)
       const e = it.o.matrixWorld.elements; if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z) { it.box.translate(this._v.set(e[12] - it.x, e[13] - it.y, e[14] - it.z)); it.x = e[12]; it.y = e[13]; it.z = e[14]; it.moves = true; }
       const d = this._dist(it.box, cam), r = it.inner ? reach.inner : reach.outer;
-      if (it.on && d > r + gap) { it.on = false; it.o.layers.set(HIDDEN); gone.push(it); }
-      else if (!it.on && d < r) { it.on = true; it.o.layers.set(0); }
+      if (it.on && d > r + gap) { it.on = false; it.o.userData.far = true; applyLayers(it.o); gone.push(it); }
+      else if (!it.on && d < r) { it.on = true; it.o.userData.far = false; applyLayers(it.o); }
     }
     // Let go of what only far things use (worked out only when something has gone: it is a walk over every material).
     if (gone.length) for (const it of this.items) if (it.on) { keepG.add(it.o.geometry); for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture) keepT.add(x); } }
@@ -115,5 +119,5 @@ export class Streamer {
     onProgress(1);
   }
   // Everything back on (a staged view or a cut scene that looks a long way off).
-  all() { for (const it of this.items) if (!it.on) { it.on = true; it.o.layers.set(0); } this.at.set(1e9, 0, 0); }
+  all() { for (const it of this.items) if (!it.on) { it.on = true; it.o.userData.far = false; applyLayers(it.o); } this.at.set(1e9, 0, 0); }
 }

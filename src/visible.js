@@ -12,7 +12,7 @@
 //     known by a fingerprint of its shape and place, and looked at every frame: a wall a feature opens later switches
 //     the whole system off until it is shut again);
 //   - the camera is somewhere the table has no line for (inside a wall or a slab, over 50 m up, off the map), in any
-//     state but play and looking at a work, in a cut scene, on a staged view, or under ?lowmem (the streamer's job);
+//     state but play and looking at a work, in a cut scene, or on a staged view;
 //   - anything in here throws.
 // And a thing is never hidden if it is not plainly fixed: not under the museum's group; marked userData.always or under
 // something that is; drawn by a shader that places it (frustumCulled off, instanced geometry, bones, batches); with a
@@ -27,10 +27,11 @@
 // rooms' walls, where walls are seen through from behind, and the polish, which is smeared, takes a thin strip of
 // whatever lies beyond. Two ways of culling it too are kept for measuring, and change that strip: ?cull=wide draws in
 // the reflection what can be seen from the rooms whose floors you can see, and what stands just round them, and hides
-// the rest on HIDDEN (the layer src/stream.js uses: the two are never on together); ?cull=same draws in it only what
+// the rest on HIDDEN (the layer src/stream.js hides far things on: the two meet in applyLayers there); ?cull=same draws in it only what
 // the view draws.)
 
 import * as THREE from 'three';
+import { applyLayers } from './stream.js';
 
 export const HIDDEN = 7, MIRROR = 8;
 export const CELL = 24;                                   // metres: the squares for what is in no room, and for the camera out of doors
@@ -219,7 +220,7 @@ export class Visibility {
         const e = o.matrixWorld.elements, p = o.geometry.attributes.position;
         const pa = p.data || p, im = o.isInstancedMesh ? o.instanceMatrix : null;
         const it = { o, i, bins, wall, s: 0, dead: false, e, p: o.position, g: o.geometry, pa, im, x: e[12], y: e[13], z: e[14], t: e[0] + e[5] + e[10] + e[1] + e[6] + e[8], lx: o.position.x, ly: o.position.y, lz: o.position.z,
-          iv: im ? im.version : 0, ic: im ? o.count : 0, gv: pa.version, mask: o.layers.mask };
+          iv: im ? im.version : 0, ic: im ? o.count : 0, gv: pa.version, mask: o.userData.far ? 1 : o.layers.mask };      // (its own layers: not the streamer's hiding of it, src/stream.js)
         this.items.push(it); this.count++;
         if (bins) this.multi.push(it); else this.byBin[i].push(it);
         if (wall) this.wallList.push(it);
@@ -228,16 +229,20 @@ export class Visibility {
     } catch (e) { this._fail(e); }
   }
   _wall(o) { const e = o.matrixWorld.elements; this.wallList.push({ o, wall: true, lone: true, dead: false, e, x: e[12], y: e[13], z: e[14], t: e[0] + e[5] + e[10] + e[1] + e[6] + e[8] }); }
-  _fail(e) { this.ok = false; this.why = 'an error: ' + e; console.warn('visible: ' + this.why + ': everything is drawn from here on'); try { for (const it of this.items) it.o.layers.mask = it.mask; } catch {} }
-  _set(it, s) { if (it.s !== s && !it.dead) { it.s = s; it.o.layers.mask = s === 0 ? it.mask : s === 1 ? 1 << HIDDEN : 1 << MIRROR; } }
+  _fail(e) { this.ok = false; this.why = 'an error: ' + e; console.warn('visible: ' + this.why + ': everything is drawn from here on'); try { for (const it of this.items) { it.o.userData.cullMask = null; applyLayers(it.o); } } catch {} }
+  _set(it, s) { if (it.s !== s && !it.dead) { it.s = s; it.o.userData.cullMask = s === 0 ? it.mask : s === 1 ? 1 << HIDDEN : 1 << MIRROR; applyLayers(it.o); } }      // (with the streamer's say: src/stream.js)
   _multiState(bins) { let m = 1; for (let k = 0; k < bins.length; k++) { const s = this.state[bins[k]]; if (s === 0) return 0; if (s === 2) m = 2; } return m; }
 
   // Every thing filed, every frame: has it moved, turned, or had its instances or its vertices set again? Then it is not a
   // fixed thing after all: it is drawn from now on, wherever it goes. (A thing's own position is looked at as well as its
   // place in the world, which three.js only brings up to date when it draws: so a thing a feature has just carried off is
   // caught in the frame it goes.) And each wall the table counted on: still there, still on show, still where it was?
-  _sweep() {
-    const items = this.items; let live = this.missing === 0, lost = null;
+  // (A phone builds the park's big features only when the toy comes near them, src/features.js, so the few walls of theirs the
+  // table counts on are missing until then. `excuse(cam)`, given by main.js, says when that is all it is: some are still to
+  // be built and the camera is well away from every one of them. Then, and with no more than a few missing, the rest of the
+  // world is culled as usual; near one, the rule holds again until it is built and its walls are found.)
+  _sweep(cam) {
+    const items = this.items; let live = this.missing === 0 || (this.missing <= 8 && !!this.excuse && !!cam && this.excuse(cam)), lost = null;
     for (let k = 0; k < items.length; k++) {
       const it = items[k], e = it.e, p = it.p;
       if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z || p.x !== it.lx || p.y !== it.ly || p.z !== it.lz || e[0] + e[5] + e[10] + e[1] + e[6] + e[8] !== it.t || it.pa.version !== it.gv || (it.im !== null && (it.im.version !== it.iv || it.o.count !== it.ic)) || it.o.geometry !== it.g) {
@@ -248,7 +253,7 @@ export class Visibility {
     if (live) { const w = this.wallList, root = this.root; for (let k = 0; k < w.length; k++) { const it = w[k]; if (it.lone) { const e = it.e; if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z || e[0] + e[5] + e[10] + e[1] + e[6] + e[8] !== it.t) { live = false; lost = it; break; } } let q = it.o; for (; q; q = q.parent) { if (!q.visible) break; if (q === root) break; } if (q !== root) { live = false; lost = it; break; } } }
     this.live = live; this.lost = lost;
   }
-  _drop(it) { it.o.layers.mask = it.mask; it.dead = true; it.s = 0; this.movers++; this.count--; if (this.log) this.log.push([it.o, 'moved']); }
+  _drop(it) { it.o.userData.cullMask = null; applyLayers(it.o); it.dead = true; it.s = 0; this.movers++; this.count--; if (this.log) this.log.push([it.o, 'moved']); }
   // (now and then: what has been taken out of the world altogether is let go of, and the lists are tidied)
   _tidy() {
     const under = o => { for (let q = o; q; q = q.parent) if (q === this.root) return true; return false; };
@@ -277,7 +282,7 @@ export class Visibility {
     if (!this.ok) return;
     try {
       const t0 = performance.now();
-      this._sweep();
+      this._sweep(cam);
       if (++this._frame % 900 === 0) this._tidy();
       let keys = null;
       if (!(all || this.off || !this.live)) {

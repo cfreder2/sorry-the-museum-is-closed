@@ -475,6 +475,8 @@ function kitFor(o) {
     near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (!r) continue; if (r.act && !r.act._safe) { const act = r.act; r.act = (...a) => { try { return act(...a); } catch (e) { broke(f, e); } }; r.act._safe = true; } return r; } return null; },
     // (quiet: the opening runs the park from a window without waking what is still asleep in it)
     update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending) continue; if (f._unseen) { const p = G.vehicle && G.vehicle.pos; if (quiet || !p || Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) >= f.lazy.r) continue; f._unseen.visible = true; f._unseen = null; } if (!f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
+    // The big park features not built yet (a phone builds each only when the toy comes near: begin, above): where each is and how near.
+    pending() { return features.filter(f => f._pending && f.lazy).map(f => f.lazy); },
     look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },
     spots() { return features.flatMap(f => { if (f._pending) return (f.secrets || []).map(([id, name]) => ({ kind: 'secret', id, name, x: f.lazy.x, y: 0, z: f.lazy.z })); try { return f.spots ? f.spots(k) : []; } catch { return []; } }); },
     reset() { k.carry.clear(); for (const f of features) if (f.reset && !f._pending) try { f.reset(k); } catch (e) { console.error('feature ' + f.id, e); } },

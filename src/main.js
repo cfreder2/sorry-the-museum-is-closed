@@ -94,7 +94,7 @@ import './look.js';              // the look pass over the finished world: the s
 const $ = id => document.getElementById(id);
 const canvas = $('view');
 const params = new URLSearchParams(location.search);
-const CULL = params.has('cull');      // (?cull) what cannot be seen from where the camera is is not drawn: src/visible.js, data/pvs.json (tools/dev/pvs.mjs). Off, and nothing fetched, without the word.
+const CULL = !params.has('nocull');      // what cannot be seen from where the camera is is not drawn: src/visible.js, data/pvs.json (tools/dev/pvs.mjs). On everywhere, phones too (it shares the layers with the streamer, src/stream.js); ?nocull turns it off. (?cull=wide, ?cull=same: how the floor's reflection is culled.)
 
 // ------------------------------------------------------------------ stage ---
 
@@ -155,7 +155,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.36';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.37';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -385,7 +385,7 @@ async function boot() {
     G.stream.register(); }
 
   // (?cull) The table of what can be seen from where. Not with the streamer (a phone): the two would each have to know of the other.
-  if (CULL && !LOWMEM) { try { const [m, r] = await Promise.all([import('./visible.js'), fetch('./data/pvs.json')]); if (r.ok) { G._pvs = await r.json(); G._Vis = m.Visibility; } else console.warn('visible: no data/pvs.json'); } catch (e) { console.warn('visible', e); } }      // (the code and the table are both fetched only with the word)
+  if (CULL) { try { const [m, r] = await Promise.all([import('./visible.js'), fetch('./data/pvs.json')]); if (r.ok) { G._pvs = await r.json(); G._Vis = m.Visibility; } else console.warn('visible: no data/pvs.json'); } catch (e) { console.warn('visible', e); } }      // (the code and the table are both fetched only with the word)
 
   $('status').textContent = '';
   // The bar's last stretch: the screen goes once the first frame has been drawn behind it (tick), since that frame
@@ -1814,7 +1814,11 @@ function tick(now) {
   // (?cull) Made once the shut rooms have left the plan (the table is for the plan as it is played). Here, where the camera is where it will be drawn from and before anything is
   // drawn from it (the chrome toy's mirror is next). Whatever has been built since last time is looked at twice a second: until then it is simply drawn.
   if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
-    if (!G.vis) { G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register(); }
+    if (!G.vis) {
+      G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register();
+      // (on a phone the park's big features are built only when you come near, and their walls are missing till then: see _sweep)
+      G.vis.excuse = cam => { const L = G.features ? G.features.pending() : []; return L.length > 0 && L.every(q => Math.hypot(cam.x - q.x, cam.z - q.z) > q.r + 40); };
+    }
     else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.vis.register();
     G.vis.update(camera.position, G.vehicle && G.vehicle.pos, !!G.cineEye || !!G.cutscene || stage.on, mirror.enabled ? G.floorY || 0 : null, !!(G.live && G.live.live));
   }
