@@ -55,6 +55,7 @@ import { MOTIF_COLOURS } from './motif.js';
 import { buildCraftBody } from './craft.js';      // (the craft: the same one the voyage flies)
 
 const KEY = 'after-hours.finale';
+export const ROOM = 20;                   // the pictures the craft carries
 export const STATES = ['locked', 'found', 'played', 'launched', 'landed', 'opened'];
 const PAD_COLOURS = MOTIF_COLOURS;          // the call's own colours, a pad to a note (src/motif.js), so the console, the rim and the music agree
 const ease = t => t * t * (3 - 2 * t);
@@ -268,7 +269,9 @@ feature({
     }
     const silo = F.silo, openSilo = F.doorsK > 0.001 && Math.abs(cam.x - silo.cx) < 120 && Math.abs(cam.z - silo.cz) < 120;
     this.tunnelG.visible = deep && cam.x > 100 && cam.x < 312 && Math.abs(cam.z - 74.6) < 30;
+    const was = this.baseG.visible;
     this.baseG.visible = (deep && cam.x > 290 && cam.z > 30 && cam.z < 210) || openSilo;
+    if (this.baseG.visible && !was && STATES.indexOf(this.save.state) < STATES.indexOf('launched')) this._hang();      // (the easels catch up with what has been looked at since)
     if (this.tunnelG.visible) this._tunnelTick(dt, p);
     if (!this.baseG.visible) return;
     this._baseTick(dt, k, p, cam);
@@ -532,8 +535,11 @@ feature({
   },
 
   // ---- the archive: easels, and the pictures on them
+  // The pictures are the player's own: the living works (src/paintlife.js) they have looked at, the most looked at first, up
+  // to the twenty the craft carries (choice(), below; src/finalelaunch.js will not wake the craft for fewer). Hung again
+  // each time the base comes into view, so the easels fill as more are looked at upstairs.
   _archive(k) {
-    const F = this.F, g = this.baseG, list = F.easels || [], me = this;
+    const F = this.F, g = this.baseG, list = F.easels || [];
     if (!list.length) return;
     const legs = new Geo();
     for (const e of list) {
@@ -543,40 +549,75 @@ feature({
       legs.box(x + 0.02, x + 0.16, y + 0.78, y + 0.84, z - 0.5, z + 0.5);                                                         // the ledge
     }
     g.add(legs.mesh(this.M.wood));
-    const unit = new THREE.PlaneGeometry(1, 1), blank = TX.flat(40, 36, 32), frameG = new Geo(), loader = new THREE.TextureLoader();
+    const unit = new THREE.PlaneGeometry(1, 1); this.blank = TX.flat(40, 36, 32);
     const easels = this.hangar.easels;
-    list.forEach((e, i) => {
-      const mat = new THREE.MeshStandardMaterial({ color: 0x4c4c4c, map: blank, emissiveMap: blank, emissive: 0xffffff, emissiveIntensity: 0.22, roughness: 0.6 });
+    list.forEach(e => {
+      const mat = new THREE.MeshStandardMaterial({ color: 0x4c4c4c, map: this.blank, emissiveMap: this.blank, emissive: 0xffffff, emissiveIntensity: 0.22, roughness: 0.6 });
       const mesh = new THREE.Mesh(unit, mat); mesh.rotation.y = Math.PI / 2; mesh.visible = false; g.add(mesh);
       const art = { work: null, mesh, mat, w: 1, h: 1, obj: false, tex: null, tier: 0, url: null, busy: false };
-      easels.push({ art, position: new THREE.Vector3(e.x + 0.14, e.y + 1.5, e.z), normal: new THREE.Vector3(1, 0, 0), light(k2) { mat.emissiveIntensity = 0.22 + 0.9 * Math.max(0, Math.min(1, k2)); } });
+      easels.push({ art, at: e, position: new THREE.Vector3(e.x + 0.14, e.y + 1.5, e.z), normal: new THREE.Vector3(1, 0, 0), light(k2) { mat.emissiveIntensity = 0.22 + 0.9 * Math.max(0, Math.min(1, k2)); } });
     });
-    this.frameG = frameG;
-    // Which pictures: public-domain paintings from the saved copy of the collection, not any hung upstairs tonight, chosen the same way each time.
+    // nearest the hangar first, from the middle of the room out: the order the console lights them and the beam takes them
+    easels.sort((a, b) => (b.position.x - a.position.x) || (Math.abs(a.position.z - 176) - Math.abs(b.position.z - 176)));
+    this.pool = [];
+    this._hang();
+    // (a game already past the console under the old rule may need more than it has looked at: from the saved copy of the
+    // collection, public-domain paintings not hung tonight, chosen the same way each time, as the archive used to have)
     fetch('data/collection.json').then(r => r.json()).then(data => {
       const hung = new Set((k.museum.arts || []).map(a => a.work && a.work.id));
       const ok = w => w && !w.c && w.k === 'Painting' && w.img && w.w > 30 && w.h > 30 && w.w < 260 && w.h < 260;
       let pool = (data.works || []).filter(w => ok(w) && !hung.has(w.id));
-      if (pool.length < easels.length) pool = (data.works || []).filter(ok);
-      // (where there is an offline copy of the images, the works in it first: src/collection.js imageUrl)
       const here = w => !/artic\.edu/.test(imageUrl(w, 400));
       pool.sort((a, b) => (here(b) - here(a)) || a.id - b.id);
-      const nHere = pool.filter(here).length; if (nHere >= easels.length) pool = pool.slice(0, nHere);
-      const step = Math.max(1, Math.floor(pool.length / easels.length));
-      const frames = new Geo();
-      easels.forEach((E, i) => {
-        const w = pool[(i * step + 3) % pool.length]; if (!w) return;
-        const big = Math.max(w.w, w.h) / 100, s = Math.min(1.5 / (w.w / 100), 1.25 / (w.h / 100), Math.max(1, 0.9 / big)), W = w.w / 100 * s, Hh = w.h / 100 * s;      // its own size, but none smaller than 90 cm along its longer side, nor too big for an easel
-        const a = E.art; a.work = w; a.w = W; a.h = Hh;
-        const ex = list[i].x + 0.17, ey = list[i].y + 0.84 + Hh / 2, ez = list[i].z;
-        a.mesh.position.set(ex, ey, ez); a.mesh.scale.set(W, Hh, 1); a.mesh.visible = true; E.position.set(ex, ey, ez);
-        frames.box(ex - 0.04, ex - 0.005, ey - Hh / 2 - 0.06, ey + Hh / 2 + 0.06, ez - W / 2 - 0.06, ez + W / 2 + 0.06);
-        if (w.lq) loader.load(w.lq, t => { if (a.tex) return; t.colorSpace = THREE.SRGBColorSpace; a.mat.map = a.mat.emissiveMap = t; a.mat.needsUpdate = true; });
-        // and the picture itself, fetched and handed over the way the museum's are (src/museum.js: a worker, one a frame)
-        try { k.museum._load(a, 1); } catch { /* the small one will do */ }
-      });
-      g.add(me.hangar.frames = frames.mesh(self(0xa8843a, 0.35, { metalness: 0.6, roughness: 0.4 })));      // (hangar.frames: the beam takes them with their pictures, src/finalelaunch.js)
-    }).catch(() => { /* no pictures: the easels stand empty */ });
+      const step = Math.max(1, Math.floor(pool.length / ROOM));
+      this.pool = Array.from({ length: Math.min(ROOM, pool.length) }, (_, i) => pool[(i * step + 3) % pool.length]);
+      this._hang();
+    }).catch(() => { /* none: the living works will do */ });
+  },
+  // Which pictures go, as { list: [{ work, w, h, living }], looked, want, living }. `looked` is how many living works have
+  // been looked at; `want` how many the console waits for (twenty, or every living work hung tonight if there are fewer).
+  // Past the console (or with all it wants), the rest of the twenty are made up: the other works most looked at, then the pool.
+  choice() {
+    const k = this.k, pl = features.find(f => f.id === 'paintlife'), sc = k.G.score, views = id => (sc ? sc.viewsOf(id) : 0);
+    const pic = a => a && a.work && !a.work.c && a.work.img && !a.obj && !a.mini && a.w > 0.2 && a.h > 0.2;      // public domain, and a picture
+    const rank = (a, b) => (views(b.work.id) - views(a.work.id)) || (a.work.id - b.work.id);
+    const living = pl && pl.byArt ? [...pl.byArt.keys()].filter(pic) : [];
+    const seen = living.filter(a => views(a.work.id) > 0).sort(rank), want = Math.min(ROOM, living.length);
+    const list = seen.slice(0, ROOM).map(a => ({ work: a.work, w: a.w, h: a.h, living: true }));
+    const past = STATES.indexOf(this.save.state) >= STATES.indexOf('played');
+    if (list.length < ROOM && (past || seen.length >= want)) {
+      const ids = new Set(list.map(q => q.work.id));
+      for (const a of (k.museum.arts || []).filter(a => pic(a) && views(a.work.id) > 0 && !ids.has(a.work.id)).sort(rank)) { if (list.length >= ROOM) break; ids.add(a.work.id); list.push({ work: a.work, w: a.w, h: a.h, living: false }); }
+      for (const w of this.pool || []) { if (list.length >= ROOM) break; if (ids.has(w.id)) continue; ids.add(w.id); list.push({ work: w, w: w.w / 100, h: w.h / 100, living: false }); }
+    }
+    return { list, looked: seen.length, want, living: living.length };
+  },
+  // Put the choice on the easels: each that changes takes its new picture (fetched as the museum's are: a worker, one a frame).
+  _hang() {
+    const h = this.hangar; if (!h || !h.easels.length || this.hung === 'gone') return;
+    const k = this.k, { list } = this.choice(), loader = this._loader || (this._loader = new THREE.TextureLoader());
+    let changed = false;
+    h.easels.forEach((E, i) => {
+      const q = list[i], a = E.art, e = E.at;
+      if ((q ? q.work : null) === a.work || a.busy) return;
+      changed = true;
+      if (a.tex) { a.tex.dispose(); a.tex = null; } a.url = null; a.tier = 0; a.mat.map = a.mat.emissiveMap = this.blank; a.mat.needsUpdate = true;
+      a.work = q ? q.work : null; a.mesh.visible = !!q;
+      if (!q) return;
+      const big = Math.max(q.w, q.h), s = Math.min(1.5 / q.w, 1.25 / q.h, Math.max(1, 0.9 / big)), W = q.w * s, Hh = q.h * s;      // its own size, but none smaller than 90 cm along its longer side, nor too big for an easel
+      a.w = W; a.h = Hh;
+      const ex = e.x + 0.17, ey = e.y + 0.84 + Hh / 2, ez = e.z;
+      a.mesh.position.set(ex, ey, ez); a.mesh.scale.set(W, Hh, 1); E.position.set(ex, ey, ez);
+      const w = q.work; if (w.lq) loader.load(w.lq, t => { if (a.tex || a.work !== w) { t.dispose(); return; } t.colorSpace = THREE.SRGBColorSpace; a.mat.map = a.mat.emissiveMap = t; a.mat.needsUpdate = true; });
+      try { k.museum._load(a, 1); } catch { /* the small one will do */ }
+    });
+    if (!changed && h.frames) return;
+    // the gilt frames behind the pictures, merged (hangar.frames: the beam takes them with their pictures, src/finalelaunch.js)
+    const frames = new Geo();
+    for (const E of h.easels) { const a = E.art; if (!a.work) continue; const p = E.position; frames.box(p.x - 0.04, p.x - 0.005, p.y - a.h / 2 - 0.06, p.y + a.h / 2 + 0.06, p.z - a.w / 2 - 0.06, p.z + a.w / 2 + 0.06); }
+    const vis = h.frames ? h.frames.visible : true;
+    if (h.frames) { this.baseG.remove(h.frames); h.frames.geometry.dispose(); }
+    h.frames = frames.mesh(this.frameMat || (this.frameMat = self(0xa8843a, 0.35, { metalness: 0.6, roughness: 0.4 }))); h.frames.visible = vis; this.baseG.add(h.frames);
   },
 
   // ---- lettering on the crates and the signs
@@ -641,7 +682,7 @@ feature({
       'B-office': [null, 'The Director had another office.'],
       'B-sit': [null, 'A table with the whole park on it, and a square in the ballfield marked SILO.'],
       'B-ctrl': [null, 'A console with five dark pads. A chair faces the window.'],
-      'B-archive': [null, 'Pictures from upstairs, on easels. RECOVERED, say the crates.'],
+      'B-archive': [null, this._archiveLine()],
       'B-hangar': ['THE HANGAR', 'It is real, and it is full size.'],
     }[id];
     if (!line) return;
@@ -650,6 +691,11 @@ feature({
     if (id === 'B-hangar') { if (k.find('greencheese')) k.sound.finish(); }
   },
 
+  _archiveLine() {
+    const c = this.choice(), n = c.list.filter(q => q.living).length;
+    if (STATES.indexOf(this.save.state) >= STATES.indexOf('played') || n >= c.want) return 'Pictures from upstairs, on easels: the living ones you looked at most. RECOVERED, say the crates.';
+    return n ? `Twenty easels. On ${n} of them, living pictures you looked at upstairs. RECOVERED, say the crates.` : 'Twenty easels, all empty. RECOVERED, say the crates.';
+  },
   spots() {
     const out = [], F = this.F; if (!F) return out;
     if (this.cardAt) out.push({ kind: 'thing', id: 'keycard', name: 'The keycard', ...this.cardAt });
