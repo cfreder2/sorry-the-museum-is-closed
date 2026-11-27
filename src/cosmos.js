@@ -1,7 +1,6 @@
 // The sky of the voyage, all made here at the moment it is needed (src/voyage.js builds it only when the voyage
 // starts, and throws it away when you fly home): the stars and the Milky Way, the Sun, the planets, the Earth with
-// its night side lit by its cities and the Great Lakes showing dark among them, the Moon, a far spiral galaxy, and
-// the streaks of a jump to hyperspace. Every picture is painted on a canvas from a few numbers: nothing is copied.
+// its night side lit by its cities and the Great Lakes showing dark among them, the Moon. Every picture is painted on a canvas from a few numbers: nothing is copied.
 //
 // The continents are rough outlines in longitude and latitude, drawn from general knowledge of the map; they are
 // meant to read as the Earth, not to be surveyed.
@@ -325,65 +324,6 @@ export function makePlanet(kind, radius) {
   }
   if (kind === 'uranus') ball.rotation.z = 1.6;
   return g;
-}
-
-// --------------------------------------------------------------- galaxy ---
-// A spiral of a great many lights: two arms winding out from a warm core, dust lanes of nothing between them,
-// pink knots where stars are being made.
-export function makeGalaxy(radius = 9000, pixel = 1, n = 42000) {
-  const r = rnd(99), pos = [], size = [], tint = [];
-  const gauss = () => (r() + r() + r() + r() + r() + r() - 3) / 3;
-  for (let i = 0; i < n; i++) {
-    let x, y, z, c;
-    if (i < n * 0.18) {                                              // the core
-      const rr = Math.abs(gauss()) * radius * 0.16, a = r() * TAU;
-      x = Math.cos(a) * rr; z = Math.sin(a) * rr; y = gauss() * radius * 0.05 * (1 - rr / radius);
-      c = [1.0, 0.86 - r() * 0.1, 0.62];
-    } else {
-      const arm = i % 2, t = Math.pow(r(), 0.75), rr = radius * (0.12 + 0.88 * t), wind = Math.log(rr / (radius * 0.1)) / 0.32;
-      const a = wind + arm * Math.PI + gauss() * (0.22 + 0.25 * (1 - t));
-      x = Math.cos(a) * rr; z = Math.sin(a) * rr; y = gauss() * radius * 0.018;
-      const k = r(); c = k < 0.035 ? [1.0, 0.45, 0.66] : k < 0.5 ? [0.62, 0.74, 1.0] : [0.9, 0.9, 1.0];
-    }
-    pos.push(x, y, z);
-    const b = 0.25 + 0.75 * r() * r();
-    size.push(1.0 + r() * 2.2); tint.push(c[0] * b, c[1] * b, c[2] * b);
-  }
-  // a glow under it all
-  for (let i = 0; i < 260; i++) { const rr = Math.abs(gauss()) * radius * 0.5, a = r() * TAU; pos.push(Math.cos(a) * rr, 0, Math.sin(a) * rr); size.push(120 + r() * 220); const k = 0.035 * Math.exp(-rr / (radius * 0.3)); tint.push(k * 1.0, k * 0.85, k * 0.75); }
-  const p = points(pos, size, tint, pixel);
-  const g = new THREE.Group(); g.add(p); g.userData.mat = p.material;
-  // far galaxies, smudges
-  const fp = [], fs = [], ft = [];
-  for (let i = 0; i < 140; i++) { const u = r() * 2 - 1, a = r() * TAU, s = Math.sqrt(1 - u * u), R = radius * 30; fp.push(Math.cos(a) * s * R, u * R, Math.sin(a) * s * R); fs.push(3 + r() * 5); const k = 0.15 + 0.2 * r(); ft.push(k, k * 0.9, k * 0.8); }
-  const far = points(fp, fs, ft, pixel); g.userData.far = far;
-  return g;
-}
-
-// --------------------------------------------------------- hyperspace ---
-// Streaks of light rushing past along the way ahead. Laid out in the camera's own frame: forward is -z.
-export class Streaks {
-  constructor(n = 700) {
-    const r = rnd(17); this.n = n; this.z = new Float32Array(n); this.rad = new Float32Array(n); this.ang = new Float32Array(n); this.spd = new Float32Array(n);
-    for (let i = 0; i < n; i++) { this.z[i] = -r() * 400; this.rad[i] = 3 + Math.pow(r(), 0.7) * 45; this.ang[i] = r() * TAU; this.spd[i] = 0.7 + r() * 0.6; }
-    const g = new THREE.BufferGeometry(); this.pos = new Float32Array(n * 6); const col = new Float32Array(n * 6);
-    for (let i = 0; i < n; i++) { const k = 0.6 + 0.4 * r(), b = r() < 0.3; col.set([k * (b ? 0.7 : 1), k * (b ? 0.85 : 1), k, 0, 0, 0], i * 6); }
-    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.mesh = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
-    this.mesh.frustumCulled = false;
-  }
-  // speed: 0 (stars standing still) to 1 (full jump)
-  update(dt, speed) {
-    const len = 2 + speed * speed * 160, v = 40 + speed * 900;
-    for (let i = 0; i < this.n; i++) {
-      this.z[i] += v * this.spd[i] * dt;
-      if (this.z[i] > 10) this.z[i] -= 420;
-      const x = Math.cos(this.ang[i]) * this.rad[i], y = Math.sin(this.ang[i]) * this.rad[i], z = this.z[i];
-      this.pos.set([x, y, z, x, y, z - len * this.spd[i]], i * 6);
-    }
-    this.mesh.geometry.attributes.position.needsUpdate = true;
-    this.mesh.material.opacity = clamp(speed * 1.6, 0, 1);
-  }
 }
 
 // Throw away everything under a group: geometry, materials and their textures.

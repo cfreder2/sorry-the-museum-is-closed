@@ -11,8 +11,7 @@
 // puts the toy on Butler Field and throws the voyage's scenes away.
 //
 // It goes: the cabin, above the night side of the Earth, with the art on the walls; piloting with the drone's
-// controls; DESTINATION, to the Moon (the autopilot's approach) or somewhere far away (a jump to a far galaxy and
-// back); the landing beside the dome; the ramp; the toy out on the Moon at one-sixth gravity, the cargo floating
+// controls; DESTINATION, to the Moon (the autopilot's approach); the landing beside the dome; the ramp; the toy out on the Moon at one-sixth gravity, the cargo floating
 // after it; the cargo into the dome (pictures to the walls, books to the shelves, lost property to a cabinet); the
 // visitors, the lights, the sign; the credits; the night in numbers; and after it, the Moon to keep, or home.
 //
@@ -26,7 +25,7 @@ import { loadBooks } from './books.js';
 import { KINDS } from './lostfound.js';
 import { buildCraft, framedArt, CRAFT } from './craft.js';
 import { moonPlan, buildMoon, moonH, Visitors, Dust, DOME, SAUCER, MOON_G, HATCH } from './moon.js';
-import { makeStarfield, makeSun, makeEarth, makeMoonBall, makePlanet, makeGalaxy, Streaks, dirAE, disposeAll } from './cosmos.js';
+import { makeStarfield, makeSun, makeEarth, makeMoonBall, makePlanet, dirAE, disposeAll } from './cosmos.js';
 import { loadSpaceTextures, applySpaceTextures } from './spacetex.js';
 import { CosmicMusic } from './cosmicmusic.js';
 import { tonight } from './features.js';
@@ -189,12 +188,10 @@ class Voyage {
     this.moonBall = makeMoonBall(MOON_R); this.moonBall.position.copy(MOON_C); this.moonBall.rotation.y = 2.2; this.sky.add(this.moonBall);
     this.planets = PLANETS.map(([k, az, el, d, r]) => { const p = makePlanet(k, r); p.userData.kind = k; p.position.copy(dirAE(az, el)).multiplyScalar(d); p.userData.r = r; this.sky.add(p); return p; });
     this.skySun = new THREE.DirectionalLight(0xfff4e6, 3.2); this.skySun.position.copy(SUN_DIR); this.sky.add(this.skySun, new THREE.HemisphereLight(0x50607a, 0x101010, 0.55));
-    this.galaxy = makeGalaxy(9000, px); this.galaxy.visible = false; this.sky.add(this.galaxy, this.galaxy.userData.far); this.galaxy.userData.far.visible = false;
-    // what is near: the craft, its light, the streaks
+    // what is near: the craft, its light
     this.craft = buildCraft(); this.near.add(this.craft.group);
     this.sunLight = new THREE.DirectionalLight(0xfff4e6, 2.8); this.sunLight.position.copy(SUN_DIR); this.near.add(this.sunLight, this.sunLight.target);
     this.hemi = new THREE.HemisphereLight(0x5c6f90, 0x15161a, 0.45); this.near.add(this.hemi);
-    this.streaks = new Streaks(); this.near.add(this.streaks.mesh);
     // the cargo aboard: pictures on the cabin wall, books strapped in, lost things in a net
     this._loadArt();
     this._cargoAboard();
@@ -276,7 +273,6 @@ class Voyage {
       <div class="vcap" role="status" aria-live="polite"></div><div class="vcall" aria-live="assertive"></div><div class="vhint"></div>
       <section class="vpanel vdest" hidden role="dialog" aria-modal="true" aria-label="Destination"><div class="vbox"><div class="over">Destination</div><h2>Where to?</h2><div class="col">
         <button data-v="moon" data-first><b>The Moon: Lunar Base</b><span>The way home for the art.</span></button>
-        <button data-v="far"><b>Somewhere far away</b><span>A jump to hyperspace, and a long way out.</span></button>
         <button data-v="close"><b>Not yet</b><span>Keep flying.</span></button></div></div></section>
       <section class="vpanel vpause" hidden role="dialog" aria-modal="true" aria-label="Paused"><div class="vbox"><div class="over">Paused</div><h2>The voyage</h2><div class="col">
         <button data-v="resume" data-first><b>Carry on</b></button><button data-v="home"><b>Fly home</b><span>Back to Butler Field. The night carries on.</span></button><button data-v="new"><b>New game</b><span>Start the night over.</span></button></div></div></section>
@@ -295,7 +291,6 @@ class Voyage {
     else if (a === 'menu') this._menu(this.open === 'vpause' ? null : 'vpause');
     else if (a === 'view') this.view = this.view === 'cabin' ? 'outside' : 'cabin';
     else if (a === 'moon') { this._menu(null); this._autoMoon(); }
-    else if (a === 'far') { this._menu(null); this._hyper(); }
     else if (a === 'home') { if (!this.opened) return; this._menu(null); this._home(false); }      // (not before the Moon museum has opened: see _menu)
     else if (a === 'new') { this._menu(null); this._home(true); }
     else if (a === 'skip') { if (this.phase === 'credits') this._summary(); }
@@ -313,7 +308,7 @@ class Voyage {
   _key(e) {
     if (!this.on() || e.repeat) return;
     if (e.code === 'KeyT' && this.phase === 'space') { e.preventDefault(); this._menu(this.open === 'vdest' ? null : 'vdest'); }
-    else if (this.open === 'vdest' && (e.code === 'Digit1' || e.code === 'Digit2')) { e.preventDefault(); this._act(e.code === 'Digit1' ? 'moon' : 'far'); }
+    else if (this.open === 'vdest' && e.code === 'Digit1') { e.preventDefault(); this._act('moon'); }
   }
   on() { return this.G.voyage === this; }
   _stage(text) { const s = this.$('.vstage'); if (s.textContent !== text) s.textContent = text; }
@@ -342,9 +337,6 @@ class Voyage {
   _skyFor(where) {
     const solar = where === 'space';
     this.earth.visible = true; this.moonBall.visible = solar; for (const p of this.planets) p.visible = solar;
-    this.galaxy.visible = this.galaxy.userData.far.visible = where === 'deep';
-    this.sun.visible = where !== 'deep'; this.earth.visible = where !== 'deep';
-    if (this.milkyBand) this.milkyBand.visible = where !== 'deep';
     const E = this.earth.userData;
     if (where === 'moon') {
       this.earth.position.copy(MOON_EARTH).multiplyScalar(60000); this.earth.scale.setScalar(2300 / EARTH_R);
@@ -387,7 +379,7 @@ class Voyage {
 
   // Into the Moon's pull: the autopilot takes it in on a long curve, and the Moon comes up to fill the window.
   _autoMoon() {
-    if (this.phase !== 'space' && this.phase !== 'back') return;
+    if (this.phase !== 'space') return;
     const k = this.k, from = k.pos.clone(), dist = from.distanceTo(MOON_C);
     const n = from.clone().sub(MOON_C).normalize().lerp(new V3(0, 1, 0), 0.35).normalize();
     const Q = MOON_C.clone().addScaledVector(n, MOON_R * 1.22);
@@ -402,15 +394,6 @@ class Voyage {
     const { p0, p1, p2, p3 } = this.path, a = 1 - u;
     out.set(0, 0, 0).addScaledVector(p0, a * a * a).addScaledVector(p1, 3 * a * a * u).addScaledVector(p2, 3 * a * u * u).addScaledVector(p3, u * u * u);
     if (d) d.set(0, 0, 0).addScaledVector(p1.clone().sub(p0), 3 * a * a).addScaledVector(p2.clone().sub(p1), 6 * a * u).addScaledVector(p3.clone().sub(p2), 3 * u * u);
-  }
-
-  // Somewhere far away: the stars stretch into streaks, a flash, a far spiral, and then the way back.
-  _hyper() {
-    if (this.phase !== 'space') return;
-    this.jumpFrom = { pos: this.k.pos.clone(), yaw: this.k.yaw };
-    this._setPhase('jump'); this._hint(null); this._stage('Hyperspace');
-    this.music.setMode('hyper');
-    this._cap('Hold on.', 2);
   }
 
   // ------------------------------------------------------------- the Moon --
@@ -428,7 +411,6 @@ class Voyage {
     const C = this.craft, g = C.group;
     g.rotation.set(0, SAUCER.yaw, 0, 'YXZ');
     this.music.setMode('moon');
-    this.streaks.update(0, 0);
     document.body.classList.toggle('flying', this.v.kind === 'drone');
     if (stage === 'landing') {
       g.position.set(SAUCER.x + 40, CRAFT.LEG + 70, SAUCER.z + 30); C.setLegs(0); C.setRamp(0);
@@ -629,7 +611,7 @@ class Voyage {
     if (this.open) inp = this.where === 'moon' && this.v.kind === 'car' ? { throttle: 0, steer: 0 } : { pitch: 0, roll: 0, yaw: 0, climb: 0 };
     const reset = G.input.took('reset');
     const k = this.k, C = this.craft;
-    C.animate(this.t, this.lit != null ? this.lit : -1, this.phase === 'jump' ? 3 : 1);
+    C.animate(this.t, this.lit != null ? this.lit : -1, 1);
     if (this.where === 'space') this._frameSpace(dt, inp);
     else this._frameMoon(dt, inp, reset);
     this.music.update();
@@ -658,50 +640,9 @@ class Voyage {
       this.thrust = 0.8;
       if (this.ph > P.T - 1.0 && !this._white) { this._white = true; this._fade(1, true, 0.9); }
       if (this.ph >= P.T) { this._white = false; this._toMoon('landing'); this._fade(0, true, 1.4); return this._placeCraftSpace && null; }
-    } else if (ph === 'jump') {
-      // the engines wind up, the stars stretch, a flash, and out
-      const s = ease(this.ph / 2.8);
-      this.streaks.update(dt, s);
-      k.pos.addScaledVector(new V3(-Math.sin(k.yaw), 0, -Math.cos(k.yaw)), (60 + s * 2000) * dt);
-      if (this.ph > 2.9 && !this._white) { this._white = true; this._fade(1, true, this.G.set.reduce ? 0.6 : 0.35); }
-      if (this.ph > 3.4) { this._white = false; this._deep(); }
-    } else if (ph === 'deep') {
-      // a moment of awe; then the way back
-      k.pos.addScaledVector(new V3(-Math.sin(k.yaw), 0, -Math.cos(k.yaw)), 25 * dt);
-      this.galaxy.rotation.y += dt * 0.012;
-      this.streaks.update(dt, Math.max(0, 1 - this.ph * 1.5));
-      if (this.ph > 6.2 && !this._course) { this._course = true; this._cap('Course set: Lunar Base.', 4); G_bell(this, 4); }
-      if (this.ph > 7) { const target = this.deepYaw + Math.PI, a = ease((this.ph - 7) / 2.4); k.yaw = this.deepYaw + Math.PI * a; k.bank = Math.sin(a * Math.PI) * 0.35; void target; }
-      if (this.ph > 9.6) { this._setPhase('jumpBack'); this.music.setMode('hyper'); }
-    } else if (ph === 'jumpBack') {
-      const s = ease(this.ph / 2.2);
-      this.streaks.update(dt, s);
-      if (this.ph > 2.3 && !this._white) { this._white = true; this._fade(1, true, 0.35); }
-      if (this.ph > 2.8) {
-        this._white = false; this._course = false;
-        this._skyFor('space'); k.pos.copy(this.jumpFrom.pos); k.vel.set(0, 0, 0);
-        k.yaw = Math.atan2(-(MOON_C.x - k.pos.x), -(MOON_C.z - k.pos.z)); k.bank = 0;
-        this.music.setMode('space'); this.streaks.update(0, 0);
-        this._fade(0, true, 1.2);
-        this._setPhase('back'); this._autoMoon();
-      }
     }
     this._placeCraftSpace();
     this._camSpace(dt);
-  }
-
-  _deep() {
-    const k = this.k;
-    this._setPhase('deep'); this.deepYaw = k.yaw;
-    this._skyFor('deep');
-    const f = new V3(-Math.sin(k.yaw), 0, -Math.cos(k.yaw));
-    this.galaxy.position.copy(k.pos).addScaledVector(f, 26000).add(new V3(0, 5000, 0));
-    this.galaxy.rotation.set(0.95, 0.4, 0.15);
-    this.galaxy.userData.far.position.copy(k.pos);
-    this.music.setMode('deep');
-    this._fade(0, true, 1.6);
-    this._stage('Somewhere far away');
-    this._cap('Somewhere far away. A spiral of a billion lights.', 5, 0.8);
   }
 
   _camSpace(dt) {
@@ -715,7 +656,7 @@ class Voyage {
       cam.fov += (72 - cam.fov) * Math.min(1, dt * 3);
     } else {
       // outside: behind and above, swinging round the craft on the autopilot's curve
-      const swing = this.G.set.reduce ? 0 : this.phase === 'auto' ? Math.sin(this.ph * 0.35) * 0.9 : this.phase === 'deep' ? 0.5 : 0;      // (Reduce motion: straight behind, no swing)
+      const swing = this.G.set.reduce ? 0 : this.phase === 'auto' ? Math.sin(this.ph * 0.35) * 0.9 : 0;      // (Reduce motion: straight behind, no swing)
       const a = k.yaw + swing, back = this.phase === 'auto' ? 34 : 30;
       want.set(k.pos.x + Math.sin(a) * back, k.pos.y + 8, k.pos.z + Math.cos(a) * back);
       look.set(k.pos.x - Math.sin(k.yaw) * 14, k.pos.y + 1.5, k.pos.z - Math.cos(k.yaw) * 14);
@@ -724,8 +665,6 @@ class Voyage {
       cam.up.set(0, 1, 0); cam.lookAt(look);
       cam.fov += (66 - cam.fov) * Math.min(1, dt * 3);
     }
-    // the streaks are laid out in the camera's own frame
-    this.streaks.mesh.position.copy(cam.position); this.streaks.mesh.quaternion.copy(cam.quaternion);
     this.skyAt = cam.position;
   }
 
@@ -863,7 +802,7 @@ class Voyage {
     const G = this.G, a = document.getElementById('lcdA'), b = document.getElementById('lcdB');
     if (!a || this.G.t % 0.1 > 0.05) return;
     let A, B;
-    if (this.where === 'space') { A = `SAUCER ${Math.round(this.k.vel.length() * 3.6).toLocaleString()} KM/H`; B = this.phase === 'space' ? `MOON ${Math.max(0, (this.k.pos.distanceTo(MOON_C) - MOON_R) / 1000).toFixed(1)} KM` : this.phase === 'auto' || this.phase === 'back' ? 'AUTOPILOT' : 'HYPERSPACE'; }
+    if (this.where === 'space') { A = `SAUCER ${Math.round(this.k.vel.length() * 3.6).toLocaleString()} KM/H`; B = this.phase === 'space' ? `MOON ${Math.max(0, (this.k.pos.distanceTo(MOON_C) - MOON_R) / 1000).toFixed(1)} KM` : 'AUTOPILOT'; }
     else { const v = this.v; A = `${v.kind === 'drone' ? 'DRONE' : 'CAR'} ${Math.round(Math.hypot(v.vel.x, v.vel.z) * 3.6)} KM/H · 1/6 G`; B = this.lastAir && this.t < this.airShow ? `AIR ${this.lastAir.air.toFixed(2)} S  ${this.lastAir.dist.toFixed(1)} M` : v.kind === 'drone' ? `ALT ${(v.pos.y - moonH(v.pos.x, v.pos.z)).toFixed(1)} M` : 'LUNAR BASE'; }
     if (a.textContent !== A) a.textContent = A; if (b.textContent !== B) b.textContent = B;
     // the sticks drawn as they are held
