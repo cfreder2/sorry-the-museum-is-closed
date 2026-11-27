@@ -21,9 +21,14 @@
 // been seen to move, turn, or have its instances or vertices set again (looked for every frame: from then on it is
 // always drawn).
 //
-// Two layers, because the floor's reflection is a second drawing from below the floor: what the view needs is on layer
-// 0; what only the reflection needs (what can be seen from the rooms whose floors you can see) is on MIRROR, which the
-// reflection's camera also draws; the rest is on HIDDEN (the layer src/stream.js uses: the two are never on together).
+// THE FLOOR'S REFLECTION is a second drawing of the world from below the floor, and it is NOT culled: what the view does
+// not need goes on the MIRROR layer, which the reflection's camera draws as well as layer 0, so the polish is exactly
+// what it was. (It has to be everything: that drawing sees under the foot of every wall into the hollow between two
+// rooms' walls, where walls are seen through from behind, and the polish, which is smeared, takes a thin strip of
+// whatever lies beyond. Two ways of culling it too are kept for measuring, and change that strip: ?cull=wide draws in
+// the reflection what can be seen from the rooms whose floors you can see, and what stands just round them, and hides
+// the rest on HIDDEN (the layer src/stream.js uses: the two are never on together); ?cull=same draws in it only what
+// the view draws.)
 
 import * as THREE from 'three';
 
@@ -166,7 +171,7 @@ const _box = new THREE.Box3(), _keys = [], _toy = [];
 export class Visibility {
   /** root: the museum's group. pvs: the table as fetched. mirrorCam: the floor reflection's camera (it is told to draw MIRROR too). renderer: for the readout's count of draw calls (?cull&diag). */
   constructor(root, plan, pvs, mirrorCam, renderer) {
-    this.root = root; this.plan = plan; this.ok = false; this.live = false; this.why = ''; this.sig = '*'; this.off = false;
+    this.root = root; this.plan = plan; this.ok = false; this.live = false; this.why = ''; this.sig = '*'; this.off = false; this.log = null;      // (log: set to [] by a tool, to be told why each thing is never hidden)
     this.items = []; this.count = 0; this.shown = 0; this.movers = 0; this.never = 0; this.seen = 0; this.ms = 0;
     this._known = new WeakSet(); this._at = 0; this._all = true; this._last = []; this._lastY = null; this._frame = 0;
     try {
@@ -179,6 +184,7 @@ export class Visibility {
       this.want = new Uint8Array(this.n); this.state = new Uint8Array(this.n);      // per bin: 0 drawn, 1 hidden, 2 the reflection only
       this.walls = new Map(pvs.occ.map(s => [s, null])); this.wallList = []; this.missing = this.walls.size;
       this.mirrorCam = mirrorCam || null; if (mirrorCam) mirrorCam.layers.enable(MIRROR);
+      this.mode = (/[?&]cull=(wide|same)\b/.exec(location.search) || [])[1] || 'all';      // how the reflection is treated (see the top of the file)
       this._mcache = new Map(); this._near = new Map();
       this.ok = true;
     } catch (e) { this.ok = false; this.why = 'the table could not be read: ' + e; }
@@ -196,18 +202,18 @@ export class Visibility {
       this.root.traverse(o => {
         if (known.has(o) || !(o.isMesh || o.isLine || o.isPoints || o.isSprite)) return;
         known.add(o); this.seen++;
-        if (!fixed(o)) { this.never++; return; }
+        if (!fixed(o)) { this.never++; if (this.log) this.log.push([o, 'not fixed']); return; }
         if (!first) o.updateWorldMatrix(true, false);      // (built since the last frame was drawn: three.js has not yet worked out where it is)
-        if (!boxOf(o, b)) { this.never++; return; }
+        if (!boxOf(o, b)) { this.never++; if (this.log) this.log.push([o, 'no box']); return; }
         // one of the walls the table counted on? (kept an eye on, whether or not it is ever hidden itself)
         let wall = false;
         if (this.missing && wallLike(o, b) && this.places.fabric(b)) { const s = sigOf(o, b); if (this.walls.has(s) && !this.walls.get(s)) { wall = true; this.walls.set(s, o); this.missing--; } }
         let bin = this.places.binOf(b), bins = null, i = -1;
-        if (bin === null) { bins = this.pvs.big[sigOf(o, b)]; if (!bins) { if (wall) this._wall(o); this.never++; return; } }
+        if (bin === null) { bins = this.pvs.big[sigOf(o, b)]; if (!bins) { if (wall) this._wall(o); this.never++; if (this.log) this.log.push([o, 'big, not in the table']); return; } }
         else {
-          i = this.index.get(bin); if (i == null) { if (wall) this._wall(o); this.never++; return; }      // a bin the table has never heard of
+          i = this.index.get(bin); if (i == null) { if (wall) this._wall(o); this.never++; if (this.log) this.log.push([o, 'bin not in the table ' + bin]); return; }      // a bin the table has never heard of
           const k = i * 6;                                                                                  // and it has to lie inside the box the table tested for that bin
-          if (b.min.x < B[k] - 0.02 || b.min.y < B[k + 1] - 0.02 || b.min.z < B[k + 2] - 0.02 || b.max.x > B[k + 3] + 0.02 || b.max.y > B[k + 4] + 0.02 || b.max.z > B[k + 5] + 0.02) { if (wall) this._wall(o); this.never++; return; }
+          if (b.min.x < B[k] - 0.02 || b.min.y < B[k + 1] - 0.02 || b.min.z < B[k + 2] - 0.02 || b.max.x > B[k + 3] + 0.02 || b.max.y > B[k + 4] + 0.02 || b.max.z > B[k + 5] + 0.02) { if (wall) this._wall(o); this.never++; if (this.log) this.log.push([o, 'outside the box of ' + bin]); return; }
         }
         const e = o.matrixWorld.elements, p = o.geometry.attributes.position;
         const pa = p.data || p, im = o.isInstancedMesh ? o.instanceMatrix : null;
@@ -241,7 +247,7 @@ export class Visibility {
     if (live) { const w = this.wallList, root = this.root; for (let k = 0; k < w.length; k++) { const it = w[k]; if (it.lone) { const e = it.e; if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z || e[0] + e[5] + e[10] + e[1] + e[6] + e[8] !== it.t) { live = false; lost = it; break; } } let q = it.o; for (; q; q = q.parent) { if (!q.visible) break; if (q === root) break; } if (q !== root) { live = false; lost = it; break; } } }
     this.live = live; this.lost = lost;
   }
-  _drop(it) { it.o.layers.mask = it.mask; it.dead = true; it.s = 0; this.movers++; this.count--; }
+  _drop(it) { it.o.layers.mask = it.mask; it.dead = true; it.s = 0; this.movers++; this.count--; if (this.log) this.log.push([it.o, 'moved']); }
   // (now and then: what has been taken out of the world altogether is let go of, and the lists are tidied)
   _tidy() {
     const under = o => { for (let q = o; q; q = q.parent) if (q === this.root) return true; return false; };
@@ -276,7 +282,7 @@ export class Visibility {
       if (!(all || this.off || !this.live)) {
         keys = this.places.keysAt(cam, _keys, this.has, this.pvs.links);
         if (keys && toy) { const t = this.places.keysAt(toy, _toy, this.has, this.pvs.links); if (t) { for (const k of t) if (!keys.includes(k)) keys.push(k); } else if (strict) keys = null; }
-        if (keys && !this.mirrorCam) mirrorY = null;
+        if (keys && (!this.mirrorCam || this.mode === 'same')) mirrorY = null;
       }
       // the usual frame: the same place as last time, and nothing more to do
       const last = this._last;
@@ -288,7 +294,8 @@ export class Visibility {
       else {
         want.fill(0); for (const k of keys) { for (const i of this.list(k)) want[i] = 1; const own = this.index.get(k); if (own != null) want[own] = 1; }
         let m = null;
-        if (mirrorY != null) { const ck = this.sig + '@' + mirrorY; m = this._mcache.get(ck); if (!m) { if (this._mcache.size > 64) this._mcache.clear(); this._mcache.set(ck, m = this._mirror(want, mirrorY)); } }
+        if (mirrorY != null && this.mode === 'all') m = this._ones || (this._ones = new Uint8Array(this.n).fill(1));
+        else if (mirrorY != null) { const ck = this.sig + '@' + mirrorY; m = this._mcache.get(ck); if (!m) { if (this._mcache.size > 64) this._mcache.clear(); this._mcache.set(ck, m = this._mirror(want, mirrorY)); } }
         for (let i = 0; i < this.n; i++) st[i] = want[i] ? 0 : m && m[i] ? 2 : 1;
       }
       let shown = 0;

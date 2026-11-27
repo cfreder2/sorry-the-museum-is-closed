@@ -44,6 +44,12 @@ export async function makeTable(opt = {}) {
     if (s.gv !== gv || s.iv !== iv) moved.add(o); else for (let i = 0; i < 16; i++) if (Math.abs(e[i] - s.e[i]) > 1e-5) { moved.add(o); break; }
   }); };
   look(); const pre = new Set(snap.keys());
+  // Whoever keeps setting a thing's `visible` is managing it (the snow's tiles by how near they are, a feature's group by whether you are within 300 m): it may be
+  // switched off somewhere this tool never stands. So every would-be wall, and everything it hangs from, is watched for a `visible` set to what it already was
+  // (the floors are not caught by this: the reflection switches them off and on again inside one drawing, and never sets them to what they are).
+  const box0 = new T.Box3(), fab0 = new Places(P), trapped = new Set(), managed = new Set();
+  root.traverse(o => { if (drawable(o) && boxOf(o, box0) && wallLike(o, box0) && fab0.fabric(box0)) for (let q = o; q && !trapped.has(q); q = q.parent) { trapped.add(q); let v = q.visible; Object.defineProperty(q, 'visible', { configurable: true, enumerable: true, get: () => v, set: x => { if (!!x === !!v) managed.add(q); v = x; } }); if (q === root) break; } });
+  const untrap = () => { for (const q of trapped) { const v = q.visible; delete q.visible; q.visible = v; } trapped.clear(); };
   const home = () => G.vehicle.place(P.spawn.x, P.spawn.z, P.spawn.yaw, 0.05);
   // the toy is sent round: what is only shown from near to (back rooms' fittings, switches, whiteboards, nests, robots) comes and goes
   const B = P.bounds, tour = [];
@@ -58,7 +64,9 @@ export async function makeTable(opt = {}) {
   await wait(opt.quick ? 500 : 3000); look();
   // the walls: there from the start, on show throughout, never moved
   const box = new T.Box3(), walls = [], fab = new Places(P);
-  root.traverse(o => { if (pre.has(o) && !moved.has(o) && !flicker.has(o) && snap.get(o).shown && drawable(o) && boxOf(o, box) && wallLike(o, box) && fab.fabric(box)) walls.push(o); });
+  const kept = o => { for (let q = o; q; q = q.parent) { if (managed.has(q)) return true; if (q === root) break; } return false; };
+  root.traverse(o => { if (pre.has(o) && !moved.has(o) && !flicker.has(o) && !kept(o) && snap.get(o).shown && drawable(o) && boxOf(o, box) && wallLike(o, box) && fab.fabric(box)) walls.push(o); });
+  stats.managed = managed.size; untrap();
   // everything built: the park's lazy features are woken, then back to the start
   const woke = []; for (const f of features) if ((f._pending || f._unseen) && f.lazy) { G.vehicle.place(f.lazy.x, f.lazy.z, 0, 0.5); for (let k = 0; k < 20 && (f._pending || f._unseen); k++) await wait(250); await frames(3); woke.push(f.id); }
   home(); await wait(800); look(); await wait(400); look();
@@ -259,7 +267,7 @@ export async function makeTable(opt = {}) {
     P.rooms.forEach((r, ri) => {
       if (opt.rooms && !opt.rooms.includes(r.id)) return;
       const c = ceilOf(r), w = r.x1 - r.x0, d = r.z1 - r.z0, h = c - r.y, nx = Math.max(1, Math.ceil(w / STEP)), nz = Math.max(1, Math.ceil(d / STEP)), ny = Math.max(2, Math.ceil(h / 1.7) + 1);
-      const sx = w / nx, sz = d / nz, lo = r.y + FLOOR + 0.07, hi = c - CEIL - 0.07, sy = (hi - lo) / (ny - 1), delta = opt.dRoom || 0.5;      // (a sight line that leaves the room leaves it through an opening, and the openings have samples of their own: these are for what is in the room, and a little beyond)
+      const sx = w / nx, sz = d / nz, lo = r.y + FLOOR + 0.07, hi = c - CEIL - 0.07, sy = (hi - lo) / (ny - 1), delta = opt.dRoom || 0;      // (a sight line that leaves the room leaves it through an opening, and the openings have samples of their own, with their edges eaten back: these are for what is in the room, and no edge is eaten back for them)
       for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) for (let k = 0; k < ny; k++) { add(r.x0 + sx * (i + 0.5), lo + sy * k, r.z0 + sz * (j + 0.5), delta, [r.id], 'room'); nSamples.room++; }
       // its six faces, square-on from just inside: where no wall is within 0.55 m is an opening
       const FACES = [[0, r.x0, [-1, 0, 0], [0, 1, 0], d, h], [0, r.x1, [1, 0, 0], [0, 1, 0], d, h], [2, r.z0, [0, 0, -1], [0, 1, 0], w, h], [2, r.z1, [0, 0, 1], [0, 1, 0], w, h], [1, r.y, [0, -1, 0], [0, 0, 1], w, d], [1, c, [0, 1, 0], [0, 0, 1], w, d]];      // [axis, where on it, outward, the picture's up, width, height]
