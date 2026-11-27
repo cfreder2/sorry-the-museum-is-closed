@@ -8,7 +8,6 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
 import { LOWMEM } from './budget.js';
-import { Visibility } from './visible.js';      // (?cull: what cannot be seen from where the camera is is not drawn)
 import { Streamer } from './stream.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut, stripShut } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
@@ -386,7 +385,7 @@ async function boot() {
     G.stream.register(); }
 
   // (?cull) The table of what can be seen from where. Not with the streamer (a phone): the two would each have to know of the other.
-  if (CULL && !LOWMEM) { try { const r = await fetch('./data/pvs.json'); if (r.ok) G._pvs = await r.json(); else console.warn('visible: no data/pvs.json'); } catch (e) { console.warn('visible', e); } }
+  if (CULL && !LOWMEM) { try { const [m, r] = await Promise.all([import('./visible.js'), fetch('./data/pvs.json')]); if (r.ok) { G._pvs = await r.json(); G._Vis = m.Visibility; } else console.warn('visible: no data/pvs.json'); } catch (e) { console.warn('visible', e); } }      // (the code and the table are both fetched only with the word)
 
   $('status').textContent = '';
   // The bar's last stretch: the screen goes once the first frame has been drawn behind it (tick), since that frame
@@ -1804,7 +1803,7 @@ function tick(now) {
   // (?cull) Made once the shut rooms have left the plan (the table is for the plan as it is played). Here, where the camera is where it will be drawn from and before anything is
   // drawn from it (the chrome toy's mirror is next). Whatever has been built since last time is looked at twice a second: until then it is simply drawn.
   if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
-    if (!G.vis) { G.vis = new Visibility(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register(); }
+    if (!G.vis) { G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register(); }
     else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.vis.register();
     G.vis.update(camera.position, G.vehicle && G.vehicle.pos, !!G.cineEye || !!G.cutscene || stage.on, mirror.enabled ? G.floorY || 0 : null, !!(G.live && G.live.live));
   }

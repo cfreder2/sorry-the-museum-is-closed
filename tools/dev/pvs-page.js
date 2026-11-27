@@ -131,7 +131,7 @@ export async function makeTable(opt = {}) {
       // (a mesh of many small pieces, the street's hydrants, a statue, hides nothing worth counting on, and one of them is cut about in play: left out,
       // by the size of its triangles: under a tenth of a square metre each on average)
       let area = 0; for (let q = 0; q < out.length; q += 9) { const ux = out[q + 3] - out[q], uy = out[q + 4] - out[q + 1], uz = out[q + 5] - out[q + 2], wx = out[q + 6] - out[q], wy = out[q + 7] - out[q + 1], wz = out[q + 8] - out[q + 2]; area += 0.5 * Math.hypot(uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx); }
-      if (area / (out.length / 9) < 0.1) { fine++; continue; }
+      if (area / (out.length / 9) < (opt.fine == null ? 0.1 : opt.fine)) { fine++; continue; }
       occ.push(sigOf(o, box)); list.push(out); nt += out.length / 9;
     }
     stats.walls = { meshes: occ.length, triangles: nt, leftOutAsTooFine: fine };
@@ -349,9 +349,10 @@ export async function makeTable(opt = {}) {
       // the walls, six ways, big
       gl.bindFramebuffer(gl.FRAMEBUFFER, fHi.f); gl.viewport(0, 0, fHi.w, fHi.h); gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true); gl.clearColor(BIG, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(pOcc.p); for (let f = 0; f < 6; f++) { gl.viewport(f * S * HI, 0, S * HI, S * HI); drawWalls(pl[f], VP[f], VZ[f]); }
-      // a quarter the size, with the edges found; half that; the edges spread
+      // a quarter the size, with the edges found; half that; the edges spread (no edge is eaten back unless asked, --spread=1: it was tried, and from
+      // the open air it let nearly every room be seen)
       gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad);
-      gl.useProgram(pEdge.p); gl.uniform1i(pEdge.u.t, 0); gl.uniform1f(pEdge.u.uK, F * s.d * (opt.spread || 0));      // (no edge is eaten back unless asked, --spread=1: it was tried, and from the open air it let nearly every room be seen: results.txt) gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.viewport(0, 0, fB.w, fB.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(pEdge.p); gl.uniform1i(pEdge.u.t, 0); gl.uniform1f(pEdge.u.uK, F * s.d * (opt.spread || 0)); gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.viewport(0, 0, fB.w, fB.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.useProgram(pHalf.p); gl.uniform1i(pHalf.u.t, 0); gl.uniform1i(pHalf.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fH.f); gl.viewport(0, 0, fH.w, fH.h); gl.bindTexture(gl.TEXTURE_2D, fB.x); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fB.x1); gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.useProgram(pSpread.p); gl.uniform1i(pSpread.u.t, 0); gl.uniform1i(pSpread.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fS.f); gl.bindTexture(gl.TEXTURE_2D, fH.x1); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fH.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       // the boxes
