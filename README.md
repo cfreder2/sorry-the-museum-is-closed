@@ -1071,6 +1071,11 @@ better plan is a better file. What is in it:
   rooms are reached through the hidden doorway and through nothing else, and
   that nothing else is reached through them. Rooms whose id starts `B-` (section 8a) are
   further on still: the map leaves them off until they have been found.
+- `secret.lift`: the two cars of the goods lift behind the hidden doorway (`top`,
+  `foot`), the same size and the same way round, with nothing between them on any
+  drawing: the game carries a toy from one to the other with the doors shut
+  (`src/secretlift.js`), and `tools/check_layout.mjs` and the map count it as a lift.
+  A deck marked `left` is a landing left in an empty shaft, on no way.
 
 ## The museum's API
 
@@ -1183,6 +1188,7 @@ anywhere by setting `testEye` (`{ at: [x, y, z], look: [x, y, z] }`).
     src/whiteboards.js        the whiteboards: the writing on them, and reading one
     src/boardtext.js          what each of them says (no three.js, no DOM)
     src/secret.js, secretclue.js, secretfit.js   what the whiteboards are not telling you
+    src/secretgame.js, secretlift.js            the monkey's show, and the goods lift down
     src/finale.js, finaleplan.js, finalefit.js   and what is further on than that: the base, its rooms and its craft (docs/FINALE.md)
     src/finalelaunch.js       the five notes at the console, the beam, and the launch out of the ballfield
     src/motif.js              the craft's five-note call (original; no three.js, no DOM)

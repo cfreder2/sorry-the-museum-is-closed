@@ -66,6 +66,12 @@ export class SecretLift {
     // The lining: the long walls whole, each end wall round its doorway.
     const side = (u, du) => { const a = P3(0, u, 0, I), b = P3(1, u + du, H, I); steel.box(Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.max(a[2], b[2])); };
     side(lo + I, 0.02); side(hi - I - 0.02, 0.02);
+    // The lining's panels: a dark seam between each, along the long walls, and a kick plate along their foot.
+    for (const u of [lo + I + 0.02, hi - I - 0.02]) {
+      const o = u < (lo + hi) / 2 ? 1 : -1, w0 = Math.min(u, u + o * 0.006), w1 = Math.max(u, u + o * 0.006);
+      for (let d = 0.95; d < len - 0.3; d += 0.95) { const a = P3(0, w0, 0, d - 0.006), b = P3(0, w1, H, d + 0.006); dark.box(Math.min(a[0], b[0]), Math.max(a[0], b[0]), a[1], b[1], Math.min(a[2], b[2]), Math.max(a[2], b[2])); }
+      { const a = P3(0, Math.min(u, u + o * 0.01), 0, I), b = P3(1, Math.max(u, u + o * 0.01), 0.28, I); dark.box(Math.min(a[0], b[0]), Math.max(a[0], b[0]), a[1], b[1], Math.min(a[2], b[2]), Math.max(a[2], b[2])); }
+    }
     for (const e of [0, 1]) {
       box(steel, e, lo + I, uc - half - 0.05, 0, H, I, I + 0.02); box(steel, e, uc + half + 0.05, hi - I, 0, H, I, I + 0.02); box(steel, e, uc - half - 0.05, uc + half + 0.05, DOOR + 0.02, H, I, I + 0.02);
       box(dark, e, uc - half - 0.08, uc - half - 0.03, 0, DOOR + 0.05, I + 0.02, I + 0.05); box(dark, e, uc + half + 0.03, uc + half + 0.08, 0, DOOR + 0.05, I + 0.02, I + 0.05); box(dark, e, uc - half - 0.08, uc + half + 0.08, DOOR, DOOR + 0.06, I + 0.02, I + 0.05);
@@ -132,7 +138,7 @@ export class SecretLift {
     const G = this.G, calm = !!(G.set && G.set.reduce), slow = calm ? 1.4 : 1, p = v.pos, here = this.inCar(p);
     const near = this.cars.some(c => Math.abs(p.y - c.r.y) < 8 && Math.abs(p.x - (c.r.x0 + c.r.x1) / 2) < 30 && Math.abs(p.z - (c.r.z0 + c.r.z1) / 2) < 30) || cam.y < -4 && Math.abs(cam.x - 91) < 40;
     this.group.visible = near;
-    if (this.armed === null) this.armed = here < 0;
+    if (this.armed === null && (this.t0 = (this.t0 || 0) + dt) > 0.4) this.armed = here < 0;      // (a moment in, when the toy is surely where the game put it)
     if (here < 0) { this.armed = true; this.still = 0; }
     const sp = Math.hypot(v.vel.x, v.vel.z) + Math.abs(v.vel.y || 0);
     if (this.state === 'idle') {
@@ -203,7 +209,7 @@ export class SecretLift {
   // A new game, or the title: open, still, holding nobody.
   reset() {
     if (!this.ok) return;
-    this._let(); this.armed = null; this.flashT = -1; this.flash.style.opacity = '0';
+    this._let(); this.armed = null; this.t0 = 0; this.flashT = -1; this.flash.style.opacity = '0';
     for (const c of this.cars) { c.open = c.want = 1; this._doors(c); this._sign(c, c.i === 0 ? '2' : '9'); }
   }
 

@@ -49,8 +49,8 @@ export const ENTRIES = [
   { id: 'nightlog', optional: true, title: 'The first night', line: 'Security’s own log of the night it came down. It sang, five notes. The Director hummed them back, and it stopped.', hint: 'The night shift keeps a log. Some of it needs clearance.' },      // (src/secdesk.js: the locked folder on the security desk's computer)
   { id: 'nests', title: 'The chewed file', line: n => `TOP SECRET pages the mice carried up from somewhere. ${n} of 5 nests.`, hint: 'Follow a glowing mouse home.' },
   { id: 'desk', title: 'The Director’s desk', line: '“The way down is behind a painting.”  — D.', hint: 'The mice have the Director’s key.' },
-  { id: 'passage', title: 'Behind the painting', line: 'Stone on stone. A way through, and it goes down.', hint: 'The Director’s whiteboard names a picture.' },
-  { id: 'sublevel9', title: 'Sub-level 9', line: 'Twelve metres down and on nobody’s drawings. Jars. A star chart. A keycard.', hint: 'Behind the painting, a stair goes down.' },
+  { id: 'passage', title: 'Behind the painting', line: 'The wall turns, picture and all. Behind it, a way down.', hint: 'The Director’s whiteboard names a picture.' },
+  { id: 'sublevel9', title: 'Sub-level 9', line: 'Twelve metres down and on nobody’s drawings. Jars. A star chart. A keycard.', hint: 'Behind the painting, a lift goes down.' },
   { id: 'alienracer', optional: true, title: 'The green racer’s charm', line: 'Dropped by a racer that glowed. Warm, and it hums when it faces the park.', hint: 'Something green races at night.' },
   { id: 'base', title: 'Project Green Cheese', line: 'A base under Butler Field. In the hangar, it is waiting.', hint: 'A keycard, a blast door, a tunnel east.' },
 ];
