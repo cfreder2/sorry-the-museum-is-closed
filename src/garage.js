@@ -781,6 +781,7 @@ export class Garage {
     this.on = { car: null, drone: null };             // which body each toy is wearing
     this.onUnlock = null;                             // (vehicle) when one unlocks
     this.paints = new Set(); this.coat = {};          // cans of paint owned, and which is on which toy
+    this.driven = new Set();                          // every toy put in play this game (the mice on the Moon make a statue of each: src/moonbase.js)
     this.toys = { car: null, drone: null };
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -790,11 +791,12 @@ export class Garage {
         if (s.kind === 'drone') this.kind = 'drone';
         for (const id of s.paints || []) if (PAINT_OF[id]) this.paints.add(id);
         for (const [v, c] of Object.entries(s.coat || {})) if (BY_ID[v] && this.paints.has(c)) this.coat[v] = c;
+        for (const id of s.driven || []) if (BY_ID[id]) this.driven.add(id);
       }
     } catch { /* no storage */ }
     this.shown = this.sel[this.kind];
   }
-  save() { try { localStorage.setItem(KEY, JSON.stringify({ open: [...this.open], sel: this.sel, kind: this.kind, paints: [...this.paints], coat: this.coat })); } catch { /* fine */ } }
+  save() { try { localStorage.setItem(KEY, JSON.stringify({ open: [...this.open], sel: this.sel, kind: this.kind, paints: [...this.paints], coat: this.coat, driven: [...this.driven] })); } catch { /* fine */ } }
 
   get(id) { return BY_ID[id]; }
   /** Bought at the stall. */
@@ -841,7 +843,9 @@ export class Garage {
   fromParam(p, pick) { return (BY_ID[p] ? this.choose(p, pick, true) : this.chooseKind(p, pick)).kind; }
   ready() { return this.open.has(this.shown); }
   /** A new game begins with the RC Car, and every toy in its own paint (whatever has been unlocked stays in the garage, and so do the cans). */
-  fresh(pick) { this.coat = {}; this.sel.drone = 'quad'; return this.choose('buggy', pick); }      // (every toy, not only the first car and drone: the others kept the last game's colours)
+  fresh(pick) { this.coat = {}; this.sel.drone = 'quad'; this.driven.clear(); return this.choose('buggy', pick); }
+  /** A toy put in play (main.js setVehicle): remembered for the game. */
+  drove(id) { if (BY_ID[id] && !this.driven.has(id)) { this.driven.add(id); this.save(); } }      // (every toy, not only the first car and drone: the others kept the last game's colours)
 
   /** Put the chosen bodies on the two toys. */
   apply(car, drone) {
@@ -850,6 +854,7 @@ export class Garage {
       if (!toy || this.on[kind] === id) continue;
       toy.reskin(buildVehicle(id), BY_ID[id].spec);
       this.on[kind] = id;
+      if (kind === this.kind && this.driven.size) this.drove(id);      // (a body changed on the toy in play: bought at the stall)
     }
     this.toys = { car: car || this.toys.car, drone: drone || this.toys.drone };
     this.recoat();

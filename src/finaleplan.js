@@ -81,10 +81,11 @@ export function addFinale(plan) {
     const r = F.check.robot; O.push({ x0: r.x - 0.45, x1: r.x + 0.45, z0: r.z - 0.45, z1: r.z + 0.45, y0: ck.y, y1: ck.y + 0.9 });
   }
 
-  // ---- the archive: easels in four rows facing the hangar, the middle of the room left clear to drive down
+  // ---- the archive: twenty easels (the craft carries twenty pictures), in four rows facing the hangar, the middle of the
+  // room left clear to drive down
   const ar = plan.byId['B-archive'];
   F.easels = [];
-  if (ar) for (const x of [ar.x0 + 12, ar.x0 + 20, ar.x0 + 28]) for (const z of [ar.z0 + 5, ar.z0 + 10.5, ar.z1 - 10.5, ar.z1 - 5]) {
+  if (ar) for (const x of [ar.x0 + 7, ar.x0 + 13, ar.x0 + 19, ar.x0 + 25, ar.x0 + 31]) for (const z of [ar.z0 + 5, ar.z0 + 10.5, ar.z1 - 10.5, ar.z1 - 5]) {
     F.easels.push({ x, z, y: ar.y, face: 1 });
     O.push({ x0: x - 0.32, x1: x + 0.32, z0: z - 0.5, z1: z + 0.5, y0: ar.y, y1: ar.y + 2.3, easel: true });
   }

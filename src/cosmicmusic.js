@@ -4,8 +4,6 @@
 //
 //   space    slow chords that take eight seconds each to bloom, a low hum, stray bell notes, and every so often
 //            the call itself, played slowly, high up, with an echo
-//   hyper    a rising rush of air and the call at three times the speed
-//   deep     one high shimmering chord, held, and the call low and very slow (the far galaxy)
 //   moon     the space chords, thinner and further apart
 //   finale   the full arrangement for the opening and the credits: the call three times over, each time with
 //            more under it (chords, then a harmony a third below and running eighths, then everything in octaves
@@ -50,9 +48,7 @@ export class CosmicMusic {
     const c = this.ctx; if (!c || !this._ensure()) { this._pending = true; return; }
     this._pending = false;
     const now = c.currentTime;
-    if (mode === 'hyper') this._hyper(now);
-    else if (mode === 'deep') this._deep(now);
-    else if (mode === 'finale') this._finale(now);
+    if (mode === 'finale') this._finale(now);
   }
 
   stop() {
@@ -129,22 +125,6 @@ export class CosmicMusic {
     this.played += MOTIF.length;
     return end;
   }
-  // Air rushing past, rising: the jump to hyperspace and back.
-  whoosh(t, dur = 4, up = true) {
-    const c = this.ctx; if (!c || !this.s.noise) return;
-    const src = c.createBufferSource(); src.buffer = this.s.noise; src.loop = true;
-    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2.2;
-    f.frequency.setValueAtTime(up ? 220 : 2600, t); f.frequency.exponentialRampToValueAtTime(up ? 3200 : 200, t + dur);
-    const e = c.createGain(); e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(0.16, t + dur * 0.7); e.gain.linearRampToValueAtTime(0, t + dur);
-    src.connect(f); f.connect(e); e.connect(this.out); src.start(t, Math.random()); src.stop(t + dur + 0.05);
-    const o = c.createOscillator(), g = c.createGain(); o.type = 'sawtooth';
-    o.frequency.setValueAtTime(up ? 55 : 220, t); o.frequency.exponentialRampToValueAtTime(up ? 220 : 55, t + dur);
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.03, t + dur * 0.8); g.gain.linearRampToValueAtTime(0, t + dur);
-    o.connect(lp); lp.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + 0.05);
-    this.played++;
-  }
-
   // ---------------------------------------------------------------- modes --
   // One turn of the slow chords (eight seconds), with what goes over it.
   _loop(t, mode) {
@@ -161,19 +141,6 @@ export class CosmicMusic {
     if (credits ? this.cycles % 2 === 1 : this.cycles % 3 === 2) this.call(t + 1.2, { beat: 0.62, transpose: 12, gain: moon ? 0.03 : 0.04 });
     else if (moon && this.cycles % 3 === 0) for (const nt of motifTimes(0.6, 12).slice(0, 3)) this.bell(nt.midi, t + 2 + nt.t, 0.022, 2.2, 0.4);   // the first three notes, as if remembered
     this.loopAt = t + len;
-  }
-
-  _hyper(t) {
-    this.whoosh(t, 3.6, true);
-    this.call(t + 1.4, { beat: 0.2, transpose: 12, gain: 0.05, echo: 0.6 });
-    this.call(t + 2.8, { beat: 0.2, transpose: 24, gain: 0.03, echo: 0.6 });
-    this.pad([50, 57, 62, 66, 69], t, 4, 0.016, 1.5);
-  }
-
-  _deep(t) {
-    this.pad([64, 71, 78, 81, 86], t, 14, 0.012, 4);                 // high and still
-    this.pad([40, 47], t, 14, 0.02, 4);
-    this.call(t + 3, { beat: 0.8, transpose: 0, gain: 0.04, echo: 0.7 });
   }
 
   // The full arrangement: three times through the call, each time fuller. About 40 seconds; then the credits' loop.

@@ -36,6 +36,7 @@ const ORDER = ['locked', 'found', 'played', 'launched', 'landed', 'opened'];
 const past = (s, t) => ORDER.indexOf(s) >= ORDER.indexOf(t);
 // The three phrases: how many notes of the call, and how quick (seconds a beat). The last is the whole call.
 const PHRASES = [{ n: 3, beat: 0.62 }, { n: 4, beat: 0.5 }, { n: 5, beat: 0.42 }];
+const NOTES = PHRASES.reduce((s, p) => s + p.n, 0);
 const LIFT = 1.6;                                                  // how far the craft hovers off its cradle while the beam works
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
@@ -144,7 +145,7 @@ feature({
     if (c) c.onUse = () => this.use();
     const me = this;
     if (this.hangar) this.hangar.rim.colour((i, t) => me._rimColour(i, t));
-    if (fin.save.state === 'played') { this._screen(['CRAFT: AWAKE', 'USE TO CALL IT']); for (const e of this._easels()) e.light(1); this.lit = 12; }
+    if (fin.save.state === 'played') { this._screen(['CRAFT: AWAKE', 'USE TO CALL IT']); for (const e of this._easels()) e.light(1); this.lit = NOTES; }
     else if (past(fin.save.state, 'launched')) this._screen(['CRAFT: AWAY', 'LUNAR BASE']);
   },
   // Whatever is pressed at the console.
@@ -163,9 +164,22 @@ feature({
       k.say('The pads are dark. The craft is resting.', 4); return;
     }
     if (!this.consoleApi) { k.say('Five pads, dark. Nothing answers.', 4); return; }
+    if (!this._room()) return;
     this.openTones();
   },
 
+  // The craft carries twenty pictures, and wakes only for the living works you have looked at (src/finale.js choice()):
+  // until there are enough, the console says how many more.
+  _room() {
+    const k = this.k, c = this.fin.choice(), n = c.looked, more = c.want - n;
+    if (more <= 0) return true;
+    this._screen([`PICTURES ${n} / ${c.want}`, 'LIVING WORKS ONLY']);
+    const room = c.want < 20 ? `Tonight there are ${c.living} living ones hung, and you have looked at ${n}: ${WORDS[more] || more} more.` : n ? `You have looked at ${n} of the living ones: ${WORDS[more] || more} more.` : `You have looked at none of the living ones yet: ${WORDS[more] || more}.`;
+    k.say('The craft has room for twenty pictures. ' + room, 0, 7);
+    if (!this.toldLiving) { this.toldLiving = true; k.say('The living ones are the paintings that come alive: their labels glow green.', 7.4, 6); }
+    k.sound.tick && k.sound.tick(0.05, 520, 0.04);
+    return false;
+  },
   // ---------------------------------------------------------------- the five notes
   openTones() {
     const k = this.k, G = k.G;
@@ -231,11 +245,11 @@ feature({
     this._screen(last ? ['CRAFT: AWAKE', 'HELLO'] : ['ANSWERED', `PHRASE ${this.phrase + 2} OF 3`]);
     if (G.lights && G.lights.active) for (const id of ['B-hangar', 'B-archive']) if (!G.lights.isOn(id)) G.lights.set(id, true);
     this._answerCam(this.phrase);
-    const easels = this._easels();
+    const easels = this._easels(), E = easels.length;
     let t = 0.6;
     for (let i = 0; i < P.n; i++) {
-      const dur = MOTIF[i].beats * P.beat * 1.15, e = easels[this.lit + i];
-      this._after(t, () => { this._note(i, dur, true, true); if (e) this._lightEasel(e, i); });
+      const dur = MOTIF[i].beats * P.beat * 1.15, g = this.lit + i, some = easels.slice(Math.floor(g * E / NOTES), Math.floor((g + 1) * E / NOTES));      // (twelve notes in all, twenty pictures: a note lights one or two)
+      this._after(t, () => { this._note(i, dur, true, true); for (const e of some) this._lightEasel(e, i); });
       t += Math.max(dur, P.beat * 1.15);
     }
     this.lit += P.n;
@@ -958,6 +972,7 @@ feature({
 
 // ---------------------------------------------------------------- helpers
 // A work record, as small as the voyage needs it (src/voyage.js cargoOf; saved with the voyage).
+const WORDS = ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
 function compact(w) { return { id: w.id, t: w.t, a: w.a, d: w.d, img: w.img, w: w.w, h: w.h, iw: w.iw, ih: w.ih, k: w.k, s: w.s, c: w.c || '' }; }
 // A few books for the shelves on the Moon: one about each of the first pictures, then a spread of the rest.
 function pickBooks(B, works, n = 8) {

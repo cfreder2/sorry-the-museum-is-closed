@@ -431,6 +431,7 @@ function setVehicle(kind) {
   $('stickR').lastElementChild.textContent = kind === 'drone' ? 'fly' : 'steer';
   if (G.features) G.features.kit.carry._mount();      // what is being carried rides on the toy in use
   input.latched = false;                              // 'hold my speed' is let go with the toy: latched in the car, the drone flew off forward
+  garage.drove(garage.sel[kind]);                     // (remembered: the mice on the Moon make a statue of every toy you drove, src/moonbase.js)
 }
 
 function start(fresh = false) {
