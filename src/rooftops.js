@@ -50,7 +50,8 @@ feature({
     P.add(new THREE.CylinderGeometry(0.125, 0.13, 0.22, 18), coal, 0.014, yh + h.r * 0.8 + 0.12, 0, 0, 0, 0.12);
     P.add(new THREE.CylinderGeometry(0.132, 0.132, 0.04, 18), M.red, 0.008, yh + h.r * 0.8 + 0.04, 0, 0, 0, 0.12);
     this.deco = new THREE.Group(); P.done(this.deco); this.deco.visible = false; k.group.add(this.deco);
-    this.ob = { x0: 0, x1: 0, z0: 0, z1: 0, y0: -999, y1: -998 }; k.plan.obstacles.push(this.ob);
+    this.ob = { x0: 0, x1: 0, z0: 0, z1: 0, y0: -999, y1: -998, moves: true };      // (moves: set down where the snowman is built, so it is in no square of the plan's grid)
+    k.plan.obstacles.push(this.ob);
     this.puff = k.puffs(60, { color: 0xeef4ff, size: 0.16 });
     this.done = false; this.pop = 0; this.k = k;
     this.fixed = k.plan.obstacles.filter(o => o.y1 > top && o.y0 < top + 1 && o.x1 > box.x0 - 1 && o.x0 < box.x1 + 1 && o.z1 > box.z0 - 1 && o.z0 < box.z1 + 1);

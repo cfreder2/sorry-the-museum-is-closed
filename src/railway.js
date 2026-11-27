@@ -309,7 +309,7 @@ export class Trains {
       const beam = add(7, 30, len + 13, [1, 0.92, 0.75], 0.55), spill = add(11, len + 8, len / 2, [1, 0.72, 0.36], 0.22), glare = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: pool, color: new THREE.Color(1.6, 1.5, 1.2), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
       glare.position.set(0, L.H - 0.6, len + 0.06); g.add(beam, spill, glare);
       g.visible = false; g.rotation.y = dir > 0 ? 0 : Math.PI; museum.group.add(g);
-      const ob = { x0: x - hw, x1: x + hw, z0: 1e6, z1: 1e6, y0: C.y, y1: C.y + L.H, train: true };
+      const ob = { x0: x - hw, x1: x + hw, z0: 1e6, z1: 1e6, y0: C.y, y1: C.y + L.H, train: true, moves: true };      // (moves: it is pushed along the line in place, so plan.js keeps it in no square of its grid)
       plan.obstacles.push(ob);
       this.list.push({ kind, name: L.name, x, dir, len, hw, H: L.H, g, cars, lights: [beam, spill, glare], ob, on: false, wait: first, head: 0, v: 0, held: 0, horn: 0, bell: 0, clack: 0, runs: 0 });
     };
