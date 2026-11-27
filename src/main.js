@@ -1419,9 +1419,10 @@ function play(dt, real) {
   G.floorY = room ? room.y : 0;                      // the floor of the level you are on: the polish is laid on it, and the map drawn for it
   if (aloft && v.kind === 'car' && !v.air && !G.roofed) { G.roofed = true; tm.event('roof', G.plan.scaffold && Math.hypot(v.pos.x - G.plan.scaffold.x, v.pos.z - G.plan.scaffold.z) < 16 ? 'scaffold' : G.plan.skiJump && Math.hypot(v.pos.x - G.plan.skiJump.x, v.pos.z - G.plan.skiJump.z1) < 16 ? 'skijump' : 'other'); callout('ON THE ROOF'); sound.lap(); say('Every roof is a floor. Mind the edge, and the open skylights.', 0.6, 7); }
   if ((room ? room.id : null) !== G.roomId) {
+    const before = G.plan.byId[G.roomId];
     G.roomId = room ? room.id : null;
     G.museum.playerIndoors = !!room;      // no snow falls where the toy is indoors, wherever the camera has got to
-    if (!racing && G.t - G.startedAt > 2) {
+    if (!racing && G.t - G.startedAt > 2 && !(before && room && before.gallery === room.gallery)) {      // (not for a room of the same name: the goods lift's two cars, src/secretlift.js)
       announce(room); if (room) tm.room(room.id);
       if (room && room.kind === 'corridor') once('thorne', 'The Thorne Miniature Rooms. Built at one inch to the foot: about your size.', 7);
     }

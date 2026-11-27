@@ -432,6 +432,13 @@ feature({
     // the key is in hand). Its own glow, as the mice's things have: no lamp is added for it.
     const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: TX.radial(0, 1.2), color: new THREE.Color(1.0, 0.72, 0.3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
     glint.position.set(0, 0.632, 0.03); glint.scale.setScalar(0.07); drawer.add(glint);
+    // And on the top, at the back edge (the side a toy comes in by: the drawer faces the chair), a brass-edged name block, read from either side.
+    { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const c = cv.getContext('2d');
+      c.fillStyle = '#2a1a10'; c.fillRect(0, 0, 256, 64); c.strokeStyle = '#d2a043'; c.lineWidth = 5; c.strokeRect(4, 4, 248, 56); c.fillStyle = '#e8c27a'; c.font = 'bold 30px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('THE DIRECTOR', 128, 34);
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.35, roughness: 0.5 }), name = new THREE.Group();
+      for (const s of [-1, 1]) { const q = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.075), mat); q.position.set(0, 0.04, s * 0.012); q.rotation.set(-s * 0.3, s < 0 ? Math.PI : 0, 0); name.add(q); }
+      name.position.set(0, 0.775, -0.74); G.add(name); }
     // the folder in it, a green clip on it
     const tex = new THREE.CanvasTexture(card(DESK)); tex.colorSpace = THREE.SRGBColorSpace;
     const folder = new THREE.Mesh(new THREE.PlaneGeometry(0.34 * 520 / 560, 0.34), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.85, 0.85, 0.8) }));
