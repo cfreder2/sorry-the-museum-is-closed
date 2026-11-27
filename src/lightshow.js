@@ -152,6 +152,13 @@ class ShowBulbs {
       sh.fragmentShader = 'varying vec3 vBulb;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( vBulb, opacity );');
     };
     mat.customProgramCacheKey = () => 'lightshow-bulbs';
+    // The floor is a size on the screen, so it is worked out for the camera drawing them, each time they are drawn (the view,
+    // the floor's reflection, the opening's): 1.25 / 240..innerHeight at the game's 72-degree view, and smaller as the view
+    // narrows. (It was fixed at that, whatever the view: at the opening's close-ups, 7 to 27 degrees, every far bulb was drawn
+    // 3 to 10 times its proper size, tens of thousands of blobs of 10 to 35 pixels.) Never more than at 72 degrees, so the
+    // bounding sphere below still holds.
+    const T36 = Math.tan(36 * Math.PI / 180);
+    mat.onBeforeRender = (r, s, cam) => { const k = cam && cam.isPerspectiveCamera ? Math.min(1, Math.tan(cam.fov * Math.PI / 360) / T36) : 1; U.uPix.value = 1.25 * k / Math.max(240, innerHeight); };
     const mesh = new THREE.InstancedMesh(geo, mat, n), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
     for (let i = 0; i < n; i++) { S.setScalar(this.s[i]); P.set(this.p[i * 3], this.p[i * 3 + 1], this.p[i * 3 + 2]); mesh.setMatrixAt(i, M.compose(P, Q, S)); }
     // Left out when the show is not in the camera's view (it was drawn in every frame, twice with the floor's reflection,
@@ -742,7 +749,6 @@ feature({
     if (this._fin > 0) { this._fin = Math.max(0, this._fin - dt * 0.4); } U.uFin.value = this.run ? 1 : (this._fin || 0);
     const dim = 1 - U.uDark.value * 0.8 * (1 - calm);
     if (this.glowMat) this.glowMat.color.setScalar(1 - U.uDark.value * 0.5 * (1 - calm));      // the light on the snow follows the displays down in the count-in, and that is all
-    U.uPix.value = 1.25 / Math.max(240, innerHeight);
     if (this._wm) this._wm.color.setScalar((calm ? 1 : 0.85 + 0.3 * S.kick) * dim);
     if (this.wireMat && this.wireMat !== this._wm) this.wireMat.color.setScalar((calm ? 1 : 0.85 + 0.3 * S.kick) * dim);
     // --- the car on the way

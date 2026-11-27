@@ -1618,14 +1618,17 @@ G.auto = params.has('auto');
 // this both say so, and a thing the player has turned off is not this function's to give up or give back.
 const LEVERS = { floor: on => { quality.floor = on; applySettings(); }, soft: on => { quality.soft = !on; resize(); }, glow: on => { quality.glow = on; bloom.enabled = on; } };
 function govern(dt) {
-  if (G.state !== 'play' || document.hidden) return;
+  // (And in the cold open: it was let off nothing there, and a phone dropped frames at her window for the whole of it. Until
+  // the flight the floor's reflection is not drawn at all (the end of tick), so giving it up then would buy nothing.)
+  const cold = G.state === 'opening', noFloor = cold && opening.phase !== 'fly';
+  if ((G.state !== 'play' && !cold) || document.hidden) return;
   const Q = quality;
   Q.since += dt;
   if (Q.since < 4) return;                             // (what was changed last is given time to show)
   if (G.fps < 38) {
     Q.fast = 0;
     if ((Q.slow += dt) < 3) return;
-    const cpu = Q.busy > 0.5 * 1000 / G.fps, k = (cpu ? ['floor', 'soft', 'glow'] : ['soft', 'glow', 'floor']).find(q => !Q.order.includes(q) && (q !== 'floor' || set.mirror));
+    const cpu = Q.busy > 0.5 * 1000 / G.fps, k = (cpu ? ['floor', 'soft', 'glow'] : ['soft', 'glow', 'floor']).find(q => !Q.order.includes(q) && (q !== 'floor' || set.mirror && !noFloor));
     if (!k) return;
     Q.wait = G.t - Q.gave < 30 ? Math.min(240, Q.wait * 2) : 12;
     Q.order.push(k); Q.step = Q.order.length; Q.slow = 0; Q.since = 0; LEVERS[k](false);
