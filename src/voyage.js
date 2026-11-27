@@ -223,15 +223,15 @@ class Voyage {
   _cargoAboard() {
     const C = this.craft, arts = this.cargo.arts, spots = C.hangAt(Math.max(1, arts.length));
     arts.forEach((a, i) => {
-      const s = spots[i], k = Math.min(1.45 / a.h, s.room / a.w, 1), obj = framedArt(a.tex, a.w * k, a.h * k);
+      const s = spots[i], k = Math.min(s.tall / a.h, s.room / a.w, 1), obj = framedArt(a.tex, a.w * k, a.h * k);
       obj.position.set(s.x, s.y + 0.05, s.z); obj.rotation.y = s.rot; C.cabin.add(obj);
       this.items.push({ kind: 'art', a, obj, state: 'aboard', home: { obj: C.cabin, pos: obj.position.clone(), rot: s.rot }, i });
     });
     // the books, strapped in a rack at the back; the lost things in a net beside it
-    const rack = this.rack = new THREE.Group(); rack.position.set(0, 0, CRAFT.IN - 0.8); C.cabin.add(rack);
+    const rack = this.rack = new THREE.Group(); rack.position.set(0.3, 0, CRAFT.PIT - 0.75); C.cabin.add(rack);
     rack.add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.5).translate(0, 0.62, 0), new THREE.MeshStandardMaterial({ color: 0x2b3138, metalness: 0.6, roughness: 0.4 })));
     rack.add(new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.04, 0.04).translate(0, 0.9, 0.22), new THREE.MeshStandardMaterial({ color: 0xe0b030, roughness: 0.5 })));
-    const net = this.net = new THREE.Group(); net.position.set(-2.0, 0, CRAFT.IN - 1.1); C.cabin.add(net);
+    const net = this.net = new THREE.Group(); net.position.set(-1.25, 0, CRAFT.PIT - 1.0); C.cabin.add(net);
     net.add(new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.4, 0.5, 16, 1, true).translate(0, 0.25, 0), new THREE.MeshStandardMaterial({ color: 0x8a7a4a, wireframe: true })));
     this.cargo.items.forEach((it, i) => {
       const geo = this._itemGeo(it), obj = new THREE.Mesh(geo, ITEM_MAT);
@@ -262,8 +262,8 @@ class Voyage {
     const v = this.v, C = this.craft;
     v.group.visible = true; if (v.shadow) v.shadow.visible = false;
     C.cabin.add(v.group);
-    if (v.kind === 'drone') { v.group.position.set(-4.95, 0.98, -1.3); v.group.rotation.set(0, Math.PI / 2, 0); if (v.body) v.body.rotation.set(0, 0, 0); }
-    else { v.group.position.set(2.3, 0, 1.4); v.group.rotation.set(0, Math.PI / 2, 0); }
+    if (v.kind === 'drone') { v.group.position.set(0, 1.03, 0.1); v.group.rotation.set(0, Math.PI, 0); if (v.body) v.body.rotation.set(0, 0, 0); }      // (docked on the pedestal, behind its pads)
+    else { v.group.position.set(1.9, 0, -1.1); v.group.rotation.set(0, -Math.PI / 2, 0); }      // (parked in the well, facing the door)
     if (this.G.lamp) this.G.lamp.intensity = 0;
   }
 
@@ -485,7 +485,7 @@ class Voyage {
     const M = this.moonW, D = DOME;
     if (q.kind === 'art') {
       const s = M.layout.slots[q.i], a = q.a, k = Math.min(s.tall / a.h, s.room / a.w, 2.4);
-      if (!q.scaled) { q.scaleTo = k / Math.min(1.45 / a.h, this.craft.hangAt(this.cargo.arts.length)[q.i].room / a.w, 1); q.scaled = true; }
+      if (!q.scaled) { const h = this.craft.hangAt(this.cargo.arts.length)[q.i]; q.scaleTo = k / Math.min(h.tall / a.h, h.room / a.w, 1); q.scaled = true; }
       return { pos: new V3(s.x, s.y, s.z), rot: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, s.rot, 0)), scale: q.scaleTo };
     }
     if (q.kind === 'book') {
@@ -709,8 +709,8 @@ class Voyage {
     C.group.updateMatrixWorld(true);
     const want = new V3(), look = new V3();
     if (this.view === 'cabin' && this.phase !== 'auto') {
-      want.set(0, 1.55, 2.6); C.group.localToWorld(want);
-      look.set(0, 1.05, -8); C.group.localToWorld(look);
+      want.set(0, 1.95, 2.15); C.group.localToWorld(want);      // (in the well under the dome, between the two seats)
+      look.set(0, 1.2, -8); C.group.localToWorld(look);
       cam.position.copy(want); cam.up.set(0, 1, 0); cam.lookAt(look);
       cam.fov += (72 - cam.fov) * Math.min(1, dt * 3);
     } else {
@@ -752,7 +752,7 @@ class Voyage {
       document.body.classList.toggle('vcine', cine);
       if (cine) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); i = v.kind === 'drone' ? { pitch: 0, roll: 0, yaw: 0, climb: 0 } : { throttle: Math.abs(vf) > 0.3 ? -Math.sign(vf) * 0.5 : 0, steer: 0 }; }
       else if (v.kind === 'car' && i.coast && !G.testInput) { const vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw); i = { ...i, throttle: vf > 0.4 ? -0.45 : 0 }; }
-      if (reset && !cine) { const s = this.P.spawn; v.vel.set(0, 0, 0); if (v.kind === 'drone') v.place(s.x, s.z - 9, s.yaw, 1.5); else v.place(s.x, s.z - 9.5, s.yaw, 0); }
+      if (reset && !cine) { const s = this.P.reset || this.P.spawn; v.vel.set(0, 0, 0); if (v.kind === 'drone') v.place(s.x, s.z, Math.PI, 1.5); else v.place(s.x, s.z, Math.PI, 0); }
       v.update(dt, i);
       if (v.kind === 'car') {
         if (v.landed && v.landed.air > 0.25) {

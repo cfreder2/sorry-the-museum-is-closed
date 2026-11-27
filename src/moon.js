@@ -16,19 +16,20 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { heightOf } from './plan.js';
 import { CRAFT } from './craft.js';
+import { CRAFT as HULL, hullY } from './finaleplan.js';      // (the craft's own shape, as the hangar's plan has it)
 import { fbm } from './cosmos.js';
 
 export const MOON_G = 9.8 / 6;
 export const DOME = { x: 0, z: -22, R: 16, IN: 15.75, OUT: 16.25, WALL: 3.2, DOOR_W: 5, DOOR_H: 3.0, PORCH: 3.4 };
-export const SAUCER = { x: 0, z: 30, yaw: Math.PI / 2 };          // its +x (the door) faces the dome, -z in the world
+export const SAUCER = { x: 0, z: 30, yaw: -Math.PI / 2 };         // its -x (the door) faces the dome, -z in the world
 export const HATCH = { x: -27, z: 2 };
 export const BOUND = 290;
 const TAU = Math.PI * 2;
 const DOOR_A = (DOME.DOOR_W / 2) / DOME.R;
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-// The saucer's frame to the world's: its +x is the world's -z.
-export const craftToWorld = (lx, lz) => ({ x: SAUCER.x + lz, z: SAUCER.z - lx });
+// The saucer's frame to the world's: its -x (the door) is the world's -z.
+export const craftToWorld = (lx, lz) => ({ x: SAUCER.x - lz, z: SAUCER.z + lx });
 
 // Craters: [x, z, radius, how far the floor goes below the plain (at most 0.8: see moonH), rim height].
 const CRATERS = [
@@ -74,7 +75,7 @@ const angDist = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)))
 export function domeLayout(nArts = 12) {
   const D = DOME, shelves = [-0.44, 0.44].map(a => ({ a, w: 3.2, d: 0.45, h: 2.4 }));
   // the art: round the wall from just past the shelves on one side to just past them on the other
-  const a0 = 0.72, a1 = TAU - 0.72, n = Math.max(1, nArts), rows = n > 18 ? 2 : 1, per = Math.ceil(n / rows), slots = [];
+  const a0 = 0.72, a1 = TAU - 0.72, n = Math.max(1, nArts), rows = n > 24 ? 2 : 1, per = Math.ceil(n / rows), slots = [];
   for (let i = 0; i < n; i++) {
     const row = Math.floor(i / per), k = i % per, cnt = Math.min(per, n - row * per), a = a0 + (a1 - a0) * (k + 0.5) / cnt;
     slots.push({ a, x: D.x + Math.sin(a) * (D.IN - 0.05), z: D.z + Math.cos(a) * (D.IN - 0.05), y: rows === 1 ? 1.75 : row ? 2.5 : 1.15, rot: a + Math.PI, room: Math.min(3.2, (a1 - a0) * D.IN / cnt - 0.6), tall: rows === 1 ? 2.7 : 1.15 });
@@ -114,20 +115,33 @@ export function moonPlan(nArts = 12) {
   }
   { const c = L.cabinet; P.surfaces.push(shell(c.x, c.z, 0, c.plinth, () => 0.22, 0.4)); P.obstacles.push({ x0: c.x - c.w / 2, x1: c.x + c.w / 2, z0: c.z - c.d / 2, z1: c.z + c.d / 2, y0: 0, y1: c.h + 0.22 }); }
 
-  // ---- the saucer on its legs, door to the dome
-  const fy = C.LEG, cx = S.x, cz = S.z;
-  const floor = shell(cx, cz, 0, C.WALL, () => fy, 1.25); P.surfaces.push(floor); P.slabs.push(floor);
-  const flange = shell(cx, cz, C.WALL, C.R, r => fy - 0.02 - (r - C.WALL) * 0.4, 0.45); P.surfaces.push(flange); P.slabs.push(flange);
-  const roof = shell(cx, cz, 0, C.WALL, r => fy + 2.97 + 2.63 * Math.sqrt(Math.max(0, 1 - (r / C.WALL) ** 2)), 0.35); P.surfaces.push(roof); P.slabs.push(roof);
-  const doorDir = Math.PI;                    // the door is towards -z in the world: angle pi from +z
-  ring(P.obstacles, cx, cz, (C.IN + C.WALL) / 2 + 0.02, 0.2, fy - 0.15, fy + 2.97, a => angDist(a, doorDir) < (C.DOOR_W / 2 - 0.05) / C.WALL);
-  P.obstacles.push({ x0: cx - C.DOOR_W / 2, x1: cx + C.DOOR_W / 2, z0: cz - C.WALL - 0.08, z1: cz - C.IN + 0.05, y0: fy + C.DOOR_H, y1: fy + 3.1 });
-  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2, w = craftToWorld(Math.sin(a) * 5.4, Math.cos(a) * 5.4); P.obstacles.push({ x0: w.x - 0.4, x1: w.x + 0.4, z0: w.z - 0.4, z1: w.z + 0.4, y0: -1, y1: fy - 0.9 }); }
-  // the ramp, from the threshold down to the ground, towards the dome
-  const run = Math.sqrt(C.RAMP * C.RAMP - fy * fy), hz = cz - C.HINGE;
-  P.ramp = { x0: cx - C.RAMP_W / 2, x1: cx + C.RAMP_W / 2, z0: hz - run, z1: hz, axis: 'z', h0: 0, h1: fy, thick: 0.15, skin: 'ramp', fixed: true, off: true };
+  // ---- the saucer on its legs, door to the dome: the hangar's plan of it (src/finaleplan.js), with the voyage's cabin in it
+  // (src/craft.js buildCraft): the well under the dome and the passage out to the door, along the slot in the hull
+  const H = HULL, fy = C.LEG, cx = S.x, cz = S.z, doorDir = Math.PI;     // the door is towards -z in the world: angle pi from +z
+  const inSlot = (x, z) => angDist(Math.atan2(x - cx, z - cz), doorDir) < C.DOOR;
+  // the floor, its slab down to the hull underneath (stepped, as the hull curves up towards the rim), and out to the hinge in the slot
+  for (const [r0, r1, bot] of [[0, 4.6, H.belly], [4.6, 6.2, H.belly + 0.38], [6.2, H.cabinR, H.skirtY]]) { const sl = shell(cx, cz, r0, r1, () => fy, fy - bot); P.surfaces.push(sl); P.slabs.push(sl); }
+  const sill = { x0: cx - C.RAMP_W / 2 - 0.1, x1: cx + C.RAMP_W / 2 + 0.1, z0: cz - C.HINGE - 0.05, z1: cz - H.cabinR + 0.4, axis: null, h0: fy, h1: fy, thick: 0.5, skin: 'craft', fixed: true };
+  P.surfaces.push(sill); P.slabs.push(sill);
+  // the hull's top, from the foot of the dome out to the rim, to land a drone on (not over the slot); and the glass, a roof
+  const deck = shell(cx, cz, H.domeR, H.R + 0.1, r => hullY(Math.min(H.R, r)), 0.3); { const f = deck.fn; deck.fn = (x, z) => inSlot(x, z) ? NOWHERE : f(x, z); } P.surfaces.push(deck); P.slabs.push(deck);
+  const glassTop = r => H.domeY + (H.top - H.domeY) * Math.sqrt(Math.max(0, 1 - (r / H.domeR) ** 2));
+  const glass = shell(cx, cz, 0, H.domeR, glassTop, 0.3); P.surfaces.push(glass); P.slabs.push(glass);
+  ring(P.obstacles, cx, cz, H.domeR + 0.05, 0.08, H.domeY - 0.1, H.domeY + 1.0);          // the glass at its foot, where it stands nearly straight up
+  // the well's wall, the door's gap in it; the passage's two walls, each up to the hull over it; the rim all round but the door
+  ring(P.obstacles, cx, cz, C.PIT + 0.1, 0.12, fy - 0.15, fy + C.SILL + 0.05, a => angDist(a, doorDir) < C.DOOR + 0.03);
+  for (const sg of [-1, 1]) { const a = doorDir + sg * (C.DOOR + 0.012); for (let r = C.PIT + 0.1; r < C.HINGE; r += 0.22) { const x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r; P.obstacles.push({ x0: x - 0.1, x1: x + 0.1, z0: z - 0.1, z1: z + 0.1, y0: fy - 0.1, y1: hullY(r) + 0.05 }); } }
+  ring(P.obstacles, cx, cz, H.cabinR + 0.35, 0.3, H.rimLow - 0.15, fy + 0.7, a => angDist(a, doorDir) < C.DOOR + 0.05);
+  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2, x = cx + Math.cos(a) * H.legR, z = cz + Math.sin(a) * H.legR; P.obstacles.push({ x0: x - 0.4, x1: x + 0.4, z0: z - 0.4, z1: z + 0.4, y0: -1, y1: H.belly + 0.4 }); }
+  // the ramp, from the hinge down to the ground, towards the dome
+  const hz = cz - C.HINGE;
+  P.ramp = { x0: cx - C.RAMP_W / 2, x1: cx + C.RAMP_W / 2, z0: hz - C.RUN, z1: hz, axis: 'z', h0: 0.02, h1: fy, thick: 0.15, skin: 'ramp', fixed: true, off: true };
   P.rampOn = on => { const i = P.surfaces.indexOf(P.ramp); if (on && i < 0) P.surfaces.push(P.ramp); if (!on && i >= 0) P.surfaces.splice(i, 1); };
-  P.spawn = { x: cx, z: cz - 1.5, yaw: Math.PI, y: fy };
+  // in the well: the pedestal of controls, and the two seats behind it (src/craft.js buildCraftBody)
+  P.obstacles.push({ x0: cx - 0.85, x1: cx + 0.85, z0: cz - 0.85, z1: cz + 0.85, y0: fy - 0.1, y1: fy + 1.03 });
+  for (const sg of [-1, 1]) { const w = craftToWorld(sg * Math.sin(0.6) * 2.2, Math.cos(0.6) * 2.2); P.obstacles.push({ x0: w.x - 0.42, x1: w.x + 0.42, z0: w.z - 0.42, z1: w.z + 0.42, y0: fy - 0.1, y1: fy + 1.42 }); }
+  P.spawn = { x: cx, z: cz - 2.5, yaw: Math.PI, y: fy };
+  P.reset = { x: cx, z: hz - C.RUN - 1.6 };                                                   // (R: at the foot of the ramp)
 
   // ---- the hatch the visitors come out of: a little dome
   P.surfaces.push(shell(HATCH.x, HATCH.z, 0, 2.6, r => 1.7 * Math.sqrt(Math.max(0, 1 - (r / 2.6) ** 2)) + 0.15, 2.2));
