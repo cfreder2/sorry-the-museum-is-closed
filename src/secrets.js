@@ -26,6 +26,13 @@ export class Secrets {
     if (this.onFind) this.onFind({ id, name: this.list.get(id), count: this.count, total: this.total });
     return true;
   }
+  /** Put one back as found, without a word: for a collection that a new game leaves finished (features.js, k.keeps). */
+  keep(id) {
+    if (!this.list.has(id) || this.found.has(id)) return false;
+    this.found.add(id);
+    try { localStorage.setItem(KEY, JSON.stringify([...this.found])); } catch { /* fine */ }
+    return true;
+  }
   /** For a list: every secret, found ones named, the rest as question marks. */
   rows() { return [...this.list].map(([id, name]) => ({ id, name: this.found.has(id) ? name : '? ? ?', found: this.found.has(id) })); }
   // The list, as a screen laid over whichever menu opened it: found ones by name, the rest as question marks.

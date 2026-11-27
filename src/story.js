@@ -60,7 +60,7 @@ const BY = Object.fromEntries(ENTRIES.map(e => [e.id, e]));
 let st = load();
 function load() {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { s = null; }
-  s = { got: [], note: false, ...(s || {}) }; delete s.dove;      // (dove: the mouse that went down the lobby grate, when there was one)
+  s = { got: [], note: false, ...(s && typeof s === 'object' ? s : {}) }; if (!Array.isArray(s.got)) s.got = []; delete s.dove;      // (dove: the mouse that went down the lobby grate, when there was one)
   return s;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch { /* a private window: it lasts the visit */ } }

@@ -499,7 +499,7 @@ export const mice = feature({
       k.synth.chime([1568, 2093, 2637], { vol: 0.045, gap: 0.11, dur: 0.9 });
       k.callout(`MICE ${this.tally.count} / ${this.tally.total}`);
       if (this.tally.done) k.find('mice');
-      k.once('mouse-vent', 'It went into the vent. E to open.', 5, true);
+      k.once('mouse-vent', `It went into the vent. ${k.key('OPEN')} to open.`, 5, true);      // (the key in the player's hands: features.js k.key)
     }
   },
   // Its squeak is two notes of the craft's call (src/motif.js), three octaves up, and the next two at the next stop:

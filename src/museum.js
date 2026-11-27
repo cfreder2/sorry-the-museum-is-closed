@@ -1957,6 +1957,8 @@ export class Museum {
   get seenCount() { return this.arts.reduce((n, a) => n + (a.seen ? 1 : 0), 0); }
   get galleries() { return Object.values(this.rooms).filter(s => s.arts.length); }
 
+  // The works seen are written a second and a half behind the last one. flush() writes them now: main.js calls it as the page is left.
+  flush() { if (!this._save) return; clearTimeout(this._save); this._save = 0; try { localStorage.setItem('after-hours.seen-ids', JSON.stringify([...this.seenIds])); } catch { /* fine */ } }
   see(a) {
     if (a.seen) return;
     a.seen = true;
@@ -1967,7 +1969,7 @@ export class Museum {
     if (complete) st.done = true;
     this._paint(a);
     clearTimeout(this._save);
-    this._save = setTimeout(() => { try { localStorage.setItem('after-hours.seen-ids', JSON.stringify([...this.seenIds])); } catch { /* fine */ } }, 1500);
+    this._save = setTimeout(() => this.flush(), 1500);
     if (this.onSeen) this.onSeen(a, st, complete);
   }
 

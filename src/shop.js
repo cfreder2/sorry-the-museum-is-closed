@@ -1,7 +1,6 @@
 // The stall on the roof, beside the card game. Somebody is selling toys up here: a supercar and a
-// sleek black drone, each turning on its stand under a striped awning. They cost chips, and the
-// only chips there are are the ones on the card table: you sit down with 1,000, so a toy means
-// winning.
+// chrome drone, each turning on its stand under a striped awning. They cost chips, 2,000 each, and
+// you sit down at the card table with 1,000, so a toy means winning (or earning chips about the building).
 
 import * as THREE from 'three';
 import { VEHICLES, buildVehicle } from './garage.js';
@@ -51,7 +50,7 @@ export class Shop {
   constructor(G, deps) {
     Object.assign(this, deps);
     this.G = G;
-    this.goods = VEHICLES.filter(v => v.shop);
+    this.goods = VEHICLES.filter(v => v.shop && !v.showroom);      // (the two its sign and tickets name, at 2,000 each; the showroom toys are sold in the Museum Shop, src/giftshop.js)
     this.on = false;
     this.spots = [];
     this._build();

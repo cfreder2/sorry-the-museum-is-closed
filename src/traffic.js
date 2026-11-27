@@ -539,7 +539,7 @@ export class Traffic {
   // Tyres on a wet road: one soft hiss, as loud as the nearest thing moving.
   _hush(sound, vol) {
     const c = sound && sound.ctx; if (!c || c.state !== 'running' || !sound.noise) return;
-    if (!this.hush) { if (vol <= 0) return; const s = c.createBufferSource(); s.buffer = sound.noise; s.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 0.6; const e = c.createGain(); e.gain.value = 0; s.connect(f); f.connect(e); e.connect(sound.dry); s.start(); this.hush = e; }
+    if (!this.hush) { if (vol <= 0) return; const s = c.createBufferSource(); s.buffer = sound.noise; s.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 0.6; const e = c.createGain(); e.gain.value = 0; s.connect(f); f.connect(e); e.connect(sound.world || sound.dry); s.start(); this.hush = e; }      // (the world's: silent while a menu is up, audio.js quiet())
     this.hush.gain.setTargetAtTime(0.16 * vol, c.currentTime, 0.2);
   }
 }

@@ -241,6 +241,8 @@ legend { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase
 /* reduced motion: nothing slides, blinks or eases */
 .reduce *, .reduce *::before { transition: none !important; animation: none !important; }
 .reduce #flyby .bar { display: none; }
+/* (But a whole screen is never cut from dark to lit, or back: the rule above turned every fade into one. The loading screen gives way to the title in a short plain fade. The other whole-screen fades have theirs where they are made: the opening and the entrance hall, the launch and the voyage.) */
+.reduce #loading { transition: opacity .3s linear !important; }
 
 /* phones are played sideways */
 #rotate { display: none; position: fixed; inset: 0; z-index: 50; background: #05060a; color: var(--gilt); flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 30px; }

@@ -79,6 +79,7 @@ body.ecine #hud > :not(#eskip) { display: none !important; }
 #eskip:hover { color: var(--gilt, #e2cd94); border-color: var(--gilt, #e2cd94); }
 #eskip[hidden] { display: none; }
 #efade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 24; }
+.reduce #efade { transition: opacity .2s linear !important; }      /* (Reduce motion: style.css turns every transition off, which made this a cut to black and back) */
 `;
 
 // The light that climbs round the frame: a sheet on the wall behind the picture, bigger than the frame all round. Each

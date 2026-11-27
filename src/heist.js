@@ -29,7 +29,7 @@ const KEY = 'after-hours.heist', MAXB = 460;
 const HELD = 2.5;                  // seconds in the cage before it is carried off
 const $ = id => document.getElementById(id);
 const clock = s => { s = Math.max(0, s); const m = Math.floor(s / 60), r = Math.floor(s - m * 60); return `${m}:${r < 10 ? '0' : ''}${r}`; };
-const LEVEL = { LL: 'the lower level', 1: 'the first floor', 2: 'the second floor', 3: 'the third floor' };
+const LEVEL = { LL: 'Sub-level 1', 1: 'the first floor', 2: 'the second floor', 3: 'the third floor' };
 // How it went, by how much of the clock was left at the button.
 const RANKS = [[0.25, 'A GHOST'], [0.15, 'CAT BURGLAR'], [0.07, 'LIGHT FINGERS'], [0, 'BY A WHISKER']];
 // What a finished heist pays, in chips (the game's money: the shop, the card table). The job itself, more for a harder
@@ -241,6 +241,8 @@ export class Heist {
   // Under way: on the way there, on the way back, or in the cage. (The security robots look the other way meanwhile.)
   get active() { return this.state === 'in' || this.state === 'out' || this.state === 'caged'; }
   get level() { return level(this.completed); }
+  // A new game: the first job again, the hurdle taught again, no room waiting for another go. (The best times and the counts stay.)
+  fresh() { this.completed = 0; this.taught = false; this.retry = null; this.avoid = null; this._save(); }
   _save() { try { localStorage.setItem(KEY, JSON.stringify({ attempts: this.attempts, completed: this.completed, clean: this.clean, caught: this.caught, taught: this.taught, best: this.best, again: this.retry })); } catch { /* fine */ } }
   _tell(event, more) { try { window.dispatchEvent(new CustomEvent('museum:heist', { detail: { event, room: this.target ? this.target.id : null, time: +(this.elapsed || 0).toFixed(1), trips: this.trips || 0, ...more } })); } catch { /* fine */ } }
   // The security robots' own kit (src/guards.js): their voice, their dumpster.

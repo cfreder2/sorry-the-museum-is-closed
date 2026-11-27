@@ -204,7 +204,7 @@ export class Opening {
 #opening .skipb:hover { color: var(--gilt, #e2cd94); border-color: var(--gilt, #e2cd94); }
 @media (max-width: 700px) { #opening .box { bottom: calc(9vh + 34px); padding: .7em 1em .95em; } #opening .box.head { padding-left: 5.5em; } #opening .face { left: .65em; width: 4.2em; height: 4.2em; } #opening .name { left: 1.3em; } #opening .box.head .name { left: 11em; } #opening .next { font-size: .6em; } }
 @media (max-height: 480px) { #opening .box { font-size: clamp(15px, 2.3vw, 20px); bottom: calc(9vh + 12px); min-height: 4.4em; padding-top: .7em; padding-bottom: .85em; } #opening .name { font-size: .58em; } #opening .next { font-size: .58em; } }
-.reduce #opening i, .reduce #opening .fade, .reduce #opening .box { transition: none; } .reduce #opening .next.on, .reduce #opening .face svg, .reduce #opening .name, .reduce #opening .box.talk .face .open, .reduce #opening .box.talk .face .flick { animation: none; }`;
+.reduce #opening i, .reduce #opening .box { transition: none; } .reduce #opening .fade { transition: opacity .4s linear !important; } .reduce #opening .fade.cut { transition: none !important; } .reduce #opening .next.on, .reduce #opening .face svg, .reduce #opening .name, .reduce #opening .box.talk .face .open, .reduce #opening .box.talk .face .flick { animation: none; }`;
     document.head.append(st);
     const el = this.el = document.createElement('div'); el.id = 'opening'; el.hidden = true;
     el.innerHTML = '<div class="fade"></div><i class="t"></i><i class="b"></i><div class="box"><div class="face" aria-hidden="true"></div><b class="name"></b><div class="cap" aria-live="polite"></div><div class="next" aria-hidden="true"></div></div><button class="skipb" type="button" tabindex="-1">Skip</button>';
@@ -214,7 +214,7 @@ export class Opening {
   }
   // The box goes (what was in it fades with it, unless it must be gone at once).
   _hush(now = false) { this.box.classList.remove('on', 'talk'); this.next.classList.remove('on'); if (now) { this.cap.textContent = ''; this.box.className = 'box'; this.who = null; } }
-  _fade(on, cut = false, quick = false) { const c = this.fade.classList; c.toggle('cut', cut || this.calm); c.toggle('quick', quick); c.toggle('on', on); }
+  _fade(on, cut = false, quick = false) { const c = this.fade.classList; c.toggle('cut', cut); c.toggle('quick', quick); c.toggle('on', on); }      // (Reduce motion: a short plain fade, in the style above. It was a cut: the whole screen to black and back at a stroke)
 
   begin(done) {
     const G = this.G, THREE = this.THREE;

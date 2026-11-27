@@ -74,7 +74,6 @@ export function loadBooks() {
   }).catch(() => null);
   return asked;
 }
-export const booksReady = () => data;
 
 /** The topic a work belongs to, or null. */
 export function topicOf(w) {

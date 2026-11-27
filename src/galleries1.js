@@ -121,7 +121,7 @@ feature({
     // The sound: a low drone like breath on a reed, and now and then a small bell.
     if (live(k)) {
       const g = (near ? gain(k, R.x, R.z, 26) : 0) * fade * music(k), c = k.sound.ctx;
-      if (!R.drone && g > 0) { const out = c.createGain(); out.gain.value = 0; for (const n of outs(k)) out.connect(n);
+      if (!R.drone && g > 0) { const out = c.createGain(); out.gain.value = 0; for (const n of (k.sound.world ? [k.sound.world, k.sound.worldWet] : outs(k))) out.connect(n);      // (a drone that goes on: the world's, silent while a menu is up)
         const os = [98, 147, 196.5].map((f, i) => { const o = c.createOscillator(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = f; const e = c.createGain(); e.gain.value = [0.5, 0.3, 0.16][i]; o.connect(e); e.connect(out); o.start(); return o; });
         R.drone = { out, os }; }
       if (R.drone) R.drone.out.gain.setTargetAtTime(0.05 * g, c.currentTime, 0.4);
@@ -156,6 +156,7 @@ feature({
     const prints = st.arts.filter(a => !a.work.c && /Hour of the (\w+)/i.test(a.work.t || '')).map(a => { const m = /Hour of the (\w+)/i.exec(a.work.t), h = ANIMAL[m[1].toLowerCase()]; return h == null ? null : { art: a, animal: m[1], hour: h }; }).filter(Boolean);
     if (!prints.length) return;
     let seen = []; try { seen = JSON.parse(localStorage.getItem('after-hours.hours') || '[]'); } catch { /* none kept */ }
+    if (!Array.isArray(seen)) seen = [];      // (a record of another shape broke the feature at start-up)
     const halo = TX.radial(0.5, 1.1);
     for (const p of prints) {
       // The glow when it is found: a halo on the wall round the print, laid 1.5 cm off the wall, behind the print and its

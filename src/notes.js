@@ -78,7 +78,7 @@ function atlas() {
 feature({
   id: 'notes',
   secrets: [['notes', 'The guard’s notes']],
-  init(k) { this.k = k; this.list = []; },
+  init(k) { this.k = k; this.list = []; this.tally = k.tally('notes', NEED); },      // (made here, not when the notes are placed: a finished set keeps its secret, and the Secrets screen on the title should say so)
 
   place() {
     const k = this.k, P = k.plan, r = rng(4242), taken = claimed(k.G), used = new Set();
@@ -124,7 +124,6 @@ feature({
       for (const c of cands) { if (used.has(c.room.id)) continue; const p = { x: c.x, y: c.room.y, z: c.z }; let d = 200; for (const t of taken) d = Math.min(d, sameFloor(p, t)); for (const t of this.list) d = Math.min(d, sameFloor(p, t)); if (d > bd) { bd = d; best = c; } }
       if (best) put(best, text, null);
     }
-    this.tally = k.tally('notes', NEED);
     this._build(); this.placed = true;
   },
 

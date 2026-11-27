@@ -170,7 +170,7 @@ Cc:      Night Security (why?)
 Subject: Heating bill, line 9
 
 The bill lists heat for "SUB-LEVEL 9,
-24 hours". We have a lower level. We do
+24 hours". We have a Sub-level 1. We do
 not have nine of them. Please advise.
 ------------------------------------------
 From:    Facilities
@@ -356,7 +356,7 @@ zone SL9. The panel disagrees, nightly.
 
 Facilities: Condensation. Closed.
 Security:   Condensation where? There is
-            nothing under the lower level.
+            nothing under Sub-level 1.
 Facilities: Correct. Closed.
 Security:   Then what is condensing?
 Facilities: The heating plant. Closed.
@@ -427,8 +427,8 @@ Security:   That is how it got to 75.
 09 Modern Wing, 2nd            OK
 10 Modern Wing, 3rd            OK
 11 Thorne Rooms                OK (small)
-12 Lower level, corridor       OK
-13 Lower level, lift           OK
+12 Sub-level 1, corridor       OK
+13 Sub-level 1, lift           OK
 14 2nd floor ring              OK **
 15 Loading dock                OK
 16 Dumpster, back wall         OK (filthy)

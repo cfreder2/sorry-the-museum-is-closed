@@ -314,7 +314,7 @@ feature({
   },
 
   // ---------------------------------------------------------------- the beam
-  async startBeam(now = false) {
+  startBeam(now = false) {      // (not async: nothing in it waits, and a throw after it had gripped the toy was an unhandled rejection that nothing let go of)
     const k = this.k, G = k.G, h = this.hangar || (this.hangar = this.fin.hangar);
     if (this.run && this.run !== 'tones') return;
     if (!this.hooked) this._hook(k);
@@ -860,8 +860,8 @@ feature({
   _out() {
     const S = this.k.sound, c = S && S.ctx; if (!c || !S.dry) return null;
     if (this.outNode && this.outNode.context === c) return this.outNode;
-    const o = this.outNode = c.createGain(); o.gain.value = 1; o.connect(S.dry);
-    if (S.send) { const w = c.createGain(); w.gain.value = 0.45; o.connect(w); w.connect(S.send); }
+    const o = this.outNode = c.createGain(); o.gain.value = 1; o.connect(S.world || S.dry);      // (the hum and the sirens go on and on: the world's, silent while a menu is up, audio.js quiet())
+    if (S.send) { const w = c.createGain(); w.gain.value = 0.45; o.connect(w); w.connect(S.worldWet || S.send); }
     return o;
   },
   _chime(i, gain = 0.04) { const out = this._out(); if (!out) return; const c = this.k.sound.ctx; motifVoice(c, out, MOTIF[i].midi + 12, c.currentTime + 0.01, 0.25, gain); },
