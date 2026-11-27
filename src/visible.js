@@ -36,7 +36,7 @@ export const HIDDEN = 7, MIRROR = 8;
 export const CELL = 24;                                   // metres: the squares for what is in no room, and for the camera out of doors
 export const BANDS = [-6.5, -0.55, 4.95, 11.05, 18];      // the storeys of those squares, by a thing's middle: the floors' slabs lie on these
 export const TOPS = [6, 14, 26, 50];                      // the camera out of doors: near the ground, roof height, over the roofs, the sky (over 50 m: everything)
-export const FLOOR = 0.05, CEIL = 0.03;                   // how near a floor or a ceiling the camera may be and still be "in the room"
+export const FLOOR = 0.05, CEIL = 0.03, SIDE = 0.03;      // how near a floor, a ceiling or a wall the camera may be and still be "in the room" (a wall is a sheet with nothing behind it: a camera in its plane sees through every wall there is)
 const TOL = 0.45, STATIC = 35044, NOOP = THREE.Object3D.prototype.onBeforeRender, NOOP2 = THREE.Object3D.prototype.onAfterRender;
 
 export const bandOf = y => { let i = 0; while (i < BANDS.length && y >= BANDS[i]) i++; return i; };
@@ -139,7 +139,7 @@ export class Places {
   /** Where a camera at p is, as the table knows places, into out: the rooms it is in; or, in a doorway or a well between two places, both; or the square of the open air; or null (in a wall, a slab, the ground: nobody can say what is seen from there). `has` says whether the table has a line for a name; links are the table's wells and open tops. */
   keysAt(p, out, has, links) {
     out.length = 0; let slab = false; const x = p.x, y = p.y, z = p.z;
-    for (const r of this.near(x, z)) if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1 && y > r.y - 0.4 && y < r.top + 0.4) { if (y >= r.y + FLOOR && y <= r._c - CEIL) out.push(r.id); else slab = true; }
+    for (const r of this.near(x, z)) if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1 && y > r.y - 0.4 && y < r.top + 0.4) { if (y >= r.y + FLOOR && y <= r._c - CEIL && x >= r.x0 + SIDE && x <= r.x1 - SIDE && z >= r.z0 + SIDE && z <= r.z1 - SIDE) out.push(r.id); else slab = true; }
     if (out.length) return out;
     for (const d of this.doors) if (x >= d.x0 - 0.05 && x <= d.x1 + 0.05 && z >= d.z0 - 0.05 && z <= d.z1 + 0.05 && y >= d.y + FLOOR && y <= d.y + d.h - CEIL) {
       for (const id of [d.a, d.b]) { if (this.plan.byId[id]) { if (!out.includes(id)) out.push(id); } else { const k = cellKey(x, z, y); if (!k || !has(k, y)) return null; if (!out.includes(k)) out.push(k); } }
