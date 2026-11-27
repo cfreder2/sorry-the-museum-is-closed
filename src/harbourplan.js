@@ -136,7 +136,7 @@ export function harbourEdge(plan, L) {
     f.x = f.hx; f.z = f.hz; f.h = f.top; f.gx = f.gz = 0; f.c = Math.cos(f.yaw); f.s = Math.sin(f.yaw);
     const ext = Math.max(...f.poly.map(([u, v]) => Math.hypot(u, v)));
     f.r2 = ext * ext * 1.0001; f.reach = ext * Math.max(f.sx, f.sz) + 0.05;
-    f.surf = { skin: 'wall', fixed: true, floe: true, x0: 0, x1: 0, z0: 0, z1: 0, axis: null, h0: f.top, h1: f.top, base: WATER_Y - 0.15, fn: (x, z) => floeTop(f, x, z) };
+    f.surf = { skin: 'wall', fixed: true, floe: true, moves: true /* floeBox() carries it with the floe: in no square of the plan's grid */, x0: 0, x1: 0, z0: 0, z1: 0, axis: null, h0: f.top, h1: f.top, base: WATER_Y - 0.15, fn: (x, z) => floeTop(f, x, z) };
     floeBox(f); S.push(f.surf);
   }
   { const q = L.ramp; S.push({ skin: 'wall', fixed: true, x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, axis: 'x', h0: q.h0, h1: q.h1, base: WATER_Y - 0.15 }); }

@@ -41,7 +41,7 @@ export function addFinale(plan) {
 
   // ---- the silo doors: two halves, west and east, each sliding away from the middle
   F.doors = ['w', 'e'].map(side => {
-    const s = { skin: 'silo', silo: side, fixed: true, slab: true, axis: null, x0: side === 'w' ? sq.x0 : cx, x1: side === 'w' ? cx : sq.x1, z0: sq.z0, z1: sq.z1, h0: 0, h1: 0, thick: DOOR.thick };
+    const s = { skin: 'silo', silo: side, fixed: true, slab: true, moves: true /* setDoors() slides it: in no square of the plan's grid */, axis: null, x0: side === 'w' ? sq.x0 : cx, x1: side === 'w' ? cx : sq.x1, z0: sq.z0, z1: sq.z1, h0: 0, h1: 0, thick: DOOR.thick };
     S.push(s); plan.slabs.push(s);
     return s;
   });
@@ -132,7 +132,7 @@ export function addFinale(plan) {
   // Four legs, clear of the ramp.
   for (const a of [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4]) { const x = cx + Math.cos(a) * C.legR, z = cz + Math.sin(a) * C.legR; obst({ x0: x - 0.3, x1: x + 0.3, z0: z - 0.3, z1: z + 0.3, y0: P - 0.03, y1: P + C.belly + 0.4, craft: true, leg: true }, 'craft'); }
   // The ramp, let down from the doorway to the floor (src/finale.js lowers and raises it: up, it is not there to drive on).
-  const ramp = F.ramp = surf({ skin: 'craft', craft: 'ramp', x0: cx - C.R - C.rampLen + 0.4, x1: cx - C.R + 0.4, z0: cz - C.rampW / 2, z1: cz + C.rampW / 2, axis: 'x', h0: fl + 0.02, h1: P + C.floor, thick: 0.12 }, 'craft');
+  const ramp = F.ramp = surf({ skin: 'craft', craft: 'ramp', moves: true /* setRamp() folds it away by its x0 */, x0: cx - C.R - C.rampLen + 0.4, x1: cx - C.R + 0.4, z0: cz - C.rampW / 2, z1: cz + C.rampW / 2, axis: 'x', h0: fl + 0.02, h1: P + C.floor, thick: 0.12 }, 'craft');
   F.rampDown = { x0: ramp.x0, h0: ramp.h0 };
   F.beam = { x: cx, z: cz, y: P + C.belly - 0.05 };      // the port under the craft the beam comes from
   F.console = null;                                    // where the tone console stands (src/finalefit.js leaves a mark; src/finale.js reads it)
