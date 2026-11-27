@@ -181,10 +181,15 @@ export class Fleet {
 // A low floating tray with a rail round it, a soft glow underneath, and a mouse riding at the back (the mice put it there).
 export function makeCart() {
   const g = new THREE.Group(), metal = new THREE.MeshStandardMaterial({ color: 0xb8c2ca, roughness: 0.35, metalness: 0.6, emissive: 0x30383f, emissiveIntensity: 0.7 });
-  const parts = [new THREE.BoxGeometry(1.5, 0.08, 1.0).translate(0, 0.05, 0)];
+  const parts = [new THREE.BoxGeometry(1.5, 0.08, 1.0).translate(0, 0.05, 0), new THREE.CylinderGeometry(0.5, 0.42, 0.12, 20).scale(1.5, 1, 1).translate(0, -0.04, 0)];      // the tray, and a rounded hull under it
+  for (const s of [-1, 1]) parts.push(new THREE.SphereGeometry(0.09, 10, 6).scale(1, 0.6, 1).translate(s * 0.7, 0.02, 0.5), new THREE.SphereGeometry(0.09, 10, 6).scale(1, 0.6, 1).translate(s * 0.7, 0.02, -0.5));      // four little hover pods
   for (const [x, z, w, d] of [[0, 0.5, 1.5, 0.04], [0, -0.5, 1.5, 0.04], [0.75, 0, 0.04, 1.0], [-0.75, 0, 0.04, 1.0]]) parts.push(new THREE.BoxGeometry(w, 0.12, d).translate(x, 0.15, z));
-  g.add(new THREE.Mesh(mergeGeometries(parts), metal));
-  const under = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.3).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.2, 0.6), transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, map: radialTex() }));
+  g.add(new THREE.Mesh(mergeGeometries(parts.map(q => { const t = q.index ? q.toNonIndexed() : q; for (const k of Object.keys(t.attributes)) if (k !== 'position' && k !== 'normal') t.deleteAttribute(k); return t; })), metal));
+  const lamps = []; for (const [x, z] of [[0.76, 0.3], [0.76, -0.3]]) lamps.push(new THREE.SphereGeometry(0.05, 8, 6).translate(x, 0.12, z));      // two lamps at the front, green
+  g.add(new THREE.Mesh(mergeGeometries(lamps), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1, 0.45) })));
+  const lip = []; for (const [x, z, w, d] of [[0, 0.5, 1.54, 0.05], [0, -0.5, 1.54, 0.05], [0.76, 0, 0.05, 1.04], [-0.76, 0, 0.05, 1.04]]) lip.push(new THREE.BoxGeometry(w, 0.03, d).translate(x, 0.22, z));
+  g.add(new THREE.Mesh(mergeGeometries(lip), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 0.75, 0.4) })));      // a green lip along the rail
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.3).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.2, 0.6), transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, map: radialTex() }));
   under.position.y = -0.02; under.renderOrder = 3; g.add(under);
   g.userData.under = under; g.userData.load = [];
   return g;

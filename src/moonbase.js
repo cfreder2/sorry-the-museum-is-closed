@@ -337,6 +337,11 @@ export function buildMoonBase(P, opts = {}) {
     }
     inner.count = ii; out.count = oi; inner.frustumCulled = out.frustumCulled = false;
     cave.add(inner); if (oi) surface.add(out);
+    // a pool of green light on the floor round each cluster under the cheese (additive: it lights nothing, it is the light)
+    const under = crystals.filter(q => !q[5]), pt = canvasTex(64, 64, (x, w, h) => { const gr = x.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, w, h); });
+    const pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: pt, color: new THREE.Color(0.18, 0.75, 0.32), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), under.length);
+    under.forEach(([x, y, z, sz], i) => { M.compose(V.set(x, y + 0.02, z), Q.identity(), S.set(2.4 + sz * 3.2, 1, 2.4 + sz * 3.2)); pools.setMatrixAt(i, M); });
+    pools.frustumCulled = false; pools.renderOrder = 2; cave.add(pools);
     for (const [x, , z, s, , plain] of crystals) if (plain) P.obstacles.push({ x0: x - s * 0.35, x1: x + s * 0.35, z0: z - s * 0.35, z1: z + s * 0.35, y0: -1, y1: s * 2.5 });
   }
 

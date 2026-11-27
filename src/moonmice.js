@@ -126,7 +126,7 @@ export class MoonMice {
     const reduce = this.reduce(), G = 1.63, close = this._close || (this._close = []);
     for (const m of this.list) {
       if (m.hidden) continue;
-      if (m.ride) { const g = m.ride, a = g.rotation.y; m.yaw = a; m.x = g.position.x - Math.sin(a) * 0.5; m.z = g.position.z - Math.cos(a) * 0.5; m.y = g.position.y + 0.1; m.pitch = -0.35; m.up = 0.2; m.look = Math.sin(this.t * 0.6 + m.ph) * 0.3; continue; }      // (riding a hover cart, src/voyage.js: at the back of it, sitting up)
+      if (m.ride) { const g = m.ride, a = g.rotation.y; m.yaw = a; m.x = g.position.x + Math.sin(a) * 0.55; m.z = g.position.z + Math.cos(a) * 0.55; m.y = g.position.y + 0.1; m.pitch = -0.35; m.up = 0.2; m.look = Math.sin(this.t * 0.6 + m.ph) * 0.3; continue; }      // (driving a hover cart, src/voyage.js: at the front of it, sitting up)
       let tx = m.x, tz = m.z, sp = 0, face = null;
       const dT = Math.hypot(toy.x - m.x, toy.z - m.z), near = dT < 7 && Math.abs(toy.y - m.y) < 3;
       if (m.wait > 0) m.wait -= dt;

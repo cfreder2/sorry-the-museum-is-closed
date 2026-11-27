@@ -438,7 +438,7 @@ class Voyage {
         this._setPhase('explore'); this._stage('The Moon · Lunar Base'); this.$('[data-v="home"]').hidden = false;
         this._cap('The Museum is Open, and the Moon is yours.', 5, 0.5); this._hint(null);
         this.v.place(DOME.x + 3, DOME.z + DOME.OUT + DOME.PORCH + 4, Math.PI * 0.85);
-      } else { this._cap('Back on the Moon. The art is waiting by the ramp.', 5, 0.5); this._stage('Lunar Base'); }
+      } else { this._cap('Back on the Moon. The mice have the art on their carts.', 5, 0.5); this._stage('Lunar Base'); }
     }
     this.$('[data-v="dest"]').hidden = true; this.$('[data-v="view"]').hidden = true;
   }
@@ -455,7 +455,7 @@ class Voyage {
     // the mice come out to meet you; their saucers unload the art onto hover carts
     if (resumed) this.mice.gather(v.pos); else this.mice.arrive({ x: MOUTH.x, z: MOUTH.z }, v.pos);
     this._unload(resumed);
-    this._hint(v.kind === 'drone' ? 'W S fly · A D turn · ↑ ↓ climb · drive into the dome' : 'W A S D drive · Space jump (hold it: higher) · R back to the ramp · take the art into the dome');
+    this._hint(v.kind === 'drone' ? 'W S fly · A D turn · ↑ ↓ climb · the mice carry the art · into the dome when you are ready' : 'W A S D drive · Space jump (hold it: higher) · R back to the ramp · the mice carry the art · into the dome when you are ready');
     save('landed', this);
     clearTimeout(this._hintT); this._hintT = setTimeout(() => this._hint(null), 14000);
   }
@@ -698,7 +698,7 @@ class Voyage {
     } else if (ph === 'ramp') {
       C.setRamp(ease(this.ph / 3.2));
       this._camShot(new V3(SAUCER.x + 14, 3.4, SAUCER.z - 12), new V3(SAUCER.x, 2, SAUCER.z - 6), dt, 1.2);
-      if (this.ph > 3.4) { this.P.rampOn(true); this._outOnTheMoon(false); this._cap(v.kind === 'drone' ? 'One-sixth gravity. Fly out, and the art will follow.' : 'One-sixth gravity. Drive out, and the art will follow you in.', 6); }
+      if (this.ph > 3.4) { this.P.rampOn(true); this._outOnTheMoon(false); this._cap(v.kind === 'drone' ? 'One-sixth gravity. Fly out: the mice will carry the art in.' : 'One-sixth gravity. Drive out: the mice will carry the art in.', 6); }
     } else {
       // driving (or flying) on the Moon
       const cine = ph === 'ending' || ph === 'credits' || ph === 'summary';
@@ -823,7 +823,7 @@ class Voyage {
     const books = this.items.filter(q => q.kind === 'book'), things = this.items.filter(q => q.kind === 'item'), last = C[C.length - 1];
     this.jobs = arts.slice();
     for (const [list, name] of [[books, 'books'], [things, 'things']]) if (list.length) { const b = new THREE.Group(); b.name = name; this.near.add(b); const at = new V3(); list[0].obj.getWorldPosition(at); b.position.copy(at); for (const q of list) { b.attach(q.obj); q.bundle = b; q.cart = last; } last.want++; this.jobs.push({ bundle: b, list, cart: last, cartK: name === 'books' ? 0 : 1, kind: 'bundle' }); }
-    if (resumed || this.delivered) { for (const j of this.jobs) this._toCart(j, true); this.jobs = []; for (const c of C) this._cartGo(c); return; }
+    if (resumed || this.delivered) { for (const j of this.jobs) this._toCart(j, true, false); this.jobs = []; for (const c of C) this._cartGo(c); return; }
     this.crew = this.fleet.crew(3).map(s => ({ s, job: null, ph: null, t: 0 }));
   }
   _jobObj(j) { return j.bundle || j.obj; }
@@ -832,18 +832,30 @@ class Voyage {
     if (j.kind === 'bundle') return { pos: new V3(j.cartK ? 0.35 : -0.35, 0.12, 0.1), rot: 0 };
     return { pos: new V3(0, 0.12 + ((j.obj.userData && j.obj.userData.h) || 0.6) / 2, -0.36 + j.cartK * 0.18), rot: 0 };
   }
-  _toCart(j, now) {
+  _toCart(j, now, go = true) {
     const obj = this._jobObj(j), c = j.cart, sp = this._cartSpot(j);
     c.g.attach(obj); if (now) { obj.position.copy(sp.pos); obj.rotation.set(0, sp.rot, 0); }
     if (j.kind === 'bundle') for (const q of j.list) q.state = 'cart'; else j.state = 'cart';
     if (!j.counted) { j.counted = true; c.n++; }
-    if (c.n >= c.want && c.state === 'wait' && !now) this._cartGo(c);
+    if (c.n >= c.want && c.state === 'wait' && go) this._cartGo(c);      // (full: off it glides, into the dome)
   }
   _cartGo(c) {
     const D = DOME, k = c.i - (this.carts.length - 1) / 2, porch = D.z + D.OUT + D.PORCH + 2.5;
     c.state = 'go'; c.path = [new V3(c.g.position.x, 0, c.g.position.z - 3), new V3(D.x + k * 1.0 + 3, 0, porch + 2), new V3(D.x + k * 0.9, 0, porch), new V3(D.x + k * 0.9, 0, D.z + D.IN - 3.2), new V3(D.x + k * 1.5, 0, D.z + D.IN - 5.5 - Math.abs(k) * 0.4)];
   }
+  // into the dome: each thing on its way from wherever it was to its place on the wall, the shelves, the cabinet
+  _flyTick(dt) {
+    for (const q of this.items) {
+      if (q.state !== 'fly') continue;
+      const f = q.fly; f.t += dt; if (f.t < 0) continue;
+      const u = ease(f.t / f.T), pos = f.from.clone().lerp(f.to.pos, u); pos.y += Math.sin(u * Math.PI) * (q.kind === 'art' ? 2.4 : 1.2);
+      q.obj.position.copy(pos); q.obj.quaternion.copy(f.fromQ).slerp(f.to.rot, u);
+      if (f.to.scale && f.to.scale !== 1) { const s0 = q.s0 || (q.s0 = q.obj.scale.x); q.obj.scale.setScalar(s0 * (1 + (f.to.scale - 1) * u)); }
+      if (u >= 1) { q.state = 'placed'; if (f.note >= 0) this._chime(f.note); else if (q.kind === 'item') this.G.sound.tick(0.05, 2600); }
+    }
+  }
   _unloadTick(dt) {
+    this._flyTick(dt);
     if (!this.carts) return;
     const calm = !!this.G.set.reduce, F = this.fleet, top = new V3(SAUCER.x, CRAFT.LEG + 5.4, SAUCER.z);
     // the carts: waiting, or gliding in a line into the dome, a mouse riding each
@@ -872,7 +884,7 @@ class Voyage {
     });
   }
   // A picture in a beam is drawn after the beam, so no green is laid over the painting (the beam is round it, not on it).
-  _clean(obj, on) { obj.traverse(o => { if (!o.isMesh) return; o.renderOrder = on ? 9 : 0; const m = o.material; if (m && !m.isShaderMaterial && !(m.blending === THREE.AdditiveBlending)) { if (on && !m.transparent) { m.transparent = true; m.userData._wasOpaque = true; } else if (!on && m.userData._wasOpaque) { m.transparent = false; m.userData._wasOpaque = false; } m.needsUpdate = true; } }); }
+  _clean(obj, on) { obj.traverse(o => { if (!o.isMesh) return; o.renderOrder = on ? 9 : 0; for (const m of Array.isArray(o.material) ? o.material : [o.material]) { if (!m || m.isShaderMaterial || m.blending === THREE.AdditiveBlending) continue; m.userData = m.userData || {}; if (on && !m.transparent) { m.transparent = true; m.userData._wasOpaque = true; m.needsUpdate = true; } else if (!on && m.userData._wasOpaque) { m.transparent = false; m.userData._wasOpaque = false; m.needsUpdate = true; } } }); }
   _squeakSoon() { if (this.mice && Math.random() < 0.35) this.mice.squeak(2, 0.01); }
   _chime(i) {
     const m = this.music; this.lit = i % 5;
