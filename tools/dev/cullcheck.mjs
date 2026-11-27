@@ -7,6 +7,7 @@
 //   node tools/dev/cullcheck.mjs 8896 --random=600 --no-directed --seed=11     a quick look
 //   node tools/dev/cullcheck.mjs 8896 --only="door,in a doorway"                 some kinds of directed view only
 //   --out=FILE (the faults and the tallies, as json)   --stills=DIR (the worst faults, with ?cull off and on, as pictures)
+//   --mode=wide or --mode=same   with the floor's reflection culled too (?cull=wide, ?cull=same: see src/visible.js): the reflection's faults are then counted
 // What it looks at, and how a see-through thing is judged, is at the top of tools/dev/cullcheck-page.js.
 // Exit code 0 if no view has a fault, 1 if any has, 2 if it could not run.
 import fs from 'fs'; import path from 'path';
@@ -22,7 +23,7 @@ const boot = async () => {
   await p.setRequestInterception(true);
   p.on('request', q => { const u = q.url(); if (!/^(http:\/\/127\.0\.0\.1|data:|blob:)/.test(u) && /supabase/.test(u)) return q.abort(); q.continue(); });      // (nothing is sent to the game's statistics)
   await p.evaluateOnNewDocument(() => { try { localStorage.clear(); } catch {} });
-  await p.goto(`http://127.0.0.1:${port}/?saved&noopen&nofps&cull`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`http://127.0.0.1:${port}/?saved&noopen&nofps&cull${flag('mode') ? '=' + flag('mode') : ''}`, { waitUntil: 'domcontentloaded' });
   await p.waitForFunction('window.__ah && window.__ah.state === "title" && !document.querySelector(\'button[data-act="start"]\').disabled', { timeout: 300000, polling: 200 });
   for (let i = 0; i < 80; i++) { if (await p.evaluate(() => window.__ah.state) === 'play') break; await p.evaluate(() => { const q = document.querySelector('button[data-act="start"]'); if (q && !q.disabled) q.click(); }); await sleep(250); }
   await sleep(4000);

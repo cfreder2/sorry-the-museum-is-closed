@@ -309,7 +309,7 @@ export async function makeTable(opt = {}) {
     const AX0 = (Math.floor((B.x0 - 40) / CELL)) * CELL, AX1 = (Math.floor((B.x1 + 40) / CELL) + 1) * CELL, AZ0 = (Math.floor((B.z0 - 40) / CELL)) * CELL, AZ1 = (Math.floor((B.z1 + 40) / CELL) + 1) * CELL;
     const HM = { w: AX1 - AX0, h: AZ1 - AZ0, d: null }; { HM.d = new Float32Array(HM.w * HM.h); const TW = 256; for (let bx = 0; bx < HM.w; bx += TW) for (let bz = 0; bz < HM.h; bz += TW) { const cw = Math.min(TW, HM.w - bx), ch = Math.min(TW, HM.h - bz), px = square([AX0 + bx + cw / 2, 300, AZ0 + bz + ch / 2], [0, -1, 0], [0, 0, -1], cw, ch, 0, 400, cw, ch); for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) HM.d[(bz + (ch - 1 - j)) * HM.w + bx + i] = 300 - Math.min(px[j * cw + i], 320); } }
     const topAt = (x, z) => { const i = Math.floor(x - AX0), j = Math.floor(z - AZ0); return i < 0 || j < 0 || i >= HM.w || j >= HM.h ? 0 : HM.d[j * HM.w + i]; };
-    const air = (x, y, z, hx, hy) => { const k = at(x, y, z); if (!k || !k.every(nm => nm.startsWith('o:'))) return; const names = k.slice(); const hh = hx + 0.01; for (const [dx, dy, dz] of [[hh, 0, 0], [-hh, 0, 0], [0, 0, hh], [0, 0, -hh], [hh, 0, hh], [-hh, 0, hh], [hh, 0, -hh], [-hh, 0, -hh], [0, hy, 0], [0, -hy, 0]]) { const q = cellKey(x + dx, z + dz, y + dy); if (q) names.push(q); } add(x, y, z, hx <= 3 ? (opt.dAir || 1.5) : (opt.dAir || 1.5) * 1.7, names, 'air'); samples[samples.length - 1].own = keyOf(k[0]); nSamples.air++; };      // (a camera in the open has samples all round it, and what one block hides from all of them it hides from the camera: so the walls need eating back only a little)
+    const air = (x, y, z, hx, hy) => { const k = at(x, y, z); if (!k || !k.every(nm => nm.startsWith('o:'))) return; const names = k.slice(); const hh = hx + 0.01; for (const [dx, dy, dz] of [[hh, 0, 0], [-hh, 0, 0], [0, 0, hh], [0, 0, -hh], [hh, 0, hh], [-hh, 0, hh], [hh, 0, -hh], [-hh, 0, -hh], [0, hy, 0], [0, -hy, 0]]) { const q = cellKey(x + dx, z + dz, y + dy); if (q) names.push(q); } add(x, y, z, opt.dAir || 0, names, 'air'); samples[samples.length - 1].own = keyOf(k[0]); nSamples.air++; };      // (a camera in the open has samples all round it, and what one block hides from all of them it hides from the camera: so the walls need eating back only a little)
     if (!opt.rooms) for (let x = AX0 + 3; x < AX1; x += 6) for (let z = AZ0 + 3; z < AZ1; z += 6) {
       const top = topAt(x, z), xin = x > B.x0 - 30 && x < B.x1 + 30 && z > B.z0 - 30 && z < B.z1 + 30;
       for (const h of [0.35, 2, 4.4]) air(x, top + h, z, 3, 1.2);                                    // over whatever is topmost here: the ground, or a roof
@@ -320,11 +320,11 @@ export async function makeTable(opt = {}) {
     // metres apart out there, and hard to miss from the other end: the room's own samples stand every half metre across its every opening. So each square of
     // the open air a camera can be in is given a box too (round its own sample points), every room's samples say which of those boxes they can see, and a
     // square of air is then taken to see every room that sees it.
-    const cellOf = [], cellAt = new Map(); { const acc = new Map();
+    const cellOf = [], cellAt = new Map(), low = {}; { const acc = new Map();
       for (const sm of samples) if (sm.own != null) { let b = acc.get(sm.own); if (!b) acc.set(sm.own, b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]); b[0] = Math.min(b[0], sm.x); b[1] = Math.min(b[1], sm.y); b[2] = Math.min(b[2], sm.z); b[3] = Math.max(b[3], sm.x); b[4] = Math.max(b[4], sm.y); b[5] = Math.max(b[5], sm.z); }
       for (const [k, b] of acc) { if (cellOf.length >= MAXC) throw new Error('more squares of air than there is room for'); const [, ix, iz, L] = keys[k].split(':').map(Number), y0 = L ? TOPS[L - 1] : -8, y1 = TOPS[L];
         const bx = [Math.max(ix * CELL, b[0] - 3.05), Math.max(y0, b[1] - 1.3), Math.max(iz * CELL, b[2] - 3.05), Math.min((ix + 1) * CELL, b[3] + 3.05), Math.min(y1, b[4] + 1.3), Math.min((iz + 1) * CELL, b[5] + 3.05)];
-        cellAt.set(k, cellOf.length); cellOf.push(k); boxes.push(bx); boxIn(NB + cellOf.length - 1, bx); } }
+        cellAt.set(k, cellOf.length); cellOf.push(k); boxes.push(bx); boxIn(NB + cellOf.length - 1, bx); low[keys[k]] = Math.round(b[1] * 100) / 100; } }
     gl.bindBuffer(gl.ARRAY_BUFFER, bufLo); gl.bufferSubData(gl.ARRAY_BUFFER, 0, boxLo); gl.bindBuffer(gl.ARRAY_BUFFER, bufHi); gl.bufferSubData(gl.ARRAY_BUFFER, 0, boxHi);
     const NBT = boxes.length, RW = Math.ceil(P.rooms.length / 32), cellSees = cellOf.map(() => new Uint32Array(RW));
     stats.samples = { ...nSamples, all: samples.length, squaresOfAirWithABox: cellOf.length }; stats.openings = { faces: open.faces, squareMetres: Math.round(open.area), links: links.length }; stats.places = keys.length;
@@ -349,10 +349,10 @@ export async function makeTable(opt = {}) {
       // the walls, six ways, big
       gl.bindFramebuffer(gl.FRAMEBUFFER, fHi.f); gl.viewport(0, 0, fHi.w, fHi.h); gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true); gl.clearColor(BIG, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(pOcc.p); for (let f = 0; f < 6; f++) { gl.viewport(f * S * HI, 0, S * HI, S * HI); drawWalls(pl[f], VP[f], VZ[f]); }
-      // a quarter the size, with the edges found; half that; the edges spread (no edge is eaten back unless asked, --spread=1: it was tried, and from
-      // the open air it let nearly every room be seen)
+      // a quarter the size, with the edges found; half that; the edges spread (only for the samples that stand in openings: a camera beside one sees round its
+      // edge. Not for the samples in the open air: tried, and it let nearly every room be seen from out of doors; what is seen sees back does that job there)
       gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.bindVertexArray(vQuad);
-      gl.useProgram(pEdge.p); gl.uniform1i(pEdge.u.t, 0); gl.uniform1f(pEdge.u.uK, F * s.d * (opt.spread || 0)); gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.viewport(0, 0, fB.w, fB.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.useProgram(pEdge.p); gl.uniform1i(pEdge.u.t, 0); gl.uniform1f(pEdge.u.uK, F * s.d * (opt.spread == null ? 1 : opt.spread)); gl.bindFramebuffer(gl.FRAMEBUFFER, fB.f); gl.viewport(0, 0, fB.w, fB.h); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fHi.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.useProgram(pHalf.p); gl.uniform1i(pHalf.u.t, 0); gl.uniform1i(pHalf.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fH.f); gl.viewport(0, 0, fH.w, fH.h); gl.bindTexture(gl.TEXTURE_2D, fB.x); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fB.x1); gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.useProgram(pSpread.p); gl.uniform1i(pSpread.u.t, 0); gl.uniform1i(pSpread.u.t1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, fS.f); gl.bindTexture(gl.TEXTURE_2D, fH.x1); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fH.x); gl.drawArrays(gl.TRIANGLES, 0, 3);
       // the boxes
@@ -390,7 +390,7 @@ export async function makeTable(opt = {}) {
     stats.seen = { places: sizes.length, lists: sets.length, least: sizes[0], median: sizes[sizes.length >> 1], most: sizes[sizes.length - 1], ofBins: NB };
     stats.ms.all = Math.round(performance.now() - t0);
     const pvs = { v: 3, made: P.made, rooms: P.rooms.length, plan: planHash(P), cell: CELL, when: new Date().toISOString().slice(0, 16), how: { step: STEP, face: S, f: F, rmax: RMAX, samples: samples.length },
-      occ: [...new Set(occ)].sort(), bins, box: boxes.flat().map(q => (isFinite(q) ? Math.round(q * 100) / 100 : 0)), big, links, of, sets };
+      occ: [...new Set(occ)].sort(), low, bins, box: boxes.flat().map(q => (isFinite(q) ? Math.round(q * 100) / 100 : 0)), big, links, of, sets };
     // (the boxes are rounded outwards, so that what was inside still is)
     for (let i = 0; i < NB; i++) for (let j = 0; j < 6; j++) { const q = boxes[i][j]; pvs.box[i * 6 + j] = isFinite(q) ? (j < 3 ? Math.floor(q * 100) : Math.ceil(q * 100)) / 100 : 0; }
     return { pvs, stats };

@@ -142,14 +142,14 @@ export class Places {
     for (const r of this.near(x, z)) if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1 && y > r.y - 0.4 && y < r.top + 0.4) { if (y >= r.y + FLOOR && y <= r._c - CEIL) out.push(r.id); else slab = true; }
     if (out.length) return out;
     for (const d of this.doors) if (x >= d.x0 - 0.05 && x <= d.x1 + 0.05 && z >= d.z0 - 0.05 && z <= d.z1 + 0.05 && y >= d.y + FLOOR && y <= d.y + d.h - CEIL) {
-      for (const id of [d.a, d.b]) { if (this.plan.byId[id]) { if (!out.includes(id)) out.push(id); } else { const k = cellKey(x, z, y); if (!k || !has(k)) return null; if (!out.includes(k)) out.push(k); } }
+      for (const id of [d.a, d.b]) { if (this.plan.byId[id]) { if (!out.includes(id)) out.push(id); } else { const k = cellKey(x, z, y); if (!k || !has(k, y)) return null; if (!out.includes(k)) out.push(k); } }
     }
     if (out.length) return out;
-    if (links) for (let i = 0; i < links.length; i++) { const l = links[i]; if (x >= l[0] && x <= l[1] && y >= l[2] && y <= l[3] && z >= l[4] && z <= l[5]) { for (let j = 6; j < 8; j++) { const k = l[j] === '*' ? cellKey(x, z, y) : l[j]; if (!k || !has(k)) return null; if (!out.includes(k)) out.push(k); } } }
+    if (links) for (let i = 0; i < links.length; i++) { const l = links[i]; if (x >= l[0] && x <= l[1] && y >= l[2] && y <= l[3] && z >= l[4] && z <= l[5]) { for (let j = 6; j < 8; j++) { const k = l[j] === '*' ? cellKey(x, z, y) : l[j]; if (!k || !has(k, y)) return null; if (!out.includes(k)) out.push(k); } } }
     if (out.length) return out;
     if (slab) return null;
     for (const m of this.plan.masses) if (x > m.x0 && x < m.x1 && z > m.z0 && z < m.z1 && y < m.top + 0.15) return null;      // in the thickness of the building
-    const k = cellKey(x, z, y); if (!k || !has(k)) return null;
+    const k = cellKey(x, z, y); if (!k || !has(k, y)) return null;
     out.push(k); return out;
   }
 }
@@ -179,7 +179,8 @@ export class Visibility {
       if (pvs.made !== plan.made || pvs.rooms !== plan.rooms.length || pvs.cell !== CELL || pvs.plan !== planHash(plan)) return void (this.why = 'the table is for another plan');
       for (let i = 0; i < plan.rooms.length; i++) if (pvs.bins[i] !== plan.rooms[i].id) return void (this.why = 'the table is for another plan');
       this.pvs = pvs; this.places = new Places(plan); this.n = pvs.bins.length; this.index = new Map(pvs.bins.map((b, i) => [b, i])); this.box = pvs.box;
-      this.rows = new Map(Object.entries(pvs.of)); this.lists = new Array(pvs.sets.length); this.has = k => this.rows.has(k);
+      this.rows = new Map(Object.entries(pvs.of)); this.lists = new Array(pvs.sets.length); const low = pvs.low || {};
+      this.has = (k, y) => this.rows.has(k) && (k.charCodeAt(1) !== 58 || k.charCodeAt(0) !== 111 || (low[k] != null && y >= low[k] - 0.25));      // (a square of the open air is a place only down to its lowest sample point: under that is the ground, or the cellars' level beside the cellars, and nobody can say what is seen from in there)
       this.byBin = Array.from({ length: this.n }, () => []); this.multi = [];
       this.want = new Uint8Array(this.n); this.state = new Uint8Array(this.n);      // per bin: 0 drawn, 1 hidden, 2 the reflection only
       this.walls = new Map(pvs.occ.map(s => [s, null])); this.wallList = []; this.missing = this.walls.size;
