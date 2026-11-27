@@ -1446,8 +1446,9 @@ function addStunts(plan) {
     // But it must have one: the monkey out of Seurat's picture hides under it (src/l2-grandejatte.js; the guard's note
     // by the door, src/notes.js). A short one (half: half its length) along the east wall, north of the east door:
     // the one patch of floor that is in no doorway's path, away from the Director's hidden door and the wall that
-    // slides, and out of sight when the Seurat and its dancers are looked at (the look stands by the north wall,
-    // facing south: the south-east corner comes into a wide window's view, this one is beside the camera).
+    // turns, and out of sight when the Seurat and its dancers are looked at (the Seurat hangs on the piece of the north
+    // wall that turns, secretPicture below: the look stands by the south wall, facing north, and this corner is well off
+    // to the right of the frame).
     if (r.id === 'G240') {
       const ed = plan.doorsOf(r.id).find(d => same(d.y, r.y) && !d.hidden && d.along !== 'z' && d.x0 >= r.x1 - 0.01), half = 0.7;
       const bx = r.x1 - 0.44, z0 = r.z0 + 0.28, z1 = ed ? ed.z0 - 0.5 : z0 + half * 2, bz = (z0 + z1) / 2, rect = [bx - 0.38, bx + 0.38, bz - half, bz + half];
