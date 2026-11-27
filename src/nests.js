@@ -428,13 +428,17 @@ feature({
     const pull = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.012), brass); pull.position.set(0, 0.66, 0.02); drawer.add(pull);
     const hole = new THREE.Mesh(new THREE.CircleGeometry(0.008, 10), new THREE.MeshBasicMaterial({ color: 0x0a0806 })); hole.position.set(0, 0.632, 0.0125); drawer.add(hole);
     const plate = new THREE.Mesh(new THREE.CircleGeometry(0.014, 12), brass); plate.position.set(0, 0.632, 0.0122); drawer.add(plate); hole.position.z = 0.0128;
+    // The keyhole catches the light: a little brass glint, seen from the door, while the drawer is locked (warmer and quicker once
+    // the key is in hand). Its own glow, as the mice's things have: no lamp is added for it.
+    const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: TX.radial(0, 1.2), color: new THREE.Color(1.0, 0.72, 0.3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    glint.position.set(0, 0.632, 0.03); glint.scale.setScalar(0.07); drawer.add(glint);
     // the folder in it, a green clip on it
     const tex = new THREE.CanvasTexture(card(DESK)); tex.colorSpace = THREE.SRGBColorSpace;
     const folder = new THREE.Mesh(new THREE.PlaneGeometry(0.34 * 520 / 560, 0.34), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.85, 0.85, 0.8) }));
     folder.rotation.x = -Math.PI / 2; folder.position.set(0, 0.625, -0.22); drawer.add(folder);
     const clip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.006, 0.07), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 1.7, 0.7), toneMapped: false })); clip.position.set(0.14, 0.63, -0.36); drawer.add(clip);
     this.k.group.add(G);
-    this.desk = { room: r, G, drawer, out: 0, want: 0, at: { x: front.x + d.fx * 0.25, y, z: front.z + d.fz * 0.25 }, fx: d.fx, fz: d.fz, c: { x: cx, y, z: cz }, top };
+    this.desk = { room: r, G, drawer, glint, out: 0, want: 0, at: { x: front.x + d.fx * 0.25, y, z: front.z + d.fz * 0.25 }, fx: d.fx, fz: d.fz, c: { x: cx, y, z: cz }, top };
     if (this.state.desk) { this.desk.out = this.desk.want = 1; drawer.position.z = 0.32; }
     return this.desk;
   },
@@ -555,8 +559,8 @@ feature({
     // Pulled up to the desk from any side: within a metre of its top, in front of it, beside it, behind it or under it.
     // (It was within 1.25 m of a spot behind the drawer, and from the door a toy meets the front: no prompt there at all.)
     if (D && Math.abs(p.y - D.at.y) < 0.8 && Math.hypot(Math.max(D.top.x0 - p.x, 0, p.x - D.top.x1), Math.max(D.top.z0 - p.z, 0, p.z - D.top.z1)) < REACH) {
-      if (!this.state.desk) return { verb: 'OPEN', hint: this.state.key ? 'The Director’s desk. You have its key.' : null, act: () => this._openDesk() };
-      return { verb: 'READ', act: () => { if (this.showing === DESK) { this._show(null); return; } this._show(DESK, k.pos); if (!this.state.folder) { this.state.folder = true; this.save(); k.say(DESK.say, 5); } } };
+      if (!this.state.desk) return { verb: 'OPEN', lock: !this.state.key, card: ['The Director’s desk', this.state.key ? 'You have its key.' : 'Locked. It needs the Director’s key.', this.state.key ? 'open it' : 'try it'], hint: this.state.key ? 'The Director’s desk. You have its key.' : null, act: () => this._openDesk() };
+      return { verb: 'READ', card: ['The Director’s desk', 'A folder in the drawer.', 'read it'], act: () => { if (this.showing === DESK) { this._show(null); return; } this._show(DESK, k.pos); if (!this.state.folder) { this.state.folder = true; this.save(); k.say(DESK.say, 5); } } };
     }
     const E = this._desk2();
     if (E && Math.abs(p.y - E.y) < 0.8 && Math.hypot(Math.max(E.top.x0 - p.x, 0, p.x - E.top.x1), Math.max(E.top.z0 - p.z, 0, p.z - E.top.z1)) < REACH)
@@ -596,6 +600,12 @@ feature({
     // the desk drawer
     const D = this.desk;
     if (D) {
+      // From a few metres off (the door of the office, mostly): what it is, and what it wants. Said once each time you come in.
+      const inOffice = !!k.room && k.room === D.room, far = Math.hypot(Math.max(D.top.x0 - p.x, 0, p.x - D.top.x1), Math.max(D.top.z0 - p.z, 0, p.z - D.top.z1));
+      if (!inOffice) this.deskTold = false;
+      else if (!this.state.desk && !this.deskTold && Math.abs(p.y - D.at.y) < 0.8 && far < 4.5 && k.G.state === 'play') { this.deskTold = true; k.say(this.state.key ? 'You have the Director’s key. Drive up to the desk to open it.' : 'The Director’s desk. Locked: it needs the Director’s key.', 0, 6, true); }
+      D.glint.visible = !this.state.desk && D.out < 0.05;
+      if (D.glint.visible) { const calm = !!(k.G.set && k.G.set.reduce), q = calm ? 0.5 : 0.5 + 0.5 * Math.sin(this.t * (this.state.key ? 5 : 2.4)); D.glint.material.opacity = (this.state.key ? 0.75 : 0.5) * (0.55 + 0.45 * q); D.glint.scale.setScalar((this.state.key ? 0.085 : 0.07) * (0.9 + 0.1 * q)); }
       if (D.out !== D.want) { D.out = Math.min(1, D.out + dt * 2.2); D.drawer.position.z = 0.32 * D.out * D.out * (3 - 2 * D.out); }
       if (D.rattle > 0) { D.rattle -= dt; D.drawer.position.z = D.rattle > 0 ? Math.abs(Math.sin(D.rattle * 50)) * 0.006 : 0; }
     }
