@@ -31,7 +31,7 @@ export function applySpaceTextures(v) {
     once('earthDay', t => { u.uDay.value.dispose(); u.uDay.value = t; });
     once('earthNight', t => { u.uNight.value.dispose(); u.uNight.value = t; u.uLights.value = 1.9; });
   }
-  if (v.moonBall) once('moon', t => { const m = v.moonBall.material; if (m.map) m.map.dispose(); m.map = t; m.color.set(0xffffff); m.needsUpdate = true; });
+  if (v.moonBall) once('moon', t => { const m = v.moonBall.material; if (m.map) m.map.dispose(); m.map = t; m.color.set(0xf6dc96); m.needsUpdate = true; });      // (a pale cheese yellow: it is made of it)
   for (const p of v.planets || []) {
     const kind = p.userData.kind; if (!['mars', 'venus', 'jupiter', 'saturn'].includes(kind)) continue;
     once(kind, t => { const m = p.children[0].material; if (m.map) m.map.dispose(); m.map = t; m.color.set(0xffffff); m.needsUpdate = true; });

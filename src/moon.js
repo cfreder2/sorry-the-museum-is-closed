@@ -40,6 +40,18 @@ const CRATERS = [
 ];
 export const PARK = { x0: 44, x1: 214, z0: -72, z1: 72 };
 const noise = fbm(31);
+// The holes in the cheese: round, smooth-sided pits with clean edges (no rim thrown up, as a crater has), [x, z, radius,
+// depth]. A few by hand where they are seen first, the rest scattered, never in the flat round the base.
+export const HOLES = (() => {
+  const out = [[-14, 46, 2.6, 0.7], [22, 52, 1.8, 0.55], [30, -48, 3.4, 0.8], [-40, -40, 2.2, 0.6], [62, 30, 2.8, 0.75]];
+  let sd = 9; const r = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+  for (let i = 0; i < 400 && out.length < 70; i++) {
+    const x = (r() * 2 - 1) * 215, z = (r() * 2 - 1) * 215, R = 0.9 + Math.pow(r(), 1.8) * 4.2;
+    if (Math.hypot(x, z - 4) < 44 || out.some(([hx, hz, hr]) => Math.hypot(x - hx, z - hz) < hr + R + 3)) continue;
+    out.push([x, z, R, Math.min(0.8, 0.3 + R * 0.14)]);
+  }
+  return out;
+})();
 
 // How high the ground is. Never below -0.85: plan.js counts a hill surface as ground at any height above -1, so the
 // bottom of every crater is kept above that and the floor of a bowl is always underfoot.
@@ -53,6 +65,7 @@ export function moonH(x, z) {
     if (d < 1) { const q = 1 - d * d; h += rim - (dep + rim) * q * q; }
     else if (d < 2.4) h += rim * Math.exp(-Math.pow((d - 1) / 0.42, 2));
   }
+  for (const [hx, hz, R, dep] of HOLES) { const dx = x - hx, dz = z - hz; if (dx * dx + dz * dz < R * R) { const d = Math.sqrt(dx * dx + dz * dz) / R; h -= dep * Math.sqrt(1 - d * d * d * d); } }
   const m = Math.max(Math.abs(x), Math.abs(z));
   if (m > 225) h += m < 300 ? Math.pow((m - 225) / 65, 2) * 24 : 32 - Math.min(32, (m - 300) * 0.045);   // the wall of the great crater round it all
   return Math.max(-0.85, h);
@@ -180,7 +193,7 @@ function regolith() {
   const n = fbm(12);
   const t = canvasTex(256, 256, (x, w, h) => {
     const img = x.createImageData(w, h);
-    for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) { const u = i / w * 8, v = y / h * 8, g = 120 + (n(u, v, 4) - 0.5) * 70 + (Math.random() - 0.5) * 26, k = (y * w + i) * 4; img.data[k] = g; img.data[k + 1] = g; img.data[k + 2] = g * 0.97; img.data[k + 3] = 255; }
+    for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) { const u = i / w * 8, v = y / h * 8, g = 120 + (n(u, v, 4) - 0.5) * 70 + (Math.random() - 0.5) * 26, k = (y * w + i) * 4; img.data[k] = g; img.data[k + 1] = g * 0.93; img.data[k + 2] = g * 0.78; img.data[k + 3] = 255; }
     x.putImageData(img, 0, 0);
     for (let k = 0; k < 60; k++) { const px = Math.random() * w, py = Math.random() * h, r = 1 + Math.random() * 5; x.strokeStyle = 'rgba(40,40,40,0.35)'; x.lineWidth = 1; x.beginPath(); x.arc(px, py, r, 0, TAU); x.stroke(); x.strokeStyle = 'rgba(220,220,215,0.25)'; x.beginPath(); x.arc(px - 0.6, py - 0.6, r, Math.PI, Math.PI * 1.6); x.stroke(); }
   });
@@ -194,13 +207,14 @@ function terrain(size, seg, drop = null, rep = 60, tex) {
     const x = p.getX(i), z = p.getZ(i); let y = moonH(x, z);
     if (drop && Math.abs(x) < drop - 0.5 && Math.abs(z) < drop - 0.5) y -= 3;
     p.setY(i, y);
-    const k = 0.78 + 0.28 * n(x * 0.012 + 9, z * 0.012 + 9, 3) - Math.max(0, -y) * 0.08 + Math.max(0, y - 1.2) * 0.03;
-    col[i * 3] = k; col[i * 3 + 1] = k * 0.99; col[i * 3 + 2] = k * 0.97;
+    // cheese: pale butter on the plain, a deeper, richer yellow down in the hollows and the holes, a little paler on the rims
+    const w = n(x * 0.012 + 9, z * 0.012 + 9, 3), k = 0.86 + 0.26 * w - Math.max(0, -y) * 0.1 + Math.max(0, y - 1.2) * 0.025, deep = Math.min(1, Math.max(0, -y) * 1.6);
+    col[i * 3] = k * 1.78; col[i * 3 + 1] = k * (1.5 - 0.16 * deep); col[i * 3 + 2] = k * (0.74 - 0.26 * deep);
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   g.computeVertexNormals();
   const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * rep, uv.getY(i) * rep);
-  return new THREE.Mesh(g, std(0xffffff, { map: tex, vertexColors: true, roughness: 1 }));
+  return new THREE.Mesh(g, std(0xffffff, { map: tex, vertexColors: true, roughness: 1, emissive: 0x4a3410, emissiveIntensity: 0.55 }));      // (a little of its own warmth in the shadows: cheese is never as dark as rock)
 }
 
 // A sign's face: the words fitted to the board, the largest size that fits.
@@ -321,15 +335,34 @@ export function buildMoon(P, nArts = 12) {
   // ---- the jump park's kickers, the rocks, a board saying what it is
   const kick = std(0xb9bec4, { roughness: 0.75, metalness: 0.1, emissive: 0x3a3f46, emissiveIntensity: 0.8, side: THREE.DoubleSide });
   g.add(new THREE.Mesh(mergeGeometries(P.kickers.map(rampGeo)), kick));
-  const rocks = new THREE.InstancedMesh(rockGeo(), std(0x8d8d8a, { roughness: 1, flatShading: true }), P.rocks.length);
+  const rocks = new THREE.InstancedMesh(rockGeo(), std(0xd8b664, { roughness: 1, flatShading: true }), P.rocks.length);      // (lumps of the cheese, broken off)
   { const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     P.rocks.forEach((r, i) => { Q.setFromAxisAngle(up, r.yaw); M.compose(V.set(r.x, r.h + r.s * 0.12, r.z), Q, S.set(r.s, r.s * 0.78, r.s * 0.9)); rocks.setMatrixAt(i, M); }); }
   g.add(rocks);
-  const pebbles = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), std(0x9a9a96, { roughness: 1, flatShading: true }), 700);
+  const pebbles = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), std(0xe0c274, { roughness: 1, flatShading: true }), 700);
   { const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), e = new THREE.Euler(); let s = 5;
     const r = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     for (let i = 0; i < 700; i++) { const x = (r() * 2 - 1) * 250, z = (r() * 2 - 1) * 250; if (Math.hypot(x - D.x, z - D.z) < D.OUT + 1) { i--; continue; } const k = 0.05 + r() * 0.12; e.set(r() * 3, r() * 3, r() * 3); Q.setFromEuler(e); M.compose(V.set(x, moonH(x, z) + 0.005, z), Q, S.set(k, k * 0.35, k * 0.8)); pebbles.setMatrixAt(i, M); } }
   g.add(pebbles);
+  // the holes in the cheese, drawn over the ground's dip in them (its grid is too coarse for their clean round edges): a
+  // smooth bowl, deeper gold in the middle, a soft shadow inside the lip on the side away from the low sun
+  { const eye = canvasTex(256, 256, (x, w, h) => {
+      const gr = x.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.5); gr.addColorStop(0, '#b8862e'); gr.addColorStop(0.62, '#d9a94a'); gr.addColorStop(0.86, '#efcb73'); gr.addColorStop(0.97, 'rgba(240,210,130,0.6)'); gr.addColorStop(1, 'rgba(240,210,130,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, w, h);
+      const sh = x.createRadialGradient(w * 0.62, h * 0.5, w * 0.3, w * 0.5, h * 0.5, w * 0.47); sh.addColorStop(0, 'rgba(70,40,8,0)'); sh.addColorStop(0.8, 'rgba(70,40,8,0.38)'); sh.addColorStop(1, 'rgba(70,40,8,0)');
+      x.globalCompositeOperation = 'source-atop'; x.fillStyle = sh; x.fillRect(0, 0, w, h);
+      x.fillStyle = 'rgba(255,240,200,0.14)'; x.beginPath(); x.ellipse(w * 0.33, h * 0.5, w * 0.06, h * 0.26, 0, 0, TAU); x.fill();       // a glint on the far wall, where the sun reaches
+    });
+    const parts = [];
+    for (const [hx, hz, R] of HOLES) { const c = new THREE.CircleGeometry(R * 1.04, 28, 0, TAU).rotateX(-Math.PI / 2), p = c.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) + hx, z = p.getZ(i) + hz; p.setXYZ(i, x, moonH(x, z) + 0.03, z); } c.rotateY(0); parts.push(c); }
+    const holes = new THREE.Mesh(mergeGeometries(parts), std(0xffffff, { map: eye, transparent: true, depthWrite: false, roughness: 0.55, emissive: 0x4a3410, emissiveIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    holes.renderOrder = 1; g.add(holes); }
+  // the craters' rims, crumbly: small lumps of cheese broken off round each lip (too small to stop a toy: as the pebbles)
+  { let n = 0; for (const c of CRATERS) n += Math.round(c[2] * 2.2);
+    const crumbs = new THREE.InstancedMesh(rockGeo(), std(0xe6c879, { roughness: 1, flatShading: true }), n), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), e = new THREE.Euler(); let sd = 21, i = 0;
+    const r = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+    for (const [cx, cz, R] of CRATERS) for (let j = 0, m = Math.round(R * 2.2); j < m; j++) { const a = r() * TAU, d = R * (0.92 + r() * 0.3), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, k = 0.08 + Math.pow(r(), 2) * 0.22; e.set(r() * 3, r() * 3, r() * 3); Q.setFromEuler(e); crumbs.setMatrixAt(i++, M.compose(V.set(x, moonH(x, z) + k * 0.2, z), Q, S.set(k * 1.3, k, k * 1.1))); }
+    g.add(crumbs); }
   const parkSign = canvasTex(512, 160, (x, w, h) => { x.fillStyle = '#0c1a2c'; x.fillRect(0, 0, w, h); x.strokeStyle = '#e2cd94'; x.lineWidth = 6; x.strokeRect(6, 6, w - 12, h - 12); x.fillStyle = '#fff3cf'; x.textAlign = 'center'; x.font = '700 56px Georgia, serif'; x.fillText('CRATER', w / 2, 66); x.font = '400 40px Georgia, serif'; x.fillText('jump park  →', w / 2, 122); });
   const ps = new THREE.Group(); ps.position.set(40, moonH(40, 8), 8); ps.rotation.y = -Math.PI / 2 + 0.4; g.add(ps);
   ps.add(new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.75).translate(0, 1.6, 0), new THREE.MeshStandardMaterial({ map: parkSign, emissiveMap: parkSign, emissive: 0xffffff, emissiveIntensity: 0.4, side: THREE.DoubleSide })));
@@ -427,7 +460,7 @@ export class Visitors {
 // With no air to hold it up, the dust thrown up flies in clean arcs and falls straight back down.
 const DUST_V = `attribute float size; attribute float alpha; varying float vA; uniform float uScale;
 void main() { vA = alpha; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = size * uScale / max(0.1, -mv.z); }`;
-const DUST_F = `varying float vA; void main() { float d = length(gl_PointCoord - 0.5) * 2.0; float a = smoothstep(1.0, 0.2, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(vec3(0.62, 0.61, 0.58) * 0.9, a); }`;
+const DUST_F = `varying float vA; void main() { float d = length(gl_PointCoord - 0.5) * 2.0; float a = smoothstep(1.0, 0.2, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(vec3(0.78, 0.68, 0.44) * 0.9, a); }`;
 export class Dust {
   constructor(n = 900, pixel = 1) {
     this.n = n; this.p = new Float32Array(n * 3); this.v = new Float32Array(n * 3); this.life = new Float32Array(n); this.max = new Float32Array(n); this.sz = new Float32Array(n); this.a = new Float32Array(n); this.next = 0;

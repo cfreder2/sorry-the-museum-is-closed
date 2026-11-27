@@ -277,7 +277,7 @@ export function moonTexture(W = 1024, H = 512, seed = 3) {
   return tex(c);
 }
 export function makeMoonBall(radius) {
-  return new THREE.Mesh(new THREE.SphereGeometry(radius, 72, 48), new THREE.MeshStandardMaterial({ map: moonTexture(), roughness: 1, metalness: 0, color: 0xe6e2da }));
+  return new THREE.Mesh(new THREE.SphereGeometry(radius, 72, 48), new THREE.MeshStandardMaterial({ map: moonTexture(), roughness: 1, metalness: 0, color: 0xf6dc96 }));
 }
 
 function bandTexture(stops, { W = 512, H = 256, seed = 1, turb = 0.04, spot = null } = {}) {
