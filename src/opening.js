@@ -158,6 +158,7 @@ export class Opening {
       // (No preventDefault on a pointerdown: it would cancel the focus a click gives, and in itch's frame the keys would never arrive.)
       if (!document.hasFocus()) window.focus();
       if (e.target && e.target.closest && e.target.closest('.skipb')) { this.finish(true); return; }
+      if (e.target && e.target.closest && e.target.closest('.perfp')) return;                  // (the ?perf panel: src/perfpanel.js)
       this.advance();
     };
   }

@@ -121,7 +121,7 @@ composer.addPass(finish);
 const quality = { step: 0, slow: 0, since: 0, fast: 0, wait: 12, gave: -99, busy: 0, soft: false, glow: true, floor: true, order: [] };
 function resize() {
   // (A window that changes size, or goes full screen, does not give the sharpness back: only govern does.)
-  const w = innerWidth, h = innerHeight, pr = quality.soft ? 1 : Math.min(devicePixelRatio || 1, 1.75);
+  const w = innerWidth, h = innerHeight, pr = quality.pr || (quality.soft ? 1 : Math.min(devicePixelRatio || 1, 1.75));      // (quality.pr: set by hand from ?perf)
   renderer.setPixelRatio(pr);
   renderer.setSize(w, h, false);
   composer.setPixelRatio(pr);
@@ -155,7 +155,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror,
 };
-const BUILD = '2026.11.25.34';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.35';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -1621,7 +1621,7 @@ function govern(dt) {
   // (And in the cold open: it was let off nothing there, and a phone dropped frames at her window for the whole of it. Until
   // the flight the floor's reflection is not drawn at all (the end of tick), so giving it up then would buy nothing.)
   const cold = G.state === 'opening', noFloor = cold && opening.phase !== 'fly';
-  if ((G.state !== 'play' && !cold) || document.hidden) return;
+  if ((G.state !== 'play' && !cold) || document.hidden || quality.hold) return;      // (held still while the ?perf panel is open)
   const Q = quality;
   Q.since += dt;
   if (Q.since < 4) return;                             // (what was changed last is given time to show)
@@ -1640,6 +1640,10 @@ function govern(dt) {
   if (!k || Q.fast < Q.wait || (k === 'floor' && Q.busy * 2 > 22)) return;
   Q.order.pop(); Q.step = Q.order.length; Q.fast = 0; Q.since = 0; Q.gave = G.t; LEVERS[k](true);
 }
+
+// ?perf: a panel for finding out on the device what a frame is spent on, and switching things off to see (src/perfpanel.js).
+// Fetched only with the word.
+if (params.has('perf')) import('./perfpanel.js').then(m => { G.perf = m.perfPanel(G, { quality, bloom, composer, resize, renderer, scene }); }).catch(e => console.warn('perf', e));
 
 // ?diag: what this machine is really being given, in a corner of the screen, for when the game feels slow on something
 // we cannot hold ourselves. The graphics chip the browser is using, how many pixels are drawn, what the quality steps
