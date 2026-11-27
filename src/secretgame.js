@@ -35,7 +35,9 @@ const CSS = `
 #promenade .pips { margin-top: 7px; display: flex; justify-content: center; gap: 10px; }
 #promenade .pips i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid rgba(236,223,180,.6); box-sizing: border-box; }
 #promenade .pips i.now { border-color: #fff; }
-@media (max-width: 760px) { #promenade { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 58px); } }      /* (over the bar of buttons under a look) */
+@media (max-width: 1100px) and (min-height: 521px) { #promenade { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 56px); width: min(440px, calc(100vw - 32px)); } }      /* (a narrow screen: over the bar of buttons under a look) */
+@media (max-height: 520px) { #promenade { left: auto; right: calc(max(18px, env(safe-area-inset-right)) + 254px); transform: none; bottom: max(18px, env(safe-area-inset-bottom)); width: min(340px, calc(100vw - 300px)); text-align: left; }
+  #promenade .cap { font-size: 13px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #promenade .bar { height: 14px; } #promenade .pips { display: none; } }      /* (a phone on its side: low, just left of the buttons, under the figures on the floor) */
 `;
 
 export class Promenade {
