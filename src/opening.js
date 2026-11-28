@@ -186,6 +186,7 @@ export class Opening {
 #opening .face .open, #opening .face .flick { display: none; }
 #opening .box.talk .face .open { display: inline; transform-box: fill-box; transform-origin: 50% 15%; animation: optalk .15s ease-in-out infinite alternate; }
 #opening .box.talk .face .shut { display: none; }
+.reduce #opening .box.talk .face .open { animation: optalk .15s ease-in-out infinite alternate !important; }      /* (the mouths still talk with Reduce motion on: a small drawn mouth, not motion; the head's pop-in and the television's flicker stay off) */
 #opening .box.talk .face .flick { display: inline; opacity: 0; animation: opflick .9s steps(1) infinite; }
 @keyframes optalk { from { transform: scaleY(.22); } to { transform: scaleY(1); } }
 @keyframes opflick { 0%, 100% { opacity: 0; } 35% { opacity: .1; } 60% { opacity: .03; } 80% { opacity: .13; } }
@@ -299,7 +300,8 @@ export class Opening {
     this.n = 0; this.acc = 0; this.hold = 0; this.keyed = 0; this.typing = true;
     if (l.view) this.view = l.view;
     this.snd.tvLevel(l.who === 'tv' ? 1.5 : 0.4);
-    if (this.calm) this._typed();
+    // (Typed out with Reduce motion on too: letters appearing in a box are not the motion that setting is for, and the owner
+    // wants the lines told, not dropped in whole. The camera's sway, the walks and the long flight are still left out.)
   }
   _typed() {
     const { p, shown, rest, l } = this.p; shown.textContent = l.text; rest.textContent = ''; p.classList.remove('typing'); this.box.classList.remove('talk');
