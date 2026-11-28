@@ -161,11 +161,13 @@ const input = new Input(canvas);
 const sound = new Sound();
 input.onGesture = () => sound.unlock();
 
-// Settings, kept between visits. Reduced motion starts on if the system asks for it.
+// Settings, kept between visits. Reduced motion starts off everywhere, whatever the system says (the owner: always off; a
+// phone set to reduce motion was given three still pictures for the opening's flight). It is still in the settings, to switch on.
 const SETTINGS = 'after-hours.settings';
-const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true, escapes: true, gentle1: true,
+const set = { master: 0.8, motor: 0.5, music: 0.8, reduce: false, slowmo: true, big: false, hold: false, mirror: true, stats: true, gallerymusic: true, guards: true, escapes: true, gentle1: true,
   autogo: matchMedia('(pointer: coarse)').matches, assist: matchMedia('(pointer: coarse)').matches };      // on a phone the car drives itself and is helped round corners, unless switched off
 try { Object.assign(set, JSON.parse(localStorage.getItem(SETTINGS) || '{}')); } catch { /* no storage */ }
+if (!set.motion2) { set.reduce = false; set.motion2 = true; try { localStorage.setItem(SETTINGS, JSON.stringify(set)); } catch { /* fine */ } }      // (once: it was saved as on wherever the system asked for it; from now on only the player's own switch turns it on)
 for (const k of ['master', 'motor', 'music']) if (!(typeof set[k] === 'number' && set[k] >= 0 && set[k] <= 1)) set[k] = k === 'motor' ? 0.5 : 0.8;      // (a volume that is not a number stopped the sound being built, and then threw every frame)
 
 const G = {
@@ -239,7 +241,7 @@ function loading(pct, step, to = pct) {
   const a = Math.max(barAt, now, pct / 100), b = Math.max(a, Math.min(to, 99.5) / 100), end = pct >= 100 ? 1 : b;
   if (barAnim) barAnim.cancel();
   fill.style.transform = `scaleX(${end})`; el.querySelector('.lbar').setAttribute('aria-valuenow', Math.round(pct));
-  if (fill.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (fill.animate && !set.reduce) {
     fill.style.transition = 'none';                     // (the CSS one is only for a browser without this)
     barAnim = fill.animate(pct >= 100 || b <= a ? [{ transform: `scaleX(${now})` }, { transform: `scaleX(${end})` }]
       : [{ transform: `scaleX(${now})`, easing: 'ease-out' }, { transform: `scaleX(${a})`, offset: 0.06, easing: 'cubic-bezier(.15,.6,.35,1)' }, { transform: `scaleX(${end})` }],

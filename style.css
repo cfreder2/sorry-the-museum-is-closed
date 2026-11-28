@@ -537,7 +537,7 @@ body:not(.touch) #arcade .pad, body:not(.touch) #arcA, body:not(.touch) #arcB { 
 #loading.failed .lbar b { display: none; } #loading.failed .lstep { color: #e0a090; }
 /* (with reduced motion the light does not run along the bar: the whole bar breathes instead, so it still shows life) */
 @keyframes lbreathe { from { opacity: .55; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { #loading .lbar b { animation: none; display: none; } #loading, #loading .lbar i { transition: none; } #loading:not(.failed) .lbar i { animation: lbreathe 1.1s ease-in-out infinite alternate; will-change: opacity; } }
+.reduce #loading .lbar b { animation: none; display: none; } .reduce #loading, .reduce #loading .lbar i { transition: none; } .reduce #loading:not(.failed) .lbar i { animation: lbreathe 1.1s ease-in-out infinite alternate; will-change: opacity; }      /* (the player's own switch, not the system's) */
 
 #paLine .alltime { font-size: .72em; font-style: normal; color: var(--gilt-dim); letter-spacing: .04em; }
 #title .sel .hint[hidden] { display: none; }

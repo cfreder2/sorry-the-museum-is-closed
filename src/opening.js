@@ -779,7 +779,9 @@ export class Opening {
     if (G.stream) G.stream.release();
     if (G.features && G.features.prebuild) G.features.prebuild(null);
     this._home();
-    if (!G.lampOn) { G.lampOn = true; if (G.lamp) G.lamp.intensity = 70; const b = document.getElementById('bLights'); if (b) b.setAttribute('aria-pressed', 'true'); }
+    // At the museum's entrance the toy's lamp goes off (the owner): it is handed over in the dark, its lamp for the player to
+    // switch on. (It was switched on here, if she had not lit it from the window.)
+    G.lampOn = false; if (G.lamp) G.lamp.intensity = 0; { const b = document.getElementById('bLights'); if (b) b.setAttribute('aria-pressed', 'false'); }
     if (skipped) this.sound.tick(0.08, 2200, 0.03);
     if (this.car) { this.car.removeFromParent(); this.car = null; for (const d of this.dim.values()) d.dispose(); this.dim.clear(); this.tint = []; }
     if (this.set) { this.set.dispose(); this.set = null; }
