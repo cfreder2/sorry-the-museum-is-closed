@@ -8,7 +8,7 @@
 // or slow, straight, lobbed or curving, mostly over the plate and now and then high, low, in or away. The car carries a
 // toy bat on its tail. A strike zone stands over the plate with the bat's head in it, an orange ring: steer it with the
 // left stick (the arrows, WASD, the thumb) to where the ball will cross, and swing with the jump (Space, SWING on a
-// phone, a bumper on a pad): the car hops and whips round and the bat meets the ball. Timing sets how far out in front
+// phone, A on a pad): the car hops and whips round and the bat meets the ball. Timing sets how far out in front
 // (early) or behind (late) it is met; the ring under the ball pops it up, over it chops it into the ground, on the
 // button drives it; early pulls it to third, late pushes it to first. A home run sets the wall's lights going, the
 // fans cheer and throw their hats, and fireworks go up.

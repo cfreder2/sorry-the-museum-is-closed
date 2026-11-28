@@ -118,7 +118,7 @@ export class Promenade {
     this.key = '';
   }
   _draw() {
-    const $ = this.$, ph = this.phase, G = this.G, key = G.input && G.input.pad ? 'A' : G.input && G.input.usedTouch ? 'NOW' : 'E';
+    const $ = this.$, ph = this.phase, G = this.G, key = G.input && G.input.pad ? 'X' : G.input && G.input.usedTouch ? 'NOW' : 'E';
     const show = ph !== 'intro' || this.pt > 1.6 * this.slow, gone = ph === 'tug' || ph === 'home';
     this.el.style.opacity = gone ? '0' : show ? '1' : '0';
     const who = ph === 'all' ? 'All five.' : this.cast[this.i], how = ph === 'intro' ? 'The monkey wants a show.' : ph === 'hit' || ph === 'miss' ? this.said : ph === 'all' ? '' : `${key} at the top of the turn`;

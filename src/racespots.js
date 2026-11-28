@@ -179,7 +179,7 @@ feature({
   go(S) {
     const k = this.k, G = k.G;
     if (G.racing || G.race.cooling || !S) return false;
-    if (G.vehicle.kind !== 'car') { k.say(`Cars only. ${G.input.pad ? 'X' : G.input.usedTouch ? 'SWAP' : 'V'} swaps to the car.`, 3); return false; }
+    if (G.vehicle.kind !== 'car') { k.say(`Cars only. ${G.input.pad ? 'LB' : G.input.usedTouch ? 'SWAP' : 'V'} swaps to the car.`, 3); return false; }
     const course = this.course(S);
     if (!course) { k.say('The course is blocked tonight.', 3); return false; }
     this.cur = S; this.done = false;
@@ -328,7 +328,7 @@ feature({
       const d = Math.hypot(v.pos.x - S.x, v.pos.z - S.z);
       if (d > NEAR && !S.cars.some(c => Math.hypot(v.pos.x - c.pos.x, v.pos.z - c.pos.z) < 1.6)) continue;
       const name = S.rivals.length > 1 ? `${S.rivals[0].name} and ${S.rivals[1].name}` : S.rivals[0].name, best = this.save.best[S.id];
-      if (v.kind !== 'car') return { verb: 'RACE', card: [`RACE ${S.rivals[0].name.toUpperCase()}?`, 'Cars only: swap to the car', 'race'], act: () => k.say(`Cars only. ${G.input.pad ? 'X' : G.input.usedTouch ? 'SWAP' : 'V'} swaps to the car.`, 3) };
+      if (v.kind !== 'car') return { verb: 'RACE', card: [`RACE ${S.rivals[0].name.toUpperCase()}?`, 'Cars only: swap to the car', 'race'], act: () => k.say(`Cars only. ${G.input.pad ? 'LB' : G.input.usedTouch ? 'SWAP' : 'V'} swaps to the car.`, 3) };
       return { verb: 'RACE', card: [`RACE ${S.rivals[0].name.toUpperCase()}?`, `${name} · ${S.laps} laps` + (best ? ` · best ${clockText(best)}` : ''), 'race'], act: () => this.go(S) };
     }
     return null;

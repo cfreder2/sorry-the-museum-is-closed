@@ -180,7 +180,7 @@ const G = {
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
   input, sound, camera, renderer, scene, mirror, settled,
 };
-const BUILD = '2026.11.25.46';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
+const BUILD = '2026.11.25.47';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
 tm.allowed = set.stats !== false; tm.open();      // a page opened: counted from the loading screen on, so leaving before Start is seen too
 $('build').textContent = 'Version ' + BUILD;                 // on the title screen, so anybody can say which one they are looking at
@@ -507,12 +507,12 @@ function start(fresh = false) {
     if (resumed) say(`Back where you left off. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);
     else if (unlocked()) say(`Back at the front. The doors are unlocked. ${G.museum.seenCount} of ${G.museum.arts.length} works seen.`, 1.2, 6);      // (been in before, but the saved place was no use: not the first-night lines)
     else {
-      say(input.pad ? (G.toy === 'drone' ? 'Left stick climbs and turns · right stick flies' : 'Right trigger to go · left stick to steer')
+      say(input.pad ? (G.toy === 'drone' ? 'Left stick flies and turns · right stick climbs' : 'Right trigger to go · left stick to steer')
         : touch ? (G.toy === 'drone' ? 'Left thumb flies. UP and DOWN on the right.' : set.autogo ? 'Hold a thumb down to go. Slide it to steer.' : 'Left thumb drives: push to go, lean to steer.')
         : G.toy === 'drone' ? 'W A S D to fly · arrows to climb' : 'W A S D or the arrows to drive', 0.4, 4.5);
       say(G.toy === 'drone' ? 'Locked. There is an air vent low in the wall, left of the doors: fly in low.' : 'Locked. There is an air vent low in the wall, left of the doors.', 5, 7);
     }
-    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 5); if (!touch) say(input.pad ? 'Either bumper to jump. Steer in the air for tricks.' : 'Space to jump. Steer in the air for tricks.', 24, 6); }
+    if (G.toy === 'car') { say('Somebody has left ramps out. And a loop.', 16, 5); if (!touch) say(input.pad ? 'A to jump. Steer in the air for tricks.' : 'Space to jump. Steer in the air for tricks.', 24, 6); }
   }
   G.camYaw = G.vehicle.yaw;
   G.roomId = null;
@@ -833,7 +833,7 @@ function openNotebook() {
 }
 
 // The button a prompt names is the one on whatever is in your hands: E on a keyboard, A on a gamepad.
-const E = () => (input.pad ? 'A' : 'E');
+const E = () => (input.pad ? 'X' : 'E');      // (the pad's look-closer button: src/input.js, PAD)
 // A feature writes its hint for a keyboard ("A piano. E to play."): shown, the key is the one in your hands, as in the prompts here.
 const keyed = (text, verb) => text.replace(/\bE(?= to\b)/, input.usedTouch ? verb || 'LOOK' : E());
 function keycaps() {
@@ -848,7 +848,7 @@ function keycaps() {
 function controlsList() {
   const touch = !input.pad && (input.usedTouch || matchMedia('(pointer: coarse)').matches);
   const rows = input.pad
-    ? [['Drive', 'Right trigger to go, left trigger to brake and reverse, left stick to steer. Or like a transmitter: left stick for the throttle, right stick to steer.'], ['Jump', 'Either bumper. Hold it in the air and steer to trick.'], ['Fly', 'Left stick climbs and turns, right stick flies. The triggers climb and sink too.'], ['Look closer', 'A. B steps back. D-pad left hides or shows the label.'], ['Camera', 'Y'], ['Swap toy', 'X'], ['Stop', 'B. In a race it puts you back on the course.'], ['Lights', 'D-pad down'], ['Map', 'D-pad up'], ['Notebook', 'View'], ['Race', 'A by a waiting car. A again to give up.'], ['Pause', 'Menu'], ['Menus', 'D-pad or left stick to move, A to choose, B to go back.']]
+    ? [['Drive', 'Right trigger to go, left trigger to brake and reverse, left stick to steer. Or like a transmitter: left stick for the throttle, right stick to steer.'], ['Jump', 'A. Hold it in the air and steer to trick.'], ['Fly', 'Left stick flies forward and back and turns, right stick climbs and sinks and slides. The triggers climb and sink too.'], ['Look closer', 'X, to look and to do things. B steps back. D-pad left hides or shows the label.'], ['Camera', 'B'], ['Swap toy', 'Left bumper'], ['Lights', 'Y (or D-pad down)'], ['Map', 'Right bumper (or D-pad up)'], ['Stop', 'D-pad right. In a race it puts you back on the course.'], ['Notebook', 'View'], ['Race', 'X by a waiting car. X again to give up.'], ['Pause', 'Menu'], ['Menus', 'D-pad or left stick to move, A to choose, B to go back.']]
     : touch
     ? [['Car', set.autogo ? 'Hold your left thumb down and it goes. Slide to steer, push forward for more speed, let go to stop, pull back to back up. (Settings, Driving, to have the stick work the throttle instead.)' : 'Left thumb: push forward to go, further to go faster. Pull back to brake and reverse. Lean to steer.'], ['Lights', 'LIGHTS'], ['Map', 'Touch the round map for the whole building. Tap a room, then Show the way.'], ['Jump', 'JUMP. Hold it in the air and steer to trick.'], ['Drone', 'Left thumb flies and turns. UP and DOWN to climb.'], ['Look closer', 'LOOK, when you are near a work. INFO brings its label back.'], ['Camera', 'CAM'], ['Swap toy', 'SWAP'], ['Race', 'RACE by a waiting car. Pause to leave.']]
     : [['Drive', 'W A S D or the arrow keys'], ['Jump', 'Space. Hold it in the air and steer to trick.'], ['Fly', 'W S forward and back, A D turn, ← → slide, ↑ ↓ climb'], ['Look closer', 'E. I hides or shows the label.'], ['Camera', 'C'], ['Swap toy', 'V'], ['Lights', 'L'], ['Map', 'M or Tab, or click the radar. Click a room, then Show the way.'], ['Notebook', 'N'], ['Race', 'E by a waiting car. E or Esc to give up.'], ['Pause', 'Esc'], ['Gamepad', 'Press any button on it and this list changes to its buttons.']];
@@ -1153,7 +1153,7 @@ function setLabel(on) {
   // it says, and Esc (B) steps back instead (src/secret.js, wants). Said here, on the label.
   { const tk = $('touchKey'), bk = $('backKey').firstElementChild, sec = G.secret, yes = !!(sec && sec.wantsFor(s.art)); tk.hidden = !yes;
     if (yes) { tk.firstElementChild.textContent = input.usedTouch ? 'TOUCH' : E(); tk.lastElementChild.textContent = 'touch ' + sec.clue.part; }
-    bk.dataset.key = yes ? 'Esc' : 'E'; bk.dataset.pad = yes ? 'B' : 'A'; bk.textContent = input.pad ? bk.dataset.pad : bk.dataset.key; }
+    bk.dataset.key = yes ? 'Esc' : 'E'; bk.dataset.pad = yes ? 'B' : 'X'; bk.textContent = input.pad ? bk.dataset.pad : bk.dataset.key; }
   if (on && s.brief) s.hideAt = s.t + 7;
   $('label').classList.toggle('away', !on);
   $('bInfo').setAttribute('aria-pressed', on);

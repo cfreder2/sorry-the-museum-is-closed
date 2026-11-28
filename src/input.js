@@ -3,18 +3,20 @@
 //
 // Everything is reduced to a left stick and a right stick, laid out like a toy
 // transmitter. Car: left stick up/down is the throttle, right stick left/right
-// steers. Drone: left stick climbs and turns, right stick flies.
+// steers. Drone: left stick climbs and turns, right stick flies (on a pad the two
+// sticks' up and down are the other way round: see read).
 
 const KEYS = {
   look: ['KeyE', 'Enter', 'KeyF'], info: ['KeyI'], camera: ['KeyC'], swap: ['KeyV'], pause: ['Escape', 'KeyP'],
   reset: ['KeyR'], notebook: ['KeyN'], lights: ['KeyL'], map: ['KeyM', 'Tab', 'KeyG'],      // (music is in Settings, not on a key)
 };
-// A gamepad's buttons while driving, by their numbers in the standard layout. A looks closer, B stops the toy (and steps
-// back from a work or a board), X swaps toys, Y is the camera, View is the notebook, Menu pauses; on the D-pad, up is
-// the map, down the lights, left a work's label. The bumpers jump and the triggers are the pedals (see read). The
-// stick clicks do nothing: a thumb leaning hard on a stick presses them without meaning to.
+// A gamepad's buttons while driving, by their numbers in the standard layout (the owner's layout, set on a ROG Ally): A
+// jumps (see read), B changes the view (and steps back from a work or a board), X looks closer and does things, Y the
+// lights, the left bumper swaps toys, the right bumper the map, View the notebook, Menu pauses; on the D-pad, up is the
+// map too, down the lights, left a work's label, right stops the toy (in a race, back on the course). The triggers are
+// the pedals (see read). The stick clicks do nothing: a thumb leaning hard on a stick presses them without meaning to.
 // ('left' and 'right': the D-pad as it lies, for the one thing played with it while driving, the five pads of src/finalelaunch.js)
-const PAD = { 0: ['look'], 1: ['reset', 'back'], 2: ['swap'], 3: ['camera'], 8: ['notebook'], 9: ['pause'], 12: ['map'], 13: ['lights'], 14: ['info', 'left'], 15: ['right'] };
+const PAD = { 1: ['camera', 'back'], 2: ['look'], 3: ['lights'], 4: ['swap'], 5: ['map'], 8: ['notebook'], 9: ['pause'], 12: ['map'], 13: ['lights'], 14: ['info', 'left'], 15: ['right', 'reset'] };
 // Anywhere else (a menu, a card table, an arcade cabinet) the pad is a keyboard, so whatever works with keys works with
 // it: the D-pad or the left stick are the arrows, A is Enter, B and Menu are Escape, X and Y the two spare buttons.
 const PADKEY = { 0: 'Enter', 1: 'Escape', 2: 'KeyF', 3: 'Space', 9: 'Escape', 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight' };
@@ -267,7 +269,9 @@ export class Input {
       // asking for the brake. Driven like a transmitter (the right stick steering), the left stick is the throttle again.
       const grx = dz(a[2]);
       if (trig) this._pedals = true; else if (Math.abs(grx) > 0.5) this._pedals = false;
-      const glx = dz(a[0]), gly = this._pedals && !drone ? 0 : -dz(a[1]), gry = -dz(a[3]);
+      // (The drone on a pad: the left stick flies forward and back and turns, the right stick climbs and sinks, and slides.)
+      let glx = dz(a[0]), gly = this._pedals && !drone ? 0 : -dz(a[1]), gry = -dz(a[3]);
+      if (drone) { const t = gly; gly = gry; gry = t; }
       if (Math.abs(glx) > Math.abs(lx)) lx = glx;
       if (Math.abs(gly) > Math.abs(ly)) ly = gly;
       if (Math.abs(grx) > Math.abs(rx)) rx = grx;
@@ -295,7 +299,7 @@ export class Input {
       }
     }
     let held = this.down.has('Space') || this.btn.jump;
-    if (p) held = held || !!(p.buttons[5] && p.buttons[5].pressed) || !!(p.buttons[4] && p.buttons[4].pressed);
+    if (p) held = held || !!(p.buttons[0] && p.buttons[0].pressed);      // (a pad's A: the bumpers are the toy swap and the map, PAD above)
     const jump = held && !this._jump;
     this._jump = held;
     if (Math.abs(trig) > Math.abs(ly)) ly = trig;                        // the triggers: go and brake, or up and down
