@@ -729,8 +729,10 @@ export class Opening {
 
   frame(dt) {
     if (!this.on) return;
-    // On the wall clock, not the game's (which is capped at 50 ms a frame): on a slow phone it lasts as long.
-    const now = performance.now(), d = Math.min(0.25, Math.max(dt, (now - (this.last || now)) / 1000)); this.last = now;
+    // On the wall clock, but never more than a thirtieth of a second a frame: a frame that came late is a step on, not a
+    // leap. On a slow phone the opening runs slower and stays smooth (the owner: better one frame a second than frames
+    // skipped). Under 30 frames a second it lasts longer than it would; the sounds already set going keep their own time.
+    const now = performance.now(), d = Math.min(1 / 30, (now - (this.last || now)) / 1000 || dt || 0); this.last = now;
     this.t += d;
     const G = this.G, set = this.set, cam = this.camera;
     cam.up.set(0, 1, 0);

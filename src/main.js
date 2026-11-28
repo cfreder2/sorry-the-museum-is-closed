@@ -114,9 +114,26 @@ const camera = new THREE.PerspectiveCamera(72, 1, 0.03, 1400);
 camera.position.set(8, 0.5, -2);
 
 const mirror = new FloorMirror(0.5);
-const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
+// For finding out on a phone what the graphics card is spending its frame on (its time is not in the frame counter: Safari
+// draws in a process of its own, and a frame it has no time for is dropped without the game knowing). Each takes one cost
+// away, from the start, for the whole visit: ?nomirror (the floors' reflection, a second drawing of the world), ?noglow,
+// ?msaa=0|2|4 (the smoothing of edges; 4 as usual), ?pr=1|1.25|1.5 (pixels drawn per screen pixel; 1.75 at most as usual).
+// What is in force is shown beside the frame counter.
+const TRY = { nomirror: params.has('nomirror'), noglow: params.has('noglow'), msaa: params.has('msaa') ? Math.max(0, Math.min(8, +params.get('msaa') || 0)) : null, pr: params.has('pr') ? Math.max(0.5, Math.min(3, +params.get('pr') || 1)) : null };
+// Waiting for the graphics card. Safari draws in a process of its own: the game hands it a frame and goes on, and a frame
+// the card has not finished in time is dropped from the screen, with nothing in the game the wiser (the counter said 60
+// while the opening's flight stood still and leapt). So at the end of the frame one pixel is read back, which waits until
+// the card is done: no frame is dropped behind the game's back, the counter shows what a frame really costs, and the
+// slow machine's governor sees it too. It costs the overlap of the two (a little speed), so by default only during a new
+// game's opening on a phone, where a leap is worst. ?sync: always; ?nosync: never.
+TRY.sync = params.has('nosync') ? 'never' : params.has('sync') ? 'always' : 'opening';
+const _px = new Uint8Array(4);
+function waitForCard() { if (TRY.sync === 'never' || !(TRY.sync === 'always' || (LOWMEM && G.state === 'opening'))) return; try { const gl = renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, _px); } catch { /* not this frame */ } }
+TRY.label = [TRY.sync === 'always' && 'sync', TRY.sync === 'never' && 'no sync', TRY.nomirror && 'no reflection', TRY.noglow && 'no glow', TRY.msaa != null && 'msaa ' + TRY.msaa, TRY.pr && 'pr ' + TRY.pr].filter(Boolean).join(' · ');
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: TRY.msaa != null ? TRY.msaa : 4 }));
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.85, 0.2, 1.0);      // tight: the glow hugs what is bright, no smear
+if (TRY.noglow) bloom.enabled = false;
 composer.addPass(bloom);
 const finish = new FinishPass(bloom);
 composer.addPass(finish);
@@ -126,7 +143,7 @@ composer.addPass(finish);
 const quality = { step: 0, slow: 0, since: 0, fast: 0, wait: 12, gave: -99, busy: 0, soft: false, glow: true, floor: true, order: [] };
 function resize() {
   // (A window that changes size, or goes full screen, does not give the sharpness back: only govern does.)
-  const w = innerWidth, h = innerHeight, pr = quality.pr || (quality.soft ? 1 : Math.min(devicePixelRatio || 1, 1.75));      // (quality.pr: set by hand from ?perf)
+  const w = innerWidth, h = innerHeight, pr = quality.pr || TRY.pr || (quality.soft ? 1 : Math.min(devicePixelRatio || 1, 1.75));      // (quality.pr: set by hand from ?perf; TRY.pr from the address)
   renderer.setPixelRatio(pr);
   renderer.setSize(w, h, false);
   composer.setPixelRatio(pr);
@@ -658,7 +675,7 @@ function applySettings(save) {
   sound.setVolumes(set);
   document.body.classList.toggle('reduce', set.reduce);
   document.body.classList.toggle('bigtext', set.big);
-  mirror.enabled = set.mirror && quality.floor;      // (the player's switch, and the slow machine's: govern never touches the player's)
+  mirror.enabled = set.mirror && quality.floor && !TRY.nomirror;      // (the player's switch, and the slow machine's: govern never touches the player's)
   input.hold = set.hold;
   input.autogo = !!set.autogo;
   document.body.classList.toggle('autogo', !!set.autogo);
@@ -1634,7 +1651,7 @@ G.auto = params.has('auto');
 // place, and the wait starts again at 12.
 // None of this is the player's settings, and none of it is saved: the reflection is drawn only if the player's switch and
 // this both say so, and a thing the player has turned off is not this function's to give up or give back.
-const LEVERS = { floor: on => { quality.floor = on; applySettings(); }, soft: on => { quality.soft = !on; resize(); }, glow: on => { quality.glow = on; bloom.enabled = on; } };
+const LEVERS = { floor: on => { quality.floor = on; applySettings(); }, soft: on => { quality.soft = !on; resize(); }, glow: on => { quality.glow = on; bloom.enabled = on && !TRY.noglow; } };
 function govern(dt) {
   // (And in the cold open: it was let off nothing there, and a phone dropped frames at her window for the whole of it. Until
   // the flight the floor's reflection is not drawn at all (the end of tick), so giving it up then would buy nothing.)
@@ -1713,7 +1730,7 @@ const fpsMeter = SHOW_FPS && !diag && !params.has('nofps') ? (() => {
     n++; sum += ms; if (ms > worst) worst = ms;
     if (sum < 500) return;
     const f = Math.round(1000 * n / sum);
-    el.textContent = `${f} fps · ${worst.toFixed(0)} ms worst`; el.style.color = f >= 55 ? '#9f9' : f >= 30 ? '#fd6' : '#f77';
+    el.textContent = `${f} fps · ${worst.toFixed(0)} ms worst` + (TRY.label ? ' · ' + TRY.label : ''); el.style.color = f >= 55 ? '#9f9' : f >= 30 ? '#fd6' : '#f77';
     n = 0; sum = 0; worst = 0;
   };
 })() : null;
@@ -1858,6 +1875,7 @@ function tick(now) {
     try { mirror.render(renderer, scene, camera, G.museum.floors, G.state === 'title' ? 0 : G.floorY || 0); } finally { mirror.enabled = was; }
     for (const o of selfMoved) o.updateWorldMatrix(false, false);
     composer.render();
+    waitForCard();
   } finally { scene.matrixWorldAutoUpdate = true; }
   quality.busy += (performance.now() - began - quality.busy) * 0.05;      // (for govern: how much of the frame is this function's)
 }
