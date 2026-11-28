@@ -23,7 +23,11 @@ const HIDDEN = 7;                          // the layer the camera does not draw
 // The streamer and the visibility table (src/visible.js) both decide whether a thing is drawn, by its layers. So that they
 // do not undo each other, neither writes the layers itself: each keeps its own say on the thing (userData.far, from here;
 // userData.cullMask, the table's layers for it) and this puts the two together. Far is hidden whatever the table says.
-export function applyLayers(o) { const u = o.userData; o.layers.mask = u.far ? 1 << HIDDEN : u.cullMask != null ? u.cullMask : 1; }
+// (A piece drawn as part of a batch, src/bake.js, is on no layer at all, whatever either says, until its batch is undone; and
+// what is too small to see from where the camera is, userData.tiny, is drawn only in the floor's reflection, on the layer
+// the culling keeps for that, src/visible.js's MIRROR: the polish is smeared, and takes a little of even a speck.)
+const MIRROR = 8;
+export function applyLayers(o) { const u = o.userData; let m = u.baked ? 0 : u.far ? 1 << HIDDEN : u.cullMask != null ? u.cullMask : 1; if (u.tiny && (m & 1)) m = 1 << MIRROR; o.layers.mask = m; }
 // Is every array of this geometry still in memory, so that three.js can send it up again after a dispose()?
 const held = g => { for (const k in g.attributes) { const a = g.attributes[k]; if (!(a.data ? a.data.array : a.array)) return false; } return !g.index || !!g.index.array; };
 
@@ -43,6 +47,7 @@ export class Streamer {
     this.root.updateMatrixWorld(true);
     this.root.traverse(o => {
       if (known.has(o) || !(o.isMesh || o.isLine || o.isPoints || o.isSprite) || !o.geometry) return;
+      if (o.userData.baked) return;      // (drawn in a batch, src/bake.js, which is streamed in its place: looked at again next time, in case its batch has been undone)
       known.add(o);
       if (o.userData.always || this.skip(o)) return;
       for (let p = o; p; p = p.parent) if (p.userData && p.userData.always) return;

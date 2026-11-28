@@ -425,6 +425,7 @@ function kitFor(o) {
   // (through the walls, from the lobby) of a thing nobody has been near.
   let cur = null;      // (the feature whose init is running)
   k.ready = function* (obj) {
+    if (G.bake) yield* G.bake.steps(obj);      // (what never moves in it drawn as one, before it is warmed or shown: src/bake.js)
     if (G.state === 'loading' || !G.warm) { cur._unseen = obj; return; }
     let done = false; const fin = () => { done = true; }; G.warm(obj).then(fin, fin);
     for (const t = performance.now(); !done && performance.now() - t < 3000;) yield true;

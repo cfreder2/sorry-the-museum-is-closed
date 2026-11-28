@@ -5,6 +5,17 @@
 import * as THREE from 'three';
 import * as TX from './textures.js';
 import { confine, groundAt, keepClear, solidsNear, GRAVITY } from './plan.js';
+import { joined } from './bake.js';
+
+// The parts of a thing that never come apart (a cone's cone, band and foot; a snowman's lump and all that is stuck in it) are one
+// mesh, its parts' colours in its vertices (src/bake.js): a cone was three draw calls and a snowman twenty, and there are a hundred cones.
+function fuse(grp) {
+  const kids = grp.children.filter(c => c.isMesh); if (kids.length < 2) return;
+  for (const c of kids) c.updateMatrix();
+  const one = joined(kids.map(c => [c.geometry, c.material, c.matrix])); if (!one) return;
+  for (const c of kids) grp.remove(c);
+  grp.add(one);
+}
 
 export class Props {
   constructor(plan) {
@@ -29,7 +40,7 @@ export class Props {
         const c = new THREE.Mesh(coneG, orange); c.position.y = 0.146;
         const b = new THREE.Mesh(bandG, white); b.position.y = 0.15;
         const s = new THREE.Mesh(baseG, orange); s.position.y = 0.008;
-        body.add(c, b, s);
+        body.add(c, b, s); fuse(body);
       } else if (def.type === 'snowman') {
         // Three balls of snow, a carrot, coal, a scarf, two twigs and a hat. Each ball (with whatever is stuck in it) is a lump that can fly off on its own.
         const k = def.s || 1, lumps = [];
@@ -46,6 +57,7 @@ export class Props {
         const hat = new THREE.Group(), brim = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.015, 14), coal), crown = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.1, 0.16, 14), coal);
         crown.position.y = 0.085; hat.add(brim, crown); hat.position.y = 1.125; hat.rotation.z = 0.12; body.add(hat);
         lumps.push({ g: hat, r: 0.06 * k, home: new THREE.Vector3(0, 1.125, 0), pos: new THREE.Vector3(), vel: new THREE.Vector3(), spin: new THREE.Vector3(), rest: true });
+        for (const l of lumps) fuse(l.g);
         void base;
         body.scale.setScalar(k);
         this.group.add(root); this.snowmen++;
@@ -56,6 +68,7 @@ export class Props {
           p.position.set(0, 0.3, sgn * 0.1); p.rotation.x = -sgn * 0.32; if (sgn < 0) { p.rotation.y = Math.PI; p.rotation.x = -0.32; }
           body.add(p);
         }
+        fuse(body);
       }
       this.group.add(root);
       return { def, root, body, r: def.type === 'cone' ? 0.1 : 0.17, h: def.type === 'cone' ? 0.27 : 0.6, m: def.type === 'cone' ? 1 : 1.6,

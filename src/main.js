@@ -9,6 +9,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
 import { LOWMEM } from './budget.js';
 import { Streamer } from './stream.js';
+import { Baker } from './bake.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut, stripShut } from './plan.js';
 import { loadCollection, loadLocalImages, pageUrl, imageUrl } from './collection.js';
 import { createMap } from './map.js';
@@ -367,10 +368,20 @@ async function boot() {
     callout(n === all ? 'EVERY SNOWMAN' : `SNOWMAN ${n} / ${all}`);
   };
 
+  // What never moves, drawn as one batch to a look (src/bake.js): what the features build is batched as each is built (k.ready),
+  // and the rest once they all stand, behind the loading bar, before anything is warmed or counted; then looked over before
+  // every drawing.
+  { const art = new WeakSet(); for (const a of G.museum.arts || []) { if (a.mesh) art.add(a.mesh); if (a.obj && a.obj.traverse) a.obj.traverse(o => art.add(o)); }
+    const bake = G.bake = new Baker(G.museum.group, plan, { skip: o => art.has(o) });
+    mirror.cam.layers.enable(8);      // (what is too small to see from here is still in the floor's reflection: src/stream.js's applyLayers, src/visible.js's MIRROR)
+    bake.onUndo = () => { G._reg = 599; };      // (what was in a batch undone is streamed from the next frame: src/stream.js)
+    bake.onMade = () => { if (G.vis && G.vis.register) bake.filing(() => G.vis.register()); if (G.stream) G.stream.register(); };      // (filed at once by the culling and the streamer)
+    const before = scene.onBeforeRender; scene.onBeforeRender = function (...a) { if (bake.fresh) { bake.fresh = false; bake.guard(); } return before.apply(this, a); }; }
   // Every registered feature (features.js) is started here, with the shared kit, the bar moving on as they start.
   await loading(89, 'Making the last rounds', 91);
   G.features = await startFeaturesInTurn({ G, THREE, secrets, say, once, callout, sound, stage, key: verb => (input.usedTouch ? verb || 'LOOK' : E()) }, (n, all) => loading(89 + 3 * n / all, 'Making the last rounds', 92));
 
+  G.museum.group.updateMatrixWorld(true); G.bake.now();      // (the rest of the world, now it all stands)
   setVehicle('car');
   G.car.place(plan.spawn.x + 3, plan.spawn.z, plan.spawn.yaw);
   G.drone.group.visible = false; G.drone.shadow.visible = false;
@@ -1818,13 +1829,14 @@ function tick(now) {
   // drawn from it (the chrome toy's mirror is next). Whatever has been built since last time is looked at twice a second: until then it is simply drawn.
   if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
     if (!G.vis) G.makeVis();
-    else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.vis.register();
+    else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.bake.filing(() => G.vis.register());      // (the batched pieces filed as they are: src/bake.js)
     G.vis.update(camera.position, G.vehicle && G.vehicle.pos, !!G.cineEye || !!G.cutscene || stage.on, mirror.enabled ? G.floorY || 0 : null, !!(G.live && G.live.live));
   }
   // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
   if (G.state === 'play' && G.vehicle) { const live = G.live || (G.live = new LiveMirror(renderer, scene)); const chrome = G.vehicle.kind === 'drone' && garage.on.drone === 'manta'; if (live.onToy !== garage.on.drone) { live.reset(); live.onToy = garage.on.drone; } live.update(dt, G.fps || 0, G.vehicle.group, G.vehicle.pos, chrome); }
   lampNear(dt);
   fitNear();
+  if (G.bake) { G.bake.fresh = true; G.bake.state = G.state; if (G.state === 'play' && !G.cineEye && !G.cutscene && !stage.on && (!G._pvs || G.vis)) G.bake.specksAt(camera, renderer.domElement.height); else G.bake.specksAll(); }      // (what is too small to see: in play only)
   if (G.stream) { G.stream.update(dt, camera.position); if ((G._reg = (G._reg || 0) + 1) % 600 === 0) G.stream.register(); }      // (and whatever was built since)
   // The world's matrices are brought up to date once a frame, here, not once for each time the scene is drawn (three.js walks
   // every object and works its matrix out again at every drawing: twice a frame, the floor's reflection and then the view).
@@ -1850,7 +1862,7 @@ function tick(now) {
 // Until play it only draws everything (the call at the top of the frame).
 G.makeVis = () => {
   if (G.vis || !G._pvs || G._pvs === true || !G._Vis || !G.plan.stripped) return;
-  G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register();
+  G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.bake.filing(() => G.vis.register());
   // (on a phone the park's big features are built only when you come near, and their walls are missing till then: see _sweep)
   G.vis.excuse = cam => { const L = G.features ? G.features.pending() : []; return L.length > 0 && L.every(q => Math.hypot(cam.x - q.x, cam.z - q.z) > q.r + 40); };
 };
