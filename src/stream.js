@@ -27,8 +27,9 @@ const HIDDEN = 7;                          // the layer the camera does not draw
 // (A piece drawn as part of a batch, src/bake.js, is on no layer at all, whatever either says, until its batch is undone; and
 // what is too small to see from where the camera is, userData.tiny, is drawn only in the floor's reflection, on the layer
 // the culling keeps for that, src/visible.js's MIRROR: the polish is smeared, and takes a little of even a speck.)
-const MIRROR = 8;
-export function applyLayers(o) { const u = o.userData; let m = u.baked ? 0 : u.far ? 1 << HIDDEN : u.cullMask != null ? u.cullMask : 1; if (u.tiny && (m & 1)) m = 1 << MIRROR; o.layers.mask = m; }
+// (The culling also keeps a layer for what only the view draws, VIEW: a speck there is drawn by neither, since the reflection had no need of it.)
+const MIRROR = 8, VIEW = 9;
+export function applyLayers(o) { const u = o.userData; let m = u.baked ? 0 : u.far ? 1 << HIDDEN : u.cullMask != null ? u.cullMask : 1; if (u.tiny && (m & (1 | 1 << VIEW))) m = m & (1 | 1 << MIRROR) ? 1 << MIRROR : 1 << HIDDEN; o.layers.mask = m; }
 // Is every array of this geometry still in memory, so that three.js can send it up again after a dispose()?
 const held = g => { for (const k in g.attributes) { const a = g.attributes[k]; if (!(a.data ? a.data.array : a.array)) return false; } return !g.index || !!g.index.array; };
 

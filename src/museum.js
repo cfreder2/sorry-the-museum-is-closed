@@ -1567,6 +1567,7 @@ export class Museum {
       geo.setIndex(new THREE.BufferAttribute(b.index, 1));
       const q = b.bounds, mid = new THREE.Vector3((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2, (q.z0 + q.z1) / 2);
       geo.boundingSphere = new THREE.Sphere(mid, Math.hypot(q.x1 - q.x0, q.y1 - q.y0, q.z1 - q.z0) / 2);
+      geo.boundingBox = new THREE.Box3(new THREE.Vector3(q.x0, q.y0, q.z0), new THREE.Vector3(q.x1, q.y1, q.z1));      // (and its box, while the vertices are here to say so: src/visible.js files it by this, not by the ball round it)
       if (!AUDIT) for (const a of Object.values(geo.attributes)) a.onUpload(function () { this.array = null; });      // once it is on the graphics card, the copy here can go
       const mesh = new THREE.Mesh(geo, mats[b.mat]); mesh.matrixAutoUpdate = false; mesh.visible = false;
       g.add(mesh); chunks.push({ mesh, ...b.bounds });

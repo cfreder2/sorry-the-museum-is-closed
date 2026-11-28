@@ -13,7 +13,7 @@
 //                  drawing them once more in flat colours.
 //   THE REFLECTION the same solid test from the floor mirror's own camera, for what the mirror's camera would not have
 //                  drawn, counted only where a floor that takes the reflection is in the picture (and as far round it as
-//                  the polish smears).
+//                  the polish smears: on the mirror's picture that is the floor's place mirrored left for right).
 // The pass mark is no fault of any kind in any view.
 import * as T from 'three';
 import { HIDDEN, MIRROR, onShow, ceilOf, CELL } from '/src/visible.js';
@@ -132,6 +132,7 @@ export async function check(list, opt = {}) {
     for (let vi = 0; vi < list.length; vi++) {
       const [kind, x, y, z, yaw, pitch] = list[vi], dx = Math.sin(yaw) * Math.cos(pitch), dz = Math.cos(yaw) * Math.cos(pitch), dy = Math.sin(pitch);
       G.vehicle.place(x, z, yaw, y); if (G.vehicle.vel) G.vehicle.vel.set(0, 0, 0);
+      if (G.mirror && G.set.mirror !== false) G.mirror.enabled = true;      // (the floor's reflection held on: a slow headless browser has the quality governor turn it off, and then the reflection goes untested)
       G.testEye = { at: [x, y, z], look: [x + dx * 10, y + dy * 10, z + dz * 10] };
       await frame(); G.vehicle.place(x, z, yaw, y); if (G.vehicle.vel) G.vehicle.vel.set(0, 0, 0); await frame(); await frame();
       const all = V._all, bk = out.byKind[kind] || (out.byKind[kind] = { views: 0, covered: 0, faultViews: 0, faults: 0 });
@@ -144,9 +145,9 @@ export async function check(list, opt = {}) {
         like(eyeAll, G.camera); like(eyeHid, G.camera);
         R.setRenderTarget(rt); R.autoClear = true; R.setClearColor(0x000000, 0); R.clear(); pass(eyeAll, 'solid'); R.readRenderTargetPixels(rt, 0, 0, W2, H2, px); tally(p32);
         const floorPx = []; let anyFloor = false;
-        for (let id = 1; id < things.length; id++) if (count[id]) { const o = things[id]; if (!(o.layers.mask & 1)) found.push({ fault: 'solid', px: count[id], ...name(o) }); if (floorSet.has(o)) anyFloor = true; }
+        for (let id = 1; id < things.length; id++) if (count[id]) { const o = things[id]; if (!(o.layers.mask & G.camera.layers.mask)) found.push({ fault: 'solid', px: count[id], ...name(o) }); if (floorSet.has(o)) anyFloor = true; }
         // -- see-through things the game's camera would not have drawn, over that depth, as themselves on grey
-        const hid = o => !(o.layers.mask & 1) && onShow(o);
+        const hid = o => !(o.layers.mask & G.camera.layers.mask) && onShow(o);
         R.autoClear = false; R.setClearColor(0x808080, 1); R.clear(true, false, false); pass(eyeHid, 'clear', hid, false); R.readRenderTargetPixels(rt, 0, 0, W2, H2, px2);
         const grey = q32[0]; let changed = 0; const g0 = grey & 255, g1 = (grey >> 8) & 255, g2 = (grey >> 16) & 255;
         for (let i = 0; i < NPX; i++) { const c = q32[i]; if (c !== grey && (Math.abs((c & 255) - g0) > 3 || Math.abs(((c >> 8) & 255) - g1) > 3 || Math.abs(((c >> 16) & 255) - g2) > 3)) { changed++; px2[i * 4 + 3] = 1; } else px2[i * 4 + 3] = 0; }
@@ -165,10 +166,12 @@ export async function check(list, opt = {}) {
             const RX = 44, RY = 44 + Math.round(H2 * 0.022), wide = new Uint8Array(NPX), tmp = new Uint8Array(NPX);
             for (let j = 0; j < H2; j++) { let run = -1e9; const row = j * W2; for (let i = 0; i < W2; i++) { if (mask[row + i]) run = i; if (i - run <= RX) tmp[row + i] = 1; } run = 1e9; for (let i = W2 - 1; i >= 0; i--) { if (mask[row + i]) run = i; if (run - i <= RX) tmp[row + i] = 1; } }
             for (let i = 0; i < W2; i++) { let run = -1e9; for (let j = 0; j < H2; j++) { if (tmp[j * W2 + i]) run = j; if (j - run <= RY) wide[j * W2 + i] = 1; } run = 1e9; for (let j = H2 - 1; j >= 0; j--) { if (tmp[j * W2 + i]) run = j; if (run - j <= RY) wide[j * W2 + i] = 1; } }
+            // (a point on the floor is seen by the two cameras at the same height on their pictures and at opposite sides: the floor's mask, mirrored left for right)
+            for (let j = 0; j < H2; j++) { const row = j * W2; for (let i = 0; i < W2 >> 1; i++) { const a = wide[row + i]; wide[row + i] = wide[row + W2 - 1 - i]; wide[row + W2 - 1 - i] = a; } }
             like(eyeAll, G.mirror.cam); const fl = G.museum.floors.filter(m => m.visible); for (const m of fl) m.visible = false;
             try { R.autoClear = true; R.setClearColor(0x000000, 0); R.clear(); pass(eyeAll, 'solid'); R.readRenderTargetPixels(rt, 0, 0, W2, H2, px); } finally { for (const m of fl) m.visible = true; }
             count.fill(0, 0, things.length + 1); for (let i = 0; i < NPX; i++) if (wide[i]) { const id = p32[i] & 0xffffff; if (id) count[id]++; }
-            for (let id = 1; id < things.length; id++) if (count[id] && !(things[id].layers.mask & (1 | (1 << MIRROR)))) found.push({ fault: 'reflection', px: count[id], ...name(things[id]) });
+            for (let id = 1; id < things.length; id++) if (count[id] && !(things[id].layers.mask & V.mirrorCam.layers.mask)) found.push({ fault: 'reflection', px: count[id], ...name(things[id]) });
           }
         }
       } finally { for (const o of hide) o.visible = true; }

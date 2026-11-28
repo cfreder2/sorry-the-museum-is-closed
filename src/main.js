@@ -95,7 +95,7 @@ import './look.js';              // the look pass over the finished world: the s
 const $ = id => document.getElementById(id);
 const canvas = $('view');
 const params = new URLSearchParams(location.search);
-const CULL = !params.has('nocull');      // what cannot be seen from where the camera is is not drawn: src/visible.js, data/pvs.json (tools/dev/pvs.mjs). On everywhere, phones too (it shares the layers with the streamer, src/stream.js); ?nocull turns it off. (?cull=wide, ?cull=same: how the floor's reflection is culled.)
+const CULL = !params.has('nocull');      // what cannot be seen from where the camera is is not drawn: src/visible.js, data/pvs.json (tools/dev/pvs.mjs). On everywhere, phones too (it shares the layers with the streamer, src/stream.js); ?nocull turns it off. (?cull=table: the table alone, as before the walk through the doors; ?cull=portal: the floor's reflection culled too, not yet trusted.)
 
 // ------------------------------------------------------------------ stage ---
 
@@ -1853,6 +1853,7 @@ function tick(now) {
   if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
     if (!G.vis) G.makeVis();
     else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.bake.filing(() => G.vis.register());      // (the batched pieces filed as they are: src/bake.js)
+    camera.updateMatrixWorld();
     G.vis.update(camera.position, G.vehicle && G.vehicle.pos, !!G.cineEye || !!G.cutscene || stage.on, mirror.enabled ? G.floorY || 0 : null, !!(G.live && G.live.live));
   }
   // The chrome toy shows the room it is in, when there are frames to spare (src/livemirror.js).
@@ -1890,6 +1891,8 @@ G.makeVis = () => {
   G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.bake.filing(() => G.vis.register());
   // (on a phone the park's big features are built only when you come near, and their walls are missing till then: see _sweep)
   G.vis.excuse = cam => { const L = G.features ? G.features.pending() : []; return L.length > 0 && L.every(q => Math.hypot(cam.x - q.x, cam.z - q.z) > q.r + 40); };
+  // (the walk through the doors looks from the camera itself, and from the reflection's; and what the table says can be seen from where you are is made ready to draw a few a frame)
+  G.vis.camera = camera; G.vis.mirror = mirror; G.vis.warm = G.warm;
 };
 
 // The headlamp up against something. Its light falls off with distance, so a wall a hand in front of it took dozens of

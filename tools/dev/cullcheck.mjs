@@ -7,7 +7,8 @@
 //   node tools/dev/cullcheck.mjs 8896 --random=600 --no-directed --seed=11     a quick look
 //   node tools/dev/cullcheck.mjs 8896 --only="door,in a doorway"                 some kinds of directed view only
 //   --out=FILE (the faults and the tallies, as json)   --stills=DIR (the worst faults, with ?cull off and on, as pictures)
-//   --mode=wide or --mode=same   with the floor's reflection culled too (?cull=wide, ?cull=same: see src/visible.js): the reflection's faults are then counted
+//   --mode=table or --mode=portal   ?cull=table (the table alone: as before the walk through the doors), ?cull=portal (the floor's reflection culled too,
+//                                 by its own walk: its faults are then counted; see src/visible.js). By default the view is walked and the reflection is not culled
 // What it looks at, and how a see-through thing is judged, is at the top of tools/dev/cullcheck-page.js.
 // Exit code 0 if no view has a fault, 1 if any has, 2 if it could not run.
 import fs from 'fs'; import path from 'path';

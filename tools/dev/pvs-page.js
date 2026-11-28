@@ -261,6 +261,20 @@ export async function makeTable(opt = {}) {
       gl.readPixels(0, 0, cols, rows, gl.RED, gl.FLOAT, fpx); return fpx;
     };
 
+    // (which of a face's cols x rows cells are open: each looked at sixteen times, in pieces of no more than 512 pixels a side, and open if any of the
+    // sixteen sees no wall; so a gap narrower than a cell, between two walls that do not quite meet, is a door too)
+    const openCells = (at, dir, up, w, h, n, f, cols, rows) => {
+      const back = [-dir[0], -dir[1], -dir[2]], right = [up[1] * back[2] - up[2] * back[1], up[2] * back[0] - up[0] * back[2], up[0] * back[1] - up[1] * back[0]];
+      const out = new Uint8Array(cols * rows), cx = Math.ceil(cols / Math.ceil(cols * 4 / 512)), cy = Math.ceil(rows / Math.ceil(rows * 4 / 512));
+      for (let i0 = 0; i0 < cols; i0 += cx) for (let j0 = 0; j0 < rows; j0 += cy) {
+        const ni = Math.min(cx, cols - i0), nj = Math.min(cy, rows - j0), u = ((i0 + ni / 2) / cols - 0.5) * w, v2 = ((j0 + nj / 2) / rows - 0.5) * h;
+        const c = [at[0] + right[0] * u + up[0] * v2, at[1] + right[1] * u + up[1] * v2, at[2] + right[2] * u + up[2] * v2];
+        const px = square(c, dir, up, ni * w / cols, nj * h / rows, n, f, ni * 4, nj * 4);
+        for (let pj = 0; pj < nj * 4; pj++) for (let pi = 0; pi < ni * 4; pi++) if (px[pj * ni * 4 + pi] > 1e8) out[(j0 + (pj >> 2)) * cols + i0 + (pi >> 2)] = 1;
+      }
+      return out;
+    };
+
     // ------------------------------------------------------------------ where to look from ---
     t = performance.now();
     const keys = [], keyIx = new Map(), keyOf = name => { let i = keyIx.get(name); if (i == null) { i = keys.length; keys.push(name); keyIx.set(name, i); } return i; };
@@ -268,7 +282,32 @@ export async function makeTable(opt = {}) {
     const samples = [], tmpKeys = [], pt = new T.Vector3(), any = () => true;
     const at = (x, y, z) => { const k = places.keysAt(pt.set(x, y, z), tmpKeys, any, null); return k ? k.slice() : null; };
     const add = (x, y, z, delta, names, kind) => { if (!names.length) return; samples.push({ x, y, z, d: delta, k: [...new Set(names)].map(keyOf), kind }); };
-    const nSamples = { room: 0, opening: 0, air: 0 }, links = [], open = { faces: 0, area: 0 };
+    const nSamples = { room: 0, opening: 0, air: 0 }, links = [], open = { faces: 0, area: 0 }, ports = [];
+    // [room, axis, outward sign, where on the axis, then the other two axes' extents in order (x, y, z less the face's own), then what is beyond]
+    const doorsOf = (m1, cols, rows, fw, fh, centre, right, up, n, axis, where, ri) => {
+      const lab = new Int32Array(cols * rows).fill(-1), boxes2 = [];
+      for (let q0 = 0; q0 < m1.length; q0++) {
+        if (!m1[q0] || lab[q0] >= 0) continue;
+        const id = boxes2.length, b = [Infinity, Infinity, -Infinity, -Infinity, []], stack = [q0]; lab[q0] = id; boxes2.push(b);
+        while (stack.length) { const q = stack.pop(), i = q % cols, j = (q - i) / cols; b[0] = Math.min(b[0], i); b[1] = Math.min(b[1], j); b[2] = Math.max(b[2], i); b[3] = Math.max(b[3], j); b[4].push(q);
+          for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= cols || jj >= rows) continue; const k = jj * cols + ii; if (m1[k] && lab[k] < 0) { lab[k] = id; stack.push(k); } } }
+      }
+      // (clumps within two pixels of each other are one door; and a face of more than 24 doors is one door the size of all of them)
+      let merged = true; while (merged) { merged = false; for (let a = 0; a < boxes2.length && !merged; a++) for (let c2 = a + 1; c2 < boxes2.length; c2++) { const p = boxes2[a], q = boxes2[c2]; if (p[0] <= q[2] + 3 && q[0] <= p[2] + 3 && p[1] <= q[3] + 3 && q[1] <= p[3] + 3) { p[0] = Math.min(p[0], q[0]); p[1] = Math.min(p[1], q[1]); p[2] = Math.max(p[2], q[2]); p[3] = Math.max(p[3], q[3]); p[4] = p[4].concat(q[4]); boxes2.splice(c2, 1); merged = true; break; } } }
+      if (boxes2.length > 24) { const p = boxes2[0]; for (const q of boxes2.slice(1)) { p[0] = Math.min(p[0], q[0]); p[1] = Math.min(p[1], q[1]); p[2] = Math.max(p[2], q[2]); p[3] = Math.max(p[3], q[3]); p[4] = p[4].concat(q[4]); } boxes2.length = 1; }
+      const other = [0, 1, 2].filter(a => a !== axis), out = [];
+      for (const [i0, j0, i1, j1, cells] of boxes2) {
+        const beyond = new Set(), st = Math.max(1, Math.floor(cells.length / 400)); let holes = 0, probed = 0;
+        for (let k = 0; k < cells.length; k += st) { const q = cells[k], i = q % cols, j = (q - i) / cols, u = ((i + 0.5) / cols - 0.5) * fw, vv = ((j + 0.5) / rows - 0.5) * fh; let any2 = false, nulls = 0;
+          for (const off of [0.15, 0.45, 0.8, 1.2]) { const p = [0, 1, 2].map(a => centre[a] + right[a] * u + up[a] * vv + n[a] * off), kk = at(p[0], p[1], p[2]); if (!kk && (off === 0.45 || off === 0.8)) nulls++; if (kk) for (const nm of kk) { any2 = true; const ix = P.rooms.indexOf(P.byId[nm]); if (nm.startsWith('o:') || ix < 0) beyond.add(-1); else if (ix !== ri) beyond.add(ix); } }
+          if (!any2) beyond.add(-1); if (nulls === 2) holes++; probed++; }
+        if (holes >= 0.2 * probed) beyond.add(-1);      // (a fifth of it or more with nowhere a camera can be at 0.45 m and 0.8 m beyond: a hollow, a slab under a well, where walls are seen through from behind; the walk cannot follow, and takes it as the open air)
+        const u0 = ((i0 - 1) / cols - 0.5) * fw, u1 = ((i1 + 2) / cols - 0.5) * fw, v0 = ((j0 - 1) / rows - 0.5) * fh, v1 = ((j1 + 2) / rows - 0.5) * fh, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+        for (const [u, vv] of [[u0, v0], [u1, v0], [u0, v1], [u1, v1]]) for (let a = 0; a < 3; a++) { const x = centre[a] + right[a] * u + up[a] * vv; lo[a] = Math.min(lo[a], x); hi[a] = Math.max(hi[a], x); }
+        out.push([ri, axis, n[axis], +where.toFixed(3), +lo[other[0]].toFixed(2), +hi[other[0]].toFixed(2), +lo[other[1]].toFixed(2), +hi[other[1]].toFixed(2), ...[...beyond].sort((a, b) => a - b)]);
+      }
+      return out;
+    };
     // rooms: a lattice no wider than 3 m, floor to ceiling
     const STEP = opt.step || 3;
     P.rooms.forEach((r, ri) => {
@@ -281,7 +320,7 @@ export async function makeTable(opt = {}) {
       FACES.forEach(([axis, where, n, up, fw, fh], fi) => {
         const cols = Math.max(1, Math.min(512, Math.round(fw / 0.25))), rows = Math.max(1, Math.min(512, Math.round(fh / 0.25))), IN = 0.06;
         const centre = [(r.x0 + r.x1) / 2, (r.y + c) / 2, (r.z0 + r.z1) / 2]; centre[axis] = where; const eye = [centre[0] - n[0] * IN, centre[1] - n[1] * IN, centre[2] - n[2] * IN];
-        const m1 = Uint8Array.from(square(eye, n, up, fw, fh, 0, IN + 0.55, cols, rows).subarray(0, cols * rows), q => (q > 1e8 ? 1 : 0));
+        const m1 = openCells(eye, n, up, fw, fh, 0, IN + 0.55, cols, rows);
         let nOpen = 0; for (let q = 0; q < m1.length; q++) nOpen += m1[q]; if (!nOpen) return;
         const m2 = Uint8Array.from(square(eye, n, up, fw, fh, IN + 0.5, IN + 1.3, cols, rows).subarray(0, cols * rows), q => (q > 1e8 ? 1 : 0));
         const area = nOpen * (fw / cols) * (fh / rows), sp = area <= 15 ? 0.5 : area <= 150 ? 1 : 1.5, st = Math.max(1, Math.round(sp / 0.25)); open.faces++; open.area += area;
@@ -300,6 +339,11 @@ export async function makeTable(opt = {}) {
           for (const off of offs) { add(px + n[0] * off, py + n[1] * off, pz + n[2] * off, sp * 0.71 + 0.1, names, 'opening'); nSamples.opening++; }
           if (fi === 5 && m1[j * cols + i]) { lx0 = Math.min(lx0, px - 0.4); lx1 = Math.max(lx1, px + 0.4); lz0 = Math.min(lz0, pz - 0.4); lz1 = Math.max(lz1, pz + 0.4); }
         }
+        // THE DOORS OF THIS FACE, for the game's walk from the camera through the building (src/visible.js, Portals): the open pixels in clumps, each clump's box
+        // a pixel bigger all round, clumps that nearly touch made one, and what is on the other side of each (the places up to 1.2 m beyond any of its pixels;
+        // -1, the open air or nowhere a camera can be, if a pixel has none). Only from the walls the table counts on, so a pane of glass, a grille, a wall that
+        // turns are all doors.
+        ports.push(...doorsOf(m1, cols, rows, fw, fh, centre, right, up, n, axis, where, ri));
         // an open top: the camera passing up through it is in both places at once (a well to the room above, a court open to the sky)
         if (fi === 5 && across.size) for (const nm of across) { const b2 = P.byId[nm]; links.push([lx0, lx1, c - CEIL - 0.001, b2 ? b2.y + FLOOR + 0.001 : r.top + 0.75, lz0, lz1, r.id, b2 ? nm : '*'].map(q => (typeof q === 'number' ? +q.toFixed(3) : q))); }
       });
@@ -327,7 +371,7 @@ export async function makeTable(opt = {}) {
         cellAt.set(k, cellOf.length); cellOf.push(k); boxes.push(bx); boxIn(NB + cellOf.length - 1, bx); low[keys[k]] = Math.round(b[1] * 100) / 100; } }
     gl.bindBuffer(gl.ARRAY_BUFFER, bufLo); gl.bufferSubData(gl.ARRAY_BUFFER, 0, boxLo); gl.bindBuffer(gl.ARRAY_BUFFER, bufHi); gl.bufferSubData(gl.ARRAY_BUFFER, 0, boxHi);
     const NBT = boxes.length, RW = Math.ceil(P.rooms.length / 32), cellSees = cellOf.map(() => new Uint32Array(RW));
-    stats.samples = { ...nSamples, all: samples.length, squaresOfAirWithABox: cellOf.length }; stats.openings = { faces: open.faces, squareMetres: Math.round(open.area), links: links.length }; stats.places = keys.length;
+    stats.samples = { ...nSamples, all: samples.length, squaresOfAirWithABox: cellOf.length }; stats.openings = { faces: open.faces, squareMetres: Math.round(open.area), links: links.length, doors: ports.length }; stats.places = keys.length;
     lap('choosing where to look from', t); say(`${samples.length} sample points, ${keys.length} places`);
     if (opt.dry) return { stats };
 
@@ -390,7 +434,7 @@ export async function makeTable(opt = {}) {
     stats.seen = { places: sizes.length, lists: sets.length, least: sizes[0], median: sizes[sizes.length >> 1], most: sizes[sizes.length - 1], ofBins: NB };
     stats.ms.all = Math.round(performance.now() - t0);
     const pvs = { v: 3, made: P.made, rooms: P.rooms.length, plan: planHash(P), cell: CELL, when: new Date().toISOString().slice(0, 16), how: { step: STEP, face: S, f: F, rmax: RMAX, samples: samples.length },
-      occ: [...new Set(occ)].sort(), low, bins, box: boxes.flat().map(q => (isFinite(q) ? Math.round(q * 100) / 100 : 0)), big, links, of, sets };
+      occ: [...new Set(occ)].sort(), low, bins, box: boxes.flat().map(q => (isFinite(q) ? Math.round(q * 100) / 100 : 0)), big, links, of, sets, ports };
     // (the boxes are rounded outwards, so that what was inside still is)
     for (let i = 0; i < NB; i++) for (let j = 0; j < 6; j++) { const q = boxes[i][j]; pvs.box[i * 6 + j] = isFinite(q) ? (j < 3 ? Math.floor(q * 100) : Math.ceil(q * 100)) / 100 : 0; }
     return { pvs, stats };
