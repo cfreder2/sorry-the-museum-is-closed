@@ -460,11 +460,11 @@ function kitFor(o) {
     if (f.lazy && LOWMEM) { f._pending = true; return null; }
     return begin(f);
   };
-  let lazyT = 0, building = null;
+  let lazyT = 0, building = null, pre = null;
   const wake = dt => {
     if (building) { for (const t = performance.now(); ;) { const r = building(); if (r) { building = null; return; } if (r === null || performance.now() - t > SLICE) return; } }      // (the one being built: a few milliseconds of it a frame)
     if ((lazyT += dt) < 0.5) return; lazyT = 0;
-    const p = G.vehicle && G.vehicle.pos; if (!p) return;
+    const p = pre || (G.vehicle && G.vehicle.pos); if (!p) return;
     if (G.plan.masses.some(m => p.x > m.x0 && p.x < m.x1 && p.z > m.z0 && p.z < m.z1) && !onRoof(G.plan, p.x, p.z, p.y)) return;      // in the building (not on its roof)
     for (const f of features) if (f._pending && Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) < f.lazy.r) { building = begin(f); return; }      // (one at a time)
   };
@@ -474,7 +474,18 @@ function kitFor(o) {
     // (What the button then does is the feature's too: a throw from act() is treated as one from update(), where it used to go up through main.js's frame and leave the feature holding whatever it had.)
     near(v) { for (const f of features) { if (f._broken || f._pending || !f.near) continue; let r = null; try { r = f.near(v, k); } catch (e) { broke(f, e); } if (!r) continue; if (r.act && !r.act._safe) { const act = r.act; r.act = (...a) => { try { return act(...a); } catch (e) { broke(f, e); } }; r.act._safe = true; } return r; } return null; },
     // (quiet: the opening runs the park from a window without waking what is still asleep in it)
-    update(dt, quiet = false) { k.camClose = null; if (!quiet) wake(dt); for (const f of features) { if (f._broken || f._pending) continue; if (f._unseen) { const p = G.vehicle && G.vehicle.pos; if (quiet || !p || Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) >= f.lazy.r) continue; f._unseen.visible = true; f._unseen = null; } if (!f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
+    // The opening (src/opening.js): the features the toy will be among when the game is handed to the player, at (x, z),
+    // are built while she is still in her room, a part at a time, rather than in the first frames of play, where the
+    // building and the compiling of a feature by the front steps was a frame of over 100 ms as the flight came down.
+    // prebuild(null) when it is over.
+    // The opening, once what its flight will show is ready (src/opening.js): each feature that has a prewarm(k) gets ready
+    // what it will show as play begins (the entry: the probe's shaders, its living picture), now rather than in the first
+    // frames of play.
+    prewarm() { for (const f of features) if (!f._broken && !f._pending && f.prewarm) try { f.prewarm(k); } catch (e) { console.error('feature ' + f.id, e); } },
+    // The hidden roots of the features already built that the toy will find at p (src/opening.js warms them).
+    unseenNear(p) { return features.filter(f => f._unseen && f.lazy && Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) < f.lazy.r).map(f => f._unseen); },
+    prebuild(p) { pre = p ? { x: p.x, y: p.y || 0, z: p.z } : null; },
+    update(dt, quiet = false) { k.camClose = null; if (!quiet || pre) wake(dt); for (const f of features) { if (f._broken || f._pending) continue; if (f._unseen) { const p = G.vehicle && G.vehicle.pos; if (quiet || !p || Math.hypot(p.x - f.lazy.x, p.z - f.lazy.z) >= f.lazy.r) continue; f._unseen.visible = true; f._unseen = null; } if (!f.update) continue; try { if (!f.active || f.active(k)) f.update(dt, k); } catch (e) { broke(f, e); } } },
     // The big park features not built yet (a phone builds each only when the toy comes near: begin, above): where each is and how near.
     pending() { return features.filter(f => f._pending && f.lazy).map(f => f.lazy); },
     look(art) { for (const f of features) if (!f._broken && !f._pending && f.onLook) try { f.onLook(art, k); } catch (e) { console.error('feature ' + f.id, e); } },

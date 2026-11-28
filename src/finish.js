@@ -64,6 +64,14 @@ const FinishShader = {
       vec3 c = mix(graded, plain, art);
       if (uDebug > 0.5) c = mix(c * 0.35, vec3(1.0, 0.0, 0.3), art);
       gl_FragColor = sRGBTransferOETF(vec4(c, 1.0));
+      // Dithered: the screen has 256 steps a colour, and the night is long slow ramps of dark blue (the sky, the fog, the
+      // fall of a lamp's light), so without it each ramp shows as bands; and since the grade moves red and blue apart,
+      // each colour's steps fall in different places and the bands come out tinted, like a rainbow (an iPhone's screen
+      // shows it plainly). Less than one step of noise, the pattern different in each colour; never on a work of art.
+      float n1 = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+      float n2 = fract(52.9829189 * fract(dot(gl_FragCoord.xy + vec2(17.0, 43.0), vec2(0.06711056, 0.00583715))));
+      vec3 dn = vec3(n1 + n2 - 1.0, n2 - n1, n1 + n2 - 1.0) * vec3(1.0, 1.0, -1.0);
+      gl_FragColor.rgb += dn * (1.0 / 255.0) * (1.0 - art);
     }`,
 };
 

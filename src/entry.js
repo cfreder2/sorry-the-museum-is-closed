@@ -204,10 +204,12 @@ feature({
     return true;
   },
   _park() { const b = this.bot; if (!b) return; b.cut = true; b.near = false; b.x = this.RS.x; b.z = this.RS.z; b.yaw = b.look = -Math.PI / 2; b.v = 0; b.mode = 'patrol'; b.pn = 0; b.group.visible = false; b.pool.visible = false; },
+  // (A new game's opening asks for this while she is still in her room: src/features.js prewarm.)
+  prewarm(k) { this._warm(k); },
   _warm(k) {
     const G = k.G, r = G.renderer; if (this.warmed || !r || !r.compileAsync || !G.camera) return;
     this.warmed = true; this.probe._warm(k); this.life.prepare();
-    const v = this.group.visible; this.group.visible = true; r.compileAsync(this.group, G.camera, G.scene).catch(() => {}); this.group.visible = v;
+    const v = this.group.visible; this.group.visible = true; (G.warm ? G.warm(this.group) : r.compileAsync(this.group, G.camera, G.scene)).catch(() => {}); this.group.visible = v;
   },
   _hideAll() { if (this.shown) this.probe._hide(); this.shown = false; this.group.visible = false; this.hum.set(0); },      // (only if it is this that has it out: later it is the probe's own)
   _hush() { this.hum.set(0, 0.1); setTimeout(() => this.hum.stop(), 900); },      // (its hum, let go for good: nothing will be here to turn it down again)

@@ -596,7 +596,7 @@ feature({
   _warm(k) {
     const G = k.G, r = G.renderer; if (this.warmed || !r || !r.compileAsync || !G.camera) return;
     this.warmed = true;
-    for (const o of [this.m.group, this.ribbon.mesh, this.motes.mesh, this.pool]) { const v = o.visible; o.visible = true; r.compileAsync(o, G.camera, G.scene).catch(() => {}); o.visible = v; }
+    for (const o of [this.m.group, this.ribbon.mesh, this.motes.mesh, this.pool]) { const v = o.visible; o.visible = true; (G.warm ? G.warm(o) : r.compileAsync(o, G.camera, G.scene)).catch(() => {}); o.visible = v; }
   },
 
   // ---------------------------------------------------------------- back in by the front doors

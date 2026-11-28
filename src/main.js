@@ -256,6 +256,9 @@ async function prepare(from, to, step) {
 // Something built while the game is being played (one of the park's features on a phone: src/features.js, k.ready) has its
 // shaders compiled before it is shown: as they will be drawn (into the composer's buffer, not the screen), and in the
 // browser's own time. The promise is kept when they are ready.
+// (Everything that warms its own shaders should come here: compiled with no target set, a shader is made for the screen,
+// with the tone mapping in it, which the game never draws with; the probe, the entry and the living pictures did that,
+// and paid for each shader twice, the second time in the frame it was first shown.)
 G.warm = o => { const was = renderer.getRenderTarget(); let p = null; renderer.setRenderTarget(composer.readBuffer); try { p = renderer.compileAsync(o, camera, scene); } catch (e) { console.warn('compile', e); } renderer.setRenderTarget(was); return p || Promise.resolve(); };
 
 async function boot() {
@@ -1814,11 +1817,7 @@ function tick(now) {
   // (?cull) Made once the shut rooms have left the plan (the table is for the plan as it is played). Here, where the camera is where it will be drawn from and before anything is
   // drawn from it (the chrome toy's mirror is next). Whatever has been built since last time is looked at twice a second: until then it is simply drawn.
   if (G._pvs && G.plan.stripped && (G.state === 'play' || G.state === 'study')) {
-    if (!G.vis) {
-      G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register();
-      // (on a phone the park's big features are built only when you come near, and their walls are missing till then: see _sweep)
-      G.vis.excuse = cam => { const L = G.features ? G.features.pending() : []; return L.length > 0 && L.every(q => Math.hypot(cam.x - q.x, cam.z - q.z) > q.r + 40); };
-    }
+    if (!G.vis) G.makeVis();
     else if ((G._vreg = (G._vreg || 0) + 1) % 30 === 0) G.vis.register();
     G.vis.update(camera.position, G.vehicle && G.vehicle.pos, !!G.cineEye || !!G.cutscene || stage.on, mirror.enabled ? G.floorY || 0 : null, !!(G.live && G.live.live));
   }
@@ -1845,6 +1844,16 @@ function tick(now) {
   } finally { scene.matrixWorldAutoUpdate = true; }
   quality.busy += (performance.now() - began - quality.busy) * 0.05;      // (for govern: how much of the frame is this function's)
 }
+
+// (?cull) The table's side of the game, made once: on the first frame of play, or sooner, while a new game's opening is still
+// in her room (src/opening.js asks): filing every thing in the world was most of a frame of 90 ms as the flight came down.
+// Until play it only draws everything (the call at the top of the frame).
+G.makeVis = () => {
+  if (G.vis || !G._pvs || G._pvs === true || !G._Vis || !G.plan.stripped) return;
+  G.vis = new G._Vis(G.museum.group, G.plan, G._pvs, mirror.cam, renderer); G._pvs = true; G.vis.register();
+  // (on a phone the park's big features are built only when you come near, and their walls are missing till then: see _sweep)
+  G.vis.excuse = cam => { const L = G.features ? G.features.pending() : []; return L.length > 0 && L.every(q => Math.hypot(cam.x - q.x, cam.z - q.z) > q.r + 40); };
+};
 
 // The headlamp up against something. Its light falls off with distance, so a wall a hand in front of it took dozens of
 // times what a wall two metres off does, burnt to white and bloomed over the whole frame. So the lamp is turned down as

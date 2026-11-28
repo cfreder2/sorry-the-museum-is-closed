@@ -78,7 +78,7 @@ export class Streamer {
       // (moved since its box was made: the box goes with it, and from now on it is one of the things that move)
       const e = it.o.matrixWorld.elements; if (e[12] !== it.x || e[13] !== it.y || e[14] !== it.z) { it.box.translate(this._v.set(e[12] - it.x, e[13] - it.y, e[14] - it.z)); it.x = e[12]; it.y = e[13]; it.z = e[14]; it.moves = true; }
       const d = this._dist(it.box, cam), r = it.inner ? reach.inner : reach.outer;
-      if (it.on && d > r + gap) { it.on = false; it.o.userData.far = true; applyLayers(it.o); gone.push(it); }
+      if (it.on && d > r + gap) { it.on = false; it.o.userData.far = true; applyLayers(it.o); if (!(this.pinned && this.pinned.has(it))) gone.push(it); }      // (pinned: hidden, but kept on the card)
       else if (!it.on && d < r) { it.on = true; it.o.userData.far = false; applyLayers(it.o); }
     }
     // Let go of what only far things use (worked out only when something has gone: it is a walk over every material).
@@ -118,6 +118,21 @@ export class Streamer {
     }
     onProgress(1);
   }
+  // A journey the camera will make that cannot wait for anything (the opening's flight, src/opening.js): everything that
+  // would be drawn from any of `points` is pinned: it is still hidden and shown by distance as the camera goes, but never
+  // let go from the graphics card, until release(). So it can be warmed beforehand (src/flywarm.js), and the journey
+  // sends nothing up as it goes: on a phone, every first drawing on the way was a frame the screen did not show.
+  // Hands back the things, in the order the journey first comes near them.
+  pinAlong(points) {
+    const seen = new Set(), out = [];
+    for (const p of points) {
+      const inRoom = this.indoors(p), reach = inRoom ? { inner: this.near, outer: this.near * 0.8 } : { inner: this.near * 0.55, outer: this.outR };
+      for (const it of this.items) { if (seen.has(it)) continue; if (this._dist(it.box, p) < (it.inner ? reach.inner : reach.outer)) { seen.add(it); out.push(it); } }
+    }
+    this.pinned = seen;
+    return out;
+  }
+  release() { this.pinned = null; this.t = 1; this.at.set(1e9, 0, 0); }
   // Everything back on (a staged view or a cut scene that looks a long way off).
   all() { for (const it of this.items) if (!it.on) { it.on = true; it.o.userData.far = false; applyLayers(it.o); } this.at.set(1e9, 0, 0); }
 }

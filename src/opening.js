@@ -26,6 +26,7 @@
 
 import { buildSet, DOORWAY } from './openingset.js';
 import { OpeningSound } from './openingsound.js';
+import { flyWarm } from './flywarm.js';
 
 const ease = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -250,7 +251,7 @@ export class Opening {
     car.position.y += set.L(set.carSpot.x, set.carSpot.y, set.carSpot.z).y - bb.min.y;          // its wheels on the shelf, whatever its build
     this.carRest = car.position.clone();
     this.carYaw = Math.atan2(CAR.to[0] - CAR.x, CAR.to[1] - CAR.z);
-    v.place(CAR.x, CAR.z, this.carYaw, 0); v.group.visible = false;
+    v.place(CAR.x, CAR.z, this.carYaw, 0); this._toy(false);
     this.carGround = v.pos.y;
 
     // out of doors
@@ -270,6 +271,7 @@ export class Opening {
     for (const k of ['keydown', 'pointerdown']) addEventListener(k, this._input, { capture: true });
     this.snd.tvOn();
     setTimeout(() => { if (this.on && this.phase === 'room') this._fade(false); }, 150);
+    this._warmFlight();
     this.frame(0);
   }
 
@@ -575,7 +577,7 @@ export class Opening {
     this._once('set', N.set, T, () => snd.thud(0, 0.02)); this._once('up', N.set + 0.12, T, () => snd.steps(0, 5, 1, 0.13));
     this._once('in', N.back, T, () => this._fade(false)); this._once('w4', N.back + 0.1, T, () => snd.tiptoe(0.25, 4, 0.5)); this._once('shut', N.back + 0.75, T, () => snd.click(0, 0.03));
     if (this.frozen) this._fade(T > N.black + 0.45 && T < N.back + 0.45, true);
-    if (!this.home.back) v.group.visible = T >= N.set;
+    if (!this.home.back) this._toy(T >= N.set);
     // back at the window: her breath on the glass, the handset in her hands, the toy waking in the snow below
     this._once('b1', N.puff, T, () => snd.breath(0)); this._once('b2', N.puff2, T, () => snd.breath(0));
     const puff = t0 => (T < t0 ? 0 : Math.min(1, (T - t0) / 0.55) * Math.exp(-Math.max(0, T - t0 - 0.55) / 2.4));
@@ -605,23 +607,59 @@ export class Opening {
   }
   _home() {
     const v = this.G.vehicle, h = this.home; if (h.back) return; h.back = true;
-    v.place(h.x, h.z, h.yaw, h.y); v.group.visible = true;
+    v.place(h.x, h.z, h.yaw, h.y); this._toy(true);
   }
 
   // ------------------------------------------------------------------ the flight --
 
   // Out through the glass and down to the toy, along behind it as it makes for the lights, then up over everything there
   // is to drive through, to where the game will find it.
-  _fly() {
-    const THREE = this.THREE, h = this.home, fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), sx = -fz, sz = fx, cam = this.camera, V = (x, y, z) => new THREE.Vector3(x, y, z);
-    this.phase = 'fly'; this.tF = 0; this.len = this.calm ? CALM_FLY : FLY; this.fov0 = cam.fov; this.w = 0;
-    this.from = cam.position.clone();
+  // The toy shown or hidden: its body, never its headlamp (switched off, it lights nothing). three.js builds each shader
+  // for the lights in the scene, and a hidden lamp is not in it: hiding the whole toy compiled every shader in view
+  // again, twice (as she set it down in the street, and as the game took it over at the steps).
+  _toy(on) {
+    const g = this.G.vehicle.group; g.visible = true;
+    if (!this._parts || this._parts.g !== g) { this._parts = []; this._lamps = []; this._parts.g = g; g.traverse(o => { if (o !== g && (o.isMesh || o.isPoints || o.isLine || o.isSprite)) this._parts.push([o, o.visible]); else if (o.isLight) this._lamps.push([o, 0]); }); }
+    if (this._parts.on === on) return; this._parts.on = on;
+    for (const [o, was] of this._parts) o.visible = on ? was : false;
+    for (const l of this._lamps) { if (on) l[0].intensity = l[1]; else { l[1] = l[0].intensity; l[0].intensity = 0; } }      // (a lamp of its own that is always lit, the drone's, kept dark while it is hidden)
+  }
+  // The flight's path over the park, from where the chase leaves the toy to where the game finds it.
+  _flyPts() {
+    const THREE = this.THREE, h = this.home, fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), sx = -fz, sz = fx, V = (x, y, z) => new THREE.Vector3(x, y, z);
     const rel = (back, side, up) => V(h.x - fx * back + sx * side, h.y + up, h.z - fz * back + sz * side);
     // (It leaves the toy the way the toy is going, and no faster, and passes it on the left; round the tree and up over
     // it; high over the museum's roofs, and over the top of its front, which stands 27 m; then down and round to the steps.)
     const p = this._chase(SWOOP + CHASE, V()), ax = Math.sin(this.carYaw), az = Math.cos(this.carYaw);
-    const pts = [V(p.x - ax * 6, p.y, p.z - az * 6), p, V(p.x + ax * 6 + az * 1.2, p.y + 1.6, p.z + az * 6 - ax * 1.2), V(357, 12, 9), V(344, 27, 13), V(285, 36, 55),
+    return [V(p.x - ax * 6, p.y, p.z - az * 6), p, V(p.x + ax * 6 + az * 1.2, p.y + 1.6, p.z + az * 6 - ax * 1.2), V(357, 12, 9), V(344, 27, 13), V(285, 36, 55),
       V(170, 38, 100), V(74, 37, 113), V(24, 34, 119), V(-7, 20, 122), rel(30, 7.6, 8.6), rel(19, 1.8, 2.7), this.endAt.clone()];
+  }
+  // On a phone (where the streamer keeps only what is near on the graphics card): everything the flight will pass is
+  // pinned there, and warmed while she is in her room and at her window (src/flywarm.js), so that the flight itself sends
+  // nothing up. Every first drawing on the way was a frame the phone's screen did not show: three or four stood still
+  // at once over the park, while the frame counter said 60.
+  _warmFlight() {
+    const G = this.G, S = G.stream; if (!S || !G.museum || !G.museum.renderer) return;
+    try {
+      const THREE = this.THREE, at = [], v = new THREE.Vector3();
+      for (let T = 0; T <= SWOOP + CHASE; T += 0.25) at.push(this._chase(T, new THREE.Vector3()));
+      const c = new THREE.CatmullRomCurve3(this._flyPts(), false, 'centripetal'); c.arcLengthDivisions = 600;
+      const L = c.getLength(); for (let s = 0; s <= L; s += 6) at.push(c.getPointAt(Math.min(1, s / L), v).clone());
+      const items = S.pinAlong(at), objs = items.map(it => it.o);
+      // (and the park's features the toy will be among at the steps, built behind the loading bar but kept hidden until the toy comes near)
+      const reveal = G.features && G.features.unseenNear ? G.features.unseenNear(this.home) : [];
+      for (const r of reveal) r.traverse(o => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite) objs.push(o); });
+      let root = G.museum.group; while (root.parent) root = root.parent;
+      const fg = G.museum.group.getObjectByName('features'), compile = fg ? [...fg.children] : [];
+      this.warm = flyWarm(G.museum.renderer, root, objs, { budget: 5, reveal, compile, camera: this.camera });
+      if (G.features && G.features.prebuild) G.features.prebuild(this.home);
+    } catch (e) { console.warn('warm', e); this.warm = null; }
+  }
+  _fly() {
+    const THREE = this.THREE, h = this.home, cam = this.camera;
+    this.phase = 'fly'; this.tF = 0; this.len = this.calm ? CALM_FLY : FLY; this.fov0 = cam.fov; this.w = 0;
+    this.from = cam.position.clone();
+    const pts = this._flyPts(), V = (x, y, z) => new THREE.Vector3(x, y, z);
     this.curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
     this.curve.arcLengthDivisions = 1200;
     let run = 0; const a = V(), b = pts[0].clone(); for (let i = 1; i <= 24; i++) { this.curve.getPoint(i / 24 / (pts.length - 1), a); run += a.distanceTo(b); b.copy(a); }
@@ -698,6 +736,9 @@ export class Opening {
     cam.up.set(0, 1, 0);
     // the television, flickering along the hall
     const t = this.t; this._tv = this.calm ? 1 : 0.86 + 0.1 * Math.sin(t * 7.3) * Math.sin(t * 2.1) + 0.08 * Math.sign(Math.sin(t * 1.3 + Math.sin(t * 0.6) * 3));
+    if (this.warm && !this.warm.done) this.warm.step();
+    else if (this.warm && !this.warm.pre && this.phase === 'room') { this.warm.pre = true; const F = this.G.features; if (F && F.prewarm) F.prewarm(); }
+    else if (this.warm && this.warm.pre === true && this.phase === 'room') { this.warm.pre = 2; if (this.G.makeVis) this.G.makeVis(); }      // (a frame later: one thing a frame)
     if (this.phase === 'room') {
       this._light(-1); this._lines(this.frozen ? 0 : d); this._aim(d, this.view, this.snap); this.snap = false; this._props(-1);
     } else if (this.phase === 'night') { if (!this.frozen) this.tB += d; this._nightFrame(d); }
@@ -731,6 +772,8 @@ export class Opening {
     for (const k of ['keydown', 'pointerdown']) removeEventListener(k, this._input, { capture: true });
     const G = this.G;
     this.snd.stop();
+    if (G.stream) G.stream.release();
+    if (G.features && G.features.prebuild) G.features.prebuild(null);
     this._home();
     if (!G.lampOn) { G.lampOn = true; if (G.lamp) G.lamp.intensity = 70; const b = document.getElementById('bLights'); if (b) b.setAttribute('aria-pressed', 'true'); }
     if (skipped) this.sound.tick(0.08, 2200, 0.03);

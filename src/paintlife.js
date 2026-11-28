@@ -657,7 +657,7 @@ class Life {
       try { this.spec.build(this); this.made = true; this.usedAt = performance.now(); } catch (e) { console.error('paintlife ' + this.id + ': ' + (e && e.stack || e)); this.made = 'broken'; return; }
       // Compile its shaders now, off the main thread where the browser can, so the first show does not stutter.
       const G = this.k.G, r = G.renderer;
-      if (r && r.compileAsync && G.camera) { const v = this.group.visible; this.group.visible = true; const done = () => { this._compiling = 0; }; this._compiling = performance.now(); r.compileAsync(this.group, G.camera, G.scene).then(done, done); this.group.visible = v; }
+      if (r && r.compileAsync && G.camera) { const v = this.group.visible; this.group.visible = true; const done = () => { this._compiling = 0; }; this._compiling = performance.now(); (G.warm ? G.warm(this.group) : r.compileAsync(this.group, G.camera, G.scene)).then(done, done); this.group.visible = v; }
     })();
     return this._ready;
   }
