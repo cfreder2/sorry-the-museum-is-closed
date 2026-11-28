@@ -9,6 +9,7 @@
 // Everything is drawn once, merged one mesh per room; nothing runs unless the toy is in or beside Gallery 11.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { cast } from './sculpt.js';
@@ -20,7 +21,7 @@ const W = 2.05, D = 1.3, H = 1.15;                         // inside: along the 
 // ------------------------------------------------------------------ textures, all painted here
 function tex(w, h, draw, rep) {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); }
   return t;
 }

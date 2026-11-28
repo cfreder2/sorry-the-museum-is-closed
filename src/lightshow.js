@@ -214,6 +214,9 @@ feature({
     this.bulbMesh = this.B.build(g, U);
     const wm = this.W.mesh(); if (wm) { wm.name = 'lightshow-wire'; wm.frustumCulled = true; g.add(wm); this.wireMat = wm.material; }      // (left out when not in view, as the bulbs are: plain wire, nothing moves it)
     this._glows(g);
+    // (Built: the lists they were built from, some 20 MB of plain numbers, let go. Emptied, not just dropped: a ramp's
+    // height function made while they were being filled keeps hold of them.)
+    this.B.p = this.B.c = this.B.a = this.B.s = []; this.W.pos = this.W.col = []; this.B = this.W = null;
     this.hud = null; this.run = null;
     try { this.best = { car: parseFloat(localStorage.getItem('after-hours.lightrun.car')) || null, drone: parseFloat(localStorage.getItem('after-hours.lightrun.drone')) || null }; } catch { this.best = {}; }
     this.ti = 0; this.td = 99; this.prevS = -1;

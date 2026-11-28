@@ -214,7 +214,14 @@ export function laylight() {
   return tex(c);
 }
 
+// (One of each: the same glow was painted again for every lamp, pool and flare that asked for it, 62 of them at start-up.)
+const RADIAL = new Map();
 export function radial(inner = 0, power = 1) {
+  const key = inner + ',' + power; let t = RADIAL.get(key);
+  if (!t) RADIAL.set(key, t = radial1(inner, power));
+  return t;
+}
+function radial1(inner, power) {
   const [c, g] = canvas(128, 128);
   const grad = g.createRadialGradient(64, 64, inner * 64, 64, 64, 64);
   for (let i = 0; i <= 10; i++) {

@@ -2,6 +2,7 @@
 // (src/furnish.js) leaves a note where each goes; this draws them.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { fitText, SANS } from './textures.js';
 
 const INK = '#f3f1ea';
@@ -35,7 +36,7 @@ export function buildSigns(museum, plan) {
     c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 4; c.strokeRect(6, 6, W - 12, 116);
     c.save(); c.translate(10, 14); c.fillStyle = INK; (ICON[icon] || ICON.STAFF)(c); c.restore();
     c.fillStyle = INK; fitText(c, text, { x: (116 + W - 18) / 2, y: 66, w: W - 18 - 116, h: 96, px: 58, family: SANS, lines: 2 });
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     return (mats[key] = new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(0.72, 0.72, 0.72) }));
   };
   for (const m of marks) {

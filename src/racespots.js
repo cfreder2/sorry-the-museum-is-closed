@@ -12,6 +12,7 @@
 // indoor course, and the outdoor ones against the plan's own ground.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { feature } from './features.js';
 import { layCourse } from './course.js';
 import { SPOTS, archOf } from './racecourses.js';
@@ -116,7 +117,7 @@ feature({
     const label = S.alien ? '○ ∴ ○ ∷ ○' : S.rivals[0].name.toUpperCase();
     if (T.stripes) { g.lineWidth = 8; g.strokeStyle = hex(T.bar); g.strokeText(label, 256, 50); }
     g.fillStyle = T.text; g.fillText(label, 256, 50);
-    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const tex = new THREE.CanvasTexture(once(c)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.3, 1.3, 1.3) });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(2.4, S.arch - 0.4), 0.42), mat);
     m.position.set(S.x, S.fy + 1.1, S.z); m.rotation.y = S.yaw;
@@ -133,7 +134,7 @@ feature({
     g.fillStyle = 'rgba(190,255,200,.5)';
     for (let i = 0; i < 9; i++) { const a = i * Math.PI * 2 / 9; g.beginPath(); g.arc(Math.cos(a) * 188, Math.sin(a) * 188, i % 3 ? 9 : 17, 0, Math.PI * 2); g.fill(); }
     for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3 + 0.5; g.lineWidth = 5; g.beginPath(); g.moveTo(Math.cos(a) * 40, Math.sin(a) * 40); g.lineTo(Math.cos(a) * 150, Math.sin(a) * 150); g.stroke(); }
-    const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+    const tex = new THREE.CanvasTexture(once(c)); tex.anisotropy = 4;
     const [cx, cz] = [(S.area.x0 + S.area.x1) / 2, (S.area.z0 + S.area.z1) / 2], R = 21;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(R * 2, R * 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: new THREE.Color(0.7, 1.2, 0.8), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     m.rotation.x = -Math.PI / 2; m.position.set(cx, S.fy + 0.012, cz); m.renderOrder = 5;

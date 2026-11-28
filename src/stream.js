@@ -18,6 +18,7 @@
 // from the graphics card: it would be sent up again every time it came round.
 
 import * as THREE from 'three';
+import { onCard } from './budget.js';
 
 const HIDDEN = 7;                          // the layer the camera does not draw
 // The streamer and the visibility table (src/visible.js) both decide whether a thing is drawn, by its layers. So that they
@@ -92,8 +93,9 @@ export class Streamer {
       if (it.moves) continue;
       // A geometry whose copy in memory has been let go (museum.js, lights.js, budget.js do that once it is on the
       // graphics card) cannot be sent up again: it stays on the card, hidden. Disposing it made every later frame throw.
-      const g = it.o.geometry; if (g && !keepG.has(g) && held(g)) g.dispose();
-      for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && !keepT.has(x)) x.dispose(); }
+      // Nor can one whose vertices, or a texture whose canvas, budget.js has let go of (onCard): it is kept on the card too.
+      const g = it.o.geometry; if (g && !keepG.has(g) && !onCard(g) && held(g)) g.dispose();
+      for (const m of [].concat(it.o.material || [])) for (const k in m) { const x = m[k]; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && !keepT.has(x) && !onCard(x)) x.dispose(); }
     }
     this.out = this.items.length - this.items.filter(i => i.on).length;
   }

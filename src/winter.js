@@ -9,6 +9,7 @@
 // of the Tritons in the courtyard, and the arch of the Chicago Stock Exchange at the north-east corner.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
 import { onSnow, heightOf, carve } from './plan.js';
@@ -113,7 +114,7 @@ export function buildWinter(museum, plan) {
       for (let i = 0; i < 7; i++) { let x = 128 + (r() - 0.5) * 60, y = 128 + (r() - 0.5) * 60, a = r() * 6.28; c.beginPath(); c.moveTo(x, y); for (let s = 0; s < 9; s++) { a += (r() - 0.5) * 0.9; x += Math.cos(a) * (8 + r() * 14); y += Math.sin(a) * (8 + r() * 14); c.lineTo(x, y); } c.stroke(); }      // cracks
       for (let i = 0; i < 90; i++) { c.fillStyle = `rgba(225,238,250,${0.15 + r() * 0.3})`; c.beginPath(); c.arc(r() * 256, r() * 256, 0.5 + r() * 1.3, 0, 7); c.fill(); }      // bubbles
       for (let i = 0; i < 46; i++) { const a = r() * 6.28, d = 86 + r() * 44; c.fillStyle = `rgba(226,234,246,${0.25 + r() * 0.45})`; c.beginPath(); c.ellipse(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, 8 + r() * 26, 5 + r() * 10, a + 1.57, 0, 7); c.fill(); }      // snow blown over the rim
-      const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4;
+      const tx = new THREE.CanvasTexture(once(cv)); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4;
       const n = 40, geo = new THREE.CircleGeometry(1, n), P = geo.attributes.position, U = geo.attributes.uv;
       for (let i = 1; i < P.count; i++) { const a = Math.atan2(P.getY(i), P.getX(i)), rr = (p.r + 0.35) * (1 + 0.07 * Math.sin(a * 3 + p.x) + 0.04 * Math.sin(a * 7 + p.z)); P.setXY(i, Math.cos(a) * rr, Math.sin(a) * rr); }
       for (let i = 0; i < P.count; i++) U.setXY(i, 0.5 + P.getX(i) / (2.3 * p.r), 0.5 + P.getY(i) / (2.3 * p.r));
@@ -218,7 +219,7 @@ export function buildWinter(museum, plan) {
     for (const s of plan.surfaces) if (!s.hill && !plan.rooms.some(r => s.x0 >= r.x0 && s.x1 <= r.x1 && s.z0 >= r.z0 && s.z1 <= r.z1)) rect(s, 0.1);
     for (const d of plan.decals) rect(d, 0.1);
     for (const p of G.plazas) { c.beginPath(); c.arc((p.x - B.x0) * S, (p.z - B.z0) * S, p.r * S, 0, 7); c.fill(); }
-    const mask = new THREE.CanvasTexture(cv); mask.flipY = false; mask.colorSpace = THREE.NoColorSpace; mask.minFilter = mask.magFilter = THREE.LinearFilter; mask.generateMipmaps = false;
+    const mask = new THREE.CanvasTexture(once(cv)); mask.flipY = false; mask.colorSpace = THREE.NoColorSpace; mask.minFilter = mask.magFilter = THREE.LinearFilter; mask.generateMipmaps = false;
     const P = new Float32Array(NG * 3), seed = new Float32Array(NG), r = TX.rng(907);
     for (let i = 0; i < NG; i++) { P[i * 3] = r() * TILE; P[i * 3 + 1] = 0; P[i * 3 + 2] = r() * TILE; seed[i] = r(); }
     const g = new THREE.BufferGeometry();
@@ -262,7 +263,7 @@ export function buildWinter(museum, plan) {
     for (let y = 0; y < 128; y += 16) { c.fillRect(16, y + 2, 14, 6); c.fillRect(34, y + 10, 14, 6); }
     c.fillStyle = 'rgba(232,240,252,.16)'; let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
     for (let i = 0; i < 40; i++) { const left = r() < 0.5; c.beginPath(); c.arc(left ? 2 + r() * 7 : 55 + r() * 7, r() * 128, 0.8 + r() * 1.8, 0, 7); c.fill(); }      // crumbs thrown out along the lips
-    const t = new THREE.CanvasTexture(cv); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+    const t = new THREE.CanvasTexture(once(cv)); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
   })();
   const NQ = 6000, HW = 0.044, TY = 0.004;
   const tp = new Float32Array(NQ * 12), tu = new Float32Array(NQ * 8), ti = new Uint16Array(NQ * 6);
@@ -301,7 +302,7 @@ export function buildWinter(museum, plan) {
     gr.addColorStop(0.78, 'rgba(120,138,168,.62)'); gr.addColorStop(0.84, 'rgba(232,240,252,.85)'); gr.addColorStop(0.94, 'rgba(250,252,255,.95)'); gr.addColorStop(1, 'rgba(250,252,255,0)');
     c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
     for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(90,105,135,${0.08 + Math.random() * 0.1})`; c.fillRect(16 + Math.random() * 32, Math.random() * 64, 1 + Math.random() * 3, 6 + Math.random() * 14); }      // the blade's scrape
-    const t = new THREE.CanvasTexture(cv); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+    const t = new THREE.CanvasTexture(once(cv)); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
   const ploughed = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: plowT, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
   ploughed.frustumCulled = false; ploughed.renderOrder = 2; group.add(ploughed);
   let phead = 0, plast = null;

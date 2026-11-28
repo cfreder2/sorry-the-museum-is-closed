@@ -12,12 +12,13 @@
 //     up the entrance hall, where no mouse sits or runs). Flat things and lights only, but for the benches, which are solid as drawn and which the
 //     lobby's robot knows about (guardplan.js shut). Each kind is one merged mesh.
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fitText } from './textures.js';
 import { feature, features } from './features.js';
 import { shut } from './guardplan.js';
 
-const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, emissive: new THREE.Color(color).multiplyScalar(0.3), ...o });
 const rng = s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
 

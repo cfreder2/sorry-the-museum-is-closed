@@ -25,6 +25,7 @@
 // fewer triangles than the one tree drawn 234 times that it replaces. Nothing here moves or is worked out after start-up.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { streetY } from './plan.js';
 import { SPECIES } from './groundsplan.js';
 import { WIND } from './land.js';
@@ -127,7 +128,7 @@ function atlas() {
       line(x0, 512, x0 + Math.sin(a) * l, 512 - Math.cos(a) * l, 2.6, 'rgb(48,36,28)'); for (let k = 0; k < 7; k++) { const t = 0.3 + r() * 0.7; dot(x0 + Math.sin(a) * l * t, 512 - Math.cos(a) * l * t - 5, 9 + r() * 10, 4 + r() * 3, SN(0.94), a); } } });
   cell(2, SHRUB.cover, r => { for (let i = 0; i < 46; i++) { const x = r() * CW, y = 512 - Math.pow(r(), 1.6) * 250; leaf(x, y, 9 + r() * 7, r() * 6.3, ['rgb(118,78,40)', 'rgb(96,60,34)', 'rgb(132,96,48)'][r() * 3 | 0]); }
     for (let i = 0; i < 260; i++) { const x = r() * CW, y = 512 - Math.pow(r(), 1.3) * 300, g = 30 + r() * 50; leaf(x, y, 7 + r() * 7, (r() - 0.5) * 3, `rgb(${g * 0.5 | 0},${g | 0},${g * 0.46 | 0})`); if (r() < 0.3) dot(x, y - 3, 7 + r() * 9, 3 + r() * 3, SN(0.92)); } });
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16; return t;
+  const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16; return t;
 }
 
 function material() {

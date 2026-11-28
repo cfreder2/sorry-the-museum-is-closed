@@ -7,6 +7,7 @@
 // real composition.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import * as TX from './textures.js';
 import { Clay, cast } from './sculpt.js';
 import { figure } from './statues.js';
@@ -90,7 +91,7 @@ function windowTextures() {
   s.fillStyle = '#a4a8ae'; s.fillRect(0, H * 0.735, W, 5); s.fillRect(0, H * 0.95, W, H * 0.05);
   s.globalCompositeOperation = 'destination-out'; lights(s, W, H); s.fill('evenodd');
   s.restore();
-  const t = cv => { const x = new THREE.CanvasTexture(cv); x.colorSpace = THREE.SRGBColorSpace; x.anisotropy = 8; return x; };
+  const t = cv => { const x = new THREE.CanvasTexture(once(cv)); x.colorSpace = THREE.SRGBColorSpace; x.anisotropy = 8; return x; };
   return { glass: t(glass), stone: t(stone), still: glass };
 }
 
@@ -125,7 +126,7 @@ function herringbone() {
     }
   };
   for (let n = 0; n < 8; n++) { const x = ((n % 8) + 8) % 8 * B, y = n * B; board(x, y, false, 0.84 + r() * 0.28); board(x + L, y - 3 * B, true, 0.84 + r() * 0.28); }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+  const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
 
 // ------------------------------------------------------------------ build --
@@ -205,7 +206,7 @@ export function buildSetPieces(museum, plan) {
     if (south > 2) bays.push([d1 + 0.9, br.z1 - 0.5]);
     const dark = new THREE.MeshStandardMaterial({ color: 0x17181c, roughness: 0.6, emissive: 0x060608, emissiveIntensity: 0.5 });
     bays.forEach(([a, b], i) => {
-      const w = b - a, tex = new THREE.CanvasTexture(blueBay(Math.round(160 * w), Math.round(160 * H), 300 + i * 17)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+      const w = b - a, tex = new THREE.CanvasTexture(once(blueBay(Math.round(160 * w), Math.round(160 * H), 300 + i * 17))); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, H), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.25, 1.25, 1.35) })); m.position.set(x - 0.06, y0 + H / 2, (a + b) / 2); m.rotation.y = -Math.PI / 2; fix(m);
       // the iron armature: bars across, and uprights
       const bars = (n, vert) => { for (let k = 0; k <= n; k++) { const t = k / n, bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, vert ? H : 0.05, vert ? 0.05 : w), dark); bar.position.set(x - 0.09, vert ? y0 + H / 2 : y0 + t * H, vert ? a + t * w : (a + b) / 2); fix(bar); } };

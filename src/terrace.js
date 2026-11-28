@@ -12,13 +12,14 @@
 // tops, the toy fits between a table's legs and under its cloth. Bump a table and its glasses ring. Nothing is done per
 // frame unless the toy is up on the terrace.
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { feature } from './features.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { rng } from './textures.js';
 
 const canvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return c; };
 function texture(c, { repeat = true, srgb = true } = {}) {
-  const t = new THREE.CanvasTexture(c);
+  const t = new THREE.CanvasTexture(once(c));
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = 8;      // (mipmapped: power-of-two canvases)
   return t;

@@ -20,6 +20,7 @@
 // out of sight is not drawn), every pole, post, drum, barrier and plate in one, every lamp's glass in one, the glare in one.
 
 import * as THREE from 'three';
+import { once } from './budget.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { radial, plaster } from './textures.js';
@@ -61,6 +62,7 @@ class Mask {
     const t = new THREE.DataTexture(d, MW, MH, THREE.RGBAFormat, THREE.UnsignedByteType);
     t.colorSpace = THREE.NoColorSpace; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; t.needsUpdate = true;
     this.L = this.S = this.D = null;
+    once(t.image);      // (8 MB, only for the graphics card: on a phone let go once it is there, budget.js)
     return t;
   }
 }

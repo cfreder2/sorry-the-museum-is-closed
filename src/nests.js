@@ -18,6 +18,7 @@
 // while it is near. The grilles are always there, and few.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { Geo } from './geo.js';
@@ -163,7 +164,7 @@ function nestTex(kind) {
     for (let k = 0; k < 2600; k++) { const a = r() * 6.3, l = 4 + r() * 14, x = r() * 256, yy = r() * 256; c.strokeStyle = r() < 0.5 ? 'rgba(255,230,220,.35)' : 'rgba(160,80,80,.25)'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(x, yy); c.lineTo(x + Math.cos(a) * l, yy + Math.sin(a) * l); c.stroke(); }
     for (let x = 0; x < 256; x += 128) { c.fillStyle = 'rgba(90,60,40,.35)'; c.fillRect(x, 0, 6, 256); }      // the seams between batts
   }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
   return (_nt[kind] = t);
 }
 
@@ -399,7 +400,7 @@ feature({
       g.rotation.y = rnd() * 6.3; g.scale.setScalar(1.6);
       return g;
     }
-    const tex = new THREE.CanvasTexture(card(c)); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = new THREE.CanvasTexture(once(card(c))); tex.colorSpace = THREE.SRGBColorSpace;
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, color: new THREE.Color(0.75, 0.82, 0.75), side: THREE.DoubleSide });
     const w = 0.16, h = c.kind === 'photo' ? w * 600 / 520 : w * 560 / 520;
     const page = (dx, dz, ry, lift) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.rotation.set(-Math.PI / 2 + lift, 0, ry, 'YXZ'); m.rotation.order = 'XYZ'; m.position.set(dx, 0.006 + lift * 0.02, dz); g.add(m); return m; };
@@ -435,12 +436,12 @@ feature({
     // And on the top, at the back edge (the side a toy comes in by: the drawer faces the chair), a brass-edged name block, read from either side.
     { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const c = cv.getContext('2d');
       c.fillStyle = '#2a1a10'; c.fillRect(0, 0, 256, 64); c.strokeStyle = '#d2a043'; c.lineWidth = 5; c.strokeRect(4, 4, 248, 56); c.fillStyle = '#e8c27a'; c.font = 'bold 30px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('THE DIRECTOR', 128, 34);
-      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+      const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace;
       const mat = new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.35, roughness: 0.5 }), name = new THREE.Group();
       for (const s of [-1, 1]) { const q = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.075), mat); q.position.set(0, 0.04, s * 0.012); q.rotation.set(-s * 0.3, s < 0 ? Math.PI : 0, 0); name.add(q); }
       name.position.set(0, 0.775, -0.74); G.add(name); }
     // the folder in it, a green clip on it
-    const tex = new THREE.CanvasTexture(card(DESK)); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = new THREE.CanvasTexture(once(card(DESK))); tex.colorSpace = THREE.SRGBColorSpace;
     const folder = new THREE.Mesh(new THREE.PlaneGeometry(0.34 * 520 / 560, 0.34), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.85, 0.85, 0.8) }));
     folder.rotation.x = -Math.PI / 2; folder.position.set(0, 0.625, -0.22); drawer.add(folder);
     const clip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.006, 0.07), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 1.7, 0.7), toneMapped: false })); clip.position.set(0.14, 0.63, -0.36); drawer.add(clip);

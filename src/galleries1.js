@@ -15,6 +15,7 @@
 // user's rule): a glow goes on the wall round it or the floor below it, and the herring leaps from below the frame.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import * as TX from './textures.js';
 import { feature } from './features.js';
 
@@ -23,7 +24,7 @@ const TAU = Math.PI * 2;
 const ANIMAL = { rat: 0, ox: 2, tiger: 4, hare: 6, rabbit: 6, dragon: 8, snake: 10, serpent: 10, horse: 12, sheep: 14, ram: 14, goat: 14, monkey: 16, rooster: 18, cock: 18, bird: 18, dog: 20, boar: 22 };
 const HIRA = [0, 2, 3, 7, 8, 12, 14, 15];        // a koto's scale (hirajoshi), in semitones
 
-const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 const std = o => new THREE.MeshStandardMaterial({ roughness: 0.6, ...o });
 const midi = n => 440 * Math.pow(2, (n - 69) / 12);
 const art = (k, room, re) => { const st = k.museum.rooms[room]; return st ? st.arts.find(a => re.test(a.work.t || '') && !a.work.c) : null; };

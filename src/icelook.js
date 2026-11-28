@@ -17,6 +17,7 @@
 // Ten texture reads a pixel, no loops, no extra draw. The pictures are made once, here, by hand.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 
 const hash = (i, j, s) => { let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(s, 1274126177)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -56,7 +57,7 @@ function cracks() {
   for (let i = 0; i < 260; i++) { const x = r() * S, y = r() * S, a = r() * 6.283, l = 5 + r() * 28; path([[x, y], [x + Math.cos(a) * l, y + Math.sin(a) * l]], 0.8, `rgba(0,0,255,${0.15 + r() * 0.3})`); }
   c.globalCompositeOperation = 'source-over';
   { const img = c.getImageData(0, 0, S, S), d = img.data; for (let i = 0, k = 0; i < S * S; i++, k += 4) { d[k + 2] = Math.min(255, d[k + 2] + hash(i % S, (i / S) | 0, 3) * 46); d[k + 3] = 255; } c.putImageData(img, 0, 0); }      // frost: a grain on the surface
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
   return (CRACKS = t);
 }
 

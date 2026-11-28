@@ -23,6 +23,7 @@
 // still three or four draw calls and no two look stamped from the same sheet.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { heightOf, roomAt } from './plan.js';
 import { rng } from './textures.js';
 
@@ -59,7 +60,7 @@ export function moonDir(museum) {
   return v.normalize();
 }
 
-const canvasTex = (w, h, draw, o = {}) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = o.data ? THREE.NoColorSpace : THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+const canvasTex = (w, h, draw, o = {}) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(once(c)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = o.data ? THREE.NoColorSpace : THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
 
 // A sheet of birch-faced plywood, 1.22 m by 2.44 m (u across, v along): the face grain running the long way, a few
 // football patches, the dark line of the joint round it, and its screws: down both long edges and across at every rib.

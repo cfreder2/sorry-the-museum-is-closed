@@ -42,6 +42,7 @@
 //   G.finale.plan             plan.finale (src/finaleplan.js): silo, doors, shaft, pieces, setDoors/setPlatform/setCraft/setRamp.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature, features } from './features.js';
 import { CRAFT, DOOR } from './finaleplan.js';
@@ -62,7 +63,7 @@ const ease = t => t * t * (3 - 2 * t);
 const TAU = Math.PI * 2;
 const self = (hex, k = 0.28, o = {}) => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.7, metalness: 0.15, emissive: hex, emissiveIntensity: k, ...o });
 const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
-const canvas = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); draw(c, w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return { tex: t, ctx: c, cv, w, h }; };
+const canvas = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); draw(c, w, h); const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return { tex: t, ctx: c, cv, w, h }; };
 
 feature({
   id: 'finale',
@@ -812,6 +813,6 @@ function labelSheet() {
     cells[k] = { u0: x / SW, u1: (x + w) / SW, v0: 1 - (y + h) / SH, v1: 1 - y / SH, w, h };
     x += w;
   });
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const tex = new THREE.CanvasTexture(once(cv)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   return { tex, cells };
 }

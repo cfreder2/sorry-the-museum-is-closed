@@ -7,6 +7,7 @@
 // It is winter: the water is off, there is snow on every shoulder and ice where the water ran.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { Geo } from './geo.js';
@@ -167,7 +168,7 @@ export function buildStatues(museum, plan) {
   const needles = (() => { const cv = document.createElement('canvas'); cv.width = 128; cv.height = 32; const g = cv.getContext('2d'), r = TX.rng(61); g.fillStyle = '#1f5a30'; g.fillRect(0, 0, 128, 32);
     for (let i = 0; i < 700; i++) { const x = r() * 128, y = r() * 32, a = (r() - 0.5) * 1.6; g.strokeStyle = r() < 0.5 ? 'rgba(10,34,18,.7)' : 'rgba(70,130,80,.6)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 4, y + Math.sin(a) * 4); g.stroke(); }
     for (let i = 0; i < 90; i++) { g.fillStyle = 'rgba(240,246,255,.75)'; g.fillRect(r() * 128, r() * 10, 1 + r() * 2, 1); }      // snow caught on the top of it
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 1); return t; })();
+    const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 1); return t; })();
   const fir = std({ map: needles, roughness: 0.9, emissiveMap: needles, emissive: 0x4a6a50, emissiveIntensity: 0.55 }), bow = std({ color: 0xc8261c, roughness: 0.7, emissive: 0x6a100a, emissiveIntensity: 0.8 });
   plan.lions.forEach((l, i) => {
     const g = new THREE.Group(), B = l.h || 1.1, prowl = l.z < plan.facade.cz;          // north of the door
@@ -324,7 +325,7 @@ export function buildStatues(museum, plan) {
       const cv = document.createElement('canvas'); cv.width = cv.height = 256; const x = cv.getContext('2d'), rn = TX.rng(5);
       x.fillStyle = '#b9c1c9'; x.fillRect(0, 0, 256, 256);
       for (let i = 0; i < 900; i++) { x.strokeStyle = rn() > 0.5 ? `rgba(255,255,255,${0.1 + rn() * 0.3})` : `rgba(70,80,95,${0.08 + rn() * 0.22})`; x.lineWidth = 1 + rn() * 2; x.beginPath(); x.arc(rn() * 256, rn() * 256, 6 + rn() * 22, rn() * 6.28, rn() * 6.28 + 1 + rn() * 2.5); x.stroke(); }
-      const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+      const t = new THREE.CanvasTexture(once(cv)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
       const steel = std({ map: t, roughness: 0.32, metalness: 0.7, emissiveMap: t, emissive: 0x8a96a6, emissiveIntensity: 0.6 });
       const part = (w, h, d, px, py, pz, rz = 0, ry = 0) => { const m = put(g, box, steel, px, py, pz, w, h, d); m.rotation.set(0, ry, rz); return m; };
       part(1.15, 0.14, 0.9, 0, 0.07, 0);
@@ -347,7 +348,7 @@ export function buildStatues(museum, plan) {
         for (let p = 0; p < 4; p++) { const a = p * 1.5708 + 0.785; x.strokeStyle = 'rgba(240,212,170,0.55)'; x.lineWidth = 4; x.beginPath(); x.arc(cx + Math.cos(a) * 50, cy + Math.sin(a) * 50, 14, a + 2, a + 4.3); x.stroke(); }
       }
       for (let i = 0; i < 2500; i++) { x.fillStyle = rn() > 0.5 ? 'rgba(255,235,200,0.07)' : 'rgba(60,34,14,0.08)'; x.fillRect(rn() * 512, rn() * 512, 2 + rn() * 4, 2 + rn() * 4); }
-      const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+      const t = new THREE.CanvasTexture(once(cv)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
       const terra = std({ map: t, roughness: 0.85, emissiveMap: t, emissive: 0xb4ab9a, emissiveIntensity: 0.6, side: THREE.DoubleSide }), trimM = std({ color: 0xbfa27c, roughness: 0.85, emissive: 0x5e4c36, emissiveIntensity: 0.6 }), deep = std({ color: 0x8a6038, roughness: 0.9, emissive: 0x3e2812, emissiveIntensity: 0.6 });
       const a = new Geo(), tr = new Geo(), dp = new Geo(), X = 0.75, sp = 2.3, R = s.open, n = 20, U = 1.6;
       const fz = (x0, y0, y1, z0, z1, nx) => a.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [nx, 0, 0], [[z0 / U, y0 / U], [z1 / U, y0 / U], [z1 / U, y1 / U], [z0 / U, y1 / U]]);

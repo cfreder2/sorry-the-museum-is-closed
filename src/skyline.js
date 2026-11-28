@@ -7,7 +7,7 @@
 // Every building is drawn here by hand: silhouettes and lit windows, nothing copied from a photograph.
 
 import * as THREE from 'three';
-import { shrink } from './budget.js';
+import { shrink, once } from './budget.js';
 import { rng } from './textures.js';
 
 export const SPAN = 330, BELOW = 9;
@@ -100,7 +100,7 @@ export function lake(x0, x1, z0, z1, from, moon, bare = false) {
   // The moon's road: from the shore towards where the moon stands.
   const dx = moon.x - from.x, dz = moon.z - from.z, L = Math.hypot(dx, dz);
   for (let i = 0; i < 1500; i++) { const s = r() * 1.5, wob = (r() - 0.5) * (10 + s * 26), x = from.x + dx * s - dz / L * wob, z = from.z + dz * s + dx / L * wob; if (x < x0 || x > x1) continue; g.fillStyle = `rgba(215,228,255,${0.18 + r() * 0.5})`; g.fillRect(X(x), Z(z), 5 + r() * 12, 1.6); }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshBasicMaterial({ map: t, fog: false }));
   m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, 0.12, (z0 + z1) / 2);
   // A line of lamps along the drive on the shore, and the dark of the park's trees before it.
@@ -112,7 +112,7 @@ export function lake(x0, x1, z0, z1, from, moon, bare = false) {
   // Grant Park's bare trees, standing between the drive and the water.
   { const tw = 1024, tc = document.createElement('canvas'); tc.width = tw; tc.height = 64; const c = tc.getContext('2d'); c.fillStyle = '#04070d';
     for (let x = 0; x < tw; x += 2) { const hgt = 22 + r() * 26 + (r() < 0.08 ? 12 : 0); c.fillRect(x, 64 - hgt, 2 + r() * 3, hgt); }
-    const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace; tt.wrapS = THREE.RepeatWrapping; tt.repeat.set(4, 1);
+    const tt = new THREE.CanvasTexture(once(tc)); tt.colorSpace = THREE.SRGBColorSpace; tt.wrapS = THREE.RepeatWrapping; tt.repeat.set(4, 1);
     const trees = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, 7), new THREE.MeshBasicMaterial({ map: tt, transparent: true, alphaTest: 0.5, fog: false }));
     trees.rotation.y = -Math.PI / 2; trees.position.set(x0 - 2, 3.5, (z0 + z1) / 2); shore.add(trees); }
   return shore;

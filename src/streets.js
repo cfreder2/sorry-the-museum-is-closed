@@ -8,6 +8,7 @@
 // slabs, granite kerbs and their ramps, asphalt, paint, tracks, salt, ironwork) is made of streetscape.js's pieces.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Geo } from './geo.js';
 import { fitText, twoFaced, SANS } from './textures.js';
@@ -17,7 +18,7 @@ import { trafficLanes, STOP_BACK, TRACK_W, GeoLite, Kerbs, slabs, strip, fixture
 import { ParkedCars } from './parked.js';
 import { buildWinterRoads } from './winterroads.js';
 
-const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+const canvasTex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
 export function buildStreets(museum, plan) {
   const G = plan.grounds, F = plan.facade, B = plan.bounds, S = plan.street, L = plan.lakefront, O = plan.obstacles, group = museum.group;

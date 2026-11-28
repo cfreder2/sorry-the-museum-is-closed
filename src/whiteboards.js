@@ -11,6 +11,7 @@
 //   window.dispatchEvent(new CustomEvent('museum:board', { detail: { id, read } }))      read: how many different boards so far
 
 import * as THREE from 'three';
+import { once } from './budget.js';
 import { BOARD, plainText } from './boardtext.js';
 
 const KEY = 'after-hours.boards';
@@ -165,7 +166,7 @@ export class Whiteboards {
   _write(b, px = 512) {
     const cv = document.createElement('canvas'); cv.width = px; cv.height = Math.round(px * b.h / b.w); b.px = px;
     drawBoard(cv.getContext('2d'), cv.width, cv.height, b.lines, b.doodle, hash(b.id), !!(b.def && b.def.wrap));
-    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const tex = new THREE.CanvasTexture(once(cv)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;      // (written once: a new canvas if it is written again. On a phone let go once it is on the card, budget.js)
     b.tex = tex; b.mesh.material = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.8, 0.8, 0.8) }); this.live++;
   }
   // Each frame: boards near the camera are shown, and written if they have not been (one a frame); those left behind are wiped.

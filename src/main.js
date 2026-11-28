@@ -7,7 +7,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { FinishPass } from './finish.js';      // tone mapping, the grade, the vignette and the glow, kept off the works (src/finish.js)
-import { LOWMEM } from './budget.js';
+import { LOWMEM, keepOnCard, watch, settle, settled } from './budget.js';
 import { Streamer } from './stream.js';
 import { Baker } from './bake.js';
 import { buildPlan, roomAt, confine, onRoof, groundAt, stepLifts, wallAt, outsideShut, stripShut } from './plan.js';
@@ -101,6 +101,10 @@ const CULL = !params.has('nocull');      // what cannot be seen from where the c
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+keepOnCard(renderer);      // (a phone lets go of a canvas painted once when it is on the graphics card; with ?onecopy, of fixed vertices too. budget.js)
+// What a phone holds only on the graphics card is gone if the card is lost; when it is given back the page is loaded again,
+// from where it was saved (every few seconds of play). (Before, every frame after it threw.)
+if (LOWMEM) canvas.addEventListener('webglcontextrestored', () => location.reload());
 renderer.toneMappingExposure = 1.15;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x03040a);
@@ -154,7 +158,7 @@ const G = {
   t: 0, plan: null, museum: null, race: null, car: null, drone: null, vehicle: null,
   roomId: null, facing: null, study: null, camYaw: 0, lampOn: false,
   seen: [], told: new Set(), allLit: false, perched: new Set(), perchTotal: 0,
-  input, sound, camera, renderer, scene, mirror,
+  input, sound, camera, renderer, scene, mirror, settled,
 };
 const BUILD = '2026.11.25.39';          // the version: kept on every session and event recorded, so the numbers can be told apart. Bump it with every publish.
 const tm = G.tm = new Telemetry({ build: BUILD });
@@ -396,7 +400,7 @@ async function boot() {
     G.stream = new Streamer(renderer, G.museum.group, { near: LOWMEM ? 70 : 170, far: LOWMEM ? 85 : 195, out: LOWMEM ? 220 : 900, skip: o => art.has(o),
       inside: b => inRoom((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, b.min.y) && b.max.x - b.min.x < 40 && b.max.z - b.min.z < 40,
       indoors: p => inRoom(p.x, p.z, p.y) || (p === camera.position && !!G.roomId) });
-    G.stream.register(); }
+    G.stream.register(); watch(scene, true); }
 
   // (?cull) The table of what can be seen from where. Not with the streamer (a phone): the two would each have to know of the other.
   if (CULL) { try { const [m, r] = await Promise.all([import('./visible.js'), fetch('./data/pvs.json')]); if (r.ok) { G._pvs = await r.json(); G._Vis = m.Visibility; } else console.warn('visible: no data/pvs.json'); } catch (e) { console.warn('visible', e); } }      // (the code and the table are both fetched only with the word)
@@ -1688,7 +1692,7 @@ const diag = params.has('diag') ? (() => {
       `frames   ${Math.round(1000 / at(0.5))} a second · ${at(0.5).toFixed(1)} ms usual · ${at(0.95).toFixed(1)} ms one in twenty · ${at(1).toFixed(0)} ms worst · ${hitches} over 50 ms · display at least ${hz} Hz`,
       `drawn    ${calls} calls · ${(tris / 1e6).toFixed(2)} M triangles`,
       `quality  step ${quality.step} of 3 · glow ${bloom.enabled ? 'on' : 'off'} · floor reflections ${mirror.enabled ? 'on' : 'off'}`,
-      `budget   ${LOWMEM ? 'phone (' + why.join(', ') + ')' : 'computer'} · memory reported ${navigator.deviceMemory || '?'} GB`,
+      `budget   ${LOWMEM ? 'phone (' + why.join(', ') + ')' : 'computer'} · memory reported ${navigator.deviceMemory || '?'} GB${LOWMEM ? ((q => ` · held on the card only: ${(q.vertices / 1048576).toFixed(0)} MB of vertices, ${(q.canvas / 1048576).toFixed(0)} MB of canvas (read back ${q.readBack} times)`)(settled())) : ''}`,
       `input    pointer ${mq('(pointer: coarse)') ? 'coarse' : 'fine'}${mq('(any-pointer: coarse)') ? ', a touchscreen' : ''}${mq('(any-pointer: fine)') ? ', a mouse' : ''} · thumb controls ${input.usedTouch ? 'on' : 'off'} · gamepad ${pad ? pad.id + ' [' + (pad.mapping || 'not standard') + ']' : 'none seen (press a button on it)'}`,
       `script   ${js.toFixed(1)} ms for the test loop${js > 45 ? ' (slow: is the browser running JavaScript without its compiler?)' : ''}`,
       `state    ${G.state} · ${G.roomId || 'outdoors'} · ${G.vehicle ? G.vehicle.kind : ''}`,
@@ -1837,7 +1841,8 @@ function tick(now) {
   lampNear(dt);
   fitNear();
   if (G.bake) { G.bake.fresh = true; G.bake.state = G.state; if (G.state === 'play' && !G.cineEye && !G.cutscene && !stage.on && (!G._pvs || G.vis)) G.bake.specksAt(camera, renderer.domElement.height); else G.bake.specksAll(); }      // (what is too small to see: in play only)
-  if (G.stream) { G.stream.update(dt, camera.position); if ((G._reg = (G._reg || 0) + 1) % 600 === 0) G.stream.register(); }      // (and whatever was built since)
+  if (G.stream) { G.stream.update(dt, camera.position); if ((G._reg = (G._reg || 0) + 1) % 600 === 0) { G.stream.register(); watch(scene); } }      // (and whatever was built since; budget.js looks for new canvases a little at a time, in play only)
+  if (G.state === 'play') settle(renderer, dt);      // (a phone lets go of its copies of what has gone up to the graphics card: budget.js. Never in the opening or a load: nothing let go can then be asked for again there)
   // The world's matrices are brought up to date once a frame, here, not once for each time the scene is drawn (three.js walks
   // every object and works its matrix out again at every drawing: twice a frame, the floor's reflection and then the view).
   // Nothing is moved between the two but what moves itself as it is drawn (an onBeforeRender of its own: a mouse's halo steps

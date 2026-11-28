@@ -16,6 +16,7 @@
 // for the pools of light, one for the words on the signs. Nothing moves; nothing is worked out after start-up.
 
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { feature } from './features.js';
 import { parkLamps } from './land.js';
@@ -39,7 +40,7 @@ function signAtlas() {
   board('plaque', '#4a3a22', '#8a7040', (w) => { lines(['IN MEMORY OF THE ELMS'], w / 2, 48, 0, F(17), '#d8c28a'); lines(['that stood on this field', 'from 1909 to 1978', 'and of all who sat', 'under them'], w / 2, 82, 26, F(16, 400), '#d8c28a'); });
   board('kiosk', '#e9e2cc', '#7a2a22', (w) => { lines(['CLOSED FOR THE SEASON'], w / 2, 48, 0, F(34), '#7a2a22'); lines(['Back with the boats in May'], w / 2, 94, 0, F(22, 400), '#3a2a22'); });
   [['b0', 'Harbour'], ['b1', 'Band shell'], ['b2', 'Art Institute'], ['b3', 'Sled hill']].forEach(([k, t]) => board(k, '#1f4a36', null, (w, h) => { c.strokeStyle = '#d9d2b8'; c.lineWidth = 3; c.strokeRect(3, 3, w - 6, h - 6); lines([t], w / 2 - 12, h / 2 + 1, 0, F(30), '#efe8cf'); c.fillStyle = '#efe8cf'; c.beginPath(); c.moveTo(w - 14, h / 2); c.lineTo(w - 36, h / 2 - 12); c.lineTo(w - 36, h / 2 + 12); c.fill(); }));
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  const t = new THREE.CanvasTexture(once(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
 feature({
@@ -76,7 +77,7 @@ feature({
       // their pools of light, on the ground and (through the land's own map) on the banks that stand up through them
       if (D.lamps.length) {
         const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'), gr = c.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
-        const colour = new THREE.Color(0.5, 0.36, 0.2), pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), color: colour, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), D.lamps.length);
+        const colour = new THREE.Color(0.5, 0.36, 0.2), pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(once(cv)), color: colour, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), D.lamps.length);
         const Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
         D.lamps.forEach(([x, z], i) => pools.setMatrixAt(i, M.compose(new THREE.Vector3(x, yOf(x, z) + 0.04, z), Q, new THREE.Vector3(10, 10, 1))));
         pools.renderOrder = 4; pools.computeBoundingSphere(); g.add(pools);
@@ -184,6 +185,7 @@ feature({
     if (glow.length) { const m = new THREE.Mesh(mergeGeometries(glow.map(q => { q = q.index ? q.toNonIndexed() : q; q.deleteAttribute('uv'); return q; })), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 2.3, 1.3) })); m.matrixAutoUpdate = false; g.add(m); tris += m.geometry.attributes.position.count / 3; }
     if (faces.idx.length) { const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute(faces.pos, 3)); q.setAttribute('uv', new THREE.Float32BufferAttribute(faces.uv, 2)); q.setIndex(faces.idx);
       const m = new THREE.Mesh(q, new THREE.MeshBasicMaterial({ map: signAtlas(), color: new THREE.Color(0.62, 0.62, 0.66), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); m.matrixAutoUpdate = false; g.add(m); tris += faces.idx.length / 3; }
+    kit.length = glow.length = faces.pos.length = faces.uv.length = faces.idx.length = 0;      // (the pieces, merged: let go. A function made in here and kept would keep them all, some 5 MB)
     // (what the streets and the roads put out after the plan was made: anything of this standing in one of them is a mistake to hear about)
     const clash = [], mine = [...D.lamps, ...D.signs, ...D.fountains, ...D.racks, ...D.bollards, ...D.boulders, ...D.tables, ...D.salt, ...D.shrubs.map(s => [s.x, s.z]), ...plan.grounds.trees.filter(t => t.added).map(t => [t.x, t.z])];
     for (const f of [...(plan.parkFurniture || []), ...(plan.streetLights || [])]) for (const q of mine) if (Math.hypot(q[0] - f.x, q[1] - f.z) < 0.75 && !D.benches.some(b => b.x === f.x && b.z === f.z) && !D.bins.some(b => b[0] === f.x && b[1] === f.z)) clash.push([f.kind || 'light', f.x, f.z]);

@@ -6,6 +6,7 @@
 import { heightOf, groundAt, GRAVITY } from './plan.js';
 import { features } from './features.js';
 import { createLandway, VB } from './landway.js';
+import { LOWMEM } from './budget.js';
 
 const TAU = Math.PI * 2;
 const near = (a, b, e = 0.7) => Math.abs(a - b) < e;
@@ -910,7 +911,10 @@ export function createMap(G, { radarEl, show, resume, say, THREE, scene, wallAt 
     k.setTransform(ppm, 0, 0, ppm, -(B.x0 - pad) * ppm, -(B.z0 - pad) * ppm);
     k.textAlign = 'center'; k.textBaseline = 'middle';
     drawLevel(k, ly, 1 / ppm, false);
-    pic = { key, ly: Math.round(ly * 10), at: now, canvas: cv, x0: B.x0 - pad, z0: B.z0 - pad, ppm }; pics.set(ly, pic); return pic;
+    pic = { key, ly: Math.round(ly * 10), at: now, canvas: cv, x0: B.x0 - pad, z0: B.z0 - pad, ppm }; pics.delete(ly); pics.set(ly, pic);
+    // (A phone keeps the pictures of the last two storeys it was on, some 4 MB each: a third is drawn afresh when you get there.)
+    if (LOWMEM) for (const [k, q] of pics) { if (pics.size <= 2) break; if (k !== ly) { q.canvas.width = q.canvas.height = 0; pics.delete(k); } }
+    return pic;
   }
   function radar() {
     const v = G.vehicle, c = rc, W = radarEl.width, R = W / 2, s = W / 62;             // 62 m across

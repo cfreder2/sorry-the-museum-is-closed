@@ -11,6 +11,7 @@
 // stands in the lift's doorway, the ways round the tables or by the fireworks. The bunting, balloons and confetti are
 // instanced (phones). Nothing is done per frame unless the toy is up here.
 import * as THREE from 'three';
+import { once } from './budget.js';      // (a canvas painted once: on a phone it is let go once it is on the graphics card)
 import { feature } from './features.js';
 import { fitText, twoFaced, SANS, rng } from './textures.js';
 import { MOTIF_COLOURS } from './motif.js';
@@ -24,7 +25,7 @@ const GREEN = '#6dff9e', INK = '#1a2340';
 const PARTY = [...COLS, '#58f07a', '#ffffff'];               // bunting, balloons and confetti: the call's colours, alien green, white
 
 const canvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return c; };
-const tex = c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+const tex = c => { const t = new THREE.CanvasTexture(once(c)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
 // A painted board or cloth: lit a little from within, as everything on the terrace is, so it reads at night.
 const board = (c, o = {}) => { const t = tex(c); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, emissiveMap: t, emissive: new THREE.Color(0.78, 0.78, 0.78), emissiveIntensity: 0.62, alphaTest: o.alpha ? 0.5 : 0, side: o.side || THREE.FrontSide }); };
 
