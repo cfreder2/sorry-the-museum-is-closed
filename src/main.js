@@ -75,6 +75,7 @@ import './guards.js';
 import './staffvent.js';        // the bin yard round the back and the vent down to the staff entrance (src/ventplan.js)
 import './lobby.js';
 import './giftshop.js';
+import './bookshop.js';          // the books in the shop's south room, and its revolving racks
 import './butlerfield.js';
 import './parkdress.js';
 import './lightshow.js';

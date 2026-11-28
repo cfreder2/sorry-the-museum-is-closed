@@ -914,7 +914,10 @@ function picture(g, axis, c0, c1, y0, y1, at, t, r, plain) {             // a fr
   for (let i = 0; i < 2; i++) { const pw = w * (0.2 + r() * 0.4), ph = h * (0.2 + r() * 0.4), pu = c0 + f + r() * (w - pw), py = y0 + f + r() * (h - ph); B(pu, pu + pw, py, py + ph, 2 + i, pick(r, PAINT)); }
 }
 // Things on a shelf, from u0 to u1, standing on height y, no taller than hmax.
-function fill(g, u0, u1, y, d0, d1, hmax, r, kind) {
+// slots: if given, a box that would be drawn is noted there instead ([u0, u1, y, h, depth]) for somebody else to fill (the shop's
+// books, src/bookshop.js); the dice are thrown just the same, so the room furnishes as it did. (Round things are still drawn, and
+// noted with 'round' after them, so that whoever fills the rest knows where they stand.)
+function fill(g, u0, u1, y, d0, d1, hmax, r, kind, slots) {
   let u = u0 + 0.03;
   for (let n = 0; n < 24 && u < u1 - 0.1; n++) {
     let w = 0.3, h = 0.2, c = C.card, m = 'matte', dd = d1 - d0 - 0.06, round = false, gap = 0.02;
@@ -936,7 +939,8 @@ function fill(g, u0, u1, y, d0, d1, hmax, r, kind) {
     }
     if (u + w > u1 - 0.02) break;
     if (r() < (kind === 'books' ? 0.06 : 0.24)) { u += w + gap; continue; }
-    if (round) g.c(u + w / 2, y + h / 2, (d0 + d1) / 2, Math.min(w, dd) / 2, h, 'y', c, m, 6);
+    if (round) { g.c(u + w / 2, y + h / 2, (d0 + d1) / 2, Math.min(w, dd) / 2, h, 'y', c, m, 6); if (slots) slots.push([u, u + w, y, h, dd, 'round']); }
+    else if (slots) slots.push([u, u + w, y, h, dd]);
     else g.b(u, u + w, y, y + h, d0 + 0.03, d0 + 0.03 + dd, c, m);
     u += w + gap;
   }
@@ -1689,14 +1693,22 @@ def('pan', 0.9, 0.7, g => { g.q(0, 0.42, 0.36, 0.5, 0, 0.4, C.enamel); g.q(0, 0.
   for (const u of [-0.42, 0.42]) { g.c(u, 0.8, 0.3, 0.02, 0.6, 'd', C.steelL, 'metal', 6); g.c(u, 0.4, 0.02, 0.02, 0.8, 'y', C.steelL, 'metal', 6); } });
 def('handDryer', 0.4, 0.25, g => { g.b(-0.15, 0.15, 1.05, 1.5, 0, 0.2, C.steelL, 'metal', true); g.b(-0.1, 0.1, 1.05, 1.06, 0.05, 0.2, C.black, 'matte', true); });
 def('babyChange', 1.0, 0.15, g => { g.b(-0.45, 0.45, 0.9, 1.45, 0, 0.12, C.cream, 'matte', true); });
+// A shop's table: a pile of books here and there (src/bookshop.js lays the books: here they are only noted, [u, d, width, how many]),
+// a mug or two, and a riser in the middle with a book stood up on each side of it.
 def('displayTable', 2.0, 1.2, (g, w, r) => {
   g.bs(-0.95, 0.95, 0.1, 0.8, 0.08, 1.12, pick(r, [C.woodL, C.white, C.woodD])); g.b(-1, 1, 0.8, 0.84, 0.03, 1.17, C.woodL, 'matte', true); g.b(-0.9, 0.9, 0, 0.1, 0.13, 1.07, C.black);
-  for (let u = -0.85; u < 0.7; ) { const bw = 0.2 + r() * 0.2, n = 1 + Math.floor(r() * 5); for (const d of [0.32, 0.86]) if (r() < 0.9) { const c = pick(r, r() < 0.5 ? BOOKS : MERCH); r() < 0.25 ? g.c(u + bw / 2, 0.84 + 0.06, d, 0.05, 0.12, 'y', c, 'matte', 7) : g.q(u + bw / 2, d, bw, 0.3, 0.84, 0.84 + n * 0.035, c); } u += bw + 0.08; }
-  g.q(0, 0.6, 0.5, 0.2, 0.84, 1.2, C.woodL); g.q(0, 0.6, 0.4, 0.21, 0.9, 1.15, pick(r, MERCH)); g.s(-1, 1, 0.8, 1.2, 0.03, 1.17);
+  const piles = [];
+  for (let u = -0.85; u < 0.7; ) { const bw = 0.2 + r() * 0.2, n = 1 + Math.floor(r() * 5); for (const d of [0.32, 0.86]) if (r() < 0.9) { const c = pick(r, r() < 0.5 ? BOOKS : MERCH); r() < 0.25 ? g.c(u + bw / 2, 0.84 + 0.06, d, 0.05, 0.12, 'y', c, 'matte', 7) : piles.push([u + bw / 2, d, bw, n]); } u += bw + 0.08; }
+  g.q(0, 0.6, 0.5, 0.2, 0.84, 1.2, C.woodL); pick(r, MERCH); g.s(-1, 1, 0.8, 1.2, 0.03, 1.17);
+  g.mark('books', 0, 0, 0, { table: true, piles });
 });
-def('shopShelf', 1.2, 0.4, (g, w, r, o = {}) => { const e = w / 2; g.b(-e, e, 0, 2.2, 0, 0.02, C.woodL); for (const u of [-e, e - 0.025]) g.b(u, u + 0.025, 0, 2.2, 0, 0.4, C.woodL, 'matte', true); for (let y = 0.1; y < 2.0; y += 0.4) { g.b(-e, e, y - 0.025, y, 0, 0.4, C.woodL, 'matte', true); fill(g, -e + 0.03, e - 0.03, y, 0.02, 0.38, 0.34, r, o.k || 'merch'); } g.b(-e, e, 2.17, 2.2, 0, 0.4, C.woodL, 'matte', true); g.s(-e, e, 0, 2.2, 0, 0.4); });
+// A shop's shelving: what stands on it is only noted here (slots, as fill() leaves them), and src/bookshop.js puts books there:
+// spines in rows on the 'books' ones; on the 'merch' ones, a book stood face out or a pile, between the mugs.
+def('shopShelf', 1.2, 0.4, (g, w, r, o = {}) => { const e = w / 2, slots = []; g.b(-e, e, 0, 2.2, 0, 0.02, C.woodL); for (const u of [-e, e - 0.025]) g.b(u, u + 0.025, 0, 2.2, 0, 0.4, C.woodL, 'matte', true); for (let y = 0.1; y < 2.0; y += 0.4) { g.b(-e, e, y - 0.025, y, 0, 0.4, C.woodL, 'matte', true); fill(g, -e + 0.03, e - 0.03, y, 0.02, 0.38, 0.34, r, o.k || 'merch', slots); } g.b(-e, e, 2.17, 2.2, 0, 0.4, C.woodL, 'matte', true); g.s(-e, e, 0, 2.2, 0, 0.4); g.mark('books', 0, 0, 0, { stock: o.k || 'merch', slots, w: w - 0.05, back: 0.38 }); });
 def('posterBin', 0.8, 0.6, (g, w, r) => { g.bs(-0.38, 0.38, 0, 0.7, 0.03, 0.57, C.woodL); for (let i = 0; i < 12; i++) g.c(-0.3 + (i % 4) * 0.2, 0.75, 0.13 + Math.floor(i / 4) * 0.17, 0.04, 0.7 + r() * 0.3, 'y', r() < 0.6 ? C.white : pick(r, MERCH), 'matte', 6); g.s(-0.38, 0.38, 0.7, 1.25, 0.03, 0.57); });
-def('cardSpinner', 0.6, 0.6, (g, w, r) => { g.c(0, 0.02, 0.3, 0.25, 0.04, 'y', C.steelD, 'metal', 8); g.c(0, 0.9, 0.3, 0.02, 1.8, 'y', C.steelL, 'metal', 5); for (let y = 0.5; y < 1.7; y += 0.22) for (const [du, dd, a, b] of [[0, 0.17, 0.24, 0.01], [0, -0.17, 0.24, 0.01], [0.17, 0, 0.01, 0.24], [-0.17, 0, 0.01, 0.24]]) g.q(du, 0.3 + dd, a, b, y, y + 0.18, pick(r, MERCH)); g.s(-0.18, 0.18, 0, 1.8, 0.12, 0.48); });
+// A revolving book rack: the foot and the pole are drawn here; the rack that turns on it, and its books, are src/bookshop.js's.
+// (The dice for the cards it used to hold are still thrown, so the room furnishes as it did.)
+def('cardSpinner', 0.6, 0.6, (g, w, r) => { g.c(0, 0.02, 0.3, 0.25, 0.04, 'y', C.steelD, 'metal', 8); g.c(0, 0.9, 0.3, 0.02, 1.8, 'y', C.steelL, 'metal', 5); for (let y = 0.5; y < 1.7; y += 0.22) for (let i = 0; i < 4; i++) pick(r, MERCH); g.mark('bookRack', 0, 0.3, 0); g.s(-0.18, 0.18, 0, 1.8, 0.12, 0.48); });
 
 // ---- on the walls of a service corridor ----
 def('extinguisher', 0.4, 0.2, g => { g.c(0, 0.75, 0.1, 0.07, 0.5, 'y', C.red, 'metal', 8); g.c(0, 1.03, 0.1, 0.025, 0.08, 'y', C.black, 'matte', 6); g.b(-0.12, 0.12, 1.5, 1.72, 0, 0.012, C.red); g.b(-0.06, 0.06, 1.55, 1.67, 0.012, 0.014, C.white); g.s(-0.07, 0.07, 0.5, 1.07, 0.02, 0.18); });
