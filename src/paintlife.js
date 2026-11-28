@@ -69,6 +69,7 @@ import { feature } from './features.js';
 import { imageUrl } from './collection.js';
 import { parse } from './carols.js';
 import { LOWMEM } from './budget.js';
+import { GREEN, artSafe } from './probe.js';
 
 const TAU = Math.PI * 2;
 const MARGIN = 0.03;                 // the guard keeps this much clear round the canvas (metres)
@@ -766,13 +767,53 @@ function exposedCards(museum, arts) {
   pos.forEach(([p, q], i) => { m.setMatrixAt(i, M.compose(p, q, S.set(W, H, 1))); m.setColorAt(i, WHITE); });
   m.frustumCulled = false; m.renderOrder = 5;
   museum.group.add(m);
+  const ring = m.userData.outline = outlines(museum, arts);
   // One work's ring put out or lit again (src/entry.js: the work in the entrance hall has not been touched until the scan).
   m.userData.expose = (a, on) => {
     const i = at.get(a); if (i == null) return false;
     const [p, q] = pos[i]; m.setMatrixAt(i, on ? M.compose(p, q, S.set(W, H, 1)) : M.compose(p, q, S.set(0, 0, 0))); m.instanceMatrix.needsUpdate = true;
+    if (ring) ring.userData.show(a, on);
     a.exposed = !!on; if (museum._paint) museum._paint(a);
     return true;
   };
+  return m;
+}
+
+// And round the frame of every work the light has touched, on the wall behind it, the green the saucer leaves when it
+// scans the picture in the entrance hall (src/entry.js, surroundMaterial): a soft band hugging the frame all the way
+// round, breathing slowly (still when motion is reduced). Marked, as it were, for taking. Light added with probe.js's
+// artSafe(), so it can never land on a canvas, from any camera; the sheet lies a centimetre off the wall, behind the
+// frame and the canvas. One draw for all of them: each sheet knows its own frame's half size (aHalf).
+function outlines(museum, arts) {
+  const list = arts.filter(a => !a.obj && !a.mini && a.nx != null); if (!list.length) return null;
+  const MARGIN = 0.2, M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), ONE = new THREE.Vector3(1, 1, 1), ZERO = new THREE.Vector3(0, 0, 0), E = new THREE.Euler();
+  const geo = new THREE.PlaneGeometry(1, 1), half = new Float32Array(list.length * 2);
+  list.forEach((a, i) => { const fw = Math.max(0.05, a.frame || 0.1); half[i * 2] = a.w / 2 + fw; half[i * 2 + 1] = a.h / 2 + fw; });
+  geo.setAttribute('aHalf', new THREE.InstancedBufferAttribute(half, 2));
+  const U = { uK: { value: 1 }, uTime: { value: 0 }, uCol: { value: GREEN.clone() } };
+  const mat = artSafe(new THREE.ShaderMaterial({
+    uniforms: U,
+    vertexShader: /* glsl */`
+      attribute vec2 aHalf; varying vec2 vP; varying vec2 vH;
+      void main() { vH = aHalf; vP = position.xy * 2.0 * (aHalf + ${MARGIN.toFixed(2)}); gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(vP, 0.0, 1.0); }`,
+    fragmentShader: /* glsl */`
+      uniform float uK; uniform float uTime; uniform vec3 uCol; varying vec2 vP; varying vec2 vH;
+      void main() {
+        vec2 q = abs(vP) - vH; float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);       // metres outside the frame (less than 0: behind it)
+        float band = exp(-d * d / 0.0065) * smoothstep(-0.06, 0.0, d);
+        float s = atan(abs(vP.x) / vH.x, -vP.y / vH.y) / 3.14159265;                         // 0 at the bottom middle, 1 at the top middle
+        float shimmer = 0.85 + 0.15 * sin(s * 40.0 - uTime * 2.0);
+        gl_FragColor = vec4(uCol * band * 0.42 * shimmer * uK, 1.0);
+      }`,
+    polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+  }));
+  const m = new THREE.InstancedMesh(geo, mat, list.length), at = new Map();
+  const place = (i, on) => { const a = list[i]; P.set(a.x - a.nx * 0.028, a.y, a.z - a.nz * 0.028); E.set(0, Math.atan2(a.nx, a.nz), 0); Q.setFromEuler(E); m.setMatrixAt(i, M.compose(P, Q, on ? ONE : ZERO)); };
+  list.forEach((a, i) => { at.set(a, i); place(i, true); });
+  m.frustumCulled = false; m.renderOrder = 4; m.name = 'living-outlines';
+  museum.group.add(m);
+  m.userData.U = U;
+  m.userData.show = (a, on) => { const i = at.get(a); if (i == null) return; place(i, on); m.instanceMatrix.needsUpdate = true; };
   return m;
 }
 
@@ -828,6 +869,7 @@ feature({
     }
     if (this.exposed) {
       this.glowT = (this.glowT || 0) + dt; this.exposed.material.opacity = k.museum.calm ? GLOW : GLOW * (0.8 + 0.2 * Math.sin(this.glowT * 1.1));
+      const ol = this.exposed.userData.outline; if (ol) { const U = ol.userData.U; U.uTime.value = k.museum.calm ? 0 : this.glowT; U.uK.value = k.museum.calm ? 0.9 : 0.75 + 0.25 * Math.sin(this.glowT * 1.1); }
       // A work with something out of it (src/escapes.js): its label's glow flutters, paler and unsteady, till the thing is home.
       if (this.fluttering.size || this.fluttered) {
         const t = this.glowT; this.fluttered = this.fluttering.size > 0;
