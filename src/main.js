@@ -1341,11 +1341,24 @@ function steerHelp(v, inp, dt) {
     if (slope || G.plan.ramps.some(q => near(q, 2.5) && p.y > Math.min(q.y0, q.y1) - 0.5 && p.y < Math.max(q.y0, q.y1) + 0.8) || G.plan.lifts.some(q => near(q, 2.5))) { help.stuck = 0; help.back = 0; return; }
   }
   const sp = Math.hypot(v.vel.x, v.vel.z), vf = v.vel.x * Math.sin(v.yaw) + v.vel.z * Math.cos(v.yaw), reach = 0.55 + sp * 0.42;
+  // A pitched roof ahead (the glass and metal slopes up there: src/roofscape.js) stands taller than a wheel climbs a metre
+  // off, and is still no wall if the car can drive up onto it: the way to it is walked as the car walks it, carrying the
+  // height along. (Its kerb, or the glass face at its back, is still a wall.)
+  const climbs = (sx, sz, d) => {
+    const P = G.plan, was = P.under, x0 = v.pos.x, z0 = v.pos.z;
+    groundAt(P, x0 + sx * d, z0 + sz * d, v.pos.y + 5);
+    let ok = !!(P.under && P.under.pitched);
+    for (let i = 1, n = Math.ceil(d / 0.1), yy = v.pos.y; ok && i <= n; i++) {
+      const px = x0 + sx * d * i / n, pz = z0 + sz * d * i / n;
+      if (wallAt(P, px, pz, yy)) ok = false; else yy = Math.max(yy, groundAt(P, px, pz, yy));
+    }
+    P.under = was; return ok;
+  };
   const feel = a => {
     const sx = Math.sin(v.yaw + a), sz = Math.cos(v.yaw + a);
     for (const t of [0.35, 0.6, 0.8, 1]) {
       _probe.x = v.pos.x + sx * reach * t; _probe.y = v.pos.y + 0.1; _probe.z = v.pos.z + sz * reach * t;
-      if (wallAt(G.plan, _probe.x, _probe.z, v.pos.y) || confine(G.plan, _probe, 0.12, false, _push)) return t;
+      if ((wallAt(G.plan, _probe.x, _probe.z, v.pos.y) && !climbs(sx, sz, reach * t)) || confine(G.plan, _probe, 0.12, false, _push)) return t;
     }
     return 2;
   };

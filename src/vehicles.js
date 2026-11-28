@@ -563,7 +563,7 @@ export class Car {
     const sp = Math.hypot(this.vel.x, this.vel.z), sp0 = sp;
     let cs = 1, rise = 0, slope = 0;
     const on = this.on;
-    if (!this.air && on && on.axis && sp > 0.05) {
+    if (!this.air && on && (on.axis || on.pitched) && sp > 0.05) {
       // The slope of the piece under the wheels, measured along the way we are going.
       // Measured backwards when the next step would be off its end, so an edge is not mistaken for a cliff.
       const e = 0.05, ux = this.vel.x / sp, uz = this.vel.z / sp, px = this.pos.x, pz = this.pos.z;
@@ -583,7 +583,8 @@ export class Car {
     }
     // On a hill the ground pulls you down the slope, moving or not, whichever way you are pointing:
     // that is what makes it a hill. Let go of the stick on the side of one and you roll.
-    if (!this.air && on && on.hill) {
+    // (And on the glass and metal slopes of the roofs, `pitched`: src/roofscape.js.)
+    if (!this.air && on && (on.hill || on.pitched)) {
       const q = 0.3, px = this.pos.x, pz = this.pos.z, gx = (heightOf(on, px + q, pz) - heightOf(on, px - q, pz)) / (2 * q), gz = (heightOf(on, px, pz + q) - heightOf(on, px, pz - q)) / (2 * q);
       this.vel.x -= GRAVITY * 0.6 * gx * dt; this.vel.z -= GRAVITY * 0.6 * gz * dt;
     }
@@ -662,7 +663,7 @@ export class Car {
     // On a hill the test is how hard the ground is falling away, not how far: the car leaves it when the round of the hill
     // drops faster than the car can fall (by a clear margin, 4 m/s2), and that is the same test at any frame rate.
     // A fixed distance let it hop at thirty frames a second and never leave the ground at sixty.
-    const onHill = !this.air && on && on.hill && beneath && beneath.hill;
+    const onHill = !this.air && on && (on.hill || on.pitched) && beneath && (beneath.hill || beneath.pitched);      // (a pitched roof is left the same way)
     // A lift going down takes the car with it: the floor is not falling away, it is being lowered.
     // (To the very end: as the lift comes level with the floor at the foot of its shaft it is that floor which is found under
     // the wheels, not the lift, and the car was dropped the last step of the way: a hop and a nod at every arrival.)
@@ -709,7 +710,7 @@ export class Car {
       if (this.air) {
         this.air = false;
         const impact = Math.max(0, -this.vy);
-        const ffx = Math.sin(this.yaw), ffz = Math.cos(this.yaw), L = beneath && beneath.axis && !beneath.hill ? beneath : null;
+        const ffx = Math.sin(this.yaw), ffz = Math.cos(this.yaw), L = beneath && beneath.axis && !beneath.hill && !beneath.pitched ? beneath : null;
         // The slope where the wheels came down, along the way the car is pointing and along the ramp.
         let fwdTan = 0, axTan = 0;
         if (L) {
@@ -733,7 +734,7 @@ export class Car {
         // the ground turns one into the other, so touching down must turn it back, or every little hop over the round of a
         // hill costs speed and the car judders to a stop. What it has along the slope is its whole motion, fall and all,
         // laid along the slope: so a long drop onto a downhill side comes out as speed down the hill.
-        if (beneath && beneath.hill && !crash) {
+        if (beneath && (beneath.hill || beneath.pitched) && !crash) {      // (or on a pitched roof, which is landed on the same way)
           const q = 0.3, gx = (heightOf(beneath, this.pos.x + q, this.pos.z) - heightOf(beneath, this.pos.x - q, this.pos.z)) / (2 * q), gz = (heightOf(beneath, this.pos.x, this.pos.z + q) - heightOf(beneath, this.pos.x, this.pos.z - q)) / (2 * q);
           const vh = Math.hypot(this.vel.x, this.vel.z);
           if (vh > 0.05) {
@@ -755,7 +756,7 @@ export class Car {
         this.vert = null;
         // Carry straight on down the slope landed on, rather than skipping off it.
         this.vy = 0;
-        if (beneath && beneath.hill) {
+        if (beneath && (beneath.hill || beneath.pitched)) {
           const q = 0.3;
           this.vy = (heightOf(beneath, this.pos.x + q, this.pos.z) - heightOf(beneath, this.pos.x - q, this.pos.z)) / (2 * q) * this.vel.x + (heightOf(beneath, this.pos.x, this.pos.z + q) - heightOf(beneath, this.pos.x, this.pos.z - q)) / (2 * q) * this.vel.z;
         }

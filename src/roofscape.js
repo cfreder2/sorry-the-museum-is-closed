@@ -4,6 +4,12 @@
 //
 // A lantern over a gallery sits on the pane that was already there and is low enough to drive
 // over. Everything else that stands up is solid, and is only put where nothing else is.
+//
+// The glass and the metal slopes are roof like any other (plan.roofs): a toy drives up a slope,
+// rolls back down one it stops on, lands on any of them from a jump, and goes off the edges. Each
+// is a height over a rectangle (fn, which heightOf reads), standing solid on the roof below it
+// (base), and `pitched`: the car feels the fall of it, as it does a hill's (src/vehicles.js).
+// The plant and the cooling units are boxes, and stay solid.
 
 import * as THREE from 'three';
 import { Geo } from './geo.js';
@@ -25,11 +31,21 @@ export function buildRoofscape(museum, plan) {
   const dark = new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.7, emissive: 0x12151c, emissiveIntensity: 0.6 });
   const G = { glass: new Geo(), solar: new Geo(), metal: new Geo(), frame: new Geo(), dark: new Geo() };
 
+  // The slopes as ground, put with the roofs once everything has found its place (below). While it is being placed, each
+  // one's footprint stands in `solid` as a block, so that what comes after keeps off it exactly as it did when they were blocks.
+  const slopes = [], solid = [];
+  const pitched = (x0, x1, z0, z1, base, hi, fn) => slopes.push({ skin: 'pitch', pitched: true, roof: true, axis: 'pitch', x0, x1, z0, z1, h0: base, h1: hi, base, fn });
+  // The height of a hipped roof (hip(), below) on its kerb: the kerb's top all round, then each face rising from its own edge
+  // to the flat top. (A face runs in from its edge by k, and the hips between faces are at 45 degrees on plan: so the face a
+  // point is on is the one whose edge it is nearest.)
+  const hipAt = (x0, x1, z0, z1, y, rise) => { const k = Math.min(x1 - x0, z1 - z0) * 0.36; return (x, z) => y + rise * Math.max(0, Math.min(1, Math.min(x - x0, x1 - x, z - z0, z1 - z) / k)); };
+
   // Is this patch of roof free of the kit, the card table, the stall, and anything else solid up there?
   const busy = (x0, x1, z0, z1, y, m = 1.6) =>
     plan.surfaces.some(s => !s.hill && Math.max(s.h0 || 0, s.h1 || 0) > y - 1 && s.x0 < x1 + m && s.x1 > x0 - m && s.z0 < z1 + m && s.z1 > z0 - m)
     || plan.roofs.some(s => s.skin !== 'roof' && s.h0 > y - 1 && s.x0 < x1 + 0.3 && s.x1 > x0 - 0.3 && s.z0 < z1 + 0.3 && s.z1 > z0 - 0.3)
     || O.some(o => o.y1 > y + 0.1 && o.y0 < y + 3 && o.x0 < x1 + m && o.x1 > x0 - m && o.z0 < z1 + m && o.z1 > z0 - m)
+    || solid.some(o => o.y1 > y + 0.1 && o.y0 < y + 3 && o.x0 < x1 + m && o.x1 > x0 - m && o.z0 < z1 + m && o.z1 > z0 - m)
     || (plan.props || []).some(p => p.x > x0 - m && p.x < x1 + m && p.z > z0 - m && p.z < z1 + m && (p.y || 0) > y - 1)
     || (plan.skylights || []).some(k => k.x0 < x1 + m && k.x1 > x0 - m && k.z0 < z1 + m && k.z1 > z0 - m)
     || (plan.terrace && Math.hypot(plan.terrace.x - (x0 + x1) / 2, plan.terrace.z - (z0 + z1) / 2) < 16);
@@ -51,7 +67,14 @@ export function buildRoofscape(museum, plan) {
     const r = m.room; if (!r || r.kind === 'hall') continue;
     const top = m.top, w = m.x1 - m.x0, d = m.z1 - m.z0;
     // 1. Over a gallery's roof-light: a low glass lantern, on the pane.
-    if (m.glass) { const g = m.glass; hip(G.glass, g.x0 + 0.05, g.x1 - 0.05, g.z0 + 0.05, g.z1 - 0.05, top + 0.33, 0.42); kerb(g.x0, g.x1, g.z0, g.z1, top, 0.36, 0.12); continue; }
+    if (m.glass) {
+      const g = m.glass; hip(G.glass, g.x0 + 0.05, g.x1 - 0.05, g.z0 + 0.05, g.z1 - 0.05, top + 0.33, 0.42); kerb(g.x0, g.x1, g.z0, g.z1, top, 0.36, 0.12);
+      // The pane under it (plan.js, addRoofs) was a flat slab, and a car on it drove through the glass: it follows the glass
+      // now. Its own height (h0) stays the pane's, which is what anything asking how high the roof is here wants.
+      const pane = plan.roofs.find(s => s.skin === 'roofglass' && s.x0 === g.x0 && s.z0 === g.z0);
+      if (pane) { const at = hipAt(g.x0 + 0.05, g.x1 - 0.05, g.z0 + 0.05, g.z1 - 0.05, top + 0.33, 0.42); pane.fn = at; pane.pitched = true; pane.h1 = top + 0.75; }
+      continue;
+    }
     const whole = (m.roofs || []).length === 1 && Math.abs((m.roofs[0].x1 - m.roofs[0].x0) - w) < 0.2 && Math.abs((m.roofs[0].z1 - m.roofs[0].z0) - d) < 0.2;
     if (!whole || busy(m.x0, m.x1, m.z0, m.z1, top, 0.5)) continue;
     const long = Math.max(w, d), short = Math.min(w, d), east = m.x0 > plan.grounds.rail.x1;
@@ -62,7 +85,17 @@ export function buildRoofscape(museum, plan) {
       G.glass.quad([x0, top + 0.5, z1], [x1, top + 0.5, z1], [x1, top + H - 0.1, z1], [x0, top + H - 0.1, z1], [0, 0, 1], [[0, 0], [(x1 - x0) / 1.2, 0], [(x1 - x0) / 1.2, 1], [0, 1]]);
       G.frame.box(x0, x1, top, top + 0.5, z1 - 0.12, z1 + 0.02); G.frame.box(x0, x1, top + H - 0.1, top + H + 0.06, z1 - 0.2, z1 + 0.06);
       for (const x of [x0, x1]) G.frame.quad([x, top, z0], [x, top, z1], [x, top + H, z1], [x, top + 0.12, z0], [x === x0 ? -1 : 1, 0, 0]);
-      O.push({ x0: m.x0, x1: m.x1, z0: m.z0, z1: m.z1, y0: top, y1: top + H });
+      // Ground: up the metal from the low edge to the top of the glass, the far edge a 2.3 m drop. The low edge stands 12 cm
+      // off the roof, more than a wheel climbs: the slope is carried on down under the snow until it meets the roof, which is
+      // a little way past the edge of the block, over the roof of the block before it. Along the stretches with no roof of
+      // about this height before it (the edge of the building), it starts at the edge of the block, 6 cm up: a wheel climbs that.
+      // (Across the top the cap stands 6 cm proud for a hand's width: the slope runs on through it, a wheel's sink at most.)
+      const rise = (H - 0.12) / (z1 - z0), zs = z0 - 0.12 / rise, at = (x, z) => top + 0.12 + rise * (Math.min(z, z1 + 0.06) - z0);
+      const over = plan.roofs.filter(s => s.skin === 'roof' && Math.abs(s.h0 - top) < 0.1 && s.z0 <= zs && s.z1 >= zs && s.x1 > x0 && s.x0 < x1).map(s => [Math.max(x0, s.x0), Math.min(x1, s.x1)]).sort((p, q) => p[0] - q[0]);
+      let u = x0;
+      for (const [a, c] of over) { if (c <= u) continue; if (a > u) pitched(u, a, m.z0, z1 + 0.06, top, top + H + 0.02, at); pitched(Math.max(u, a), c, zs, z1 + 0.06, top, top + H + 0.02, at); u = c; }
+      if (u < x1) pitched(u, x1, m.z0, z1 + 0.06, top, top + H + 0.02, at);
+      solid.push({ x0: m.x0, x1: m.x1, z0: m.z0, z1: m.z1, y0: top, y1: top + H });
       done.push(m); continue;
     }
     // 3. Solar arrays on the long flat bays south of that.
@@ -77,7 +110,8 @@ export function buildRoofscape(museum, plan) {
       const alongZ = d > w, c = alongZ ? (m.x0 + m.x1) / 2 : (m.z0 + m.z1) / 2, hw = Math.min(1.5, short * 0.24), e = 3, y = top + 0.3;
       const b = alongZ ? [c - hw, c + hw, m.z0 + e, m.z1 - e] : [m.x0 + e, m.x1 - e, c - hw, c + hw];
       G.frame.box(b[0] - 0.1, b[1] + 0.1, top, y, b[2] - 0.1, b[3] + 0.1); hip(G.glass, b[0], b[1], b[2], b[3], y, 0.75, 0.8);
-      O.push({ x0: b[0] - 0.1, x1: b[1] + 0.1, z0: b[2] - 0.1, z1: b[3] + 0.1, y0: top, y1: y + 0.75 });
+      pitched(b[0] - 0.1, b[1] + 0.1, b[2] - 0.1, b[3] + 0.1, top, y + 0.75, hipAt(b[0], b[1], b[2], b[3], y, 0.75));      // its kerb is a hop up, then glass
+      solid.push({ x0: b[0] - 0.1, x1: b[1] + 0.1, z0: b[2] - 0.1, z1: b[3] + 0.1, y0: top, y1: y + 0.75 });
       done.push(m); continue;
     }
     // 5. On a big plain roof: rows of small lanterns, as on the Rice Building; or failing that, the plant.
@@ -86,7 +120,8 @@ export function buildRoofscape(museum, plan) {
       for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
         const cx = m.x0 + (i + 0.5) * w / nx, cz = m.z0 + (j + 0.5) * d / nz, b = d > w ? [cx - ld / 2, cx + ld / 2, cz - lw / 2, cz + lw / 2] : [cx - lw / 2, cx + lw / 2, cz - ld / 2, cz + ld / 2];
         G.frame.box(b[0] - 0.08, b[1] + 0.08, top, top + 0.3, b[2] - 0.08, b[3] + 0.08); hip(G.glass, b[0], b[1], b[2], b[3], top + 0.3, 0.7, 0.7);
-        O.push({ x0: b[0] - 0.08, x1: b[1] + 0.08, z0: b[2] - 0.08, z1: b[3] + 0.08, y0: top, y1: top + 1.0 });
+        pitched(b[0] - 0.08, b[1] + 0.08, b[2] - 0.08, b[3] + 0.08, top, top + 1.0, hipAt(b[0], b[1], b[2], b[3], top + 0.3, 0.7));
+        solid.push({ x0: b[0] - 0.08, x1: b[1] + 0.08, z0: b[2] - 0.08, z1: b[3] + 0.08, y0: top, y1: top + 1.0 });
       }
       done.push(m); continue;
     }
@@ -99,7 +134,8 @@ export function buildRoofscape(museum, plan) {
       done.push(m);
     }
   }
+  for (const s of slopes) plan.roofs.push(s);      // (into the collision grid's squares as any roof is: plan.js, sorted())
   const mats = { glass, solar, metal, frame, dark };
   for (const k in G) if (!G[k].empty) { const mesh = G[k].mesh(mats[k]); mesh.matrixAutoUpdate = false; mesh.updateMatrix(); group.add(mesh); }
-  return { count: done.length, solar: solarArrays };
+  return { count: done.length, solar: solarArrays, slopes };
 }
