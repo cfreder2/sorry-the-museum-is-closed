@@ -63,6 +63,20 @@ export class FloorMirror {
     if (!this.enabled) return;
     const p = this._p.setFromMatrixPosition(camera.matrixWorld);
     if (p.y <= y + 0.001) { this.strength.value = 0; return; }       // looking up at it from underneath: nothing to mirror
+    this.place(camera, y);
+    for (const m of floors) m.visible = false;
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(this.rt);
+    renderer.clear();
+    renderer.render(scene, this.cam);
+    renderer.setRenderTarget(prev);
+    for (const m of floors) m.visible = true;
+  }
+
+  // The second camera put where it will draw from, under the floor at height y, for `camera` as it stands now. (Also asked
+  // for before the frame is drawn, by src/visible.js, which works out what this camera can see: the same numbers either way.)
+  place(camera, y) {
+    const p = this._p.setFromMatrixPosition(camera.matrixWorld);
     const f = this._f.set(0, 0, -1).transformDirection(camera.matrixWorld);
     const u = this._u.set(0, 1, 0).transformDirection(camera.matrixWorld);
     const c = this.cam;
@@ -80,12 +94,6 @@ export class FloorMirror {
     q.set((Math.sign(cp.x) + e[8]) / e[0], (Math.sign(cp.y) + e[9]) / e[5], -1, (1 + e[10]) / e[14]);
     cp.multiplyScalar(2 / cp.dot(q));
     e[2] = cp.x; e[6] = cp.y; e[10] = cp.z + 1 - 0.003; e[14] = cp.w;
-    for (const m of floors) m.visible = false;
-    const prev = renderer.getRenderTarget();
-    renderer.setRenderTarget(this.rt);
-    renderer.clear();
-    renderer.render(scene, c);
-    renderer.setRenderTarget(prev);
-    for (const m of floors) m.visible = true;
+    return c;
   }
 }
